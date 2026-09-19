@@ -7,8 +7,8 @@ import asyncssh
 
 from app.adapters.catalog import CatalogNode, DirectoryNode, FileNode
 from app.adapters.content import NodeRepresentation
-from app.adapters.file.formats import MARKDOWN, TEXT, format_of
-from app.adapters.file.session import is_plain_name
+from app.adapters.explorer.formats import MARKDOWN, TEXT, format_of
+from app.adapters.explorer.storage import is_plain_name
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.ssh.session import Remote, SshSession
 

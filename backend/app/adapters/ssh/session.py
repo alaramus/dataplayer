@@ -31,7 +31,7 @@ from typing import Any
 import asyncssh
 
 from app.adapters.credentials import SigningKey
-from app.adapters.file.session import is_plain_name
+from app.adapters.explorer.storage import is_plain_name
 from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.registry import AdapterContext
 from app.adapters.ssh import keys

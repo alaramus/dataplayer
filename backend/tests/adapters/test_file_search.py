@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.file import search as search_module
-from app.adapters.file.search import FileSearch
-from app.adapters.file.session import FileSession
+from app.adapters.explorer import search as search_module
+from app.adapters.explorer.search import ExplorerSearch
+from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     DEFAULT_MATCHES,
@@ -28,12 +28,12 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def search(root: Path) -> FileSearch:
-    return FileSearch(FileSession(root))
+def search(root: Path) -> ExplorerSearch:
+    return ExplorerSearch(LocalStorage(root))
 
 
 async def _find(
-    search: FileSearch,
+    search: ExplorerSearch,
     query: str,
     *,
     node_id: str | None = None,
@@ -45,7 +45,7 @@ async def _find(
 
 
 async def test_a_name_is_matched_anywhere_below_the_level(
-    search: FileSearch,
+    search: ExplorerSearch,
 ) -> None:
     found = await _find(search, "notes")
 
@@ -59,7 +59,7 @@ async def test_a_name_is_matched_anywhere_below_the_level(
 
 
 async def test_the_match_is_case_insensitive_and_is_never_a_pattern(
-    search: FileSearch,
+    search: ExplorerSearch,
 ) -> None:
     """A person types words, not a language the source compiles."""
     upper = await _find(search, "NOTES")
@@ -70,7 +70,7 @@ async def test_the_match_is_case_insensitive_and_is_never_a_pattern(
     assert pattern.matches == []
 
 
-async def test_what_is_near_is_found_first(search: FileSearch) -> None:
+async def test_what_is_near_is_found_first(search: ExplorerSearch) -> None:
     """Breadth first, so a ceiling cuts the far end rather than a branch."""
     found = await _find(search, "notes", limit=1)
 
@@ -79,7 +79,7 @@ async def test_what_is_near_is_found_first(search: FileSearch) -> None:
     assert found.notice is not None
 
 
-async def test_a_match_says_where_it_was_found(search: FileSearch) -> None:
+async def test_a_match_says_where_it_was_found(search: ExplorerSearch) -> None:
     found = await _find(search, "NOTES.rst")
 
     match = found.matches[0]
@@ -87,7 +87,7 @@ async def test_a_match_says_where_it_was_found(search: FileSearch) -> None:
     assert match.location == "reports/drafts"
 
 
-async def test_a_match_at_the_top_has_no_place_to_name(search: FileSearch) -> None:
+async def test_a_match_at_the_top_has_no_place_to_name(search: ExplorerSearch) -> None:
     """The root is the connector, and it has no name of its own."""
     found = await _find(search, "notes.txt")
 
@@ -95,14 +95,14 @@ async def test_a_match_at_the_top_has_no_place_to_name(search: FileSearch) -> No
     assert found.matches[0].location == ""
 
 
-async def test_a_search_starts_where_it_was_asked_to(search: FileSearch) -> None:
+async def test_a_search_starts_where_it_was_asked_to(search: ExplorerSearch) -> None:
     found = await _find(search, "notes", node_id="reports")
 
     assert [match.node.name for match in found.matches] == ["q3-notes.md", "NOTES.rst"]
 
 
 async def test_a_found_node_is_the_node_the_listing_would_have_shown(
-    search: FileSearch,
+    search: ExplorerSearch,
 ) -> None:
     """One builder, so a row does not behave differently for being found."""
     found = await _find(search, "q4.csv")
@@ -115,14 +115,14 @@ async def test_a_found_node_is_the_node_the_listing_would_have_shown(
     assert node.summarizable is True
 
 
-async def test_folders_are_found_as_well_as_files(search: FileSearch) -> None:
+async def test_folders_are_found_as_well_as_files(search: ExplorerSearch) -> None:
     found = await _find(search, "drafts")
 
     assert [match.node.kind for match in found.matches] == ["directory"]
 
 
 async def test_a_walk_that_hit_a_ceiling_says_so_rather_than_looking_complete(
-    search: FileSearch, monkeypatch: pytest.MonkeyPatch
+    search: ExplorerSearch, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(search_module, "MAX_SCANNED", 1)
 
@@ -133,7 +133,7 @@ async def test_a_walk_that_hit_a_ceiling_says_so_rather_than_looking_complete(
 
 
 async def test_a_tree_deeper_than_the_ceiling_is_not_walked(
-    search: FileSearch, monkeypatch: pytest.MonkeyPatch
+    search: ExplorerSearch, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(search_module, "MAX_DEPTH", 1)
 
@@ -146,17 +146,17 @@ async def test_a_tree_deeper_than_the_ceiling_is_not_walked(
     assert found.notice is not None
 
 
-async def test_a_search_needs_something_to_look_for(search: FileSearch) -> None:
+async def test_a_search_needs_something_to_look_for(search: ExplorerSearch) -> None:
     with pytest.raises(ValueError):
         await _find(search, "   ")
 
 
-async def test_a_search_starts_in_a_folder(search: FileSearch) -> None:
+async def test_a_search_starts_in_a_folder(search: ExplorerSearch) -> None:
     with pytest.raises(ValueError):
         await _find(search, "notes", node_id="notes.txt")
 
 
-async def test_a_level_that_is_gone_is_not_found(search: FileSearch) -> None:
+async def test_a_level_that_is_gone_is_not_found(search: ExplorerSearch) -> None:
     with pytest.raises(NodeNotFound):
         await _find(search, "notes", node_id="nowhere")
 
@@ -164,7 +164,7 @@ async def test_a_level_that_is_gone_is_not_found(search: FileSearch) -> None:
 async def test_a_connector_whose_directory_is_missing_says_that(
     tmp_path: Path,
 ) -> None:
-    search = FileSearch(FileSession(tmp_path / "gone"))
+    search = ExplorerSearch(LocalStorage(tmp_path / "gone"))
 
     with pytest.raises(AdapterError):
         await _find(search, "notes")
@@ -174,7 +174,7 @@ async def test_a_connector_whose_directory_is_missing_says_that(
     "node_id", ["../secrets", "/etc", "C:/Windows", "reports/../.."]
 )
 async def test_a_level_outside_the_root_is_refused(
-    search: FileSearch, node_id: str
+    search: ExplorerSearch, node_id: str
 ) -> None:
     """The one containment rule, before a single entry is listed (D8)."""
     with pytest.raises(ValueError):
@@ -182,7 +182,7 @@ async def test_a_level_outside_the_root_is_refused(
 
 
 async def _look_inside(
-    search: FileSearch,
+    search: ExplorerSearch,
     query: str,
     *,
     node_id: str | None = None,
@@ -209,7 +209,7 @@ def written(root: Path) -> Path:
 async def test_the_words_are_found_inside_a_file_that_is_not_named_for_them(
     written: Path,
 ) -> None:
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     found = await _look_inside(search, "timeout")
 
@@ -222,7 +222,7 @@ async def test_the_words_are_found_inside_a_file_that_is_not_named_for_them(
 
 
 async def test_a_match_carries_the_line_it_was_found_on(written: Path) -> None:
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     found = await _look_inside(search, "TIMEOUT")
 
@@ -236,7 +236,7 @@ async def test_a_line_longer_than_the_ceiling_is_cut_rather_than_carried(
 ) -> None:
     """A log line or a minified document is one line and can be enormous."""
     (written / "wide.txt").write_text("x" * 5000 + "timeout\n", encoding="utf-8")
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     found = await _look_inside(search, "timeout")
 
@@ -250,7 +250,7 @@ async def test_a_line_longer_than_the_ceiling_is_cut_rather_than_carried(
 async def test_a_binary_file_is_not_searched_and_the_answer_says_so(
     written: Path,
 ) -> None:
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     found = await _look_inside(search, "timeout")
 
@@ -266,7 +266,7 @@ async def test_a_file_larger_than_the_ceiling_is_skipped(
     written: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(search_module, "MAX_FILE_BYTES", 8)
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     found = await _look_inside(search, "timeout")
 
@@ -278,7 +278,7 @@ async def test_a_search_that_read_too_much_stops_rather_than_running_on(
     written: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(search_module, "MAX_READ_BYTES", 1)
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     found = await _look_inside(search, "timeout")
 
@@ -287,7 +287,7 @@ async def test_a_search_that_read_too_much_stops_rather_than_running_on(
 
 
 async def test_reading_inside_starts_where_it_was_asked_to(written: Path) -> None:
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     found = await _look_inside(search, "timeout", node_id="archive")
 
@@ -298,14 +298,14 @@ async def test_a_level_outside_the_root_is_refused_when_reading_inside_too(
     written: Path,
 ) -> None:
     """One containment rule, and the second search goes through it as well."""
-    search = FileSearch(FileSession(written))
+    search = ExplorerSearch(LocalStorage(written))
 
     with pytest.raises(ValueError):
         await _look_inside(search, "timeout", node_id="../secrets")
 
 
 async def test_a_link_is_listed_where_it_matches_and_never_walked_into(
-    search: FileSearch, root: Path
+    search: ExplorerSearch, root: Path
 ) -> None:
     """An alias can point at its own parent, and a search is where a loop shows."""
     try:

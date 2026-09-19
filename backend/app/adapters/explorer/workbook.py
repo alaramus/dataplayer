@@ -19,8 +19,8 @@ from openpyxl.workbook import Workbook
 
 from app.adapters.cells import encode_cell
 from app.adapters.delimited import fit, usable_names
+from app.adapters.explorer.readers import Page, matcher, select
 from app.adapters.fetch import FetchColumn, Filter
-from app.adapters.file.readers import Page, matcher, select
 from app.adapters.relation import ColumnType
 
 # A workbook is a zip, so its size on disk says nothing about what opening it

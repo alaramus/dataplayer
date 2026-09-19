@@ -24,7 +24,7 @@ from pathlib import Path, PurePosixPath
 from typing import IO, Literal, cast
 
 from app.adapters.actions import ActionRefused
-from app.adapters.file.session import stays_inside_root
+from app.adapters.explorer.storage import stays_inside_root
 
 # The formats one may be made in. Every one of them is in the standard
 # library, and every one of them is something a person receives by email.

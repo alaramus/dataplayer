@@ -112,12 +112,16 @@ backend/app/adapters/
 │                       url.py (the address, both ways), samples.py (the
 │                       demonstration key space), options.py (a union by
 │                       auth_method), adapter.py (facade),
-├── file/               session.py (root and containment), catalog.py,
-│                       formats.py, members.py (a node inside a file),
-│                       readers.py, records.py, fetch.py, update.py,
-│                       content.py, binary.py, media.py, parquet.py,
-│                       workbook.py, archive.py, download.py, relation.py,
-│                       summary.py, search.py, actions.py, options.py,
-│                       adapter.py (facade)
+├── explorer/           a tree of files wherever it is kept (explorer.md):
+│                       storage.py (the contract a source brings),
+│                       explorer.py (facade), catalog.py, formats.py,
+│                       members.py (a node inside a file), readers.py,
+│                       records.py, fetch.py, update.py, content.py,
+│                       binary.py, media.py, parquet.py, workbook.py,
+│                       archive.py, packing.py, download.py, relation.py,
+│                       new_relation.py, query.py, summary.py, search.py,
+│                       actions.py
+├── file/               storage.py (the local disk: root and containment),
+│                       options.py, adapter.py (the explorer over it)
 └── ssh/                see ssh.md
 ```

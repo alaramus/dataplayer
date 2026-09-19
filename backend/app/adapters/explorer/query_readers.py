@@ -9,9 +9,9 @@ from typing import Literal
 import duckdb
 import pyarrow as pa
 
-from app.adapters.file.binary import bytes_look_binary
-from app.adapters.file.formats import FileFormat, format_of
-from app.adapters.file.readers import LogReader
+from app.adapters.explorer.binary import bytes_look_binary
+from app.adapters.explorer.formats import FileFormat, format_of
+from app.adapters.explorer.readers import LogReader
 from app.adapters.protocol import AdapterError
 
 # Arrow input lives outside DuckDB's memory limit. These ceilings apply across

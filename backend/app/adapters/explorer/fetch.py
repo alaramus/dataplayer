@@ -10,12 +10,11 @@ from typing import Any, Literal, assert_never
 
 from anyio import to_thread
 
-from app.adapters.fetch import FetchRequest, FetchResult
-from app.adapters.file import archive, parquet, workbook
-from app.adapters.file.binary import looks_binary
-from app.adapters.file.formats import format_of
-from app.adapters.file.members import ResolvedNode, resolve_node
-from app.adapters.file.readers import (
+from app.adapters.explorer import archive, parquet, workbook
+from app.adapters.explorer.binary import looks_binary
+from app.adapters.explorer.formats import format_of
+from app.adapters.explorer.members import ResolvedNode, resolve_node
+from app.adapters.explorer.readers import (
     FILE_FILTER_OPERATORS,
     CsvReader,
     JsonTableReader,
@@ -24,8 +23,9 @@ from app.adapters.file.readers import (
     Reader,
     TextReader,
 )
-from app.adapters.file.session import FileSession
-from app.adapters.file.update import encode_handle, file_version
+from app.adapters.explorer.storage import Storage
+from app.adapters.explorer.update import encode_handle
+from app.adapters.fetch import FetchRequest, FetchResult
 from app.core.config import settings
 
 CSV_READER = CsvReader()
@@ -36,9 +36,9 @@ LOG_READER = LogReader()
 TextualFormat = Literal["delimited", "json", "jsonl", "log", "text"]
 
 
-class FileFetch:
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+class ExplorerFetch:
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         # A file has no index to order by, and ordering one page of it would be
@@ -74,29 +74,34 @@ class FileFetch:
         )
 
     def _read(self, request: FetchRequest) -> tuple[Page, bool, str | None]:
-        resolved = resolve_node(self._session, request.node_id)
+        resolved = resolve_node(self._storage, request.node_id)
         if resolved.member is not None:
-            if format_of(resolved.path.name) == "archive":
-                # Expanded into a temporary file and read like any other, so a
-                # table inside an archive needs no second reader (D53). Paging
-                # expands it once per page, which is what the ceiling is for.
-                with archive.expanded(resolved.path, resolved.member) as entry:
-                    return self._read_path(entry, request, name=entry_name(resolved)), False, None
-            return self._sheet(resolved, request), False, None
+            with self._storage.local_file(resolved.place) as container:
+                if format_of(resolved.name) == "archive":
+                    # Expanded into a temporary file and read like any other,
+                    # so a table inside an archive needs no second reader
+                    # (D53). Paging expands it once per page, which is what
+                    # the ceiling is for.
+                    with archive.expanded(container, resolved.member) as entry:
+                        page = self._read_path(entry, request, name=entry_name(resolved))
+                        return page, False, None
+                return self._sheet(resolved, container, request), False, None
 
-        path = resolved.path
-        if not path.exists():
+        found = resolved.entry
+        if found is None:
             raise ValueError(f"No such file: {request.node_id}")
-        if path.is_dir():
+        if found.is_directory:
             raise ValueError(f"A directory cannot be read as rows: {request.node_id}")
-        before = file_version(path)
-        page = self._read_path(path, request, name=path.name)
+        place = resolved.place
+        before = self._storage.version(place)
+        with self._storage.local_file(place) as path:
+            page = self._read_path(path, request, name=place.name)
         editable = (
-            format_of(path.name) == "delimited"
-            and path.stat().st_size <= settings.MAX_UPLOAD_BYTES
+            format_of(place.name) == "delimited"
+            and found.size_bytes <= settings.MAX_UPLOAD_BYTES
             and len(page.columns) > 0
         )
-        after = file_version(path)
+        after = self._storage.version(place)
         if editable and before != after:
             raise ValueError("The file changed while this page was being read; reload it")
         return page, editable, after if editable else None
@@ -139,13 +144,15 @@ class FileFetch:
             case unreachable:
                 assert_never(unreachable)
 
-    def _sheet(self, resolved: ResolvedNode, request: FetchRequest) -> Page:
+    def _sheet(
+        self, resolved: ResolvedNode, path: Path, request: FetchRequest
+    ) -> Page:
         """One page of one worksheet, named by the member part of the id."""
         member = resolved.member
         if member is None or not member.isdigit():
             raise ValueError(f"No such sheet: {request.node_id}")
         return workbook.read_page(
-            resolved.path, int(member), request.limit, request.offset, request.filters
+            path, int(member), request.limit, request.offset, request.filters
         )
 
 

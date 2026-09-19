@@ -29,14 +29,14 @@ from app.adapters.actions import (
     JsonAction,
 )
 from app.adapters.catalog import NodeKind
-from app.adapters.file.actions import (
+from app.adapters.explorer.actions import (
     DeleteParams,
     DownloadParams,
     NameParams,
     RenameParams,
     UploadParams,
 )
-from app.adapters.file.session import is_plain_name
+from app.adapters.explorer.storage import is_plain_name
 from app.adapters.ssh.session import Remote, SshSession
 from app.core.access import Access
 from app.core.config import settings

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 
-from app.adapters.file.session import stays_inside_root
+from app.adapters.explorer.storage import stays_inside_root
 from app.adapters.layout import layout
 
 

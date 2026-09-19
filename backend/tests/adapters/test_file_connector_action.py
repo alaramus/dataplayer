@@ -5,10 +5,10 @@ import pytest
 from pydantic import ValidationError
 
 from app.adapters.actions import ActionRefused, PreparesConnector, TakesParams
-from app.adapters.file.actions import FileActions
+from app.adapters.explorer.actions import ExplorerActions
 from app.adapters.file.adapter import FileAdapter
 from app.adapters.file.options import FileOptions
-from app.adapters.file.session import FileSession
+from app.adapters.file.storage import LocalStorage
 from app.adapters.registry import AdapterContext
 
 
@@ -45,7 +45,7 @@ async def test_a_connector_draft_requires_an_existing_child_directory(
     tmp_path: Path, node_id: str | None
 ) -> None:
     (tmp_path / "notes.txt").write_text("kept", encoding="utf-8")
-    action = FileActions(FileSession(tmp_path)).action("connect_folder")
+    action = ExplorerActions(LocalStorage(tmp_path)).action("connect_folder")
     assert isinstance(action, PreparesConnector)
     with pytest.raises((ValueError, ActionRefused)):
         await action.prepare_connector(node_id, {})
@@ -53,7 +53,7 @@ async def test_a_connector_draft_requires_an_existing_child_directory(
 
 async def test_a_client_cannot_supply_the_draft_path(tmp_path: Path) -> None:
     (tmp_path / "reports").mkdir()
-    action = FileActions(FileSession(tmp_path)).action("connect_folder")
+    action = ExplorerActions(LocalStorage(tmp_path)).action("connect_folder")
     assert isinstance(action, PreparesConnector)
     with pytest.raises(ValidationError):
         await action.prepare_connector("reports", {"path": "elsewhere"})
@@ -84,7 +84,7 @@ async def test_a_draft_cannot_rebase_a_root_outside_the_owners_home(
     home = tmp_path / "home"
     home.mkdir()
     (tmp_path / "outside" / "reports").mkdir(parents=True)
-    actions = FileActions(FileSession(tmp_path / "outside", home_dir=home))
+    actions = ExplorerActions(LocalStorage(tmp_path / "outside", home_dir=home))
     action = actions.action("connect_folder")
     assert isinstance(action, PreparesConnector)
     with pytest.raises(ValueError, match="personal storage") as refused:
@@ -94,7 +94,7 @@ async def test_a_draft_cannot_rebase_a_root_outside_the_owners_home(
 
 async def test_a_path_that_options_would_trim_is_not_retargeted(tmp_path: Path) -> None:
     (tmp_path / " reports").mkdir()
-    action = FileActions(FileSession(tmp_path)).action("connect_folder")
+    action = ExplorerActions(LocalStorage(tmp_path)).action("connect_folder")
     assert isinstance(action, PreparesConnector)
     with pytest.raises(ActionRefused, match="start or end with spaces"):
         await action.prepare_connector(" reports", {})

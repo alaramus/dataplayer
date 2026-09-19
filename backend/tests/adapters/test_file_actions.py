@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from app.adapters.actions import ActionRefused, ActionResult, TakesFile, TakesParams
-from app.adapters.file.actions import FileActions
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.actions import ExplorerActions
+from app.adapters.file.storage import LocalStorage
 from tests.utils.files import look
 
 
@@ -18,8 +18,8 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def actions(root: Path) -> FileActions:
-    return FileActions(FileSession(root))
+def actions(root: Path) -> ExplorerActions:
+    return ExplorerActions(LocalStorage(root))
 
 
 class Upload:
@@ -35,7 +35,7 @@ class Upload:
 
 
 async def _run(
-    actions: FileActions, action_name: str, node_id: str | None, **params: object
+    actions: ExplorerActions, action_name: str, node_id: str | None, **params: object
 ) -> ActionResult:
     action = actions.action(action_name)
     assert isinstance(action, TakesParams)
@@ -43,7 +43,7 @@ async def _run(
 
 
 async def _upload(
-    actions: FileActions, node_id: str | None, payload: Upload, **params: object
+    actions: ExplorerActions, node_id: str | None, payload: Upload, **params: object
 ) -> ActionResult:
     action = actions.action("upload")
     assert isinstance(action, TakesFile)
@@ -54,7 +54,7 @@ async def _upload(
 
 
 async def test_a_directory_admits_creating_uploading_renaming_and_deleting(
-    actions: FileActions,
+    actions: ExplorerActions,
 ) -> None:
     names = {action.name for action in await actions.available("reports")}
 
@@ -71,7 +71,7 @@ async def test_a_directory_admits_creating_uploading_renaming_and_deleting(
     }
 
 
-async def test_a_file_admits_only_renaming_and_deleting(actions: FileActions) -> None:
+async def test_a_file_admits_only_renaming_and_deleting(actions: ExplorerActions) -> None:
     """Not extracting: a file that is not an archive is not one to expand."""
     names = {action.name for action in await actions.available("notes.txt")}
 
@@ -79,7 +79,7 @@ async def test_a_file_admits_only_renaming_and_deleting(actions: FileActions) ->
 
 
 async def test_the_root_of_the_connector_cannot_be_renamed_or_deleted(
-    actions: FileActions,
+    actions: ExplorerActions,
 ) -> None:
     """A question of state, not of kind: the root is an ordinary directory."""
     names = {action.name for action in await actions.available(None)}
@@ -88,7 +88,7 @@ async def test_the_root_of_the_connector_cannot_be_renamed_or_deleted(
 
 
 async def test_the_whole_vocabulary_is_offered_whatever_the_node(
-    actions: FileActions,
+    actions: ExplorerActions,
 ) -> None:
     """What the source can do at all, apart from what this node admits.
 
@@ -112,7 +112,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
 
 
 async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
-    actions: FileActions,
+    actions: ExplorerActions,
 ) -> None:
     by_name = {action.name: action.acts_on for action in await actions.all_actions()}
 
@@ -133,13 +133,13 @@ async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
     }
 
 
-async def test_a_node_outside_the_root_admits_nothing(actions: FileActions) -> None:
+async def test_a_node_outside_the_root_admits_nothing(actions: ExplorerActions) -> None:
     with pytest.raises(ValueError):
         await actions.available("../..")
 
 
 async def test_a_node_that_does_not_exist_admits_nothing(
-    actions: FileActions,
+    actions: ExplorerActions,
 ) -> None:
     with pytest.raises(ValueError):
         await actions.available("nowhere")
@@ -148,7 +148,7 @@ async def test_a_node_that_does_not_exist_admits_nothing(
 # --- create_folder -----------------------------------------------------------
 
 
-async def test_creating_a_folder_makes_it(actions: FileActions, root: Path) -> None:
+async def test_creating_a_folder_makes_it(actions: ExplorerActions, root: Path) -> None:
     result = await _run(actions, "create_folder", "reports", name="2026")
 
     assert (root / "reports" / "2026").is_dir()
@@ -156,7 +156,7 @@ async def test_creating_a_folder_makes_it(actions: FileActions, root: Path) -> N
 
 
 async def test_creating_a_folder_in_the_root_reloads_the_root(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     result = await _run(actions, "create_folder", None, name="inbox")
 
@@ -165,7 +165,7 @@ async def test_creating_a_folder_in_the_root_reloads_the_root(
 
 
 async def test_default_folder_names_are_numbered_when_taken(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     first = await _run(actions, "create_folder", None)
     second = await _run(actions, "create_folder", None)
@@ -178,7 +178,7 @@ async def test_default_folder_names_are_numbered_when_taken(
 
 @pytest.mark.parametrize("name", ["..", "../evil", "/etc", "C:", "a/b", ".", ""])
 async def test_a_folder_name_must_be_a_plain_name(
-    actions: FileActions, name: str
+    actions: ExplorerActions, name: str
 ) -> None:
     """The same rule that judges a path segment, not a second one."""
     with pytest.raises(ValueError):
@@ -189,7 +189,7 @@ async def test_a_folder_name_must_be_a_plain_name(
 
 
 async def test_creating_a_file_makes_an_empty_one(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     result = await _run(actions, "create_file", "reports", name="example.txt")
 
@@ -199,7 +199,7 @@ async def test_creating_a_file_makes_an_empty_one(
 
 
 async def test_creating_a_file_in_the_root_reloads_the_root(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     result = await _run(actions, "create_file", None, name="todo.md")
 
@@ -208,7 +208,7 @@ async def test_creating_a_file_in_the_root_reloads_the_root(
 
 
 async def test_a_file_over_a_taken_name_is_refused(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     """Not numbered like a folder: whoever named it refers to it by that name."""
     with pytest.raises(ActionRefused) as caught:
@@ -219,7 +219,7 @@ async def test_a_file_over_a_taken_name_is_refused(
     assert not (root / "notes (1).txt").exists()
 
 
-async def test_a_file_over_a_folder_name_is_refused(actions: FileActions) -> None:
+async def test_a_file_over_a_folder_name_is_refused(actions: ExplorerActions) -> None:
     with pytest.raises(ActionRefused) as caught:
         await _run(actions, "create_file", None, name="reports")
 
@@ -230,7 +230,7 @@ async def test_a_file_over_a_folder_name_is_refused(actions: FileActions) -> Non
     "name", ["..", "../evil.txt", "/etc/passwd", "C:evil.txt", "a/b.txt", ".", ""]
 )
 async def test_a_file_name_must_be_a_plain_name(
-    actions: FileActions, root: Path, name: str
+    actions: ExplorerActions, root: Path, name: str
 ) -> None:
     """The one containment rule, not a second one (D8)."""
     with pytest.raises(ValueError):
@@ -239,12 +239,12 @@ async def test_a_file_name_must_be_a_plain_name(
     assert not (root.parent / "evil.txt").exists()
 
 
-async def test_a_file_needs_a_name(actions: FileActions) -> None:
+async def test_a_file_needs_a_name(actions: ExplorerActions) -> None:
     with pytest.raises(ValueError):
         await _run(actions, "create_file", None)
 
 
-async def test_a_file_cannot_be_created_inside_a_file(actions: FileActions) -> None:
+async def test_a_file_cannot_be_created_inside_a_file(actions: ExplorerActions) -> None:
     with pytest.raises(ValueError):
         await _run(actions, "create_file", "notes.txt", name="x.txt")
 
@@ -253,7 +253,7 @@ async def test_a_file_cannot_be_created_inside_a_file(actions: FileActions) -> N
 
 
 async def test_renaming_a_file_moves_it_within_its_folder(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     result = await _run(actions, "rename", "reports/q3.csv", new_name="q4.csv")
 
@@ -263,21 +263,21 @@ async def test_renaming_a_file_moves_it_within_its_folder(
 
 
 async def test_renaming_a_folder_keeps_what_is_inside(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _run(actions, "rename", "reports", new_name="archive")
 
     assert (root / "archive" / "q3.csv").exists()
 
 
-async def test_renaming_onto_a_taken_name_is_refused(actions: FileActions) -> None:
+async def test_renaming_onto_a_taken_name_is_refused(actions: ExplorerActions) -> None:
     with pytest.raises(ActionRefused) as caught:
         await _run(actions, "rename", "reports", new_name="empty")
 
     assert caught.value.reason == "conflict"
 
 
-async def test_renaming_the_root_is_refused(actions: FileActions) -> None:
+async def test_renaming_the_root_is_refused(actions: ExplorerActions) -> None:
     with pytest.raises(ActionRefused) as caught:
         await _run(actions, "rename", None, new_name="somewhere")
 
@@ -286,7 +286,7 @@ async def test_renaming_the_root_is_refused(actions: FileActions) -> None:
 
 @pytest.mark.parametrize("new_name", ["../escaped", "/etc/passwd", "C:", "a/b"])
 async def test_a_new_name_cannot_leave_the_folder(
-    actions: FileActions, new_name: str
+    actions: ExplorerActions, new_name: str
 ) -> None:
     with pytest.raises(ValueError):
         await _run(actions, "rename", "notes.txt", new_name=new_name)
@@ -295,7 +295,7 @@ async def test_a_new_name_cannot_leave_the_folder(
 # --- delete ------------------------------------------------------------------
 
 
-async def test_deleting_a_file_removes_it(actions: FileActions, root: Path) -> None:
+async def test_deleting_a_file_removes_it(actions: ExplorerActions, root: Path) -> None:
     result = await _run(actions, "delete", "notes.txt")
 
     assert not (root / "notes.txt").exists()
@@ -303,7 +303,7 @@ async def test_deleting_a_file_removes_it(actions: FileActions, root: Path) -> N
 
 
 async def test_deleting_an_empty_folder_removes_it(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _run(actions, "delete", "empty")
 
@@ -311,14 +311,14 @@ async def test_deleting_an_empty_folder_removes_it(
 
 
 async def test_deleting_a_folder_removes_everything_inside_after_confirmation(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _run(actions, "delete", "reports")
 
     assert not (root / "reports").exists()
 
 
-async def test_deleting_the_root_is_refused(actions: FileActions, root: Path) -> None:
+async def test_deleting_the_root_is_refused(actions: ExplorerActions, root: Path) -> None:
     with pytest.raises(ActionRefused) as caught:
         await _run(actions, "delete", None)
 
@@ -326,7 +326,7 @@ async def test_deleting_the_root_is_refused(actions: FileActions, root: Path) ->
     assert await look(root.is_dir)
 
 
-async def test_deleting_outside_the_root_is_refused(actions: FileActions) -> None:
+async def test_deleting_outside_the_root_is_refused(actions: ExplorerActions) -> None:
     with pytest.raises(ValueError):
         await _run(actions, "delete", "../..")
 
@@ -334,7 +334,7 @@ async def test_deleting_outside_the_root_is_refused(actions: FileActions) -> Non
 # --- upload ------------------------------------------------------------------
 
 
-async def test_uploading_writes_the_file(actions: FileActions, root: Path) -> None:
+async def test_uploading_writes_the_file(actions: ExplorerActions, root: Path) -> None:
     result = await _upload(actions, "reports", Upload(b"id,name\n7,seven\n"))
 
     assert (root / "reports" / "uploaded.csv").read_text(encoding="utf-8") == (
@@ -344,7 +344,7 @@ async def test_uploading_writes_the_file(actions: FileActions, root: Path) -> No
 
 
 async def test_uploading_leaves_no_temporary_file_behind(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _upload(actions, None, Upload(b"body"))
 
@@ -353,7 +353,7 @@ async def test_uploading_leaves_no_temporary_file_behind(
 
 
 async def test_uploading_over_a_taken_name_is_refused(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     with pytest.raises(ActionRefused) as caught:
         await _upload(actions, "reports", Upload(b"new", filename="q3.csv"))
@@ -363,7 +363,7 @@ async def test_uploading_over_a_taken_name_is_refused(
 
 
 async def test_uploading_over_a_taken_name_is_allowed_when_asked(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _upload(
         actions,
@@ -376,7 +376,7 @@ async def test_uploading_over_a_taken_name_is_allowed_when_asked(
 
 
 async def test_uploading_over_a_taken_name_can_keep_both(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     (root / "reports" / "q3 (1).csv").write_text("older", encoding="utf-8")
 
@@ -393,7 +393,7 @@ async def test_uploading_over_a_taken_name_can_keep_both(
 
 @pytest.mark.parametrize("filename", ["../evil.txt", "/etc/passwd", "C:evil", "", None])
 async def test_the_name_of_an_uploaded_file_is_judged_like_a_path_segment(
-    actions: FileActions, filename: str | None
+    actions: ExplorerActions, filename: str | None
 ) -> None:
     """The filename comes from the client too, and gets the same rule."""
     with pytest.raises(ValueError):
@@ -406,7 +406,7 @@ async def test_uploading_more_than_the_ceiling_is_refused(
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "MAX_UPLOAD_BYTES", 8)
-    actions = FileActions(FileSession(root))
+    actions = ExplorerActions(LocalStorage(root))
 
     with pytest.raises(ActionRefused) as caught:
         await _upload(actions, None, Upload(b"x" * 64, filename="big.bin"))
@@ -416,6 +416,6 @@ async def test_uploading_more_than_the_ceiling_is_refused(
     assert await look(lambda: list(root.glob(".*"))) == []
 
 
-async def test_uploading_into_a_file_is_refused(actions: FileActions) -> None:
+async def test_uploading_into_a_file_is_refused(actions: ExplorerActions) -> None:
     with pytest.raises(ValueError):
         await _upload(actions, "notes.txt", Upload(b"body"))

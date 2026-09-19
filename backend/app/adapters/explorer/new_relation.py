@@ -13,16 +13,14 @@ already taken is refused rather than replaced.
 """
 
 import csv
-import os
-import tempfile
-from pathlib import Path
+from pathlib import PurePosixPath
 
 from anyio import to_thread
 
 from app.adapters.delimited import delimiter_of
-from app.adapters.file.catalog import node_of
-from app.adapters.file.formats import format_of
-from app.adapters.file.session import FileSession, is_plain_name
+from app.adapters.explorer.catalog import node_of
+from app.adapters.explorer.formats import format_of
+from app.adapters.explorer.storage import Storage, is_plain_name
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.relation import ColumnTypeOption
 from app.adapters.relation_changes import (
@@ -42,11 +40,11 @@ TEXT_COLUMN = ColumnTypeOption(code="text", title="Text", sql="text")
 DEFAULT_SUFFIX = ".csv"
 
 
-class FileNewRelations:
-    """The `create-relation` capability of the file source."""
+class ExplorerNewRelations:
+    """The `create-relation` capability of a tree of files."""
 
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
         return await to_thread.run_sync(self._options, parent_node_id)
@@ -60,10 +58,10 @@ class FileNewRelations:
         # Containment first, as every read of this source judges it (D8). The
         # root itself is a folder and is named by the empty id, which is what
         # a connector with no folders in it offers.
-        path = self._session.resolve(parent_node_id)
-        if not path.exists():
+        found = self._storage.entry(self._storage.place(parent_node_id))
+        if found is None:
             raise NodeNotFound(parent_node_id)
-        if not path.is_dir():
+        if not found.is_directory:
             return NewRelationOptions(
                 supported=False, reason="A table is written into a folder"
             )
@@ -77,22 +75,45 @@ class FileNewRelations:
             if column.type_code != TEXT_COLUMN.code:
                 raise ValueError(f'Unknown column type "{column.type_code}"')
 
-        parent = self._session.resolve(request.parent_node_id)
         name = filename_for(request.name)
-        target = parent / name
-        if target.exists():
+        target = self._storage.place(request.parent_node_id) / name
+        if self._storage.entry(target) is not None:
             raise ValueError(f"{name} is already there")
 
-        written = _write(
-            parent=parent,
-            name=name,
+        self._write(
+            target,
             header=[column.name for column in request.columns],
             rows=request.rows,
         )
-        node = node_of(self._session, written, written.name, written.stat(), False)
-        if node is None:  # pragma: no cover - the file was just written here
+        written = self._storage.entry(target)
+        if written is None:  # pragma: no cover - the file was just written here
             raise AdapterError("unknown", "The new file could not be described")
-        return RelationCreated(node=node, inserted=len(request.rows))
+        return RelationCreated(
+            node=node_of(self._storage, written), inserted=len(request.rows)
+        )
+
+    def _write(
+        self,
+        target: PurePosixPath,
+        header: list[str],
+        rows: list[list[str | None]],
+    ) -> None:
+        """Build the file beside its destination and claim the name with it.
+
+        Publishing claims the name rather than checking it: a second request
+        between the check above and this line fails here instead of replacing
+        what it wrote.
+        """
+        delimiter = delimiter_of(target.name, "")
+        with self._storage.staged(target, prefix=".csv-new-") as staged:
+            with staged.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter=delimiter, lineterminator="\n")
+                writer.writerow(header)
+                writer.writerows(rows)
+            try:
+                self._storage.publish(staged, target)
+            except FileExistsError:
+                raise ValueError(f"{target.name} is already there") from None
 
 
 def filename_for(name: str) -> str:
@@ -108,30 +129,3 @@ def filename_for(name: str) -> str:
     if format_of(plain) == "delimited":
         return plain
     return f"{plain}{DEFAULT_SUFFIX}"
-
-
-def _write(
-    parent: Path, name: str, header: list[str], rows: list[list[str | None]]
-) -> Path:
-    """Build the file beside its destination and link it into place.
-
-    `os.link` is what makes the name a claim rather than a check: a second
-    request between the check above and this line fails here instead of
-    replacing what it wrote.
-    """
-    delimiter = delimiter_of(name, "")
-    descriptor, temporary = tempfile.mkstemp(dir=parent, prefix=".csv-new-")
-    draft = Path(temporary)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-            writer = csv.writer(handle, delimiter=delimiter, lineterminator="\n")
-            writer.writerow(header)
-            writer.writerows(rows)
-        target = parent / name
-        try:
-            os.link(draft, target)
-        except FileExistsError:
-            raise ValueError(f"{name} is already there") from None
-        return target
-    finally:
-        draft.unlink(missing_ok=True)

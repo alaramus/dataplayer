@@ -5,12 +5,12 @@ from zipfile import ZipFile
 import pytest
 
 from app.adapters.actions import ActionDownload, ActionRefused, ProducesDownload
-from app.adapters.file.actions import FileActions
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.actions import ExplorerActions
+from app.adapters.file.storage import LocalStorage
 
 
 async def _download(root: Path, node_ids: list[str]) -> ActionDownload:
-    action = FileActions(FileSession(root)).action("download")
+    action = ExplorerActions(LocalStorage(root)).action("download")
     assert isinstance(action, ProducesDownload)
     return await action.download(node_ids, {})
 
@@ -65,7 +65,7 @@ async def test_several_nodes_download_as_one_archive(tmp_path: Path) -> None:
 async def test_an_archive_stops_at_its_source_byte_ceiling(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from app.adapters.file import download as file_download
+    from app.adapters.explorer import download as file_download
 
     (tmp_path / "folder").mkdir()
     (tmp_path / "folder" / "large.bin").write_bytes(b"1234")

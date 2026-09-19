@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Protocol, TextIO
 
 from app.adapters.delimited import delimiter_of, fit, usable_names
+from app.adapters.explorer import logs, records
 from app.adapters.fetch import FetchColumn, Filter, ScalarFilter
-from app.adapters.file import logs, records
 from app.adapters.relation import ColumnType
 
 # What a file may be asked about a value, and the whole of it (D109). Sorting

@@ -3,11 +3,10 @@
 import hashlib
 import io
 import os
-import tempfile
 from collections.abc import AsyncIterator, Iterator
 from functools import partial
 from json import JSONDecodeError
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, assert_never
 
 from anyio import to_thread
@@ -41,17 +40,17 @@ from app.adapters.content import (
     UpdateContentRequest,
     VideoContent,
 )
-from app.adapters.file import archive
-from app.adapters.file.binary import looks_binary
-from app.adapters.file.formats import (
+from app.adapters.explorer import archive
+from app.adapters.explorer.binary import looks_binary
+from app.adapters.explorer.formats import (
     format_of,
     offers_source,
     representations_inside_archive,
     representations_of,
 )
-from app.adapters.file.media import audio_facts, pdf_facts, video_facts
-from app.adapters.file.members import ResolvedNode, resolve_node
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.media import audio_facts, pdf_facts, video_facts
+from app.adapters.explorer.members import ResolvedNode, resolve_node
+from app.adapters.explorer.storage import Storage
 
 # A text viewer is a preview, not a download. Keeping the source path separate
 # lets a later download stream the original bytes without raising this bound.
@@ -93,18 +92,20 @@ IMAGE_MEDIA_TYPES: dict[str, ImageMediaType] = {
 }
 
 
-class FileContent:
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+class ExplorerContent:
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await to_thread.run_sync(self._read_node, request)
 
     def _read_node(self, request: ContentRequest) -> ContentResult:
         """One representation, whether the node is a file or inside one."""
-        entry = _archive_entry(self._session, request.node_id)
+        entry = _archive_entry(self._storage, request.node_id)
         if entry is None:
-            return self._read(self._session.resolve(request.node_id), request)
+            place = self._file_place(request.node_id)
+            with self._storage.local_file(place) as path:
+                return self._read(path, request, name=place.name)
         # An entry is expanded into a bounded temporary file and read by the
         # ordinary viewer, which is what lets every one of them work inside an
         # archive without a second implementation (D53).
@@ -116,8 +117,21 @@ class FileContent:
                 f'This entry does not offer the "{request.representation}" '
                 "representation"
             )
-        with archive.expanded(entry.path, name) as expanded:
+        with (
+            self._storage.local_file(entry.place) as container,
+            archive.expanded(container, name) as expanded,
+        ):
             return self._read(expanded, request, name=_entry_name(name))
+
+    def _file_place(self, node_id: str) -> PurePosixPath:
+        """The place of a node that is a file or a folder, never a member.
+
+        A sheet of a workbook has no bytes of its own to open, and is no file.
+        """
+        resolved = resolve_node(self._storage, node_id)
+        if resolved.member is not None:
+            raise ValueError(f"No such file: {node_id}")
+        return resolved.place
 
     async def read_editor_content(
         self, request: EditorContentRequest
@@ -132,11 +146,16 @@ class FileContent:
         read this connection" carries the reason (D48, D53). Refusing to show
         it at all would take the reading away with the writing.
         """
-        entry = _archive_entry(self._session, request.node_id)
+        entry = _archive_entry(self._storage, request.node_id)
         if entry is None:
-            return self._read_editor(self._session.resolve(request.node_id), request)
+            place = self._file_place(request.node_id)
+            with self._storage.local_file(place) as path:
+                return self._read_editor(path, request, name=place.name)
         member = entry.member or ""
-        with archive.expanded(entry.path, member) as expanded:
+        with (
+            self._storage.local_file(entry.place) as container,
+            archive.expanded(container, member) as expanded,
+        ):
             document = self._read_editor(
                 expanded, request, name=_entry_name(member)
             )
@@ -149,9 +168,7 @@ class FileContent:
         )
 
     async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
-        _refuse_inside_archive(self._session, request.node_id, "written")
-        path = self._session.resolve(request.node_id)
-        return await to_thread.run_sync(self._update, path, request)
+        return await to_thread.run_sync(self._update, request)
 
     async def preview_content(
         self, request: ContentRequest
@@ -159,13 +176,16 @@ class FileContent:
         return await to_thread.run_sync(self._preview, request)
 
     def _preview(self, request: ContentRequest) -> BoundedContentPreview:
-        entry = _archive_entry(self._session, request.node_id)
+        entry = _archive_entry(self._storage, request.node_id)
         if entry is None:
-            return self._read_image_preview(
-                self._session.resolve(request.node_id), request
-            )
+            place = self._file_place(request.node_id)
+            with self._storage.local_file(place) as path:
+                return self._read_image_preview(path, request, name=place.name)
         name = entry.member or ""
-        with archive.expanded(entry.path, name) as expanded:
+        with (
+            self._storage.local_file(entry.place) as container,
+            archive.expanded(container, name) as expanded,
+        ):
             return self._read_image_preview(
                 expanded, request, name=_entry_name(name)
             )
@@ -214,12 +234,13 @@ class FileContent:
 
     async def open_content_stream(self, request: ContentRequest) -> ContentStream:
         """Bytes a player or a reader takes part of, verified first (D52)."""
-        _refuse_inside_archive(self._session, request.node_id, "streamed")
-        path = self._session.resolve(request.node_id)
-        return await to_thread.run_sync(self._open_stream, path, request)
+        return await to_thread.run_sync(self._open_stream, request)
 
-    def _open_stream(self, path: Path, request: ContentRequest) -> ContentStream:
-        result = self._read(path, request)
+    def _open_stream(self, request: ContentRequest) -> ContentStream:
+        _refuse_inside_archive(self._storage, request.node_id, "streamed")
+        place = self._file_place(request.node_id)
+        with self._storage.local_file(place) as path:
+            result = self._read(path, request, name=place.name)
         if not isinstance(result, AudioContent | VideoContent | PdfContent):
             raise ValueError(
                 f'The "{request.representation}" representation is not streamed'
@@ -228,7 +249,7 @@ class FileContent:
             media_type=result.media_type,
             filename=result.filename,
             size_bytes=result.size_bytes,
-            read=partial(_range_chunks, path),
+            read=partial(_range_chunks, self._storage, place),
         )
 
     def _read_image_preview(
@@ -299,9 +320,12 @@ class FileContent:
             validation=validation,
         )
 
-    def _update(self, path: Path, request: UpdateContentRequest) -> ContentUpdated:
-        _require_editable_file(path, request.node_id)
-        current = path.read_bytes()
+    def _update(self, request: UpdateContentRequest) -> ContentUpdated:
+        _refuse_inside_archive(self._storage, request.node_id, "written")
+        place = self._file_place(request.node_id)
+        with self._storage.local_file(place) as path:
+            _require_editable_file(path, request.node_id, place.name)
+            current = path.read_bytes()
         if len(current) > MAX_EDITOR_BYTES:
             raise ValueError(
                 f"Files larger than {MAX_EDITOR_BYTES // (1024 * 1024)} MB "
@@ -320,8 +344,14 @@ class FileContent:
                 f"The edited content is larger than "
                 f"{MAX_EDITOR_BYTES // (1024 * 1024)} MB"
             )
-        _validate_replacement(path, request.text)
-        _replace_bytes(path, replacement)
+        _validate_replacement(place.name, request.text)
+        with self._storage.staged(place, prefix=".edit-") as staged:
+            with staged.open("wb") as handle:
+                handle.write(replacement)
+                handle.flush()
+                os.fsync(handle.fileno())
+            # Replaced in one step, keeping the file's own permissions.
+            self._storage.publish(staged, place, replace=True)
         return ContentUpdated(version=_version(replacement))
 
 
@@ -357,7 +387,9 @@ def _pdf_content(path: Path) -> PdfContent:
     )
 
 
-async def _range_chunks(path: Path, start: int, end: int) -> AsyncIterator[bytes]:
+async def _range_chunks(
+    storage: Storage, place: PurePosixPath, start: int, end: int
+) -> AsyncIterator[bytes]:
     """The inclusive range, in chunks, and never a byte past it.
 
     Opened per request rather than held open between them: a player asks for
@@ -365,7 +397,7 @@ async def _range_chunks(path: Path, start: int, end: int) -> AsyncIterator[bytes
     of those is its own HTTP request.
     """
     remaining = end - start + 1
-    handle = await to_thread.run_sync(path.open, "rb")
+    handle = await to_thread.run_sync(storage.open, place)
     try:
         await to_thread.run_sync(handle.seek, start)
         while remaining > 0:
@@ -380,21 +412,21 @@ async def _range_chunks(path: Path, start: int, end: int) -> AsyncIterator[bytes
         await to_thread.run_sync(handle.close)
 
 
-def _archive_entry(session: FileSession, node_id: str) -> ResolvedNode | None:
+def _archive_entry(storage: Storage, node_id: str) -> ResolvedNode | None:
     """The node as a member of an archive, or None when it is a file."""
-    resolved = resolve_node(session, node_id)
-    if resolved.member is None or format_of(resolved.path.name) != "archive":
+    resolved = resolve_node(storage, node_id)
+    if resolved.member is None or format_of(resolved.name) != "archive":
         return None
     return resolved
 
 
-def _refuse_inside_archive(session: FileSession, node_id: str, verb: str) -> None:
+def _refuse_inside_archive(storage: Storage, node_id: str, verb: str) -> None:
     """What an archive does not admit, said before anything is opened.
 
     Editing writes and streaming seeks, and an entry is neither writable nor
     seekable: it is expanded whole or not read at all (D53).
     """
-    if _archive_entry(session, node_id) is not None:
+    if _archive_entry(storage, node_id) is not None:
         raise ValueError(f"A file inside an archive cannot be {verb}")
 
 
@@ -638,8 +670,8 @@ def _version(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _validate_replacement(path: Path, text: str) -> None:
-    file_format = format_of(path.name)
+def _validate_replacement(name: str, text: str) -> None:
+    file_format = format_of(name)
     if file_format == "json":
         try:
             jsontext.load(text)
@@ -665,22 +697,6 @@ def _validate_replacement(path: Path, text: str) -> None:
                 raise ValueError(
                     f"Invalid JSON on line {line_number} ({exc})"
                 ) from None
-
-
-def _replace_bytes(path: Path, replacement: bytes) -> None:
-    """Write beside the file, preserve its mode, then replace it in one step."""
-    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=".edit-")
-    temp_path = Path(temporary)
-    try:
-        with os.fdopen(descriptor, "wb") as handle:
-            handle.write(replacement)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.chmod(temp_path, path.stat().st_mode)
-        os.replace(temp_path, path)
-    except BaseException:
-        temp_path.unlink(missing_ok=True)
-        raise
 
 
 def _json_value(value: Any) -> JsonValue:

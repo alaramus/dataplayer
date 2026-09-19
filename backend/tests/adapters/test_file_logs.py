@@ -9,11 +9,11 @@ from pathlib import Path
 import pytest
 
 from app.adapters.content import EditorContentRequest
-from app.adapters.file import logs
-from app.adapters.file.content import FileContent
-from app.adapters.file.formats import format_of, offers_source, representations_of
-from app.adapters.file.readers import LogReader
-from app.adapters.file.session import FileSession
+from app.adapters.explorer import logs
+from app.adapters.explorer.content import ExplorerContent
+from app.adapters.explorer.formats import format_of, offers_source, representations_of
+from app.adapters.explorer.readers import LogReader
+from app.adapters.file.storage import LocalStorage
 
 POSTGRES = (
     "2026-09-03 12:00:00.123 UTC [42] LOG:  database system is ready\n"
@@ -60,7 +60,7 @@ async def test_the_text_a_log_offers_is_text_it_will_actually_show(
     its first representation was text, and opening it answered that the file
     offered no source editing while its table worked."""
     _log(tmp_path, POSTGRES)
-    content = FileContent(FileSession(tmp_path))
+    content = ExplorerContent(LocalStorage(tmp_path))
 
     document = await content.read_editor_content(
         EditorContentRequest(node_id="server.log")

@@ -43,7 +43,7 @@ leaf has rows.
   off the file — there is no header to trust — by trying the first forty
   non-blank lines against each known shape and taking the one most of them fit.
   A shape is one regular expression whose named groups *are* its columns, so a
-  new one is an entry in `file/logs.py` and nothing else. Lines of JSON objects
+  new one is an entry in `explorer/logs.py` and nothing else. Lines of JSON objects
   are records and go to the projection above; a file that fits no shape is read
   as the numbered lines it is. Only `.log`: a `.txt` is as likely to be a note.
   SQL reuses this projection through the same View as table → Open as query

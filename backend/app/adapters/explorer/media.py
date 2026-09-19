@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import BinaryIO, assert_never
 
 from app.adapters.content import AudioMediaType, VideoMediaType
-from app.adapters.file.formats import format_of
+from app.adapters.explorer.formats import format_of
 
 # A PDF reader looks for the header in the first kilobyte rather than at byte
 # zero, because generators put junk in front of it. This does the same.

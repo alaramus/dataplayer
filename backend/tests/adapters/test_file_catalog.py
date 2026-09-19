@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from app.adapters.catalog import DirectoryNode, FileNode
-from app.adapters.file.catalog import MAX_ENTRIES, FileCatalog
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.catalog import MAX_ENTRIES, ExplorerCatalog
+from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import AdapterError, NodeNotFound
 
 
@@ -22,11 +22,11 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def catalog(root: Path) -> FileCatalog:
-    return FileCatalog(FileSession(root))
+def catalog(root: Path) -> ExplorerCatalog:
+    return ExplorerCatalog(LocalStorage(root))
 
 
-async def test_directories_come_before_files(catalog: FileCatalog) -> None:
+async def test_directories_come_before_files(catalog: ExplorerCatalog) -> None:
     children = await catalog.list_children(None)
 
     assert [child.name for child in children] == [
@@ -41,7 +41,7 @@ async def test_directories_come_before_files(catalog: FileCatalog) -> None:
 
 
 async def test_an_empty_directory_says_it_has_no_children(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     children = await catalog.list_children(None)
     empty = next(child for child in children if child.name == "empty")
@@ -50,14 +50,14 @@ async def test_an_empty_directory_says_it_has_no_children(
     assert empty.has_children is False
 
 
-async def test_a_directory_with_content_says_so(catalog: FileCatalog) -> None:
+async def test_a_directory_with_content_says_so(catalog: ExplorerCatalog) -> None:
     children = await catalog.list_children(None)
     reports = next(child for child in children if child.name == "reports")
 
     assert reports.has_children is True
 
 
-async def test_a_file_carries_its_size(catalog: FileCatalog, root: Path) -> None:
+async def test_a_file_carries_its_size(catalog: ExplorerCatalog, root: Path) -> None:
     children = await catalog.list_children(None)
     notes = next(child for child in children if child.name == "notes.txt")
 
@@ -77,7 +77,7 @@ async def test_a_file_carries_its_size(catalog: FileCatalog, root: Path) -> None
     ],
 )
 async def test_a_file_says_how_it_can_be_opened_in_preferred_order(
-    catalog: FileCatalog, name: str, representations: list[str]
+    catalog: ExplorerCatalog, name: str, representations: list[str]
 ) -> None:
     children = await catalog.list_children("reports" if name == "q3.csv" else None)
     node = next(child for child in children if child.name == name)
@@ -87,7 +87,7 @@ async def test_a_file_says_how_it_can_be_opened_in_preferred_order(
 
 
 async def test_a_delimited_file_declares_its_editable_structure(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     children = await catalog.list_children("reports")
     node = next(child for child in children if child.name == "q3.csv")
@@ -95,26 +95,26 @@ async def test_a_delimited_file_declares_its_editable_structure(
     assert node.describable is True
 
 
-async def test_a_node_id_is_relative_to_the_root(catalog: FileCatalog) -> None:
+async def test_a_node_id_is_relative_to_the_root(catalog: ExplorerCatalog) -> None:
     """Ids travel back to the client, so they must not name the server."""
     children = await catalog.list_children("reports")
 
     assert [child.id for child in children] == ["reports/q3.csv"]
 
 
-async def test_listing_a_file_is_refused(catalog: FileCatalog) -> None:
+async def test_listing_a_file_is_refused(catalog: ExplorerCatalog) -> None:
     with pytest.raises(ValueError):
         await catalog.list_children("notes.txt")
 
 
-async def test_listing_a_missing_node_is_refused(catalog: FileCatalog) -> None:
+async def test_listing_a_missing_node_is_refused(catalog: ExplorerCatalog) -> None:
     with pytest.raises(ValueError):
         await catalog.list_children("nowhere")
 
 
 async def test_a_missing_root_is_a_source_failure(tmp_path: Path) -> None:
     """Not a bad request: the connector points at a directory that is gone."""
-    catalog = FileCatalog(FileSession(tmp_path / "not-there"))
+    catalog = ExplorerCatalog(LocalStorage(tmp_path / "not-there"))
 
     with pytest.raises(AdapterError):
         await catalog.list_children(None)
@@ -126,14 +126,14 @@ async def test_too_many_entries_fail_instead_of_being_cut_short(
     """Silently truncating is the lie the old catalog told."""
     for index in range(MAX_ENTRIES + 1):
         (tmp_path / f"file-{index:05d}.txt").write_text("x")
-    catalog = FileCatalog(FileSession(tmp_path))
+    catalog = ExplorerCatalog(LocalStorage(tmp_path))
 
     with pytest.raises(AdapterError, match="pagination"):
         await catalog.list_children(None)
 
 
 async def test_path_to_a_nested_file_names_every_directory_above_it(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     path = await catalog.path_to("reports/q3.csv")
 
@@ -146,7 +146,7 @@ async def test_path_to_a_nested_file_names_every_directory_above_it(
 
 
 async def test_path_to_a_file_in_the_root_is_the_file_alone(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     """The root is the connector itself and is never a step of the path."""
     path = await catalog.path_to("notes.txt")
@@ -155,7 +155,7 @@ async def test_path_to_a_file_in_the_root_is_the_file_alone(
 
 
 async def test_path_to_a_directory_ends_with_that_directory(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     path = await catalog.path_to("reports")
 
@@ -165,7 +165,7 @@ async def test_path_to_a_directory_ends_with_that_directory(
 
 
 async def test_path_to_something_that_is_not_there_is_not_found(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     with pytest.raises(NodeNotFound):
         await catalog.path_to("reports/q4.csv")
@@ -175,7 +175,7 @@ async def test_path_to_something_that_is_not_there_is_not_found(
     "node_id", ["../outside", "/etc/passwd", "C:/Windows", "reports/../../outside"]
 )
 async def test_path_to_a_node_outside_the_root_is_refused(
-    catalog: FileCatalog, node_id: str
+    catalog: ExplorerCatalog, node_id: str
 ) -> None:
     """The same containment rule as everything else, not a second one."""
     with pytest.raises(ValueError):

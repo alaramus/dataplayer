@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
-from app.adapters.file.session import stays_inside_root
+from app.adapters.explorer.storage import stays_inside_root
 
 # The same number D49 refuses to build an archive past. Listing inflates
 # nothing, so this is about how many nodes the catalog would have to carry.

@@ -16,16 +16,16 @@ a file larger than a ceiling is skipped, one that looks binary is skipped, and
 the whole search stops after so many bytes however many files that took.
 """
 
-import os
+import io
 from collections import deque
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import PurePosixPath
 
 from anyio import to_thread
 
-from app.adapters.file.binary import looks_binary
-from app.adapters.file.catalog import node_from_entry
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.binary import SNIFF_BYTES, bytes_look_binary
+from app.adapters.explorer.catalog import node_of
+from app.adapters.explorer.storage import Entry, Storage, node_id_of
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     MAX_EXCERPT_CHARACTERS,
@@ -54,16 +54,16 @@ MAX_READ_BYTES = 256 * 1024 * 1024
 class _Level:
     """One folder waiting to be looked at, and how far down it is."""
 
-    path: Path
+    place: PurePosixPath
     node_id: str | None
     depth: int
 
 
-class FileSearch:
-    """The `catalog/search` capability of the file source."""
+class ExplorerSearch:
+    """The `catalog/search` capability of a tree of files."""
 
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
         return await to_thread.run_sync(self._search, request)
@@ -77,8 +77,9 @@ class FileSearch:
     ) -> NodeSearchResult:
         # Containment is judged before anything is listed, as it is for every
         # other read of this source (D8).
-        start = self._session.resolve(request.node_id)
-        if not start.exists():
+        start = self._storage.place(request.node_id)
+        found = self._storage.entry(start)
+        if found is None:
             # The same two answers the listing gives: the root missing is the
             # connector being wrong, a node missing is a node being gone.
             if request.node_id is None:
@@ -86,7 +87,7 @@ class FileSearch:
                     "config", "The directory of this connector does not exist"
                 )
             raise NodeNotFound(request.node_id)
-        if not start.is_dir():
+        if not found.is_directory:
             raise ValueError("A search starts in a folder")
 
         needle = request.query.strip().casefold()
@@ -103,83 +104,74 @@ class FileSearch:
         deepest = False
         unread = 0
         queue: deque[_Level] = deque(
-            [_Level(path=start, node_id=request.node_id or None, depth=0)]
+            [_Level(place=start, node_id=request.node_id or None, depth=0)]
         )
 
         while queue:
             level = queue.popleft()
             try:
-                with os.scandir(level.path) as entries:
-                    for entry in entries:
-                        scanned += 1
-                        if scanned > MAX_SCANNED:
-                            return _stopped(
-                                matches,
-                                f"More than {MAX_SCANNED:,} entries were looked "
-                                "at; the search stopped there",
-                            )
-
-                        # The name decides first, and only a match is built
-                        # into a node: describing every entry of a hundred
-                        # thousand would cost a stat and a listing each, to
-                        # answer a question a string comparison answers.
-                        excerpt: str | None = None
-                        found = False
-                        if inside:
-                            if read_bytes > MAX_READ_BYTES:
-                                return _stopped(
-                                    matches,
-                                    f"More than {MAX_READ_BYTES // (1024 * 1024)} MB "
-                                    "was read; the search stopped there",
-                                )
-                            looked = _look_inside(entry, needle)
-                            if looked is _UNREADABLE:
-                                unread += 1
-                            elif looked is not None:
-                                found = True
-                                excerpt = looked
-                            read_bytes += _size_of(entry)
-                        else:
-                            found = needle in entry.name.casefold()
-
-                        if found:
-                            node = node_from_entry(self._session, entry)
-                            # None is a link out of the root, or an entry that
-                            # has gone since the listing began.
-                            if node is not None:
-                                matches.append(
-                                    NodeMatch(
-                                        node=node,
-                                        parent_id=level.node_id,
-                                        location=level.node_id or "",
-                                        excerpt=excerpt,
-                                    )
-                                )
-                                if len(matches) == request.limit:
-                                    return _stopped(
-                                        matches,
-                                        f"The first {request.limit} matches; "
-                                        "there may be more",
-                                    )
-
-                        if not _walkable(entry):
-                            continue
-                        if level.depth + 1 > MAX_DEPTH:
-                            deepest = True
-                            continue
-                        child = Path(entry.path)
-                        queue.append(
-                            _Level(
-                                path=child,
-                                node_id=self._session.relative_id(child),
-                                depth=level.depth + 1,
-                            )
-                        )
+                entries = self._storage.entries(level.place)
             except OSError:
                 # A folder that cannot be read is not a failed search: the rest
                 # of the tree is still an answer, and this one is left out the
-                # way the listing leaves out what it cannot stat.
+                # way the listing leaves out what it cannot describe.
                 continue
+            for entry in entries:
+                scanned += 1
+                if scanned > MAX_SCANNED:
+                    return _stopped(
+                        matches,
+                        f"More than {MAX_SCANNED:,} entries were looked "
+                        "at; the search stopped there",
+                    )
+
+                excerpt: str | None = None
+                matched = False
+                if inside:
+                    if read_bytes > MAX_READ_BYTES:
+                        return _stopped(
+                            matches,
+                            f"More than {MAX_READ_BYTES // (1024 * 1024)} MB "
+                            "was read; the search stopped there",
+                        )
+                    looked = self._look_inside(entry, needle)
+                    if looked is _UNREADABLE:
+                        unread += 1
+                    elif looked is not None:
+                        matched = True
+                        excerpt = looked
+                    if not entry.is_directory:
+                        read_bytes += entry.size_bytes
+                else:
+                    matched = needle in entry.name.casefold()
+
+                if matched:
+                    matches.append(
+                        NodeMatch(
+                            node=node_of(self._storage, entry),
+                            parent_id=level.node_id,
+                            location=level.node_id or "",
+                            excerpt=excerpt,
+                        )
+                    )
+                    if len(matches) == request.limit:
+                        return _stopped(
+                            matches,
+                            f"The first {request.limit} matches; there may be more",
+                        )
+
+                if not _walkable(entry):
+                    continue
+                if level.depth + 1 > MAX_DEPTH:
+                    deepest = True
+                    continue
+                queue.append(
+                    _Level(
+                        place=entry.place,
+                        node_id=node_id_of(entry.place),
+                        depth=level.depth + 1,
+                    )
+                )
 
         if deepest:
             return _stopped(
@@ -200,47 +192,38 @@ class FileSearch:
             )
         return NodeSearchResult(matches=matches, complete=True)
 
+    def _look_inside(self, entry: Entry, needle: str) -> str | None:
+        """The line these words are on in this file, or nothing, or unreadable.
+
+        A line at a time, so a file is never held whole, and case-insensitively,
+        which is what the name search does and therefore what somebody typing
+        the same words expects. A link is not read through: the walk does not
+        follow one either.
+        """
+        if entry.is_directory or entry.is_link:
+            return None
+        if entry.size_bytes > MAX_FILE_BYTES:
+            return _UNREADABLE
+        try:
+            with self._storage.open(entry.place) as raw:
+                if bytes_look_binary(raw.read(SNIFF_BYTES)):
+                    return _UNREADABLE
+                raw.seek(0)
+                text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
+                for line in text:
+                    if needle in line.casefold():
+                        return line.strip()[:MAX_EXCERPT_CHARACTERS]
+        except OSError:
+            return _UNREADABLE
+        return None
+
 
 # Told apart from "no match here": a file nobody could read is worth counting,
 # and a file that simply does not hold the words is not.
 _UNREADABLE = "\x00unreadable"
 
 
-def _size_of(entry: os.DirEntry[str]) -> int:
-    try:
-        return entry.stat(follow_symlinks=False).st_size
-    except OSError:
-        return 0
-
-
-def _look_inside(entry: os.DirEntry[str], needle: str) -> str | None:
-    """The line these words are on in this file, or nothing, or unreadable.
-
-    A line at a time, so a file is never held whole, and case-insensitively,
-    which is what the name search does and therefore what somebody typing the
-    same words expects.
-    """
-    try:
-        if not entry.is_file(follow_symlinks=False):
-            return None
-    except OSError:
-        return None
-    path = Path(entry.path)
-    if _size_of(entry) > MAX_FILE_BYTES:
-        return _UNREADABLE
-    try:
-        if looks_binary(path):
-            return _UNREADABLE
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
-            for line in handle:
-                if needle in line.casefold():
-                    return line.strip()[:MAX_EXCERPT_CHARACTERS]
-    except OSError:
-        return _UNREADABLE
-    return None
-
-
-def _walkable(entry: os.DirEntry[str]) -> bool:
+def _walkable(entry: Entry) -> bool:
     """Whether the walk goes into this entry.
 
     A symbolic link is never followed, whether or not it stays inside the root:
@@ -248,12 +231,8 @@ def _walkable(entry: os.DirEntry[str]) -> bool:
     own parent, and a search is exactly where a loop would be met. It is the
     same refusal the recursive archive walk makes, for the same reason.
     """
-    try:
-        return entry.is_dir() and not entry.is_symlink()
-    except OSError:
-        return False
+    return entry.is_directory and not entry.is_link
 
 
 def _stopped(matches: list[NodeMatch], notice: str) -> NodeSearchResult:
     return NodeSearchResult(matches=matches, complete=False, notice=notice)
-

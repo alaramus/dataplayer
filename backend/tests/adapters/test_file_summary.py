@@ -9,9 +9,9 @@ import pytest
 from openpyxl import Workbook
 
 from app.adapters.dataset import ParquetDataset, WorksheetDataset
-from app.adapters.file import summary as summary_module
-from app.adapters.file.session import FileSession
-from app.adapters.file.summary import FileSummaries
+from app.adapters.explorer import summary as summary_module
+from app.adapters.explorer.summary import ExplorerSummaries
+from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import NodeNotFound
 from app.adapters.summary import (
     ArchiveContents,
@@ -78,12 +78,12 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def summaries(root: Path) -> FileSummaries:
-    return FileSummaries(FileSession(root))
+def summaries(root: Path) -> ExplorerSummaries:
+    return ExplorerSummaries(LocalStorage(root))
 
 
 async def test_a_text_file_states_its_facts_and_its_lines(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("notes.txt")
 
@@ -107,7 +107,7 @@ async def test_a_text_file_states_its_facts_and_its_lines(
 
 
 async def test_line_endings_are_counted_rather_than_assumed(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     windows = await summaries.node_summary("windows.txt")
     mixed = await summaries.node_summary("mixed.txt")
@@ -123,7 +123,7 @@ async def test_line_endings_are_counted_rather_than_assumed(
 
 
 async def test_an_empty_file_has_no_lines_and_no_endings(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("empty.txt")
 
@@ -133,7 +133,7 @@ async def test_an_empty_file_has_no_lines_and_no_endings(
     assert summary.contents.encoding == "utf-8"
 
 
-async def test_bytes_that_are_not_utf_8_say_so(summaries: FileSummaries) -> None:
+async def test_bytes_that_are_not_utf_8_say_so(summaries: ExplorerSummaries) -> None:
     """The alternative is decoding with replacements and calling it text."""
     summary = await summaries.node_summary("latin.txt")
 
@@ -144,7 +144,7 @@ async def test_bytes_that_are_not_utf_8_say_so(summaries: FileSummaries) -> None
 
 
 async def test_a_file_past_the_ceiling_is_not_counted(
-    summaries: FileSummaries, monkeypatch: pytest.MonkeyPatch
+    summaries: ExplorerSummaries, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A stated ceiling, rather than a wait nobody asked for."""
     monkeypatch.setattr(summary_module, "MAX_COUNTED_BYTES", 8)
@@ -160,7 +160,7 @@ async def test_a_file_past_the_ceiling_is_not_counted(
 
 
 async def test_a_delimited_file_is_counted_by_its_parser(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     """A line ending inside quotes is not the end of a row."""
     summary = await summaries.node_summary("people.csv")
@@ -174,7 +174,7 @@ async def test_a_delimited_file_is_counted_by_its_parser(
 
 
 async def test_a_tab_separated_file_names_its_delimiter(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("wide.tsv")
 
@@ -185,7 +185,7 @@ async def test_a_tab_separated_file_names_its_delimiter(
 
 
 async def test_a_columnar_file_states_what_its_footer_states(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     """The same model the relation view shows: one computation, one place."""
     summary = await summaries.node_summary("cities.parquet")
@@ -196,7 +196,7 @@ async def test_a_columnar_file_states_what_its_footer_states(
     assert contents.columns == 2
 
 
-async def test_a_workbook_counts_its_sheets(summaries: FileSummaries) -> None:
+async def test_a_workbook_counts_its_sheets(summaries: ExplorerSummaries) -> None:
     summary = await summaries.node_summary("budget.xlsx")
 
     contents = summary.contents
@@ -208,7 +208,7 @@ async def test_a_workbook_counts_its_sheets(summaries: FileSummaries) -> None:
 
 
 async def test_one_sheet_is_described_as_the_member_it_is(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("budget.xlsx/1")
 
@@ -225,7 +225,7 @@ async def test_one_sheet_is_described_as_the_member_it_is(
 
 
 async def test_an_archive_is_counted_from_its_central_directory(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("bundle.zip")
 
@@ -240,7 +240,7 @@ async def test_an_archive_is_counted_from_its_central_directory(
 
 
 async def test_an_entry_states_what_the_archive_says_about_it(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("bundle.zip/docs/notes.txt")
 
@@ -255,7 +255,7 @@ async def test_an_entry_states_what_the_archive_says_about_it(
 
 
 async def test_an_image_states_its_size_without_decoding_it(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("pixel.png")
 
@@ -266,7 +266,7 @@ async def test_an_image_states_its_size_without_decoding_it(
 
 
 async def test_a_misleading_suffix_is_named_rather_than_failing(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     """D47's known deviation reaching the reader instead of an error page."""
     image = await summaries.node_summary("forged.png")
@@ -281,7 +281,7 @@ async def test_a_misleading_suffix_is_named_rather_than_failing(
 
 
 async def test_an_opaque_file_says_only_what_every_file_says(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("program.exe")
 
@@ -292,7 +292,7 @@ async def test_an_opaque_file_says_only_what_every_file_says(
 
 
 async def test_a_directory_counts_one_level_of_itself(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     summary = await summaries.node_summary("reports")
 
@@ -306,7 +306,7 @@ async def test_a_directory_counts_one_level_of_itself(
 
 
 async def test_a_directory_past_the_listing_ceiling_is_not_counted(
-    summaries: FileSummaries, monkeypatch: pytest.MonkeyPatch
+    summaries: ExplorerSummaries, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The number that refuses to list it is the number that refuses to count it."""
     monkeypatch.setattr(summary_module, "MAX_ENTRIES", 1)
@@ -320,14 +320,14 @@ async def test_a_directory_past_the_listing_ceiling_is_not_counted(
 
 
 async def test_a_node_that_is_not_there_is_not_found(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     with pytest.raises(NodeNotFound):
         await summaries.node_summary("nowhere.txt")
 
 
 async def test_a_sheet_that_is_not_there_is_not_found(
-    summaries: FileSummaries,
+    summaries: ExplorerSummaries,
 ) -> None:
     with pytest.raises(NodeNotFound):
         await summaries.node_summary("budget.xlsx/9")
@@ -338,7 +338,7 @@ async def test_a_sheet_that_is_not_there_is_not_found(
     ["../secret.txt", "/etc/passwd", "C:/Windows/win.ini", "reports/../../away.txt"],
 )
 async def test_a_path_that_leaves_the_root_is_refused(
-    summaries: FileSummaries, node_id: str
+    summaries: ExplorerSummaries, node_id: str
 ) -> None:
     """The one containment rule, judged before anything is opened (D8)."""
     with pytest.raises(ValueError):
@@ -346,7 +346,7 @@ async def test_a_path_that_leaves_the_root_is_refused(
 
 
 async def test_a_pdf_states_the_version_it_declares(
-    summaries: FileSummaries, root: Path
+    summaries: ExplorerSummaries, root: Path
 ) -> None:
     (root / "manual.pdf").write_bytes(b"%PDF-1.7\n1 0 obj\n")
 
@@ -358,7 +358,7 @@ async def test_a_pdf_states_the_version_it_declares(
 
 
 async def test_a_symbolic_link_out_of_the_root_is_refused(
-    summaries: FileSummaries, root: Path, tmp_path_factory: pytest.TempPathFactory
+    summaries: ExplorerSummaries, root: Path, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
     outside = tmp_path_factory.mktemp("outside")
     (outside / "secret.txt").write_text("not yours\n", encoding="utf-8")
@@ -372,7 +372,7 @@ async def test_a_symbolic_link_out_of_the_root_is_refused(
 
 
 async def test_the_creation_time_is_absent_where_the_platform_states_none(
-    summaries: FileSummaries, root: Path
+    summaries: ExplorerSummaries, root: Path
 ) -> None:
     """Filling it with the inode change time would be a plausible lie."""
     summary = await summaries.node_summary("notes.txt")
@@ -383,7 +383,7 @@ async def test_the_creation_time_is_absent_where_the_platform_states_none(
 
 
 async def test_a_stale_date_inside_an_archive_does_not_fail_the_summary(
-    summaries: FileSummaries, root: Path
+    summaries: ExplorerSummaries, root: Path
 ) -> None:
     with zipfile.ZipFile(root / "dated.zip", "w") as dated:
         info = zipfile.ZipInfo("old.txt", date_time=(1980, 1, 1, 0, 0, 0))

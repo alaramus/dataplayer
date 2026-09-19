@@ -14,11 +14,11 @@ from pathlib import Path
 from anyio import to_thread
 
 from app.adapters.dataset import DatasetInfo, WorksheetDataset
-from app.adapters.file import parquet, workbook
-from app.adapters.file.formats import format_of
-from app.adapters.file.members import ResolvedNode, resolve_node
-from app.adapters.file.readers import CsvReader
-from app.adapters.file.session import FileSession
+from app.adapters.explorer import parquet, workbook
+from app.adapters.explorer.formats import format_of
+from app.adapters.explorer.members import ResolvedNode, resolve_node
+from app.adapters.explorer.readers import CsvReader
+from app.adapters.explorer.storage import Storage
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import Column, ColumnTypeOption, RelationModel
 
@@ -28,27 +28,29 @@ from app.adapters.relation import Column, ColumnTypeOption, RelationModel
 READ_ONLY = "This source reads a file dataset and cannot change its shape"
 
 
-class FileRelations:
-    """The `relation-model` capability of the file source."""
+class ExplorerRelations:
+    """The `relation-model` capability of a tree of files."""
 
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await to_thread.run_sync(self._describe, node_id)
 
     def _describe(self, node_id: str) -> RelationModel:
-        resolved = resolve_node(self._session, node_id)
-        if not resolved.path.exists():
+        resolved = resolve_node(self._storage, node_id)
+        if resolved.entry is None:
             raise NodeNotFound(node_id)
         if resolved.member is not None:
-            return _worksheet_model(resolved, node_id)
-        file_format = format_of(resolved.path.name)
-        if file_format == "delimited":
-            return _delimited_model(resolved.path, node_id)
-        if file_format != "parquet":
+            with self._storage.local_file(resolved.place) as path:
+                return _worksheet_model(resolved, path, node_id)
+        file_format = format_of(resolved.name)
+        if file_format not in {"delimited", "parquet"}:
             raise ValueError("This node states no columns of its own")
-        return _parquet_model(resolved.path, node_id)
+        with self._storage.local_file(resolved.place) as path:
+            if file_format == "delimited":
+                return _delimited_model(path, node_id)
+            return _parquet_model(path, node_id)
 
 
 def _parquet_model(path: Path, node_id: str) -> RelationModel:
@@ -87,17 +89,17 @@ def _delimited_model(path: Path, node_id: str) -> RelationModel:
     )
 
 
-def _worksheet_model(resolved: ResolvedNode, node_id: str) -> RelationModel:
+def _worksheet_model(resolved: ResolvedNode, path: Path, node_id: str) -> RelationModel:
     member = resolved.member
     if member is None or not member.isdigit():
         raise NodeNotFound(node_id)
-    names, facts, sheet_count = workbook.read_header(resolved.path, int(member))
+    names, facts, sheet_count = workbook.read_header(path, int(member))
     columns = [
         Column(position=position, name=name, type=workbook.TEXT, nullable=True)
         for position, name in enumerate(names, start=1)
     ]
     dataset = WorksheetDataset(
-        workbook=resolved.path.name,
+        workbook=resolved.name,
         sheet_name=facts.title,
         sheet_position=facts.position,
         sheet_count=sheet_count,

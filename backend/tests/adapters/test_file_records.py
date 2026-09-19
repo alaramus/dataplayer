@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.file import records
-from app.adapters.file.records import NotRecords, Table
+from app.adapters.explorer import records
+from app.adapters.explorer.records import NotRecords, Table
 
 
 def write(root: Path, name: str, text: str) -> Path:

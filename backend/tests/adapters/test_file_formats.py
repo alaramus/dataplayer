@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.adapters.file.formats import format_of, representations_of
+from app.adapters.explorer.formats import format_of, representations_of
 
 
 @pytest.mark.parametrize(

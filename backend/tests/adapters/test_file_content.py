@@ -17,7 +17,7 @@ from app.adapters.content import (
     TextContent,
     UpdateContentRequest,
 )
-from app.adapters.file.content import (
+from app.adapters.explorer.content import (
     MAX_EDITOR_BYTES,
     MAX_IMAGE_BYTES,
     MAX_JSON_BYTES,
@@ -25,9 +25,9 @@ from app.adapters.file.content import (
     MAX_JSON_LINES_PAGE_BYTES,
     MAX_MARKDOWN_BYTES,
     MAX_TEXT_BYTES,
-    FileContent,
+    ExplorerContent,
 )
-from app.adapters.file.session import FileSession
+from app.adapters.file.storage import LocalStorage
 
 PNG_1X1 = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -56,11 +56,11 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def content(root: Path) -> FileContent:
-    return FileContent(FileSession(root))
+def content(root: Path) -> ExplorerContent:
+    return ExplorerContent(LocalStorage(root))
 
 
-async def test_json_is_a_nested_value_instead_of_rows(content: FileContent) -> None:
+async def test_json_is_a_nested_value_instead_of_rows(content: ExplorerContent) -> None:
     result = await content.read_content(
         ContentRequest(node_id="document.json", representation="json")
     )
@@ -75,7 +75,7 @@ async def test_json_is_a_nested_value_instead_of_rows(content: FileContent) -> N
 
 
 async def test_broken_json_stays_in_the_json_viewer_as_source_text(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     result = await content.read_content(
         ContentRequest(node_id="broken.json", representation="json")
@@ -89,7 +89,7 @@ async def test_broken_json_stays_in_the_json_viewer_as_source_text(
 
 
 async def test_large_json_stays_in_its_viewer_as_a_bounded_source_preview(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "large.json").write_text(
         '"' + ("x" * MAX_JSON_BYTES) + '"', encoding="utf-8"
@@ -107,7 +107,7 @@ async def test_large_json_stays_in_its_viewer_as_a_bounded_source_preview(
 
 
 async def test_json_lines_are_independent_values_with_physical_line_numbers(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     result = await content.read_content(
         ContentRequest(node_id="events.jsonl", representation="jsonl")
@@ -123,7 +123,7 @@ async def test_json_lines_are_independent_values_with_physical_line_numbers(
 
 
 async def test_json_lines_page_by_records_not_blank_physical_lines(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     first = await content.read_content(
         ContentRequest(
@@ -144,7 +144,7 @@ async def test_json_lines_page_by_records_not_blank_physical_lines(
 
 
 async def test_one_oversized_json_line_does_not_hide_the_next_value(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "large-line.jsonl").write_text(
         ("x" * (MAX_JSON_LINE_BYTES + 1)) + '\n{"id": 2}\n', encoding="utf-8"
@@ -162,7 +162,7 @@ async def test_one_oversized_json_line_does_not_hide_the_next_value(
 
 
 async def test_json_lines_have_a_byte_bound_as_well_as_a_record_bound(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     filler = "x" * (MAX_JSON_LINE_BYTES - 100)
     assert len(filler.encode()) * 5 > MAX_JSON_LINES_PAGE_BYTES
@@ -180,7 +180,7 @@ async def test_json_lines_have_a_byte_bound_as_well_as_a_record_bound(
 
 
 async def test_text_has_its_own_bounded_representation(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     result = await content.read_content(
         ContentRequest(node_id="notes.txt", representation="text")
@@ -192,7 +192,7 @@ async def test_text_has_its_own_bounded_representation(
 
 
 async def test_a_text_preview_is_cut_without_claiming_to_be_the_whole_file(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "large.txt").write_text("x" * (MAX_TEXT_BYTES + 1), encoding="utf-8")
 
@@ -206,7 +206,7 @@ async def test_a_text_preview_is_cut_without_claiming_to_be_the_whole_file(
 
 
 async def test_markdown_arrives_as_the_source_the_browser_will_render(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     """No HTML crosses this boundary: the client renders and sanitises it."""
     result = await content.read_content(
@@ -219,7 +219,7 @@ async def test_markdown_arrives_as_the_source_the_browser_will_render(
 
 
 async def test_a_document_over_the_ceiling_is_cut_without_claiming_to_be_whole(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "long.md").write_text("x" * (MAX_MARKDOWN_BYTES + 1), encoding="utf-8")
 
@@ -233,7 +233,7 @@ async def test_a_document_over_the_ceiling_is_cut_without_claiming_to_be_whole(
 
 
 async def test_binary_bytes_named_as_a_document_are_refused(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "fake.md").write_bytes(b"# title\x00binary")
 
@@ -244,7 +244,7 @@ async def test_binary_bytes_named_as_a_document_are_refused(
 
 
 async def test_a_document_is_still_edited_as_its_own_source(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     """Rendering is a second representation, not a replacement for D48."""
     result = await content.read_editor_content(EditorContentRequest(node_id="guide.md"))
@@ -254,7 +254,7 @@ async def test_a_document_is_still_edited_as_its_own_source(
 
 
 async def test_binary_bytes_disguised_as_text_are_refused(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "binary.txt").write_bytes(b"text\x00binary")
 
@@ -265,7 +265,7 @@ async def test_binary_bytes_disguised_as_text_are_refused(
 
 
 async def test_an_image_is_verified_and_described_before_it_is_shown(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     result = await content.read_content(
         ContentRequest(node_id="pixel.png", representation="image")
@@ -283,7 +283,7 @@ async def test_an_image_is_verified_and_described_before_it_is_shown(
 
 
 async def test_an_image_suffix_does_not_make_unverified_bytes_renderable(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "forged.png").write_bytes(b"not an image")
 
@@ -294,7 +294,7 @@ async def test_an_image_suffix_does_not_make_unverified_bytes_renderable(
 
 
 async def test_an_image_preview_has_a_byte_ceiling(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "huge.png").write_bytes(b"x" * (MAX_IMAGE_BYTES + 1))
 
@@ -305,7 +305,7 @@ async def test_an_image_preview_has_a_byte_ceiling(
 
 
 async def test_a_representation_the_node_did_not_offer_is_refused(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     with pytest.raises(ValueError, match="does not offer"):
         await content.read_content(
@@ -314,7 +314,7 @@ async def test_a_representation_the_node_did_not_offer_is_refused(
 
 
 async def test_an_editor_read_carries_the_complete_source_and_opaque_version(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     result = await content.read_editor_content(
         EditorContentRequest(node_id="document.json")
@@ -329,7 +329,7 @@ async def test_an_editor_read_carries_the_complete_source_and_opaque_version(
 
 
 async def test_saving_text_replaces_the_file_and_issues_its_new_version(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     opened = await content.read_editor_content(
         EditorContentRequest(node_id="notes.txt")
@@ -347,7 +347,7 @@ async def test_saving_text_replaces_the_file_and_issues_its_new_version(
 
 
 async def test_a_stale_editor_cannot_overwrite_an_external_change(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     opened = await content.read_editor_content(
         EditorContentRequest(node_id="notes.txt")
@@ -366,7 +366,7 @@ async def test_a_stale_editor_cannot_overwrite_an_external_change(
 
 
 async def test_invalid_json_is_not_saved(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     opened = await content.read_editor_content(
         EditorContentRequest(node_id="document.json")
@@ -386,7 +386,7 @@ async def test_invalid_json_is_not_saved(
 
 
 async def test_an_oversized_editor_document_is_a_read_only_preview(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     (root / "large.py").write_text("x" * (MAX_EDITOR_BYTES + 1), encoding="utf-8")
 

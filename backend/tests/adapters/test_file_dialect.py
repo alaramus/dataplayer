@@ -5,8 +5,8 @@ semicolon inside a string, a comment between statements, a CTE that looks like
 a table, and each family that is refused before a run is recorded (D77).
 """
 
-from app.adapters.file import dialect
-from app.adapters.file.dialect import prepare, shape_of
+from app.adapters.explorer import dialect
+from app.adapters.explorer.dialect import prepare, shape_of
 
 
 def test_a_semicolon_inside_a_string_is_not_a_boundary() -> None:

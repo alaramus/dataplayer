@@ -10,15 +10,15 @@ import pytest
 from anyio import to_thread
 
 from app.adapters.actions import ActionRefused, ActionResult, TakesNodeSet, TakesParams
-from app.adapters.file.actions import FileActions
-from app.adapters.file.packing import (
+from app.adapters.explorer.actions import ExplorerActions
+from app.adapters.explorer.packing import (
     NotUnpackable,
     is_unpackable,
     pack,
     unpack,
     unpacked_name,
 )
-from app.adapters.file.session import FileSession
+from app.adapters.file.storage import LocalStorage
 
 
 @pytest.fixture
@@ -30,12 +30,12 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def actions(root: Path) -> FileActions:
-    return FileActions(FileSession(root))
+def actions(root: Path) -> ExplorerActions:
+    return ExplorerActions(LocalStorage(root))
 
 
 async def _run(
-    actions: FileActions, command: str, node_id: str | None, **params: object
+    actions: ExplorerActions, command: str, node_id: str | None, **params: object
 ) -> ActionResult:
     action = actions.action(command)
     assert isinstance(action, TakesParams)
@@ -43,7 +43,7 @@ async def _run(
 
 
 async def _run_on_set(
-    actions: FileActions, command: str, node_ids: list[str], **params: object
+    actions: ExplorerActions, command: str, node_ids: list[str], **params: object
 ) -> ActionResult:
     action = actions.action(command)
     assert isinstance(action, TakesNodeSet)
@@ -77,7 +77,7 @@ def test_a_file_that_is_not_an_archive_is_not_unpackable() -> None:
     [("zip", ".zip"), ("tar", ".tar"), ("tar.gz", ".tar.gz"), ("tar.xz", ".tar.xz")],
 )
 async def test_a_selection_becomes_one_archive_in_the_chosen_format(
-    actions: FileActions, root: Path, format: str, suffix: str
+    actions: ExplorerActions, root: Path, format: str, suffix: str
 ) -> None:
     result = await _run_on_set(
         actions,
@@ -94,7 +94,7 @@ async def test_a_selection_becomes_one_archive_in_the_chosen_format(
 
 
 async def test_a_zip_holds_the_folder_and_the_file_it_was_given(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _run_on_set(
         actions, "create_archive", ["reports", "notes.txt"], name="everything"
@@ -108,7 +108,7 @@ async def test_a_zip_holds_the_folder_and_the_file_it_was_given(
         }
 
 
-async def test_a_tar_holds_the_same_names(actions: FileActions, root: Path) -> None:
+async def test_a_tar_holds_the_same_names(actions: ExplorerActions, root: Path) -> None:
     await _run_on_set(
         actions,
         "create_archive",
@@ -121,7 +121,7 @@ async def test_a_tar_holds_the_same_names(actions: FileActions, root: Path) -> N
         assert set(made.getnames()) == {"reports", "reports/q3.csv", "notes.txt"}
 
 
-async def test_the_suffix_is_not_doubled(actions: FileActions, root: Path) -> None:
+async def test_the_suffix_is_not_doubled(actions: ExplorerActions, root: Path) -> None:
     await _run_on_set(
         actions, "create_archive", ["notes.txt"], name="everything.zip"
     )
@@ -131,7 +131,7 @@ async def test_the_suffix_is_not_doubled(actions: FileActions, root: Path) -> No
 
 
 async def test_a_taken_name_gets_the_next_free_one(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _run_on_set(actions, "create_archive", ["notes.txt"], name="everything")
     await _run_on_set(actions, "create_archive", ["notes.txt"], name="everything")
@@ -141,7 +141,7 @@ async def test_a_taken_name_gets_the_next_free_one(
 
 
 async def test_a_name_with_a_separator_in_it_is_refused(
-    actions: FileActions,
+    actions: ExplorerActions,
 ) -> None:
     with pytest.raises(ValueError, match="single plain name"):
         await _run_on_set(
@@ -151,7 +151,7 @@ async def test_a_name_with_a_separator_in_it_is_refused(
 
 @pytest.mark.skipif(os.name != "posix", reason="symlinks need privileges on Windows")
 async def test_a_link_named_in_the_selection_is_not_archived(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     """Named directly or met in the walk, a link goes the same way.
 
@@ -170,7 +170,7 @@ async def test_a_link_named_in_the_selection_is_not_archived(
 
 @pytest.mark.skipif(os.name != "posix", reason="symlinks need privileges on Windows")
 async def test_archiving_leaves_nothing_behind_when_it_fails(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     """A refused archive is not a file with the name somebody will look for."""
     # The link is met while walking the folder, so the refusal comes once the
@@ -191,7 +191,7 @@ async def test_archiving_leaves_nothing_behind_when_it_fails(
 
 
 async def test_an_archive_is_extracted_into_a_folder_of_its_own(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     pack([root / "reports"], root / "bundle.zip", "zip")
 
@@ -203,7 +203,7 @@ async def test_an_archive_is_extracted_into_a_folder_of_its_own(
 
 
 async def test_an_archive_can_be_extracted_where_it_lies(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     pack([root / "notes.txt"], root / "bundle.tar.gz", "tar.gz")
     (root / "notes.txt").unlink()
@@ -214,7 +214,7 @@ async def test_an_archive_can_be_extracted_where_it_lies(
 
 
 async def test_one_compressed_file_extracts_to_the_file(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     with gzip.open(root / "notes.txt.gz", "wb") as out:
         out.write(b"compressed\n")
@@ -225,7 +225,7 @@ async def test_one_compressed_file_extracts_to_the_file(
 
 
 async def test_extract_is_offered_only_for_a_file_that_is_an_archive(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     pack([root / "notes.txt"], root / "bundle.zip", "zip")
 
@@ -281,7 +281,7 @@ async def test_a_file_that_is_not_an_archive_cannot_be_unpacked(root: Path) -> N
 
 
 async def test_a_failed_extraction_takes_its_folder_with_it(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     escaping = root / "evil.zip"
     with zipfile.ZipFile(escaping, "w") as made:

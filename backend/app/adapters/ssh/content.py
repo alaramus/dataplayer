@@ -22,7 +22,7 @@ from app.adapters.content import (
     TextContent,
     UpdateContentRequest,
 )
-from app.adapters.file.formats import format_of
+from app.adapters.explorer.formats import format_of
 from app.adapters.ssh.catalog import representations_of
 from app.adapters.ssh.session import Remote, SshSession
 

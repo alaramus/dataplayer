@@ -5,7 +5,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from app.adapters.file.session import FileSession, is_plain_name
+from app.adapters.explorer.storage import is_plain_name
+from app.adapters.file.storage import LocalStorage
 from app.core.config import settings
 from app.jobs.runner import JobFailed
 from app.users import storage
@@ -19,9 +20,8 @@ def snapshot(owner_id: uuid.UUID, filename: str) -> Path:
     if not is_plain_name(filename):
         raise JobFailed("The backup name is not a plain file name")
     try:
-        source = FileSession(storage.home_dir(owner_id)).resolve_without_symlinks(
-            f"backups/{filename}"
-        )
+        home = LocalStorage(storage.home_dir(owner_id))
+        source = home.path_of(home.unlinked_place(f"backups/{filename}"))
         if not source.is_file() or source.stat().st_size > MAX_RESTORE_BYTES:
             raise JobFailed("The backup is missing or exceeds the 2 GiB restore limit")
         with source.open("rb") as incoming:

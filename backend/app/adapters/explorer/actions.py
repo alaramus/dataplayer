@@ -1,18 +1,20 @@
-"""Changing what is in a personal directory.
+"""Changing what is in a tree of files.
 
 A capability module like `catalog.py` and `fetch.py`: it knows what to do and
-nothing about how the root was decided. Every path it touches — including the
-name of an uploaded file, which is a client string like any other — goes
-through the session, so the containment rule of decision D8 stays in one place.
+nothing about where the files are. Every place it touches — including the name
+of an uploaded file, which is a client string like any other — goes through the
+storage, so the containment rule of decision D8 stays in one place.
+
+Each action does its work in one hop to a worker thread: a storage blocks
+(D151), and an action that asked it anything on the event loop would stall
+every other request while a remote server answered.
 """
 
-import os
-import shutil
-import tempfile
 from collections.abc import Mapping, Sequence
+from contextlib import ExitStack
 from functools import partial
 from pathlib import Path, PurePosixPath
-from typing import Any, ClassVar, Literal, Protocol
+from typing import Any, BinaryIO, ClassVar, Literal, Protocol
 
 from anyio import to_thread
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -32,11 +34,10 @@ from app.adapters.actions import (
     JsonAction,
 )
 from app.adapters.catalog import NodeKind
-from app.adapters.file.download import FileDownload
-from app.adapters.file.formats import format_of
-from app.adapters.file.members import resolve_node
-from app.adapters.file.options import FileOptions
-from app.adapters.file.packing import (
+from app.adapters.explorer.download import ExplorerDownload
+from app.adapters.explorer.formats import format_of
+from app.adapters.explorer.members import ResolvedNode, resolve_node
+from app.adapters.explorer.packing import (
     MAX_BYTES,
     MAX_ENTRIES,
     PACK_SUFFIX,
@@ -47,7 +48,14 @@ from app.adapters.file.packing import (
     unpack,
     unpacked_name,
 )
-from app.adapters.file.session import FileSession, is_plain_name
+from app.adapters.explorer.storage import (
+    ROOT,
+    DraftsConnections,
+    Storage,
+    is_plain_name,
+    node_id_of,
+    walk_iterator,
+)
 from app.core.access import Access
 from app.core.config import settings
 
@@ -147,22 +155,17 @@ class ExtractParams(BaseModel):
 
 
 class _Bound:
-    """Common to every action here: the session it works through."""
+    """Common to every action here: the storage it works through."""
 
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
-    def _directory(self, node_id: str | None) -> Path:
-        path = self._session.resolve(node_id)
-        if not path.is_dir():
+    def _directory(self, node_id: str | None) -> PurePosixPath:
+        place = self._storage.place(node_id)
+        found = self._storage.entry(place)
+        if found is None or not found.is_directory:
             raise ValueError(f"Not a directory: {node_id}")
-        return path
-
-    def _parent_id(self, path: Path) -> str | None:
-        """The node whose children changed, as the client names it."""
-        if path.parent == self._session.resolved_root:
-            return None
-        return self._session.relative_id(path.parent)
+        return place
 
 
 class _ActsOnNode(_Bound):
@@ -176,15 +179,15 @@ class _ActsOnNode(_Bound):
 
     acts_on: ClassVar[ActsOn] = "node"
 
-    def _target(self, node_id: str | None) -> Path:
-        path = self._session.resolve(node_id)
-        if path == self._session.resolved_root or node_id in (None, ""):
+    def _target(self, node_id: str | None) -> PurePosixPath:
+        place = self._storage.place(node_id)
+        if place == ROOT or node_id in (None, ""):
             raise ActionRefused(
                 "not_applicable", "The root folder of a connector cannot be changed"
             )
-        if not path.exists():
+        if self._storage.entry(place) is None:
             raise ValueError(f"No such node: {node_id}")
-        return path
+        return place
 
 
 class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
@@ -203,21 +206,18 @@ class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
         return await to_thread.run_sync(partial(self._draft, node_id))
 
     def _draft(self, node_id: str | None) -> ConnectorDraft:
-        path = self._target(node_id)
-        if not path.is_dir():
+        place = self._target(node_id)
+        found = self._storage.entry(place)
+        if found is None or not found.is_directory:
             raise ActionRefused("not_applicable", "Choose a folder to connect")
-        relative = self._session.path_in_home(path)
-        options = FileOptions(path=relative)
-        if options.below_home != relative:
+        if not isinstance(self._storage, DraftsConnections):
             raise ActionRefused(
-                "not_applicable",
-                "A connection path cannot start or end with spaces",
+                "not_applicable", "A folder of this source cannot become a connection"
             )
-        return ConnectorDraft(
-            name=PurePosixPath(node_id or "").name,
-            adapter_type="file",
-            options=options.model_dump(mode="json"),
-        )
+        draft = self._storage.connection_for(place)
+        # Named as the person named the folder, which a link inside the root
+        # may spell differently from where it leads.
+        return draft.model_copy(update={"name": PurePosixPath(node_id or "").name})
 
 
 class CreateFolder(_Bound, JsonAction[NameParams]):
@@ -228,13 +228,19 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
     params_model = NameParams
 
     async def run(self, node_id: str | None, params: NameParams) -> ActionResult:
-        parent = self._directory(node_id)
-        target = await to_thread.run_sync(partial(_available_path, parent, params.name))
-        await to_thread.run_sync(partial(_make_directory, target))
+        made = await to_thread.run_sync(self._make, node_id, params.name)
         return ActionResult(
-            message=f"Folder {target.name} created",
+            message=f"Folder {made.name} created",
             reload_node_ids=[node_id or None],
         )
+
+    def _make(self, node_id: str | None, name: str) -> PurePosixPath:
+        target = _available(self._storage, self._directory(node_id), name)
+        try:
+            self._storage.make_directory(target)
+        except FileExistsError:
+            raise ActionRefused("conflict", f"{target.name} is already there") from None
+        return target
 
 
 class CreateFile(_Bound, JsonAction[FileNameParams]):
@@ -253,11 +259,18 @@ class CreateFile(_Bound, JsonAction[FileNameParams]):
     params_model = FileNameParams
 
     async def run(self, node_id: str | None, params: FileNameParams) -> ActionResult:
-        target = self._directory(node_id) / params.name
-        await to_thread.run_sync(partial(_make_file, target))
+        made = await to_thread.run_sync(self._make, node_id, params.name)
         return ActionResult(
-            message=f"{target.name} created", reload_node_ids=[node_id or None]
+            message=f"{made.name} created", reload_node_ids=[node_id or None]
         )
+
+    def _make(self, node_id: str | None, name: str) -> PurePosixPath:
+        target = self._directory(node_id) / name
+        try:
+            self._storage.make_file(target)
+        except FileExistsError:
+            raise ActionRefused("conflict", f"{target.name} is already there") from None
+        return target
 
 
 class Rename(_ActsOnNode, JsonAction[RenameParams]):
@@ -267,13 +280,19 @@ class Rename(_ActsOnNode, JsonAction[RenameParams]):
     params_model = RenameParams
 
     async def run(self, node_id: str | None, params: RenameParams) -> ActionResult:
-        path = self._target(node_id)
-        target = path.parent / params.new_name
-        await to_thread.run_sync(partial(_rename, path, target))
+        place = await to_thread.run_sync(self._rename, node_id, params.new_name)
         return ActionResult(
             message=f"Renamed to {params.new_name}",
-            reload_node_ids=[self._parent_id(path)],
+            reload_node_ids=[node_id_of(place.parent)],
         )
+
+    def _rename(self, node_id: str | None, new_name: str) -> PurePosixPath:
+        place = self._target(node_id)
+        try:
+            self._storage.rename(place, place.parent / new_name)
+        except FileExistsError:
+            raise ActionRefused("conflict", f"{new_name} is already there") from None
+        return place
 
 
 class Delete(_ActsOnNode, JsonAction[DeleteParams]):
@@ -287,12 +306,15 @@ class Delete(_ActsOnNode, JsonAction[DeleteParams]):
     params_model = DeleteParams
 
     async def run(self, node_id: str | None, params: DeleteParams) -> ActionResult:
-        path = self._target(node_id)
-        reload_node_id = self._parent_id(path)
-        await to_thread.run_sync(partial(_remove, path))
+        place = await to_thread.run_sync(self._remove, node_id)
         return ActionResult(
-            message=f"{path.name} deleted", reload_node_ids=[reload_node_id]
+            message=f"{place.name} deleted", reload_node_ids=[node_id_of(place.parent)]
         )
+
+    def _remove(self, node_id: str | None) -> PurePosixPath:
+        place = self._target(node_id)
+        self._storage.remove(place)
+        return place
 
 
 class Download(_ActsOnNode, Action[DownloadParams]):
@@ -302,7 +324,7 @@ class Download(_ActsOnNode, Action[DownloadParams]):
     title: ClassVar[str] = "Download"
     # An entry too, because a file inside an archive is exactly what a reader
     # wants out of it (D53); everything that changes a node keeps to the two
-    # kinds that exist on disk.
+    # kinds that exist in the storage.
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset(
         {"directory", "file", "entry"}
     )
@@ -314,23 +336,25 @@ class Download(_ActsOnNode, Action[DownloadParams]):
         self, node_ids: Sequence[str], raw: Mapping[str, Any]
     ) -> ActionDownload:
         """The selection is the whole input; this download asks nothing else."""
-        entries = [
-            resolved
-            for node_id in node_ids
-            if (resolved := resolve_node(self._session, node_id)).member is not None
-        ]
+        resolved = await to_thread.run_sync(self._resolved, node_ids)
+        entries = [one for one in resolved if one.member is not None]
         if entries:
             if len(node_ids) > 1:
                 raise ActionRefused(
                     "not_applicable",
                     "A file inside an archive is downloaded on its own",
                 )
-            return await FileDownload(self._session).entry(entries[0])
-        # Reapply the same root and existence rule the availability check uses;
-        # tickets are redeemed later, when the source may have changed.
-        for node_id in node_ids:
-            self._target(node_id)
-        return await FileDownload(self._session).prepare(node_ids)
+            return await ExplorerDownload(self._storage).entry(entries[0])
+        return await ExplorerDownload(self._storage).prepare(node_ids)
+
+    def _resolved(self, node_ids: Sequence[str]) -> list[ResolvedNode]:
+        found = [resolve_node(self._storage, node_id) for node_id in node_ids]
+        if not any(one.member is not None for one in found):
+            # Reapply the same root and existence rule the availability check
+            # uses; tickets are redeemed later, when the source may have changed.
+            for node_id in node_ids:
+                self._target(node_id)
+        return found
 
 
 class PasteHere(_Bound, JsonAction[PasteParams]):
@@ -357,100 +381,93 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
     async def run(self, node_id: str | None, params: PasteParams) -> ActionResult:
         if not params.sources:
             raise ActionRefused("not_applicable", "Copy or cut something first")
-        destination = self._directory(node_id)
-        sources = [self._source(one) for one in params.sources]
-        for source in sources:
-            self._may_go_into(source, destination)
-        moved = await to_thread.run_sync(
-            partial(_paste, sources, destination, params.mode, params.conflict)
-        )
+        sources = await to_thread.run_sync(self._paste, node_id, params)
         # Both ends change: the folder that gained the nodes, and — for a move
         # — every folder that lost one. Named by the server, because deriving
         # them from the action's name is the rule this exists to avoid.
         changed: list[str | None] = [node_id or None]
         if params.mode == "move":
             for source in sources:
-                parent = self._parent_id(source)
+                parent = node_id_of(source.parent)
                 if parent not in changed:
                     changed.append(parent)
         verb = "copied" if params.mode == "copy" else "moved"
         return ActionResult(
-            message=f"{_counted(moved)} {verb}", reload_node_ids=changed
+            message=f"{_counted(len(sources))} {verb}", reload_node_ids=changed
         )
 
-    def _source(self, node_id: str) -> Path:
-        path = self._session.resolve(node_id)
-        if path == self._session.resolved_root:
+    def _paste(
+        self, node_id: str | None, params: PasteParams
+    ) -> list[PurePosixPath]:
+        """Copy or move every source into one folder.
+
+        Bounded by the same two ceilings an archive is: a copy of a hundred
+        thousand files is a request nobody should be waiting on, and the count
+        is taken before anything is written.
+        """
+        destination = self._directory(node_id)
+        sources = [self._source(one) for one in params.sources]
+        for source in sources:
+            _may_go_into(source, destination)
+        _within_bounds(self._storage, sources)
+        for source in sources:
+            target = destination / source.name
+            if self._storage.entry(target) is not None:
+                if params.conflict == "refuse":
+                    raise ActionRefused("conflict", f"{source.name} is already there")
+                if params.conflict == "rename":
+                    target = _available(self._storage, destination, source.name)
+                else:
+                    self._storage.remove(target)
+            if params.mode == "move":
+                self._storage.rename(source, target)
+            else:
+                self._storage.copy(source, target)
+        return sources
+
+    def _source(self, node_id: str) -> PurePosixPath:
+        place = self._storage.place(node_id)
+        if place == ROOT:
             raise ActionRefused(
                 "not_applicable", "The root folder of a connector cannot be moved"
             )
-        if not path.exists():
+        if self._storage.entry(place) is None:
             raise ValueError(f"No such node: {node_id}")
-        return path
+        return place
 
-    @staticmethod
-    def _may_go_into(source: Path, destination: Path) -> None:
-        """A folder cannot be put inside itself, however deep.
 
-        The check is on the resolved paths rather than on the ids, because two
-        ids can name one place and only one of them looks like a prefix of the
-        other.
-        """
-        if source == destination or destination.is_relative_to(source):
-            raise ActionRefused(
-                "not_applicable", f"{source.name} cannot be put inside itself"
-            )
+def _may_go_into(source: PurePosixPath, destination: PurePosixPath) -> None:
+    """A folder cannot be put inside itself, however deep.
+
+    The check is on the resolved places rather than on the ids, because two
+    ids can name one place and only one of them looks like a prefix of the
+    other.
+    """
+    if source == destination or destination.is_relative_to(source):
+        raise ActionRefused(
+            "not_applicable", f"{source.name} cannot be put inside itself"
+        )
 
 
 def _counted(number: int) -> str:
     return "1 item" if number == 1 else f"{number} items"
 
 
-def _paste(
-    sources: Sequence[Path],
-    destination: Path,
-    mode: Literal["copy", "move"],
-    conflict: Literal["refuse", "replace", "rename"],
-) -> int:
-    """Copy or move every source into one folder. Blocking, so it runs apart.
-
-    Bounded by the same two ceilings an archive is: a copy of a hundred
-    thousand files is a request nobody should be waiting on, and the count is
-    taken before anything is written.
-    """
-    _within_bounds(sources)
-    for source in sources:
-        target = destination / source.name
-        if target.exists():
-            if conflict == "refuse":
-                raise ActionRefused("conflict", f"{source.name} is already there")
-            if conflict == "rename":
-                target = _available_path(destination, source.name)
-            else:
-                _remove(target)
-        if mode == "move":
-            shutil.move(str(source), str(target))
-        elif source.is_dir():
-            shutil.copytree(source, target, symlinks=True)
-        else:
-            shutil.copy2(source, target)
-    return len(sources)
-
-
-def _within_bounds(sources: Sequence[Path]) -> None:
+def _within_bounds(storage: Storage, sources: Sequence[PurePosixPath]) -> None:
     entries = 0
     total = 0
     for source in sources:
-        if source.is_file():
+        found = storage.entry(source)
+        if found is not None and not found.is_directory:
             entries += 1
-            total += source.stat().st_size
+            total += found.size_bytes
             continue
-        for path in source.rglob("*"):
+        for entry in walk_iterator(storage, source):
             entries += 1
             if entries > MAX_ENTRIES:
                 raise ActionRefused("too_large", "That is too many files to move")
-            if path.is_file():
-                total += path.stat().st_size
+            if not entry.is_directory:
+                total += entry.size_bytes
         if total > MAX_BYTES:
             raise ActionRefused("too_large", "That is too much data to move")
     if entries > MAX_ENTRIES:
@@ -481,7 +498,7 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
     ) -> ActionResult:
         return await self._archive(list(node_ids), self._validated(raw))
 
-    def _packable(self, node_id: str | None) -> Path:
+    def _packable(self, node_id: str | None) -> PurePosixPath:
         """One target of the walk, refusing a link named in the selection.
 
         The walk refuses every symbolic link it meets among the children, and
@@ -490,31 +507,45 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
         refused depending only on how it was reached.
         """
         target = self._target(node_id)
-        if node_id is not None and self._session.names_a_symlink(node_id):
-            raise ActionRefused("not_applicable", "Symbolic links are not archived")
+        if node_id is not None:
+            try:
+                self._storage.unlinked_place(node_id)
+            except ValueError:
+                raise ActionRefused(
+                    "not_applicable", "Symbolic links are not archived"
+                ) from None
         return target
 
     async def _archive(
         self, node_ids: Sequence[str | None], params: ArchiveParams
     ) -> ActionResult:
+        into = await to_thread.run_sync(self._pack, node_ids, params)
+        return ActionResult(
+            message=f"{into.name} created",
+            reload_node_ids=[node_id_of(into.parent)],
+        )
+
+    def _pack(
+        self, node_ids: Sequence[str | None], params: ArchiveParams
+    ) -> PurePosixPath:
         targets = [self._packable(node_id) for node_id in node_ids]
         parents = {target.parent for target in targets}
         if len(parents) != 1:
             raise ActionRefused(
                 "not_applicable", "One archive is made of one folder's contents"
             )
-        parent = parents.pop()
-        into = await to_thread.run_sync(
-            partial(_available_path, parent, _archive_filename(params))
-        )
+        into = _available(self._storage, parents.pop(), _archive_filename(params))
         try:
-            await to_thread.run_sync(partial(pack, targets, into, params.format))
+            with ExitStack() as held:
+                local = [held.enter_context(self._storage.local_tree(t)) for t in targets]
+                with self._storage.staged(into, prefix=".dataplayer-packing-") as staged:
+                    pack(local, staged, params.format)
+                    self._storage.publish(staged, into)
+        except FileExistsError:
+            raise ActionRefused("conflict", f"{into.name} is already there") from None
         except OSError:
             raise ValueError("The archive could not be written") from None
-        return ActionResult(
-            message=f"{into.name} created",
-            reload_node_ids=[self._parent_id(targets[0])],
-        )
+        return into
 
 
 class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
@@ -532,37 +563,53 @@ class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
     params_model = ExtractParams
 
     async def run(self, node_id: str | None, params: ExtractParams) -> ActionResult:
-        path = self._target(node_id)
-        if not is_unpackable(path.name):
+        place, entries, made = await to_thread.run_sync(
+            self._extract, node_id, params
+        )
+        return ActionResult(
+            message=_extracted(entries, made),
+            reload_node_ids=[node_id_of(place.parent)],
+        )
+
+    def _extract(
+        self, node_id: str | None, params: ExtractParams
+    ) -> tuple[PurePosixPath, int, PurePosixPath | None]:
+        place = self._target(node_id)
+        if not is_unpackable(place.name):
             raise ActionRefused(
-                "not_applicable", f"{path.name} is not an archive this source opens"
+                "not_applicable", f"{place.name} is not an archive this source opens"
             )
-        made: Path | None = None
+        made: PurePosixPath | None = None
         if params.into_folder:
-            made = await to_thread.run_sync(
-                partial(_available_path, path.parent, unpacked_name(path.name))
-            )
-            await to_thread.run_sync(partial(_make_directory, made))
-        destination = made or path.parent
+            made = _available(self._storage, place.parent, unpacked_name(place.name))
+            try:
+                self._storage.make_directory(made)
+            except FileExistsError:
+                raise ActionRefused("conflict", f"{made.name} is already there") from None
+        destination = made or place.parent
         try:
-            unpacked = await to_thread.run_sync(partial(unpack, path, destination))
+            with (
+                self._storage.local_file(place) as archive_path,
+                self._storage.filled(destination) as into,
+            ):
+                unpacked = unpack(archive_path, into)
         except NotUnpackable as exc:
-            await self._undo(made)
+            self._undo(made)
             raise ActionRefused("not_applicable", str(exc)) from None
         except BaseException:
             # A refused archive leaves nothing behind: the folder this made a
             # moment ago is part of the refusal, not a result of it.
-            await self._undo(made)
+            self._undo(made)
             raise
-        return ActionResult(
-            message=_extracted(unpacked.entries, made),
-            reload_node_ids=[self._parent_id(path)],
-        )
+        return place, unpacked.entries, made
 
-    async def _undo(self, made: Path | None) -> None:
+    def _undo(self, made: PurePosixPath | None) -> None:
         if made is None:
             return
-        await to_thread.run_sync(partial(shutil.rmtree, made, ignore_errors=True))
+        try:
+            self._storage.remove(made)
+        except OSError:
+            return
 
 
 def _archive_filename(params: ArchiveParams) -> str:
@@ -577,7 +624,7 @@ def _archive_filename(params: ArchiveParams) -> str:
     return f"{params.name}{suffix}"
 
 
-def _extracted(entries: int, made: Path | None) -> str:
+def _extracted(entries: int, made: PurePosixPath | None) -> str:
     what = "1 file" if entries == 1 else f"{entries} files"
     return f"{what} extracted" + ("" if made is None else f" into {made.name}")
 
@@ -595,146 +642,119 @@ class Upload(_Bound, FileAction[UploadParams]):
     async def run(
         self, node_id: str | None, params: UploadParams, payload: FilePayload
     ) -> ActionResult:
-        parent = self._directory(node_id)
         filename = _plain_name(payload.filename or "")
-        target = parent / filename
-        if target.exists() and params.conflict == "refuse":
-            raise ActionRefused("conflict", f"{filename} is already there")
-        temporary = await self._stream_into(parent, payload)
+        target = await to_thread.run_sync(self._target, node_id, filename, params)
+        # Written beside its destination, then moved into place: a reader of
+        # the catalog never sees a half-written file under the real name, and a
+        # refused upload leaves nothing behind.
+        staging = self._storage.staged(target, prefix=".upload-")
+        staged = await to_thread.run_sync(staging.__enter__)
         try:
-            if params.conflict == "replace":
-                await to_thread.run_sync(partial(os.replace, temporary, target))
-            elif params.conflict == "rename":
-                target = await to_thread.run_sync(
-                    partial(_publish_with_available_name, temporary, parent, filename)
-                )
-            else:
-                await to_thread.run_sync(partial(_publish_new, temporary, target))
+            await _stream_into(staged, payload)
+            published = await to_thread.run_sync(
+                self._publish, staged, target, params.conflict
+            )
         finally:
-            await to_thread.run_sync(partial(temporary.unlink, missing_ok=True))
+            await to_thread.run_sync(staging.__exit__, None, None, None)
         return ActionResult(
-            message=f"{target.name} uploaded", reload_node_ids=[node_id or None]
+            message=f"{published.name} uploaded", reload_node_ids=[node_id or None]
         )
 
-    async def _stream_into(self, parent: Path, payload: FilePayload) -> Path:
-        """Write the upload beside its destination, then move it into place.
+    def _target(
+        self, node_id: str | None, filename: str, params: UploadParams
+    ) -> PurePosixPath:
+        target = self._directory(node_id) / filename
+        if params.conflict == "refuse" and self._storage.entry(target) is not None:
+            raise ActionRefused("conflict", f"{filename} is already there")
+        return target
 
-        A reader of the catalog never sees a half-written file under the real
-        name, and a refused upload leaves nothing behind. The size is counted
-        as the bytes arrive rather than read from a header, which is a claim
-        by the client.
-        """
-        descriptor, temporary = await to_thread.run_sync(
-            partial(tempfile.mkstemp, dir=parent, prefix=".upload-")
-        )
-        path = Path(temporary)
-        try:
-            with os.fdopen(descriptor, "wb") as handle:
-                written = 0
-                while chunk := await payload.read(CHUNK_BYTES):
-                    written += len(chunk)
-                    if written > settings.MAX_UPLOAD_BYTES:
-                        raise ActionRefused(
-                            "too_large",
-                            "The file is larger than this server accepts",
-                        )
-                    await to_thread.run_sync(handle.write, chunk)
-            return path
-        except BaseException:
-            await to_thread.run_sync(partial(path.unlink, missing_ok=True))
-            raise
+    def _publish(
+        self,
+        staged: Path,
+        target: PurePosixPath,
+        conflict: Literal["refuse", "replace", "rename"],
+    ) -> PurePosixPath:
+        if conflict == "replace":
+            self._storage.publish(staged, target, replace=True)
+            return target
+        if conflict == "refuse":
+            # A file that appeared after the first check is not replaced.
+            try:
+                self._storage.publish(staged, target)
+            except FileExistsError:
+                raise ActionRefused("conflict", f"{target.name} is already there") from None
+            return target
+        number = 1
+        while True:
+            numbered = target.parent / _numbered_name(target.name, number)
+            try:
+                self._storage.publish(staged, numbered)
+            except FileExistsError:
+                number += 1
+                continue
+            return numbered
 
 
-def _make_directory(target: Path) -> None:
+async def _stream_into(staged: Path, payload: FilePayload) -> None:
+    """The upload's bytes into the staged file, counted as they arrive.
+
+    The size is counted rather than read from a header, which is a claim by
+    the client.
+    """
+    handle = await to_thread.run_sync(_opened_for_writing, staged)
     try:
-        target.mkdir()
-    except FileExistsError:
-        raise ActionRefused("conflict", f"{target.name} is already there") from None
+        written = 0
+        while chunk := await payload.read(CHUNK_BYTES):
+            written += len(chunk)
+            if written > settings.MAX_UPLOAD_BYTES:
+                raise ActionRefused(
+                    "too_large", "The file is larger than this server accepts"
+                )
+            await to_thread.run_sync(handle.write, chunk)
+    finally:
+        await to_thread.run_sync(handle.close)
 
 
-def _make_file(target: Path) -> None:
-    # Exclusive creation: a name taken by a file, a folder or a link — even one
-    # pointing nowhere — is refused by the call itself, with no gap after a check.
-    taken = ActionRefused("conflict", f"{target.name} is already there")
-    try:
-        target.touch(exist_ok=False)
-    except FileExistsError:
-        raise taken from None
-    except PermissionError:
-        # Windows answers a folder under the name with "access denied" rather
-        # than "exists"; Linux says exists.
-        if target.exists() or target.is_symlink():
-            raise taken from None
-        raise
-
-
-def _rename(path: Path, target: Path) -> None:
-    if target.exists():
-        raise ActionRefused("conflict", f"{target.name} is already there")
-    path.rename(target)
-
-
-def _remove(path: Path) -> None:
-    if not path.is_dir():
-        path.unlink()
-        return
-    shutil.rmtree(path)
+def _opened_for_writing(path: Path) -> BinaryIO:
+    return path.open("wb")
 
 
 def _numbered_name(name: str, number: int) -> str:
     """Put a copy number before the uploaded file's suffix."""
-    path = Path(name)
+    path = PurePosixPath(name)
     suffix = path.suffix if path.suffix != name else ""
     stem = name[: -len(suffix)] if suffix else name
     return f"{stem} ({number}){suffix}"
 
 
-def _available_path(parent: Path, name: str) -> Path:
+def _available(storage: Storage, parent: PurePosixPath, name: str) -> PurePosixPath:
     candidate = parent / name
     number = 1
-    while candidate.exists():
+    while storage.entry(candidate) is not None:
         candidate = parent / f"{name} ({number})"
         number += 1
     return candidate
 
 
-def _publish_new(temporary: Path, target: Path) -> None:
-    """Publish without replacing a file that appeared after the first check."""
-    try:
-        os.link(temporary, target)
-    except FileExistsError:
-        raise ActionRefused("conflict", f"{target.name} is already there") from None
-
-
-def _publish_with_available_name(temporary: Path, parent: Path, name: str) -> Path:
-    number = 1
-    while True:
-        target = parent / _numbered_name(name, number)
-        try:
-            os.link(temporary, target)
-        except FileExistsError:
-            number += 1
-            continue
-        return target
-
-
-class FileActionType(ActionType, Protocol):
+class ExplorerActionType(ActionType, Protocol):
     """One of the classes below, seen from outside.
 
     Both halves are needed and neither alone is enough: the registry reads
-    `title` off the class, and `FileActions` builds an instance from a session.
+    `title` off the class, and `ExplorerActions` builds an instance from a
+    storage.
     """
 
-    def __call__(self, session: FileSession) -> Action[Any]: ...
+    def __call__(self, storage: Storage) -> Action[Any]: ...
 
 
-# The actions a file source has, as classes.
+# The actions a tree of files has, as classes.
 #
-# Two readers, one tuple: `FileActions` builds its set from it, and the
+# Two readers, one tuple: `ExplorerActions` builds its set from it, and the
 # registry reads the titles off it to say what the type can do. A second list
 # would be a list to forget — the same reasoning that derives secret fields
-# from `SecretStr` rather than from a register of names.
-FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
+# from `SecretStr` rather than from a register of names. A source whose folders
+# cannot become connections of their own leaves `ConnectFolder` out.
+EXPLORER_ACTION_TYPES: tuple[ExplorerActionType, ...] = (
     CreateFolder,
     CreateFile,
     ConnectFolder,
@@ -748,14 +768,16 @@ FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
 )
 
 
-class FileActions:
-    """What a file source offers on a given node."""
+class ExplorerActions:
+    """What a tree of files offers on a given node."""
 
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
-        self._actions = ActionSet(
-            [action_type(session) for action_type in FILE_ACTION_TYPES]
-        )
+    def __init__(
+        self,
+        storage: Storage,
+        action_types: tuple[ExplorerActionType, ...] = EXPLORER_ACTION_TYPES,
+    ) -> None:
+        self._storage = storage
+        self._actions = ActionSet([action_type(storage) for action_type in action_types])
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.get(name)
@@ -764,13 +786,13 @@ class FileActions:
         return list(self._actions)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
-        path, kind = await to_thread.run_sync(partial(self._look_at, node_id))
+        place, kind = await to_thread.run_sync(self._look_at, node_id)
         offered = self._actions.for_kind(kind)
-        if path == self._session.resolved_root:
+        if place == ROOT:
             # The root is an ordinary directory, and its state — not its kind —
             # is what rules the two actions out.
             return [action for action in offered if not isinstance(action, _ActsOnNode)]
-        if kind == "file" and not is_unpackable(path.name):
+        if kind == "file" and not is_unpackable(place.name):
             # Said here rather than in `applies_to`, which speaks about kinds:
             # every file is a file, and only some of them are archives.
             return [
@@ -780,8 +802,8 @@ class FileActions:
             ]
         return offered
 
-    def _look_at(self, node_id: str | None) -> tuple[Path, NodeKind]:
-        """What the id names, and of what kind. Blocking: it stats the path.
+    def _look_at(self, node_id: str | None) -> tuple[PurePosixPath, NodeKind]:
+        """What the id names, and of what kind. Blocking: it asks the storage.
 
         A member of a container file is a node like any other, and answering
         with its kind is what leaves it out of every action: the four that act
@@ -789,19 +811,13 @@ class FileActions:
         dataset is neither (D51).
         """
         if node_id is None or node_id == "":
-            return self._session.root, "directory"
-        resolved = resolve_node(self._session, node_id)
+            return ROOT, "directory"
+        resolved = resolve_node(self._storage, node_id)
         if resolved.member is not None:
             kind: NodeKind = (
-                "entry" if format_of(resolved.path.name) == "archive" else "dataset"
+                "entry" if format_of(resolved.name) == "archive" else "dataset"
             )
-            return resolved.path, kind
-        return resolved.path, _kind_of(resolved.path, node_id)
-
-
-def _kind_of(path: Path, node_id: str | None) -> NodeKind:
-    if path.is_dir():
-        return "directory"
-    if path.is_file():
-        return "file"
-    raise ValueError(f"No such node: {node_id}")
+            return resolved.place, kind
+        if resolved.entry is None:
+            raise ValueError(f"No such node: {node_id}")
+        return resolved.place, "directory" if resolved.entry.is_directory else "file"

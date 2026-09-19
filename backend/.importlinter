@@ -79,6 +79,7 @@ source_modules =
     app.adapters.operations
     app.adapters.resources
     app.adapters.file
+    app.adapters.explorer
     app.adapters.table_design
     app.adapters.expressions
 forbidden_modules =
@@ -86,13 +87,14 @@ forbidden_modules =
     psycopg_pool
     sqlglot
 
-# The same rule as the psycopg one, for the three libraries the file source
+# The same rule as the psycopg one, for the three libraries the file explorer
 # reads with: a format's library belongs to the module that owns the format, so
-# an upgrade has one place to change. duckdb is here for a second reason as
-# well — it is a SQL engine, and a query module tempted to parse or run SQL
-# itself fails this check instead.
+# an upgrade has one place to change, and every source that is a tree of files
+# reads formats through the explorer rather than on its own (D150). duckdb is
+# here for a second reason as well — it is a SQL engine, and a query module
+# tempted to parse or run SQL itself fails this check instead.
 [importlinter:contract:file-format-sdks-are-contained]
-name = pyarrow, openpyxl and duckdb are imported only by the file adapter
+name = pyarrow, openpyxl and duckdb are imported only by the file explorer
 type = forbidden
 source_modules =
     app.core
@@ -152,6 +154,7 @@ source_modules =
     app.adapters.operations
     app.adapters.resources
     app.adapters.file
+    app.adapters.explorer
     app.adapters.postgres
 forbidden_modules =
     redis
@@ -266,6 +269,7 @@ source_modules =
     app.adapters.operations
     app.adapters.resources
     app.adapters.file
+    app.adapters.explorer
     app.adapters.postgres
     app.adapters.redis
 forbidden_modules =

@@ -7,11 +7,11 @@ from app.adapters.column_changes import (
     DropColumnRequest,
     RenameColumnRequest,
 )
+from app.adapters.explorer.fetch import ExplorerFetch
+from app.adapters.explorer.relation import ExplorerRelations
+from app.adapters.explorer.update import ExplorerTableChanges
 from app.adapters.fetch import FetchRequest
-from app.adapters.file.fetch import FileFetch
-from app.adapters.file.relation import FileRelations
-from app.adapters.file.session import FileSession
-from app.adapters.file.update import FileTableChanges
+from app.adapters.file.storage import LocalStorage
 from app.adapters.update import (
     CellEdit,
     DeleteRowsRequest,
@@ -26,15 +26,15 @@ from app.adapters.update import (
 
 
 @pytest.fixture
-def source(tmp_path: Path) -> tuple[FileFetch, FileTableChanges, Path]:
+def source(tmp_path: Path) -> tuple[ExplorerFetch, ExplorerTableChanges, Path]:
     path = tmp_path / "people.csv"
     path.write_text("id,name\n1,Ada\n2,Grace\n3,Linus\n", encoding="utf-8")
-    session = FileSession(tmp_path)
-    return FileFetch(session), FileTableChanges(session), path
+    session = LocalStorage(tmp_path)
+    return ExplorerFetch(session), ExplorerTableChanges(session), path
 
 
 async def test_updates_one_cell_and_issues_fresh_handles(
-    source: tuple[FileFetch, FileTableChanges, Path]
+    source: tuple[ExplorerFetch, ExplorerTableChanges, Path]
 ) -> None:
     fetch, changes, path = source
     before = await fetch.fetch(FetchRequest(node_id="people.csv"))
@@ -54,7 +54,7 @@ async def test_updates_one_cell_and_issues_fresh_handles(
 
 
 async def test_pastes_a_block_atomically(
-    source: tuple[FileFetch, FileTableChanges, Path]
+    source: tuple[ExplorerFetch, ExplorerTableChanges, Path]
 ) -> None:
     fetch, changes, path = source
     before = await fetch.fetch(FetchRequest(node_id="people.csv"))
@@ -81,7 +81,7 @@ async def test_pastes_a_block_atomically(
 
 
 async def test_inserts_one_row_and_a_mapped_block(
-    source: tuple[FileFetch, FileTableChanges, Path]
+    source: tuple[ExplorerFetch, ExplorerTableChanges, Path]
 ) -> None:
     _, changes, path = source
     await changes.insert_row(
@@ -102,7 +102,7 @@ async def test_inserts_one_row_and_a_mapped_block(
 
 
 async def test_deletes_selected_rows(
-    source: tuple[FileFetch, FileTableChanges, Path]
+    source: tuple[ExplorerFetch, ExplorerTableChanges, Path]
 ) -> None:
     fetch, changes, path = source
     before = await fetch.fetch(FetchRequest(node_id="people.csv"))
@@ -119,7 +119,7 @@ async def test_deletes_selected_rows(
 
 
 async def test_adds_renames_and_drops_csv_columns(
-    source: tuple[FileFetch, FileTableChanges, Path]
+    source: tuple[ExplorerFetch, ExplorerTableChanges, Path]
 ) -> None:
     _, changes, path = source
 
@@ -141,10 +141,10 @@ async def test_adds_renames_and_drops_csv_columns(
 
 
 async def test_a_csv_relation_model_offers_only_header_operations(
-    source: tuple[FileFetch, FileTableChanges, Path]
+    source: tuple[ExplorerFetch, ExplorerTableChanges, Path]
 ) -> None:
     _, _, path = source
-    model = await FileRelations(FileSession(path.parent)).relation_model("people.csv")
+    model = await ExplorerRelations(LocalStorage(path.parent)).relation_model("people.csv")
 
     assert [column.name for column in model.columns] == ["id", "name"]
     assert model.column_operations == ["add", "drop", "rename"]
@@ -152,7 +152,7 @@ async def test_a_csv_relation_model_offers_only_header_operations(
 
 
 async def test_a_stale_file_handle_cannot_overwrite_a_newer_file(
-    source: tuple[FileFetch, FileTableChanges, Path]
+    source: tuple[ExplorerFetch, ExplorerTableChanges, Path]
 ) -> None:
     fetch, changes, path = source
     before = await fetch.fetch(FetchRequest(node_id="people.csv"))
@@ -176,7 +176,7 @@ async def test_non_delimited_files_are_not_changed(
 ) -> None:
     path = tmp_path / "people.json"
     path.write_text('[["Ada"]]', encoding="utf-8")
-    changes = FileTableChanges(FileSession(tmp_path))
+    changes = ExplorerTableChanges(LocalStorage(tmp_path))
 
     with pytest.raises(ValueError, match="CSV or TSV"):
         await changes.insert_row(InsertRowRequest(node_id="people.json"))

@@ -14,8 +14,8 @@ import json
 import re
 import time
 from collections.abc import AsyncIterator, Iterator
-from contextlib import contextmanager
-from pathlib import Path
+from contextlib import ExitStack, contextmanager
+from pathlib import Path, PurePosixPath
 from threading import Event
 from typing import Any
 
@@ -23,16 +23,16 @@ import anyio
 import duckdb
 from anyio import to_thread
 
-from app.adapters.file.arrow import column_type, encoder
-from app.adapters.file.dialect import REFUSALS, prepare
-from app.adapters.file.formats import format_of
-from app.adapters.file.query_readers import (
+from app.adapters.explorer.arrow import column_type, encoder
+from app.adapters.explorer.dialect import REFUSALS, prepare
+from app.adapters.explorer.formats import format_of
+from app.adapters.explorer.query_readers import (
     QUERY_FORMATS,
     FileReaders,
     Preparation,
     PreparationStopped,
 )
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.storage import ROOT, Storage, node_id_of
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     ColumnSummary,
@@ -227,13 +227,16 @@ class _Bounds:
         self.results = 0
 
 
-class FileExecution:
+class ExplorerExecution:
     """One run: resolve what it names, open an engine, read, close it."""
 
-    def __init__(self, session: FileSession, request: QueryRequest) -> None:
-        self._session = session
+    def __init__(self, storage: Storage, request: QueryRequest) -> None:
+        self._storage = storage
         self._request = request
-        self._engine = _Engine(session.resolved_root)
+        self._engine = _Engine(storage.local_root())
+        # The local files the engine reads, held for as long as the run is:
+        # a copy of a remote file must outlive every statement that reads it.
+        self._held = ExitStack()
         self._cancelled = False
         self._timed_out = False
 
@@ -262,10 +265,13 @@ class FileExecution:
                 "config", "This source has no schemas, so it has no schema context"
             )
         script = prepare(request.text)
-        relations = await to_thread.run_sync(relations_of, self._session, script)
+        places = await to_thread.run_sync(relations_of, self._storage, script)
         started = time.monotonic()
         state = _Bounds(limits)
         try:
+            relations = await to_thread.run_sync(
+                held_locally, self._storage, places, self._held
+            )
             deadline = started + min(
                 limits.statement_timeout_seconds, limits.script_timeout_seconds
             )
@@ -311,6 +317,7 @@ class FileExecution:
                 stopped = finished.status != "succeeded"
         finally:
             await to_thread.run_sync(self._engine.close)
+            await to_thread.run_sync(self._held.close)
 
     async def _one(
         self, statement: PreparedStatement, state: _Bounds
@@ -395,43 +402,56 @@ class FileExecution:
     def _diagnostic(self, exc: duckdb.Error) -> QueryDiagnostic:
         return diagnostic_of(
             exc,
-            root=self._session.resolved_root,
+            root=self._storage.local_root(),
             cancelled=self._cancelled,
             timed_out=self._timed_out,
         )
 
 
-def relations_of(session: FileSession, script: PreparedScript) -> dict[str, Path]:
+def relations_of(
+    storage: Storage, script: PreparedScript
+) -> dict[str, PurePosixPath]:
     """Every file a script names, resolved before anything is opened.
 
     One failure refuses the whole run rather than one statement: a script whose
     third statement names a file that is not there would otherwise open and
     read the first two before saying so. Blocking.
     """
-    wanted: dict[str, Path] = {}
+    wanted: dict[str, PurePosixPath] = {}
     for statement in script.statements:
         for name in statement.targets:
             if name not in wanted:
-                wanted[name] = resolve_relation(session, name)
+                wanted[name] = resolve_relation(storage, name)
     return wanted
 
 
-def resolve_relation(session: FileSession, name: str) -> Path:
+def held_locally(
+    storage: Storage, places: dict[str, PurePosixPath], held: ExitStack
+) -> dict[str, Path]:
+    """The local file of every relation, kept until `held` closes. Blocking."""
+    return {
+        name: held.enter_context(storage.local_file(place))
+        for name, place in places.items()
+    }
+
+
+def resolve_relation(storage: Storage, name: str) -> PurePosixPath:
     """One name as a file this source will read, or the reason it is not.
 
-    The containment rule is the session's, and it is the only one: a name that
+    The containment rule is the storage's, and it is the only one: a name that
     leaves the root is refused here exactly as it is for a listing, a download
     or an upload (D77). Blocking.
     """
     shown = name[:120]
     missing = f"There is no file called {shown} in this connection"
     try:
-        path = session.resolve(name)
+        place = storage.place(name)
     except ValueError:
         raise AdapterError("config", missing) from None
-    if not path.is_file():
+    entry = storage.entry(place)
+    if entry is None or entry.is_directory:
         raise AdapterError("config", missing)
-    found = format_of(path.name)
+    found = format_of(place.name)
     if found == "workbook":
         raise AdapterError(
             "config",
@@ -444,7 +464,7 @@ def resolve_relation(session: FileSession, name: str) -> Path:
             "SQL here reads CSV, TSV, Parquet, JSON, JSON lines and logs, "
             f"and {shown} is none of them",
         )
-    return path
+    return place
 
 
 def diagnostic_of(
@@ -615,11 +635,11 @@ def _since(began: float) -> int:
     return int((time.monotonic() - began) * 1000)
 
 
-class FileQuery:
+class ExplorerQuery:
     """The file source as one that accepts complete SQL (D77)."""
 
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     def profile(self) -> QueryProfile:
         return QueryProfile(
@@ -634,8 +654,8 @@ class FileQuery:
     def prepare(self, text: str) -> PreparedScript:
         return prepare(text)
 
-    def open(self, request: QueryRequest) -> FileExecution:
-        return FileExecution(self._session, request)
+    def open(self, request: QueryRequest) -> ExplorerExecution:
+        return ExplorerExecution(self._storage, request)
 
     async def metadata(self, request: QueryMetadataRequest) -> QueryMetadata:
         return await to_thread.run_sync(self._metadata, request)
@@ -662,34 +682,33 @@ class FileQuery:
         """Every file below the root that SQL can read, breadth first."""
         found: list[RelationSummary] = []
         scanned = 0
-        queue: list[tuple[Path, int]] = [(self._session.resolved_root, 0)]
+        queue: list[tuple[PurePosixPath, int]] = [(ROOT, 0)]
         while queue:
             folder, depth = queue.pop(0)
             try:
-                entries = sorted(folder.iterdir())
+                entries = sorted(
+                    self._storage.entries(folder), key=lambda entry: entry.name
+                )
             except OSError:
                 continue
             for entry in entries:
                 scanned += 1
                 if scanned > MAX_SCANNED:
                     return found, False
-                try:
-                    if entry.is_symlink():
-                        continue
-                    if entry.is_dir():
-                        if depth + 1 <= MAX_DEPTH:
-                            queue.append((entry, depth + 1))
-                        continue
-                    if format_of(entry.name) not in QUERY_FORMATS:
-                        continue
-                except OSError:
+                if entry.is_link:
+                    continue
+                if entry.is_directory:
+                    if depth + 1 <= MAX_DEPTH:
+                        queue.append((entry.place, depth + 1))
+                    continue
+                if format_of(entry.name) not in QUERY_FORMATS:
                     continue
                 if len(found) >= MAX_RELATIONS:
                     return found, False
                 found.append(
                     RelationSummary(
                         schema_name="",
-                        name=self._session.relative_id(entry),
+                        name=node_id_of(entry.place) or "",
                         kind="table",
                     )
                 )
@@ -704,13 +723,14 @@ class FileQuery:
         it is added up (D77).
         """
         try:
-            path = self._session.resolve(name)
+            place = self._storage.place(name)
         except ValueError:
             return None
-        if not path.is_file() or format_of(path.name) not in QUERY_FORMATS:
+        entry = self._storage.entry(place)
+        if entry is None or entry.is_directory or format_of(place.name) not in QUERY_FORMATS:
             return None
         try:
-            with _describing() as connection:
+            with self._storage.local_file(place) as path, _describing() as connection:
                 relation = _read(connection, path)
                 return [
                     ColumnSummary(name=str(column), type_sql=str(type_))
@@ -749,9 +769,10 @@ class FileQuery:
         if statement.kind != "read":
             raise ValueError("Only a read is planned here")
 
-        engine = _Engine(self._session.resolved_root)
+        engine = _Engine(self._storage.local_root())
+        held = ExitStack()
         try:
-            engine.open(relations_of(self._session, script))
+            engine.open(held_locally(self._storage, relations_of(self._storage, script), held))
             values = {
                 parameter.name: parameter.value
                 for parameter in request.parameters
@@ -770,13 +791,14 @@ class FileQuery:
                 "config",
                 diagnostic_of(
                     exc,
-                    root=self._session.resolved_root,
+                    root=self._storage.local_root(),
                     cancelled=False,
                     timed_out=False,
                 ).message,
             ) from None
         finally:
             engine.close()
+            held.close()
         return _explained(raw, planned)
 
 

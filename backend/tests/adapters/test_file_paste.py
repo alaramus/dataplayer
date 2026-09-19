@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 
 from app.adapters.actions import ActionRefused, ActionResult, TakesParams
-from app.adapters.file.actions import FileActions
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.actions import ExplorerActions
+from app.adapters.file.storage import LocalStorage
 
 
 @pytest.fixture
@@ -19,12 +19,12 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def actions(root: Path) -> FileActions:
-    return FileActions(FileSession(root))
+def actions(root: Path) -> ExplorerActions:
+    return ExplorerActions(LocalStorage(root))
 
 
 async def _paste(
-    actions: FileActions, into: str | None, **params: object
+    actions: ExplorerActions, into: str | None, **params: object
 ) -> ActionResult:
     action = actions.action("paste")
     assert isinstance(action, TakesParams)
@@ -32,7 +32,7 @@ async def _paste(
 
 
 async def test_a_file_is_copied_and_both_ends_stay(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     result = await _paste(actions, "archive", sources=["notes.txt"], mode="copy")
 
@@ -44,7 +44,7 @@ async def test_a_file_is_copied_and_both_ends_stay(
 
 
 async def test_a_file_is_moved_and_both_folders_are_named(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     result = await _paste(actions, "archive", sources=["notes.txt"], mode="move")
 
@@ -56,7 +56,7 @@ async def test_a_file_is_moved_and_both_folders_are_named(
 
 
 async def test_a_folder_goes_with_everything_in_it(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     await _paste(actions, "archive", sources=["reports"], mode="copy")
 
@@ -64,7 +64,7 @@ async def test_a_folder_goes_with_everything_in_it(
     assert (root / "reports" / "q3.csv").exists()
 
 
-async def test_several_things_go_at_once(actions: FileActions, root: Path) -> None:
+async def test_several_things_go_at_once(actions: ExplorerActions, root: Path) -> None:
     result = await _paste(
         actions, "archive", sources=["notes.txt", "reports"], mode="move"
     )
@@ -75,7 +75,7 @@ async def test_several_things_go_at_once(actions: FileActions, root: Path) -> No
 
 
 async def test_a_taken_name_is_refused_by_default(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     (root / "archive" / "notes.txt").write_text("already", encoding="utf-8")
 
@@ -87,7 +87,7 @@ async def test_a_taken_name_is_refused_by_default(
 
 
 async def test_a_taken_name_can_be_kept_beside_the_one_that_is_there(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     (root / "archive" / "notes.txt").write_text("already", encoding="utf-8")
 
@@ -100,7 +100,7 @@ async def test_a_taken_name_can_be_kept_beside_the_one_that_is_there(
 
 
 async def test_a_taken_name_can_be_replaced_when_asked(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     (root / "archive" / "notes.txt").write_text("already", encoding="utf-8")
 
@@ -111,13 +111,13 @@ async def test_a_taken_name_can_be_replaced_when_asked(
     assert (root / "archive" / "notes.txt").read_text(encoding="utf-8") == "first\n"
 
 
-async def test_a_folder_cannot_be_put_inside_itself(actions: FileActions) -> None:
+async def test_a_folder_cannot_be_put_inside_itself(actions: ExplorerActions) -> None:
     with pytest.raises(ActionRefused, match="inside itself"):
         await _paste(actions, "reports", sources=["reports"], mode="move")
 
 
 async def test_a_folder_cannot_be_put_inside_something_it_holds(
-    actions: FileActions, root: Path
+    actions: ExplorerActions, root: Path
 ) -> None:
     (root / "reports" / "inner").mkdir()
 
@@ -125,23 +125,23 @@ async def test_a_folder_cannot_be_put_inside_something_it_holds(
         await _paste(actions, "reports/inner", sources=["reports"], mode="move")
 
 
-async def test_a_source_outside_the_root_is_refused(actions: FileActions) -> None:
+async def test_a_source_outside_the_root_is_refused(actions: ExplorerActions) -> None:
     with pytest.raises(ValueError):
         await _paste(actions, "archive", sources=["../escape"], mode="copy")
 
 
-async def test_the_root_itself_cannot_be_moved(actions: FileActions) -> None:
+async def test_the_root_itself_cannot_be_moved(actions: ExplorerActions) -> None:
     with pytest.raises(ActionRefused, match="root folder"):
         await _paste(actions, "archive", sources=[""], mode="move")
 
 
-async def test_nothing_held_is_nothing_to_paste(actions: FileActions) -> None:
+async def test_nothing_held_is_nothing_to_paste(actions: ExplorerActions) -> None:
     with pytest.raises(ActionRefused, match="Copy or cut"):
         await _paste(actions, "archive", sources=[], mode="copy")
 
 
 async def test_paste_is_offered_on_a_folder_and_on_the_root(
-    actions: FileActions,
+    actions: ExplorerActions,
 ) -> None:
     """It puts something into a place, so the place is what admits it."""
     folder = {action.name for action in await actions.available("archive")}
@@ -155,7 +155,7 @@ async def test_paste_is_offered_on_a_folder_and_on_the_root(
 
 async def test_the_form_names_the_two_fields_the_client_fills() -> None:
     """By purpose, so the form fills them without knowing the action."""
-    from app.adapters.file.actions import PasteParams
+    from app.adapters.explorer.actions import PasteParams
 
     properties = PasteParams.model_json_schema()["properties"]
 

@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from app.adapters.content import AudioContent, PdfContent, VideoContent
-from app.adapters.file.content import FileContent
-from app.adapters.file.media import NotPlayable, audio_facts, pdf_facts, video_facts
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.content import ExplorerContent
+from app.adapters.explorer.media import NotPlayable, audio_facts, pdf_facts, video_facts
+from app.adapters.file.storage import LocalStorage
 from tests.utils.media import (
     flac_bytes,
     matroska_bytes,
@@ -37,8 +37,8 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def content(root: Path) -> FileContent:
-    return FileContent(FileSession(root))
+def content(root: Path) -> ExplorerContent:
+    return ExplorerContent(LocalStorage(root))
 
 
 def test_a_wav_states_its_channels_rate_and_exact_length(root: Path) -> None:
@@ -117,7 +117,7 @@ def test_a_recording_is_not_offered_as_a_sound_file(root: Path) -> None:
         video_facts(root / "voice.mp3")
 
 
-async def test_content_carries_the_verified_facts(content: FileContent) -> None:
+async def test_content_carries_the_verified_facts(content: ExplorerContent) -> None:
     from app.adapters.content import ContentRequest
 
     sound = await content.read_content(
@@ -143,7 +143,7 @@ async def test_content_carries_the_verified_facts(content: FileContent) -> None:
 
 
 async def test_a_stream_states_the_size_and_reads_only_the_range(
-    content: FileContent, root: Path
+    content: ExplorerContent, root: Path
 ) -> None:
     from app.adapters.content import ContentRequest
 
@@ -161,7 +161,7 @@ async def test_a_stream_states_the_size_and_reads_only_the_range(
 
 
 async def test_a_stream_of_a_representation_the_file_does_not_offer_is_refused(
-    content: FileContent,
+    content: ExplorerContent,
 ) -> None:
     from app.adapters.content import ContentRequest
 
@@ -171,7 +171,7 @@ async def test_a_stream_of_a_representation_the_file_does_not_offer_is_refused(
         )
 
 
-async def test_a_text_file_is_not_streamed(content: FileContent) -> None:
+async def test_a_text_file_is_not_streamed(content: ExplorerContent) -> None:
     from app.adapters.content import ContentRequest
 
     with pytest.raises(ValueError):

@@ -33,6 +33,7 @@ legacy notes and stay unchanged.
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
+| A source made of files, the storage it brings, the explorer over it | [sources/explorer.md](docs/architecture/sources/explorer.md) |
 | An SSH server, the server key it trusts, SSH keys and their passphrases | [sources/ssh.md](docs/architecture/sources/ssh.md) |
 | A terminal, its socket, who may open one | [terminals.md](docs/architecture/terminals.md) |
 | Reading a relation, changing rows, export, import | [sources/relations.md](docs/architecture/sources/relations.md) |
@@ -217,6 +218,8 @@ files. IDs are stable because specs and commits refer to them.
 | D147 | [sources/ssh](docs/architecture/sources/ssh.md) |
 | D148 | [terminals](docs/architecture/terminals.md) |
 | D149 | [terminals](docs/architecture/terminals.md) |
+| D150 | [sources/explorer](docs/architecture/sources/explorer.md) |
+| D151 | [sources/explorer](docs/architecture/sources/explorer.md) |
 
 ## Working rules
 

@@ -8,14 +8,14 @@ from openpyxl import Workbook
 from app.adapters.catalog import DatasetNode
 from app.adapters.content import ContentRequest, EditorContentRequest
 from app.adapters.dataset import WorksheetDataset
+from app.adapters.explorer.actions import ExplorerActions
+from app.adapters.explorer.catalog import ExplorerCatalog
+from app.adapters.explorer.content import ExplorerContent
+from app.adapters.explorer.fetch import ExplorerFetch
+from app.adapters.explorer.relation import ExplorerRelations
+from app.adapters.explorer.workbook import MAX_UNPACKED_BYTES, NotAWorkbook
 from app.adapters.fetch import FetchRequest, ScalarFilter
-from app.adapters.file.actions import FileActions
-from app.adapters.file.catalog import FileCatalog
-from app.adapters.file.content import FileContent
-from app.adapters.file.fetch import FileFetch
-from app.adapters.file.relation import FileRelations
-from app.adapters.file.session import FileSession
-from app.adapters.file.workbook import MAX_UNPACKED_BYTES, NotAWorkbook
+from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import NodeNotFound
 
 SHEET_ROWS = 120
@@ -51,22 +51,22 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def catalog(root: Path) -> FileCatalog:
-    return FileCatalog(FileSession(root))
+def catalog(root: Path) -> ExplorerCatalog:
+    return ExplorerCatalog(LocalStorage(root))
 
 
 @pytest.fixture
-def fetch(root: Path) -> FileFetch:
-    return FileFetch(FileSession(root))
+def fetch(root: Path) -> ExplorerFetch:
+    return ExplorerFetch(LocalStorage(root))
 
 
 @pytest.fixture
-def relations(root: Path) -> FileRelations:
-    return FileRelations(FileSession(root))
+def relations(root: Path) -> ExplorerRelations:
+    return ExplorerRelations(LocalStorage(root))
 
 
 async def test_a_workbook_is_a_file_that_opens_and_also_holds_nodes(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     """Both, which is what a spreadsheet is: several tables in one file. It
     opens as the first of them rather than making somebody walk into a folder
@@ -81,7 +81,7 @@ async def test_a_workbook_is_a_file_that_opens_and_also_holds_nodes(
 
 
 async def test_the_sheets_are_the_children_in_workbook_order(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     nodes = await catalog.list_children("budget.xlsx")
 
@@ -98,7 +98,7 @@ async def test_the_sheets_are_the_children_in_workbook_order(
 
 
 async def test_a_sheet_states_what_the_workbook_declared_about_it(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     nodes = await catalog.list_children("budget.xlsx")
 
@@ -113,7 +113,7 @@ async def test_a_sheet_states_what_the_workbook_declared_about_it(
 
 
 async def test_a_hidden_sheet_is_listed_rather_than_left_out(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     """Hiding a sheet is a spreadsheet's own presentation, not a permission."""
     nodes = await catalog.list_children("budget.xlsx")
@@ -122,7 +122,7 @@ async def test_a_hidden_sheet_is_listed_rather_than_left_out(
 
 
 async def test_the_path_to_a_sheet_walks_through_its_workbook(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     path = await catalog.path_to("budget.xlsx/2")
 
@@ -133,13 +133,13 @@ async def test_the_path_to_a_sheet_walks_through_its_workbook(
 
 
 async def test_the_path_to_a_sheet_that_is_not_there_is_not_found(
-    catalog: FileCatalog,
+    catalog: ExplorerCatalog,
 ) -> None:
     with pytest.raises(NodeNotFound):
         await catalog.path_to("budget.xlsx/9")
 
 
-async def test_the_first_row_names_the_columns(fetch: FileFetch) -> None:
+async def test_the_first_row_names_the_columns(fetch: ExplorerFetch) -> None:
     result = await fetch.fetch(FetchRequest(node_id="budget.xlsx/1", limit=2))
 
     assert [column.name for column in result.columns] == [
@@ -151,14 +151,14 @@ async def test_the_first_row_names_the_columns(fetch: FileFetch) -> None:
     assert result.has_more is True
 
 
-async def test_a_worksheet_column_has_no_type_of_its_own(fetch: FileFetch) -> None:
+async def test_a_worksheet_column_has_no_type_of_its_own(fetch: ExplorerFetch) -> None:
     """A spreadsheet types cells, so a column type read off a page would move."""
     result = await fetch.fetch(FetchRequest(node_id="budget.xlsx/1", limit=1))
 
     assert {column.type.category for column in result.columns} == {"string"}
 
 
-async def test_a_cell_is_rendered_by_its_own_type(fetch: FileFetch) -> None:
+async def test_a_cell_is_rendered_by_its_own_type(fetch: ExplorerFetch) -> None:
     result = await fetch.fetch(FetchRequest(node_id="budget.xlsx/2", limit=10))
 
     assert [column.name for column in result.columns] == [
@@ -173,7 +173,7 @@ async def test_a_cell_is_rendered_by_its_own_type(fetch: FileFetch) -> None:
 
 
 async def test_a_page_of_a_sheet_starts_where_it_was_asked_to(
-    fetch: FileFetch,
+    fetch: ExplorerFetch,
 ) -> None:
     result = await fetch.fetch(
         FetchRequest(node_id="budget.xlsx/1", limit=2, offset=100)
@@ -183,7 +183,7 @@ async def test_a_page_of_a_sheet_starts_where_it_was_asked_to(
 
 
 async def test_the_last_page_of_a_sheet_knows_it_is_the_last(
-    fetch: FileFetch,
+    fetch: ExplorerFetch,
 ) -> None:
     result = await fetch.fetch(
         FetchRequest(node_id="budget.xlsx/1", limit=5, offset=SHEET_ROWS - 2)
@@ -194,7 +194,7 @@ async def test_the_last_page_of_a_sheet_knows_it_is_the_last(
 
 
 async def test_a_sheet_is_filtered_by_a_value_in_a_column(
-    fetch: FileFetch,
+    fetch: ExplorerFetch,
 ) -> None:
     result = await fetch.fetch(
         FetchRequest(
@@ -208,7 +208,7 @@ async def test_a_sheet_is_filtered_by_a_value_in_a_column(
 
 
 async def test_the_workbook_itself_is_read_as_its_first_sheet(
-    fetch: FileFetch,
+    fetch: ExplorerFetch,
 ) -> None:
     """What somebody opening it in a spreadsheet would see first."""
     opened = await fetch.fetch(FetchRequest(node_id="budget.xlsx", limit=5))
@@ -220,18 +220,18 @@ async def test_the_workbook_itself_is_read_as_its_first_sheet(
     assert opened.rows == first.rows
 
 
-async def test_a_sheet_that_does_not_exist_is_refused(fetch: FileFetch) -> None:
+async def test_a_sheet_that_does_not_exist_is_refused(fetch: ExplorerFetch) -> None:
     with pytest.raises(ValueError, match="no sheet 9"):
         await fetch.fetch(FetchRequest(node_id="budget.xlsx/9", limit=1))
 
 
-async def test_a_member_that_is_not_a_position_is_refused(fetch: FileFetch) -> None:
+async def test_a_member_that_is_not_a_position_is_refused(fetch: ExplorerFetch) -> None:
     with pytest.raises(ValueError, match="No such sheet"):
         await fetch.fetch(FetchRequest(node_id="budget.xlsx/Revenue", limit=1))
 
 
 async def test_a_real_file_under_a_workbook_name_keeps_its_meaning(
-    fetch: FileFetch,
+    fetch: ExplorerFetch,
 ) -> None:
     """`trap.xlsx` is a directory, so `trap.xlsx/1` is the file inside it.
 
@@ -244,7 +244,7 @@ async def test_a_real_file_under_a_workbook_name_keeps_its_meaning(
     assert result.rows == [["1", "id,name"], ["2", "7,seven"]]
 
 
-async def test_bytes_that_are_not_a_workbook_are_refused(catalog: FileCatalog) -> None:
+async def test_bytes_that_are_not_a_workbook_are_refused(catalog: ExplorerCatalog) -> None:
     with pytest.raises(NotAWorkbook, match="not a workbook"):
         await catalog.list_children("not-really.xlsx")
 
@@ -262,13 +262,13 @@ async def test_a_workbook_that_would_unpack_past_the_ceiling_is_refused(
     assert entries[0].file_size == 4096
     _inflate_declared_size(path, MAX_UNPACKED_BYTES + 1)
 
-    catalog = FileCatalog(FileSession(tmp_path))
+    catalog = ExplorerCatalog(LocalStorage(tmp_path))
     with pytest.raises(ValueError, match="unpacks to more than"):
         await catalog.list_children("bomb.xlsx")
 
 
 async def test_a_sheet_offers_no_content_viewer(root: Path) -> None:
-    content = FileContent(FileSession(root))
+    content = ExplorerContent(LocalStorage(root))
 
     with pytest.raises(ValueError, match="No such file"):
         await content.read_content(
@@ -277,7 +277,7 @@ async def test_a_sheet_offers_no_content_viewer(root: Path) -> None:
 
 
 async def test_a_sheet_cannot_be_edited_as_a_document(root: Path) -> None:
-    content = FileContent(FileSession(root))
+    content = ExplorerContent(LocalStorage(root))
 
     with pytest.raises(ValueError, match="No such file"):
         await content.read_editor_content(
@@ -287,7 +287,7 @@ async def test_a_sheet_cannot_be_edited_as_a_document(root: Path) -> None:
 
 async def test_a_workbook_cannot_be_edited_as_a_document(root: Path) -> None:
     """Its bytes are a zip; the editor is for a document, not a container."""
-    content = FileContent(FileSession(root))
+    content = ExplorerContent(LocalStorage(root))
 
     with pytest.raises(ValueError, match="no text to show"):
         await content.read_editor_content(EditorContentRequest(node_id="budget.xlsx"))
@@ -296,14 +296,14 @@ async def test_a_workbook_cannot_be_edited_as_a_document(root: Path) -> None:
 async def test_a_sheet_offers_no_actions(root: Path) -> None:
     """Rename, delete and download name the kinds they act on; a dataset is
     not one of them, so the menu is empty without a rule of its own."""
-    actions = FileActions(FileSession(root))
+    actions = ExplorerActions(LocalStorage(root))
 
     assert await actions.available("budget.xlsx/1") == []
     assert [action.name for action in await actions.available("budget.xlsx")]
 
 
 async def test_the_relation_model_of_a_sheet_states_where_it_sits(
-    relations: FileRelations,
+    relations: ExplorerRelations,
 ) -> None:
     model = await relations.relation_model("budget.xlsx/3")
 
@@ -320,7 +320,7 @@ async def test_the_relation_model_of_a_sheet_states_where_it_sits(
 
 
 async def test_the_workbook_itself_states_no_columns(
-    relations: FileRelations,
+    relations: ExplorerRelations,
 ) -> None:
     with pytest.raises(ValueError, match="states no columns"):
         await relations.relation_model("budget.xlsx")

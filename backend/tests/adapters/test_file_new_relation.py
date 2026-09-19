@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.file.new_relation import FileNewRelations
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.new_relation import ExplorerNewRelations
+from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -20,8 +20,8 @@ def root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def relations(root: Path) -> FileNewRelations:
-    return FileNewRelations(FileSession(root))
+def relations(root: Path) -> ExplorerNewRelations:
+    return ExplorerNewRelations(LocalStorage(root))
 
 
 def _request(
@@ -40,7 +40,7 @@ def _request(
 
 
 async def test_a_folder_accepts_a_relation_and_offers_the_one_type_it_has(
-    relations: FileNewRelations,
+    relations: ExplorerNewRelations,
 ) -> None:
     """Every value in a delimited file is text, so there is nothing to choose."""
     options = await relations.new_relation_options("reports")
@@ -50,7 +50,7 @@ async def test_a_folder_accepts_a_relation_and_offers_the_one_type_it_has(
 
 
 async def test_the_root_is_a_folder_like_any_other(
-    relations: FileNewRelations,
+    relations: ExplorerNewRelations,
 ) -> None:
     """A connection with no folders in it still has somewhere to write."""
     options = await relations.new_relation_options("")
@@ -59,7 +59,7 @@ async def test_the_root_is_a_folder_like_any_other(
 
 
 async def test_a_file_says_why_it_holds_no_relation_rather_than_failing(
-    relations: FileNewRelations,
+    relations: ExplorerNewRelations,
 ) -> None:
     options = await relations.new_relation_options("notes.txt")
 
@@ -68,7 +68,7 @@ async def test_a_file_says_why_it_holds_no_relation_rather_than_failing(
 
 
 async def test_a_node_that_is_not_there_is_not_a_container(
-    relations: FileNewRelations,
+    relations: ExplorerNewRelations,
 ) -> None:
     with pytest.raises(NodeNotFound):
         await relations.new_relation_options("nowhere")
@@ -76,7 +76,7 @@ async def test_a_node_that_is_not_there_is_not_a_container(
 
 @pytest.mark.parametrize("parent", ["../secrets", "/etc", "C:/Windows"])
 async def test_a_container_outside_the_root_is_refused(
-    relations: FileNewRelations, parent: str
+    relations: ExplorerNewRelations, parent: str
 ) -> None:
     """The one containment rule, before anything is written (D8)."""
     with pytest.raises(ValueError):
@@ -84,7 +84,7 @@ async def test_a_container_outside_the_root_is_refused(
 
 
 async def test_the_rows_become_a_delimited_file_the_catalog_can_describe(
-    relations: FileNewRelations, root: Path
+    relations: ExplorerNewRelations, root: Path
 ) -> None:
     result = await relations.create_relation(_request())
 
@@ -98,7 +98,7 @@ async def test_the_rows_become_a_delimited_file_the_catalog_can_describe(
 
 
 async def test_a_name_that_is_already_a_delimited_one_is_left_alone(
-    relations: FileNewRelations, root: Path
+    relations: ExplorerNewRelations, root: Path
 ) -> None:
     result = await relations.create_relation(_request("orders.tsv"))
 
@@ -110,7 +110,7 @@ async def test_a_name_that_is_already_a_delimited_one_is_left_alone(
 
 
 async def test_a_taken_name_is_refused_and_nothing_is_replaced(
-    relations: FileNewRelations, root: Path
+    relations: ExplorerNewRelations, root: Path
 ) -> None:
     (root / "reports" / "orders.csv").write_text("kept\n", encoding="utf-8")
 
@@ -122,7 +122,7 @@ async def test_a_taken_name_is_refused_and_nothing_is_replaced(
 
 @pytest.mark.parametrize("name", ["../orders", "a/b", "C:orders"])
 async def test_a_name_that_is_not_a_plain_name_is_refused(
-    relations: FileNewRelations, name: str
+    relations: ExplorerNewRelations, name: str
 ) -> None:
     """A typed name and a path are the same kind of string here (D8)."""
     with pytest.raises(ValueError):
@@ -130,7 +130,7 @@ async def test_a_name_that_is_not_a_plain_name_is_refused(
 
 
 async def test_a_type_this_source_never_published_is_refused(
-    relations: FileNewRelations, root: Path
+    relations: ExplorerNewRelations, root: Path
 ) -> None:
     request = CreateRelationRequest(
         parent_node_id="reports",
@@ -146,7 +146,7 @@ async def test_a_type_this_source_never_published_is_refused(
 
 
 async def test_a_relation_may_start_with_no_rows_at_all(
-    relations: FileNewRelations, root: Path
+    relations: ExplorerNewRelations, root: Path
 ) -> None:
     result = await relations.create_relation(_request(rows=[]))
 
@@ -156,17 +156,17 @@ async def test_a_relation_may_start_with_no_rows_at_all(
 
 
 async def test_a_file_is_not_a_container_for_a_new_relation(
-    relations: FileNewRelations,
+    relations: ExplorerNewRelations,
 ) -> None:
     with pytest.raises(ValueError):
         await relations.create_relation(_request(parent="notes.txt"))
 
 
 async def test_nothing_is_left_behind_when_the_write_fails(
-    relations: FileNewRelations, root: Path, monkeypatch: pytest.MonkeyPatch
+    relations: ExplorerNewRelations, root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The draft is beside the destination, so a failure must not leave it."""
-    import app.adapters.file.new_relation as module
+    import app.adapters.file.storage as module
 
     def explode(_source: object, _target: object) -> None:
         raise OSError("disk is full")

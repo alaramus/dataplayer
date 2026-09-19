@@ -13,11 +13,8 @@ reason its listing is refused.
 
 import codecs
 import csv
-import os
 import re
-import stat as filestat
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from anyio import to_thread
@@ -25,17 +22,17 @@ from PIL import Image, UnidentifiedImageError
 
 from app.adapters.dataset import WorksheetDataset
 from app.adapters.delimited import delimiter_name, delimiter_of, usable_names
-from app.adapters.file import archive, media, parquet, workbook
-from app.adapters.file.catalog import MAX_ENTRIES
-from app.adapters.file.content import IMAGE_MEDIA_TYPES
-from app.adapters.file.formats import (
+from app.adapters.explorer import archive, media, parquet, workbook
+from app.adapters.explorer.catalog import MAX_ENTRIES
+from app.adapters.explorer.content import IMAGE_MEDIA_TYPES
+from app.adapters.explorer.formats import (
     TABLE,
     format_of,
     representations_inside_archive,
     representations_of,
 )
-from app.adapters.file.members import ResolvedNode, resolve_node
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.members import ResolvedNode, resolve_node
+from app.adapters.explorer.storage import Entry, Storage
 from app.adapters.protocol import NodeNotFound
 from app.adapters.summary import (
     ArchiveContents,
@@ -71,11 +68,11 @@ _TOO_LARGE = (
 )
 
 
-class FileSummaries:
-    """The `node-summary` capability of the file source."""
+class ExplorerSummaries:
+    """The `node-summary` capability of a tree of files."""
 
-    def __init__(self, session: FileSession) -> None:
-        self._session = session
+    def __init__(self, storage: Storage) -> None:
+        self._storage = storage
 
     async def node_summary(self, node_id: str) -> NodeSummary:
         return await to_thread.run_sync(self._describe, node_id)
@@ -83,92 +80,66 @@ class FileSummaries:
     def _describe(self, node_id: str) -> NodeSummary:
         # Resolution judges containment before anything is opened, exactly as
         # every other read of this source does (D8).
-        resolved = resolve_node(self._session, node_id)
+        resolved = resolve_node(self._storage, node_id)
         if resolved.member is not None:
-            return _member(resolved, node_id)
-        path = resolved.path
-        if not path.exists():
+            with self._storage.local_file(resolved.place) as path:
+                return _member(resolved, path, node_id)
+        entry = resolved.entry
+        if entry is None:
             raise NodeNotFound(node_id)
-        return _directory(path, node_id) if path.is_dir() else _file(path, node_id)
+        if entry.is_directory:
+            return _directory(self._storage, entry, node_id)
+        with self._storage.local_file(entry.place) as path:
+            return _file(entry, path, node_id)
 
 
-def _file(path: Path, node_id: str) -> NodeSummary:
-    facts = _facts(path.stat())
+def _file(entry: Entry, path: Path, node_id: str) -> NodeSummary:
     contents, notice = _contents(path)
     return NodeSummary(
         node_id=node_id,
-        name=path.name,
+        name=entry.name,
         kind="file",
-        representations=representations_of(path.name),
-        size_bytes=facts.size_bytes,
-        modified_at=facts.modified_at,
-        accessed_at=facts.accessed_at,
-        created_at=facts.created_at,
-        permissions=facts.permissions,
+        representations=representations_of(entry.name),
+        size_bytes=entry.size_bytes,
+        modified_at=entry.modified_at,
+        accessed_at=entry.accessed_at,
+        created_at=entry.created_at,
+        permissions=entry.permissions,
         contents=contents,
         notice=notice,
     )
 
 
-def _directory(path: Path, node_id: str) -> NodeSummary:
-    facts = _facts(path.stat())
+def _directory(storage: Storage, entry: Entry, node_id: str) -> NodeSummary:
     return NodeSummary(
         node_id=node_id,
-        name=path.name,
+        name=entry.name,
         kind="directory",
         # A folder is walked into rather than opened, so it declares none — the
         # same answer its catalog node gives.
         representations=[],
-        size_bytes=facts.size_bytes,
-        modified_at=facts.modified_at,
-        accessed_at=facts.accessed_at,
-        created_at=facts.created_at,
-        permissions=facts.permissions,
-        contents=_directory_contents(path),
+        size_bytes=entry.size_bytes,
+        modified_at=entry.modified_at,
+        accessed_at=entry.accessed_at,
+        created_at=entry.created_at,
+        permissions=entry.permissions,
+        contents=_directory_contents(storage, entry),
     )
 
 
-@dataclass(frozen=True)
-class _Facts:
-    """What one `stat` states, before a format is asked anything."""
-
-    size_bytes: int
-    modified_at: datetime
-    accessed_at: datetime
-    created_at: datetime | None
-    permissions: str
-
-
-def _facts(stat: os.stat_result) -> _Facts:
-    """The size, the times and the mode, as the platform states them.
-
-    A creation time is reported only where the platform keeps one. Linux keeps
-    `st_ctime`, which is when the inode last changed — a different fact wearing
-    the same name, and filling this field with it would be a plausible lie.
-    """
-    birth: float | None = getattr(stat, "st_birthtime", None)
-    return _Facts(
-        size_bytes=stat.st_size,
-        modified_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
-        accessed_at=datetime.fromtimestamp(stat.st_atime, tz=UTC),
-        created_at=None if birth is None else datetime.fromtimestamp(birth, tz=UTC),
-        permissions=filestat.filemode(stat.st_mode),
-    )
-
-
-def _member(resolved: ResolvedNode, node_id: str) -> NodeSummary:
+def _member(resolved: ResolvedNode, path: Path, node_id: str) -> NodeSummary:
     """A node that lives inside a container file: a sheet, or an archive entry."""
-    if format_of(resolved.path.name) == "archive":
-        return _entry(resolved, node_id)
-    return _worksheet(resolved, node_id)
+    if format_of(resolved.name) == "archive":
+        return _entry(resolved, path, node_id)
+    return _worksheet(resolved, path, node_id)
 
 
-def _entry(resolved: ResolvedNode, node_id: str) -> NodeSummary:
+def _entry(resolved: ResolvedNode, path: Path, node_id: str) -> NodeSummary:
     member = resolved.member
     if member is None:
         raise NodeNotFound(node_id)
     try:
-        entry = archive.entry_at(resolved.path, member)
+        entry = archive.entry_at(path, member)
     except ValueError:
         raise NodeNotFound(node_id) from None
     return NodeSummary(
@@ -191,12 +162,12 @@ def _entry(resolved: ResolvedNode, node_id: str) -> NodeSummary:
     )
 
 
-def _worksheet(resolved: ResolvedNode, node_id: str) -> NodeSummary:
+def _worksheet(resolved: ResolvedNode, path: Path, node_id: str) -> NodeSummary:
     member = resolved.member
     if member is None or not member.isdigit():
         raise NodeNotFound(node_id)
     try:
-        sheets = workbook.sheets(resolved.path)
+        sheets = workbook.sheets(path)
     except ValueError as exc:
         raise NodeNotFound(node_id) from exc
     facts = next(
@@ -213,7 +184,7 @@ def _worksheet(resolved: ResolvedNode, node_id: str) -> NodeSummary:
         # and answering with the workbook's would be answering about the wrong
         # node.
         contents=WorksheetDataset(
-            workbook=resolved.path.name,
+            workbook=resolved.name,
             sheet_name=facts.title,
             sheet_position=facts.position,
             sheet_count=len(sheets),
@@ -383,38 +354,26 @@ def _image_contents(path: Path) -> ImageContents:
     return ImageContents(media_type=media_type, width=width, height=height)
 
 
-def _directory_contents(path: Path) -> DirectoryContents:
+def _directory_contents(storage: Storage, folder: Entry) -> DirectoryContents:
     """One level of a folder, counted with one listing.
 
     Bounded by the number its own listing is bounded by, so a folder the
     catalog refuses to list is a folder this refuses to count, with the same
-    number in both messages.
+    number in both messages. What the listing leaves out — a link out of the
+    root, one whose target has gone — is not counted either, so the count is
+    of the rows the catalog shows.
     """
-    files = 0
-    directories = 0
     try:
-        with os.scandir(path) as entries:
-            for entry in entries:
-                if files + directories == MAX_ENTRIES:
-                    return DirectoryContents(
-                        not_counted=(
-                            f"This folder holds more than {MAX_ENTRIES} entries"
-                        )
-                    )
-                try:
-                    is_directory = entry.is_dir()
-                except OSError:
-                    # A link whose target has gone: it is an entry of the
-                    # folder, and it is not a folder.
-                    is_directory = False
-                if is_directory:
-                    directories += 1
-                else:
-                    files += 1
+        entries = storage.entries(folder.place)
     except OSError:
         return DirectoryContents(not_counted="This folder could not be read")
+    if len(entries) > MAX_ENTRIES:
+        return DirectoryContents(
+            not_counted=f"This folder holds more than {MAX_ENTRIES} entries"
+        )
+    directories = sum(1 for entry in entries if entry.is_directory)
     return DirectoryContents(
-        entries=files + directories, files=files, directories=directories
+        entries=len(entries), files=len(entries) - directories, directories=directories
     )
 
 

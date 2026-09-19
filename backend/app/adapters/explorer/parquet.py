@@ -15,9 +15,9 @@ from typing import Any
 import pyarrow.parquet as pq
 
 from app.adapters.dataset import ParquetDataset
+from app.adapters.explorer.arrow import column_type, encoder
+from app.adapters.explorer.readers import Page, matcher, select
 from app.adapters.fetch import FetchColumn, Filter
-from app.adapters.file.arrow import column_type, encoder
-from app.adapters.file.readers import Page, matcher, select
 from app.adapters.relation import Column
 
 # The same ceiling the workbook reader has, for the same reason: a page of a

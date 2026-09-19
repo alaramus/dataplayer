@@ -15,19 +15,19 @@ import anyio
 import duckdb
 import pytest
 
-from app.adapters.file import query_readers, records
-from app.adapters.file.query import (
+from app.adapters.explorer import query_readers, records
+from app.adapters.explorer.query import (
     _FALLBACKS,
-    FileExecution,
-    FileQuery,
+    ExplorerExecution,
+    ExplorerQuery,
     _Engine,
     _safe_text,
     diagnostic_of,
     quoted,
 )
-from app.adapters.file.query_readers import FileReaders, Preparation
-from app.adapters.file.readers import LogReader
-from app.adapters.file.session import FileSession
+from app.adapters.explorer.query_readers import FileReaders, Preparation
+from app.adapters.explorer.readers import LogReader
+from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     ExplainRequest,
@@ -83,19 +83,19 @@ def outside(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture
-def query(root: Path) -> FileQuery:
-    return FileQuery(FileSession(root))
+def query(root: Path) -> ExplorerQuery:
+    return ExplorerQuery(LocalStorage(root))
 
 
 def _request(text: str, **kwargs: object) -> QueryRequest:
     return QueryRequest(text=text, mode="read", limits=LIMITS, **kwargs)  # type: ignore[arg-type]
 
 
-async def _events(query: FileQuery, text: str, **kwargs: object) -> list[QueryEvent]:
+async def _events(query: ExplorerQuery, text: str, **kwargs: object) -> list[QueryEvent]:
     return [event async for event in query.open(_request(text, **kwargs)).events()]
 
 
-async def _finished(query: FileQuery, text: str, **kwargs: object) -> StatementFinished:
+async def _finished(query: ExplorerQuery, text: str, **kwargs: object) -> StatementFinished:
     events = await _events(query, text, **kwargs)
     finished = [event for event in events if isinstance(event, StatementFinished)]
     assert len(finished) == 1
@@ -111,7 +111,7 @@ def _result(finished: StatementFinished) -> MaterialisedResult:
 # --- what the source says it is ---------------------------------------------
 
 
-def test_the_profile_offers_reading_and_nothing_else(query: FileQuery) -> None:
+def test_the_profile_offers_reading_and_nothing_else(query: ExplorerQuery) -> None:
     profile = query.profile()
 
     assert profile.dialect == "duckdb"
@@ -123,7 +123,7 @@ def test_the_profile_offers_reading_and_nothing_else(query: FileQuery) -> None:
 # --- reading -----------------------------------------------------------------
 
 
-async def test_a_delimited_file_is_read_as_a_relation(query: FileQuery) -> None:
+async def test_a_delimited_file_is_read_as_a_relation(query: ExplorerQuery) -> None:
     result = _result(await _finished(query, 'SELECT * FROM "sales.csv" ORDER BY id'))
 
     assert [column.name for column in result.columns] == ["id", "amount", "region"]
@@ -132,7 +132,7 @@ async def test_a_delimited_file_is_read_as_a_relation(query: FileQuery) -> None:
 
 
 async def test_the_engine_types_the_columns_of_a_delimited_file(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     """The grid says every column is text (D51); SQL has to add them up."""
     result = _result(await _finished(query, 'SELECT * FROM "sales.csv"'))
@@ -141,7 +141,7 @@ async def test_the_engine_types_the_columns_of_a_delimited_file(
     assert categories == {"id": "number", "amount": "number", "region": "string"}
 
 
-async def test_two_files_are_joined_across_a_folder(query: FileQuery) -> None:
+async def test_two_files_are_joined_across_a_folder(query: ExplorerQuery) -> None:
     result = _result(
         await _finished(
             query,
@@ -163,14 +163,14 @@ async def test_two_files_are_joined_across_a_folder(query: FileQuery) -> None:
     ],
 )
 async def test_every_readable_format_is_read(
-    query: FileQuery, name: str, expected: list[str]
+    query: ExplorerQuery, name: str, expected: list[str]
 ) -> None:
     result = _result(await _finished(query, f"SELECT * FROM {quoted(name)}"))
 
     assert result.rows[0] == expected
 
 
-async def test_a_parameter_is_bound(query: FileQuery) -> None:
+async def test_a_parameter_is_bound(query: ExplorerQuery) -> None:
     result = _result(
         await _finished(
             query,
@@ -182,7 +182,7 @@ async def test_a_parameter_is_bound(query: FileQuery) -> None:
     assert result.rows == [["1"], ["2"]]
 
 
-async def test_a_parameter_is_a_binding_and_not_text(query: FileQuery) -> None:
+async def test_a_parameter_is_a_binding_and_not_text(query: ExplorerQuery) -> None:
     """The classic: the value cannot end the string it stands in."""
     result = _result(
         await _finished(
@@ -198,7 +198,7 @@ async def test_a_parameter_is_a_binding_and_not_text(query: FileQuery) -> None:
 
 
 async def test_a_script_runs_in_order_and_stops_at_the_first_failure(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     events = await _events(query, 'SELECT 1; SELECT nosuch FROM "sales.csv"; SELECT 3')
 
@@ -214,7 +214,7 @@ async def test_a_script_runs_in_order_and_stops_at_the_first_failure(
     ["../secret.csv", "/etc/passwd", "C:/Windows/win.ini", "reports/../../secret.csv"],
 )
 async def test_a_name_that_leaves_the_root_is_refused(
-    query: FileQuery, name: str
+    query: ExplorerQuery, name: str
 ) -> None:
     with pytest.raises(AdapterError) as refusal:
         await _events(query, f"SELECT * FROM {quoted(name)}")
@@ -223,7 +223,7 @@ async def test_a_name_that_leaves_the_root_is_refused(
 
 
 async def test_a_name_that_is_not_there_is_refused_before_anything_opens(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     with pytest.raises(AdapterError) as refusal:
         await _events(query, 'SELECT * FROM "sales.csv" JOIN "nope.csv" ON true')
@@ -233,7 +233,7 @@ async def test_a_name_that_is_not_there_is_refused_before_anything_opens(
     )
 
 
-async def test_a_file_with_no_tabular_reader_is_refused(query: FileQuery) -> None:
+async def test_a_file_with_no_tabular_reader_is_refused(query: ExplorerQuery) -> None:
     with pytest.raises(AdapterError) as refusal:
         await _events(query, 'SELECT * FROM "notes.txt"')
 
@@ -241,7 +241,7 @@ async def test_a_file_with_no_tabular_reader_is_refused(query: FileQuery) -> Non
 
 
 async def test_a_workbook_is_refused_with_its_own_reason(
-    root: Path, query: FileQuery
+    root: Path, query: ExplorerQuery
 ) -> None:
     (root / "book.xlsx").write_bytes(b"PK\x03\x04not really")
 
@@ -253,7 +253,7 @@ async def test_a_workbook_is_refused_with_its_own_reason(
 
 @pytest.mark.skipif(os.name != "posix", reason="Windows needs a privilege to link")
 async def test_a_symbolic_link_out_of_the_root_is_refused(
-    root: Path, outside: Path, query: FileQuery
+    root: Path, outside: Path, query: ExplorerQuery
 ) -> None:
     (root / "linked.csv").symlink_to(outside)
 
@@ -263,7 +263,7 @@ async def test_a_symbolic_link_out_of_the_root_is_refused(
     assert "no file called" in refusal.value.message
 
 
-async def test_a_write_mode_is_refused(query: FileQuery) -> None:
+async def test_a_write_mode_is_refused(query: ExplorerQuery) -> None:
     request = QueryRequest(text="SELECT 1", mode="auto_commit", limits=LIMITS)
 
     with pytest.raises(AdapterError) as refusal:
@@ -272,7 +272,7 @@ async def test_a_write_mode_is_refused(query: FileQuery) -> None:
     assert "runs nothing that writes" in refusal.value.message
 
 
-async def test_a_schema_context_is_refused(query: FileQuery) -> None:
+async def test_a_schema_context_is_refused(query: ExplorerQuery) -> None:
     with pytest.raises(AdapterError) as refusal:
         await _events(query, "SELECT 1", search_path=["public"])
 
@@ -280,7 +280,7 @@ async def test_a_schema_context_is_refused(query: FileQuery) -> None:
 
 
 async def test_the_adapter_says_its_refusal_again_when_asked_directly(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     """The route refuses these at admission; the source does not rely on it."""
     finished = await _finished(query, 'DELETE FROM "sales.csv"')
@@ -295,7 +295,7 @@ async def test_the_adapter_says_its_refusal_again_when_asked_directly(
 
 
 def _opened(root: Path, relations: dict[str, Path]) -> _Engine:
-    engine = _Engine(FileSession(root).resolved_root)
+    engine = _Engine(LocalStorage(root).local_root())
     engine.open(relations)
     return engine
 
@@ -363,7 +363,7 @@ def test_the_engine_is_thrown_away_with_everything_in_it(root: Path) -> None:
 
 
 async def test_an_unknown_column_points_at_the_place_it_is_written(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     finished = await _finished(query, 'SELECT nosuch FROM "sales.csv"')
 
@@ -414,7 +414,7 @@ def test_the_root_is_taken_out_of_a_message_that_carries_it(root: Path) -> None:
 
 
 async def test_a_result_is_truncated_at_the_ceiling_by_one_extra_row(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     limits = LIMITS.model_copy(update={"max_result_rows": 2})
     request = QueryRequest(
@@ -430,7 +430,7 @@ async def test_a_result_is_truncated_at_the_ceiling_by_one_extra_row(
 
 
 async def test_a_cell_larger_than_one_cell_may_be_is_a_publication_failure(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     limits = LIMITS.model_copy(update={"max_cell_bytes": 4})
     request = QueryRequest(
@@ -460,7 +460,7 @@ ENDLESS = (
 )
 
 
-async def test_a_statement_that_runs_too_long_is_timed_out(query: FileQuery) -> None:
+async def test_a_statement_that_runs_too_long_is_timed_out(query: ExplorerQuery) -> None:
     limits = LIMITS.model_copy(update={"statement_timeout_seconds": 1})
     request = QueryRequest(text=ENDLESS, mode="read", limits=limits)
     began = time.monotonic()
@@ -475,10 +475,10 @@ async def test_a_statement_that_runs_too_long_is_timed_out(query: FileQuery) -> 
 
 
 async def test_cancelling_stops_a_statement_that_is_running(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     """The interrupt reaches the thread; a cancelled task never would."""
-    execution: FileExecution = query.open(_request(ENDLESS))
+    execution: ExplorerExecution = query.open(_request(ENDLESS))
     finished: list[StatementFinished] = []
 
     async def read() -> None:
@@ -497,9 +497,9 @@ async def test_cancelling_stops_a_statement_that_is_running(
 
 
 async def test_cancelling_a_run_that_has_not_opened_yet_is_harmless(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
-    execution: FileExecution = query.open(_request("SELECT 1"))
+    execution: ExplorerExecution = query.open(_request("SELECT 1"))
 
     await execution.cancel()
 
@@ -512,7 +512,7 @@ async def test_cancelling_a_run_that_has_not_opened_yet_is_harmless(
 
 
 async def test_the_relations_offered_are_the_files_sql_can_read(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     metadata = await query.metadata(QueryMetadataRequest())
 
@@ -529,7 +529,7 @@ async def test_the_relations_offered_are_the_files_sql_can_read(
 
 
 async def test_the_columns_of_a_named_relation_are_the_engine_s(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     metadata = await query.metadata(
         QueryMetadataRequest(relations=["sales.csv", "notes.txt"])
@@ -544,14 +544,14 @@ async def test_the_columns_of_a_named_relation_are_the_engine_s(
 
 
 async def test_the_source_writes_the_statement_for_one_of_its_nodes(
-    query: FileQuery,
+    query: ExplorerQuery,
 ) -> None:
     generated = await query.generate(GenerateQueryRequest(node_id="reports/q1.csv"))
 
     assert generated.text == 'SELECT *\nFROM "reports/q1.csv"\nLIMIT 100'
 
 
-async def test_a_name_with_a_quote_in_it_is_quoted(query: FileQuery) -> None:
+async def test_a_name_with_a_quote_in_it_is_quoted(query: ExplorerQuery) -> None:
     generated = await query.generate(
         GenerateQueryRequest(node_id='we"ird.csv', kind="name")
     )
@@ -559,7 +559,7 @@ async def test_a_name_with_a_quote_in_it_is_quoted(query: FileQuery) -> None:
     assert generated.text == '"we""ird.csv"'
 
 
-async def test_the_columns_of_a_node_are_written_as_a_list(query: FileQuery) -> None:
+async def test_the_columns_of_a_node_are_written_as_a_list(query: ExplorerQuery) -> None:
     generated = await query.generate(
         GenerateQueryRequest(node_id="sales.csv", kind="columns")
     )
@@ -570,7 +570,7 @@ async def test_the_columns_of_a_node_are_written_as_a_list(query: FileQuery) -> 
 # --- explain -----------------------------------------------------------------
 
 
-async def test_a_statement_is_planned_without_being_run(query: FileQuery) -> None:
+async def test_a_statement_is_planned_without_being_run(query: ExplorerQuery) -> None:
     plan = await query.explain(
         ExplainRequest(text='SELECT region, count(*) FROM "sales.csv" GROUP BY region')
     )
@@ -585,7 +585,7 @@ def _walked(node: object) -> int:
     return 1 + sum(_walked(child) for child in children)
 
 
-async def test_explain_refuses_what_run_refuses(query: FileQuery) -> None:
+async def test_explain_refuses_what_run_refuses(query: ExplorerQuery) -> None:
     with pytest.raises(ValueError, match="table function"):
         await query.explain(ExplainRequest(text="SELECT * FROM read_csv('x.csv')"))
 
@@ -604,7 +604,7 @@ async def test_explain_refuses_what_run_refuses(query: FileQuery) -> None:
     ],
 )
 async def test_sql_log_columns_and_values_match_the_grid(
-    root: Path, query: FileQuery, text: str,
+    root: Path, query: ExplorerQuery, text: str,
 ) -> None:
     path = root / "server.log"
     path.write_text(text, encoding="utf-8")
@@ -619,7 +619,7 @@ async def test_sql_log_columns_and_values_match_the_grid(
 
 
 async def test_log_aggregates_read_beyond_the_grid_page_and_join_other_files(
-    root: Path, query: FileQuery,
+    root: Path, query: ExplorerQuery,
 ) -> None:
     (root / "server.log").write_text(
         "2026-09-04 12:00:00 INFO north\n" * 125
@@ -635,7 +635,7 @@ async def test_log_aggregates_read_beyond_the_grid_page_and_join_other_files(
     assert result.rows == [["ERROR", "26", "30"], ["INFO", "125", "10"]]
 
 
-async def test_every_statement_reads_the_same_log_snapshot(root: Path, query: FileQuery) -> None:
+async def test_every_statement_reads_the_same_log_snapshot(root: Path, query: ExplorerQuery) -> None:
     path = root / "server.log"
     path.write_text("first\n", encoding="utf-8")
     execution = query.open(_request(
@@ -651,14 +651,14 @@ async def test_every_statement_reads_the_same_log_snapshot(root: Path, query: Fi
     assert _result(await _finished(query, 'SELECT count(*) FROM "server.log"')).rows == [["2"]]
 
 
-async def test_an_empty_log_has_a_schema_and_no_rows(root: Path, query: FileQuery) -> None:
+async def test_an_empty_log_has_a_schema_and_no_rows(root: Path, query: ExplorerQuery) -> None:
     (root / "server.log").write_bytes(b"")
     result = _result(await _finished(query, 'SELECT count(line_no) FROM "server.log"'))
     assert result.rows == [["0"]]
 
 
 async def test_log_metadata_generated_sql_and_explain_use_the_same_columns(
-    root: Path, query: FileQuery,
+    root: Path, query: ExplorerQuery,
 ) -> None:
     (root / "server.log").write_text("2026-09-04 12:00:00 INFO ready\n", encoding="utf-8")
     metadata = await query.metadata(QueryMetadataRequest(relations=["server.log"]))
@@ -683,7 +683,7 @@ async def test_log_metadata_generated_sql_and_explain_use_the_same_columns(
     ],
 )
 async def test_log_input_limits_refuse_aggregates_instead_of_truncating(
-    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+    root: Path, query: ExplorerQuery, monkeypatch: pytest.MonkeyPatch,
     ceiling: str, value: int, reason: str,
 ) -> None:
     (root / "server.log").write_text("one\ntwo\nthree\n", encoding="utf-8")
@@ -700,7 +700,7 @@ async def test_log_input_limits_refuse_aggregates_instead_of_truncating(
     [("MAX_LOG_BYTES", 12), ("MAX_LOG_ROWS", 3), ("MAX_LOG_CELLS", 6)],
 )
 async def test_log_input_budget_is_shared_by_all_logs_in_a_run(
-    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch, ceiling: str, value: int,
+    root: Path, query: ExplorerQuery, monkeypatch: pytest.MonkeyPatch, ceiling: str, value: int,
 ) -> None:
     for name in ("a.log", "b.log"):
         (root / name).write_bytes(b"one\ntwo\n")
@@ -711,7 +711,7 @@ async def test_log_input_budget_is_shared_by_all_logs_in_a_run(
 
 
 async def test_sparse_json_log_cells_are_bounded_before_the_table_is_built(
-    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+    root: Path, query: ExplorerQuery, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (root / "server.log").write_text('{"a":1}\n{"b":2}\n{"c":3}\n', encoding="utf-8")
     monkeypatch.setattr(query_readers, "MAX_LOG_CELLS", 8)
@@ -728,7 +728,7 @@ async def test_sparse_json_log_cells_are_bounded_before_the_table_is_built(
     ],
 )
 async def test_unreadable_json_logs_have_a_safe_refusal(
-    root: Path, query: FileQuery, text: str, reason: str,
+    root: Path, query: ExplorerQuery, text: str, reason: str,
 ) -> None:
     (root / "server.log").write_text(text, encoding="utf-8")
     with pytest.raises(AdapterError, match=reason) as failure:
@@ -737,7 +737,7 @@ async def test_unreadable_json_logs_have_a_safe_refusal(
 
 
 async def test_json_log_projection_keeps_the_grid_source_size_limit(
-    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+    root: Path, query: ExplorerQuery, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (root / "server.log").write_bytes(b'{"a":1}\n{"a":2}\n')
     monkeypatch.setattr(records, "MAX_RECORD_BYTES", 12)
@@ -746,7 +746,7 @@ async def test_json_log_projection_keeps_the_grid_source_size_limit(
 
 
 async def test_binary_bytes_cannot_be_read_by_renaming_a_file_to_log(
-    root: Path, query: FileQuery,
+    root: Path, query: ExplorerQuery,
 ) -> None:
     (root / "server.log").write_bytes(b"binary\x00content")
     with pytest.raises(AdapterError, match="binary data"):
@@ -754,7 +754,7 @@ async def test_binary_bytes_cannot_be_read_by_renaming_a_file_to_log(
 
 
 async def test_explain_obeys_log_input_limits_and_metadata_omits_unreadable_columns(
-    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+    root: Path, query: ExplorerQuery, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (root / "server.log").write_bytes(b"one\ntwo\n")
     monkeypatch.setattr(query_readers, "MAX_LOG_ROWS", 1)
@@ -765,7 +765,7 @@ async def test_explain_obeys_log_input_limits_and_metadata_omits_unreadable_colu
 
 
 async def test_a_run_can_be_cancelled_while_loading_a_log(
-    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+    root: Path, query: ExplorerQuery, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (root / "server.log").write_bytes(b"one\n")
     entered = Event()
@@ -799,7 +799,7 @@ async def test_a_run_can_be_cancelled_while_loading_a_log(
 
 
 async def test_preparation_timeout_settles_the_run_and_closes_the_engine(
-    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+    root: Path, query: ExplorerQuery, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (root / "server.log").write_bytes(b"one\n")
     snapshot = FileReaders._snapshot

@@ -15,8 +15,8 @@ from typing import Any, Literal
 
 from app.adapters import jsontext
 from app.adapters.delimited import usable_names
+from app.adapters.explorer.formats import JSON_LINES_EXTENSIONS
 from app.adapters.fetch import FetchColumn
-from app.adapters.file.formats import JSON_LINES_EXTENSIONS
 from app.adapters.relation import ColumnType
 
 # One JSON document is only valid whole, so the reading cannot be cut short at
