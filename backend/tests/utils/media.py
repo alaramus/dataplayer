@@ -125,3 +125,41 @@ def pdf_bytes(version: str = "1.7") -> bytes:
         "%%EOF\n"
     )
     return body.encode("ascii")
+
+
+def padded(path: Path, head: bytes, size: int, tail: bytes = b"") -> None:
+    """A file of `size` bytes: a real beginning, zeros, and a real ending.
+
+    The middle is never written, so a recording of hundreds of megabytes costs
+    a test no more than its two ends.
+    """
+    with path.open("wb") as out:
+        out.write(head)
+        out.seek(size - len(tail))
+        out.write(tail)
+        out.truncate(size)
+
+
+def large_mp4(path: Path, *, payload_bytes: int, timescale: int, duration: int) -> None:
+    """An MP4 whose index sits behind a payload this large, as it does in a
+    recording that was never prepared for streaming."""
+    header = _box(b"ftyp", b"isom" + (512).to_bytes(4, "big") + b"isomiso2mp41")
+    movie = _box(b"moov", _mvhd(timescale, duration) + _trak(1280, 720))
+    payload = (payload_bytes + 8).to_bytes(4, "big") + b"mdat"
+    padded(path, header + payload, len(header) + 8 + payload_bytes + len(movie), movie)
+
+
+def large_wav(path: Path, *, data_bytes: int, rate: int, channels: int) -> None:
+    """A WAV header stating a `data` chunk this large, followed by its silence."""
+    fmt = struct.pack("<HHIIHH", 1, channels, rate, rate * channels * 2, channels * 2, 16)
+    head = (
+        b"RIFF"
+        + (36 + data_bytes).to_bytes(4, "little")
+        + b"WAVE"
+        + b"fmt "
+        + len(fmt).to_bytes(4, "little")
+        + fmt
+        + b"data"
+        + data_bytes.to_bytes(4, "little")
+    )
+    padded(path, head, len(head) + data_bytes)

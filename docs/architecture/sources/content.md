@@ -148,6 +148,8 @@ because that is where its index may be, and a browser that gets no answer to
   until `moov`, where `mvhd` states the duration and `tkhd` the picture size; the
   EBML header read to its `DocType` for Matroska; and `%PDF-` within the first
   kilobyte. What a container does not state is absent rather than guessed.
+  The header is read from the storage where the file lies, never from a copy
+  of it (D152), and is read again for every range.
 - A PDF is rendered by the application with `pdf.js` — pages to a canvas, no
   annotation layer, no forms, no scripting manager wired — rather than handed to
   the browser's own viewer, which understands all of those. The only thing

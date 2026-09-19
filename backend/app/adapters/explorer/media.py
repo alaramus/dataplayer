@@ -7,11 +7,15 @@ name it was given is refused before a byte is served (D52).
 Everything is a bounded read of a header. There is no decoder: a duration the
 container does not state is absent rather than estimated, and which codecs are
 inside is left to the browser that tries to play them.
+
+A reader is handed an open handle rather than a path, and reads it only at the
+offsets the header names: a recording on a remote storage is asked for a few
+blocks, never copied here first (D152).
 """
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import PurePosixPath
 from typing import BinaryIO, assert_never
 
 from app.adapters.content import AudioMediaType, VideoMediaType
@@ -77,66 +81,61 @@ class PdfFacts:
     version: str
 
 
-def audio_facts(path: Path) -> AudioFacts:
+def audio_facts(name: str, handle: BinaryIO) -> AudioFacts:
     """Verify one sound file and read what its header states. Blocking."""
-    suffix = _suffix(path)
-    media_type = AUDIO_MEDIA_TYPES.get(suffix)
-    if media_type is None or format_of(path.name) != "audio":
+    media_type = AUDIO_MEDIA_TYPES.get(_suffix(name))
+    if media_type is None or format_of(name) != "audio":
         raise NotPlayable("This file is not a sound file this source plays")
 
-    with path.open("rb") as handle:
-        match media_type:
-            case "audio/wav":
-                return _wav(handle, media_type)
-            case "audio/flac":
-                return _flac(handle, media_type)
-            case "audio/mpeg":
-                _verify_mp3(handle)
-                return AudioFacts(media_type=media_type)
-            case "audio/ogg":
-                _verify_magic(handle, b"OggS", "an Ogg file")
-                return AudioFacts(media_type=media_type)
-            case "audio/mp4":
-                duration, _ = _iso_base_media(handle)
-                return AudioFacts(media_type=media_type, duration_seconds=duration)
-            case unreachable:
-                assert_never(unreachable)
+    match media_type:
+        case "audio/wav":
+            return _wav(handle, media_type)
+        case "audio/flac":
+            return _flac(handle, media_type)
+        case "audio/mpeg":
+            _verify_mp3(handle)
+            return AudioFacts(media_type=media_type)
+        case "audio/ogg":
+            _verify_magic(handle, b"OggS", "an Ogg file")
+            return AudioFacts(media_type=media_type)
+        case "audio/mp4":
+            duration, _ = _iso_base_media(handle)
+            return AudioFacts(media_type=media_type, duration_seconds=duration)
+        case unreachable:
+            assert_never(unreachable)
 
 
-def video_facts(path: Path) -> VideoFacts:
+def video_facts(name: str, handle: BinaryIO) -> VideoFacts:
     """Verify one recording and read what its header states. Blocking."""
-    suffix = _suffix(path)
-    media_type = VIDEO_MEDIA_TYPES.get(suffix)
-    if media_type is None or format_of(path.name) != "video":
+    media_type = VIDEO_MEDIA_TYPES.get(_suffix(name))
+    if media_type is None or format_of(name) != "video":
         raise NotPlayable("This file is not a recording this source plays")
 
-    with path.open("rb") as handle:
-        match media_type:
-            case "video/mp4" | "video/quicktime":
-                duration, size = _iso_base_media(handle)
-                width, height = size if size is not None else (None, None)
-                return VideoFacts(
-                    media_type=media_type,
-                    duration_seconds=duration,
-                    width=width,
-                    height=height,
-                )
-            case "video/webm":
-                _verify_matroska(handle)
-                return VideoFacts(media_type=media_type)
-            case "video/ogg":
-                _verify_magic(handle, b"OggS", "an Ogg file")
-                return VideoFacts(media_type=media_type)
-            case unreachable:
-                assert_never(unreachable)
+    match media_type:
+        case "video/mp4" | "video/quicktime":
+            duration, size = _iso_base_media(handle)
+            width, height = size if size is not None else (None, None)
+            return VideoFacts(
+                media_type=media_type,
+                duration_seconds=duration,
+                width=width,
+                height=height,
+            )
+        case "video/webm":
+            _verify_matroska(handle)
+            return VideoFacts(media_type=media_type)
+        case "video/ogg":
+            _verify_magic(handle, b"OggS", "an Ogg file")
+            return VideoFacts(media_type=media_type)
+        case unreachable:
+            assert_never(unreachable)
 
 
-def pdf_facts(path: Path) -> PdfFacts:
+def pdf_facts(name: str, handle: BinaryIO) -> PdfFacts:
     """Verify one PDF and read the version it states. Blocking."""
-    if format_of(path.name) != "pdf":
+    if format_of(name) != "pdf":
         raise NotPlayable("This file is not a PDF")
-    with path.open("rb") as handle:
-        head = handle.read(PDF_HEADER_BYTES)
+    head = handle.read(PDF_HEADER_BYTES)
     position = head.find(b"%PDF-")
     if position < 0:
         raise NotPlayable("This file is not a PDF")
@@ -146,8 +145,8 @@ def pdf_facts(path: Path) -> PdfFacts:
     return PdfFacts(version=version)
 
 
-def _suffix(path: Path) -> str:
-    return path.suffix.lower()
+def _suffix(name: str) -> str:
+    return PurePosixPath(name).suffix.lower()
 
 
 def _verify_magic(handle: BinaryIO, magic: bytes, what: str) -> None:

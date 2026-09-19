@@ -21,8 +21,11 @@ from app.adapters.summary import (
     ImageContents,
     PdfContents,
     TextContents,
+    VideoContents,
     WorkbookContents,
 )
+from tests.utils.media import large_mp4, padded
+from tests.utils.storages import BUFFER_BYTES, CountingStorage
 
 PNG_1X1 = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -392,3 +395,67 @@ async def test_a_stale_date_inside_an_archive_does_not_fail_the_summary(
     summary = await summaries.node_summary("dated.zip/old.txt")
 
     assert summary.modified_at == datetime(1980, 1, 1, tzinfo=UTC)
+
+
+# --- what a summary reads -----------------------------------------------------
+# A header or a bounded pass, through the storage's own handle: only the formats
+# whose libraries open a path are copied (D152).
+
+
+def _book(path: Path) -> None:
+    book = Workbook()
+    book.active.append(["a"])  # type: ignore[union-attr]  # a new workbook has its sheet
+    book.save(path)
+
+
+async def test_a_large_recording_is_summarised_from_its_header(tmp_path: Path) -> None:
+    counted = CountingStorage(tmp_path)
+    large_mp4(tmp_path / "film.mp4", payload_bytes=64 * 1024 * 1024, timescale=600, duration=1200)
+
+    described = await ExplorerSummaries(counted).node_summary("film.mp4")
+
+    assert isinstance(described.contents, VideoContents)
+    assert described.contents.duration_seconds == 2.0
+    assert counted.copied == []
+    assert counted.read_bytes < 8 * BUFFER_BYTES
+
+
+async def test_a_large_image_is_summarised_from_its_header(tmp_path: Path) -> None:
+    counted = CountingStorage(tmp_path)
+    padded(tmp_path / "photo.png", PNG_1X1, 16 * 1024 * 1024)
+
+    described = await ExplorerSummaries(counted).node_summary("photo.png")
+
+    assert isinstance(described.contents, ImageContents)
+    assert counted.copied == []
+    assert counted.read_bytes < 2 * BUFFER_BYTES
+
+
+async def test_a_text_too_large_to_count_is_read_as_far_as_its_encoding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    counted = CountingStorage(tmp_path)
+    _lines(tmp_path / "server.log", 8 * 1024 * 1024)
+    monkeypatch.setattr(summary_module, "MAX_COUNTED_BYTES", 1024 * 1024)
+
+    described = await ExplorerSummaries(counted).node_summary("server.log")
+
+    assert isinstance(described.contents, TextContents)
+    assert described.contents.not_counted is not None
+    assert counted.copied == []
+    assert counted.read_bytes <= summary_module.COUNT_CHUNK_BYTES + BUFFER_BYTES
+
+
+async def test_a_workbook_is_still_read_from_a_copy(tmp_path: Path) -> None:
+    """openpyxl opens a path, so a remote workbook is copied to be described."""
+    counted = CountingStorage(tmp_path)
+    _book(tmp_path / "book.xlsx")
+
+    described = await ExplorerSummaries(counted).node_summary("book.xlsx")
+
+    assert isinstance(described.contents, WorkbookContents)
+    assert counted.copied == ["book.xlsx"]
+
+
+def _lines(path: Path, size: int) -> None:
+    path.write_bytes(b"line\n" * (size // 5))

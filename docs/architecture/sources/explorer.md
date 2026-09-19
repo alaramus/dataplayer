@@ -56,12 +56,13 @@ says what the bytes mean.
   local file and published in one step: claiming a name that nothing holds, or
   replacing a file that is still the version it was read as. On the local disk
   that is the link and the rename it always was.
-- **The formats read a local file.** DuckDB, openpyxl, pyarrow, Pillow and
-  `zipfile` take a path. The storage lends one: on the local disk the file
-  itself, for a remote storage a copy that carries the file's own name. An
-  archive entry was already read this way — expanded into a temporary file and
-  handed to the ordinary viewer (D53) — and a remote file is the same idea one
-  level up.
+- **A format whose library takes a path reads a local file.** DuckDB,
+  openpyxl, pyarrow and `zipfile` do. The storage lends one: on the local disk
+  the file itself, for a remote storage a copy that carries the file's own
+  name (D152). An archive entry was already read this way — expanded into a
+  temporary file and handed to the ordinary viewer (D53) — and a remote file is
+  the same idea one level up. Everything else reads through the storage's
+  seekable `open`.
 
 Rejected: a copy of the explorer per source, which is what the old application
 had. Its SSH and FTP adapters each carried their own catalog, archive, media and
@@ -110,6 +111,15 @@ on this machine, so a storage that is not this machine's disk lends them a
 copy. Every copy lives in one place, `explorer/copies.py`, and the bounds were
 set by the owner:
 
+- **Only for a library that opens a path.** A viewer that decides from a
+  header or a bounded prefix reads the file where it lies, through the
+  storage's seekable `open`: a recording, a sound file and a PDF by the blocks
+  their headers name, a picture by its header and then whole to be shown
+  (D49), text, Markdown, JSON, JSONL and the editor as far as each shows, and
+  a summary of any of them the same way. Every range a player asks for is read
+  in place too, so a recording plays whatever it weighs and costs its header
+  before its first frame.
+
 - **Where.** `USER_STORAGE_ROOT/.explorer-copies`, beside the personal homes
   and out of reach of every file source, which is where restore snapshots
   already stage (D122). Emptied when the process starts.
@@ -119,8 +129,9 @@ set by the owner:
   credentials as well as its address, so two people reaching one server with
   different rights never read each other's copies.
 - **Fetched once.** Two readers of one version wait for one transfer.
-- **Bounded.** A file larger than 200 MB is not copied — it is downloaded
-  instead, and the refusal says so. The copies together hold 1 GB, and a copy
+- **Bounded.** A file larger than 200 MB is not copied — a table, a
+  workbook or an archive that large is downloaded instead, and the refusal
+  says so. The copies together hold 1 GB, and a copy
   nobody has read for an hour goes; the oldest go first, and a copy that is
   being read never does.
 - **What passes through here is bounded the same way.** A tree fetched for an

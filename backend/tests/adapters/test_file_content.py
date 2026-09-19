@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.adapters.content import (
+    AudioContent,
     ContentConflict,
     ContentRequest,
     EditorContentRequest,
@@ -14,8 +15,10 @@ from app.adapters.content import (
     JsonObject,
     JsonScalar,
     MarkdownContent,
+    PdfContent,
     TextContent,
     UpdateContentRequest,
+    VideoContent,
 )
 from app.adapters.explorer.content import (
     MAX_EDITOR_BYTES,
@@ -28,6 +31,8 @@ from app.adapters.explorer.content import (
     ExplorerContent,
 )
 from app.adapters.file.storage import LocalStorage
+from tests.utils.media import large_mp4, large_wav, padded, pdf_bytes
+from tests.utils.storages import BUFFER_BYTES, CountingStorage
 
 PNG_1X1 = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -399,3 +404,137 @@ async def test_an_oversized_editor_document_is_a_read_only_preview(
     assert result.writable is False
     assert result.version is None
     assert result.reason is not None
+
+
+# --- what a viewer reads ------------------------------------------------------
+# Every viewer decides from a header or a bounded prefix, so none of them may
+# ask for a local copy or read the file through: on a remote storage that is
+# a transfer of the whole file before the first frame plays (D152).
+
+LARGE = 64 * 1024 * 1024
+# A header costs a few refills of the buffer a remote handle reads through.
+HEADER_READ = 4 * BUFFER_BYTES
+
+
+@pytest.fixture
+def counted(tmp_path: Path) -> CountingStorage:
+    return CountingStorage(tmp_path)
+
+
+def _lines(path: Path, line: bytes, size: int) -> None:
+    path.write_bytes(line * (size // len(line)))
+
+
+async def test_a_large_recording_is_described_and_streamed_from_its_header(
+    tmp_path: Path, counted: CountingStorage
+) -> None:
+    """The index of a recording never prepared for streaming is behind the
+    whole of it; the boxes are walked by their sizes rather than read."""
+    large_mp4(tmp_path / "film.mp4", payload_bytes=LARGE, timescale=600, duration=1200)
+    content = ExplorerContent(counted)
+    request = ContentRequest(node_id="film.mp4", representation="video")
+
+    described = await content.read_content(request)
+    stream = await content.open_content_stream(request)
+    last = stream.size_bytes - 1
+    tail = b"".join([chunk async for chunk in stream.read(last - 99, last)])
+
+    assert isinstance(described, VideoContent)
+    assert described.duration_seconds == pytest.approx(2.0)
+    assert described.size_bytes == stream.size_bytes > LARGE
+    assert len(tail) == 100
+    assert counted.copied == []
+    assert counted.read_bytes < 3 * HEADER_READ
+
+
+async def test_a_large_sound_file_states_its_length_without_being_read(
+    tmp_path: Path, counted: CountingStorage
+) -> None:
+    large_wav(tmp_path / "long.wav", data_bytes=LARGE, rate=8000, channels=1)
+
+    described = await ExplorerContent(counted).read_content(
+        ContentRequest(node_id="long.wav", representation="audio")
+    )
+
+    assert isinstance(described, AudioContent)
+    assert described.duration_seconds == pytest.approx(LARGE / 16000)
+    assert counted.copied == []
+    assert counted.read_bytes < HEADER_READ
+
+
+async def test_a_large_pdf_is_verified_by_its_first_kilobyte(
+    tmp_path: Path, counted: CountingStorage
+) -> None:
+    padded(tmp_path / "manual.pdf", pdf_bytes(), LARGE)
+
+    described = await ExplorerContent(counted).read_content(
+        ContentRequest(node_id="manual.pdf", representation="pdf")
+    )
+
+    assert isinstance(described, PdfContent)
+    assert described.version == "1.7"
+    assert counted.copied == []
+    assert counted.read_bytes < HEADER_READ
+
+
+async def test_an_image_is_described_from_its_header_and_read_whole_to_be_shown(
+    tmp_path: Path, counted: CountingStorage
+) -> None:
+    """The bytes a preview returns are the bytes it verified (D49), so only
+    the preview reads the picture through."""
+    size = MAX_IMAGE_BYTES // 2
+    padded(tmp_path / "photo.png", PNG_1X1, size)
+    content = ExplorerContent(counted)
+    request = ContentRequest(node_id="photo.png", representation="image")
+
+    described = await content.read_content(request)
+    described_with = counted.read_bytes
+    preview = await content.preview_content(request)
+
+    assert isinstance(described, ImageContent)
+    assert described.size_bytes == size
+    assert described_with < HEADER_READ
+    assert len(preview.body) == size
+    assert counted.copied == []
+
+
+@pytest.mark.parametrize(
+    ("name", "representation", "line", "bound"),
+    [
+        ("big.txt", "text", b"line\n", MAX_TEXT_BYTES),
+        ("big.md", "markdown", b"line\n", MAX_MARKDOWN_BYTES),
+        ("big.json", "json", b"line\n", MAX_TEXT_BYTES),
+        ("big.jsonl", "jsonl", b'{"id": 1}\n', 0),
+    ],
+)
+async def test_a_large_document_is_read_as_far_as_its_viewer_shows(
+    tmp_path: Path,
+    counted: CountingStorage,
+    name: str,
+    representation: str,
+    line: bytes,
+    bound: int,
+) -> None:
+    _lines(tmp_path / name, line, 8 * 1024 * 1024)
+
+    await ExplorerContent(counted).read_content(
+        ContentRequest(node_id=name, representation=representation)  # type: ignore[arg-type]  # parametrized over the literal
+    )
+
+    assert counted.copied == []
+    assert counted.read_bytes <= bound + 2 * BUFFER_BYTES
+
+
+async def test_a_large_document_opens_in_the_editor_as_far_as_it_can_be_edited(
+    tmp_path: Path, counted: CountingStorage
+) -> None:
+    _lines(tmp_path / "big.txt", b"line\n", 16 * 1024 * 1024)
+
+    document = await ExplorerContent(counted).read_editor_content(
+        EditorContentRequest(node_id="big.txt")
+    )
+
+    assert document.truncated is True
+    assert document.writable is False
+    assert counted.copied == []
+    assert counted.read_bytes <= MAX_EDITOR_BYTES + 2 * BUFFER_BYTES

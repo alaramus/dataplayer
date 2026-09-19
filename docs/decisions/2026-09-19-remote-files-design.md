@@ -37,7 +37,16 @@ The fifth answer was carried out before this one: a place is a key and a name,
 and the explorer asks the storage for a child, a parent and whether one place
 is inside another (D150).
 
+Corrected after it shipped: every viewer and every summary went through a
+copy, so a recording was fetched whole before its header was read, and one
+larger than 200 MB did not play at all, although the stream behind it was
+ranged from the start (D52). The header readers were already bounded; they
+were handed a path. They now read the storage's seekable `open`, and only the
+libraries that take a path — tables, workbooks, Parquet, archives, SQL — are
+given a copy.
+
 ## Left for later
 
-- A copy fetched in ranges for a player, rather than whole.
+- Parquet described from its footer through the handle rather than a copy:
+  pyarrow can read a file object, and the footer is all a summary needs.
 - Encryption of the copies at rest, if personal storage gets it.

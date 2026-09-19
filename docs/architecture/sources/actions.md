@@ -414,9 +414,10 @@ the same Actions menu without an adapter-name or action-name branch.
   enters the ticket or the client.
 - `image` is the first binary `NodeRepresentation`. The catalog classifies PNG
   and JPEG by name, because listing must not open every file, while the content
-  read verifies the bytes with Pillow and returns the verified MIME type, width,
-  height and byte length. Its dedicated preview ticket returns the verified bytes
-  inline with `nosniff`; it is not the download action's ticket or transport.
+  read reads the header with Pillow and returns the MIME type, width, height and
+  byte length it states. Its dedicated preview ticket verifies the bytes whole
+  and returns them inline with `nosniff`; it is not the download action's
+  ticket or transport.
 - Preview has two independent ceilings: 20 MB of encoded bytes and 40 million
   decoded pixels. The verified bytes are the bounded bytes returned, so a file
   cannot change between checking and rendering. A single-file action stream is

@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 import pytest
 
+from app.adapters.content import ContentRequest, TextContent, VideoContent
 from app.adapters.explorer.copies import copies
 from app.adapters.fetch import FetchRequest
 from app.adapters.query import QueryLimits, QueryRequest, StatementFinished
@@ -24,6 +25,7 @@ from app.adapters.ssh.adapter import SshAdapter
 from app.adapters.ssh.options import SshPassword
 from app.adapters.update import UpdateCellRequest
 from tests.utils import services
+from tests.utils.media import mp4_bytes
 from tests.utils.ssh import pinned_key
 
 LIMITS = QueryLimits(
@@ -193,3 +195,25 @@ async def test_a_file_larger_than_a_copy_is_offered_as_a_download(
     received = b"".join([chunk async for chunk in prepared.body])
 
     assert received == b"id\n1\n2\n3\n"
+
+
+async def test_a_recording_larger_than_a_copy_is_played_by_range(
+    adapter: SshAdapter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What a copy may hold does not bound what plays (D152): the header and
+    every range a player asks for are read on the server, where they lie."""
+    await _upload(adapter, "clip.mp4", mp4_bytes(timescale=600, duration=1200, moov_last=True))
+    await _upload(adapter, "notes.txt", b"one\ntwo\n")
+    monkeypatch.setattr(copies(), "largest_bytes", 4)
+    request = ContentRequest(node_id="clip.mp4", representation="video")
+
+    described = await adapter.read_content(request)
+    stream = await adapter.open_content_stream(request)
+    head = b"".join([chunk async for chunk in stream.read(0, 7)])
+    text = await adapter.read_content(ContentRequest(node_id="notes.txt", representation="text"))
+
+    assert isinstance(described, VideoContent)
+    assert described.duration_seconds == pytest.approx(2.0)
+    assert head[4:8] == b"ftyp"
+    assert isinstance(text, TextContent)
+    assert text.text == "one\ntwo\n"

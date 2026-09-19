@@ -58,9 +58,10 @@ form ever reaches a shell. The one shell is the terminal its owner types into
 - **A link is described by what it points at**, and a broken one is left out.
   A download refuses one, and so does a folder that passes through this server
   whole — for an archive, or a copy the server cannot make itself.
-- **What a library reads from a path is a local copy** (D152), bounded to
-  200 MB a file; a larger file is downloaded instead. A search by content reads
-  files up to 1 MB.
+- **A table, a workbook, an archive or SQL reads a local copy** (D152),
+  bounded to 200 MB a file; a larger one is downloaded instead. A recording, a
+  PDF, a picture or a document is read on the server by range, whatever it
+  weighs. A search by content reads files up to 1 MB.
 - **A write is sent beside its name and moved into place.** A new name is
   claimed with the plain rename, which refuses an existing one; a replacement
   keeps the file's own permissions, so a script stays executable, and is moved

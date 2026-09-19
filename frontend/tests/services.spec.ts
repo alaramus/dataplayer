@@ -165,6 +165,17 @@ test("starts an SSH server with sample files in its home and opens them", async 
   await page.getByTestId("catalog-node-sample.csv").click()
   await expect(page.getByTestId("row-grid")).toContainText("city-1")
 
+  // A recording and a PDF are read on the server by range, never copied here
+  // first (D152): the header gives the picture size, and the player loads.
+  await page.getByTestId("catalog-node-clip.mp4").click()
+  await expect(page.getByTestId("media-details")).toContainText("160 × 120")
+  const video = page.getByTestId("media-player")
+  await expect
+    .poll(async () => video.evaluate((element: HTMLMediaElement) => element.readyState))
+    .toBeGreaterThan(0)
+  await page.getByTestId("catalog-node-guide.pdf").click()
+  await expect(page.getByTestId("pdf-page-1").locator("canvas")).toBeVisible()
+
   await page.getByTestId("command-services").click()
   const row = page
     .getByTestId("managed-services")

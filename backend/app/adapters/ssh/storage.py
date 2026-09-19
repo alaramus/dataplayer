@@ -162,7 +162,10 @@ class SftpStorage(PathPlaces):
     def open(self, place: Place) -> BinaryIO:
         raw = _RemoteFile(self._session, place)
         from_thread.run(raw.opened)
-        return io.BufferedReader(raw, buffer_size=256 * 1024)
+        # Small, because every seek of a header reader refills it: an MP4 read
+        # for its duration is a handful of these. A read larger than the
+        # buffer — a range a player streams — goes around it.
+        return io.BufferedReader(raw, buffer_size=64 * 1024)
 
     @contextmanager
     def local_file(self, place: Place) -> Iterator[Path]:

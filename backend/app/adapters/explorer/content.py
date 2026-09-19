@@ -1,13 +1,21 @@
-"""Bounded native content viewers for files."""
+"""Bounded native content viewers for files.
+
+Every viewer here decides from a header or a bounded prefix, so each reads the
+file through the storage's own ranged `open` rather than a local copy: a
+recording, a picture or a log on a remote storage is asked for what is read
+and no more, whatever it weighs (D152). Only an archive entry is read from a
+file on this machine, because the archive it is expanded out of is (D53).
+"""
 
 import hashlib
 import io
 import os
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from dataclasses import dataclass
 from functools import partial
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Any, assert_never
+from typing import Any, BinaryIO, assert_never
 
 from anyio import to_thread
 from PIL import Image, UnidentifiedImageError
@@ -41,7 +49,7 @@ from app.adapters.content import (
     VideoContent,
 )
 from app.adapters.explorer import archive
-from app.adapters.explorer.binary import looks_binary
+from app.adapters.explorer.binary import bytes_look_binary
 from app.adapters.explorer.formats import (
     format_of,
     offers_source,
@@ -92,6 +100,40 @@ IMAGE_MEDIA_TYPES: dict[str, ImageMediaType] = {
 }
 
 
+@dataclass(frozen=True)
+class _Source:
+    """A file's bytes wherever they are, and what is known without reading them."""
+
+    name: str
+    exists: bool
+    is_directory: bool
+    size_bytes: int
+    opened: Callable[[], BinaryIO]
+
+
+def _in_storage(storage: Storage, place: Place) -> _Source:
+    found = storage.entry(place)
+    return _Source(
+        name=place.name,
+        exists=found is not None,
+        is_directory=found is not None and found.is_directory,
+        size_bytes=0 if found is None else found.size_bytes,
+        opened=partial(storage.open, place),
+    )
+
+
+def _on_disk(path: Path, name: str) -> _Source:
+    """An archive entry, expanded into a temporary file whose own name says
+    nothing about it (D53)."""
+    return _Source(
+        name=name,
+        exists=path.exists(),
+        is_directory=path.is_dir(),
+        size_bytes=path.stat().st_size if path.is_file() else 0,
+        opened=lambda: path.open("rb"),
+    )
+
+
 class ExplorerContent:
     def __init__(self, storage: Storage) -> None:
         self._storage = storage
@@ -104,8 +146,7 @@ class ExplorerContent:
         entry = _archive_entry(self._storage, request.node_id)
         if entry is None:
             place = self._file_place(request.node_id)
-            with self._storage.local_file(place) as path:
-                return self._read(path, request, name=place.name)
+            return self._read(_in_storage(self._storage, place), request)
         # An entry is expanded into a bounded temporary file and read by the
         # ordinary viewer, which is what lets every one of them work inside an
         # archive without a second implementation (D53).
@@ -121,7 +162,7 @@ class ExplorerContent:
             self._storage.local_file(entry.place) as container,
             archive.expanded(container, name) as expanded,
         ):
-            return self._read(expanded, request, name=_entry_name(name))
+            return self._read(_on_disk(expanded, _entry_name(name)), request)
 
     def _file_place(self, node_id: str) -> Place:
         """The place of a node that is a file or a folder, never a member.
@@ -149,15 +190,14 @@ class ExplorerContent:
         entry = _archive_entry(self._storage, request.node_id)
         if entry is None:
             place = self._file_place(request.node_id)
-            with self._storage.local_file(place) as path:
-                return self._read_editor(path, request, name=place.name)
+            return self._read_editor(_in_storage(self._storage, place), request)
         member = entry.member or ""
         with (
             self._storage.local_file(entry.place) as container,
             archive.expanded(container, member) as expanded,
         ):
             document = self._read_editor(
-                expanded, request, name=_entry_name(member)
+                _on_disk(expanded, _entry_name(member)), request
             )
         return document.model_copy(
             update={
@@ -179,29 +219,24 @@ class ExplorerContent:
         entry = _archive_entry(self._storage, request.node_id)
         if entry is None:
             place = self._file_place(request.node_id)
-            with self._storage.local_file(place) as path:
-                return self._read_image_preview(path, request, name=place.name)
+            return self._read_image_preview(_in_storage(self._storage, place), request)
         name = entry.member or ""
         with (
             self._storage.local_file(entry.place) as container,
             archive.expanded(container, name) as expanded,
         ):
             return self._read_image_preview(
-                expanded, request, name=_entry_name(name)
+                _on_disk(expanded, _entry_name(name)), request
             )
 
-    def _read(
-        self, path: Path, request: ContentRequest, *, name: str | None = None
-    ) -> ContentResult:
-        if not path.exists():
+    def _read(self, source: _Source, request: ContentRequest) -> ContentResult:
+        if not source.exists:
             raise ValueError(f"No such file: {request.node_id}")
-        if path.is_dir():
+        if source.is_directory:
             raise ValueError(f"A directory has no content viewer: {request.node_id}")
 
-        # The name decides the viewer, and an entry expanded out of an archive
-        # lives in a temporary file whose own name says nothing about it.
-        named = name or path.name
-        available = {item.kind for item in representations_of(named)}
+        # The name decides the viewer, never the bytes.
+        available = {item.kind for item in representations_of(source.name)}
         if request.representation not in available:
             raise ValueError(
                 f'This file does not offer the "{request.representation}" representation'
@@ -209,22 +244,21 @@ class ExplorerContent:
 
         match request.representation:
             case "text":
-                return _read_text(path)
+                return _read_text(source)
             case "json":
-                return _read_json(path)
+                return _read_json(source)
             case "jsonl":
-                return _read_json_lines(path, request.limit, request.offset)
+                return _read_json_lines(source, request.limit, request.offset)
             case "markdown":
-                return _read_markdown(path)
+                return _read_markdown(source)
             case "image":
-                preview = self._read_image_preview(path, request, name=named)
-                return _image_content(preview)
+                return _image_content(source)
             case "audio":
-                return _audio_content(path)
+                return _audio_content(source)
             case "video":
-                return _video_content(path)
+                return _video_content(source)
             case "pdf":
-                return _pdf_content(path)
+                return _pdf_content(source)
             case "sql":
                 # The catalog guard above makes this unreachable for a file,
                 # but the closed content vocabulary includes source-issued SQL.
@@ -239,8 +273,9 @@ class ExplorerContent:
     def _open_stream(self, request: ContentRequest) -> ContentStream:
         _refuse_inside_archive(self._storage, request.node_id, "streamed")
         place = self._file_place(request.node_id)
-        with self._storage.local_file(place) as path:
-            result = self._read(path, request, name=place.name)
+        # Asked again on every range a player requests: a header costs a few
+        # blocks, and the file may have changed since the last one.
+        result = self._read(_in_storage(self._storage, place), request)
         if not isinstance(result, AudioContent | VideoContent | PdfContent):
             raise ValueError(
                 f'The "{request.representation}" representation is not streamed'
@@ -253,39 +288,39 @@ class ExplorerContent:
         )
 
     def _read_image_preview(
-        self, path: Path, request: ContentRequest, *, name: str | None = None
+        self, source: _Source, request: ContentRequest
     ) -> BoundedContentPreview:
-        named = name or path.name
-        if not path.exists():
+        if not source.exists:
             raise ValueError(f"No such file: {request.node_id}")
-        if not path.is_file():
+        if source.is_directory:
             raise ValueError(f"A directory has no image viewer: {request.node_id}")
         if request.representation != "image" or "image" not in {
-            item.kind for item in representations_of(named)
+            item.kind for item in representations_of(source.name)
         }:
             raise ValueError('This file does not offer the "image" representation')
-        raw, truncated = _byte_prefix(path, MAX_IMAGE_BYTES)
+        _refuse_large_image(source.size_bytes)
+        # The whole of it, because the bytes verified are the bytes returned:
+        # a file cannot change between checking and rendering (D49).
+        raw, truncated = _byte_prefix(source, MAX_IMAGE_BYTES)
         if truncated:
-            raise ValueError(
-                f"Images larger than {MAX_IMAGE_BYTES // (1024 * 1024)} MB "
-                "cannot be previewed"
-            )
-        media_type, width, height = _verified_image(raw)
+            _refuse_large_image(MAX_IMAGE_BYTES + 1)
+        media_type, width, height = _image_facts(io.BytesIO(raw), verify=True)
         return BoundedContentPreview(
             body=raw,
             media_type=media_type,
-            filename=named,
+            filename=source.name,
             width=width,
             height=height,
         )
 
     def _read_editor(
-        self, path: Path, request: EditorContentRequest, *, name: str | None = None
+        self, source: _Source, request: EditorContentRequest
     ) -> EditorContent:
-        named = name or path.name
-        _require_editable_file(path, request.node_id, named)
+        named = source.name
+        _require_editable_file(source, request.node_id)
         language_hint, validation = _editor_language(named)
-        raw, truncated = _byte_prefix(path, MAX_EDITOR_BYTES)
+        raw, truncated = _byte_prefix(source, MAX_EDITOR_BYTES)
+        _refuse_binary(raw, "cannot be edited as text")
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
@@ -323,14 +358,19 @@ class ExplorerContent:
     def _update(self, request: UpdateContentRequest) -> ContentUpdated:
         _refuse_inside_archive(self._storage, request.node_id, "written")
         place = self._file_place(request.node_id)
-        with self._storage.local_file(place) as path:
-            _require_editable_file(path, request.node_id, place.name)
-            current = path.read_bytes()
-        if len(current) > MAX_EDITOR_BYTES:
+        source = _in_storage(self._storage, place)
+        _require_editable_file(source, request.node_id)
+        current, truncated = (
+            (b"", True)
+            if source.size_bytes > MAX_EDITOR_BYTES
+            else _byte_prefix(source, MAX_EDITOR_BYTES)
+        )
+        if truncated:
             raise ValueError(
                 f"Files larger than {MAX_EDITOR_BYTES // (1024 * 1024)} MB "
                 "cannot be edited here"
             )
+        _refuse_binary(current, "cannot be edited as text")
         if _version(current) != request.version:
             raise ContentConflict
         try:
@@ -355,35 +395,39 @@ class ExplorerContent:
         return ContentUpdated(version=_version(replacement))
 
 
-def _audio_content(path: Path) -> AudioContent:
-    facts = audio_facts(path)
+def _audio_content(source: _Source) -> AudioContent:
+    with source.opened() as handle:
+        facts = audio_facts(source.name, handle)
     return AudioContent(
-        filename=path.name,
+        filename=source.name,
         media_type=facts.media_type,
-        size_bytes=path.stat().st_size,
+        size_bytes=source.size_bytes,
         duration_seconds=facts.duration_seconds,
         channels=facts.channels,
         sample_rate=facts.sample_rate,
     )
 
 
-def _video_content(path: Path) -> VideoContent:
-    facts = video_facts(path)
+def _video_content(source: _Source) -> VideoContent:
+    with source.opened() as handle:
+        facts = video_facts(source.name, handle)
     return VideoContent(
-        filename=path.name,
+        filename=source.name,
         media_type=facts.media_type,
-        size_bytes=path.stat().st_size,
+        size_bytes=source.size_bytes,
         duration_seconds=facts.duration_seconds,
         width=facts.width,
         height=facts.height,
     )
 
 
-def _pdf_content(path: Path) -> PdfContent:
+def _pdf_content(source: _Source) -> PdfContent:
+    with source.opened() as handle:
+        facts = pdf_facts(source.name, handle)
     return PdfContent(
-        filename=path.name,
-        size_bytes=path.stat().st_size,
-        version=pdf_facts(path).version,
+        filename=source.name,
+        size_bytes=source.size_bytes,
+        version=facts.version,
     )
 
 
@@ -434,23 +478,43 @@ def _entry_name(member: str) -> str:
     return member.rsplit("/", 1)[-1]
 
 
-def _read_text(path: Path) -> TextContent:
-    if looks_binary(path):
-        raise ValueError("This file contains binary data and cannot be shown as text")
-    text, truncated, notice = _text_prefix(path, MAX_TEXT_BYTES)
+def _read_text(source: _Source) -> TextContent:
+    raw, truncated = _byte_prefix(source, MAX_TEXT_BYTES)
+    _refuse_binary(raw, "cannot be shown as text")
+    text, notice = _decoded(raw)
     return TextContent(text=text, truncated=truncated, notice=notice)
 
 
-def _read_markdown(path: Path) -> MarkdownContent:
-    if looks_binary(path):
-        raise ValueError("This file contains binary data and is not a document")
-    text, truncated, notice = _text_prefix(path, MAX_MARKDOWN_BYTES)
+def _read_markdown(source: _Source) -> MarkdownContent:
+    raw, truncated = _byte_prefix(source, MAX_MARKDOWN_BYTES)
+    _refuse_binary(raw, "is not a document")
+    text, notice = _decoded(raw)
     return MarkdownContent(text=text, truncated=truncated, notice=notice)
 
 
-def _verified_image(raw: bytes) -> tuple[ImageMediaType, int, int]:
+def _refuse_binary(raw: bytes, why: str) -> None:
+    if bytes_look_binary(raw):
+        raise ValueError(f"This file contains binary data and {why}")
+
+
+def _refuse_large_image(size_bytes: int) -> None:
+    if size_bytes > MAX_IMAGE_BYTES:
+        raise ValueError(
+            f"Images larger than {MAX_IMAGE_BYTES // (1024 * 1024)} MB "
+            "cannot be previewed"
+        )
+
+
+def _image_facts(
+    stream: BinaryIO, *, verify: bool
+) -> tuple[ImageMediaType, int, int]:
+    """What an image's header states, and with `verify` that its bytes hold.
+
+    Pillow reads the header on `open` and the rest only when asked, so without
+    `verify` this costs a few kilobytes whatever the image weighs.
+    """
     try:
-        with Image.open(io.BytesIO(raw)) as image:
+        with Image.open(stream) as image:
             media_type = IMAGE_MEDIA_TYPES.get(image.format or "")
             if media_type is None:
                 raise ValueError("Only PNG and JPEG images can be previewed")
@@ -463,29 +527,37 @@ def _verified_image(raw: bytes) -> tuple[ImageMediaType, int, int]:
                 raise ValueError(
                     f"Images larger than {MAX_IMAGE_PIXELS:,} pixels cannot be previewed"
                 )
-            image.verify()
+            if verify:
+                image.verify()
     except (Image.DecompressionBombError, UnidentifiedImageError, OSError):
         raise ValueError("This file is not a valid PNG or JPEG image") from None
     return media_type, width, height
 
 
-def _image_content(preview: BoundedContentPreview) -> ImageContent:
-    media_type = preview.media_type
-    if media_type not in {"image/png", "image/jpeg"}:
-        raise ValueError("This file is not a supported image")
+def _image_content(source: _Source) -> ImageContent:
+    """What the picture is, from its header: the bytes themselves are verified
+    by the preview that returns them (D49)."""
+    _refuse_large_image(source.size_bytes)
+    with source.opened() as handle:
+        media_type, width, height = _image_facts(handle, verify=False)
     return ImageContent(
-        filename=preview.filename,
+        filename=source.name,
         media_type=media_type,
-        size_bytes=len(preview.body),
-        width=preview.width,
-        height=preview.height,
+        size_bytes=source.size_bytes,
+        width=width,
+        height=height,
     )
 
 
-def _read_json(path: Path) -> JsonContent:
-    size = path.stat().st_size
-    if size > MAX_JSON_BYTES:
-        text, truncated, decode_notice = _text_prefix(path, MAX_TEXT_BYTES)
+def _read_json(source: _Source) -> JsonContent:
+    raw, truncated = (
+        (b"", True)
+        if source.size_bytes > MAX_JSON_BYTES
+        else _byte_prefix(source, MAX_JSON_BYTES)
+    )
+    if truncated:
+        head, head_truncated = _byte_prefix(source, MAX_TEXT_BYTES)
+        text, decode_notice = _decoded(head)
         notice = (
             f"This file is larger than {MAX_JSON_BYTES // (1024 * 1024)} MB, "
             "so it was not parsed as one JSON document."
@@ -494,11 +566,10 @@ def _read_json(path: Path) -> JsonContent:
             notice = f"{notice} {decode_notice}"
         return JsonContent(
             source_text=text,
-            truncated=truncated,
+            truncated=head_truncated,
             notice=notice,
         )
 
-    raw = path.read_bytes()
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -531,12 +602,12 @@ def _read_json(path: Path) -> JsonContent:
         )
 
 
-def _read_json_lines(path: Path, limit: int, offset: int) -> JsonLinesContent:
+def _read_json_lines(source: _Source, limit: int, offset: int) -> JsonLinesContent:
     items: list[JsonLine] = []
     seen = 0
     page_bytes = 0
     has_more = False
-    for line_number, raw, truncated in _bounded_lines(path):
+    for line_number, raw, truncated in _bounded_lines(source):
         if not raw.strip():
             continue
         if seen < offset:
@@ -597,9 +668,9 @@ def _json_line(line_number: int, raw: bytes, truncated: bool) -> JsonLine:
         )
 
 
-def _bounded_lines(path: Path) -> Iterator[tuple[int, bytes, bool]]:
+def _bounded_lines(source: _Source) -> Iterator[tuple[int, bytes, bool]]:
     """Physical lines without an unbounded ``readline`` allocation."""
-    with path.open("rb") as handle:
+    with source.opened() as handle:
         line_number = 0
         while True:
             first = handle.readline(MAX_JSON_LINE_BYTES + 1)
@@ -616,41 +687,38 @@ def _bounded_lines(path: Path) -> Iterator[tuple[int, bytes, bool]]:
             yield line_number, raw.rstrip(b"\r\n"), truncated
 
 
-def _text_prefix(path: Path, ceiling: int) -> tuple[str, bool, str | None]:
-    preview, truncated = _byte_prefix(path, ceiling)
+def _decoded(raw: bytes) -> tuple[str, str | None]:
     try:
-        return preview.decode("utf-8"), truncated, None
+        return raw.decode("utf-8"), None
     except UnicodeDecodeError as exc:
         return (
-            preview.decode("utf-8", errors="replace"),
-            truncated,
+            raw.decode("utf-8", errors="replace"),
             f"This file is not valid UTF-8 at byte {exc.start + 1}.",
         )
 
 
-def _byte_prefix(path: Path, ceiling: int) -> tuple[bytes, bool]:
-    with path.open("rb") as handle:
+def _byte_prefix(source: _Source, ceiling: int) -> tuple[bytes, bool]:
+    with source.opened() as handle:
         raw = handle.read(ceiling + 1)
     return raw[:ceiling], len(raw) > ceiling
 
 
-def _require_editable_file(path: Path, node_id: str, name: str | None = None) -> None:
+def _require_editable_file(source: _Source, node_id: str) -> None:
     """That this node has text to show at all.
 
     Asked of the representations the format declares rather than of a list
     kept beside them: the two were separate, and they drifted the moment a log
     became a thing this source could open. Whether the text may also be
     written back is a different question, answered per document by
-    `writable` — a file too large or not valid UTF-8 is still shown.
+    `writable` — a file too large or not valid UTF-8 is still shown. Binary
+    bytes are refused by whoever reads them, so the file is opened once.
     """
-    if not path.exists():
+    if not source.exists:
         raise ValueError(f"No such file: {node_id}")
-    if path.is_dir():
+    if source.is_directory:
         raise ValueError(f"A directory has no source editor: {node_id}")
-    if not offers_source(name or path.name):
+    if not offers_source(source.name):
         raise ValueError("This file has no text to show")
-    if looks_binary(path):
-        raise ValueError("This file contains binary data and cannot be edited as text")
 
 
 def _editor_language(

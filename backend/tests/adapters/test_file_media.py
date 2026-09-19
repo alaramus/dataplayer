@@ -7,7 +7,15 @@ import pytest
 
 from app.adapters.content import AudioContent, PdfContent, VideoContent
 from app.adapters.explorer.content import ExplorerContent
-from app.adapters.explorer.media import NotPlayable, audio_facts, pdf_facts, video_facts
+from app.adapters.explorer.media import (
+    AudioFacts,
+    NotPlayable,
+    PdfFacts,
+    VideoFacts,
+    audio_facts,
+    pdf_facts,
+    video_facts,
+)
 from app.adapters.file.storage import LocalStorage
 from tests.utils.media import (
     flac_bytes,
@@ -18,6 +26,21 @@ from tests.utils.media import (
     pdf_bytes,
     wav_bytes,
 )
+
+
+def _audio(path: Path) -> AudioFacts:
+    with path.open("rb") as handle:
+        return audio_facts(path.name, handle)
+
+
+def _video(path: Path) -> VideoFacts:
+    with path.open("rb") as handle:
+        return video_facts(path.name, handle)
+
+
+def _pdf(path: Path) -> PdfFacts:
+    with path.open("rb") as handle:
+        return pdf_facts(path.name, handle)
 
 
 @pytest.fixture
@@ -42,7 +65,7 @@ def content(root: Path) -> ExplorerContent:
 
 
 def test_a_wav_states_its_channels_rate_and_exact_length(root: Path) -> None:
-    facts = audio_facts(root / "tone.wav")
+    facts = _audio(root / "tone.wav")
 
     assert facts.media_type == "audio/wav"
     assert facts.channels == 1
@@ -51,7 +74,7 @@ def test_a_wav_states_its_channels_rate_and_exact_length(root: Path) -> None:
 
 
 def test_a_flac_states_an_exact_length_from_its_sample_count(root: Path) -> None:
-    facts = audio_facts(root / "song.flac")
+    facts = _audio(root / "song.flac")
 
     assert facts.media_type == "audio/flac"
     assert facts.channels == 2
@@ -61,18 +84,18 @@ def test_a_flac_states_an_exact_length_from_its_sample_count(root: Path) -> None
 
 def test_an_mp3_is_verified_and_states_no_length(root: Path) -> None:
     """A duration would mean scanning the frames, so it is absent, not guessed."""
-    facts = audio_facts(root / "voice.mp3")
+    facts = _audio(root / "voice.mp3")
 
     assert facts.media_type == "audio/mpeg"
     assert facts.duration_seconds is None
 
 
 def test_an_ogg_file_is_verified_by_its_magic(root: Path) -> None:
-    assert audio_facts(root / "stream.ogg").media_type == "audio/ogg"
+    assert _audio(root / "stream.ogg").media_type == "audio/ogg"
 
 
 def test_an_mp4_states_its_length_and_picture_size(root: Path) -> None:
-    facts = video_facts(root / "clip.mp4")
+    facts = _video(root / "clip.mp4")
 
     assert facts.media_type == "video/mp4"
     assert facts.duration_seconds == pytest.approx(5.5)
@@ -85,36 +108,36 @@ def test_an_mp4_whose_index_sits_at_the_end_is_still_read(tmp_path: Path) -> Non
         mp4_bytes(timescale=600, duration=1200, moov_last=True)
     )
 
-    facts = video_facts(tmp_path / "late.mp4")
+    facts = _video(tmp_path / "late.mp4")
 
     assert facts.duration_seconds == pytest.approx(2.0)
     assert (facts.width, facts.height) == (1280, 720)
 
 
 def test_a_webm_must_say_it_is_one(root: Path) -> None:
-    assert video_facts(root / "clip.webm").media_type == "video/webm"
+    assert _video(root / "clip.webm").media_type == "video/webm"
 
     with pytest.raises(NotPlayable, match="not a WebM file"):
-        video_facts(root / "fake.webm")
+        _video(root / "fake.webm")
 
 
 def test_a_pdf_states_the_version_in_its_header(root: Path) -> None:
-    assert pdf_facts(root / "report.pdf").version == "1.7"
+    assert _pdf(root / "report.pdf").version == "1.7"
 
 
 def test_bytes_that_are_not_the_named_container_are_refused(root: Path) -> None:
     with pytest.raises(NotPlayable, match="not an MP3"):
-        audio_facts(root / "fake.mp3")
+        _audio(root / "fake.mp3")
     with pytest.raises(NotPlayable, match="not a PDF"):
-        pdf_facts(root / "fake.pdf")
+        _pdf(root / "fake.pdf")
 
 
 def test_a_recording_is_not_offered_as_a_sound_file(root: Path) -> None:
     """The two readers answer for their own representation and no other."""
     with pytest.raises(NotPlayable):
-        audio_facts(root / "clip.mp4")
+        _audio(root / "clip.mp4")
     with pytest.raises(NotPlayable):
-        video_facts(root / "voice.mp3")
+        _video(root / "voice.mp3")
 
 
 async def test_content_carries_the_verified_facts(content: ExplorerContent) -> None:

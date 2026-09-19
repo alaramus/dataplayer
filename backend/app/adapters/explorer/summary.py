@@ -9,13 +9,22 @@ nothing else needed.
 Two ceilings hold it up: a file larger than `MAX_COUNTED_BYTES` is not counted
 and says so, and a directory of more than `MAX_ENTRIES` is not counted for the
 reason its listing is refused.
+
+A file is read through the storage's own `open`, except the three formats whose
+libraries open a path — a workbook, an archive, Parquet — which are read from
+a local copy (D152). A summary of a recording on a remote storage costs its
+header, not the recording.
 """
 
 import codecs
 import csv
+import io
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
+from typing import BinaryIO
 
 from anyio import to_thread
 from PIL import Image, UnidentifiedImageError
@@ -89,12 +98,11 @@ class ExplorerSummaries:
             raise NodeNotFound(node_id)
         if entry.is_directory:
             return _directory(self._storage, entry, node_id)
-        with self._storage.local_file(entry.place) as path:
-            return _file(entry, path, node_id)
+        return _file(self._storage, entry, node_id)
 
 
-def _file(entry: Entry, path: Path, node_id: str) -> NodeSummary:
-    contents, notice = _contents(path)
+def _file(storage: Storage, entry: Entry, node_id: str) -> NodeSummary:
+    contents, notice = _contents(storage, entry)
     return NodeSummary(
         node_id=node_id,
         name=entry.name,
@@ -195,7 +203,7 @@ def _worksheet(resolved: ResolvedNode, path: Path, node_id: str) -> NodeSummary:
     )
 
 
-def _contents(path: Path) -> tuple[NodeContents | None, str | None]:
+def _contents(storage: Storage, entry: Entry) -> tuple[NodeContents | None, str | None]:
     """What the format states, or why it could not say.
 
     Every message here is written in this repository. A reader's own refusal is
@@ -203,32 +211,33 @@ def _contents(path: Path) -> tuple[NodeContents | None, str | None]:
     driver text never reaches a caller (ENGINEERING).
     """
     try:
-        return _read_contents(path), None
+        return _read_contents(storage, entry), None
     except ValueError as exc:
         return None, str(exc)
     except OSError:
         return None, "This file could not be read"
 
 
-def _read_contents(path: Path) -> NodeContents | None:
-    match format_of(path.name):
+def _read_contents(storage: Storage, entry: Entry) -> NodeContents | None:
+    name = entry.name
+    opened = partial(storage.open, entry.place)
+    match format_of(name):
         case "delimited":
-            return _delimited_contents(path)
+            return _delimited_contents(name, entry.size_bytes, opened)
         case "text" | "markdown" | "json" | "jsonl" | "log":
             # A log is text as far as this is concerned: how many lines, what
             # encoding, how long the longest one is. What shape those lines are
             # in is a question the table asks, not the summary.
-            return _text_contents(path)
-        case "parquet":
-            return parquet.describe(path)[1]
-        case "workbook":
-            return _workbook_contents(path)
-        case "archive":
-            return _archive_contents(path)
+            return _text_contents(entry.size_bytes, opened)
+        case "parquet" | "workbook" | "archive":
+            with storage.local_file(entry.place) as path:
+                return _copied_contents(path)
         case "image":
-            return _image_contents(path)
+            with opened() as handle:
+                return _image_contents(handle)
         case "audio":
-            facts = media.audio_facts(path)
+            with opened() as handle:
+                facts = media.audio_facts(name, handle)
             return AudioContents(
                 media_type=facts.media_type,
                 duration_seconds=facts.duration_seconds,
@@ -236,7 +245,8 @@ def _read_contents(path: Path) -> NodeContents | None:
                 sample_rate=facts.sample_rate,
             )
         case "video":
-            video = media.video_facts(path)
+            with opened() as handle:
+                video = media.video_facts(name, handle)
             return VideoContents(
                 media_type=video.media_type,
                 duration_seconds=video.duration_seconds,
@@ -244,7 +254,8 @@ def _read_contents(path: Path) -> NodeContents | None:
                 height=video.height,
             )
         case "pdf":
-            return PdfContents(version=media.pdf_facts(path).version)
+            with opened() as handle:
+                return PdfContents(version=media.pdf_facts(name, handle).version)
         case "opaque":
             # A font, an executable, a legacy document: the facts every file
             # has are the whole answer, and inventing more would need a
@@ -263,8 +274,19 @@ class _TextScan:
     not_counted: str | None = None
 
 
-def _text_contents(path: Path) -> TextContents:
-    scan = _scan(path)
+def _copied_contents(path: Path) -> NodeContents | None:
+    """A format whose library opens a path, read from the file that holds it."""
+    match format_of(path.name):
+        case "parquet":
+            return parquet.describe(path)[1]
+        case "workbook":
+            return _workbook_contents(path)
+        case _:
+            return _archive_contents(path)
+
+
+def _text_contents(size_bytes: int, opened: Callable[[], BinaryIO]) -> TextContents:
+    scan = _scan(size_bytes, opened)
     return TextContents(
         encoding=scan.encoding,
         lines=scan.lines,
@@ -274,14 +296,16 @@ def _text_contents(path: Path) -> TextContents:
     )
 
 
-def _delimited_contents(path: Path) -> DelimitedContents:
-    scan = _scan(path)
+def _delimited_contents(
+    name: str, size_bytes: int, opened: Callable[[], BinaryIO]
+) -> DelimitedContents:
+    scan = _scan(size_bytes, opened)
     if scan.not_counted is not None:
         return DelimitedContents(
             encoding=scan.encoding, not_counted=scan.not_counted
         )
     try:
-        delimiter, columns, rows = _count_rows(path)
+        delimiter, columns, rows = _count_rows(name, opened)
     except csv.Error:
         # A field longer than the parser's limit, or a line it cannot read.
         # The file is still a file, and its own facts still stand.
@@ -297,14 +321,16 @@ def _delimited_contents(path: Path) -> DelimitedContents:
     )
 
 
-def _count_rows(path: Path) -> tuple[str, int, int]:
+def _count_rows(name: str, opened: Callable[[], BinaryIO]) -> tuple[str, int, int]:
     """The delimiter, the width of the header and the number of data rows.
 
     Counted by `csv` rather than by newlines: a quoted value may hold a line
     ending, and a count that ignored that would disagree with the grid.
     """
-    with path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
-        delimiter = delimiter_of(path.name, handle.readline())
+    with io.TextIOWrapper(
+        opened(), encoding="utf-8", errors="replace", newline=""
+    ) as handle:
+        delimiter = delimiter_of(name, handle.readline())
         handle.seek(0)
         reader = csv.reader(handle, delimiter=delimiter)
         header = next(reader, None)
@@ -334,7 +360,7 @@ def _archive_contents(path: Path) -> ArchiveContents:
     )
 
 
-def _image_contents(path: Path) -> ImageContents:
+def _image_contents(handle: BinaryIO) -> ImageContents:
     """The header of an image, without decoding a pixel.
 
     Pillow reads the header on `open` and the raster only when it is asked for
@@ -342,7 +368,7 @@ def _image_contents(path: Path) -> ImageContents:
     messages name the file, so the refusal is ours.
     """
     try:
-        with Image.open(path) as image:
+        with Image.open(handle) as image:
             media_type = IMAGE_MEDIA_TYPES.get(image.format or "")
             width, height = image.size
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
@@ -377,15 +403,15 @@ def _directory_contents(storage: Storage, folder: Entry) -> DirectoryContents:
     )
 
 
-def _scan(path: Path) -> _TextScan:
+def _scan(size_bytes: int, opened: Callable[[], BinaryIO]) -> _TextScan:
     """One pass over the bytes: the encoding, the lines and the longest of them.
 
     Chunked and bounded, so nothing here holds a file — or a line — whole. The
     terminator is looked for in both spellings and in the lone carriage return,
     because "which of them is in this file" is one of the things being asked.
     """
-    if path.stat().st_size > MAX_COUNTED_BYTES:
-        return _TextScan(encoding=_encoding_of_prefix(path), not_counted=_TOO_LARGE)
+    if size_bytes > MAX_COUNTED_BYTES:
+        return _TextScan(encoding=_encoding_of_prefix(opened), not_counted=_TOO_LARGE)
 
     decoder = codecs.getincrementaldecoder("utf-8")()
     valid = True
@@ -398,7 +424,7 @@ def _scan(path: Path) -> _TextScan:
     current = 0
     carry = b""
 
-    with path.open("rb") as handle:
+    with opened() as handle:
         while chunk := handle.read(COUNT_CHUNK_BYTES):
             if first:
                 bom = chunk.startswith(codecs.BOM_UTF8)
@@ -461,7 +487,7 @@ def _encoding(valid: bool, bom: bool) -> TextEncoding:
     return "utf-8-bom" if bom else "utf-8"
 
 
-def _encoding_of_prefix(path: Path) -> TextEncoding:
+def _encoding_of_prefix(opened: Callable[[], BinaryIO]) -> TextEncoding:
     """The encoding of a file too large to read through.
 
     One chunk decides it: a byte that is not UTF-8 in the first quarter of a
@@ -469,7 +495,7 @@ def _encoding_of_prefix(path: Path) -> TextEncoding:
     only that the beginning is — which is why the count beside it is absent and
     the reason is stated.
     """
-    with path.open("rb") as handle:
+    with opened() as handle:
         head = handle.read(COUNT_CHUNK_BYTES)
     decoder = codecs.getincrementaldecoder("utf-8")()
     try:
