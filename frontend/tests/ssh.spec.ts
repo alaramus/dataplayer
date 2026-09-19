@@ -1,3 +1,5 @@
+import { generateKeyPairSync } from "node:crypto"
+
 import { expect, test } from "@playwright/test"
 
 import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
@@ -30,6 +32,41 @@ test("a key is made on the Preferences page, and only its public half is shown",
   // The private half never came back from the server, so it cannot be here.
   await expect(page.getByTestId("ssh-keys")).not.toContainText("PRIVATE KEY")
 
+  await page.getByTestId(`ssh-key-delete-${name}`).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(row).toHaveCount(0)
+})
+
+test("a key is imported from its file, read here rather than uploaded", async ({ page }) => {
+  // A key made for this run, in the PKCS#8 form Node writes: the server reads
+  // it as it reads the OpenSSH form a key file usually has.
+  const { privateKey } = generateKeyPairSync("ed25519", {
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    publicKeyEncoding: { type: "spki", format: "pem" },
+  })
+  const name = `e2e-file-key-${Date.now()}`
+  await login(page)
+  await page.goto("/preferences")
+  await page.getByTestId("ssh-key-import").click()
+
+  // The file fills the field and the name, and nothing is sent yet.
+  await page.getByTestId("ssh-key-file").setInputFiles({
+    name,
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from(privateKey),
+  })
+  await expect(page.getByTestId("ssh-key-private")).toHaveValue(privateKey)
+  await expect(page.getByTestId("ssh-key-name")).toHaveValue(name)
+
+  // Sent as the text a pasted key is, in the same request (D146).
+  const sent = page.waitForRequest((request) => request.url().endsWith("/ssh-keys/import"))
+  await page.getByTestId("ssh-key-save").click()
+  const request = await sent
+  expect(request.headers()["content-type"]).toContain("application/json")
+  expect((request.postDataJSON() as { private_key: string }).private_key).toBe(privateKey)
+
+  const row = page.getByTestId(`ssh-key-${name}`)
+  await expect(row).toContainText("ssh-ed25519")
   await page.getByTestId(`ssh-key-delete-${name}`).click()
   await page.getByTestId("confirm-accept").click()
   await expect(row).toHaveCount(0)

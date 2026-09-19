@@ -131,7 +131,10 @@ private half write-only.
   (RSA for servers that refuse it): the private half never existed anywhere
   else, and a leaked key opens only the servers it was added to for this
   application. The public line ends in `dataplayer`, so a server's owner can
-  tell which line of `authorized_keys` it is.
+  tell which line of `authorized_keys` it is. An imported key is pasted or
+  chosen as its file, which the browser reads and sends as the same text: the
+  file is never uploaded, so an unencrypted private key never lands on this
+  server's disk, even for a moment.
 - **The private half is never read back.** No route returns it; what a person
   sees is the public line, the fingerprint and the connections that use the
   key. It is encrypted under the connector key (D4), itself encrypted under its

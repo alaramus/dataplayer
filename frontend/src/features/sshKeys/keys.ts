@@ -48,6 +48,27 @@ export function shortFingerprint(fingerprint: string): string {
   return body.length > 12 ? `…${body.slice(-12)}` : body
 }
 
+/**
+ * How much of a chosen file is read as a key. Not the server's limit on a key,
+ * which is its own and says so when it refuses: this only keeps a file that
+ * was picked by mistake — a video, a disk image — out of the page.
+ */
+export const MAX_KEY_FILE_BYTES = 64 * 1024
+
+/**
+ * The text of a key file, read here in the browser.
+ *
+ * It travels in the same request as a pasted key and is judged by the same
+ * check on the server, so the file itself is never uploaded: an unencrypted
+ * private key does not land on the server's disk even for a moment (D146).
+ */
+export async function readKeyFile(file: File): Promise<string> {
+  if (file.size > MAX_KEY_FILE_BYTES) {
+    throw new Error("This file is far larger than an SSH key; choose the key file itself")
+  }
+  return await file.text()
+}
+
 /** How a key reads where one is chosen: its name, its kind and enough of its fingerprint. */
 export function keyChoiceLabel(key: SshKeyPublic): string {
   return `${key.name} · ${key.algorithm} · ${shortFingerprint(key.fingerprint)}`

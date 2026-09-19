@@ -2,8 +2,16 @@
 import { computed, ref, watch } from "vue"
 
 import { useGenerateSshKey, useImportSshKey } from "@/features/sshKeys/api"
+import { readKeyFile } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
-import { AppButton, AppInput, AppSection, AppSelect, useToast } from "@/shared/ui"
+import {
+  AppButton,
+  AppFileInput,
+  AppInput,
+  AppSection,
+  AppSelect,
+  useToast,
+} from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
@@ -24,6 +32,8 @@ const keep = useImportSshKey()
 const name = ref("")
 const keyType = ref<"ed25519" | "rsa">("ed25519")
 const privateKey = ref("")
+/** A key file chosen or dropped, whose text becomes the key above. */
+const keyFile = ref<File | null>(null)
 const passphrase = ref("")
 const remember = ref<"ask" | "stored">("ask")
 const error = ref("")
@@ -54,10 +64,24 @@ watch(
     if (open) return
     name.value = ""
     privateKey.value = ""
+    keyFile.value = null
     passphrase.value = ""
     error.value = ""
   }
 )
+
+// The file's text fills the field, where it can be looked at before anything
+// is sent; the name follows the file's when nothing was typed there yet.
+watch(keyFile, async (file) => {
+  if (file === null) return
+  error.value = ""
+  try {
+    privateKey.value = await readKeyFile(file)
+    if (name.value.trim() === "") name.value = file.name
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "The file could not be read"
+  }
+})
 
 async function save() {
   if (!ready.value || busy.value) return
@@ -104,16 +128,27 @@ async function save() {
         data-testid="ssh-key-type"
         @update:model-value="keyType = $event as 'ed25519' | 'rsa'"
       />
-      <AppInput
-        v-else
-        v-model="privateKey"
-        type="textarea"
-        label="Private key"
-        autocomplete="off"
-        hint="The text of the key file, OpenSSH or PEM. It is never shown again."
-        :error="error"
-        data-testid="ssh-key-private"
-      />
+      <template v-else>
+        <AppFileInput
+          v-model="keyFile"
+          label="Key file"
+          data-testid="ssh-key-file"
+        />
+        <p class="ssh-key-dialog__where">
+          Usually <code>id_ed25519</code> or <code>id_rsa</code> in the
+          <code>.ssh</code> folder of your home — the one without
+          <code>.pub</code>. It is read here and sent like pasted text.
+        </p>
+        <AppInput
+          v-model="privateKey"
+          type="textarea"
+          label="Private key"
+          autocomplete="off"
+          hint="The text of the key file, OpenSSH or PEM, or choose the file above. It is never shown again."
+          :error="error"
+          data-testid="ssh-key-private"
+        />
+      </template>
       <AppInput
         v-model="passphrase"
         type="password"
@@ -152,3 +187,11 @@ async function save() {
     </template>
   </WindowDialog>
 </template>
+
+<style scoped>
+.ssh-key-dialog__where {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dp-text-muted);
+}
+</style>

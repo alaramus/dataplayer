@@ -4,9 +4,11 @@ import type { SshKeyPublic } from "@/client"
 import type { FieldSpec } from "@/shared/SchemaForm/jsonSchema"
 
 import {
+  MAX_KEY_FILE_BYTES,
   keyState,
   keyUsedBy,
   passphraseModeLabel,
+  readKeyFile,
   shortFingerprint,
   unlockOptions,
   withKeyChoices,
@@ -84,5 +86,16 @@ describe("the key a connection signs in with", () => {
 
   it("is none when no key of this person's names it", () => {
     expect(keyUsedBy([key()], "c1")).toBeNull()
+  })
+})
+
+describe("a key file, read in the browser", () => {
+  // jsdom's File cannot read itself, so the reading is proven by the browser:
+  // tests/ssh.spec.ts imports a key from its file. What is judged before any
+  // reading is here.
+  it("is not read at all when it is far larger than any key", async () => {
+    const huge = new File([new Uint8Array(MAX_KEY_FILE_BYTES + 1)], "disk.img")
+
+    await expect(readKeyFile(huge)).rejects.toThrow("far larger than an SSH key")
   })
 })
