@@ -122,6 +122,14 @@ async function copy() {
         </dd>
       </template>
     </dl>
+    <!-- The one way on from what the check said, beside the saying of it —
+         in the strip of buttons below it pushed every other one about. -->
+    <div
+      v-if="$slots.action"
+      class="check-popover__action"
+    >
+      <slot name="action" />
+    </div>
     <!-- The tail that points at the button below, as in a speech bubble: what
          makes the panel belong to that button rather than float over the
          form. -->
@@ -181,6 +189,10 @@ async function copy() {
 }
 .check-popover__note {
   color: var(--dp-text-muted);
+}
+.check-popover__action {
+  display: flex;
+  margin-top: 8px;
 }
 /* Two triangles, the back one a pixel lower, so the border of the panel
    appears to continue around the tail. */

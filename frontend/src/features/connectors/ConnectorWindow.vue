@@ -867,7 +867,22 @@ async function parseTyped(text: string) {
           :result="checkResult"
           :source-title="selectedType?.title ?? 'Server'"
           @close="checkResult = null"
-        />
+        >
+          <!-- The check said the key is shut, and opening it is the way on:
+               offered where that is said rather than only named (D147). -->
+          <template
+            v-if="checkResult?.error_kind === 'locked' && formKey"
+            #action
+          >
+            <AppButton
+              variant="secondary"
+              size="sm"
+              label="Unlock the key"
+              data-testid="unlock-form-key"
+              @click="unlocking = formKey"
+            />
+          </template>
+        </ConnectionCheck>
 
         <footer class="connector-window__foot">
           <AppButton
@@ -877,15 +892,6 @@ async function parseTyped(text: string) {
             :disable="!typeName"
             :loading="checking"
             @click="check"
-          />
-          <!-- The check said the key is shut, and opening it is the way on:
-               offered here rather than only named in the result. -->
-          <AppButton
-            v-if="checkResult?.error_kind === 'locked' && formKey"
-            variant="secondary"
-            label="Unlock the key"
-            data-testid="unlock-form-key"
-            @click="unlocking = formKey"
           />
           <AppButton
             v-if="isEdit && isOwner"
@@ -936,9 +942,12 @@ async function parseTyped(text: string) {
         v-model="sharing"
         :connector-id="saved.id"
       />
+      <!-- Opened, the key is tried again at once: the answer on screen is
+           about a key that is not locked any more. -->
       <UnlockKeyDialog
         :key-id="unlocking?.id ?? null"
         :key-name="unlocking?.name ?? ''"
+        @unlocked="check"
         @close="unlocking = null"
       />
     </template>

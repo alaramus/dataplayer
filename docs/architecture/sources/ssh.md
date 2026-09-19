@@ -167,8 +167,9 @@ opens nothing.
 - **The key is asked for on every use**, not only on signing in, so a key that
   has been locked stops the source even while a kept connection is open.
 - **A locked key is an error of its own kind**, `locked`, so a screen offers
-  the passphrase rather than reporting a failure: the connection form beside
-  its check, and the catalog beside its error. Which key to open is found in
+  the passphrase rather than reporting a failure: the connection form inside
+  the result of its check, the catalog beside its error and a terminal above
+  its screen. Which key to open is found in
   the server's own list of which connections use which key, so only the owner
   is offered it. Unlocking re-reads what failed, and a `locked` answer is not
   retried, since asking again answers the same.
