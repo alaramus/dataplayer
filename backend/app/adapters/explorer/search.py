@@ -19,13 +19,12 @@ the whole search stops after so many bytes however many files that took.
 import io
 from collections import deque
 from dataclasses import dataclass
-from pathlib import PurePosixPath
 
 from anyio import to_thread
 
 from app.adapters.explorer.binary import SNIFF_BYTES, bytes_look_binary
 from app.adapters.explorer.catalog import node_of
-from app.adapters.explorer.storage import Entry, Storage, node_id_of
+from app.adapters.explorer.storage import Entry, Place, Storage, node_id_of
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     MAX_EXCERPT_CHARACTERS,
@@ -42,19 +41,18 @@ MAX_SCANNED = 100_000
 # the walk refuses to follow either forever.
 MAX_DEPTH = 24
 
-# What reading inside files may cost. The first is per file — a file larger
-# than this is somebody's data set rather than something they are grepping —
-# and the second is for the whole search, so that a folder of a thousand large
-# files stops rather than running for minutes.
-MAX_FILE_BYTES = 8 * 1024 * 1024
-MAX_READ_BYTES = 256 * 1024 * 1024
+# What reading inside files may cost is the storage's to say
+# (`Storage.search_limits`): per file — a file larger than that is somebody's
+# data set rather than something they are grepping — and for the whole search,
+# so that a folder of a thousand large files stops rather than running for
+# minutes.
 
 
 @dataclass(frozen=True)
 class _Level:
     """One folder waiting to be looked at, and how far down it is."""
 
-    place: PurePosixPath
+    place: Place
     node_id: str | None
     depth: int
 
@@ -98,6 +96,7 @@ class ExplorerSearch:
         # client sends back to stand there, and the same thing as this source
         # words it. The root is the empty string — it has no name of its own,
         # and what the catalog draws there is the name of the connection.
+        limits = self._storage.search_limits
         matches: list[NodeMatch] = []
         scanned = 0
         read_bytes = 0
@@ -128,10 +127,10 @@ class ExplorerSearch:
                 excerpt: str | None = None
                 matched = False
                 if inside:
-                    if read_bytes > MAX_READ_BYTES:
+                    if read_bytes > limits.total_bytes:
                         return _stopped(
                             matches,
-                            f"More than {MAX_READ_BYTES // (1024 * 1024)} MB "
+                            f"More than {_megabytes(limits.total_bytes)} MB "
                             "was read; the search stopped there",
                         )
                     looked = self._look_inside(entry, needle)
@@ -187,7 +186,7 @@ class ExplorerSearch:
                 complete=True,
                 notice=(
                     f"{unread} files were not read: they are binary or larger "
-                    f"than {MAX_FILE_BYTES // (1024 * 1024)} MB"
+                    f"than {_megabytes(limits.file_bytes)} MB"
                 ),
             )
         return NodeSearchResult(matches=matches, complete=True)
@@ -202,7 +201,7 @@ class ExplorerSearch:
         """
         if entry.is_directory or entry.is_link:
             return None
-        if entry.size_bytes > MAX_FILE_BYTES:
+        if entry.size_bytes > self._storage.search_limits.file_bytes:
             return _UNREADABLE
         try:
             with self._storage.open(entry.place) as raw:
@@ -232,6 +231,10 @@ def _walkable(entry: Entry) -> bool:
     same refusal the recursive archive walk makes, for the same reason.
     """
     return entry.is_directory and not entry.is_link
+
+
+def _megabytes(size: int) -> int:
+    return size // (1024 * 1024)
 
 
 def _stopped(matches: list[NodeMatch], notice: str) -> NodeSearchResult:

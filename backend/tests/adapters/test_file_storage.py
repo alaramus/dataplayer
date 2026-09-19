@@ -1,11 +1,17 @@
 """The local disk as a storage: the containment rule, and what it reads and writes (D8, D150)."""
 
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import pytest
 
-from app.adapters.explorer.storage import ROOT, Storage, VersionChanged
+from app.adapters.explorer.storage import (
+    ROOT,
+    Place,
+    Storage,
+    VersionChanged,
+    ancestors,
+)
 from app.adapters.file.storage import LocalStorage
 
 
@@ -32,8 +38,28 @@ def test_a_node_id_is_a_place_inside_the_root(root: Path) -> None:
 
     place = storage.place("reports/q3.csv")
 
-    assert place == PurePosixPath("reports/q3.csv")
+    assert place == Place(key="reports/q3.csv", name="q3.csv")
     assert storage.path_of(place) == (root / "reports" / "q3.csv").resolve()
+
+
+def test_a_hidden_name_keeps_its_dot(root: Path) -> None:
+    (root / ".settings").mkdir()
+
+    assert LocalStorage(root).place(".settings") == Place(key=".settings", name=".settings")
+
+
+def test_parents_and_children_are_the_storages_to_name(root: Path) -> None:
+    storage = LocalStorage(root)
+    folder = storage.place("reports")
+
+    child = storage.child(folder, "q4.csv")
+
+    assert child == Place(key="reports/q4.csv", name="q4.csv")
+    assert storage.parent(child) == folder
+    assert storage.parent(folder) == ROOT
+    assert storage.contains(folder, child) is True
+    assert storage.contains(child, folder) is False
+    assert ancestors(storage, child) == [folder, child]
 
 
 @pytest.mark.parametrize(
@@ -83,18 +109,18 @@ def test_a_folder_lists_its_entries_with_their_facts(root: Path) -> None:
     [file] = storage.entries(folder.place)
 
     assert (folder.name, folder.is_directory) == ("reports", True)
-    assert (file.place, file.is_directory, file.size_bytes) == (
-        PurePosixPath("reports/q3.csv"),
+    assert (file.place.key, file.is_directory, file.size_bytes) == (
+        "reports/q3.csv",
         False,
-        len("a,b\n1,2\n"),
+        len(b"a,b\n1,2\n"),
     )
     assert storage.has_entries(folder.place) is True
-    assert storage.entry(PurePosixPath("reports/missing.csv")) is None
+    assert storage.entry(storage.child(folder.place, "missing.csv")) is None
 
 
 def test_a_published_file_claims_its_name_and_never_overwrites(root: Path) -> None:
     storage = LocalStorage(root)
-    place = PurePosixPath("reports/q4.csv")
+    place = storage.child(storage.place("reports"), "q4.csv")
 
     with storage.staged(place) as staged:
         staged.write_text("new")
@@ -105,7 +131,7 @@ def test_a_published_file_claims_its_name_and_never_overwrites(root: Path) -> No
 
     assert storage.path_of(place).read_text() == "new"
     # Nothing staged is left beside it, published or not.
-    assert sorted(entry.name for entry in storage.entries(place.parent)) == [
+    assert sorted(entry.name for entry in storage.entries(storage.parent(place))) == [
         "q3.csv",
         "q4.csv",
     ]
@@ -113,7 +139,7 @@ def test_a_published_file_claims_its_name_and_never_overwrites(root: Path) -> No
 
 def test_a_replacement_is_refused_once_the_file_has_changed(root: Path) -> None:
     storage = LocalStorage(root)
-    place = PurePosixPath("reports/q3.csv")
+    place = storage.place("reports/q3.csv")
     version = storage.version(place)
 
     with storage.staged(place) as staged:
@@ -129,10 +155,11 @@ def test_a_replacement_is_refused_once_the_file_has_changed(root: Path) -> None:
 
 def test_a_renamed_node_does_not_take_a_name_already_there(root: Path) -> None:
     storage = LocalStorage(root)
-    storage.make_directory(PurePosixPath("archive"))
+    archive = storage.child(ROOT, "archive")
+    storage.make_directory(archive)
 
     with pytest.raises(FileExistsError):
-        storage.rename(PurePosixPath("reports"), PurePosixPath("archive"))
-    storage.rename(PurePosixPath("reports"), PurePosixPath("archive/reports"))
+        storage.rename(storage.place("reports"), archive)
+    storage.rename(storage.place("reports"), storage.child(archive, "reports"))
 
-    assert storage.entry(PurePosixPath("archive/reports/q3.csv")) is not None
+    assert storage.entry(storage.place("archive/reports/q3.csv")) is not None

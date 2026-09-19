@@ -6,7 +6,7 @@ import os
 from collections.abc import AsyncIterator, Iterator
 from functools import partial
 from json import JSONDecodeError
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, assert_never
 
 from anyio import to_thread
@@ -50,7 +50,7 @@ from app.adapters.explorer.formats import (
 )
 from app.adapters.explorer.media import audio_facts, pdf_facts, video_facts
 from app.adapters.explorer.members import ResolvedNode, resolve_node
-from app.adapters.explorer.storage import Storage
+from app.adapters.explorer.storage import Place, Storage
 
 # A text viewer is a preview, not a download. Keeping the source path separate
 # lets a later download stream the original bytes without raising this bound.
@@ -123,7 +123,7 @@ class ExplorerContent:
         ):
             return self._read(expanded, request, name=_entry_name(name))
 
-    def _file_place(self, node_id: str) -> PurePosixPath:
+    def _file_place(self, node_id: str) -> Place:
         """The place of a node that is a file or a folder, never a member.
 
         A sheet of a workbook has no bytes of its own to open, and is no file.
@@ -388,7 +388,7 @@ def _pdf_content(path: Path) -> PdfContent:
 
 
 async def _range_chunks(
-    storage: Storage, place: PurePosixPath, start: int, end: int
+    storage: Storage, place: Place, start: int, end: int
 ) -> AsyncIterator[bytes]:
     """The inclusive range, in chunks, and never a byte past it.
 

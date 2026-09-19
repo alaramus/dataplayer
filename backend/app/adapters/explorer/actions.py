@@ -51,6 +51,7 @@ from app.adapters.explorer.packing import (
 from app.adapters.explorer.storage import (
     ROOT,
     DraftsConnections,
+    Place,
     Storage,
     is_plain_name,
     node_id_of,
@@ -160,7 +161,7 @@ class _Bound:
     def __init__(self, storage: Storage) -> None:
         self._storage = storage
 
-    def _directory(self, node_id: str | None) -> PurePosixPath:
+    def _directory(self, node_id: str | None) -> Place:
         place = self._storage.place(node_id)
         found = self._storage.entry(place)
         if found is None or not found.is_directory:
@@ -179,7 +180,7 @@ class _ActsOnNode(_Bound):
 
     acts_on: ClassVar[ActsOn] = "node"
 
-    def _target(self, node_id: str | None) -> PurePosixPath:
+    def _target(self, node_id: str | None) -> Place:
         place = self._storage.place(node_id)
         if place == ROOT or node_id in (None, ""):
             raise ActionRefused(
@@ -234,7 +235,7 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
             reload_node_ids=[node_id or None],
         )
 
-    def _make(self, node_id: str | None, name: str) -> PurePosixPath:
+    def _make(self, node_id: str | None, name: str) -> Place:
         target = _available(self._storage, self._directory(node_id), name)
         try:
             self._storage.make_directory(target)
@@ -264,8 +265,8 @@ class CreateFile(_Bound, JsonAction[FileNameParams]):
             message=f"{made.name} created", reload_node_ids=[node_id or None]
         )
 
-    def _make(self, node_id: str | None, name: str) -> PurePosixPath:
-        target = self._directory(node_id) / name
+    def _make(self, node_id: str | None, name: str) -> Place:
+        target = self._storage.child(self._directory(node_id), name)
         try:
             self._storage.make_file(target)
         except FileExistsError:
@@ -280,19 +281,19 @@ class Rename(_ActsOnNode, JsonAction[RenameParams]):
     params_model = RenameParams
 
     async def run(self, node_id: str | None, params: RenameParams) -> ActionResult:
-        place = await to_thread.run_sync(self._rename, node_id, params.new_name)
+        parent_id = await to_thread.run_sync(self._rename, node_id, params.new_name)
         return ActionResult(
-            message=f"Renamed to {params.new_name}",
-            reload_node_ids=[node_id_of(place.parent)],
+            message=f"Renamed to {params.new_name}", reload_node_ids=[parent_id]
         )
 
-    def _rename(self, node_id: str | None, new_name: str) -> PurePosixPath:
+    def _rename(self, node_id: str | None, new_name: str) -> str | None:
         place = self._target(node_id)
+        parent = self._storage.parent(place)
         try:
-            self._storage.rename(place, place.parent / new_name)
+            self._storage.rename(place, self._storage.child(parent, new_name))
         except FileExistsError:
             raise ActionRefused("conflict", f"{new_name} is already there") from None
-        return place
+        return node_id_of(parent)
 
 
 class Delete(_ActsOnNode, JsonAction[DeleteParams]):
@@ -306,15 +307,13 @@ class Delete(_ActsOnNode, JsonAction[DeleteParams]):
     params_model = DeleteParams
 
     async def run(self, node_id: str | None, params: DeleteParams) -> ActionResult:
-        place = await to_thread.run_sync(self._remove, node_id)
-        return ActionResult(
-            message=f"{place.name} deleted", reload_node_ids=[node_id_of(place.parent)]
-        )
+        name, parent_id = await to_thread.run_sync(self._remove, node_id)
+        return ActionResult(message=f"{name} deleted", reload_node_ids=[parent_id])
 
-    def _remove(self, node_id: str | None) -> PurePosixPath:
+    def _remove(self, node_id: str | None) -> tuple[str, str | None]:
         place = self._target(node_id)
         self._storage.remove(place)
-        return place
+        return place.name, node_id_of(self._storage.parent(place))
 
 
 class Download(_ActsOnNode, Action[DownloadParams]):
@@ -381,24 +380,21 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
     async def run(self, node_id: str | None, params: PasteParams) -> ActionResult:
         if not params.sources:
             raise ActionRefused("not_applicable", "Copy or cut something first")
-        sources = await to_thread.run_sync(self._paste, node_id, params)
+        count, left = await to_thread.run_sync(self._paste, node_id, params)
         # Both ends change: the folder that gained the nodes, and — for a move
         # — every folder that lost one. Named by the server, because deriving
         # them from the action's name is the rule this exists to avoid.
         changed: list[str | None] = [node_id or None]
         if params.mode == "move":
-            for source in sources:
-                parent = node_id_of(source.parent)
+            for parent in left:
                 if parent not in changed:
                     changed.append(parent)
         verb = "copied" if params.mode == "copy" else "moved"
-        return ActionResult(
-            message=f"{_counted(len(sources))} {verb}", reload_node_ids=changed
-        )
+        return ActionResult(message=f"{_counted(count)} {verb}", reload_node_ids=changed)
 
     def _paste(
         self, node_id: str | None, params: PasteParams
-    ) -> list[PurePosixPath]:
+    ) -> tuple[int, list[str | None]]:
         """Copy or move every source into one folder.
 
         Bounded by the same two ceilings an archive is: a copy of a hundred
@@ -408,10 +404,11 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
         destination = self._directory(node_id)
         sources = [self._source(one) for one in params.sources]
         for source in sources:
-            _may_go_into(source, destination)
+            _may_go_into(self._storage, source, destination)
         _within_bounds(self._storage, sources)
+        left = [node_id_of(self._storage.parent(source)) for source in sources]
         for source in sources:
-            target = destination / source.name
+            target = self._storage.child(destination, source.name)
             if self._storage.entry(target) is not None:
                 if params.conflict == "refuse":
                     raise ActionRefused("conflict", f"{source.name} is already there")
@@ -423,9 +420,9 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
                 self._storage.rename(source, target)
             else:
                 self._storage.copy(source, target)
-        return sources
+        return len(sources), left
 
-    def _source(self, node_id: str) -> PurePosixPath:
+    def _source(self, node_id: str) -> Place:
         place = self._storage.place(node_id)
         if place == ROOT:
             raise ActionRefused(
@@ -436,14 +433,14 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
         return place
 
 
-def _may_go_into(source: PurePosixPath, destination: PurePosixPath) -> None:
+def _may_go_into(storage: Storage, source: Place, destination: Place) -> None:
     """A folder cannot be put inside itself, however deep.
 
-    The check is on the resolved places rather than on the ids, because two
-    ids can name one place and only one of them looks like a prefix of the
+    Asked of the storage about the places rather than read off the ids, because
+    two ids can name one place and only one of them looks like a prefix of the
     other.
     """
-    if source == destination or destination.is_relative_to(source):
+    if storage.contains(source, destination):
         raise ActionRefused(
             "not_applicable", f"{source.name} cannot be put inside itself"
         )
@@ -453,7 +450,7 @@ def _counted(number: int) -> str:
     return "1 item" if number == 1 else f"{number} items"
 
 
-def _within_bounds(storage: Storage, sources: Sequence[PurePosixPath]) -> None:
+def _within_bounds(storage: Storage, sources: Sequence[Place]) -> None:
     entries = 0
     total = 0
     for source in sources:
@@ -498,7 +495,7 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
     ) -> ActionResult:
         return await self._archive(list(node_ids), self._validated(raw))
 
-    def _packable(self, node_id: str | None) -> PurePosixPath:
+    def _packable(self, node_id: str | None) -> Place:
         """One target of the walk, refusing a link named in the selection.
 
         The walk refuses every symbolic link it meets among the children, and
@@ -519,22 +516,20 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
     async def _archive(
         self, node_ids: Sequence[str | None], params: ArchiveParams
     ) -> ActionResult:
-        into = await to_thread.run_sync(self._pack, node_ids, params)
-        return ActionResult(
-            message=f"{into.name} created",
-            reload_node_ids=[node_id_of(into.parent)],
-        )
+        name, parent_id = await to_thread.run_sync(self._pack, node_ids, params)
+        return ActionResult(message=f"{name} created", reload_node_ids=[parent_id])
 
     def _pack(
         self, node_ids: Sequence[str | None], params: ArchiveParams
-    ) -> PurePosixPath:
+    ) -> tuple[str, str | None]:
         targets = [self._packable(node_id) for node_id in node_ids]
-        parents = {target.parent for target in targets}
+        parents = {self._storage.parent(target) for target in targets}
         if len(parents) != 1:
             raise ActionRefused(
                 "not_applicable", "One archive is made of one folder's contents"
             )
-        into = _available(self._storage, parents.pop(), _archive_filename(params))
+        parent = parents.pop()
+        into = _available(self._storage, parent, _archive_filename(params))
         try:
             with ExitStack() as held:
                 local = [held.enter_context(self._storage.local_tree(t)) for t in targets]
@@ -545,7 +540,7 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
             raise ActionRefused("conflict", f"{into.name} is already there") from None
         except OSError:
             raise ValueError("The archive could not be written") from None
-        return into
+        return into.name, node_id_of(parent)
 
 
 class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
@@ -563,30 +558,28 @@ class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
     params_model = ExtractParams
 
     async def run(self, node_id: str | None, params: ExtractParams) -> ActionResult:
-        place, entries, made = await to_thread.run_sync(
+        entries, made, parent_id = await to_thread.run_sync(
             self._extract, node_id, params
         )
-        return ActionResult(
-            message=_extracted(entries, made),
-            reload_node_ids=[node_id_of(place.parent)],
-        )
+        return ActionResult(message=_extracted(entries, made), reload_node_ids=[parent_id])
 
     def _extract(
         self, node_id: str | None, params: ExtractParams
-    ) -> tuple[PurePosixPath, int, PurePosixPath | None]:
+    ) -> tuple[int, Place | None, str | None]:
         place = self._target(node_id)
+        parent = self._storage.parent(place)
         if not is_unpackable(place.name):
             raise ActionRefused(
                 "not_applicable", f"{place.name} is not an archive this source opens"
             )
-        made: PurePosixPath | None = None
+        made: Place | None = None
         if params.into_folder:
-            made = _available(self._storage, place.parent, unpacked_name(place.name))
+            made = _available(self._storage, parent, unpacked_name(place.name))
             try:
                 self._storage.make_directory(made)
             except FileExistsError:
                 raise ActionRefused("conflict", f"{made.name} is already there") from None
-        destination = made or place.parent
+        destination = made or parent
         try:
             with (
                 self._storage.local_file(place) as archive_path,
@@ -601,9 +594,9 @@ class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
             # moment ago is part of the refusal, not a result of it.
             self._undo(made)
             raise
-        return place, unpacked.entries, made
+        return unpacked.entries, made, node_id_of(parent)
 
-    def _undo(self, made: PurePosixPath | None) -> None:
+    def _undo(self, made: Place | None) -> None:
         if made is None:
             return
         try:
@@ -624,7 +617,7 @@ def _archive_filename(params: ArchiveParams) -> str:
     return f"{params.name}{suffix}"
 
 
-def _extracted(entries: int, made: PurePosixPath | None) -> str:
+def _extracted(entries: int, made: Place | None) -> str:
     what = "1 file" if entries == 1 else f"{entries} files"
     return f"{what} extracted" + ("" if made is None else f" into {made.name}")
 
@@ -662,8 +655,8 @@ class Upload(_Bound, FileAction[UploadParams]):
 
     def _target(
         self, node_id: str | None, filename: str, params: UploadParams
-    ) -> PurePosixPath:
-        target = self._directory(node_id) / filename
+    ) -> Place:
+        target = self._storage.child(self._directory(node_id), filename)
         if params.conflict == "refuse" and self._storage.entry(target) is not None:
             raise ActionRefused("conflict", f"{filename} is already there")
         return target
@@ -671,9 +664,9 @@ class Upload(_Bound, FileAction[UploadParams]):
     def _publish(
         self,
         staged: Path,
-        target: PurePosixPath,
+        target: Place,
         conflict: Literal["refuse", "replace", "rename"],
-    ) -> PurePosixPath:
+    ) -> Place:
         if conflict == "replace":
             self._storage.publish(staged, target, replace=True)
             return target
@@ -684,9 +677,10 @@ class Upload(_Bound, FileAction[UploadParams]):
             except FileExistsError:
                 raise ActionRefused("conflict", f"{target.name} is already there") from None
             return target
+        parent = self._storage.parent(target)
         number = 1
         while True:
-            numbered = target.parent / _numbered_name(target.name, number)
+            numbered = self._storage.child(parent, _numbered_name(target.name, number))
             try:
                 self._storage.publish(staged, numbered)
             except FileExistsError:
@@ -727,11 +721,11 @@ def _numbered_name(name: str, number: int) -> str:
     return f"{stem} ({number}){suffix}"
 
 
-def _available(storage: Storage, parent: PurePosixPath, name: str) -> PurePosixPath:
-    candidate = parent / name
+def _available(storage: Storage, parent: Place, name: str) -> Place:
+    candidate = storage.child(parent, name)
     number = 1
     while storage.entry(candidate) is not None:
-        candidate = parent / f"{name} ({number})"
+        candidate = storage.child(parent, f"{name} ({number})")
         number += 1
     return candidate
 
@@ -802,7 +796,7 @@ class ExplorerActions:
             ]
         return offered
 
-    def _look_at(self, node_id: str | None) -> tuple[PurePosixPath, NodeKind]:
+    def _look_at(self, node_id: str | None) -> tuple[Place, NodeKind]:
         """What the id names, and of what kind. Blocking: it asks the storage.
 
         A member of a container file is a node like any other, and answering

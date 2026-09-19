@@ -4,6 +4,7 @@ import pytest
 
 from app.adapters.explorer import search as search_module
 from app.adapters.explorer.search import ExplorerSearch
+from app.adapters.explorer.storage import LOCAL_SEARCH, SearchLimits
 from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
@@ -262,11 +263,10 @@ async def test_a_binary_file_is_not_searched_and_the_answer_says_so(
     assert "not read" in found.notice
 
 
-async def test_a_file_larger_than_the_ceiling_is_skipped(
-    written: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(search_module, "MAX_FILE_BYTES", 8)
-    search = ExplorerSearch(LocalStorage(written))
+async def test_a_file_larger_than_the_ceiling_is_skipped(written: Path) -> None:
+    storage = LocalStorage(written)
+    storage.search_limits = SearchLimits(file_bytes=8, total_bytes=LOCAL_SEARCH.total_bytes)
+    search = ExplorerSearch(storage)
 
     found = await _look_inside(search, "timeout")
 
@@ -274,11 +274,10 @@ async def test_a_file_larger_than_the_ceiling_is_skipped(
     assert found.notice is not None
 
 
-async def test_a_search_that_read_too_much_stops_rather_than_running_on(
-    written: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(search_module, "MAX_READ_BYTES", 1)
-    search = ExplorerSearch(LocalStorage(written))
+async def test_a_search_that_read_too_much_stops_rather_than_running_on(written: Path) -> None:
+    storage = LocalStorage(written)
+    storage.search_limits = SearchLimits(file_bytes=LOCAL_SEARCH.file_bytes, total_bytes=1)
+    search = ExplorerSearch(storage)
 
     found = await _look_inside(search, "timeout")
 

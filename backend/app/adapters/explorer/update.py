@@ -4,7 +4,6 @@ import base64
 import csv
 import json
 from dataclasses import dataclass
-from pathlib import PurePosixPath
 
 from anyio import to_thread
 
@@ -17,7 +16,7 @@ from app.adapters.column_changes import (
 from app.adapters.delimited import delimiter_of, fit, usable_names
 from app.adapters.explorer.formats import format_of
 from app.adapters.explorer.members import resolve_node
-from app.adapters.explorer.storage import Storage, VersionChanged
+from app.adapters.explorer.storage import Place, Storage, VersionChanged
 from app.adapters.update import (
     CellsUpdated,
     DeleteRowsRequest,
@@ -98,7 +97,7 @@ class ExplorerTableChanges:
     ) -> ColumnChangeResult:
         return await to_thread.run_sync(self._rename_column, request)
 
-    def _place(self, node_id: str) -> PurePosixPath:
+    def _place(self, node_id: str) -> Place:
         resolved = resolve_node(self._storage, node_id)
         if resolved.member is not None or format_of(resolved.name) != "delimited":
             raise ValueError("Only a CSV or TSV file on disk can be edited as rows")
@@ -108,7 +107,7 @@ class ExplorerTableChanges:
             raise ValueError("This file is too large to rewrite safely")
         return resolved.place
 
-    def _read(self, node_id: str) -> tuple[PurePosixPath, CsvTable]:
+    def _read(self, node_id: str) -> tuple[Place, CsvTable]:
         place = self._place(node_id)
         version = self._storage.version(place)
         with (
@@ -234,7 +233,7 @@ class ExplorerTableChanges:
         self._write(place, table)
         return ColumnChangeResult(name=request.new_name)
 
-    def _write(self, place: PurePosixPath, table: CsvTable) -> str:
+    def _write(self, place: Place, table: CsvTable) -> str:
         """Write the whole file beside itself, then replace it in one step.
 
         Only while it is still the version that was read: a row handle carries

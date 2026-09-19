@@ -21,12 +21,21 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
 from app.adapters.actions import ActionRefused, ConnectorDraft
-from app.adapters.explorer.storage import ROOT, Entry, VersionChanged, place_of
+from app.adapters.explorer.storage import (
+    LOCAL_SEARCH,
+    ROOT,
+    Entry,
+    PathPlaces,
+    Place,
+    VersionChanged,
+)
 from app.adapters.file.options import FileOptions
 from app.adapters.protocol import ConnectionCheckResult
 
 
-class LocalStorage:
+class LocalStorage(PathPlaces):
+    search_limits = LOCAL_SEARCH
+
     def __init__(self, root: Path, *, home_dir: Path | None = None) -> None:
         self._root = root
         self._home_dir = home_dir if home_dir is not None else root
@@ -40,30 +49,32 @@ class LocalStorage:
         """The root with symlinks followed: what containment is judged against."""
         return self._root.resolve()
 
-    def path_of(self, place: PurePosixPath) -> Path:
+    def path_of(self, place: Place) -> Path:
         """Where a place is on this disk. Only a place from `place` is inside."""
-        return self.resolved_root.joinpath(*place.parts)
+        return self.resolved_root.joinpath(*self.path_at(place).parts)
 
     # --- where an id lands ---------------------------------------------------
 
-    def place(self, node_id: str | None) -> PurePosixPath:
+    def place(self, node_id: str | None) -> Place:
         """The place an id names, links followed, never outside the root.
 
         The message names the node the caller sent and never the layout of
         the server.
         """
-        relative = place_of(node_id)
-        if relative == ROOT:
+        relative = self.relative_path(node_id)
+        if not relative.parts:
             return ROOT
         candidate = self._root.joinpath(*relative.parts).resolve()
         # resolve() follows symlinks, so a link out of the root fails here
         # rather than needing a check of its own.
         if not candidate.is_relative_to(self.resolved_root):
             raise ValueError(f"Path outside the connector root: {node_id}")
-        return PurePosixPath(candidate.relative_to(self.resolved_root).as_posix())
+        below = candidate.relative_to(self.resolved_root)
+        # A link inside the root may lead back to the root itself.
+        return self.place_at(PurePosixPath(*below.parts))
 
-    def unlinked_place(self, node_id: str) -> PurePosixPath:
-        relative = place_of(node_id)
+    def unlinked_place(self, node_id: str) -> Place:
+        relative = self.relative_path(node_id)
         candidate = self._root
         for part in relative.parts:
             candidate /= part
@@ -94,14 +105,14 @@ class LocalStorage:
 
     # --- what is there -------------------------------------------------------
 
-    def entry(self, place: PurePosixPath) -> Entry | None:
+    def entry(self, place: Place) -> Entry | None:
         path = self.path_of(place)
         try:
             return _entry(place, path.stat(), path.is_symlink())
         except OSError:
             return None
 
-    def entries(self, place: PurePosixPath) -> list[Entry]:
+    def entries(self, place: Place) -> list[Entry]:
         found: list[Entry] = []
         root = self.resolved_root
         with os.scandir(self.path_of(place)) as listing:
@@ -113,12 +124,12 @@ class LocalStorage:
                     # broken one cannot be described at all.
                     if is_link and not path.resolve().is_relative_to(root):
                         continue
-                    found.append(_entry(place / item.name, item.stat(), is_link))
+                    found.append(_entry(self.child(place, item.name), item.stat(), is_link))
                 except OSError:
                     continue
         return found
 
-    def has_entries(self, place: PurePosixPath) -> bool:
+    def has_entries(self, place: Place) -> bool:
         """At the cost of one entry read, rather than a whole listing."""
         try:
             with os.scandir(self.path_of(place)) as listing:
@@ -126,36 +137,36 @@ class LocalStorage:
         except OSError:
             return False
 
-    def version(self, place: PurePosixPath) -> str:
+    def version(self, place: Place) -> str:
         facts = self.path_of(place).stat()
         return f"{facts.st_mtime_ns}:{facts.st_size}"
 
     # --- reading -------------------------------------------------------------
 
-    def open(self, place: PurePosixPath) -> BinaryIO:
+    def open(self, place: Place) -> BinaryIO:
         return self.path_of(place).open("rb")
 
     @contextmanager
-    def local_file(self, place: PurePosixPath) -> Iterator[Path]:
+    def local_file(self, place: Place) -> Iterator[Path]:
         yield self.path_of(place)
 
     def local_root(self) -> Path:
         return self.resolved_root
 
     @contextmanager
-    def local_tree(self, place: PurePosixPath) -> Iterator[Path]:
+    def local_tree(self, place: Place) -> Iterator[Path]:
         yield self.path_of(place)
 
     # --- writing -------------------------------------------------------------
 
     @contextmanager
     def staged(
-        self, near: PurePosixPath, *, prefix: str = ".dataplayer-"
+        self, near: Place, *, prefix: str = ".dataplayer-"
     ) -> Iterator[Path]:
         """Beside where it is going, so publishing is a link or a rename on one
         filesystem rather than a copy."""
         descriptor, temporary = tempfile.mkstemp(
-            dir=self.path_of(near.parent), prefix=prefix
+            dir=self.path_of(self.parent(near)), prefix=prefix
         )
         os.close(descriptor)
         staged = Path(temporary)
@@ -167,7 +178,7 @@ class LocalStorage:
     def publish(
         self,
         staged: Path,
-        place: PurePosixPath,
+        place: Place,
         *,
         replace: bool = False,
         expected_version: str | None = None,
@@ -194,13 +205,13 @@ class LocalStorage:
             os.utime(target, ns=(now, now))
 
     @contextmanager
-    def filled(self, place: PurePosixPath) -> Iterator[Path]:
+    def filled(self, place: Place) -> Iterator[Path]:
         yield self.path_of(place)
 
-    def make_directory(self, place: PurePosixPath) -> None:
+    def make_directory(self, place: Place) -> None:
         self.path_of(place).mkdir()
 
-    def make_file(self, place: PurePosixPath) -> None:
+    def make_file(self, place: Place) -> None:
         # Exclusive creation: a name taken by a file, a folder or a link — even
         # one pointing nowhere — is refused by the call itself.
         target = self.path_of(place)
@@ -210,25 +221,25 @@ class LocalStorage:
             # Windows answers a folder under the name with "access denied"
             # rather than "exists"; Linux says exists.
             if target.exists() or target.is_symlink():
-                raise FileExistsError(str(place)) from None
+                raise FileExistsError(place.key) from None
             raise
 
-    def rename(self, place: PurePosixPath, to: PurePosixPath) -> None:
+    def rename(self, place: Place, to: Place) -> None:
         target = self.path_of(to)
         # POSIX replaces an existing name silently; the check keeps the answer
         # the same on both platforms.
         if target.exists() or target.is_symlink():
-            raise FileExistsError(str(to))
+            raise FileExistsError(to.key)
         shutil.move(str(self.path_of(place)), str(target))
 
-    def copy(self, place: PurePosixPath, to: PurePosixPath) -> None:
+    def copy(self, place: Place, to: Place) -> None:
         source = self.path_of(place)
         if source.is_dir():
             shutil.copytree(source, self.path_of(to), symlinks=True)
         else:
             shutil.copy2(source, self.path_of(to))
 
-    def remove(self, place: PurePosixPath) -> None:
+    def remove(self, place: Place) -> None:
         path = self.path_of(place)
         if not path.is_dir():
             path.unlink()
@@ -237,7 +248,7 @@ class LocalStorage:
 
     # --- a folder as a connection of its own ---------------------------------
 
-    def connection_for(self, place: PurePosixPath) -> ConnectorDraft:
+    def connection_for(self, place: Place) -> ConnectorDraft:
         """A new file connection rooted in this folder, inside the home."""
         path = self.path_of(place)
         try:
@@ -256,7 +267,7 @@ class LocalStorage:
         )
 
 
-def _entry(place: PurePosixPath, facts: os.stat_result, is_link: bool) -> Entry:
+def _entry(place: Place, facts: os.stat_result, is_link: bool) -> Entry:
     """The facts of one stat, as the platform states them.
 
     A creation time is reported only where the platform keeps one. Linux keeps

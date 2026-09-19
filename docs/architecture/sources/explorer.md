@@ -34,11 +34,15 @@ brings a storage and nothing else of this: where a node id lands, how a folder
 is listed, how bytes are read and how a new file is put in place. The explorer
 says what the bytes mean.
 
-- **A place is the node id after the containment rule**, a path below the
-  root. The explorer only ever joins, splits and names places; the storage is
-  the one thing that turns a place into bytes, so D8 is judged by the storage
-  and by nothing else. Whether a link may be followed is the storage's to say:
-  the local disk follows one that stays inside the root, as it always did.
+- **A place is opaque to the explorer.** It is what a node id becomes once the
+  storage has judged it — a key and a name — and a folder's child, a node's
+  parent and whether one node is inside another are the storage's to answer.
+  The disk and an SSH server name a node by its path below the root, so their
+  ids are the paths they always were; a store that names files by id, where
+  two files in one folder may share a name, will name a node by that id, and
+  the explorer does not change for it. D8 is judged by the storage and by
+  nothing else, and so is whether a link may be followed: the local disk
+  follows one that stays inside the root, as it always did.
 - **What a source does not have is a missing action, not a stub.** A storage
   whose folders cannot become connections of their own does not implement
   `DraftsConnections`, and its source leaves `ConnectFolder` out of its action

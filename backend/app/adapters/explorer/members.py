@@ -17,14 +17,14 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from app.adapters.explorer.formats import is_container
-from app.adapters.explorer.storage import Entry, Storage
+from app.adapters.explorer.storage import Entry, Place, Storage
 
 
 @dataclass(frozen=True)
 class ResolvedNode:
     """Where a node id lands: a place, and what of it was named inside."""
 
-    place: PurePosixPath
+    place: Place
     # The segment naming a member of `place`, or None when the id is the place.
     member: str | None
     # What is at `place`, or None when nothing is.
@@ -54,7 +54,12 @@ def resolve_node(storage: Storage, node_id: str) -> ResolvedNode:
     # The longest prefix first, so an archive inside a folder is found before
     # the folder is, and a member path may itself have several segments.
     for cut in range(len(parts) - 1, 0, -1):
-        container = storage.place("/".join(parts[:cut]))
+        try:
+            container = storage.place("/".join(parts[:cut]))
+        except ValueError:
+            # A prefix of an id a storage names by id rather than by path
+            # need not be an id of its own.
+            continue
         found = storage.entry(container)
         if found is not None and not found.is_directory and is_container(container.name):
             return ResolvedNode(

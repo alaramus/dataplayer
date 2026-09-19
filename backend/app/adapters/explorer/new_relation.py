@@ -13,14 +13,13 @@ already taken is refused rather than replaced.
 """
 
 import csv
-from pathlib import PurePosixPath
 
 from anyio import to_thread
 
 from app.adapters.delimited import delimiter_of
 from app.adapters.explorer.catalog import node_of
 from app.adapters.explorer.formats import format_of
-from app.adapters.explorer.storage import Storage, is_plain_name
+from app.adapters.explorer.storage import Place, Storage, is_plain_name
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.relation import ColumnTypeOption
 from app.adapters.relation_changes import (
@@ -76,7 +75,7 @@ class ExplorerNewRelations:
                 raise ValueError(f'Unknown column type "{column.type_code}"')
 
         name = filename_for(request.name)
-        target = self._storage.place(request.parent_node_id) / name
+        target = self._storage.child(self._storage.place(request.parent_node_id), name)
         if self._storage.entry(target) is not None:
             raise ValueError(f"{name} is already there")
 
@@ -94,7 +93,7 @@ class ExplorerNewRelations:
 
     def _write(
         self,
-        target: PurePosixPath,
+        target: Place,
         header: list[str],
         rows: list[list[str | None]],
     ) -> None:

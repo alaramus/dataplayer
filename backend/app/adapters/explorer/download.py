@@ -6,7 +6,7 @@ import tempfile
 from collections.abc import AsyncIterator, Sequence
 from contextlib import ExitStack
 from functools import partial
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import BinaryIO
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -20,7 +20,7 @@ from app.adapters.actions import (
 from app.adapters.explorer import archive
 from app.adapters.explorer.formats import format_of
 from app.adapters.explorer.members import ResolvedNode
-from app.adapters.explorer.storage import Storage, node_id_of
+from app.adapters.explorer.storage import Place, Storage, node_id_of
 
 DOWNLOAD_CHUNK_BYTES = 256 * 1024
 MAX_ARCHIVE_ENTRIES = 10_000
@@ -52,10 +52,10 @@ class ExplorerDownload:
             body=_temporary_chunks(staged),
         )
 
-    def _places(self, node_ids: Sequence[str]) -> list[PurePosixPath]:
+    def _places(self, node_ids: Sequence[str]) -> list[Place]:
         return [self._storage.unlinked_place(node_id) for node_id in node_ids]
 
-    def _archived(self, places: list[PurePosixPath]) -> tuple[Path, str, int]:
+    def _archived(self, places: list[Place]) -> tuple[Path, str, int]:
         """One zip of the selection, walked on this machine.
 
         The walk refuses every link it meets, so it walks the local tree, where
@@ -93,11 +93,11 @@ class ExplorerDownload:
             body=_temporary_chunks(prepared),
         )
 
-    def _extract(self, place: PurePosixPath, member: str) -> Path:
+    def _extract(self, place: Place, member: str) -> Path:
         with self._storage.local_file(place) as container:
             return archive.extract(container, member)
 
-    async def _original(self, place: PurePosixPath, node_id: str) -> ActionDownload:
+    async def _original(self, place: Place, node_id: str) -> ActionDownload:
         # The open itself is the existence check: a separate look would still
         # leave the file free to vanish before it is read.
         try:

@@ -15,7 +15,7 @@ import re
 import time
 from collections.abc import AsyncIterator, Iterator
 from contextlib import ExitStack, contextmanager
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from threading import Event
 from typing import Any
 
@@ -32,7 +32,7 @@ from app.adapters.explorer.query_readers import (
     Preparation,
     PreparationStopped,
 )
-from app.adapters.explorer.storage import ROOT, Storage, node_id_of
+from app.adapters.explorer.storage import ROOT, Place, Storage, node_id_of
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     ColumnSummary,
@@ -410,14 +410,14 @@ class ExplorerExecution:
 
 def relations_of(
     storage: Storage, script: PreparedScript
-) -> dict[str, PurePosixPath]:
+) -> dict[str, Place]:
     """Every file a script names, resolved before anything is opened.
 
     One failure refuses the whole run rather than one statement: a script whose
     third statement names a file that is not there would otherwise open and
     read the first two before saying so. Blocking.
     """
-    wanted: dict[str, PurePosixPath] = {}
+    wanted: dict[str, Place] = {}
     for statement in script.statements:
         for name in statement.targets:
             if name not in wanted:
@@ -426,7 +426,7 @@ def relations_of(
 
 
 def held_locally(
-    storage: Storage, places: dict[str, PurePosixPath], held: ExitStack
+    storage: Storage, places: dict[str, Place], held: ExitStack
 ) -> dict[str, Path]:
     """The local file of every relation, kept until `held` closes. Blocking."""
     return {
@@ -435,7 +435,7 @@ def held_locally(
     }
 
 
-def resolve_relation(storage: Storage, name: str) -> PurePosixPath:
+def resolve_relation(storage: Storage, name: str) -> Place:
     """One name as a file this source will read, or the reason it is not.
 
     The containment rule is the storage's, and it is the only one: a name that
@@ -682,7 +682,7 @@ class ExplorerQuery:
         """Every file below the root that SQL can read, breadth first."""
         found: list[RelationSummary] = []
         scanned = 0
-        queue: list[tuple[PurePosixPath, int]] = [(ROOT, 0)]
+        queue: list[tuple[Place, int]] = [(ROOT, 0)]
         while queue:
             folder, depth = queue.pop(0)
             try:

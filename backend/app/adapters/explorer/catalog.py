@@ -20,7 +20,14 @@ from app.adapters.explorer.formats import (
     representations_of,
 )
 from app.adapters.explorer.members import member_id, resolve_node
-from app.adapters.explorer.storage import ROOT, Entry, Storage, node_id_of
+from app.adapters.explorer.storage import (
+    ROOT,
+    Entry,
+    Place,
+    Storage,
+    ancestors,
+    node_id_of,
+)
 from app.adapters.protocol import AdapterError, NodeNotFound
 
 # A schema count is bounded, a directory is not. Beyond this the listing fails
@@ -47,7 +54,7 @@ class ExplorerCatalog:
         place = self._storage.place(node_id)
         return self._list(place, node_id)
 
-    def _list(self, place: PurePosixPath, node_id: str | None) -> list[CatalogNode]:
+    def _list(self, place: Place, node_id: str | None) -> list[CatalogNode]:
         found = self._storage.entry(place)
         if found is None:
             if node_id is None:
@@ -102,10 +109,8 @@ class ExplorerCatalog:
             if resolved.member is None
             else _above(node_id, resolved.member)
         )
-        parts = PurePosixPath(container_id).parts
         nodes: list[CatalogNode] = []
-        for depth in range(1, len(parts) + 1):
-            step = self._storage.place("/".join(parts[:depth]))
+        for step in ancestors(self._storage, resolved.place):
             entry = self._storage.entry(step)
             if entry is None:
                 raise NodeNotFound(node_id)
@@ -116,7 +121,7 @@ class ExplorerCatalog:
         return nodes
 
     def _member_path(
-        self, place: PurePosixPath, container_id: str, node_id: str
+        self, place: Place, container_id: str, node_id: str
     ) -> list[CatalogNode]:
         """Every step inside a container, from its first level to the node."""
         member = PurePosixPath(node_id).relative_to(container_id).as_posix()
@@ -146,7 +151,7 @@ class ExplorerCatalog:
         return steps
 
     def _member_nodes(
-        self, place: PurePosixPath, node_id: str, *, inside: str | None
+        self, place: Place, node_id: str, *, inside: str | None
     ) -> list[CatalogNode]:
         """What one container holds, one level at a time.
 
