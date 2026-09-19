@@ -104,7 +104,13 @@ function unlocked() {
     class="terminals"
     data-testid="terminals"
   >
-    <div class="terminals__bar">
+    <!-- Only once one is open: before that the choice below is the one way
+         to open a terminal, and a second way beside it read as two different
+         things to press. -->
+    <div
+      v-if="terminals.sessions.value.length > 0"
+      class="terminals__bar"
+    >
       <AppTaskbar label="Terminals">
         <AppTaskbarItem
           v-for="terminal in terminals.sessions.value"
@@ -179,7 +185,7 @@ function unlocked() {
         :text="
           candidates.length === 0
             ? 'None of your connections has a terminal. An SSH connection does.'
-            : 'No terminal is open. Open one on a connection of yours:'
+            : 'No terminal is open. Choose the connection to open one on:'
         "
       />
       <div class="terminals__candidates">
