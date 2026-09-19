@@ -122,7 +122,7 @@ export function afterClosing(
   const index = open.findIndex((terminal) => terminal.id === closing)
   const rest = open.filter((terminal) => terminal.id !== closing)
   if (rest.length === 0) return null
-  return rest[Math.min(index, rest.length - 1)].id
+  return rest[Math.min(index, rest.length - 1)]?.id ?? null
 }
 
 export interface TerminalNotice {

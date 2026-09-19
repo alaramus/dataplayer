@@ -111,13 +111,13 @@ Known deviations:
   current is its own maintenance, and the tag is what the project's own
   `compose.yml` uses.
 - **There are three templates.** PostgreSQL and Redis, which is what proves
-  the registry is not one image with steps around it ([D85](#d85-the-second-service-is-what-proves-the-first-one-was-not-a-shape)),
+  the registry is not one image with steps around it (D85),
   and TimescaleDB — the extension's own image, because its files and its
   preloaded library are not something a connection can install, and an
   ordinary PostgreSQL connector all the same ([D119](sources/timescale.md#d119-timescale-is-composed-into-postgresql-without-another-source-identity)).
 - **What a person may name is a short list.** The role, the database, the
   password and the port on this machine, and only where the template opens
-  them ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
+  them (D88);
   everything about what runs stays the template's.
 
 Spec: [Approved service templates](../decisions/2026-09-02-service-templates-design.md)
@@ -198,7 +198,7 @@ becoming a second kind of connection with rules of its own.
 - **A service row holds no credentials once it is made.** The connector is
   their one home; a password somebody typed waits on the row encrypted until
   that home exists and is erased then
-  ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container)).
+  (D88).
   A creation that fails before that step leaves a container nobody can use, so
   the service is marked failed and can be removed — which is why removal is
   the way out of every state.
@@ -213,7 +213,7 @@ becoming a second kind of connection with rules of its own.
   used is not an offer. A port on the host is a second thing with a different
   audience — the person who started it, in their own tools — and it is bound
   to the loopback address and numbered by the runtime unless somebody named a
-  port ([D89](#d89-the-password-is-handed-over-once-where-a-service-listens-is-told-always)).
+  port (D89).
 - **How much a person is asked depends on which of the two ways they asked**
   (D88). The image, the command, the volume and the data path are the
   server's in both.
@@ -222,7 +222,7 @@ becoming a second kind of connection with rules of its own.
   in, and its row is the only place its life can be ended.
 - **A service can be stopped and started again from its row**, keeping its
   data. Which of the two is offered is read off what the runtime reports, not
-  off the row ([D84](#d84-what-goes-wrong-is-a-state-somebody-can-act-on)), and
+  off the row (D84), and
   neither is offered to a creation that never became a connection, whose way
   forward is retry.
 
@@ -232,7 +232,7 @@ Known deviations:
   do the same in two presses.
 - **Nothing bounds how long a create may hold a job.** How many services a
   person may hold and what each may take of the machine are answered by
-  [D86](#d86-running-containers-is-the-machines-power-bounded-by-what-this-application-will-ask-for).
+  D86.
 - **The readiness probe opens a connection per attempt** and keeps nothing, so
   a database that takes two minutes is asked a hundred and twenty times.
 - **A service is reachable from this server only.** A person cannot point
@@ -532,7 +532,7 @@ so they are two shapes rather than one shape with everything optional.
   published and nothing about what runs, so D80 is untouched: a port already
   taken is a refusal from the runtime rather than a silent move.
 - **Whether it is reachable from this machine is no longer asked.** It always
-  is, on the loopback address and nowhere else ([D86](#d86-running-containers-is-the-machines-power-bounded-by-what-this-application-will-ask-for)).
+  is, on the loopback address and nowhere else (D86).
   The choice only ever produced a service its owner then had to remake.
 - **A request is a discriminated union**, so "automatic" is a thing a client
   says rather than a thing it fails to say, and both shapes forbid unknown

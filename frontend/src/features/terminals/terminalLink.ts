@@ -101,7 +101,7 @@ export function openTerminalLink(options: LinkOptions): TerminalLink {
 
   // Keystrokes and sizes go as soon as the socket is open, even before the
   // shell is: the server reads them once it is, in the order they were sent.
-  function send(data: string | Uint8Array) {
+  function send(data: string | Uint8Array<ArrayBuffer>) {
     if (!opened || finished() || closedHere) return
     socket.send(data)
   }

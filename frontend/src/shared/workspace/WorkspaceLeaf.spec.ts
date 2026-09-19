@@ -303,7 +303,7 @@ describe("a section", () => {
     expect(wrapper.find(".workspace-leaf__strip").exists()).toBe(false)
   })
 
-  it("draws the feature's head instead of the tab of a panel alone in its section", () => {
+  it("draws the feature's head instead of the tab of a panel alone in its section", async () => {
     const wrapper = mount(LeafWithPanels, {
       props: { leaf: makeLeaf("a", ["p1"]), collapsible: true },
       global: {
@@ -311,6 +311,8 @@ describe("a section", () => {
         provide: { [workspaceKey as symbol]: contextFor({ headOf: () => Head }) },
       },
     })
+    // The body arrives a tick later, as in "renders only the active panel".
+    await flushPromises()
     expect(wrapper.findAll(".head")).toHaveLength(1)
     expect(wrapper.find('[data-testid="workspace-tab-p1"]').exists()).toBe(false)
     expect(wrapper.findAll(".stub")).toHaveLength(1)

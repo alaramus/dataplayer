@@ -5,7 +5,7 @@ import { nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from "vue
 
 import { useThemeStore } from "@/stores/theme"
 
-import { screenTheme } from "./screenTheme"
+import { paintScreen } from "./screenTheme"
 import type { TerminalSession } from "./useTerminals"
 
 /**
@@ -22,7 +22,7 @@ let observer: ResizeObserver | null = null
 let pending = 0
 
 function paint() {
-  if (host.value) props.session.screen.options.theme = screenTheme(host.value)
+  if (host.value) paintScreen(props.session.screen, host.value)
 }
 
 // One fit a frame: a panel being dragged taller reports every pixel, and each
