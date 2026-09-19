@@ -74,11 +74,12 @@ describe("pressing the Terminals button", () => {
     expect(terminalPress({ ...base, activeConnectorId: "c2" })).toEqual({ kind: "show" })
   })
 
-  it("says what it will do", () => {
-    expect(terminalPressTooltip({ kind: "open", connectorId: "c1" }, "prod")).toBe(
+  it("says what it will do, and how many are open", () => {
+    expect(terminalPressTooltip({ kind: "open", connectorId: "c1" }, "prod", 0)).toBe(
       "Open a terminal on prod"
     )
-    expect(terminalPressTooltip({ kind: "hide" }, "prod")).toBe("Hide the terminals")
+    expect(terminalPressTooltip({ kind: "hide" }, "prod", 0)).toBe("Hide the terminals")
+    expect(terminalPressTooltip({ kind: "show" }, null, 2)).toBe("Terminals · 2 open")
   })
 })
 

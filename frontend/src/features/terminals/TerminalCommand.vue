@@ -4,7 +4,7 @@ import { computed } from "vue"
 import { connectorNameOf, useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { AppButton, AppTooltip } from "@/shared/ui"
+import { AppBadge, AppButton, AppTooltip } from "@/shared/ui"
 
 import { terminalCandidates, terminalPress, terminalPressTooltip } from "./terminals"
 import { useTerminals } from "./useTerminals"
@@ -34,10 +34,17 @@ const press = computed(() =>
     open: terminals.sessions.value,
   })
 )
+/**
+ * How many terminals are open, on the button: a shell left running with the
+ * panel hidden is still somebody's session on a server, and nothing else on
+ * screen would say so.
+ */
+const open = computed(() => terminals.sessions.value.length)
 const tooltip = computed(() =>
   terminalPressTooltip(
     press.value,
-    connectorNameOf(connectors.data.value, workspace.activeConnectorId.value)
+    connectorNameOf(connectors.data.value, workspace.activeConnectorId.value),
+    open.value
   )
 )
 
@@ -61,11 +68,19 @@ function pressed() {
       :variant="shown ? 'secondary' : 'quiet'"
       size="sm"
       icon="terminal"
+      class="terminal-command__button"
       :label="iconOnly ? undefined : 'Terminals'"
       :aria-pressed="shown"
       data-testid="command-terminals"
       @click="pressed"
-    />
+    >
+      <AppBadge
+        v-if="open > 0"
+        class="terminal-command__count"
+        :label="String(open)"
+        data-testid="terminals-count"
+      />
+    </AppButton>
     <AppTooltip>{{ tooltip }}</AppTooltip>
   </span>
 </template>
@@ -74,5 +89,20 @@ function pressed() {
 .terminal-command {
   display: flex;
   align-items: center;
+}
+/* The count hangs off the corner, as the bell's does, rather than widening
+   a button that stands in a rail of equal ones. */
+.terminal-command__button {
+  position: relative;
+}
+.terminal-command__count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 16px;
+  padding: 1px 4px;
+  font-size: 10px;
+  line-height: 12px;
+  justify-content: center;
 }
 </style>

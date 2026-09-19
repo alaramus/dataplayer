@@ -69,18 +69,28 @@ export function terminalPress(state: {
     : { kind: "select", terminalId: latest.id }
 }
 
-/** What the button says it will do, for its tooltip. */
-export function terminalPressTooltip(press: TerminalPress, connectorName: string | null): string {
-  switch (press.kind) {
-    case "hide":
-      return "Hide the terminals"
-    case "open":
-      return connectorName === null ? "Open a terminal" : `Open a terminal on ${connectorName}`
-    case "select":
-      return connectorName === null ? "Terminals" : `Terminal on ${connectorName}`
-    case "show":
-      return "Terminals"
-  }
+/**
+ * What the button says it will do, for its tooltip, and how many terminals
+ * are open: the count on the button is a number, and this says of what.
+ */
+export function terminalPressTooltip(
+  press: TerminalPress,
+  connectorName: string | null,
+  open: number
+): string {
+  const doing = ((): string => {
+    switch (press.kind) {
+      case "hide":
+        return "Hide the terminals"
+      case "open":
+        return connectorName === null ? "Open a terminal" : `Open a terminal on ${connectorName}`
+      case "select":
+        return connectorName === null ? "Terminals" : `Terminal on ${connectorName}`
+      case "show":
+        return "Terminals"
+    }
+  })()
+  return open === 0 ? doing : `${doing} · ${String(open)} open`
 }
 
 /**
