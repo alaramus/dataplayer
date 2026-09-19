@@ -264,8 +264,7 @@ onScopeDispose(stop)
       :style="{ flexBasis: `${String(shownRailWidth)}px` }"
       data-testid="ai-rail"
     >
-      <!-- The header button collapses this rail; no chevron of its own.
-           Collapsed, it has no head, as a collapsed column of Data has none. -->
+      <!-- The header button collapses this rail; no chevron of its own. -->
       <AppCardHead
         v-if="!collapsed"
         title="Chats"
@@ -287,23 +286,21 @@ onScopeDispose(stop)
           />
         </template>
       </AppCardHead>
-      <div
+      <!-- Collapsed, the plus alone in the head, as the collapsed column of
+           connections and the dashboards rail keep it: a project is made
+           beside the history, which is not drawn at this width. -->
+      <AppCardHead
         v-else
         class="ai-window__rail-head"
+        data-testid="ai-rail-head"
       >
         <AppIconButton
-          icon="add_comment"
+          icon="add"
           tooltip="New chat"
           data-testid="ai-new-chat"
           @click="makeConversation"
         />
-        <AppIconButton
-          icon="create_new_folder"
-          tooltip="New project"
-          data-testid="ai-new-project"
-          @click="beginProjectFor(null)"
-        />
-      </div>
+      </AppCardHead>
       <div
         v-if="!collapsed"
         class="ai-window__history"
@@ -492,15 +489,16 @@ onScopeDispose(stop)
 <style scoped>
 .ai-space { width: 100%; height: 100%; min-height: 0; display: flex; overflow: hidden; }
 .ai-window__rail { flex-grow: 0; flex-shrink: 0; }
-.ai-window__rail-head, .ai-window__rail-foot { flex: none; display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2); }
-.ai-window__rail-head > :first-child, .ai-window__rail-foot > :first-child { flex: 1; }
-.ai-window__rail-foot { flex-direction: column; align-items: stretch; border-top: 1px solid var(--dp-border); }
+/* Centred rather than padded like a head with a title, as ConnectorRail's. */
+.ai-window__rail .ai-window__rail-head { justify-content: center; padding: 0; }
+/* At the foot with or without the history above it, so collapsing the rail
+   does not lift Settings up under the head. */
+.ai-window__rail-foot { flex: none; display: flex; flex-direction: column; align-items: stretch; gap: var(--dp-space-1); margin-top: auto; padding: var(--dp-space-2); border-top: 1px solid var(--dp-border); }
 /* The entry says it is the screen being shown, the way a chat row does. */
 .ai-window__rail-foot :deep(.q-btn[aria-pressed="true"]) { background: var(--dp-active); }
-.ai-window__rail--collapsed .ai-window__rail-head { flex-direction: column; }
 /* The collapsed rail takes the same forty pixels a collapsed workspace column
    or the dashboards rail does; the wide rail's padding would push past it. */
-.ai-window__rail--collapsed .ai-window__rail-head, .ai-window__rail--collapsed .ai-window__rail-foot { align-items: center; padding-right: 0; padding-left: 0; }
+.ai-window__rail--collapsed .ai-window__rail-foot { align-items: center; padding-right: 0; padding-left: 0; }
 .ai-window__history { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-1); }
 .ai-window__project { display: flex; align-items: center; }
 .ai-window__project-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--dp-space-1); border: 0; padding: var(--dp-space-1); background: transparent; color: var(--dp-text-muted); font: inherit; font-weight: 600; cursor: pointer; }

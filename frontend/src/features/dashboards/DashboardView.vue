@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
     class="dashboard-view"
     data-testid="dashboard-view"
   >
-    <AppCardHead>
+    <AppCardHead data-testid="dashboard-head">
       <span
         class="dashboard-view__name"
         :class="{ 'dashboard-view__name--colored': color !== null }"

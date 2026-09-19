@@ -143,8 +143,9 @@ Consequences:
 - **A card is one look.** A Data section, the dashboards rail and dashboard,
   a widget, the chats and a chat are `AppCardFrame` with an `AppCardHead`:
   one frame, and a head of the tab strip's height on `--dp-card-head` in
-  every state, empty or loading included. Collapsed rails have none, as a
-  collapsed Data column has none. `WorkspaceLeaf` draws the same frame and
+  every state, empty or loading included. A collapsed rail keeps the head with
+  its plus alone in it — the connections, the dashboards, the chats — so the
+  strip runs unbroken across the screen. `WorkspaceLeaf` draws the same frame and
   head from the same tokens, because its root is the engine's.
 - **Button layout belongs to the kit.** `toolbar` keeps an icon and label on one
   line, `navigation` aligns an entry to the left, and `AppTree` owns the full-row

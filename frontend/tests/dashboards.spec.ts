@@ -465,6 +465,21 @@ test("the rail is pushed aside to its icons and brought back by the header butto
   await page.getByTestId("app-toggle-first-panel").click()
   await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
   expect(Math.round((await rail.boundingBox())?.width ?? 0)).toBe(40)
+  // The plus alone in a head of its own, on the strip the open dashboard's
+  // head stands on.
+  const railHead = page.getByTestId("dashboards-rail-head")
+  const viewHead = page.getByTestId("dashboard-head")
+  await expect(railHead.getByRole("button")).toHaveCount(1)
+  await expect(railHead.getByTestId("dashboard-new")).toBeVisible()
+  await expect(railHead).toHaveCSS(
+    "background-color",
+    await viewHead.evaluate((element) => getComputedStyle(element).backgroundColor)
+  )
+  const bottomOf = async (testId: string) => {
+    const box = await page.getByTestId(testId).boundingBox()
+    return Math.round((box?.y ?? 0) + (box?.height ?? 0))
+  }
+  expect(await bottomOf("dashboards-rail-head")).toBe(await bottomOf("dashboard-head"))
   // What the wide rail offers is still there, as icons, and the open
   // dashboard is marked in the same blue.
   await expect(page.getByTestId(`dashboard-narrow-${dashboardName}`)).toBeVisible()

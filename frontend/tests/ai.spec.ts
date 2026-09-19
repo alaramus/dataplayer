@@ -14,12 +14,6 @@ test("opens, restores and manages the application agent space", async ({ page })
   const railBackground = await page.getByTestId("ai-rail").evaluate((element) => getComputedStyle(element).backgroundColor)
   await expect(page.getByTestId("ai-conversation-card")).toHaveCSS("background-color", railBackground)
 
-  await page.getByTestId("app-toggle-first-panel").click()
-  await expect(page.getByTestId("ai-history")).toHaveCount(0)
-  await expect(page.getByTestId("ai-new-chat")).toHaveAttribute("aria-label", "New chat")
-  await expect(page.getByTestId("ai-open-settings")).toHaveAttribute("aria-label", "Settings")
-  await page.getByTestId("app-toggle-first-panel").click()
-
   const active = page.locator('[data-testid^="ai-chat-row-"][data-active="true"]')
   const previousId = (await active.count()) > 0 ? await active.getAttribute("data-testid") : null
   await page.getByTestId("ai-new-chat").click()
@@ -30,6 +24,29 @@ test("opens, restores and manages the application agent space", async ({ page })
   else await expect(active).not.toHaveAttribute("data-testid", previousId)
   const conversationId = (await active.getAttribute("data-testid"))?.replace("ai-chat-row-", "")
   expect(conversationId).toBeTruthy()
+
+  // Collapsed, the rail keeps a head with the plus alone in it, on the strip
+  // the open chat's head stands on; Settings stays at its foot.
+  await page.getByTestId("app-toggle-first-panel").click()
+  await expect(page.getByTestId("ai-history")).toHaveCount(0)
+  const railHead = page.getByTestId("ai-rail-head")
+  const chatHead = page.getByTestId("ai-chat-head")
+  await expect(railHead.getByRole("button")).toHaveCount(1)
+  await expect(railHead.getByTestId("ai-new-chat")).toHaveAttribute("aria-label", "New chat")
+  await expect(page.getByTestId("ai-new-project")).toHaveCount(0)
+  await expect(railHead).toHaveCSS(
+    "background-color",
+    await chatHead.evaluate((element) => getComputedStyle(element).backgroundColor)
+  )
+  const bottomOf = async (testId: string) => {
+    const box = await page.getByTestId(testId).boundingBox()
+    return Math.round((box?.y ?? 0) + (box?.height ?? 0))
+  }
+  expect(await bottomOf("ai-rail-head")).toBe(await bottomOf("ai-chat-head"))
+  await expect(page.getByTestId("ai-open-settings")).toHaveAttribute("aria-label", "Settings")
+  expect(await bottomOf("ai-rail") - await bottomOf("ai-open-settings")).toBeLessThan(24)
+  await page.getByTestId("app-toggle-first-panel").click()
+  await expect(page.getByTestId("ai-history")).toBeVisible()
 
   // The open chat is named above the conversation, and pressing the name is how
   // it is renamed. The strip keeps its height while it holds the field, or the
