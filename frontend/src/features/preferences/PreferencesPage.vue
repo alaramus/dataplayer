@@ -5,6 +5,7 @@ import { useRouter } from "vue-router"
 import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
 import { checkIntervalOptions } from "@/features/preferences/checks"
 import type { CheckInterval } from "@/features/preferences/checks"
+import SshKeysSection from "@/features/sshKeys/SshKeysSection.vue"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppButton,
@@ -122,6 +123,9 @@ async function chooseInterval(value: unknown) {
           @update:model-value="chooseInterval"
         />
       </section>
+      <!-- Not a preference but the account's own: a list rather than a row,
+           because a person holds several keys and each has its own commands. -->
+      <SshKeysSection />
     </div>
   </AppLayout>
 </template>

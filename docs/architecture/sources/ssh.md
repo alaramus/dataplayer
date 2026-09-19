@@ -14,13 +14,19 @@ backend/app/adapters/
     ├── options.py      password or key, the folder, the pinned server key
     ├── session.py      signing in, the kept connection, the library's failures
     ├── catalog.py      folders over SFTP, one level at a time
-    ├── content.py      a text file, a bounded page of it
+    ├── content.py      a text file: a bounded page, or the editor's document
     ├── actions.py      new folder, upload, download, rename, delete
     └── adapter.py      facade and registration
 backend/app/connectors/
 ├── ssh_keys.py         SshKey, OwnerKeys, which connections use a key
 ├── keyring.py          passphrases held in memory for a while
 └── ssh_key_routes.py   /ssh-keys
+frontend/src/features/sshKeys/
+├── SshKeysSection.vue  the keys, on the Preferences page
+├── SshKeyDialog.vue    making one, or importing one
+├── UnlockKeyDialog.vue opening a key that asks, for a span of time
+├── ServerKeyField.vue  the server key in the connection form
+└── keys.ts             the words for a key's state, and the form's choice of keys
 ```
 
 ```
@@ -51,7 +57,10 @@ shell. The terminal is a slice of its own.
   by what it points at; a broken one is left out.
 - **A file opens as text, and Markdown as a document.** Chosen by name with the
   file source's rules, narrowed to what this source reads: a table, an image or
-  a player over SFTP would be buttons that fail.
+  a player over SFTP would be buttons that fail. Text is the editor's document
+  (D48): saved only while it is still the version read, written beside the
+  file and moved over it with the file's own permissions, so a script stays
+  executable.
 - **Five actions, on the file source's forms**: a new folder, an upload, a
   download, a rename and a delete. The folder the connection stands in is added
   to and never renamed or removed. An upload is written beside its destination
@@ -84,7 +93,9 @@ before anything is trusted.
 
 - **The form asks the server for its key and shows its fingerprint** before a
   credential is typed into anything that sends it. Asking sends a greeting and
-  nothing else: the key is exchanged before anybody signs in.
+  nothing else: the key is exchanged before anybody signs in. ED25519 is asked
+  for first, because `ssh_host_ed25519_key.pub` is what a person usually
+  compares against; a server without one presents what it has.
 - **The key is kept in the connection**, as the one `known_hosts` line it is.
   It is not a secret, so it is configuration; only the owner edits it.
 - **Nothing connects while none is pinned**, and a server presenting any other
@@ -122,6 +133,9 @@ private half write-only.
 - **Which option names a key is read off the schema**, the way secrets are
   (D4): the store finds the connections that use a key without a list.
 - **A key in use is not deleted**, and the refusal names the connections.
+- **The keys are on the Preferences page**, and the connection form offers
+  them as a choice; a field is marked `x-ui-purpose: ssh-key` and the screen
+  fills the choice, so the form stays generic.
 - **`asyncssh` stays in its adapter**: the store asks `adapters/ssh/keys.py`
   what a key is, and never parses one itself.
 
@@ -133,6 +147,8 @@ Known deviations:
   that, and moving the connector key into a KMS is a decision about every
   credential, not this one.
 - **A key is never rotated in place.** A new key is a new row.
+- **A key is renamed only through the API.** The route exists; the
+  Preferences page offers making, importing, unlocking and deleting.
 
 Spec: [An SSH source, its server key and its keys](../../decisions/2026-09-19-ssh-source-design.md)
 
@@ -150,7 +166,11 @@ opens nothing.
 - **The key is asked for on every use**, not only on signing in, so a key that
   has been locked stops the source even while a kept connection is open.
 - **A locked key is an error of its own kind**, `locked`, so a screen offers
-  the passphrase rather than reporting a failure.
+  the passphrase rather than reporting a failure: the connection form beside
+  its check, and the catalog beside its error. Which key to open is found in
+  the server's own list of which connections use which key, so only the owner
+  is offered it. Unlocking re-reads what failed, and a `locked` answer is not
+  retried, since asking again answers the same.
 - **Unlocking checks the passphrase first**, so a mistyped one is said there.
 
 Known deviations:

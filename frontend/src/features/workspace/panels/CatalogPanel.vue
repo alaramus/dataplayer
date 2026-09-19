@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onDeactivated, ref, toRef, useId, watch } from "vue"
 
-import type { DetectedFramework } from "@/client"
+import type { DetectedFramework, SshKeyPublic } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
@@ -26,6 +26,8 @@ import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { groupTitle, levelPath, showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
+import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
+import { useSshKeys } from "@/features/sshKeys/api"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -72,6 +74,23 @@ const level = useCatalogLevel(connectorId, rootLabel)
  */
 const connectors = useConnectors()
 const color = computed(() => connectorColorOf(connectors.data.value, props.connectorId))
+
+/**
+ * The SSH key this connection signs in with, when the catalog answered that it
+ * is locked (D147). Found by the server's own answer to "which connections use
+ * this key" rather than by reading the connection's options here, and only the
+ * owner's list holds it — so only the owner is offered to open it.
+ */
+const locked = computed(() => level.errorKind.value === "locked")
+const sshKeys = useSshKeys(locked)
+const lockedKey = computed<SshKeyPublic | null>(() =>
+  locked.value
+    ? ((sshKeys.data.value ?? []).find((key) =>
+        key.used_by.some((use) => use.id === props.connectorId)
+      ) ?? null)
+    : null
+)
+const unlocking = ref<SshKeyPublic | null>(null)
 const frameworks = computed(() => frameworksOf(level.groups.value, level.selectedGroups.value))
 
 function filterFramework(framework: DetectedFramework) {
@@ -883,7 +902,27 @@ async function afterAction(outcome: ActionOutcome) {
       data-testid="catalog-error"
     >
       {{ level.error.value }}
+      <!-- The key this connection signs in with is shut, and opening it is
+           the way on (D147). Only its owner's list holds it, so only the
+           owner is offered this. -->
+      <template
+        v-if="lockedKey"
+        #action
+      >
+        <AppButton
+          variant="quiet"
+          label="Unlock the key"
+          data-testid="catalog-unlock-key"
+          @click="unlocking = lockedKey"
+        />
+      </template>
     </AppBanner>
+    <UnlockKeyDialog
+      :key-id="unlocking?.id ?? null"
+      :key-name="unlocking?.name ?? ''"
+      @unlocked="reloadHere"
+      @close="unlocking = null"
+    />
 
     <!-- While this is here the list is not a level, so it says what it is
          showing and offers the way back to the folder. -->

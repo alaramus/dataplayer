@@ -45,6 +45,21 @@ TIMEOUT_SECONDS = 10.0
 # idle sessions does not leave it half-open until the next request finds out.
 KEEPALIVE_SECONDS = 30.0
 
+# Which of a server's keys is asked for first when it is fetched (D145). The
+# one a person compares is usually `ssh_host_ed25519_key.pub`, so ED25519 is
+# preferred, then ECDSA, then RSA for servers that have nothing newer. Once a
+# key is pinned only its own algorithm is offered, so this decides nothing
+# after the first fetch.
+PREFERRED_HOST_KEY_ALGORITHMS = (
+    "ssh-ed25519",
+    "ecdsa-sha2-nistp256",
+    "ecdsa-sha2-nistp384",
+    "ecdsa-sha2-nistp521",
+    "rsa-sha2-512",
+    "rsa-sha2-256",
+    "ssh-rsa",
+)
+
 
 @dataclass(frozen=True)
 class Remote:
@@ -223,7 +238,12 @@ async def server_key(host: str, port: int) -> str:
     """
     try:
         key = await asyncio.wait_for(
-            asyncssh.get_server_host_key(host, port, config=None),
+            asyncssh.get_server_host_key(
+                host,
+                port,
+                config=None,
+                server_host_key_algs=list(PREFERRED_HOST_KEY_ALGORITHMS),
+            ),
             timeout=TIMEOUT_SECONDS,
         )
     except (asyncssh.Error, OSError, TimeoutError) as failure:

@@ -104,4 +104,29 @@ describe("SchemaFields", () => {
     const emitted = wrapper.emitted("update:modelValue")
     expect((emitted!.at(-1)![0] as Record<string, unknown>).port).toBe(6543)
   })
+
+  it("draws a field whose purpose the screen knows with the screen's own slot", async () => {
+    // The server key of an SSH connection is compared and trusted, not typed
+    // (D145); the form knows only that a slot is offered for its purpose.
+    const wrapper = mount(SchemaFields, {
+      global: { plugins: [Quasar] },
+      props: {
+        fields: [
+          { name: "host_key", label: "Server key", kind: "text", required: false, group: "general", purpose: "ssh-host-key" },
+        ],
+        modelValue: { host_key: "" },
+        errors: {},
+      },
+      slots: {
+        "field-ssh-host-key": `<template #field-ssh-host-key="{ value, update }">
+          <button data-testid="trust" @click="update('ssh-ed25519 AAAA')">{{ value === "" ? "none" : value }}</button>
+        </template>`,
+      },
+    })
+
+    expect(wrapper.find("[data-testid='field-host_key']").exists()).toBe(false)
+    expect(wrapper.get("[data-testid='trust']").text()).toBe("none")
+    await wrapper.get("[data-testid='trust']").trigger("click")
+    expect(wrapper.emitted("update:modelValue")?.[0]).toEqual([{ host_key: "ssh-ed25519 AAAA" }])
+  })
 })

@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest"
 
 import { isSettledRefusal, shouldRetry } from "./retry"
 
-function answeredWith(status: number): AxiosError {
+function answeredWith(status: number, data: unknown = {}): AxiosError {
   const error = new AxiosError("refused")
   error.response = {
     status,
     statusText: "",
-    data: {},
+    data,
     headers: {},
     config: { headers: new AxiosHeaders() },
   }
@@ -34,6 +34,16 @@ describe("whether a failed request is worth making again", () => {
   it("asks again when the server broke rather than refused", () => {
     expect(isSettledRefusal(answeredWith(500))).toBe(false)
     expect(isSettledRefusal(answeredWith(503))).toBe(false)
+  })
+
+  it("does not ask a source again about what the source settled", () => {
+    const failed = (kind: string) => answeredWith(502, { detail: { message: "no", error_kind: kind } })
+
+    expect(isSettledRefusal(failed("locked"))).toBe(true)
+    expect(isSettledRefusal(failed("auth"))).toBe(true)
+    expect(isSettledRefusal(failed("config"))).toBe(true)
+    expect(isSettledRefusal(failed("network"))).toBe(false)
+    expect(isSettledRefusal(failed("timeout"))).toBe(false)
   })
 
   it("asks again when nothing answered at all", () => {

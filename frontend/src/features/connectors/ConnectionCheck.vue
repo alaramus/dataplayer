@@ -35,6 +35,7 @@ const KIND_LABELS: Record<string, string> = {
   network: "Server unreachable",
   timeout: "Timed out",
   config: "Invalid parameters",
+  locked: "Key locked",
   unknown: "Unknown error",
 }
 

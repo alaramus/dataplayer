@@ -1,0 +1,72 @@
+import type { SshKeyPublic, SshKeyUnlockWritable } from "@/client"
+import type { FieldSpec } from "@/shared/SchemaForm/jsonSchema"
+
+/** How long an asked-for passphrase is held. The set is the server's (D147). */
+export type UnlockMinutes = NonNullable<SshKeyUnlockWritable["minutes"]>
+
+const UNLOCK_LABELS: Record<UnlockMinutes, string> = {
+  15: "15 minutes",
+  60: "1 hour",
+  480: "8 hours",
+}
+
+export function unlockOptions(): { label: string; value: UnlockMinutes }[] {
+  return ([15, 60, 480] as const).map((value) => ({ label: UNLOCK_LABELS[value], value }))
+}
+
+export type PassphraseMode = SshKeyPublic["passphrase_mode"]
+
+const MODE_LABELS: Record<PassphraseMode, string> = {
+  none: "No passphrase",
+  stored: "Passphrase kept",
+  ask: "Asks for its passphrase",
+}
+
+export function passphraseModeLabel(mode: PassphraseMode): string {
+  return MODE_LABELS[mode]
+}
+
+/**
+ * Whether a key can be used right now, in the words beside it.
+ *
+ * Only a key that asks has a state worth saying: it is open until a time, or
+ * shut. The time is the server's, shown in the reader's own clock.
+ */
+export function keyState(
+  key: Pick<SshKeyPublic, "passphrase_mode" | "unlocked_until">
+): { text: string; open: boolean } | null {
+  if (key.passphrase_mode !== "ask") return null
+  if (!key.unlocked_until) return { text: "Locked", open: false }
+  const until = new Date(key.unlocked_until)
+  const time = until.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  return { text: `Unlocked until ${time}`, open: true }
+}
+
+/** The tail of a fingerprint, which is what a person compares by eye. */
+export function shortFingerprint(fingerprint: string): string {
+  const body = fingerprint.replace(/^SHA256:/, "")
+  return body.length > 12 ? `…${body.slice(-12)}` : body
+}
+
+/**
+ * A field that holds one of the owner's keys, offered as a choice of them.
+ *
+ * The schema says what the field is for (`x-ui-purpose: ssh-key`); only this
+ * screen knows which keys there are. A key whose id the connection holds but
+ * the list no longer has stays in the choice as it is, so opening the form
+ * does not quietly change what it says.
+ */
+export function withKeyChoices(fields: FieldSpec[], keys: SshKeyPublic[]): FieldSpec[] {
+  return fields.map((field) =>
+    field.purpose === "ssh-key"
+      ? {
+          ...field,
+          kind: "select",
+          choices: keys.map((key) => ({
+            value: key.id,
+            label: `${key.name} · ${key.algorithm} · ${shortFingerprint(key.fingerprint)}`,
+          })),
+        }
+      : field
+  )
+}

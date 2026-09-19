@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import type { ConnectionCheckReport, ConnectorDraft, ConnectorPublic } from "@/client"
+import type { ConnectionCheckReport, ConnectorDraft, ConnectorPublic, SshKeyPublic } from "@/client"
 import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
 import AccessRequests from "@/features/shares/AccessRequests.vue"
@@ -25,6 +25,10 @@ import {
 } from "@/features/connectors/cacheWindow"
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
 import { windowPages } from "@/features/connectors/windowPages"
+import ServerKeyField from "@/features/sshKeys/ServerKeyField.vue"
+import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
+import { useSshKeys } from "@/features/sshKeys/api"
+import { withKeyChoices } from "@/features/sshKeys/keys"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
@@ -291,7 +295,23 @@ const allFields = computed<FieldSpec[]>(() => {
   )
 })
 
-const groups = computed(() => fieldGroups(activeFields.value))
+// The owner's SSH keys, asked for only by a form with a field to put one in
+// (D146): the choice is theirs, and the schema says only what the field holds.
+const wantsKeys = computed(() => allFields.value.some((field) => field.purpose === "ssh-key"))
+const sshKeys = useSshKeys(wantsKeys)
+
+const groups = computed(() =>
+  fieldGroups(withKeyChoices(activeFields.value, sshKeys.data.value ?? []))
+)
+
+/** The key this form signs in with, when it signs in with one of the owner's. */
+const formKey = computed<SshKeyPublic | null>(() => {
+  const field = activeFields.value.find((one) => one.purpose === "ssh-key")
+  const chosen = field === undefined ? undefined : optionValues.value[field.name]
+  return (sshKeys.data.value ?? []).find((key) => key.id === chosen) ?? null
+})
+/** A key that answered "locked", being opened from here (D147). */
+const unlocking = ref<SshKeyPublic | null>(null)
 const pages = computed(() => windowPages(groups.value))
 const activePage = ref(props.startOn ?? DEFAULT_GROUP)
 /**
@@ -664,7 +684,17 @@ async function parseTyped(text: string) {
           :errors="optionErrors"
           :secrets-are-stored="secretsAreStored"
           :disable="readOnly"
-        />
+        >
+          <template #field-ssh-host-key="{ value, update, disable }">
+            <ServerKeyField
+              :adapter-type="typeName ?? ''"
+              :options="optionValues"
+              :model-value="typeof value === 'string' ? value : ''"
+              :disable="disable"
+              @update:model-value="update"
+            />
+          </template>
+        </SchemaFields>
 
         <!-- How this connection behaves, away from how to reach it and from
              who may reach it. Nobody's first question, and nobody has to see
@@ -834,6 +864,15 @@ async function parseTyped(text: string) {
             :loading="checkDraft.isPending.value"
             @click="check"
           />
+          <!-- The check said the key is shut, and opening it is the way on:
+               offered here rather than only named in the result. -->
+          <AppButton
+            v-if="checkResult?.error_kind === 'locked' && formKey"
+            variant="secondary"
+            label="Unlock the key"
+            data-testid="unlock-form-key"
+            @click="unlocking = formKey"
+          />
           <AppButton
             v-if="isEdit && isOwner"
             variant="danger-quiet"
@@ -882,6 +921,11 @@ async function parseTyped(text: string) {
         v-if="saved && isOwner"
         v-model="sharing"
         :connector-id="saved.id"
+      />
+      <UnlockKeyDialog
+        :key-id="unlocking?.id ?? null"
+        :key-name="unlocking?.name ?? ''"
+        @close="unlocking = null"
       />
     </template>
   </div>

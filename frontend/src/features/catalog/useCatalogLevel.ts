@@ -11,7 +11,7 @@ import type { ListNode } from "@/features/catalog/nodes"
 import { foundNodes } from "@/features/catalog/search"
 import type { FoundNodes } from "@/features/catalog/search"
 import { sourceFeaturesKey } from "@/features/connectors/features"
-import { messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
 import type { CatalogPage } from "@/features/catalog/api"
 import type { Freshness } from "@/shared/freshness/freshness"
 
@@ -57,6 +57,11 @@ export interface CatalogLevel {
   freshness: Ref<Freshness | undefined>
   loading: Ref<boolean>
   error: Ref<string>
+  /**
+   * What the source's failure was reduced to, beside the sentence: a key that
+   * is `locked` is opened rather than reported (D147).
+   */
+  errorKind: Ref<string | null>
   load: (groupIds?: string[]) => Promise<void>
   enter: (node: ListNode) => Promise<void>
   up: () => Promise<void>
@@ -103,6 +108,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   const filter = ref("")
   const loading = ref(false)
   const error = ref("")
+  const errorKind = ref<string | null>(null)
   const found = ref<FoundNodes | null>(null)
   const searching = ref(false)
   const freshness = ref<Freshness | undefined>(undefined)
@@ -224,6 +230,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     // and results from the folder that was left would say nothing about it.
     found.value = null
     error.value = ""
+    errorKind.value = null
     loading.value = true
     readings = []
     try {
@@ -234,6 +241,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
       await fillRows(refresh)
     } catch (cause) {
       error.value = messageOf(cause, "Could not read the catalog")
+      errorKind.value = errorKindOf(cause)
       groups.value = []
       selectedGroups.value = []
       plain.value = []
@@ -257,8 +265,10 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     try {
       await fillRows()
       error.value = ""
+      errorKind.value = null
     } catch (cause) {
       error.value = messageOf(cause, "Could not read the catalog")
+      errorKind.value = errorKindOf(cause)
       rows.value = []
     } finally {
       loading.value = false
@@ -374,8 +384,10 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
       )
       checked.value = []
       error.value = ""
+      errorKind.value = null
     } catch (cause) {
       error.value = messageOf(cause, "Could not search this connection")
+      errorKind.value = errorKindOf(cause)
     } finally {
       searching.value = false
     }
@@ -405,6 +417,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     freshness,
     loading,
     error,
+    errorKind,
     load,
     enter,
     up,

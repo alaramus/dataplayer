@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="SSH icon">
+  <defs>
+    <linearGradient id="screen" x1="0" y1="32" x2="0" y2="224" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3b4452"/>
+      <stop offset="1" stop-color="#1c222b"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.32"/>
+    </filter>
+  </defs>
+  <rect x="24" y="36" width="208" height="184" rx="22" fill="url(#screen)" filter="url(#shadow)"/>
+  <rect x="24" y="36" width="208" height="30" rx="22" fill="#4b5563"/>
+  <rect x="24" y="52" width="208" height="14" fill="#4b5563"/>
+  <circle cx="48" cy="51" r="6" fill="#f87171"/>
+  <circle cx="68" cy="51" r="6" fill="#fbbf24"/>
+  <circle cx="88" cy="51" r="6" fill="#34d399"/>
+  <path d="M62 110 L102 138 L62 166" fill="none" stroke="#34d399" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M118 176 H186" stroke="#e5e7eb" stroke-width="16" stroke-linecap="round"/>
+</svg>

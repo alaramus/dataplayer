@@ -21,5 +21,12 @@ const look = computed(() => bannerLook(props.tone))
       <q-icon :name="look.icon" />
     </template>
     <slot />
+    <!-- The one thing to do about what the banner says, at its end. -->
+    <template
+      v-if="$slots.action"
+      #action
+    >
+      <slot name="action" />
+    </template>
   </q-banner>
 </template>

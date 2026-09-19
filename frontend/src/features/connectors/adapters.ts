@@ -12,6 +12,7 @@ const ICONS: Record<string, string> = {
   postgres: "img:/icons/services/postgresql.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
+  ssh: "img:/icons/services/ssh.svg",
 }
 
 export const UNKNOWN_ADAPTER_ICON = "cable"

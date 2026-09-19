@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest"
 import { adapterIcon, categoryIcon, UNKNOWN_CATEGORY_ICON, UNKNOWN_ADAPTER_ICON } from "./adapters"
 
 describe("the icon of a source type", () => {
-  it("tells the two types apart", () => {
-    expect(adapterIcon("postgres")).not.toBe(adapterIcon("file"))
+  it("tells the types apart", () => {
+    const drawn = ["postgres", "redis", "file", "ssh"].map(adapterIcon)
+    expect(new Set(drawn).size).toBe(drawn.length)
   })
 
   it("names a file under the icons served with the app", () => {

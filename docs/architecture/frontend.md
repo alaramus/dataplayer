@@ -95,6 +95,9 @@ A failed query is asked again only when asking again could answer differently.
 vue-query's three growing retries suit a request that never arrived, not a 4xx
 the server read and will refuse again — minus the two codes that are about the
 moment. Opening a `.dump` in a file source once waited five seconds for that.
+A source failure is a 502 whatever it was, so its kind decides: `auth`,
+`config` and `locked` are settled, and a locked SSH key once held a spinner
+over its own unlock button for seven seconds.
 
 Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-connector-registry-design.md)
 

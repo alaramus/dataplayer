@@ -13,7 +13,14 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionType
 from app.adapters.catalog import CatalogNode
-from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.content import (
+    ContentRequest,
+    ContentResult,
+    ContentUpdated,
+    EditorContent,
+    EditorContentRequest,
+    UpdateContentRequest,
+)
 from app.adapters.credentials import ServerKey
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
@@ -47,6 +54,12 @@ class SshAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def read_editor_content(self, request: EditorContentRequest) -> EditorContent:
+        return await self._content.read_editor_content(request)
+
+    async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
+        return await self._content.update_content(request)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)
@@ -93,7 +106,7 @@ def _described(public_key: str) -> ServerKey:
     category="files",
     description=(
         "A server reached over SSH. Browse its folders from where you choose, "
-        "read its text files, upload, download, rename and delete. Signs in "
+        "read and edit its text files, upload, download, rename and delete. Signs in "
         "with a password or one of your SSH keys, and only to the server whose "
         "key you confirmed."
     ),

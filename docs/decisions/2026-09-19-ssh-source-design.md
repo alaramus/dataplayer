@@ -85,8 +85,9 @@ exists:
   rule.
 - `tests/adapters/test_ssh_server.py`: against `sshd` — a pinned key checks, any
   other is refused before signing in, a wrong password, the catalog, reading,
-  downloading, uploading with each conflict rule, renaming and deleting, and a
-  key that signs in and then stops a kept connection when it is locked.
+  downloading, uploading with each conflict rule, renaming and deleting,
+  editing a file only while it is the version read with its permissions kept,
+  and a key that signs in and then stops a kept connection when it is locked.
 - `tests/connectors/test_ssh_key_routes.py`: the store through the API — no
   private half in any answer or in plain text at rest, import only with the
   passphrase that opens a key, unlock and lock, a key in use not deleted,
@@ -96,3 +97,10 @@ exists:
 - `tests/connectors/test_server_key_routes.py`: 501 for a source that pins
   nothing, describing without a network call, and comparing against the
   server.
+- `frontend/src/features/sshKeys/keys.spec.ts`: the words for a key's state,
+  the spans offered, and the form's choice of keys.
+- `frontend/src/shared/api/retry.spec.ts`: a `locked`, `auth` or `config`
+  answer is not asked again.
+- `frontend/tests/ssh.spec.ts`: a key made on the Preferences page shows no
+  private half; an SSH connection refuses to check before its server key is
+  trusted, is trusted from what the server presents, and is browsed.

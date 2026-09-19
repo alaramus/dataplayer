@@ -39,6 +39,8 @@ export interface JsonSchemaProperty {
    * it than show a box. `grouping` says the field takes the id of one of the
    * source's own groupings — a schema, for a database — so the form offers
    * the ones this connection has instead of asking for an exact name.
+   * `ssh-key` takes one of the owner's SSH keys (D146), and `ssh-host-key`
+   * the server key a person confirmed (D145).
    */
   "x-ui-purpose"?:
     | "clipboard-mode"
@@ -47,6 +49,8 @@ export interface JsonSchemaProperty {
     | "filename-stem"
     | "grouping"
     | "node-name"
+    | "ssh-key"
+    | "ssh-host-key"
   // Where the field goes, put here by `layout()` on the server. A statement
   // about the fields, so it is made where the fields are declared — the form
   // would otherwise have to infer that a port is narrow from its being a

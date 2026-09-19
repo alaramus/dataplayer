@@ -31,6 +31,23 @@ const emit = defineEmits<{
   "update:modelValue": [value: Record<string, unknown>]
 }>()
 
+/**
+ * A field whose purpose the screen knows better than a box does.
+ *
+ * `field-<purpose>` draws it instead of the ordinary control, with the value
+ * and a way to change it: the key a server proved itself with is compared and
+ * trusted rather than typed (D145). The form stays generic — it knows there
+ * is a slot, never what a purpose means.
+ */
+const slots = defineSlots<{
+  [name: `field-${string}`]: (props: {
+    field: FieldSpec
+    value: unknown
+    disable: boolean
+    update: (value: unknown) => void
+  }) => unknown
+}>()
+
 function update(name: string, value: unknown) {
   emit("update:modelValue", { ...props.modelValue, [name]: value })
 }
@@ -122,6 +139,14 @@ watch(
         :key="field.name"
       >
         <template v-if="field.kind === 'hidden'" />
+        <slot
+          v-else-if="field.purpose && slots[`field-${field.purpose}`]"
+          :name="`field-${field.purpose}`"
+          :field="field"
+          :value="modelValue[field.name]"
+          :disable="disable === true"
+          :update="(value: unknown) => update(field.name, value)"
+        />
         <!-- The one control with no line under it: a toggle's label is
              already the whole statement — "Replace it if it already exists" —
              and a model that wants to say more says it there. -->

@@ -14,7 +14,12 @@ from urllib.parse import urlsplit
 import pytest
 
 from app.adapters.actions import ActionRefused
-from app.adapters.content import ContentRequest
+from app.adapters.content import (
+    ContentConflict,
+    ContentRequest,
+    EditorContentRequest,
+    UpdateContentRequest,
+)
 from app.adapters.credentials import SigningKey
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.registry import AdapterContext
@@ -248,3 +253,39 @@ async def test_a_key_signs_in_and_a_locked_one_stops_a_kept_connection(
         assert locked.value.error_kind == "locked"
     finally:
         await store.aclose()
+
+
+async def test_a_text_file_is_edited_only_while_it_is_the_version_that_was_read(
+    adapter: SshAdapter, server: dict[str, object], pinned: str, folder: str
+) -> None:
+    """And an executable script keeps being one after it is saved (D48)."""
+    await adapter.action("upload").perform_with_file(
+        None, {"conflict": "refuse"}, _Payload("run.sh", b"echo one\n")
+    )
+    connection = await connect(_options(server, pinned), None)
+    try:
+        sftp = await connection.start_sftp_client()
+        await sftp.chmod(f"{folder}/run.sh", 0o755)
+    finally:
+        connection.close()
+
+    opened = await adapter.read_editor_content(EditorContentRequest(node_id="run.sh"))
+    saved = await adapter.update_content(
+        UpdateContentRequest(node_id="run.sh", text="echo two\n", version=opened.version or "")
+    )
+    with pytest.raises(ContentConflict):
+        await adapter.update_content(
+            UpdateContentRequest(node_id="run.sh", text="echo three\n", version=opened.version or "")
+        )
+
+    assert opened.writable is True
+    assert saved.version != opened.version
+    reread = await adapter.read_editor_content(EditorContentRequest(node_id="run.sh"))
+    assert reread.text == "echo two\n"
+    connection = await connect(_options(server, pinned), None)
+    try:
+        sftp = await connection.start_sftp_client()
+        mode = (await sftp.stat(f"{folder}/run.sh")).permissions
+    finally:
+        connection.close()
+    assert mode is not None and mode & 0o777 == 0o755
