@@ -207,7 +207,10 @@ Consequences:
   section and window targets (D93). That puts one requirement on the
   feature: `component(panel, key)` must answer with the same component for the
   same key. A wrapper built afresh on each call is a different component each
-  time, and a functional wrapper cannot be kept alive at all.
+  time, and a functional wrapper cannot be kept alive at all. The same key, and
+  the same workspace: keys start again when it is mounted again, so what
+  remembers them is made with it — a cache kept for the module showed one
+  tab's panel under another's after a trip to Preferences.
 - **A panel is not addressed by what it is.** A panel id may change: a console
   that is kept becomes a document and is addressed by that document. So the
   engine hands out a key of its own that survives the rename, and `replace`

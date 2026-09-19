@@ -922,3 +922,37 @@ test("the bar at the foot offers what hangs off nothing else", async ({ page }) 
     await expect(connectorRow(page, name)).toHaveCount(0)
   }
 })
+
+test("every tab shows its own panel after a trip to Preferences and back", async ({ page }) => {
+  const name = `e2e-return-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // A tab closed before leaving is what made the panels come back under keys
+  // another panel had held: the workspace hands its keys out afresh when it is
+  // mounted again, and the panels drawn under them were remembered by key.
+  await openNode(page, "sample.csv")
+  const sample = page.locator('[data-testid^="workspace-tab-rows:"]').filter({ hasText: "sample.csv" })
+  await sample.locator('[data-testid^="workspace-close-"]').click()
+  await expect(sample).toHaveCount(0)
+  await openNode(page, "accounts.csv")
+  await expect(page.getByTestId("row-grid")).toContainText("slug")
+  await openNode(page, "notes.txt")
+  await expect(page.getByTestId("content-editor")).toContainText("line 1")
+
+  // Left and entered again within the application, as a person does: a reload
+  // would have started everything afresh and hidden the fault.
+  await page.getByTestId("user-menu").click()
+  await page.getByTestId("menu-item-preferences").click()
+  await page.getByTestId("back-to-workspace").click()
+
+  await page.locator('[data-testid^="workspace-tab-rows:"]').filter({ hasText: "accounts.csv" }).click()
+  await expect(page.getByTestId("row-grid")).toContainText("slug")
+  await page.locator('[data-testid^="workspace-tab-content:"]').filter({ hasText: "notes.txt" }).click()
+  await expect(page.getByTestId("content-editor")).toContainText("line 1")
+  await page.locator('[data-testid^="workspace-tab-catalog:"]').filter({ hasText: name }).click()
+  await expect(page.getByTestId("catalog-list")).toContainText("accounts.csv")
+
+  await deleteConnector(page, name)
+})

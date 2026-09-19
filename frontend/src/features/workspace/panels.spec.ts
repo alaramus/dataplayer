@@ -6,7 +6,7 @@ import {
   catalogPanelId,
   chartPanelId,
   collapsedOf,
-  componentOf,
+  panelComponents,
   contentPanelId,
   emptyOf,
   headOf,
@@ -147,7 +147,7 @@ describe("the panel registry", () => {
   })
 
   it.each(KINDS)("has a component for %s", (kind) => {
-    expect(componentOf(samples[kind], `k-${kind}`)).toBeDefined()
+    expect(panelComponents()(samples[kind], `k-${kind}`)).toBeDefined()
   })
 
   it("keeps one component per key, so a console that is kept is not rebuilt", () => {
@@ -163,9 +163,20 @@ describe("the panel registry", () => {
       connectorName: "local pg",
     }
     const kept: Panel = { ...draft, id: queryPanelId("doc-9"), documentId: "doc-9", draftId: undefined }
+    const componentOf = panelComponents()
 
     expect(componentOf(kept, "same-key")).toBe(componentOf(draft, "same-key"))
     expect(componentOf(kept, "other-key")).not.toBe(componentOf(kept, "same-key"))
+  })
+
+  it("draws a workspace mounted again with its own panels, not the last one's", () => {
+    // A workspace hands its keys out from k1 again each time it is mounted —
+    // back from Preferences, say. Remembered for the module, k1 came back as
+    // whatever panel held it before, and a table's tab showed a catalog.
+    const before = panelComponents()
+    const after = panelComponents()
+
+    expect(after(samples.rows, "k1")).not.toBe(before(samples.catalog, "k1"))
   })
 
   it("offers to re-read a console only once it is a document", () => {
@@ -434,7 +445,7 @@ describe("the panel registry", () => {
     }
 
     expect(panelSchema.safeParse(panel).success).toBe(true)
-    expect(componentOf(panel, panel.id)).toBeDefined()
+    expect(panelComponents()(panel, panel.id)).toBeDefined()
     expect(lookOf(panel).icon).toBe("image")
   })
 
@@ -452,7 +463,7 @@ describe("the panel registry", () => {
     }
 
     expect(panelSchema.safeParse(panel).success).toBe(true)
-    expect(componentOf(panel, panel.id)).toBeDefined()
+    expect(panelComponents()(panel, panel.id)).toBeDefined()
     expect(lookOf(panel).icon).toBe("code")
     expect(lookOf(panel).reloadTooltip).toBe("Re-read this DDL")
   })

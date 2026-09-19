@@ -529,8 +529,11 @@ function baseLookOf(panel: Panel): PanelLook {
   }
 }
 
+type Bind = (key: string, render: () => VNode) => Component
+
 /**
- * One bound component per panel, kept. Three traps, each a bug once:
+ * What draws each panel of one workspace: one bound component per panel,
+ * kept. Four traps, each a bug once:
  *
  * - Vue tells components apart by identity, so a wrapper built afresh is a new
  *   type every render and the panel is remounted — reloading the catalog and
@@ -539,21 +542,28 @@ function baseLookOf(panel: Panel): PanelLook {
  *   renamed when a console becomes a document.
  * - A component and not a render function: a functional component has no
  *   instance, so <KeepAlive> would have nothing to keep.
+ * - One cache per mounted workspace, never one for the module. A workspace
+ *   hands its keys out from `k1` again each time it is mounted — back from
+ *   Preferences, say — and a cache that outlived it gave a panel the
+ *   component bound to whichever panel held that key before: a table's tab
+ *   showed a catalog, or a tab closed before leaving came back in another's.
  */
-const bound = new Map<string, Component>()
-
-function boundComponent(key: string, render: () => VNode): Component {
-  const kept = bound.get(key)
-  if (kept !== undefined) return kept
-  const made = defineComponent({ name: `PanelBinding-${key}`, setup: () => render })
-  bound.set(key, made)
-  return made
+export function panelComponents(): (panel: Panel, key: string) => Component {
+  const bound = new Map<string, Component>()
+  const bind: Bind = (key, render) => {
+    const kept = bound.get(key)
+    if (kept !== undefined) return kept
+    const made = defineComponent({ name: `PanelBinding-${key}`, setup: () => render })
+    bound.set(key, made)
+    return made
+  }
+  return (panel, key) => componentFor(panel, key, bind)
 }
 
-export function componentOf(panel: Panel, key: string): Component {
+function componentFor(panel: Panel, key: string, bind: Bind): Component {
   switch (panel.kind) {
     case "relationships":
-      return boundComponent(key, () => h(RelationshipPanelView, {
+      return bind(key, () => h(RelationshipPanelView, {
         panelId: panel.id,
         connectorId: panel.connectorId,
         connectorName: panel.connectorName,
@@ -565,7 +575,7 @@ export function componentOf(panel: Panel, key: string): Component {
     case "catalog":
       // The engine renders a panel with no props of its own, so what a panel
       // needs is bound here, where the panel is still a typed object.
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(CatalogPanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
@@ -574,7 +584,7 @@ export function componentOf(panel: Panel, key: string): Component {
         })
       )
     case "rows":
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(RowsPanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
@@ -591,7 +601,7 @@ export function componentOf(panel: Panel, key: string): Component {
       // Read once: a narrowing on a property does not survive into the closure.
       const representation = panel.representation
       if (representation === "image") {
-        return boundComponent(key, () =>
+        return bind(key, () =>
           h(ImagePanelView, {
             panelId: panel.id,
             connectorId: panel.connectorId,
@@ -601,7 +611,7 @@ export function componentOf(panel: Panel, key: string): Component {
         )
       }
       if (representation === "audio" || representation === "video") {
-        return boundComponent(key, () =>
+        return bind(key, () =>
           h(MediaPanelView, {
             panelId: panel.id,
             connectorId: panel.connectorId,
@@ -612,7 +622,7 @@ export function componentOf(panel: Panel, key: string): Component {
         )
       }
       if (representation === "pdf") {
-        return boundComponent(key, () =>
+        return bind(key, () =>
           h(PdfPanelView, {
             panelId: panel.id,
             connectorId: panel.connectorId,
@@ -622,7 +632,7 @@ export function componentOf(panel: Panel, key: string): Component {
         )
       }
       if (representation === "markdown") {
-        return boundComponent(key, () =>
+        return bind(key, () =>
           h(MarkdownPanelView, {
             panelId: panel.id,
             connectorId: panel.connectorId,
@@ -635,7 +645,7 @@ export function componentOf(panel: Panel, key: string): Component {
         )
       }
       if (representation === "sql") {
-        return boundComponent(key, () =>
+        return bind(key, () =>
           h(SqlPanelView, {
             panelId: panel.id,
             connectorId: panel.connectorId,
@@ -647,7 +657,7 @@ export function componentOf(panel: Panel, key: string): Component {
           })
         )
       }
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(ContentPanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
@@ -661,7 +671,7 @@ export function componentOf(panel: Panel, key: string): Component {
       )
     }
     case "structure":
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(StructurePanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
@@ -670,7 +680,7 @@ export function componentOf(panel: Panel, key: string): Component {
         })
       )
     case "summary":
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(SummaryPanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
@@ -681,7 +691,7 @@ export function componentOf(panel: Panel, key: string): Component {
         })
       )
     case "record":
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(RecordPanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
@@ -695,7 +705,7 @@ export function componentOf(panel: Panel, key: string): Component {
         })
       )
     case "chart":
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(ChartPanelView, {
           panelId: panel.id,
           viewKey: panel.viewKey,
@@ -705,9 +715,9 @@ export function componentOf(panel: Panel, key: string): Component {
         })
       )
     case "queries":
-      return boundComponent(key, () => h(QueriesPanelView, { panelId: panel.id }))
+      return bind(key, () => h(QueriesPanelView, { panelId: panel.id }))
     case "result":
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(QueryResultPanelView, {
           panelId: panel.id,
           resultId: panel.resultId,
@@ -715,7 +725,7 @@ export function componentOf(panel: Panel, key: string): Component {
         })
       )
     case "query":
-      return boundComponent(key, () =>
+      return bind(key, () =>
         h(QueryDocumentPanelView, {
           panelId: panel.id,
           documentId: panel.documentId,
