@@ -1210,8 +1210,8 @@ export class ConnectorsService {
    * Check a connection from form values, without storing anything.
    *
    * When connector_id is supplied, secret fields missing from the body are taken
-   * from the stored connector: the user edits the port without retyping the
-   * password.
+   * from the stored connector: the owner edits the port without retyping the
+   * password. Only the owner: anyone else is refused with 403.
    */
   public static checkDraft<ThrowOnError extends boolean = true>(
     options: Options<connectorsCheckDraftData, ThrowOnError>

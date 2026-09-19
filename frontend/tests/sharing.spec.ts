@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import type { Request } from "@playwright/test"
 
 import { createPostgresConnector, openPermissions } from "./utils/connectors"
 import { firstSuperuser } from "./config"
@@ -55,6 +56,16 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await signInAs(page, email, COLLEAGUE_PASSWORD)
   await expect(connectorRow(page, name)).toBeVisible()
 
+  // The stored password fills in a draft for the owner alone (D33), so none
+  // of this form's drafts may name the connection.
+  const draftsNaming: string[] = []
+  const recordDraft = (request: Request) => {
+    if (!/\/connectors\/(check|describe)-draft$/.test(request.url())) return
+    const body = request.postDataJSON() as { connector_id?: string | null } | null
+    if (body?.connector_id) draftsNaming.push(body.connector_id)
+  }
+  page.on("request", recordDraft)
+
   await editConnector(page, name)
   // A grant is access to the source, not to the record of how to reach it:
   // the options are shown, and none of them can be touched.
@@ -64,6 +75,17 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await expect(page.getByTestId("save-connector")).toHaveCount(0)
   await expect(page.getByTestId("apply-connector")).toHaveCount(0)
   await expect(page.getByTestId("delete-connector")).toHaveCount(0)
+  // Where it goes is still shown, and it can still be tested — as stored.
+  await expect(page.getByTestId("connector-url")).toHaveValue(/^postgresql:\/\//)
+  const storedCheck = page.waitForResponse((response) =>
+    /\/connectors\/[^/]+\/check$/.test(response.url())
+  )
+  await page.getByTestId("check-draft").click()
+  expect((await storedCheck).status()).toBe(200)
+  await expect(page.getByTestId("check-result")).toHaveClass(/check-popover--ok/)
+  await page.getByTestId("dismiss-check-result").click()
+  page.off("request", recordDraft)
+  expect(draftsNaming).toEqual([])
 
   // Whose it is and what was given, on the page that answers exactly that.
   // Nothing on it to change: a level does not pass on the right to widen it,

@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.users import crud
 from app.users.models import User
 from tests.utils.database import working_postgres_options
+from tests.utils.network import password_trap
 from tests.utils.relation_fixture import make_schema
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
@@ -548,6 +549,109 @@ async def test_no_grant_reaches_the_connection_itself(
 
     assert renamed.status_code == 403
     assert removed.status_code == 403
+
+
+@pytest.mark.parametrize("access", ["read", "structure"])
+async def test_no_grant_sends_the_owners_password_to_another_host(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+    access: str,
+) -> None:
+    """A draft leaning on the stored credentials is the owner's to check.
+
+    Every option but the secret is the caller's to set, the host included, so
+    a grantee allowed to leave the password empty would have the owner's sent
+    to a server of their own choosing.
+    """
+    user, headers = colleague
+    password = f"owners-password-{uuid.uuid4()}"
+    created = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"shared {uuid.uuid4()}",
+            "adapter_type": "postgres",
+            "options": working_postgres_options() | {"password": password},
+        },
+    )
+    connector_id = created.json()["id"]
+    await _grant(client, normal_user_token_headers, connector_id, user, access)
+
+    async with password_trap() as trap:
+        options = working_postgres_options() | {"host": "127.0.0.1", "port": trap.port}
+        del options["password"]
+        response = await client.post(
+            f"{BASE}/check-draft",
+            headers=headers,
+            json={
+                "adapter_type": "postgres",
+                "options": options,
+                "connector_id": connector_id,
+            },
+        )
+
+    assert trap.passwords == []
+    assert trap.connections == 0
+    assert response.status_code == 403
+    assert response.json()["detail"]["required"] == "own"
+
+
+async def test_a_read_grant_checks_the_connection_as_stored(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """What a grantee's Test Connection asks: the stored options, never a draft."""
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "read")
+
+    response = await client.post(f"{BASE}/{connector_id}/check", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+async def test_a_read_grant_is_shown_the_address_without_the_owners_password(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """The grantee's form describes what it shows, and loses nothing by it.
+
+    Leaning on the stored password is refused here as well, though describing
+    opens nothing: one rule for both draft routes, so neither can be the one a
+    later change forgets.
+    """
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "read")
+    shown = {
+        key: value
+        for key, value in working_postgres_options().items()
+        if key != "password"
+    }
+
+    owners = await client.post(
+        f"{BASE}/describe-draft",
+        headers=normal_user_token_headers,
+        json={"adapter_type": "postgres", "options": shown, "connector_id": connector_id},
+    )
+    leaning = await client.post(
+        f"{BASE}/describe-draft",
+        headers=headers,
+        json={"adapter_type": "postgres", "options": shown, "connector_id": connector_id},
+    )
+    plain = await client.post(
+        f"{BASE}/describe-draft",
+        headers=headers,
+        json={"adapter_type": "postgres", "options": shown},
+    )
+
+    assert leaning.status_code == 403
+    assert plain.status_code == 200
+    assert plain.json()["connection_string"] == owners.json()["connection_string"]
 
 
 # --- actions carry their own level ----------------------------------------

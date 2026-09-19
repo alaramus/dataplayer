@@ -181,6 +181,17 @@ export function useCheckDraft() {
 }
 
 /**
+ * A check of the connection as it is stored: all a grantee may ask, since a
+ * draft leaning on the stored password is the owner's alone (D33).
+ */
+export function useCheckConnector() {
+  return useMutation({
+    mutationFn: async (connectorId: string) =>
+      (await ConnectorsService.checkConnector({ path: { connector_id: connectorId } })).data,
+  })
+}
+
+/**
  * The connection string of a draft, composed by the server.
  *
  * A request while the form is being typed into, and that is the price of the

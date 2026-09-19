@@ -9,6 +9,7 @@ import GrantList from "@/features/shares/GrantList.vue"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
 import {
   useAdapterTypes,
+  useCheckConnector,
   useCheckDraft,
   useCreateConnector,
   useDeleteConnector,
@@ -96,6 +97,8 @@ const createConnector = useCreateConnector()
 const updateConnector = useUpdateConnector()
 const removeConnector = useDeleteConnector()
 const checkDraft = useCheckDraft()
+const checkStored = useCheckConnector()
+const checking = computed(() => checkDraft.isPending.value || checkStored.isPending.value)
 const describeDraft = useDescribeDraft()
 const parseUrl = useParseUrl()
 
@@ -234,6 +237,14 @@ const isOwner = computed(() => access.value === "own")
  * available: it opens nothing this window does not already read.
  */
 const readOnly = computed(() => isEdit.value && !isOwner.value)
+/**
+ * The stored connection a draft takes its secrets from: only one's own.
+ *
+ * Every other option in a draft is the caller's, the host included, so the
+ * server refuses anybody else (D33). A grantee's form describes what it shows
+ * without them and checks the connection as stored.
+ */
+const secretsFrom = computed(() => (readOnly.value ? null : (saved.value?.id ?? null)))
 const sharing = ref(false)
 const typeName = computed(() => saved.value?.adapter_type ?? props.adapterType ?? null)
 
@@ -368,7 +379,7 @@ async function describe() {
     const answer = await describeDraft.mutateAsync({
       adapter_type: typeName.value,
       options: filledOptions(),
-      connector_id: saved.value?.id ?? null,
+      connector_id: secretsFrom.value,
     })
     // A later edit already asked; its answer is the current one.
     if (token !== describeToken) return
@@ -458,11 +469,14 @@ async function check() {
   if (!typeName.value) return
   checkResult.value = null
   try {
-    checkResult.value = await checkDraft.mutateAsync({
-      adapter_type: typeName.value,
-      options: filledOptions(),
-      connector_id: saved.value?.id ?? null,
-    })
+    checkResult.value =
+      readOnly.value && saved.value
+        ? await checkStored.mutateAsync(saved.value.id)
+        : await checkDraft.mutateAsync({
+            adapter_type: typeName.value,
+            options: filledOptions(),
+            connector_id: secretsFrom.value,
+          })
     // The dot beside the connection reads this. A draft is checked with the
     // values in the form, which may differ from the stored ones, so this is
     // recorded here rather than left to the monitor.
@@ -861,7 +875,7 @@ async function parseTyped(text: string) {
             label="Test Connection"
             data-testid="check-draft"
             :disable="!typeName"
-            :loading="checkDraft.isPending.value"
+            :loading="checking"
             @click="check"
           />
           <!-- The check said the key is shut, and opening it is the way on:

@@ -234,10 +234,10 @@ The levels are a total order, and that order is the whole semantics:
 
 | Level | What it admits |
 | --- | --- |
-| `read` | catalog, relation model, rows, node path, page or whole export, a connection check |
+| `read` | catalog, relation model, rows, node path, page or whole export, a check of the connection as stored |
 | `write` | plus changing rows: cell update, insert, bulk delete |
 | `structure` | plus changing shape: add, drop, rename a column, a column default, renaming a relation |
-| `own` | plus the connection itself: its options, its credentials, its grants, deleting it |
+| `own` | plus the connection itself: its options, its credentials — a draft filled in from them included — its grants, deleting it |
 
 `own` is on the scale because routes compare against it and off `Grant`
 because ownership is a column on the connector, not a row somebody can be
@@ -251,6 +251,24 @@ reach a source without saying what it needs — the call does not type-check
 otherwise. No standing at all answers 404, the same as a connector that does
 not exist, so ids are not an oracle for what other people hold; a standing
 below what the route needs answers 403.
+
+**Stored secrets fill in a draft for the owner only.** `check-draft` and
+`describe-draft` take a connection id so that a secret left empty in the form
+is taken from the stored one: the owner changes the port without retyping the
+password. Every other option of the draft is the caller's, the host included,
+so the same substitution for a grantee would send the owner's password to a
+server of the grantee's choosing — a PostgreSQL server may ask for it in clear
+text, and a Redis server is sent it with `AUTH`. Both routes ask `own` for the
+id. A grantee's form is read-only anyway: it describes what it shows without
+the id and checks the connection through `POST /connectors/{id}/check`, which
+builds from the stored options and is what `read` admits.
+
+Rejected: substituting for anyone whose draft matches the stored options. The
+grantee's form would need no change, but the check is a comparison of option
+sets that has to track every default and every field that decides where a
+connection goes, and the first one it misses hands the password over.
+Covered by `tests/connectors/test_grants.py`, against a server that asks for
+the password in clear text.
 
 **401 and 403 say different things, and now it matters.** Authentication
 answers 401 with `WWW-Authenticate: Bearer` — an unusable token, an unknown

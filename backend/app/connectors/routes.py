@@ -80,6 +80,7 @@ from app.adapters.content import (
     ImageContent,
     UpdateContentRequest,
 )
+from app.adapters.credentials import PinsServerKey, ServerKey
 from app.adapters.export import ExportRequest
 from app.adapters.features import SourceFeatures, SupportsSourceFeatures
 from app.adapters.fetch import (
@@ -96,7 +97,6 @@ from app.adapters.indexes import (
     IndexDropped,
 )
 from app.adapters.operations import ProducesJob
-from app.adapters.credentials import PinsServerKey, ServerKey
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -653,10 +653,11 @@ async def _draft_adapter(
     adapter_type = adapter_type_or_422(body.adapter_type)
     options = body.options
     if body.connector_id is not None:
-        # Reading a draft against a stored connection only substitutes the
-        # secrets the caller did not retype, so seeing it is enough.
+        # `own`, not `read`: every other option is the caller's, the host
+        # included, so a grantee could have the owner's password sent to a
+        # server of their own (D33). A grantee checks the stored connection.
         connector = await get_or_404(
-            session, body.connector_id, current_user, requires="read"
+            session, body.connector_id, current_user, requires="own"
         )
         options = service.fill_missing_secrets(adapter_type, options, connector.secrets)
 
@@ -717,8 +718,8 @@ async def check_draft(
     Check a connection from form values, without storing anything.
 
     When connector_id is supplied, secret fields missing from the body are taken
-    from the stored connector: the user edits the port without retyping the
-    password.
+    from the stored connector: the owner edits the port without retyping the
+    password. Only the owner: anyone else is refused with 403.
     """
     adapter = await _draft_adapter(session, current_user, body)
     return await _reported(adapter, await adapter.check_connection())
@@ -792,8 +793,12 @@ class ServerKeyReport(BaseModel):
     matches: bool | None = None
 
 
-@router.post("/server-key", response_model=ServerKeyReport)
-async def describe_server_key(current_user: CurrentUser, body: ServerKeyRequest) -> Any:
+@router.post(
+    "/server-key",
+    response_model=ServerKeyReport,
+    dependencies=[Depends(get_current_user)],
+)
+async def describe_server_key(body: ServerKeyRequest) -> Any:
     """
     The server key a draft trusts, and when asked, the key the server presents.
 
