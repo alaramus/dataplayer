@@ -1,6 +1,6 @@
 # Data sources
 
-What the three existing source types do, where their code sits, and which
+What the four existing source types do, where their code sits, and which
 file holds which decision.
 
 | File | Open it to |
@@ -13,8 +13,9 @@ file holds which decision.
 | [ddl.md](ddl.md) | change a column, an index, a constraint, or rename a node |
 | [content.md](content.md) | open a node as something other than a page of rows |
 | [actions.md](actions.md) | add an action, change what a form applies to, or add a report |
+| [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, or where SSH keys and passphrases are kept |
 
-## Three source types
+## Four source types
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
 relation moves, bounded relation DDL, server-side paging and sorting, streaming
@@ -52,6 +53,13 @@ and no filtering, because Redis has no index over values, and no query
 console, because Redis has commands rather than statements. Everything scans;
 nothing runs `KEYS`.
 
+**SSH** — a server's folders over SFTP, from the folder the connection names or
+the user's home: text files read a page at a time and Markdown as a document,
+and five actions — a new folder, upload, download of one file, rename and
+delete. Nothing runs a command on the server. It signs in with a password or
+one of its owner's SSH keys, and only to the server whose key a person
+confirmed when the connection was made (D145, D146).
+
 ## Where the code is
 
 ```
@@ -83,6 +91,7 @@ backend/app/adapters/
 ├── actions.py          Action, ActionSet, SupportsActions, ActionType,
 │                       DeclaresActions, transports, refusals
 ├── resources.py        ResourceStore: what outlives a request; Pooling
+├── credentials.py      a signing key handed to a driver, a pinned server key
 ├── cache.py            bounded read cache, coalescing, connector invalidation
 ├── postgres/           session.py and pool.py (reaching the server), catalog.py,
 │                       fetch.py, export.py, update.py, references.py,
@@ -103,11 +112,12 @@ backend/app/adapters/
 │                       url.py (the address, both ways), samples.py (the
 │                       demonstration key space), options.py (a union by
 │                       auth_method), adapter.py (facade),
-└── file/               session.py (root and containment), catalog.py,
-                        formats.py, members.py (a node inside a file),
-                        readers.py, records.py, fetch.py, update.py,
-                        content.py, binary.py, media.py, parquet.py,
-                        workbook.py, archive.py, download.py, relation.py,
-                        summary.py, search.py, actions.py, options.py,
-                        adapter.py (facade)
+├── file/               session.py (root and containment), catalog.py,
+│                       formats.py, members.py (a node inside a file),
+│                       readers.py, records.py, fetch.py, update.py,
+│                       content.py, binary.py, media.py, parquet.py,
+│                       workbook.py, archive.py, download.py, relation.py,
+│                       summary.py, search.py, actions.py, options.py,
+│                       adapter.py (facade)
+└── ssh/                see ssh.md
 ```

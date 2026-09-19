@@ -231,3 +231,38 @@ forbidden_modules =
     openai
     anthropic
     google
+# The SSH library, by the rule psycopg follows: a source's library lives in the
+# package that owns the source. Direct imports only: the store of keys reaches
+# the library through `app.adapters.ssh.keys`, which exists for that (D146).
+[importlinter:contract:ssh-sdk-is-contained]
+name = asyncssh is imported only by the ssh adapter
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.credentials
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.operations
+    app.adapters.resources
+    app.adapters.file
+    app.adapters.postgres
+    app.adapters.redis
+forbidden_modules =
+    asyncssh

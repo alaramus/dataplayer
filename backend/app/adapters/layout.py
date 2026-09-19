@@ -23,6 +23,7 @@ def layout(
     group: str = DEFAULT_GROUP,
     row: str | None = None,
     multiline: bool = False,
+    purpose: str | None = None,
 ) -> JsonDict:
     """Fields sharing a `row` are laid out on one line, in declaration order.
 
@@ -34,10 +35,16 @@ def layout(
     A statement about the field, made where the field is: the type is `str`
     either way, and a screen inferring "long" from "string" would give every
     host name six lines.
+
+    `purpose` says what the value means when a box would not do — the id of
+    one of the owner's SSH keys, the key a server proved itself with — so the
+    form can offer the right control without knowing which source asked.
     """
     extra: JsonDict = {"group": group}
     if row is not None:
         extra["row"] = row
     if multiline:
         extra["x-ui-multiline"] = True
+    if purpose is not None:
+        extra["x-ui-purpose"] = purpose
     return extra

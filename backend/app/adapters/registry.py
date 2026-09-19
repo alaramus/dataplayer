@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.adapters.actions import DeclaresActions
 from app.adapters.cache import SourceCacheWindows, SupportsReadCache
+from app.adapters.credentials import KeyAccess
 from app.adapters.features import FEATURE_TITLES
 from app.adapters.metrics import SupportsMetrics
 from app.adapters.options import OptionsSchema
@@ -54,6 +55,10 @@ class AdapterContext:
     # Absent for a draft: it has no identity to key long-lived things by, and
     # a check is meant to exercise credentials rather than reuse a connection.
     pooling: Pooling | None = None
+    # The owner's stored keys, for a source that signs in with one (D146).
+    # Absent where nothing could sign in with a key, and a driver that needs
+    # one then refuses rather than guessing.
+    keys: KeyAccess | None = None
 
 
 Factory = Callable[[Any, AdapterContext], DataAdapter]

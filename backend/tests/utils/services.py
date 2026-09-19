@@ -47,6 +47,9 @@ _PROTOCOLS = {
     "postgresql": _Protocol(5432, struct.pack("!ii", 8, 80877103), (b"S", b"N")),
     # PING is answered without the password too, if only with -NOAUTH.
     "redis": _Protocol(6379, b"PING\r\n", (b"+", b"-")),
+    # An SSH server speaks first, with its version line; saying ours is polite
+    # and changes nothing.
+    "ssh": _Protocol(22, b"SSH-2.0-dataplayer-probe\r\n", (b"S",)),
 }
 
 _required = False
@@ -117,7 +120,19 @@ TIMESCALE = Server(
     ),
 )
 
-SERVERS = (POSTGRES, REDIS, TIMESCALE)
+# The development SSH server (`sshd` in compose.override.yml), signing in as
+# `dataplayer` with that password. A test that needs a key authorizes its own
+# over SFTP first, so nothing about a key is kept in the repository.
+SSH = Server(
+    name="the SSH server",
+    variable="TEST_SSH_URL",
+    start="docker compose up -d sshd",
+    read=lambda: os.environ.get(
+        "TEST_SSH_URL", "ssh://dataplayer:dataplayer@127.0.0.1:2222"
+    ),
+)
+
+SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH)
 
 
 def require_all() -> None:

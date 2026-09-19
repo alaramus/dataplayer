@@ -73,6 +73,22 @@ services:
     ports:
       - "6379:6379"
 
+  # An SSH server for the backend suite and for a person to point an SSH
+  # connection at while working on that source (D144): host `sshd`, port 2222
+  # from the backend, 127.0.0.1:2222 from this machine, user and password
+  # `dataplayer`. Published on the loopback only, because that password is in
+  # this file. Development only.
+  sshd:
+    image: lscr.io/linuxserver/openssh-server:latest
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      USER_NAME: dataplayer
+      USER_PASSWORD: dataplayer
+      PASSWORD_ACCESS: "true"
+    ports:
+      - "127.0.0.1:2222:2222"
+
   # dataplayer-monitor-agent reporting the machine Docker runs on to the
   # metrics process, started with
   # `docker compose --profile monitor-agent up -d monitor-agent`. It signs

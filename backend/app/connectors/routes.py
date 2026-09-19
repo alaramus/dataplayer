@@ -96,6 +96,7 @@ from app.adapters.indexes import (
     IndexDropped,
 )
 from app.adapters.operations import ProducesJob
+from app.adapters.credentials import PinsServerKey, ServerKey
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -770,6 +771,66 @@ async def describe_draft(
     # adapter built from it cannot have lost the capability on the way.
     return ConnectionDescription(
         connection_string=cast(SupportsConnectionString, adapter).connection_string()
+    )
+
+
+class ServerKeyRequest(BaseModel):
+    adapter_type: str
+    options: dict[str, Any]
+    # Whether to ask the server now, or only to describe what the form holds.
+    # Describing opens nothing, so the form can say what it trusts as it opens.
+    fetch: bool = False
+
+
+class ServerKeyReport(BaseModel):
+    """What a connection trusts, and what the server presents (D145)."""
+
+    pinned: ServerKey | None
+    presented: ServerKey | None = None
+    # Whether the two are the same key, judged here rather than on the client
+    # so there is one comparison. None while either is missing.
+    matches: bool | None = None
+
+
+@router.post("/server-key", response_model=ServerKeyReport)
+async def describe_server_key(current_user: CurrentUser, body: ServerKeyRequest) -> Any:
+    """
+    The server key a draft trusts, and when asked, the key the server presents.
+
+    Asking the server sends nothing but a greeting: the key is exchanged
+    before anybody signs in, so a person sees what a server is before any
+    password or key reaches it. The address comes from the client, as it does
+    for a draft check — the same known deviation of D2.
+    """
+    driver = adapter_type_or_422(body.adapter_type).adapter_class
+    if not issubclass(driver, PinsServerKey):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not pin a server key",
+                "error_kind": "config",
+            },
+        )
+    try:
+        pinned = driver.pinned_server_key(body.options)
+        presented = (
+            await driver.presented_server_key(body.options) if body.fetch else None
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+    return ServerKeyReport(
+        pinned=pinned,
+        presented=presented,
+        matches=(
+            None
+            if pinned is None or presented is None
+            else pinned.fingerprint == presented.fingerprint
+        ),
     )
 
 

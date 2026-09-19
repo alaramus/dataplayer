@@ -29,6 +29,7 @@ from app.users.models import User  # noqa
 from app.users.preferences import UserPreferences  # noqa
 from app.connectors.models import Connector, ConnectorGrant  # noqa
 from app.connectors.declared import DeclaredReference  # noqa
+from app.connectors.ssh_keys import SshKey  # noqa
 from app.shares.models import AccessRequest, Share, ShareOpen  # noqa
 from app.queries.models import QueryDocument  # noqa
 from app.queries.runs import ExecutionRun, StatementRun  # noqa

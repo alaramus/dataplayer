@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from app.adapters import registry
 from app.adapters.metrics import MetricSample, SupportsMetrics
-from app.adapters.registry import AdapterContext
+from app.connectors.access import context_for
 from app.connectors.health import delay_after
 from app.connectors.models import Connector
 from app.connectors.service import build_adapter, merge_options
@@ -22,7 +22,6 @@ from app.core.db import async_session_maker
 from app.metrics import crud
 from app.metrics.counters import RateState
 from app.metrics.store import MetricsStore, PointRow, SeriesKey, Source
-from app.users import storage
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +38,7 @@ async def read_samples(connector: Connector) -> Sequence[MetricSample]:
     adapter = build_adapter(
         kind,
         merge_options(connector.config, connector.secrets),
-        AdapterContext(home_dir=storage.home_dir(connector.owner_id)),
+        context_for(connector.owner_id),
     )
     if not isinstance(adapter, SupportsMetrics):
         return []

@@ -19,15 +19,16 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.adapters.protocol import ConnectionCheckResult, DataAdapter
-from app.adapters.registry import AdapterContext, UnknownAdapterType
+from app.adapters.registry import UnknownAdapterType
 from app.adapters.registry import get as get_adapter
 from app.connectors import crud, service
+from app.connectors.access import context_for
 from app.connectors.models import Connector
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
 from app.realtime.topics import Subscriber, TopicSet, UnknownTopic, register
-from app.users import preferences, storage
+from app.users import preferences
 
 NAME = "connector.health"
 
@@ -259,7 +260,7 @@ def _adapter(connector: Connector) -> DataAdapter:
     return service.build_adapter(
         adapter_type,
         options,
-        AdapterContext(home_dir=storage.home_dir(connector.owner_id)),
+        context_for(connector.owner_id),
     )
 
 

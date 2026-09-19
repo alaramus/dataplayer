@@ -94,3 +94,24 @@ def secret_field_names(schema: OptionsSchema) -> set[str]:
         for name, field in variant.model_fields.items()
         if field.annotation is SecretStr
     }
+
+
+# What a field holding a key id says it is for, so the form offers the owner's
+# keys and the store can find the connections that use one.
+KEY_REFERENCE = "ssh-key"
+
+
+def key_reference_names(schema: OptionsSchema) -> set[str]:
+    """Names of fields that hold the id of one of the owner's SSH keys.
+
+    Read off the declaration for the reason secrets are: a store that has to
+    refuse deleting a key a connection still signs in with (D146) would
+    otherwise keep a list of which option of which source names a key.
+    """
+    return {
+        name
+        for variant in variants(schema)
+        for name, field in variant.model_fields.items()
+        if isinstance(field.json_schema_extra, dict)
+        and field.json_schema_extra.get("x-ui-purpose") == KEY_REFERENCE
+    }

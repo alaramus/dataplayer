@@ -21,7 +21,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
 from app.adapters.protocol import BackupProgram, SupportsBackup
-from app.adapters.registry import AdapterContext
+from app.connectors.access import context_for
 from app.connectors.models import Connector
 from app.connectors.service import build_adapter, merge_options
 from app.core.config import settings
@@ -84,7 +84,7 @@ def backup_source(connector: Connector) -> SupportsBackup:
     adapter = build_adapter(
         registry.get(connector.adapter_type),
         options,
-        AdapterContext(home_dir=storage.home_dir(connector.owner_id)),
+        context_for(connector.owner_id),
     )
     if not isinstance(adapter, SupportsBackup):
         raise ValueError("This kind of connection cannot be backed up")

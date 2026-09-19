@@ -1893,7 +1893,7 @@ export type ConnectionCheckReport = {
   /**
    * Error Kind
    */
-  error_kind?: "auth" | "network" | "timeout" | "config" | "unknown" | null
+  error_kind?: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
   features?: SourceFeatures | null
 }
 
@@ -8429,6 +8429,63 @@ export type ServerInfo = {
 }
 
 /**
+ * ServerKey
+ *
+ * The key a server proves itself with, as a person compares it (D145).
+ *
+ * `public_key` is the one line `known_hosts` would hold; the fingerprint is
+ * what anybody compares by eye, against `ssh-keygen -lf` on the server.
+ */
+export type ServerKey = {
+  /**
+   * Public Key
+   */
+  public_key: string
+  /**
+   * Algorithm
+   */
+  algorithm: string
+  /**
+   * Fingerprint
+   */
+  fingerprint: string
+}
+
+/**
+ * ServerKeyReport
+ *
+ * What a connection trusts, and what the server presents (D145).
+ */
+export type ServerKeyReport = {
+  pinned: ServerKey | null
+  presented?: ServerKey | null
+  /**
+   * Matches
+   */
+  matches?: boolean | null
+}
+
+/**
+ * ServerKeyRequest
+ */
+export type ServerKeyRequest = {
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Options
+   */
+  options: {
+    [key: string]: unknown
+  }
+  /**
+   * Fetch
+   */
+  fetch?: boolean
+}
+
+/**
  * ServiceAccepted
  *
  * What comes back from asking for something to happen.
@@ -9083,6 +9140,126 @@ export type SqlContent = {
    * Notice
    */
   notice?: string | null
+}
+
+/**
+ * SshKeyGenerate
+ */
+export type SshKeyGenerate = {
+  /**
+   * Passphrase
+   */
+  passphrase?: null
+  /**
+   * Passphrase Mode
+   */
+  passphrase_mode?: "stored" | "ask"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Key Type
+   */
+  key_type?: "ed25519" | "rsa"
+}
+
+/**
+ * SshKeyImport
+ */
+export type SshKeyImport = {
+  /**
+   * Passphrase
+   */
+  passphrase?: null
+  /**
+   * Passphrase Mode
+   */
+  passphrase_mode?: "stored" | "ask"
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * SshKeyPublic
+ *
+ * Everything about a key that may be said out loud.
+ */
+export type SshKeyPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Algorithm
+   */
+  algorithm: string
+  /**
+   * Public Key
+   */
+  public_key: string
+  /**
+   * Fingerprint
+   */
+  fingerprint: string
+  /**
+   * Passphrase Mode
+   */
+  passphrase_mode: "none" | "stored" | "ask"
+  /**
+   * Unlocked Until
+   */
+  unlocked_until: string | null
+  /**
+   * Created At
+   */
+  created_at: string | null
+  /**
+   * Used By
+   */
+  used_by: Array<SshKeyUse>
+}
+
+/**
+ * SshKeyRename
+ */
+export type SshKeyRename = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * SshKeyUnlock
+ */
+export type SshKeyUnlock = {
+  /**
+   * Minutes
+   */
+  minutes?: 15 | 60 | 480
+}
+
+/**
+ * SshKeyUse
+ *
+ * A connection that signs in with the key.
+ */
+export type SshKeyUse = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
 }
 
 /**
@@ -10605,6 +10782,64 @@ export type ServiceRequestWritable = {
       } & ChosenStartWritable)
 }
 
+/**
+ * SshKeyGenerate
+ */
+export type SshKeyGenerateWritable = {
+  /**
+   * Passphrase
+   */
+  passphrase?: string | null
+  /**
+   * Passphrase Mode
+   */
+  passphrase_mode?: "stored" | "ask"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Key Type
+   */
+  key_type?: "ed25519" | "rsa"
+}
+
+/**
+ * SshKeyImport
+ */
+export type SshKeyImportWritable = {
+  /**
+   * Passphrase
+   */
+  passphrase?: string | null
+  /**
+   * Passphrase Mode
+   */
+  passphrase_mode?: "stored" | "ask"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Private Key
+   */
+  private_key: string
+}
+
+/**
+ * SshKeyUnlock
+ */
+export type SshKeyUnlockWritable = {
+  /**
+   * Passphrase
+   */
+  passphrase: string
+  /**
+   * Minutes
+   */
+  minutes?: 15 | 60 | 480
+}
+
 export type loginLoginAccessTokenData = {
   body: Body_login_login_access_token
   path?: never
@@ -11376,6 +11611,33 @@ export type connectorsDescribeDraftResponses = {
 
 export type connectorsDescribeDraftResponse =
   connectorsDescribeDraftResponses[keyof connectorsDescribeDraftResponses]
+
+export type connectorsDescribeServerKeyData = {
+  body: ServerKeyRequest
+  path?: never
+  query?: never
+  url: "/api/v1/connectors/server-key"
+}
+
+export type connectorsDescribeServerKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDescribeServerKeyError =
+  connectorsDescribeServerKeyErrors[keyof connectorsDescribeServerKeyErrors]
+
+export type connectorsDescribeServerKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServerKeyReport
+}
+
+export type connectorsDescribeServerKeyResponse =
+  connectorsDescribeServerKeyResponses[keyof connectorsDescribeServerKeyResponses]
 
 export type connectorsParseUrlData = {
   body: ConnectionStringRequest
@@ -13323,6 +13585,201 @@ export type declaredReferencesUndeclareReferenceResponses = {
 
 export type declaredReferencesUndeclareReferenceResponse =
   declaredReferencesUndeclareReferenceResponses[keyof declaredReferencesUndeclareReferenceResponses]
+
+export type sshKeysReadSshKeysData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ssh-keys/"
+}
+
+export type sshKeysReadSshKeysResponses = {
+  /**
+   * Response Ssh-Keys-Read Ssh Keys
+   *
+   * Successful Response
+   */
+  200: Array<SshKeyPublic>
+}
+
+export type sshKeysReadSshKeysResponse =
+  sshKeysReadSshKeysResponses[keyof sshKeysReadSshKeysResponses]
+
+export type sshKeysGenerateSshKeyData = {
+  body: SshKeyGenerateWritable
+  path?: never
+  query?: never
+  url: "/api/v1/ssh-keys/generate"
+}
+
+export type sshKeysGenerateSshKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sshKeysGenerateSshKeyError =
+  sshKeysGenerateSshKeyErrors[keyof sshKeysGenerateSshKeyErrors]
+
+export type sshKeysGenerateSshKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: SshKeyPublic
+}
+
+export type sshKeysGenerateSshKeyResponse =
+  sshKeysGenerateSshKeyResponses[keyof sshKeysGenerateSshKeyResponses]
+
+export type sshKeysImportSshKeyData = {
+  body: SshKeyImportWritable
+  path?: never
+  query?: never
+  url: "/api/v1/ssh-keys/import"
+}
+
+export type sshKeysImportSshKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sshKeysImportSshKeyError = sshKeysImportSshKeyErrors[keyof sshKeysImportSshKeyErrors]
+
+export type sshKeysImportSshKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: SshKeyPublic
+}
+
+export type sshKeysImportSshKeyResponse =
+  sshKeysImportSshKeyResponses[keyof sshKeysImportSshKeyResponses]
+
+export type sshKeysDeleteSshKeyData = {
+  body?: never
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string
+  }
+  query?: never
+  url: "/api/v1/ssh-keys/{key_id}"
+}
+
+export type sshKeysDeleteSshKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sshKeysDeleteSshKeyError = sshKeysDeleteSshKeyErrors[keyof sshKeysDeleteSshKeyErrors]
+
+export type sshKeysDeleteSshKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type sshKeysDeleteSshKeyResponse =
+  sshKeysDeleteSshKeyResponses[keyof sshKeysDeleteSshKeyResponses]
+
+export type sshKeysRenameSshKeyData = {
+  body: SshKeyRename
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string
+  }
+  query?: never
+  url: "/api/v1/ssh-keys/{key_id}"
+}
+
+export type sshKeysRenameSshKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sshKeysRenameSshKeyError = sshKeysRenameSshKeyErrors[keyof sshKeysRenameSshKeyErrors]
+
+export type sshKeysRenameSshKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: SshKeyPublic
+}
+
+export type sshKeysRenameSshKeyResponse =
+  sshKeysRenameSshKeyResponses[keyof sshKeysRenameSshKeyResponses]
+
+export type sshKeysUnlockSshKeyData = {
+  body: SshKeyUnlockWritable
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string
+  }
+  query?: never
+  url: "/api/v1/ssh-keys/{key_id}/unlock"
+}
+
+export type sshKeysUnlockSshKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sshKeysUnlockSshKeyError = sshKeysUnlockSshKeyErrors[keyof sshKeysUnlockSshKeyErrors]
+
+export type sshKeysUnlockSshKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: SshKeyPublic
+}
+
+export type sshKeysUnlockSshKeyResponse =
+  sshKeysUnlockSshKeyResponses[keyof sshKeysUnlockSshKeyResponses]
+
+export type sshKeysLockSshKeyData = {
+  body?: never
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string
+  }
+  query?: never
+  url: "/api/v1/ssh-keys/{key_id}/lock"
+}
+
+export type sshKeysLockSshKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sshKeysLockSshKeyError = sshKeysLockSshKeyErrors[keyof sshKeysLockSshKeyErrors]
+
+export type sshKeysLockSshKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: SshKeyPublic
+}
+
+export type sshKeysLockSshKeyResponse = sshKeysLockSshKeyResponses[keyof sshKeysLockSshKeyResponses]
 
 export type adaptersReadAdapterTypesData = {
   body?: never

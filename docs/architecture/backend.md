@@ -92,6 +92,7 @@ POST   /api/v1/connectors/{connector_id}/check
 POST   /api/v1/connectors/check-draft
 POST   /api/v1/connectors/describe-draft
 POST   /api/v1/connectors/parse-url
+POST   /api/v1/connectors/server-key
 GET    /api/v1/connectors/{connector_id}/catalog?refresh=false
 GET    /api/v1/connectors/{connector_id}/features
 GET    /api/v1/connectors/{connector_id}/relation-model
@@ -116,6 +117,7 @@ POST   /api/v1/connectors/{connector_id}/references
 GET    /api/v1/declared-references?connector_id=&node_id=
 POST   /api/v1/declared-references
 DELETE /api/v1/declared-references/{reference_id}
+GET    /api/v1/ssh-keys/                 and the rest of /ssh-keys, see sources/ssh.md
 ```
 
 A declared reference is addressed on its own and not under a connection: it has

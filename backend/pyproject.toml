@@ -37,6 +37,7 @@ dependencies = [
     "langchain-google-genai>=4.4.0,<4.5.0",
     "langchain-deepseek>=1.1.0,<1.2.0",
     "pycryptodome>=3.23.0,<4.0.0",
+    "asyncssh>=2.21.0,<3.0.0",
 ]
 
 [dependency-groups]

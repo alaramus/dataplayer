@@ -27,6 +27,10 @@ backend:
     # the store's service template starts.
     - name: timescale/timescaledb:2.30.0-pg18
       alias: timescale
+    # The SSH server the SSH source tests sign in to and walk over SFTP (D144).
+    # It reads USER_NAME, USER_PASSWORD and PASSWORD_ACCESS below.
+    - name: lscr.io/linuxserver/openssh-server:latest
+      alias: sshd
   variables:
     POSTGRES_DB: app
     POSTGRES_PASSWORD: postgres
@@ -52,6 +56,12 @@ backend:
     # The Timescale service reads POSTGRES_PASSWORD and POSTGRES_DB like the
     # database service; the tests make a database of their own in it.
     TEST_METRICS_STORE_URL: postgresql://postgres:postgres@timescale:5432/app
+    # The SSH service signs in as this user; a test that needs a key
+    # authorizes one of its own over SFTP first.
+    USER_NAME: dataplayer
+    USER_PASSWORD: dataplayer
+    PASSWORD_ACCESS: "true"
+    TEST_SSH_URL: ssh://dataplayer:dataplayer@sshd:2222
     # backend/scripts/test.sh runs the suite this way, and the private routes
     # exist only in development: without it their tests get a 404.
     FASTAPI_ENV: development

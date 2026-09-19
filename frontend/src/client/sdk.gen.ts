@@ -125,6 +125,9 @@ import type {
   connectorsDescribeDraftData,
   connectorsDescribeDraftErrors,
   connectorsDescribeDraftResponses,
+  connectorsDescribeServerKeyData,
+  connectorsDescribeServerKeyErrors,
+  connectorsDescribeServerKeyResponses,
   connectorsDownloadFinishedExportData,
   connectorsDownloadFinishedExportErrors,
   connectorsDownloadFinishedExportResponses,
@@ -536,6 +539,26 @@ import type {
   sharesResolveShareData,
   sharesResolveShareErrors,
   sharesResolveShareResponses,
+  sshKeysDeleteSshKeyData,
+  sshKeysDeleteSshKeyErrors,
+  sshKeysDeleteSshKeyResponses,
+  sshKeysGenerateSshKeyData,
+  sshKeysGenerateSshKeyErrors,
+  sshKeysGenerateSshKeyResponses,
+  sshKeysImportSshKeyData,
+  sshKeysImportSshKeyErrors,
+  sshKeysImportSshKeyResponses,
+  sshKeysLockSshKeyData,
+  sshKeysLockSshKeyErrors,
+  sshKeysLockSshKeyResponses,
+  sshKeysReadSshKeysData,
+  sshKeysReadSshKeysResponses,
+  sshKeysRenameSshKeyData,
+  sshKeysRenameSshKeyErrors,
+  sshKeysRenameSshKeyResponses,
+  sshKeysUnlockSshKeyData,
+  sshKeysUnlockSshKeyErrors,
+  sshKeysUnlockSshKeyResponses,
   usersCreateUserData,
   usersCreateUserErrors,
   usersCreateUserResponses,
@@ -1238,6 +1261,35 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/describe-draft",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Describe Server Key
+   *
+   * The server key a draft trusts, and when asked, the key the server presents.
+   *
+   * Asking the server sends nothing but a greeting: the key is exchanged
+   * before anybody signs in, so a person sees what a server is before any
+   * password or key reaches it. The address comes from the client, as it does
+   * for a draft check — the same known deviation of D2.
+   */
+  public static describeServerKey<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDescribeServerKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsDescribeServerKeyResponses,
+      connectorsDescribeServerKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/server-key",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -2675,6 +2727,173 @@ export class DeclaredReferencesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/declared-references/{reference_id}",
+      ...options,
+    })
+  }
+}
+
+export class SshKeysService {
+  /**
+   * Read Ssh Keys
+   *
+   * Every key of this person, with the connections that sign in with each.
+   */
+  public static keysReadSshKeys<ThrowOnError extends boolean = true>(
+    options?: Options<sshKeysReadSshKeysData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<sshKeysReadSshKeysResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ssh-keys/",
+      ...options,
+    })
+  }
+
+  /**
+   * Generate Ssh Key
+   *
+   * Make a key pair on this server. Its private half never leaves it.
+   *
+   * The public half comes back to be added to `authorized_keys` on the servers
+   * this key should open.
+   */
+  public static keysGenerateSshKey<ThrowOnError extends boolean = true>(
+    options: Options<sshKeysGenerateSshKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sshKeysGenerateSshKeyResponses,
+      sshKeysGenerateSshKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ssh-keys/generate",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Import Ssh Key
+   *
+   * Keep a key somebody already has.
+   *
+   * A key that arrives encrypted needs the passphrase that opens it; one that
+   * arrives in the clear is locked with the passphrase given, if any.
+   */
+  public static keysImportSshKey<ThrowOnError extends boolean = true>(
+    options: Options<sshKeysImportSshKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sshKeysImportSshKeyResponses,
+      sshKeysImportSshKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ssh-keys/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Ssh Key
+   *
+   * Delete a key no connection signs in with.
+   *
+   * Refused while one does, and the answer names them: deleting it would
+   * leave those connections unable to sign in, and which ones is exactly what
+   * a person needs to know to decide.
+   */
+  public static keysDeleteSshKey<ThrowOnError extends boolean = true>(
+    options: Options<sshKeysDeleteSshKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      sshKeysDeleteSshKeyResponses,
+      sshKeysDeleteSshKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ssh-keys/{key_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Rename Ssh Key
+   *
+   * Rename a key. Nothing else about one changes: a different key is a new one.
+   */
+  public static keysRenameSshKey<ThrowOnError extends boolean = true>(
+    options: Options<sshKeysRenameSshKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      sshKeysRenameSshKeyResponses,
+      sshKeysRenameSshKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ssh-keys/{key_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Unlock Ssh Key
+   *
+   * Hold the passphrase of a key that asks for one, in memory, for a while.
+   *
+   * Checked against the key before it is held, so a mistyped passphrase is
+   * said here rather than as a failed sign-in somewhere else later.
+   */
+  public static keysUnlockSshKey<ThrowOnError extends boolean = true>(
+    options: Options<sshKeysUnlockSshKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sshKeysUnlockSshKeyResponses,
+      sshKeysUnlockSshKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ssh-keys/{key_id}/unlock",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Lock Ssh Key
+   *
+   * Forget the passphrase now rather than when its time is up.
+   */
+  public static keysLockSshKey<ThrowOnError extends boolean = true>(
+    options: Options<sshKeysLockSshKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sshKeysLockSshKeyResponses,
+      sshKeysLockSshKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ssh-keys/{key_id}/lock",
       ...options,
     })
   }

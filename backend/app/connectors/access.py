@@ -19,6 +19,7 @@ from app.adapters.registry import get as get_adapter_type
 from app.adapters.resources import Pooling, ResourceStore
 from app.connectors import crud, service
 from app.connectors.models import Connector
+from app.connectors.ssh_keys import OwnerKeys
 from app.core.access import Access, at_least
 from app.users import storage
 from app.users.models import User
@@ -95,8 +96,17 @@ def context_for(
     *,
     pooling: Pooling | None = None,
 ) -> AdapterContext:
-    """What the driver may reach, decided here rather than by the request."""
-    return AdapterContext(home_dir=storage.home_dir(owner_id), pooling=pooling)
+    """What the driver may reach, decided here rather than by the request.
+
+    Always the owner's: a grantee reading a connection signs in with the
+    owner's credentials and reads the owner's storage (D33), and a key is a
+    credential like the rest (D146).
+    """
+    return AdapterContext(
+        home_dir=storage.home_dir(owner_id),
+        pooling=pooling,
+        keys=OwnerKeys(owner_id),
+    )
 
 
 @dataclass(frozen=True)
