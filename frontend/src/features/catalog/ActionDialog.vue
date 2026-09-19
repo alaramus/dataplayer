@@ -670,6 +670,7 @@ async function runDesign(value: {
         :model-value="files"
         :multiple="command.takesManyFiles"
         :append="command.takesManyFiles"
+        listed
         :disable="runAction.isPending.value"
         :label="command.takesManyFiles ? 'Files' : 'File'"
         data-testid="action-file"

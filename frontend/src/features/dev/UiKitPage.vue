@@ -446,6 +446,16 @@ function removeSavedEntry(name: string) {
           multiple
           append
         />
+        <!-- The set listed by the screen instead, as the upload form lists
+             it with sizes and a way to take one out. -->
+        <AppFileInput
+          v-model="files"
+          label="Files, listed below"
+          multiple
+          append
+          listed
+        />
+        <span>{{ files.map((picked) => picked.name).join(", ") || "Nothing chosen" }}</span>
       </AppSection>
     </AppCard>
 

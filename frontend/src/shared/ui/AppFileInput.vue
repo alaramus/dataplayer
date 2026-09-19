@@ -7,6 +7,12 @@ const props = defineProps<{
   multiple?: boolean
   /** Whether a further choice adds to the set rather than replacing it. */
   append?: boolean
+  /**
+   * Whether the screen lists what was chosen itself, below the field. The
+   * field then only picks: it stays empty rather than repeating the list in
+   * one line of names, and a choice still adds to or replaces the set.
+   */
+  listed?: boolean
 }>()
 
 const emit = defineEmits<{ "update:modelValue": [value: Value] }>()
@@ -20,6 +26,14 @@ const emit = defineEmits<{ "update:modelValue": [value: Value] }>()
  * was given one, and the one assertion below says that and nothing more.
  */
 function chosen(value: File | readonly File[] | null) {
+  if (props.listed === true) {
+    // The field holds nothing, so what it hands over is only what was just
+    // picked; adding it to the set is done here, where the set is known.
+    const picked = value === null ? [] : value instanceof File ? [value] : [...value]
+    const held = Array.isArray(props.modelValue) ? props.modelValue : []
+    emit("update:modelValue", (props.append === true ? [...held, ...picked] : picked) as Value)
+    return
+  }
   if (props.multiple !== true && !Array.isArray(props.modelValue)) {
     emit("update:modelValue", value as Value)
     return
@@ -31,11 +45,11 @@ function chosen(value: File | readonly File[] | null) {
 
 <template>
   <q-file
-    :model-value="modelValue"
+    :model-value="listed ? null : modelValue"
     :label="label"
     :accept="accept"
     :multiple="multiple"
-    :append="append"
+    :append="listed ? false : append"
     @update:model-value="chosen"
   >
     <template

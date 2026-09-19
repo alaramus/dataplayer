@@ -102,6 +102,17 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   // place to change one's mind: a row taken out never leaves the browser.
   const staged = page.getByTestId("action-files")
   await expect(staged).toContainText("dropped.txt")
+  // The field only picks: each name is said once, in the list below it, and
+  // a second choice adds to the first.
+  const form = page.getByTestId("action-dialog")
+  await expect(form.getByText("uploaded.csv")).toHaveCount(1)
+  await page.getByTestId("action-file").setInputFiles({
+    name: "later.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("later\n"),
+  })
+  await expect(staged).toContainText("later.txt")
+  await expect(staged).toContainText("uploaded.csv")
   await expect(list).not.toContainText("uploaded.csv")
   await page.getByTestId("action-file-remove-2").click()
   await expect(staged).not.toContainText("dropped.txt")
@@ -109,6 +120,7 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   await page.getByTestId("action-submit").click()
   await expect(list).toContainText("uploaded.csv")
   await expect(list).toContainText("notes.md")
+  await expect(list).toContainText("later.txt")
   await expect(list).not.toContainText("dropped.txt")
 
   // --- what was uploaded is readable, which proves the bytes arrived whole
