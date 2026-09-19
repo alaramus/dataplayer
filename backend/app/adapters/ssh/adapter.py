@@ -12,6 +12,7 @@ follows: a library upgrade has one place to change.
 
 from collections.abc import Mapping
 from typing import Any, ClassVar
+from urllib.parse import quote
 
 from app.adapters.credentials import ServerKey
 from app.adapters.explorer.actions import (
@@ -52,6 +53,27 @@ class SshAdapter(Explorer):
 
     async def open_terminal(self, size: TerminalSize) -> Terminal:
         return await SshTerminal.open(self._session, size)
+
+    @classmethod
+    def draft_connection_string(cls, options: Mapping[str, Any]) -> str | None:
+        """Where to point `ssh`, as the one line OpenSSH takes: `ssh://user@host:port`.
+
+        Never with a password, which no SSH client takes in an address — so a
+        started service's window shows this line even when it hands the
+        password over (D89).
+        """
+        host = options.get("host")
+        if not isinstance(host, str) or host.strip() == "":
+            return None
+        host = host.strip()
+        address = f"[{host}]" if ":" in host else host
+        user = options.get("username")
+        if isinstance(user, str) and user != "":
+            address = f"{quote(user, safe='')}@{address}"
+        port = options.get("port")
+        if isinstance(port, int) and not isinstance(port, bool) and port != DEFAULT_PORT:
+            address = f"{address}:{port}"
+        return f"ssh://{address}"
 
     # --- the server's own key (D145) ----------------------------------------
 

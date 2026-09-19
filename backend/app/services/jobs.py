@@ -133,13 +133,15 @@ class CreateService(_ServiceJob):
             await self._start_it(service, plan.container.name)
             await self._record_published_port(session, service)
             await progress.reached("waiting for it to answer")
-            options = connector_options(plan, _endpoint_of(plan))
-            if not await self._probe(
+            # What it answered to, which is what the connector keeps: a server
+            # that proves itself with a key is trusted by that key (D153).
+            options = await self._probe(
                 template.adapter_type,
-                options,
+                connector_options(plan, _endpoint_of(plan)),
                 home_dir=storage.home_dir(service.owner_id),
                 timeout_seconds=template.startup_timeout_seconds,
-            ):
+            )
+            if options is None:
                 raise JobFailed(
                     f"{template.title} started but did not answer in time"
                 )

@@ -12,6 +12,7 @@ backend/app/adapters/
 ├── explorer/
 │   ├── storage.py      Storage, Place, Entry, search limits, the name rule
 │   ├── copies.py       local copies of remote files, and scratch folders
+│   ├── samples.py      one sample file of every kind, for a home or a started server
 │   ├── explorer.py     Explorer: every capability over one storage
 │   ├── catalog.py, members.py, search.py, summary.py
 │   ├── content.py, fetch.py, relation.py, update.py, new_relation.py

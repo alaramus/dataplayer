@@ -153,3 +153,23 @@ def test_two_templates_of_one_source_type_settle_the_same_credentials() -> None:
     )
     assert timescale.connector_options == postgres.connector_options
     assert timescale.choosable == postgres.choosable
+
+
+def test_the_ssh_template_is_a_server_signed_into_with_a_password_it_made() -> None:
+    """The old application's SSH service, as a template (D153): the account
+    and its password go to the image, and the connector signs in with both.
+
+    Nothing can say the server's key before the container has made one, so
+    no field of the template holds it: the job pins what it presents."""
+    ssh = template_for("ssh")
+
+    assert ssh.adapter_type == "ssh"
+    assert ssh.image.startswith("lscr.io/linuxserver/openssh-server:")
+    assert ssh.data_path == "/config"
+    assert generated_slots(ssh) == ("password",)
+    assert ssh.choosable == frozenset({"user", "password"})
+    assert ssh.environment["USER_NAME"] == "user"
+    assert ssh.environment["USER_PASSWORD"] == "password"
+    assert ssh.environment["PASSWORD_ACCESS"] == Fixed("true")
+    assert "host_key" not in ssh.connector_options
+    assert may_run_unprotected(ssh) is False

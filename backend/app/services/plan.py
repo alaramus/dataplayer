@@ -308,6 +308,29 @@ def connector_options(plan: ServicePlan, endpoint: Endpoint) -> dict[str, str | 
     }
 
 
+def described_options(
+    shape: Shape, known: Mapping[CredentialSlot, str], endpoint: Endpoint
+) -> dict[str, str | int]:
+    """The connector's options as far as they are known, at another address.
+
+    For saying where a service listens rather than for connecting: the fields
+    are the adapter's own, so the source type writes its address from them as
+    it would from its form (D89), and a credential that is not known — the
+    password, unless it is being handed over — is simply absent.
+    """
+    found: dict[str, str | int] = {}
+    for field, value in shape.connector_options.items():
+        if isinstance(value, Fixed):
+            found[field] = value.value
+        elif value == "host":
+            found[field] = endpoint.host
+        elif value == "port":
+            found[field] = endpoint.port
+        elif value in known:
+            found[field] = known[value]
+    return found
+
+
 def _credential_value(value: CredentialValue, credentials: Credentials) -> str:
     if isinstance(value, Fixed):
         return value.value

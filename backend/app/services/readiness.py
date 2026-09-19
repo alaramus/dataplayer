@@ -8,7 +8,8 @@ wrong machinery — so the idea is kept and the machinery is a job (D83).
 
 Asking the source itself rather than the runtime is the point: "ready" means
 "this connector works", and the only thing that can say so is the thing that
-will be used.
+will be used. A server that proves itself with a key is asked for that key
+first, and trusted by it from then on (D153).
 """
 
 import asyncio
@@ -18,7 +19,9 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from app.adapters import registry
-from app.adapters.protocol import SupportsSampleData
+from app.adapters.credentials import PinsServerKey
+from app.adapters.options import server_key_names
+from app.adapters.protocol import AdapterError, SupportsSampleData
 from app.adapters.registry import AdapterContext
 from app.connectors.service import build_adapter
 
@@ -32,7 +35,11 @@ INTERVAL_SECONDS = 1.0
 
 @runtime_checkable
 class ReadinessProbe(Protocol):
-    """Whether the source at these options answers, within a time.
+    """The options the source at these options answered to, within a time.
+
+    None when it did not answer. The options come back rather than a yes
+    because answering can settle one of them: the key a server proves itself
+    with, which the connector then trusts (D153).
 
     A protocol so that a job can be exercised without a database of its own to
     wait for — the same reason the engine is one. There is one implementation
@@ -42,20 +49,20 @@ class ReadinessProbe(Protocol):
     async def __call__(
         self,
         adapter_type: str,
-        options: Mapping[str, Any],
+        options: Mapping[str, str | int],
         *,
         home_dir: Path,
         timeout_seconds: int,
-    ) -> bool: ...
+    ) -> dict[str, str | int] | None: ...
 
 
 async def wait_until_ready(
     adapter_type: str,
-    options: Mapping[str, Any],
+    options: Mapping[str, str | int],
     *,
     home_dir: Path,
     timeout_seconds: int,
-) -> bool:
+) -> dict[str, str | int] | None:
     """Ask the source whether it works, until it does or time runs out.
 
     No pooling: this is a series of one-off connections to something that is
@@ -63,19 +70,45 @@ async def wait_until_ready(
     """
     kind = registry.get(adapter_type)
     deadline = asyncio.get_running_loop().time() + timeout_seconds
+    answered = dict(options)
+    driver = kind.adapter_class
+    if issubclass(driver, PinsServerKey) and driver.pinned_server_key(answered) is None:
+        presented = await _first_server_key(driver, answered, deadline)
+        if presented is None:
+            logger.info("Service presented no key within %ds", timeout_seconds)
+            return None
+        for field in server_key_names(kind.options_schema):
+            answered[field] = presented
     attempts = 0
     while True:
         attempts += 1
-        adapter = build_adapter(
-            kind, dict(options), AdapterContext(home_dir=home_dir)
-        )
+        adapter = build_adapter(kind, dict(answered), AdapterContext(home_dir=home_dir))
         result = await adapter.check_connection()
         if result.ok:
             logger.info("Service answered after %d attempts", attempts)
-            return True
+            return answered
         if asyncio.get_running_loop().time() >= deadline:
             logger.info("Service did not answer within %ds", timeout_seconds)
-            return False
+            return None
+        await asyncio.sleep(INTERVAL_SECONDS)
+
+
+async def _first_server_key(
+    driver: type[PinsServerKey], options: Mapping[str, str | int], deadline: float
+) -> str | None:
+    """The key a server this application has just started presents, trusted
+    without a person comparing it (D153).
+
+    Asked until it answers, and once: OpenSSH shuts out an address that keeps
+    leaving before it signs in, and asking for a key is exactly that. A port
+    nothing listens on yet refuses without counting.
+    """
+    while True:
+        try:
+            return (await driver.presented_server_key(options)).public_key
+        except AdapterError:
+            if asyncio.get_running_loop().time() >= deadline:
+                return None
         await asyncio.sleep(INTERVAL_SECONDS)
 
 

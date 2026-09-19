@@ -132,3 +132,46 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
 
   await expect(connectorRow(page, SERVICE_NAME)).toHaveCount(0)
 })
+
+test("starts an SSH server with sample files in its home and opens them", async ({
+  page,
+}) => {
+  test.setTimeout(150_000)
+  const name = `e2e-ssh-service-${Date.now()}`
+  await login(page)
+  await page.getByTestId("add-connector").click()
+  await expect(page.getByTestId("adapter-catalog")).toBeVisible()
+  await page.getByTestId("adapter-ssh").click()
+
+  await page.getByTestId("start-service-ssh").click()
+  await page.getByTestId("service-mode").click()
+  await page.getByRole("option", { name: "Let me choose" }).click()
+  await page.getByTestId("service-name").fill(name)
+  // Sample data stays ticked: the home is filled with a file of every kind.
+  await page.getByTestId("start-service-confirm").click()
+
+  // Ready means it answered to a password, over the key it presented first
+  // (D153), and the window says where it listens as the line ssh takes.
+  const details = page.getByTestId("service-credentials-dialog")
+  await expect(details).toBeVisible({ timeout: 120_000 })
+  await expect(details.getByTestId("credential-url")).toContainText(
+    "ssh://dataplayer@127.0.0.1:"
+  )
+  await expect(details.getByTestId("credential-password")).toBeVisible()
+  await page.getByTestId("credentials-done").click()
+
+  await connectorRow(page, name).click()
+  await expect(page.getByTestId("catalog-list")).toContainText("sample.csv")
+  await page.getByTestId("catalog-node-sample.csv").click()
+  await expect(page.getByTestId("row-grid")).toContainText("city-1")
+
+  await page.getByTestId("command-services").click()
+  const row = page
+    .getByTestId("managed-services")
+    .locator('[data-testid^="managed-service-"]')
+    .filter({ hasText: name })
+  await row.locator('[data-testid^="remove-service-"]').click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(row).toHaveCount(0, { timeout: 60_000 })
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

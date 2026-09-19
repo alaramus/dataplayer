@@ -7,9 +7,9 @@ renamed, and both halves of that are readable from this repository.
 
 from pathlib import Path
 
+from app.adapters.explorer.samples import write_samples
 from app.adapters.postgres.samples import SCRIPT_DIRECTORY, script_paths
 from app.seed_references import EXAMPLES
-from app.seed_storage import write_samples
 
 
 def test_every_example_joins_two_ends() -> None:

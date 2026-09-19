@@ -39,8 +39,9 @@ from app.adapters.explorer.fetch import ExplorerFetch
 from app.adapters.explorer.new_relation import ExplorerNewRelations
 from app.adapters.explorer.query import ExplorerExecution, ExplorerQuery
 from app.adapters.explorer.relation import ExplorerRelations
+from app.adapters.explorer.samples import write_samples
 from app.adapters.explorer.search import ExplorerSearch
-from app.adapters.explorer.storage import Storage
+from app.adapters.explorer.storage import ROOT, Storage
 from app.adapters.explorer.summary import ExplorerSummaries
 from app.adapters.explorer.update import ExplorerTableChanges
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -112,6 +113,17 @@ class Explorer:
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await to_thread.run_sync(self._storage.check)
+
+    async def install_sample_data(self) -> str:
+        """The sample files, written into the folder this source stands in."""
+
+        def fill() -> int:
+            with self._storage.filled(ROOT) as folder:
+                write_samples(folder)
+                return sum(1 for _ in folder.iterdir())
+
+        written = await to_thread.run_sync(fill)
+        return f"{written} sample files and folders"
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._catalog.list_children(node_id)

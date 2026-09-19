@@ -139,7 +139,7 @@ const modes = [
         <AppInput
           v-if="asksFor.includes('user')"
           v-model="user"
-          label="Role to create (optional)"
+          label="User to create (optional)"
           data-testid="service-user"
         />
         <AppInput

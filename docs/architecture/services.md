@@ -110,8 +110,9 @@ Known deviations:
   target within its major version. A digest would be exact; keeping digests
   current is its own maintenance, and the tag is what the project's own
   `compose.yml` uses.
-- **There are three templates.** PostgreSQL and Redis, which is what proves
-  the registry is not one image with steps around it (D85),
+- **There are four templates.** PostgreSQL and Redis, which is what proves
+  the registry is not one image with steps around it (D85), an SSH server
+  ([D153](sources/ssh.md)),
   and TimescaleDB — the extension's own image, because its files and its
   preloaded library are not something a connection can install, and an
   ordinary PostgreSQL connector all the same ([D119](sources/timescale.md#d119-timescale-is-composed-into-postgresql-without-another-source-identity)).
@@ -481,7 +482,6 @@ Known deviations:
   and it may still name a host or a database.
 
 Spec: [Copying a database out, and putting it back](../decisions/2026-09-03-backup-and-restore-design.md)
-\n
 ## D88. Two ways to ask for a service, and neither of them names a container
 
 One button that starts a database is a demonstration; a form with eight fields

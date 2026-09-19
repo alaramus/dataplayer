@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-19 | [An SSH server this application starts](2026-09-19-ssh-service-design.md) | D153: an SSH server is a service template; its connector is pinned to the key the container presents first, over this server's own network; an automatic start fills its home with the sample files |
 | 2026-09-19 | [A remote tree of files through the explorer](2026-09-19-remote-files-design.md) | D152: a remote file is read from a local copy per version, beside the homes and out of their reach; 200 MB a file, 1 GB in all, an hour unread; a search reads files up to 1 MB |
 | 2026-09-19 | [One explorer over every tree of files](2026-09-19-file-explorer-design.md) | D150–D151: the file source's catalog, formats, SQL, editor, search and actions are one explorer over a storage a source brings; the storage is synchronous and asked from worker threads; the local disk is the first storage |
 | 2026-09-19 | [A terminal on an SSH connection](2026-09-19-terminal-design.md) | D148–D149: a terminal is a socket of its own, authenticated by its first frame and never reconnecting; only the owner opens one, the shell runs on the server in a pty and ends with the socket, eight at a time per person |

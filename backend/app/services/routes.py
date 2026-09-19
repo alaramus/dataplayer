@@ -55,12 +55,13 @@ from app.services.models import (
     StartRequest,
     password_survives_where_it_goes,
 )
-from app.services.plan import Placement, settled_names
+from app.services.plan import Endpoint, Placement, described_options, settled_names
 from app.services.templates import (
     DATABASE,
     PASSWORD,
     USER,
     UnknownServiceTemplate,
+    shape_of,
 )
 from app.users.deps import (
     CurrentUser,
@@ -909,23 +910,32 @@ def _credentials_of(service: ManagedService) -> ServiceCredentials:
     template = templates.template_for(service.template_key)
     names = settled_names(template, service.chosen_credentials)
     published = service.published_port
-    parts = {
-        "host": PUBLISHED_HOST,
-        "port": published,
-        "user": names.get(USER),
-        "database": names.get(DATABASE),
-    }
     return ServiceCredentials(
         host=PUBLISHED_HOST if published is not None else None,
         port=published,
         user=names.get(USER),
         database=names.get(DATABASE),
         password_mode=cast(PasswordMode, service.password_mode),
-        url=_url_of(registry.get(template.adapter_type), parts)
+        url=_url_of(
+            registry.get(template.adapter_type), _parts_of(service, names, published)
+        )
         if published is not None
         else None,
         unreachable_reason=None if published is not None else NOT_PUBLISHED,
     )
+
+
+def _parts_of(
+    service: ManagedService, known: Mapping[templates.CredentialSlot, str], port: int
+) -> dict[str, Any]:
+    """The service's connector options at the address a person can use.
+
+    In the adapter's own field names, so the source type writes its address
+    from them as it would from its form.
+    """
+    template = templates.template_for(service.template_key)
+    shape = shape_of(template, protected=service.password_mode != "none")
+    return dict(described_options(shape, known, Endpoint(PUBLISHED_HOST, port)))
 
 
 async def _password_of(
@@ -967,23 +977,19 @@ def _revealed(service: ManagedService, password: str | None) -> RevealedCredenti
     what the two functions exist to make visible.
     """
     shown = _credentials_of(service)
-    if password is None or shown.port is None:
-        return RevealedCredentials(**shown.model_dump(), password=password)
     template = templates.template_for(service.template_key)
+    kind = registry.get(template.adapter_type)
+    # A type whose address cannot carry a password — nothing takes one in an
+    # `ssh://` line — keeps the address without it.
+    if password is None or shown.port is None or not issubclass(
+        kind.adapter_class, ComposesSecretUrl
+    ):
+        return RevealedCredentials(**shown.model_dump(), password=password)
     names = settled_names(template, service.chosen_credentials)
     return RevealedCredentials(
         **shown.model_dump(exclude={"url"}),
         password=password,
-        url=_secret_url_of(
-            registry.get(template.adapter_type),
-            {
-                "host": PUBLISHED_HOST,
-                "port": shown.port,
-                "user": names.get(USER),
-                "database": names.get(DATABASE),
-                "password": password,
-            },
-        ),
+        url=_secret_url_of(kind, _parts_of(service, {**names, PASSWORD: password}, shown.port)),
     )
 
 

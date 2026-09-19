@@ -512,6 +512,34 @@ async def test_the_password_is_handed_over_once_and_then_refused(
     assert made not in listening.text
 
 
+async def test_a_started_ssh_server_is_told_as_the_line_ssh_takes(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """In the adapter's own words, and without the password even when it is
+    handed over: nothing that speaks SSH takes one in an address (D89)."""
+    engine.gives_port = 49222
+    response = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={"template_key": "ssh"}
+    )
+    assert response.status_code == 200, response.text
+    service_id = response.json()["service"]["id"]
+    await _wait(response.json()["job"]["id"])
+    made = engine.created[0].environment["USER_PASSWORD"]
+
+    shown = await client.get(
+        f"{BASE}/{service_id}/credentials", headers=normal_user_token_headers
+    )
+    handed = await client.post(
+        f"{BASE}/{service_id}/credentials/reveal", headers=normal_user_token_headers
+    )
+
+    assert shown.json()["user"] == "dataplayer"
+    assert shown.json()["database"] is None
+    assert shown.json()["url"] == "ssh://dataplayer@127.0.0.1:49222"
+    assert handed.json()["password"] == made
+    assert handed.json()["url"] == "ssh://dataplayer@127.0.0.1:49222"
+
+
 async def test_a_service_started_without_one_has_no_password_to_hand_over(
     client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:

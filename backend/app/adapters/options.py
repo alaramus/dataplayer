@@ -108,10 +108,25 @@ def key_reference_names(schema: OptionsSchema) -> set[str]:
     refuse deleting a key a connection still signs in with (D146) would
     otherwise keep a list of which option of which source names a key.
     """
+    return _named_for(schema, KEY_REFERENCE)
+
+
+# What a field holding the one server key a connection trusts says it is for
+# (D145), so the form fetches and compares, and a service this server started
+# can have its key pinned without a list of which source keeps it where (D153).
+SERVER_KEY = "ssh-host-key"
+
+
+def server_key_names(schema: OptionsSchema) -> set[str]:
+    """Names of fields that hold the server key a connection has pinned."""
+    return _named_for(schema, SERVER_KEY)
+
+
+def _named_for(schema: OptionsSchema, purpose: str) -> set[str]:
     return {
         name
         for variant in variants(schema)
         for name, field in variant.model_fields.items()
         if isinstance(field.json_schema_extra, dict)
-        and field.json_schema_extra.get("x-ui-purpose") == KEY_REFERENCE
+        and field.json_schema_extra.get("x-ui-purpose") == purpose
     }

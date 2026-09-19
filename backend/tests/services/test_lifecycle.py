@@ -2,12 +2,14 @@
 
 import json
 import uuid
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Iterator, Mapping
+from pathlib import Path
 from typing import Any
 
 import pytest
 from httpx import AsyncClient
 
+from app.adapters.ssh import keys
 from app.connectors.models import Connector
 from app.connectors.service import merge_options
 from app.core.config import settings
@@ -377,6 +379,45 @@ async def test_the_connector_holds_what_the_container_was_started_with(
     assert options["user"] == started.environment["POSTGRES_USER"]
     assert options["database"] == started.environment["POSTGRES_DB"]
     assert options["password"] == started.environment["POSTGRES_PASSWORD"]
+
+
+async def test_a_started_ssh_server_keeps_the_key_it_answered_with(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """What the source answered to is what the connector keeps: the server
+    key a started SSH server presented is the one its connection trusts
+    (D153)."""
+    engine = FakeEngine()
+    presented = keys.generate("ed25519", None).facts.public_key
+
+    async def pinning(
+        _adapter_type: str,
+        options: Mapping[str, str | int],
+        *,
+        home_dir: Path,
+        timeout_seconds: int,
+    ) -> dict[str, str | int] | None:
+        del home_dir, timeout_seconds
+        return {**options, "host_key": presented}
+
+    with engine_of(app, engine, probe=pinning):
+        accepted = await _ask_for_one(client, normal_user_token_headers, "ssh")
+        await _wait(accepted["job"]["id"])
+
+    started = engine.created[0]
+    async with async_session_maker() as session:
+        service = await session.get(ManagedService, uuid.UUID(accepted["service"]["id"]))
+        assert service is not None and service.connector_id is not None
+        connector = await session.get(Connector, service.connector_id)
+        assert connector is not None
+        options = merge_options(connector.config, connector.secrets)
+
+    assert connector.adapter_type == "ssh"
+    assert options["host_key"] == presented
+    assert options["host"] == started.name
+    assert options["port"] == 2222
+    assert options["username"] == started.environment["USER_NAME"]
+    assert options["password"] == started.environment["USER_PASSWORD"]
 
 
 async def test_the_password_is_not_stored_in_the_clear_anywhere(

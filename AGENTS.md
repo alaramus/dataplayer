@@ -221,6 +221,7 @@ files. IDs are stable because specs and commits refer to them.
 | D150 | [sources/explorer](docs/architecture/sources/explorer.md) |
 | D151 | [sources/explorer](docs/architecture/sources/explorer.md) |
 | D152 | [sources/explorer](docs/architecture/sources/explorer.md) |
+| D153 | [sources/ssh](docs/architecture/sources/ssh.md) |
 
 ## Working rules
 

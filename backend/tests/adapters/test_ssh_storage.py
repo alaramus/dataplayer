@@ -167,6 +167,20 @@ async def test_a_folder_is_archived_and_extracted_on_the_server(adapter: SshAdap
     assert [node.name for node in unpacked] == ["q3.csv"]
 
 
+async def test_a_server_is_filled_with_the_sample_files(adapter: SshAdapter) -> None:
+    """What an SSH server this application started is given to look at
+    (D153): every file sent, the folders with what is inside them."""
+    await adapter.install_sample_data()
+
+    top = {node.name for node in await adapter.list_children(None)}
+    inside = [node.name for node in await adapter.list_children("reports")]
+    page = await adapter.fetch(FetchRequest(node_id="sample.csv"))
+
+    assert {"sample.csv", "guide.md", "bundle.zip", "cities.parquet", "empty"} <= top
+    assert inside == ["q3.csv"]
+    assert page.rows[0][1] == "city-1"
+
+
 async def test_a_file_larger_than_a_copy_is_offered_as_a_download(
     adapter: SshAdapter, monkeypatch: pytest.MonkeyPatch
 ) -> None:

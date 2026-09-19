@@ -302,7 +302,54 @@ REDIS = ServiceTemplate(
 )
 
 
-SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, TIMESCALE, REDIS)
+SSH = ServiceTemplate(
+    key="ssh",
+    title="SSH server",
+    description=(
+        "A Linux machine of its own to reach over SSH, started on this machine "
+        "with a password nobody has to choose: its files open in the explorer, "
+        "and a terminal opens on it."
+    ),
+    # The image the old application started and the development override
+    # runs. Its home is `/config`, which is why the volume goes there: the
+    # user's files and the server's own keys outlive a restart together.
+    image="lscr.io/linuxserver/openssh-server:10.3_p1-r1-ls236",
+    container_port=2222,
+    data_path="/config",
+    credentials={
+        USER: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({USER, PASSWORD}),
+    environment={
+        # The account the image creates. Its ids are the image's defaults, so
+        # what is written to the volume belongs to the user who signs in.
+        "PUID": Fixed("1000"),
+        "PGID": Fixed("1000"),
+        "USER_NAME": USER,
+        "USER_PASSWORD": PASSWORD,
+        "PASSWORD_ACCESS": Fixed("true"),
+        # A machine somebody started to try things on: installing a package
+        # asks for the same password.
+        "SUDO_ACCESS": Fixed("true"),
+    },
+    command=(),
+    adapter_type="ssh",
+    # No server key: nothing can know it before the container has made one,
+    # so the job pins the one it presents first (D153).
+    connector_options={
+        "auth_method": Fixed("password"),
+        "host": HOST,
+        "port": PORT,
+        "username": USER,
+        "password": PASSWORD,
+    },
+    # It makes its keys and its user before it listens.
+    startup_timeout_seconds=60,
+)
+
+
+SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, TIMESCALE, REDIS, SSH)
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}
 

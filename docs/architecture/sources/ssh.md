@@ -4,7 +4,7 @@ A server reached over SSH as a source, the server key a connection trusts,
 and the SSH keys a person signs in with. Read this before changing how an SSH
 connection signs in, what it trusts, or where a private key is kept.
 
-Decisions here: D144, D145, D146, D147.
+Decisions here: D144, D145, D146, D147, D153.
 
 ```
 backend/app/adapters/
@@ -108,7 +108,8 @@ before anything is trusted.
   key is refused before signing in, with a sentence that says so.
 - **Trusting a new key is the owner's act** in the form: fetch, compare, trust.
   A reinstalled server is a real reason, and a silent re-pin would make the
-  check worthless.
+  check worthless. The one exception is a server this application started
+  itself (D153).
 - **There is no "do not verify" setting.** The old application had one as its
   only mode.
 - **`POST /connectors/server-key`** describes the pinned key without a network
@@ -194,3 +195,37 @@ Known deviations:
   mode waits out the 30 seconds.
 
 Spec: [An SSH source, its server key and its keys](../../decisions/2026-09-19-ssh-source-design.md)
+
+## D153. An SSH server this application started trusts the key it presented first
+
+The catalog starts one like a PostgreSQL (D80): a template in
+`services/templates.py`, the image `lscr.io/linuxserver/openssh-server` pinned
+by tag, the one volume on its home `/config`, the account `dataplayer` with a
+password made up here, and a connector filled from the same plan.
+
+- **The key is pinned by the job, not by a person.** Nothing knows it before
+  the container has made one, so the readiness probe asks for it first and
+  answers with the options the source then succeeded with; the job saves those.
+  The container was made moments before and is reached by its name on this
+  server's own network, the path a PostgreSQL service is sent its password
+  along with nothing checked. Every later connection is checked against it.
+- **Which field holds the key is read off the schema**, by the purpose the
+  form already uses (`ssh-host-key`), the way key references are (D146).
+- **The key is asked for once it answers.** OpenSSH shuts out an address that
+  keeps connecting without signing in, and asking for a key is that; a port
+  nothing listens on yet refuses without counting.
+- **An automatic start fills the home** with the sample files a development
+  stack seeds into a personal home, written through the explorer's own storage
+  from `explorer/samples.py`.
+- **Its address is `ssh://user@127.0.0.1:port`**, written by the adapter, and
+  stays without a password when the password is handed over: no SSH client
+  takes one in an address (D89).
+
+Known deviations:
+
+- **A key is not offered.** The old application could start a server that
+  took one of its owner's keys; here it takes a password.
+- **The image is the one the development override runs**, with `latest` there
+  and a pinned tag here.
+
+Spec: [An SSH server this application starts](../../decisions/2026-09-19-ssh-service-design.md)

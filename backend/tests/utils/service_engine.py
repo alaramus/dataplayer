@@ -32,6 +32,7 @@ from app.services.engine import (
 from app.services.jobs import handlers
 from app.services.models import ManagedService
 from app.services.plan import ContainerSpec
+from app.services.readiness import ReadinessProbe
 from app.services.tools import ToolResult, ToolRun
 
 
@@ -149,15 +150,15 @@ def probe_answering(ready: bool) -> Any:
 
     async def probe(
         _adapter_type: str,
-        _options: Mapping[str, Any],
+        options: Mapping[str, str | int],
         *,
         home_dir: Path,
         timeout_seconds: int,
-    ) -> bool:
+    ) -> dict[str, str | int] | None:
         # The signature is the protocol's; what it is asked makes no
         # difference to an answer a test has already decided.
         del home_dir, timeout_seconds
-        return ready
+        return dict(options) if ready else None
 
     return probe
 
@@ -196,6 +197,7 @@ def engine_of(
     network: str = "test-network",
     storage_volume: str = "test-storage",
     filler: FakeFiller | None = None,
+    probe: ReadinessProbe | None = None,
 ) -> Iterator[None]:
     """Run the application as one that can start services, and put it back.
 
@@ -208,11 +210,12 @@ def engine_of(
     saved_network = settings.SERVICE_NETWORK
     saved_storage = settings.SERVICE_STORAGE_VOLUME
     application.state.service_engine = engine
+    answering = probe or probe_answering(ready)
     application.state.job_runner = JobRunner(
         {
-            **handlers(engine, probe_answering(ready), filler or FakeFiller()),
+            **handlers(engine, answering, filler or FakeFiller()),
             **backup_handlers(engine),
-            **metrics_handlers(engine, probe_answering(ready)),
+            **metrics_handlers(engine, answering),
         }
     )
     settings.SERVICE_NETWORK = network

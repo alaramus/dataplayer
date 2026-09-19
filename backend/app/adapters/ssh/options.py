@@ -16,11 +16,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
-from app.adapters.options import KEY_REFERENCE
-
-# What the field holding the server's key says it is, so the form offers to
-# fetch and confirm one rather than a box to paste into.
-HOST_KEY = "ssh-host-key"
+from app.adapters.options import KEY_REFERENCE, SERVER_KEY
 
 
 def _auth_method_field(value: str) -> Any:
@@ -58,7 +54,7 @@ class _SshBase(BaseModel):
         max_length=16_384,
         title="Server key",
         description="What this server proves itself with; fetch it and compare",
-        json_schema_extra=layout(purpose=HOST_KEY),
+        json_schema_extra=layout(purpose=SERVER_KEY),
     )
 
 

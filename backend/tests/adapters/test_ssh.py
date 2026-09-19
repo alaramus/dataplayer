@@ -135,3 +135,17 @@ def test_a_node_id_is_the_path_below_the_root() -> None:
 
     assert remote.path_of(None) == "/home/somebody"
     assert remote.path_of("logs/today.log") == "/home/somebody/logs/today.log"
+
+
+@pytest.mark.parametrize(
+    ("options", "line"),
+    [
+        ({"host": "example.org", "username": "deploy", "port": 22}, "ssh://deploy@example.org"),
+        ({"host": "127.0.0.1", "username": "dataplayer", "port": 49222}, "ssh://dataplayer@127.0.0.1:49222"),
+        ({"host": "::1", "username": "a@b", "port": 2222}, "ssh://a%40b@[::1]:2222"),
+        ({"host": "example.org"}, "ssh://example.org"),
+        ({"host": " "}, None),
+    ],
+)
+def test_the_address_is_the_line_openssh_takes(options: dict[str, object], line: str | None) -> None:
+    assert SshAdapter.draft_connection_string(options) == line
