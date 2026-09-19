@@ -20,6 +20,7 @@ from app.adapters.ssh.adapter import SshAdapter
 from app.adapters.ssh.options import SshKeyAuth, SshPassword
 from app.adapters.terminal import Terminal, TerminalSize
 from tests.utils import services
+from tests.utils.ssh import pinned_key
 
 
 class _LockedKeys:
@@ -40,7 +41,7 @@ def server() -> dict[str, object]:
 
 @pytest.fixture
 async def adapter(server: dict[str, object]) -> SshAdapter:
-    pinned = (await SshAdapter.presented_server_key(server)).public_key
+    pinned = await pinned_key(str(server["host"]), int(str(server["port"])))
     options = SshPassword.model_validate(
         {"auth_method": "password", **server, "host_key": pinned}
     )

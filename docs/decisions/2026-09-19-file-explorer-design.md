@@ -3,8 +3,8 @@
 Date: 2026-09-19. Decisions: D150, D151.
 
 Status: the explorer and the local storage are implemented with this
-specification. SSH moves onto it next; FTP and object stores follow when they
-are asked for.
+specification, and SSH is its second storage (D144, D152). FTP and object
+stores follow when they are asked for.
 
 ## What was asked
 
@@ -64,10 +64,8 @@ Considered and set aside:
 
 ## Left for later
 
-- **SSH on the explorer**: an SFTP storage, a cache of local copies with a
-  size ceiling, and what a copy may cost in time and disk — questions put to
-  the owner and not yet answered.
-- **Content search on a remote storage**, which reads every file it looks at.
+- **SSH on the explorer** was left here and answered by the owner; it is
+  [A remote tree of files through the explorer](2026-09-19-remote-files-design.md).
 - **A folder of a remote source as a connection of its own**: the draft would
   carry the connection's secrets to the browser, so it is left out until that
   is solved.

@@ -23,7 +23,9 @@ backend/app/adapters/
 │   ├── storage.py      LocalStorage: the server's own disk below a home
 │   ├── options.py      the folder inside the home
 │   └── adapter.py      FileAdapter(Explorer), registered as `file`
-└── ssh/                an SSH server; on the explorer next (ssh.md)
+└── ssh/
+    ├── storage.py      SftpStorage: a server's files over SFTP (ssh.md)
+    └── adapter.py      SshAdapter(Explorer) without ConnectFolder, and a terminal
 ```
 
 ## D150. A source made of files is a storage under one explorer
@@ -74,9 +76,6 @@ than in front of all of them.
 
 Known deviations:
 
-- **Only the local disk is a storage so far.** SSH reads over SFTP on its own
-  (D144) until it is moved onto the explorer; that move removes its catalog,
-  reader and actions.
 - **A listing reads every entry's facts.** The local disk used to count a
   folder before describing it; `entries` describes what it lists, so a folder
   the catalog refuses as too large is described first and refused after.

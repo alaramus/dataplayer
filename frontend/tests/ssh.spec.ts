@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 
+import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
 import { fillSshServer } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector } from "./utils/workspace"
@@ -56,7 +57,35 @@ test("an SSH server is trusted by its key before anything is sent, and then brow
 
   await connectorRow(page, name).click()
   // The user's home on the development server holds the server's own logs.
-  await expect(page.getByTestId("catalog-list")).toContainText("logs")
+  const list = page.getByTestId("catalog-list")
+  await expect(list).toContainText("logs")
+
+  // The file explorer over SFTP (D150): a CSV sent to the server opens as
+  // rows, which the SSH source could not do before it was one.
+  const folder = `e2e-ssh-${Date.now()}`
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("action-dialog").getByRole("textbox").first().fill(folder)
+  await page.getByTestId("action-submit").click()
+  await expect(list).toContainText(folder)
+  await openNode(page, folder)
+  await catalogAction(page, "upload")
+  await page.getByTestId("action-file").setInputFiles({
+    name: "sales.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("id,region\n1,north\n2,south\n"),
+  })
+  await page.getByTestId("action-submit").click()
+  await expect(list).toContainText("sales.csv")
+  await openNode(page, "sales.csv")
+  const grid = page.getByTestId("row-grid")
+  await expect(grid).toContainText("region")
+  await expect(grid.locator("tbody tr")).toHaveCount(2)
+
+  await page.getByTestId("catalog-up").click()
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toHaveCount(0)
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

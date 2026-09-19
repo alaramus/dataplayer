@@ -13,11 +13,9 @@ backend/app/adapters/
     ├── keys.py         the one place asyncssh reads a key: make, import, describe
     ├── options.py      password or key, the folder, the pinned server key
     ├── session.py      signing in, the kept connection, the library's failures
-    ├── catalog.py      folders over SFTP, one level at a time
-    ├── content.py      a text file: a bounded page, or the editor's document
-    ├── actions.py      new folder, upload, download, rename, delete
+    ├── storage.py      SftpStorage: the server's files for the explorer (explorer.md)
     ├── terminal.py     the login shell in a pty (D149, ../terminals.md)
-    └── adapter.py      facade and registration
+    └── adapter.py      SshAdapter(Explorer), the terminal, registration
 backend/app/connectors/
 ├── ssh_keys.py         SshKey, OwnerKeys, which connections use a key
 ├── keyring.py          passphrases held in memory for a while
@@ -41,31 +39,37 @@ POST   /api/v1/ssh-keys/{key_id}/lock
 POST   /api/v1/connectors/server-key
 ```
 
-## D144. An SSH server is a folder tree read over SFTP, from where the connection stands
+## D144. An SSH server is the file explorer over SFTP, from where the connection stands
 
 The old application listed a folder by running `ls -la` and parsing the
-output. Here nothing runs a command on the server: the catalog, the reader and
-the actions are SFTP requests, so no name typed into a form ever reaches a
-shell. The one shell is the terminal its owner types into ([D149](../terminals.md)).
+output, and read, archived and searched with commands of its own. Here the
+source is the file explorer (D150) over a storage that speaks SFTP, so it does
+what the file source does — tables, SQL over files, the editor, archives,
+search, paste — and nothing runs a command on the server: no name typed into a
+form ever reaches a shell. The one shell is the terminal its owner types into
+([D149](../terminals.md)).
 
-- **The catalog stands in the connection's folder**, the user's home when it
+- **The explorer stands in the connection's folder**, the user's home when it
   names none, and walks down from there. A node id is the path below that
   folder, and every segment must be a plain name — the file source's rule — so
   no `..` from a client becomes a path. The folder is where browsing stands,
   not a wall: the server's own permissions decide what the user may read, and
   somebody who wants the whole disk writes `/`.
-- **Files and folders are the file source's node kinds.** A link is described
-  by what it points at; a broken one is left out.
-- **A file opens as text, and Markdown as a document.** Chosen by name with the
-  file source's rules, narrowed to what this source reads: a table, an image or
-  a player over SFTP would be buttons that fail. Text is the editor's document
-  (D48): saved only while it is still the version read, written beside the
-  file and moved over it with the file's own permissions, so a script stays
-  executable.
-- **Five actions, on the file source's forms**: a new folder, an upload, a
-  download, a rename and a delete. The folder the connection stands in is added
-  to and never renamed or removed. An upload is written beside its destination
-  and moved into place, replacing atomically where OpenSSH allows.
+- **A link is described by what it points at**, and a broken one is left out.
+  A download refuses one, and so does a folder that passes through this server
+  whole — for an archive, or a copy the server cannot make itself.
+- **What a library reads from a path is a local copy** (D152), bounded to
+  200 MB a file; a larger file is downloaded instead. A search by content reads
+  files up to 1 MB.
+- **A write is sent beside its name and moved into place.** A new name is
+  claimed with the plain rename, which refuses an existing one; a replacement
+  keeps the file's own permissions, so a script stays executable, and is moved
+  over atomically where OpenSSH allows. The version a document was read as is
+  its modification time and size.
+- **A copy is the server's own** where it offers one (`copy-data`), and passes
+  through this server otherwise, within the same 200 MB.
+- **A folder of a server is not offered as a connection of its own**: the draft
+  would carry this connection's credentials to the browser.
 - **A stored connection keeps its connection** in the resource store (D10) and
   signs in again when the server has closed it. A check always signs in afresh.
 - **The library's defaults that reach outside the connection are refused**:
@@ -76,10 +80,11 @@ Known deviations:
 
 - **A folder always claims children.** Asking would cost a round trip per
   folder of a listing; an empty one opens to nothing.
-- **A download is one file.** A folder or a selection is refused rather than
-  archived.
-- **No search, no summary, no rows.** The file source's readers work on local
-  paths and are not reused over SFTP yet.
+- **A modification time counts seconds.** Two writes of one size within a
+  second would look like one version, so the storage drops its copies of what
+  it has just written and sets a replaced file's time at least a second past
+  the one it replaced, by this server's clock. A change of the same size made by
+  somebody else within the second of a read is not seen until the next one.
 - **The address is the client's.** Fetching a server key opens a connection to
   a host the form names, the SSRF of D2's check-draft.
 
@@ -183,5 +188,9 @@ Known deviations:
   and the backend is one process (D124).
 - **A shared connection stops for its grantees while its owner's key is
   locked.** That is the time limit working, and the grantee cannot unlock it.
+- **A source keeps the key it read for 30 seconds.** A listing is many requests
+  of the server and each would read the database again. The keyring is still
+  asked on every use, so locking takes effect at once; a changed passphrase
+  mode waits out the 30 seconds.
 
 Spec: [An SSH source, its server key and its keys](../../decisions/2026-09-19-ssh-source-design.md)

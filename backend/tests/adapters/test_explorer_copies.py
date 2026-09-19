@@ -132,6 +132,26 @@ def test_a_failed_fetch_leaves_nothing_and_is_tried_again(copies: Copies) -> Non
     assert not list(path.parent.glob("*.part"))
 
 
+def test_a_file_the_storage_wrote_is_fetched_again_even_under_the_same_version(
+    copies: Copies,
+) -> None:
+    """SFTP counts time in seconds, so a write may leave the version it had."""
+    remote = _Remote()
+    with copies.held("server", "a/x.csv", "x.csv", "v1", 3, remote.fetcher(b"old", "first")):
+        pass
+    with copies.held("server", "b.csv", "b.csv", "v1", 3, remote.fetcher(b"bbb", "other")) as other:
+        copies.forget("server", lambda key: True)
+        assert other.exists()
+
+    copies.forget("server", lambda key: key.startswith("a/"))
+    with copies.held("server", "a/x.csv", "x.csv", "v1", 3, remote.fetcher(b"new", "again")) as path:
+        assert path.read_bytes() == b"new"
+    with copies.held("server", "b.csv", "b.csv", "v1", 3, remote.fetcher(b"bbb", "other")):
+        pass
+
+    assert remote.fetched == ["first", "other", "again"]
+
+
 def test_a_scratch_folder_goes_with_its_block(copies: Copies) -> None:
     with copies.scratch("server") as folder:
         (folder / "staged").write_bytes(b"x")

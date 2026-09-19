@@ -1,80 +1,54 @@
-"""An SSH server as a source: its folders over SFTP, the file actions, a terminal.
+"""An SSH server as a source: the file explorer over SFTP, and a terminal.
 
-The catalog, the reader and the actions go over SFTP and run no command on the
-server, so no string of a form's ever reaches a shell (D144). The one shell is
-the terminal, which its owner types into (D149).
+Everything the file source does, it does here — tables, SQL over files, the
+editor, archives, search, the file actions — because it is the same explorer
+over another storage (D150). The catalog, the reader and the actions go over
+SFTP and run no command on the server, so no string of a form's ever reaches a
+shell (D144). The one shell is the terminal, which its owner types into (D149).
 
 `asyncssh` is imported by this package and by nothing else, the rule `psycopg`
 follows: a library upgrade has one place to change.
 """
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, ClassVar
 
-from app.adapters.actions import Action, ActionType
-from app.adapters.catalog import CatalogNode
-from app.adapters.content import (
-    ContentRequest,
-    ContentResult,
-    ContentUpdated,
-    EditorContent,
-    EditorContentRequest,
-    UpdateContentRequest,
-)
 from app.adapters.credentials import ServerKey
+from app.adapters.explorer.actions import (
+    EXPLORER_ACTION_TYPES,
+    ConnectFolder,
+    ExplorerActionType,
+)
+from app.adapters.explorer.explorer import Explorer
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.ssh import keys
-from app.adapters.ssh.actions import SSH_ACTION_TYPES, SshActions
-from app.adapters.ssh.catalog import SshCatalog
-from app.adapters.ssh.content import SshContent
 from app.adapters.ssh.options import SshOptions
-from app.adapters.ssh.session import SshSession, server_key
+from app.adapters.ssh.session import SshSession, identity_of, server_key
+from app.adapters.ssh.storage import SftpStorage
 from app.adapters.ssh.terminal import SshTerminal
 from app.adapters.terminal import Terminal, TerminalSize
 
 DEFAULT_PORT = 22
 
 
-class SshAdapter:
-    """Everything this application can do with an SSH server, composed here."""
+class SshAdapter(Explorer):
+    """The explorer over one folder of a server, and a shell on it."""
+
+    # A folder of a server does not become a connection of its own: the draft
+    # would carry this connection's credentials to the browser.
+    explorer_action_types: ClassVar[tuple[ExplorerActionType, ...]] = tuple(
+        action_type
+        for action_type in EXPLORER_ACTION_TYPES
+        if action_type is not ConnectFolder
+    )
 
     def __init__(self, options: SshOptions, context: AdapterContext) -> None:
         self._session = SshSession(options, context)
-        self._catalog = SshCatalog(self._session)
-        self._content = SshContent(self._session)
-        self._actions = SshActions(self._session)
+        super().__init__(SftpStorage(self._session, owner=identity_of(options)))
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
-
-    async def list_children(self, node_id: str | None) -> list[CatalogNode]:
-        return await self._catalog.list_children(node_id)
-
-    async def path_to(self, node_id: str) -> list[CatalogNode]:
-        return await self._catalog.path_to(node_id)
-
-    async def read_content(self, request: ContentRequest) -> ContentResult:
-        return await self._content.read_content(request)
-
-    async def read_editor_content(self, request: EditorContentRequest) -> EditorContent:
-        return await self._content.read_editor_content(request)
-
-    async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
-        return await self._content.update_content(request)
-
-    async def available(self, node_id: str | None) -> list[Action[Any]]:
-        return await self._actions.available(node_id)
-
-    def action(self, name: str) -> Action[Any]:
-        return self._actions.action(name)
-
-    async def all_actions(self) -> list[Action[Any]]:
-        return await self._actions.all_actions()
-
-    @classmethod
-    def action_types(cls) -> tuple[ActionType, ...]:
-        return SSH_ACTION_TYPES
 
     async def open_terminal(self, size: TerminalSize) -> Terminal:
         return await SshTerminal.open(self._session, size)
@@ -110,11 +84,10 @@ def _described(public_key: str) -> ServerKey:
     title="SSH",
     category="files",
     description=(
-        "A server reached over SSH. Browse its folders from where you choose, "
-        "read and edit its text files, upload, download, rename and delete, and "
-        "open a terminal on it. Signs in "
-        "with a password or one of your SSH keys, and only to the server whose "
-        "key you confirmed."
+        "A server reached over SSH. Browse its folders from where you choose and "
+        "work with its files as with your own: tables, SQL over files, the "
+        "editor, archives, search, and a terminal. Signs in with a password or "
+        "one of your SSH keys, and only to the server whose key you confirmed."
     ),
     options_schema=SshOptions,
     adapter_class=SshAdapter,

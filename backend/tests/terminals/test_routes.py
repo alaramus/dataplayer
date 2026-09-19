@@ -16,13 +16,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from wsproto.events import BytesMessage, TextMessage
 
 from app.adapters.ssh import keys
-from app.adapters.ssh.adapter import SshAdapter
 from app.core.config import settings
 from app.terminals.slots import SLOTS
 from app.users import crud
 from app.users.models import User
 from tests.utils import services
 from tests.utils.socket import hung_up_on, open_socket, token_of
+from tests.utils.ssh import pinned_key
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
@@ -250,7 +250,7 @@ async def server_connector(
         "username": parts.username,
         "password": parts.password,
     }
-    pinned = (await SshAdapter.presented_server_key(server)).public_key
+    pinned = await pinned_key(str(server["host"]), int(str(server["port"])))
     return await _connector(
         client,
         normal_user_token_headers,

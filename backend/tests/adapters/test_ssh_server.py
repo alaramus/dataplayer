@@ -29,6 +29,7 @@ from app.adapters.ssh.adapter import SshAdapter
 from app.adapters.ssh.options import SshKeyAuth, SshPassword
 from app.adapters.ssh.session import connect
 from tests.utils import services
+from tests.utils.ssh import pinned_key
 
 
 class _Payload:
@@ -66,7 +67,7 @@ def server() -> dict[str, object]:
 
 @pytest.fixture
 async def pinned(server: dict[str, object]) -> str:
-    return (await SshAdapter.presented_server_key(server)).public_key
+    return await pinned_key(str(server["host"]), int(str(server["port"])))
 
 
 def _options(server: dict[str, object], pinned: str, **changes: object) -> SshPassword:
@@ -80,10 +81,24 @@ def _context(keys_at_hand: _Keys | None = None, pooling: Pooling | None = None) 
 
 
 @pytest.fixture
-async def folder(server: dict[str, object], pinned: str) -> AsyncGenerator[str]:
+async def kept() -> AsyncGenerator[Pooling]:
+    """A kept connection, as a stored connection has one (D10).
+
+    The explorer asks the server many small things for one request (D150), and
+    a connection each would soon be more than the server lets in at once.
+    """
+    store = ResourceStore(max_entries=4, max_idle_seconds=60)
+    try:
+        yield Pooling(store=store, connector_id=uuid.uuid4())
+    finally:
+        await store.aclose()
+
+
+@pytest.fixture
+async def folder(server: dict[str, object], pinned: str, kept: Pooling) -> AsyncGenerator[str]:
     """A folder of this test's own, below the home folder."""
     name = f"test-{uuid.uuid4().hex[:12]}"
-    home = SshAdapter(_options(server, pinned), _context())
+    home = SshAdapter(_options(server, pinned), _context(pooling=kept))
     await home.action("create_folder").perform(None, {"name": name})
     try:
         yield name
@@ -92,8 +107,10 @@ async def folder(server: dict[str, object], pinned: str) -> AsyncGenerator[str]:
 
 
 @pytest.fixture
-def adapter(server: dict[str, object], pinned: str, folder: str) -> SshAdapter:
-    return SshAdapter(_options(server, pinned, path=folder), _context())
+def adapter(
+    server: dict[str, object], pinned: str, folder: str, kept: Pooling
+) -> SshAdapter:
+    return SshAdapter(_options(server, pinned, path=folder), _context(pooling=kept))
 
 
 async def test_the_key_the_server_presents_is_the_key_it_is_checked_against(

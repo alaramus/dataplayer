@@ -50,10 +50,13 @@ def test_what_it_can_do_is_read_off_the_driver() -> None:
 
     capabilities = registry.capabilities_of(registry.get("ssh"))
     titles = {item.title for item in capabilities}
+    files = {item.title for item in registry.capabilities_of(registry.get("file"))}
 
-    assert {"Browse the catalog", "View content", "New folder", "Upload files",
-            "Download", "Rename", "Delete"} <= titles
-    assert "Read rows" not in titles
+    # The file explorer over another storage (D150): everything the file
+    # source does, but a folder of a server does not become a connection.
+    assert files - {"Connect folder"} <= titles
+    assert "Connect folder" not in titles
+    assert {"Read rows", "Search inside files", "Paste", "Archive"} <= titles
     # The one shell is the terminal, and a screen asks for it by code (D149).
     assert isinstance(adapter, SupportsTerminal)
     assert "terminal" in {item.code for item in capabilities}

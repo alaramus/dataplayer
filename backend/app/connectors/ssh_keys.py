@@ -11,7 +11,9 @@ every other credential of a connection (D4), and nothing reads it but
 its public half and its fingerprint, which open nothing.
 """
 
+import time
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, cast
 
@@ -243,6 +245,25 @@ def public_of(row: SshKey, used_by: list[SshKeyUse]) -> SshKeyPublic:
     )
 
 
+# How long one holder keeps a key it read from the database. A source made of
+# files asks for its key on every request it makes of the server, and a listing
+# is many of those (D150); a key that asks for its passphrase is still looked
+# up in the keyring on every one of them, so locking it stops the source at
+# once (D147).
+KEPT_SECONDS = 30.0
+
+
+@dataclass(frozen=True)
+class _Read:
+    """A key as it was read, before the keyring is asked about it."""
+
+    read_at: float
+    name: str
+    mode: str
+    private_key: str
+    stored_passphrase: str | None
+
+
 class OwnerKeys:
     """The keys of one person, handed to a source that signs in with one.
 
@@ -259,8 +280,24 @@ class OwnerKeys:
 
     def __init__(self, owner_id: uuid.UUID) -> None:
         self._owner_id = owner_id
+        self._read: dict[uuid.UUID, _Read] = {}
 
     async def signing_key(self, key_id: uuid.UUID) -> SigningKey:
+        found = self._read.get(key_id)
+        if found is None or time.monotonic() - found.read_at > KEPT_SECONDS:
+            found = await self._from_database(key_id)
+            self._read[key_id] = found
+        if found.mode == "ask":
+            held = KEYRING.passphrase(key_id)
+            if held is None:
+                raise AdapterError(
+                    "locked",
+                    f"The SSH key {found.name} is locked; enter its passphrase to use it",
+                )
+            return SigningKey(private_key=found.private_key, passphrase=held)
+        return SigningKey(private_key=found.private_key, passphrase=found.stored_passphrase)
+
+    async def _from_database(self, key_id: uuid.UUID) -> _Read:
         async with async_session_maker() as session:
             row = await get_own(session, key_id, self._owner_id)
         if row is None:
@@ -268,17 +305,15 @@ class OwnerKeys:
                 "config",
                 "The SSH key this connection signs in with is gone; choose another",
             )
-        if row.passphrase_mode == "ask":
-            held = KEYRING.passphrase(row.id)
-            if held is None:
-                raise AdapterError(
-                    "locked",
-                    f"The SSH key {row.name} is locked; enter its passphrase to use it",
-                )
-            return SigningKey(private_key=private_key_of(row), passphrase=held)
         stored = (
             crypto.decrypt(row.passphrase, purpose="connector").decode()
             if row.passphrase_mode == "stored" and row.passphrase is not None
             else None
         )
-        return SigningKey(private_key=private_key_of(row), passphrase=stored)
+        return _Read(
+            read_at=time.monotonic(),
+            name=row.name,
+            mode=row.passphrase_mode,
+            private_key=private_key_of(row),
+            stored_passphrase=stored,
+        )

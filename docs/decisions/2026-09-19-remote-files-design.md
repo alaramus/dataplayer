@@ -2,8 +2,8 @@
 
 Date: 2026-09-19. Decisions: D152.
 
-Status: the copies are implemented with this specification; SSH reads through
-them next.
+Status: implemented with this specification. SSH is the first storage to read
+through the copies (D144).
 
 ## What was asked
 

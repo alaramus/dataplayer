@@ -298,11 +298,12 @@ def _closed(connection: asyncssh.SSHClientConnection | None) -> bool:
     return connection is None or connection.is_closed()
 
 
-def _key_for(connector_id: uuid.UUID, options: SshOptions) -> str:
-    """Where this connector's connection, with these options, is kept.
+def identity_of(options: SshOptions) -> str:
+    """One string for a server, an account and the way it is signed in to.
 
-    The options are part of the key so that editing them makes a different
-    connection by itself (D10), and hashed because they hold a password.
+    Hashed because the options hold a password. Two connections that differ in
+    any of it — a different account may read different files — are two
+    identities: the copies of their files are kept apart by it (D152).
     """
     dumped = json.dumps(
         {
@@ -315,7 +316,16 @@ def _key_for(connector_id: uuid.UUID, options: SshOptions) -> str:
         },
         sort_keys=True,
     )
-    return f"ssh:{connector_id}:{hashlib.sha256(dumped.encode()).hexdigest()[:16]}"
+    return hashlib.sha256(dumped.encode()).hexdigest()
+
+
+def _key_for(connector_id: uuid.UUID, options: SshOptions) -> str:
+    """Where this connector's connection, with these options, is kept.
+
+    The options are part of the key so that editing them makes a different
+    connection by itself (D10).
+    """
+    return f"ssh:{connector_id}:{identity_of(options)[:16]}"
 
 
 def _maker(options: SshOptions) -> Callable[[], Awaitable[SshLink]]:

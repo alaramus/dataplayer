@@ -114,6 +114,19 @@ class Copies:
                 copy.used_at = self._clock()
             self._tidy()
 
+    def forget(self, owner: str, keys: Callable[[str], bool]) -> None:
+        """Every copy of the nodes `keys` picks that nobody is reading, gone:
+        the storage has just written them, and a clock that counts in seconds
+        may not say so. Which keys lie below a folder is the storage's to say."""
+        with self._lock:
+            gone = [
+                self._copies.pop(identity)
+                for identity, copy in list(self._copies.items())
+                if identity[0] == owner and keys(identity[1]) and copy.users == 0
+            ]
+        for copy in gone:
+            shutil.rmtree(copy.path.parent, ignore_errors=True)
+
     @contextmanager
     def scratch(self, owner: str) -> Iterator[Path]:
         """An empty folder of one storage's own, gone at the end of the block.
