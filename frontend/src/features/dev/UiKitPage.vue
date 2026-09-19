@@ -302,6 +302,17 @@ function removeSavedEntry(name: string) {
             :tone="tone"
             :label="tone"
           />
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="terminal"
+            aria-label="A count on a rail button"
+          >
+            <AppBadge
+              corner
+              label="2"
+            />
+          </AppButton>
         </div>
       </AppSection>
       <AppSection divided>

@@ -40,19 +40,31 @@ describe("what the bar says about the services this server runs", () => {
   it("opens even while nothing is running, and says so", () => {
     // The panel it opens says there is nothing, which is an answer too; a
     // greyed-out button left the question of where services live unanswered.
-    const command = servicesCommand({ count: 0, working: null })
+    const command = servicesCommand({ count: 0, running: 0, working: null })
 
     expect(command.enabled).toBe(true)
     expect(command.tooltip).toBe("This server is not running anything for you")
   })
 
   it("says how many there are once there are any", () => {
-    expect(servicesCommand({ count: 1, working: null }).tooltip).toBe(
+    expect(servicesCommand({ count: 1, running: 1, working: null }).tooltip).toBe(
       "One service is running here"
     )
-    expect(servicesCommand({ count: 3, working: null }).enabled).toBe(true)
-    expect(servicesCommand({ count: 3, working: null }).tooltip).toBe(
+    expect(servicesCommand({ count: 3, running: 3, working: null }).enabled).toBe(true)
+    expect(servicesCommand({ count: 3, running: 3, working: null }).tooltip).toBe(
       "3 services are running here"
+    )
+  })
+
+  it("says how many of them run once some are stopped", () => {
+    expect(servicesCommand({ count: 3, running: 1, working: null }).tooltip).toBe(
+      "1 of 3 services are running here"
+    )
+    expect(servicesCommand({ count: 2, running: 0, working: null }).tooltip).toBe(
+      "None of your 2 services here is running"
+    )
+    expect(servicesCommand({ count: 1, running: 0, working: null }).tooltip).toBe(
+      "Your one service here is stopped"
     )
   })
 
@@ -61,6 +73,7 @@ describe("what the bar says about the services this server runs", () => {
     // place a start is visible.
     const command = servicesCommand({
       count: 1,
+      running: 0,
       working: "demo: pulling the image (2 of 6)",
     })
 

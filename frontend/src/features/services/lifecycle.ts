@@ -1,6 +1,17 @@
 import type { ServicePublic } from "@/client"
 import { isWorking } from "@/features/services/jobs"
 
+/**
+ * Whether a service's container is running now.
+ *
+ * What the runtime reports, as the commands below read it; what the row
+ * believes only when the runtime could not be asked.
+ */
+export function isRunning(service: Pick<ServicePublic, "state" | "container_state">): boolean {
+  if (service.container_state === "unknown") return service.state === "running"
+  return service.container_state === "running"
+}
+
 /** The two commands that change whether a service runs and keep its data. */
 export type LifecycleCommand = "start" | "stop"
 

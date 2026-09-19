@@ -3,9 +3,10 @@ import { computed } from "vue"
 
 import { useServices } from "@/features/services/api"
 import { isWorking, progressOf } from "@/features/services/jobs"
+import { isRunning } from "@/features/services/lifecycle"
 import { servicesCommand } from "@/features/workspace/commands"
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
-import { AppButton, AppTooltip } from "@/shared/ui"
+import { AppBadge, AppButton, AppTooltip } from "@/shared/ui"
 
 /**
  * What this server is running for this person: the switch of the Services
@@ -22,8 +23,17 @@ const working = computed(() => {
   const busy = (services.data.value ?? []).find((row) => isWorking(row.job))
   return busy === undefined ? null : `${busy.connector_name}: ${progressOf(busy.job)}`
 })
+/**
+ * How many run now, on the button: a database left running uses the machine
+ * whether or not anybody is looking at it, as a terminal left open does.
+ */
+const running = computed(() => (services.data.value ?? []).filter(isRunning).length)
 const command = computed(() =>
-  servicesCommand({ count: (services.data.value ?? []).length, working: working.value })
+  servicesCommand({
+    count: (services.data.value ?? []).length,
+    running: running.value,
+    working: working.value,
+  })
 )
 const panel = useBottomPanel()
 const shown = computed(() => panel.open.value === "services")
@@ -48,7 +58,14 @@ withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
       :aria-pressed="shown"
       data-testid="command-services"
       @click="panel.toggle('services')"
-    />
+    >
+      <AppBadge
+        v-if="running > 0"
+        corner
+        :label="String(running)"
+        data-testid="services-count"
+      />
+    </AppButton>
     <AppTooltip>{{ command.tooltip }}</AppTooltip>
   </span>
 </template>

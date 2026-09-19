@@ -67,7 +67,6 @@ function pressed() {
       :variant="shown ? 'secondary' : 'quiet'"
       size="sm"
       icon="terminal"
-      class="terminal-command__button"
       :label="iconOnly ? undefined : 'Terminals'"
       :aria-pressed="shown"
       data-testid="command-terminals"
@@ -75,7 +74,7 @@ function pressed() {
     >
       <AppBadge
         v-if="open > 0"
-        class="terminal-command__count"
+        corner
         :label="String(open)"
         data-testid="terminals-count"
       />
@@ -88,20 +87,5 @@ function pressed() {
 .terminal-command {
   display: flex;
   align-items: center;
-}
-/* The count hangs off the corner, as the bell's does, rather than widening
-   a button that stands in a rail of equal ones. */
-.terminal-command__button {
-  position: relative;
-}
-.terminal-command__count {
-  position: absolute;
-  top: 0;
-  right: 0;
-  min-width: 16px;
-  padding: 1px 4px;
-  font-size: 10px;
-  line-height: 12px;
-  justify-content: center;
 }
 </style>

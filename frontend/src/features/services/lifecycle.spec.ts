@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { JobPublic } from "@/client"
 
-import { lifecycleCommand } from "./lifecycle"
+import { isRunning, lifecycleCommand } from "./lifecycle"
 
 type Row = Parameters<typeof lifecycleCommand>[0]
 
@@ -65,5 +65,19 @@ describe("whether a service can be stopped or started", () => {
     expect(
       lifecycleCommand(service({ state: "failed", was_connected: false }))
     ).toBeNull()
+  })
+})
+
+describe("whether a service is running", () => {
+  it("is what the runtime says of its container", () => {
+    expect(isRunning(service())).toBe(true)
+    expect(isRunning(service({ container_state: "stopped" }))).toBe(false)
+    // Stopped or removed by hand: the row still believes it runs.
+    expect(isRunning(service({ container_state: "missing" }))).toBe(false)
+  })
+
+  it("is what the row believes when the runtime could not be asked", () => {
+    expect(isRunning(service({ container_state: "unknown" }))).toBe(true)
+    expect(isRunning(service({ state: "stopped", container_state: "unknown" }))).toBe(false)
   })
 })

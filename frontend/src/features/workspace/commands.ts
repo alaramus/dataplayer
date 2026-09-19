@@ -63,8 +63,23 @@ export function queriesCommand(state: ConnectionState): ConnectionCommand {
 export interface ServicesState {
   /** How many services this person has here. */
   count: number
+  /** How many of them are running now. */
+  running: number
   /** What is happening to one of them, if anything is, in the server's words. */
   working: string | null
+}
+
+/** Of the services here, how many run: all of them is the common case. */
+function runningTooltip(running: number, count: number): string {
+  if (running === count) {
+    return count === 1 ? "One service is running here" : `${String(count)} services are running here`
+  }
+  if (running === 0) {
+    return count === 1
+      ? "Your one service here is stopped"
+      : `None of your ${String(count)} services here is running`
+  }
+  return `${String(running)} of ${String(count)} services are running here`
 }
 
 export function servicesCommand(state: ServicesState): ConnectionCommand {
@@ -96,9 +111,6 @@ export function servicesCommand(state: ServicesState): ConnectionCommand {
     label: "Services",
     icon: "dns",
     enabled: true,
-    tooltip:
-      state.count === 1
-        ? "One service is running here"
-        : `${state.count} services are running here`,
+    tooltip: runningTooltip(state.running, state.count),
   }
 }

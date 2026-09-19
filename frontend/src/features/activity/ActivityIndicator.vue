@@ -173,7 +173,7 @@ function clearFinished() {
       <q-icon :name="icon" />
       <AppBadge
         v-if="count > 0"
-        class="activity-indicator__count"
+        corner
         :label="String(count)"
         :tone="attention.length > 0 ? 'error' : 'info'"
         data-testid="activity-count"
@@ -203,21 +203,10 @@ function clearFinished() {
 
 <style scoped>
 .activity-indicator-bar { display: flex; align-items: center; gap: var(--dp-space-1); min-width: 0; }
-/* The same 32px target as the rail buttons; the count hangs off the bell's
-   corner rather than widening it, which would push the bell off the axis. */
+/* The same 32px target as the rail buttons; the count hangs off its corner. */
 .activity-indicator { position: relative; min-width: 32px; min-height: 32px; }
 .activity-indicator .q-icon { font-size: 20px; }
 .activity-indicator--error .q-icon { color: var(--dp-content-error); }
-.activity-indicator__count {
-  position: absolute;
-  top: 1px;
-  right: 0;
-  min-width: 16px;
-  padding: 1px 4px;
-  font-size: 10px;
-  line-height: 12px;
-  justify-content: center;
-}
 .activity-indicator__running { position: relative; min-width: 110px; max-width: min(260px, 30vw); }
 .activity-indicator__step {
   min-width: 0;
