@@ -42,6 +42,10 @@ function resize(deltaPx: number) {
       data-testid="bottom-panel"
     >
       <AppCardHead :title="tool.title">
+        <component
+          :is="tool.head"
+          v-if="tool.head"
+        />
         <template #actions>
           <AppIconButton
             icon="remove"

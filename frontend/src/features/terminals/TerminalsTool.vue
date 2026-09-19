@@ -3,68 +3,24 @@ import { computed, ref } from "vue"
 
 import type { SshKeyPublic } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
-import {
-  connectorColorOf,
-  connectorNameOf,
-  useAdapterTypes,
-  useConnectors,
-} from "@/features/connectors/api"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
 import { useSshKeys } from "@/features/sshKeys/api"
 import { keyUsedBy } from "@/features/sshKeys/keys"
-import {
-  AppBanner,
-  AppButton,
-  AppEmptyState,
-  AppIconButton,
-  AppMenu,
-  AppTaskbar,
-  AppTaskbarItem,
-} from "@/shared/ui"
-import type { MenuItem } from "@/shared/ui"
+import { AppBanner, AppButton, AppEmptyState } from "@/shared/ui"
 
 import TerminalView from "./TerminalView.vue"
-import { terminalCandidates, terminalNotice, terminalTitle } from "./terminals"
-import type { OpenTerminal } from "./terminals"
+import { terminalNotice } from "./terminals"
+import { useTerminalCandidates } from "./useTerminalCandidates"
 import { useTerminals } from "./useTerminals"
 
 /**
  * The terminals, as a tool of the panel at the foot of the workspace (D143,
- * D149): one tab each, the one in front drawn below, and a way to open
- * another on any connection of one's own that has a shell.
+ * D149): the one in front, or, while none is open, the connections one can
+ * be opened on. Their tabs and the way to open another are in the head of the
+ * panel, `TerminalsHead`.
  */
 const terminals = useTerminals()
-const connectors = useConnectors()
-const types = useAdapterTypes()
-
-const candidates = computed(() =>
-  terminalCandidates(connectors.data.value?.data ?? [], types.data.value ?? [])
-)
-const menu = computed<MenuItem[]>(() =>
-  candidates.value.length === 0
-    ? [
-        {
-          name: "none",
-          label: "No connection of yours has a terminal",
-          disable: true,
-          hint: "An SSH connection does",
-        },
-      ]
-    : candidates.value.map((connector) => ({
-        name: connector.id,
-        label: connector.name,
-        icon: adapterIcon(connector.adapter_type),
-      }))
-)
-
-function titleOf(terminal: OpenTerminal): string {
-  return terminalTitle(terminal, connectorNameOf(connectors.data.value, terminal.connectorId))
-}
-
-function open(connectorId: string) {
-  if (connectorId === "none") return
-  terminals.openOn(connectorId)
-}
+const candidates = useTerminalCandidates()
 
 const current = terminals.active
 const notice = computed(() => (current.value ? terminalNotice(current.value.state) : null))
@@ -104,41 +60,6 @@ function unlocked() {
     class="terminals"
     data-testid="terminals"
   >
-    <!-- Only once one is open: before that the choice below is the one way
-         to open a terminal, and a second way beside it read as two different
-         things to press. -->
-    <div
-      v-if="terminals.sessions.value.length > 0"
-      class="terminals__bar"
-    >
-      <AppTaskbar label="Terminals">
-        <AppTaskbarItem
-          v-for="terminal in terminals.sessions.value"
-          :key="terminal.id"
-          :title="titleOf(terminal)"
-          icon="terminal"
-          :color="connectorColorOf(connectors.data.value, terminal.connectorId)"
-          :front="terminal.id === current?.id"
-          close-label="Close this terminal"
-          :close-test-id="`terminal-close-${terminal.id}`"
-          :data-testid="`terminal-tab-${terminal.id}`"
-          @open="terminals.select(terminal.id)"
-          @close="terminals.close(terminal.id)"
-        />
-      </AppTaskbar>
-      <span class="terminals__new">
-        <AppIconButton
-          icon="add"
-          tooltip="Open a terminal"
-          data-testid="terminal-new"
-        />
-        <AppMenu
-          :items="menu"
-          @select="open"
-        />
-      </span>
-    </div>
-
     <template v-if="current">
       <AppBanner
         v-if="notice"
@@ -197,7 +118,7 @@ function unlocked() {
           :icon="adapterIcon(connector.adapter_type)"
           :label="connector.name"
           :data-testid="`terminal-open-${connector.name}`"
-          @click="open(connector.id)"
+          @click="terminals.openOn(connector.id)"
         />
       </div>
     </div>
@@ -218,16 +139,6 @@ function unlocked() {
   gap: var(--dp-space-2);
   height: 100%;
   min-height: 0;
-}
-.terminals__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--dp-space-1);
-  min-width: 0;
-}
-.terminals__new {
-  display: flex;
-  flex: none;
 }
 .terminals__choice {
   display: flex;

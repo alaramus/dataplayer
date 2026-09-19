@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import { connectorNameOf, useAdapterTypes, useConnectors } from "@/features/connectors/api"
+import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppBadge, AppButton, AppTooltip } from "@/shared/ui"
 
-import { terminalCandidates, terminalPress, terminalPressTooltip } from "./terminals"
+import { terminalPress, terminalPressTooltip } from "./terminals"
+import { useTerminalCandidates } from "./useTerminalCandidates"
 import { useTerminals } from "./useTerminals"
 
 /**
@@ -21,16 +22,14 @@ const panel = useBottomPanel()
 const workspace = useWorkspaceActions()
 const terminals = useTerminals()
 const connectors = useConnectors()
-const types = useAdapterTypes()
+const candidates = useTerminalCandidates()
 
 const shown = computed(() => panel.open.value === "terminals")
 const press = computed(() =>
   terminalPress({
     shown: shown.value,
     activeConnectorId: workspace.activeConnectorId.value,
-    candidateIds: terminalCandidates(connectors.data.value?.data ?? [], types.data.value ?? []).map(
-      (connector) => connector.id
-    ),
+    candidateIds: candidates.value.map((connector) => connector.id),
     open: terminals.sessions.value,
   })
 )

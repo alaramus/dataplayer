@@ -1,6 +1,7 @@
 import type { Component } from "vue"
 
 import ManagedServices from "@/features/services/ManagedServices.vue"
+import TerminalsHead from "@/features/terminals/TerminalsHead.vue"
 import TerminalsTool from "@/features/terminals/TerminalsTool.vue"
 
 export interface BottomTool {
@@ -8,6 +9,8 @@ export interface BottomTool {
   /** What the head of the panel calls it. */
   title: string
   component: Component
+  /** What the tool puts in the head of the panel, after its title. */
+  head?: Component
 }
 
 /**
@@ -17,5 +20,5 @@ export interface BottomTool {
  */
 export const BOTTOM_TOOLS: readonly BottomTool[] = [
   { id: "services", title: "Services", component: ManagedServices },
-  { id: "terminals", title: "Terminals", component: TerminalsTool },
+  { id: "terminals", title: "Terminals", component: TerminalsTool, head: TerminalsHead },
 ]

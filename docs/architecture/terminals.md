@@ -21,9 +21,11 @@ frontend/src/features/terminals/
 ├── terminalLink.ts        one terminal's socket, never reconnecting
 ├── terminals.ts           where a terminal opens, what it is called, what is said
 ├── useTerminals.ts        the terminals of this browser tab, and their screens
+├── useTerminalCandidates.ts  one's own connections that have a shell
 ├── TerminalView.vue       lends a screen an element while it is shown
-├── TerminalsTool.vue      the tool of the panel: tabs, the one in front, a choice
-└── TerminalCommand.vue    the rail button
+├── TerminalsHead.vue      in the head of the panel: a tab each, and a plus
+├── TerminalsTool.vue      the body of the panel: the one in front, or a choice
+└── TerminalCommand.vue    the rail button, with the count of open terminals
 ```
 
 ```
