@@ -9,6 +9,7 @@ from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
 from app.adapters.cache import DataCache, MemoryDataCache
+from app.adapters.explorer.copies import copies
 from app.adapters.postgres.checkpoint_pool import checkpoint_pool
 from app.adapters.redis.cache import RedisDataCache
 from app.adapters.resources import ResourceStore
@@ -112,6 +113,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     await settle_interrupted_operations(application.state.data_cache)
     await settle_stranded()
     await to_thread.run_sync(remove_stranded_snapshots)
+    # Copies of remote files a previous process held are nobody's now (D152).
+    await to_thread.run_sync(copies().clear)
     # Transactions held open for somebody: a connection each, so the lease is
     # what makes a forgotten one end (D66).
     application.state.query_sessions = QuerySessions(

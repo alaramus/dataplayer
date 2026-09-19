@@ -5,12 +5,13 @@ storage a source brings to it. Read this before adding a source that is made
 of files — FTP, an object store, a remote disk — or before changing how a file
 source lists, reads or writes.
 
-Decisions here: D150, D151.
+Decisions here: D150, D151, D152.
 
 ```
 backend/app/adapters/
 ├── explorer/
-│   ├── storage.py      Storage, Entry, the place of a node id, the name rule
+│   ├── storage.py      Storage, Place, Entry, search limits, the name rule
+│   ├── copies.py       local copies of remote files, and scratch folders
 │   ├── explorer.py     Explorer: every capability over one storage
 │   ├── catalog.py, members.py, search.py, summary.py
 │   ├── content.py, fetch.py, relation.py, update.py, new_relation.py
@@ -101,3 +102,37 @@ been rewritten as coroutines, and the local disk would have paid a hop to a
 thread for every stat of a hundred thousand it may make.
 
 Spec: [One explorer over every tree of files](../../decisions/2026-09-19-file-explorer-design.md)
+
+## D152. A remote file is read from a bounded local copy
+
+The libraries a table, a workbook, an archive and SQL are read with open a file
+on this machine, so a storage that is not this machine's disk lends them a
+copy. Every copy lives in one place, `explorer/copies.py`, and the bounds were
+set by the owner:
+
+- **Where.** `USER_STORAGE_ROOT/.explorer-copies`, beside the personal homes
+  and out of reach of every file source, which is where restore snapshots
+  already stage (D122). Emptied when the process starts.
+- **Per version.** A copy belongs to one version of one file of one storage,
+  so a file that changes is fetched again beside the old copy rather than over
+  it while somebody still reads the old one. The storage is named by its
+  credentials as well as its address, so two people reaching one server with
+  different rights never read each other's copies.
+- **Fetched once.** Two readers of one version wait for one transfer.
+- **Bounded.** A file larger than 200 MB is not copied — it is downloaded
+  instead, and the refusal says so. The copies together hold 1 GB, and a copy
+  nobody has read for an hour goes; the oldest go first, and a copy that is
+  being read never does.
+- **What passes through here is bounded the same way.** A tree fetched for an
+  archive, an archive's contents on the way back, and a copy between two
+  folders of a server that cannot copy by itself are held to 200 MB.
+- **A search by content reads less.** Files up to 1 MB, 32 MB in one search,
+  where the local disk reads 8 MB and 256 MB: every byte is a transfer.
+
+Known deviations:
+
+- **The copies are the process's**, correct while the backend is one (D124).
+- **A copy is not encrypted at rest**, any more than personal storage is; it is
+  as reachable as the homes beside it, and gone within an hour of its last read.
+
+Spec: [A remote tree of files through the explorer](../../decisions/2026-09-19-remote-files-design.md)
