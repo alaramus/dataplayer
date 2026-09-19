@@ -25,7 +25,8 @@ from httpx_ws.transport import ASGIWebSocketTransport
 from app.core.config import settings
 from app.main import app
 
-WS_URL = f"http://test{settings.API_V1_STR}/ws"
+# The application's socket; a terminal has one of its own (D148).
+WS_PATH = "/ws"
 
 
 def token_of(headers: dict[str, str]) -> str:
@@ -34,11 +35,11 @@ def token_of(headers: dict[str, str]) -> str:
 
 
 @asynccontextmanager
-async def open_socket() -> AsyncIterator[AsyncWebSocketSession]:
+async def open_socket(path: str = WS_PATH) -> AsyncIterator[AsyncWebSocketSession]:
     async with AsyncClient(
         transport=ASGIWebSocketTransport(app=app), base_url="http://test"
     ) as client:
-        async with aconnect_ws(WS_URL, client) as ws:
+        async with aconnect_ws(f"http://test{settings.API_V1_STR}{path}", client) as ws:
             yield ws
 
 
@@ -51,7 +52,7 @@ def _holds(error: BaseException, kind: type[BaseException]) -> bool:
 
 
 @asynccontextmanager
-async def hung_up_on() -> AsyncIterator[AsyncWebSocketSession]:
+async def hung_up_on(path: str = WS_PATH) -> AsyncIterator[AsyncWebSocketSession]:
     """Assert that the server closes this socket.
 
     Not ``pytest.raises``: the disconnect travels out through the transport's
@@ -60,7 +61,7 @@ async def hung_up_on() -> AsyncIterator[AsyncWebSocketSession]:
     block is still a failure.
     """
     try:
-        async with open_socket() as ws:
+        async with open_socket(path) as ws:
             yield ws
     except BaseException as error:
         if not _holds(error, WebSocketDisconnect):

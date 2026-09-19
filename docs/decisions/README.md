@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-19 | [A terminal on an SSH connection](2026-09-19-terminal-design.md) | D148–D149: a terminal is a socket of its own, authenticated by its first frame and never reconnecting; only the owner opens one, the shell runs on the server in a pty and ends with the socket, eight at a time per person |
 | 2026-09-19 | [An SSH source, its server key and its keys](2026-09-19-ssh-source-design.md) | D144–D147: an SSH server read over SFTP from where the connection stands; one server key pinned by a person before anything is sent; a person's SSH keys apart from connections, private half write-only; a passphrase stored or asked for and held in memory for 15 minutes, an hour or eight hours |
 | 2026-09-18 | [The panel at the foot of the workspace](2026-09-18-bottom-panel-design.md) | D143: tools watched while working — services first, terminals next — open one at a time in a card along the foot of the screen, under every space, switched by their rail buttons |
 | 2026-09-14 | [The application agent](2026-09-14-application-agent-design.md) | D133–D141: agreed; AI1–AI6 implemented, AI3b validation pending. An agent that acts as the person through the connections they added, general tools over what sources describe, an owner's third-party transfer policy, confirmations that can last, an answer as a run with visible steps, streamed Markdown, LangChain v1 in one package, curated models and personal keys, one chat window |

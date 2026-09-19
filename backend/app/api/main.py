@@ -18,6 +18,7 @@ from app.services.routes import router as services_router
 from app.shares.routes import router as shares_router
 from app.source_operations.routes import router as source_operations_router
 from app.system.routes import router as utils_router
+from app.terminals.routes import router as terminals_router
 from app.users.auth_routes import router as auth_router
 from app.users.private_routes import router as private_router
 from app.users.routes import router as users_router
@@ -41,6 +42,7 @@ api_router.include_router(queries_router)
 api_router.include_router(metrics_router)
 api_router.include_router(agent_router)
 api_router.include_router(realtime_router)
+api_router.include_router(terminals_router)
 
 # Imported for its registration: the health topic is about connectors, so it
 # lives with them, and the socket learns of it here rather than knowing it.

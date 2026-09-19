@@ -35,6 +35,10 @@ export function useBottomPanel() {
     toggle: (tool: string) => {
       write(toggleTool(state.value, tool))
     },
+    /** Shown whatever was: for a button that decides for itself when to hide. */
+    show: (tool: string) => {
+      write({ ...state.value, open: tool })
+    },
     hide: () => {
       write({ ...state.value, open: null })
     },

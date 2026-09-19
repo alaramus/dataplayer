@@ -28,6 +28,7 @@ import type { ListNode } from "@/features/catalog/nodes"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
 import { useSshKeys } from "@/features/sshKeys/api"
+import { keyUsedBy } from "@/features/sshKeys/keys"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -75,20 +76,11 @@ const level = useCatalogLevel(connectorId, rootLabel)
 const connectors = useConnectors()
 const color = computed(() => connectorColorOf(connectors.data.value, props.connectorId))
 
-/**
- * The SSH key this connection signs in with, when the catalog answered that it
- * is locked (D147). Found by the server's own answer to "which connections use
- * this key" rather than by reading the connection's options here, and only the
- * owner's list holds it — so only the owner is offered to open it.
- */
+/** The SSH key this connection signs in with, when the catalog answered that it is locked (D147). */
 const locked = computed(() => level.errorKind.value === "locked")
 const sshKeys = useSshKeys(locked)
 const lockedKey = computed<SshKeyPublic | null>(() =>
-  locked.value
-    ? ((sshKeys.data.value ?? []).find((key) =>
-        key.used_by.some((use) => use.id === props.connectorId)
-      ) ?? null)
-    : null
+  locked.value ? keyUsedBy(sshKeys.data.value ?? [], props.connectorId) : null
 )
 const unlocking = ref<SshKeyPublic | null>(null)
 const frameworks = computed(() => frameworksOf(level.groups.value, level.selectedGroups.value))

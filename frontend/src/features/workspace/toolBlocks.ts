@@ -2,6 +2,7 @@ import type { Component } from "vue"
 
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import ServicesCommand from "@/features/services/ServicesCommand.vue"
+import TerminalCommand from "@/features/terminals/TerminalCommand.vue"
 
 import CommandBar from "./CommandBar.vue"
 import TabGroupList from "./TabGroupList.vue"
@@ -40,6 +41,13 @@ export const TOOL_BLOCKS: readonly ToolBlock[] = [
   { id: "spaces", home: "left-top", framed: true, component: SpaceSwitch, props: () => ({ iconOnly: true }) },
   { id: "queries", home: "left-top", component: CommandBar, props: () => ({ iconOnly: true }) },
   { id: "services", home: "left-bottom", component: ServicesCommand, props: () => ({ iconOnly: true }) },
+  {
+    id: "terminals",
+    home: "left-bottom",
+    beside: "services",
+    component: TerminalCommand,
+    props: () => ({ iconOnly: true }),
+  },
   { id: "groups-save", home: "right-top", component: TabGroupSave, props: (rail) => ({ groups: rail.groups }) },
   {
     id: "groups-list",

@@ -3,7 +3,14 @@ import { describe, expect, it } from "vitest"
 import type { SshKeyPublic } from "@/client"
 import type { FieldSpec } from "@/shared/SchemaForm/jsonSchema"
 
-import { keyState, passphraseModeLabel, shortFingerprint, unlockOptions, withKeyChoices } from "./keys"
+import {
+  keyState,
+  keyUsedBy,
+  passphraseModeLabel,
+  shortFingerprint,
+  unlockOptions,
+  withKeyChoices,
+} from "./keys"
 
 function key(overrides: Partial<SshKeyPublic> = {}): SshKeyPublic {
   return {
@@ -65,5 +72,17 @@ describe("choosing a key in a connection", () => {
     const host = field({ name: "host", purpose: undefined })
 
     expect(withKeyChoices([host], [key()])).toEqual([host])
+  })
+})
+
+describe("the key a connection signs in with", () => {
+  it("is the one whose uses name the connection", () => {
+    const used = key({ id: "k2", used_by: [{ id: "c1", name: "prod" }] })
+
+    expect(keyUsedBy([key(), used], "c1")?.id).toBe("k2")
+  })
+
+  it("is none when no key of this person's names it", () => {
+    expect(keyUsedBy([key()], "c1")).toBeNull()
   })
 })

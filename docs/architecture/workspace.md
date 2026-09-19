@@ -603,7 +603,7 @@ Spec: [The commands of a panel belong to the panel](../decisions/2026-09-05-pane
 ## D143. What is watched beside the work opens in a card at the foot of the screen
 
 Some tools are watched while working rather than worked in: what the server
-runs, and terminals next. A window covers the work and has to be moved off it,
+runs, and terminals ([D149](terminals.md)). A window covers the work and has to be moved off it,
 and a column is a role panels are dragged to. So, as in an IDE, they open in
 one card along the foot of the screen, between the rails and under whichever
 space is shown.

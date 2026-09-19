@@ -33,6 +33,7 @@ from app.adapters.protocol import (
     SupportsUpdate,
 )
 from app.adapters.resources import Pooling
+from app.adapters.terminal import SupportsTerminal
 
 
 class UnknownAdapterType(Exception):
@@ -110,6 +111,7 @@ CapabilityCode = Literal[
     "create_relation",
     "backup",
     "metrics",
+    "terminal",
 ]
 
 
@@ -281,6 +283,10 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
                 title="Copy the whole database out",
                 code="backup",
             )
+        )
+    if issubclass(driver, SupportsTerminal):
+        found.append(
+            Capability(group="manage", title="Open a terminal", code="terminal")
         )
     if issubclass(driver, DeclaresActions):
         for action_type in driver.action_types():

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { pickAdapterType } from "./utils/connectors"
+import { fillSshServer } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector } from "./utils/workspace"
 
@@ -9,11 +9,8 @@ import { connectorRow, deleteConnector } from "./utils/workspace"
  *
  * Against `sshd` from compose.override.yml, as the backend container sees it:
  * the check and every read run on the server. The connection signs in with
- * the password — a key made here would have to be added to the server's
- * authorized_keys first, which a browser cannot do, and the backend suite
- * signs in with one.
+ * the password; the backend suite signs in with a key.
  */
-const SERVER = { host: "sshd", port: "2222", user: "dataplayer", password: "dataplayer" }
 
 test("a key is made on the Preferences page, and only its public half is shown", async ({
   page,
@@ -42,14 +39,7 @@ test("an SSH server is trusted by its key before anything is sent, and then brow
 }) => {
   const name = `e2e-ssh-${Date.now()}`
   await login(page)
-  await pickAdapterType(page, "ssh")
-  await page.getByTestId("connector-name").fill(name)
-  await page.getByTestId("field-host").fill(SERVER.host)
-  await page.getByTestId("field-port").fill(SERVER.port)
-  await page.getByTestId("field-username").fill(SERVER.user)
-  await page.getByTestId("field-auth_method").click()
-  await page.getByRole("option", { name: "Password", exact: true }).click()
-  await page.getByTestId("field-password").fill(SERVER.password)
+  await fillSshServer(page, name)
 
   // Nothing connects before the server's key is trusted (D145).
   await page.getByTestId("check-draft").click()

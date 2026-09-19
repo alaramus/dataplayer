@@ -182,6 +182,19 @@ class SshSession:
         elapsed = int((time.perf_counter() - started) * 1000)
         return ConnectionCheckResult(ok=True, message="Connection successful", latency_ms=elapsed)
 
+    async def signed_in(self) -> asyncssh.SSHClientConnection:
+        """A connection of the caller's own, signed in afresh, closed by the caller.
+
+        Never the kept one: a terminal holds its connection for as long as the
+        shell runs, and the kept one is made again whenever the server drops
+        it, which would take the shell along (D149).
+        """
+        signing = await self._signing_key()
+        try:
+            return await connect(self._options, signing)
+        except (asyncssh.Error, OSError, TimeoutError) as failure:
+            raise reduced(failure) from None
+
     async def _signing_key(self) -> SigningKey | None:
         if not isinstance(self._options, SshKeyAuth):
             return None

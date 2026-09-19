@@ -118,6 +118,7 @@ GET    /api/v1/declared-references?connector_id=&node_id=
 POST   /api/v1/declared-references
 DELETE /api/v1/declared-references/{reference_id}
 GET    /api/v1/ssh-keys/                 and the rest of /ssh-keys, see sources/ssh.md
+WS     /api/v1/terminals                 one socket per terminal, see terminals.md
 ```
 
 A declared reference is addressed on its own and not under a connection: it has

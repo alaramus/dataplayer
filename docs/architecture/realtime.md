@@ -71,6 +71,9 @@ the WebSocket handshake, and a token in the query string is written into every
 access log, into browser history, and into the Referer of anything the page
 loads next.
 
+A terminal is the one exception: each has a socket of its own, authenticated
+the same way and never reconnected ([D148](terminals.md)).
+
 Spec: [The socket, health and a switched-off connector](../decisions/2026-08-24-realtime-and-connector-health-design.md)
 
 ## D19. A monitor belongs to a user, and lives only while somebody watches

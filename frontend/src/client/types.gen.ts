@@ -1243,6 +1243,7 @@ export type Capability = {
     | "create_relation"
     | "backup"
     | "metrics"
+    | "terminal"
     | null
 }
 

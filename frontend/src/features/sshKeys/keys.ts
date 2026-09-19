@@ -70,3 +70,13 @@ export function withKeyChoices(fields: FieldSpec[], keys: SshKeyPublic[]): Field
       : field
   )
 }
+
+/**
+ * The key a connection signs in with, found by the server's own answer to
+ * "which connections use this key" rather than by reading the connection's
+ * options. Only the owner's list holds it, so only the owner is offered to
+ * open it (D147).
+ */
+export function keyUsedBy(keys: readonly SshKeyPublic[], connectorId: string): SshKeyPublic | null {
+  return keys.find((key) => key.used_by.some((use) => use.id === connectorId)) ?? null
+}

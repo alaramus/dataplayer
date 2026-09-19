@@ -16,6 +16,7 @@ backend/app/adapters/
     ├── catalog.py      folders over SFTP, one level at a time
     ├── content.py      a text file: a bounded page, or the editor's document
     ├── actions.py      new folder, upload, download, rename, delete
+    ├── terminal.py     the login shell in a pty (D149, ../terminals.md)
     └── adapter.py      facade and registration
 backend/app/connectors/
 ├── ssh_keys.py         SshKey, OwnerKeys, which connections use a key
@@ -45,7 +46,7 @@ POST   /api/v1/connectors/server-key
 The old application listed a folder by running `ls -la` and parsing the
 output. Here nothing runs a command on the server: the catalog, the reader and
 the actions are SFTP requests, so no name typed into a form ever reaches a
-shell. The terminal is a slice of its own.
+shell. The one shell is the terminal its owner types into ([D149](../terminals.md)).
 
 - **The catalog stands in the connection's folder**, the user's home when it
   names none, and walks down from there. A node id is the path below that

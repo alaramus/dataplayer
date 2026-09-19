@@ -88,3 +88,33 @@ export async function createFileConnector(page: Page, name: string) {
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, name)).toBeVisible()
 }
+
+/**
+ * The SSH server as the backend container sees it: `sshd` from
+ * compose.override.yml. The connection signs in with the password — a key
+ * made in a scenario would first have to reach the server's authorized_keys,
+ * which a browser cannot do.
+ */
+export const SSH_SERVER = { host: "sshd", port: "2222", user: "dataplayer", password: "dataplayer" }
+
+/** The connection form of an SSH server, filled in and signing in with the password. */
+export async function fillSshServer(page: Page, name: string) {
+  await pickAdapterType(page, "ssh")
+  await page.getByTestId("connector-name").fill(name)
+  await page.getByTestId("field-host").fill(SSH_SERVER.host)
+  await page.getByTestId("field-port").fill(SSH_SERVER.port)
+  await page.getByTestId("field-username").fill(SSH_SERVER.user)
+  await page.getByTestId("field-auth_method").click()
+  await page.getByRole("option", { name: "Password", exact: true }).click()
+  await page.getByTestId("field-password").fill(SSH_SERVER.password)
+}
+
+/** An SSH connection whose server key was fetched and trusted, saved (D145). */
+export async function createSshConnector(page: Page, name: string) {
+  await fillSshServer(page, name)
+  await page.getByTestId("server-key-fetch").click()
+  await page.getByTestId("server-key-trust").click()
+  await expect(page.getByTestId("server-key-pinned")).toContainText("SHA256:")
+  await page.getByTestId("save-connector").click()
+  await expect(connectorRow(page, name)).toBeVisible()
+}

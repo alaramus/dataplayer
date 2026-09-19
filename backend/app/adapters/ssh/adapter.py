@@ -1,8 +1,8 @@
-"""An SSH server as a source: its folders over SFTP, and the five file actions.
+"""An SSH server as a source: its folders over SFTP, the file actions, a terminal.
 
-Everything goes over SFTP, and nothing runs a command on the server. The
-terminal is a later slice of its own, and until then no string of a form's
-ever reaches a shell (D144).
+The catalog, the reader and the actions go over SFTP and run no command on the
+server, so no string of a form's ever reaches a shell (D144). The one shell is
+the terminal, which its owner types into (D149).
 
 `asyncssh` is imported by this package and by nothing else, the rule `psycopg`
 follows: a library upgrade has one place to change.
@@ -30,6 +30,8 @@ from app.adapters.ssh.catalog import SshCatalog
 from app.adapters.ssh.content import SshContent
 from app.adapters.ssh.options import SshOptions
 from app.adapters.ssh.session import SshSession, server_key
+from app.adapters.ssh.terminal import SshTerminal
+from app.adapters.terminal import Terminal, TerminalSize
 
 DEFAULT_PORT = 22
 
@@ -74,6 +76,9 @@ class SshAdapter:
     def action_types(cls) -> tuple[ActionType, ...]:
         return SSH_ACTION_TYPES
 
+    async def open_terminal(self, size: TerminalSize) -> Terminal:
+        return await SshTerminal.open(self._session, size)
+
     # --- the server's own key (D145) ----------------------------------------
 
     @classmethod
@@ -106,7 +111,8 @@ def _described(public_key: str) -> ServerKey:
     category="files",
     description=(
         "A server reached over SSH. Browse its folders from where you choose, "
-        "read and edit its text files, upload, download, rename and delete. Signs in "
+        "read and edit its text files, upload, download, rename and delete, and "
+        "open a terminal on it. Signs in "
         "with a password or one of your SSH keys, and only to the server whose "
         "key you confirmed."
     ),

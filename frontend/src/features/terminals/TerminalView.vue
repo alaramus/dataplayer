@@ -1,0 +1,86 @@
+<script setup lang="ts">
+import "@xterm/xterm/css/xterm.css"
+
+import { nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from "vue"
+
+import { useThemeStore } from "@/stores/theme"
+
+import { screenTheme } from "./screenTheme"
+import type { TerminalSession } from "./useTerminals"
+
+/**
+ * One terminal's screen, lent an element while it is shown (D149).
+ *
+ * The screen outlives this component: it is moved in on mount and out on
+ * unmount rather than made again, which is what xterm allows and what keeps
+ * the scrollback when the panel shows another tool.
+ */
+const props = defineProps<{ session: TerminalSession }>()
+const host = useTemplateRef<HTMLElement>("host")
+const theme = useThemeStore()
+let observer: ResizeObserver | null = null
+let pending = 0
+
+function paint() {
+  if (host.value) props.session.screen.options.theme = screenTheme(host.value)
+}
+
+// One fit a frame: a panel being dragged taller reports every pixel, and each
+// fit that changes the size is a frame sent to the server.
+function fitSoon() {
+  if (pending !== 0) return
+  pending = requestAnimationFrame(() => {
+    pending = 0
+    props.session.fit.fit()
+  })
+}
+
+onMounted(() => {
+  const element = host.value
+  if (element === null) return
+  const screen = props.session.screen
+  if (screen.element === undefined) screen.open(element)
+  else element.appendChild(screen.element)
+  paint()
+  props.session.fit.fit()
+  screen.refresh(0, screen.rows - 1)
+  screen.focus()
+  observer = new ResizeObserver(fitSoon)
+  observer.observe(element)
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  cancelAnimationFrame(pending)
+  pending = 0
+  const element = props.session.screen.element
+  if (element !== undefined && element.parentElement === host.value) element.remove()
+})
+
+watch(
+  () => theme.dark,
+  async () => {
+    // The tokens change with a class on the body, which is put there after
+    // the store has changed.
+    await nextTick()
+    paint()
+  }
+)
+</script>
+
+<template>
+  <div
+    ref="host"
+    class="terminal-view"
+    data-testid="terminal-screen"
+  />
+</template>
+
+<style scoped>
+.terminal-view {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--dp-surface);
+}
+</style>

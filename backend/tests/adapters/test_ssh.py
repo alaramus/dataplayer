@@ -13,6 +13,7 @@ from app.adapters.ssh import keys
 from app.adapters.ssh.adapter import SshAdapter
 from app.adapters.ssh.options import SshKeyAuth, SshPassword
 from app.adapters.ssh.session import Remote
+from app.adapters.terminal import SupportsTerminal
 
 PINNED = keys.generate("ed25519", None).facts.public_key
 
@@ -47,12 +48,21 @@ def test_what_it_can_do_is_read_off_the_driver() -> None:
     assert isinstance(adapter, SupportsNodePath)
     assert isinstance(adapter, SupportsContent)
 
-    titles = {item.title for item in registry.capabilities_of(registry.get("ssh"))}
+    capabilities = registry.capabilities_of(registry.get("ssh"))
+    titles = {item.title for item in capabilities}
 
     assert {"Browse the catalog", "View content", "New folder", "Upload files",
             "Download", "Rename", "Delete"} <= titles
-    # Nothing that would run a command on the server (D144).
     assert "Read rows" not in titles
+    # The one shell is the terminal, and a screen asks for it by code (D149).
+    assert isinstance(adapter, SupportsTerminal)
+    assert "terminal" in {item.code for item in capabilities}
+
+
+def test_a_source_without_a_shell_claims_no_terminal() -> None:
+    codes = {item.code for item in registry.capabilities_of(registry.get("file"))}
+
+    assert "terminal" not in codes
 
 
 def test_a_password_is_a_secret_and_a_key_is_named_rather_than_kept() -> None:
