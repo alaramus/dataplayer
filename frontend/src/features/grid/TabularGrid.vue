@@ -158,6 +158,8 @@ defineSlots<{
   "commands-write": CommandSlot
   "commands-tab": CommandSlot
   "before-grid"(): unknown
+  /** The way on from a failed read, when the source has one: a key to open. */
+  "error-actions"(): unknown
   /** The far end of the row the pager is on, where something about the whole
       page belongs: which sheet of a workbook is being read (D51). */
   "pager-start"(): unknown
@@ -643,6 +645,7 @@ defineExpose({
       <div class="data-grid__error">
         <span>{{ error }}</span>
         <div class="data-grid__error-actions">
+          <slot name="error-actions" />
           <AppButton
             v-if="showReset"
             variant="secondary"

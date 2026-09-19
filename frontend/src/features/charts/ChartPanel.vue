@@ -3,10 +3,11 @@ import { computed, ref, toRef } from "vue"
 
 import type { FetchColumn, FetchRequest } from "@/client"
 import { useRowsPage } from "@/features/grid/api"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
-import { messageOf } from "@/shared/api/errors"
-import { AppBanner, AppSpinner } from "@/shared/ui"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { AppSpinner } from "@/shared/ui"
 
 import ChartView from "./ChartView.vue"
 
@@ -82,14 +83,15 @@ const pageLabel = computed(() => {
       <PanelCommands :panel-id="panelId" />
     </div>
 
-    <AppBanner
+    <SourceErrorBanner
       v-if="rowsQuery.isError.value"
-      tone="error"
       class="chart-panel__message"
+      :connector-id="connectorId"
+      :error-kind="errorKindOf(rowsQuery.error.value)"
       data-testid="chart-error"
     >
       {{ messageOf(rowsQuery.error.value, "Could not read the chart page") }}
-    </AppBanner>
+    </SourceErrorBanner>
 
     <div
       v-else-if="rowsQuery.isPending.value"

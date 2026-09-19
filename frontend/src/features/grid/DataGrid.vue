@@ -20,7 +20,7 @@ import type {
   RowsView,
   Sort,
 } from "@/client"
-import { messageOf, statusOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf, statusOf } from "@/shared/api/errors"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { reloadedBy, toCommands } from "@/features/catalog/actions"
 import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
@@ -79,6 +79,8 @@ import {
 import type { DownloadDestination, DownloadScope } from "./download"
 import DownloadDialog from "./DownloadDialog.vue"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
+import { useLockedKey } from "@/features/sshKeys/api"
+import UnlockKeyButton from "@/features/sshKeys/UnlockKeyButton.vue"
 import {
   droppedByReconciliation,
   pageSizeOf,
@@ -192,6 +194,11 @@ function takeRefresh() {
   return wanted
 }
 const rowsQuery = useRowsPage(toRef(props, "connectorId"), request, takeRefresh)
+/** The key this connection signs in with, when reading the rows found it locked (D147). */
+const lockedKey = useLockedKey(
+  () => props.connectorId,
+  () => errorKindOf(rowsQuery.error.value)
+)
 
 async function refreshRows() {
   refreshNext.value = true
@@ -1241,6 +1248,16 @@ defineExpose({
     @visible-columns="visibleGridColumns = $event"
     @selection="selectedRows = $event"
   >
+    <template
+      v-if="lockedKey"
+      #error-actions
+    >
+      <UnlockKeyButton
+        :ssh-key="lockedKey"
+        variant="secondary"
+        size="sm"
+      />
+    </template>
     <!-- Read as something else: each of these opens a tab of its own on the
          same rows, which is what puts them together. -->
     <template #commands-open="{ visibleColumns }">

@@ -4,11 +4,12 @@ import { computed, ref, watch } from "vue"
 import type { EditorContent, EditorContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useEditorContent, useUpdateContent } from "@/features/content/api"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useClosable } from "@/features/workspace/closable"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { messageOf, statusOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf, statusOf } from "@/shared/api/errors"
 import { AppBanner, AppButton, AppSpinner, useConfirm, useToast } from "@/shared/ui"
 
 const props = defineProps<{
@@ -25,6 +26,7 @@ const props = defineProps<{
 const connectorId = computed(() => props.connectorId)
 const request = computed<EditorContentRequest>(() => ({ node_id: props.nodeId }))
 const editor = useEditorContent(connectorId, request)
+const errorKind = computed(() => errorKindOf(editor.error.value))
 const updateContent = useUpdateContent(connectorId)
 const workspace = useWorkspaceActions()
 const toast = useToast()
@@ -171,13 +173,14 @@ watch(
       </div>
     </div>
 
-    <AppBanner
+    <SourceErrorBanner
       v-if="error"
-      tone="error"
+      :connector-id="connectorId"
+      :error-kind="errorKind"
       data-testid="content-error"
     >
       {{ error }}
-    </AppBanner>
+    </SourceErrorBanner>
 
     <AppSpinner v-else-if="editor.isPending.value" />
 

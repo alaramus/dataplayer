@@ -8,10 +8,11 @@ import { client } from "@/client/client.gen"
 import { formatSize } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
 import { pageScale } from "@/features/content/pdfScale"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
-import { messageOf } from "@/shared/api/errors"
-import { AppBanner, AppSpinner } from "@/shared/ui"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { AppSpinner } from "@/shared/ui"
 
 // The renderer runs in a worker, which is where a document is parsed. Named
 // through `import.meta.url` so the bundler emits it beside the application
@@ -34,6 +35,7 @@ const request = computed<ContentRequest>(() => ({
   representation: "pdf",
 }))
 const content = useContent(connectorId, request)
+const errorKind = computed(() => errorKindOf(content.error.value))
 
 const stage = ref<HTMLElement | null>(null)
 const document_ = shallowRef<PDFDocumentProxy | null>(null)
@@ -234,13 +236,14 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <AppBanner
+    <SourceErrorBanner
       v-if="error"
-      tone="error"
+      :connector-id="connectorId"
+      :error-kind="errorKind"
       data-testid="content-error"
     >
       {{ error }}
-    </AppBanner>
+    </SourceErrorBanner>
     <AppSpinner v-else-if="content.isPending.value || rendering" />
     <div
       v-show="!error"

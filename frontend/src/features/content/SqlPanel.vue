@@ -4,10 +4,11 @@ import { computed } from "vue"
 import type { ContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useContent } from "@/features/content/api"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { AppBanner, AppButton, AppSpinner } from "@/shared/ui"
 
 const props = defineProps<{
@@ -26,6 +27,7 @@ const request = computed<ContentRequest>(() => ({
   representation: "sql",
 }))
 const content = useContent(connectorId, request)
+const errorKind = computed(() => errorKindOf(content.error.value))
 const workspace = useWorkspaceActions()
 const ddl = computed(() => (content.data.value?.kind === "sql" ? content.data.value : null))
 const error = computed(() =>
@@ -69,13 +71,14 @@ function showTable() {
       </div>
     </div>
 
-    <AppBanner
+    <SourceErrorBanner
       v-if="error"
-      tone="error"
+      :connector-id="connectorId"
+      :error-kind="errorKind"
       data-testid="sql-error"
     >
       {{ error }}
-    </AppBanner>
+    </SourceErrorBanner>
     <AppSpinner v-else-if="content.isPending.value" />
     <div
       v-else-if="ddl"

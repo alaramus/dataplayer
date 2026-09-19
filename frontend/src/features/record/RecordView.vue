@@ -5,13 +5,13 @@ import type { FetchRequest, ReferencedRows } from "@/client"
 import { useRowsPage } from "@/features/grid/api"
 import { cellPresentation } from "@/features/grid/model"
 import { useReferences } from "@/features/grid/useReferences"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import { useRelationModel } from "@/features/structure/api"
 import { badgesFor } from "@/features/structure/model"
-import { messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import {
   AppBadge,
-  AppBanner,
   AppButton,
   AppEmptyState,
   AppIconButton,
@@ -71,6 +71,7 @@ const page = useRowsPage(
   computed(() => request.value)
 )
 defineExpose({ reload: async () => void (await page.refetch()) })
+const errorKind = computed(() => errorKindOf(page.error.value))
 
 const result = computed(() => page.data.value?.page)
 const columns = computed(() => result.value?.columns ?? [])
@@ -190,13 +191,14 @@ const errorText = computed(() =>
       class="record-view__content"
       data-testid="record-content"
     >
-      <AppBanner
+      <SourceErrorBanner
         v-if="errorText"
-        tone="error"
+        :connector-id="connectorId"
+        :error-kind="errorKind"
         data-testid="record-error"
       >
         {{ errorText }}
-      </AppBanner>
+      </SourceErrorBanner>
 
       <AppSpinner v-else-if="page.isPending.value" />
       <AppEmptyState

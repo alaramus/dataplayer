@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
-import type { MaybeRef } from "vue"
+import { computed, toValue } from "vue"
+import type { ComputedRef, MaybeRef, MaybeRefOrGetter } from "vue"
 
 import { ConnectorsService, SshKeysService } from "@/client"
 import type {
   ServerKeyRequest,
   SshKeyGenerateWritable,
   SshKeyImportWritable,
+  SshKeyPublic,
   SshKeyUnlockWritable,
 } from "@/client"
+import { keyUsedBy } from "@/features/sshKeys/keys"
 
 /**
  * A person's SSH keys (D146). Server state, so vue-query rather than Pinia
@@ -23,6 +26,22 @@ export function useSshKeys(enabled: MaybeRef<boolean> = true) {
     queryFn: async () => (await SshKeysService.keysReadSshKeys()).data,
     enabled,
   })
+}
+
+/**
+ * The key a connection signs in with, when a read of it answered "locked"
+ * (D147); null otherwise, and for anybody but the key's owner. The list is
+ * asked for only once something was refused.
+ */
+export function useLockedKey(
+  connectorId: MaybeRefOrGetter<string>,
+  errorKind: MaybeRefOrGetter<string | null | undefined>
+): ComputedRef<SshKeyPublic | null> {
+  const locked = computed(() => toValue(errorKind) === "locked")
+  const keys = useSshKeys(locked)
+  return computed(() =>
+    locked.value ? keyUsedBy(keys.data.value ?? [], toValue(connectorId)) : null
+  )
 }
 
 /** Every change to a key is answered by re-reading the list it is in. */

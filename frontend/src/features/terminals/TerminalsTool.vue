@@ -4,8 +4,7 @@ import { computed, ref } from "vue"
 import type { SshKeyPublic } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
-import { useSshKeys } from "@/features/sshKeys/api"
-import { keyUsedBy } from "@/features/sshKeys/keys"
+import { useLockedKey } from "@/features/sshKeys/api"
 import { AppBanner, AppButton, AppEmptyState } from "@/shared/ui"
 
 import TerminalView from "./TerminalView.vue"
@@ -26,12 +25,9 @@ const current = terminals.active
 const notice = computed(() => (current.value ? terminalNotice(current.value.state) : null))
 
 /** The key to open, when the shell was refused because it is locked (D147). */
-const locked = computed(() => notice.value?.action === "unlock")
-const sshKeys = useSshKeys(locked)
-const lockedKey = computed<SshKeyPublic | null>(() =>
-  locked.value && current.value
-    ? keyUsedBy(sshKeys.data.value ?? [], current.value.connectorId)
-    : null
+const lockedKey = useLockedKey(
+  () => current.value?.connectorId ?? "",
+  () => (notice.value?.action === "unlock" ? "locked" : null)
 )
 const unlocking = ref<SshKeyPublic | null>(null)
 /** Which terminal the unlock was asked from: it is opened again once it is done. */

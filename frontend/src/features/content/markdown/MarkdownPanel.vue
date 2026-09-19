@@ -18,10 +18,11 @@ import {
 } from "@/features/content/markdown/export"
 import { resolveRelativeTarget } from "@/features/content/markdown/relative"
 import { outlineProse, renderProse } from "@/features/content/markdown/render"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { saveBrowserDownload } from "@/shared/download"
 import {
   AppBanner,
@@ -51,6 +52,7 @@ const request = computed<ContentRequest>(() => ({
   representation: "markdown",
 }))
 const content = useContent(connectorId, request)
+const errorKind = computed(() => errorKindOf(content.error.value))
 const loadContent = useContentLoader()
 const loadPath = useNodePathLoader()
 const loadChildren = useCatalogLoader()
@@ -579,13 +581,14 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <AppBanner
+    <SourceErrorBanner
       v-if="error"
-      tone="error"
+      :connector-id="connectorId"
+      :error-kind="errorKind"
       data-testid="content-error"
     >
       {{ error }}
-    </AppBanner>
+    </SourceErrorBanner>
     <AppSpinner v-else-if="content.isPending.value" />
     <template v-else-if="contentDocument">
       <AppBanner

@@ -5,9 +5,10 @@ import type { ContentRequest } from "@/client"
 import { client } from "@/client/client.gen"
 import { formatSize } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
-import { messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { AppBanner, AppSpinner } from "@/shared/ui"
 
 const props = defineProps<{
@@ -23,6 +24,7 @@ const request = computed<ContentRequest>(() => ({
   representation: "image",
 }))
 const content = useContent(connectorId, request)
+const errorKind = computed(() => errorKindOf(content.error.value))
 const previewFailed = ref(false)
 
 const image = computed(() => {
@@ -70,13 +72,14 @@ useReloadable(() => props.panelId, reload)
       </div>
     </div>
 
-    <AppBanner
+    <SourceErrorBanner
       v-if="error"
-      tone="error"
+      :connector-id="connectorId"
+      :error-kind="errorKind"
       data-testid="content-error"
     >
       {{ error }}
-    </AppBanner>
+    </SourceErrorBanner>
     <AppSpinner v-else-if="content.isPending.value" />
     <AppBanner
       v-else-if="previewFailed || !previewUrl"

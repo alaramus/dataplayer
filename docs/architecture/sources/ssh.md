@@ -24,6 +24,8 @@ frontend/src/features/sshKeys/
 ├── SshKeysSection.vue  the keys, on the Preferences page
 ├── SshKeyDialog.vue    making one, or importing one
 ├── UnlockKeyDialog.vue opening a key that asks, for a span of time
+├── UnlockKeyButton.vue "Unlock the key", and that window
+├── SourceErrorBanner.vue a failed read, with the unlock when the key is locked
 ├── ServerKeyField.vue  the server key in the connection form
 └── keys.ts             the words for a key's state, and the form's choice of keys
 ```
@@ -175,11 +177,14 @@ opens nothing.
   has been locked stops the source even while a kept connection is open.
 - **A locked key is an error of its own kind**, `locked`, so a screen offers
   the passphrase rather than reporting a failure: the connection form inside
-  the result of its check, the catalog beside its error and a terminal above
-  its screen. Which key to open is found in
-  the server's own list of which connections use which key, so only the owner
-  is offered it. Unlocking re-reads what failed, and a `locked` answer is not
-  retried, since asking again answers the same.
+  the result of its check, a terminal above its screen, and every screen that
+  shows a failed read of the source — the catalog, each viewer, the grid, a
+  record, a chart, the details and the structure — through one
+  `SourceErrorBanner`, so no screen can be added that reports a locked key as
+  a dead end. Which key to open is found in the server's own list of which
+  connections use which key, so only the owner is offered it. Unlocking
+  re-reads what failed, and a `locked` answer is not retried, since asking
+  again answers the same.
 - **Unlocking checks the passphrase first**, so a mistyped one is said there.
 
 Known deviations:
@@ -190,6 +195,9 @@ Known deviations:
   and the backend is one process (D124).
 - **A shared connection stops for its grantees while its owner's key is
   locked.** That is the time limit working, and the grantee cannot unlock it.
+- **A query run and the relationship diagram say it without the button.** A
+  run's failure is part of its history rather than a read to repeat, and the
+  diagram gathers the failures of several reads into one sentence.
 - **A source keeps the key it read for 30 seconds.** A listing is many requests
   of the server and each would read the database again. The keyring is still
   asked on every use, so locking takes effect at once; a changed passphrase

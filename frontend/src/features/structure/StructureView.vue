@@ -14,12 +14,12 @@ import {
   useRelationModel,
   useRenameColumn,
 } from "@/features/structure/api"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import { badgesFor, datasetFacts, foreignKeyLabel } from "@/features/structure/model"
 import type { ForeignKey, RefAction } from "@/features/structure/model"
-import { messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
 import {
   AppBadge,
-  AppBanner,
   AppButton,
   AppEmptyState,
   AppIconButton,
@@ -45,6 +45,7 @@ const props = defineProps<{ connectorId: string; nodeId: string }>()
 const connectorId = toRef(props, "connectorId")
 const nodeId = toRef(props, "nodeId")
 const query = useRelationModel(connectorId, nodeId)
+const errorKind = computed(() => errorKindOf(query.error.value))
 const addColumn = useAddColumn(connectorId, nodeId)
 const dropColumn = useDropColumn(connectorId, nodeId)
 const renameColumn = useRenameColumn(connectorId, nodeId)
@@ -444,13 +445,14 @@ async function changeDefault(action: "set" | "drop", value?: string) {
     class="structure-view"
     data-testid="structure-view"
   >
-    <AppBanner
+    <SourceErrorBanner
       v-if="errorText"
-      tone="error"
+      :connector-id="connectorId"
+      :error-kind="errorKind"
       data-testid="structure-error"
     >
       {{ errorText }}
-    </AppBanner>
+    </SourceErrorBanner>
 
     <AppSpinner v-else-if="query.isPending.value" />
 

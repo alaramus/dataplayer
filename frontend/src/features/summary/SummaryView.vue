@@ -2,9 +2,10 @@
 import { computed, toRef } from "vue"
 
 import type { RelatedView } from "@/client"
+import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import { useNodeSummary } from "@/features/summary/api"
 import { describe } from "@/features/summary/facts"
-import { messageOf } from "@/shared/api/errors"
+import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { AppBanner, AppButton, AppSection, AppSpinner } from "@/shared/ui"
 
 /**
@@ -19,6 +20,7 @@ const emit = defineEmits<{ openRelated: [view: RelatedView] }>()
 const connectorId = toRef(props, "connectorId")
 const nodeId = toRef(props, "nodeId")
 const query = useNodeSummary(connectorId, nodeId)
+const errorKind = computed(() => errorKindOf(query.error.value))
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
@@ -37,13 +39,14 @@ const errorText = computed(() =>
     class="summary-view"
     data-testid="summary-view"
   >
-    <AppBanner
+    <SourceErrorBanner
       v-if="errorText"
-      tone="error"
+      :connector-id="connectorId"
+      :error-kind="errorKind"
       data-testid="summary-error"
     >
       {{ errorText }}
-    </AppBanner>
+    </SourceErrorBanner>
 
     <AppSpinner v-else-if="query.isPending.value" />
 

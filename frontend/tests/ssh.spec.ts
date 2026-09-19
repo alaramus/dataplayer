@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test"
 
 import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
-import { fillSshServer } from "./utils/connectors"
+import { createFileConnector, fillSshServer } from "./utils/connectors"
 import { login } from "./utils/login"
-import { connectorRow, deleteConnector } from "./utils/workspace"
+import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
 /**
  * An SSH server as a source, and the keys a person signs in with (D144–D147).
@@ -86,6 +86,92 @@ test("an SSH server is trusted by its key before anything is sent, and then brow
   await catalogAction(page, "delete")
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, folder)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("a viewer that finds the key locked offers to unlock it, and reads again once it is", async ({
+  page,
+}) => {
+  const name = `e2e-locked-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // The refusal and the key are the server's answers, stood in for here: a
+  // real locked key needs one the development server trusts, and what is
+  // under test is what every screen does with the answer (D147).
+  let locked = true
+  let connectorId = ""
+  const key = {
+    id: "e2e-locked-key",
+    name: "e2e",
+    algorithm: "ssh-ed25519",
+    public_key: "ssh-ed25519 AAAA dataplayer",
+    fingerprint: "SHA256:e2e",
+    passphrase_mode: "ask",
+    unlocked_until: null,
+    created_at: null,
+  }
+  const usedBy = () => [{ id: connectorId, name }]
+  await page.route(
+    (url) => /\/api\/v1\/connectors\/[^/]+\/(content|fetch)$/.test(url.pathname),
+    async (route) => {
+      connectorId = new URL(route.request().url()).pathname.split("/")[4] ?? ""
+      if (!locked) {
+        await route.continue()
+        return
+      }
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: {
+            message: "The SSH key e2e is locked; enter its passphrase to use it",
+            error_kind: "locked",
+          },
+        }),
+      })
+    }
+  )
+  await page.route(
+    (url) => url.pathname === "/api/v1/ssh-keys/",
+    async (route) => {
+      await route.fulfill({ json: [{ ...key, used_by: usedBy() }] })
+    }
+  )
+  await page.route(
+    (url) => url.pathname === `/api/v1/ssh-keys/${key.id}/unlock`,
+    async (route) => {
+      locked = false
+      await route.fulfill({
+        json: {
+          ...key,
+          unlocked_until: new Date(Date.now() + 15 * 60_000).toISOString(),
+          used_by: usedBy(),
+        },
+      })
+    }
+  )
+
+  // A recording and a table, each with the way on beside what went wrong.
+  await openNode(page, "tone.wav")
+  const media = page.getByTestId("content-error")
+  await expect(media).toContainText("is locked")
+  await expect(media.getByTestId("unlock-key")).toBeVisible()
+  await openNode(page, "sample.csv")
+  const grid = page.getByTestId("grid-error")
+  await expect(grid).toContainText("is locked")
+  await grid.getByTestId("unlock-key").click()
+
+  await page.getByTestId("unlock-key-passphrase").fill("held a while")
+  await page.getByTestId("unlock-key-confirm").click()
+
+  // Unlocking reads again what failed for want of the key, the other tab too.
+  await expect(page.getByTestId("grid-cell-0-name")).toBeVisible()
+  await openNode(page, "tone.wav")
+  await expect(page.getByTestId("media-details")).toContainText("WAV")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
