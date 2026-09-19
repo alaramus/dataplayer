@@ -186,3 +186,62 @@ test("starts an SSH server with sample files in its home and opens them", async 
   await expect(row).toHaveCount(0, { timeout: 60_000 })
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+test("starts an SSH server signed into with one of the person's own keys", async ({
+  page,
+}) => {
+  test.setTimeout(150_000)
+  const stamp = Date.now()
+  const keyName = `e2e-service-key-${stamp}`
+  const name = `e2e-keyed-ssh-${stamp}`
+  await login(page)
+  await page.goto("/preferences")
+  await page.getByTestId("ssh-key-new").click()
+  await page.getByTestId("ssh-key-name").fill(keyName)
+  await page.getByTestId("ssh-key-save").click()
+  await expect(page.getByTestId(`ssh-key-${keyName}`)).toBeVisible()
+
+  await page.goto("/")
+  await page.getByTestId("add-connector").click()
+  await page.getByTestId("adapter-ssh").click()
+  await page.getByTestId("start-service-ssh").click()
+  await page.getByTestId("service-mode").click()
+  await page.getByRole("option", { name: "Let me choose" }).click()
+  await page.getByTestId("service-name").fill(name)
+  // The key instead of a password: its public half goes to the server (D154).
+  await page.getByTestId("service-sign-in").click()
+  await page.getByRole("option", { name: "One of my SSH keys" }).click()
+  await expect(page.getByTestId("service-password")).toHaveCount(0)
+  await page.getByTestId("service-key").click()
+  await page.getByRole("option", { name: new RegExp(keyName) }).click()
+  await page.getByTestId("start-service-confirm").click()
+
+  // Ready means the job signed in with that key; there is no password to say.
+  const details = page.getByTestId("service-credentials-dialog")
+  await expect(details).toBeVisible({ timeout: 120_000 })
+  await expect(details).toContainText("signed into with your SSH key")
+  await expect(details.getByTestId("credential-password")).toHaveCount(0)
+  await expect(details.getByTestId("credential-url")).toContainText(
+    "ssh://dataplayer@127.0.0.1:"
+  )
+  await page.getByTestId("credentials-done").click()
+
+  await connectorRow(page, name).click()
+  await expect(page.getByTestId("catalog-list")).toContainText("sample.csv")
+
+  await page.getByTestId("command-services").click()
+  const row = page
+    .getByTestId("managed-services")
+    .locator('[data-testid^="managed-service-"]')
+    .filter({ hasText: name })
+  await row.locator('[data-testid^="remove-service-"]').click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(row).toHaveCount(0, { timeout: 60_000 })
+  await expect(connectorRow(page, name)).toHaveCount(0)
+
+  // The connection that used the key went with the service, so the key goes too.
+  await page.goto("/preferences")
+  await page.getByTestId(`ssh-key-delete-${keyName}`).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId(`ssh-key-${keyName}`)).toHaveCount(0)
+})

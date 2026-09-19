@@ -16,9 +16,12 @@ from typing import ClassVar
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
+from app.adapters.credentials import KeyAccess
 from app.adapters.registry import AdapterType
 from app.connectors import crud as connector_crud
+from app.connectors import ssh_keys
 from app.connectors.service import split_options
+from app.connectors.ssh_keys import OwnerKeys
 from app.core import crypto
 from app.jobs.models import Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
@@ -39,7 +42,9 @@ from app.services.readiness import (
 )
 from app.services.templates import (
     CREDENTIAL_SLOTS,
+    KEY_ID,
     PASSWORD,
+    PUBLIC_KEY,
     CredentialSlot,
     ServiceTemplate,
     UnknownServiceTemplate,
@@ -111,6 +116,13 @@ class CreateService(_ServiceJob):
         session = progress.session
         service = await self._service(session, job)
         template = _template_of(service)
+        chosen = _chosen_of(service)
+        if service.password_mode == "key":
+            try:
+                chosen[PUBLIC_KEY] = await _public_key_of(session, service)
+            except JobFailed:
+                await self._settle(session, service, "failed")
+                raise
         plan = build_plan(
             template,
             service_id=service.id,
@@ -120,9 +132,13 @@ class CreateService(_ServiceJob):
                 publish=service.publish,
                 host_port=service.requested_port,
             ),
-            chosen=_chosen_of(service),
+            chosen=chosen,
             protected=service.password_mode != "none",
+            keyed=service.password_mode == "key",
         )
+        # The owner's keys, for a server signed into with one of them (D154):
+        # the job asks it whether it answers, and fills it, as the owner.
+        keys = OwnerKeys(service.owner_id)
         try:
             await self._clear_earlier_attempt(service, progress)
             await progress.reached("pulling the image")
@@ -140,12 +156,13 @@ class CreateService(_ServiceJob):
                 connector_options(plan, _endpoint_of(plan)),
                 home_dir=storage.home_dir(service.owner_id),
                 timeout_seconds=template.startup_timeout_seconds,
+                keys=keys,
             )
             if options is None:
                 raise JobFailed(
                     f"{template.title} started but did not answer in time"
                 )
-            await self._fill_it(service, template, options, progress)
+            await self._fill_it(service, template, options, progress, keys)
             await progress.reached(self.steps[-1])
             await self._deliver(session, service, plan, options)
         except JobFailed:
@@ -224,6 +241,7 @@ class CreateService(_ServiceJob):
         template: ServiceTemplate,
         options: dict[str, str | int],
         progress: Progress,
+        keys: KeyAccess,
     ) -> None:
         """Put something worth looking at into a server that has nothing.
 
@@ -243,6 +261,7 @@ class CreateService(_ServiceJob):
                 template.adapter_type,
                 options,
                 home_dir=storage.home_dir(service.owner_id),
+                keys=keys,
             )
         except Exception as failure:
             # The database is up and usable; only the demonstration content
@@ -323,6 +342,27 @@ def _chosen_of(service: ManagedService) -> dict[CredentialSlot, str]:
     if typed is not None:
         by_slot[PASSWORD] = typed
     return by_slot
+
+
+async def _public_key_of(session: AsyncSession, service: ManagedService) -> str:
+    """The public half of the key a server is to trust, read out of the store.
+
+    Read when the server is started rather than when it was asked for, so a
+    retry starts it with the key as it is now — and one deleted in between is
+    a failure that says so rather than a server nobody can sign into (D154).
+    """
+    named = service.chosen_credentials.get(KEY_ID)
+    key = (
+        None
+        if named is None
+        else await ssh_keys.get_own(session, uuid.UUID(named), service.owner_id)
+    )
+    if key is None:
+        raise JobFailed(
+            "The SSH key this server was to be signed into with is gone; "
+            "start it again with another"
+        )
+    return key.public_key
 
 
 def _typed_password(service: ManagedService) -> str | None:

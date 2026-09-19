@@ -10,7 +10,7 @@ import type { ServiceRequestWritable } from "@/client"
  */
 export type StartRequest = NonNullable<ServiceRequestWritable["start"]>
 
-/** How the password of a service is decided, in the server's own three shapes. */
+/** How a service is signed into, in the server's own shapes. */
 export type PasswordRequest = Extract<
   StartRequest,
   { mode: "chosen" }
@@ -34,6 +34,10 @@ export interface StartForm {
   wantsPassword: boolean
   /** One typed here, or empty to have the server make one up. */
   password: string
+  /** A password, or one of the person's own SSH keys (D154). */
+  signIn: "password" | "key"
+  /** Which key, when it is a key. */
+  keyId: string
   sampleData: boolean
   /** Which credentials this template lets a person name (D80). */
   choosable: readonly string[]
@@ -41,6 +45,13 @@ export interface StartForm {
   offersSampleData: boolean
   /** Whether this template runs without a password at all. */
   optionalPassword: boolean
+  /** Whether this template may be signed into with a key instead. */
+  keySignIn: boolean
+}
+
+/** Whether this form asks for a server signed into with a key. */
+function signsInWithKey(form: StartForm): boolean {
+  return form.keySignIn && form.signIn === "key"
 }
 
 /**
@@ -92,6 +103,7 @@ function portOf(form: StartForm): number {
  * is a different request, and one with its own answer.
  */
 function passwordOf(form: StartForm): PasswordRequest {
+  if (signsInWithKey(form)) return { kind: "key", key_id: form.keyId }
   if (form.optionalPassword && !form.wantsPassword) return { kind: "none" }
   if (!form.choosable.includes("password") || form.password === "") {
     return { kind: "generated" }
@@ -113,14 +125,19 @@ const USABLE_PASSWORD = /^[!-~]{8,128}$/
 /** What is wrong with the password, when something is. */
 export function passwordProblem(form: StartForm): string | null {
   if (form.mode === "automatic") return null
+  if (signsInWithKey(form)) return null
   if (form.optionalPassword && !form.wantsPassword) return null
   if (form.password === "") return null
   if (USABLE_PASSWORD.test(form.password)) return null
   return "8 to 128 characters, with no spaces and nothing exotic in it"
 }
 
-/** Whether the form can be sent at all: a chosen start needs a usable name. */
+/**
+ * Whether the form can be sent at all: a chosen start needs a usable name,
+ * and one signed into with a key needs the key.
+ */
 export function canStart(form: StartForm): boolean {
   if (form.mode === "automatic") return true
+  if (signsInWithKey(form) && form.keyId === "") return false
   return form.name.trim() !== "" && passwordProblem(form) === null
 }

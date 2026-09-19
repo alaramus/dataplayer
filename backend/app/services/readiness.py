@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from app.adapters import registry
-from app.adapters.credentials import PinsServerKey
+from app.adapters.credentials import KeyAccess, PinsServerKey
 from app.adapters.options import server_key_names
 from app.adapters.protocol import AdapterError, SupportsSampleData
 from app.adapters.registry import AdapterContext
@@ -53,6 +53,7 @@ class ReadinessProbe(Protocol):
         *,
         home_dir: Path,
         timeout_seconds: int,
+        keys: KeyAccess | None = None,
     ) -> dict[str, str | int] | None: ...
 
 
@@ -62,11 +63,13 @@ async def wait_until_ready(
     *,
     home_dir: Path,
     timeout_seconds: int,
+    keys: KeyAccess | None = None,
 ) -> dict[str, str | int] | None:
     """Ask the source whether it works, until it does or time runs out.
 
     No pooling: this is a series of one-off connections to something that is
-    not ready yet, and a pool would keep the failures.
+    not ready yet, and a pool would keep the failures. `keys` are the owner's,
+    for a server that is signed into with one of them (D154).
     """
     kind = registry.get(adapter_type)
     deadline = asyncio.get_running_loop().time() + timeout_seconds
@@ -82,7 +85,9 @@ async def wait_until_ready(
     attempts = 0
     while True:
         attempts += 1
-        adapter = build_adapter(kind, dict(answered), AdapterContext(home_dir=home_dir))
+        adapter = build_adapter(
+            kind, dict(answered), AdapterContext(home_dir=home_dir, keys=keys)
+        )
         result = await adapter.check_connection()
         if result.ok:
             logger.info("Service answered after %d attempts", attempts)
@@ -127,6 +132,7 @@ class SampleDataFiller(Protocol):
         options: Mapping[str, Any],
         *,
         home_dir: Path,
+        keys: KeyAccess | None = None,
     ) -> str | None: ...
 
 
@@ -135,6 +141,7 @@ async def install_sample_data(
     options: Mapping[str, Any],
     *,
     home_dir: Path,
+    keys: KeyAccess | None = None,
 ) -> str | None:
     """Put this project's demonstration schema into a server that is ready.
 
@@ -144,7 +151,9 @@ async def install_sample_data(
     now in it (D2).
     """
     kind = registry.get(adapter_type)
-    adapter = build_adapter(kind, dict(options), AdapterContext(home_dir=home_dir))
+    adapter = build_adapter(
+        kind, dict(options), AdapterContext(home_dir=home_dir, keys=keys)
+    )
     if not isinstance(adapter, SupportsSampleData):
         return None
     written = await adapter.install_sample_data()

@@ -4,7 +4,7 @@ A server reached over SSH as a source, the server key a connection trusts,
 and the SSH keys a person signs in with. Read this before changing how an SSH
 connection signs in, what it trusts, or where a private key is kept.
 
-Decisions here: D144, D145, D146, D147, D153.
+Decisions here: D144, D145, D146, D147, D153, D154.
 
 ```
 backend/app/adapters/
@@ -232,9 +232,41 @@ password made up here, and a connector filled from the same plan.
 
 Known deviations:
 
-- **A key is not offered.** The old application could start a server that
-  took one of its owner's keys; here it takes a password.
 - **The image is the one the development override runs**, with `latest` there
   and a pinned tag here.
+
+Spec: [An SSH server this application starts](../../decisions/2026-09-19-ssh-service-design.md)
+
+## D154. A started SSH server may be signed into with one of its owner's keys
+
+The old application offered it, and a person who keeps their keys here (D146)
+has no reason to be handed a password for a machine they started.
+
+- **It is a fourth way to decide the password**, beside made up, typed and
+  none (D88): `{kind: "key", key_id}` in a chosen start. The request names
+  the key by id, as a connection does, and only the requester's own answers.
+- **The template has a shape for it.** The image is told the public half as
+  `PUBLIC_KEY` and turns password sign-in off; no password is made up at all.
+  Without one the image lets its user use `sudo` freely, which inside a
+  machine only that key opens is its owner acting on it. The connector signs
+  in with `auth_method: key` and names the key, so it is listed among the
+  connections that use it and the key cannot be deleted under it.
+- **The public half is read when the server is started**, by the job rather
+  than the request, so a retry starts it with the key as it is and a key
+  deleted in between fails the job with a sentence that says so.
+- **A locked key is refused before anything starts**, as `locked` (D147): the
+  job signs in the moment the server answers, and a key waiting for its
+  passphrase would fail that a minute later instead.
+- **The job reads and fills the server as its owner**, with the owner's keys
+  in the adapter's context; readiness and sample data got none before.
+- **The window that says where it listens has no password to hand over**, and
+  says that the key signs in.
+
+Known deviations:
+
+- **A key that locks while the server is starting fails the job** after its
+  timeout, with the ordinary "did not answer in time".
+- **Only the SSH server takes a key.** A key is a way into a machine; the
+  databases keep their passwords.
 
 Spec: [An SSH server this application starts](../../decisions/2026-09-19-ssh-service-design.md)

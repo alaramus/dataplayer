@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
+from app.adapters.credentials import KeyAccess
 from app.adapters.ssh import keys
 from app.connectors.models import Connector
 from app.connectors.service import merge_options
@@ -396,8 +397,9 @@ async def test_a_started_ssh_server_keeps_the_key_it_answered_with(
         *,
         home_dir: Path,
         timeout_seconds: int,
+        keys: KeyAccess | None = None,
     ) -> dict[str, str | int] | None:
-        del home_dir, timeout_seconds
+        del home_dir, timeout_seconds, keys
         return {**options, "host_key": presented}
 
     with engine_of(app, engine, probe=pinning):

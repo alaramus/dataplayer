@@ -24,13 +24,17 @@ from typing import Literal, get_args
 # Two types rather than one so that the environment of a container cannot ask
 # for a port that nothing has assigned yet: what may appear where is a
 # question mypy answers, not one a build-time check has to.
-CredentialSlot = Literal["user", "password", "database"]
+CredentialSlot = Literal["user", "password", "database", "key_id", "public_key"]
 PlacementSlot = Literal["host", "port"]
 Slot = CredentialSlot | PlacementSlot
 
 USER: CredentialSlot = "user"
 PASSWORD: CredentialSlot = "password"
 DATABASE: CredentialSlot = "database"
+# One of the requester's own SSH keys (D154): its id is what the connector
+# names, its public half what the server is told to trust.
+KEY_ID: CredentialSlot = "key_id"
+PUBLIC_KEY: CredentialSlot = "public_key"
 HOST: PlacementSlot = "host"
 PORT: PlacementSlot = "port"
 
@@ -56,6 +60,15 @@ class Generated:
     It carries nothing. How a secret is made is one rule and lives with the
     code that makes it; a template that could choose its own alphabet would be
     a template that could choose a weak one.
+    """
+
+
+@dataclass(frozen=True)
+class FromKey:
+    """Read off the SSH key the request names, which is the requester's own.
+
+    Neither written here nor made up: a server that signs in with a key is
+    told the public half of one its owner already has (D154).
     """
 
 
@@ -127,7 +140,7 @@ class ServiceTemplate:
     # How each credential slot is settled: written here, or made up per
     # service. Every slot a template uses must appear, which is what keeps one
     # constant from being written twice and drifting.
-    credentials: Mapping[CredentialSlot, Fixed | Generated]
+    credentials: Mapping[CredentialSlot, Fixed | Generated | FromKey]
     # Which of those a requester may name instead, when they want to. A
     # closed set per template, so a request naming anything else is refused
     # rather than quietly ignored. `password` is on this list where a template
@@ -151,6 +164,10 @@ class ServiceTemplate:
     # is refused: a PostgreSQL that trusts every connection is not a service
     # this server will start.
     unprotected: Shape | None = None
+    # What this template becomes when it is signed into with one of its
+    # owner's SSH keys rather than a password (D154). `None` for everything
+    # that is not a server one signs into with a key.
+    keyed: Shape | None = None
 
 
 POSTGRES = ServiceTemplate(
@@ -319,6 +336,8 @@ SSH = ServiceTemplate(
     credentials={
         USER: Fixed("dataplayer"),
         PASSWORD: Generated(),
+        KEY_ID: FromKey(),
+        PUBLIC_KEY: FromKey(),
     },
     choosable=frozenset({USER, PASSWORD}),
     environment={
@@ -346,6 +365,28 @@ SSH = ServiceTemplate(
     },
     # It makes its keys and its user before it listens.
     startup_timeout_seconds=60,
+    # Signed into with its owner's key and nothing else: no password is made
+    # up, and the image turns password sign-in off. Without a password the
+    # image lets its user use `sudo` freely, which inside a machine only that
+    # key opens is the machine's owner acting on it.
+    keyed=Shape(
+        command=(),
+        environment={
+            "PUID": Fixed("1000"),
+            "PGID": Fixed("1000"),
+            "USER_NAME": USER,
+            "PUBLIC_KEY": PUBLIC_KEY,
+            "PASSWORD_ACCESS": Fixed("false"),
+            "SUDO_ACCESS": Fixed("true"),
+        },
+        connector_options={
+            "auth_method": Fixed("key"),
+            "host": HOST,
+            "port": PORT,
+            "username": USER,
+            "key_id": KEY_ID,
+        },
+    ),
 )
 
 
@@ -380,15 +421,20 @@ def choosable_slots(template: ServiceTemplate) -> tuple[CredentialSlot, ...]:
     return tuple(slot for slot in CREDENTIAL_SLOTS if slot in template.choosable)
 
 
-def shape_of(template: ServiceTemplate, *, protected: bool) -> Shape:
-    """What this template runs and becomes, with a password or without one.
+def shape_of(template: ServiceTemplate, *, protected: bool, keyed: bool = False) -> Shape:
+    """What this template runs and becomes: with a password, without one, or
+    signed into with one of its owner's keys.
 
-    The one place the two are told apart. Everything downstream — the
+    The one place the three are told apart. Everything downstream — the
     environment, the command, the fields of the connector and which
     credentials there are to settle at all — is read off the shape this
     returns, so there is no second place where "without a password" has to be
     remembered.
     """
+    if keyed:
+        if template.keyed is None:
+            raise ValueError(f"{template.key} cannot be signed into with a key")
+        return template.keyed
     if protected:
         return Shape(
             command=template.command,
@@ -400,13 +446,22 @@ def shape_of(template: ServiceTemplate, *, protected: bool) -> Shape:
     return template.unprotected
 
 
+def shape_for(template: ServiceTemplate, password_mode: str) -> Shape:
+    """The shape a service took, from the word its row keeps for how it is
+    signed into."""
+    return shape_of(
+        template, protected=password_mode != "none", keyed=password_mode == "key"
+    )
+
+
 def shapes(template: ServiceTemplate) -> tuple[Shape, ...]:
     """Every shape this template can take, for whatever must hold for all of
     them: that each names a field its adapter has, and settles what it uses."""
-    protected = shape_of(template, protected=True)
-    if template.unprotected is None:
-        return (protected,)
-    return (protected, template.unprotected)
+    others = (template.unprotected, template.keyed)
+    return (
+        shape_of(template, protected=True),
+        *(shape for shape in others if shape is not None),
+    )
 
 
 def slots_of(shape: Shape) -> frozenset[CredentialSlot]:
@@ -431,6 +486,11 @@ def slots_of(shape: Shape) -> frozenset[CredentialSlot]:
 def may_run_unprotected(template: ServiceTemplate) -> bool:
     """Whether asking for this one without a password is a thing to offer."""
     return template.unprotected is not None
+
+
+def may_sign_in_with_key(template: ServiceTemplate) -> bool:
+    """Whether this one can be signed into with its owner's SSH key (D154)."""
+    return template.keyed is not None
 
 
 def generated_slots(template: ServiceTemplate) -> tuple[CredentialSlot, ...]:

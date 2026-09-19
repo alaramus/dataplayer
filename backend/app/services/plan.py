@@ -19,6 +19,7 @@ from app.services.templates import (
     CredentialSlot,
     CredentialValue,
     Fixed,
+    FromKey,
     Generated,
     ServiceTemplate,
     Shape,
@@ -185,12 +186,20 @@ def settle_credentials(
     without a password names none, so no secret comes into existence for it —
     rather than one being made and then left out of the container, which is
     the version of this that leaves a password in a log.
+
+    What is read off a key comes in with `chosen`, looked up by whoever holds
+    the store of keys; a shape that needs it and was not given it is refused.
     """
     named = chosen or {}
     used = slots_of(shape if shape is not None else shape_of(template, protected=True))
     settled: dict[CredentialSlot, str] = {}
     for slot, source in template.credentials.items():
         if slot not in used:
+            continue
+        if isinstance(source, FromKey):
+            if slot not in named:
+                raise ValueError(f"{template.key} was given no key to sign in with")
+            settled[slot] = named[slot]
             continue
         if slot in template.choosable and slot in named:
             settled[slot] = named[slot]
@@ -236,6 +245,7 @@ def build_plan(
     placement: Placement,
     chosen: Mapping[CredentialSlot, str] | None = None,
     protected: bool = True,
+    keyed: bool = False,
 ) -> ServicePlan:
     """What would be created for one service of this kind.
 
@@ -243,7 +253,7 @@ def build_plan(
     moment at which a service's password comes into existence — and one place
     where a password somebody chose is used instead of one being made up.
     """
-    shape = shape_of(template, protected=protected)
+    shape = shape_of(template, protected=protected, keyed=keyed)
     credentials = settle_credentials(template, chosen, shape=shape)
     return ServicePlan(
         service_id=service_id,

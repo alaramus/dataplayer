@@ -197,6 +197,11 @@ async def get_own(
     return row
 
 
+def is_locked(row: SshKey) -> bool:
+    """Whether the key asks for a passphrase this process does not hold (D147)."""
+    return row.passphrase_mode == "ask" and KEYRING.passphrase(row.id) is None
+
+
 def private_key_of(row: SshKey) -> str:
     return crypto.decrypt(row.private_key, purpose="connector").decode()
 

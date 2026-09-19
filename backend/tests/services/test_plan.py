@@ -298,3 +298,49 @@ def test_the_names_of_a_service_can_be_read_without_making_a_password() -> None:
     names = settled_names(template_for("postgres"), {"database": "sales"})
 
     assert names == {"user": "dataplayer", "database": "sales"}
+
+
+def test_a_server_signed_into_with_a_key_is_told_its_public_half_and_no_password() -> None:
+    """D154: the public half goes to the image, password sign-in is off, and
+    the connector names the key rather than holding anything secret."""
+    key_id = str(uuid4())
+    plan = build_plan(
+        template_for("ssh"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(),
+        chosen={"key_id": key_id, "public_key": "ssh-ed25519 AAAA dataplayer"},
+        keyed=True,
+    )
+
+    filled = connector_options(plan, Endpoint(host=plan.container.name, port=2222))
+    validated = adapter_options.validate(
+        registry.get(plan.template.adapter_type).options_schema, filled
+    )
+
+    assert "password" not in plan.credentials
+    assert plan.container.environment["PUBLIC_KEY"] == "ssh-ed25519 AAAA dataplayer"
+    assert plan.container.environment["PASSWORD_ACCESS"] == "false"
+    assert "USER_PASSWORD" not in plan.container.environment
+    assert filled["auth_method"] == "key"
+    assert filled["key_id"] == key_id
+    assert str(validated.key_id) == key_id  # type: ignore[union-attr]  # the key variant, asserted above
+
+
+def test_a_server_to_be_signed_into_with_a_key_is_not_started_without_one() -> None:
+    with pytest.raises(ValueError, match="no key"):
+        build_plan(
+            template_for("ssh"),
+            service_id=uuid4(),
+            owner_id=uuid4(),
+            placement=Placement(),
+            keyed=True,
+        )
+    with pytest.raises(ValueError, match="cannot be signed into with a key"):
+        build_plan(
+            template_for("postgres"),
+            service_id=uuid4(),
+            owner_id=uuid4(),
+            placement=Placement(),
+            keyed=True,
+        )

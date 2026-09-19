@@ -57,6 +57,9 @@ async def test_nothing_about_the_container_is_published(
         # Whether running it without a password at all is a configuration
         # rather than a mistake, which is a fact about the image.
         "optional_password",
+        # Whether one of the requester's own SSH keys may sign into it
+        # instead (D154), which is a fact about the template.
+        "key_sign_in",
         "offers_sample_data",
         # Not about the container: about whether this server could start one.
         "available",

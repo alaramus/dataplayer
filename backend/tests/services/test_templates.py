@@ -13,6 +13,7 @@ from app.services.templates import (
     all_templates,
     generated_slots,
     may_run_unprotected,
+    may_sign_in_with_key,
     shape_of,
     shapes,
     slots_of,
@@ -173,3 +174,14 @@ def test_the_ssh_template_is_a_server_signed_into_with_a_password_it_made() -> N
     assert ssh.environment["PASSWORD_ACCESS"] == Fixed("true")
     assert "host_key" not in ssh.connector_options
     assert may_run_unprotected(ssh) is False
+
+
+def test_only_the_ssh_server_is_signed_into_with_a_key() -> None:
+    """A key is a way into a machine, not into a database (D154)."""
+    ssh = template_for("ssh")
+    assert ssh.keyed is not None
+
+    assert [t.key for t in SERVICE_TEMPLATES if may_sign_in_with_key(t)] == ["ssh"]
+    assert slots_of(ssh.keyed) == {"user", "key_id", "public_key"}
+    assert ssh.keyed.environment["PASSWORD_ACCESS"] == Fixed("false")
+    assert ssh.keyed.connector_options["auth_method"] == Fixed("key")

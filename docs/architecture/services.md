@@ -505,7 +505,7 @@ so they are two shapes rather than one shape with everything optional.
 - **The password is decided in one of three ways, as three shapes.** Made up
   here, which is the default and the whole of the automatic start; typed by
   the person asking; or none at all, for an image where that is an ordinary
-  configuration. A nullable string plus a boolean has a fourth combination
+  configuration. An SSH server has a fourth, its owner's key (D154). A nullable string plus a boolean has a fourth combination
   that means nothing, and something would eventually have to decide what.
 - **A typed password is encrypted on the service row until the connector
   holds it.** This is the one place a service's password lives outside the

@@ -245,19 +245,32 @@ class NoPassword(BaseModel):
     kind: Literal["none"] = "none"
 
 
-# How a service's password was decided, once the request is over. The three
-# shapes below, flattened to the word the row keeps and the screens read.
-PasswordMode = Literal["generated", "chosen", "none"]
+class OwnKey(BaseModel):
+    """No password: one of the requester's own SSH keys signs in (D154).
+
+    Named by id, like a connection names one (D146): the private half never
+    leaves the store, and the public half the server is told to trust is read
+    out of it by the job that starts the server.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["key"] = "key"
+    key_id: uuid.UUID
+
+
+# How a service's password was decided, once the request is over. The shapes
+# below, flattened to the word the row keeps and the screens read.
+PasswordMode = Literal["generated", "chosen", "none", "key"]
 
 
 PasswordChoice = Annotated[
-    GeneratedPassword | ChosenPassword | NoPassword,
+    GeneratedPassword | ChosenPassword | NoPassword | OwnKey,
     PydanticField(discriminator="kind"),
 ]
-"""How a service's password is decided, as three shapes rather than two
-nullable fields. A `password: str | None` plus a `no_password: bool` has a
-fourth combination that means nothing, and something would eventually have to
-decide what it meant."""
+"""How a service is signed into, as shapes rather than nullable fields. A
+`password: str | None` plus a `no_password: bool` has a combination that
+means nothing, and something would eventually have to decide what it meant."""
 
 
 class AutomaticStart(BaseModel):

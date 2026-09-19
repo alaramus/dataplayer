@@ -12,10 +12,13 @@ function form(over: Partial<StartForm> = {}): StartForm {
     port: 0,
     wantsPassword: true,
     password: "",
+    signIn: "password",
+    keyId: "",
     sampleData: true,
     choosable: ["user", "password", "database"],
     offersSampleData: true,
     optionalPassword: false,
+    keySignIn: false,
     ...over,
   }
 }
@@ -139,5 +142,30 @@ describe("whether the form can be sent", () => {
   it("will not send a password the server would refuse", () => {
     expect(canStart(form({ password: "short" }))).toBe(false)
     expect(canStart(form({ password: "correct-horse-9" }))).toBe(true)
+  })
+})
+
+describe("a server signed into with one of the person's keys (D154)", () => {
+  const ssh = { choosable: ["user", "password"], keySignIn: true, signIn: "key" as const }
+
+  it("sends the key rather than any password", () => {
+    const built = buildStart(form({ ...ssh, keyId: "key-1", password: "typed-but-unused" }))
+
+    expect(built).toMatchObject({ password: { kind: "key", key_id: "key-1" } })
+  })
+
+  it("cannot be sent until a key is chosen", () => {
+    expect(canStart(form({ ...ssh, keyId: "" }))).toBe(false)
+    expect(canStart(form({ ...ssh, keyId: "key-1" }))).toBe(true)
+  })
+
+  it("does not judge a password nobody will use", () => {
+    expect(passwordProblem(form({ ...ssh, keyId: "key-1", password: "a b" }))).toBeNull()
+  })
+
+  it("is a password again for a template that takes no key", () => {
+    const built = buildStart(form({ signIn: "key", keyId: "key-1", keySignIn: false }))
+
+    expect(built).toMatchObject({ password: { kind: "generated" } })
   })
 })

@@ -15,6 +15,7 @@ from anyio import to_thread
 from fastapi import FastAPI
 from sqlmodel import delete, select
 
+from app.adapters.credentials import KeyAccess
 from app.connectors.models import Connector
 from app.core.config import settings
 from app.core.db import async_session_maker
@@ -154,10 +155,11 @@ def probe_answering(ready: bool) -> Any:
         *,
         home_dir: Path,
         timeout_seconds: int,
+        keys: KeyAccess | None = None,
     ) -> dict[str, str | int] | None:
         # The signature is the protocol's; what it is asked makes no
         # difference to an answer a test has already decided.
-        del home_dir, timeout_seconds
+        del home_dir, timeout_seconds, keys
         return dict(options) if ready else None
 
     return probe
@@ -180,8 +182,9 @@ class FakeFiller:
         _options: Mapping[str, Any],
         *,
         home_dir: Path,
+        keys: KeyAccess | None = None,
     ) -> str | None:
-        del home_dir
+        del home_dir, keys
         if self.refuses:
             raise RuntimeError("no")
         self.filled.append(adapter_type)

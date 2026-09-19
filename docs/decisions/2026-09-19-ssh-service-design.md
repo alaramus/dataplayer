@@ -1,6 +1,6 @@
 # An SSH server this application starts
 
-Date: 2026-09-19. Decisions: D153.
+Date: 2026-09-19. Decisions: D153, D154.
 
 Status: implemented with this specification.
 
@@ -54,9 +54,14 @@ Rejected: leaving the key empty and asking the owner to fetch it. The
 connection would not work until somebody opened its form, and the fingerprint
 they compared would come over the same path the job asks along.
 
+**D154 — signed into with one of the owner's keys.** Asked for next and
+done the way this left it: a chosen start may say `{kind: "key", key_id}`
+instead of a password, the template has a third shape that tells the image
+`PUBLIC_KEY` and turns password sign-in off, and the connector signs in with
+that key. The key must be the requester's own and not locked when asked for;
+its public half is read by the job, which reads and fills the server with the
+owner's keys in the adapter's context.
+
 ## Left for later
 
-- Signing in to a started server with one of the owner's SSH keys, which the
-  old application offered: the public half goes to the image as `PUBLIC_KEY`,
-  and the request needs a key id among the things a person may choose (D88).
 - FTP and other servers of files, which the explorer is ready for.

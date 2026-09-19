@@ -4,6 +4,8 @@ import { computed, ref, watch } from "vue"
 import type { ServiceTemplateInfo } from "@/client"
 import { buildStart, canStart, passwordProblem } from "@/features/services/starts"
 import type { StartForm, StartRequest } from "@/features/services/starts"
+import { useSshKeys } from "@/features/sshKeys/api"
+import { keyChoiceLabel } from "@/features/sshKeys/keys"
 import {
   AppButton,
   AppCheckbox,
@@ -40,12 +42,26 @@ const database = ref("")
 const port = ref<number | null>(0)
 const wantsPassword = ref(true)
 const password = ref("")
+const signIn = ref<"password" | "key">("password")
+const keyId = ref("")
 const sampleData = ref(true)
 
 /** Which credentials this template lets a person name, in the server's order. */
 const asksFor = computed(() => props.template?.choosable ?? [])
 const offersSampleData = computed(() => props.template?.offers_sample_data ?? false)
 const optionalPassword = computed(() => props.template?.optional_password ?? false)
+/** Whether this one may be signed into with the person's own key (D154). */
+const keySignIn = computed(() => props.template?.key_sign_in ?? false)
+const withKey = computed(() => keySignIn.value && signIn.value === "key")
+// Asked for only where a key is on offer, so a PostgreSQL form reads nothing.
+const sshKeys = useSshKeys(computed(() => keySignIn.value && mode.value === "chosen"))
+const keyChoices = computed(() =>
+  (sshKeys.data.value ?? []).map((key) => ({ label: keyChoiceLabel(key), value: key.id }))
+)
+const signIns = [
+  { label: "A password", value: "password" },
+  { label: "One of my SSH keys", value: "key" },
+]
 
 // Opened on a template, it starts over: the last service somebody made is not
 // a draft of the next one.
@@ -59,6 +75,8 @@ watch(
     port.value = 0
     wantsPassword.value = true
     password.value = ""
+    signIn.value = "password"
+    keyId.value = ""
     sampleData.value = template?.offers_sample_data ?? false
   }
 )
@@ -72,10 +90,13 @@ const form = computed<StartForm>(() => ({
   port: port.value ?? 0,
   wantsPassword: wantsPassword.value,
   password: password.value,
+  signIn: signIn.value,
+  keyId: keyId.value,
   sampleData: sampleData.value,
   choosable: asksFor.value,
   offersSampleData: offersSampleData.value,
   optionalPassword: optionalPassword.value,
+  keySignIn: keySignIn.value,
 }))
 
 const ready = computed(() => canStart(form.value))
@@ -163,8 +184,29 @@ const modes = [
           label="Ask for a password"
           data-testid="service-wants-password"
         />
+        <!-- A server one signs into, rather than a database: its owner's own
+             key may open it instead of a password (D154). -->
+        <AppSelect
+          v-if="keySignIn"
+          v-model="signIn"
+          label="Sign in with"
+          :options="signIns"
+          data-testid="service-sign-in"
+        />
+        <AppSelect
+          v-if="withKey"
+          v-model="keyId"
+          label="Your SSH key"
+          :options="keyChoices"
+          :hint="
+            keyChoices.length === 0
+              ? 'You have no SSH keys yet; make one on the Preferences page'
+              : 'The server trusts its public half and takes no password'
+          "
+          data-testid="service-key"
+        />
         <AppInput
-          v-if="asksFor.includes('password') && (wantsPassword || !optionalPassword)"
+          v-if="!withKey && asksFor.includes('password') && (wantsPassword || !optionalPassword)"
           v-model="password"
           type="password"
           label="Password"
@@ -180,8 +222,14 @@ const modes = [
         />
         <p class="start-service__what">
           Runs <code>{{ template?.image }}</code> on this server, reachable
-          from this machine and from nowhere else. A password made up here is
-          never shown afterwards, so type one if you mean to use it elsewhere.
+          from this machine and from nowhere else.
+          <template v-if="withKey">
+            It is signed into with your key, from here and from your own tools.
+          </template>
+          <template v-else>
+            A password made up here is never shown afterwards, so type one if
+            you mean to use it elsewhere.
+          </template>
         </p>
       </template>
     </div>

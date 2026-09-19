@@ -17,6 +17,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.registry import AdapterType
 from app.connectors import crud as connector_crud
+from app.connectors import ssh_keys
 from app.connectors.models import Connector
 from app.connectors.service import merge_options
 from app.core import crypto
@@ -45,6 +46,7 @@ from app.services.models import (
     ContainerReport,
     ManagedService,
     NoPassword,
+    OwnKey,
     PasswordMode,
     RevealedCredentials,
     ServiceAccepted,
@@ -58,10 +60,11 @@ from app.services.models import (
 from app.services.plan import Endpoint, Placement, described_options, settled_names
 from app.services.templates import (
     DATABASE,
+    KEY_ID,
     PASSWORD,
     USER,
     UnknownServiceTemplate,
-    shape_of,
+    shape_for,
 )
 from app.users.deps import (
     CurrentUser,
@@ -114,6 +117,9 @@ class ServiceTemplateInfo(BaseModel):
     # configuration. Read off the template, so the form offers the choice
     # exactly where the server would accept it (D82's rule about offers).
     optional_password: bool
+    # Whether it may be signed into with one of the requester's SSH keys
+    # instead of a password (D154). Read off the template, like the above.
+    key_sign_in: bool = False
     # Whether this server has anything to put in one of these worth looking
     # at. Read off the driver, so a type that cannot be filled does not offer
     # to be.
@@ -165,6 +171,7 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
             generated=list(templates.generated_slots(template)),
             choosable=list(templates.choosable_slots(template)),
             optional_password=templates.may_run_unprotected(template),
+            key_sign_in=templates.may_sign_in_with_key(template),
             offers_sample_data=issubclass(
                 registry.get(template.adapter_type).adapter_class, SupportsSampleData
             ),
@@ -211,6 +218,7 @@ async def request_service(
     await _refuse_if_at_the_ceiling(session, current_user.id)
     chosen = _chosen_credentials(template, body.start)
     password_mode, chosen_password = _password_choice(template, body.start)
+    chosen |= await _key_to_sign_in_with(session, current_user.id, body.start)
     service = await crud.create(
         session,
         owner_id=current_user.id,
@@ -695,6 +703,13 @@ def _password_choice(
                 detail={"message": "This service cannot run without a password"},
             )
         return "none", None
+    if isinstance(choice, OwnKey):
+        if not templates.may_sign_in_with_key(template):
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "This service is not signed into with a key"},
+            )
+        return "key", None
     if isinstance(choice, ChosenPassword):
         if PASSWORD not in template.choosable:
             raise HTTPException(
@@ -712,6 +727,35 @@ def _password_choice(
             )
         return "chosen", crypto.encrypt(plain.encode(), purpose="connector")
     return "generated", None
+
+
+async def _key_to_sign_in_with(
+    session: AsyncSession, owner_id: uuid.UUID, start: StartRequest
+) -> dict[str, str]:
+    """The SSH key a server is to be signed into with, as the row keeps it.
+
+    Only the requester's own (D146), and not a locked one: the job signs in
+    with it the moment the server answers, and a key that asks for a
+    passphrase nobody has given would fail that after a minute of waiting
+    rather than now, where the answer can say what to do (D147).
+    """
+    if not isinstance(start, ChosenStart) or not isinstance(start.password, OwnKey):
+        return {}
+    key = await ssh_keys.get_own(session, start.password.key_id, owner_id)
+    if key is None:
+        raise HTTPException(
+            status_code=422, detail={"message": "That SSH key is not one of yours"}
+        )
+    if ssh_keys.is_locked(key):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": f"The SSH key {key.name} is locked; unlock it first, "
+                "so the server can be signed into as soon as it answers",
+                "error_kind": "locked",
+            },
+        )
+    return {KEY_ID: str(key.id)}
 
 
 def _wants_sample_data(start: StartRequest) -> bool:
@@ -934,7 +978,7 @@ def _parts_of(
     from them as it would from its form.
     """
     template = templates.template_for(service.template_key)
-    shape = shape_of(template, protected=service.password_mode != "none")
+    shape = shape_for(template, service.password_mode)
     return dict(described_options(shape, known, Endpoint(PUBLISHED_HOST, port)))
 
 
@@ -953,7 +997,7 @@ async def _password_of(
     none to give, and so does one whose connection has been deleted — which is
     a state, not a failure: the address is still known.
     """
-    if service.password_mode == "none" or service.connector_id is None:
+    if service.password_mode in ("none", "key") or service.connector_id is None:
         return None
     connector = await session.get(Connector, service.connector_id)
     if connector is None:

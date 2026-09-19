@@ -8,6 +8,8 @@ from typing import Any
 import pytest
 from httpx import AsyncClient
 
+from app.connectors.models import Connector
+from app.connectors.service import merge_options
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.jobs.runner import JobRunner
@@ -21,6 +23,7 @@ from tests.utils.service_engine import (
 )
 
 BASE = f"{settings.API_V1_STR}/services"
+KEYS = f"{settings.API_V1_STR}/ssh-keys"
 CONNECTORS = f"{settings.API_V1_STR}/connectors"
 
 
@@ -666,3 +669,114 @@ async def test_somebody_else_s_credentials_are_not_found(
     )
 
     assert refused.status_code == 404
+
+
+# --- signed into with one of the requester's keys (D154) ---------------------
+
+
+async def _key(
+    client: AsyncClient, headers: dict[str, str], **body: object
+) -> dict[str, Any]:
+    made = await client.post(
+        f"{KEYS}/generate", headers=headers, json={"name": f"k-{uuid.uuid4().hex[:6]}"} | body
+    )
+    assert made.status_code == 200, made.text
+    key: dict[str, Any] = made.json()
+    return key
+
+
+async def _start_keyed(
+    client: AsyncClient, headers: dict[str, str], key_id: str, template: str = "ssh"
+) -> Any:
+    return await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={
+            "template_key": template,
+            "start": {
+                "mode": "chosen",
+                "name": f"keyed {uuid.uuid4().hex[:6]}",
+                "password": {"kind": "key", "key_id": key_id},
+            },
+        },
+    )
+
+
+async def test_a_server_signed_into_with_a_key_trusts_its_public_half(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """The container is told the public half, no password exists anywhere, and
+    the connection it becomes signs in with the same key."""
+    key = await _key(client, normal_user_token_headers)
+
+    accepted = await _start_keyed(client, normal_user_token_headers, key["id"])
+    assert accepted.status_code == 200, accepted.text
+    await _wait(accepted.json()["job"]["id"])
+    service_id = accepted.json()["service"]["id"]
+    started = engine.created[0]
+    async with async_session_maker() as session:
+        service = await session.get(ManagedService, uuid.UUID(service_id))
+        assert service is not None and service.connector_id is not None
+        connector = await session.get(Connector, service.connector_id)
+        assert connector is not None
+        options = merge_options(connector.config, connector.secrets)
+    shown = await client.get(
+        f"{BASE}/{service_id}/credentials", headers=normal_user_token_headers
+    )
+    handed = await client.post(
+        f"{BASE}/{service_id}/credentials/reveal", headers=normal_user_token_headers
+    )
+
+    assert started.environment["PUBLIC_KEY"] == key["public_key"]
+    assert started.environment["PASSWORD_ACCESS"] == "false"
+    assert "USER_PASSWORD" not in started.environment
+    assert options["auth_method"] == "key"
+    assert options["key_id"] == key["id"]
+    assert "password" not in options
+    assert shown.json()["password_mode"] == "key"
+    assert handed.json()["password"] is None
+
+
+async def test_a_key_that_is_somebody_else_s_is_not_one_to_sign_in_with(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+    engine: FakeEngine,
+) -> None:
+    theirs = await _key(client, superuser_token_headers)
+
+    refused = await _start_keyed(client, normal_user_token_headers, theirs["id"])
+
+    assert refused.status_code == 422
+    assert "not one of yours" in refused.text
+    assert engine.created == []
+
+
+async def test_a_locked_key_is_refused_before_anything_starts(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """The job would sign in with it the moment the server answered, and fail a
+    minute later; the refusal says now what to do (D147)."""
+    key = await _key(
+        client, normal_user_token_headers, passphrase="held a while", passphrase_mode="ask"
+    )
+
+    refused = await _start_keyed(client, normal_user_token_headers, key["id"])
+
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["error_kind"] == "locked"
+    assert engine.created == []
+
+
+@pytest.mark.usefixtures("engine")
+async def test_a_database_is_not_signed_into_with_a_key(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    key = await _key(client, normal_user_token_headers)
+
+    refused = await _start_keyed(
+        client, normal_user_token_headers, key["id"], template="postgres"
+    )
+
+    assert refused.status_code == 422
+    assert "not signed into with a key" in refused.text

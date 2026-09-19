@@ -1497,6 +1497,9 @@ export type ChosenStart = {
     | ({
         kind: "none"
       } & NoPassword)
+    | ({
+        kind: "key"
+      } & OwnKey)
   /**
    * Sample Data
    */
@@ -6001,6 +6004,26 @@ export type OperatorClassOption = {
 }
 
 /**
+ * OwnKey
+ *
+ * No password: one of the requester's own SSH keys signs in (D154).
+ *
+ * Named by id, like a connection names one (D146): the private half never
+ * leaves the store, and the public half the server is told to trust is read
+ * out of it by the job that starts the server.
+ */
+export type OwnKey = {
+  /**
+   * Kind
+   */
+  kind?: "key"
+  /**
+   * Key Id
+   */
+  key_id: string
+}
+
+/**
  * ParameterMetadata
  *
  * What a run remembers about a binding: everything except the value.
@@ -7756,7 +7779,7 @@ export type RevealedCredentials = {
   /**
    * Password Mode
    */
-  password_mode: "generated" | "chosen" | "none"
+  password_mode: "generated" | "chosen" | "none" | "key"
   /**
    * Url
    */
@@ -8536,7 +8559,7 @@ export type ServiceCredentials = {
   /**
    * Password Mode
    */
-  password_mode: "generated" | "chosen" | "none"
+  password_mode: "generated" | "chosen" | "none" | "key"
   /**
    * Url
    */
@@ -8687,15 +8710,19 @@ export type ServiceTemplateInfo = {
   /**
    * Generated
    */
-  generated: Array<"user" | "password" | "database">
+  generated: Array<"user" | "password" | "database" | "key_id" | "public_key">
   /**
    * Choosable
    */
-  choosable: Array<"user" | "password" | "database">
+  choosable: Array<"user" | "password" | "database" | "key_id" | "public_key">
   /**
    * Optional Password
    */
   optional_password: boolean
+  /**
+   * Key Sign In
+   */
+  key_sign_in?: boolean
   /**
    * Offers Sample Data
    */
@@ -10735,6 +10762,9 @@ export type ChosenStartWritable = {
     | ({
         kind: "none"
       } & NoPassword)
+    | ({
+        kind: "key"
+      } & OwnKey)
   /**
    * Sample Data
    */

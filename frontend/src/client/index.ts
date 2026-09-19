@@ -840,6 +840,7 @@ export type {
   NullFilter,
   NullTest,
   OperatorClassOption,
+  OwnKey,
   ParameterMetadata,
   ParquetDataset,
   ParsedOptions,

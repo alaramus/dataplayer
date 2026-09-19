@@ -48,6 +48,11 @@ export function shortFingerprint(fingerprint: string): string {
   return body.length > 12 ? `…${body.slice(-12)}` : body
 }
 
+/** How a key reads where one is chosen: its name, its kind and enough of its fingerprint. */
+export function keyChoiceLabel(key: SshKeyPublic): string {
+  return `${key.name} · ${key.algorithm} · ${shortFingerprint(key.fingerprint)}`
+}
+
 /**
  * A field that holds one of the owner's keys, offered as a choice of them.
  *
@@ -62,10 +67,7 @@ export function withKeyChoices(fields: FieldSpec[], keys: SshKeyPublic[]): Field
       ? {
           ...field,
           kind: "select",
-          choices: keys.map((key) => ({
-            value: key.id,
-            label: `${key.name} · ${key.algorithm} · ${shortFingerprint(key.fingerprint)}`,
-          })),
+          choices: keys.map((key) => ({ value: key.id, label: keyChoiceLabel(key) })),
         }
       : field
   )

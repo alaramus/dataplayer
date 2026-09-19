@@ -77,6 +77,7 @@ const rows = computed(() => {
 const aboutThePassword = computed(() => {
   const mode = answer.value?.password_mode
   if (mode === "none") return "This service was started without a password."
+  if (mode === "key") return "It has no password: it is signed into with your SSH key."
   if (revealing.value) {
     if (mode === "chosen") return "It uses the password you typed for it."
     return (
