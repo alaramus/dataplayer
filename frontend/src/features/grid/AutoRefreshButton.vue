@@ -56,11 +56,14 @@ function pick(name: string) {
 </script>
 
 <template>
+  <!-- The drawn label is an interval, and off it is nothing at all: neither
+       names the command, so the name is spoken rather than drawn (U04). -->
   <AppButton
     :variant="seconds === null ? 'quiet' : 'secondary'"
     size="sm"
     icon="autorenew"
     :label="seconds === null ? undefined : refreshLabel(seconds)"
+    :aria-label="tooltip"
     layout="toolbar"
     :disable="disable"
     data-testid="grid-auto-refresh"

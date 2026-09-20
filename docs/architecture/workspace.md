@@ -230,6 +230,15 @@ Consequences:
   never learns what a catalog is. Instance refs held by the engine would have
   been the other way to reach a panel, and that is the coupling this decision
   exists to prevent.
+- **A strip of tabs says that it is one.** The engine draws a `tablist` whose
+  tabs say which of them is showing, and the arrows walk it: as a row of
+  buttons it said nothing about what it was, nothing about which tab the screen
+  was showing, and Tab walked through every tab and every close button to get
+  past it (U09). Only the tab being shown is in the tab order, and the controls
+  inside a tab - its icon, its cross - travel with it, so the strip is one stop
+  rather than twenty. Walking is not choosing: Enter and Space open the tab
+  walked to, because a panel reads its relation when it is shown and arrowing
+  past four of them would ask the server for all four.
 - **The cross asks the panel before it takes it away.** Closing is a request,
   not a command: the engine calls the same kind of registered answer as
   re-reading, and a panel that has nothing to say is closed at once. Only a

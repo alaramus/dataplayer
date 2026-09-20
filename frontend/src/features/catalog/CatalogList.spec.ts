@@ -86,6 +86,33 @@ describe("copying the name of a row", () => {
   })
 })
 
+/**
+ * U05: nothing in a row said what it was. The row took its name from what it
+ * contained, starting with the copy button - "Copy orders orders" - and the
+ * tick boxes had no name at all, so selecting, opening and copying were three
+ * unlabelled things in a line.
+ */
+describe("what a row of the list is called", () => {
+  it("names the row by what pressing it opens", () => {
+    const wrapper = mountList()
+    const row = wrapper.get('[data-testid="catalog-node-orders"]')
+
+    expect(row.attributes("role")).toBe("button")
+    expect(row.attributes("aria-label")).toBe("Open orders")
+  })
+
+  it("names every tick box by what it ticks", () => {
+    const wrapper = mountList()
+
+    expect(
+      wrapper.get('[data-testid="catalog-check-orders"]').attributes("aria-label")
+    ).toBe("Select orders")
+    expect(wrapper.get('[data-testid="catalog-check-all"]').attributes("aria-label")).toBe(
+      "Select everything here"
+    )
+  })
+})
+
 describe("the columns of a level", () => {
   it("keeps a measured row in the list's own columns", () => {
     const wrapper = mountList()

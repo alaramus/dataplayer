@@ -165,7 +165,18 @@ Consequences:
   past. `useQuasar` is forbidden in screens; `useToast` and `useConfirm` replace
   it.
 - **An icon button's tooltip is its accessible name** in every state, unless the
-  caller passes its own `aria-label`.
+  caller passes its own `aria-label`. A button drawn as an icon alone keeps the
+  label it does not draw and speaks it instead: a narrow rail is a reason to
+  show less, not to be called nothing, and four commands that dropped their
+  label to fit one were announced as unnamed buttons (U04).
+- **A command that is off is still a command.** Disabled, an icon button is out
+  of the tab order, which left its reason on hover and nowhere else; the
+  wrapper that already carried the tooltip takes the button's place in the tab
+  order and its name — label and reason together — and the button inside is
+  hidden from a reader so the pair is announced once. A disabled menu line says
+  the same way that it is a line of the menu, that it is off and why, because
+  Quasar otherwise draws it as loose text (U14). The tab stop there is Quasar's
+  to give, and it gives a disabled item none.
 - **The kit documents itself at `/ui-kit`**, a route registered only under
   `import.meta.env.DEV`. It renders the real components, and a test compares the
   page against the files in `shared/ui`, so a component cannot be added without

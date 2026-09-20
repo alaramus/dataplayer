@@ -60,11 +60,12 @@ function mountGrid(
     canQuery?: boolean
     contentTitle?: string
     referenceFilters?: Filter[] | null
-  } = {}
+  } = {},
+  /** Shared to mount a second grid on a page the client already holds. */
+  client?: QueryClient
 ) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  })
+  const queryClient =
+    client ?? new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   return mount(
     withWindowHost(DataGrid, {
       connectorId: "connector-1",
@@ -1055,6 +1056,26 @@ describe("the basic data grid", () => {
    * away with the answer, and the toolbar read them as a source that filters
    * nothing. Correcting the value meant discarding the whole query.
    */
+  it("has its columns at once when the page is already in the client", async () => {
+    // A tab returned to - from Preferences, from another space - is answered
+    // from the cache, so the page never arrives: it is already here. The
+    // columns are read from the answer that described the relation, and that
+    // answer has to count as having been seen.
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({ data: result(0, 2) } as never)
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    })
+    const first = mountGrid({}, client)
+    await flushPromises()
+    first.unmount()
+
+    const again = mountGrid({}, client)
+    await flushPromises()
+
+    expect(again.get('[data-testid="grid-filter"]').attributes("disabled")).toBeUndefined()
+    expect(again.find('[data-testid="grid-column-name"]').exists()).toBe(true)
+  })
+
   it("keeps the filter editor open on a value the source refused", async () => {
     vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
       (options.body.filters?.length ?? 0) > 0

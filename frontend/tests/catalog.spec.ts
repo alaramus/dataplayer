@@ -56,6 +56,40 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+/**
+ * U05 and U06: every row was announced by the copy button inside it - "Copy
+ * pg_class pg_class" - the tick boxes had no name at all, and a row that took
+ * focus showed nothing, its outline being transparent.
+ */
+test("a catalog row says what it is and shows where the keyboard is", async ({ page }) => {
+  const name = `e2e-catalog-keyboard-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await expect(catalogRow(page, "pg_class")).toBeVisible()
+
+  // Named by what each control does, so opening, ticking and copying are
+  // three different sentences.
+  await expect(page.getByRole("button", { name: "Open pg_class", exact: true })).toBeVisible()
+  await expect(
+    page.getByRole("checkbox", { name: "Select pg_class", exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("checkbox", { name: "Select everything here", exact: true })
+  ).toBeVisible()
+
+  // And the row shows that it has the keyboard. The outline is the one every
+  // row carries for the reveal mark, so this asks for its colour.
+  const row = catalogRow(page, "pg_class")
+  await row.focus()
+  const outline = await row.evaluate((node) => getComputedStyle(node).outlineColor)
+  expect(outline).not.toBe("rgba(0, 0, 0, 0)")
+  expect(outline).not.toBe("transparent")
+
+  await deleteConnector(page, name)
+})
+
 test("opens on the schemas chosen last time, not on the default set", async ({
   page,
 }) => {

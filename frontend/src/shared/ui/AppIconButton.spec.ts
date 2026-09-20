@@ -4,6 +4,14 @@ import { describe, expect, it } from "vitest"
 
 import AppIconButton from "./AppIconButton.vue"
 
+/**
+ * Disabled, the control is the wrapper: the button inside it is out of the tab
+ * order and hidden from a reader, so that the pair is announced once and the
+ * reason can be reached by keyboard rather than by hover alone (U14).
+ */
+const named = (wrapper: ReturnType<typeof mount>, disable: boolean) =>
+  disable ? wrapper.get('[role="button"]') : wrapper.get("button")
+
 describe("AppIconButton", () => {
   it.each([false, true])("names the button before hover when disabled is %s", (disable) => {
     const wrapper = mount(AppIconButton, {
@@ -11,7 +19,7 @@ describe("AppIconButton", () => {
       props: { icon: "delete", tooltip: "Delete this row", disable },
     })
 
-    expect(wrapper.get("button").attributes("aria-label")).toBe("Delete this row")
+    expect(named(wrapper, disable).attributes("aria-label")).toBe("Delete this row")
     wrapper.unmount()
   })
 
@@ -22,8 +30,25 @@ describe("AppIconButton", () => {
       attrs: { "aria-label": "Delete selected rows", "data-testid": "delete-rows" },
     })
 
-    expect(wrapper.get("button").attributes("aria-label")).toBe("Delete selected rows")
+    expect(named(wrapper, disable).attributes("aria-label")).toBe("Delete selected rows")
+    // Still on the button, which is what a test and a screen address it by.
     expect(wrapper.get("button").attributes("data-testid")).toBe("delete-rows")
+    wrapper.unmount()
+  })
+
+  it("puts a disabled command in the tab order, with its reason in its name", () => {
+    const wrapper = mount(AppIconButton, {
+      global: { plugins: [Quasar] },
+      props: { icon: "delete", tooltip: "Delete — tick a row first", disable: true },
+    })
+    const control = wrapper.get('[role="button"]')
+
+    expect(control.attributes("tabindex")).toBe("0")
+    expect(control.attributes("aria-disabled")).toBe("true")
+    expect(control.attributes("aria-label")).toBe("Delete — tick a row first")
+    // Announced once: the button it wraps is still disabled and now silent.
+    expect(wrapper.get("button").attributes("disabled")).toBeDefined()
+    expect(wrapper.get("button").attributes("aria-hidden")).toBe("true")
     wrapper.unmount()
   })
 
@@ -36,7 +61,9 @@ describe("AppIconButton", () => {
     await wrapper.setProps({ tooltip: "Switch to the dark theme", loading: true })
     expect(wrapper.get("button").attributes("aria-label")).toBe("Switch to the dark theme")
     await wrapper.setProps({ disable: true })
-    expect(wrapper.get("button").attributes("aria-label")).toBe("Switch to the dark theme")
+    expect(wrapper.get('[role="button"]').attributes("aria-label")).toBe(
+      "Switch to the dark theme"
+    )
     wrapper.unmount()
   })
 

@@ -64,9 +64,11 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
   }
 }
 
-function mountLeaf(context: WorkspaceContext, collapsible = true) {
+function mountLeaf(context: WorkspaceContext, collapsible = true, attached = false) {
   return mount(LeafWithPanels, {
     props: { leaf: makeLeaf("a", ["p1", "p2"]), collapsible },
+    // Focus goes nowhere in a tree that is not in the document.
+    ...(attached ? { attachTo: document.body } : {}),
     global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: context } },
   })
 }
@@ -76,6 +78,44 @@ describe("a section", () => {
     const wrapper = mountLeaf(contextFor())
     expect(wrapper.get('[data-testid="workspace-tab-p1"]').text()).toContain("title p1")
     expect(wrapper.get('[data-testid="workspace-tab-p2"]').text()).toContain("title p2")
+  })
+
+  /**
+   * U09: the tabs were a row of buttons. Nothing said they belonged together
+   * or which of them was showing, and Tab walked through every one of them.
+   */
+  it("is a tab strip, and says which tab is showing", () => {
+    const wrapper = mountLeaf(contextFor())
+    const strip = wrapper.get('[role="tablist"]')
+    const shown = wrapper.get('[data-testid="workspace-tab-p1"]')
+    const other = wrapper.get('[data-testid="workspace-tab-p2"]')
+
+    expect(strip.attributes("aria-label")).toBe("Open tabs")
+    expect(shown.attributes("role")).toBe("tab")
+    expect(shown.attributes("aria-selected")).toBe("true")
+    expect(other.attributes("aria-selected")).toBe("false")
+    // One tab stop for the strip, not one per tab.
+    expect(shown.attributes("tabindex")).toBe("0")
+    expect(other.attributes("tabindex")).toBe("-1")
+  })
+
+  it("walks the strip with the arrow keys without opening what it passes", async () => {
+    const activated: string[] = []
+    const wrapper = mountLeaf(contextFor({ activate: (id) => activated.push(id) }), true, true)
+    const shown = wrapper.get('[data-testid="workspace-tab-p1"]')
+    const other = wrapper.get('[data-testid="workspace-tab-p2"]')
+    ;(shown.element as HTMLElement).focus()
+
+    await wrapper.get('[role="tablist"]').trigger("keydown", { key: "ArrowRight" })
+    expect(document.activeElement).toBe(other.element)
+
+    await wrapper.get('[role="tablist"]').trigger("keydown", { key: "Home" })
+    expect(document.activeElement).toBe(shown.element)
+
+    // Walking is not choosing: a panel reads its rows when it is shown.
+    expect(activated).toEqual([])
+    await other.trigger("keydown", { key: "Enter" })
+    expect(activated).toEqual(["p2"])
   })
 
   it("says quietly whose the panel is, when the feature says so", () => {
@@ -130,8 +170,12 @@ describe("a section", () => {
     }))
     const close = wrapper.get('[data-testid="workspace-close-p2"]')
     expect(close.attributes("role")).toBe("button")
-    expect(close.attributes("tabindex")).toBe("0")
     expect(close.attributes("aria-label")).toBe("Close title p2")
+    // The controls of a tab travel with it: p1 is the tab being shown, so its
+    // close button is what Tab reaches, and p2's is reached by walking to p2
+    // first (U09).
+    expect(wrapper.get('[data-testid="workspace-close-p1"]').attributes("tabindex")).toBe("0")
+    expect(close.attributes("tabindex")).toBe("-1")
     await close.trigger("pointerdown", { button: 0 })
     await close.trigger("keydown", { key })
     expect(closed).toEqual(["p2"])

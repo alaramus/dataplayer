@@ -52,6 +52,36 @@ describe("a menu line", () => {
       .toBeNull()
   })
 
+  /**
+   * U14: disabled, Quasar drew the line as neither an item nor a control, so
+   * a reader walking the menu met four loose words where a command had been,
+   * and the reason was on hover and nowhere else.
+   */
+  it("is still a line of the menu when it cannot be used", async () => {
+    await open([
+      { name: "delete", label: "Delete", disable: true, hint: "Tick a row to use this" },
+    ])
+    const item = document.body.querySelector('[data-testid="menu-item-delete"]')
+
+    expect(item?.getAttribute("role")).toBe("menuitem")
+    expect(item?.getAttribute("aria-disabled")).toBe("true")
+    expect(item?.getAttribute("aria-label")).toBe("Delete — Tick a row to use this")
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull()
+    // The tab stop is Quasar's to give and it gives none to a disabled item:
+    // `tabindex` is a QItem prop, dropped rather than passed through. The
+    // reason is in the name instead, which is read by walking the menu.
+    expect(item?.getAttribute("tabindex")).toBeNull()
+  })
+
+  it("leaves a line that can be used to name itself", async () => {
+    await open([{ name: "delete", label: "Delete" }])
+    const item = document.body.querySelector('[data-testid="menu-item-delete"]')
+
+    expect(item?.getAttribute("role")).toBe("menuitem")
+    expect(item?.getAttribute("aria-disabled")).toBeNull()
+    expect(item?.getAttribute("aria-label")).toBeNull()
+  })
+
   it("refuses to report a selection nobody could make", async () => {
     // The label takes the pointer back so the tooltip can open, which puts a
     // clickable target inside an item that is meant to be inert.

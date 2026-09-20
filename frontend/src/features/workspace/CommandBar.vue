@@ -70,7 +70,8 @@ const library = computed(() =>
         variant="quiet"
         size="sm"
         :icon="library.icon"
-        :label="iconOnly ? undefined : library.label"
+        :label="library.label"
+        :icon-only="iconOnly"
         data-testid="command-queries"
         @click="workspace.openQueries(workspace.activeConnectorId.value)"
       />

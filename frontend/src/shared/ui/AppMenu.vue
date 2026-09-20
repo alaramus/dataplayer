@@ -48,12 +48,23 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
     <q-list
       dense
       class="app-menu"
+      role="menu"
     >
+      <!-- A line that cannot be used is still a line of this menu. Disabled,
+           Quasar draws it as neither an item nor a control, so a reader met
+           four words of loose text where a command had been; it now says what
+           it is, that it is off, and why - the reason in the name rather than
+           in a tooltip nothing but a pointer can open (U14). Quasar keeps the
+           tab stop to itself and gives a disabled item none, so walking the
+           menu is how the line is met. -->
       <q-item
         v-for="item in items"
         :key="item.name"
         clickable
+        role="menuitem"
         :disable="item.disable === true"
+        :aria-disabled="item.disable === true ? 'true' : undefined"
+        :aria-label="item.disable === true && item.hint ? `${item.label} — ${item.hint}` : undefined"
         :class="item.danger === true ? 'text-dp-action-danger' : undefined"
         :data-testid="`menu-item-${item.name}`"
         @click="item.disable === true ? undefined : emit('select', item.name)"

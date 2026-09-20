@@ -201,6 +201,36 @@ test("opens a panel as a tab and closes it again", async ({ page }) => {
   await expect(tab).toHaveCount(0)
 })
 
+/**
+ * U09: the tabs were a row of unrelated buttons. Nothing said which was
+ * showing, and Tab walked through every tab and every close button to get
+ * past the strip.
+ */
+test("the tab strip is one control, walked with the arrow keys", async ({ page }) => {
+  await page.goto("/workspace-demo")
+  await page.getByTestId("reset-workspace").click()
+  await page.getByTestId("open-demo-panel").click()
+  await page.getByTestId("open-demo-panel").click()
+
+  const strip = page.getByRole("tablist").first()
+  const first = page.getByTestId("workspace-tab-demo-1")
+  const second = page.getByTestId("workspace-tab-demo-2")
+  await expect(strip).toBeVisible()
+  await expect(second).toHaveAttribute("aria-selected", "true")
+  await expect(first).toHaveAttribute("aria-selected", "false")
+
+  // One tab stop for the strip: it lands on the tab being shown.
+  await second.focus()
+  await page.keyboard.press("ArrowLeft")
+  await expect(first).toBeFocused()
+  // Walking is not choosing.
+  await expect(second).toHaveAttribute("aria-selected", "true")
+
+  await page.keyboard.press("Enter")
+  await expect(first).toHaveAttribute("aria-selected", "true")
+  await expect(second).toHaveAttribute("aria-selected", "false")
+})
+
 test("drags a tab to an edge and gets a new section", async ({ page }) => {
   await page.goto("/workspace-demo")
   await page.getByTestId("reset-workspace").click()
@@ -244,7 +274,7 @@ test("drops a tab where it is aimed in a strip, not at the end of it", async ({
   // from measured tab rectangles under a captured pointer.
   const main = page.getByTestId("workspace-leaf-main")
   const order = () =>
-    main.locator('[role="button"][data-testid^="workspace-tab-"]').evaluateAll((tabs) =>
+    main.locator('[role="tab"][data-testid^="workspace-tab-"]').evaluateAll((tabs) =>
       tabs.map((tab) => (tab as HTMLElement).dataset.testid ?? "")
     )
   expect(await order()).toEqual(["workspace-tab-beta", "workspace-tab-gamma"])

@@ -124,6 +124,7 @@ const countLabel = computed(() => {
         :model-value="allChecked"
         :indeterminate="someChecked"
         dense
+        aria-label="Select everything here"
         data-testid="catalog-check-all"
         @update:model-value="emit('toggle-all', $event)"
       />
@@ -186,6 +187,7 @@ const countLabel = computed(() => {
         :key="node.id"
         role="button"
         tabindex="0"
+        :aria-label="`Open ${node.label}`"
         class="catalog-list__row"
         :class="{
           'catalog-list__row--checked': checked.includes(node.id),
@@ -202,6 +204,7 @@ const countLabel = computed(() => {
           <AppCheckbox
             :model-value="checked.includes(node.id)"
             dense
+            :aria-label="`Select ${node.label}`"
             :data-testid="`catalog-check-${node.label}`"
             @update:model-value="emit('toggle', node.id, $event)"
           />
@@ -333,6 +336,14 @@ const countLabel = computed(() => {
 }
 .catalog-list__row:hover {
   background: var(--dp-hover);
+}
+/* Where the keyboard is. The row already carries an outline for the reveal
+   mark, so focus colours that one - at once rather than fading in, because a
+   place is not an announcement (U06). */
+.catalog-list__row:focus-visible {
+  outline-color: var(--dp-accent);
+  border-radius: var(--dp-radius-control);
+  transition: none;
 }
 .catalog-list__row--checked {
   background: var(--dp-selected);

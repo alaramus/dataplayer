@@ -234,16 +234,20 @@ const layout = ref<ColumnLayoutState>({ ...EMPTY_LAYOUT })
  * mistyped value could be corrected, unmounted with them. What a relation can
  * do does not change because one page of it was refused.
  */
-const described = ref<FetchResult | null>(null)
-watch(result, (page) => {
-  if (page !== undefined) described.value = page
-})
-// Another relation is described by its own answer, never by the one before it.
+const lastAnswer = ref<{ node: string; page: FetchResult } | null>(null)
 watch(
-  () => props.nodeId,
-  () => {
-    described.value = null
-  }
+  [result, () => props.nodeId] as const,
+  ([page, node]) => {
+    if (page !== undefined) lastAnswer.value = { node, page }
+  },
+  // A tab returned to is answered from the client's cache, so the page is
+  // already here and never changes again: without this the grid would come
+  // back with no columns at all.
+  { immediate: true }
+)
+/** Another relation is described by its own answer, never by the one before it. */
+const described = computed(() =>
+  lastAnswer.value?.node === props.nodeId ? lastAnswer.value.page : null
 )
 const tableColumns = computed(() => tabularColumns(described.value?.columns ?? []))
 const visibleGridColumns = ref<TabularVisibleColumn[]>([])

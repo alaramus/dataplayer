@@ -30,6 +30,27 @@ describe("AppButton", () => {
     expect(mountButton("danger-quiet").get("button").classes()).toContain("text-dp-action-danger")
   })
 
+  /**
+   * U04: four commands on the narrow rails dropped their label to fit and
+   * became buttons with no name at all. A tooltip beside one names nothing:
+   * the label is kept and spoken instead of drawn.
+   */
+  it("keeps the label as its name when only the icon is drawn", () => {
+    const wrapper = mount(AppButton, {
+      global: { plugins: [Quasar] },
+      props: { label: "Dashboards", icon: "dashboard", iconOnly: true },
+    })
+
+    expect(wrapper.get("button").text()).not.toContain("Dashboards")
+    expect(wrapper.get("button").attributes("aria-label")).toBe("Dashboards")
+  })
+
+  it("leaves a drawn label to name the button itself", () => {
+    // Both a visible label and an aria-label is one name too many: a reader
+    // that announces the second ignores the first.
+    expect(mountButton("primary").get("button").attributes("aria-label")).toBeUndefined()
+  })
+
   // Action labels arrive from the server as sentences.
   it("does not uppercase the label", () => {
     expect(mountButton("primary").get("button").classes()).toContain("q-btn--no-uppercase")

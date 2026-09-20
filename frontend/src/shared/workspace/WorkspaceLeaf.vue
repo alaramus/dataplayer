@@ -60,6 +60,29 @@ const shownTabs = computed(() =>
     : props.leaf.panels.filter((panelId) => panelId !== workspace.dragging.value)
 )
 
+/**
+ * The arrow keys walk the strip, as they do in any tab strip (U09).
+ *
+ * Walking is not choosing: Enter and Space open the tab that was walked to,
+ * because a panel reads a relation when it is shown and arrowing past four of
+ * them would ask the server for all four.
+ */
+function walkTabs(event: KeyboardEvent) {
+  const step: Record<string, (at: number, count: number) => number> = {
+    ArrowRight: (at, count) => (at + 1) % count,
+    ArrowLeft: (at, count) => (at - 1 + count) % count,
+    Home: () => 0,
+    End: (_at, count) => count - 1,
+  }
+  const move = step[event.key]
+  if (move === undefined) return
+  const tabs = tabElements.value
+  const at = tabs.indexOf(document.activeElement as HTMLElement)
+  if (at === -1) return
+  event.preventDefault()
+  tabs[move(at, tabs.length)]?.focus()
+}
+
 /** A pinned section with nothing in it: the feature says what stands there. */
 const empty = computed(() => (active.value === null ? workspace.emptyOf(props.leaf.accepts ?? null) : null))
 
@@ -258,9 +281,16 @@ const overlayStyle = computed((): CSSProperties => {
            nothing else. See the spec, S11. Where the feature owns that
            handle itself, the strip stands down wholly and only the rail
            below remains. -->
+      <!-- A tab strip, and said to be one: the tabs were a row of buttons
+           that named no relation between them, so nothing announced which was
+           showing and Tab walked through every one and every close button on
+           the way past (U09). -->
       <div
         v-else-if="!leaf.collapsed"
         class="workspace-leaf__tabs"
+        role="tablist"
+        aria-label="Open tabs"
+        @keydown="walkTabs"
       >
         <template
           v-for="(panelId, index) in shownTabs"
@@ -276,8 +306,9 @@ const overlayStyle = computed((): CSSProperties => {
           />
           <div
             ref="tabElements"
-            role="button"
-            tabindex="0"
+            role="tab"
+            :aria-selected="panelId === active"
+            :tabindex="panelId === active ? 0 : -1"
             :aria-label="workspace.lookOf(panelId).title"
             class="workspace-leaf__tab"
             :class="{ 'workspace-leaf__tab--active': panelId === active }"
@@ -298,7 +329,8 @@ const overlayStyle = computed((): CSSProperties => {
               class="workspace-leaf__icon workspace-leaf__icon--action"
               :data-testid="`workspace-tab-icon-${panelId}`"
               role="button"
-              tabindex="0"
+              :aria-label="workspace.lookOf(panelId).iconTooltip"
+              :tabindex="panelId === active ? 0 : -1"
               @click.stop="workspace.onIconClick?.(panelId)"
               @keydown.enter.stop="workspace.onIconClick?.(panelId)"
               @keydown.space.stop.prevent="workspace.onIconClick?.(panelId)"
@@ -333,7 +365,7 @@ const overlayStyle = computed((): CSSProperties => {
               class="workspace-leaf__close"
               :data-testid="`workspace-close-${panelId}`"
               role="button"
-              tabindex="0"
+              :tabindex="panelId === active ? 0 : -1"
               :aria-label="`Close ${workspace.lookOf(panelId).title}`"
               @click.stop="workspace.requestClose(panelId)"
               @keydown.enter.stop.prevent="workspace.requestClose(panelId)"
@@ -360,6 +392,7 @@ const overlayStyle = computed((): CSSProperties => {
         type="button"
         class="workspace-leaf__collapse"
         :data-testid="`workspace-close-others-${leaf.id}`"
+        aria-label="Close the other tabs"
         @click="workspace.closeOthers(leaf.id)"
       >
         <q-icon
@@ -374,6 +407,7 @@ const overlayStyle = computed((): CSSProperties => {
         type="button"
         class="workspace-leaf__collapse"
         :data-testid="`workspace-collapse-${leaf.id}`"
+        :aria-label="collapsedTitle"
         @click="workspace.toggleCollapse(leaf.id)"
       >
         <q-icon
