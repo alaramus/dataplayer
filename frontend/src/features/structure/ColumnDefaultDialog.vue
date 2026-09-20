@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
 
-import { AppBanner, AppButton, AppInput, AppSection } from "@/shared/ui"
+import { AppBanner, AppButton, AppInput, AppForm } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -30,11 +30,12 @@ watch(
 <template>
   <WindowDialog
     :model-value="modelValue"
+    sizing="stable"
     :title="`Column default — ${name}`"
     data-testid="structure-default-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -53,7 +54,7 @@ watch(
         data-testid="structure-default-value"
         @update:model-value="value = $event"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
         v-if="currentDefault !== null"
@@ -65,7 +66,7 @@ watch(
       />
       <AppButton
         label="Cancel"
-        variant="secondary"
+        variant="quiet"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />

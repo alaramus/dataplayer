@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, inject } from "vue"
+
+import { formLayoutKey } from "./formLayout"
 
 import { bannerLook } from "./tokens"
 import type { Tone } from "./tokens"
@@ -9,13 +11,14 @@ const props = defineProps<{
   tone: Tone
 }>()
 
-const look = computed(() => bannerLook(props.tone))
+const formLayout = inject(formLayoutKey, false)
+const look = computed(() => bannerLook(props.tone, formLayout))
 </script>
 
 <template>
   <q-banner
     dense
-    :class="look.classes"
+    :class="[look.classes, { 'app-banner--form': formLayout }]"
   >
     <template #avatar>
       <q-icon :name="look.icon" />
@@ -30,3 +33,12 @@ const look = computed(() => bannerLook(props.tone))
     </template>
   </q-banner>
 </template>
+
+<style scoped>
+.app-banner--form {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+</style>

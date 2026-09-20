@@ -27,6 +27,11 @@ forms. The connection editor is the first consumer, with a composition in
 Use `AppForm layout="section"` for a standalone stack with shared padding and
 field spacing; the default embedded layout leaves those to its parent.
 Other forms keep their current presentation until migrated.
+Column rename, default, type and nullability dialogs use the section composition
+with stable compact windows: long errors scroll in the body while actions remain
+visible. Banners inside AppForm use a status icon and semantic text on the form
+surface; banners outside forms retain their existing presentation. This context
+is provided by the composition, not selected independently by each message.
 Primary actions use a neutral contrasting fill; secondary actions use neutral
 text, and destructive actions retain their semantic red. Filled buttons have
 no decorative shadow. These defaults apply throughout the shared kit. Chrome

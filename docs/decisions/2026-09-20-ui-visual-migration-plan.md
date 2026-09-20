@@ -150,3 +150,25 @@ import and narrow/dark import/unlock screenshots. The full E2E suite was not run
 
 Next: continue with another complete form family; the preferences page around
 these forms and the other operation-result surfaces remain to migrate.
+
+## Slice 6: column property forms
+
+Implemented: column rename, default, type and nullability dialogs use AppForm's
+section layout, quiet cancellation and stable compact windows. Long responses
+scroll above the footer. Form banners retain semantic status text and icons on
+a neutral surface; the mapping remains in tokens.ts and the gallery demonstrates
+the composition. Banners outside AppForm keep their existing presentation.
+
+Coverage: form-banner content and recovery-slot regression, browser scenes for
+all four dialogs in both themes with long rejected responses, fixed geometry,
+body scrolling, narrow widths and visible footer actions.
+
+Validation: all 1,874 frontend unit tests and six targeted Playwright scenarios
+passed, including real rename, nullability and type changes and blocked answers.
+Type-check, lint, production build and documentation checks passed. Lint retains
+20 unrelated warnings; the build reports large chunks. Inspected light rename,
+dark type and narrow light default/error screenshots. The full E2E suite was not
+run.
+
+Next: addition forms for columns, indexes and constraints; keep source-owned
+vocabularies and blocked-operation messages intact during the visual migration.

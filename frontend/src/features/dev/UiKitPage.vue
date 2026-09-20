@@ -365,6 +365,9 @@ function removeSavedEntry(name: string) {
             v-model="file"
             label="Key file"
           />
+          <AppBanner tone="warning">
+            Some rows prevent this change. Correct their values first.
+          </AppBanner>
         </AppForm>
         <AppInput
           v-model="text"

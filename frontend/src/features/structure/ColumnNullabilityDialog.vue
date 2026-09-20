@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import { AppBanner, AppButton, AppSection } from "@/shared/ui"
+import { AppBanner, AppButton, AppForm } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -37,11 +37,12 @@ const blockedText = computed(() => {
 <template>
   <WindowDialog
     :model-value="modelValue"
+    sizing="stable"
     :title="`Empty values — ${name}`"
     data-testid="structure-nullability-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -59,10 +60,10 @@ const blockedText = computed(() => {
         {{ blockedText }}
       </AppBanner>
       <div>{{ state }}</div>
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="saving"
         @click="emit('update:modelValue', false)"

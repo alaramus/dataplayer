@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest"
 
 import AppBanner from "./AppBanner.vue"
 import { bannerLook, type Tone } from "./tokens"
+import { formLayoutKey } from "./formLayout"
 
 function mountBanner(tone: Tone) {
   return mount(AppBanner, {
@@ -15,6 +16,19 @@ function mountBanner(tone: Tone) {
 }
 
 describe("AppBanner", () => {
+  it("keeps the status and recovery action in a compact form", async () => {
+    const wrapper = mount(AppBanner, {
+      global: { plugins: [Quasar], provide: { [formLayoutKey as symbol]: true } },
+      props: { tone: "warning" },
+      slots: { default: "Some rows block this change", action: "Correct the values first" },
+    })
+    expect(wrapper.classes()).toContain(bannerLook("warning", true).classes)
+    expect(wrapper.text()).toContain("Some rows block this change")
+    expect(wrapper.text()).toContain("Correct the values first")
+    expect(wrapper.get(".q-icon").text()).toBe(bannerLook("warning").icon)
+    await wrapper.setProps({ tone: "error" })
+    expect(wrapper.classes()).toContain(bannerLook("error", true).classes)
+  })
   // A screen addresses the banner by its test id and the theme paints it by its
   // tone class, so the two must land on the same element.
   it("puts the tone class on the element carrying the test id", () => {

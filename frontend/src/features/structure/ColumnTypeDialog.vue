@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue"
 
 import type { ColumnTypeOption } from "@/client"
-import { AppBanner, AppButton, AppSection, AppSelect } from "@/shared/ui"
+import { AppBanner, AppButton, AppForm, AppSelect } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -43,11 +43,12 @@ const blockedText = computed(() => {
 <template>
   <WindowDialog
     :model-value="modelValue"
+    sizing="stable"
     :title="`Column type — ${name}`"
     data-testid="structure-type-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -80,10 +81,10 @@ const blockedText = computed(() => {
         Every value is rewritten as the new type. A conversion can lose
         information — a number is rounded, a time of day is dropped.
       </AppBanner>
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="saving"
         @click="emit('update:modelValue', false)"

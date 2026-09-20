@@ -96,8 +96,9 @@ const BANNER_LOOKS: Record<Tone, BannerLook> = {
   info: { classes: "dp-tone-wash-info", icon: "info" },
 }
 
-export function bannerLook(tone: Tone): BannerLook {
-  return BANNER_LOOKS[tone]
+export function bannerLook(tone: Tone, form = false): BannerLook {
+  const look = BANNER_LOOKS[tone]
+  return form ? { ...look, classes: toneText(tone) } : look
 }
 
 /** A tone as a filled ground: a badge, a status dot. */

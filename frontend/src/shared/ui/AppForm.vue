@@ -30,6 +30,7 @@ provide(formLayoutKey, true)
   flex-direction: column;
   gap: var(--dp-space-4);
   padding: var(--dp-space-4);
+  overflow-wrap: anywhere;
 }
 .app-form :deep(.app-form-field .q-field__before) {
   width: var(--dp-form-label-width);

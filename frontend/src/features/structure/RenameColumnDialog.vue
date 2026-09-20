@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
 
-import { AppBanner, AppButton, AppInput, AppSection } from "@/shared/ui"
+import { AppBanner, AppButton, AppInput, AppForm } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -28,11 +28,12 @@ watch(
 <template>
   <WindowDialog
     :model-value="modelValue"
+    sizing="stable"
     :title="`Rename column — ${name}`"
     data-testid="structure-rename-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -47,10 +48,10 @@ watch(
         data-testid="structure-rename-new-name"
         @update:model-value="newName = $event"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="saving"
         @click="emit('update:modelValue', false)"
