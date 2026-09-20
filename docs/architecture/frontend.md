@@ -31,7 +31,11 @@ and default panel identity surfaces are grey; user-chosen identity colours,
 data palettes, links and status colours keep their meaning. Compact fields use
 neutral borders and focus, with errors retaining the error colour. Connection
 tabs use a quiet filled current state and a visible keyboard focus outline.
-The wider composition rollout and operation-result presentation remain pending.
+The connection check result occupies a neutral strip between the connection
+string and footer, separated by quiet lines. It never overlays fields or changes
+the window rectangle. Long details scroll within a height bounded by the shared
+operation-result metric; copy, dismiss and recovery actions remain available.
+The wider composition rollout remains pending.
 
 Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 

@@ -123,7 +123,7 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
   await page.getByTestId("check-draft").click()
   const result = page.getByTestId("check-result")
   await expect(result).toBeVisible()
-  await expect(result).toHaveClass(/check-popover--ok/)
+  await expect(result).toContainText("Succeeded")
 
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, name)).toBeVisible()
@@ -132,7 +132,7 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
   // home for the command, so the two cannot drift apart.
   await editConnector(page, name)
   await page.getByTestId("check-draft").click()
-  await expect(page.getByTestId("check-result")).toHaveClass(/check-popover--ok/)
+  await expect(page.getByTestId("check-result")).toContainText("Succeeded")
   await page.getByRole("button", { name: "Cancel" }).click()
 
   await deleteConnector(page, name)
@@ -207,7 +207,7 @@ test("a wrong password reports an auth failure without leaking the password", as
 
   const result = page.getByTestId("check-result")
   await expect(result).toBeVisible()
-  await expect(result).toHaveClass(/check-popover--failed/)
+  await expect(result).toContainText("Failed")
   await expect(result).toContainText("Authentication failed")
   await expect(result).not.toContainText(wrongPassword)
 })
@@ -250,26 +250,23 @@ test("a stored secret stands in for itself and needs no retyping", async ({
   // Left blank, nothing is sent and the server substitutes the stored value
   // by connector_id.
   await page.getByTestId("check-draft").click()
-  await expect(page.getByTestId("check-result")).toHaveClass(/check-popover--ok/)
+  await expect(page.getByTestId("check-result")).toContainText("Succeeded")
 
   await page.getByRole("button", { name: "Cancel" }).click()
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
-test("the result of a check appears over the button that ran it", async ({ page }) => {
-  // A panel rather than a line in the form: the answer is read once and
-  // dismissed, and a line in the body moved every field below it. Whether one
-  // rectangle sits above another is a question only a browser can answer.
+test("the result of a check sits between the form and footer", async ({ page }) => {
   await login(page)
   await pickAdapterType(page, "postgres")
   await fillConnectionFields(page, DATABASE.password)
   await page.getByTestId("check-draft").click()
 
-  const popover = page.getByTestId("check-result")
-  await expect(popover).toBeVisible()
+  const result = page.getByTestId("check-result")
+  await expect(result).toBeVisible()
 
-  const panel = await popover.boundingBox()
+  const panel = await result.boundingBox()
   const button = await page.getByTestId("check-draft").boundingBox()
   const url = await page.getByTestId("connector-url").boundingBox()
   if (!panel || !button || !url) throw new Error("nothing was laid out")
@@ -277,12 +274,9 @@ test("the result of a check appears over the button that ran it", async ({ page 
   // Above the button, and near enough to belong to it.
   expect(panel.y + panel.height).toBeLessThanOrEqual(button.y)
   expect(button.y - (panel.y + panel.height)).toBeLessThan(30)
-  // And over the form rather than inside it: a panel that took space of its
-  // own would sit clear of the row it now covers.
-  expect(panel.y).toBeLessThan(url.y)
-  expect(panel.y + panel.height).toBeGreaterThan(url.y + url.height)
+  expect(panel.y).toBeGreaterThanOrEqual(url.y + url.height)
 
   // And it goes away when it has been read, rather than staying in the way.
   await page.getByTestId("dismiss-check-result").click()
-  await expect(popover).toHaveCount(0)
+  await expect(result).toHaveCount(0)
 })

@@ -866,9 +866,6 @@ async function parseTyped(text: string) {
         </AppInput>
       </div>
 
-      <!-- The result of the last check floats over this strip rather than
-           sitting in the form: it is read once and dismissed, and a line in
-           the body moved every field below it. -->
       <div class="connector-window__foot-area">
         <ConnectionCheck
           :result="checkResult"
@@ -1051,7 +1048,6 @@ async function parseTyped(text: string) {
 }
 .connector-window__foot-area {
   flex: none;
-  position: relative;
 }
 .connector-window__tabs {
   display: flex;

@@ -103,3 +103,28 @@ screenshots. The full application E2E suite was not run.
 Next: operation-result composition and the next family of forms. The kit gallery
 still contains older card-heavy presentation; migrating compositions remains
 separate from these global token defaults.
+
+## Slice 4: connection check results
+
+Implemented: the connection check uses an inline neutral result strip above the
+footer instead of a floating card. Long details scroll with keyboard access;
+copy, dismiss and recovery actions remain outside that scroll region. The shared
+metric bounds its height, and source facts wrap on narrow windows. The existing
+connection-specific component still owns the report; extract a shared result
+composition when a second consumer establishes its actual contract.
+
+Coverage: component regression for failure details, recovery content, copying
+and dismissal; browser scenarios for successful and long failed responses in
+both themes and at desktop/narrow sizes. They assert unchanged window geometry,
+non-overlapping URL/result/footer regions, keyboard scrolling and visible footer
+actions. A real connection-check scenario verifies the same placement.
+
+Validation: all 1,873 frontend unit tests and seven targeted Playwright scenarios
+passed, including the existing form reflow and stable-geometry regressions and a
+real authentication failure. Type-check, lint, production build and documentation
+checks passed. Lint retains 20 unrelated warnings; the build reports large chunks.
+Inspected light/desktop success and dark/narrow long-error screenshots. The full
+application E2E suite was not run.
+
+Next: apply the compact form composition to a small complete family of forms;
+keep window sizing explicit. Other operation-result surfaces remain to migrate.

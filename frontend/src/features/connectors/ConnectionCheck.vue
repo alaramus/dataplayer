@@ -6,20 +6,6 @@ import { sourceFacts } from "@/features/connectors/sourceFacts"
 import { copyText } from "@/shared/clipboard"
 import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
 
-/**
- * What the last check said, in a panel over the button that ran it.
- *
- * A panel rather than a line in the form: the result is read once, acted on
- * and dismissed, and a line in the body pushed the fields about every time a
- * check was run. It sits above the button because that is where the eye is
- * when the answer arrives.
- *
- * What the source says it is goes here too, rather than in the connection's
- * Options where it used to live: "which server am I about to work on, and is
- * the extension there" is asked at the moment this button is pressed and at
- * no other. A draft nobody has saved answers it as well, because the check is
- * what asked.
- */
 const props = defineProps<{
   result: ConnectionCheckReport | null
   /** What this kind of source is called, for the line naming its version. */
@@ -70,13 +56,16 @@ async function copy() {
 <template>
   <div
     v-if="result"
-    class="check-popover"
-    :class="result.ok ? 'check-popover--ok' : 'check-popover--failed'"
+    class="connection-check"
+    :class="result.ok ? 'connection-check--ok' : 'connection-check--failed'"
+    role="region"
+    aria-label="Connection check result"
     data-testid="check-result"
   >
-    <header class="check-popover__head">
+    <header class="connection-check__head">
       <span
-        class="check-popover__heading"
+        class="connection-check__heading"
+        role="status"
         data-testid="check-heading"
       >
         {{ heading }}
@@ -93,124 +82,115 @@ async function copy() {
         @click="emit('close')"
       />
     </header>
-    <p
-      v-for="line in lines"
-      :key="line"
-      class="check-popover__line"
+    <div
+      class="connection-check__details"
+      tabindex="0"
+      aria-label="Check details"
     >
-      {{ line }}
-    </p>
-    <!-- What answered, under whether it answered at all. -->
-    <dl
-      v-if="facts.length"
-      class="check-popover__facts"
-      data-testid="check-source-facts"
-    >
-      <template
-        v-for="fact in facts"
-        :key="fact.code"
+      <p
+        v-for="line in lines"
+        :key="line"
+        class="connection-check__line"
       >
-        <dt>{{ fact.label }}</dt>
-        <dd :data-testid="`source-fact-${fact.code}`">
-          {{ fact.value }}
-          <div
-            v-if="fact.note"
-            class="check-popover__note"
-          >
-            {{ fact.note }}
-          </div>
-        </dd>
-      </template>
-    </dl>
+        {{ line }}
+      </p>
+      <!-- What answered, under whether it answered at all. -->
+      <dl
+        v-if="facts.length"
+        class="connection-check__facts"
+        data-testid="check-source-facts"
+      >
+        <template
+          v-for="fact in facts"
+          :key="fact.code"
+        >
+          <dt>{{ fact.label }}</dt>
+          <dd :data-testid="`source-fact-${fact.code}`">
+            {{ fact.value }}
+            <div
+              v-if="fact.note"
+              class="connection-check__note"
+            >
+              {{ fact.note }}
+            </div>
+          </dd>
+        </template>
+      </dl>
+    </div>
     <!-- The one way on from what the check said, beside the saying of it —
          in the strip of buttons below it pushed every other one about. -->
     <div
       v-if="$slots.action"
-      class="check-popover__action"
+      class="connection-check__action"
     >
       <slot name="action" />
     </div>
-    <!-- The tail that points at the button below, as in a speech bubble: what
-         makes the panel belong to that button rather than float over the
-         form. -->
-    <span class="check-popover__tail" />
   </div>
 </template>
 
 <style scoped>
-.check-popover {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: calc(100% + 10px);
-  z-index: var(--dp-layer-popover);
-  padding: var(--dp-space-3) var(--dp-space-3);
-  border: 1px solid var(--dp-border-strong);
-  border-radius: var(--dp-radius-panel);
+.connection-check {
+  display: flex;
+  flex-direction: column;
+  max-height: var(--dp-operation-result-height);
+  padding: var(--dp-space-2) var(--dp-space-4);
+  border-top: 1px solid var(--dp-border);
   background: var(--dp-surface-raised);
-  box-shadow: 0 4px 14px var(--dp-shadow-soft);
 }
-.check-popover__head {
+.connection-check__details {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.connection-check__details:focus-visible {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: calc(-1 * var(--dp-space-half));
+}
+.connection-check__head {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
   margin-bottom: var(--dp-space-2);
 }
-.check-popover__heading {
+.connection-check__heading {
   flex: 1;
   font-weight: 600;
 }
-.check-popover--ok .check-popover__heading {
+.connection-check--ok .connection-check__heading {
   color: var(--dp-content-success);
 }
-.check-popover--failed .check-popover__heading {
+.connection-check--failed .connection-check__heading {
   color: var(--dp-content-error);
 }
-.check-popover__line {
+.connection-check__line {
   margin: 0;
   font-size: 13px;
   overflow-wrap: anywhere;
 }
-.check-popover__facts {
+.connection-check__facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: var(--dp-space-1) var(--dp-space-3);
   margin: var(--dp-space-2) 0 0;
   padding-top: var(--dp-space-2);
   border-top: 1px solid var(--dp-border);
   font-size: 12px;
 }
-.check-popover__facts dt {
+.connection-check__facts dt {
+  overflow-wrap: anywhere;
   color: var(--dp-text-muted);
 }
-.check-popover__facts dd {
+.connection-check__facts dd {
   margin: 0;
   overflow-wrap: anywhere;
 }
-.check-popover__note {
+.connection-check__note {
   color: var(--dp-text-muted);
 }
-.check-popover__action {
+.connection-check__action {
+  flex: none;
   display: flex;
   margin-top: var(--dp-space-2);
-}
-/* Two triangles, the back one a pixel lower, so the border of the panel
-   appears to continue around the tail. */
-.check-popover__tail,
-.check-popover__tail::after {
-  position: absolute;
-  top: 100%;
-  left: 28px;
-  width: 0;
-  height: 0;
-  border: 8px solid transparent;
-  border-bottom: none;
-  border-top-color: var(--dp-border-strong);
-}
-.check-popover__tail::after {
-  content: "";
-  top: -9px;
-  left: -8px;
-  border-top-color: var(--dp-surface-raised);
 }
 </style>

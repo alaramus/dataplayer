@@ -14,6 +14,7 @@
   --dp-font-size: 13px;
   --dp-form-control-height: 32px;
   --dp-form-label-width: 108px;
+  --dp-operation-result-height: min(176px, 25vh);
 
   /* The one step below the grid: the gap between two chips, the padding of a
      badge. Everything else is a multiple of four; a value between two steps is
