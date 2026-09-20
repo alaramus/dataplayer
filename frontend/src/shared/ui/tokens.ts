@@ -107,3 +107,13 @@ export function toneFill(tone: Tone): string {
 export function toneText(tone: Tone): string {
   return `dp-tone-text-${tone}`
 }
+
+/** Form fields have a permanent external label; toolbar fields stay borderless. */
+export function fieldLook(form: boolean, compact = false, error = false) {
+  return {
+    dense: form || compact,
+    outlined: form,
+    borderless: !form && compact,
+    hideBottomSpace: form || (compact && !error),
+  }
+}

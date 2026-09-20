@@ -9,13 +9,22 @@ Decisions here: D6, D7, D11, D50, D99, D131.
 
 ## D131. Window forms use neutral surfaces and restrained borders
 
-Agreed direction; implementation pending. Use grey surfaces, a distinct title
+Migration in progress. Use grey surfaces, a distinct title
 bar, compact fields with persistent left-aligned labels, and spacing rather
 than nested cards to group content. Borders belong mainly to inputs and the
 window; quiet separators distinguish major regions. Avoid blue-tinted chrome
 and decorative accent stripes. Reflow labels above fields at narrow widths.
 Shared UI tokens and components own the appearance; Quasar remains the base.
 The spec includes the accepted visual example and rejected directions.
+
+`AppForm` supplies the compact form context to the kit's text, numeric and
+select fields. It keeps a permanent label column and moves labels above fields
+when the form container is narrow; companion actions stay beside the control.
+The field wrappers retain their value types, errors and accessible names.
+Schema-driven rows preserve their source-declared grouping and stack on narrow
+forms. The connection editor is the first consumer, with a composition in
+`/ui-kit`. Other forms keep their current presentation until migrated.
+Neutral action colours and the wider application rollout remain pending.
 
 Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 

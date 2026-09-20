@@ -36,6 +36,9 @@ test("keeps connection geometry stable across tabs, errors and body scrolling", 
   await expect(page.getByTestId("connector-name")).toHaveAttribute("aria-invalid", "true")
   await expect.poll(() => frame.boundingBox()).toEqual(initial)
 
+  await page.setViewportSize({ width: 1280, height: 480 })
+  await expect.poll(async () => (await frame.boundingBox())?.height).toBeLessThanOrEqual(480)
+  await expect.poll(async () => (await frame.boundingBox())?.y).toBe(0)
   const body = page.getByTestId("connector-body")
   const tabsBefore = await page.getByTestId("connector-tabs").boundingBox()
   const footerBefore = await frame.locator("footer").boundingBox()

@@ -46,6 +46,7 @@ import {
   AppColorPicker,
   AppCopyButton,
   AppInput,
+  AppForm,
   AppSelect,
   AppSpinner,
   AppToggle,
@@ -635,7 +636,7 @@ async function parseTyped(text: string) {
 </script>
 
 <template>
-  <div class="connector-window">
+  <AppForm class="connector-window">
     <AppSpinner v-if="adapterTypes.isLoading.value" />
 
     <template v-else>
@@ -956,7 +957,7 @@ async function parseTyped(text: string) {
         @close="unlocking = null"
       />
     </template>
-  </div>
+  </AppForm>
 </template>
 
 <style scoped>

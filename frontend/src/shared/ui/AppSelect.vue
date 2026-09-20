@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { computed, useTemplateRef } from "vue"
+import { computed, inject, useTemplateRef } from "vue"
+
+import { formLayoutKey } from "./formLayout"
+import { fieldLook } from "./tokens"
+
 import type { QSelect } from "quasar"
 
 import AppTooltip from "./AppTooltip.vue"
 import AppIconButton from "./AppIconButton.vue"
+
+const formLayout = inject(formLayoutKey, false)
 
 export interface SelectOption {
   label: string
@@ -156,10 +162,11 @@ const summary = computed(() => {
   <q-select
     ref="field"
     class="app-select"
-    :class="{ 'app-select--compact': compact }"
+    :class="{ 'app-select--compact': compact, 'app-form-field': formLayout }"
     :model-value="modelValue"
     :options="options"
     :label="label"
+    :aria-label="formLayout ? label : undefined"
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
@@ -169,14 +176,18 @@ const summary = computed(() => {
     :loading="loading"
     :multiple="multiple"
     :use-chips="multiple"
-    :dense="compact"
-    :borderless="compact"
-    :hide-bottom-space="compact && !error"
+    v-bind="fieldLook(formLayout, compact, Boolean(error))"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template
+      v-if="formLayout && label"
+      #before
+    >
+      <span>{{ label }}</span>
+    </template>
     <template
       v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon || option.tone))"
       #option="scope"

@@ -12,6 +12,7 @@ import {
   AppColorPicker,
   AppEmptyState,
   AppFileInput,
+  AppForm,
   AppFullscreenToggle,
   AppIconButton,
   AppInput,
@@ -342,6 +343,25 @@ function removeSavedEntry(name: string) {
       class="ui-kit__card"
     >
       <AppSection gutter>
+        <AppForm
+          class="ui-kit__form"
+          data-testid="form-composition"
+        >
+          <AppInput
+            v-model="text"
+            label="Host"
+          />
+          <AppNumberInput
+            v-model="broken"
+            label="Port"
+            error="Enter a port"
+          />
+          <AppSelect
+            v-model="plain"
+            label="SSL mode"
+            :options="['prefer', 'require']"
+          />
+        </AppForm>
         <AppInput
           v-model="text"
           label="Host"
@@ -609,6 +629,11 @@ function removeSavedEntry(name: string) {
 </template>
 
 <style scoped>
+.ui-kit__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-4);
+}
 .ui-kit__card {
   margin-bottom: var(--dp-space-4);
 }

@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { useAttrs, useId } from "vue"
+import { inject, useAttrs, useId } from "vue"
+
+import { formLayoutKey } from "./formLayout"
+import { fieldLook } from "./tokens"
+
+const formLayout = inject(formLayoutKey, false)
 
 defineOptions({ inheritAttrs: false })
 
@@ -91,17 +96,16 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
-    v-bind="attrs"
+    :class="{ 'app-form-field': formLayout }"
+    v-bind="{ ...attrs, ...fieldLook(formLayout, compact, Boolean(error)) }"
     :model-value="modelValue"
-    :label="label"
+    :label="formLayout ? undefined : label"
+    :aria-label="attrs['aria-label'] ?? (formLayout ? label : undefined)"
     :type="type"
     :hint="hint"
     :placeholder="placeholder"
     :stack-label="persistentLabel || Boolean(placeholder)"
-    :dense="compact"
     :autogrow="grow"
-    :borderless="compact"
-    :hide-bottom-space="compact && !error"
     :disable="disable"
     :clearable="clearable"
     :error="Boolean(error)"
@@ -113,6 +117,12 @@ function report(value: string | number | null) {
     @focus="emit('focus')"
     @blur="emit('blur')"
   >
+    <template
+      v-if="formLayout && label"
+      #before
+    >
+      <span>{{ label }}</span>
+    </template>
     <template #error>
       <span
         :id="errorId"

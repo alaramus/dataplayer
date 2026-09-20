@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, inject, ref, watch } from "vue"
+import { formLayoutKey } from "@/shared/ui/formLayout"
 
 import AppInput from "@/shared/ui/AppInput.vue"
 import AppNumberInput from "@/shared/ui/AppNumberInput.vue"
@@ -8,6 +9,8 @@ import AppToggle from "@/shared/ui/AppToggle.vue"
 
 import { autofillOf, fieldRows } from "./jsonSchema"
 import type { FieldSpec } from "./jsonSchema"
+
+const formLayout = inject(formLayoutKey, false)
 
 const props = defineProps<{
   fields: FieldSpec[]
@@ -128,7 +131,10 @@ watch(
 </script>
 
 <template>
-  <div class="schema-fields">
+  <div
+    class="schema-fields"
+    :class="{ 'schema-fields--form': formLayout }"
+  >
     <div
       v-for="(row, index) in rows"
       :key="index"
@@ -234,5 +240,17 @@ watch(
 }
 .schema-fields__row > * + * {
   flex: 0 0 30%;
+}
+.schema-fields--form .schema-fields__row > * + * {
+  --dp-form-label-width: auto;
+}
+@container app-form (max-width: 480px) {
+  .schema-fields--form .schema-fields__row {
+    flex-direction: column;
+  }
+  .schema-fields--form .schema-fields__row > * {
+    flex: auto;
+    width: 100%;
+  }
 }
 </style>

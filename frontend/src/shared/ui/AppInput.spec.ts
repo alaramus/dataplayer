@@ -13,6 +13,15 @@ function mountInput(props: Record<string, unknown> = {}) {
 }
 
 describe("AppInput", () => {
+  it("preserves an explicit accessible name on a field without a visible label", () => {
+    const wrapper = mount(AppInput, {
+      global: { plugins: [Quasar] },
+      props: { modelValue: "", compact: true },
+      attrs: { "aria-label": "Value" },
+    })
+    expect(wrapper.get("input").attributes("aria-label")).toBe("Value")
+    wrapper.unmount()
+  })
   // Asked of the field and not of the wrapper. A comment beside the root
   // element of a template makes the component a fragment in a development
   // build, and the wrapper then answers for the comment: every class it has

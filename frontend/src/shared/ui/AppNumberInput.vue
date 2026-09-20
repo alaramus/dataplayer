@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { inject } from "vue"
+
+import { formLayoutKey } from "./formLayout"
+import { fieldLook } from "./tokens"
+
+const formLayout = inject(formLayoutKey, false)
 withDefaults(
   defineProps<{
     modelValue: number | null
@@ -40,9 +46,12 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
+    :class="{ 'app-form-field': formLayout }"
+    v-bind="fieldLook(formLayout)"
     type="number"
     :model-value="modelValue"
-    :label="label"
+    :label="formLayout ? undefined : label"
+    :aria-label="formLayout ? label : undefined"
     :hint="hint"
     :placeholder="placeholder"
     :stack-label="Boolean(placeholder)"
@@ -52,6 +61,12 @@ function report(value: string | number | null) {
     :aria-invalid="error ? 'true' : undefined"
     @update:model-value="report"
   >
+    <template
+      v-if="formLayout && label"
+      #before
+    >
+      <span>{{ label }}</span>
+    </template>
     <template
       v-if="$slots.after"
       #after

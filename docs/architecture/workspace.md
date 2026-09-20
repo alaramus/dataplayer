@@ -22,8 +22,9 @@ scrolling body. Manual resizing disables content fitting in either policy.
 Stable rectangles are constrained again when the viewport shrinks.
 
 Remaining migration: other variable-content forms still use their existing
-policy. Compact field layout and narrow-form reflow belong to the next visual
-slice. The saved example demonstrates appearance, not stable geometry.
+policy. The connection editor now uses the compact shared form layout and
+narrow-container reflow. The saved example demonstrates appearance, not stable
+geometry.
 
 Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 

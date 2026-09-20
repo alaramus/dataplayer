@@ -12,6 +12,8 @@
      the same stack as a string, because xterm takes one. */
   --dp-font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   --dp-font-size: 13px;
+  --dp-form-control-height: 32px;
+  --dp-form-label-width: 108px;
 
   /* The one step below the grid: the gap between two chips, the padding of a
      badge. Everything else is a multiple of four; a value between two steps is

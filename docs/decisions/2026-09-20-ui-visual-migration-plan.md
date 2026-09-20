@@ -61,3 +61,25 @@ in unrelated files; the build reported large chunks. The documentation check pas
 
 Remaining: compact fields and responsive rows are slice 2. This slice does not
 claim completion of the full window-design acceptance matrix or visual migration.
+
+## Slice 2: compact connection fields
+
+Implemented: `AppForm` supplies form context to AppInput, AppNumberInput and
+AppSelect. `fieldLook` in tokens.ts owns the Quasar appearance mapping; metrics.css
+owns control height and label width. Labels stay beside fields in wide forms
+and move above them in narrow containers. Schema rows reflow without changing
+source metadata. Companion actions remain beside their control. The connection
+editor and `/ui-kit` use the composition.
+
+Coverage includes native field names and error associations, typed value updates,
+browser alignment and narrow reflow in both themes, and the slice 1 geometry
+regression with a deliberately short viewport to exercise overflow.
+
+Validation: all 1,872 frontend unit tests and three targeted Playwright scenarios
+passed. Type-check, lint, production build and the documentation check passed.
+Lint retains 20 unrelated warnings and the build reports large chunks. Inspected
+the generated light and dark form screenshots, including the narrow layout.
+The full application E2E suite was not run.
+
+Next: neutral chrome, buttons and tabs, plus presentation of operation results;
+then apply the proven composition to the next form family.
