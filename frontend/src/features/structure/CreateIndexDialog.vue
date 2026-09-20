@@ -6,7 +6,7 @@ import {
   AppBanner,
   AppButton,
   AppCheckbox,
-  AppSection,
+  AppForm,
   AppSelect,
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -66,12 +66,14 @@ const blockedText = computed(() => {
 <template>
   <WindowDialog
     :model-value="modelValue"
+    sizing="stable"
+    size="compact-form"
     title="Add index"
     subtitle="The source names it and picks the methods"
     data-testid="structure-index-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -112,10 +114,10 @@ const blockedText = computed(() => {
         data-testid="structure-index-unique"
         @update:model-value="unique = $event"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="saving"
         @click="emit('update:modelValue', false)"

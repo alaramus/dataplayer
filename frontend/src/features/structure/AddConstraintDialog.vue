@@ -7,7 +7,7 @@ import type { RefAction } from "@/features/structure/model"
 import {
   AppBanner,
   AppButton,
-  AppSection,
+  AppForm,
   AppSelect,
   AppSpinner,
 } from "@/shared/ui"
@@ -136,13 +136,14 @@ function save() {
 <template>
   <WindowDialog
     :model-value="modelValue"
+    sizing="stable"
     title="Add constraint"
     subtitle="The source names it and says what may be pointed at"
-    size="lg"
+    size="form"
     data-testid="structure-constraint-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -220,10 +221,10 @@ function save() {
           @update:model-value="onDelete = $event as RefAction"
         />
       </template>
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="saving"
         @click="emit('update:modelValue', false)"

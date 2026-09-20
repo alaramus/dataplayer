@@ -121,3 +121,7 @@ export function fieldLook(form: boolean, compact = false, error = false) {
     hideBottomSpace: form || (compact && !error),
   }
 }
+
+export function checkboxLook(form: boolean, dense: boolean) {
+  return { dense: form || dense, color: form ? "dp-control-selected" : undefined }
+}

@@ -7,7 +7,7 @@ import {
   AppButton,
   AppCheckbox,
   AppInput,
-  AppSection,
+  AppForm,
   AppSelect,
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -46,12 +46,14 @@ function save() {
 <template>
   <WindowDialog
     :model-value="modelValue"
+    sizing="stable"
+    size="compact-form"
     title="Add column"
     subtitle="The source controls the available SQL types"
     data-testid="structure-add-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -81,10 +83,10 @@ function save() {
         data-testid="structure-add-nullable"
         @update:model-value="nullable = $event"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="saving"
         @click="emit('update:modelValue', false)"

@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import { inject } from "vue"
+
+import { formLayoutKey } from "./formLayout"
+import { checkboxLook } from "./tokens"
+
+const formLayout = inject(formLayoutKey, false)
 /**
  * A tick box.
  *
@@ -23,10 +29,11 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
 <template>
   <q-checkbox
+    :class="{ 'app-form-checkbox': formLayout }"
+    v-bind="checkboxLook(formLayout, dense)"
     :model-value="indeterminate ? null : modelValue"
     :toggle-indeterminate="false"
     :label="label"
-    :dense="dense"
     @update:model-value="emit('update:modelValue', $event === true)"
   />
 </template>

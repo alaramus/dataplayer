@@ -368,6 +368,10 @@ function removeSavedEntry(name: string) {
           <AppBanner tone="warning">
             Some rows prevent this change. Correct their values first.
           </AppBanner>
+          <AppCheckbox
+            :model-value="true"
+            label="Allow empty values"
+          />
         </AppForm>
         <AppInput
           v-model="text"

@@ -172,3 +172,25 @@ run.
 
 Next: addition forms for columns, indexes and constraints; keep source-owned
 vocabularies and blocked-operation messages intact during the visual migration.
+
+## Slice 7: structure addition forms
+
+Implemented: add-column, index and constraint forms use the shared compact
+composition and stable windows. A compact-form preset fits the shorter forms;
+the existing form preset holds the foreign-key options. Form checkboxes align
+with fields and use neutral marks through tokens.ts, with a gallery example.
+Source-owned choices, method restrictions and mutation payloads are unchanged.
+
+Coverage: checkbox label/state/value and disabled/default behavior; browser
+scenes for both themes, multiple selected columns, method restrictions,
+foreign-key fields, long errors, narrow reflow and stable geometry.
+
+Validation: all 1,876 frontend unit tests and five targeted Playwright scenarios
+passed, including real column/index/constraint creation and blocked answers.
+Type-check, lint, production build and documentation checks passed. Lint retains
+20 unrelated warnings; the build reports large chunks. Inspected the light index
+and dark foreign-key forms, including narrow error/scrolling states. The full
+E2E suite was not run.
+
+Next: migrate another complete form family; the structure table and the table
+designer remain separate surfaces to review.

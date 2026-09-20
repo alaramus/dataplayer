@@ -10,7 +10,7 @@ const props = withDefaults(
     modelValue: boolean
     title: string
     subtitle?: string
-    size?: "sm" | "md" | "lg" | "xl" | "form"
+    size?: "sm" | "md" | "lg" | "xl" | "form" | "compact-form"
     sizing?: "content" | "stable"
     /**
      * Whether the window may close, asked before it does.
@@ -34,6 +34,7 @@ const instance = getCurrentInstance()
 const id = `dialog:${String(attrs["data-testid"] ?? props.title)}:${instance?.uid ?? 0}`
 
 const sizes = {
+  "compact-form": { width: 560, height: 360 },
   // Variable-content forms keep room for optional fields and inline errors.
   form: { width: 560, height: 580 },
   sm: { width: 460, height: 220 },

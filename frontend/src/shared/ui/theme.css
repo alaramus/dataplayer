@@ -28,6 +28,9 @@
 .text-dp-field-focus {
   color: var(--dp-focus-border) !important;
 }
+.text-dp-control-selected {
+  color: var(--dp-action-primary) !important;
+}
 .text-dp-action-secondary {
   color: var(--dp-action-secondary) !important;
 }

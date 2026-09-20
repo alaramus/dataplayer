@@ -32,6 +32,10 @@ with stable compact windows: long errors scroll in the body while actions remain
 visible. Banners inside AppForm use a status icon and semantic text on the form
 surface; banners outside forms retain their existing presentation. This context
 is provided by the composition, not selected independently by each message.
+Column, index and constraint creation use it too. The first two use the stable
+`compact-form` window preset (560 by 360); constraints use `form` to accommodate
+foreign-key fields. Form checkboxes align with the control column, use neutral
+checked marks and reflow with the fields; standalone checkboxes retain their look.
 Primary actions use a neutral contrasting fill; secondary actions use neutral
 text, and destructive actions retain their semantic red. Filled buttons have
 no decorative shadow. These defaults apply throughout the shared kit. Chrome
