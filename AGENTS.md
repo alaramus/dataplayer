@@ -30,24 +30,31 @@ legacy notes and stay unchanged.
 | Area | Read first |
 | --- | --- |
 | A source type, a capability, a node kind, untrusted input | [sources/contract.md](docs/architecture/sources/contract.md) |
+| What a catalog shows of a node, searching it, a key space | [sources/catalog.md](docs/architecture/sources/catalog.md) |
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
+| A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
 | A source made of files, the storage it brings, the explorer over it | [sources/explorer.md](docs/architecture/sources/explorer.md) |
 | An SSH server, the server key it trusts, SSH keys and their passphrases | [sources/ssh.md](docs/architecture/sources/ssh.md) |
 | A terminal, its socket, who may open one | [terminals.md](docs/architecture/terminals.md) |
-| Reading a relation, changing rows, export, import | [sources/relations.md](docs/architecture/sources/relations.md) |
+| Reading a relation, changing the rows in it | [sources/relations.md](docs/architecture/sources/relations.md) |
+| Copying rows between sources, loading a file in, exporting every row | [sources/transfer.md](docs/architecture/sources/transfer.md) |
 | A reference somebody drew by hand between two columns or two sources | [sources/declared.md](docs/architecture/sources/declared.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
 | Opening a node as anything but rows: documents, media, archives | [sources/content.md](docs/architecture/sources/content.md) |
-| Actions, action previews, downloads, reports | [sources/actions.md](docs/architecture/sources/actions.md) |
+| Actions and action previews | [sources/actions.md](docs/architecture/sources/actions.md) |
+| Downloads, what a download asks first, reports a source publishes | [sources/downloads.md](docs/architecture/sources/downloads.md) |
 | A share link, what it opens, an access request | [sharing.md](docs/architecture/sharing.md) |
 | A managed service, a service template, what a container is started with | [services.md](docs/architecture/services.md) |
+| Whether this server may start containers, and what that costs | [services-runtime.md](docs/architecture/services-runtime.md) |
+| Copying a database out, putting it back, a program run in a container | [backups.md](docs/architecture/backups.md) |
 | Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
 | Backend modules, routes, migrations, secrets, database | [backend.md](docs/architecture/backend.md) |
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
-| Layout, tabs, dragging, floating windows | [workspace.md](docs/architecture/workspace.md) |
+| Layout, tabs, dragging, the bar and card at the foot | [workspace.md](docs/architecture/workspace.md) |
+| A floating window, the forms in it, detaching a tab | [windows.md](docs/architecture/windows.md) |
 | A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
@@ -82,7 +89,7 @@ files. IDs are stable because specs and commits refer to them.
 | D11 | [frontend](docs/architecture/frontend.md) |
 | D12 | [workspace](docs/architecture/workspace.md) |
 | D13 | [sources/contract](docs/architecture/sources/contract.md) |
-| D14 | [workspace](docs/architecture/workspace.md) |
+| D14 | [windows](docs/architecture/windows.md) |
 | D15 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D16 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D17 | [sources/connecting](docs/architecture/sources/connecting.md) |
@@ -111,19 +118,19 @@ files. IDs are stable because specs and commits refer to them.
 | D40 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D41 | [sources/relations](docs/architecture/sources/relations.md) |
 | D42 | [sources/relations](docs/architecture/sources/relations.md) |
-| D43 | [sources/relations](docs/architecture/sources/relations.md) |
-| D44 | [sources/relations](docs/architecture/sources/relations.md) |
-| D45 | [sources/relations](docs/architecture/sources/relations.md) |
+| D43 | [sources/transfer](docs/architecture/sources/transfer.md) |
+| D44 | [sources/transfer](docs/architecture/sources/transfer.md) |
+| D45 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D46 | [sources/actions](docs/architecture/sources/actions.md) |
 | D47 | [sources/content](docs/architecture/sources/content.md) |
 | D48 | [sources/content](docs/architecture/sources/content.md) |
-| D49 | [sources/actions](docs/architecture/sources/actions.md) |
+| D49 | [sources/downloads](docs/architecture/sources/downloads.md) |
 | D50 | [frontend](docs/architecture/frontend.md) |
 | D51 | [sources/content](docs/architecture/sources/content.md) |
 | D52 | [sources/content](docs/architecture/sources/content.md) |
 | D53 | [sources/content](docs/architecture/sources/content.md) |
 | D54 | [sources/relations](docs/architecture/sources/relations.md) |
-| D55 | [sources/actions](docs/architecture/sources/actions.md) |
+| D55 | [sources/downloads](docs/architecture/sources/downloads.md) |
 | D56 | [sources/actions](docs/architecture/sources/actions.md) |
 | D57 | [sources/content](docs/architecture/sources/content.md) |
 | D58 | [sharing](docs/architecture/sharing.md) |
@@ -141,27 +148,27 @@ files. IDs are stable because specs and commits refer to them.
 | D70 | [sources/relations](docs/architecture/sources/relations.md) |
 | D71 | [sources/content](docs/architecture/sources/content.md) |
 | D72 | [sources/relations](docs/architecture/sources/relations.md) |
-| D73 | [sources/actions](docs/architecture/sources/actions.md) |
+| D73 | [sources/downloads](docs/architecture/sources/downloads.md) |
 | D74 | [sources/actions](docs/architecture/sources/actions.md) |
-| D75 | [sources/contract](docs/architecture/sources/contract.md) |
-| D76 | [sources/contract](docs/architecture/sources/contract.md) |
+| D75 | [sources/catalog](docs/architecture/sources/catalog.md) |
+| D76 | [sources/catalog](docs/architecture/sources/catalog.md) |
 | D77 | [querying](docs/architecture/querying.md) |
 | D78 | [querying](docs/architecture/querying.md) |
 | D79 | [sources/actions](docs/architecture/sources/actions.md) |
 | D80 | [services](docs/architecture/services.md) |
 | D81 | [jobs](docs/architecture/jobs.md) |
-| D82 | [services](docs/architecture/services.md) |
+| D82 | [services-runtime](docs/architecture/services-runtime.md) |
 | D83 | [services](docs/architecture/services.md) |
 | D84 | [services](docs/architecture/services.md) |
 | D85 | [services](docs/architecture/services.md) |
-| D86 | [services](docs/architecture/services.md) |
-| D87 | [services](docs/architecture/services.md) |
+| D86 | [services-runtime](docs/architecture/services-runtime.md) |
+| D87 | [backups](docs/architecture/backups.md) |
 | D88 | [services](docs/architecture/services.md) |
 | D89 | [services](docs/architecture/services.md) |
 | D90 | [services](docs/architecture/services.md) |
-| D91 | [sources/contract](docs/architecture/sources/contract.md) |
-| D92 | [workspace](docs/architecture/workspace.md) |
-| D93 | [workspace](docs/architecture/workspace.md) |
+| D91 | [sources/catalog](docs/architecture/sources/catalog.md) |
+| D92 | [windows](docs/architecture/windows.md) |
+| D93 | [windows](docs/architecture/windows.md) |
 | D94 | [workspace](docs/architecture/workspace.md) |
 | D95 | [jobs](docs/architecture/jobs.md) |
 | D96 | [querying](docs/architecture/querying.md) |
@@ -191,7 +198,7 @@ files. IDs are stable because specs and commits refer to them.
 | D120 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D121 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D122 | [sources/timescale](docs/architecture/sources/timescale.md) |
-| D123 | [sources/timescale](docs/architecture/sources/timescale.md) |
+| D123 | [sources/operations](docs/architecture/sources/operations.md) |
 | D124 | [backend](docs/architecture/backend.md) |
 | D125 | [dashboards](docs/architecture/dashboards.md) |
 | D126 | [dashboards](docs/architecture/dashboards.md) |
@@ -200,7 +207,7 @@ files. IDs are stable because specs and commits refer to them.
 | D129 | [dashboards](docs/architecture/dashboards.md) |
 | D130 | [dashboards](docs/architecture/dashboards.md) |
 | D131 | [frontend](docs/architecture/frontend.md) |
-| D132 | [workspace](docs/architecture/workspace.md) |
+| D132 | [windows](docs/architecture/windows.md) |
 | D133 | [ai](docs/architecture/ai.md) |
 | D134 | [ai](docs/architecture/ai.md) |
 | D135 | [ai](docs/architecture/ai.md) |

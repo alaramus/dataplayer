@@ -5,51 +5,7 @@ panel engine, the layout and floating windows are in
 [workspace.md](workspace.md); the grid, its downloads and its charts are in
 [grid.md](grid.md); 2D and 3D graph viewers are in [graphs.md](graphs.md).
 
-Decisions here: D6, D7, D11, D50, D99, D131.
-
-## D131. Window forms use neutral surfaces and restrained borders
-
-Migration in progress. Use grey surfaces, a distinct title
-bar, compact fields with persistent left-aligned labels, and spacing rather
-than nested cards to group content. Borders belong mainly to inputs and the
-window; quiet separators distinguish major regions. Avoid blue-tinted chrome
-and decorative accent stripes. Reflow labels above fields at narrow widths.
-Shared UI tokens and components own the appearance; Quasar remains the base.
-The spec includes the accepted visual example and rejected directions.
-
-`AppForm` supplies the compact form context to the kit's text, numeric, file and
-select fields. It keeps a permanent label column and moves labels above fields
-when the form container is narrow; companion actions stay beside the control.
-The field wrappers retain their value types, errors and accessible names.
-Schema-driven rows preserve their source-declared grouping and stack on narrow
-forms. The connection editor is the first consumer, with a composition in
-`/ui-kit`. SSH key creation, import and unlocking also use this composition.
-Use `AppForm layout="section"` for a standalone stack with shared padding and
-field spacing; the default embedded layout leaves those to its parent.
-Other forms keep their current presentation until migrated.
-Column rename, default, type and nullability dialogs use the section composition
-with stable compact windows: long errors scroll in the body while actions remain
-visible. Banners inside AppForm use a status icon and semantic text on the form
-surface; banners outside forms retain their existing presentation. This context
-is provided by the composition, not selected independently by each message.
-Column, index and constraint creation use it too. The first two use the stable
-`compact-form` window preset (560 by 360); constraints use `form` to accommodate
-foreign-key fields. Form checkboxes align with the control column, use neutral
-checked marks and reflow with the fields; standalone checkboxes retain their look.
-Primary actions use a neutral contrasting fill; secondary actions use neutral
-text, and destructive actions retain their semantic red. Filled buttons have
-no decorative shadow. These defaults apply throughout the shared kit. Chrome
-and default panel identity surfaces are grey; user-chosen identity colours,
-data palettes, links and status colours keep their meaning. Compact fields use
-neutral borders and focus, with errors retaining the error colour. Connection
-tabs use a quiet filled current state and a visible keyboard focus outline.
-The connection check result occupies a neutral strip between the connection
-string and footer, separated by quiet lines. It never overlays fields or changes
-the window rectangle. Long details scroll within a height bounded by the shared
-operation-result metric; copy, dismiss and recovery actions remain available.
-The wider composition rollout remains pending.
-
-Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
+Decisions here: D99, D131, D6, D7, D11, D50.
 
 ## What exists today
 
@@ -90,6 +46,53 @@ frontend/src/
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
 
+## D131. Window forms use neutral surfaces and restrained borders
+
+Grey surfaces, a distinct title bar, compact fields with persistent left-aligned
+labels, and spacing rather than nested cards to group content. Borders belong
+mainly to inputs and the window, and quiet separators distinguish major regions;
+blue-tinted chrome and decorative accent stripes are out. Shared tokens and
+components own the appearance, with Quasar as the base. The spec holds the
+accepted visual example and the rejected directions.
+
+- **`AppForm` supplies the compact form context** to the kit's text, numeric,
+  file and select fields. It keeps a permanent label column and moves labels
+  above the fields when the container is narrow; companion actions stay beside
+  the control, and the field wrappers keep their value types, errors and
+  accessible names. Schema-driven rows keep their source-declared grouping and
+  stack on a narrow form.
+- **`layout="section"` is the standalone stack**, with shared padding and field
+  spacing; the default embedded layout leaves both to its parent.
+- **Its consumers** are the connection editor, which has the composition in
+  `/ui-kit`; SSH key creation, import and unlocking; the column rename, default,
+  type and nullability dialogs; and column, index and constraint creation. The
+  dialogs use stable compact windows, so long errors scroll in the body while the
+  actions stay visible. Column and index creation take the `compact-form` preset,
+  560 by 360; constraints take `form`, for the foreign-key fields.
+- **A banner inside `AppForm`** uses a status icon and semantic text on the form
+  surface, and the composition provides that context rather than each message
+  selecting it. Banners outside a form keep their existing presentation.
+- **Form checkboxes align with the control column**, use neutral checked marks
+  and reflow with the fields; a standalone checkbox keeps its own look.
+- **Actions carry the hierarchy, not the palette.** Primary is a neutral
+  contrasting fill, secondary is neutral text, destructive keeps its semantic
+  red, and a filled button has no decorative shadow. Chrome and default panel
+  identity surfaces are grey, while user-chosen identity colours, data palettes,
+  links and status colours keep their meaning. Compact fields use neutral borders
+  and focus, errors keeping the error colour, and connection tabs use a quiet
+  filled current state with a visible keyboard focus outline.
+- **A connection check result is a neutral strip** between the connection string
+  and the footer, separated by quiet lines. It never overlays fields and never
+  changes the window rectangle; long details scroll within the shared
+  operation-result height, and copy, dismiss and recovery stay available.
+
+Known deviations:
+
+- **The rollout is unfinished.** Forms other than the consumers above keep their
+  current presentation, and the wider composition rollout is pending.
+
+Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
+
 ## D99. A browser tab belongs to one backend context
 
 The configured default and named server profiles are selectable before login
@@ -118,18 +121,16 @@ Spec: [Choosing a DataPlayer server](../decisions/2026-09-04-server-profiles-des
 ## D6. Server state lives in vue-query; Pinia holds only client state
 
 The old frontend spread server data across Pinia stores, each with its own cache
-and its own invalidation, and that is where its desynchronisation bugs came from.
-
-Enforced by ESLint: `src/stores/**` may not import the generated client or any
-feature.
+and invalidation, which is where its desynchronisation bugs came from. Enforced
+by ESLint: `src/stores/**` may not import the generated client or any feature.
 
 A failed query is asked again only when asking again could answer differently.
 vue-query's three growing retries suit a request that never arrived, not a 4xx
 the server read and will refuse again — minus the two codes that are about the
-moment. Opening a `.dump` in a file source once waited five seconds for that.
-A source failure is a 502 whatever it was, so its kind decides: `auth`,
-`config` and `locked` are settled, and a locked SSH key once held a spinner
-over its own unlock button for seven seconds.
+moment. A source failure is a 502 whatever it was, so its kind decides: `auth`,
+`config` and `locked` are settled. Opening a `.dump` in a file source once waited
+five seconds for this, and a locked SSH key held a spinner over its own unlock
+button for seven.
 
 Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-connector-registry-design.md)
 
@@ -222,15 +223,15 @@ on a colour reached for past the theme — written as a number, as
 colour test reads the `.ts` modules too, because a class name is as often built
 there.
 
-A fourth asks a different question: not what a value looks like but whether it
-exists. `var(--dp-radius)` in a dialog and `var(--dp-danger-text, #d32f2f)` in
-the highlighter both named a token nobody had declared — the first dropped in
-silence by the browser, the second a literal colour wearing a token's name — and
-the graph asked for `--dp-muted` where the theme declares `--dp-text-muted`, so
-its captions were never muted at all. Vite hands a test an empty string for a
-`.css` file, whatever the query, so this one reads the three token files from
-the disk; it is the single source file typed by `tsconfig.node.json` rather than
-by the application's browser-only config, which is why Node stays out of the
+A fourth asks not what a value looks like but whether it exists.
+`var(--dp-radius)` in a dialog and `var(--dp-danger-text, #d32f2f)` in the
+highlighter both named a token nobody had declared — the first dropped in silence
+by the browser, the second a literal colour wearing a token's name — and the
+graph asked for `--dp-muted` where the theme declares `--dp-text-muted`, so its
+captions were never muted. Vite hands a test an empty string for a `.css` file,
+whatever the query, so this one reads the three token files from the disk; it is
+the single source file typed by `tsconfig.node.json` rather than by the
+application's browser-only config, which is why Node stays out of the
 application's types. What actually paints over what remains a browser question,
 answered by a Playwright scenario.
 

@@ -670,7 +670,7 @@ labelled separately from current size and no whole-relation ratio is inferred.
 API evidence is the upstream 2.18.0
 [size functions](https://github.com/timescale/timescaledb/blob/2.18.0/sql/size_utils.sql);
 real compatibility validation passed on both pinned sources; see the
-[validation record](../../backend/compatibility/timescale/README.md#t1-completion-2026-09-08).
+[validation record](../../backend/compatibility/timescale/README.md#validation-record-2026-09-12).
 
 Hypertable and aggregate reports project explicit metadata columns from their
 public views: owners, hypertable dimension/chunk counts and tablespaces,
@@ -750,7 +750,7 @@ pinned sources on 2026-09-09, including native setter exclusion, stale review,
 future/existing chunk boundaries, refusal and cancellation cleanup. This is
 interval-specific evidence; backend unit/transport/static and frontend review
 checks passed afterwards. See the
-[compatibility record](../../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09)
+[compatibility record](../../backend/compatibility/timescale/README.md#validation-record-2026-09-12)
 for the exact command and limits.
 
 The proposed interval execution strategy locks the extension-owned public

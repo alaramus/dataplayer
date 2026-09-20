@@ -7,109 +7,51 @@ parsing, execution, history, result snapshots, Explain or query transactions.
 
 Decisions here: D62, D63, D64, D65, D66, D77, D78, D96.
 
-## Implementation state
+## What exists today
 
-Phase 3 is complete and verified. It was built in three slices — 3A read and
-intelligence, 3B DML, 3C bounded DDL — and what each of them settled is below,
-because the code still divides along those lines.
+`app/queries` owns `QueryDocument`, the library, revisioned autosave, Trash and
+its sweep; the frontend has a Queries navigation panel and a console panel.
 
-Documents exist: `app/queries` owns `QueryDocument`, the library, revisioned
-autosave, Trash and its sweep, and the frontend has a Queries navigation panel
-and a console panel.
+`SupportsQuery` is declared and PostgreSQL implements it. A run is started,
+read, cancelled and paged through routes; the console runs the selection, the
+statement under the caret or an explicit script, binds named parameters, shows
+ordered statement outputs and messages, keeps and searches history, and pages,
+filters, orders, downloads and charts a captured result. The source describes
+its schemas, relations and columns progressively, the editor completes against
+them beside the dialect's own words, a conservative mark appears only where this
+application really knows something, and a bounded SELECT about a node is written
+by the source rather than assembled in a browser. Explain is a capability of its
+own: a source that will plan a statement without running it answers with the
+tree it built, the plan it prints and the estimate for the whole statement, and
+the console shows those as three views of one selection.
 
-The read console exists. `SupportsQuery` is declared and PostgreSQL implements
-it; a run is started, read, cancelled and paged through routes; the console
-runs the selection, the statement under the caret or an explicit script, binds
-named parameters, shows ordered statement outputs and messages, keeps and
-searches history, and pages, filters, orders, downloads and charts a captured
-result.
+A connection carries an execution policy its owner sets. A console opens
+read-only every time and is taken out of it deliberately, by typing the name of
+the connection where the policy asks for it. Auto-commit makes the whole run one
+transaction; a manual transaction is opened by the console, held by the server
+across requests, shown as a commit preview and ended by Commit or Roll back — by
+the person, by the idle lease, or by closing the panel, which asks first. A
+statement whose reach is not written down is confirmed every time.
 
-SQL intelligence exists as well: the source describes its schemas, relations
-and columns progressively, the editor completes against them beside the
-dialect's own words, a conservative mark appears only where this application
-really knows something, the source lays its own dialect out again, and a
-bounded SELECT about a node is written by the source rather than assembled in
-a browser. With that, PostgreSQL's query capability is offered to users.
+The source holds a closed vocabulary for structure changes — schemas, tables,
+views and indexes created, altered and dropped, their comments, and emptying a
+table — and refuses anything else in its own words, before a run is recorded.
+Every structure change is asked about each time. A destructive one is first
+carried out inside a transaction with a short lock timeout and then rolled back,
+so what the console shows before the question is the database's own account:
+which dependants a cascade would take, or that the drop would be refused
+outright. A rehearsal that could not take its locks stops the run, because
+nothing was learnt. Once a change is permanent the source issues the nodes to
+re-read, the read cache for that connection is emptied, and the console drops
+exactly those cached answers; a rollback issues nothing.
 
-Explain is there too, as a capability of its own: a source that will plan a
-statement without running it answers with the tree it built, the plan it
-prints and the estimate for the whole statement, and the console shows those
-as three views of one selection. `EXPLAIN ANALYZE` is not offered, because it
-executes: it waits until its effects have the policy the statement itself has.
-
-With that, phase 3A is complete.
-
-Writing exists as well, and phase 3B with it. A connection carries an
-execution policy its owner sets; a console opens read-only every time and is
-taken out of it deliberately, by typing the name of the connection where the
-policy asks for it. Auto-commit makes the whole run one transaction, and a
-manual transaction is opened by the console, held by the server across
-requests, shown as a commit preview and ended by Commit or Roll back — by the
-person, by the idle lease, or by closing the panel, which asks first. A
-statement whose reach is not written down is confirmed every time. DML only:
-DDL is refused with a sentence saying so until 3C.
-
-Structure changes exist as well, and with them phase 3C. The source holds a
-closed vocabulary — schemas, tables, views and indexes created, altered and
-dropped, their comments, and emptying a table — and refuses anything else in
-its own words, before a run is recorded. Every structure change is asked about
-each time, whatever it looks like. A destructive one is first carried out on
-the source inside a transaction with a short lock timeout and then rolled
-back, so what the console shows before the question is the database's own
-account: which dependants a cascade would take, or that the drop would be
-refused outright. A rehearsal that could not take its locks stops the run,
-because nothing was learnt. Once a change is permanent — when an auto-commit
-run succeeds, or when somebody commits the transaction holding it — the source
-issues the nodes to re-read, the read cache for that connection is emptied,
-and the console drops exactly those cached answers. A rollback issues nothing.
-
-Known deviations:
-
-- The vocabulary is bounded by what the dialect module can read as well as by
-  what is listed. `ALTER TABLE t DROP COLUMN a, ADD COLUMN b int` and
-  `ALTER SCHEMA s RENAME TO r` are inside the vocabulary in words and are
-  refused all the same, because the parser reads them as an opaque command and
-  a statement whose shape is not established is not run (D62). One action per
-  ALTER is the working form.
-- The rehearsal is what a person reads before answering, not a precondition
-  the server enforces. What decides whether a change may be made is the same
-  four checks a write goes through — policy, level, unlock, confirmation — and
-  the console will not run a change whose rehearsal came back blocked, but a
-  caller that never asked for one is not refused for that reason.
-- `DROP INDEX s.i` names the index, and which relation it was on is not in the
-  statement, so the invalidation widens to the whole connection rather than
-  naming a node the source did not say. The same is true of any statement the
-  dialect module cannot take apart.
-- A rename issues the schemas to re-read rather than a node replacement, so a
-  panel holding the old relation reports it as gone instead of following it.
-  D66 allows the wider answer; D32's replacement is not issued here.
-
-- D65 describes a gutter Run beside each statement. The console has the two
-  keyboard commands and their two buttons; the gutter marker is not drawn.
-- Completion offers the source's schemas, relations, columns and the
-  document's parameters beside the dialect's keywords. Aliases and CTEs are
-  not offered as words of their own, and nothing is marked about them either:
-  both would need a parse the browser deliberately does not do.
-- Statement boundaries are asked of the source rather than parsed in the
-  browser as well. D62 allows a compatible browser parser for immediate
-  feedback; one parser is used here, so Run waits for a short round trip after
-  the text changes rather than answering from a local parse.
-- D66 offers three ways out of closing a panel with an open transaction. The
-  panel offers two: roll back and close, or keep it open. Committing is not
-  one of them on purpose — a commit is decided while looking at the preview of
-  what it would commit, and a tab closing is not that moment.
-- The writing mode is a property of the console and is never restored: a
-  reopened document is read-only again, though the unlock on the connection
-  outlives it and the mode can be chosen again without typing the name a
-  second time.
-
-A second source runs SQL, and it has no server: the file source answers with an
+A second source runs SQL and has no server: the file source answers with an
 embedded DuckDB whose relations are its own nodes and whose engine is thrown
 away after every run (D77, D78). It reads, and only reads — CSV, TSV, Parquet,
-JSON, JSON lines and logs — so the console opens read-only against a file connection
-and the write mode is not offered at all. Explain, metadata and a generated
-SELECT are there; formatting and transactions are not, and the profile says so
-because it is derived from what the adapter implements.
+JSON, JSON lines and logs — so the console opens read-only against a file
+connection and the write mode is not offered at all. Explain, metadata and a
+generated SELECT are there; formatting and transactions are not, and the profile
+says so because it is derived from what the adapter implements.
 
 Three things are process-local and stated as such: captured results, the runs
 being carried out and open transactions (D66). They hold what cannot cross a
@@ -180,6 +122,22 @@ the protocol portable once it could state which of its own nodes SQL may see
 (D77) — and proved it the other way as well, by implementing a fraction of it:
 reads, no transactions, no formatter. The frontend never branches on the
 adapter type.
+
+Known deviations:
+
+- **The vocabulary is bounded by what the dialect module can read as well as by
+  what is listed.** `ALTER TABLE t DROP COLUMN a, ADD COLUMN b int` and
+  `ALTER SCHEMA s RENAME TO r` are inside the vocabulary in words and are refused
+  all the same, because the parser reads them as an opaque command and a
+  statement whose shape is not established is not run. One action per ALTER is
+  the working form.
+- **Statement boundaries are asked of the source, not parsed in the browser.**
+  This decision allows a compatible browser parser for immediate feedback; one
+  parser is used, so Run waits for a short round trip after the text changes
+  rather than answering from a local parse.
+- **Aliases and CTEs are not offered as words of their own**, and nothing is
+  marked about them either: both would need a parse the browser deliberately does
+  not do.
 
 Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
@@ -261,7 +219,7 @@ values are present only when the document explicitly remembers them.
 Saved favourites are unnecessary: a useful query is one somebody remembered.
 Legacy history and favourites are not migrated because their ownership,
 ordering, context and retention are not trustworthy. Documents, history and
-query results are not shareable in phase 3.
+query results are not shareable.
 
 Known deviations:
 
@@ -331,8 +289,8 @@ display names.
 
 Snapshots live in a process-local TTL/LRU store for thirty minutes after last
 access. Active results are not evicted; terminal least-recently-used results are.
-Pinning protects a card from replacement in the UI, not from expiry. Phase 5
-may supply a shared backend without changing the API. Paging, closed typed
+Pinning protects a card from replacement in the UI, not from expiry. A shared
+backend could be supplied later without changing the API. Paging, closed typed
 filtering and deterministic platform sorting operate over captured rows only:
 numeric by arbitrary precision, date/time chronologically, booleans false then
 true, text by Unicode code point, null last ascending and original ordinal as
@@ -405,6 +363,14 @@ column list. The browser does not build SQL identifiers. Explain is a separate
 result type with synchronised operation tree, table and raw plan; Explain
 Analyze is deferred.
 
+Known deviations:
+
+- **The gutter Run is not drawn.** The console has the two keyboard commands and
+  their two buttons.
+- **The writing mode is never restored.** A reopened document is read-only again,
+  though the unlock on the connection outlives it and the mode can be chosen
+  again without typing the name a second time.
+
 Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 ## D66. Writes require an explicit mode and the UI owns the transaction
@@ -458,6 +424,25 @@ own locks are not read as somebody else blocking them; a blocked preview
 disables execution. After commit the adapter returns exact node invalidations,
 replacements or an explicit schema/database scope; the client never
 reconstructs affected ids from SQL. Rollback invalidates nothing.
+
+Known deviations:
+
+- **The rehearsal is what a person reads before answering, not a precondition the
+  server enforces.** What decides whether a change may be made is the same four
+  checks a write goes through — policy, level, unlock, confirmation — and the
+  console will not run a change whose rehearsal came back blocked, but a caller
+  that never asked for one is not refused for that reason.
+- **`DROP INDEX s.i` widens the invalidation to the whole connection.** The
+  statement names the index and not the relation it was on, so nothing can name a
+  node the source did not say. The same is true of any statement the dialect
+  module cannot take apart.
+- **A rename issues the schemas to re-read rather than a node replacement**, so a
+  panel holding the old relation reports it as gone instead of following it. This
+  decision allows the wider answer; D32's replacement is not issued here.
+- **Closing a panel with an open transaction offers two ways out**, roll back and
+  close, or keep it open. Committing is not one of them on purpose: a commit is
+  decided while looking at the preview of what it would commit, and a tab closing
+  is not that moment.
 
 Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
@@ -569,18 +554,3 @@ and a deadline and always closes its engine, including on failure. Result
 bounds, read-only execution and path containment remain D64, D77 and D78's.
 
 Spec: [SQL over log files](../decisions/2026-09-04-log-sql-design.md)
-
-## Verification boundary
-
-The feature is ready only after the security matrix is exercised against real
-PostgreSQL: statement delimiters inside every quoting form, writable CTEs,
-write-capable functions in read-only mode, forbidden session/transaction/COPY,
-parameter injection, mixed permission scripts, revocation between prepare and
-execute, cross-user ids, idempotency conflicts, cancel/timeout pool cleanup,
-redaction and encryption at rest.
-
-End-to-end coverage follows documents through reload and conflict, parameterised
-read scripts, multiple outputs and errors, cancellation, promoted results,
-history recovery, shared read access, auto/manual DML rollback and commit,
-destructive DDL invalidation and a revoked connector. Phase 3 stays open until
-3A, 3B and 3C and every required project check are clean.

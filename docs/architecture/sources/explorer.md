@@ -64,17 +64,15 @@ says what the bytes mean.
   the same idea one level up. Everything else reads through the storage's
   seekable `open`.
 
-Rejected: a copy of the explorer per source, which is what the old application
-had. Its SSH and FTP adapters each carried their own catalog, archive, media and
-search code, some two thousand lines of it, each with a different subset of what
-the local explorer could do, and a fix in one reached none of the others.
+Rejected: a copy of the explorer per source. That is what the old application
+had, and a fix in one of its two thousand lines of per-adapter catalog, archive,
+media and search code reached none of the others.
 
-Rejected: fsspec as the contract. It is the standard filesystem interface of
-Python's data tools and it covers S3, GCS, FTP, SFTP and more, but it is not
+Rejected: fsspec as the contract. It covers S3, GCS, FTP and SFTP, but it is not
 where this application's rules live: the server key a connection pinned, keys
 that never touch the disk, errors that name no address. The contract is ours,
-and fsspec may sit behind one storage where it fits — an object store — rather
-than in front of all of them.
+and fsspec may sit behind one storage where it fits, rather than in front of
+all of them.
 
 Known deviations:
 
@@ -88,10 +86,10 @@ Spec: [One explorer over every tree of files](../../decisions/2026-09-19-file-ex
 
 Every method of `Storage` is synchronous and is called from a worker thread,
 never from the event loop. The explorer's walks, its format readers and the
-libraries under them are synchronous already, and they ran in threads before
-there was a storage; keeping the storage synchronous kept every one of them as
-it was. A storage whose library is asynchronous brings its answers into the
-thread; one whose library blocks — `ftplib`, `boto3` — needs nothing extra.
+libraries under them are synchronous already and ran in threads before there was
+a storage, so keeping the storage synchronous kept every one of them as it was. A
+storage whose library is asynchronous brings its answers into the thread; one
+whose library blocks — `ftplib`, `boto3` — needs nothing extra.
 
 Each capability makes one hop into a thread and does its work there, actions
 included: an action that asked a remote storage anything on the event loop would
@@ -107,9 +105,8 @@ Spec: [One explorer over every tree of files](../../decisions/2026-09-19-file-ex
 ## D152. A remote file is read from a bounded local copy
 
 The libraries a table, a workbook, an archive and SQL are read with open a file
-on this machine, so a storage that is not this machine's disk lends them a
-copy. Every copy lives in one place, `explorer/copies.py`, and the bounds were
-set by the owner:
+on this machine, so a storage that is not this machine's disk lends them a copy.
+Every copy lives in one place, `explorer/copies.py`:
 
 - **Only for a library that opens a path.** A viewer that decides from a
   header or a bounded prefix reads the file where it lies, through the

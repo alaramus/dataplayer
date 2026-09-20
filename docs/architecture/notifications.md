@@ -31,15 +31,9 @@ frontend/src/features/dashboards/attention.ts   a host that keeps restarting
 
 ## D113. What needs a person is one place, with three kinds in it
 
-The old application had no such place at all: a running import announced itself
-in a coloured bar that vanished after four seconds, and a request for access to
-a connection was visible only to somebody who happened to open the right
-dialog. Whether you were told something depended on where you were looking.
-
-The screen now has one place for all of it, opened by one button at the end of
-the status bar. It is a sheet along the right-hand edge rather than a floating
-window: a floating window is a piece of work, and this is the application
-talking about the work.
+One place for all of it, opened by one button at the end of the status bar. A
+sheet along the right-hand edge rather than a floating window: a floating window
+is a piece of work, and this is the application talking about the work.
 
 Three sections, in this order, because they are three different things and a
 single list makes the important one unfindable:
@@ -66,23 +60,20 @@ Consequences:
   is where the rule about answering lives (D61) — the sheet opens it. A second
   copy of an answering form is a second thing to keep in step, and D112 already
   says a thing's commands belong to the thing.
-- **Following one closes the sheet.** It floats over the work and swallows the
-  first click outside itself; leaving it up made every "Open" a two-click
-  movement, the first click spent only on closing the sheet in front of the
-  window it had just opened.
+- **Following one closes the sheet.** It swallows the first click outside
+  itself, so leaving it up made every "Open" two clicks, the first spent closing
+  the sheet in front of the window it had just opened.
 - **It floats over the work rather than moving it.** Opening the sheet does not
-  reflow the workspace: a grid that re-measures every time somebody glances at
-  a notification is a grid that jumps under the hand. Not modal either, and no
-  dim behind it — the point of the sheet is to watch progress while carrying
-  on, so Esc and a click outside close it and nothing is blocked while it is
-  open.
+  reflow the workspace: a grid that re-measures every time somebody glances at a
+  notification jumps under the hand. Not modal and no dim behind it — the point
+  is to watch progress while carrying on, so Esc and a click outside close it and
+  nothing is blocked while it is open.
 - **The processes window is gone.** What it held is the "Working" section.
-
 - **A line goes when its subject goes.** Deleting a connection deletes the
   requests waiting on it, in the database; the list of what is waiting is read
-  across every connection, so it is the one cache that deletion leaves wrong
-  and it is refreshed there. And an action that cannot find its subject says so
-  rather than doing nothing, which is what a dead button looks like.
+  across every connection, so it is the one cache that deletion leaves wrong and
+  it is refreshed there. An action that cannot find its subject says so rather
+  than doing nothing, which is what a dead button looks like.
 
 Known deviations:
 
@@ -94,22 +85,16 @@ Spec: [Everything that needs a person](../decisions/2026-09-06-activity-centre-d
 
 ## D114. A message is recorded first and shown second
 
-Every screen already says what happened through one function, `useToast`, and
-that function used to call Quasar's `notify` — bottom centre, in colours of its
-own, four seconds, then gone forever. Anything a person missed while looking at
-another monitor was simply not said.
+Every screen says what happened through one function, `useToast`, which writes
+the message into a log first. The card that slides in at the bottom right is what
+the log does when the sheet is shut; when the sheet is open the message is a new
+row in it. `useToast` keeps the same four functions, so its hundred or so callers
+did not change.
 
-A message is now written into a log first. The card that slides in at the
-bottom right is what the log does when the sheet is shut; when the sheet is
-open the message is a new row in it. The screens did not change: `useToast` has
-the same four functions, and roughly a hundred calls stayed as they were.
-
-- **Only a failure stays.** Everything else fades after a few seconds and is
-  in the log afterwards. An offer to act fades too, though it did not at first:
-  a card carrying the one way to answer something looks like it must be kept,
-  until the first section of the sheet is where that something already lives.
-  A card that never leaves is then an interruption that has stopped saying
-  anything new.
+- **Only a failure stays.** Everything else fades after a few seconds and is in
+  the log afterwards, an offer to act included: the first section of the sheet is
+  where that something already lives, so a card that never leaves is an
+  interruption that has stopped saying anything new.
 - **At most three cards.** The rest are already in the sheet, and the stack
   says how many.
 - **Do not disturb suppresses the cards, never the record.** While a large
@@ -131,16 +116,16 @@ Spec: [Everything that needs a person](../decisions/2026-09-06-activity-centre-d
 
 ## D115. What needs an answer comes from a list of sources, not a list of ifs
 
-The first section will grow — every capability that can leave something
-unresolved wants a line in it. Written as branches inside the panel, that is a
-component that imports every feature and is edited by every one of them.
+The first section grows with every capability that can leave something
+unresolved. Written as branches inside the panel, it would be a component that
+imports every feature and is edited by every one of them.
 
-An attention source is a function a feature exports: it returns what is
-outstanding, as `AttentionItem`s the panel can draw without knowing what they
-are about. `features/activity/sources.ts` lists them, and adding a kind is a
-composable in the feature that owns the subject plus a line there. The same
-shape the job runner uses for its kinds of work (D81) and the workspace uses
-for its panels (D12).
+An attention source is a function a feature exports, returning what is
+outstanding as `AttentionItem`s the panel draws without knowing what they are
+about. `features/activity/sources.ts` lists them, so adding a kind is a
+composable in the feature that owns the subject plus a line there — the shape the
+job runner uses for its kinds of work (D81) and the workspace for its panels
+(D12).
 
 - **The item says what to do about itself.** A label, a tone, a sentence and
   one action — never a branch in the panel on where it came from.

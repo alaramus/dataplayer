@@ -6,13 +6,17 @@ file holds which decision.
 | File | Open it to |
 | --- | --- |
 | [contract.md](contract.md) | add or change a source type, a capability, a node kind or the rule about untrusted input |
+| [catalog.md](catalog.md) | change what a catalog shows of a node, how it is searched, or a key space |
 | [connecting.md](connecting.md) | change how a connection is described, composed or parsed, or anything pooled or cached between requests |
 | [timescale.md](timescale.md) | implement the designed Timescale feature package, runtime discovery and extension-aware operation restrictions |
+| [operations.md](operations.md) | add a source action too long for one request, or change how its targets are planned and recorded |
 | [relations.md](relations.md) | read a relation or change the rows in it |
+| [transfer.md](transfer.md) | copy rows between sources, load a file into a relation, or export every row |
 | [declared.md](declared.md) | draw a reference between two columns no source calls related |
 | [ddl.md](ddl.md) | change a column, an index, a constraint, or rename a node |
 | [content.md](content.md) | open a node as something other than a page of rows |
-| [actions.md](actions.md) | add an action, change what a form applies to, or add a report |
+| [actions.md](actions.md) | add an action or change what a form applies to |
+| [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, or where SSH keys and passphrases are kept |
 
 ## Four source types

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
-# Seven assertions about the documentation:
+# Eight assertions about the documentation:
 #
 #   1. every relative link in a tracked .md file resolves to something that
-#      exists;
+#      exists, and a link carrying a `#fragment` into a .md file names a
+#      heading that is actually in it;
 #   2. every decision listed in the AGENTS.md table lives in exactly the file
 #      the table names, and no decision lives in docs/architecture/ unlisted.
 #      The table names a file rather than an area, so it is a checked index
@@ -25,7 +26,19 @@
 #   7. every decision the code names in a comment exists in the AGENTS.md
 #      table. Pointing at a decision is how a comment stays short: the
 #      argument lives once, in docs/architecture/, and the code names it.
-#      That only works while the name resolves.
+#      That only works while the name resolves;
+#   8. every architecture file holding decisions lists exactly them in a
+#      `Decisions here:` line. That line is how a session decides whether to
+#      spend ten thousand tokens on the file, so it has to be true; eight
+#      files had none and workspace.md's had been wrong since D112.
+#
+# And one warning, which does not fail the run:
+#
+#   a file past WARN_AT is told how much is left. The per-file budget used to
+#   arrive as a failure on the commit that crossed it — workspace.md sat at 44
+#   bytes free and services.md at 276 — so what had to be split was discovered
+#   at the worst moment. Splitting is the answer to the warning; raising the
+#   budget is not, because a session pays for the whole file it opens.
 #
 set -euo pipefail
 
@@ -33,11 +46,16 @@ cd "$(dirname "$0")/.."
 
 AGENTS_BUDGET=24576
 FILE_BUDGET=40960
+WARN_AT=32768
 failed=0
 
 note() {
     printf '%s\n' "$1" >&2
     failed=1
+}
+
+warn() {
+    printf 'warning: %s\n' "$1" >&2
 }
 
 # Tracked files plus new ones that are not ignored: a file being added in this
@@ -80,10 +98,29 @@ links_of() {
 
 # 1. Links -------------------------------------------------------------------
 
+# The heading a fragment would have to match, GitHub's slug rules: lowercased,
+# anything but a word character, a space or a hyphen dropped, spaces hyphenated.
+slugs_of() {
+    sed -n 's/^#\{1,6\} //p' "$1" |
+        tr '[:upper:]' '[:lower:]' |
+        sed -e 's/[^a-z0-9 _-]//g' -e 's/ /-/g'
+}
+
 while IFS= read -r file; do
     while IFS=$'\t' read -r link target; do
         if [ ! -e "$target" ]; then
             note "broken link: $file -> $link"
+            continue
+        fi
+        # A fragment into a document nobody checked is how a split breaks a
+        # link while leaving it pointing at a file that still exists: five of
+        # them survived the move of D91, D76 and three of contract.md's own.
+        case "$link" in *'#'*) ;; *) continue ;; esac
+        case "$target" in *.md) ;; *) continue ;; esac
+        fragment=${link#*#}
+        [ -n "$fragment" ] || continue
+        if ! slugs_of "$target" | grep -qxF "$fragment"; then
+            note "broken anchor: $file -> $link"
         fi
     done < <(links_of "$file")
 done < <(docs)
@@ -180,7 +217,35 @@ while IFS= read -r file; do
     bytes=$(tr -d '\r' < "$file" | wc -c | tr -d ' ')
     if [ "$bytes" -gt "$FILE_BUDGET" ]; then
         note "$file is $bytes bytes, over the $FILE_BUDGET per-file budget; split it by the work it serves"
+    elif [ "$bytes" -gt "$WARN_AT" ]; then
+        warn "$file is $bytes bytes, $((FILE_BUDGET - bytes)) short of the budget; plan the split now"
     fi
+done < <(architecture_files)
+
+# 8. Every file says which decisions it holds ---------------------------------
+
+while IFS= read -r file; do
+    [ -e "$file" ] || continue
+    here=$(sed -n 's/^## \(D[0-9][0-9a-z]*\)\..*/\1/p' "$file" | tr '\n' ' ')
+    [ -n "$here" ] || continue
+    line=$(sed -n 's/^Decisions here: //p' "$file" | head -1)
+    if [ -z "$line" ]; then
+        note "$file holds ${here% } and carries no 'Decisions here:' line"
+        continue
+    fi
+    said=$(printf '%s' "$line" | grep -oE 'D[0-9]+[a-z]?' | tr '\n' ' ')
+    for id in $here; do
+        case " $said " in
+            *" $id "*) ;;
+            *) note "$file holds $id, which its 'Decisions here:' line does not name" ;;
+        esac
+    done
+    for id in $said; do
+        case " $here " in
+            *" $id "*) ;;
+            *) note "$file names $id in 'Decisions here:' and does not hold it" ;;
+        esac
+    done
 done < <(architecture_files)
 
 # 6. No orphan architecture file ---------------------------------------------

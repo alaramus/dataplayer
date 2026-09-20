@@ -1,117 +1,56 @@
-# The screen: sections, tabs and windows
+# The screen: sections and tabs
 
 The panel engine, the three columns built on it, the drag gesture that moves a
-tab, and the floating windows that edit a connection. The component kit and the
-screens themselves are in [frontend.md](frontend.md).
+tab, the bar at the foot of the screen and the card above it. Floating windows
+are in [windows.md](windows.md); the component kit and the screens themselves
+are in [frontend.md](frontend.md).
 
-Decisions here: D12, D14, D69, D92, D93, D94, D132.
-
-## D132. Changing content does not resize a stable window
-
-The shared window manager distinguishes content-sized simple forms from stable
-windows through `sizing: "stable"`; omitted sizing retains content fitting.
-A stable window starts at a suitable preferred size bounded by the viewport.
-Tab changes, loaded data and validation do not resize or recenter it; excess
-content scrolls inside the body while title, tabs and footer remain available.
-Manual geometry survives tab changes and maximize/restore. Viewport changes
-may constrain it. No cross-session geometry persistence is introduced.
-
-The connection editor is the first participant. It keeps its preferred 560 by
-660 rectangle, bounded by the viewport, with the name and tabs outside the
-scrolling body. Manual resizing disables content fitting in either policy.
-Stable rectangles are constrained again when the viewport shrinks.
-
-`WindowDialog` also accepts `sizing`. SSH key creation/import use its `form`
-preset (560 by 580) with stable sizing and a scrolling body above footer actions.
-Unlocking stays content-sized.
-
-Remaining migration: other variable-content forms still use their existing
-policy. The connection editor now uses the compact shared form layout and
-narrow-container reflow. The saved example demonstrates appearance, not stable
-geometry.
-
-Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
+Decisions here: D12, D69, D94, D112, D143.
 
 ## What exists today
 
-One screen of three columns: the connections, the catalog of every connection
-that was opened — where the same words filter a level and, on a button, search
-everything below it — and the work opened from a node in tabs beside each
-other. Work
-may be rows, editable source, bounded media, read-only SQL, relation structure,
-what a node is, or a chart. Columns are
-resizable and bounded by the window so each scrolls inside itself, and the
-layout a user arrives at is the one they left. A column appears together with
-what goes in it; the right-hand one, while it is empty, says what to do next and
-offers the button that does it.
+One screen of three columns: the connections; the catalog of every connection
+that was opened, where the same words filter a level and, on a button, search
+everything below it; and the work opened from a node, in tabs beside each other.
+Work may be rows, editable source, bounded media, read-only SQL, relation
+structure, what a node is, or a chart. Columns are resizable and bounded by the
+window so each scrolls inside itself, and the layout a user arrives at is the
+one they left. A column appears together with what goes in it; the right-hand
+one, while empty, says what to do next and offers the button that does it.
 
-The whole workspace sits inside one inset frame between a compact application
-toolbar and status line. Its panels spend the same surface, border, tab height,
-spacing and radius tokens, while separators keep a wide pointer target around a
-one-pixel visual line. The chrome therefore reads as one tool rather than a row
-of unrelated cards; the tokens are the stable part, while individual features
-can continue to arrive without settling the final polish.
+The workspace sits inside one inset frame between a compact application toolbar
+and a status line. Its panels spend the same surface, border, tab height,
+spacing and radius tokens, and separators keep a wide pointer target around a
+one-pixel line, so the chrome reads as one tool rather than a row of unrelated
+cards. The tokens are the stable part; the final polish is not settled.
 
 A tab is carried the way a browser carries one: it leaves its strip and follows
-the pointer, joins the tabs of another column by being dropped on their head, and
-divides a column by being dropped in its body. It can only be taken to a column
-that takes its kind.
+the pointer, joins the tabs of another column by being dropped on their head,
+and divides a column by being dropped in its body. It can only be taken to a
+column that takes its kind. Each closable tab exposes a separately named close
+control in the Tab sequence, where Enter and Space request closing through the
+panel's close guard without activating or dragging the tab.
 
-**Tool rails.** Four narrow rails flank the columns, a top and a bottom half
-of each side. They hold what hangs off no panel — the space switch, the query
+**Tool rails.** Four narrow rails flank the columns, a top and a bottom half of
+each side. They hold what hangs off no panel — the space switch, the query
 library, services, saving and opening tab groups — as icon-only blocks, and a
-block is dragged to another place in its rail or onto another rail. Where each
-stands is kept per browser; a block the stored arrangement does not name takes
-its home, or its place beside the block it belongs with. The blocks are one
-registry, `toolBlocks.ts`: a new one is an entry there and nothing else. The
-Services block switches a tool in the panel at the foot of the screen (D143).
-
-A connection is edited in a floating window, and several are open at once.
-The same application-level host owns every transient form and question:
-catalog actions, row and column editing, full cell values, the download form,
-sharing, the accounts form, the source-type catalog that begins **New
-connection**, and confirmations. Nothing in the application is modal any more,
-and the modal dialog has been removed from the component kit rather than left
-in it — a rule nobody can reach for is one that holds itself up.
-
-Each closable workspace tab exposes a separately named close control in the
-Tab sequence. Enter and Space request closing through the panel's existing
-close guard without activating or dragging that tab.
-
-On opening, the front window receives keyboard focus on its named frame unless
-its content has already focused a field. Background and minimized windows do
-not take focus during mounting. This starts keyboard navigation inside the new
-window without making it modal. When a window closes, the keyboard goes back to
-the control that opened it; it used to be left on the page body, which is
-nowhere (U12). Only when the window being taken away is where the keyboard
-still was — somebody who moved on somewhere else keeps where they are.
-
-The cost is stated rather than discovered: a window is closed by the cross in
-its bar, and no window holding a form closes on Escape. One gesture for the
-connection window and for a form is worth more than matching what a modal used
-to do.
-
-A question is the exception, added after an audit found it: it holds nothing a
-press could lose, and Escape is the way out everybody reaches for. A window
-says for itself whether it can be dismissed that way, the question presets say
-yes, and Escape then asks to close exactly as the cross does rather than
-closing by a second path of its own.
+block is dragged elsewhere in its rail or onto another rail. Where each stands is
+kept per browser; a block the stored arrangement does not name takes its home, or
+its place beside the block it belongs with. The blocks are one registry,
+`toolBlocks.ts`: a new one is an entry there and nothing else. The Services block
+switches a tool in the panel at the foot of the screen (D143).
 
 ```
-frontend/src/shared/
-├── windows/     floating windows: geometry.ts is pure, the frame and the host
-│                see one injected context
-└── workspace/   the panel engine: a layout tree, tabs, drag and drop, sections
-                 that carry a role, admit what matches it and outlive their
-                 panels; tree.ts, dropZone.ts, placement.ts, shares.ts,
-                 visibility.ts and persist.ts are pure, the components see one
-                 injected context
+frontend/src/shared/workspace/
+              the panel engine: a layout tree, tabs, drag and drop, sections
+              that carry a role, admit what matches it and outlive their panels.
+              tree.ts, dropZone.ts, placement.ts, shares.ts, visibility.ts and
+              persist.ts are pure; the components see one injected context
 
 frontend/src/features/workspace/
               the panels, the registry that names them and the role that puts
               each in one of the three columns; the scene that stands in the
-              empty one, and scene.ts, activeCatalog.ts and toolRails.ts,
-              which are pure
+              empty one. scene.ts, activeCatalog.ts and toolRails.ts are pure
 ```
 
 ## D12. The screen is a workspace of sections, and the engine knows nothing about the application
@@ -121,177 +60,154 @@ is a list of panels with one active, and that is the only notion of a tab in the
 application. What a panel is belongs to `features/workspace`, which hands the
 engine a component and a look per panel.
 
-The feature also supplies an optional `color` in the panel look. It reads the
-connector's saved `tab_color` from the query cache rather than copying it into
-each panel, so saving or resetting a color updates all its open tabs. Query
-and result panels carry their connector identity for this lookup; older layouts
-remain readable without it, and an old query panel acquires it when its document
-loads. The engine applies the look to tabs, drag previews, floating title bars
-and minimized windows, without knowing what a connector is.
-
-The old application had such an engine and it grew to 2438 lines: nodes were
-mutated in place and carried parent back-pointers, so undoing anything needed a
-history of layouts and a command language of nine verbs, and a node it could not
-remove had to be left in place marked `fake`.
+The look may carry a `color`, read from the connector's saved `tab_color` in the
+query cache rather than copied into each panel, so saving or resetting a colour
+updates every open tab of that connection. Query and result panels carry their
+connector identity for the lookup; older layouts stay readable without it, and an
+old query panel acquires it when its document loads. The engine applies the look
+to tabs, drag previews, floating title bars and minimized windows without knowing
+what a connector is.
 
 Consequences:
 
 - **A column is a role, not a place something was dragged to.** A section carries
   `accepts`, the role of panel that lands in it, and `pinned`, which keeps it on
-  screen when the last thing in it is closed; the engine compares the role and
-  never reads it. That is what makes the screen three columns that are always
-  there while leaving the engine ignorant of what a column means, and what makes
-  a source type that brings its own view a new kind with an existing role rather
-  than a change to the layout.
+  screen when the last thing in it closes; the engine compares the role and never
+  reads it. That makes the screen three columns that are always there while
+  leaving the engine ignorant of what a column means, and makes a source type
+  that brings its own view a new kind with an existing role rather than a change
+  to the layout.
 - **Two views of one node are two panels.** A JSON content panel and its explicit
   table projection share a source node but not an identity, request contract or
-  component. Both use the existing `work` role, so adding native content changed
-  the feature registry and not the engine. Opening one again activates its own
-  tab; asking for the alternative leaves the first view intact beside it.
+  component. Both use the existing `work` role, so native content changed the
+  feature registry and not the engine. Opening one again activates its own tab;
+  asking for the alternative leaves the first view beside it.
 - **A role is also what a section will take.** A panel may only be dragged into a
-  section whose role matches it. A section split off another inherits its role, or
-  the first split would make a corner of the screen that takes nothing; it does
-  not inherit `pinned`, which belongs to a column rather than to every section. A
-  side that would leave the target holding nothing is offered as its centre
-  instead — one rule covering both the only tab dragged to its own edge and
-  anything dragged to the edge of an empty section. Where a drop is refused,
-  nothing is highlighted.
-- **A column appears together with what goes in it.** A pinned section holding
-  nothing, for which the feature has no empty view, is not rendered, and its share
-  of the row is left to the columns after it, in proportion to what each already
-  has — `sizes` in the tree are untouched, so the width comes back exactly as the
-  user left it. Forward, so that the narrow list of connections keeps the width it
-  was given when the catalog beside it goes; in proportion rather than whole to
-  the first column along, because splits running the same way are flattened into
-  one, so that column is one work card out of several, and a card holding room
-  freed by somebody else could never be dragged narrower than it. What the row
-  stops spending on it — the gap in front of it and the two edges of its card —
-  is not a share but a handful of pixels, and goes to the first section that
-  takes its room as a fixed part of that section's width: what is left to divide
-  is then the same either way, and the columns in front do not move at all. `pinned` keeps a
-  role on the screen rather than one particular section, so a column left empty
-  while the section split off it holds the work goes too. The head of a column is
-  one height whatever it holds, or the line under two columns reads as a broken
-  layout rather than an empty one. Only the right-hand column has an empty view:
-  the scene, which derives its stage from the list of connections and the catalog
-  being read.
+  section whose role matches. A section split off another inherits its role — or
+  the first split would make a corner of the screen that takes nothing — but not
+  `pinned`, which belongs to a column rather than to every section. A side that
+  would leave the target holding nothing is offered as its centre instead: one
+  rule covering both the only tab dragged to its own edge and anything dragged to
+  the edge of an empty section. Where a drop is refused, nothing is highlighted.
+- **An empty column is not rendered.** A pinned section with no panels and no
+  empty view leaves the row. Its `sizes` entry stays in the tree, so its width
+  returns exactly as the user left it. Its share goes to the sections after it,
+  in proportion to their current widths — forward, so the narrow connections list
+  keeps its width when the catalog beside it goes; in proportion rather than
+  whole to the next column, because same-direction splits are flattened into one
+  and that column would then be a single work card holding room freed by somebody
+  else, which could never be dragged narrower. The fixed pixels it frees, its gap
+  and the two edges of its card, go to the first section after it as a fixed part
+  of that section's width, so what is left to divide is the same either way and
+  the columns in front do not move. `pinned` holds a role, not a section: a column
+  left empty while the section split off it holds the work goes too. Column heads
+  are one height whatever they hold, or the line under two columns reads as a
+  broken layout rather than an empty one. Only the right-hand column has an empty
+  view, the scene, which derives its stage from the connections list and the
+  catalog being read.
 - **There are as many catalogs as were opened.** A connection opens its catalog
-  once, because a panel is identified by what it shows; which catalog is being
+  once, because a panel is identified by what it shows. Which catalog is being
   read is asked of the tree — the sections that take `navigate`, the focused one
   first, its active tab — rather than kept beside it. The list of connections has
-  two states, open and being read, said with two strengths of the same highlight.
-- **A tab is carried, and where it is dropped says what it means.** Pressing a tab
-  does nothing until the pointer has moved far enough to mean it; from then the
-  tab is gone from its strip and a copy of it follows the pointer. A section is
-  two targets: its strip is the one way to put a panel beside the ones already
-  there, its body is the one way to divide it, and in the body the nearest edge
-  wins with nothing neutral in the middle. The highlight shows where the panel
-  will end up — the strip, the half it will occupy, or the whole of a section that
-  holds nothing — rather than which zone the pointer is in.
+  two states, open and being read, said with two strengths of one highlight.
+- **A tab is carried, and where it is dropped says what it means.** Pressing a
+  tab does nothing until the pointer has moved far enough to mean it; from then
+  the tab is gone from its strip and a copy follows the pointer. A section is two
+  targets: its strip puts a panel beside the ones already there, its body divides
+  it, and in the body the nearest edge wins with nothing neutral in the middle.
+  The highlight shows where the panel will end up — the strip, the half it will
+  occupy, or the whole of an empty section — rather than which zone the pointer
+  is in.
 - **A column pushed aside may keep something on screen.** The engine knows the
-  section is narrow and asks the feature what is worth that width, the way it asks
-  what stands in an empty one; only the connections answer, with their icons and
-  their state dots. Closing every tab but the active one is the engine's too — it
-  is a layout operation — and it leaves a panel the feature says has no cross.
+  section is narrow and asks the feature what is worth that width, the way it
+  asks what stands in an empty one; only the connections answer, with their icons
+  and state dots. Closing every tab but the active one is the engine's too — it is
+  a layout operation — and it leaves a panel the feature says has no cross.
 - **A panel alone in its column by design may take the head instead of a tab.**
-  The engine asks the feature what a section holding only that panel shows in
-  its head, the way it asks what stands in a narrow one; only the connections
-  answer, with making one on the left and re-reading the list at the end. Their
-  column takes no other role and the panel can be neither closed nor carried,
-  so the tab named the column and gave nothing to press. The rail of the
-  collapsed column wears the same head, so pushing it aside still moves
-  nothing.
-- **A column with nothing worth that width leaves the screen instead.** The
-  answer to the question above is also which of two gestures the head of a
-  section offers: something worth forty pixels narrows to them, and nothing
-  worth them goes whole to the bar at the foot of the screen (D69), where the
-  feature's name for its role is what stands for it and what leads back. A
-  column holding nothing offers neither — it is on the screen to say what can
-  be opened in it, and putting that aside would leave the screen saying less
-  and gain nothing. A section on the bar keeps its panels, its active tab and
-  its share of the row; the engine reads it as holding nothing, so the column
-  of work is drawn as what can be opened in it while the catalog's room goes
-  to the columns after it. Anything opened into a section brings it back,
-  or opening a table into a column that is on the bar would do nothing anybody
-  could see.
-- **Every section is a card.** Its own ground, its own edge, its own corners,
-  and between two of them the space that is also the handle that resizes them.
-  One frame around the lot with hairlines inside it made three columns read as
-  one table; the gap is the width of the inset the workspace already sits in,
-  so the distance between the cards and the distance around them are one
-  number.
+  The engine asks the feature what a section holding only that panel shows in its
+  head; only the connections answer, with making one on the left and re-reading
+  the list at the end. Their column takes no other role and the panel can be
+  neither closed nor carried, so the tab named the column and gave nothing to
+  press. The rail of the collapsed column wears the same head, so pushing it aside
+  still moves nothing.
+- **A column with nothing worth that width leaves the screen instead.** The same
+  answer picks which of two gestures a section head offers: something worth forty
+  pixels narrows to them, nothing worth them goes whole to the bar at the foot of
+  the screen (D69), where the feature's name for its role stands for it and leads
+  back. A column holding nothing offers neither — it is on screen to say what can
+  be opened in it. A section on the bar keeps its panels, its active tab and its
+  share of the row, and the engine reads it as holding nothing. Anything opened
+  into a section brings it back, or opening a table into a column on the bar would
+  do nothing anybody could see.
+- **Every section is a card**: its own ground, edge and corners, and between two
+  of them the space that is also the handle that resizes them. One frame around
+  the lot with hairlines inside it made three columns read as one table. The gap
+  is the width of the inset the workspace already sits in, so the distance between
+  the cards and the distance around them are one number.
 - **A tab that is not showing is kept, not destroyed.** Switching away and back is
-  no reason to re-read a catalog or to lose the page a grid was on, so the workspace
-  keeps each panel in its own `<KeepAlive>` and moves its rendered contents between
-  section and window targets (D93). That puts one requirement on the
-  feature: `component(panel, key)` must answer with the same component for the
-  same key. A wrapper built afresh on each call is a different component each
-  time, and a functional wrapper cannot be kept alive at all. The same key, and
-  the same workspace: keys start again when it is mounted again, so what
-  remembers them is made with it — a cache kept for the module showed one
-  tab's panel under another's after a trip to Preferences.
+  no reason to re-read a catalog or lose the page a grid was on, so the workspace
+  keeps each panel in its own `<KeepAlive>` and moves its rendered contents
+  between section and window targets (D93). One requirement on the feature:
+  `component(panel, key)` must answer with the same component for the same key. A
+  wrapper built afresh on each call is a different component every time, and a
+  functional wrapper cannot be kept alive at all. The cache of them is made with
+  the workspace, because keys start again when it is mounted again — kept for the
+  module, it showed one tab's panel under another's after a trip to Preferences.
 - **A panel is not addressed by what it is.** A panel id may change: a console
-  that is kept becomes a document and is addressed by that document. So the
-  engine hands out a key of its own that survives the rename, and `replace`
-  writes the new fields into the panel object rather than putting another
-  object in its place. Keyed by the id, being kept rebuilt the panel: the
-  results in it and a parameter half answered went with it, and what renders
-  the panel went on describing it as a draft. The windows below have the same
-  rule for the same reason.
-- **A tab offers what the feature named, and the engine calls it back.** Three
-  handles have this shape now: `iconTooltip` with `onIconClick`, which is how a
-  catalog tab opens the window of its connection, and `reloadTooltip` with
-  `onReload`, which is how a tab is re-read. The engine draws the button when
-  the feature named it and calls back with the panel id; what re-reading means
-  belongs to the panel — the connections list asks vue-query again, the catalog
-  re-reads the level it is standing on, the grid re-runs the page it is showing
-  — so panels register their own answer in a small registry and the engine
-  never learns what a catalog is. Instance refs held by the engine would have
-  been the other way to reach a panel, and that is the coupling this decision
-  exists to prevent.
-- **A strip of tabs says that it is one.** The engine draws a `tablist` whose
-  tabs say which of them is showing, and the arrows walk it: as a row of
-  buttons it said nothing about what it was, nothing about which tab the screen
-  was showing, and Tab walked through every tab and every close button to get
-  past it (U09). Only the tab being shown is in the tab order, and the controls
-  inside a tab - its icon, its cross - travel with it, so the strip is one stop
-  rather than twenty. Walking is not choosing: Enter and Space open the tab
-  walked to, because a panel reads its relation when it is shown and arrowing
-  past four of them would ask the server for all four.
-- **The cross asks the panel before it takes it away.** Closing is a request,
-  not a command: the engine calls the same kind of registered answer as
-  re-reading, and a panel that has nothing to say is closed at once. Only a
-  person's gesture asks — a layout operation the application performs itself,
-  replacing a renamed panel or clearing a strip, closes directly, because it is
-  not somebody changing their mind. The reason this exists is a query console
-  holding an open transaction, which would otherwise be rolled back by a lease
-  five minutes after the tab it belonged to disappeared (D66).
-- **The icon of a tab does what that tab has no other way to do.** From a
-  catalog that is the connection itself; from a table it is the catalog the
-  table came from, which is reachable nowhere else — while editing a connection
-  has two other ways in. What used to stand beside the title of a data tab, the
-  name of its connection, is in the tooltip instead: the column is a fifth of
-  the screen and the node is what the eye looks for.
-- **Being pointed at is not being ticked.** A tick means an action will be done
-  to a row; arriving from the tab of a table means "here it is". Two meanings,
-  so an outline rather than a fill — and it takes itself off after three
-  seconds, because an outline held indefinitely stops saying "here it is" and
-  starts reading as a state the row is in. It fades rather than blinks: every
-  row carries the outline transparent, since a colour cannot be transitioned
-  out of a rule that is no longer applied. The pointing travels as a piece of
-  state the panel takes, not as a call: the panel may have been opened by the
-  very press that asked for it and not be mounted yet.
-- **A node is found wherever it lives, and the source is what says where.** The
-  catalog asks for the path to the node and stands where the answer puts it —
-  walking into the directory it is in, or ticking the schema it belongs to. Which
-  of the two is read off the role of each node on the path, so nothing here takes
-  an id apart; see D21. A source that cannot walk back up answers 501 and the
-  catalog opens as before, marking the node only if it happens to be in view.
-- **A panel that never mounted has nothing to re-read.** Only the active tab of
-  a section is mounted, and `<KeepAlive>` keeps the ones that have been shown —
-  so a tab restored from storage and never opened has registered nothing.
-  Pressing its reload shows it instead, because reading a panel that never read
-  anything is showing it.
+  that is kept becomes a document and is addressed by that document. So the engine
+  hands out a key of its own that survives the rename, and `replace` writes the new
+  fields into the panel object rather than putting another object in its place.
+  Keyed by the id, being kept rebuilt the panel — the results in it and a
+  half-answered parameter went with it. Windows have the same rule.
+- **A tab offers what the feature named, and the engine calls it back.**
+  `iconTooltip` with `onIconClick` is how a catalog tab opens the window of its
+  connection; `reloadTooltip` with `onReload` is how a tab is re-read. The engine
+  draws the button when the feature named it and calls back with the panel id.
+  What re-reading means belongs to the panel — the connections list asks vue-query
+  again, the catalog re-reads the level it stands on, the grid re-runs the page it
+  shows — so panels register their own answer in a small registry and the engine
+  never learns what a catalog is. Instance refs held by the engine are the
+  coupling this prevents.
+- **A strip of tabs says that it is one.** The engine draws a `tablist` whose tabs
+  say which of them is showing, and the arrows walk it. As a row of buttons it
+  said nothing about what it was, nothing about which tab the screen was showing,
+  and Tab walked through every tab and every close button to get past it (U09).
+  Only the tab being shown is in the tab order, and the controls inside a tab —
+  its icon, its cross — travel with it, so the strip is one stop rather than
+  twenty. Walking is not choosing: Enter and Space open the tab walked to, because
+  a panel reads its relation when it is shown and arrowing past four of them would
+  ask the server for all four.
+- **The cross asks the panel before it takes it away.** Closing is a request, not
+  a command: the engine calls the same kind of registered answer as re-reading,
+  and a panel with nothing to say is closed at once. Only a person's gesture asks
+  — a layout operation the application performs itself, replacing a renamed panel
+  or clearing a strip, closes directly, because it is not somebody changing their
+  mind. The reason is a query console holding an open transaction, which would
+  otherwise be rolled back by a lease five minutes after its tab disappeared
+  (D66).
+- **The icon of a tab does what that tab has no other way to do.** From a catalog
+  that is the connection itself; from a table it is the catalog the table came
+  from, reachable nowhere else — while editing a connection has two other ways in.
+  The name of a data tab's connection is in the tooltip instead: the column is a
+  fifth of the screen and the node is what the eye looks for.
+- **Being pointed at is not being ticked.** A tick selects a row for an action;
+  arriving from a table's tab only points at one. So an outline rather than a fill,
+  cleared after three seconds, because one held indefinitely reads as a row state.
+  Every row carries the outline transparent so it can fade: a colour cannot be
+  transitioned out of a rule that no longer applies. The pointing travels as state
+  the panel takes, not as a call — the panel may have been opened by the very press
+  that asked for it and not be mounted yet.
+- **A node is found wherever it lives, and the source says where.** The catalog
+  asks for the path to the node and stands where the answer puts it — walking into
+  the directory it is in, or ticking the schema it belongs to. Which of the two is
+  read off the role of each node on the path, so nothing here takes an id apart;
+  see D21. A source that cannot walk back up answers 501 and the catalog opens as
+  before, marking the node only if it happens to be in view.
+- **A panel that never mounted has nothing to re-read.** Only the active tab of a
+  section is mounted, and `<KeepAlive>` keeps the ones that have been shown, so a
+  tab restored from storage and never opened has registered nothing. Pressing its
+  reload shows it instead, because reading a panel that never read anything is
+  showing it.
 - **Walking a catalog is not logic of a screen.** `useCatalogTree` holds it, and
   it invalidates the branch it re-reads rather than trusting whoever changed it to
   have done so.
@@ -300,286 +216,136 @@ Known deviations:
 
 - **A refusal is visible only as the absence of a highlight.** Why a tab may not
   be brought here is not explained.
-- **A hidden column is still in the tree.** It shows in localStorage and in a
+- **A hidden column is still in the tree**, showing in localStorage and in a
   layout test although it is not on the screen. That is what brings its width
   back, but "what I see" and "what is written" differ here.
-- **A column off the screen with nothing after it leaves its room whole**, to
-  the one section before it, which then cannot be dragged narrower than that
-  room. The floor is out of reach in practice — it takes dragging the last
-  border nearly across the screen — but it is the same defect the rule above
-  exists to avoid.
+- **A column off the screen with nothing after it leaves its room whole** to the
+  one section before it, which then cannot be dragged narrower than that room. Out
+  of reach in practice — it takes dragging the last border nearly across the
+  screen — but it is the defect the rule above exists to avoid.
 - **The connection named on a data tab is written when it is opened.** Rename the
-  connection and the tab lags until it is opened again — already true of the title
-  of a catalog tab.
-- **The stored layout was discarded once**, on the move to version 3, because a
-  data tab now carries the connection it came from.
+  connection and the tab lags until it is opened again, as a catalog tab's title
+  already did.
 - **The scene knows three stages and no more.** A source that cannot be browsed
-  never reaches it: the middle column simply does not appear, and there is nothing
-  that says so in words.
+  never reaches it: the middle column does not appear, and nothing says so in
+  words.
 - **Tabs cannot be reordered inside a strip.** A tab dropped on a strip is added
-  at the end, and no caret is drawn between tabs; dropped on its own strip it does
+  at the end, no caret is drawn between tabs, and dropped on its own strip it does
   nothing. A position in a strip would put an index into every tree operation.
-- **The target that merges is a strip thirty-one pixels tall.** Harder to hit than
-  half a panel, and on a narrow column it is narrow.
+- **The target that merges is a strip thirty-one pixels tall**, harder to hit than
+  half a panel and narrow on a narrow column.
 - **A collapsed column is still a target.** Its strip is forty pixels of handles,
   and a tab dropped there goes where it cannot be seen until the column is brought
   back.
 - **What is in the hand shows only what a tab shows.** No picture of the panel:
-  two tabs of one node from different connections are told apart by the icon of
-  the source and, once hovered, by the tooltip on it.
+  two tabs of one node from different connections are told apart by the source
+  icon and, once hovered, by its tooltip.
 - **The ghost hangs from the pointer, not from where the tab was grabbed.**
-- **The threshold is three pixels for everyone.** The same number the border
-  between two columns uses; nobody has measured it against a touch screen or an
-  unsteady hand.
+- **The threshold is three pixels for everyone** — the number the border between
+  two columns uses, never measured against a touch screen or an unsteady hand.
 - **The layout is one per browser.** It lives in localStorage, so it does not
   follow a user to another machine and is not shared between two windows.
-- **A panel of a connector that was deleted stays until it is closed.** It shows
-  the error the server gave rather than disappearing, because the panel cannot
-  tell a deleted connector from a failed request.
+- **A panel of a deleted connector stays until it is closed**, showing the error
+  the server gave, because the panel cannot tell a deleted connector from a failed
+  request.
 - **A closed panel's component definition is still held.** The map of bound
   components in `features/workspace/panels.ts` keeps definitions for the page's
-  lifetime; the workspace releases the actual component instance on close.
+  lifetime; the workspace releases the component instance on close.
 
 Spec: [The workspace and the panel engine](../decisions/2026-08-22-workspace-design.md)
 
 ## D69. The bar at the foot of the screen holds what hangs off nothing else
 
-Almost every button hangs off the thing it acts on: a table's commands are in
-its grid, a node's are in the catalog's menu, a connection's form opens from
-its row or from the icon of its tab. A few have no such thing. A query console
-is written against a connection and belongs to a person, so there is no node
-whose toolbar it could live in, and it stood beside the plus in the connections
-column — where new connections are made, and where nothing else of its kind
-would have fitted.
-
-The room at the foot of the screen was reserved when the workspace was built
-and stayed empty. This is what it is for.
+Almost every button hangs off the thing it acts on: a table's commands are in its
+grid, a node's are in the catalog's menu, a connection's form opens from its row
+or from the icon of its tab. A few have no such thing — a query console is written
+against a connection and belongs to a person, so there is no node whose toolbar it
+could live in. Those go in the bar at the foot of the screen.
 
 Consequences:
 
 - **One rule, in one place.** A command is enabled while a connection is being
-  read and that connection can do the thing; otherwise it stays in the bar,
-  greyed out, and its tooltip says which of the two is missing.
-  `features/workspace/commands.ts` is that rule as plain functions, tested
-  without mounting anything; `CommandBar.vue` only renders it.
-- **Shape before content.** Hiding what does not apply would make the bar
-  change as somebody walks about, which is a bar they have to read every time.
-  The same reason the catalog's action menu greys out rather than shortens.
-- **The bar does not repeat which connection it is about.** It did at first, on
-  the reasoning that a row of buttons whose subject is somewhere else is a row
-  nobody trusts. Two places already say it — the marked row in the column of
-  connections and the tab of the catalog being read — so a third copy only took
-  room from the commands themselves. Each tooltip names the connection instead,
-  which answers the doubt at the moment a button is being aimed at. Which
-  connection is read is still `activeConnectorId`, derived from the layout tree
-  rather than kept beside it; nothing is stored.
-- **What is open and not on the screen is on this bar too.** A window put
-  aside (D92) and a column put aside are the same fact about the screen, so
-  they are drawn as one shape — `AppTaskbarItem` — in one row. A column is
-  named by its role rather than by its active tab: it is a part of the window
-  and not a document, and a button whose word changed as the tab behind it
-  changed could not be aimed at twice. The words themselves — "Navigation",
-  "Data" — and the icon beside each are `sectionLook` in
-  `features/workspace/panels.ts`, the one table to edit to rename a column;
-  the engine only asks it, and a role it does not name is a column that cannot
-  be put aside at all.
-- **Whether a command applies is the source's own answer**, never a branch on
-  the adapter type (D62). Copying a database out is the example: a driver that
-  can name a program to dump it declares the capability, and one that cannot
-  does not.
-- **What acts on the open connection sits in that connection's menu.** Copying
-  a database out was the one command here that did, and it stood alone in a bar
-  of things belonging to the person and to the server while the rest of what a
-  connection can do was already in the catalog's own menu. It is a line there
-  now, last of the client's own, drawn only for a source that declares the
-  capability and greyed out with the server's reason when the machine cannot
-  run a dump (D87).
-- **One button in that row is not a connection's.** The library of queries
-  belongs to a person and outlives the connections in it (D65), so it is never
-  greyed out with the rest: what it says changes — which connection it would
-  open against, or simply what it holds — and pressing it always opens. It sits
-  with them because that is where a person looks for it, not because it is one
-  of them.
+  read and that connection can do the thing; otherwise it stays in the bar, greyed
+  out, its tooltip naming which of the two is missing.
+  `features/workspace/commands.ts` is that rule as plain functions, tested without
+  mounting anything; `CommandBar.vue` only renders it.
+- **Shape before content.** Hiding what does not apply would make the bar change
+  as somebody walks about, which is a bar they have to read every time. The same
+  reason the catalog's action menu greys out rather than shortens.
+- **The bar does not repeat which connection it is about.** Two places already say
+  it — the marked row in the connections column and the tab of the catalog being
+  read — so a third copy only took room from the commands. Each tooltip names the
+  connection instead, answering the doubt at the moment a button is aimed at.
+  Which connection is read is `activeConnectorId`, derived from the layout tree
+  rather than kept beside it.
+- **What is open and not on the screen is on this bar too.** A window put aside
+  (D92) and a column put aside are the same fact about the screen, so they are
+  drawn as one shape, `AppTaskbarItem`, in one row. A column is named by its role
+  rather than by its active tab: it is part of the window and not a document, and
+  a button whose word changed as the tab behind it changed could not be aimed at
+  twice. The words — "Navigation", "Data" — and the icon beside each are
+  `sectionLook` in `features/workspace/panels.ts`, the one table to edit to rename
+  a column; the engine only asks it, and a role it does not name is a column that
+  cannot be put aside at all.
+- **Whether a command applies is the source's own answer**, never a branch on the
+  adapter type (D62). Copying a database out is the example: a driver that can name
+  a program to dump it declares the capability, and one that cannot does not.
+- **What acts on the open connection sits in that connection's menu.** Copying a
+  database out is a line there, last of the client's own, drawn only for a source
+  that declares the capability and greyed out with the server's reason when the
+  machine cannot run a dump (D87). It is not in this bar, which holds what belongs
+  to the person and to the server.
+- **One button in that row is not a connection's.** The library of queries belongs
+  to a person and outlives the connections in it (D65), so it is never greyed out
+  with the rest: what it says changes — which connection it would open against, or
+  simply what it holds — and pressing it always opens. It sits with them because
+  that is where a person looks for it.
 - **"Not asked yet" is not "no".** Three states rather than two, because half a
-  second of "this source does not run queries" about a PostgreSQL connection is
-  a worse answer than saying nothing.
-- **The library opens filtered to the connection it was opened from.** The
-  filter travels as a piece of state the panel takes, the way `revealTarget`
-  and `followTarget` do: there is one library panel however often it is opened,
-  and a panel's props are bound when it is first drawn.
-- **What is about the machine stands at the other end of the bar.** The
-  services this server runs belong to the person rather than to whatever is
-  open, so the button that opens them sits apart from the commands of the
-  connection. It opens them in the panel at the foot of the screen (D143),
-  empty or not, and while a job is working it says the step: once the window
-  that asked for a service has closed, this is the only place a start is
-  visible.
+  second of "this source does not run queries" about a PostgreSQL connection is a
+  worse answer than saying nothing.
+- **The library opens filtered to the connection it was opened from.** The filter
+  travels as state the panel takes, the way `revealTarget` and `followTarget` do:
+  there is one library panel however often it is opened, and a panel's props are
+  bound when it is first drawn.
+- **What is about the machine stands at the other end of the bar.** The services
+  this server runs belong to the person rather than to whatever is open, so their
+  button sits apart from the connection's commands. It opens them in the panel at
+  the foot of the screen (D143), empty or not, and while a job is working it says
+  the step: once the window that asked for a service has closed, this is the only
+  place a start is visible.
 
 Known deviations:
 
-- **The right half holds only the services.** What a status line is usually
-  also for — what the last request cost — is still not said anywhere.
-- **A disabled command explains itself only on hover.** The tooltip hangs off
-  the slot around the button, because a disabled Quasar button takes no pointer
-  events; on a touch screen there is no hover and therefore no reason.
+- **The right half holds only the services.** What a status line is usually also
+  for — what the last request cost — is still not said anywhere.
+- **A disabled command explains itself only on hover.** The tooltip hangs off the
+  slot around the button, because a disabled Quasar button takes no pointer events;
+  on a touch screen there is no hover and therefore no reason.
 
 Spec: [The bar at the foot of the screen](../decisions/2026-09-02-connection-command-bar-design.md)
-
-## D14. Work opens in floating windows, and there may be several
-
-Not modal, and that is the requirement rather than a detail: the reason for the
-window is to read one connection while filling in another. What modality would
-have given — that you cannot walk away from an unfinished form — is replaced by
-asking before a window with unsaved changes is closed. `shared/windows` knows
-nothing about connections, the same split that keeps `shared/workspace` free of
-any knowledge about panels.
-
-Inside, the layout follows a database tool: the name on top, host and port on one
-line because the options model says they are one address, and the connection
-string the server composed pinned above Test Connection and OK / Cancel / Apply.
-A new connection opens named after its type and addressed to localhost; a stored
-secret shows as `<hidden>`, empties the moment the field is entered and comes back
-if it is left untyped-in; what a check said appears in a panel over the button
-that ran it rather than as a line that moves the form about.
-
-Content-sized windows open at a content-measured height and continue to follow content
-that appears or disappears inside it, bounded by the viewport. It can be
-resized from every edge or corner; manual resizing ends automatic fitting for
-that window, so a later validation message does not undo the user's chosen
-geometry. Repeated questions use presets in `shared/windows` rather than
-restating deletion and ordinary-question geometry in each feature.
-
-The old application had such an engine. Three things it got wrong are inverted
-here: a z-index counter that only ever grew is now a position in a list; geometry
-mutated in place inside the manager is now pure functions whose result is
-assigned; and no clamping at all — a window dragged past an edge could not be
-recovered — is now a rule applied on every move and again when the viewport
-shrinks.
-
-Consequences:
-
-- **A window is identified by what it shows**, so asking for a connection that is
-  already open brings that window forward. Two windows of one row are two unsaved
-  edits of it, and whichever is saved second silently wins. Drafts have no row to
-  overwrite, so any number of them may be open.
-- **An action's form is a window of its own.** Picking a second action from the
-  catalog menu opens a second window; it does not replace the first one's
-  contents. The pair — the action and the nodes it was opened on — is what
-  identifies it, so the same line pressed twice brings nothing new, and each
-  form keeps the target it was opened on while the ticks below move on.
-- **What a window is is not what it is addressed by.** Saving a draft renames the
-  window to the connection it created — so a second Apply updates rather than
-  duplicating — and the list is keyed by a separate immutable key. Keying it by
-  the address instead destroyed the window at that moment and built a fresh one:
-  the form reset itself, and the close that followed the save was delivered to an
-  instance that no longer existed.
-- **A new window opens in the middle of the screen**, not at a corner. At a corner
-  it lands on the column it was opened from and covers the control that opens the
-  next one.
-- **The server says how the form is laid out.** `layout()` on a field names its
-  tab and the row it shares. Left to the screen, the rule that a host and a port
-  are one address would be inferred from a port being a number, in a component
-  that knows nothing about addresses.
-
-Known deviations:
-
-- **Windows do not survive a reload.** The workspace layout does; a window does
-  not, because a half-filled form restored without its secrets would promise more
-  than it holds.
-- **A window can cover the application's header.** Dragged to the top it lies over
-  Sign out until it is moved away. The price of the window engine not knowing the
-  height of the chrome above it; it cannot be lost, which is what the layer was
-  changed for.
-- **The tab strip inside a window has never been seen.** Both source types put
-  everything in one group, and one tab is not a choice, so the strip does not
-  render — that half of D14 is unproven in a browser.
-- **A window reopened does not return to where it was.** It joins the cascade
-  again.
-
-Spec: [The connection window: floating windows and form layout](../decisions/2026-08-23-connector-window-design.md)
-
-## D92. A window can be put aside without losing its contents
-
-Every floating window offers Minimize, Maximize or Restore size, and Close.
-Double-clicking its title bar also toggles maximization. Maximization fills the
-browser viewport above the application footer; it is an application window
-state, not the browser's fullscreen mode. The layout reports its measured
-footer height to the window manager, so the engine knows an inset rather than
-what the footer contains.
-
-Minimization hides the whole frame while keeping its component mounted.
-
-The footer lists every open window, not only the ones put aside, in one
-horizontally scrollable row beside the status commands rather than in a second
-row of its own: it is a desktop taskbar, and a bar that appears and disappears
-as windows are minimized moves the rest of the footer under the pointer. A
-window is on it by its current title and icon from the moment it opens, in the
-order the windows were opened — the manager's own list is in stacking order and
-rearranges as one window is focused after another. The window one is looking at
-is marked; its button puts it aside, and any other button brings it to the
-front, as does opening its existing id again. Each button also closes its
-window, through the same question the frame's own cross asks. A minimized
-maximized window returns maximized. Hidden windows never claim to be the front
-window.
-
-The normal rectangle and automatic fitting preference survive both operations.
-Hidden and maximized windows do not accept dragging, resizing or content fitting;
-restoring normal size makes the saved rectangle reachable in the current
-viewport. Maximized geometry follows browser and footer resizing without
-overwriting that saved rectangle. All of this is held only in memory until the
-window closes or the page reloads; the existing close confirmation still applies.
-
-Spec: [Minimizing and maximizing floating windows](../decisions/2026-09-04-window-states-design.md)
-
-## D93. Detaching moves the live panel into an application window
-
-Dragging a closable tab onto the application header shows a window outline and
-a drop instruction. Releasing there removes the tab from its section and opens
-it in the existing floating-window manager. The fixed connections panel stays
-in the workspace. Pointer cancellation, Escape and leaving the browser cancel
-the gesture without moving the panel.
-
-Panel instances belong to the workspace, with one KeepAlive per panel and a
-Teleport to the active section or window target. Moving between those targets
-preserves the editor, grid state and registered close/reload callbacks. Hidden
-panels remain cached but deactivated, including minimized detached panels.
-Closing removes the instance and follows the panel's existing close guard.
-
-The floating panel offers Return to panel and its existing reload and icon
-actions. Return restores its original section and position when possible,
-otherwise a section accepting the same role; if that role has no section left,
-one is added. Reopening a detached panel raises its existing window. Catalog
-focus follows the floating catalog as well as docked catalog tabs.
-
-Detachment and window geometry last for the page session. The persisted layout
-contains the detached panels docked back into their return destinations, so
-reloading preserves open tabs without restoring transient windows. No panel
-contents or new storage format are introduced.
-
-Spec: [Detaching a tab into a floating window](../decisions/2026-09-04-detached-tabs-design.md)
 
 ## D94. Named tab groups restore a saved workspace layout
 
 A group is an explicitly saved copy of the layout and panel descriptors:
-sections, sizes, collapsed states, tab order and active tabs. Saving one and
-the list of saved ones are two blocks on the tool rails. Opening or closing tabs afterwards does not change
-the group; Update from current layout replaces its saved copy. Groups can be
-renamed and deleted, and are stored per signed-in user in this browser's
-localStorage. They contain no fetched rows or editor text and do not copy
-per-table filters or other independently persisted feature state.
+sections, sizes, collapsed states, tab order and active tabs. Saving one and the
+list of saved ones are two blocks on the tool rails. Opening or closing tabs
+afterwards does not change the group; Update from current layout replaces its
+saved copy. Groups can be renamed and deleted, and are stored per signed-in user
+in this browser's localStorage. They hold no fetched rows or editor text and do
+not copy per-table filters or other independently persisted feature state.
 
-Opening a group replaces the current layout. A warning explains that the
-current tabs will disappear and offers Don't show again. Only accepting with
-the checkbox selected persists that preference in localStorage; cancelling
-does not. The preference never disables panel close guards. Guards are asked
-before any panel is removed; refusal leaves the layout in place. Panels found
-in both layouts keep their live instances, while tabs absent from the group
-close. A changed set of panels during confirmation cancels that restore.
+Opening a group replaces the current layout. A warning explains that the current
+tabs will disappear and offers Don't show again; only accepting with the checkbox
+selected persists that preference, and cancelling does not. The preference never
+disables panel close guards: guards are asked before any panel is removed, and
+refusal leaves the layout in place. Panels in both layouts keep their live
+instances, tabs absent from the group close, and a changed set of panels during
+confirmation cancels the restore.
 
-Detached tabs are saved in their docked positions using D93's return rule;
+Detached tabs are saved in their docked positions using D93's return rule, so
 restoring closes their frames and places the panels back in the workspace.
-Unrelated floating forms stay open. Saved data is versioned and validated
-before use, including unique section/panel identities and role compatibility.
+Unrelated floating forms stay open. Saved data is versioned and validated before
+use, including unique section and panel identities and role compatibility.
 Storage failures are reported without pretending a group was saved.
 
 Spec: [Saved tab groups](../decisions/2026-09-04-tab-groups-design.md)
@@ -587,67 +353,66 @@ Spec: [Saved tab groups](../decisions/2026-09-04-tab-groups-design.md)
 ## D112. What a panel offers about itself lives in the panel's row of commands
 
 A tab says what a panel is; it does not act on it. Showing the panel's node in
-the catalog and re-reading the panel are commands about what the panel shows,
-so both stand at the end of the row of buttons the panel already draws. A panel
-with no such row gains a thin one; a panel whose row belongs to a grid receives
-them through a forwarded slot.
+the catalog and re-reading the panel are commands about what the panel shows, so
+both stand at the end of the row of buttons the panel already draws. A panel with
+no such row gains a thin one; a panel whose row belongs to a grid receives them
+through a forwarded slot.
 
-Reload comes first, and says in the panel's own words what re-reading it means.
-Show in catalog follows, drawn only for a panel that is a view of one node and
-absent — not disabled — everywhere else: a chart is drawn from a page of rows,
-a diagram from several nodes at once, a console is written against a connection
-and a captured result names no node of any source.
+Reload comes first and says in the panel's own words what re-reading means. Show
+in catalog follows, drawn only for a panel that is a view of one node and absent —
+not disabled — everywhere else: a chart is drawn from a page of rows, a diagram
+from several nodes at once, a console is written against a connection, and a
+captured result names no node of any source.
 
-Returning a detached panel is not one of them. It is about the frame rather
-than about what the frame holds, so it stands in the window's own bar beside
-minimize, maximize and close, where somebody looks for it. A window may declare
-commands of its own for exactly this; the window engine knows the icon, the
-words and what to call, and nothing about panels.
+Returning a detached panel is not one of them. It is about the frame rather than
+what the frame holds, so it stands in the window's own bar beside minimize,
+maximize and close. A window may declare commands of its own for exactly this;
+the window engine knows the icon, the words and what to call, and nothing about
+panels.
 
-A small mark rides above the reload where there is anything to report:
-"Live" while the answer is the read, a clock once it is one that was kept
-(D105). It stands in room of its own beside the button and not over it, with
-one width in both states, so the arrow is never drawn on and the row never
-moves. The age is not drawn — a control whose width follows the age of a page
-moves while the row is being read — and is answered by hovering. The mark is a
-label rather than a control: it presses to nothing, and never looks as though
-it would. A panel whose source keeps nothing shows the reload alone.
+A small mark rides above the reload where there is anything to report: "Live"
+while the answer is the read, a clock once it is one that was kept (D105). It
+stands in room of its own beside the button, one width in both states, so the
+arrow is never drawn on and the row never moves. The age is not drawn — a control
+whose width follows the age of a page moves while the row is being read — and is
+answered by hovering. The mark is a label rather than a control: it presses to
+nothing and never looks as though it would. A panel whose source keeps nothing
+shows the reload alone.
 
 One icon on a tab is still a button: a catalog's, which opens the connection
-behind it. It is not a command about what the panel shows, and the connection
-is reachable from nowhere else on that panel.
+behind it. It is not a command about what the panel shows, and the connection is
+reachable from nowhere else on that panel.
 
-`PanelLook` separates the two things it used to say with one field:
-`iconTooltip` is hover text and `iconCommand` says the icon acts. An icon was
-previously drawn as a button wherever it had a tooltip, so four kinds offered a
-press with nothing behind it. The engine no longer knows how to reload
-anything: it draws no reload button, and the registry panels register into is
-also what presses.
+`PanelLook` separates with two fields what it used to say with one: `iconTooltip`
+is hover text and `iconCommand` says the icon acts. An icon was previously drawn
+as a button wherever it had a tooltip, so four kinds offered a press with nothing
+behind it. The engine no longer knows how to reload anything: it draws no reload
+button, and the registry panels register into is also what presses.
 
-Two consequences are deliberate. A row view and a captured result now answer
-the reload they had always claimed. A tab restored from storage and never shown
-has no reload button at all — the button is inside the panel, and showing the
-tab is what reads it.
+Two consequences are deliberate. A row view and a captured result now answer the
+reload they had always claimed. A tab restored from storage and never shown has no
+reload button at all — the button is inside the panel, and showing the tab is what
+reads it.
 
 Spec: [The commands of a panel belong to the panel](../decisions/2026-09-05-panel-commands-design.md)
 
 ## D143. What is watched beside the work opens in a card at the foot of the screen
 
-Some tools are watched while working rather than worked in: what the server
-runs, and terminals ([D149](terminals.md)). A window covers the work and has to be moved off it,
-and a column is a role panels are dragged to. So, as in an IDE, they open in
-one card along the foot of the screen, between the rails and under whichever
-space is shown.
+Some tools are watched while working rather than worked in: what the server runs,
+and terminals ([D149](terminals.md)). A window covers the work and has to be
+moved off it, and a column is a role panels are dragged to. So, as in an IDE, they
+open in one card along the foot of the screen, between the rails and under
+whichever space is shown.
 
 Consequences:
 
-- **One tool at a time, switched by its rail button.** Pressing it shows the
-  tool, replacing another; pressing it again hides the panel, as does the
-  button in the card's head. The rail button is drawn pressed meanwhile.
-- **The button is always pressable.** An empty tool says it is empty; a
-  greyed-out Services button left nobody able to learn where services live.
-- **The height is dragged by the gap above**, like a column's width, and kept
-  per browser with the open tool. The columns keep 160 px whatever was stored.
+- **One tool at a time, switched by its rail button.** Pressing it shows the tool,
+  replacing another; pressing it again hides the panel, as does the button in the
+  card's head. The rail button is drawn pressed meanwhile.
+- **The button is always pressable.** An empty tool says it is empty; a greyed-out
+  Services button left nobody able to learn where services live.
+- **The height is dragged by the gap above**, like a column's width, and kept per
+  browser with the open tool. The columns keep 160 px whatever was stored.
 - **The tools are one registry**, `bottomTools.ts`; the state is `bottomPanel.ts`,
   pure, and `useBottomPanel`, shared by the button and the card.
 

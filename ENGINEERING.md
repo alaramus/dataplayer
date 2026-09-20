@@ -264,14 +264,25 @@ earns its place at all rests on review.
 - `AGENTS.md` is loaded into every session, so it holds no reasoning. What grows
   there belongs in `docs/architecture/`.
 
-**Enforced:** `bash scripts/check-docs.sh` — six assertions: every relative link
-resolves; every decision lives in exactly the file the `AGENTS.md` table names,
-and none lives in `docs/architecture/` unlisted; `AGENTS.md` stays under 24 KB;
-every decision carries exactly one `Spec:` line, so the argument is reachable
-from the statement; no architecture file exceeds 40 KB —
-the ceiling `adapters.md` never had, which is how it reached 114 KB; and no
-architecture file is an orphan. Each was checked by breaking it. That a
-deviation is recorded at all rests on review.
+**Enforced:** `bash scripts/check-docs.sh` — eight assertions: every relative
+link resolves, and one carrying a `#fragment` names a heading the target file
+really has; every decision lives in exactly the file the `AGENTS.md` table
+names, and none lives in `docs/architecture/` unlisted; `AGENTS.md` stays under
+24 KB; every decision carries exactly one `Spec:` line, so the argument is
+reachable from the statement; no architecture file exceeds 40 KB — the ceiling
+`adapters.md` never had, which is how it reached 114 KB; no architecture file is
+an orphan; and every file holding decisions names exactly them in its
+`Decisions here:` line, which is what lets a session skip a file for two hundred
+bytes instead of ten thousand tokens. Each was checked by breaking it; the
+anchor rule was checked the other way as well, against all fifteen anchors in
+the tree, because a rule that rejects everything also never goes red.
+
+A file past 32 KB is warned about rather than failed. The budget used to arrive
+as a failure on the commit that crossed it — `workspace.md` sat at 44 bytes free
+— so what had to be split was discovered at the worst possible moment. The
+answer to the warning is a split, never a larger budget: a session pays for the
+whole file it opens, so a 40 KB file already costs about ten thousand tokens to
+read for one decision. That a deviation is recorded at all rests on review.
 
 ## A failing check is fixed in code, not weakened
 
@@ -293,7 +304,7 @@ the way to a green run.
 | `bun run lint` | frontend style, stores not reaching the API | works |
 | `bun run test:unit` | pure frontend logic | works |
 | `bunx playwright test` | end-to-end, needs db + backend + dev server | works |
-| `bash scripts/check-docs.sh` | doc links, each decision in the file the registry names and naming its spec, every decision named in code existing at all, no orphan architecture file, AGENTS.md and per-file size | works |
+| `bash scripts/check-docs.sh` | doc links and anchors, each decision in the file the registry names and naming its spec, every decision named in code existing at all, every file's `Decisions here:` line, no orphan architecture file, AGENTS.md and per-file size | works |
 
 A change is ready when every command touching the affected side is clean. That
 is necessary, not sufficient: it says nothing about whether the thing asked for

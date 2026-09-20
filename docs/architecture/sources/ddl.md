@@ -10,6 +10,8 @@ kind beside the changed one, discriminated by `kind`, for the reason
 [D2d](contract.md) gives; a request that is wrong about the relation rather than
 about its rows stays 422.
 
+Decisions here: D27, D29, D30, D37, D38, D39, D40, D32, D117.
+
 ## D27. The source owns the column type vocabulary
 
 A type must become syntax rather than a bound value, so the vocabulary is closed

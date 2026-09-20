@@ -3,6 +3,8 @@
 For changing how a connection is described, composed or parsed, and for anything
 holding connections or cached answers between requests.
 
+Decisions here: D16, D15, D17, D10, D31, D100, D101, D102, D103, D104, D105.
+
 ## D16. A way of connecting is a variant of the options
 
 One model with optional fields would put the decision about which of them matter
@@ -310,7 +312,7 @@ the per-response `X-Data-Cache` outcome, these are the evidence a deployment
 must collect before proposing another shared Redis responsibility. The counters
 reset with the worker and are observations, not durable application state.
 
-There is no such deployment evidence in this repository, so Phase 5 adds no
+There is no such deployment evidence in this repository, so there is no
 distributed lock, job fan-out or share acceleration. The infrastructure Redis
 connection deliberately exposes no lock, queue or durable-record operation,
 and an import contract keeps jobs, queries, services and shares away from its
@@ -393,7 +395,6 @@ Known deviations:
   lag behind it.
 
 Spec: [The freshness window a connection chooses](../../decisions/2026-09-05-connector-cache-window-design.md)
-
 
 ## A file connection stores its folder as a path
 

@@ -14,15 +14,13 @@ Credentials are encrypted at rest and never leave the server. Every user owns a
 personal directory, created with the user.
 
 A connection is identified by its id and by nothing else. Names are a label the
-user writes for themselves and two connections of one owner may share one:
-pointing the same tool at two databases that are meant to be the same, staging
-and production side by side, is the normal case and not a mistake to prevent.
-The unique constraint that used to sit on `(owner_id, name)` was also never
-caught anywhere — a duplicate reached the client as a 500 out of psycopg rather
-than as an answer — so removing it took a failure mode with it
-(`b8c4d2e91a57`). What follows is that nothing may address a connection by
-name: the API takes ids, and a screen showing a list shows the name but acts on
-the id.
+user writes for themselves, and two connections of one owner may share one:
+staging and production side by side is the normal case, not a mistake to prevent.
+The unique constraint that used to sit on `(owner_id, name)` was never caught
+anywhere either — a duplicate reached the client as a 500 out of psycopg — so
+removing it took a failure mode with it (`b8c4d2e91a57`). Nothing may therefore
+address a connection by name: the API takes ids, and a screen showing a list
+shows the name but acts on the id.
 
 ```
 backend/app/
@@ -161,18 +159,17 @@ than a literal `localhost` — rests on review.
 
 Settings name `../.env`, so a run started from `backend/` reads whatever the
 developer keeps there — `FASTAPI_ENV`, `SMTP_HOST`, `EMAILS_FROM_EMAIL` — and
-silently fills the gaps that CI, which has no such file, will not fill. Three
-pipelines went red on variables that a local run appeared to prove present.
+silently fills gaps that CI, which has no such file, will not. Three pipelines
+went red on variables a local run appeared to prove present.
 
-The commonest of those is now a test rather than a procedure: a setting with no
-default is one somebody has to supply, and `tests/core/test_settings.py` fails
-locally when the backend job of `.gitlab-ci.yml` or `.env.example` does not
-name it. It was written after the third red pipeline and checked by taking the
-variable out again.
+The commonest of those is now a test rather than a procedure:
+`tests/core/test_settings.py` fails locally when a setting with no default is
+named by neither the backend job of `.gitlab-ci.yml` nor `.env.example`. Checked
+by taking the variable out again.
 
 That leaves what a list of names cannot cover — a value CI sets to something
-different, a service alias, a step order. A rehearsal of those uses a checkout
-without `.env`, on Linux:
+different, a service alias, a step order. Rehearse those from a checkout without
+`.env`, on Linux:
 
 ```bash
 git archive HEAD | tar -x -C /tmp/rehearsal
@@ -265,19 +262,17 @@ the id and checks the connection through `POST /connectors/{id}/check`, which
 builds from the stored options and is what `read` admits.
 
 Rejected: substituting for anyone whose draft matches the stored options. The
-grantee's form would need no change, but the check is a comparison of option
-sets that has to track every default and every field that decides where a
-connection goes, and the first one it misses hands the password over.
-Covered by `tests/connectors/test_grants.py`, against a server that asks for
-the password in clear text.
+check is a comparison of option sets that has to track every default and every
+field deciding where a connection goes, and the first one it misses hands the
+password over. Covered by `tests/connectors/test_grants.py`, against a server
+that asks for the password in clear text.
 
-**401 and 403 say different things, and now it matters.** Authentication
-answers 401 with `WWW-Authenticate: Bearer` — an unusable token, an unknown
-subject, an account switched off. Authorization answers 403. They were
-interchangeable while no level was ever refused, and `get_current_user`
-answered 403; the client signs a user out on an authentication failure, so
-under the old status the first grant too low for an action would have ended the
-session. Covered by `tests/users/test_deps.py`.
+**401 and 403 say different things.** Authentication answers 401 with
+`WWW-Authenticate: Bearer` — an unusable token, an unknown subject, an account
+switched off — and authorization answers 403. The client signs a user out on an
+authentication failure, so while `get_current_user` answered 403 the first grant
+too low for an action would have ended the session. Covered by
+`tests/users/test_deps.py`.
 
 An action declares its own level on the class beside `destructive`, defaulting
 to `write`. Listing the actions of a node filters by what the caller may run
@@ -321,18 +316,14 @@ Spec: [Sharing a connection](../decisions/2026-08-29-connector-sharing-design.md
 
 ## D34. An administrator has rights over accounts, not over data
 
-`is_superuser` used to bypass the owner check, which put every connection of
-every user into an administrator's list and every data route within their
-reach. It no longer does: creating, deactivating and deleting users stays
-theirs, and reading somebody's rows needs a grant like anyone else's.
+`is_superuser` does not bypass the owner check: creating, deactivating and
+deleting users stays an administrator's, and reading somebody's rows needs a
+grant like anyone else's. Connector credentials are encrypted precisely so that
+holding the database does not mean holding the sources, and an unconditional
+bypass handed back through the API what the encryption was protecting.
 
-Connector credentials are encrypted precisely so that holding the database does
-not mean holding the sources. An unconditional bypass handed back through the
-API what the encryption was protecting.
-
-What follows for the two places a superuser was special: `crud.get_with_access`
-knows nothing about the flag, and the connector list is what the caller owns
-plus what has been granted to them, for everyone alike.
+So `crud.get_with_access` knows nothing about the flag, and the connector list is
+what the caller owns plus what has been granted to them, for everyone alike.
 
 Spec: [Sharing a connection](../decisions/2026-08-29-connector-sharing-design.md)
 
@@ -361,13 +352,13 @@ enough for what the application is: network-I/O bound and asynchronous
 throughout (D3), with blocking work on threads.
 
 Rejected: keeping four workers and recording the table as deviations. A
-transaction that forgets itself depending on which process a statement reaches
-is not a limitation to document, it is a broken feature. Rejected for now: making every row
-multi-process — a shared channel for topics, routing a transaction or a result
-to the process holding it, cancellation carried by the row, recovery run once
-per deployment. Each is a design of its own, and D104 asks for a measured need
-before Redis carries more than the read cache. Scaling out is therefore a design
-change and not a setting: every row above is answered first.
+transaction that forgets itself depending on which process a statement reaches is
+a broken feature, not a limitation to document. Rejected for now: making every row
+multi-process — a shared channel for topics, routing a transaction or a result to
+the process holding it, cancellation carried by the row, recovery run once per
+deployment. Each is a design of its own, and D104 asks for a measured need before
+Redis carries more than the read cache. Scaling out is therefore a design change
+and not a setting: every row above is answered first.
 
 **Enforced:** `tests/test_deployment.py` fails when the image names any count
 but one, or a compose file names a count at all. Both were checked by putting

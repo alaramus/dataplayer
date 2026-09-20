@@ -4,6 +4,8 @@ For adding a way to open a node that is not a page of rows — a document, an
 image, a recording, a container walked into. Rows are
 [relations.md](relations.md).
 
+Decisions here: D47, D48, D52, D51, D53, D71, D57.
+
 ## D47. A node declares its ordered representations
 
 The client neither infers a viewer from a suffix nor assumes that every readable

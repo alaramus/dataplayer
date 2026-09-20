@@ -11,6 +11,8 @@ Neither source is changed. The line is a row in the application's database.
 Read [relations.md](relations.md) first for what a reference is and how one is
 followed; nothing here replaces that path, it adds a second issuer to it.
 
+Decisions here: D106, D107, D108.
+
 ## D106. The application keeps references no source has
 
 A declared reference is a row of the application's own with two ends. An end is

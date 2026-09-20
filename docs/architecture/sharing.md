@@ -14,15 +14,13 @@ Decisions here: D58, D59, D60, D61.
 
 ## What exists today
 
-A grid tab has a Share command next to its download command. It opens one
-floating window, like every other transient form opened from a tab (D14), so
-the link and the grid it was made from are looked at together rather than one
-covering the other. Everybody who can reach the connection sees the link to
-this view and who has opened it; the owner of the connection also sees who
-holds a grant, who is waiting for one, and every link made to that connection.
-A connection's own window answers the same questions on its Permissions
-page — who holds a level, who is waiting — and the dialog opens from there
-with the adding half alone, so the two are never on screen at once.
+A grid tab has a Share command next to its download command, opening one
+floating window (D14) so the link and the grid it was made from are looked at
+together. Everybody who can reach the connection sees the link to this view and
+who has opened it; its owner also sees who holds a grant, who is waiting for one,
+and every link made to that connection. A connection's own window answers the
+same questions on its Permissions page, and the dialog opens from there with the
+adding half alone, so the two are never on screen at once.
 
 An empty recipient picker distinguishes no other active accounts from all
 available accounts already holding grants. The first points to an administrator
@@ -60,10 +58,10 @@ frontend/src/features/shares/
 ```
 
 Four places outside that feature take part: the Share command in the grid's
-header, `openShared` in the workspace page — which reveals the node, opens the
-tab and leaves the view where the tab takes it — the workspace again, which
-hosts the dialog a notification opens, and the router, whose guard now
-remembers where somebody was going before it sent them to sign in.
+header; `openShared` in the workspace page, which reveals the node, opens the tab
+and leaves the view where the tab takes it; the workspace again, which hosts the
+dialog a notification opens; and the router, whose guard remembers where somebody
+was going before it sent them to sign in.
 
 ## D58. A share link is an address, not a permission
 
@@ -81,16 +79,15 @@ Four consequences, and they are the point of the decision:
 - Access is closed by revoking the grant. Deleting a link does not close
   anything, and the dialog says so in words.
 
-**Rejected: a link that grants access when it is opened.** Then the link is a
-credential. Forwarding it spreads access, "revoke the link" has to answer what
-it already handed out, and rights arrive through a URL in a chat as well as
-through the funnel D33 built. One enforcement point stops being one.
+**Rejected: a link that grants access when it is opened.** The link would be a
+credential: forwarding it spreads access, "revoke the link" has to answer what it
+already handed out, and rights arrive through a URL in a chat as well as through
+the funnel D33 built.
 
-**Known limit, stated in the dialog.** A grant covers the connection, so
-sharing a table shares the database at that level. The dialog names the
-connection, not only the table, before the owner presses anything. Node-scoped
-access is a different contract — the catalog would have to be filtered, and a
-node id belongs to the source — and a button is not the place to introduce it.
+**Known limit, stated in the dialog.** A grant covers the connection, so sharing
+a table shares the database at that level, and the dialog names the connection
+before the owner presses anything. Node-scoped access is a different contract —
+the catalog would have to be filtered, and a node id belongs to the source.
 
 Spec: [Sharing a view](../decisions/2026-09-01-shared-view-links-design.md)
 
@@ -143,9 +140,9 @@ copied names, and whether this reader already has a request waiting. 404 is
 kept for a token that does not exist or was deleted, and the two are answered
 identically so a token cannot be probed.
 
-Having no access is a normal outcome of this route — the request flow exists
-for it — not a failure, and a client that had to read it out of an error body
-would be reading an exception for information.
+Having no access is a normal outcome of this route, not a failure: a client that
+had to read it out of an error body would be reading an exception for
+information.
 
 **Deliberate deviation from D33.** There, no access answers 404 precisely so
 the id space cannot be used to discover whose connections exist. Here the
@@ -194,9 +191,9 @@ context — "came through Maxim's link" — and is cleared when that link goes.
 
 Both sides hear through one topic of this module, per user, on the socket D18
 describes: the owner that a request arrived, the requester that it was answered.
-The notification leads to that connection's own window, open on the page
-where grants are given anyway. There is no inbox screen, and nothing opens by itself while
-somebody is working.
+The notification leads to that connection's own window, open on the page where
+grants are given anyway. There is no inbox screen, and nothing opens by itself
+while somebody is working.
 
 A connection is invisible without a grant, so a request can only ever arrive
 through a link. That is the whole discovery mechanism, and it is why the link

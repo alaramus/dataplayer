@@ -8,9 +8,9 @@ Decisions here: D18, D19.
 
 ## What exists today
 
-One route, `/api/v1/ws`. A socket opens unauthenticated, presents a token as
-its first frame, and is closed if it does not. After that it may subscribe to
-topics by name, and it receives whatever those topics push until it goes away.
+One route, `/api/v1/ws`. A socket opens unauthenticated, presents a token as its
+first frame, and is closed if it does not. After that it may subscribe to topics
+by name and receives whatever those topics push until it goes away.
 
 ```
 backend/app/
@@ -30,17 +30,16 @@ frontend/src/
     └── connectorState.ts  what state a connection is in, in one place
 ```
 
-More topics followed, each beside what it announces: `queries/topic.py`
-(D64), `jobs/topic.py` (D81), `shares/topic.py` (D61), `metrics/live.py`
-(D127) and `ai/topic.py` (D137).
+More topics followed, each beside what it announces: `queries/topic.py` (D64),
+`jobs/topic.py` (D81), `shares/topic.py` (D61), `metrics/live.py` (D127) and
+`ai/topic.py` (D137).
 
-The frames are written out twice — Pydantic models on one side, a TypeScript
-union on the other — because OpenAPI 3.1 has no WebSocket channel, so
-`frontend/src/client` cannot carry them. The two are held together by the
-end-to-end scenarios in `frontend/tests/health.spec.ts`, which are the only
-place both sides meet. This is a known deviation from "the generated client is
-the only description of the API", and the honest fix is to publish the socket
-schema in the OpenAPI document under `x-websocket`, as the old application did.
+Known deviation from "the generated client is the only description of the API":
+the frames are written out twice, Pydantic models on one side and a TypeScript
+union on the other, because OpenAPI 3.1 has no WebSocket channel and
+`frontend/src/client` cannot carry them. The two are held together only by
+`frontend/tests/health.spec.ts`, where both sides meet. The honest fix is to
+publish the socket schema in the OpenAPI document under `x-websocket`.
 
 ## D18. The transport does not know a single topic
 
@@ -49,30 +48,27 @@ schema in the OpenAPI document under `x-websocket`, as the old application did.
 between `app.adapters` and `app.users`, so a topic can reach the transport and
 never the other way round.
 
-A topic is a `runtime_checkable` Protocol with two hands — a subscriber
-arrived, a subscriber left — and a registry of factories. The objects are built
-by the application lifespan and closed by it, for the same reason as the
-connection pool: a topic that keeps a background task alive is exactly the
-thing that outlives a request (D10).
-
-Rejected: a route for each need (`/ws/connector-health`, `/ws/agent`). The
-browser would then hold several sockets, each with its own authentication and
-its own reconnect, and the common part would still have to be extracted —
-later, and out of three copies.
-
-Rejected too: carrying the same requests the HTTP routes take, as the old
-application's public socket does. That is right there, where the client is a
-foreign program saving a handshake per call. Here the client is ours and makes
-its requests through vue-query, so a second way to invoke the same routes would
-be a second surface with the same rights to defend.
+A topic is a `runtime_checkable` Protocol with two hands — a subscriber arrived,
+a subscriber left — and a registry of factories. The objects are built by the
+application lifespan and closed by it, for the same reason as the connection
+pool: a topic that keeps a background task alive is exactly the thing that
+outlives a request (D10).
 
 The token arrives as the first frame because a browser cannot set a header on
 the WebSocket handshake, and a token in the query string is written into every
 access log, into browser history, and into the Referer of anything the page
 loads next.
 
-A terminal is the one exception: each has a socket of its own, authenticated
-the same way and never reconnected ([D148](terminals.md)).
+Rejected: a route for each need (`/ws/connector-health`, `/ws/agent`). The
+browser would hold several sockets, each with its own authentication and
+reconnect, and the common part would still have to be extracted — later, and out
+of three copies. Rejected too: carrying the same requests the HTTP routes take.
+The client here is ours and makes its requests through vue-query, so a second way
+to invoke the same routes would be a second surface with the same rights to
+defend.
+
+A terminal is the one exception: each has a socket of its own, authenticated the
+same way and never reconnected ([D148](terminals.md)).
 
 Spec: [The socket, health and a switched-off connector](../decisions/2026-08-24-realtime-and-connector-health-design.md)
 
@@ -80,66 +76,62 @@ Spec: [The socket, health and a switched-off connector](../decisions/2026-08-24-
 
 Subscribing to `connector.health` means "watch my connections", without naming
 them. The first subscriber of a user starts a monitor; the last one to leave
-stops it, after a short grace so that reloading a page does not tear it down
-and build it again from knowing nothing.
+stops it, after a short grace so that reloading a page does not tear it down and
+build it again from knowing nothing.
 
 Per user and not per socket: two tabs of one person would otherwise double the
 traffic to somebody else's database for the sake of the same coloured dot. A
 second socket is handed the last known state at once and costs nothing.
 
-A round reads the user's switched-on connections, probes those that are due
-with a bounded number at a time, and announces each result as it lands. A
-failure doubles that connection's interval up to a cap: a dead host answers by
-timing out, so probing it as often as a live one makes every round as slow as
-its worst member.
+A round reads the user's switched-on connections, probes those that are due with
+a bounded number at a time, and announces each result as it lands. A failure
+doubles that connection's interval up to a cap: a dead host answers by timing
+out, so probing it as often as a live one makes every round as slow as its worst
+member.
 
 How often a connection falls due is the user's own choice, read from their
-preferences at the start of every round so that changing it takes effect under
-a monitor that is already running. The choices are a closed set — a free
-interval is a field somebody puts one second into, and the cost of that lands
-on the server being probed. "Never" is one of them: nothing is probed, the
-monitor drops what it knew, and the screen clears its dots so that none of them
-keeps claiming something nobody is checking. `HEALTH_INTERVAL_SECONDS` stays
-what it always was in code but not in meaning: it is how often the monitor comes
-round, which is also the shortest choice offered and the tick a change of mind
-is noticed on.
+preferences at the start of every round, so changing it takes effect under a
+monitor already running. The choices are a closed set — a free interval is a
+field somebody puts one second into, and that cost lands on the server being
+probed. "Never" is one of them: nothing is probed, the monitor drops what it
+knew, and the screen clears its dots rather than keep claiming something nobody
+is checking. `HEALTH_INTERVAL_SECONDS` is how often the monitor comes round,
+which is also the shortest choice offered and the tick a change of mind is
+noticed on.
 
-A probe does not borrow from the pool. This matches what the manual check
-already does and it is deliberate — a check is meant to exercise the
-credentials, and a pooled connection would go on reporting a source as up after
-its password stopped working.
+A probe does not borrow from the pool, matching the manual check: a check is
+meant to exercise the credentials, and a pooled connection would go on reporting
+a source as up after its password stopped working. The manual check announces
+its result through the same topic, so the button and the dot beside the
+connection cannot say different things.
 
-The manual check announces its result through the same topic, so pressing the
-button and the dot beside the connection cannot end up saying different things.
+Known deviation:
 
-**Known deviation.** Every topic lives in the process — the monitors and each
-topic's list of sockets — which is correct only because the backend runs as one
-process (D124). Under several, the probing would be multiplied by their number,
-and a socket would hear only what its own process found out or was told: a
-manual check, a run, a job, an access request. The fix is a shared channel
-such as Redis pub/sub, and D104 asks for a measured need before Redis carries
-anything but the read cache.
+- **Every topic lives in the process** — the monitors and each topic's list of
+  sockets — which is correct only because the backend runs as one process (D124).
+  Under several, probing would be multiplied by their number, and a socket would
+  hear only what its own process found out or was told: a manual check, a run, a
+  job, an access request. The fix is a shared channel such as Redis pub/sub, and
+  D104 asks for a measured need before Redis carries anything but the read cache.
 
 Spec: [The socket, health and a switched-off connector](../decisions/2026-08-24-realtime-and-connector-health-design.md)
 
-## A trap on the client side
+## Two traps
 
 **A subscription is released with the scope that made it.** `useConnectorHealth`
-and `useAccessRequestEvents` returned a `stop` that no caller ever called, and
-the workspace page is mounted twice while the server check settles — so the
-first listener stayed behind and every event was handled twice. It went
-unnoticed for as long as Quasar drew the notifications, because Notify groups
-two identical messages into one with a counter on it; the first thing that drew
-them itself (D114) showed two cards. Both composables now dispose with their
-scope, and a unit test stops a scope and expects the listener to go.
+and `useAccessRequestEvents` returned a `stop` no caller ever called, and the
+workspace page is mounted twice while the server check settles — so the first
+listener stayed behind and every event was handled twice. It went unnoticed while
+Quasar drew the notifications, because Notify groups two identical messages into
+one with a counter; the first thing that drew them itself (D114) showed two
+cards. Both composables now dispose with their scope, and a unit test stops a
+scope and expects the listener to go.
 
-## A trap in the end-to-end scenarios
-
-Playwright's thirty-second default is the budget for the whole test, not for
+**Playwright's thirty-second default is the budget for the whole test**, not for
 one assertion. A scenario that waits for a probe waits up to a full interval,
-twice over, and runs out of budget while the dot on screen is perfectly
-correct — the failure names the assertion, so it reads as a bug in the code.
-`health.spec.ts` sets its own budget and says why.
+twice over, and runs out of budget while the dot on screen is correct — the
+failure names the assertion, so it reads as a bug in the code. `health.spec.ts`
+sets its own budget and says why.
 
 ## What the client does
 
@@ -150,10 +142,9 @@ then restate every subscription — is ours either way; what a library would hav
 added is the reconnect delay, which is six lines and is spread, so that tabs
 which dropped together do not come back together.
 
-What the dot shows is made of two facts from two places, and deliberately so
-(D6): whether a connection is switched off is a field of the connector and
-arrives with the list through vue-query; what the last probe said is pushed and
-lives in Pinia. `connectorState.ts` puts them together in one place, because
-the dot needs the tone and the icon around it needs the words — and the dot
-cannot carry its own tooltip, being drawn over the icon with pointer events
-off.
+What the dot shows is made of two facts from two places, deliberately (D6):
+whether a connection is switched off is a field of the connector and arrives with
+the list through vue-query; what the last probe said is pushed and lives in
+Pinia. `connectorState.ts` puts them together in one place, because the dot needs
+the tone and the icon around it needs the words — and the dot cannot carry its
+own tooltip, being drawn over the icon with pointer events off.
