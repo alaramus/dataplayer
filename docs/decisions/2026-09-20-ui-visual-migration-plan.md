@@ -83,3 +83,23 @@ The full application E2E suite was not run.
 
 Next: neutral chrome, buttons and tabs, plus presentation of operation results;
 then apply the proven composition to the next form family.
+
+## Slice 3: neutral chrome and actions
+
+Implemented: neutral primary/secondary actions through tokens.ts and theme.css;
+filled buttons without shadows; neutral chrome and default panel surfaces;
+compact field borders and focus; quiet selected tabs in the connection editor.
+Keyboard focus remains explicit. Destructive actions, status, data colours and
+user-chosen connection colours remain semantic.
+
+Validation: all 1,872 frontend unit tests and four targeted Playwright scenarios
+passed. Type-check, lint, production build and the documentation check passed.
+Lint retains 20 unrelated warnings and the build reports large chunks. Browser
+coverage checks contrast for primary, secondary and both destructive variants in
+both themes, neutral action/focus colours, distinct field errors and the existing
+connection geometry/reflow scenarios. Inspected the generated light and dark
+screenshots. The full application E2E suite was not run.
+
+Next: operation-result composition and the next family of forms. The kit gallery
+still contains older card-heavy presentation; migrating compositions remains
+separate from these global token defaults.

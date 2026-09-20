@@ -22,6 +22,27 @@ for (const theme of ["light", "dark"] as const) {
     await expect(frame.getByRole("combobox", { name: "Authentication", exact: true })).toBeVisible()
     await frame.screenshot({ path: `test-results/connection-form-${theme}.png` })
 
+    await host.focus()
+    const focusColor = await host.evaluate((element) => {
+      const control = element.closest(".q-field")?.querySelector(".q-field__control")
+      if (!control) throw new Error("Missing field control")
+      return getComputedStyle(control, "::after").borderColor
+    })
+    const channels = (focusColor.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+    expect(channels).toHaveLength(3)
+    expect(Math.max(...channels) - Math.min(...channels)).toBe(0)
+    await page.getByTestId("connector-name").fill("")
+    await page.getByTestId("apply-connector").click()
+    await expect(page.getByTestId("connector-name")).toHaveAttribute("aria-invalid", "true")
+    const errorColor = await page.getByTestId("connector-name").evaluate((element) => {
+      const control = element.closest(".q-field")?.querySelector(".q-field__control")
+      if (!control) throw new Error("Missing field control")
+      return getComputedStyle(control, "::after").borderColor
+    })
+    expect(errorColor).not.toBe(focusColor)
+    await page.getByTestId("connector-name").fill("PostgreSQL")
+    await page.getByTestId("connector-name").blur()
+
     await page.setViewportSize({ width: 390, height: 700 })
     await expect.poll(async () => {
       const currentLabel = await label.boundingBox()

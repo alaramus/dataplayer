@@ -19,6 +19,15 @@
  */
 
 /* Quasar resolves custom button colours through text-<name> classes. */
+.bg-dp-action-primary {
+  background: var(--dp-action-primary) !important;
+}
+.text-dp-on-action-primary {
+  color: var(--dp-on-action-primary) !important;
+}
+.text-dp-field-focus {
+  color: var(--dp-focus-border) !important;
+}
 .text-dp-action-secondary {
   color: var(--dp-action-secondary) !important;
 }
@@ -75,15 +84,20 @@
 }
 
 :root {
-  --dp-action-secondary: #1976d2;
+  --dp-action-primary: #343434;
+  --dp-on-action-primary: #fff;
+  --dp-action-secondary: #454545;
+  --dp-field-surface: #fff;
+  --dp-field-border: #cecece;
+  --dp-tab-current: #e4e4e4;
   --dp-action-danger: #c10015;
   --dp-graph-edge: #73869e;
   --dp-graph-label: #172435;
   /* The ground a panel stands on, and what floats above it. */
   --dp-surface: #fff;
-  --dp-surface-raised: #fff;
-  --dp-chrome: #eef0f3;
-  --dp-chrome-raised: #f7f8fa;
+  --dp-surface-raised: #fafafa;
+  --dp-chrome: #eee;
+  --dp-chrome-raised: #f7f7f7;
   /* The head of every card, a Data section's tab strip included. */
   --dp-card-head: var(--dp-chrome-raised);
 
@@ -96,11 +110,11 @@
      "the same as the colour that would fill it" is the whole point of it.
 
      A step darker than the chrome it started as. In the light theme the
-     chrome grey lies between the surface (#fff) and the raised chrome the tab
-     strip is drawn with (#f7f8fa), which is a mark that can be told from
+     chrome grey lies between the surface and the raised chrome the tab
+     strip is drawn with, which is a mark that can be told from
      neither: a fill nobody can see is the transparent tab under another name.
      The dark theme keeps the chrome value, where it stands clear of both. */
-  --dp-panel-plain: #e2e6ec;
+  --dp-panel-plain: #e4e4e4;
   /* And the same fill said quietly, for a connection that is open somewhere
      but is not the one being read. Half a step towards the surface it is laid
      on, rather than a wash of the fill itself: the plain fill is close to that
@@ -159,7 +173,7 @@
   --dp-selected: rgba(25, 118, 210, 0.1);
   --dp-selected-quiet: rgba(25, 118, 210, 0.05);
   --dp-link: rgba(25, 118, 210, 0.9);
-  --dp-focus-border: rgba(25, 118, 210, 0.5);
+  --dp-focus-border: #696969;
 
   /* Text a person has selected with the pointer. Its own token rather than
      the row highlight above: a selection has to be read *through*, so it is
@@ -208,7 +222,12 @@
 }
 
 body.body--dark {
-  --dp-action-secondary: #90caf9;
+  --dp-action-primary: #d4d4d4;
+  --dp-on-action-primary: #191919;
+  --dp-action-secondary: #d4d4d4;
+  --dp-field-surface: #191919;
+  --dp-field-border: #484848;
+  --dp-tab-current: #303030;
   --dp-action-danger: #ef9a9a;
   /* What the browser draws itself, and CSS cannot reach: scrollbars, the
      checkboxes in the editor's search bar, an autofilled field. Without this
@@ -221,9 +240,9 @@ body.body--dark {
   --dp-graph-edge: #8499b6;
   --dp-graph-label: #e8eef7;
   --dp-surface: #121212;
-  --dp-surface-raised: #1d1d1d;
-  --dp-chrome: #1e1f22;
-  --dp-chrome-raised: #2b2d30;
+  --dp-surface-raised: #191919;
+  --dp-chrome: #222;
+  --dp-chrome-raised: #2b2b2b;
   --dp-card-head: var(--dp-chrome-raised);
   /* Written again rather than inherited: a custom property is substituted
      where it is *declared*, and these values are declared on `body`, so a
@@ -267,7 +286,7 @@ body.body--dark {
   --dp-selected: rgba(100, 181, 246, 0.18);
   --dp-selected-quiet: rgba(100, 181, 246, 0.08);
   --dp-link: rgba(144, 202, 249, 0.95);
-  --dp-focus-border: rgba(100, 181, 246, 0.6);
+  --dp-focus-border: #a6a6a6;
   /* Stronger than its light counterpart: on #121212 a wash of a quarter is
      the difference between selected text and unselected text being invisible,
      which is what the editor showed until this existed. */

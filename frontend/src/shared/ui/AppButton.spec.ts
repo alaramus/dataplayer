@@ -21,8 +21,11 @@ describe("AppButton", () => {
   })
 
   it("fills the main action and leaves the quiet one unfilled", () => {
-    expect(mountButton("primary").get("button").classes()).toContain("bg-primary")
-    expect(mountButton("quiet").get("button").classes()).not.toContain("bg-primary")
+    const primary = mountButton("primary").get("button").classes()
+    expect(primary).toContain("bg-dp-action-primary")
+    expect(primary).toContain("text-dp-on-action-primary")
+    expect(primary).toContain("q-btn--unelevated")
+    expect(mountButton("quiet").get("button").classes()).not.toContain("bg-dp-action-primary")
   })
 
   it("uses separate colours for filled danger and danger text", () => {

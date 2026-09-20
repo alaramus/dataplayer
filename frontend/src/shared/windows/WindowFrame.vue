@@ -276,7 +276,7 @@ const resizeEdges: ResizeEdge[] = [
   align-items: center;
   gap: var(--dp-space-2);
   padding: var(--dp-space-1) var(--dp-space-1) var(--dp-space-1) var(--dp-space-3);
-  background: var(--dp-panel-background, var(--dp-active));
+  background: var(--dp-panel-background, var(--dp-chrome));
   color: var(--dp-panel-foreground, inherit);
   cursor: grab;
   /* Otherwise a drag selects the title text instead of moving the window. */

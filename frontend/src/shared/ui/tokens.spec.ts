@@ -24,8 +24,10 @@ describe("panelStyle", () => {
 
 describe("buttonLook", () => {
   it("makes the main action solid and the rest flat", () => {
-    expect(buttonLook("primary")).toEqual({ color: "primary", flat: false })
-    expect(buttonLook("danger")).toEqual({ color: "negative", flat: false })
+    expect(buttonLook("primary")).toEqual({
+      color: "dp-action-primary", textColor: "dp-on-action-primary", unelevated: true, flat: false,
+    })
+    expect(buttonLook("danger")).toEqual({ color: "negative", unelevated: true, flat: false })
     expect(buttonLook("secondary").flat).toBe(true)
     expect(buttonLook("danger-quiet").flat).toBe(true)
     expect(buttonLook("quiet").flat).toBe(true)

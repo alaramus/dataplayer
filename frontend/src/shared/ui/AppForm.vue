@@ -31,6 +31,10 @@ provide(formLayoutKey, true)
 }
 .app-form :deep(.app-form-field .q-field__control) {
   border-radius: var(--dp-radius-control);
+  background: var(--dp-field-surface);
+}
+.app-form :deep(.app-form-field .q-field__control::before) {
+  border-color: var(--dp-field-border);
 }
 .app-form :deep(.app-form-field .q-field__control-container) {
   padding-top: 0;

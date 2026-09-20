@@ -24,7 +24,14 @@ The field wrappers retain their value types, errors and accessible names.
 Schema-driven rows preserve their source-declared grouping and stack on narrow
 forms. The connection editor is the first consumer, with a composition in
 `/ui-kit`. Other forms keep their current presentation until migrated.
-Neutral action colours and the wider application rollout remain pending.
+Primary actions use a neutral contrasting fill; secondary actions use neutral
+text, and destructive actions retain their semantic red. Filled buttons have
+no decorative shadow. These defaults apply throughout the shared kit. Chrome
+and default panel identity surfaces are grey; user-chosen identity colours,
+data palettes, links and status colours keep their meaning. Compact fields use
+neutral borders and focus, with errors retaining the error colour. Connection
+tabs use a quiet filled current state and a visible keyboard focus outline.
+The wider composition rollout and operation-result presentation remain pending.
 
 Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 

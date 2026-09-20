@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
 
-test("flat actions remain readable on the kit surface in both themes", async ({ page }) => {
+test("actions remain readable with neutral emphasis in both themes", async ({ page }) => {
   await login(page)
   await page.goto("/ui-kit")
   const toggle = page.getByTestId("theme-toggle")
@@ -11,7 +11,7 @@ test("flat actions remain readable on the kit surface in both themes", async ({ 
     if (await toggle.getAttribute("data-theme") !== theme) await toggle.click()
     await expect(toggle).toHaveAttribute("data-theme", theme)
 
-    for (const name of ["secondary", "danger-quiet"]) {
+    for (const name of ["primary", "secondary", "danger", "danger-quiet"]) {
       const button = page.getByRole("button", { name, exact: true })
       const contrast = await button.evaluate((element) => {
         const rgb = (value: string) => (value.match(/[\d.]+/g) ?? []).map(Number)
@@ -36,6 +36,18 @@ test("flat actions remain readable on the kit surface in both themes", async ({ 
       })
       expect(contrast, `${name} in ${theme}`).toBeGreaterThanOrEqual(4.5)
     }
+
+    for (const name of ["primary", "secondary"]) {
+      const channels = await page.getByRole("button", { name, exact: true }).evaluate((element, variant) => {
+        const style = getComputedStyle(element)
+        return ((variant === "primary" ? style.backgroundColor : style.color).match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+      }, name)
+      expect(channels).toHaveLength(3)
+      expect(Math.max(...channels) - Math.min(...channels)).toBe(0)
+    }
+    await page.getByRole("button", { name: "primary", exact: true }).focus()
+    await expect(page.getByRole("button", { name: "primary", exact: true })).toBeFocused()
+    await page.screenshot({ path: `test-results/ui-kit-neutral-${theme}.png` })
   }
 })
 

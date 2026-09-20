@@ -60,12 +60,15 @@ const spokenLabel = computed(() => (props.iconOnly ? props.label : undefined))
   <!-- no-caps throughout: action labels arrive from the server already
        written as sentences, and shouting them back is worse than a default. -->
   <q-btn
+    class="app-button"
     no-caps
     :aria-label="spokenLabel"
     :align="contentLayout.align"
     :no-wrap="contentLayout.noWrap"
     :class="{ 'app-button--toolbar': layout === 'toolbar' }"
     :color="look.color"
+    :text-color="look.textColor"
+    :unelevated="look.unelevated"
     :flat="look.flat"
     :dense="size === 'sm'"
     :label="shownLabel"
@@ -80,6 +83,10 @@ const spokenLabel = computed(() => (props.iconOnly ? props.label : undefined))
 </template>
 
 <style scoped>
+.app-button:focus-visible {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: var(--dp-space-half);
+}
 .app-button--toolbar :deep(.q-btn__content) {
   gap: var(--dp-space-1);
 }

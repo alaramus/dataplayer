@@ -59,13 +59,15 @@ export function buttonLayout(layout: ButtonLayout): { align: "left" | "center"; 
 
 export interface ButtonLook {
   color?: string
+  textColor?: string
+  unelevated?: boolean
   flat: boolean
 }
 
 const BUTTON_LOOKS: Record<ButtonVariant, ButtonLook> = {
-  primary: { color: "primary", flat: false },
+  primary: { color: "dp-action-primary", textColor: "dp-on-action-primary", unelevated: true, flat: false },
   secondary: { color: "dp-action-secondary", flat: true },
-  danger: { color: "negative", flat: false },
+  danger: { color: "negative", unelevated: true, flat: false },
   "danger-quiet": { color: "dp-action-danger", flat: true },
   // Cancel and Close sit next to the action they cancel; a colour here would
   // compete with it.
@@ -111,6 +113,7 @@ export function toneText(tone: Tone): string {
 /** Form fields have a permanent external label; toolbar fields stay borderless. */
 export function fieldLook(form: boolean, compact = false, error = false) {
   return {
+    color: form ? "dp-field-focus" : undefined,
     dense: form || compact,
     outlined: form,
     borderless: !form && compact,

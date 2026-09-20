@@ -3,8 +3,9 @@
 Date: 2026-09-13. Decisions: D131, D132.
 
 Status: agreed design direction; stable sizing is implemented for the connection
-editor, which also uses the shared compact field layout. Neutral action styling
-and the application-wide migration remain pending.
+editor, which also uses the shared compact field layout and neutral tabs. Shared
+buttons and chrome use neutral styling. The application-wide composition
+migration remains pending.
 See the [visual migration plan](2026-09-20-ui-visual-migration-plan.md).
 
 ## Visual reference

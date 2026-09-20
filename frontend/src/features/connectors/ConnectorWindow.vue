@@ -683,6 +683,7 @@ async function parseTyped(text: string) {
             type="button"
             class="connector-window__tab"
             :class="{ 'connector-window__tab--active': page.id === activePage }"
+            :aria-pressed="page.id === activePage"
             :data-testid="`connector-tab-${page.id}`"
             @click="activePage = page.id"
           >
@@ -1054,22 +1055,31 @@ async function parseTyped(text: string) {
 }
 .connector-window__tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--dp-space-1);
+  padding-bottom: var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border);
 }
 .connector-window__tab {
   border: none;
   background: none;
-  padding: var(--dp-space-2) var(--dp-space-3);
+  padding: var(--dp-space-1) var(--dp-space-2);
   cursor: pointer;
   text-transform: capitalize;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--dp-radius-control);
   color: inherit;
   font: inherit;
 }
 .connector-window__tab--active {
-  border-bottom-color: var(--dp-accent);
+  background: var(--dp-tab-current);
   font-weight: 500;
+}
+.connector-window__tab:not(.connector-window__tab--active):hover {
+  background: var(--dp-hover);
+}
+.connector-window__tab:focus-visible {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: var(--dp-space-half);
 }
 .connector-window__url {
   flex: none;
