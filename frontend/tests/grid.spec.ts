@@ -349,6 +349,46 @@ test("recovers from a rejected query without restoring it", async ({ page }) => 
   await deleteConnector(page, name)
 })
 
+test("corrects a value the source refused where it was typed", async ({ page }) => {
+  // U02, against the real refusal rather than a routed one: a timestamp column
+  // given `abc`. The columns used to go with the failed answer, so Filters and
+  // Sort greyed themselves out - saying this source does not filter rows - and
+  // the editor holding the mistake unmounted. Resetting the query was the only
+  // way out of a typo.
+  test.setTimeout(60_000)
+  const name = `e2e-grid-bad-value-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tasks")
+  await expect(page.getByTestId("grid-cell-0-title")).toBeVisible()
+
+  const editor = page.getByTestId("grid-filter-editor")
+  await page.getByTestId("grid-filter").click()
+  await editor.getByLabel("Column").click()
+  await page.getByRole("option", { name: "due_at", exact: true }).click()
+  await editor.getByLabel("Operator").click()
+  await page.getByRole("option", { name: "equals", exact: true }).click()
+  await editor.getByLabel("Value").fill("abc")
+  await editor.getByTestId("grid-filter-apply").click()
+  await expect(page.getByTestId("grid-error")).toBeVisible({ timeout: 15_000 })
+
+  // The editor is still there with the condition in it, and the commands still
+  // describe the relation rather than the refusal.
+  await expect(editor).toBeVisible()
+  await expect(page.getByTestId("grid-filter")).toBeEnabled()
+  await expect(page.getByTestId("grid-sort")).toBeEnabled()
+  await page.getByTestId("grid-sort").hover()
+  await expect(page.locator(".q-tooltip")).not.toContainText("does not sort rows")
+
+  await editor.getByTestId("grid-filter-delete-0").click()
+  await expect(page.getByTestId("grid-error")).toHaveCount(0)
+  await expect(page.getByTestId("grid-cell-0-title")).toBeVisible()
+
+  await deleteConnector(page, name)
+})
+
 test("opens a complete JSON value", async ({ page }) => {
   const name = `e2e-grid-json-${Date.now()}`
   await login(page)

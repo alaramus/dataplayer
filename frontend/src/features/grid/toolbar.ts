@@ -66,6 +66,7 @@ export const NOT_OFFERED = {
 /** And the ones that name something to do, rather than something to accept. */
 export const NOT_YET = {
   reading: "nothing has been read yet",
+  unread: "these rows could not be read",
   noRows: "there are no rows here",
   noColumns: "every column is hidden",
   noSelection: "select some cells first",

@@ -1050,6 +1050,60 @@ describe("the basic data grid", () => {
     expect(loadGridState("connector-1", "public.projects")?.filters ?? []).toEqual([])
   })
 
+  /**
+   * U02: a value the source refused - `abc` for a timestamp - took the columns
+   * away with the answer, and the toolbar read them as a source that filters
+   * nothing. Correcting the value meant discarding the whole query.
+   */
+  it("keeps the filter editor open on a value the source refused", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
+      (options.body.filters?.length ?? 0) > 0
+        ? (Promise.reject(new Error("invalid input syntax for type timestamp")) as never)
+        : (Promise.resolve({ data: result(0, 2) }) as never)
+    )
+    const wrapper = mountGrid()
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-filter"]').trigger("click")
+    wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "abc")
+    await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-error"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="grid-filter"]').attributes("disabled")).toBeUndefined()
+    expect(wrapper.find('[data-testid="grid-filter-editor"]').exists()).toBe(true)
+
+    // And the refused condition is where it was applied, to be taken out there.
+    await wrapper.get('[data-testid="grid-filter-delete-0"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-error"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
+  })
+
+  it("blames the refusal rather than the source for what needs rows", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
+      (options.body.filters?.length ?? 0) > 0
+        ? (Promise.reject(new Error("Query failed")) as never)
+        : (Promise.resolve({
+            data: { ...result(0, 2), insert_supported: true },
+          }) as never)
+    )
+    const wrapper = mountGrid()
+    await flushPromises()
+    const insert = () =>
+      wrapper.findAllComponents(AppIconButton).find((one) => one.props("icon") === "add")
+    expect(String(insert()?.props("tooltip"))).not.toContain("does not add rows")
+
+    await wrapper.get('[data-testid="grid-filter"]').trigger("click")
+    wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "abc")
+    await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
+    await flushPromises()
+
+    // Off, because there are no rows - not because this source never adds one.
+    expect(wrapper.get('[data-testid="grid-insert"]').attributes("disabled")).toBeDefined()
+    expect(String(insert()?.props("tooltip"))).toContain("could not be read")
+  })
+
   it("resets a persisted query that fails when the grid is reopened", async () => {
     saveGridState("connector-1", "public.projects", {
       columnOrder: ["id", "name"],

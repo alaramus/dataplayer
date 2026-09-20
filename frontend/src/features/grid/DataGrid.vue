@@ -15,6 +15,7 @@ import {
 import type {
   FetchColumn,
   FetchRequest,
+  FetchResult,
   ReferencedRows,
   RowCommand,
   RowsView,
@@ -222,7 +223,29 @@ const rows = computed(() =>
     : toGridRows(result.value, request.value.offset ?? 0)
 )
 const layout = ref<ColumnLayoutState>({ ...EMPTY_LAYOUT })
-const tableColumns = computed(() => tabularColumns(result.value?.columns ?? []))
+
+/**
+ * What the source last said about this relation, kept through a refusal (U02).
+ *
+ * A page of rows and the description of what holds them arrive as one answer,
+ * so a request the source refused used to leave no columns and every
+ * capability false. Filters and Sort then greyed themselves out saying this
+ * source does not filter or sort rows - and the filter editor, the one place a
+ * mistyped value could be corrected, unmounted with them. What a relation can
+ * do does not change because one page of it was refused.
+ */
+const described = ref<FetchResult | null>(null)
+watch(result, (page) => {
+  if (page !== undefined) described.value = page
+})
+// Another relation is described by its own answer, never by the one before it.
+watch(
+  () => props.nodeId,
+  () => {
+    described.value = null
+  }
+)
+const tableColumns = computed(() => tabularColumns(described.value?.columns ?? []))
 const visibleGridColumns = ref<TabularVisibleColumn[]>([])
 const downloadColumns = ref<TabularVisibleColumn[]>([])
 const editor = ref<{
@@ -287,7 +310,6 @@ const tabularGrid = useTemplateRef<{
 const insertForm = useTemplateRef<{
   fill: (values: { column: string; value: string | null }[]) => void
 }>("insertForm")
-const canInsert = computed(() => result.value?.insert_supported === true)
 const editableRowIds = computed(() =>
   rows.value.flatMap((row, index) =>
     typeof result.value?.row_handles?.[index] === "string" ? [row.id] : []
@@ -1034,40 +1056,67 @@ function offers(command: PageCommand): boolean {
  * never do outranks what is merely missing this second, because "tick a row"
  * under a button that will never delete anything is a lie.
  */
+/**
+ * What stands between a command and the rows it would act on, before the
+ * command's own conditions (U02).
+ *
+ * Ordered the way the sentences themselves are: the source's own answer
+ * outranks anything momentary, because "tick a row first" about a source that
+ * never deletes one is a lie. Until something has been read there is no answer
+ * to give, and a refused page leaves the answer standing but no rows under it.
+ */
+function whatStopsIt(
+  offered: (page: FetchResult) => boolean,
+  unsupportedSays: string
+): Unavailable {
+  const page = described.value
+  if (page === null) return NOT_YET.reading
+  if (!offered(page)) return unsupportedSays
+  return rowsQuery.isError.value ? NOT_YET.unread : null
+}
+
 const chartReason = computed<Unavailable>(() => {
   if (!offers("chart")) return NOT_OFFERED.chart
+  if (rowsQuery.isError.value) return NOT_YET.unread
   return visibleGridColumns.value.length === 0 ? NOT_YET.noColumns : null
 })
 
 const downloadReason = computed<Unavailable>(() => {
   if (!offers("download")) return NOT_OFFERED.download
+  if (rowsQuery.isError.value) return NOT_YET.unread
   return visibleGridColumns.value.length === 0 ? NOT_YET.noColumns : null
 })
 
 const keepReason = computed<Unavailable>(() => {
   if (!offers("create_relation")) return NOT_OFFERED.keep
-  if (result.value === undefined) return NOT_YET.reading
+  // The dialog reads the columns of the answer in hand, so this one waits for
+  // a page rather than for a description of one.
+  if (result.value === undefined) {
+    return described.value === null ? NOT_YET.reading : NOT_YET.unread
+  }
   return result.value.columns.length === 0 ? NOT_YET.noColumns : null
 })
 
 const importReason = computed<Unavailable>(() => {
-  if (result.value?.insert_supported !== true) return NOT_OFFERED.import
+  const stopped = whatStopsIt((page) => page.insert_supported === true, NOT_OFFERED.import)
+  if (stopped !== null) return stopped
   return importColumns.value.length === 0 ? NOT_OFFERED.import : null
 })
 
-const insertReason = computed<Unavailable>(() => {
-  if (result.value?.insert_supported !== true) return NOT_OFFERED.insert
-  return canInsert.value ? null : NOT_YET.reading
-})
+const insertReason = computed<Unavailable>(() =>
+  whatStopsIt((page) => page.insert_supported === true, NOT_OFFERED.insert)
+)
 
 /** Taken as a function: what may be pasted is the grid's own selection. */
 function pasteReason(canCopy: boolean): Unavailable {
-  if (result.value?.update_supported !== true) return NOT_OFFERED.paste
+  const stopped = whatStopsIt((page) => page.update_supported === true, NOT_OFFERED.paste)
+  if (stopped !== null) return stopped
   return canCopy ? null : NOT_YET.noSelection
 }
 
 function deleteReason(selected: readonly number[]): Unavailable {
-  if (result.value?.delete_supported !== true) return NOT_OFFERED.remove
+  const stopped = whatStopsIt((page) => page.delete_supported === true, NOT_OFFERED.remove)
+  if (stopped !== null) return stopped
   return canDeleteRows([...selected]) ? null : NOT_YET.noRowsPicked
 }
 

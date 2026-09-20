@@ -405,6 +405,15 @@ Consequences:
   nobody compares, and the sentence is where the difference lives. What the
   source will never do outranks what is merely missing this second, because
   "tick a row" under a button that will never delete anything is a lie.
+- **A refused page is not the source's answer either.** A page and the
+  description of what holds it arrive together, so a value the source refused
+  used to leave no columns and every capability false: the row then described a
+  relation that filters nothing, sorts nothing and adds no rows, and the filter
+  editor - the one place the refused value could be corrected - unmounted with
+  it, leaving a typo that could only be escaped by discarding the query. What a
+  relation can do is kept from the last answer that described it, and a command
+  that needs rows says those rows could not be read instead of blaming the
+  source for it.
 - **A disabled button has to be able to speak.** Quasar gives a disabled button
   no pointer events, so a tooltip hung on it never opens. `AppIconButton` wraps
   the disabled shape in a span that carries the tooltip instead — which is what
