@@ -1,4 +1,11 @@
 <script setup lang="ts" generic="Value extends File | File[] | null">
+import { inject } from "vue"
+
+import { formLayoutKey } from "./formLayout"
+import { fieldLook } from "./tokens"
+
+const formLayout = inject(formLayoutKey, false)
+
 const props = defineProps<{
   modelValue: Value
   label?: string
@@ -45,13 +52,22 @@ function chosen(value: File | readonly File[] | null) {
 
 <template>
   <q-file
+    :class="{ 'app-form-field': formLayout }"
+    v-bind="fieldLook(formLayout)"
     :model-value="listed ? null : modelValue"
     :label="label"
+    :aria-label="$attrs['aria-label'] ?? label"
     :accept="accept"
     :multiple="multiple"
     :append="listed ? false : append"
     @update:model-value="chosen"
   >
+    <template
+      v-if="formLayout && label"
+      #before
+    >
+      <span>{{ label }}</span>
+    </template>
     <template
       v-if="$slots.after"
       #after

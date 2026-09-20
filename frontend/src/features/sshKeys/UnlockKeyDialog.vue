@@ -5,7 +5,7 @@ import { useUnlockSshKey } from "@/features/sshKeys/api"
 import { unlockOptions } from "@/features/sshKeys/keys"
 import type { UnlockMinutes } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
-import { AppButton, AppInput, AppSection, AppSelect, useToast } from "@/shared/ui"
+import { AppButton, AppForm, AppInput, AppSelect, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
@@ -60,11 +60,12 @@ async function open() {
   <WindowDialog
     :model-value="keyId !== null"
     :title="`Unlock ${keyName}`"
-    size="sm"
+    size="md"
+    sizing="content"
     data-testid="unlock-key-dialog"
     @update:model-value="!$event && emit('close')"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppInput
         v-model="passphrase"
         type="password"
@@ -83,7 +84,7 @@ async function open() {
         data-testid="unlock-key-minutes"
         @update:model-value="minutes = $event as UnlockMinutes"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
         variant="quiet"

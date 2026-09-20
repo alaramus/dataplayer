@@ -17,13 +17,16 @@ and decorative accent stripes. Reflow labels above fields at narrow widths.
 Shared UI tokens and components own the appearance; Quasar remains the base.
 The spec includes the accepted visual example and rejected directions.
 
-`AppForm` supplies the compact form context to the kit's text, numeric and
+`AppForm` supplies the compact form context to the kit's text, numeric, file and
 select fields. It keeps a permanent label column and moves labels above fields
 when the form container is narrow; companion actions stay beside the control.
 The field wrappers retain their value types, errors and accessible names.
 Schema-driven rows preserve their source-declared grouping and stack on narrow
 forms. The connection editor is the first consumer, with a composition in
-`/ui-kit`. Other forms keep their current presentation until migrated.
+`/ui-kit`. SSH key creation, import and unlocking also use this composition.
+Use `AppForm layout="section"` for a standalone stack with shared padding and
+field spacing; the default embedded layout leaves those to its parent.
+Other forms keep their current presentation until migrated.
 Primary actions use a neutral contrasting fill; secondary actions use neutral
 text, and destructive actions retain their semantic red. Filled buttons have
 no decorative shadow. These defaults apply throughout the shared kit. Chrome

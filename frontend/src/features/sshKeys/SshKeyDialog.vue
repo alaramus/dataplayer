@@ -7,8 +7,8 @@ import { messageOf } from "@/shared/api/errors"
 import {
   AppButton,
   AppFileInput,
+  AppForm,
   AppInput,
-  AppSection,
   AppSelect,
   useToast,
 } from "@/shared/ui"
@@ -109,11 +109,12 @@ async function save() {
   <WindowDialog
     :model-value="modelValue"
     :title="mode === 'generate' ? 'New SSH key' : 'Import an SSH key'"
-    size="md"
+    size="form"
+    sizing="stable"
     data-testid="ssh-key-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppInput
         v-model="name"
         label="Name"
@@ -170,7 +171,7 @@ async function save() {
         data-testid="ssh-key-remember"
         @update:model-value="remember = $event as 'ask' | 'stored'"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
         variant="quiet"

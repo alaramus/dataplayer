@@ -10,7 +10,8 @@ const props = withDefaults(
     modelValue: boolean
     title: string
     subtitle?: string
-    size?: "sm" | "md" | "lg" | "xl"
+    size?: "sm" | "md" | "lg" | "xl" | "form"
+    sizing?: "content" | "stable"
     /**
      * Whether the window may close, asked before it does.
      *
@@ -20,7 +21,7 @@ const props = withDefaults(
      */
     beforeClose?: () => boolean | Promise<boolean>
   }>(),
-  { subtitle: undefined, size: "md", beforeClose: undefined }
+  { subtitle: undefined, size: "md", sizing: "content", beforeClose: undefined }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
@@ -33,6 +34,8 @@ const instance = getCurrentInstance()
 const id = `dialog:${String(attrs["data-testid"] ?? props.title)}:${instance?.uid ?? 0}`
 
 const sizes = {
+  // Variable-content forms keep room for optional fields and inline errors.
+  form: { width: 560, height: 580 },
   sm: { width: 460, height: 220 },
   md: { width: 520, height: 260 },
   lg: { width: 900, height: 360 },
@@ -46,7 +49,7 @@ const component = defineComponent({
   setup: () => () =>
     h(
       "div",
-      { class: "window-dialog", ...attrs },
+      { ...attrs, class: ["window-dialog", attrs.class, { "window-dialog--stable": props.sizing === "stable" }] },
       [
         props.subtitle
           ? h("div", { class: "window-dialog__subtitle" }, props.subtitle)
@@ -72,6 +75,7 @@ watch(
       id,
       look: { title: props.title },
       size: openSize.value,
+      sizing: props.sizing,
       minSize: { width: 300, height: 140 },
       component,
       ...(props.beforeClose === undefined ? {} : { beforeClose: props.beforeClose }),
@@ -110,6 +114,12 @@ onBeforeUnmount(() => {
   flex-direction: column;
   min-height: 0;
   max-height: calc(100vh - 34px);
+}
+.window-dialog--stable {
+  flex: 1;
+}
+.window-dialog--stable .window-dialog__content {
+  flex: 1;
 }
 .window-dialog__subtitle {
   flex: none;

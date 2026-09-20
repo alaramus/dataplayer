@@ -361,6 +361,10 @@ function removeSavedEntry(name: string) {
             label="SSL mode"
             :options="['prefer', 'require']"
           />
+          <AppFileInput
+            v-model="file"
+            label="Key file"
+          />
         </AppForm>
         <AppInput
           v-model="text"

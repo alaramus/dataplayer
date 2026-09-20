@@ -21,6 +21,10 @@ The connection editor is the first participant. It keeps its preferred 560 by
 scrolling body. Manual resizing disables content fitting in either policy.
 Stable rectangles are constrained again when the viewport shrinks.
 
+`WindowDialog` also accepts `sizing`. SSH key creation/import use its `form`
+preset (560 by 580) with stable sizing and a scrolling body above footer actions.
+Unlocking stays content-sized.
+
 Remaining migration: other variable-content forms still use their existing
 policy. The connection editor now uses the compact shared form layout and
 narrow-container reflow. The saved example demonstrates appearance, not stable

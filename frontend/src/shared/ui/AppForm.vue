@@ -3,11 +3,19 @@ import { provide } from "vue"
 
 import { formLayoutKey } from "./formLayout"
 
+withDefaults(defineProps<{
+  /** A standalone form owns its padding and field spacing; an embedded one does not. */
+  layout?: "embedded" | "section"
+}>(), { layout: "embedded" })
+
 provide(formLayoutKey, true)
 </script>
 
 <template>
-  <div class="app-form">
+  <div
+    class="app-form"
+    :class="{ 'app-form--section': layout === 'section' }"
+  >
     <slot />
   </div>
 </template>
@@ -16,6 +24,12 @@ provide(formLayoutKey, true)
 .app-form {
   container: app-form / inline-size;
   min-width: 0;
+}
+.app-form--section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-4);
+  padding: var(--dp-space-4);
 }
 .app-form :deep(.app-form-field .q-field__before) {
   width: var(--dp-form-label-width);

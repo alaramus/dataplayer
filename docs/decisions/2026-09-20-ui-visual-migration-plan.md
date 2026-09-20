@@ -128,3 +128,25 @@ application E2E suite was not run.
 
 Next: apply the compact form composition to a small complete family of forms;
 keep window sizing explicit. Other operation-result surfaces remain to migrate.
+
+## Slice 5: SSH key forms
+
+Implemented: creation, import and unlocking use compact fields. AppForm's section
+layout owns padding and spacing for standalone forms. AppFileInput participates
+in the same label column and retains an accessible native input name, with a
+live example in the kit gallery. WindowDialog exposes the existing sizing policy
+and a form preset: creation/import are stable; unlocking remains content-sized.
+The private-key workflow and server contracts are unchanged.
+
+Coverage: file-field accessibility in the composition unit test; browser scenes
+for all three forms in both themes and narrow windows, including conditional
+passphrase fields, generation errors, file selection and fixed footer actions.
+
+Validation: all 1,873 frontend unit tests and seven targeted Playwright scenarios
+passed, including real key generation/import and the unlock-and-reread workflow.
+Type-check, lint, production build and documentation checks passed. Lint retains
+20 unrelated warnings; the build reports large chunks. Inspected desktop/light
+import and narrow/dark import/unlock screenshots. The full E2E suite was not run.
+
+Next: continue with another complete form family; the preferences page around
+these forms and the other operation-result surfaces remain to migrate.
