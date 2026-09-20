@@ -81,6 +81,6 @@ function showReferenced(target: ReferencedRows) {
   align-items: center;
   justify-content: flex-end;
   flex: none;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 </style>

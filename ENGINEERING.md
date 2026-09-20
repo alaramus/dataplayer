@@ -155,6 +155,12 @@ encryption key must decode to exactly 32 bytes.
   application names a layer declared in `src/shared/ui/layers.css`; a raw
   number is a defect, because two of them cannot be compared without opening
   both files.
+- **So are a colour and a space.** A colour is `theme.css`'s, so it turns over
+  with the theme; a number, `var(--q-negative)` and `text-negative` are each a
+  way past it, and the third is how a dark red Delete came to sit on a dark
+  menu. Spacing and corners are `metrics.css`'s: the audit of 2026-09-19 found
+  4, 5, 6, 7 and 10 pixels side by side for what was meant to be one step. A
+  hairline — `1px` — is a border's width rather than a space.
 - `src/client` is generated from OpenAPI and never edited by hand. After
   changing routes or schemas, run `bash scripts/generate-client.sh`.
 - Pure logic is separated from components so it can be tested without mounting:
@@ -162,12 +168,20 @@ encryption key must decode to exactly 32 bytes.
 - Elements are found in tests the way a user finds them — by role, text or
   `data-testid` — not by CSS classes and not by snapshots.
 
-**Enforced:** a test reads every `.vue` under `src` — where every component
-style lives — and fails on a `z-index` that is not `var(--dp-layer-…)`. A `.css`
-file cannot be read from a unit test at all: Vite hands back its name and an
-empty string for its contents, so the scale's own order is checked in the
-browser instead, by the Playwright scenario about what floats over a sticky
-heading. Both were verified by breaking them.
+**Enforced:** four tests. Three read every `.vue` under `src` — where every
+component style lives — and fail on a `z-index` that is not `var(--dp-layer-…)`
+(`layers.spec.ts`), on a spacing or corner written as pixels
+(`metrics.spec.ts`), and on a colour reached for past the theme
+(`palette.spec.ts`), which reads the `.ts` modules as well. The fourth,
+`declared.spec.ts`, fails on a token that is spent and declared nowhere, with or
+without a fallback — the shape of `var(--dp-radius)` and of
+`var(--dp-danger-text, #d32f2f)`, which the other three cannot see because they
+read what a value looks like rather than whether it exists. Vite hands a test an
+empty string for a `.css` file, so that one reads the three token files from the
+disk and is typed as Node rather than as the browser; what actually paints over
+what stays a browser question, answered by the Playwright scenario about a
+sticky heading. Each was verified by breaking it, the colour rule five times
+over — once for every way around it the test names.
 ESLint forbids `src/stores/**` importing the generated client or
 any feature, verified by introducing the import. ESLint also forbids, outside
 `src/shared/ui`, every `q-*` the kit replaces — in both spellings Vue accepts,

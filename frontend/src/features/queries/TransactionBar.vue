@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
 .transaction__row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--dp-space-2);
 }
 .transaction__what {
   flex: 1;

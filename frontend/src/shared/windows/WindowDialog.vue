@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
 }
 .window-dialog__subtitle {
   flex: none;
-  padding: 8px 16px 0;
+  padding: var(--dp-space-2) var(--dp-space-4) 0;
   color: var(--dp-text-muted);
   font-size: 0.75rem;
 }

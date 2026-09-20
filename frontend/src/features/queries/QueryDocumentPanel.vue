@@ -1218,14 +1218,14 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--dp-space-1);
+  padding: var(--dp-space-1);
 }
 .query-panel__bar {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
   /* Scrolls sideways rather than folding anything away once even the commands
      no longer fit, as the grid's own row does. */
   overflow-x: auto;
@@ -1235,7 +1235,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   /* The same gap the bar sets, so the join is invisible. */
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .query-panel__title {
   flex: 0 1 200px;
@@ -1280,11 +1280,11 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 .query-panel__choices {
   display: flex;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .query-panel__frame {
   flex: 1;
@@ -1318,7 +1318,7 @@ onBeforeUnmount(() => {
     center / 100% 1px no-repeat;
 }
 .query-panel__nothing {
-  padding: 16px;
+  padding: var(--dp-space-4);
   color: var(--dp-text-muted);
   font-size: 12px;
 }

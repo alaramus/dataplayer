@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import { badgeColor } from "./tokens"
+import { toneFill } from "./tokens"
 import type { Tone } from "./tokens"
 
 const props = withDefaults(
@@ -18,14 +18,13 @@ const props = withDefaults(
   { tone: "info", corner: false }
 )
 
-const color = computed(() => badgeColor(props.tone))
+const fill = computed(() => toneFill(props.tone))
 </script>
 
 <template>
   <q-badge
-    :color="color"
     :label="label"
-    :class="{ 'app-badge--corner': corner }"
+    :class="[fill, { 'app-badge--corner': corner }]"
   />
 </template>
 
@@ -36,7 +35,7 @@ const color = computed(() => badgeColor(props.tone))
   top: 1px;
   right: 0;
   min-width: 16px;
-  padding: 1px 4px;
+  padding: 1px var(--dp-space-1);
   font-size: 10px;
   line-height: 12px;
   justify-content: center;

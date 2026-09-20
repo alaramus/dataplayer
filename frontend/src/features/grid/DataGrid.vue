@@ -1662,6 +1662,6 @@ defineExpose({
 }
 
 .data-grid__insert-error {
-  margin: 8px 12px;
+  margin: var(--dp-space-2) var(--dp-space-3);
 }
 </style>

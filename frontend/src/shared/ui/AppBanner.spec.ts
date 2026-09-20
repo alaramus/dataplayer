@@ -3,7 +3,7 @@ import { Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
 
 import AppBanner from "./AppBanner.vue"
-import type { Tone } from "./tokens"
+import { bannerLook, type Tone } from "./tokens"
 
 function mountBanner(tone: Tone) {
   return mount(AppBanner, {
@@ -15,12 +15,12 @@ function mountBanner(tone: Tone) {
 }
 
 describe("AppBanner", () => {
-  // A Playwright scenario asserts bg-positive on the element it addresses by
-  // test id, so the tone class and the test id must land on the same element.
+  // A screen addresses the banner by its test id and the theme paints it by its
+  // tone class, so the two must land on the same element.
   it("puts the tone class on the element carrying the test id", () => {
     const root = mountBanner("success").get("[data-testid='the-banner']")
 
-    expect(root.classes()).toContain("bg-positive")
+    expect(root.classes()).toContain(bannerLook("success").classes)
   })
 
   it("gives every tone its own icon", () => {

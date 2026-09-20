@@ -54,7 +54,7 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
         :key="item.name"
         clickable
         :disable="item.disable === true"
-        :class="item.danger === true ? 'text-negative' : undefined"
+        :class="item.danger === true ? 'text-dp-action-danger' : undefined"
         :data-testid="`menu-item-${item.name}`"
         @click="item.disable === true ? undefined : emit('select', item.name)"
       >

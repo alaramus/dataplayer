@@ -3,7 +3,7 @@ import { computed } from "vue"
 
 import { describeState } from "@/features/connectors/connectorState"
 import type { ConnectorState } from "@/features/connectors/connectorState"
-import { badgeColor } from "@/shared/ui"
+import { toneFill } from "@/shared/ui"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 /**
@@ -24,10 +24,10 @@ const checks = useConnectorChecksStore()
 const TONE: Record<ConnectorState, string> = {
   // Switched off is a warning and not a failure: nothing is wrong with it,
   // it is simply not in use.
-  disabled: `bg-${badgeColor("warning")}`,
+  disabled: toneFill("warning"),
   unknown: "connector-dot--unknown",
-  ok: `bg-${badgeColor("success")}`,
-  failed: `bg-${badgeColor("error")}`,
+  ok: toneFill("success"),
+  failed: toneFill("error"),
 }
 
 const state = computed(

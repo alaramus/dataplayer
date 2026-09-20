@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted } from "vue"
 
 import { notices } from "@/shared/notifications"
 import type { AttentionItem } from "@/shared/notifications"
-import { AppButton, AppEmptyState, AppIconButton, AppToggle, badgeColor, bannerLook } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppIconButton, AppToggle, bannerLook, toneText } from "@/shared/ui"
 import ProcessList from "./ProcessList.vue"
 import type { ProcessRow } from "./presentation"
 
@@ -119,7 +119,7 @@ function follow(run: () => void) {
           >
             <q-icon
               :name="bannerLook(item.tone).icon"
-              :class="`text-${badgeColor(item.tone)}`"
+              :class="toneText(item.tone)"
               size="18px"
             />
             <div class="sheet__text">
@@ -206,7 +206,7 @@ function follow(run: () => void) {
           >
             <q-icon
               :name="bannerLook(notice.tone).icon"
-              :class="`text-${badgeColor(notice.tone)}`"
+              :class="toneText(notice.tone)"
               size="18px"
             />
             <div class="sheet__text">
@@ -290,8 +290,8 @@ function follow(run: () => void) {
 
 .sheet__heading > span { flex: none; }
 .sheet__count {
-  padding: 0 6px;
-  border-radius: 999px;
+  padding: 0 var(--dp-space-2);
+  border-radius: var(--dp-radius-pill);
   background: var(--dp-border);
   color: var(--dp-text-strong);
   letter-spacing: 0;

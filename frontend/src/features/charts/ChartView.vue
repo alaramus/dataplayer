@@ -199,9 +199,9 @@ function chooseSuggestion(value: unknown): void {
 .chart-view__controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dp-space-2);
   min-height: 0;
-  padding: 12px 10px;
+  padding: var(--dp-space-3) var(--dp-space-2);
   overflow-y: auto;
   border-right: 1px solid var(--dp-border);
 }
@@ -209,7 +209,7 @@ function chooseSuggestion(value: unknown): void {
 .chart-view__chart {
   min-width: 0;
   min-height: 0;
-  padding: 8px;
+  padding: var(--dp-space-2);
 }
 
 .chart-view__selection {

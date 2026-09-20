@@ -100,9 +100,9 @@ watch(
   display: grid;
   grid-template-columns: 160px 1fr;
   align-items: center;
-  gap: 12px;
+  gap: var(--dp-space-3);
   min-height: 52px;
-  padding: 8px;
+  padding: var(--dp-space-2);
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
 }

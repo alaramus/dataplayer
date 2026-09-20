@@ -8,12 +8,20 @@
 
 :root {
   --dp-font-ui: Inter, "Segoe UI", system-ui, sans-serif;
+  /* Code, a value read character by character, a log. The terminal sets
+     the same stack as a string, because xterm takes one. */
+  --dp-font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   --dp-font-size: 13px;
 
+  /* The one step below the grid: the gap between two chips, the padding of a
+     badge. Everything else is a multiple of four; a value between two steps is
+     spent as the nearer one (shared/ui/metrics.spec.ts holds the line). */
+  --dp-space-half: 2px;
   --dp-space-1: 4px;
   --dp-space-2: 8px;
   --dp-space-3: 12px;
   --dp-space-4: 16px;
+  --dp-space-5: 24px;
 
   --dp-header-height: 42px;
   --dp-status-height: 24px;
@@ -31,6 +39,8 @@
   --dp-radius-control: 4px;
   --dp-radius-panel: 8px;
   --dp-radius-shell: 16px;
+  /* Round at both ends whatever the height: a count, a chip. */
+  --dp-radius-pill: 999px;
 }
 
 body {

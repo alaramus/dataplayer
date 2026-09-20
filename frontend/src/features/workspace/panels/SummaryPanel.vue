@@ -60,7 +60,7 @@ function openRelated(view: RelatedView) {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 .summary-panel__view {
   flex: 1;
@@ -71,6 +71,6 @@ function openRelated(view: RelatedView) {
   align-items: center;
   justify-content: flex-end;
   flex: none;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 </style>

@@ -430,7 +430,7 @@ watch([() => props.filename, () => props.languageHint], () => void loadLanguage(
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--dp-border-faint);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 .code-editor__surface {
   height: 100%;
@@ -439,9 +439,9 @@ watch([() => props.filename, () => props.languageHint], () => void loadLanguage(
   position: absolute;
   right: 14px;
   bottom: 8px;
-  padding: 2px 6px;
+  padding: var(--dp-space-half) var(--dp-space-2);
   border: 1px solid var(--dp-border-faint);
-  border-radius: 3px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-surface);
   color: var(--dp-text-muted);
   font-size: 10px;

@@ -919,19 +919,19 @@ defineExpose({
 }
 
 .data-grid__state {
-  margin: 12px;
+  margin: var(--dp-space-3);
 }
 
 .data-grid__error {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 
 .data-grid__error-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 
 .data-grid__skeleton {
@@ -984,7 +984,7 @@ defineExpose({
   box-sizing: border-box;
   min-width: 0;
   max-width: none;
-  padding: 2px 6px;
+  padding: var(--dp-space-half) var(--dp-space-2);
   border-right: 1px solid var(--dp-border-faint);
   border-bottom: 1px solid var(--dp-border-faint);
   text-align: left;
@@ -1138,7 +1138,7 @@ defineExpose({
 }
 
 .data-grid__monospace {
-  font-family: monospace;
+  font-family: var(--dp-font-mono);
 }
 
 .data-grid__pager {
@@ -1147,7 +1147,7 @@ defineExpose({
   min-height: 40px;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: var(--dp-space-1);
   color: var(--dp-text-muted);
 }
 /* The far end of the same row: what is about the whole page reads from the

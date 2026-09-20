@@ -3,7 +3,7 @@ withDefaults(defineProps<{ text: string; icon?: string }>(), { icon: undefined }
 </script>
 
 <template>
-  <div class="text-grey row items-center q-gutter-sm">
+  <div class="app-empty-state row items-center q-gutter-sm">
     <q-icon
       v-if="icon"
       :name="icon"
@@ -12,3 +12,9 @@ withDefaults(defineProps<{ text: string; icon?: string }>(), { icon: undefined }
     <span>{{ text }}</span>
   </div>
 </template>
+
+<style scoped>
+.app-empty-state {
+  color: var(--dp-text-muted);
+}
+</style>

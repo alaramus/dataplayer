@@ -139,21 +139,21 @@ const emit = defineEmits<{
   flex-direction: column;
   align-items: center;
   min-height: 0;
-  padding: 4px 0 2px;
+  padding: var(--dp-space-1) 0 var(--dp-space-half);
   overflow-x: hidden;
   overflow-y: auto;
 }
 
 .rail-narrow__rule {
   align-self: stretch;
-  margin: 2px 8px 4px;
+  margin: var(--dp-space-half) var(--dp-space-2) var(--dp-space-1);
 }
 
 .rail-narrow__slot {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 
 /* The blue the wide rail writes the open dashboard in: the icon is what is

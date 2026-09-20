@@ -68,7 +68,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 2px;
+  padding-bottom: var(--dp-space-half);
 }
 /* Centred rather than padded like a head with a title: forty pixels centre a
    thirty-two pixel button exactly where the wide head's padding puts it. The
@@ -76,7 +76,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
 .connector-rail .connector-rail__head {
   align-self: stretch;
   justify-content: center;
-  margin-bottom: 4px;
+  margin-bottom: var(--dp-space-1);
   padding: 0;
 }
 .connector-rail__slot {
@@ -84,7 +84,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 /* The same two states the wide row carries, at a smaller width — and in the
    connection's own colour for the same reason: pushing the column aside takes

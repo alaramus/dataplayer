@@ -964,7 +964,7 @@ async function parseTyped(text: string) {
 .connector-window__heading {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 /* The name takes what is left: the switch is two words wide and fixed, and a
    name box that changed width with the label beside it would jump. */
@@ -980,12 +980,12 @@ async function parseTyped(text: string) {
 .connector-window__permissions {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--dp-space-4);
 }
 .connector-window__options {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--dp-space-4);
 }
 /* A duration is a short word in a wide window; stretched across it the field
    reads as a place to type a sentence. */
@@ -1014,7 +1014,7 @@ async function parseTyped(text: string) {
 .connector-window__policy {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--dp-space-2);
 }
 .connector-window__policy-select {
   flex: 0 1 240px;
@@ -1032,8 +1032,8 @@ async function parseTyped(text: string) {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 12px 16px;
+  gap: var(--dp-space-4);
+  padding: var(--dp-space-3) var(--dp-space-4);
 }
 .connector-window__foot-area {
   flex: none;
@@ -1041,13 +1041,13 @@ async function parseTyped(text: string) {
 }
 .connector-window__tabs {
   display: flex;
-  gap: 4px;
+  gap: var(--dp-space-1);
   border-bottom: 1px solid var(--dp-border);
 }
 .connector-window__tab {
   border: none;
   background: none;
-  padding: 6px 12px;
+  padding: var(--dp-space-2) var(--dp-space-3);
   cursor: pointer;
   text-transform: capitalize;
   border-bottom: 2px solid transparent;
@@ -1055,14 +1055,14 @@ async function parseTyped(text: string) {
   font: inherit;
 }
 .connector-window__tab--active {
-  border-bottom-color: var(--q-primary);
+  border-bottom-color: var(--dp-accent);
   font-weight: 500;
 }
 .connector-window__url {
   flex: none;
   display: flex;
   min-width: 0;
-  padding: 0 16px 8px;
+  padding: 0 var(--dp-space-4) var(--dp-space-2);
   border-top: 1px solid var(--dp-border);
 }
 .connector-window__url-field {
@@ -1073,8 +1073,8 @@ async function parseTyped(text: string) {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-4);
   border-top: 1px solid var(--dp-border);
 }
 .connector-window__spacer {

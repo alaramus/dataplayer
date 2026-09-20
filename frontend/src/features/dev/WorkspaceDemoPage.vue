@@ -136,8 +136,8 @@ function openOne() {
 }
 .demo__bar {
   display: flex;
-  gap: 8px;
-  padding: 8px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2);
 }
 /* The ground the application stands the workspace on, so this page shows the
    cards against what they are actually drawn against. */

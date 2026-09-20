@@ -125,7 +125,7 @@ async function answer(requestId: string, access: Grant | null) {
 .asking__list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--dp-space-half);
   margin: 0;
   padding: 0;
   list-style: none;

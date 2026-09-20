@@ -216,13 +216,13 @@ watch(
 .schema-fields {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--dp-space-4);
 }
 /* Every field on a line gets the same share, except that a field with a
    narrow value — a port — is not made to take half the width of an address. */
 .schema-fields__row {
   display: flex;
-  gap: 12px;
+  gap: var(--dp-space-3);
   align-items: flex-start;
 }
 .schema-fields__row > * {

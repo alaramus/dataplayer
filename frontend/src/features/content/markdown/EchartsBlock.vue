@@ -142,11 +142,11 @@ onBeforeUnmount(() => {
   width: 100%;
   /* Tall enough for a title, a legend and a plot to stand apart. */
   height: 350px;
-  padding: 8px;
+  padding: var(--dp-space-2);
 }
 .echarts-block__failure {
   margin: 0;
-  padding: 12px;
+  padding: var(--dp-space-3);
   color: var(--dp-text-muted);
   font-size: 12px;
 }

@@ -88,19 +88,19 @@ function togglePin(columnName: string) {
 .column-manager__item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
 }
 
 .column-manager {
   flex-wrap: wrap;
   min-height: 48px;
-  padding: 4px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   border-top: 1px solid var(--dp-border-faint);
 }
 
 .column-manager__item {
-  padding: 0 4px 0 8px;
+  padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   border: 1px solid var(--dp-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 </style>

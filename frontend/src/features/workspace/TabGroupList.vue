@@ -137,15 +137,15 @@ function rename() {
 .group-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--dp-space-half);
   min-width: 220px;
   max-width: 320px;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 .group-list__row {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 .group-list__open {
   flex: 1;
@@ -156,7 +156,7 @@ function rename() {
   min-width: 0;
 }
 .group-list__empty {
-  padding: 8px 12px;
+  padding: var(--dp-space-2) var(--dp-space-3);
   color: var(--dp-text-muted);
   font-size: 12px;
   white-space: nowrap;

@@ -771,7 +771,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  padding: 16px 20px;
+  padding: var(--dp-space-4) var(--dp-space-5);
   color: var(--dp-text-strong);
   font-size: 13px;
   line-height: 1.6;
@@ -779,7 +779,7 @@ onBeforeUnmount(() => {
 .markdown-panel__prose :deep(h1),
 .markdown-panel__prose :deep(h2),
 .markdown-panel__prose :deep(h3) {
-  margin: 20px 0 8px;
+  margin: var(--dp-space-5) 0 var(--dp-space-2);
   font-weight: 600;
   line-height: 1.3;
   scroll-margin-top: 12px;
@@ -797,31 +797,31 @@ onBeforeUnmount(() => {
 .markdown-panel__prose :deep(ul),
 .markdown-panel__prose :deep(ol),
 .markdown-panel__prose :deep(blockquote) {
-  margin: 8px 0;
+  margin: var(--dp-space-2) 0;
 }
 .markdown-panel__prose :deep(ul),
 .markdown-panel__prose :deep(ol) {
-  padding-left: 22px;
+  padding-left: var(--dp-space-5);
 }
 .markdown-panel__prose :deep(blockquote) {
-  padding: 2px 12px;
+  padding: var(--dp-space-half) var(--dp-space-3);
   border-left: 3px solid var(--dp-border-faint);
   color: var(--dp-text-muted);
 }
 .markdown-panel__prose :deep(code) {
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 1px var(--dp-space-1);
+  border-radius: var(--dp-radius-control);
   background: var(--dp-hover);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family: var(--dp-font-mono);
   font-size: 12px;
 }
 .markdown-panel__prose :deep(table) {
   border-collapse: collapse;
-  margin: 12px 0;
+  margin: var(--dp-space-3) 0;
 }
 .markdown-panel__prose :deep(th),
 .markdown-panel__prose :deep(td) {
-  padding: 4px 10px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: 1px solid var(--dp-border-faint);
   text-align: left;
 }
@@ -838,7 +838,7 @@ onBeforeUnmount(() => {
   min-width: 120px;
   min-height: 24px;
   border: 1px dashed var(--dp-border-faint);
-  border-radius: 3px;
+  border-radius: var(--dp-radius-control);
 }
 .markdown-panel__prose :deep(img[data-relative-error]) {
   border-color: var(--dp-content-error);
@@ -855,7 +855,7 @@ onBeforeUnmount(() => {
   opacity: 0.7;
 }
 .markdown-panel__document :deep(mark[data-search-highlight]) {
-  border-radius: 2px;
+  border-radius: var(--dp-radius-control);
   background: color-mix(in srgb, var(--dp-find) 45%, transparent);
   color: inherit;
 }
@@ -871,8 +871,8 @@ onBeforeUnmount(() => {
 .markdown-panel__prose :deep(.katex-display) {
   overflow-x: auto;
   overflow-y: hidden;
-  margin: 14px 0;
-  padding: 2px 0;
+  margin: var(--dp-space-3) 0;
+  padding: var(--dp-space-half) 0;
 }
 .markdown-panel__prose :deep(hr) {
   border: 0;

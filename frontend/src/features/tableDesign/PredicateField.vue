@@ -66,11 +66,11 @@ const label = computed(() => {
 }
 .predicate-field__editor {
   display: grid;
-  gap: 8px;
-  margin-top: 8px;
-  padding: 10px;
+  gap: var(--dp-space-2);
+  margin-top: var(--dp-space-2);
+  padding: var(--dp-space-2);
   border: 1px solid var(--dp-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 .predicate-field__editor > :last-child {
   justify-self: end;

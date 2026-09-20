@@ -69,7 +69,7 @@ function download() {
   display: grid;
   place-items: center;
   min-height: 120px;
-  padding: 16px;
+  padding: var(--dp-space-4);
 }
 .svg-block__figure :deep(svg) {
   display: block;
@@ -78,10 +78,10 @@ function download() {
 }
 .svg-block__source {
   margin: 0;
-  padding: 12px;
+  padding: var(--dp-space-3);
   overflow-x: auto;
   color: var(--dp-text-strong);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family: var(--dp-font-mono);
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-word;

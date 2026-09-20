@@ -53,9 +53,11 @@ describe("bannerLook", () => {
     }
   })
 
-  // A Playwright scenario asserts this class on the connection check result.
-  it("keeps the classes the existing screens were built on", () => {
-    expect(bannerLook("error").classes).toContain("bg-negative")
-    expect(bannerLook("success").classes).toContain("bg-positive")
+  // Quasar's own colour classes are one colour for both themes, which is how a
+  // dark red banner came to sit on a dark surface (U08).
+  it("names a theme class rather than one of Quasar's colours", () => {
+    for (const tone of ["error", "success", "warning", "info"] as const) {
+      expect(bannerLook(tone).classes).toMatch(/^dp-tone-/)
+    }
   })
 })

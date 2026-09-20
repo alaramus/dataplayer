@@ -162,7 +162,7 @@ async function remove(reference: Drawn) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .declared__title {
   font-weight: 600;
@@ -176,7 +176,7 @@ async function remove(reference: Drawn) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 2px 0;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-half) 0;
 }
 </style>

@@ -160,7 +160,7 @@ function removeSavedEntry(name: string) {
 
     <AppBanner
       tone="info"
-      class="q-mb-md"
+      class="ui-kit__card"
     >
       Every component of the kit, with every variant it offers. Rendered from the real components,
       so this page breaks when one of them does.
@@ -169,10 +169,10 @@ function removeSavedEntry(name: string) {
     <AppCard
       size="lg"
       title="Buttons"
-      class="q-mb-md"
+      class="ui-kit__card"
     >
       <AppSection>
-        <div class="row items-center q-gutter-sm">
+        <div class="row items-center ui-kit__row">
           <AppButton
             v-for="variant in BUTTON_VARIANTS"
             :key="variant"
@@ -180,7 +180,7 @@ function removeSavedEntry(name: string) {
             :label="variant"
           />
         </div>
-        <div class="row items-center q-gutter-sm q-mt-md">
+        <div class="row items-center ui-kit__row ui-kit__row--spaced">
           <AppButton
             size="sm"
             label="small"
@@ -217,7 +217,7 @@ function removeSavedEntry(name: string) {
             disable
           />
         </div>
-        <div class="row items-center q-gutter-sm q-mt-md">
+        <div class="row items-center ui-kit__row ui-kit__row--spaced">
           <AppIconButton
             icon="account_tree"
             tooltip="Browse catalog"
@@ -263,12 +263,12 @@ function removeSavedEntry(name: string) {
             :aria-expanded="popupOpen"
           >
             <AppPopup v-model="popupOpen">
-              <div class="q-pa-sm">
+              <div class="ui-kit__pad">
                 A popup holds whatever is not a menu of actions.
               </div>
             </AppPopup>
           </AppButton>
-          <span class="text-caption text-grey">
+          <span class="text-caption ui-kit__note">
             hover for tooltips
             <AppTooltip>A tooltip attaches to whatever contains it.</AppTooltip>
           </span>
@@ -283,7 +283,7 @@ function removeSavedEntry(name: string) {
     <AppCard
       size="lg"
       title="Messages"
-      class="q-mb-md"
+      class="ui-kit__card"
     >
       <AppSection gutter>
         <AppBanner
@@ -295,7 +295,7 @@ function removeSavedEntry(name: string) {
         </AppBanner>
       </AppSection>
       <AppSection divided>
-        <div class="row items-center q-gutter-sm">
+        <div class="row items-center ui-kit__row">
           <AppBadge
             v-for="tone in TONES"
             :key="tone"
@@ -339,7 +339,7 @@ function removeSavedEntry(name: string) {
     <AppCard
       size="lg"
       title="Fields"
-      class="q-mb-md"
+      class="ui-kit__card"
     >
       <AppSection gutter>
         <AppInput
@@ -462,7 +462,7 @@ function removeSavedEntry(name: string) {
     <AppCard
       size="lg"
       title="Table"
-      class="q-mb-md"
+      class="ui-kit__card"
     >
       <AppSection>
         <!-- What the bar at the foot of the screen is made of: a window, and a
@@ -497,10 +497,10 @@ function removeSavedEntry(name: string) {
     <AppCard
       size="lg"
       title="Panels"
-      class="q-mb-md"
+      class="ui-kit__card"
     >
       <AppSection>
-        <div class="row items-center q-gutter-sm">
+        <div class="row items-center ui-kit__row">
           <AppButton
             v-for="size in SIZES"
             :key="size"
@@ -511,7 +511,7 @@ function removeSavedEntry(name: string) {
         </div>
       </AppSection>
       <AppActions align="left">
-        <span class="text-caption text-grey">
+        <span class="text-caption ui-kit__note">
           A footer is AppActions; inside a dialog it is the actions slot.
         </span>
       </AppActions>
@@ -520,7 +520,7 @@ function removeSavedEntry(name: string) {
     <AppCard
       size="lg"
       title="Cards"
-      class="q-mb-md"
+      class="ui-kit__card"
     >
       <AppSection>
         <AppCardFrame
@@ -607,3 +607,21 @@ function removeSavedEntry(name: string) {
     </WindowDialog>
   </AppLayout>
 </template>
+
+<style scoped>
+.ui-kit__card {
+  margin-bottom: var(--dp-space-4);
+}
+.ui-kit__row {
+  gap: var(--dp-space-2);
+}
+.ui-kit__row--spaced {
+  margin-top: var(--dp-space-4);
+}
+.ui-kit__pad {
+  padding: var(--dp-space-2);
+}
+.ui-kit__note {
+  color: var(--dp-text-muted);
+}
+</style>

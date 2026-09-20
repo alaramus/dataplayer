@@ -227,20 +227,20 @@ function include(columnId: string, checked: boolean): void {
 .inspector {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 .inspector__row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--dp-space-3);
   align-items: end;
 }
 .inspector__legend {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 2px;
+  gap: var(--dp-space-2);
+  margin-top: var(--dp-space-half);
 }
 .inspector h3 {
   margin: 0;
@@ -253,26 +253,26 @@ function include(columnId: string, checked: boolean): void {
 .inspector__key {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 72px 78px 26px;
-  gap: 6px;
+  gap: var(--dp-space-2);
   align-items: end;
 }
 .inspector__predicate {
   display: grid;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .inspector__badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--dp-space-2);
 }
 .inspector__badges > * {
   border: 1px solid var(--dp-border);
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: var(--dp-space-half) var(--dp-space-2);
+  border-radius: var(--dp-radius-control);
 }
 .inspector__advanced {
   border-top: 1px solid var(--dp-border);
-  padding-top: 8px;
+  padding-top: var(--dp-space-2);
 }
 .inspector__advanced summary {
   cursor: pointer;
@@ -280,8 +280,8 @@ function include(columnId: string, checked: boolean): void {
 }
 .inspector__advanced-key {
   display: grid;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--dp-space-3);
+  margin-top: var(--dp-space-3);
 }
 .inspector__note {
   color: var(--dp-text-muted);

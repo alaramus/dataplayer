@@ -104,17 +104,17 @@ const groups = computed(() => [
 <style scoped>
 .navigation {
   min-width: 0;
-  padding: 6px;
+  padding: var(--dp-space-2);
   background: var(--dp-chrome-raised);
   border-right: 1px solid var(--dp-border);
 }
 .navigation__header {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--dp-space-2);
   width: 100%;
   border: 0;
-  padding: 10px 8px 3px;
+  padding: var(--dp-space-2) var(--dp-space-2) var(--dp-space-half);
   background: transparent;
   color: var(--dp-text-muted);
   font: inherit;
@@ -127,11 +127,11 @@ const groups = computed(() => [
 .navigation__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
   width: 100%;
-  padding: 6px 8px;
+  padding: var(--dp-space-2) var(--dp-space-2);
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -148,7 +148,7 @@ const groups = computed(() => [
   color: var(--dp-link);
 }
 .navigation__row--wrong {
-  text-decoration: underline wavy var(--q-negative);
+  text-decoration: underline wavy var(--dp-content-error);
 }
 .navigation button:focus-visible {
   outline: 2px solid var(--dp-link);
@@ -158,7 +158,7 @@ const groups = computed(() => [
   .navigation {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--dp-space-1);
     border-right: 0;
     border-bottom: 1px solid var(--dp-border);
   }

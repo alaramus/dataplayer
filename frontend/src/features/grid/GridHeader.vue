@@ -160,7 +160,7 @@ const groups = TOOLBAR_GROUPS
   display: flex;
   align-items: stretch;
   overflow-x: auto;
-  padding: 2px 0 4px;
+  padding: var(--dp-space-half) 0 var(--dp-space-1);
 }
 
 .grid-header__group {
@@ -173,18 +173,18 @@ const groups = TOOLBAR_GROUPS
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 0 2px;
+  padding: 0 var(--dp-space-half);
 }
 
 .grid-header__rule {
   flex: none;
   width: 1px;
-  margin: 4px 7px;
+  margin: var(--dp-space-1) var(--dp-space-2);
   background: var(--dp-border);
 }
 
 .grid-header__label {
-  padding-left: 6px;
+  padding-left: var(--dp-space-2);
   font-size: var(--dp-font-size);
   font-weight: 600;
   line-height: 1.4;
@@ -196,7 +196,7 @@ const groups = TOOLBAR_GROUPS
 .grid-header__row {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   white-space: nowrap;
 }
 </style>

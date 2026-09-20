@@ -12,7 +12,10 @@
     // an operation is by importing it rather than by describing it again.
     // Listed here because a composite project checks only the files it names,
     // and an imported file that no project claims is an error of its own.
-    "src/client/**/*"
+    "src/client/**/*",
+    // Runs under vitest with the rest of `src`, but reads the disk; excluded
+    // from tsconfig.build.json for the reason given there.
+    "src/shared/ui/declared.spec.ts"
   ],
   "compilerOptions": {
     "composite": true,

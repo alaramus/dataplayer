@@ -102,7 +102,7 @@ watch(() => props.language, () => void loadLanguage())
 
 <style scoped>
 .code-fence__surface {
-  padding: 10px 12px;
+  padding: var(--dp-space-2) var(--dp-space-3);
   background: var(--dp-chrome-raised);
 }
 </style>

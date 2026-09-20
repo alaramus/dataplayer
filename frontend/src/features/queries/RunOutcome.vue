@@ -221,9 +221,9 @@ function duration(statement: StatementPublic): string {
 }
 .run-outcome__statement {
   display: flex;
-  gap: 6px;
+  gap: var(--dp-space-2);
   width: 100%;
-  padding: 5px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: none;
   border-inline-start: 2px solid transparent;
   background: none;
@@ -271,8 +271,8 @@ function duration(statement: StatementPublic): string {
   flex: none;
   display: flex;
   justify-content: flex-end;
-  gap: 2px;
-  padding: 2px 4px 0;
+  gap: var(--dp-space-half);
+  padding: var(--dp-space-half) var(--dp-space-1) 0;
 }
 .run-outcome__table {
   flex: 1;
@@ -280,21 +280,21 @@ function duration(statement: StatementPublic): string {
 }
 .run-outcome__error {
   flex: none;
-  margin: 8px;
+  margin: var(--dp-space-2);
 }
 .run-outcome__messages {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 12px;
+  padding: var(--dp-space-2) var(--dp-space-3);
 }
 .run-outcome__message {
-  margin: 0 0 6px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  margin: 0 0 var(--dp-space-2);
+  font-family: var(--dp-font-mono);
   font-size: 12px;
 }
 .run-outcome__severity {
   color: var(--dp-text-muted);
-  margin-inline-end: 6px;
+  margin-inline-end: var(--dp-space-2);
 }
 </style>

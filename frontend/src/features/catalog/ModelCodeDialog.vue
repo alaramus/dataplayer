@@ -236,7 +236,7 @@ function close() {
   max-height: 60vh;
   overflow: auto;
   border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius);
+  border-radius: var(--dp-radius-control);
 }
 
 .model-code__waiting {

@@ -92,7 +92,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .mermaid-block__figure {
-  padding: 12px;
+  padding: var(--dp-space-3);
 }
 .mermaid-block__figure :deep(svg) {
   display: block;
@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
 }
 .mermaid-block__failure {
   margin: 0;
-  padding: 12px;
+  padding: var(--dp-space-3);
   color: var(--dp-text-muted);
   font-size: 12px;
 }

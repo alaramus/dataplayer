@@ -49,25 +49,25 @@ withDefaults(
 <style scoped>
 .block-chrome {
   overflow: hidden;
-  margin: 12px 0;
+  margin: var(--dp-space-3) 0;
   border: 1px solid var(--dp-border-faint);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-surface);
 }
 .block-chrome__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--dp-space-2);
   min-height: 28px;
-  padding: 0 4px 0 10px;
+  padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border-faint);
   background: var(--dp-chrome-raised);
 }
 .block-chrome__label {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
   color: var(--dp-text-muted);
   font-size: 10px;
   letter-spacing: 0.04em;
@@ -88,7 +88,7 @@ withDefaults(
 .block-chrome__actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 .block-chrome__body {
   overflow-x: auto;

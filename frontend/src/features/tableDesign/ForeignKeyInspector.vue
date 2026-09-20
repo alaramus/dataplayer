@@ -239,7 +239,7 @@ function chooseKey(value: string): void {
 <style scoped>
 .inspector {
   display: grid;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 .inspector h3 {
   margin: 0;
@@ -252,18 +252,18 @@ function chooseKey(value: string): void {
 .inspector__row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--dp-space-3);
   align-items: start;
 }
 .inspector__relationship {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
-  gap: 8px;
+  gap: var(--dp-space-2);
   align-items: center;
 }
 .inspector__relation {
   border: 1px solid var(--dp-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   overflow: hidden;
   overflow-wrap: anywhere;
 }
@@ -271,13 +271,13 @@ function chooseKey(value: string): void {
   display: block;
   background: var(--dp-chrome-raised);
   border-bottom: 1px solid var(--dp-border);
-  padding: 6px 8px;
+  padding: var(--dp-space-2) var(--dp-space-2);
 }
 .inspector__relation > span {
   display: block;
-  padding: 5px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   color: var(--dp-link);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family: var(--dp-font-mono);
 }
 .inspector__arrow {
   text-align: center;
@@ -286,7 +286,7 @@ function chooseKey(value: string): void {
 .inspector__mapping {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 25px minmax(0, 1fr);
-  gap: 5px;
+  gap: var(--dp-space-1);
   align-items: center;
 }
 .inspector__note {

@@ -42,25 +42,25 @@ const emit = defineEmits<{ pick: []; open: [] }>()
 .adapter-tile {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--dp-space-1);
   min-width: 0;
-  padding: 8px;
+  padding: var(--dp-space-2);
   border: 1px solid var(--dp-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   cursor: pointer;
 }
 .adapter-tile:hover,
 .adapter-tile:focus-visible {
-  border-color: var(--q-primary);
+  border-color: var(--dp-accent);
 }
 .adapter-tile--selected {
-  border-color: var(--q-primary);
-  box-shadow: inset 0 0 0 1px var(--q-primary);
+  border-color: var(--dp-accent);
+  box-shadow: inset 0 0 0 1px var(--dp-accent);
 }
 .adapter-tile__head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
   min-width: 0;
 }
 .adapter-tile__name {

@@ -236,7 +236,7 @@ function remove(profile: ServerProfile) {
 <style scoped>
 .server-switcher { flex: none; max-width: min(240px, 38vw); }
 .server-switcher__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
-.server-switcher__row { display: flex; align-items: center; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--dp-border); }
+.server-switcher__row { display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2) 0; border-bottom: 1px solid var(--dp-border); }
 .server-switcher__details { flex: 1; min-width: 0; }
 .server-switcher__url, .server-switcher__current { color: var(--dp-text-muted); font-size: 12px; overflow-wrap: anywhere; }
 </style>

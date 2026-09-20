@@ -331,14 +331,14 @@ function showReferenced(target: ReferencedRows) {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 /* Where a spreadsheet puts them: along the foot, beside the paging controls
    rather than above the columns, which belong to the sheet being read. */
 .rows-panel__sheets {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   min-width: 0;
   overflow-x: auto;
 }
@@ -346,7 +346,7 @@ function showReferenced(target: ReferencedRows) {
   flex: none;
   max-width: 180px;
   overflow: hidden;
-  padding: 3px 10px;
+  padding: var(--dp-space-half) var(--dp-space-2);
   border: none;
   border-radius: var(--dp-radius-control) var(--dp-radius-control) 0 0;
   background: none;

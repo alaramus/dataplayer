@@ -105,13 +105,13 @@ const shortcuts: { keys: string; action: string }[] = []
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 24px;
+  padding: var(--dp-space-5);
 }
 .scene__body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
   max-width: 380px;
   text-align: center;
 }
@@ -131,13 +131,13 @@ const shortcuts: { keys: string; action: string }[] = []
   color: var(--dp-text-faint);
 }
 .scene__actions {
-  margin-top: 8px;
+  margin-top: var(--dp-space-2);
 }
 .scene__keys {
   display: grid;
   grid-template-columns: auto auto;
-  gap: 2px 8px;
-  margin: 8px 0 0;
+  gap: var(--dp-space-half) var(--dp-space-2);
+  margin: var(--dp-space-2) 0 0;
   font-size: 12px;
   color: var(--dp-text-faint);
 }

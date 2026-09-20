@@ -72,7 +72,7 @@ onBeforeUnmount(stop)
 .deferred-block__placeholder {
   min-height: 180px;
   border: 1px solid var(--dp-border-faint);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-hover);
 }
 </style>

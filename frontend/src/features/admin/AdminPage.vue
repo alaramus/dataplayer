@@ -100,7 +100,7 @@ function show(id: string) {
 .admin {
   display: grid;
   grid-template-columns: 260px 1fr;
-  gap: 20px;
+  gap: var(--dp-space-5);
   align-items: start;
   min-height: 0;
 }
@@ -108,15 +108,15 @@ function show(id: string) {
 .admin__sections {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--dp-space-1);
   min-width: 0;
 }
 
 .admin__section {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-3);
   border: 0;
   border-radius: var(--dp-radius-control);
   background: transparent;
@@ -137,7 +137,7 @@ function show(id: string) {
 .admin__section-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--dp-space-half);
   min-width: 0;
 }
 

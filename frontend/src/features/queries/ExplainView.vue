@@ -137,8 +137,8 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 4px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-half) var(--dp-space-1);
   border-bottom: 1px solid var(--dp-border-faint);
 }
 .explain__note {
@@ -151,7 +151,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
 }
 .explain__banner {
   flex: none;
-  margin: 8px;
+  margin: var(--dp-space-2);
 }
 .explain__body {
   flex: 1;
@@ -162,15 +162,15 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: 1;
   min-width: 0;
   overflow: auto;
-  padding: 4px 0;
+  padding: var(--dp-space-1) 0;
 }
 .explain__row {
   position: relative;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--dp-space-2);
   width: 100%;
-  padding: 4px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: none;
   border-inline-start: 2px solid transparent;
   background: none;
@@ -211,16 +211,16 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: none;
   width: 280px;
   overflow: auto;
-  padding: 8px 10px;
+  padding: var(--dp-space-2) var(--dp-space-2);
   border-inline-start: 1px solid var(--dp-border-faint);
 }
 .explain__heading {
-  margin: 0 0 6px;
+  margin: 0 0 var(--dp-space-2);
   font-size: 12px;
   font-weight: 600;
 }
 .explain__detail {
-  margin: 0 0 6px;
+  margin: 0 0 var(--dp-space-2);
   font-size: 11px;
   word-break: break-word;
 }
@@ -232,11 +232,11 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 12px;
+  padding: var(--dp-space-2) var(--dp-space-3);
 }
 .explain__raw pre {
   margin: 0;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--dp-font-mono);
   font-size: 12px;
 }
 </style>

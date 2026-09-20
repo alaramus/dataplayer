@@ -238,7 +238,7 @@ async function logout() {
 .app-layout__status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
   min-width: 0;
   min-height: var(--dp-status-height);
   padding: 0 var(--dp-space-2);

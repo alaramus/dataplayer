@@ -169,12 +169,12 @@ defineExpose({ reload: () => load(true) })
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 4px 2px;
+  padding: var(--dp-space-1) var(--dp-space-half);
 }
 .keyspace__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
   min-width: 0;
   flex: 1;
 }

@@ -82,12 +82,12 @@ const strategies = computed(() => [
 <style scoped>
 .inspector {
   display: grid;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 .inspector__row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--dp-space-3);
   align-items: start;
 }
 @container table-designer (max-width: 560px) {

@@ -1,6 +1,11 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
+  // The one source file that is not the application: the test that every token
+  // spent is a token declared reads the three `.css` files from the disk,
+  // because Vite hands a test an empty string for a stylesheet. It is typed by
+  // tsconfig.node.json instead, so Node stays out of the application's types.
+  "exclude": ["src/shared/ui/declared.spec.ts"],
   "compilerOptions": {
     // The Vue base config stops at ES2020 to match the Vite target and leaves
     // newer built-ins to the project. Array.prototype.at is used here and has

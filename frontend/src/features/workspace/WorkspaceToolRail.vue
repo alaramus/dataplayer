@@ -125,10 +125,10 @@ function onRailDrop(event: DragEvent) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   /* No top padding: a 32 px button then stands level with the 32 px tab strip
      of the cards beside it instead of starting a block below them. */
-  padding: 0 2px 4px;
+  padding: 0 var(--dp-space-half) var(--dp-space-1);
   overflow: visible;
   background: transparent;
 }
@@ -143,14 +143,14 @@ function onRailDrop(event: DragEvent) {
 }
 .tool-rail--empty.tool-rail--tail {
   box-shadow: inset 0 0 0 2px var(--dp-action-secondary);
-  border-radius: 8px;
+  border-radius: var(--dp-radius-panel);
 }
 .tool-rail__block {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 4px 0;
+  gap: var(--dp-space-1);
+  padding: var(--dp-space-1) 0;
   border-top: 2px solid transparent;
   user-select: none;
 }
@@ -158,12 +158,12 @@ function onRailDrop(event: DragEvent) {
    including the 2 px its drop-indicator border always reserves. */
 .tool-rail__block:first-child {
   padding-top: 0;
-  margin-top: -2px;
+  margin-top: calc(-1 * var(--dp-space-half));
 }
 /* The grouping frame lives only on blocks of several buttons: a lone
    button is framed by the button itself. */
 .tool-rail__block--framed {
-  border-radius: 8px;
+  border-radius: var(--dp-radius-panel);
 }
 .tool-rail__block--framed:hover {
   background: var(--dp-panel-plain-quiet);
@@ -195,7 +195,7 @@ function onRailDrop(event: DragEvent) {
   flex-direction: column;
   padding-right: 0;
   border-right: none;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 .tool-rail__content :deep(.command-bar),
 .tool-rail__content :deep(.services-command) {

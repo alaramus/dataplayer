@@ -34,13 +34,13 @@ const fraction = computed(() => props.value === null ? null : Math.min(1, Math.m
   height: 4px;
   width: 100%;
   overflow: hidden;
-  border-radius: 2px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-border);
 }
 .app-progress__fill {
   display: block;
   height: 100%;
-  background: var(--q-primary);
+  background: var(--dp-accent);
   transition: width 150ms ease;
 }
 .app-progress--unknown .app-progress__fill {

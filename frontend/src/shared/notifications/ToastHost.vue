@@ -5,7 +5,7 @@ import { computed } from "vue"
 // this, and the barrel holds `AppLayout`, so going through it is a cycle.
 import AppButton from "@/shared/ui/AppButton.vue"
 import AppIconButton from "@/shared/ui/AppIconButton.vue"
-import { badgeColor, bannerLook } from "@/shared/ui/tokens"
+import { bannerLook, toneText } from "@/shared/ui/tokens"
 import { notices } from "./notices"
 
 /**
@@ -49,7 +49,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
       >
         <q-icon
           :name="bannerLook(notice.tone).icon"
-          :class="`text-${badgeColor(notice.tone)}`"
+          :class="toneText(notice.tone)"
           size="18px"
         />
         <p class="toasts__message">
@@ -112,7 +112,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
 
 .toasts__more {
   align-self: flex-end;
-  padding: 2px var(--dp-space-2);
+  padding: var(--dp-space-half) var(--dp-space-2);
   border-radius: var(--dp-radius-control);
   background: var(--dp-surface-raised);
   border: 1px solid var(--dp-border);

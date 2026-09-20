@@ -282,8 +282,8 @@ async function save(scope: "page" | "all") {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 2px 4px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-half) var(--dp-space-1);
   border-bottom: 1px solid var(--dp-border-faint);
 }
 .result-table__chart-body {
@@ -291,14 +291,14 @@ async function save(scope: "page" | "all") {
   min-height: 0;
 }
 .result-table__note {
-  padding-inline: 6px;
+  padding-inline: var(--dp-space-2);
   color: var(--dp-text-muted);
   font-size: 11px;
 }
 .result-table__stale,
 .result-table__truncated {
   align-self: center;
-  padding-inline: 6px;
+  padding-inline: var(--dp-space-2);
   color: var(--dp-text-muted);
   font-size: 11px;
   white-space: nowrap;

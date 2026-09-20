@@ -254,8 +254,8 @@ const modes = [
 .start-service {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px 2px;
+  gap: var(--dp-space-3);
+  padding: var(--dp-space-1) var(--dp-space-half);
 }
 .start-service__what {
   margin: 0;

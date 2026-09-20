@@ -275,7 +275,7 @@ function run() {
 .file-to-relation__destination {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 
 /* One pair to a row, and the same three columns in the legend above them, so
@@ -313,7 +313,7 @@ function run() {
   font-weight: 400;
 }
 
-.file-to-relation__tally--wrong { color: var(--q-negative); }
+.file-to-relation__tally--wrong { color: var(--dp-content-error); }
 
 .file-to-relation__row {
   padding: var(--dp-space-1) 0;

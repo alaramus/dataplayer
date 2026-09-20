@@ -803,8 +803,8 @@ async function runDesign(value: {
 }
 
 .action-dialog__consequences {
-  margin: 4px 0 0;
-  padding-left: 20px;
+  margin: var(--dp-space-1) 0 0;
+  padding-left: var(--dp-space-5);
   max-height: 180px;
   overflow: auto;
 }

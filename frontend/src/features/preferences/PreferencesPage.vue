@@ -134,12 +134,12 @@ async function chooseInterval(value: unknown) {
 .preferences__waiting {
   display: flex;
   justify-content: center;
-  padding: 24px;
+  padding: var(--dp-space-5);
 }
 .preferences {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--dp-space-1);
   max-width: 900px;
 }
 /* The question on the left and its answer on the right, so a page of them
@@ -147,15 +147,15 @@ async function chooseInterval(value: unknown) {
 .preferences__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 20px;
+  gap: var(--dp-space-5);
   align-items: start;
-  padding: 16px 0;
+  padding: var(--dp-space-4) 0;
   border-bottom: 1px solid var(--dp-border);
 }
 .preferences__what {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--dp-space-1);
   min-width: 0;
 }
 .preferences__title {

@@ -55,6 +55,6 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding-top: 4px;
+  padding-top: var(--dp-space-1);
 }
 </style>

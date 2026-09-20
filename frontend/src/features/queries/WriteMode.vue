@@ -144,7 +144,7 @@ function choose(value: unknown) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .write-mode__select {
   flex: none;
@@ -154,10 +154,10 @@ function choose(value: unknown) {
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: 1px solid var(--dp-border-faint);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-chrome-raised);
 }
 .write-mode__typed {

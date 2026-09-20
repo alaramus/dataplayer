@@ -1109,7 +1109,7 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
 .workspace-footer-end {
   display: flex;
   align-items: center;
-  padding-right: 2px;
+  padding-right: var(--dp-space-half);
   margin-right: calc(-1 * var(--dp-space-2));
 }
 </style>

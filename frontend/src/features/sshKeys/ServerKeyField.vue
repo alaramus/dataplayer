@@ -158,7 +158,7 @@ function trust() {
 .server-key {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--dp-space-2);
 }
 .server-key__label {
   font-size: 12px;
@@ -171,7 +171,7 @@ function trust() {
 .server-key__presented {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--dp-space-1);
 }
 .server-key__hint {
   font-size: 12px;
@@ -183,6 +183,6 @@ function trust() {
 }
 .server-key__buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 </style>

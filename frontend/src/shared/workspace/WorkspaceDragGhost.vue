@@ -43,11 +43,11 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   z-index: var(--dp-layer-drag);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--dp-space-1);
   max-width: 260px;
-  padding: 4px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: 1px solid var(--dp-border-strong);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-panel-background, var(--dp-surface-raised));
   color: var(--dp-panel-foreground, inherit);
   box-shadow: 0 4px 14px var(--dp-shadow);

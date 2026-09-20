@@ -357,12 +357,12 @@ function run() {
 .create-table__destination {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 
 .create-table__mapping {
   display: grid;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 
 .create-table__column {
@@ -372,7 +372,7 @@ function run() {
     minmax(140px, 1fr)
     minmax(120px, 0.8fr);
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .create-table__column--typeless {
   grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr);

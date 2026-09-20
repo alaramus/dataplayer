@@ -227,12 +227,12 @@ function changeDefault(value: string): void {
 .inspector {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 .inspector__row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--dp-space-3);
   align-items: start;
 }
 .inspector__row > * {
@@ -240,12 +240,12 @@ function changeDefault(value: string): void {
 }
 .inspector__advanced {
   border-top: 1px solid var(--dp-border);
-  padding-top: 8px;
+  padding-top: var(--dp-space-2);
 }
 .inspector__advanced summary {
   cursor: pointer;
   color: var(--dp-text-muted);
-  margin-bottom: 8px;
+  margin-bottom: var(--dp-space-2);
 }
 @container table-designer (max-width: 560px) {
   .inspector__row {

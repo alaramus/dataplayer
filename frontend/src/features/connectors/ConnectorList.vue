@@ -98,11 +98,11 @@ const open = computed(() => props.openIds ?? new Set<string>())
 .connector-list__row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
   width: 100%;
   /* The same four pixels the strip centres its icons at, so that a row keeps
      its icon in place when the column is pushed aside. */
-  padding: 1px 8px 1px 4px;
+  padding: 1px var(--dp-space-2) 1px var(--dp-space-1);
   cursor: pointer;
 }
 /* Over the fill rather than instead of it: a hover rule is a class and a

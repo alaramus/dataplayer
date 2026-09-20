@@ -458,8 +458,8 @@ const overlayStyle = computed((): CSSProperties => {
 .workspace-leaf__strip {
   display: flex;
   align-items: flex-start;
-  gap: 2px;
-  padding: 2px var(--dp-space-1);
+  gap: var(--dp-space-half);
+  padding: var(--dp-space-half) var(--dp-space-1);
   /* The head every card has (AppCardHead). */
   border-bottom: 1px solid var(--dp-border);
   background: var(--dp-card-head);
@@ -491,7 +491,7 @@ const overlayStyle = computed((): CSSProperties => {
 .workspace-leaf__tabs {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   flex: 1;
   min-width: 0;
   flex-wrap: wrap;
@@ -502,7 +502,7 @@ const overlayStyle = computed((): CSSProperties => {
   flex: none;
   align-self: stretch;
   width: 2px;
-  margin: 2px 0;
+  margin: var(--dp-space-half) 0;
   border-radius: 1px;
   background: var(--dp-dropzone-border);
 }
@@ -516,8 +516,8 @@ const overlayStyle = computed((): CSSProperties => {
 .workspace-leaf__tab {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: var(--dp-space-1);
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: none;
   border-radius: var(--dp-radius-control);
   background: var(--dp-panel-background, var(--dp-panel-plain));
@@ -553,9 +553,9 @@ const overlayStyle = computed((): CSSProperties => {
 }
 .workspace-leaf__icon--action {
   cursor: pointer;
-  border-radius: 4px;
-  padding: 2px;
-  margin: -2px;
+  border-radius: var(--dp-radius-control);
+  padding: var(--dp-space-half);
+  margin: calc(-1 * var(--dp-space-half));
 }
 .workspace-leaf__icon--action:hover {
   background: var(--dp-hover);
@@ -582,7 +582,7 @@ const overlayStyle = computed((): CSSProperties => {
   /* The icon inside draws itself in currentColor - see the tab above. */
   color: inherit;
   cursor: pointer;
-  padding: 2px;
+  padding: var(--dp-space-half);
   flex: none;
 }
 .workspace-leaf__rail {
@@ -617,6 +617,6 @@ const overlayStyle = computed((): CSSProperties => {
 .workspace-leaf__zone {
   background: var(--dp-dropzone);
   border: 2px solid var(--dp-dropzone-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 </style>

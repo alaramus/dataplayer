@@ -55,7 +55,7 @@ const logs = useServiceLogs(serviceId)
 }
 .service-logs__text {
   margin: 0;
-  font-family: var(--dp-font-mono, monospace);
+  font-family: var(--dp-font-mono);
   font-size: 12px;
   white-space: pre-wrap;
   word-break: break-word;

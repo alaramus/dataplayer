@@ -821,34 +821,34 @@ async function changeDefault(action: "set" | "drop", value?: string) {
   overflow: auto;
 }
 .structure-view__title {
-  margin-bottom: 8px;
+  margin-bottom: var(--dp-space-2);
   font-weight: 600;
 }
 .structure-view__heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: var(--dp-space-3);
+  margin-bottom: var(--dp-space-2);
 }
 .structure-view__heading .structure-view__title {
   margin-bottom: 0;
 }
 .structure-view__list {
   margin: 0;
-  padding-left: 18px;
+  padding-left: var(--dp-space-4);
   font-size: 12px;
 }
 .structure-view__index {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .structure-view__facts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
+  gap: var(--dp-space-1) var(--dp-space-4);
   margin: 0;
   font-size: 12px;
 }

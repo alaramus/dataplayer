@@ -26,6 +26,54 @@
   color: var(--dp-action-danger) !important;
 }
 
+/*
+ * What a message is — an error, a success, a warning, a note — in the three
+ * strengths `tokens.ts` hands out. Classes rather than Quasar's `text-<name>`
+ * and `bg-<name>`, because those are one colour for both themes. `!important`
+ * for the same reason Quasar's own colour classes carry it: a dark component
+ * paints its own ground.
+ *
+ * A filled tone is Quasar's brand colour, set once in quasar-variables.sass
+ * and read here as `--q-*`, under text at 4.5:1 or better.
+ */
+.dp-tone-text-error {
+  color: var(--dp-content-error) !important;
+}
+.dp-tone-text-success {
+  color: var(--dp-content-success) !important;
+}
+.dp-tone-text-warning {
+  color: var(--dp-tone-warning-text) !important;
+}
+.dp-tone-text-info {
+  color: var(--dp-accent) !important;
+}
+.dp-tone-fill-error {
+  background: var(--q-negative) !important;
+  color: var(--dp-on-fill) !important;
+}
+.dp-tone-fill-success {
+  background: var(--q-positive) !important;
+  color: var(--dp-on-fill) !important;
+}
+.dp-tone-fill-warning {
+  background: var(--q-warning) !important;
+  color: var(--dp-on-warning-fill) !important;
+}
+.dp-tone-fill-info {
+  background: var(--q-primary) !important;
+  color: var(--dp-on-fill) !important;
+}
+/* A warning is read, not obeyed, so it stays light rather than filled. */
+.dp-tone-wash-warning {
+  background: var(--dp-tone-warning-wash) !important;
+  color: var(--dp-on-wash) !important;
+}
+.dp-tone-wash-info {
+  background: var(--dp-tone-info-wash) !important;
+  color: var(--dp-on-wash) !important;
+}
+
 :root {
   --dp-action-secondary: #1976d2;
   --dp-action-danger: #c10015;
@@ -127,6 +175,19 @@
   /* A literal match in a document, and content that could not be resolved. */
   --dp-find: #f59e0b;
   --dp-content-error: #c62828;
+  --dp-content-success: #2e7d32;
+  /* The application's own highlight: a chosen tile, the active tab of a form,
+     a selected node. */
+  --dp-accent: #1976d2;
+  /* The tones (the classes at the top). Every value is written again for the
+     dark theme below, because a token that named another would carry the
+     light theme's value into the dark one. */
+  --dp-on-fill: #fff;
+  --dp-on-warning-fill: rgba(0, 0, 0, 0.87);
+  --dp-tone-warning-text: #9a5b00;
+  --dp-tone-warning-wash: #fff3e0;
+  --dp-tone-info-wash: #e3f2fd;
+  --dp-on-wash: rgba(0, 0, 0, 0.87);
 
   /* Ordered series colours. A chart asks for the next series, not for a
      literal that would disappear on the other surface. */
@@ -213,6 +274,14 @@ body.body--dark {
   --dp-text-selection: rgba(100, 181, 246, 0.4);
   --dp-find: #fbbf24;
   --dp-content-error: #ef9a9a;
+  --dp-content-success: #a5d6a7;
+  --dp-accent: #64b5f6;
+  --dp-on-fill: #fff;
+  --dp-on-warning-fill: rgba(0, 0, 0, 0.87);
+  --dp-tone-warning-text: #ffb74d;
+  --dp-tone-warning-wash: #3a2c17;
+  --dp-tone-info-wash: #15283b;
+  --dp-on-wash: rgba(255, 255, 255, 0.87);
 
   --dp-chart-1: #64b5f6;
   --dp-chart-2: #4db6ac;

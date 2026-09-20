@@ -20,8 +20,8 @@ const tokens = computed(() => sqlTokens(props.sql))
 <style scoped>
 .design-sql {
   margin: 0;
-  padding: 12px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  padding: var(--dp-space-3);
+  font-family: var(--dp-font-mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

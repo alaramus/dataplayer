@@ -485,8 +485,8 @@ async function deleteForGood(documentId: string) {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 0;
+  gap: var(--dp-space-1);
+  padding: var(--dp-space-half) var(--dp-space-1) 0;
 }
 .queries-panel__connector {
   flex: 1;
@@ -495,16 +495,16 @@ async function deleteForGood(documentId: string) {
 .queries-panel__places {
   flex: none;
   display: flex;
-  gap: 2px;
-  padding: 4px 8px 0;
+  gap: var(--dp-space-half);
+  padding: var(--dp-space-1) var(--dp-space-2) 0;
 }
 .queries-panel__place {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 4px 6px;
+  gap: var(--dp-space-1);
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: none;
   border-radius: var(--dp-radius-control);
   background: none;
@@ -525,26 +525,26 @@ async function deleteForGood(documentId: string) {
 }
 .queries-panel__search {
   flex: none;
-  padding: 0 8px;
+  padding: 0 var(--dp-space-2);
 }
 .queries-panel__rule {
   flex: none;
-  margin: 4px 8px;
+  margin: var(--dp-space-1) var(--dp-space-2);
 }
 .queries-panel__body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0 4px 8px;
+  padding: 0 var(--dp-space-1) var(--dp-space-2);
 }
 .queries-panel__history-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-inline-end: 4px;
+  padding-inline-end: var(--dp-space-1);
 }
 .queries-panel__heading {
-  margin: 8px 8px 2px;
+  margin: var(--dp-space-2) var(--dp-space-2) var(--dp-space-half);
   color: var(--dp-text-muted);
   font-size: 11px;
   font-weight: 600;
@@ -554,9 +554,9 @@ async function deleteForGood(documentId: string) {
 .queries-panel__row {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding-inline-end: 2px;
-  border-radius: 4px;
+  gap: var(--dp-space-half);
+  padding-inline-end: var(--dp-space-half);
+  border-radius: var(--dp-radius-control);
 }
 .queries-panel__row:hover {
   background: var(--dp-hover);
@@ -567,7 +567,7 @@ async function deleteForGood(documentId: string) {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 5px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: none;
   background: none;
   color: inherit;

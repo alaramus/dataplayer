@@ -70,12 +70,12 @@ async function copy() {
 
 <style scoped>
 .agent-block {
-  padding: 10px 14px;
+  padding: var(--dp-space-2) var(--dp-space-3);
 }
 .agent-block__fields {
   display: grid;
   grid-template-columns: minmax(70px, max-content) 1fr;
-  gap: 4px 12px;
+  gap: var(--dp-space-1) var(--dp-space-3);
   margin: 0;
 }
 .agent-block__fields dt {
@@ -91,7 +91,7 @@ async function copy() {
   line-height: 1.6;
 }
 .agent-block__fields + .agent-block__body {
-  margin-top: 8px;
+  margin-top: var(--dp-space-2);
 }
 .agent-block__body :deep(p:first-child) {
   margin-top: 0;
@@ -100,10 +100,10 @@ async function copy() {
   margin-bottom: 0;
 }
 .agent-block__body :deep(code) {
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 1px var(--dp-space-1);
+  border-radius: var(--dp-radius-control);
   background: var(--dp-hover);
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-family: var(--dp-font-mono);
   font-size: 12px;
 }
 </style>

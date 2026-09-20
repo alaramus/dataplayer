@@ -44,7 +44,7 @@ useReloadable(() => props.panelId, async () => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 .structure-panel__view {
   flex: 1;
@@ -55,6 +55,6 @@ useReloadable(() => props.panelId, async () => {
   align-items: center;
   justify-content: flex-end;
   flex: none;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 </style>

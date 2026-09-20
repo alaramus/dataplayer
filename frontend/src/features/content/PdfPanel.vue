@@ -260,14 +260,14 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 .pdf-panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
-  padding: 0 8px;
+  padding: 0 var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border-faint);
 }
 
@@ -281,17 +281,17 @@ onBeforeUnmount(() => {
 .pdf-panel__commands {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 .pdf-panel__stage {
   display: flex;
   flex: 1;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--dp-space-3);
   min-height: 0;
   overflow: auto;
-  padding: 16px;
+  padding: var(--dp-space-4);
   background: var(--dp-hover);
 }
 .pdf-panel__stage :deep(.pdf-panel__page) {

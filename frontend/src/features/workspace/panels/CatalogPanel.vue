@@ -953,8 +953,8 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__found {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 4px 2px 8px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-half) var(--dp-space-1) var(--dp-space-half) var(--dp-space-2);
   font-size: 11px;
   color: var(--dp-text-muted);
   border-bottom: 1px solid var(--dp-border-faint);
@@ -978,7 +978,7 @@ async function afterAction(outcome: ActionOutcome) {
 }
 .catalog-panel__head {
   flex: none;
-  padding: 4px 4px 0;
+  padding: var(--dp-space-1) var(--dp-space-1) 0;
 }
 /* A row beside the filter, not under it: no wrapping and no padding of its
    own, so what a source detects costs the head no height. */
@@ -997,16 +997,16 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__bar {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--dp-space-1);
   height: 40px;
 }
 .catalog-panel__crumbs {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   flex: 1;
   min-width: 0;
-  border-radius: 999px;
+  border-radius: var(--dp-radius-pill);
   background: var(--dp-hover);
   font-size: 12px;
 }
@@ -1025,7 +1025,7 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__trail {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   flex: 1;
   min-width: 0;
   overflow-x: auto;
@@ -1045,7 +1045,7 @@ async function afterAction(outcome: ActionOutcome) {
 /* Reserve the button's place so revealing it never shifts the path. Focusing
    a breadcrumb also reveals it before the keyboard reaches the button. */
 .catalog-panel__copy-path {
-  margin-inline-end: 4px;
+  margin-inline-end: var(--dp-space-1);
   visibility: hidden;
 }
 .catalog-panel__crumbs:hover .catalog-panel__copy-path,
@@ -1054,7 +1054,7 @@ async function afterAction(outcome: ActionOutcome) {
 }
 .catalog-panel__crumb {
   cursor: pointer;
-  padding: 2px 2px;
+  padding: var(--dp-space-half) var(--dp-space-half);
   color: var(--dp-link);
 }
 .catalog-panel__crumb--last {

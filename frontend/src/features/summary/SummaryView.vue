@@ -132,12 +132,12 @@ const errorText = computed(() =>
 }
 .summary-view__title {
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: var(--dp-space-2);
 }
 .summary-view__facts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 16px;
+  gap: var(--dp-space-1) var(--dp-space-4);
   margin: 0;
   font-size: 12px;
 }

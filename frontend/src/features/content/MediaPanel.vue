@@ -126,19 +126,19 @@ useReloadable(() => props.panelId, reload)
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 .media-panel__commands {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 .media-panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
-  padding: 0 8px;
+  padding: 0 var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border-faint);
 }
 
@@ -155,7 +155,7 @@ useReloadable(() => props.panelId, reload)
   min-height: 0;
   place-items: center;
   overflow: auto;
-  padding: 16px;
+  padding: var(--dp-space-4);
   background: var(--dp-hover);
 }
 .media-panel__video {

@@ -81,7 +81,7 @@ function accept() {
    answer rather than as another thing being asked. */
 .confirm-prompt__remember {
   flex: none;
-  padding: 0 12px;
+  padding: 0 var(--dp-space-3);
   font-size: 12px;
 }
 </style>

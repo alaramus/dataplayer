@@ -144,10 +144,10 @@ function addUnique(): void {
 <style scoped>
 .constraints {
   display: grid;
-  gap: 12px;
+  gap: var(--dp-space-3);
 }
 .constraints h3 {
-  margin: 0 0 8px;
+  margin: 0 0 var(--dp-space-2);
   font-size: 12px;
   font-weight: 600;
   color: var(--dp-text-muted);
@@ -158,7 +158,7 @@ function addUnique(): void {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .constraints__heading h3 {
   margin: 0;
@@ -166,33 +166,33 @@ function addUnique(): void {
 .constraints__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--dp-space-3);
   align-items: end;
-  margin: 12px 0;
+  margin: var(--dp-space-3) 0;
 }
 .constraints__badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--dp-space-2);
 }
 .constraints__badges > * {
   border: 1px solid var(--dp-border);
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: var(--dp-space-half) var(--dp-space-2);
+  border-radius: var(--dp-radius-control);
 }
 .constraints__rule {
   border-top: 1px solid var(--dp-border);
-  padding-top: 10px;
+  padding-top: var(--dp-space-2);
 }
 .constraints__advanced {
-  margin-top: 12px;
+  margin-top: var(--dp-space-3);
   color: var(--dp-text-muted);
 }
 .constraints__advanced summary {
   cursor: pointer;
 }
 .constraints__expression {
-  margin-top: 12px;
+  margin-top: var(--dp-space-3);
 }
 @container table-designer (max-width: 560px) {
   .constraints__fields {

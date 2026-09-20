@@ -62,7 +62,7 @@ watch(status.data, (value) => { if (value === true) admitted.value = true }, { i
 </template>
 
 <style scoped>
-.server-boundary { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.server-boundary { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); }
 .server-boundary__url { overflow-wrap: anywhere; }
 
 /* Even a spinner is a flash when the answer takes 80ms. It appears only if

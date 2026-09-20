@@ -166,7 +166,7 @@ const here = computed(() =>
 .node-picker__where {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
   font-size: 12px;
 }
 .node-picker__nodes {

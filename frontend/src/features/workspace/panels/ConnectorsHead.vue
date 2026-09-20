@@ -37,12 +37,12 @@ const workspace = useWorkspaceActions()
 .connectors-head {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--dp-space-1);
 }
 .connectors-head__commands {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   margin-left: auto;
 }
 </style>

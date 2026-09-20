@@ -123,7 +123,7 @@ const pageLabel = computed(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 
 .chart-panel__bar {
@@ -131,11 +131,11 @@ const pageLabel = computed(() => {
   align-items: center;
   justify-content: flex-end;
   flex: none;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 
 .chart-panel__message {
-  margin: 12px;
+  margin: var(--dp-space-3);
 }
 
 .chart-panel__loading {
@@ -148,9 +148,9 @@ const pageLabel = computed(() => {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 10px;
+  gap: var(--dp-space-2);
   min-height: 36px;
-  padding: 4px 10px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border);
   color: var(--dp-text-muted);
   font-size: 12px;

@@ -201,13 +201,13 @@ async function copy(what: string, said: string) {
 .credentials {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .credentials__row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-1) var(--dp-space-2);
   border-radius: var(--dp-radius-control);
   background: var(--dp-surface-raised);
 }

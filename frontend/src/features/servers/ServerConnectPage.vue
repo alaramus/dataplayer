@@ -98,5 +98,5 @@ async function connect() {
 </template>
 
 <style scoped>
-.server-connect { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.server-connect { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); }
 </style>

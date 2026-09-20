@@ -144,27 +144,27 @@ async function copy() {
   right: 12px;
   bottom: calc(100% + 10px);
   z-index: var(--dp-layer-popover);
-  padding: 12px 14px;
+  padding: var(--dp-space-3) var(--dp-space-3);
   border: 1px solid var(--dp-border-strong);
-  border-radius: 6px;
+  border-radius: var(--dp-radius-panel);
   background: var(--dp-surface-raised);
   box-shadow: 0 4px 14px var(--dp-shadow-soft);
 }
 .check-popover__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: var(--dp-space-2);
+  margin-bottom: var(--dp-space-2);
 }
 .check-popover__heading {
   flex: 1;
   font-weight: 600;
 }
 .check-popover--ok .check-popover__heading {
-  color: var(--q-positive);
+  color: var(--dp-content-success);
 }
 .check-popover--failed .check-popover__heading {
-  color: var(--q-negative);
+  color: var(--dp-content-error);
 }
 .check-popover__line {
   margin: 0;
@@ -174,9 +174,9 @@ async function copy() {
 .check-popover__facts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
-  margin: 8px 0 0;
-  padding-top: 8px;
+  gap: var(--dp-space-1) var(--dp-space-3);
+  margin: var(--dp-space-2) 0 0;
+  padding-top: var(--dp-space-2);
   border-top: 1px solid var(--dp-border);
   font-size: 12px;
 }
@@ -192,7 +192,7 @@ async function copy() {
 }
 .check-popover__action {
   display: flex;
-  margin-top: 8px;
+  margin-top: var(--dp-space-2);
 }
 /* Two triangles, the back one a pixel lower, so the border of the panel
    appears to continue around the tail. */

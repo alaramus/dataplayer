@@ -178,7 +178,7 @@ const groups = computed(() =>
 .adapter-panel__start {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--dp-space-1);
 }
 .adapter-panel__hint {
   font-size: 11px;
@@ -186,14 +186,14 @@ const groups = computed(() =>
 }
 .adapter-panel--empty {
   justify-content: center;
-  padding: 12px;
+  padding: var(--dp-space-3);
 }
 .adapter-panel__head {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-3);
   min-width: 0;
 }
 .adapter-panel__title {
@@ -220,8 +220,8 @@ const groups = computed(() =>
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 12px;
+  gap: var(--dp-space-4);
+  padding: var(--dp-space-3);
 }
 .adapter-panel__description {
   margin: 0;
@@ -231,13 +231,13 @@ const groups = computed(() =>
 .adapter-panel__group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--dp-space-2);
   min-width: 0;
 }
 .adapter-panel__group-title {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--dp-space-1);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.4px;
@@ -248,7 +248,7 @@ const groups = computed(() =>
 .adapter-panel__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--dp-space-1);
   min-width: 0;
 }
 .adapter-panel__foot {
@@ -256,7 +256,7 @@ const groups = computed(() =>
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-3);
 }
 </style>

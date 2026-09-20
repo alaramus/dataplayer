@@ -268,8 +268,8 @@ const countLabel = computed(() => {
 .catalog-list__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px 2px;
+  gap: var(--dp-space-2);
+  padding: 0 var(--dp-space-2) var(--dp-space-half);
   border-bottom: 1px solid var(--dp-border-faint);
   flex: none;
 }
@@ -299,24 +299,24 @@ const countLabel = computed(() => {
   scrollbar-gutter: stable;
   /* Reserve space for classic scrollbars before rows arrive, and keep the
      shared columns clear of overlay scrollbars, which have no gutter. */
-  padding-inline-end: 12px;
+  padding-inline-end: var(--dp-space-3);
   display: grid;
   grid-template-columns:
     auto auto minmax(5ch, 1fr) minmax(0, auto) minmax(0, auto) minmax(0, auto);
   align-content: start;
-  column-gap: 6px;
+  column-gap: var(--dp-space-2);
 }
 .catalog-list__empty {
   grid-column: 1 / -1;
-  padding: 4px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
 }
 .catalog-list__row {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
   align-items: center;
-  gap: 6px;
-  padding: 1px 8px;
+  gap: var(--dp-space-2);
+  padding: 1px var(--dp-space-2);
   cursor: pointer;
   /* Every row carries the outline, transparent, so that taking the mark off
      fades rather than blinks: a colour cannot be transitioned out of a rule
@@ -347,7 +347,7 @@ const countLabel = computed(() => {
    of one gesture, drawn the same. */
 .catalog-list__row--revealed {
   outline-color: var(--dp-panel-background, var(--dp-panel-plain));
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 .catalog-list__tick-space {
   visibility: hidden;
@@ -407,8 +407,8 @@ const countLabel = computed(() => {
 .catalog-list__group {
   justify-self: start;
   border: 1px solid var(--dp-border);
-  border-radius: 3px;
-  padding: 0 4px;
+  border-radius: var(--dp-radius-control);
+  padding: 0 var(--dp-space-1);
 }
 .catalog-list__caption {
   justify-self: end;
@@ -432,6 +432,6 @@ const countLabel = computed(() => {
      about, and a narrow panel should cut the aside rather than the subject. */
   flex: 0 100 auto;
   margin-inline-start: auto;
-  padding-inline-start: 12px;
+  padding-inline-start: var(--dp-space-3);
 }
 </style>

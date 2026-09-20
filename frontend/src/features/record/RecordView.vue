@@ -380,7 +380,7 @@ const errorText = computed(() =>
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--dp-space-2);
   min-width: 0;
 }
 .record-view__text {
@@ -393,7 +393,7 @@ const errorText = computed(() =>
 .record-view__ways {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
   flex: none;
 }
 .record-view__null {
@@ -401,6 +401,6 @@ const errorText = computed(() =>
   font-style: italic;
 }
 .record-view__monospace {
-  font-family: monospace;
+  font-family: var(--dp-font-mono);
 }
 </style>

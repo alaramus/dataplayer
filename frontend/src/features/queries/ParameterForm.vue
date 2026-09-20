@@ -81,21 +81,21 @@ function change(name: string, patch: Partial<ParameterEntry>) {
 .parameters {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: var(--dp-space-1);
+  padding: var(--dp-space-2) var(--dp-space-2);
   border: 1px solid var(--dp-border-faint);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-chrome-raised);
 }
 .parameters__row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--dp-space-2);
 }
 .parameters__name {
   flex: none;
   min-width: 120px;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: var(--dp-font-mono);
   font-size: 12px;
 }
 .parameters__value {

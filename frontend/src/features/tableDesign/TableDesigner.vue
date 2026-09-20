@@ -607,8 +607,8 @@ function moveColumn(by: number): void {
 .designer__document {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-3);
   border-bottom: 1px solid var(--dp-border);
 }
 .designer__draft {
@@ -625,13 +625,13 @@ function moveColumn(by: number): void {
   align-items: center;
   justify-content: center;
   min-height: 460px;
-  padding: 24px;
+  padding: var(--dp-space-5);
 }
 .designer__identity {
   display: grid;
   grid-template-columns: 150px minmax(150px, 1fr) minmax(180px, 1.3fr);
-  gap: 12px;
-  padding: 12px;
+  gap: var(--dp-space-3);
+  padding: var(--dp-space-3);
   border-bottom: 1px solid var(--dp-border);
 }
 .designer__body {
@@ -639,7 +639,7 @@ function moveColumn(by: number): void {
   grid-template-columns: 175px minmax(0, 1fr) minmax(250px, 0.78fr);
 }
 .designer__editor {
-  padding: 12px;
+  padding: var(--dp-space-3);
   min-width: 0;
   min-height: 330px;
 }
@@ -648,9 +648,9 @@ function moveColumn(by: number): void {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--dp-space-2);
   min-height: 31px;
-  margin-bottom: 10px;
+  margin-bottom: var(--dp-space-2);
 }
 .designer__toolbar strong {
   overflow-wrap: anywhere;
@@ -658,9 +658,9 @@ function moveColumn(by: number): void {
 .designer__object-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 10px;
-  margin-top: 12px;
+  gap: var(--dp-space-2);
+  padding-top: var(--dp-space-2);
+  margin-top: var(--dp-space-3);
   border-top: 1px solid var(--dp-border);
 }
 .designer__object-actions--column > :last-child {
@@ -674,8 +674,8 @@ function moveColumn(by: number): void {
 .designer__sql-head {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-3);
   border-bottom: 1px solid var(--dp-border);
   color: var(--dp-text-muted);
 }
@@ -683,22 +683,22 @@ function moveColumn(by: number): void {
   opacity: 0.5;
 }
 .designer__sql summary {
-  padding: 10px 12px;
+  padding: var(--dp-space-2) var(--dp-space-3);
   cursor: pointer;
   color: var(--dp-text-muted);
 }
 .designer__problems {
   margin: 0;
-  padding: 10px 12px 10px 30px;
+  padding: var(--dp-space-2) var(--dp-space-3) var(--dp-space-2) var(--dp-space-5);
   border-top: 1px solid var(--dp-border);
-  color: var(--q-negative);
+  color: var(--dp-content-error);
 }
 .designer__footer {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-3);
   border-top: 1px solid var(--dp-border);
 }
 .designer__status {
@@ -706,10 +706,10 @@ function moveColumn(by: number): void {
   color: var(--dp-text-muted);
 }
 .designer__review {
-  padding: 12px 12px 0;
+  padding: var(--dp-space-3) var(--dp-space-3) 0;
 }
 .designer__review > .designer__footer {
-  margin: 0 -12px;
+  margin: 0 calc(-1 * var(--dp-space-3));
 }
 @container table-designer (max-width: 850px) {
   .designer__body {

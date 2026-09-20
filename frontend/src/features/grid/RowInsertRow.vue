@@ -242,7 +242,7 @@ function handleKey(event: KeyboardEvent) {
   box-sizing: border-box;
   min-width: 0;
   max-width: none;
-  padding: 2px 4px;
+  padding: var(--dp-space-half) var(--dp-space-1);
   border-right: 1px solid var(--dp-border-faint);
   border-bottom: 1px solid var(--dp-border-faint);
   background: var(--dp-selected-quiet);
@@ -254,7 +254,7 @@ function handleKey(event: KeyboardEvent) {
   width: 72px;
   min-width: 72px !important;
   max-width: 72px !important;
-  padding: 2px !important;
+  padding: var(--dp-space-half) !important;
   color: var(--dp-text-muted);
   text-align: center !important;
 }

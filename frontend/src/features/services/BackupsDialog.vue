@@ -211,14 +211,14 @@ async function putBack(filename: string) {
 .backups {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--dp-space-2);
   min-height: 160px;
 }
 .backups__row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-2);
   border-radius: var(--dp-radius-control);
   background: var(--dp-surface-raised);
 }

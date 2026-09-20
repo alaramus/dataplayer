@@ -84,26 +84,26 @@ export interface BannerLook {
   icon: string
 }
 
+// The classes are theme.css's, and turn over with the theme; Quasar's own
+// colour classes are one colour for both.
 const BANNER_LOOKS: Record<Tone, BannerLook> = {
-  error: { classes: "bg-negative text-white", icon: "error" },
-  success: { classes: "bg-positive text-white", icon: "check_circle" },
+  error: { classes: "dp-tone-fill-error", icon: "error" },
+  success: { classes: "dp-tone-fill-success", icon: "check_circle" },
   // A warning is read, not obeyed, so it stays light rather than filled.
-  warning: { classes: "bg-orange-1 text-dark", icon: "warning" },
-  info: { classes: "bg-blue-1 text-dark", icon: "info" },
+  warning: { classes: "dp-tone-wash-warning", icon: "warning" },
+  info: { classes: "dp-tone-wash-info", icon: "info" },
 }
 
 export function bannerLook(tone: Tone): BannerLook {
   return BANNER_LOOKS[tone]
 }
 
-/** Badges follow the same tones, filled. */
-const BADGE_COLORS: Record<Tone, string> = {
-  error: "negative",
-  success: "positive",
-  warning: "warning",
-  info: "primary",
+/** A tone as a filled ground: a badge, a status dot. */
+export function toneFill(tone: Tone): string {
+  return `dp-tone-fill-${tone}`
 }
 
-export function badgeColor(tone: Tone): string {
-  return BADGE_COLORS[tone]
+/** A tone as the colour of a mark on the page: an icon, a word. */
+export function toneText(tone: Tone): string {
+  return `dp-tone-text-${tone}`
 }

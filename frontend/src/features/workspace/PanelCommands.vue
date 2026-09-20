@@ -155,10 +155,10 @@ function showInCatalog() {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 2px;
+  gap: var(--dp-space-half);
   /* One width in both states, so the row does not move. */
   min-width: 24px;
-  margin: 3px 0 0 1px;
+  margin: var(--dp-space-half) 0 0 1px;
   color: var(--dp-text-muted);
   font-size: 9px;
   line-height: 1;

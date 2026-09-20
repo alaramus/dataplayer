@@ -208,8 +208,8 @@ function start(template: ServiceTemplateInfo) {
 .adapter-catalog__category {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-2);
   cursor: pointer;
   min-width: 0;
 }
@@ -237,8 +237,8 @@ function start(template: ServiceTemplateInfo) {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-3);
 }
 .adapter-catalog__grid {
   flex: 1;
@@ -249,10 +249,10 @@ function start(template: ServiceTemplateInfo) {
      column that fits, rather than a track overflowing its container. */
   grid-template-columns: repeat(auto-fill, minmax(min(180px, 100%), 1fr));
   align-content: flex-start;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
 .adapter-catalog__empty {
   grid-column: 1 / -1;
-  padding: 24px 0;
+  padding: var(--dp-space-5) 0;
 }
 </style>

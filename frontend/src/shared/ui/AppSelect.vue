@@ -297,7 +297,7 @@ const summary = computed(() => {
   white-space: nowrap;
 }
 .app-select__state { flex: none; color: var(--dp-text-muted); }
-.app-select__state--on { color: var(--q-positive); }
+.app-select__state--on { color: var(--dp-content-success); }
 .app-select--compact :deep(.q-field__native) {
   flex-wrap: nowrap;
   overflow: hidden;

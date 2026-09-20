@@ -110,19 +110,19 @@ function showTable() {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
+  padding: var(--dp-space-1);
 }
 .sql-panel__actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--dp-space-half);
 }
 .sql-panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
-  padding: 0 8px;
+  padding: 0 var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border-faint);
 }
 .sql-panel__kind {
@@ -134,11 +134,11 @@ function showTable() {
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 8px;
+  padding: var(--dp-space-2);
 }
 .sql-panel__notice {
   flex: none;
-  margin-bottom: 8px;
+  margin-bottom: var(--dp-space-2);
 }
 .sql-panel__editor {
   flex: 1;

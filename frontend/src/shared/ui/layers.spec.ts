@@ -5,10 +5,11 @@ import { describe, expect, it } from "vitest"
  * sticky table heading that declared `1`, and the drop zone lost to the same
  * heading afterwards.
  *
- * This reads `.vue` files, where every component style lives. A `.css` file
- * cannot be read from a unit test at all — `import.meta.glob` and `?raw` both
- * hand back the name and an empty string — so the scale's own order is checked
- * in the browser, by the Playwright scenario about a sticky heading.
+ * This reads `.vue` files, where every component style lives. Vite hands a test
+ * an empty string for a `.css` file — `import.meta.glob`, `?raw` and `?inline`
+ * alike — so nothing here reads the scale itself; `declared.spec.ts` reads it
+ * from the disk, and what actually paints over what is a browser question,
+ * answered by the Playwright scenario about a sticky heading.
  */
 const SOURCES = import.meta.glob("/src/**/*.vue", {
   query: "?raw",

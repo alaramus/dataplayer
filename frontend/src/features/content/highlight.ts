@@ -27,5 +27,5 @@ export const syntaxColours = HighlightStyle.define([
   { tag: tags.strikethrough, textDecoration: "line-through" },
   { tag: tags.link, color: "var(--dp-link)", textDecoration: "underline" },
   { tag: tags.heading, color: "var(--dp-code-keyword)", fontWeight: "bold" },
-  { tag: tags.invalid, color: "var(--dp-danger-text, #d32f2f)" },
+  { tag: tags.invalid, color: "var(--dp-content-error)" },
 ])

@@ -41,10 +41,10 @@ onDeactivated(() => {
   background: var(--dp-surface-raised);
   color: var(--dp-text-strong);
   border: 1px solid var(--dp-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   font-size: 12px;
   line-height: 1.4;
-  padding: 4px 8px;
+  padding: var(--dp-space-1) var(--dp-space-2);
   box-shadow: 0 2px 8px var(--dp-shadow-soft);
   max-width: 240px;
   white-space: normal;

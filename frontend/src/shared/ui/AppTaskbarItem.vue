@@ -102,7 +102,7 @@ defineOptions({ inheritAttrs: false })
      first tab added two pixels to the footer the moment it appeared. */
   outline: 1px solid transparent;
   outline-offset: -1px;
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
   background: var(--dp-panel-background, var(--dp-hover));
   color: var(--dp-panel-foreground, inherit);
 }

@@ -283,14 +283,14 @@ async function forget(service: ServicePublic) {
 .starting {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--dp-space-1);
   min-height: 120px;
 }
 .starting__row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-2);
   border-radius: var(--dp-radius-control);
   background: var(--dp-surface-raised);
 }

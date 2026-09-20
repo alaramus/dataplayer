@@ -172,10 +172,30 @@ Consequences:
   a demonstration.
 - **Reading an API error is one function**, `shared/api/errors.ts`.
 
-A test reads every `.vue` under `src` and fails on a `z-index` that is not a
-`--dp-layer-…` name. A `.css` file cannot be read from a unit test — Vite hands
-back its name and an empty string — so the scale's own order is checked by a
-Playwright scenario.
+Three tests read every `.vue` under `src` and fail on a `z-index` that is not a
+`--dp-layer-…` name, on a gap, padding, margin or radius written as pixels, and
+on a colour reached for past the theme — written as a number, as
+`var(--q-negative)`, or as one of Quasar's colour classes outside the kit. The
+colour test reads the `.ts` modules too, because a class name is as often built
+there.
+
+A fourth asks a different question: not what a value looks like but whether it
+exists. `var(--dp-radius)` in a dialog and `var(--dp-danger-text, #d32f2f)` in
+the highlighter both named a token nobody had declared — the first dropped in
+silence by the browser, the second a literal colour wearing a token's name — and
+the graph asked for `--dp-muted` where the theme declares `--dp-text-muted`, so
+its captions were never muted at all. Vite hands a test an empty string for a
+`.css` file, whatever the query, so this one reads the three token files from
+the disk; it is the single source file typed by `tsconfig.node.json` rather than
+by the application's browser-only config, which is why Node stays out of the
+application's types. What actually paints over what remains a browser question,
+answered by a Playwright scenario.
+
+Two exceptions are written into the tests rather than left to review.
+`panelColor.ts` computes the colours a person chose for a connection, which are
+data and not a palette; `tokens.ts` says `color="negative"` because it is the
+one place meaning becomes a Quasar prop. A `1px` border keeps its pixel: it is a
+hairline, not a space.
 
 Known deviations:
 

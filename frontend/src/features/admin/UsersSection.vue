@@ -249,7 +249,7 @@ async function remove(user: UserPublic) {
 .users-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--dp-space-3);
   min-width: 0;
 }
 
