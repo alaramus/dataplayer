@@ -108,6 +108,14 @@ would mean retyping the entire string.
   under the cursor between keystrokes.
 - A source that genuinely has no parts — a REST endpoint, a queue at an address
   — declares one `url` field and needs no variant at all.
+- Every field of a connection tells the browser not to fill it, and a secret
+  says `new-password` rather than `off`: with nothing said, Chrome read the
+  user and password fields as a login form and filled a saved address and
+  password into a form for connecting to a database, which then looked ready to
+  test and save with somebody else's credentials (U03). What a browser does
+  with a form is the browser's to decide, so this is an intent stated and not a
+  prevention claimed; `new-password` is the one a browser is least willing to
+  disregard.
 
 Known deviations:
 

@@ -6,7 +6,7 @@ import AppNumberInput from "@/shared/ui/AppNumberInput.vue"
 import AppSelect from "@/shared/ui/AppSelect.vue"
 import AppToggle from "@/shared/ui/AppToggle.vue"
 
-import { fieldRows } from "./jsonSchema"
+import { autofillOf, fieldRows } from "./jsonSchema"
 import type { FieldSpec } from "./jsonSchema"
 
 const props = defineProps<{
@@ -165,6 +165,7 @@ watch(
         <AppSelect
           v-else-if="field.kind === 'select'"
           :data-testid="`field-${field.name}`"
+          :autocomplete="autofillOf(field)"
           :model-value="modelValue[field.name]"
           :options="field.choices ?? []"
           :label="field.label"
@@ -179,6 +180,7 @@ watch(
         <AppNumberInput
           v-else-if="field.kind === 'number'"
           :data-testid="`field-${field.name}`"
+          :autocomplete="autofillOf(field)"
           :model-value="numberValue(field.name)"
           :label="field.label"
           :hint="field.description"
@@ -196,6 +198,7 @@ watch(
         <AppInput
           v-else
           :data-testid="`field-${field.name}`"
+          :autocomplete="autofillOf(field)"
           :model-value="isHidden(field) ? HIDDEN : textValue(field.name)"
           :label="field.label"
           :hint="field.description"

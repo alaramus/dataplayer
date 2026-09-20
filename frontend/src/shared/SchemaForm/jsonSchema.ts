@@ -296,6 +296,25 @@ export function fieldRows(fields: FieldSpec[]): FieldSpec[][] {
   return rows
 }
 
+/**
+ * What the browser is told to fill a field of a connection with: nothing.
+ *
+ * These are the credentials of a database, and the browser's are those of a
+ * person signing in to a website. Saying nothing let Chrome read the pair of
+ * fields as a login form and fill a saved address and password into a form for
+ * connecting to a server, which then looked ready to test and save with
+ * credentials from somewhere else entirely (U03).
+ *
+ * `new-password` rather than `off` on the secret, because a browser is free to
+ * disregard `off` where it believes it is helping somebody sign in, and takes
+ * the one that says "this is not that password" more seriously. Neither is a
+ * guarantee: what a browser does with a form is the browser's to decide, which
+ * is why nothing here is stated as prevention.
+ */
+export function autofillOf(field: FieldSpec): "off" | "new-password" {
+  return field.kind === "password" ? "new-password" : "off"
+}
+
 function zodForField(field: FieldSpec): z.ZodType {
   switch (field.kind) {
     case "hidden":

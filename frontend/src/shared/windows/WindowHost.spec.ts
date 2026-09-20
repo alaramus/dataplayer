@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file -- stand-ins for what a window shows, not components of the application. */
 import { DOMWrapper, flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { defineComponent, h, onMounted, ref } from "vue"
@@ -119,6 +120,167 @@ describe("the window frame and footer manager", () => {
       await frame.get('[aria-label="Close window"]').trigger("click")
       await flushPromises()
       expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  /**
+   * U12: Escape did nothing while the frame itself had focus - which is where
+   * focus goes when a window opens - and after Cancel the keyboard was left on
+   * the page body rather than on the command that had asked the question.
+   */
+  it("closes on Escape and gives the keyboard back to whatever opened it", async () => {
+    const Root = defineComponent({
+      setup() {
+        const windows = useWindows()
+        return () => h("main", [
+          h("button", {
+            "data-testid": "ask",
+            onClick: () => {
+              windows.open({
+                id: "question",
+                look: { title: "Delete it?" },
+                size: { width: 300, height: 200 },
+                dismissible: true,
+                component: defineComponent({ setup: () => () => h("div", "Are you sure?") }),
+                autoFit: false,
+              })
+            },
+          }, "Delete"),
+          h(WindowHost, { context: windows.context }),
+        ])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    try {
+      const opener = wrapper.get<HTMLButtonElement>('[data-testid="ask"]')
+      opener.element.focus()
+      await opener.trigger("click")
+      await flushPromises()
+
+      const frame = document.body.querySelector<HTMLElement>('[data-testid="window-question"]')
+      expect(document.activeElement).toBe(frame)
+
+      await new DOMWrapper(frame!).trigger("keydown", { key: "Escape" })
+      await flushPromises()
+
+      expect(document.body.querySelector('[data-testid="window-question"]')).toBeNull()
+      expect(document.activeElement).toBe(opener.element)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it("leaves the keyboard where somebody moved it while the window was open", async () => {
+    const Root = defineComponent({
+      setup() {
+        const windows = useWindows()
+        return () => h("main", [
+          h("button", {
+            "data-testid": "ask",
+            onClick: () => {
+              windows.open({
+                id: "question",
+                look: { title: "Delete it?" },
+                size: { width: 300, height: 200 },
+                dismissible: true,
+                component: defineComponent({ setup: () => () => h("div", "Are you sure?") }),
+                autoFit: false,
+              })
+            },
+          }, "Delete"),
+          h("input", { "data-testid": "elsewhere" }),
+          h(WindowHost, { context: windows.context }),
+        ])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    try {
+      const opener = wrapper.get<HTMLButtonElement>('[data-testid="ask"]')
+      opener.element.focus()
+      await opener.trigger("click")
+      await flushPromises()
+
+      const elsewhere = wrapper.get<HTMLInputElement>('[data-testid="elsewhere"]')
+      elsewhere.element.focus()
+      const frame = document.body.querySelector<HTMLElement>('[data-testid="window-question"]')
+      await new DOMWrapper(frame!).trigger("keydown", { key: "Escape" })
+      await flushPromises()
+
+      expect(document.activeElement).toBe(elsewhere.element)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it("still knows what opened a window that was renamed on the way", async () => {
+    // A connection window is renamed when the draft it held is saved, and it
+    // is the same window: closing it afterwards has the same place to send the
+    // keyboard back to.
+    let windows: WindowsApi
+    const Root = defineComponent({
+      setup() {
+        windows = useWindows()
+        return () => h("main", [
+          h("button", {
+            "data-testid": "new-connection",
+            onClick: () => {
+              windows.open({
+                id: "draft",
+                look: { title: "New connection" },
+                size: { width: 400, height: 300 },
+                component: defineComponent({ setup: () => () => h("div", "form") }),
+                autoFit: false,
+              })
+            },
+          }, "New connection"),
+          h(WindowHost, { context: windows.context }),
+        ])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    try {
+      const opener = wrapper.get<HTMLButtonElement>('[data-testid="new-connection"]')
+      opener.element.focus()
+      await opener.trigger("click")
+      await flushPromises()
+
+      windows!.rename("draft", "saved", { title: "postgres-local", icon: "storage" })
+      await flushPromises()
+      windows!.context.close("saved")
+      await flushPromises()
+
+      expect(document.activeElement).toBe(opener.element)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it("leaves a window holding a form open when Escape is pressed", async () => {
+    // Deliberate, and older than the question above: a connection window and a
+    // form have one way out, the cross, so nothing is lost by a key pressed to
+    // dismiss something else. See workspace.md.
+    const Root = defineComponent({
+      setup() {
+        const windows = useWindows()
+        windows.open({
+          id: "draft",
+          look: { title: "New connection" },
+          size: { width: 400, height: 300 },
+          component: defineComponent({ setup: () => () => h("input", { "aria-label": "Host" }) }),
+          autoFit: false,
+        })
+        return () => h("main", [h(WindowHost, { context: windows.context })])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    try {
+      const frame = document.body.querySelector<HTMLElement>('[data-testid="window-draft"]')
+      await new DOMWrapper(frame!).trigger("keydown", { key: "Escape" })
+      await flushPromises()
+
+      expect(document.body.querySelector('[data-testid="window-draft"]')).not.toBeNull()
     } finally {
       wrapper.unmount()
     }

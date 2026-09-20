@@ -71,12 +71,21 @@ close guard without activating or dragging that tab.
 On opening, the front window receives keyboard focus on its named frame unless
 its content has already focused a field. Background and minimized windows do
 not take focus during mounting. This starts keyboard navigation inside the new
-window without making it modal.
+window without making it modal. When a window closes, the keyboard goes back to
+the control that opened it; it used to be left on the page body, which is
+nowhere (U12). Only when the window being taken away is where the keyboard
+still was — somebody who moved on somewhere else keeps where they are.
 
 The cost is stated rather than discovered: a window is closed by the cross in
-its bar, and no window in this application closes on Escape. One gesture for
-the connection window and for a form is worth more than matching what a modal
-used to do.
+its bar, and no window holding a form closes on Escape. One gesture for the
+connection window and for a form is worth more than matching what a modal used
+to do.
+
+A question is the exception, added after an audit found it: it holds nothing a
+press could lose, and Escape is the way out everybody reaches for. A window
+says for itself whether it can be dismissed that way, the question presets say
+yes, and Escape then asks to close exactly as the cross does rather than
+closing by a second path of its own.
 
 ```
 frontend/src/shared/

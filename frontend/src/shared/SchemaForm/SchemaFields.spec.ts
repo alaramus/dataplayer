@@ -44,6 +44,21 @@ describe("SchemaFields", () => {
     expect(input.attributes("type")).toBe("password")
   })
 
+  /**
+   * U03: with nothing said, Chrome read the pair of fields as a login form and
+   * filled a saved address and password into a form for connecting to a
+   * database, which then looked ready to test and save.
+   */
+  it("tells the browser these are not the credentials it keeps", () => {
+    const wrapper = mountFields()
+
+    expect(wrapper.find("[data-testid='field-host']").attributes("autocomplete")).toBe("off")
+    expect(wrapper.find("[data-testid='field-port']").attributes("autocomplete")).toBe("off")
+    expect(wrapper.find("[data-testid='field-password']").attributes("autocomplete")).toBe(
+      "new-password"
+    )
+  })
+
   it("draws a value written on several lines as a box, with its example in it", () => {
     // What the user sees of a source's own instruction: the shape of a filled
     // field, inside the empty one, gone as soon as anything is typed.

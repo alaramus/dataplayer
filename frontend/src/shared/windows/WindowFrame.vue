@@ -108,6 +108,21 @@ function startResize(edge: ResizeEdge, event: PointerEvent) {
   target.addEventListener("pointercancel", finish)
 }
 
+/**
+ * Escape asks a question to close, exactly as its cross does (U12).
+ *
+ * Only a window that says it is dismissible, which is a question and not a
+ * form - workspace.md says why. Asks rather than closes, so the answer path is
+ * the one the cross already takes. Only the window in front, and only where
+ * nothing inside has already dealt with the key: a menu or a select over the
+ * window is teleported out of it and answers Escape itself, but anything that
+ * handles the key here and says so keeps it.
+ */
+function dismiss(event: KeyboardEvent) {
+  if (!props.front || props.window.dismissible !== true || event.defaultPrevented) return
+  emit("close")
+}
+
 const resizeEdges: ResizeEdge[] = [
   "top",
   "right",
@@ -143,6 +158,7 @@ const resizeEdges: ResizeEdge[] = [
     tabindex="-1"
     :aria-label="window.look.title"
     @pointerdown="emit('focus')"
+    @keydown.esc="dismiss"
   >
     <header
       class="app-window__bar"

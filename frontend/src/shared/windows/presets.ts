@@ -49,6 +49,8 @@ export function questionWindowPreset(
     look: { title, icon: "help_outline" },
     size: { width: 420, height: 200 },
     minSize: { width: 320, height: 160 },
+    // A question holds nothing a press could lose.
+    dismissible: true,
     component,
   }
 }

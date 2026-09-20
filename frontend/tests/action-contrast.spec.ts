@@ -38,3 +38,26 @@ test("flat actions remain readable on the kit surface in both themes", async ({ 
     }
   }
 })
+
+/**
+ * U12: Escape did nothing while the frame had focus, which is where focus goes
+ * when a question opens, and Cancel left the keyboard on the page body rather
+ * than on the command that had asked.
+ */
+test("a question is dismissed with Escape and hands the keyboard back", async ({ page }) => {
+  await login(page)
+  await page.goto("/ui-kit")
+  const ask = page.getByRole("button", { name: "Confirm", exact: true })
+
+  await ask.click()
+  await expect(page.getByTestId("confirm-message")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByTestId("confirm-message")).toHaveCount(0)
+  await expect(ask).toBeFocused()
+
+  // And the same by the way out that was already there.
+  await ask.click()
+  await page.getByTestId("confirm-cancel").click()
+  await expect(page.getByTestId("confirm-message")).toHaveCount(0)
+  await expect(ask).toBeFocused()
+})

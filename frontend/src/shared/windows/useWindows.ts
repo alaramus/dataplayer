@@ -1,4 +1,4 @@
-import { computed, inject, onScopeDispose, provide, ref, shallowRef } from "vue"
+import { computed, inject, nextTick, onScopeDispose, provide, ref, shallowRef } from "vue"
 import type { Component, InjectionKey, Ref } from "vue"
 
 import {
@@ -61,6 +61,16 @@ export interface OpenWindow {
   /** Follow rendered content size until the user manually resizes the window. */
   autoFit?: boolean
   minSize?: Size
+  /**
+   * Escape asks this window to close, as the cross does.
+   *
+   * A question only. No form in this application closes on Escape, which is
+   * deliberate and stated in workspace.md: one gesture for a connection window
+   * and for a form is worth more than matching what a modal used to do. A
+   * question is the case that argument was never about - it holds nothing that
+   * a press could lose, and Escape is the way out everybody reaches for (U12).
+   */
+  dismissible?: boolean
   beforeClose?: () => boolean | Promise<boolean>
   /** The user returns to this window, even when it is already frontmost. */
   onFocus?: () => void
@@ -159,6 +169,27 @@ export function useWindows(
   const order = ref<string[]>([])
   const bottomInset = ref(0)
   let keys = 0
+  /**
+   * Where the keyboard was when each window opened (U12).
+   *
+   * Beside the windows rather than in them: a DOM node kept in state would be
+   * drawn into whatever watches that state, and this is a note to give focus
+   * back with, not part of what a window is.
+   */
+  const openedFrom = new Map<string, HTMLElement>()
+
+  /**
+   * The control the keyboard is really on.
+   *
+   * Quasar puts the focus of a pressed button into a hidden span inside it, so
+   * what `document.activeElement` answers is not a place a person could be
+   * sent back to - a negative tabindex is nowhere - and the control around it
+   * is what asked the question.
+   */
+  const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  function controlOf(node: Element | null): HTMLElement | null {
+    return node instanceof HTMLElement ? node.closest<HTMLElement>(FOCUSABLE) : null
+  }
 
   function ordered(): WindowState[] {
     const byId = new Map(windows.value.map((entry) => [entry.id, entry]))
@@ -217,6 +248,8 @@ export function useWindows(
       },
     ]
     order.value = [...order.value, window.id]
+    const from = controlOf(document.activeElement)
+    if (from !== null) openedFrom.set(window.id, from)
     window.onFocus?.()
   }
 
@@ -224,6 +257,26 @@ export function useWindows(
     windows.value.find((entry) => entry.id === id)?.onClosed?.()
     windows.value = windows.value.filter((entry) => entry.id !== id)
     order.value = order.value.filter((other) => other !== id)
+    giveFocusBack(id)
+  }
+
+  /**
+   * The command that opened a window gets the keyboard back when it closes.
+   *
+   * Once the frame is gone the browser has dropped focus on the body, and only
+   * then is it anybody's to give: somebody who has moved on somewhere else
+   * keeps where they are. An opener that has itself gone from the page - a
+   * row that was deleted, a tab that was closed - is left alone too.
+   */
+  function giveFocusBack(id: string) {
+    const from = openedFrom.get(id)
+    openedFrom.delete(id)
+    if (from === undefined) return
+    void nextTick(() => {
+      const now = document.activeElement
+      if (now !== null && now !== document.body) return
+      if (from.isConnected) from.focus({ preventScroll: true })
+    })
   }
 
   async function requestClose(id: string) {
@@ -292,6 +345,12 @@ export function useWindows(
       entry.id === from ? { ...entry, id: to, look } : entry
     )
     order.value = order.value.map((other) => (other === from ? to : other))
+    // The window is the same window: what opened it is still what to give the
+    // keyboard back to, and an entry left under the old name is a held node
+    // nothing would ever come for.
+    const opener = openedFrom.get(from)
+    openedFrom.delete(from)
+    if (opener !== undefined) openedFrom.set(to, opener)
   }
 
   function retitle(id: string, look: WindowLook) {
