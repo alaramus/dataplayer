@@ -17,6 +17,61 @@ function windows(page: Page): Locator {
   return page.locator('[data-testid^="window-connector"]').filter({ has: page.locator("footer") })
 }
 
+test("keeps connection geometry stable across tabs, errors and body scrolling", async ({ page }) => {
+  await login(page)
+  await pickAdapterType(page, "postgres")
+  const frame = windows(page).first()
+  const initial = await frame.boundingBox()
+  expect(initial).not.toBeNull()
+
+  await page.getByTestId("connector-tab-options").click()
+  await expect(page.getByTestId("connector-options")).toBeVisible()
+  await expect.poll(() => frame.boundingBox()).toEqual(initial)
+  await page.getByTestId("connector-tab-permissions").click()
+  await expect(page.getByTestId("connector-permissions")).toBeVisible()
+  await expect.poll(() => frame.boundingBox()).toEqual(initial)
+  await page.getByTestId("connector-tabs").getByRole("button", { name: "Connection", exact: true }).click()
+  await page.getByTestId("connector-name").fill("")
+  await page.getByTestId("apply-connector").click()
+  await expect(page.getByTestId("connector-name")).toHaveAttribute("aria-invalid", "true")
+  await expect.poll(() => frame.boundingBox()).toEqual(initial)
+
+  const body = page.getByTestId("connector-body")
+  const tabsBefore = await page.getByTestId("connector-tabs").boundingBox()
+  const footerBefore = await frame.locator("footer").boundingBox()
+  await body.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  expect(await page.getByTestId("connector-tabs").boundingBox()).toEqual(tabsBefore)
+  expect(await frame.locator("footer").boundingBox()).toEqual(footerBefore)
+
+  const corner = await page.locator('[data-testid^="window-resize-bottom-right-connector"]').boundingBox()
+  if (!corner) throw new Error("The resize handle has no rectangle")
+  await page.mouse.move(corner.x + corner.width / 2, corner.y + corner.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(corner.x - 50, corner.y - 60, { steps: 4 })
+  await page.mouse.up()
+  const chosen = await frame.boundingBox()
+  expect(chosen?.height).toBeLessThan(initial?.height ?? 0)
+  await page.getByTestId("connector-tab-options").click()
+  await expect.poll(() => frame.boundingBox()).toEqual(chosen)
+  await frame.getByRole("button", { name: "Maximize", exact: true }).click()
+  await frame.getByRole("button", { name: "Restore size", exact: true }).click()
+  await expect.poll(() => frame.boundingBox()).toEqual(chosen)
+
+  await page.setViewportSize({ width: 390, height: 600 })
+  await expect.poll(async () => {
+    const rect = await frame.boundingBox()
+    return rect ? rect.x + rect.width : Infinity
+  }).toBeLessThanOrEqual(390)
+  const constrained = await frame.boundingBox()
+  if (!constrained) throw new Error("The window has no rectangle")
+  expect(constrained.x).toBeGreaterThanOrEqual(0)
+  expect(constrained.y).toBeGreaterThanOrEqual(0)
+  expect(constrained.x + constrained.width).toBeLessThanOrEqual(390)
+  expect(constrained.y + constrained.height).toBeLessThanOrEqual(600)
+  await expect(page.getByTestId("cancel-connector")).toBeInViewport()
+})
+
 test("keeps two connection windows open side by side", async ({ page }) => {
   const existing = `e2e-win-a-${Date.now()}`
   await login(page)

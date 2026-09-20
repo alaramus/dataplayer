@@ -51,6 +51,8 @@ export interface OpenWindow {
   look: WindowLook
   size: Size
   component: Component
+  /** Stable forms keep their preferred rectangle as their content changes (D132). */
+  sizing?: "content" | "stable"
   /**
    * Commands of this window's own, before the size controls in its bar.
    *
@@ -233,13 +235,15 @@ export function useWindows(
       return
     }
     const last = windows.value[windows.value.length - 1]?.rect ?? null
-    const rect = place(window.size, last, viewportSize())
+    const viewport = viewportSize()
+    const placed = place(window.size, last, viewport)
+    const rect = window.sizing === "stable" ? resizeTo(placed, placed, viewport) : placed
     keys += 1
     windows.value = [
       ...windows.value,
       {
         ...window,
-        autoFit: window.autoFit ?? true,
+        autoFit: window.sizing === "stable" ? false : window.autoFit ?? true,
         rect,
         hasFit: false,
         minimized: false,
@@ -366,7 +370,9 @@ export function useWindows(
     const viewport = viewportSize()
     windows.value = windows.value.map((entry) => ({
       ...entry,
-      rect: clamp(entry.rect, viewport),
+      rect: entry.sizing === "stable"
+        ? resizeTo(entry.rect, entry.rect, viewport)
+        : clamp(entry.rect, viewport),
     }))
   }
 

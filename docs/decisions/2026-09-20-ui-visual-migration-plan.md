@@ -1,0 +1,63 @@
+# UI visual migration
+
+Date: 2026-09-20.
+
+Target: [the accepted window design](2026-09-13-window-design-and-sizing.md),
+applied across the application. Work in small, reviewable portions. Preserve
+workflows, source schemas and data contracts. Existing engineering rules may be
+refined where the visual migration requires it; do not weaken unrelated checks.
+
+## Sequence
+
+1. Stable connection-window sizing and fixed navigation around a scrolling body.
+2. Compact form composition in the shared kit and connection editor: persistent
+   labels, shared columns, narrow-container reflow, hints, errors and footer.
+   Show the composition in `/ui-kit` in both themes before broad rollout.
+3. Neutral chrome and action hierarchy through shared tokens. Inspect existing
+   consumers when changing defaults; keep data and status colours meaningful.
+4. Migrate complete families of forms: questions, simple forms, tabbed forms,
+   variable-content forms. Explicitly choose each window's sizing policy.
+5. Align workspace heads, tabs, toolbars, lists, trees, menus and bottom tools.
+6. Align grid/editor/viewer surroundings, dashboards and AI; preserve specialised
+   content presentation. Finish standalone account, admin and sharing pages.
+7. Centralise semantic icon names without changing their appearance first.
+   Compare Material Symbols Outlined at real toolbar sizes before switching.
+
+## Design defaults for the next slice
+
+Use the final neutral reference, one prominent primary action, compact desktop
+controls and spacing rather than nested decorative cards. Keep meaningful
+connection identity colours distinct from neutral chrome. Form, toolbar and
+cell contexts are permanent semantic differences, not old/new theme switches.
+Derive shared components from actual repeated compositions.
+
+## Durable safeguards
+
+- Keep the short current contract in architecture and live compositions in
+  `/ui-kit`; the next contributor should not need historical discussions.
+- Extend token ownership and presentation-prop checks where actual bypasses are
+  found. Preserve accessibility attributes and dynamic geometry.
+- Add deterministic visual scenes with reviewed baselines, alongside behavioural
+  assertions by role, text and test ID. Document their distinction from DOM
+  snapshots before introducing screenshot comparisons.
+- Verify new guardrails with an intentional violation before calling them enforced.
+- Keep validation evidence separate from implementation status.
+
+## Slice 1: stable connection geometry
+
+Implemented: explicit stable sizing in the window manager; the connection editor
+opts in; name and tabs stay outside its scrolling body; footer actions can wrap.
+Other forms retain their current sizing. Viewport shrink constrains stable
+rectangles without deriving geometry from the current tab.
+
+Coverage: manager tests for content changes, cascade placement,
+resize/maximize/restore and viewport constraints; browser regression for tab
+changes, validation, body scrolling, manual resize, maximize/restore and a narrow
+viewport.
+
+Validation: all 1,868 frontend unit tests passed; the new Playwright scenario passed;
+frontend type-check, lint and production build passed. Lint reported 20 warnings
+in unrelated files; the build reported large chunks. The documentation check passed.
+
+Remaining: compact fields and responsive rows are slice 2. This slice does not
+claim completion of the full window-design acceptance matrix or visual migration.

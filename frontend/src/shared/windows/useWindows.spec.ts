@@ -187,6 +187,62 @@ describe("content-sized windows", () => {
   })
 })
 
+describe("stable windows", () => {
+  it("keeps the footer in the viewport when opening after a shorter window", () => {
+    const scope = effectScope()
+    scope.run(() => {
+      const windows = useWindows()
+      windows.open(windowOf("catalog"))
+      windows.open({ ...windowOf("stable"), sizing: "stable", size: { width: 560, height: 660 } })
+      const rect = windows.context.windows.value.find((entry) => entry.id === "stable")!.rect
+      expect(rect.y + rect.height).toBeLessThanOrEqual(window.innerHeight)
+    })
+    scope.stop()
+  })
+
+  it("ignores content measurements before and after a manual resize and maximize", () => {
+    const scope = effectScope()
+    scope.run(() => {
+      const windows = useWindows()
+      windows.open({ ...windowOf("stable"), sizing: "stable" })
+      const initial = { ...first(windows.context.windows.value).rect }
+      windows.context.fit("stable", { width: 900, height: 700 })
+      windows.context.fit("stable", { width: 200, height: 100 })
+      expect(first(windows.context.windows.value).rect).toEqual(initial)
+
+      windows.context.resize("stable", "bottom-right", { x: 900, y: 700 })
+      const chosen = { ...first(windows.context.windows.value).rect }
+      expect(chosen).not.toEqual(initial)
+      windows.context.toggleMaximize("stable")
+      windows.context.fit("stable", { width: 200, height: 100 })
+      windows.context.toggleMaximize("stable")
+      windows.context.fit("stable", { width: 200, height: 100 })
+      expect(first(windows.context.windows.value).rect).toEqual(chosen)
+    })
+    scope.stop()
+  })
+
+  it("bounds the opening rectangle and constrains it when the viewport shrinks", () => {
+    const scope = effectScope()
+    try {
+      vi.stubGlobal("innerWidth", 800)
+      vi.stubGlobal("innerHeight", 600)
+      scope.run(() => {
+        const windows = useWindows()
+        windows.open({ ...windowOf("stable"), sizing: "stable", size: { width: 900, height: 700 } })
+        expect(first(windows.context.windows.value).rect).toEqual({ x: 0, y: 0, width: 800, height: 600 })
+        vi.stubGlobal("innerWidth", 360)
+        vi.stubGlobal("innerHeight", 480)
+        window.dispatchEvent(new Event("resize"))
+        expect(first(windows.context.windows.value).rect).toEqual({ x: 0, y: 0, width: 360, height: 480 })
+      })
+    } finally {
+      scope.stop()
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
 describe("minimized and maximized windows", () => {
   let scope: ReturnType<typeof effectScope>
   let windows: WindowsApi

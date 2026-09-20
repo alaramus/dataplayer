@@ -639,7 +639,7 @@ async function parseTyped(text: string) {
     <AppSpinner v-if="adapterTypes.isLoading.value" />
 
     <template v-else>
-      <div class="connector-window__body">
+      <div class="connector-window__navigation">
         <div class="connector-window__heading">
           <AppInput
             v-model="name"
@@ -688,7 +688,12 @@ async function parseTyped(text: string) {
             {{ page.label }}
           </button>
         </div>
+      </div>
 
+      <div
+        class="connector-window__body"
+        data-testid="connector-body"
+      >
         <SchemaFields
           v-for="group in groups"
           v-show="group.id === activePage"
@@ -966,6 +971,13 @@ async function parseTyped(text: string) {
   align-items: flex-start;
   gap: var(--dp-space-3);
 }
+.connector-window__navigation {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-3) var(--dp-space-4) 0;
+}
 /* The name takes what is left: the switch is two words wide and fixed, and a
    name box that changed width with the label beside it would jump. */
 .connector-window__name {
@@ -1072,6 +1084,7 @@ async function parseTyped(text: string) {
 .connector-window__foot {
   flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--dp-space-2);
   padding: var(--dp-space-2) var(--dp-space-4);

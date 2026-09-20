@@ -2,8 +2,9 @@
 
 Date: 2026-09-13. Decisions: D131, D132.
 
-Status: agreed design direction; application implementation is pending.
-This specification records the design discussion, not a completed migration.
+Status: agreed design direction; stable sizing is implemented for the connection
+editor. Compact visual styling and the application-wide migration remain pending.
+See the [visual migration plan](2026-09-20-ui-visual-migration-plan.md).
 
 ## Visual reference
 
@@ -89,5 +90,5 @@ Acceptance scenarios for the implementation:
   nested decorative borders or tinted background surfaces.
 
 Write meaningful manager/component tests and browser coverage when implementing.
-Run checks only with explicit user approval under AGENTS.md. No application
-implementation or validation is claimed by this documentation-only task.
+Run checks only with explicit user approval under AGENTS.md. Track implementation
+and validation in the migration plan; this specification defines acceptance.

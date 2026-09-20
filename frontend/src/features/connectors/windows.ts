@@ -20,13 +20,7 @@ export const connectorWindowId = (connectorId: string) => `connector:${connector
 let drafts = 0
 export const draftWindowId = () => `connector:new:${(drafts += 1)}`
 
-/**
- * Wide enough for an address on one line, tall enough for the whole form.
- *
- * The height is not a guess: at 520 the connection string fell below the fold
- * of the scrolling body, and it is one of the things this window exists to
- * show. `place` shrinks the window to a viewport that cannot hold it.
- */
+/** Preferred rectangle for every tab; overflow belongs to the form body (D132). */
 export const CONNECTOR_WINDOW_SIZE = { width: 560, height: 660 }
 
 export function connectorWindow(options: {
@@ -68,6 +62,7 @@ export function connectorWindow(options: {
       icon: type ? adapterIcon(type) : undefined,
     },
     size: CONNECTOR_WINDOW_SIZE,
+    sizing: "stable",
     minSize: { width: 420, height: 300 },
     beforeClose: options.beforeClose,
     component,

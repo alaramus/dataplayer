@@ -8,17 +8,22 @@ Decisions here: D12, D14, D69, D92, D93, D94, D132.
 
 ## D132. Changing content does not resize a stable window
 
-Agreed direction; implementation pending. The shared frame will distinguish
-content-sized simple forms from stable windows for tabs and changing content.
+The shared window manager distinguishes content-sized simple forms from stable
+windows through `sizing: "stable"`; omitted sizing retains content fitting.
 A stable window starts at a suitable preferred size bounded by the viewport.
 Tab changes, loaded data and validation do not resize or recenter it; excess
 content scrolls inside the body while title, tabs and footer remain available.
 Manual geometry survives tab changes and maximize/restore. Viewport changes
 may constrain it. No cross-session geometry persistence is introduced.
 
-Current deviation: D14's automatic fitting still follows changing content;
-the stable policy has not been implemented. The saved example demonstrates
-appearance, not stable geometry.
+The connection editor is the first participant. It keeps its preferred 560 by
+660 rectangle, bounded by the viewport, with the name and tabs outside the
+scrolling body. Manual resizing disables content fitting in either policy.
+Stable rectangles are constrained again when the viewport shrinks.
+
+Remaining migration: other variable-content forms still use their existing
+policy. Compact field layout and narrow-form reflow belong to the next visual
+slice. The saved example demonstrates appearance, not stable geometry.
 
 Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 
@@ -432,7 +437,7 @@ secret shows as `<hidden>`, empties the moment the field is entered and comes ba
 if it is left untyped-in; what a check said appears in a panel over the button
 that ran it rather than as a line that moves the form about.
 
-Every window opens at a content-measured height and continues to follow content
+Content-sized windows open at a content-measured height and continue to follow content
 that appears or disappears inside it, bounded by the viewport. It can be
 resized from every edge or corner; manual resizing ends automatic fitting for
 that window, so a later validation message does not undo the user's chosen
