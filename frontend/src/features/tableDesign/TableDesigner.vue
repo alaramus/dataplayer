@@ -76,6 +76,7 @@ const options = useTableDesignOptions(connectorId, destination)
 const planTable = usePlanTable()
 
 const draft = reactive<Draft>(emptyDraft("text"))
+draft.name = "new table"
 const step = ref<"definition" | "review">("definition")
 const section = ref<DraftSection>("columns")
 const selected = ref(draft.columns[0]?.id ?? "")
@@ -409,7 +410,7 @@ function moveColumn(by: number): void {
       </div>
       <template v-else-if="step === 'definition'">
         <AppForm
-          layout="embedded"
+          layout="grid"
           class="designer__identity"
           data-testid="design-identity"
         >
@@ -459,7 +460,7 @@ function moveColumn(by: number): void {
                 @click="add(section)"
               />
             </div>
-            <AppForm layout="embedded">
+            <AppForm layout="grid">
               <ColumnInspector
                 v-if="section === 'columns'"
                 :key="selected"

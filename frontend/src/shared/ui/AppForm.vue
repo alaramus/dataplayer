@@ -5,7 +5,7 @@ import { formLayoutKey } from "./formLayout"
 
 withDefaults(defineProps<{
   /** A standalone form owns its padding and field spacing; an embedded one does not. */
-  layout?: "embedded" | "section"
+  layout?: "embedded" | "section" | "grid"
 }>(), { layout: "embedded" })
 
 provide(formLayoutKey, true)
@@ -14,7 +14,10 @@ provide(formLayoutKey, true)
 <template>
   <div
     class="app-form"
-    :class="{ 'app-form--section': layout === 'section' }"
+    :class="{
+      'app-form--section': layout === 'section',
+      'app-form--grid': layout === 'grid',
+    }"
   >
     <slot />
   </div>
@@ -73,6 +76,26 @@ provide(formLayoutKey, true)
 .app-form :deep(.app-form-checkbox) {
   margin-left: var(--dp-form-label-width);
   min-height: var(--dp-form-control-height);
+}
+.app-form--grid :deep(.app-form-checkbox) {
+  margin-left: 0;
+}
+.app-form--grid :deep(.app-form-field) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.app-form--grid :deep(.app-form-field > .q-field__inner) {
+  width: 100%;
+}
+.app-form--grid :deep(.app-form-field .q-field__before) {
+  grid-column: 1 / -1;
+  width: auto;
+  min-height: 0;
+  padding: 0 0 var(--dp-space-1);
+}
+.app-form--grid :deep(.app-form-field .q-field__after) {
+  grid-column: 2;
+  grid-row: 2;
 }
 @container app-form (max-width: 480px) {
   .app-form :deep(.app-form-checkbox) {

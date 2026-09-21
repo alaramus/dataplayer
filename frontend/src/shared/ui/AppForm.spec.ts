@@ -34,4 +34,16 @@ describe("form composition", () => {
     expect(wrapper.get('input[type="file"]').attributes("aria-label")).toBe("Key file")
     wrapper.unmount()
   })
+
+  it("offers labels above controls for a structured editor grid", () => {
+    const wrapper = mount(AppForm, {
+      props: { layout: "grid" },
+      slots: { default: `<AppInput model-value="orders" label="Table name" />` },
+      global: { plugins: [Quasar], components: { AppInput } },
+    })
+
+    expect(wrapper.classes()).toContain("app-form--grid")
+    expect(wrapper.get(".q-field").classes()).toContain("q-field--outlined")
+    expect(wrapper.text()).toContain("Table name")
+  })
 })

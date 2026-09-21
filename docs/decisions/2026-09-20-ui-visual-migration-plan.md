@@ -623,3 +623,13 @@ semantic form token. All 1,895 unit tests, both table-design browser scenarios,
 type-check, lint and build passed; one unrelated DataGrid unit test first
 reached its five-second timeout, then passed alone and in the repeated full
 suite.
+
+Follow-up after visual review: an ordinary form's side label column did not fit
+the designer's multi-column rows: Schema lost its value and Order and Nulls
+collapsed to slivers. AppForm now has a `grid` composition for structured
+editors: it keeps the tokenized outlined controls and neutral selections but
+places each label directly above its control. The designer uses it throughout,
+starts with `new table`, stacks its destination fields before they become
+crowded, and uses the neutral active surface in its object navigation. Browser
+coverage fixes the default name and schema, field look, index-row containment
+and usable widths for Order and Nulls.

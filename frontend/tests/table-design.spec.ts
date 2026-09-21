@@ -33,6 +33,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   const frame = page.getByRole("dialog").filter({ has: designer })
   await expect(designer).toContainText("demo_lab")
   await expect(page.getByTestId("table-schema")).toContainText("demo_lab")
+  await expect(page.getByTestId("table-name")).toHaveValue("new table")
   await expect(page.getByTestId("design-identity")).toContainText("Schema")
 
   // Where the table goes is a choice, not the accident of which schema was
@@ -90,6 +91,15 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   // with the object named — and the review button goes with it.
   await page.getByTestId("section-indexes").click()
   await page.getByTestId("add-indexes").click()
+  await expect.poll(() => page.getByTestId("index-inspector").evaluate(
+    (element) => element.scrollWidth <= element.clientWidth
+  )).toBe(true)
+  expect(await page.getByRole("combobox", { name: "Order" }).evaluate(
+    (element) => element.closest(".q-field")?.getBoundingClientRect().width ?? 0
+  )).toBeGreaterThan(60)
+  expect(await page.getByRole("combobox", { name: "Nulls" }).evaluate(
+    (element) => element.closest(".q-field")?.getBoundingClientRect().width ?? 0
+  )).toBeGreaterThan(60)
   await expect(page.getByTestId("design-problems")).toContainText(
     "The primary key already indexes those columns"
   )

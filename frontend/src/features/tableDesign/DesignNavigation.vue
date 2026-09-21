@@ -142,10 +142,12 @@ const groups = computed(() => [
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.navigation__row:hover,
+.navigation__row:hover {
+  background: var(--dp-hover);
+}
 .navigation__row[aria-current="true"] {
-  background: var(--dp-selected);
-  color: var(--dp-link);
+  background: var(--dp-active);
+  color: inherit;
 }
 .navigation__row--wrong {
   text-decoration: underline wavy var(--dp-content-error);
