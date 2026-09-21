@@ -97,6 +97,22 @@ async def test_a_half_typed_draft_never_carries_the_password(
     assert "a-very-secret-value" not in response.text
 
 
+async def test_an_ssh_draft_is_described_as_an_ssh_url(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.post(
+        f"{BASE}/describe-draft",
+        headers=normal_user_token_headers,
+        json={
+            "adapter_type": "ssh",
+            "options": {"host": "server.example", "port": 2222, "username": "a@b"},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["connection_string"] == "ssh://a%40b@server.example:2222"
+
+
 async def test_a_half_typed_form_for_a_source_with_no_address_still_answers_501(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

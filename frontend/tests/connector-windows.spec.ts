@@ -320,6 +320,9 @@ test("shows the connection string, and hides it for a source that has none", asy
     new RegExp(DATABASE.password === "" ? "\\u0000never" : DATABASE.password)
   )
   await expectFieldActionAligned(page.getByTestId("connector-url"), page.getByTestId("copy-url"))
+  const urlRow = await page.getByTestId("connector-url-row").boundingBox()
+  const urlField = await page.getByTestId("connector-url").boundingBox()
+  expect((urlField?.y ?? 0) - (urlRow?.y ?? 0)).toBeGreaterThanOrEqual(8)
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, postgres)).toBeVisible()
 

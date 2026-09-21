@@ -68,7 +68,9 @@ The rule for building a DSN belongs to the driver. A client that composed
 - **Every source type that has an address writes its own.** PostgreSQL leans on
   libpq; Redis has no library call to lean on — redis-py parses a URL and will
   not write one — so `adapters/redis/url.py` states the grammar once and its
-  tests exercise both directions against each other.
+  tests exercise both directions against each other. SSH writes the passwordless
+  `ssh://user@host:port` endpoint accepted by OpenSSH, both for a draft and a
+  stored connection.
 - **One composer keeps the password, and it is named for it.**
   `ComposesSecretUrl.connection_url_with_password` exists for the window that
   shows a started service's credentials once
@@ -105,6 +107,10 @@ would mean retyping the entire string.
 - What is typed goes to the driver, the driver produces fields, and the fields
   compose the string that comes back, so a password typed into the box lands in
   the password field and leaves the box.
+- An SSH URL changes its host, port and user. Authentication, the browsing root
+  and the pinned server key are separate connection choices and stay as they
+  were; a password in an SSH URL is refused because OpenSSH does not take one
+  there.
 - Nothing composed is written into the box while it has focus: every prefix of
   an address parses as some address, so a slow typist would have it rewritten
   under the cursor between keystrokes.

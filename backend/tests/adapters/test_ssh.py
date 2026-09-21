@@ -7,7 +7,13 @@ import pytest
 
 from app.adapters import options as adapter_options
 from app.adapters import registry
-from app.adapters.protocol import SupportsCatalog, SupportsContent, SupportsNodePath
+from app.adapters.protocol import (
+    ParsesConnectionString,
+    SupportsCatalog,
+    SupportsConnectionString,
+    SupportsContent,
+    SupportsNodePath,
+)
 from app.adapters.registry import AdapterContext
 from app.adapters.ssh import keys
 from app.adapters.ssh.adapter import SshAdapter
@@ -47,6 +53,8 @@ def test_what_it_can_do_is_read_off_the_driver() -> None:
     assert isinstance(adapter, SupportsCatalog)
     assert isinstance(adapter, SupportsNodePath)
     assert isinstance(adapter, SupportsContent)
+    assert isinstance(adapter, SupportsConnectionString)
+    assert isinstance(adapter, ParsesConnectionString)
 
     capabilities = registry.capabilities_of(registry.get("ssh"))
     titles = {item.title for item in capabilities}
@@ -149,3 +157,26 @@ def test_a_node_id_is_the_path_below_the_root() -> None:
 )
 def test_the_address_is_the_line_openssh_takes(options: dict[str, object], line: str | None) -> None:
     assert SshAdapter.draft_connection_string(options) == line
+
+
+def test_a_finished_connection_has_the_same_address_as_its_draft() -> None:
+    adapter = _adapter(_password(host="example.org", port=2222, username="a@b"))
+
+    assert adapter.connection_string() == "ssh://a%40b@example.org:2222"
+
+
+def test_an_ssh_url_becomes_endpoint_fields_without_authentication() -> None:
+    assert SshAdapter.options_from_url("ssh://a%40b@[::1]:2222") == {
+        "host": "::1",
+        "port": 2222,
+        "username": "a@b",
+    }
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["http://user@example.org", "ssh://user:secret@example.org", "ssh:///tmp", "ssh://host/path"],
+)
+def test_an_ssh_url_refuses_another_grammar(url: str) -> None:
+    with pytest.raises(ValueError):
+        SshAdapter.options_from_url(url)

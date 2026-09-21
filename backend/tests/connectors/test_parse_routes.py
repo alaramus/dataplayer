@@ -73,6 +73,20 @@ async def test_a_url_without_a_password_names_the_other_variant(
     }
 
 
+async def test_an_ssh_url_becomes_its_endpoint_fields(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    status, body = await _parse(
+        client,
+        normal_user_token_headers,
+        "ssh://a%40b@[::1]:2222",
+        adapter_type="ssh",
+    )
+
+    assert status == 200
+    assert body["options"] == {"host": "::1", "port": 2222, "username": "a@b"}
+
+
 async def test_the_keyword_form_is_a_connection_string_too(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

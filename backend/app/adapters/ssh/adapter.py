@@ -12,7 +12,7 @@ follows: a library upgrade has one place to change.
 
 from collections.abc import Mapping
 from typing import Any, ClassVar
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlsplit
 
 from app.adapters.credentials import ServerKey
 from app.adapters.explorer.actions import (
@@ -48,6 +48,12 @@ class SshAdapter(Explorer):
         self._session = SshSession(options, context)
         super().__init__(SftpStorage(self._session, owner=identity_of(options)))
 
+    def connection_string(self) -> str:
+        value = self.draft_connection_string(self._session.options.model_dump(mode="python"))
+        if value is None:  # pragma: no cover - validated options always have a host
+            raise ValueError("The SSH connection has no host")
+        return value
+
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
 
@@ -74,6 +80,29 @@ class SshAdapter(Explorer):
         if isinstance(port, int) and not isinstance(port, bool) and port != DEFAULT_PORT:
             address = f"{address}:{port}"
         return f"ssh://{address}"
+
+    @classmethod
+    def options_from_url(cls, url: str) -> dict[str, Any]:
+        """Read the endpoint fields an SSH URL can state; authentication stays separate."""
+        try:
+            parsed = urlsplit(url)
+            port = parsed.port
+        except ValueError:
+            raise ValueError("That is not an SSH URL") from None
+        if (
+            parsed.scheme != "ssh"
+            or parsed.hostname is None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query != ""
+            or parsed.fragment != ""
+        ):
+            raise ValueError("That is not an SSH URL")
+        return {
+            "host": parsed.hostname,
+            "port": port or DEFAULT_PORT,
+            "username": unquote(parsed.username) if parsed.username is not None else "",
+        }
 
     # --- the server's own key (D145) ----------------------------------------
 

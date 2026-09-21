@@ -843,6 +843,7 @@ async function parseTyped(text: string) {
         v-if="hasConnectionString !== false"
         v-show="onSource"
         class="connector-window__url"
+        data-testid="connector-url-row"
       >
         <AppInput
           :model-value="urlText"
@@ -1081,7 +1082,7 @@ async function parseTyped(text: string) {
   flex: none;
   display: flex;
   min-width: 0;
-  padding: 0 var(--dp-space-4) var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-4);
   border-top: 1px solid var(--dp-border);
 }
 .connector-window__url-field {

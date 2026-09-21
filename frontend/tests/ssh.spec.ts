@@ -79,6 +79,8 @@ test("an SSH server is trusted by its key before anything is sent, and then brow
   await login(page)
   await fillSshServer(page, name)
 
+  await expect(page.getByTestId("connector-url")).toHaveValue("ssh://dataplayer@sshd:2222")
+
   // Nothing connects before the server's key is trusted (D145).
   await page.getByTestId("check-draft").click()
   await expect(page.getByTestId("check-result")).toContainText("confirm")
