@@ -74,7 +74,10 @@ accepted visual example and the rejected directions.
   Account creation and editing use `medium-form`, 560 by 440; instructions about an optional
   new password sit below its field, leaving the shared label column short.
   The AI provider key window stays content-sized: one field whose show/hide
-  action sits beside it, with the provider named by the title.
+  action sits beside it, with the provider named by the title. A service's
+  address is read-only fields with a copy action each, in a stable `form` window
+  that keeps its size when the answer arrives; `monospace` sets such values in
+  the mono face, where l and I must differ.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.

@@ -7,7 +7,7 @@ import {
 } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
-import { AppBanner, AppButton, AppCopyButton, AppSpinner, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppCopyButton, AppForm, AppInput, AppSpinner, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
@@ -123,13 +123,14 @@ async function copy(what: string, said: string) {
 <template>
   <WindowDialog
     :model-value="service !== null"
-    size="md"
+    size="form"
+    sizing="stable"
     :title="`Connecting to ${service?.name ?? ''}`"
     subtitle="Where this service answers, for your own tools."
     data-testid="service-credentials-dialog"
     @update:model-value="emit('update:service', null)"
   >
-    <div class="credentials">
+    <AppForm layout="section">
       <AppSpinner v-if="loading" />
       <AppBanner
         v-else-if="failure"
@@ -152,40 +153,46 @@ async function copy(what: string, said: string) {
         >
           {{ answer.unreachable_reason }}
         </AppBanner>
-        <div
+        <AppInput
           v-for="row in rows"
           :key="row.label"
-          class="credentials__row"
+          :model-value="row.value"
+          :label="row.label"
+          readonly
+          monospace
           :data-testid="`credential-${row.label.toLowerCase()}`"
         >
-          <span class="credentials__label">{{ row.label }}</span>
-          <code class="credentials__value">{{ row.value }}</code>
-          <AppCopyButton
-            :tooltip="`Copy the ${row.label.toLowerCase()}`"
-            :data-testid="`copy-${row.label.toLowerCase()}`"
-            @click="copy(row.value, `${row.label} copied`)"
-          />
-        </div>
+          <template #after>
+            <AppCopyButton
+              :tooltip="`Copy the ${row.label.toLowerCase()}`"
+              :data-testid="`copy-${row.label.toLowerCase()}`"
+              @click="copy(row.value, `${row.label} copied`)"
+            />
+          </template>
+        </AppInput>
 
         <!-- Last, and the one most people will actually use: the parts above
              are what a form asks for, and this is what a terminal takes. In
              the one window that hands a password over it carries one, so this
              is the line to copy and keep. -->
-        <div
+        <AppInput
           v-if="url"
-          class="credentials__row"
+          :model-value="url"
+          label="URL"
+          readonly
+          monospace
           data-testid="credential-url"
         >
-          <span class="credentials__label">URL</span>
-          <code class="credentials__value">{{ url }}</code>
-          <AppCopyButton
-            tooltip="Copy the connection string"
-            data-testid="copy-url"
-            @click="copy(url, 'Connection string copied')"
-          />
-        </div>
+          <template #after>
+            <AppCopyButton
+              tooltip="Copy the connection string"
+              data-testid="copy-url"
+              @click="copy(url, 'Connection string copied')"
+            />
+          </template>
+        </AppInput>
       </template>
-    </div>
+    </AppForm>
 
     <template #actions>
       <AppButton
@@ -196,32 +203,3 @@ async function copy(what: string, said: string) {
     </template>
   </WindowDialog>
 </template>
-
-<style scoped>
-.credentials {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-2);
-}
-.credentials__row {
-  display: flex;
-  align-items: center;
-  gap: var(--dp-space-2);
-  padding: var(--dp-space-1) var(--dp-space-2);
-  border-radius: var(--dp-radius-control);
-  background: var(--dp-surface-raised);
-}
-.credentials__label {
-  font-size: 11px;
-  color: var(--dp-text-muted);
-  width: 70px;
-  flex: none;
-}
-.credentials__value {
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto;
-  white-space: nowrap;
-  font-size: 12px;
-}
-</style>

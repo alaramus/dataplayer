@@ -76,14 +76,14 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   // the connection holds, so neither is something anybody was told (D89).
   const details = page.getByTestId("service-credentials-dialog")
   await expect(details).toBeVisible({ timeout: 90_000 })
-  await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
+  await expect(details.getByTestId("credential-host")).toHaveValue("127.0.0.1")
   // And this is the one moment the password is said out loud — in the row and
   // in the line most tools take, which is the one worth keeping.
-  await expect(details.getByTestId("credential-password")).toContainText(
+  await expect(details.getByTestId("credential-password")).toHaveValue(
     SERVICE_PASSWORD
   )
-  await expect(details.getByTestId("credential-url")).toContainText(
-    SERVICE_PASSWORD
+  await expect(details.getByTestId("credential-url")).toHaveValue(
+    new RegExp(SERVICE_PASSWORD)
   )
   await page.getByTestId("credentials-done").click()
 
@@ -102,9 +102,15 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
     .locator('[data-testid^="managed-service-"]')
     .filter({ hasText: SERVICE_NAME })
   await row.locator('[data-testid^="credentials-service-"]').click()
-  await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
+  await expect(details.getByTestId("credential-host")).toHaveValue("127.0.0.1")
   await expect(details.getByTestId("credential-password")).toHaveCount(0)
+  // The address is in fields, and a field's value is not its text.
   await expect(details).not.toContainText(SERVICE_PASSWORD)
+  expect(
+    await details.locator("input").evaluateAll((fields) =>
+      fields.map((field) => (field as HTMLInputElement).value)
+    )
+  ).not.toContainEqual(expect.stringContaining(SERVICE_PASSWORD))
   await expect(details.getByTestId("credential-url")).toBeVisible()
   await page.getByTestId("credentials-done").click()
 
@@ -154,8 +160,8 @@ test("starts an SSH server with sample files in its home and opens them", async 
   // (D153), and the window says where it listens as the line ssh takes.
   const details = page.getByTestId("service-credentials-dialog")
   await expect(details).toBeVisible({ timeout: 120_000 })
-  await expect(details.getByTestId("credential-url")).toContainText(
-    "ssh://dataplayer@127.0.0.1:"
+  await expect(details.getByTestId("credential-url")).toHaveValue(
+    /^ssh:\/\/dataplayer@127\.0\.0\.1:/
   )
   await expect(details.getByTestId("credential-password")).toBeVisible()
   await page.getByTestId("credentials-done").click()
@@ -221,8 +227,8 @@ test("starts an SSH server signed into with one of the person's own keys", async
   await expect(details).toBeVisible({ timeout: 120_000 })
   await expect(details).toContainText("signed into with your SSH key")
   await expect(details.getByTestId("credential-password")).toHaveCount(0)
-  await expect(details.getByTestId("credential-url")).toContainText(
-    "ssh://dataplayer@127.0.0.1:"
+  await expect(details.getByTestId("credential-url")).toHaveValue(
+    /^ssh:\/\/dataplayer@127\.0\.0\.1:/
   )
   await page.getByTestId("credentials-done").click()
 

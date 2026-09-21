@@ -372,6 +372,16 @@ function removeSavedEntry(name: string) {
             :model-value="true"
             label="Allow empty values"
           />
+          <AppInput
+            model-value="postgresql://dataplayer@127.0.0.1:5432/demo"
+            label="URL"
+            readonly
+            monospace
+          >
+            <template #after>
+              <AppCopyButton tooltip="Copy the connection string" />
+            </template>
+          </AppInput>
         </AppForm>
         <AppInput
           v-model="text"

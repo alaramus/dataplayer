@@ -287,3 +287,32 @@ screenshots at desktop and narrow widths. The full E2E suite was not run.
 Next: the remaining small settings and credential forms, such as service
 credentials; the AI tab-attachment window is a checklist rather than labelled
 fields and needs its own composition.
+
+## Slice 12: service address
+
+Implemented: the window saying where a service answers uses AppForm's section
+layout in a stable `form` window, so the answer arriving after it opens no
+longer grows it from a spinner to its full height. Host, port, user, database,
+password and URL are read-only fields with their copy action beside them, as
+the sharing link is. AppInput gains `monospace`, shown in the kit gallery: the
+old rows set values as code, and the reference sets the URL that way. The
+password notes are form banners. What is shown, when a password is included and
+the server's URL are unchanged.
+
+Coverage: a layout scene with a delayed answer in both themes: unchanged window
+geometry, labels beside read-only monospace fields, the copy action centred on
+the URL, no body overflow on desktop, narrow reflow and scrolling with the
+footer in view. Run against the previous window it failed on the values, and
+with content sizing on the geometry. The services scenarios read the values as
+field values, and the check that a listed address carries no password now reads
+the fields as well as the text.
+
+Validation: all 1,876 frontend unit tests passed; the new scene, the three real
+services scenarios (PostgreSQL, SSH with a password, SSH with a key) and the
+kit gallery and connection form scenes passed. Type-check, lint and build
+passed; lint retains 20 unrelated warnings and the build reports large chunks.
+Inspected both themes at desktop and narrow widths, and the password-revealing
+window of real PostgreSQL and SSH services. The full E2E suite was not run.
+
+Next: the start-service form, then backups; the AI tab-attachment window is a
+checklist rather than labelled fields and needs its own composition.

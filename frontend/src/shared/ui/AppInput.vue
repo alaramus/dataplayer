@@ -61,7 +61,8 @@ withDefaults(
      * `max-height` on the field's own textarea, or a box that bounds it.
      */
     grow?: boolean
-
+    /** A value read character by character: an address, a generated password. */
+    monospace?: boolean
   }>(),
   {
     label: undefined,
@@ -74,6 +75,7 @@ withDefaults(
     compact: false,
     clearable: false,
     grow: false,
+    monospace: false,
   }
 )
 
@@ -96,7 +98,7 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
-    :class="{ 'app-form-field': formLayout }"
+    :class="{ 'app-form-field': formLayout, 'app-input--monospace': monospace }"
     v-bind="{ ...attrs, ...fieldLook(formLayout, compact, Boolean(error)) }"
     :model-value="modelValue"
     :label="formLayout ? undefined : label"
@@ -152,3 +154,9 @@ function report(value: string | number | null) {
     </template>
   </q-input>
 </template>
+
+<style scoped>
+.app-input--monospace :deep(.q-field__native) {
+  font-family: var(--dp-font-mono);
+}
+</style>
