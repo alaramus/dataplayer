@@ -55,11 +55,12 @@ describe("download scopes", () => {
     const wrapper = mountDialog(false)
     await flushPromises()
 
-    const all = document.body.querySelector<HTMLButtonElement>(
-      '[data-testid="download-scope-all"]'
-    )
-    expect(all?.disabled).toBe(true)
+    const all = document.body.querySelector<HTMLElement>('[data-testid="download-scope-all"]')
+    expect(all?.getAttribute("aria-disabled")).toBe("true")
     expect(document.body.textContent).toContain("Only this page can be downloaded")
+    all?.click()
+    document.body.querySelector<HTMLElement>('[data-testid="grid-download-run"]')?.click()
+    expect(wrapper.findComponent(DownloadDialog).emitted("run")?.[0]).toEqual(["page", "browser"])
     wrapper.unmount()
   })
 })

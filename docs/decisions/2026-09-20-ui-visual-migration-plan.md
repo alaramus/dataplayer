@@ -370,3 +370,33 @@ chunks. Inspected both themes at desktop and narrow widths and the unavailable
 state. The full E2E suite was not run.
 
 Next: the grid forms — download, import and create table.
+
+## Slice 15: downloading rows
+
+Implemented: the download window chooses between the current page and every
+matching row with a new kit component, AppRadioGroup, instead of two bordered
+boxes whose chosen button was filled like a second primary action beside
+Download. Each option keeps its line: the page's range and columns, the filters
+and streaming, or the reason a source cannot export every row. In a form the
+group's label takes the label column and its marks are neutral through
+tokens.ts; ESLint forbids `q-radio` and `q-option-group` outside the kit,
+verified by adding both spellings to a screen; the gallery shows it inside the
+form composition and on its own. Cancel is quiet. The window stays
+content-sized: nothing appears in it after opening. What is downloaded and
+where it goes are unchanged.
+
+Coverage: the component's names, descriptions, emitted values, disabled and
+repeated choices and its form and standalone looks; the download unit test now
+checks that an unavailable scope cannot be chosen rather than reading a button's
+`disabled`. A browser scene in both themes checks the group's name and the
+options' descriptions, the label on the first option's line, unchanged geometry
+when the scope changes, no overflow and narrow reflow. Run against the previous
+window it failed.
+
+Validation: all 1,881 frontend unit tests passed; the new scene, the grid
+scenarios including a real export, and the kit gallery scene passed.
+Type-check, lint and build passed; lint retains 20 unrelated warnings and the
+build reports large chunks. Inspected both themes at desktop and narrow widths
+and the gallery's composition. The full E2E suite was not run.
+
+Next: loading a file into a relation (import), then creating a table.

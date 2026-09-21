@@ -22,6 +22,7 @@ import {
   AppPageHeader,
   AppPopup,
   AppProgress,
+  AppRadioGroup,
   AppCheckbox,
   AppCopyButton,
   AppSection,
@@ -91,6 +92,12 @@ const groupedChoice = ref<string | null>("claude")
 const plain = ref("prefer")
 const several = ref<string[]>(["public"])
 const flag = ref(true)
+const rows = ref("page")
+const ROW_SCOPES = [
+  { label: "Current page", value: "page", description: "Rows 1–50 · 6 visible columns" },
+  { label: "All matching rows", value: "all", description: "2 active filters · streamed rather than held in memory" },
+  { label: "Selected rows", value: "selected", description: "Tick rows in the grid first", disable: true },
+]
 const file = ref<File | null>(null)
 const files = ref<File[]>([])
 const loading = ref(false)
@@ -372,6 +379,11 @@ function removeSavedEntry(name: string) {
             :model-value="true"
             label="Allow empty values"
           />
+          <AppRadioGroup
+            v-model="rows"
+            label="Rows"
+            :options="ROW_SCOPES"
+          />
           <AppInput
             model-value="postgresql://dataplayer@127.0.0.1:5432/demo"
             label="URL"
@@ -476,6 +488,11 @@ function removeSavedEntry(name: string) {
           v-model="flag"
           label="Some of them"
           indeterminate
+        />
+        <AppRadioGroup
+          v-model="rows"
+          label="Rows"
+          :options="ROW_SCOPES"
         />
         <AppFileInput
           v-model="file"

@@ -81,12 +81,17 @@ accepted visual example and the rejected directions.
   `long-form` preset, 560 by 620: its two ways of asking differ by seven fields,
   and the window keeps its size between them. Backups are a flat list with
   quiet separators in a stable `medium-form` window, and copying one out is the
-  footer's primary action.
+  footer's primary action. Downloading rows chooses the page or every matching
+  row with a radio group in a content-sized window.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.
 - **Form checkboxes align with the control column**, use neutral checked marks
   and reflow with the fields; a standalone checkbox keeps its own look.
+- **A choice among a few is `AppRadioGroup`**, each option with its meaning or
+  the reason it is unavailable beside it; a select hides both until opened. In a
+  form its label takes the label column and its marks are neutral, like a form
+  checkbox's. `q-radio` and `q-option-group` are forbidden outside the kit.
 - **Actions carry the hierarchy, not the palette.** Primary is a neutral
   contrasting fill, secondary is neutral text, destructive keeps its semantic
   red, and a filled button has no decorative shadow. Chrome and default panel

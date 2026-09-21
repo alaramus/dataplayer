@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 
-import { AppButton, AppSection, AppTooltip } from "@/shared/ui"
+import { AppButton, AppForm, AppRadioGroup } from "@/shared/ui"
+import type { RadioOption } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 import type { DownloadDestination, DownloadScope } from "./download"
@@ -22,6 +23,27 @@ const emit = defineEmits<{
 
 const scope = ref<DownloadScope>("page")
 
+const scopes = computed<RadioOption[]>(() => [
+  {
+    label: "Current page",
+    value: "page",
+    description: `${props.pageRange} · ${props.columnCount} visible columns`,
+  },
+  {
+    label: "All matching rows",
+    value: "all",
+    description: props.allSupported
+      ? `${props.filterCount === 0 ? "The whole relation" : `${props.filterCount} active filters`}` +
+        " · streamed rather than held in memory"
+      : props.allReason ?? "This source cannot export all matching rows",
+    disable: !props.allSupported,
+  },
+])
+
+function chooseScope(value: string) {
+  if (value === "page" || value === "all") scope.value = value
+}
+
 watch(
   () => props.modelValue,
   (open) => {
@@ -35,44 +57,24 @@ watch(
     :model-value="modelValue"
     title="Download CSV"
     subtitle="The visible columns stay in their current order"
-    size="sm"
+    size="md"
+    sizing="content"
     data-testid="grid-download-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
-      <div class="download-scope">
-        <AppButton
-          label="Current page"
-          :variant="scope === 'page' ? 'primary' : 'secondary'"
-          data-testid="download-scope-page"
-          @click="scope = 'page'"
-        />
-        <span>{{ pageRange }} · {{ columnCount }} visible columns</span>
-      </div>
-      <div class="download-scope">
-        <span>
-          <AppButton
-            label="All matching rows"
-            :variant="scope === 'all' ? 'primary' : 'secondary'"
-            :disable="!allSupported"
-            data-testid="download-scope-all"
-            @click="scope = 'all'"
-          />
-          <AppTooltip v-if="!allSupported">
-            {{ allReason ?? "This source cannot export all matching rows" }}
-          </AppTooltip>
-        </span>
-        <span v-if="allSupported">
-          {{ filterCount === 0 ? "The whole relation" : `${filterCount} active filters` }}
-          · streamed rather than held in memory
-        </span>
-        <span v-else>{{ allReason ?? "This source cannot export all matching rows" }}</span>
-      </div>
-    </AppSection>
+    <AppForm layout="section">
+      <AppRadioGroup
+        :model-value="scope"
+        label="Rows"
+        :options="scopes"
+        data-testid="download-scope"
+        @update:model-value="chooseScope"
+      />
+    </AppForm>
     <template #actions>
       <AppButton
         label="Cancel"
-        variant="secondary"
+        variant="quiet"
         :disable="running"
         @click="emit('update:modelValue', false)"
       />
@@ -94,16 +96,3 @@ watch(
     </template>
   </WindowDialog>
 </template>
-
-<style scoped>
-.download-scope {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  align-items: center;
-  gap: var(--dp-space-3);
-  min-height: 52px;
-  padding: var(--dp-space-2);
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius-control);
-}
-</style>

@@ -125,3 +125,8 @@ export function fieldLook(form: boolean, compact = false, error = false) {
 export function checkboxLook(form: boolean, dense: boolean) {
   return { dense: form || dense, color: form ? "dp-control-selected" : undefined }
 }
+
+/** A radio is marked the way a form's checkbox is: dense, and neutral when chosen. */
+export function radioLook(form: boolean) {
+  return checkboxLook(form, false)
+}
