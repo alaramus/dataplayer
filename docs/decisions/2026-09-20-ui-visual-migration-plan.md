@@ -591,3 +591,23 @@ Validation: all 1,895 frontend unit tests and the targeted browser scene
 passed. Type-check, lint and build passed; lint retains 20 unrelated warnings
 and the build reports large chunks. The window and selected chips were
 inspected in both themes at 420 px. The full application E2E suite was not run.
+
+## Slice 23: table designer
+
+Implemented: the main Create table object editor is a stable `xl` window. Its
+system title is no longer repeated by a second document bar. Definition and
+SQL review scroll inside the body, while status and the Review SQL or Create
+table command stay in the shared fixed footer. Changing sections, showing a
+planning problem and moving to review no longer changes the window geometry.
+
+Coverage: the real table-design browser scenario checks the single title,
+stable geometry through a planning problem and review, no horizontal overflow
+at 600 px, a non-scrolling window content frame, and a footer command that
+remains in the viewport. It still creates the designed table through the SQL
+review; the close guard still discards a separate draft.
+
+Validation: all 1,895 frontend unit tests and both table-design browser
+scenarios passed. Type-check, lint and build passed; lint retains 20 unrelated
+warnings and the build reports large chunks. The definition and review steps
+were inspected in both themes at the constrained size. The full application
+E2E suite was not run.

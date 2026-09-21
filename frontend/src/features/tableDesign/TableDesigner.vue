@@ -374,20 +374,13 @@ function moveColumn(by: number): void {
   <WindowDialog
     :model-value="modelValue"
     size="xl"
+    sizing="stable"
     title="Create table"
     :before-close="mayClose"
     data-testid="table-designer"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="designer">
-      <div class="designer__document">
-        <q-icon
-          name="table_chart"
-          aria-hidden="true"
-        />
-        <strong>Create table</strong>
-        <span class="designer__draft">Unsaved draft</span>
-      </div>
       <AppBanner
         v-if="error"
         tone="error"
@@ -554,20 +547,6 @@ function moveColumn(by: number): void {
             {{ problem.message }}
           </li>
         </ul>
-        <footer class="designer__footer">
-          <span
-            class="designer__status"
-            aria-live="polite"
-            data-testid="design-status"
-          >{{ summary }} · {{ status }}</span>
-          <AppButton
-            label="Review SQL"
-            icon-right="arrow_forward"
-            :disable="!ready"
-            data-testid="design-review-sql"
-            @click="step = 'review'"
-          />
-        </footer>
       </template>
       <section
         v-else
@@ -585,35 +564,46 @@ function moveColumn(by: number): void {
           />
         </div>
         <DesignSql :sql="script" />
-        <footer class="designer__footer">
-          <span class="designer__status">Nothing has been created yet</span>
-          <AppButton
-            label="Create table"
-            :loading="running"
-            :disable="!ready"
-            data-testid="design-create"
-            @click="create"
-          />
-        </footer>
       </section>
     </div>
+    <template #actions>
+      <span
+        v-if="step === 'definition'"
+        class="designer__status"
+        aria-live="polite"
+        data-testid="design-status"
+      >{{ summary }} · {{ status }}</span>
+      <span
+        v-else
+        class="designer__status"
+      >Nothing has been created yet</span>
+      <AppButton
+        v-if="step === 'definition'"
+        label="Review SQL"
+        icon-right="arrow_forward"
+        :disable="!ready"
+        data-testid="design-review-sql"
+        @click="step = 'review'"
+      />
+      <AppButton
+        v-else
+        label="Create table"
+        :loading="running"
+        :disable="!ready"
+        data-testid="design-create"
+        @click="create"
+      />
+    </template>
   </WindowDialog>
 </template>
 
 <style scoped>
 .designer {
-  container: table-designer / inline-size;
-}
-.designer__document {
   display: flex;
-  align-items: center;
-  gap: var(--dp-space-2);
-  padding: var(--dp-space-2) var(--dp-space-3);
-  border-bottom: 1px solid var(--dp-border);
-}
-.designer__draft {
-  margin-left: auto;
-  color: var(--dp-link);
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  container: table-designer / inline-size;
 }
 /* A floating window follows the size of what it holds, and what this one holds
    until the destination has answered is a spinner: fitted to that, it shrank to
@@ -635,8 +625,11 @@ function moveColumn(by: number): void {
   border-bottom: 1px solid var(--dp-border);
 }
 .designer__body {
+  flex: 1;
   display: grid;
   grid-template-columns: 175px minmax(0, 1fr) minmax(250px, 0.78fr);
+  min-height: 0;
+  overflow: auto;
 }
 .designer__editor {
   padding: var(--dp-space-3);
@@ -693,23 +686,15 @@ function moveColumn(by: number): void {
   border-top: 1px solid var(--dp-border);
   color: var(--dp-content-error);
 }
-.designer__footer {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--dp-space-2);
-  padding: var(--dp-space-2) var(--dp-space-3);
-  border-top: 1px solid var(--dp-border);
-}
 .designer__status {
   margin-right: auto;
   color: var(--dp-text-muted);
 }
 .designer__review {
-  padding: var(--dp-space-3) var(--dp-space-3) 0;
-}
-.designer__review > .designer__footer {
-  margin: 0 calc(-1 * var(--dp-space-3));
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--dp-space-3);
 }
 @container table-designer (max-width: 850px) {
   .designer__body {
@@ -730,9 +715,6 @@ function moveColumn(by: number): void {
   }
   .designer__comment {
     grid-column: 1 / -1;
-  }
-  .designer__status {
-    width: 100%;
   }
 }
 </style>

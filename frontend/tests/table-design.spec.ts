@@ -5,6 +5,7 @@ import { catalogAction, showOnlySchema } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { toast } from "./utils/notices"
+import { chooseTheme } from "./utils/theme"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
 /** Choose one option of a kit select that is already on screen. */
@@ -22,12 +23,14 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   const connector = `e2e-design-${Date.now()}`
   const table = `designed_${Date.now()}`
   await login(page)
+  await chooseTheme(page, "dark")
   await createPostgresConnector(page, connector)
   await openConnector(page, connector)
   await showOnlySchema(page, "demo_lab")
 
   await catalogAction(page, "create_table")
   const designer = page.getByTestId("table-designer")
+  const frame = page.getByRole("dialog").filter({ has: designer })
   await expect(designer).toContainText("demo_lab")
   await expect(page.getByTestId("table-schema")).toContainText("demo_lab")
   await expect(page.getByTestId("design-identity")).toContainText("Schema")
@@ -50,6 +53,15 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   expect(navigation!.width).toBeCloseTo(175, 0)
   expect(navigation!.x + navigation!.width).toBeCloseTo(inspector!.x, 0)
   expect(inspector!.x + inspector!.width).toBeCloseTo(preview!.x, 0)
+  await expect(frame.getByText("Create table", { exact: true })).toHaveCount(1)
+  await page.setViewportSize({ width: 600, height: 700 })
+  await expect(page.getByTestId("design-review-sql")).toBeInViewport()
+  await expect.poll(() => designer.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expect.poll(() => frame.locator(".window-dialog__content").evaluate(
+    (element) => element.scrollHeight <= element.clientHeight
+  )).toBe(true)
+  await page.setViewportSize({ width: 1280, height: 720 })
+  const stableFrame = await frame.boundingBox()
 
   await page.getByTestId("table-name").fill(table)
 
@@ -77,6 +89,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
     "The primary key already indexes those columns"
   )
   await expect(page.getByTestId("design-review-sql")).toBeDisabled()
+  expect(await frame.boundingBox()).toEqual(stableFrame)
 
   // Pointed at the other column, it is an index again.
   await choose(page, "index-key-column-0", "label")
@@ -100,6 +113,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   await expect(review).toContainText(`demo_lab.${table}`)
   await expect(review).toContainText("CREATE TABLE")
   await expect(review).toContainText("CREATE INDEX")
+  expect(await frame.boundingBox()).toEqual(stableFrame)
 
   // And going back leaves the draft exactly as it was.
   await page.getByTestId("design-back").click()
