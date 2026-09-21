@@ -9,6 +9,7 @@ import { keyChoiceLabel } from "@/features/sshKeys/keys"
 import {
   AppButton,
   AppCheckbox,
+  AppForm,
   AppInput,
   AppNumberInput,
   AppSelect,
@@ -123,13 +124,14 @@ const modes = [
 <template>
   <WindowDialog
     :model-value="template !== null"
-    size="lg"
+    size="long-form"
+    sizing="stable"
     :title="`Start ${template?.title ?? ''} here`"
     subtitle="This server runs it and saves the connection for you."
     data-testid="start-service-dialog"
     @update:model-value="emit('update:template', null)"
   >
-    <div class="start-service">
+    <AppForm layout="section">
       <AppSelect
         v-model="mode"
         label="How"
@@ -153,26 +155,31 @@ const modes = [
       <template v-else>
         <AppInput
           v-model="name"
-          label="Name this connection"
+          label="Name"
+          autocomplete="off"
           data-testid="service-name"
           @keydown.enter="start"
         />
         <AppInput
           v-if="asksFor.includes('user')"
           v-model="user"
-          label="User to create (optional)"
+          label="User"
+          placeholder="Optional"
+          autocomplete="off"
           data-testid="service-user"
         />
         <AppInput
           v-if="asksFor.includes('database')"
           v-model="database"
-          label="Database to create (optional)"
+          label="Database"
+          placeholder="Optional"
+          autocomplete="off"
           data-testid="service-database"
         />
         <AppNumberInput
           v-model="port"
-          label="Port on this machine"
-          hint="0 lets this server pick a free one"
+          label="Port"
+          hint="On this machine; 0 lets this server pick a free one"
           data-testid="service-port"
         />
         <!-- Only where running without one is a configuration rather than a
@@ -212,6 +219,7 @@ const modes = [
           label="Password"
           hint="Leave it empty and one is made up here"
           :error="passwordSays"
+          autocomplete="new-password"
           data-testid="service-password"
         />
         <AppCheckbox
@@ -232,7 +240,7 @@ const modes = [
           </template>
         </p>
       </template>
-    </div>
+    </AppForm>
 
     <template #actions>
       <AppButton
@@ -251,12 +259,6 @@ const modes = [
 </template>
 
 <style scoped>
-.start-service {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-3);
-  padding: var(--dp-space-1) var(--dp-space-half);
-}
 .start-service__what {
   margin: 0;
   font-size: 12px;

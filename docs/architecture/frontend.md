@@ -77,7 +77,9 @@ accepted visual example and the rejected directions.
   action sits beside it, with the provider named by the title. A service's
   address is read-only fields with a copy action each, in a stable `form` window
   that keeps its size when the answer arrives; `monospace` sets such values in
-  the mono face, where l and I must differ.
+  the mono face, where l and I must differ. Starting a service takes the stable
+  `long-form` preset, 560 by 620: its two ways of asking differ by seven fields,
+  and the window keeps its size between them.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.

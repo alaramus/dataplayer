@@ -316,3 +316,31 @@ window of real PostgreSQL and SSH services. The full E2E suite was not run.
 
 Next: the start-service form, then backups; the AI tab-attachment window is a
 checklist rather than labelled fields and needs its own composition.
+
+## Slice 13: starting a service
+
+Implemented: the start-service form uses AppForm's section layout in a stable
+window instead of a 900-pixel content-sized one that grew by 450 pixels when
+"Let me choose" revealed its fields. The longest variant, an SSH server signed
+into with a key, is seven rows, two hints and a paragraph whose image name
+takes three lines; it overflowed `form` by four pixels, so WindowDialog gains
+`long-form`, 560 by 620. Labels shortened to fit the label column: "Name",
+"User" and "Database" with an "Optional" placeholder, and "Port" with "On this
+machine" moved into its hint. The name, user and database fields say `off` and
+the password `new-password`, so a browser does not read the form as a sign-in.
+Choices, validation and the request are unchanged.
+
+Coverage: both themes; unchanged geometry between modes and with a rejected
+password; labels beside fields, compact heights, the sample-data checkbox on
+the control column; no body overflow for PostgreSQL and for an SSH server with
+a key; narrow reflow with the footer in view. Run against the previous form it
+failed on the geometry. Nothing is started by the scene.
+
+Validation: all 1,876 frontend unit tests passed; the new scene, the three real
+services scenarios, which fill this form, and the service address scene passed.
+Type-check, lint and build passed; lint retains 20 unrelated warnings and the
+build reports large chunks. Inspected light and dark desktop, a narrow dark
+form and the SSH key variant. The full E2E suite was not run.
+
+Next: backups, then the remaining grid forms (download, import, create table);
+the AI tab-attachment window needs a checklist composition of its own.

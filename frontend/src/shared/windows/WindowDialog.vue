@@ -10,7 +10,7 @@ const props = withDefaults(
     modelValue: boolean
     title: string
     subtitle?: string
-    size?: "sm" | "md" | "lg" | "xl" | "form" | "medium-form" | "compact-form"
+    size?: "sm" | "md" | "lg" | "xl" | "form" | "long-form" | "medium-form" | "compact-form"
     sizing?: "content" | "stable"
     /**
      * Whether the window may close, asked before it does.
@@ -38,6 +38,9 @@ const sizes = {
   "medium-form": { width: 560, height: 440 },
   // Variable-content forms keep room for optional fields and inline errors.
   form: { width: 560, height: 580 },
+  // Starting a service: up to seven questions, two hints and a paragraph
+  // naming an image long enough to take three lines.
+  "long-form": { width: 560, height: 620 },
   sm: { width: 460, height: 220 },
   md: { width: 520, height: 260 },
   lg: { width: 900, height: 360 },
