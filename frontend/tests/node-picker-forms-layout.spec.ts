@@ -78,6 +78,17 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByTestId("grid-import-run")).toBeInViewport()
       await frame.screenshot({ path: `test-results/import-form-${theme}.png` })
 
+      // Back lets the chosen table go and shows its schema's tables again; it
+      // used to walk up past them and leave the table chosen with no way out.
+      await page.getByTestId("grid-import-back").click()
+      await expect(page.getByTestId("grid-import-where")).toHaveText("demo_lab")
+      await expect(columns).toHaveCount(0)
+      await expect(page.getByTestId("grid-import-node-organizations")).toBeVisible()
+      expect(await frame.boundingBox()).toEqual(before)
+      await page.getByTestId("grid-import-node-organizations").click()
+      await expect(page.getByTestId("grid-import-where")).toHaveText("demo_lab / organizations")
+      await expect(columns).toBeVisible()
+
       await page.setViewportSize({ width: 390, height: 600 })
       await expect.poll(() => content.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
       await expect(page.getByTestId("grid-import-run")).toBeInViewport()

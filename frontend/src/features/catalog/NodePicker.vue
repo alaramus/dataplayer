@@ -79,7 +79,18 @@ async function step(node: CatalogNode) {
   if (await openLevel(node)) trail.value = [...trail.value, node]
 }
 
+/**
+ * One step back: a chosen node is let go first, and its level is still the one
+ * on screen. Walking up while a node stayed chosen emptied the trail, took Back
+ * away and kept the list hidden, so the only way out was another source.
+ */
 async function back() {
+  if (chosen.value !== null) {
+    chosen.value = null
+    emit("trouble", "")
+    emit("pick", null)
+    return
+  }
   const shorter = trail.value.slice(0, -1)
   if (await openLevel(shorter.at(-1) ?? null)) trail.value = shorter
 }
@@ -109,9 +120,10 @@ async function choose(node: CatalogNode) {
   })
 }
 
-const here = computed(() =>
-  trail.value.length === 0 ? "Pick a node" : trail.value.map((node) => node.name).join(" / ")
-)
+const here = computed(() => {
+  const path = chosen.value === null ? trail.value : [...trail.value, chosen.value]
+  return path.length === 0 ? "Pick a node" : path.map((node) => node.name).join(" / ")
+})
 </script>
 
 <template>
@@ -130,7 +142,7 @@ const here = computed(() =>
   >
     <div class="node-picker__where">
       <AppButton
-        v-if="trail.length > 0"
+        v-if="trail.length > 0 || chosen !== null"
         label="Back"
         variant="quiet"
         size="sm"
@@ -138,7 +150,7 @@ const here = computed(() =>
         :data-testid="`${props.testid}-back`"
         @click="back"
       />
-      <span>{{ chosen === null ? here : chosen.name }}</span>
+      <span :data-testid="`${props.testid}-where`">{{ here }}</span>
     </div>
     <AppSpinner v-if="browsing" />
     <ul
