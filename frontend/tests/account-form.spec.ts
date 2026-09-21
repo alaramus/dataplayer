@@ -52,6 +52,8 @@ for (const theme of ["light", "dark"] as const) {
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.getByTestId("edit-user-layout@example.test").click()
     const edit = page.getByRole("dialog", { name: "Edit user — layout@example.test", exact: true })
+    const editBody = page.getByTestId("user-dialog").locator(".window-dialog__content")
+    await expect.poll(() => editBody.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true)
     await expect(page.getByTestId("user-password")).toHaveValue("")
     await expect(page.getByTestId("user-password")).toHaveAccessibleName("New password")
     await expect(edit.getByText("Leave empty to keep the current password", { exact: true })).toBeVisible()

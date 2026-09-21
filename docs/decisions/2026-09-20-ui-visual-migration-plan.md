@@ -256,3 +256,9 @@ Validation: all 1,876 frontend unit tests and five targeted browser scenarios
 passed. Type-check, lint and build passed. Lint retains 20 unrelated warnings;
 the build reports large chunks. Inspected desktop light editing and narrow dark
 validation screenshots. The full application E2E suite was not run.
+
+Follow-up: the 360-pixel compact preset left the edit form permanently
+scrollable. The account window now uses a 440-pixel medium-form preset, enough
+for its hint and checkboxes at a normal viewport; the browser regression asserts
+that its body has no vertical overflow. Narrow viewports still scroll while the
+footer stays fixed.

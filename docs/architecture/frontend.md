@@ -71,7 +71,7 @@ accepted visual example and the rejected directions.
   560 by 360; constraints take `form`, for the foreign-key fields.
   Connection, view and dashboard sharing use `form` too: compact recipient and permission
   fields precede the grants and links, which scroll above the fixed footer.
-  Account creation and editing use `compact-form`; instructions about an optional
+  Account creation and editing use `medium-form`, 560 by 440; instructions about an optional
   new password sit below its field, leaving the shared label column short.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
