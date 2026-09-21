@@ -6,8 +6,8 @@ import {
   AppBanner,
   AppButton,
   AppCheckbox,
+  AppForm,
   AppInput,
-  AppSection,
   AppSelect,
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -45,10 +45,12 @@ function save() {
   <WindowDialog
     :model-value="modelValue"
     :title="`Edit ${column.name} — ${column.type.sql}`"
+    size="compact-form"
+    sizing="stable"
     data-testid="grid-cell-editor"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -83,10 +85,10 @@ function save() {
         data-testid="grid-edit-value"
         @update:model-value="draft = $event"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="saving"
         @click="emit('update:modelValue', false)"

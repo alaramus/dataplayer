@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { copyText } from "@/shared/clipboard"
-import { AppButton, AppCopyButton, AppSection, useToast } from "@/shared/ui"
+import { AppButton, AppCopyButton, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -27,12 +27,13 @@ async function copyValue() {
     :model-value="modelValue"
     :title="`${columnName} — ${typeSql}`"
     size="lg"
+    sizing="stable"
     data-testid="grid-viewer"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection scroll>
+    <div class="cell-value-dialog">
       <pre class="cell-value-dialog__value">{{ value }}</pre>
-    </AppSection>
+    </div>
     <template #actions>
       <AppCopyButton
         tooltip="Copy the full value"
@@ -48,6 +49,9 @@ async function copyValue() {
 </template>
 
 <style scoped>
+.cell-value-dialog {
+  padding: var(--dp-space-4);
+}
 .cell-value-dialog__value {
   margin: 0;
   overflow-wrap: anywhere;

@@ -481,3 +481,26 @@ suite was not run.
 
 Next: the remaining catalog and grid windows — cell value and cell editor, the
 model code window and the action dialog — then the AI tab-attachment checklist.
+
+## Slice 18: cell value and editor windows
+
+Implemented: the full-cell viewer is a stable 900 by 360 window whose plain
+preformatted value scrolls with the body, without a nested card or a second
+scroll ceiling. The cell editor uses AppForm's section layout in a stable
+`compact-form` window; its nullable switch aligns with the value field, a
+refusal is a form banner and Cancel is quiet. Copying, typing, SQL NULL and
+saving are unchanged.
+
+Coverage: a browser scene in both themes opens both windows on a real relation,
+checks the viewer's content and copy action, compact label alignment, unchanged
+editor geometry when a rejected save appears, narrow reflow, no horizontal
+overflow and reachable footer actions. The existing real scenarios still open
+the full JSON value and update a cell through values and SQL NULL.
+
+Validation: all 1,893 frontend unit tests and four targeted browser scenarios
+passed. Type-check, lint and build passed; lint retains 20 unrelated warnings
+and the build reports large chunks. Inspected both themes at desktop and narrow
+widths. The full application E2E suite was not run.
+
+Next: the model code window, then the action dialog and the AI tab-attachment
+checklist.

@@ -241,7 +241,9 @@ whole columns; sorting, pinning and hiding are separate controls inside each
 column header. The row-number column
 and pinned data columns remain at the left edge, while reference controls sit
 over the top-right of their cells without changing row geometry. Cell content
-is aligned left regardless of its source type.
+is aligned left regardless of its source type. A complete value opens as plain
+preformatted content in a stable wide window; editing uses the compact form
+composition, with a refusal appearing above the value without moving the window.
 
 **Create table from these rows** uses D43's bounded cross-connector creation.
 The grid remains the source: the workflow chooses a structure-writable target
