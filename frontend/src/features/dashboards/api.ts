@@ -294,6 +294,18 @@ export function useUpdateReporting() {
   })
 }
 
+export function usePurgeConnector() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (connectorId: string) =>
+      (await MetricsService.purgeConnector({ path: { connector_id: connectorId } })).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: reportingKey })
+      await queryClient.invalidateQueries({ queryKey: metricsCatalogKey })
+    },
+  })
+}
+
 export function useDashboards(enabled: MaybeRefOrGetter<boolean>) {
   return useQuery({
     queryKey: dashboardsKey,

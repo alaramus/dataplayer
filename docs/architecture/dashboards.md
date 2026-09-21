@@ -138,6 +138,7 @@ GET    /api/v1/metrics/processes?agent_id=&host=&sort=&limit=&dashboard_id=
 GET    /api/v1/metrics/presets?agent_id=&host=  |  ?connector_id=
 GET    /api/v1/metrics/connectors
 PUT    /api/v1/metrics/connectors/{connector_id}      owner
+POST   /api/v1/metrics/connectors/{connector_id}/purge   owner
 GET    /api/v1/metrics/dashboards
 POST   /api/v1/metrics/dashboards
 GET    /api/v1/metrics/dashboards/{dashboard_id}            read

@@ -316,6 +316,9 @@ import type {
   metricsPurgeAgentData,
   metricsPurgeAgentErrors,
   metricsPurgeAgentResponses,
+  metricsPurgeConnectorData,
+  metricsPurgeConnectorErrors,
+  metricsPurgeConnectorResponses,
   metricsReadAgentKeyData,
   metricsReadAgentKeyErrors,
   metricsReadAgentKeyResponses,
@@ -4809,6 +4812,28 @@ export class MetricsService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Purge Connector
+   *
+   * Delete every sample the server collected from this connection. Its
+   * owner's decision alone, like switching reporting: the polling is this
+   * server reading their database.
+   */
+  public static purgeConnector<ThrowOnError extends boolean = true>(
+    options: Options<metricsPurgeConnectorData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      metricsPurgeConnectorResponses,
+      metricsPurgeConnectorErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/connectors/{connector_id}/purge",
+      ...options,
     })
   }
 

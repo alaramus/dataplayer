@@ -423,6 +423,19 @@ async def test_a_connection_reports_by_its_owner_s_choice_and_is_read_through_it
     )
     assert both.status_code == 422
 
+    purged = await client.post(f"{BASE}/connectors/{connector_id}/purge", headers=colleague_headers)
+    by_stranger = await client.post(f"{BASE}/connectors/{connector_id}/purge", headers=stranger_headers)
+    by_owner = await client.post(f"{BASE}/connectors/{connector_id}/purge", headers=normal_user_token_headers)
+    assert purged.status_code == 403
+    assert by_stranger.status_code == 404
+    assert by_owner.status_code == 200, by_owner.text
+    after = (await client.get(f"{BASE}/catalog", headers=colleague_headers)).json()
+    assert all(one["connector_id"] != connector_id for one in after["connectors"])
+    missing = await client.post(
+        f"{BASE}/history", headers=colleague_headers, json={"series_ids": [series_id], "start": START - 60, "end": START + 60}
+    )
+    assert missing.status_code == 404
+
 
 async def test_a_source_that_does_not_report_metrics_cannot_be_switched_on(
     client: AsyncClient, normal_user_token_headers: dict[str, str]

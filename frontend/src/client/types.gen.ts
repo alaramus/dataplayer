@@ -16181,6 +16181,38 @@ export type metricsUpdateReportingResponses = {
 export type metricsUpdateReportingResponse =
   metricsUpdateReportingResponses[keyof metricsUpdateReportingResponses]
 
+export type metricsPurgeConnectorData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/connectors/{connector_id}/purge"
+}
+
+export type metricsPurgeConnectorErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsPurgeConnectorError =
+  metricsPurgeConnectorErrors[keyof metricsPurgeConnectorErrors]
+
+export type metricsPurgeConnectorResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type metricsPurgeConnectorResponse =
+  metricsPurgeConnectorResponses[keyof metricsPurgeConnectorResponses]
+
 export type metricsReadProcessesData = {
   body?: never
   path?: never

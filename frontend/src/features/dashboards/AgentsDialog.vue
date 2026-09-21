@@ -32,6 +32,7 @@ import {
   useDeleteAgent,
   useHosts,
   usePurgeAgent,
+  usePurgeConnector,
   useReporting,
   useRotateAgentKey,
   useUpdateReporting,
@@ -69,6 +70,7 @@ const hostColumns: TableColumns = [
 
 const reporting = useReporting(open)
 const updating = useUpdateReporting()
+const purgingConnector = usePurgeConnector()
 
 const INTERVALS: { value: ConnectorReporting["interval_seconds"]; label: string }[] = [
   { value: 15, label: "Every 15 s" },
@@ -82,6 +84,7 @@ const connectionColumns: TableColumns = [
   { name: "reports", label: "Reports", field: "enabled", align: "left" },
   { name: "interval", label: "How often", field: "interval_seconds", align: "left" },
   { name: "heard", label: "Last reported", field: "last_heard_at", align: "left" },
+  { name: "actions", label: "", field: "connector_id", align: "right" },
 ]
 
 async function report(row: ConnectorReporting, patch: Partial<Pick<ConnectorReporting, "enabled" | "interval_seconds">>) {
@@ -92,6 +95,21 @@ async function report(row: ConnectorReporting, patch: Partial<Pick<ConnectorRepo
     })
   } catch (cause) {
     toast.error(messageOf(cause, "Reporting could not be changed"))
+  }
+}
+
+async function purgeConnector(row: ConnectorReporting) {
+  const sure = await confirm({
+    title: "Delete every sample?",
+    message: `Everything ${row.name} has reported about itself will be deleted. Reporting stays as it is.`,
+    confirmLabel: "Delete samples",
+    danger: true,
+  })
+  if (!sure) return
+  try {
+    toast.success((await purgingConnector.mutateAsync(row.connector_id)).message)
+  } catch (cause) {
+    toast.error(messageOf(cause, "The samples could not be deleted"))
   }
 }
 
@@ -361,6 +379,18 @@ async function copy(text: string, what: string) {
         <template #body-cell-heard="cellProps">
           <q-td :props="cellProps">
             {{ lastHeardWording(cellProps.row.last_heard_at, now) }}
+          </q-td>
+        </template>
+        <template #body-cell-actions="cellProps">
+          <q-td :props="cellProps">
+            <AppIconButton
+              icon="delete_sweep"
+              tooltip="Delete every sample it reported"
+              variant="danger-quiet"
+              :disable="!cellProps.row.may_change"
+              :data-testid="`reporting-purge-${cellProps.row.name}`"
+              @click="purgeConnector(cellProps.row)"
+            />
           </q-td>
         </template>
       </AppTable>

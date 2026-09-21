@@ -385,6 +385,29 @@ async def update_reporting(
     return _reporting(connector, row, current_user.id, {})
 
 
+@router.post("/connectors/{connector_id}/purge", response_model=Message)
+async def purge_connector(
+    session: SessionDep,
+    current_user: CurrentUser,
+    holder: StoreHolderDep,
+    connector_id: uuid.UUID,
+) -> Any:
+    """Delete every sample the server collected from this connection. Its
+    owner's decision alone, like switching reporting: the polling is this
+    server reading their database."""
+    connector = await get_or_404(session, connector_id, current_user, requires="own")
+    if not _reports_metrics(connector):
+        raise HTTPException(
+            501, detail={"message": "This kind of source does not report metrics"}
+        )
+    store = await _store(session, holder)
+    try:
+        await store.purge(Source(kind="connector", id=connector.id))
+    except StoreUnavailable:
+        raise _unavailable() from None
+    return Message(message=f"The samples of {connector.name} were deleted")
+
+
 @router.get("/processes", response_model=ProcessTable)
 async def read_processes(
     session: SessionDep,
