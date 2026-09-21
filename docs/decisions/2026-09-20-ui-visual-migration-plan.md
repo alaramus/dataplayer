@@ -528,3 +528,25 @@ and the build reports large chunks. Inspected both themes at desktop and narrow
 widths. The full application E2E suite was not run.
 
 Next: the action dialog, then the AI tab-attachment checklist.
+
+## Slice 20: generic action window
+
+Implemented: the generic action dialog is a stable `medium-form` window and its
+body is an AppForm section. Schema fields therefore use the same label column,
+control geometry and narrow reflow as every migrated form. Destructive
+questions, staged files, refusals and previews change inside the scrolling body
+without moving the window or its fixed actions. Running actions, previews,
+uploads and conflict answers are unchanged.
+
+Coverage: a component test fixes the stable preset and shared-form boundary. A
+browser scene in both themes stages several files, removes one and checks that
+the window does not move; it also checks narrow-width overflow and reachable
+footer actions. Existing action scenarios cover previews, destructive actions,
+uploads, conflicts and ordinary fields.
+
+Validation: all 1,894 frontend unit tests and 13 browser scenarios passed.
+Type-check, lint and build passed; lint retains 20 unrelated warnings and the
+build reports large chunks. Inspected both themes at desktop and narrow widths.
+The full application E2E suite was not run.
+
+Next: the AI tab-attachment checklist.

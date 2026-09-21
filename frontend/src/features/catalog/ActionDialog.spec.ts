@@ -207,6 +207,22 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
+describe("action form layout", () => {
+  it("keeps changing action content in one stable shared form", async () => {
+    const wrapper = mountDialog(RENAME)
+    try {
+      await flushPromises()
+      const dialog = wrapper.findComponent(ActionDialog)
+      const window = dialog.findComponent({ name: "WindowDialog" })
+
+      expect(window.props()).toMatchObject({ size: "medium-form", sizing: "stable" })
+      expect(document.body.querySelector(".app-form--section")).not.toBeNull()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+})
+
 describe("what an action would do", () => {
   it("keeps reviewed actions disabled until a fingerprint arrives and after edits", async () => {
     vi.spyOn(ConnectorsService, "previewAction").mockResolvedValue({

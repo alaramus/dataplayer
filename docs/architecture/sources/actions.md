@@ -40,6 +40,9 @@ guard.
   other transport with 415.
 - `ActionResult.reload_node_ids` names every branch that changed, rather than the
   client inferring one from the action name.
+- The generic action screen is one stable medium form. Fields use the shared
+  label column, while staged files, refusals and previews change inside its
+  scrolling body without moving the title or footer actions.
 - `PreparesConnector` is an action capability that returns a `ConnectorDraft`
   with a name, adapter type and source-resolved options. Its
   `POST /connectors/{id}/actions/{name}/connector-draft` route rechecks the action,

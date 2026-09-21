@@ -34,8 +34,8 @@ import {
   AppBanner,
   AppButton,
   AppFileInput,
+  AppForm,
   AppIconButton,
-  AppSection,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -641,17 +641,19 @@ async function runDesign(value: {
   <WindowDialog
     v-else-if="command"
     :model-value="open"
-    size="sm"
+    size="medium-form"
+    sizing="stable"
     :title="nodeLabel ? `${command.label} — ${nodeLabel}` : command.label"
     data-testid="action-dialog"
     @update:model-value="close"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <!-- The question follows the action's declaration rather than a list of
            destructive action names kept by the client. It stays ordinary text:
            the target name is the useful part of this confirmation. -->
       <p
         v-if="command.destructive"
+        class="action-dialog__question"
         data-testid="action-confirmation"
       >
         {{ destructiveQuestion }}
@@ -738,7 +740,7 @@ async function runDesign(value: {
           </li>
         </ul>
       </AppBanner>
-    </AppSection>
+    </AppForm>
 
     <template #actions>
       <AppButton
@@ -776,6 +778,10 @@ async function runDesign(value: {
 </template>
 
 <style scoped>
+.action-dialog__question {
+  margin: 0;
+}
+
 .action-dialog__files {
   margin: 0;
   padding: 0;
