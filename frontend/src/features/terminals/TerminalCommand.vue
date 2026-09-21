@@ -5,6 +5,7 @@ import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppBadge, AppButton, AppTooltip } from "@/shared/ui"
+import { useSpaceStore } from "@/stores/space"
 
 import { terminalPress, terminalPressTooltip } from "./terminals"
 import { useTerminalCandidates } from "./useTerminalCandidates"
@@ -23,11 +24,13 @@ const workspace = useWorkspaceActions()
 const terminals = useTerminals()
 const connectors = useConnectors()
 const candidates = useTerminalCandidates()
+const space = useSpaceStore()
 
 const shown = computed(() => panel.open.value === "terminals")
 const press = computed(() =>
   terminalPress({
     shown: shown.value,
+    inData: space.current === "data",
     activeConnectorId: workspace.activeConnectorId.value,
     candidateIds: candidates.value.map((connector) => connector.id),
     open: terminals.sessions.value,

@@ -49,7 +49,7 @@ describe("where a terminal can be opened", () => {
 })
 
 describe("pressing the Terminals button", () => {
-  const base = { shown: false, activeConnectorId: "c1", candidateIds: ["c1"], open: [] }
+  const base = { shown: false, inData: true, activeConnectorId: "c1", candidateIds: ["c1"], open: [] }
 
   it("hides the tool when it is the one shown", () => {
     expect(terminalPress({ ...base, shown: true })).toEqual({ kind: "hide" })
@@ -57,6 +57,13 @@ describe("pressing the Terminals button", () => {
 
   it("opens a terminal on the connection being worked in, when it has none", () => {
     expect(terminalPress(base)).toEqual({ kind: "open", connectorId: "c1" })
+  })
+
+  it("only shows the panel outside the Data space, for the person to choose", () => {
+    // Dashboards and the agent cover the data columns: the connection that was
+    // being worked in is not what is in front, and opening a shell on it would
+    // come out of nowhere.
+    expect(terminalPress({ ...base, inData: false })).toEqual({ kind: "show" })
   })
 
   it("brings forward the latest terminal of that connection, when it has one", () => {

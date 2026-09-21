@@ -51,15 +51,21 @@ export type TerminalPress =
  * The button is the tool's switch, as every button of the panel is (D143),
  * so pressing it while the tool is shown hides it. Otherwise it goes to the
  * connection being worked in when a terminal can be opened there, and to the
- * panel's own choice when not.
+ * panel's own choice when not. The connection being worked in exists only in
+ * the Data space: pressed from Dashboards or the agent, where the data
+ * columns are covered, the button never guesses — it shows the panel and
+ * leaves the choice to the person pressing it.
  */
 export function terminalPress(state: {
   shown: boolean
+  /** Whether the Data space is the one in front. */
+  inData: boolean
   activeConnectorId: string | null
   candidateIds: readonly string[]
   open: readonly OpenTerminal[]
 }): TerminalPress {
   if (state.shown) return { kind: "hide" }
+  if (!state.inData) return { kind: "show" }
   const here = state.activeConnectorId
   if (here === null || !state.candidateIds.includes(here)) return { kind: "show" }
   const existing = state.open.filter((terminal) => terminal.connectorId === here)
