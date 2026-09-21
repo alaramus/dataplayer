@@ -400,13 +400,14 @@ export function headOf(panel: Panel): Component | null {
  *
  * The preferred representation of the node when the catalog told the panel
  * what they were, because that is exactly what the catalog itself drew. A node
- * that declared none — every table of a database — keeps the icon of its
- * source, which is what tells two tabs of one name from two connections apart.
+ * that declared none — every table of a database — is a table, so it gets the
+ * table icon; the catalog draws such a node the same way. Which connection a
+ * tab belongs to is said by the tooltip, not the icon.
  */
 function rowsIcon(panel: Extract<Panel, { kind: "rows" }>): string {
   const preferred = panel.representations?.[0]
-  if (preferred === undefined) return adapterIcon(panel.adapterType)
-  return REPRESENTATION_ICONS[preferred.kind] ?? adapterIcon(panel.adapterType)
+  if (preferred === undefined) return REPRESENTATION_ICONS.table
+  return REPRESENTATION_ICONS[preferred.kind] ?? REPRESENTATION_ICONS.table
 }
 
 export function lookOf(
@@ -449,9 +450,8 @@ function baseLookOf(panel: Panel): PanelLook {
         reloadTooltip: "Re-read this level",
       }
     case "rows":
-      // Drawn the way the catalog drew the node, where the node said how. A
-      // database table says nothing of the kind and keeps the icon of its
-      // source, which tells apart tabs from several connections at once.
+      // Drawn the way the catalog drew the node, where the node said how; a
+      // plain table is drawn as a table, the way the catalog draws it too.
       //
       // The connection is in the tooltip because two `users` from two
       // databases would otherwise be the same tab. Hover text and nothing

@@ -218,10 +218,11 @@ describe("the panel registry", () => {
     expect(lookOf(file).icon).toBe("grid_on")
   })
 
-  it("leaves a tab whose node declared no views with the icon of its source", () => {
-    // A table of a database is not a node with a choice of views, and with
-    // several catalogs open the icon is what tells two tabs of one name apart.
-    expect(lookOf(samples.rows).icon).toBe(adapterIcon("postgres"))
+  it("draws a plain table tab with the table icon", () => {
+    // A table of a database is not a node with a choice of views; it is a
+    // table, and the tab says so the way the catalog does. Which connection
+    // it came from is the tooltip's answer, not the icon's.
+    expect(lookOf(samples.rows).icon).toBe("grid_on")
   })
 
   it.each(KINDS)("reports the kind of %s", (kind) => {
@@ -286,8 +287,8 @@ describe("the panel registry", () => {
     expect(lookOf(samples.rows).iconCommand).toBeUndefined()
   })
 
-  it("draws a data tab with the icon of its source rather than a generic one", () => {
-    expect(lookOf(samples.rows).icon).toBe(adapterIcon("postgres"))
+  it("draws a data tab with the table icon rather than a generic one", () => {
+    expect(lookOf(samples.rows).icon).toBe("grid_on")
     expect(lookOf(samples.rows).icon).not.toBe(lookOf(samples.connectors).icon)
   })
 
