@@ -4,6 +4,7 @@ import { createPostgresConnector } from "./utils/connectors"
 import { openNode, pickSchema } from "./utils/catalog"
 import { expectFieldActionAligned } from "./utils/layout"
 import { login } from "./utils/login"
+import { dismissToast } from "./utils/notices"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
 for (const theme of ["light", "dark"] as const) {
@@ -12,8 +13,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: theme })
     await login(page)
     await createPostgresConnector(page, name)
-    await page.getByTestId("toast").filter({ hasText: "Connection saved" })
-      .getByRole("button", { name: "Dismiss", exact: true }).click()
+    await dismissToast(page, "Connection saved")
     await openConnector(page, name)
     await pickSchema(page, "demo_lab")
     await openNode(page, "tags")

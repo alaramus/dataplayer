@@ -10,3 +10,15 @@ import type { Locator, Page } from "@playwright/test"
 export function toast(page: Page, text: string): Locator {
   return page.getByTestId("toast").filter({ hasText: text })
 }
+
+/**
+ * Close a card rather than wait for it to fade.
+ *
+ * It is drawn over everything at the bottom right for five seconds, which is
+ * where a grid's pager and a window's buttons are, and a click there waits out
+ * the five seconds. "Connection saved" is the one to close after creating a
+ * connection.
+ */
+export async function dismissToast(page: Page, text: string) {
+  await toast(page, text).getByRole("button", { name: "Dismiss", exact: true }).click()
+}

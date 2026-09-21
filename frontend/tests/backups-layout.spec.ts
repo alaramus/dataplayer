@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { dismissToast } from "./utils/notices"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
 const FILES = Array.from({ length: 12 }, (_, i) => ({
@@ -52,8 +53,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: theme })
     await login(page)
     await createPostgresConnector(page, name)
-    await page.getByTestId("toast").filter({ hasText: "Connection saved" })
-      .getByRole("button", { name: "Dismiss", exact: true }).click()
+    await dismissToast(page, "Connection saved")
     const backups = await serveBackups(page)
     try {
       await openConnector(page, name)

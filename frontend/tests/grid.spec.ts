@@ -13,7 +13,7 @@ import { createFileConnector, createPostgresConnector } from "./utils/connectors
 import { login } from "./utils/login"
 import { chooseTheme } from "./utils/theme"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
-import { toast } from "./utils/notices"
+import { dismissToast, toast } from "./utils/notices"
 
 test("groups the commands, keeps them all, and says why a greyed one is off", async ({
   page,
@@ -590,6 +590,7 @@ test("keeps the 500-row page mode interactive", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"])
   await login(page)
   await createPostgresConnector(page, name)
+  await dismissToast(page, "Connection saved")
   await openConnector(page, name)
   await pickSchema(page, "pg_catalog")
   await openNode(page, "pg_class")
