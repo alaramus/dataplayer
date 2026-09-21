@@ -34,19 +34,23 @@ for (const theme of ["light", "dark"] as const) {
       await expect(pageScope).toHaveAccessibleDescription(/visible columns/)
       await expect(allScope).toHaveAccessibleDescription(/The whole relation · streamed/)
 
-      // The group's label takes the label column, and the choices the control one.
-      const label = await frame.getByText("Rows", { exact: true }).boundingBox()
+      // The only question in the window has no label column to leave empty:
+      // its choices start where the subtitle does.
+      await expect(frame.getByText("Rows", { exact: true })).toHaveCount(0)
+      const subtitle = await content.locator(".window-dialog__subtitle").evaluate((el) =>
+        el.getBoundingClientRect().x + parseFloat(getComputedStyle(el).paddingLeft))
       const first = await pageScope.boundingBox()
-      const choice = await pageScope.getByText("Current page", { exact: true }).boundingBox()
-      if (!label || !first || !choice) throw new Error("Missing scope label or choice")
-      expect(label.x + label.width).toBeLessThan(first.x)
-      // The label reads on the line of the first choice's name.
-      expect(Math.abs(label.y + label.height / 2 - (choice.y + choice.height / 2))).toBeLessThan(2)
+      if (!first) throw new Error("Missing choice")
+      expect(Math.abs(first.x - subtitle)).toBeLessThan(4)
 
       const before = await frame.boundingBox()
       await page.getByTestId("download-scope-all").click()
       await expect(allScope).toHaveAttribute("aria-checked", "true")
       await expect(pageScope).toHaveAttribute("aria-checked", "false")
+      // The mark of the choice left behind shrinks over a transition; the
+      // screenshot below is of the state, not of the animation.
+      await expect.poll(() => pageScope.locator(".q-radio__check")
+        .evaluate((el) => getComputedStyle(el).transform)).toBe("matrix(0, 0, 0, 0, 0, 0)")
       expect(await frame.boundingBox()).toEqual(before)
       await expect(frame.getByRole("button", { name: "Download", exact: true })).toBeVisible()
       const body = content.locator(".window-dialog__content")
@@ -54,11 +58,6 @@ for (const theme of ["light", "dark"] as const) {
       await frame.screenshot({ path: `test-results/download-form-${theme}.png` })
 
       await page.setViewportSize({ width: 390, height: 600 })
-      await expect.poll(async () => {
-        const narrowLabel = await frame.getByText("Rows", { exact: true }).boundingBox()
-        const narrowFirst = await pageScope.boundingBox()
-        return narrowLabel && narrowFirst ? narrowFirst.y - narrowLabel.y - narrowLabel.height : -1
-      }).toBeGreaterThanOrEqual(0)
       await expect.poll(() => content.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
       await expect(page.getByTestId("grid-download-run")).toBeInViewport()
       await frame.screenshot({ path: `test-results/download-form-${theme}-narrow.png` })

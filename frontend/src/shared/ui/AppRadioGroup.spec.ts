@@ -41,6 +41,19 @@ describe("AppRadioGroup", () => {
     expect(wrapper.emitted("update:modelValue")).toEqual([["selected"]])
   })
 
+  it("spans a form without a label and takes its name from aria-label", () => {
+    const wrapper = mount(AppRadioGroup, {
+      global: { plugins: [Quasar], provide: { [formLayoutKey as symbol]: true } },
+      props: { modelValue: "page", options: OPTIONS },
+      attrs: { "aria-label": "Rows" },
+    })
+    const group = wrapper.get('[role="radiogroup"]')
+    expect(group.attributes("aria-label")).toBe("Rows")
+    expect(group.attributes("aria-labelledby")).toBeUndefined()
+    expect(group.classes()).not.toContain("app-radio-group--form")
+    expect(mountGroup(true).get('[role="radiogroup"]').classes()).toContain("app-radio-group--form")
+  })
+
   it("marks a choice neutrally in a form and keeps Quasar's defaults outside one", () => {
     const inForm = mountGroup(true).getComponent(QRadio)
     expect(inForm.props("dense")).toBe(true)

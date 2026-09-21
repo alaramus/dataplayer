@@ -18,7 +18,9 @@ export interface RadioOption {
  * Apart from AppSelect on purpose: a select hides its options and their
  * descriptions until opened, which is right for a long list and wrong for two
  * or three that the person is meant to compare. In a form the group's label
- * takes the label column, like a field's.
+ * takes the label column, like a field's. Without one the group spans the
+ * form — a column holding nothing reads as a gap — and is named by the
+ * `aria-label` it is given instead.
  */
 const props = withDefaults(
   defineProps<{
@@ -49,7 +51,7 @@ function choose(value: unknown) {
 <template>
   <div
     class="app-radio-group"
-    :class="{ 'app-radio-group--form': formLayout }"
+    :class="{ 'app-radio-group--form': formLayout && label }"
     role="radiogroup"
     :aria-labelledby="label ? `${id}-label` : undefined"
   >

@@ -400,3 +400,13 @@ build reports large chunks. Inspected both themes at desktop and narrow widths
 and the gallery's composition. The full E2E suite was not run.
 
 Next: loading a file into a relation (import), then creating a table.
+
+Follow-up: with "Rows" as the window's only label, the 108-pixel label column
+read as a gap between it and the choices. A radio group without a label now
+spans the form and is named by `aria-label`; the download window uses that, so
+its choices start where the subtitle does. The scene asserts that alignment and
+waits for the mark of the choice left behind to finish shrinking before its
+screenshot. All 1,882 unit tests, the scene, the grid scenarios and the kit
+gallery scene passed, except "keeps the 500-row page mode interactive", which
+timed out in the batch and passed alone twice at 29 to 30 seconds against its
+30-second limit — a pre-existing margin, not this change.

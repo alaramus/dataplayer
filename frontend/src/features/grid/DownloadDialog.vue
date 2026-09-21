@@ -65,7 +65,7 @@ watch(
     <AppForm layout="section">
       <AppRadioGroup
         :model-value="scope"
-        label="Rows"
+        aria-label="Rows"
         :options="scopes"
         data-testid="download-scope"
         @update:model-value="chooseScope"

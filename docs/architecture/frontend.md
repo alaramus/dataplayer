@@ -82,7 +82,7 @@ accepted visual example and the rejected directions.
   and the window keeps its size between them. Backups are a flat list with
   quiet separators in a stable `medium-form` window, and copying one out is the
   footer's primary action. Downloading rows chooses the page or every matching
-  row with a radio group in a content-sized window.
+  row with an unlabelled radio group, its only question, in a content-sized window.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.
@@ -91,7 +91,8 @@ accepted visual example and the rejected directions.
 - **A choice among a few is `AppRadioGroup`**, each option with its meaning or
   the reason it is unavailable beside it; a select hides both until opened. In a
   form its label takes the label column and its marks are neutral, like a form
-  checkbox's. `q-radio` and `q-option-group` are forbidden outside the kit.
+  checkbox's; without a label it spans the form and is named by `aria-label`.
+  `q-radio` and `q-option-group` are forbidden outside the kit.
 - **Actions carry the hierarchy, not the palette.** Primary is a neutral
   contrasting fill, secondary is neutral text, destructive keeps its semantic
   red, and a filled button has no decorative shadow. Chrome and default panel
