@@ -262,3 +262,28 @@ scrollable. The account window now uses a 440-pixel medium-form preset, enough
 for its hint and checkboxes at a normal viewport; the browser regression asserts
 that its body has no vertical overflow. Narrow viewports still scroll while the
 footer stays fixed.
+
+## Slice 11: AI provider key
+
+Implemented: the provider key window uses AppForm's section layout and stays
+content-sized, its one field having nothing that appears after opening. The
+provider is named by the title instead of a bold line in the body, and a
+placeholder that repeated the label is gone; "A key is already set" stays. The
+field declares `new-password`, as connection secrets do, so a browser does not
+offer the login password for it. Show/hide, check, clear and save behave as
+before, and check results remain toasts.
+
+Coverage: both themes; the provider in the title and nowhere else in the body;
+the field's accessible name, which the floating label used to merge with the
+show/hide button; label beside the field and the action centred on it; unchanged
+geometry when the key is revealed; no body overflow; narrow reflow with the
+footer in view. The scenario was run against the previous window and failed.
+
+Validation: all 1,876 frontend unit tests, the new layout scenario and the
+existing AI scenario passed. Type-check, lint and build passed; lint retains 20
+unrelated warnings and the build reports large chunks. Inspected light and dark
+screenshots at desktop and narrow widths. The full E2E suite was not run.
+
+Next: the remaining small settings and credential forms, such as service
+credentials; the AI tab-attachment window is a checklist rather than labelled
+fields and needs its own composition.

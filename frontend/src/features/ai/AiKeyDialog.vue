@@ -2,7 +2,7 @@
 import { ref, watch } from "vue"
 
 import type { ProviderKeyState } from "@/client"
-import { AppButton, AppIconButton, AppInput, AppSection, useToast } from "@/shared/ui"
+import { AppButton, AppForm, AppIconButton, AppInput, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { messageOf } from "@/shared/api/errors"
 
@@ -54,19 +54,20 @@ async function clear() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="AI API key"
+    :title="`${providerLabel} API key`"
     :subtitle="`This key is shared by every ${providerLabel} model. Check works before saving.`"
     size="md"
+    sizing="content"
     data-testid="ai-key-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
-      <strong>{{ providerLabel }}</strong>
+    <AppForm layout="section">
       <AppInput
         v-model="draft"
         :type="revealed ? 'text' : 'password'"
         label="API key"
-        :placeholder="keySet ? 'A key is already set' : 'Enter API key'"
+        :placeholder="keySet ? 'A key is already set' : undefined"
+        autocomplete="new-password"
         data-testid="ai-provider-key"
         @keyup.enter="save"
       >
@@ -78,7 +79,7 @@ async function clear() {
           />
         </template>
       </AppInput>
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
         v-if="keySet"
