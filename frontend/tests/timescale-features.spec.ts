@@ -49,7 +49,6 @@ test("a check says what the server is and what is installed in it", async ({ pag
     await expect(page.getByTestId("source-fact-server")).toContainText("17.6")
     const feature = page.getByTestId("source-fact-timescaledb")
     await expect(feature).toContainText("2.18.0")
-    await expect(feature).toContainText("Available for inspection")
 
     // Checking again is what re-reads it; there is no separate reload.
     installed = false

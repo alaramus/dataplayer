@@ -26,7 +26,7 @@ describe("what a source said about itself", () => {
       {
         code: "timescaledb",
         label: "TimescaleDB",
-        value: "2.18.0 — Available for inspection",
+        value: "2.18.0",
       },
     ])
   })

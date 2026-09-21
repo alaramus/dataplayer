@@ -19,20 +19,19 @@ export interface SourceFact {
   code: string
 }
 
-const STATES: Record<SourceFeature["state"], string> = {
-  available: "Available for inspection",
+const STATES: Record<Exclude<SourceFeature["state"], "available">, string> = {
   absent: "Not installed",
   unsupported: "Unsupported inspection API",
   unavailable: "Inspection unavailable",
 }
 
-/** What one optional feature says: its version first, where there is one. */
+/** What one optional feature says: its version, or why there is none. */
 export function featureFact(feature: SourceFeature): SourceFact {
-  const state = STATES[feature.state]
+  const state = STATES[feature.state as Exclude<SourceFeature["state"], "available">]
   return {
     code: feature.code,
     label: feature.title,
-    value: feature.installed_version ? `${feature.installed_version} — ${state}` : state,
+    value: feature.installed_version ?? state,
     ...(feature.reason ? { note: feature.reason } : {}),
   }
 }
