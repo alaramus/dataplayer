@@ -10,7 +10,7 @@ import { deleteConnector, openConnector } from "./utils/workspace"
 
 /** Choose one option of a kit select that is already on screen. */
 async function choose(page: Page, field: string, option: string) {
-  await page.getByTestId(field).click()
+  await page.getByTestId(field).locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' q-field ')][1]").click()
   await page.getByRole("option", { name: option, exact: true }).click()
 }
 
@@ -38,11 +38,11 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   // Where the table goes is a choice, not the accident of which schema was
   // being looked at: every schema of the connection is offered, and the
   // server's own are not.
-  await page.getByTestId("table-schema").click()
+  await page.getByTestId("table-schema").locator("xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' q-field ')][1]").click()
   await expect(page.getByRole("option", { name: "public", exact: true })).toBeVisible()
   await expect(page.getByRole("option", { name: "pg_catalog", exact: true }))
     .toHaveCount(0)
-  await page.getByRole("option", { name: "demo_lab", exact: true }).click()
+  await page.keyboard.press("Escape")
   await expect(page.getByTestId("design-sql")).toContainText("SQL preview")
   const navigation = await page.getByTestId("design-navigation").boundingBox()
   const inspector = await page.getByTestId("design-inspector").boundingBox()
@@ -62,6 +62,11 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   )).toBe(true)
   await page.setViewportSize({ width: 1280, height: 720 })
   const stableFrame = await frame.boundingBox()
+  await expect.poll(() => designer.locator(".q-field").evaluateAll(
+    (fields) => fields.length > 0 && fields.every((field) => field.classList.contains("q-field--outlined"))
+  )).toBe(true)
+  await expect(page.getByTestId("column-not-null").locator(".q-checkbox__inner"))
+    .toHaveClass(/text-dp-control-selected/)
 
   await page.getByTestId("table-name").fill(table)
 
@@ -127,7 +132,6 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
 
   await deleteConnector(page, connector)
 })
-
 test("a draft that is closed asks first, and creates nothing", async ({ page }) => {
   const connector = `e2e-design-guard-${Date.now()}`
   await login(page)

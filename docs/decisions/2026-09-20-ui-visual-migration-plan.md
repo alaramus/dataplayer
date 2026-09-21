@@ -611,3 +611,15 @@ scenarios passed. Type-check, lint and build passed; lint retains 20 unrelated
 warnings and the build reports large chunks. The definition and review steps
 were inspected in both themes at the constrained size. The full application
 E2E suite was not run.
+
+Follow-up: the editor's geometry had moved but its controls still used their
+standalone Quasar look. The destination strip and every object inspector now
+live in AppForm: text and select controls receive the shared outlined field
+surface, border, height and radius, while checked controls receive the neutral
+form colour through tokens.ts. At 850 px the three destination fields become
+rows before their controls are squeezed away. The browser scenario asserts
+that every visible field is outlined and a selected checkbox carries the
+semantic form token. All 1,895 unit tests, both table-design browser scenarios,
+type-check, lint and build passed; one unrelated DataGrid unit test first
+reached its five-second timeout, then passed alone and in the repeated full
+suite.

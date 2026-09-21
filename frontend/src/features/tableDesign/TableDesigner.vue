@@ -6,6 +6,7 @@ import { messageOf } from "@/shared/api/errors"
 import {
   AppBanner,
   AppButton,
+  AppForm,
   AppInput,
   AppSelect,
   AppSpinner,
@@ -407,7 +408,8 @@ function moveColumn(by: number): void {
         <AppSpinner />
       </div>
       <template v-else-if="step === 'definition'">
-        <div
+        <AppForm
+          layout="embedded"
           class="designer__identity"
           data-testid="design-identity"
         >
@@ -427,7 +429,7 @@ function moveColumn(by: number): void {
             class="designer__comment"
             label="Comment"
           />
-        </div>
+        </AppForm>
         <div
           class="designer__body"
           data-testid="design-body"
@@ -457,64 +459,66 @@ function moveColumn(by: number): void {
                 @click="add(section)"
               />
             </div>
-            <ColumnInspector
-              v-if="section === 'columns'"
-              :key="selected"
-              :design-id="designId"
-              :column-id="selected"
-            />
-            <IndexInspector
-              v-else-if="section === 'indexes'"
-              :key="selected"
-              :design-id="designId"
-              :index-id="selected"
-            />
-            <ForeignKeyInspector
-              v-else-if="section === 'foreign-keys'"
-              :key="selected"
-              :design-id="designId"
-              :foreign-key-id="selected"
-              :connector-id="connectorId"
-            />
-            <ConstraintInspector
-              v-else-if="section === 'constraints'"
-              :design-id="designId"
-              @remove="remove('constraints', $event)"
-            />
-            <TableOptionsInspector
-              v-else
-              :design-id="designId"
-            />
-            <div
-              v-if="section !== 'options' && section !== 'constraints' && selected"
-              class="designer__object-actions"
-              :class="{ 'designer__object-actions--column': section === 'columns' }"
-            >
-              <template v-if="section === 'columns'">
-                <AppButton
-                  variant="quiet"
-                  label="Move up"
-                  icon="arrow_upward"
-                  :disable="columnPosition <= 0"
-                  @click="moveColumn(-1)"
-                />
-                <AppButton
-                  variant="quiet"
-                  label="Move down"
-                  icon="arrow_downward"
-                  :disable="columnPosition >= draft.columns.length - 1"
-                  @click="moveColumn(1)"
-                />
-              </template>
-              <AppButton
-                variant="quiet"
-                icon="delete_outline"
-                :label="`Remove ${objectLabels[section]}`"
-                :disable="section === 'columns' && draft.columns.length === 1"
-                data-testid="remove-object"
-                @click="remove(section, selected)"
+            <AppForm layout="embedded">
+              <ColumnInspector
+                v-if="section === 'columns'"
+                :key="selected"
+                :design-id="designId"
+                :column-id="selected"
               />
-            </div>
+              <IndexInspector
+                v-else-if="section === 'indexes'"
+                :key="selected"
+                :design-id="designId"
+                :index-id="selected"
+              />
+              <ForeignKeyInspector
+                v-else-if="section === 'foreign-keys'"
+                :key="selected"
+                :design-id="designId"
+                :foreign-key-id="selected"
+                :connector-id="connectorId"
+              />
+              <ConstraintInspector
+                v-else-if="section === 'constraints'"
+                :design-id="designId"
+                @remove="remove('constraints', $event)"
+              />
+              <TableOptionsInspector
+                v-else
+                :design-id="designId"
+              />
+              <div
+                v-if="section !== 'options' && section !== 'constraints' && selected"
+                class="designer__object-actions"
+                :class="{ 'designer__object-actions--column': section === 'columns' }"
+              >
+                <template v-if="section === 'columns'">
+                  <AppButton
+                    variant="quiet"
+                    label="Move up"
+                    icon="arrow_upward"
+                    :disable="columnPosition <= 0"
+                    @click="moveColumn(-1)"
+                  />
+                  <AppButton
+                    variant="quiet"
+                    label="Move down"
+                    icon="arrow_downward"
+                    :disable="columnPosition >= draft.columns.length - 1"
+                    @click="moveColumn(1)"
+                  />
+                </template>
+                <AppButton
+                  variant="quiet"
+                  icon="delete_outline"
+                  :label="`Remove ${objectLabels[section]}`"
+                  :disable="section === 'columns' && draft.columns.length === 1"
+                  data-testid="remove-object"
+                  @click="remove(section, selected)"
+                />
+              </div>
+            </AppForm>
           </main>
           <aside
             class="designer__sql"
@@ -697,6 +701,9 @@ function moveColumn(by: number): void {
   padding: var(--dp-space-3);
 }
 @container table-designer (max-width: 850px) {
+  .designer__identity {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .designer__body {
     grid-template-columns: 160px minmax(0, 1fr);
   }
@@ -709,12 +716,6 @@ function moveColumn(by: number): void {
 @container table-designer (max-width: 560px) {
   .designer__body {
     display: block;
-  }
-  .designer__identity {
-    grid-template-columns: 110px minmax(0, 1fr);
-  }
-  .designer__comment {
-    grid-column: 1 / -1;
   }
 }
 </style>
