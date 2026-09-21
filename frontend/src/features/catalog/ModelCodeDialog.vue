@@ -125,7 +125,8 @@ function close() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     :title="`Model as code — ${label}`"
     data-testid="model-code-dialog"
     @update:model-value="close"
@@ -135,12 +136,16 @@ function close() {
            knows what any of them means. -->
       <div
         class="model-code__dialects"
+        role="tablist"
+        aria-label="Model dialect"
         data-testid="model-code-dialects"
       >
         <AppButton
           v-for="choice in choices"
           :key="choice.value"
           :variant="choice.value === dialect ? 'secondary' : 'quiet'"
+          role="tab"
+          :aria-selected="choice.value === dialect"
           size="sm"
           :label="choice.label"
           :data-testid="`model-code-dialect-${choice.value}`"
@@ -160,6 +165,7 @@ function close() {
       <div
         v-else-if="loading && text === ''"
         class="model-code__waiting"
+        data-testid="model-code-loading"
       >
         <AppSpinner />
       </div>
@@ -190,13 +196,6 @@ function close() {
         @click="visit"
       />
       <AppButton
-        variant="quiet"
-        label="Save"
-        :disable="text === ''"
-        data-testid="model-code-save"
-        @click="save"
-      />
-      <AppButton
         variant="secondary"
         label="Copy"
         :disable="text === ''"
@@ -204,10 +203,17 @@ function close() {
         @click="copy"
       />
       <AppButton
-        variant="primary"
+        variant="quiet"
         label="Close"
         data-testid="model-code-close"
         @click="close"
+      />
+      <AppButton
+        variant="primary"
+        label="Save"
+        :disable="text === ''"
+        data-testid="model-code-save"
+        @click="save"
       />
     </template>
   </WindowDialog>
@@ -217,8 +223,10 @@ function close() {
 .model-code {
   display: flex;
   flex-direction: column;
-  gap: var(--dp-space-2);
+  gap: var(--dp-space-3);
+  height: 100%;
   min-height: 0;
+  padding: var(--dp-space-4);
 }
 
 .model-code__dialects {
@@ -232,17 +240,17 @@ function close() {
    scrolls inside itself. */
 .model-code__text {
   flex: 1;
-  min-height: 320px;
-  max-height: 60vh;
+  min-height: 0;
   overflow: auto;
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
 }
 
 .model-code__waiting {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 320px;
+  min-height: 0;
 }
 </style>

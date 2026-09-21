@@ -98,7 +98,9 @@ Consequences:
   instead of the generic form: the three dialects as three names on one line,
   the document itself in the editor everything else reads code in, and Copy,
   Save and — for the one dialect a website draws — a door to that website.
-  Saving is the bytes already on the screen, so nothing is asked twice.
+  Loading a dialect, a refused dialect and its document keep one stable wide
+  window; the editor takes the body above the fixed actions. Saving is the
+  bytes already on the screen, so nothing is asked twice.
 - **A download runs straight from the menu only when it has nothing to ask and
   nothing to show.** One with a form goes through the form; one with a screen
   of its own goes through that. Downloading a file somebody has not seen is

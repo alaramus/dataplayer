@@ -504,3 +504,27 @@ widths. The full application E2E suite was not run.
 
 Next: the model code window, then the action dialog and the AI tab-attachment
 checklist.
+
+## Slice 19: model code window
+
+Implemented: the model-code workflow uses a stable `wide-form` window across
+loading, a written document and a refused dialect. The dialects are an
+accessible one-line tab list, while the editor fills the remaining body and
+owns its scrolling. The fixed footer follows the shared hierarchy: the
+external-site door and Close are quiet, Copy is secondary, and Save is the
+primary last action. Writing, copying, saving and opening the drawing site are
+unchanged.
+
+Coverage: a browser scene in both themes holds the first response to observe
+loading, then moves through a document, a refused dialect and another document
+without changing window geometry. It checks the chosen-tab semantics, disabled
+Save on refusal, no horizontal overflow and reachable footer actions at a
+narrow width. The existing real model-code scenario still writes and downloads
+the model.
+
+Validation: all 1,893 frontend unit tests and three targeted browser scenarios
+passed. Type-check, lint and build passed; lint retains 20 unrelated warnings
+and the build reports large chunks. Inspected both themes at desktop and narrow
+widths. The full application E2E suite was not run.
+
+Next: the action dialog, then the AI tab-attachment checklist.
