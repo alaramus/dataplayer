@@ -46,6 +46,45 @@ export function cellPresentation(
   }
 }
 
+/**
+ * What a cell of this type takes, in the words of the person editing it.
+ *
+ * Shown beside the column's own type name in the cell editor, so the question
+ * "what may I type here" is answered where it is asked rather than in the
+ * dialog's title.
+ */
+export function inputHint(type: ColumnType): string {
+  switch (type.category) {
+    case "number":
+      return "a number"
+    case "boolean":
+      return "true or false"
+    case "datetime":
+      return "a date and time, as the source writes it"
+    case "enum":
+      return `one of: ${(type.enum_values ?? []).join(", ")}`
+    case "json":
+      return "JSON"
+    case "array":
+      return "an array literal, as the source writes it"
+    case "uuid":
+      return "a UUID"
+    case "binary":
+      return "binary data in the form the source shows it"
+    case "network":
+      return "an address, as the source writes it"
+    case "string":
+      return "any text"
+    case "geometric":
+    case "range":
+    case "composite":
+    case "other":
+      return "a value of this type, as the source writes it"
+    default:
+      return assertNever(type.category)
+  }
+}
+
 export function shouldOpenViewer(value: string | null, type: ColumnType): boolean {
   if (value === null) return false
   switch (type.category) {

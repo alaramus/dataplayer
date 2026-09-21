@@ -12,6 +12,8 @@ import {
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
+import { inputHint } from "./model"
+
 const props = defineProps<{
   modelValue: boolean
   column: FetchColumn
@@ -44,7 +46,7 @@ function save() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    :title="`Edit ${column.name} — ${column.type.sql}`"
+    :title="`Edit ${column.name}`"
     size="compact-form"
     sizing="stable"
     data-testid="grid-cell-editor"
@@ -81,6 +83,7 @@ function save() {
         v-else
         :model-value="draft"
         label="Value"
+        :hint="`${column.type.sql} — ${inputHint(column.type)}`"
         :disable="isNull || saving"
         data-testid="grid-edit-value"
         @update:model-value="draft = $event"

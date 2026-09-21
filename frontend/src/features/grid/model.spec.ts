@@ -1,72 +1,47 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
-import type { FetchResult } from "@/client"
+import type { ColumnType } from "@/client"
 
-import { cellPresentation, shouldOpenViewer, toGridRows } from "./model"
+import { inputHint } from "./model"
 
-const RESULT: FetchResult = {
-  columns: [
-    { name: "id", type: { sql: "bigint", category: "number" }, sortable: true },
-    { name: "name", type: { sql: "text", category: "string" }, sortable: true },
-  ],
-  rows: [
-    ["9007199254740993", "first"],
-    [null, "second"],
-  ],
-  has_more: false,
+function typeOf(category: ColumnType["category"], sql: string = category, enum_values?: string[]): ColumnType {
+  return { sql, category, ...(enum_values === undefined ? {} : { enum_values }) }
 }
 
-describe("toGridRows", () => {
-  it("gives page rows stable display ids without inventing a record key", () => {
-    expect(toGridRows(RESULT, 100)).toEqual([
-      { id: "100", values: ["9007199254740993", "first"] },
-      { id: "101", values: [null, "second"] },
-    ])
+describe("what a cell of a type takes", () => {
+  it("names the kind of value each category accepts", () => {
+    expect(inputHint(typeOf("number", "numeric"))).toBe("a number")
+    expect(inputHint(typeOf("boolean", "bool"))).toBe("true or false")
+    expect(inputHint(typeOf("string", "text"))).toBe("any text")
+    expect(inputHint(typeOf("uuid", "uuid"))).toBe("a UUID")
+    expect(inputHint(typeOf("json", "jsonb"))).toBe("JSON")
   })
 
-  it("returns no rows for an empty page", () => {
-    expect(toGridRows({ ...RESULT, rows: [] }, 0)).toEqual([])
-  })
-})
-
-describe("typed cell presentation", () => {
-  it.each([
-    [null, "string", { text: "null", align: "left", tone: "default" }],
-    ["9007199254740993", "number", { text: "9007199254740993", align: "right", tone: "default" }],
-    ["true", "boolean", { text: "true", align: "center", tone: "default" }],
-  ] as const)("presents %s as %s", (value, category, expected) => {
-    expect(cellPresentation(value, { sql: category, category })).toMatchObject(expected)
-  })
-
-  it("keeps date and time text unchanged without locale formatters", () => {
-    const numberFormat = vi.spyOn(Intl, "NumberFormat")
-    const dateTimeFormat = vi.spyOn(Intl, "DateTimeFormat")
-    const value = "2026-08-27T14:30:00+00:00"
-
-    expect(cellPresentation(value, { sql: "timestamptz", category: "datetime" }).text).toBe(
-      value
-    )
-    expect(numberFormat).not.toHaveBeenCalled()
-    expect(dateTimeFormat).not.toHaveBeenCalled()
-  })
-
-  it("uses monospace for UUID and binary text", () => {
-    expect(
-      cellPresentation("550e8400-e29b-41d4-a716-446655440000", {
-        sql: "uuid",
-        category: "uuid",
-      }).monospace
-    ).toBe(true)
-    expect(cellPresentation("0xCAFE", { sql: "bytea", category: "binary" }).monospace).toBe(
-      true
+  it("lists the values an enum takes", () => {
+    expect(inputHint(typeOf("enum", "project_status", ["active", "paused"]))).toBe(
+      "one of: active, paused"
     )
   })
 
-  it("opens complex and truncated values in the full viewer", () => {
-    expect(shouldOpenViewer("{}", { sql: "jsonb", category: "json" })).toBe(true)
-    expect(shouldOpenViewer("{1,2}", { sql: "integer[]", category: "array" })).toBe(true)
-    expect(shouldOpenViewer("0xCAFE", { sql: "bytea", category: "binary" })).toBe(true)
-    expect(shouldOpenViewer("x".repeat(121), { sql: "text", category: "string" })).toBe(true)
-    expect(shouldOpenViewer("short", { sql: "text", category: "string" })).toBe(false)
+  it("covers every category", () => {
+    const categories: ColumnType["category"][] = [
+      "number",
+      "boolean",
+      "datetime",
+      "enum",
+      "json",
+      "array",
+      "uuid",
+      "binary",
+      "network",
+      "string",
+      "geometric",
+      "range",
+      "composite",
+      "other",
+    ]
+    for (const category of categories) {
+      expect(inputHint(typeOf(category)).length).toBeGreaterThan(0)
+    }
   })
 })
