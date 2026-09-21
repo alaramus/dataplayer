@@ -86,6 +86,17 @@
   color: var(--dp-on-wash) !important;
 }
 
+/*
+ * Quasar washes a control on any :focus. A closing window gives focus back to
+ * the control that opened it, and after a mouse click that wash stayed on
+ * until somebody clicked elsewhere. The wash is the keyboard's, so it waits
+ * for :focus-visible; hovering still shows it.
+ */
+body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helper {
+  background: transparent;
+  opacity: 0;
+}
+
 :root {
   --dp-action-primary: #343434;
   --dp-on-action-primary: #fff;

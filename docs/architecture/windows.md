@@ -21,7 +21,10 @@ On opening, the front window takes keyboard focus on its named frame unless its
 content has already focused a field; background and minimized windows do not
 take focus while mounting. Closing returns the keyboard to the control that
 opened the window, which used to be left on the page body (U12) — but only when
-the window being taken away is where the keyboard still was.
+the window being taken away is where the keyboard still was. The control is lit
+only for the keyboard: after a mouse click Quasar's focus wash stayed on it until
+somebody clicked elsewhere, so theme.css holds the wash back until
+`:focus-visible`.
 
 A window is closed by the cross in its bar, and no window holding a form closes
 on Escape: one gesture for the connection window and for a form is worth more

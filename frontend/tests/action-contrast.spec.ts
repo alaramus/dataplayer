@@ -61,15 +61,25 @@ test("a question is dismissed with Escape and hands the keyboard back", async ({
   await page.goto("/ui-kit")
   const ask = page.getByRole("button", { name: "Confirm", exact: true })
 
+  // Quasar's wash on a focused control, which fades in and out.
+  const wash = () => ask.locator(".q-focus-helper").evaluate((el) => Number(getComputedStyle(el).opacity))
+
   await ask.click()
   await expect(page.getByTestId("confirm-message")).toBeVisible()
   await page.keyboard.press("Escape")
   await expect(page.getByTestId("confirm-message")).toHaveCount(0)
   await expect(ask).toBeFocused()
+  // Closed from the keyboard, the keyboard is shown where it landed.
+  await page.mouse.move(0, 0)
+  await expect.poll(wash).toBeGreaterThan(0.1)
 
-  // And the same by the way out that was already there.
+  // And the same by the way out that was already there. Closed with the
+  // mouse, the focus is given back without lighting the control up: the wash
+  // used to stay on until somebody clicked somewhere else.
   await ask.click()
   await page.getByTestId("confirm-cancel").click()
   await expect(page.getByTestId("confirm-message")).toHaveCount(0)
   await expect(ask).toBeFocused()
+  await page.mouse.move(0, 0)
+  await expect.poll(wash).toBe(0)
 })
