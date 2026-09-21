@@ -69,7 +69,7 @@ accepted visual example and the rejected directions.
   dialogs use stable compact windows, so long errors scroll in the body while the
   actions stay visible. Column and index creation take the `compact-form` preset,
   560 by 360; constraints take `form`, for the foreign-key fields.
-  Connection and view sharing use `form` too: compact recipient and permission
+  Connection, view and dashboard sharing use `form` too: compact recipient and permission
   fields precede the grants and links, which scroll above the fixed footer.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message

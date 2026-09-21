@@ -214,3 +214,23 @@ dark narrow screenshots. The full E2E suite was not run.
 
 Next: dashboard sharing, followed by another small form family. The broader
 workspace, table and operation-result surfaces remain to migrate.
+
+## Slice 9: dashboard sharing
+
+Implemented: the dashboard share window uses the same stable form preset,
+compact link and recipient fields, aligned companion action and narrow reflow
+as connection sharing. Existing grants remain a compact list that scrolls above
+the footer. The explanation of access to agents' hosts remains beside the form.
+
+Coverage: browser scenes in both themes measure companion alignment, unchanged
+window geometry when grants arrive, narrow overflow and access to the last grant
+with the footer visible. Layout fixtures intercept the API without creating data.
+The existing real sharing scenario covers granting, editing and revocation.
+
+Validation: all 1,876 frontend unit tests, two layout scenarios and the real
+sharing scenario passed. Type-check, lint and build passed; lint retains 20
+unrelated warnings and the build reports large chunks. Inspected desktop light
+and narrow dark screenshots. The full application E2E suite was not run.
+
+Next: account forms, keeping validation, password handling and account privileges
+unchanged. Larger dashboard and workspace surfaces remain separate slices.

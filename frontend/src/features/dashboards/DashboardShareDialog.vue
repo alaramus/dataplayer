@@ -10,9 +10,9 @@ import {
   AppButton,
   AppCopyButton,
   AppEmptyState,
+  AppForm,
   AppIconButton,
   AppInput,
-  AppSection,
   AppSelect,
   AppSpinner,
   useToast,
@@ -101,120 +101,118 @@ async function revoke(userId: string) {
   <WindowDialog
     v-model="open"
     :title="`Share — ${dashboard.name}`"
-    size="md"
+    size="form"
+    sizing="stable"
     data-testid="dashboard-share-dialog"
   >
-    <AppSection gutter>
-      <AppInput
-        :model-value="link"
-        label="Link to this dashboard"
-        readonly
-        data-testid="dashboard-share-link"
-      >
-        <template #after>
-          <AppCopyButton
-            tooltip="Copy this link"
-            @click="copyLink"
-          />
-        </template>
-      </AppInput>
-      <p class="dashboard-share__note">
-        It opens the dashboard for anybody who has been given access to it, and
-        for nobody else.
-      </p>
-    </AppSection>
-
-    <AppSection
-      v-if="owner"
-      divided
-      gutter
-    >
-      <div class="dashboard-share__add">
-        <AppSelect
-          v-model="pickedUser"
-          class="dashboard-share__person"
-          label="Person"
-          :options="candidates"
-          :disable="!directory.isSuccess.value || candidates.length === 0"
-          data-testid="dashboard-share-user"
-        />
-        <AppSelect
-          v-model="pickedLevel"
-          class="dashboard-share__level"
-          label="May"
-          :options="DASHBOARD_LEVELS"
-          data-testid="dashboard-share-level"
-        />
-        <AppButton
-          label="Give access"
-          :disable="pickedUser === null"
-          :loading="writing.isPending.value"
-          data-testid="dashboard-share-submit"
-          @click="give"
-        />
-      </div>
-      <p
-        class="dashboard-share__note"
-        data-testid="dashboard-share-warning"
-      >
-        Whoever is given access sees every series on this dashboard, your agents'
-        hosts included, which they cannot see any other way. They do not see your
-        other dashboards, agents or connections. Somebody who can edit adds only
-        series they can read themselves.
-      </p>
-
-      <AppSpinner v-if="grants.isLoading.value" />
-      <AppEmptyState
-        v-else-if="held.length === 0"
-        text="Nobody else can see this dashboard"
-      />
-      <ul
-        v-else
-        class="dashboard-share__list"
-        data-testid="dashboard-share-grants"
-      >
-        <li
-          v-for="grant in held"
-          :key="grant.user_id"
-          class="dashboard-share__row"
-          :data-testid="`dashboard-grant-${grant.email}`"
+    <div class="dashboard-share">
+      <AppForm class="dashboard-share__form">
+        <AppInput
+          :model-value="link"
+          label="Link to this dashboard"
+          readonly
+          data-testid="dashboard-share-link"
         >
-          <span class="dashboard-share__who">{{ grant.full_name ? `${grant.full_name} (${grant.email})` : grant.email }}</span>
-          <AppSelect
-            :model-value="grant.access"
-            class="dashboard-share__level"
-            :options="DASHBOARD_LEVELS"
-            compact
-            :aria-label="`What ${grant.email} may do`"
-            :data-testid="`dashboard-grant-level-${grant.email}`"
-            @update:model-value="(level) => change(grant.user_id, level)"
-          />
-          <AppIconButton
-            icon="close"
-            variant="danger-quiet"
-            :tooltip="`Take access away from ${grant.email}`"
-            :data-testid="`dashboard-grant-revoke-${grant.email}`"
-            @click="revoke(grant.user_id)"
-          />
-        </li>
-      </ul>
-    </AppSection>
+          <template #after>
+            <AppCopyButton
+              tooltip="Copy this link"
+              @click="copyLink"
+            />
+          </template>
+        </AppInput>
+        <p class="dashboard-share__note">
+          It opens the dashboard for anybody who has been given access to it, and
+          for nobody else.
+        </p>
+      </AppForm>
 
-    <AppSection
-      v-else
-      divided
-      gutter
-    >
-      <p class="dashboard-share__note">
+      <template v-if="owner">
+        <AppForm class="dashboard-share__form">
+          <AppSelect
+            v-model="pickedUser"
+            label="Person"
+            :options="candidates"
+            :disable="!directory.isSuccess.value || candidates.length === 0"
+            data-testid="dashboard-share-user"
+          />
+          <AppSelect
+            v-model="pickedLevel"
+            label="May"
+            :options="DASHBOARD_LEVELS"
+            data-testid="dashboard-share-level"
+          >
+            <template #after>
+              <AppButton
+                label="Give access"
+                :disable="pickedUser === null"
+                :loading="writing.isPending.value"
+                data-testid="dashboard-share-submit"
+                @click="give"
+              />
+            </template>
+          </AppSelect>
+          <p
+            class="dashboard-share__note"
+            data-testid="dashboard-share-warning"
+          >
+            Whoever is given access sees every series on this dashboard, your agents'
+            hosts included, which they cannot see any other way. They do not see your
+            other dashboards, agents or connections. Somebody who can edit adds only
+            series they can read themselves.
+          </p>
+        </AppForm>
+
+        <AppSpinner v-if="grants.isLoading.value" />
+        <AppEmptyState
+          v-else-if="held.length === 0"
+          text="Nobody else can see this dashboard"
+        />
+        <ul
+          v-else
+          class="dashboard-share__list"
+          data-testid="dashboard-share-grants"
+        >
+          <li
+            v-for="grant in held"
+            :key="grant.user_id"
+            class="dashboard-share__row"
+            :data-testid="`dashboard-grant-${grant.email}`"
+          >
+            <span class="dashboard-share__who">{{ grant.full_name ? `${grant.full_name} (${grant.email})` : grant.email }}</span>
+            <AppSelect
+              :model-value="grant.access"
+              class="dashboard-share__level"
+              :options="DASHBOARD_LEVELS"
+              compact
+              :aria-label="`What ${grant.email} may do`"
+              :data-testid="`dashboard-grant-level-${grant.email}`"
+              @update:model-value="(level) => change(grant.user_id, level)"
+            />
+            <AppIconButton
+              icon="close"
+              variant="danger-quiet"
+              :tooltip="`Take access away from ${grant.email}`"
+              :data-testid="`dashboard-grant-revoke-${grant.email}`"
+              @click="revoke(grant.user_id)"
+            />
+          </li>
+        </ul>
+      </template>
+
+      <p
+        v-else
+        class="dashboard-share__note"
+      >
         {{ dashboard.owner ?? "Its owner" }} shared this dashboard with you. Only they
         give access to it.
       </p>
-    </AppSection>
+    </div>
 
     <template #actions>
       <AppButton
         variant="quiet"
         label="Close"
+        data-testid="dashboard-share-close"
         @click="open = false"
       />
     </template>
@@ -222,20 +220,27 @@ async function revoke(userId: string) {
 </template>
 
 <style scoped>
+.dashboard-share,
+.dashboard-share__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-4);
+}
+.dashboard-share {
+  padding: var(--dp-space-4);
+}
 .dashboard-share__note {
   margin: 0;
   font-size: 12px;
   color: var(--dp-text-muted);
 }
 
-.dashboard-share__add,
 .dashboard-share__row {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
 }
 
-.dashboard-share__person,
 .dashboard-share__who {
   flex: 1;
   min-width: 0;
