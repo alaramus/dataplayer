@@ -225,6 +225,20 @@ const answering = ref(false)
 const open = computed(
   () => props.command !== null && (!asksNothing.value || answering.value)
 )
+/**
+ * Ordinary one- or two-question actions should fit what they ask. A file list
+ * and a source preview may grow after opening, so those keep a bounded stable
+ * body instead. This distinction follows the form's capabilities, never an
+ * action name.
+ */
+const windowSize = computed(() =>
+  props.command?.takesFile ? "medium-form" : "compact-form"
+)
+const windowSizing = computed(() =>
+  props.command?.takesFile || previewable.value || props.command?.requiresPlanReview
+    ? "stable"
+    : "content"
+)
 const destructiveQuestion = computed(
   () =>
     props.command?.question ??
@@ -641,8 +655,8 @@ async function runDesign(value: {
   <WindowDialog
     v-else-if="command"
     :model-value="open"
-    size="medium-form"
-    sizing="stable"
+    :size="windowSize"
+    :sizing="windowSizing"
     :title="nodeLabel ? `${command.label} — ${nodeLabel}` : command.label"
     data-testid="action-dialog"
     @update:model-value="close"

@@ -208,18 +208,28 @@ afterEach(() => {
 })
 
 describe("action form layout", () => {
-  it("keeps changing action content in one stable shared form", async () => {
+  it("fits simple questions and stabilizes content that can grow", async () => {
     const wrapper = mountDialog(RENAME)
     try {
       await flushPromises()
       const dialog = wrapper.findComponent(ActionDialog)
       const window = dialog.findComponent({ name: "WindowDialog" })
 
-      expect(window.props()).toMatchObject({ size: "medium-form", sizing: "stable" })
+      expect(window.props()).toMatchObject({ size: "compact-form", sizing: "content" })
       expect(document.body.querySelector(".app-form--section")).not.toBeNull()
     } finally {
       wrapper.unmount()
     }
+
+    const preview = mountDialog(DROP)
+    expect(preview.findComponent(ActionDialog).findComponent({ name: "WindowDialog" }).props())
+      .toMatchObject({ size: "compact-form", sizing: "stable" })
+    preview.unmount()
+
+    const files = mountDialog(UPLOAD)
+    expect(files.findComponent(ActionDialog).findComponent({ name: "WindowDialog" }).props())
+      .toMatchObject({ size: "medium-form", sizing: "stable" })
+    files.unmount()
   })
 })
 

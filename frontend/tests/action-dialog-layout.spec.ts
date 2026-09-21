@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 
-import { catalogAction } from "./utils/catalog"
-import { createFileConnector } from "./utils/connectors"
+import { catalogAction, catalogCheck, showOnlySchema } from "./utils/catalog"
+import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { dismissToast } from "./utils/notices"
 import { deleteConnector, openConnector } from "./utils/workspace"
@@ -16,6 +16,17 @@ for (const theme of ["light", "dark"] as const) {
 
     try {
       await openConnector(page, name)
+
+      await catalogAction(page, "create_folder")
+      const simpleContent = page.getByTestId("action-dialog")
+      const simpleFrame = page.getByRole("dialog").filter({ has: simpleContent })
+      await expect.poll(async () => (await simpleFrame.boundingBox())?.height ?? 999).toBeLessThan(300)
+      await simpleFrame.screenshot({
+        path: `test-results/action-dialog-simple-${theme}.png`,
+        animations: "disabled",
+      })
+      await simpleFrame.getByRole("button", { name: "Cancel", exact: true }).click()
+
       await catalogAction(page, "upload")
 
       const content = page.getByTestId("action-dialog")
@@ -49,6 +60,33 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByTestId("action-submit")).toBeInViewport()
       await frame.screenshot({
         path: `test-results/action-dialog-${theme}-narrow.png`,
+        animations: "disabled",
+      })
+      await frame.getByRole("button", { name: "Cancel", exact: true }).click()
+    } finally {
+      await deleteConnector(page, name)
+    }
+  })
+
+  test(`preview actions use a compact stable form in ${theme}`, async ({ page }) => {
+    const name = `e2e-action-preview-${theme}-${Date.now()}`
+    await page.emulateMedia({ colorScheme: theme })
+    await login(page)
+    await createPostgresConnector(page, name)
+    await dismissToast(page, "Connection saved")
+
+    try {
+      await openConnector(page, name)
+      await showOnlySchema(page, "demo_lab")
+      await catalogCheck(page, "projects").click()
+      await catalogAction(page, "drop_relation")
+
+      const content = page.getByTestId("action-dialog")
+      const frame = page.getByRole("dialog").filter({ has: content })
+      await expect(page.getByTestId("action-preview")).toBeVisible()
+      await expect.poll(async () => (await frame.boundingBox())?.height).toBe(360)
+      await frame.screenshot({
+        path: `test-results/action-dialog-preview-${theme}.png`,
         animations: "disabled",
       })
       await frame.getByRole("button", { name: "Cancel", exact: true }).click()

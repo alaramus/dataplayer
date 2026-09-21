@@ -550,3 +550,25 @@ build reports large chunks. Inspected both themes at desktop and narrow widths.
 The full application E2E suite was not run.
 
 Next: the AI tab-attachment checklist.
+
+## Slice 21: action height correction
+
+Implemented: the generic action window no longer assigns a medium stable
+rectangle to every command. Ordinary actions such as creating, renaming,
+moving, archiving, extracting, deleting and setting expiry now fit their
+content. Actions whose source preview can arrive or change keep a stable
+`compact-form`; actions staging a file list keep the stable `medium-form`.
+The rule reads capabilities from the action contract and contains no list of
+action names.
+
+Coverage: the component test covers all three policies. Browser scenes in both
+themes check a content-sized New folder form, a compact stable destructive
+preview and a medium stable upload list, including narrow-width overflow and
+reachable actions.
+
+Validation: all 1,894 frontend unit tests and 15 browser scenarios passed.
+Type-check, lint and build passed; lint retains 20 unrelated warnings and the
+build reports large chunks. Inspected simple, preview and file-list forms in
+both themes and at narrow width. The full application E2E suite was not run.
+
+Next: the AI tab-attachment checklist.
