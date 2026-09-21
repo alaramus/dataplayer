@@ -422,6 +422,7 @@ test("makes a new file by its name and refuses the name twice", async ({ page })
   // A name and nothing else, the way an IDE makes a file.
   await catalogAction(page, "create_file")
   await expect(page.getByTestId("action-dialog").getByRole("textbox")).toHaveCount(1)
+  await expect(page.getByTestId("field-name")).toHaveValue("new file")
   await page.getByTestId("field-name").fill("example.txt")
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, "example.txt")).toBeVisible()

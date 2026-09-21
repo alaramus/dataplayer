@@ -75,7 +75,7 @@ class NameParams(BaseModel):
 
 
 class FileNameParams(BaseModel):
-    name: str = Field(title="Name")
+    name: str = Field(default="new file", title="Name")
 
     _check = field_validator("name")(_plain_name)
 

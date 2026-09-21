@@ -207,6 +207,15 @@ async def test_creating_a_file_in_the_root_reloads_the_root(
     assert result.reload_node_ids == [None]
 
 
+async def test_a_file_name_defaults_when_the_form_is_unchanged(
+    actions: ExplorerActions, root: Path
+) -> None:
+    result = await _run(actions, "create_file", "reports")
+
+    assert (root / "reports" / "new file").read_bytes() == b""
+    assert result.message == "new file created"
+
+
 async def test_a_file_over_a_taken_name_is_refused(
     actions: ExplorerActions, root: Path
 ) -> None:
@@ -237,11 +246,6 @@ async def test_a_file_name_must_be_a_plain_name(
         await _run(actions, "create_file", None, name=name)
 
     assert not (root.parent / "evil.txt").exists()
-
-
-async def test_a_file_needs_a_name(actions: ExplorerActions) -> None:
-    with pytest.raises(ValueError):
-        await _run(actions, "create_file", None)
 
 
 async def test_a_file_cannot_be_created_inside_a_file(actions: ExplorerActions) -> None:
