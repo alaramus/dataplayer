@@ -13,6 +13,7 @@ import {
   AppBanner,
   AppButton,
   AppEmptyState,
+  AppForm,
   AppIconButton,
   AppSpinner,
   useConfirm,
@@ -139,13 +140,14 @@ async function putBack(filename: string) {
 <template>
   <WindowDialog
     :model-value="connector !== null"
-    size="md"
+    size="medium-form"
+    sizing="stable"
     :title="`Backups of ${connector?.name ?? ''}`"
     subtitle="A backup is a file in your own storage."
     data-testid="backups-dialog"
     @update:model-value="emit('update:connector', null)"
   >
-    <div class="backups">
+    <AppForm layout="section">
       <AppBanner
         v-if="offer.isError.value"
         tone="warning"
@@ -159,6 +161,54 @@ async function putBack(filename: string) {
         {{ offer.data.value.reason ?? "This server cannot copy a database out" }}
       </AppBanner>
 
+      <AppSpinner v-if="backups.isLoading.value" />
+      <AppEmptyState
+        v-else-if="files.length === 0"
+        icon="inventory_2"
+        text="You have no backups yet."
+      />
+      <ul
+        v-else
+        class="backups__list"
+      >
+        <li
+          v-for="file in files"
+          :key="file.filename"
+          class="backups__row"
+          :data-testid="`backup-${file.filename}`"
+        >
+          <div class="backups__what">
+            <span class="backups__name">{{ file.filename }}</span>
+            <span class="backups__when">
+              {{ readableSize(file.size_bytes) }} · {{ readableTime(file.modified_at) }}
+            </span>
+          </div>
+          <AppButton
+            variant="danger-quiet"
+            label="Restore"
+            :disable="working || !available"
+            :data-testid="`restore-${file.filename}`"
+            @click="putBack(file.filename)"
+          />
+          <!-- Deleting a file needs no runtime and no volume to write into, so
+               it stays offered where restoring is not. -->
+          <AppIconButton
+            icon="delete_outline"
+            tooltip="Delete this backup"
+            :disable="working"
+            :data-testid="`delete-backup-${file.filename}`"
+            @click="remove(file.filename)"
+          />
+        </li>
+      </ul>
+    </AppForm>
+
+    <template #actions>
+      <AppButton
+        variant="quiet"
+        label="Close"
+        @click="emit('update:connector', null)"
+      />
       <AppButton
         label="Copy this database out"
         :disable="working || !available"
@@ -166,61 +216,24 @@ async function putBack(filename: string) {
         data-testid="take-backup"
         @click="take"
       />
-
-      <AppSpinner v-if="backups.isLoading.value" />
-      <AppEmptyState
-        v-else-if="files.length === 0"
-        icon="inventory_2"
-        text="You have no backups yet."
-      />
-      <div
-        v-for="file in files"
-        v-else
-        :key="file.filename"
-        class="backups__row"
-        :data-testid="`backup-${file.filename}`"
-      >
-        <div class="backups__what">
-          <span class="backups__name">{{ file.filename }}</span>
-          <span class="backups__when">
-            {{ readableSize(file.size_bytes) }} · {{ readableTime(file.modified_at) }}
-          </span>
-        </div>
-        <AppButton
-          variant="danger-quiet"
-          label="Restore"
-          :disable="working || !available"
-          :data-testid="`restore-${file.filename}`"
-          @click="putBack(file.filename)"
-        />
-        <!-- Deleting a file needs no runtime and no volume to write into, so
-             it stays offered where restoring is not. -->
-        <AppIconButton
-          icon="delete_outline"
-          tooltip="Delete this backup"
-          :disable="working"
-          :data-testid="`delete-backup-${file.filename}`"
-          @click="remove(file.filename)"
-        />
-      </div>
-    </div>
+    </template>
   </WindowDialog>
 </template>
 
 <style scoped>
-.backups {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-2);
-  min-height: 160px;
+.backups__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .backups__row {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  padding: var(--dp-space-2) var(--dp-space-2);
-  border-radius: var(--dp-radius-control);
-  background: var(--dp-surface-raised);
+  padding: var(--dp-space-2) 0;
+}
+.backups__row + .backups__row {
+  border-top: 1px solid var(--dp-border-faint);
 }
 .backups__what {
   display: flex;

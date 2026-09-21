@@ -79,7 +79,9 @@ accepted visual example and the rejected directions.
   that keeps its size when the answer arrives; `monospace` sets such values in
   the mono face, where l and I must differ. Starting a service takes the stable
   `long-form` preset, 560 by 620: its two ways of asking differ by seven fields,
-  and the window keeps its size between them.
+  and the window keeps its size between them. Backups are a flat list with
+  quiet separators in a stable `medium-form` window, and copying one out is the
+  footer's primary action.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.

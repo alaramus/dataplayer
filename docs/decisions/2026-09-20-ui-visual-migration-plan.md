@@ -344,3 +344,29 @@ form and the SSH key variant. The full E2E suite was not run.
 
 Next: backups, then the remaining grid forms (download, import, create table);
 the AI tab-attachment window needs a checklist composition of its own.
+
+## Slice 14: backups
+
+Implemented: the backups window is a stable `medium-form` window instead of a
+content-sized one that grew with the list up to the viewport. "Copy this
+database out" moved from a full-width button at the top of the body into the
+footer as its primary action, beside a new Close. Files are a flat list on the
+window's surface, separated by faint lines, rather than raised rows; availability
+warnings are form banners. Restore, delete, their confirmations and the jobs
+they start are unchanged.
+
+Coverage: the first browser scene for this window, with the availability answer
+and the list held until the window is open: unchanged geometry when they
+arrive, the primary action in the footer, rows without a surface of their own,
+no horizontal overflow, the last row reachable by scrolling with the footer in
+view, a narrow window, and an unavailable server disabling copying and
+restoring while deleting stays offered. Run against the previous window it
+failed on the geometry. Nothing is copied, restored or deleted.
+
+Validation: all 1,876 frontend unit tests passed; the new scene and the actions
+scenarios, which reach this window's menu line, passed. Type-check, lint and
+build passed; lint retains 20 unrelated warnings and the build reports large
+chunks. Inspected both themes at desktop and narrow widths and the unavailable
+state. The full E2E suite was not run.
+
+Next: the grid forms — download, import and create table.
