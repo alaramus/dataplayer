@@ -63,26 +63,26 @@ accepted visual example and the rejected directions.
   stack on a narrow form.
 - **`layout="section"` is the standalone stack**, with shared padding and field
   spacing; the default embedded layout leaves both to its parent.
-- **Its consumers** are the connection editor, which has the composition in
-  `/ui-kit`; SSH key creation, import and unlocking; the column rename, default,
-  type and nullability dialogs; and column, index and constraint creation. The
-  dialogs use stable compact windows, so long errors scroll in the body while the
-  actions stay visible. Column and index creation take the `compact-form` preset,
-  560 by 360; constraints take `form`, for the foreign-key fields.
-  Connection, view and dashboard sharing use `form` too: compact recipient and permission
-  fields precede the grants and links, which scroll above the fixed footer.
-  Account creation and editing use `medium-form`, 560 by 440; instructions about an optional
-  new password sit below its field, leaving the shared label column short.
-  The AI provider key window stays content-sized: one field whose show/hide
-  action sits beside it, with the provider named by the title. A service's
-  address is read-only fields with a copy action each, in a stable `form` window
-  that keeps its size when the answer arrives; `monospace` sets such values in
-  the mono face, where l and I must differ. Starting a service takes the stable
-  `long-form` preset, 560 by 620: its two ways of asking differ by seven fields,
-  and the window keeps its size between them. Backups are a flat list with
-  quiet separators in a stable `medium-form` window, and copying one out is the
-  footer's primary action. Downloading rows chooses the page or every matching
-  row with an unlabelled radio group, its only question, in a content-sized window.
+- **A form window's size is chosen, not measured.** A window whose content
+  changes after it opens — a tab, a mode, an answer, a list, an optional field
+  or an error — is `sizing="stable"` at a preset: `compact-form` 560 by 360,
+  `medium-form` 560 by 440, `form` 560 by 580, `long-form` 560 by 620 and
+  `wide-form` 900 by 600 for pairing columns. The smallest that holds its
+  fullest state without a scrollbar on an ordinary screen is the right one;
+  more scrolls in the body above a fixed footer. A window where nothing appears
+  after opening stays content-sized. Which window takes which, and why, is in
+  the [migration plan](../decisions/2026-09-20-ui-visual-migration-plan.md).
+- **Labels are short enough for the label column**; what a longer one explained
+  moves into a hint, a placeholder or the title. A window's only question needs
+  no label column at all.
+- **A read-only value is a read-only field** with its companion action, a copy
+  as a rule; `monospace` sets a value read character by character in the mono
+  face, where l and I must differ.
+- **What belongs to a field without being one is `AppFormControl`** — a walk's
+  trail and the list to pick its next step from — and stands in the control
+  column under the field it answers to.
+- **A list in a window is flat**, on the window's surface with quiet separators,
+  and the window's one purpose is the footer's primary action.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.
@@ -107,8 +107,8 @@ accepted visual example and the rejected directions.
 
 Known deviations:
 
-- **The rollout is unfinished.** Forms other than the consumers above keep their
-  current presentation, and the wider composition rollout is pending.
+- **The rollout is unfinished.** Windows the migration plan has not reached keep
+  their earlier presentation, and workspace surfaces are still to come.
 
 Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 

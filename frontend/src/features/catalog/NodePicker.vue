@@ -7,7 +7,7 @@ import { isReadableNode, roleOf } from "@/features/catalog/nodes"
 import type { CatalogNode, PickedNode } from "@/features/catalog/nodes"
 import { useConnectors } from "@/features/connectors/api"
 import { messageOf } from "@/shared/api/errors"
-import { AppButton, AppEmptyState, AppSelect, AppSpinner } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppFormControl, AppSelect, AppSpinner } from "@/shared/ui"
 
 /**
  * Pick a node in one of your connections, and read what it calls its columns.
@@ -124,13 +124,17 @@ const here = computed(() =>
     @update:model-value="sourceId = String($event)"
   />
 
-  <template v-if="sourceId !== ''">
+  <AppFormControl
+    v-if="sourceId !== ''"
+    class="node-picker"
+  >
     <div class="node-picker__where">
       <AppButton
         v-if="trail.length > 0"
         label="Back"
         variant="quiet"
         size="sm"
+        icon="arrow_back"
         :data-testid="`${props.testid}-back`"
         @click="back"
       />
@@ -148,6 +152,7 @@ const here = computed(() =>
         <AppButton
           :label="node.name"
           variant="quiet"
+          layout="navigation"
           size="sm"
           :disable="roleOf(node) === 'leaf' && !isReadableNode(node)"
           :data-testid="`${props.testid}-node-${node.name}`"
@@ -159,17 +164,27 @@ const here = computed(() =>
       v-if="!browsing && chosen === null && nodes.length === 0"
       text="Nothing here"
     />
-  </template>
+  </AppFormControl>
 </template>
 
 <style scoped>
+.node-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-1);
+}
 .node-picker__where {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
+  min-height: var(--dp-form-control-height);
+  color: var(--dp-text-muted);
   font-size: 12px;
 }
 .node-picker__nodes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   margin: 0;
   padding: 0;
   list-style: none;

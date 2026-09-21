@@ -13,6 +13,7 @@ import {
   AppEmptyState,
   AppFileInput,
   AppForm,
+  AppFormControl,
   AppFullscreenToggle,
   AppIconButton,
   AppInput,
@@ -368,6 +369,9 @@ function removeSavedEntry(name: string) {
             label="SSL mode"
             :options="['prefer', 'require']"
           />
+          <AppFormControl>
+            Prefer tries TLS first and falls back to a plain connection.
+          </AppFormControl>
           <AppFileInput
             v-model="file"
             label="Key file"

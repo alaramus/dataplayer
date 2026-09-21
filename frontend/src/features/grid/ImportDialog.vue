@@ -6,7 +6,7 @@ import type { ColumnPair, FetchColumn, ImportPreview } from "@/client"
 import NodePicker from "@/features/catalog/NodePicker.vue"
 import type { CatalogNode, PickedNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
-import { AppBanner, AppButton, AppSection, AppSelect, AppTable } from "@/shared/ui"
+import { AppBanner, AppButton, AppForm, AppSelect, AppTable } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -118,11 +118,12 @@ function run() {
     :model-value="modelValue"
     title="Bring rows in"
     subtitle="From another source of yours, into this relation"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     data-testid="grid-import-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -207,14 +208,17 @@ function run() {
           :paged="false"
           empty-text="No rows"
         />
-        <div v-if="preview.more">
+        <div
+          v-if="preview.more"
+          class="import__more"
+        >
           The source holds more than these.
         </div>
       </template>
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="running"
         @click="emit('update:modelValue', false)"
@@ -238,20 +242,11 @@ function run() {
 </template>
 
 <style scoped>
-.import__title {
-  font-weight: 600;
-}
-
 /* The same shape as the columns of "Create table from file", because it is
    the same question asked twice: which column becomes which. A row was a
    single select labelled with the column it filled, which put the name inside
-   a compact field narrow enough to truncate it to one letter. */
-.import__columns {
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius-panel);
-  padding: var(--dp-space-2) var(--dp-space-3);
-}
-
+   a compact field narrow enough to truncate it to one letter. On the window's
+   surface rather than in a card of its own (D131). */
 .import__legend,
 .import__pair {
   display: grid;
@@ -264,10 +259,20 @@ function run() {
   grid-template-columns: minmax(160px, 1fr) 24px minmax(160px, 1.2fr) auto;
   padding-bottom: var(--dp-space-1);
   border-bottom: 1px solid var(--dp-border-faint);
+}
+
+/* The preview is headed the way the pairs are. */
+.import__legend,
+.import__title {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  color: var(--dp-text-muted);
+}
+
+.import__more {
+  font-size: 12px;
   color: var(--dp-text-muted);
 }
 
@@ -303,4 +308,20 @@ function run() {
    part of what the screen says. The arrow goes, because it points nowhere. */
 .import__pair--idle .import__target { color: var(--dp-text-muted); }
 .import__pair--idle .import__arrow { visibility: hidden; }
+
+/* A narrow form keeps the pairs side by side and drops the arrow between them,
+   which is the column that cannot shrink. */
+@container app-form (max-width: 480px) {
+  .import__legend,
+  .import__pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+  .import__legend > [aria-hidden="true"],
+  .import__arrow {
+    display: none;
+  }
+  .import__tally {
+    grid-column: 1 / -1;
+  }
+}
 </style>

@@ -8,7 +8,7 @@ import type { PickedNode } from "@/features/catalog/nodes"
 import { useDeclareReference } from "@/features/declared/api"
 import { lookupColumns } from "@/features/declared/model"
 import { messageOf } from "@/shared/api/errors"
-import { AppBanner, AppButton, AppSection, AppSelect } from "@/shared/ui"
+import { AppBanner, AppButton, AppForm, AppSelect } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
@@ -113,11 +113,12 @@ async function run() {
     :model-value="modelValue"
     title="Declare a reference"
     :subtitle="`From a column of ${nodeLabel} to a column anywhere else`"
-    size="lg"
+    size="form"
+    sizing="stable"
     data-testid="declare-reference-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="trouble"
         tone="error"
@@ -147,10 +148,10 @@ async function run() {
         data-testid="declare-reference-far-column"
         @update:model-value="farColumn = String($event)"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
-        variant="secondary"
+        variant="quiet"
         label="Cancel"
         :disable="declare.isPending.value"
         @click="emit('update:modelValue', false)"

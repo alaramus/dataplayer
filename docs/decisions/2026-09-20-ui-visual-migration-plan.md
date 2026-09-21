@@ -410,3 +410,38 @@ screenshot. All 1,882 unit tests, the scene, the grid scenarios and the kit
 gallery scene passed, except "keeps the 500-row page mode interactive", which
 timed out in the batch and passed alone twice at 29 to 30 seconds against its
 30-second limit — a pre-existing margin, not this change.
+
+## Slice 16: picking another source
+
+Implemented: bringing rows in and declaring a reference share NodePicker, so
+both moved together. The import window was a 900-pixel content-sized window
+that grew from 229 to 616 pixels and climbed the screen as a source was picked,
+walked, paired and previewed; it is now stable at the new `wide-form` preset,
+900 by 600. Declaring a reference takes a stable `form`. The picker's source is
+a compact field, and its trail and list stand in the control column under it
+through a new kit component, AppFormControl, shown in the gallery; the list's
+entries start at the left. The pairs of columns are on the window's surface
+instead of a bordered card, the preview is headed like them, a narrow form keeps
+the pairs side by side without the arrow, and Cancel is quiet. What is read,
+paired, previewed, brought in or declared is unchanged.
+
+The architecture file's list of every migrated window, which AGENTS.md asks not
+to keep and which was nearing the size warning, gave way to the rules it
+illustrated: when a window is stable and which preset, short labels, read-only
+values, AppFormControl and flat lists. This plan remains the record of which
+window took what.
+
+Coverage: a scene in both themes with two real connections: unchanged geometry
+from opening through choosing a source, walking to a table, pairing and a
+preview; the walk in the control column; pairs without a card; no horizontal
+overflow and a reachable footer at a narrow width; and the declare window's
+labels in one column and unchanged size once the far column appears. Nothing is
+brought in or declared. Run against the previous windows it failed.
+
+Validation: all 1,885 frontend unit tests passed; the new scene, both real
+import scenarios, the declared-reference scenario and the kit gallery scene
+passed. Type-check, lint and build passed; lint retains 20 unrelated warnings
+and the build reports large chunks. Inspected both themes, the walk, the preview
+and a narrow import, and the declare form. The full E2E suite was not run.
+
+Next: creating a table from a file, which pairs columns the same way.
