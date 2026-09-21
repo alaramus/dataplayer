@@ -37,3 +37,21 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
     @update:model-value="emit('update:modelValue', $event === true)"
   />
 </template>
+
+<style scoped>
+/* Trap: Quasar grows the halo behind a tick box with scale3d(), and a 3D
+   transform gives every box a compositor layer of its own, hovered or not. A
+   catalog level of two hundred rows was two hundred layers, and every frame of
+   the workspace spent a hundred milliseconds and more arranging them. The same
+   halo scaled in 2D is painted with the page. Quasar's three selectors, each
+   outweighed by the scope's attribute. */
+body.desktop .q-checkbox:not(.disabled) :deep(.q-checkbox__inner)::before {
+  transform: scale(0);
+}
+body.desktop .q-checkbox:not(.disabled):is(:focus, :hover) :deep(.q-checkbox__inner)::before {
+  transform: scale(1);
+}
+body.desktop .q-checkbox--dense:not(.disabled):is(:focus, :hover) :deep(.q-checkbox__inner)::before {
+  transform: scale(1.4);
+}
+</style>
