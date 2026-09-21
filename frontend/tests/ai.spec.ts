@@ -16,6 +16,9 @@ test("attaches named workspace tabs without overflowing a narrow composer", asyn
   await openNode(page, "pg_class")
 
   await page.getByTestId("space-ai").click()
+  // The composer exists once a chat is open; on an empty history the space is
+  // a welcome screen, so the chat is made here rather than presumed.
+  await page.getByTestId("ai-new-chat").click()
   await page.getByTestId("ai-attach").click()
   await page.getByTestId("menu-item-tabs").click()
   const dialog = page.getByTestId("ai-context-dialog")

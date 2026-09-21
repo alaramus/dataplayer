@@ -200,7 +200,7 @@ test("the editor's own tooltips and panels take the dark theme", async ({
 
   const offered = page.locator(".cm-tooltip-autocomplete")
   await expect(offered).toBeVisible()
-  await expect(offered).toHaveCSS("background-color", "rgb(29, 29, 29)")
+  await expect(offered).toHaveCSS("background-color", "rgb(25, 25, 25)")
 
   // Every word in the same colour the rest of the application writes in, and
   // the row under the caret on this application's own selection tint rather
@@ -220,7 +220,7 @@ test("the editor's own tooltips and panels take the dark theme", async ({
   await page.keyboard.press("ControlOrMeta+f")
   const panel = page.locator(".cm-panels")
   await expect(panel).toBeVisible()
-  await expect(panel).toHaveCSS("background-color", "rgb(43, 45, 48)")
+  await expect(panel).toHaveCSS("background-color", "rgb(43, 43, 43)")
   await expect(panel.getByRole("textbox", { name: "Find" })).toHaveCSS(
     "background-color",
     "rgb(18, 18, 18)"
