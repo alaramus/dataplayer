@@ -52,6 +52,10 @@ const scroller = ref<HTMLElement | null>(null)
 const expandedSteps = ref(new Set<string>())
 const expandedReasoning = ref(new Set<string>())
 let speech: SpeechSynthesisUtterance | null = null
+// Which message is being read aloud, so its button becomes the stop. The
+// engine reports the end on the utterance; a fresh read of the same text
+// restarts it, so the message content is enough of a key.
+const speaking = ref<string | null>(null)
 
 const runs = computed(() => new Map((conversation.data.value?.runs ?? []).map((run) => [run.id, run])))
 const activeRun = computed(() => (conversation.data.value?.runs ?? []).find((run) => ["running", "awaiting_answer"].includes(run.status)) ?? null)
@@ -281,11 +285,19 @@ async function copy(text: string, what: string) {
   try { await navigator.clipboard.writeText(text); toast.success(`${what} copied`) }
   catch { toast.error(`The ${what.toLowerCase()} could not be copied`) }
 }
+function stopSpeaking() {
+  window.speechSynthesis.cancel()
+  speaking.value = null
+}
 function listen(text: string) {
+  if (speaking.value === text) { stopSpeaking(); return }
   window.speechSynthesis.cancel()
   const plain = plainSpeechText(text)
   if (!plain) return
   speech = new SpeechSynthesisUtterance(plain)
+  speech.onend = () => { if (speaking.value === text) speaking.value = null }
+  speech.onerror = () => { if (speaking.value === text) speaking.value = null }
+  speaking.value = text
   window.speechSynthesis.speak(speech)
 }
 
@@ -432,8 +444,11 @@ onBeforeUnmount(() => {
                 @click="copy(message.content, message.role === 'user' ? 'Message' : 'Answer')"
               />
               <AppIconButton
-                icon="volume_up"
-                :tooltip="message.role === 'user' ? 'Listen to message' : 'Listen to answer'"
+                :icon="speaking === message.content ? 'stop_circle' : 'volume_up'"
+                :tooltip="speaking === message.content
+                  ? 'Stop reading aloud'
+                  : message.role === 'user' ? 'Listen to message' : 'Listen to answer'"
+                :active="speaking === message.content"
                 @click="listen(message.content)"
               />
             </div>
