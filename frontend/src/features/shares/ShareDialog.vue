@@ -25,6 +25,7 @@ import {
   AppCopyButton,
   AppIconButton,
   AppInput,
+  AppForm,
   AppSelect,
   AppSpinner,
   useToast,
@@ -192,7 +193,8 @@ async function forget(shareId: string) {
   <WindowDialog
     :model-value="modelValue"
     :title="`Share — ${nodeLabel ?? connectorName}`"
-    size="lg"
+    size="form"
+    sizing="stable"
     data-testid="share-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -200,7 +202,7 @@ async function forget(shareId: string) {
       <AppSpinner v-if="loading" />
 
       <template v-else>
-        <section
+        <AppForm
           v-if="nodeId !== undefined"
           class="share__link"
         >
@@ -233,34 +235,33 @@ async function forget(shareId: string) {
               shared it, and nothing more.
             </p>
           </template>
-        </section>
+        </AppForm>
 
         <template v-if="isOwner">
-          <AppBanner
-            v-if="recipientsFailed"
-            tone="error"
-            data-testid="share-recipients-error"
-          >
-            Could not load recipients and their access. Try again.
-            <AppButton
-              label="Retry"
-              variant="quiet"
-              :loading="directory.isFetching.value || grants.isFetching.value"
-              @click="retryRecipients"
-            />
-          </AppBanner>
-          <p
-            v-else-if="recipientsMessage"
-            class="share__note"
-            role="status"
-            data-testid="share-recipients-empty"
-          >
-            {{ recipientsMessage }}
-          </p>
-          <div class="share__add">
+          <AppForm class="share__add">
+            <AppBanner
+              v-if="recipientsFailed"
+              tone="error"
+              data-testid="share-recipients-error"
+            >
+              Could not load recipients and their access. Try again.
+              <AppButton
+                label="Retry"
+                variant="quiet"
+                :loading="directory.isFetching.value || grants.isFetching.value"
+                @click="retryRecipients"
+              />
+            </AppBanner>
+            <p
+              v-else-if="recipientsMessage"
+              class="share__note"
+              role="status"
+              data-testid="share-recipients-empty"
+            >
+              {{ recipientsMessage }}
+            </p>
             <AppSelect
               v-model="pickedUser"
-              class="share__person"
               label="Person"
               data-testid="share-user"
               :options="candidates"
@@ -268,7 +269,6 @@ async function forget(shareId: string) {
             />
             <AppSelect
               v-model="pickedLevel"
-              class="share__level share__level--with-action"
               label="May"
               data-testid="share-level"
               :options="GRANT_OPTIONS"
@@ -283,12 +283,12 @@ async function forget(shareId: string) {
                 />
               </template>
             </AppSelect>
-          </div>
 
-          <p class="share__note">
-            Access is to the whole connection {{ connectorName }}, not only to
-            {{ nodeLabel ?? "this node" }}.
-          </p>
+            <p class="share__note">
+              Access is to the whole connection {{ connectorName }}, not only to
+              {{ nodeLabel ?? "this node" }}.
+            </p>
+          </AppForm>
 
           <!-- Only where there is no page already showing it: opened from
                the connection's own window, the list is behind this dialog and
@@ -359,8 +359,8 @@ async function forget(shareId: string) {
 .share {
   display: flex;
   flex-direction: column;
-  gap: var(--dp-space-3);
-  padding: 0 var(--dp-space-3) var(--dp-space-2);
+  gap: var(--dp-space-4);
+  padding: var(--dp-space-4);
 }
 .share__link,
 .share__links {
@@ -388,23 +388,12 @@ async function forget(shareId: string) {
 }
 .share__add {
   display: flex;
-  align-items: flex-start;
-  gap: var(--dp-space-2);
+  flex-direction: column;
+  gap: var(--dp-space-4);
 }
-.share__person {
-  flex: 1;
-  min-width: 0;
-}
-/* Wide enough for the longest wording in GRANT_OPTIONS, so the row does not
-   change width as a level is chosen. */
-.share__level {
-  width: 160px;
-}
-/* The select keeps its 160px while QField's own `after` area holds the button.
-   The action is deliberately inside the field so its vertical position does
-   not include the error-message line below the control. */
-.share__level--with-action {
-  width: 240px;
+.share__links {
+  border-top: 1px solid var(--dp-border);
+  padding-top: var(--dp-space-3);
 }
 .share__list {
   display: flex;

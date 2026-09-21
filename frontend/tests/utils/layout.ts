@@ -7,13 +7,12 @@ import type { Locator } from "@playwright/test"
  * reserved below it.
  *
  * The field is found by its user-facing test id. Quasar places that id on the
- * native input, so the control is reached through semantic label ancestry
- * rather than by coupling this check to one of Quasar's CSS class names.
+ * native input. Only this geometry helper knows Quasar's control wrapper;
+ * a form can also put an external label before that wrapper.
  */
 export async function expectFieldActionAligned(field: Locator, action: Locator) {
   const fieldMiddle = await field.evaluate((native) => {
-    const inner = native.closest("label")?.firstElementChild
-    const control = inner?.firstElementChild
+    const control = native.closest(".q-field__control")
     if (!(control instanceof HTMLElement)) return null
     const box = control.getBoundingClientRect()
     return box.y + box.height / 2

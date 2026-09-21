@@ -67,6 +67,9 @@ provide(formLayoutKey, true)
 .app-form :deep(.app-form-field .q-field__bottom) {
   padding: var(--dp-space-1) 0 0;
 }
+.app-form :deep(.app-form-field .q-field__after) {
+  height: var(--dp-form-control-height);
+}
 .app-form :deep(.app-form-checkbox) {
   margin-left: var(--dp-form-label-width);
   min-height: var(--dp-form-control-height);

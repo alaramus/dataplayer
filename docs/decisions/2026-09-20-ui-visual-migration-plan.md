@@ -194,3 +194,23 @@ E2E suite was not run.
 
 Next: migrate another complete form family; the structure table and the table
 designer remain separate surfaces to review.
+
+## Slice 8: connection and view sharing
+
+Implemented: sharing uses a stable form window with compact link, recipient and
+permission fields. Narrow containers place labels above fields; grants and long
+link lists scroll above the footer. Companion actions align with compact controls
+in AppForm. The browser geometry helper now measures the actual control when an
+external label precedes it. Sharing permissions and requests are unchanged.
+
+Coverage: both themes, recipient-load failure and recovery, stable geometry,
+companion alignment, narrow reflow and long-list scrolling with visible actions.
+
+Validation: all 1,876 frontend unit tests passed; ten targeted browser scenarios
+passed, with one rerun after account creation exceeded its existing five-second
+expectation. Type-check, lint and production build passed. Lint retains 20
+unrelated warnings; the build reports large chunks. Inspected light desktop and
+dark narrow screenshots. The full E2E suite was not run.
+
+Next: dashboard sharing, followed by another small form family. The broader
+workspace, table and operation-result surfaces remain to migrate.
