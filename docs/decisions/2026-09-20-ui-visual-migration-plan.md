@@ -234,3 +234,25 @@ and narrow dark screenshots. The full application E2E suite was not run.
 
 Next: account forms, keeping validation, password handling and account privileges
 unchanged. Larger dashboard and workspace surfaces remain separate slices.
+
+## Slice 10: account forms
+
+Implemented: account creation and editing use AppForm's section layout and the
+stable compact-form window. Checkboxes align with the controls, and the optional
+new-password instruction is a field hint instead of a long label. Validation,
+autocomplete policy and mutation payloads are unchanged.
+
+Coverage: both themes, persistent external labels, compact controls, missing
+email/password errors without window resizing, narrow reflow, scrollable body
+and reachable footer. Editing checks the optional password hint and verifies
+that saving an empty password omits it while preserving checkbox choices.
+Existing sharing scenarios exercise real account creation and deletion as well
+as administrator-only access and the self-deletion restriction.
+
+Next: inspect the remaining small settings and credential forms before moving
+to larger workspace surfaces.
+
+Validation: all 1,876 frontend unit tests and five targeted browser scenarios
+passed. Type-check, lint and build passed. Lint retains 20 unrelated warnings;
+the build reports large chunks. Inspected desktop light editing and narrow dark
+validation screenshots. The full application E2E suite was not run.

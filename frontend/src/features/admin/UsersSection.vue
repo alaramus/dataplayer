@@ -19,6 +19,7 @@ import {
   AppButton,
   AppCheckbox,
   AppEmptyState,
+  AppForm,
   AppIconButton,
   AppInput,
   AppTable,
@@ -187,9 +188,11 @@ async function remove(user: UserPublic) {
     <WindowDialog
       v-model="dialogOpen"
       :title="isNew ? 'New user' : `Edit user — ${editing?.email ?? ''}`"
+      size="compact-form"
+      sizing="stable"
       data-testid="user-dialog"
     >
-      <div class="user-form">
+      <AppForm layout="section">
         <AppInput
           v-model="form.email"
           label="Email"
@@ -211,7 +214,8 @@ async function remove(user: UserPublic) {
           type="password"
           autocomplete="new-password"
           persistent-label
-          :label="isNew ? 'Password' : 'New password — leave empty to keep the current one'"
+          :label="isNew ? 'Password' : 'New password'"
+          :hint="isNew ? undefined : 'Leave empty to keep the current password'"
           data-testid="user-password"
           :error="errors.password"
         />
@@ -225,7 +229,7 @@ async function remove(user: UserPublic) {
           label="Administrator: manages accounts, not other people's data"
           data-testid="user-superuser"
         />
-      </div>
+      </AppForm>
 
       <template #actions>
         <AppButton
@@ -259,10 +263,4 @@ async function remove(user: UserPublic) {
   justify-content: flex-end;
 }
 
-.user-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-2);
-  padding: 0 var(--dp-space-3) var(--dp-space-2);
-}
 </style>
