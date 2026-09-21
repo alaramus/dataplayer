@@ -544,7 +544,7 @@ onBeforeUnmount(() => {
             :key="context.panel_id"
             class="ai-context-chip"
           >
-            {{ context.label }}
+            <span class="ai-context-chip__label">{{ context.label }}</span>
             <AppIconButton
               icon="close"
               :tooltip="`Remove ${context.label}`"
@@ -704,7 +704,8 @@ onBeforeUnmount(() => {
 /* Wide enough for a model's name and no wider: the row it stands in belongs
    to the send button at its end. */
 .ai-conversation__model, .ai-conversation__policy { flex: 0 1 200px; min-width: 120px; }
-.ai-context-chip { display: inline-flex; align-items: center; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }
+.ai-context-chip { display: inline-flex; align-items: center; max-width: 100%; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }
+.ai-context-chip__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The box is one line until there is more to hold, and stops at eight of them
    rather than pushing the transcript off the card. A grown field scrolls; the
    corner grip is gone with it, because a hand-dragged height had no floor and

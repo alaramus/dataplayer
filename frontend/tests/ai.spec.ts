@@ -1,6 +1,49 @@
 import { expect, test } from "@playwright/test"
 
+import { openNode, pickSchema } from "./utils/catalog"
+import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { chooseTheme } from "./utils/theme"
+import { deleteConnector, openConnector } from "./utils/workspace"
+
+test("attaches named workspace tabs without overflowing a narrow composer", async ({ page }) => {
+  const name = `e2e-ai-context-${Date.now()}`
+  await login(page)
+  await chooseTheme(page, "dark")
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+
+  await page.getByTestId("space-ai").click()
+  await page.getByTestId("ai-attach").click()
+  await page.getByTestId("menu-item-tabs").click()
+  const dialog = page.getByTestId("ai-context-dialog")
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole("checkbox", { name: `${name} · Catalog`, exact: true })).toBeVisible()
+  await expect(dialog.getByRole("checkbox", { name: `${name} · pg_class · Rows`, exact: true })).toBeVisible()
+
+  await page.setViewportSize({ width: 420, height: 760 })
+  const dialogBox = await dialog.boundingBox()
+  expect(dialogBox).not.toBeNull()
+  expect(dialogBox!.x).toBeGreaterThanOrEqual(0)
+  expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(420)
+  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+  await dialog.getByRole("checkbox", { name: `${name} · Catalog`, exact: true }).click()
+  await dialog.getByRole("checkbox", { name: `${name} · pg_class · Rows`, exact: true }).click()
+  await dialog.getByRole("button", { name: "Done", exact: true }).click()
+  const contexts = page.getByLabel("Tabs attached to the next message")
+  await expect(contexts).toContainText(`${name} · Catalog`)
+  await expect(contexts).toContainText(`${name} · pg_class · Rows`)
+  expect(await contexts.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+
+  await page.getByRole("button", { name: `Remove ${name} · Catalog`, exact: true }).click()
+  await expect(contexts).not.toContainText(`${name} · Catalog`)
+  await page.getByTestId("space-data").click()
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await deleteConnector(page, name)
+})
 
 test("opens, restores and manages the application agent space", async ({ page }) => {
   await login(page)

@@ -41,6 +41,7 @@ function apply() {
     subtitle="Choose up to five tabs for the next message only."
     size="md"
     icon="attach_file"
+    data-testid="ai-context-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div
@@ -77,6 +78,7 @@ function apply() {
 </template>
 
 <style scoped>
-.ai-context-dialog__list { display: grid; gap: var(--dp-space-2); min-width: 360px; }
-.ai-context-dialog__empty { color: var(--dp-text-muted); }
+.ai-context-dialog__list { display: grid; gap: var(--dp-space-1); min-width: 0; padding: var(--dp-space-2) var(--dp-space-4); }
+.ai-context-dialog__list :deep(.q-checkbox__label) { min-width: 0; overflow-wrap: anywhere; }
+.ai-context-dialog__empty { padding: var(--dp-space-3) var(--dp-space-4); color: var(--dp-text-muted); }
 </style>

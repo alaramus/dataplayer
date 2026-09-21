@@ -572,3 +572,22 @@ build reports large chunks. Inspected simple, preview and file-list forms in
 both themes and at narrow width. The full application E2E suite was not run.
 
 Next: the AI tab-attachment checklist.
+
+## Slice 22: AI workspace-tab attachments
+
+Implemented: the attachment window is a compact checklist with the same inset
+and footer rhythm as the other content-sized windows. Every choice now names
+the connection, node and panel kind required by D133, while a catalog does not
+repeat its connection name. Long choices wrap inside the window; selected
+tabs become removable, single-line chips that truncate before they can widen
+the composer.
+
+Coverage: the context unit tests fix the complete labels. A browser scene opens
+a real catalog and rows tab, selects both through the plus menu, checks the
+labels and removal, and verifies that the window and composer have no
+horizontal overflow at 420 px.
+
+Validation: all 1,895 frontend unit tests and the targeted browser scene
+passed. Type-check, lint and build passed; lint retains 20 unrelated warnings
+and the build reports large chunks. The window and selected chips were
+inspected in both themes at 420 px. The full application E2E suite was not run.

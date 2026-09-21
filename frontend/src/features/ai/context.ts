@@ -27,6 +27,19 @@ export interface AiOpenIntent {
   representations: NodeRepresentation[]
 }
 
+function contextLabel(panel: Exclude<Panel, { kind: "connectors" }>): string {
+  const look = lookOf(panel)
+  const connectorName = "connectorName" in panel
+    ? panel.connectorName
+    : panel.kind === "catalog"
+      ? panel.title
+      : null
+  const parts = [connectorName, look.title, KIND_LABELS[panel.kind]].filter(
+    (part, index, all): part is string => Boolean(part) && all.indexOf(part) === index
+  )
+  return parts.join(" · ")
+}
+
 /**
  * Tabs whose content never reaches the model, so offering them invites the
  * model to pretend it saw them. An attached tab travels as one line of
@@ -53,7 +66,7 @@ export function screenContexts(panels: readonly Panel[]): ScreenContext[] {
         : undefined
     return [{
       panel_id: panel.id,
-      label: `${lookOf(panel).title} · ${KIND_LABELS[panel.kind]}`,
+      label: contextLabel(panel),
       kind: panel.kind,
       ...(connectorId === undefined ? {} : { connector_id: connectorId }),
       ...(nodeId === undefined ? {} : { node_id: nodeId }),
