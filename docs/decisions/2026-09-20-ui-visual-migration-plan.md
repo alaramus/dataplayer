@@ -445,3 +445,39 @@ and the build reports large chunks. Inspected both themes, the walk, the preview
 and a narrow import, and the declare form. The full E2E suite was not run.
 
 Next: creating a table from a file, which pairs columns the same way.
+
+## Slice 17: creating a table
+
+Implemented: creating a table from a file and from rows use AppForm's section
+layout in stable `wide-form` windows instead of content-sized 900-pixel ones.
+Their destinations are rows in the label column rather than three floating
+fields abreast; "CSV or TSV file" became "File" with the formats in its hint,
+and the warning about a new schema is that field's hint instead of a banner.
+
+The third copy of the column-pairing layout was the signal to extract it:
+AppPairs and AppPairsRow in the kit now hold the legend, the arrow, the
+separators, the quiet pair and the narrow reflow for bringing rows in and both
+ways of creating a table. The copies had drifted — a count in the legend's own
+grid column pushed the headings 12 to 28 pixels off the fields under them — and
+creating from rows still labelled "New column" and "Type" on every row; its
+type is now a legend column. A form's switches are on in the neutral a form's
+checkbox is ticked in, through tokens.ts. The gallery shows AppPairs with all
+its slots. What is read, named, typed and created is unchanged.
+
+Coverage: component tests for the legend, the arrow's direction, quiet pairs,
+the third column and the switch's colour in and out of a form. A browser scene
+in both themes opens both windows on a real connection: geometry unchanged
+while a file is read, a new schema is chosen, a destination answers and a pair
+is left out; each heading over its column's fields; no overflow at a narrow
+width. Nothing is created. Run against the previous windows it failed on the
+heading alignment.
+
+Validation: all 1,893 frontend unit tests passed; the new scene, the actions
+scenarios including loading a CSV, both real import scenarios, the source
+picker scene and the kit gallery scene passed. Type-check, lint and build
+passed; lint retains 20 unrelated warnings and the build reports large chunks.
+Inspected both themes, a narrow window and both windows' pairs. The full E2E
+suite was not run.
+
+Next: the remaining catalog and grid windows — cell value and cell editor, the
+model code window and the action dialog — then the AI tab-attachment checklist.

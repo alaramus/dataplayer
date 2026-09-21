@@ -7,8 +7,10 @@ import {
   AppBanner,
   AppButton,
   AppFileInput,
+  AppForm,
   AppInput,
-  AppSection,
+  AppPairs,
+  AppPairsRow,
   AppSelect,
   AppTable,
   AppToggle,
@@ -141,11 +143,12 @@ function run() {
     :model-value="modelValue"
     title="Create table from file"
     subtitle="Choose the destination and the columns before anything is created"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     data-testid="file-to-relation-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -160,91 +163,84 @@ function run() {
       </AppBanner>
       <AppFileInput
         v-model="file"
-        label="CSV or TSV file"
+        label="File"
+        hint="CSV or TSV, its first line naming the columns"
         accept=".csv,.tsv,text/csv,text/tab-separated-values"
         data-testid="load-file"
       />
-      <div class="file-to-relation__destination">
-        <AppSelect
-          v-model="schemaMode"
-          label="Schema choice"
-          :options="[
-            { label: 'Existing schema', value: 'existing' },
-            { label: 'Create new schema', value: 'new' },
-          ]"
-          data-testid="load-schema-mode"
-        />
-        <AppSelect
-          v-if="schemaMode === 'existing'"
-          v-model="schemaName"
-          label="Schema"
-          :options="schemas"
-          data-testid="load-schema"
-        />
-        <AppInput
-          v-else
-          v-model="schemaName"
-          label="New schema"
-          data-testid="load-new-schema"
-        />
-        <AppInput
-          v-model="tableName"
-          label="Table name"
-          data-testid="field-name"
-        />
-      </div>
-      <AppBanner
-        v-if="schemaMode === 'new'"
-        tone="info"
-      >
-        The database may refuse this if the connection is not allowed to create schemas.
-      </AppBanner>
-      <div
+      <AppSelect
+        v-model="schemaMode"
+        label="Schema choice"
+        :options="[
+          { label: 'Existing schema', value: 'existing' },
+          { label: 'Create new schema', value: 'new' },
+        ]"
+        data-testid="load-schema-mode"
+      />
+      <AppSelect
+        v-if="schemaMode === 'existing'"
+        v-model="schemaName"
+        label="Schema"
+        :options="schemas"
+        data-testid="load-schema"
+      />
+      <AppInput
+        v-else
+        v-model="schemaName"
+        label="New schema"
+        hint="The database may refuse this if the connection is not allowed to create schemas"
+        autocomplete="off"
+        data-testid="load-new-schema"
+      />
+      <AppInput
+        v-model="tableName"
+        label="Table name"
+        autocomplete="off"
+        data-testid="field-name"
+      />
+      <AppPairs
         v-if="mappings.length"
-        class="file-to-relation__columns"
         data-testid="load-columns"
       >
-        <div class="file-to-relation__legend">
-          <span>In the file</span>
-          <span aria-hidden="true" />
-          <span>Column in the new table</span>
+        <template #from>
+          In the file
+        </template>
+        <template #to>
+          Column in the new table
+        </template>
+        <template #aside>
           <span
-            class="file-to-relation__tally"
             :class="{ 'file-to-relation__tally--wrong': unnamed > 0 }"
             data-testid="load-tally"
           >{{ tally }}</span>
-        </div>
-        <div
+        </template>
+        <AppPairsRow
           v-for="mapping in mappings"
           :key="mapping.source"
-          class="file-to-relation__row"
-          :class="{ 'file-to-relation__row--out': !mapping.include }"
+          :idle="!mapping.include"
           :data-testid="`load-column-${mapping.source}`"
         >
-          <AppToggle
-            v-model="mapping.include"
-            :label="mapping.source"
-          />
-          <q-icon
-            name="arrow_forward"
-            size="16px"
-            class="file-to-relation__arrow"
-            aria-hidden="true"
-          />
-          <!-- No visible label: the legend above the block says what this
-               column is, and repeating it on every row was most of what made
-               the pairing hard to read. Named for a screen reader all the
-               same, and by the column it renames rather than by its job.
-               Compact, so a file of forty columns is forty short rows; what a
-               compact field has no room to say is said once in the legend. -->
-          <AppInput
-            v-model="mapping.target"
-            :aria-label="`Name in the table for ${mapping.source}`"
-            :disable="!mapping.include"
-            compact
-          />
-        </div>
-      </div>
+          <template #from>
+            <AppToggle
+              v-model="mapping.include"
+              :label="mapping.source"
+            />
+          </template>
+          <!-- No visible label: the legend above says what this column is,
+               and repeating it on every row was most of what made the pairing
+               hard to read. Named for a screen reader all the same, by the
+               column it renames rather than by its job. -->
+          <template #to>
+            <AppInput
+              v-model="mapping.target"
+              :aria-label="`Name in the table for ${mapping.source}`"
+              :disable="!mapping.include"
+              autocomplete="off"
+              compact
+            />
+          </template>
+        </AppPairsRow>
+      </AppPairs>
       <AppTable
         v-if="selected.length && preview.length"
         :rows="tableRows"
@@ -253,7 +249,7 @@ function run() {
         compact
         :paged="false"
       />
-    </AppSection>
+    </AppForm>
     <template #actions>
       <AppButton
         variant="quiet"
@@ -272,61 +268,5 @@ function run() {
 </template>
 
 <style scoped>
-.file-to-relation__destination {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--dp-space-3);
-}
-
-/* One pair to a row, and the same three columns in the legend above them, so
-   the eye reads each mapping left to right. Two pairs to a row fitted more on
-   the screen and left it ambiguous which name belonged to which — the whole
-   complaint about this dialog. */
-.file-to-relation__columns {
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius-panel);
-  padding: var(--dp-space-2) var(--dp-space-3);
-}
-
-.file-to-relation__legend,
-.file-to-relation__row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1fr) 24px minmax(160px, 1.4fr);
-  align-items: center;
-  gap: var(--dp-space-2);
-}
-
-.file-to-relation__legend {
-  grid-template-columns: minmax(140px, 1fr) 24px minmax(160px, 1.4fr) auto;
-  padding-bottom: var(--dp-space-1);
-  border-bottom: 1px solid var(--dp-border-faint);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dp-text-muted);
-}
-
-.file-to-relation__tally {
-  letter-spacing: 0;
-  text-transform: none;
-  font-weight: 400;
-}
-
 .file-to-relation__tally--wrong { color: var(--dp-content-error); }
-
-.file-to-relation__row {
-  padding: var(--dp-space-1) 0;
-}
-
-.file-to-relation__row + .file-to-relation__row {
-  border-top: 1px solid var(--dp-border-faint);
-}
-
-.file-to-relation__arrow { color: var(--dp-text-faint); justify-self: center; }
-
-/* A column left out stays in place rather than disappearing: which columns the
-   file has is part of what this screen says. */
-.file-to-relation__row--out { opacity: 0.55; }
-.file-to-relation__row--out .file-to-relation__arrow { visibility: hidden; }
 </style>

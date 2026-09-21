@@ -21,6 +21,8 @@ import {
   AppMenu,
   AppNumberInput,
   AppPageHeader,
+  AppPairs,
+  AppPairsRow,
   AppPopup,
   AppProgress,
   AppRadioGroup,
@@ -94,6 +96,11 @@ const plain = ref("prefer")
 const several = ref<string[]>(["public"])
 const flag = ref(true)
 const rows = ref("page")
+const PAIRS = ref([
+  { source: "id", target: "id", include: true },
+  { source: "display_name", target: "name", include: true },
+  { source: "notes", target: "notes", include: false },
+])
 const ROW_SCOPES = [
   { label: "Current page", value: "page", description: "Rows 1–50 · 6 visible columns" },
   { label: "All matching rows", value: "all", description: "2 active filters · streamed rather than held in memory" },
@@ -398,6 +405,49 @@ function removeSavedEntry(name: string) {
               <AppCopyButton tooltip="Copy the connection string" />
             </template>
           </AppInput>
+          <AppPairs>
+            <template #from>
+              In the file
+            </template>
+            <template #to>
+              Column in the new table
+            </template>
+            <template #extra>
+              Type
+            </template>
+            <template #aside>
+              2 of 3
+            </template>
+            <AppPairsRow
+              v-for="pair in PAIRS"
+              :key="pair.source"
+              :idle="!pair.include"
+            >
+              <template #from>
+                <AppToggle
+                  v-model="pair.include"
+                  :label="pair.source"
+                />
+              </template>
+              <template #to>
+                <AppInput
+                  v-model="pair.target"
+                  :aria-label="`Name for ${pair.source}`"
+                  :disable="!pair.include"
+                  compact
+                />
+              </template>
+              <template #extra>
+                <AppSelect
+                  model-value="text"
+                  :aria-label="`Type of ${pair.source}`"
+                  :options="['text', 'integer']"
+                  :disable="!pair.include"
+                  compact
+                />
+              </template>
+            </AppPairsRow>
+          </AppPairs>
         </AppForm>
         <AppInput
           v-model="text"

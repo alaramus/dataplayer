@@ -83,11 +83,17 @@ accepted visual example and the rejected directions.
   column under the field it answers to.
 - **A list in a window is flat**, on the window's surface with quiet separators,
   and the window's one purpose is the footer's primary action.
+- **Which column becomes which is `AppPairs`**: one pair to a row under a
+  legend whose headings stand over their fields, a third column where there is
+  one, a count at the legend's end, and a pair that fills nothing kept on the
+  list, quieter and without its arrow. A narrow form keeps the pairs side by
+  side and drops the arrow.
 - **A banner inside `AppForm`** uses a status icon and semantic text on the form
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.
 - **Form checkboxes align with the control column**, use neutral checked marks
-  and reflow with the fields; a standalone checkbox keeps its own look.
+  and reflow with the fields, and a form's switches are on in the same neutral;
+  outside a form both keep their own look.
 - **A choice among a few is `AppRadioGroup`**, each option with its meaning or
   the reason it is unavailable beside it; a select hides both until opened. In a
   form its label takes the label column and its marks are neutral, like a form

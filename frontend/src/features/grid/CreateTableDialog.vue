@@ -10,8 +10,10 @@ import { messageOf } from "@/shared/api/errors"
 import {
   AppBanner,
   AppButton,
+  AppForm,
   AppInput,
-  AppSection,
+  AppPairs,
+  AppPairsRow,
   AppSelect,
   AppToggle,
 } from "@/shared/ui"
@@ -255,11 +257,12 @@ function run() {
     :model-value="modelValue"
     :title="destination === 'folder' ? 'Save this data as a file' : 'Create table from this data'"
     :subtitle="`Choose where the new ${madeThing} goes and which columns it receives`"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     data-testid="grid-create-table-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppBanner
         v-if="error"
         tone="error"
@@ -273,69 +276,89 @@ function run() {
       >
         {{ trouble }}
       </AppBanner>
-      <div class="create-table__destination">
-        <AppSelect
-          v-model="connectorId"
-          :options="targets"
-          label="Connection"
-          :loading="connectors.isFetching.value"
-          data-testid="grid-create-table-connector"
-        />
-        <AppSelect
-          :model-value="schemaId"
-          :options="schemas"
-          :label="placeLabel"
-          :loading="loading"
-          :disable="connectorId === ''"
-          data-testid="grid-create-table-schema"
-          @update:model-value="pickPlace"
-        />
-        <AppInput
-          v-model="tableName"
-          :label="destination === 'folder' ? 'File name' : 'Table name'"
-          :hint="
-            destination === 'folder'
-              ? 'Written as CSV unless the name says otherwise'
-              : undefined
-          "
-          data-testid="grid-create-table-name"
-        />
-      </div>
+      <AppSelect
+        v-model="connectorId"
+        :options="targets"
+        label="Connection"
+        :loading="connectors.isFetching.value"
+        data-testid="grid-create-table-connector"
+      />
+      <AppSelect
+        :model-value="schemaId"
+        :options="schemas"
+        :label="placeLabel"
+        :loading="loading"
+        :disable="connectorId === ''"
+        data-testid="grid-create-table-schema"
+        @update:model-value="pickPlace"
+      />
+      <AppInput
+        v-model="tableName"
+        :label="destination === 'folder' ? 'File name' : 'Table name'"
+        :hint="
+          destination === 'folder'
+            ? 'Written as CSV unless the name says otherwise'
+            : undefined
+        "
+        autocomplete="off"
+        data-testid="grid-create-table-name"
+      />
 
-      <div
+      <AppPairs
         v-if="mappings.length > 0"
-        class="create-table__mapping"
+        data-testid="grid-create-table-columns"
       >
-        <div
+        <template #from>
+          In this data
+        </template>
+        <template #to>
+          Column in the new {{ madeThing }}
+        </template>
+        <!-- Only where there is something to choose: every column of a
+             delimited file is text, and a list of one is a control that does
+             nothing but take up the line (D45). -->
+        <template
+          v-if="typeChoices.length > 1"
+          #extra
+        >
+          Type
+        </template>
+        <AppPairsRow
           v-for="mapping in mappings"
           :key="mapping.source"
-          class="create-table__column"
-          :class="{ 'create-table__column--typeless': typeChoices.length < 2 }"
+          :idle="!mapping.include"
+          :data-testid="`grid-create-table-column-${mapping.source}`"
         >
-          <AppToggle
-            v-model="mapping.include"
-            :label="mapping.source"
-          />
-          <AppInput
-            v-model="mapping.target"
-            label="New column"
-            :disable="!mapping.include"
-            compact
-          />
-          <!-- Hidden where there is nothing to choose: every column of a
-               delimited file is text, and a list of one is a control that
-               does nothing but take up the line (D45). -->
-          <AppSelect
+          <template #from>
+            <AppToggle
+              v-model="mapping.include"
+              :label="mapping.source"
+            />
+          </template>
+          <template #to>
+            <AppInput
+              v-model="mapping.target"
+              :aria-label="`Name in the new ${madeThing} for ${mapping.source}`"
+              :disable="!mapping.include"
+              autocomplete="off"
+              compact
+            />
+          </template>
+          <template
             v-if="typeChoices.length > 1"
-            v-model="mapping.typeCode"
-            label="Type"
-            :options="typeChoices"
-            :disable="!mapping.include"
-            compact
-          />
-        </div>
-      </div>
-    </AppSection>
+            #extra
+          >
+            <AppSelect
+              v-model="mapping.typeCode"
+              :aria-label="`Type of ${mapping.source}`"
+              :options="typeChoices"
+              :disable="!mapping.include"
+              compact
+            />
+          </template>
+        </AppPairsRow>
+      </AppPairs>
+    </AppForm>
     <template #actions>
       <AppButton
         variant="quiet"
@@ -352,29 +375,3 @@ function run() {
     </template>
   </WindowDialog>
 </template>
-
-<style scoped>
-.create-table__destination {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--dp-space-3);
-}
-
-.create-table__mapping {
-  display: grid;
-  gap: var(--dp-space-2);
-}
-
-.create-table__column {
-  display: grid;
-  grid-template-columns:
-    minmax(140px, 1fr)
-    minmax(140px, 1fr)
-    minmax(120px, 0.8fr);
-  align-items: center;
-  gap: var(--dp-space-2);
-}
-.create-table__column--typeless {
-  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr);
-}
-</style>
