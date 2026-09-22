@@ -22,8 +22,10 @@ import {
   roleOf,
   recordPanelId,
   rowsPanelId,
+  serviceLogsPanelId,
   structurePanelId,
   summaryPanelId,
+  widgetPanelId,
 } from "./panels"
 import type { Panel, PanelKind } from "./panels"
 
@@ -39,6 +41,8 @@ const KINDS: PanelKind[] = [
   "query",
   "result",
   "relationships",
+  "widget",
+  "service-logs",
 ]
 
 const samples: Record<PanelKind, Panel> = {
@@ -131,13 +135,34 @@ const samples: Record<PanelKind, Panel> = {
     title: null,
     connectorName: "local pg",
   },
+  widget: {
+    id: widgetPanelId("dash-1", "w1", "abc"),
+    kind: "widget",
+    dashboardId: "dash-1",
+    widget: {
+      type: "stat",
+      id: "w1",
+      title: "CPU",
+      layout: { x: 0, y: 0, w: 3, h: 5 },
+      series_id: 7,
+    },
+    rangeSeconds: 900,
+    refreshSeconds: 30,
+  },
+  "service-logs": {
+    id: serviceLogsPanelId("svc-1"),
+    kind: "service-logs",
+    serviceId: "svc-1",
+    serviceName: "warehouse",
+  },
 }
 
 describe("the panel registry", () => {
   it.each(KINDS)("reads the current connector color for %s", (kind) => {
     const panel = samples[kind]
     const colors = new Map<string, string | null>([["c1", "#246abc"]])
-    const belongsToConnector = kind !== "connectors" && kind !== "queries"
+    const belongsToConnector =
+      kind !== "connectors" && kind !== "queries" && kind !== "widget" && kind !== "service-logs"
     expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#246abc" : null)
     colors.set("c1", "#ffffff")
     expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#ffffff" : null)
@@ -249,6 +274,8 @@ describe("the panel registry", () => {
     "query",
     "result",
     "relationships",
+    "widget",
+    "service-logs",
   ] as PanelKind[])(
     "lets %s be closed",
     (kind) => {
@@ -377,6 +404,8 @@ describe("the panel registry", () => {
     "queries",
     "query",
     "result",
+    "widget",
+    "service-logs",
   ] as PanelKind[])(
     "has nothing worth forty pixels for %s",
     (kind) => {
@@ -518,5 +547,38 @@ describe("the panel registry", () => {
       false
     )
     expect(panelSchema.safeParse({ ...samples.chart, columns: [""] }).success).toBe(false)
+  })
+
+  it("names a widget tab as the window it was lifted from was (D155)", () => {
+    const look = lookOf(samples.widget)
+    expect(look.title).toBe("CPU")
+    expect(look.icon).toBe("dashboard")
+  })
+
+  it("names a service's tab the way its window was named", () => {
+    expect(lookOf(samples["service-logs"]).title).toBe("Output of warehouse")
+    expect(lookOf(samples["service-logs"]).icon).toBe("notes")
+  })
+
+  it("puts a widget tab and a service's output in the column of work", () => {
+    expect(roleOf(samples.widget)).toBe("work")
+    expect(roleOf(samples["service-logs"])).toBe("work")
+  })
+
+  it("refuses a stored widget tab whose widget is not one", () => {
+    expect(
+      panelSchema.safeParse({ ...samples.widget, widget: { type: "gauge", id: "w1" } }).success
+    ).toBe(false)
+  })
+
+  it("identifies a service's output by the service, so asking again brings the tab forward", () => {
+    expect(serviceLogsPanelId("svc-1")).toBe(serviceLogsPanelId("svc-1"))
+    expect(serviceLogsPanelId("svc-1")).not.toBe(serviceLogsPanelId("svc-2"))
+  })
+
+  it("gives two tabs lifted from one widget different ids", () => {
+    // A widget window is a copy, and two of them are two tabs; identified by
+    // the widget alone, the second press would raise the first tab instead.
+    expect(widgetPanelId("dash-1", "w1", "one")).not.toBe(widgetPanelId("dash-1", "w1", "two"))
   })
 })

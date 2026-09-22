@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-22 | [A window whose contents can live as a workspace tab](2026-09-22-window-to-tab-design.md) | D155: a window declares the move with one preset in its actions slot; the widget tab keeps the window's snapshot, the service output tab reads again |
 | 2026-09-19 | [An SSH server this application starts](2026-09-19-ssh-service-design.md) | D153–D154: an SSH server is a service template; its connector is pinned to the key the container presents first, over this server's own network; an automatic start fills its home with the sample files; a chosen one may be signed into with one of the owner's keys instead of a password |
 | 2026-09-19 | [A remote tree of files through the explorer](2026-09-19-remote-files-design.md) | D152: a remote file is read from a local copy per version, beside the homes and out of their reach; 200 MB a file, 1 GB in all, an hour unread; a search reads files up to 1 MB |
 | 2026-09-19 | [One explorer over every tree of files](2026-09-19-file-explorer-design.md) | D150–D151: the file source's catalog, formats, SQL, editor, search and actions are one explorer over a storage a source brings; the storage is synchronous and asked from worker threads; the local disk is the first storage |

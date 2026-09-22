@@ -16,7 +16,8 @@ import {
   useToast,
 } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
-import { useWindowManager, WindowDialog } from "@/shared/windows"
+import { openAsTabAction, useWindowManager, WindowDialog } from "@/shared/windows"
+import { useWorkspaceActions } from "@/features/workspace/state"
 
 import AddWidgetsDialog from "./AddWidgetsDialog.vue"
 import { dashboardsKey, useDashboardCatalog, useDeleteDashboard, useSaveDashboard } from "./api"
@@ -68,6 +69,7 @@ const queryClient = useQueryClient()
 const saving = useSaveDashboard()
 const deleting = useDeleteDashboard()
 const windows = useWindowManager()
+const workspace = useWorkspaceActions()
 
 const name = ref(props.dashboard.name)
 const color = ref<string | null>(props.dashboard.color ?? null)
@@ -177,13 +179,22 @@ function detach(widget: Widget) {
     refreshSeconds: refresh.value,
     dashboardId: props.dashboard.id,
   }
+  const windowId = `metrics-widget:${props.dashboard.id}:${widget.id}`
   windows.open({
-    id: `metrics-widget:${props.dashboard.id}:${widget.id}`,
+    id: windowId,
     look: { title: widget.title, icon: "dashboard" },
     size: widget.type === "stat" ? { width: 360, height: 240 } : { width: 760, height: 440 },
     // A chart takes the room it is given; fitting the frame to it would leave
     // a frame with no height.
     autoFit: false,
+    // The window's contents can live as a workspace tab: opening the tab and
+    // closing the window is one move, not a copy (D155).
+    actions: [
+      openAsTabAction(() => {
+        workspace.openWidgetTab(snapshot)
+        windows.close(windowId)
+      }),
+    ],
     component: defineComponent({
       name: "MetricsWidgetWindow",
       setup: () => () => h(WidgetWindow, snapshot),

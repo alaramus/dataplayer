@@ -201,7 +201,8 @@ Known deviations:
 - **A widget in a window is a copy** taken when it was opened, with the range and
   interval of that moment. Moving or removing it on the dashboard does not reach
   the window, a sort chosen in the window is not saved, and like every window it
-  does not survive a reload (D14).
+  does not survive a reload (D14). The window offers to move its contents into a
+  workspace tab, and the tab follows the same snapshot semantics (D155).
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 

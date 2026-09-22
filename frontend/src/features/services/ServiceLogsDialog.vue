@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, inject } from "vue"
 
-import { useServiceLogs } from "@/features/services/api"
-import { AppEmptyState, AppSpinner } from "@/shared/ui"
-import { WindowDialog } from "@/shared/windows"
+import ServiceLogs from "@/features/services/ServiceLogs.vue"
+import { workspaceActionsKey } from "@/features/workspace/state"
+import { openAsTabAction, WindowDialog } from "@/shared/windows"
 
 /**
  * What a service printed, for when it did not do what it was asked.
  *
- * The container's own output and nothing else: this application's log is not
- * a user's to read, and the runtime's words about the machine are not either
- * (D84). A tail rather than a stream — the question is "why did it not
- * start", and that is answered by the last few hundred lines.
+ * The dialog's contents can live as a workspace tab instead, so the window
+ * says so (D155): pressing the command opens the tab and closes the window —
+ * a move, not a copy. Outside a workspace there is nowhere to move to, and the
+ * command is absent rather than inert.
  */
 const props = defineProps<{
   service: { id: string; connector_name: string } | null
@@ -19,8 +19,20 @@ const props = defineProps<{
 
 const emit = defineEmits<{ "update:service": [value: null] }>()
 
+const workspace = inject(workspaceActionsKey, null)
+
 const serviceId = computed(() => props.service?.id ?? null)
-const logs = useServiceLogs(serviceId)
+
+const actions = computed(() => {
+  const service = props.service
+  if (service === null || workspace === null) return undefined
+  return [
+    openAsTabAction(() => {
+      workspace.openServiceLogsTab({ serviceId: service.id, serviceName: service.connector_name })
+      emit("update:service", null)
+    }),
+  ]
+})
 </script>
 
 <template>
@@ -29,35 +41,20 @@ const logs = useServiceLogs(serviceId)
     size="lg"
     :title="`Output of ${service?.connector_name ?? ''}`"
     subtitle="The last lines this service printed."
+    :actions="actions"
     data-testid="service-logs"
     @update:model-value="emit('update:service', null)"
   >
-    <div class="service-logs">
-      <AppSpinner v-if="logs.isLoading.value" />
-      <AppEmptyState
-        v-else-if="(logs.data.value?.lines.length ?? 0) === 0"
-        icon="notes"
-        text="It has printed nothing."
-      />
-      <pre
-        v-else
-        class="service-logs__text"
-      >{{ logs.data.value?.lines.join("\n") }}</pre>
-    </div>
+    <ServiceLogs
+      class="service-logs-dialog__logs"
+      :service-id="serviceId"
+    />
   </WindowDialog>
 </template>
 
 <style scoped>
-.service-logs {
-  min-height: 200px;
+.service-logs-dialog__logs {
+  height: auto;
   max-height: 60vh;
-  overflow: auto;
-}
-.service-logs__text {
-  margin: 0;
-  font-family: var(--dp-font-mono);
-  font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 </style>

@@ -5,7 +5,7 @@ maximized or detached from the workspace. The panel engine and the columns are
 in [workspace.md](workspace.md); the component kit is in
 [frontend.md](frontend.md).
 
-Decisions here: D14, D92, D93, D132.
+Decisions here: D14, D92, D93, D132, D155.
 
 ## What exists today
 
@@ -186,3 +186,26 @@ Known deviations:
   example demonstrates appearance, not stable geometry.
 
 Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
+
+## D155. A window whose contents can live as a workspace tab says so in its bar
+
+Some windows hold something worth keeping beside the work rather than a form
+being filled in. Such a window declares the move with one preset,
+`openAsTabAction` in `shared/windows`, in the `actions` slot D112 added: the
+engine draws the icon and calls what it is given, and the feature's `run`
+opens the panel through the workspace and closes the window — a move, not a
+copy. `WindowDialog` takes the same `actions` prop, so a dialog declares it
+the way a hand-built window does, and shows the command only where a workspace
+is provided to receive the tab.
+
+Two panel kinds hold what moves, both in the column of work. A `widget` panel
+carries the whole widget with the range and interval of the moment the window
+was opened: the tab keeps the window's snapshot semantics, so a widget changed
+or removed on the dashboard does not reach it, and two windows of one widget
+are two tabs, the id carrying a fresh suffix. A `service-logs` panel carries
+the service's id and name and reads the output again whenever it is shown; the
+question has one answer, so the tab is one per service and asking again brings
+it forward. The first participants are the detached dashboard widget and the
+service output dialog.
+
+Spec: [A window whose contents can live as a workspace tab](../decisions/2026-09-22-window-to-tab-design.md)

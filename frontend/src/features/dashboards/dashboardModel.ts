@@ -6,12 +6,58 @@
  */
 
 import type { DashboardOptions, ProcessesWidget, StatWidget, TimeseriesWidget } from "@/client"
+import { z } from "zod"
 
 import { compact, findFreeSpot, gridRows } from "./gridLayout"
 import type { Placed } from "./gridLayout"
 import type { WidgetDraft } from "./widgetSpecs"
 
 export type Widget = TimeseriesWidget | StatWidget | ProcessesWidget
+
+/**
+ * A widget as a stored value, for the places a widget travels that outlive the
+ * dashboard it was lifted from — a workspace tab of one (D155) is written into
+ * the layout, which is validated when it is read back.
+ */
+export const widgetLayoutSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number(),
+  h: z.number(),
+})
+
+export const widgetSchema: z.ZodType<Widget> = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("stat"),
+    id: z.string(),
+    title: z.string(),
+    layout: widgetLayoutSchema,
+    series_id: z.number().int(),
+  }),
+  z.object({
+    type: z.literal("timeseries"),
+    id: z.string(),
+    title: z.string(),
+    layout: widgetLayoutSchema,
+    series_ids: z.array(z.number().int()),
+  }),
+  z.object({
+    type: z.literal("processes"),
+    id: z.string(),
+    title: z.string(),
+    layout: widgetLayoutSchema,
+    agent_id: z.string(),
+    host: z.string(),
+    sort: z.enum(["pcpu", "pmem", "pid"]).optional(),
+    limit: z.union([
+      z.literal(10),
+      z.literal(20),
+      z.literal(50),
+      z.literal(100),
+      z.literal(200),
+    ]).optional(),
+  }),
+])
 export type ProcessSort = NonNullable<ProcessesWidget["sort"]>
 export type ProcessLimit = NonNullable<ProcessesWidget["limit"]>
 

@@ -51,8 +51,10 @@ import {
   roleOf,
   recordPanelId,
   rowsPanelId,
+  serviceLogsPanelId,
   structurePanelId,
   summaryPanelId,
+  widgetPanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 import { createCloseRegistry, provideCloseRegistry } from "@/features/workspace/closable"
@@ -72,6 +74,7 @@ import type {
   OpenSharedRequest,
   OpenStructureRequest,
   OpenSummaryRequest,
+  OpenWidgetTabRequest,
   RevealTarget,
   SharedTarget,
   WorkspaceActions,
@@ -877,6 +880,20 @@ const actions: WorkspaceActions = {
       id: chartPanelId(viewKey),
       kind: "chart",
       viewKey,
+      ...request,
+    })
+  },
+  openWidgetTab: (request: OpenWidgetTabRequest) => {
+    openPanel({
+      id: widgetPanelId(request.dashboardId, request.widget.id, crypto.randomUUID()),
+      kind: "widget",
+      ...request,
+    })
+  },
+  openServiceLogsTab: (request: { serviceId: string; serviceName: string }) => {
+    openPanel({
+      id: serviceLogsPanelId(request.serviceId),
+      kind: "service-logs",
       ...request,
     })
   },

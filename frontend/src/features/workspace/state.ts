@@ -11,6 +11,7 @@ import type {
   RowsView,
 } from "@/client"
 import type { Filter } from "@/features/grid/types"
+import type { RangeSeconds, RefreshSeconds, Widget } from "@/features/dashboards/dashboardModel"
 import type { DiagramNodeRef } from "@/features/relationships/model"
 
 /**
@@ -124,6 +125,18 @@ export interface WorkspaceActions {
   /** Close the tab of a document that has just gone to Trash. */
   closeQueryDocument: (documentId: string) => void
   openChart: (request: OpenChartRequest) => void
+  /**
+   * A dashboard widget as a workspace tab, lifted out of its floating window
+   * (D155). The widget travels with the request: the tab is the window's
+   * snapshot, not another read of the dashboard, so a widget changed or removed
+   * since does not reach it.
+   */
+  openWidgetTab: (request: OpenWidgetTabRequest) => void
+  /**
+   * What a service printed, as a workspace tab rather than a window (D155).
+   * One tab per service: opening it again brings the tab that is there forward.
+   */
+  openServiceLogsTab: (request: { serviceId: string; serviceName: string }) => void
   replaceNode: (connectorId: string, replacement: NodeReplacement) => void
   /**
    * Owned by the page and not by the panel that lists connections: that panel
@@ -282,6 +295,14 @@ export interface OpenChartRequest {
   adapterType: string
   request: FetchRequest
   columns: string[]
+}
+
+/** The copy of a widget a floating window held, to be kept as a tab (D155). */
+export interface OpenWidgetTabRequest {
+  dashboardId: string
+  widget: Widget
+  rangeSeconds: RangeSeconds
+  refreshSeconds: RefreshSeconds
 }
 
 export interface OpenRelationshipsRequest {

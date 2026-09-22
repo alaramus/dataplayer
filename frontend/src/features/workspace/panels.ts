@@ -9,6 +9,7 @@ import MediaPanelView from "@/features/content/MediaPanel.vue"
 import SqlPanelView from "@/features/content/SqlPanel.vue"
 import { REPRESENTATION_ICONS } from "@/features/catalog/nodes"
 import { adapterIcon } from "@/features/connectors/adapters"
+import { widgetSchema } from "@/features/dashboards/dashboardModel"
 import QueriesPanelView from "@/features/queries/QueriesPanel.vue"
 import QueryDocumentPanelView from "@/features/queries/QueryDocumentPanel.vue"
 import QueryResultPanelView from "@/features/queries/ResultPanel.vue"
@@ -227,6 +228,26 @@ export const panelSchema = z.discriminatedUnion("kind", [
       .min(1)
       .refine((names) => new Set(names).size === names.length, "Columns must be distinct"),
   }),
+  // A dashboard widget lifted out of its window (D155). The widget is carried
+  // whole because the tab is the same kind of copy the window was: a snapshot
+  // of the moment it was opened, and the layout is durable, so the copy is
+  // validated on the way back like everything else stored.
+  z.object({
+    id: z.string(),
+    kind: z.literal("widget"),
+    dashboardId: z.string(),
+    widget: widgetSchema,
+    rangeSeconds: z.number(),
+    refreshSeconds: z.number(),
+  }),
+  // What a service printed, read again whenever the tab is shown (D155). One
+  // tab per service: the question "why did it not start" has one answer.
+  z.object({
+    id: z.string(),
+    kind: z.literal("service-logs"),
+    serviceId: z.string(),
+    serviceName: z.string(),
+  }),
 ])
 
 export type Panel = z.infer<typeof panelSchema>
@@ -262,6 +283,14 @@ export const queryPanelId = (documentId: string) => `query:${documentId}`
 /** A console nobody has asked to keep is named by the draft it holds. */
 export const queryDraftPanelId = (draftId: string) => `query:draft:${draftId}`
 export const resultPanelId = (resultId: string) => `result:${resultId}`
+/**
+ * A widget tab is a second copy rather than the window moved: the window's own
+ * id is already taken by what is shown, and opening a tab from two windows of
+ * one widget is two tabs, so the id carries a fresh suffix (D155).
+ */
+export const widgetPanelId = (dashboardId: string, widgetId: string, uid: string) =>
+  `widget-tab:${dashboardId}:${widgetId}:${uid}`
+export const serviceLogsPanelId = (serviceId: string) => `service-logs:${serviceId}`
 
 /**
  * The whole Markdown stack — parser, sanitiser, KaTeX — is loaded only when a
@@ -273,6 +302,18 @@ const MarkdownPanelView = defineAsyncComponent(
 
 const RelationshipPanelView = defineAsyncComponent(
   () => import("@/features/relationships/RelationshipPanel.vue")
+)
+
+/**
+ * A widget tab carries the charting stack the dashboard does; somebody who
+ * never lifts a widget into a tab never downloads it.
+ */
+const WidgetPanelView = defineAsyncComponent(
+  () => import("@/features/dashboards/WidgetPanel.vue")
+)
+
+const ServiceLogsPanelView = defineAsyncComponent(
+  () => import("@/features/services/ServiceLogsPanel.vue")
 )
 
 /**
@@ -328,6 +369,8 @@ export function roleOf(panel: Panel): PanelRole {
     case "chart":
     case "query":
     case "result":
+    case "widget":
+    case "service-logs":
     case "relationships":
       return "work"
   }
@@ -525,6 +568,21 @@ function baseLookOf(panel: Panel): PanelLook {
         icon: "table_view",
         iconTooltip: "A captured result",
         reloadTooltip: "Re-read this captured result",
+      }
+    case "widget":
+      // Named as the window it was lifted from was: the widget's own title and
+      // the dashboard icon (D155).
+      return {
+        title: panel.widget.title,
+        icon: "dashboard",
+        iconTooltip: "A widget lifted out of its dashboard",
+        reloadTooltip: "Re-read these readings",
+      }
+    case "service-logs":
+      return {
+        title: `Output of ${panel.serviceName}`,
+        icon: "notes",
+        reloadTooltip: "Re-read what it printed",
       }
   }
 }
@@ -734,5 +792,9 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
           connectorName: panel.connectorName,
         })
       )
+    case "widget":
+      return bind(key, () => h(WidgetPanelView, { panelId: panel.id, panel }))
+    case "service-logs":
+      return bind(key, () => h(ServiceLogsPanelView, { panelId: panel.id, panel }))
   }
 }

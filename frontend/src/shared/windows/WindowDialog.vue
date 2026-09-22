@@ -4,6 +4,7 @@ import { computed, defineComponent, getCurrentInstance, h, onBeforeUnmount, useA
 import AppActions from "@/shared/ui/AppActions.vue"
 
 import { useWindowManager } from "./useWindows"
+import type { WindowAction } from "./useWindows"
 
 const props = withDefaults(
   defineProps<{
@@ -13,6 +14,11 @@ const props = withDefaults(
     size?: "sm" | "md" | "lg" | "xl" | "form" | "long-form" | "wide-form" | "medium-form" | "compact-form"
     sizing?: "content" | "stable"
     /**
+     * Commands of the window's own, before the size controls in its bar — a
+     * dialog whose contents can live as a workspace tab says so here (D155).
+     */
+    actions?: WindowAction[]
+    /**
      * Whether the window may close, asked before it does.
      *
      * The host already supports it; a dialog holding unsaved work is the
@@ -21,7 +27,7 @@ const props = withDefaults(
      */
     beforeClose?: () => boolean | Promise<boolean>
   }>(),
-  { subtitle: undefined, size: "md", sizing: "content", beforeClose: undefined }
+  { subtitle: undefined, size: "md", sizing: "content", actions: undefined, beforeClose: undefined }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
@@ -86,6 +92,7 @@ watch(
       sizing: props.sizing,
       minSize: { width: 300, height: 140 },
       component,
+      ...(props.actions === undefined ? {} : { actions: props.actions }),
       ...(props.beforeClose === undefined ? {} : { beforeClose: props.beforeClose }),
       onClosed: () => emit("update:modelValue", false),
     })
