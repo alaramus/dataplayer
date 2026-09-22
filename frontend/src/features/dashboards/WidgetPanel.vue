@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Panel } from "@/features/workspace/panels"
 
+import type { RangeSeconds, RefreshSeconds } from "./dashboardModel"
 import WidgetWindow from "./WidgetWindow.vue"
 
 /**
@@ -17,8 +18,8 @@ defineProps<{
 <template>
   <WidgetWindow
     :widget="panel.widget"
-    :range-seconds="panel.rangeSeconds"
-    :refresh-seconds="panel.refreshSeconds"
+    :range-seconds="panel.rangeSeconds as RangeSeconds"
+    :refresh-seconds="panel.refreshSeconds as RefreshSeconds"
     :dashboard-id="panel.dashboardId"
   />
 </template>

@@ -43,6 +43,28 @@ describe("AI screen context", () => {
     ])
   })
 
+  it("omits widget and service-log tabs the backend cannot accept", () => {
+    const panels: Panel[] = [
+      {
+        id: "widget-tab:dash-1:w1:abc",
+        kind: "widget",
+        dashboardId: "dash-1",
+        widget: {
+          type: "stat",
+          id: "w1",
+          title: "CPU",
+          layout: { x: 0, y: 0, w: 3, h: 5 },
+          series_id: 7,
+        },
+        rangeSeconds: 900,
+        refreshSeconds: 30,
+      },
+      { id: "service-logs:svc-1", kind: "service-logs", serviceId: "svc-1", serviceName: "warehouse" },
+    ]
+
+    expect(screenContexts(panels)).toEqual([])
+  })
+
   it("names the connection, node and panel kind without repeating catalog names", () => {
     const panels: Panel[] = [
       { id: "catalog:one", kind: "catalog", connectorId: "one", title: "Shop", adapterType: "postgres" },
