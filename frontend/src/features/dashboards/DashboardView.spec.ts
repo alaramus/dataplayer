@@ -18,6 +18,12 @@ vi.mock("./api", () => ({
   useLivePoints: () => undefined,
   useSaveDashboard: () => ({ mutateAsync: vi.fn(async () => ({ version: 2 })) }),
   useDeleteDashboard: () => ({ mutateAsync: vi.fn() }),
+  // Rendered dialogs this view always mounts stay shut, so their queries
+  // never load and their mutations never run.
+  useDashboardGrants: () => ({ data: ref([]), isLoading: ref(false) }),
+  useWriteDashboardGrant: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+  useRevokeDashboardGrant: () => ({ mutateAsync: vi.fn(), isPending: ref(false) }),
+  usePresets: () => ({ data: ref([]), isPending: ref(false), isError: ref(false), error: ref(null) }),
 }))
 
 // jsdom has no layout, and with it no ResizeObserver.
