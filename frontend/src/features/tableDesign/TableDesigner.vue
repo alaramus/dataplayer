@@ -200,6 +200,17 @@ async function ask(): Promise<void> {
   }
 }
 
+// The preview is wanted from the moment the window opens, not after the first
+// edit: ask as soon as the destination's options — and with them the types the
+// definition is written in — have answered.
+watch(
+  () => options.data.value,
+  (answered) => {
+    if (answered) schedulePlan()
+  },
+  { immediate: true }
+)
+
 // The schema is part of every statement the plan composes, so moving the
 // table asks again just as editing it does.
 watch(destination, () => {
@@ -629,17 +640,21 @@ function moveColumn(by: number): void {
   padding: var(--dp-space-3);
   border-bottom: 1px solid var(--dp-border);
 }
+/* The body itself does not scroll: the navigation and the SQL preview keep
+   the full height of the window while only the editor between them scrolls. */
 .designer__body {
   flex: 1;
   display: grid;
   grid-template-columns: 175px minmax(0, 1fr) minmax(250px, 0.78fr);
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 .designer__editor {
   padding: var(--dp-space-3);
   min-width: 0;
-  min-height: 330px;
+  min-height: 0;
+  overflow-y: auto;
 }
 .designer__toolbar {
   display: flex;
@@ -666,6 +681,8 @@ function moveColumn(by: number): void {
 }
 .designer__sql {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   background: var(--dp-chrome-raised);
   border-left: 1px solid var(--dp-border);
 }
@@ -705,8 +722,16 @@ function moveColumn(by: number): void {
   .designer__identity {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* Two rows again: the preview moves under the editor, and the body scrolls
+     as one piece like it does at every width outside the three-column one. */
   .designer__body {
     grid-template-columns: 160px minmax(0, 1fr);
+    grid-template-rows: none;
+    overflow: auto;
+  }
+  .designer__editor,
+  .designer__sql {
+    overflow-y: visible;
   }
   .designer__sql {
     grid-column: 1 / -1;

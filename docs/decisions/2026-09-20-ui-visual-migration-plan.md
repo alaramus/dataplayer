@@ -633,3 +633,14 @@ starts with `new table`, stacks its destination fields before they become
 crowded, and uses the neutral active surface in its object navigation. Browser
 coverage fixes the default name and schema, field look, index-row containment
 and usable widths for Order and Nulls.
+
+Follow-up after another visual review: the SQL preview waited for the first
+edit before asking, so a freshly opened window showed "Updating…" with Review
+SQL disabled; the plan is now requested as soon as the destination's options
+answer. The body no longer scrolls as one grid — the navigation and the
+preview keep the body's full height while only the inspector between them
+scrolls. The index-key row gives Order and Nulls a fixed 104 pixels each, wide
+enough for "Default", and stacks the column above them in a narrow window. The
+browser scenario asserts the preview and the enabled review on opening, the
+full-height side panels under a shortened viewport and the wider Order and
+Nulls fields.

@@ -104,6 +104,8 @@ const groups = computed(() => [
 <style scoped>
 .navigation {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--dp-space-2);
   background: var(--dp-chrome-raised);
   border-right: 1px solid var(--dp-border);
@@ -155,6 +157,11 @@ const groups = computed(() => [
 .navigation button:focus-visible {
   outline: 2px solid var(--dp-link);
   outline-offset: -2px;
+}
+@container table-designer (max-width: 850px) {
+  .navigation {
+    overflow-y: visible;
+  }
 }
 @container table-designer (max-width: 560px) {
   .navigation {

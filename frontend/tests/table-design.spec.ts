@@ -45,6 +45,10 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
     .toHaveCount(0)
   await page.keyboard.press("Escape")
   await expect(page.getByTestId("design-sql")).toContainText("SQL preview")
+  // The preview answers the opened draft itself, before anything is edited,
+  // and the review is offered with it.
+  await expect(page.getByTestId("design-sql")).toContainText("CREATE TABLE")
+  await expect(page.getByTestId("design-review-sql")).toBeEnabled()
   const navigation = await page.getByTestId("design-navigation").boundingBox()
   const inspector = await page.getByTestId("design-inspector").boundingBox()
   const preview = await page.getByTestId("design-sql").boundingBox()
@@ -96,14 +100,31 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   )).toBe(true)
   expect(await page.getByRole("combobox", { name: "Order" }).evaluate(
     (element) => element.closest(".q-field")?.getBoundingClientRect().width ?? 0
-  )).toBeGreaterThan(60)
+  )).toBeGreaterThan(90)
   expect(await page.getByRole("combobox", { name: "Nulls" }).evaluate(
     (element) => element.closest(".q-field")?.getBoundingClientRect().width ?? 0
-  )).toBeGreaterThan(60)
+  )).toBeGreaterThan(90)
   await expect(page.getByTestId("design-problems")).toContainText(
     "The primary key already indexes those columns"
   )
   await expect(page.getByTestId("design-review-sql")).toBeDisabled()
+  expect(await frame.boundingBox()).toEqual(stableFrame)
+
+  // Only the editor scrolls: the navigation and the preview keep the full
+  // height of the body, however long the inspector's content is.
+  await page.setViewportSize({ width: 1280, height: 430 })
+  const body = page.getByTestId("design-body")
+  await expect.poll(() => page.getByTestId("design-inspector").evaluate(
+    (element) => element.scrollHeight > element.clientHeight
+  )).toBe(true)
+  expect(await body.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(true)
+  const bodyBox = await body.boundingBox()
+  const navigationBox = await page.getByTestId("design-navigation").boundingBox()
+  const previewBox = await page.getByTestId("design-sql").boundingBox()
+  expect(bodyBox).not.toBeNull()
+  expect(navigationBox!.y + navigationBox!.height).toBeCloseTo(bodyBox!.y + bodyBox!.height, 0)
+  expect(previewBox!.y + previewBox!.height).toBeCloseTo(bodyBox!.y + bodyBox!.height, 0)
+  await page.setViewportSize({ width: 1280, height: 720 })
   expect(await frame.boundingBox()).toEqual(stableFrame)
 
   // Pointed at the other column, it is an index again.

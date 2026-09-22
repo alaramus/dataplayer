@@ -250,9 +250,11 @@ function include(columnId: string, checked: boolean): void {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* The column takes the room that is left; Order and Nulls keep a fixed width
+   their choices ("Default") fit into, so the row never clips them. */
 .inspector__key {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 78px 26px;
+  grid-template-columns: minmax(140px, 1fr) 104px 104px 26px;
   gap: var(--dp-space-2);
   align-items: end;
 }
@@ -289,6 +291,12 @@ function include(columnId: string, checked: boolean): void {
 @container table-designer (max-width: 560px) {
   .inspector__row {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .inspector__key {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) 26px;
+  }
+  .inspector__key > :first-child {
+    grid-column: 1 / -1;
   }
 }
 </style>
