@@ -163,6 +163,9 @@ const emit = defineEmits<{
 .rail-narrow__slot--selected {
   color: var(--dp-action-secondary);
 }
+.rail-narrow__slot--selected :deep(.q-btn) {
+  color: var(--dp-action-secondary);
+}
 
 /* A dashboard's own colour, as in the wide rail (railEntry.ts). */
 .rail-narrow__slot--tinted {

@@ -29,6 +29,7 @@ watch(
   <WindowDialog
     :model-value="modelValue"
     sizing="stable"
+    size="compact-form"
     :title="`Rename column — ${name}`"
     data-testid="structure-rename-dialog"
     @update:model-value="emit('update:modelValue', $event)"

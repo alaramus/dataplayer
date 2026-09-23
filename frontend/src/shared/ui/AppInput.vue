@@ -53,6 +53,7 @@ withDefaults(
     /** Offer a cross that empties the field. A search is the reason it exists:
         a query with no way back is a query the user has to erase by hand. */
     clearable?: boolean
+    prependIcon?: string
     /**
      * A `textarea` that follows what is typed instead of standing at a fixed
      * number of rows, and without the corner grip a plain one carries.
@@ -74,6 +75,7 @@ withDefaults(
     disable: false,
     compact: false,
     clearable: false,
+    prependIcon: undefined,
     grow: false,
     monospace: false,
   }
@@ -137,10 +139,12 @@ function report(value: string | number | null) {
          through at all, so a search field had no way to carry its magnifier
          except by going around the kit. -->
     <template
-      v-if="$slots.prepend"
+      v-if="$slots.prepend || prependIcon"
       #prepend
     >
-      <slot name="prepend" />
+      <slot name="prepend">
+        <q-icon :name="prependIcon" />
+      </slot>
     </template>
     <!-- A button that belongs beside a field must live in QField's marginal
          area. It is centred against the 56px control there, while the 20px

@@ -55,80 +55,77 @@ async function submit() {
 </script>
 
 <template>
-  <q-layout view="hHh lpR fFf">
-    <q-page-container>
-      <q-page class="flex flex-center">
-        <AppCard
-          size="xs"
-          title="Sign in"
-        >
-          <q-form @submit.prevent="submit">
-            <AppForm layout="section">
-              <ServerSwitcher />
-              <div class="login-server-url">
-                {{ servers.active.url }}
-              </div>
-              <div
-                v-if="serverStatus.isPending.value"
-                class="login-server-url"
-              >
-                Checking server…
-              </div>
-              <AppBanner
-                v-if="serverStatus.isError.value"
-                tone="error"
-              >
-                {{ serverStatus.error.value?.message }}
-                <AppButton
-                  label="Retry connection"
-                  variant="quiet"
-                  :loading="serverStatus.isFetching.value"
-                  @click="serverStatus.refetch()"
-                />
-              </AppBanner>
-              <AppInput
-                v-model="username"
-                label="Email"
-                type="email"
-                autocomplete="username"
-                aria-required="true"
-                :error="errors.username"
-                data-testid="login-email"
-              />
-              <AppInput
-                v-model="password"
-                label="Password"
-                type="password"
-                autocomplete="current-password"
-                aria-required="true"
-                :error="errors.password"
-                data-testid="login-password"
-              />
-              <AppBanner
-                v-if="failed"
-                tone="error"
-                data-testid="login-error"
-              >
-                Could not sign in. Check the email and password.
-              </AppBanner>
-            </AppForm>
-            <AppActions align="left">
-              <AppButton
-                type="submit"
-                label="Sign in"
-                class="full-width"
-                data-testid="login-submit"
-                :loading="login.isPending.value"
-                :disable="!serverStatus.isSuccess.value"
-              />
-            </AppActions>
-          </q-form>
-        </AppCard>
-      </q-page>
-    </q-page-container>
-  </q-layout>
+  <div class="login-page">
+    <AppCard
+      size="xs"
+      title="Sign in"
+    >
+      <q-form @submit.prevent="submit">
+        <AppForm layout="section">
+          <ServerSwitcher />
+          <div class="login-server-url">
+            {{ servers.active.url }}
+          </div>
+          <div
+            v-if="serverStatus.isPending.value"
+            class="login-server-url"
+          >
+            Checking server…
+          </div>
+          <AppBanner
+            v-if="serverStatus.isError.value"
+            tone="error"
+          >
+            {{ serverStatus.error.value?.message }}
+            <AppButton
+              label="Retry connection"
+              variant="quiet"
+              :loading="serverStatus.isFetching.value"
+              @click="serverStatus.refetch()"
+            />
+          </AppBanner>
+          <AppInput
+            v-model="username"
+            label="Email"
+            type="email"
+            autocomplete="username"
+            aria-required="true"
+            :error="errors.username"
+            data-testid="login-email"
+          />
+          <AppInput
+            v-model="password"
+            label="Password"
+            type="password"
+            autocomplete="current-password"
+            aria-required="true"
+            :error="errors.password"
+            data-testid="login-password"
+          />
+          <AppBanner
+            v-if="failed"
+            tone="error"
+            data-testid="login-error"
+          >
+            Could not sign in. Check the email and password.
+          </AppBanner>
+        </AppForm>
+        <AppActions align="left">
+          <AppButton
+            type="submit"
+            label="Sign in"
+            class="full-width"
+            data-testid="login-submit"
+            :loading="login.isPending.value"
+            :disable="!serverStatus.isSuccess.value"
+          />
+        </AppActions>
+      </q-form>
+    </AppCard>
+  </div>
 </template>
 
 <style scoped>
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); }
 .login-server-url { font-size: 12px; color: var(--dp-text-muted); overflow-wrap: anywhere; }
 </style>

@@ -7,7 +7,7 @@ import type { Grant } from "@/features/connectors/access"
 import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import { useAccessRequests, useAnswerRequest } from "@/features/shares/api"
 import { messageOf } from "@/shared/api/errors"
-import { AppButton, AppIconButton, AppSelect, useToast } from "@/shared/ui"
+import { AppButton, AppForm, AppIconButton, AppSelect, useToast } from "@/shared/ui"
 
 /**
  * Who is waiting to be let in, and the answer. Beside the people who already
@@ -82,14 +82,15 @@ async function answer(requestId: string, access: Grant | null) {
             asked for {{ ask.node_label ?? connectorName }}
           </span>
         </span>
-        <AppSelect
-          :model-value="answerLevel[ask.id] ?? 'read'"
-          class="asking__level"
-          compact
-          :options="GRANT_OPTIONS"
-          :data-testid="`share-request-level-${ask.requester_email}`"
-          @update:model-value="answerLevel[ask.id] = $event as Grant"
-        />
+        <AppForm class="asking__level">
+          <AppSelect
+            :model-value="answerLevel[ask.id] ?? 'read'"
+            compact
+            :options="GRANT_OPTIONS"
+            :data-testid="`share-request-level-${ask.requester_email}`"
+            @update:model-value="answerLevel[ask.id] = $event as Grant"
+          />
+        </AppForm>
         <AppButton
           label="Give access"
           size="sm"

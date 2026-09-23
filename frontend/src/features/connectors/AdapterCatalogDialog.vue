@@ -8,7 +8,7 @@ import { ALL_CATEGORIES, categoryCounts, searchAdapters } from "@/features/conne
 import { categoryIcon } from "@/features/connectors/adapters"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { useServiceTemplates } from "@/features/services/api"
-import { AppButton, AppEmptyState, AppInput, AppSpinner } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppInput, AppSpinner, appIcons } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
@@ -136,13 +136,11 @@ function start(template: ServiceTemplateInfo) {
         <AppInput
           v-model="query"
           clearable
+          compact
+          :prepend-icon="appIcons.search"
           placeholder="Search by name or by what it can do"
           data-testid="adapter-search"
-        >
-          <template #prepend>
-            <q-icon name="search" />
-          </template>
-        </AppInput>
+        />
 
         <AppSpinner v-if="adapterTypes.isLoading.value" />
 

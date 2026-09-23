@@ -44,6 +44,7 @@ const blockedText = computed(() => {
   <WindowDialog
     :model-value="modelValue"
     sizing="stable"
+    size="compact-form"
     :title="`Column type — ${name}`"
     data-testid="structure-type-dialog"
     @update:model-value="emit('update:modelValue', $event)"

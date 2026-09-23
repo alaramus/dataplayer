@@ -715,10 +715,10 @@ describe("file sources", () => {
 
 describe("the icons a catalog row draws", () => {
   /**
-   * Every name must exist in the Material Icons set the application bundles.
+   * Every name must exist in the fallback Material Icons set.
    *
-   * A name that only exists in the newer Material Symbols is not a missing
-   * picture: `q-icon` draws the literal word, which overflows its 18px box and
+   * A name in neither installed set is not a missing picture: `q-icon` draws
+   * the literal word, which overflows its 18px box and
    * covers the tick box beside it. That is how `monitoring` was found, and
    * only a browser noticed. The bundled list keys each icon camel-cased, so
    * `grid_on` is `matGridOn`.

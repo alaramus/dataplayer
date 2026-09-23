@@ -1,4 +1,4 @@
-/** Semantic names for shared controls. Values stay in the bundled Material Icons font. */
+/** Semantic names for shared controls, with legacy ligatures preserved for font fallback. */
 export const appIcons = {
   accountMenu: "account_circle",
   accountTree: "account_tree",

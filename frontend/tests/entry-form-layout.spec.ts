@@ -22,6 +22,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(email).toBeVisible()
     await expect(password).toBeVisible()
     await expect(submit).toBeEnabled()
+    await expect(page.locator("q-layout, .q-layout, .q-page-container, .q-page")).toHaveCount(0)
     await expectOutlinedFormField(email)
     await expectOutlinedFormField(password)
     await expect(page.getByText("Email", { exact: true })).toBeVisible()

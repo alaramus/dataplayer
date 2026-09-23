@@ -1,9 +1,11 @@
 import { VueQueryPlugin } from "@tanstack/vue-query"
 import { createPinia } from "pinia"
-import { Notify, Quasar } from "quasar"
+import { IconSet, Notify, Quasar } from "quasar"
+import symbolsOutlined from "quasar/icon-set/material-symbols-outlined"
 import { createApp } from "vue"
 
 import "@quasar/extras/material-icons/material-icons.css"
+import "@quasar/extras/material-symbols-outlined/material-symbols-outlined.css"
 import "quasar/src/css/index.sass"
 // After Quasar's own stylesheet: the colours the application draws itself
 // with, both themes of them.
@@ -15,6 +17,7 @@ import App from "@/App.vue"
 import { router } from "@/router"
 import { configureApiClient, createQueryClient } from "@/shared/api/configure"
 import { watchSessionAcrossTabs } from "@/shared/auth/session"
+import { symbolIcon } from "@/shared/ui/symbolIcons"
 import { useThemeStore } from "@/stores/theme"
 
 const app = createApp(App)
@@ -28,9 +31,11 @@ const queryClient = createQueryClient()
 watchSessionAcrossTabs(queryClient)
 
 app
-  .use(Quasar, { plugins: { Notify } })
+  .use(Quasar, { plugins: { Notify }, iconSet: symbolsOutlined })
   .use(router)
   .use(VueQueryPlugin, { queryClient })
+
+IconSet.iconMapFn = symbolIcon
 
 /*
  * After Quasar and before the mount, and neither half of that is arbitrary.

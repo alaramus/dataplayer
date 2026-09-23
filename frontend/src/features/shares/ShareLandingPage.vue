@@ -161,93 +161,93 @@ useAccessRequestEvents({
 </script>
 
 <template>
-  <q-layout view="hHh lpR fFf">
-    <q-page-container>
-      <q-page class="flex flex-center">
-        <AppCard
-          size="sm"
-          title="Shared view"
-          data-testid="share-landing"
+  <div class="share-landing-page">
+    <AppCard
+      size="sm"
+      title="Shared view"
+      data-testid="share-landing"
+    >
+      <AppSection>
+        <AppSpinner v-if="landing.kind === 'loading'" />
+
+        <template v-else-if="landing.kind === 'barred'">
+          <p data-testid="share-no-access">
+            {{ landing.sharedBy }} shared <strong>{{ landing.node }}</strong> from the
+            connection <strong>{{ landing.connector }}</strong>. You have no access to it yet.
+          </p>
+          <p
+            v-if="answered"
+            data-testid="share-answered"
+          >
+            {{ answered }}
+          </p>
+          <p
+            v-else-if="landing.requested"
+            data-testid="share-requested"
+          >
+            The owner of {{ landing.connector }} has been asked. You will be told
+            when they answer.
+          </p>
+        </template>
+
+        <p
+          v-else-if="landing.kind === 'missing'"
+          data-testid="share-missing"
         >
-          <AppSection>
-            <AppSpinner v-if="landing.kind === 'loading'" />
+          This link does not exist, or it was deleted.
+        </p>
 
-            <template v-else-if="landing.kind === 'barred'">
-              <p data-testid="share-no-access">
-                {{ landing.sharedBy }} shared <strong>{{ landing.node }}</strong> from the
-                connection <strong>{{ landing.connector }}</strong>. You have no access to it yet.
-              </p>
-              <p
-                v-if="answered"
-                data-testid="share-answered"
-              >
-                {{ answered }}
-              </p>
-              <p
-                v-else-if="landing.requested"
-                data-testid="share-requested"
-              >
-                The owner of {{ landing.connector }} has been asked. You will be told
-                when they answer.
-              </p>
-            </template>
+        <p
+          v-else-if="landing.kind === 'old'"
+          data-testid="share-old"
+        >
+          This link was made by an earlier version of the application and can no
+          longer be opened.
+        </p>
 
-            <p
-              v-else-if="landing.kind === 'missing'"
-              data-testid="share-missing"
-            >
-              This link does not exist, or it was deleted.
-            </p>
+        <p
+          v-else-if="landing.kind === 'gone'"
+          data-testid="share-gone"
+        >
+          <strong>{{ landing.node }}</strong> is no longer in
+          <strong>{{ landing.connector }}</strong>. Open the connection to see what is there now.
+        </p>
 
-            <p
-              v-else-if="landing.kind === 'old'"
-              data-testid="share-old"
-            >
-              This link was made by an earlier version of the application and can no
-              longer be opened.
-            </p>
+        <p
+          v-else-if="landing.kind === 'disabled'"
+          data-testid="share-disabled"
+        >
+          <strong>{{ landing.connector }}</strong> is switched off, so nothing can be
+          read from it.
+        </p>
 
-            <p
-              v-else-if="landing.kind === 'gone'"
-              data-testid="share-gone"
-            >
-              <strong>{{ landing.node }}</strong> is no longer in
-              <strong>{{ landing.connector }}</strong>. Open the connection to see what is there now.
-            </p>
+        <p
+          v-else
+          data-testid="share-failed"
+        >
+          {{ landing.message }}
+        </p>
+      </AppSection>
 
-            <p
-              v-else-if="landing.kind === 'disabled'"
-              data-testid="share-disabled"
-            >
-              <strong>{{ landing.connector }}</strong> is switched off, so nothing can be
-              read from it.
-            </p>
-
-            <p
-              v-else
-              data-testid="share-failed"
-            >
-              {{ landing.message }}
-            </p>
-          </AppSection>
-
-          <AppSection v-if="landing.kind !== 'loading'">
-            <AppButton
-              v-if="landing.kind === 'barred' && !landing.requested"
-              label="Request access"
-              data-testid="share-request"
-              :loading="requestAccess.isPending.value"
-              @click="ask"
-            />
-            <AppButton
-              variant="quiet"
-              label="Go to the workspace"
-              data-testid="share-to-workspace"
-              @click="toWorkspace"
-            />
-          </AppSection>
-        </AppCard>
-      </q-page>
-    </q-page-container>
-  </q-layout>
+      <AppSection v-if="landing.kind !== 'loading'">
+        <AppButton
+          v-if="landing.kind === 'barred' && !landing.requested"
+          label="Request access"
+          data-testid="share-request"
+          :loading="requestAccess.isPending.value"
+          @click="ask"
+        />
+        <AppButton
+          variant="quiet"
+          label="Go to the workspace"
+          data-testid="share-to-workspace"
+          @click="toWorkspace"
+        />
+      </AppSection>
+    </AppCard>
+  </div>
 </template>
+
+<style scoped>
+.share-landing-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); }
+</style>

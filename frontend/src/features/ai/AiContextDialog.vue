@@ -40,7 +40,7 @@ function apply() {
     title="Attach workspace tabs"
     subtitle="Choose up to five tabs for the next message only."
     size="md"
-    icon="attach_file"
+    sizing="stable"
     data-testid="ai-context-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >

@@ -115,11 +115,11 @@ export interface ListNode {
 }
 
 /**
- * The icon of each kind, by its ligature name in the bundled Material Icons.
+ * The icon of each kind, by a ligature supported by the bundled icon fonts.
  *
  * Exported so a test can check every name against the set that actually ships:
- * a name from the newer Material Symbols is not a missing picture but a broken
- * row, because `q-icon` draws the literal word and it overflows its box.
+ * an unsupported name is not a missing picture but a broken row, because
+ * `q-icon` draws the literal word and it overflows its box.
  */
 export const ICONS: Record<CatalogNode["kind"], string> = {
   schema: "folder",
@@ -129,8 +129,7 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   file: "insert_drive_file",
   dataset: "grid_on",
   entry: "insert_drive_file",
-  // Names from the Material Icons set the app actually bundles. A name that is
-  // only in the newer Material Symbols renders as the literal word, which
+  // Names from the installed sets. An unsupported name renders as a word, which
   // overflows its 18px box and covers the row's tick box — the icon is drawn
   // over the control beside it, and the row cannot be ticked.
   report: "assessment",

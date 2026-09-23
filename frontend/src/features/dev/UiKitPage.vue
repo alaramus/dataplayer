@@ -319,7 +319,7 @@ function removeSavedEntry(name: string) {
     >
       <AppSection>
         <p class="ui-kit__note">
-          All {{ iconComparison.length }} named icons: Material Icons (current) and Material Symbols Outlined at the 32 px toolbar control size.
+          All {{ iconComparison.length }} named icons: Material Icons (previous) and Material Symbols Outlined (current) at the 32 px toolbar control size.
         </p>
         <AppForm
           layout="section"

@@ -177,8 +177,18 @@ test("access is asked for through the link and given from the notification", asy
     await expect(sheet).toHaveCount(0)
     await expect(page.getByTestId("connector-permissions")).toBeVisible()
     await expect(page.getByTestId(`share-request-${email}`)).toBeVisible()
+    await expect.poll(() => page.getByTestId(`share-request-level-${email}`).evaluate((el) =>
+      el.closest(".q-field")?.classList.contains("q-field--outlined") ?? false
+    )).toBe(true)
+    await page.emulateMedia({ colorScheme: "dark" })
+    await expect.poll(() => page.getByTestId(`share-request-level-${email}`).evaluate((el) =>
+      el.closest(".q-field")?.classList.contains("q-field--outlined") ?? false
+    )).toBe(true)
     await page.getByTestId(`share-approve-${email}`).click()
     await expect(page.getByTestId(`share-request-${email}`)).toHaveCount(0)
+    await expect.poll(() => page.getByTestId(`share-level-${email}`).evaluate((el) =>
+      el.closest(".q-field")?.classList.contains("q-field--outlined") ?? false
+    )).toBe(true)
 
     // Approving is an ordinary grant, so the link they are holding now opens.
     await colleague.waitForURL("/")

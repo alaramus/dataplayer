@@ -38,6 +38,7 @@ const blockedText = computed(() => {
   <WindowDialog
     :model-value="modelValue"
     sizing="stable"
+    size="compact-form"
     :title="`Empty values — ${name}`"
     data-testid="structure-nullability-dialog"
     @update:model-value="emit('update:modelValue', $event)"

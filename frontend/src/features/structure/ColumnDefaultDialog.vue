@@ -31,6 +31,7 @@ watch(
   <WindowDialog
     :model-value="modelValue"
     sizing="stable"
+    size="compact-form"
     :title="`Column default — ${name}`"
     data-testid="structure-default-dialog"
     @update:model-value="emit('update:modelValue', $event)"

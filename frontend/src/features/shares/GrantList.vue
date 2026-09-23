@@ -8,6 +8,7 @@ import { useGrants, useRevokeGrant, useWriteGrant } from "@/features/connectors/
 import { messageOf } from "@/shared/api/errors"
 import {
   AppEmptyState,
+  AppForm,
   AppIconButton,
   AppSelect,
   AppSpinner,
@@ -77,14 +78,15 @@ async function revoke(userId: string) {
           {{ grant.email }}
         </span>
       </span>
-      <AppSelect
-        :model-value="grant.access"
-        class="grants__level"
-        compact
-        :options="GRANT_OPTIONS"
-        :data-testid="`share-level-${grant.email}`"
-        @update:model-value="change(grant.user_id, $event as Grant)"
-      />
+      <AppForm class="grants__level">
+        <AppSelect
+          :model-value="grant.access"
+          compact
+          :options="GRANT_OPTIONS"
+          :data-testid="`share-level-${grant.email}`"
+          @update:model-value="change(grant.user_id, $event as Grant)"
+        />
+      </AppForm>
       <AppIconButton
         :icon="appIcons.close"
         variant="danger-quiet"

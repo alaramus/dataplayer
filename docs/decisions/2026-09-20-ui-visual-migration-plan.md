@@ -850,3 +850,46 @@ Material Icons glyph and the corresponding Material Symbols Outlined glyph.
 The list has a name/ligature filter and marks names missing from the installed
 Symbols font. This is a comparison only; application icons and behaviour are
 unchanged.
+
+## Slice 34: visual migration leftovers
+
+The AI context window now declares stable sizing and drops its unused icon
+attribute. Sign in and shared-link landing use the centered standalone page
+shell from Server Connect. Sharing row selects receive the outlined kit form
+look, and the four column editors declare the compact form size. Adapter
+catalog search uses the kit's prepend icon and compact search appearance.
+The SSH actions already use primary New key and quiet Import on one row.
+The narrow dashboard rail applies the selected token to its button in the
+light theme. Copy, routing, APIs and behavior remain unchanged.
+
+Coverage: targeted Chromium scenarios cover both themes, 390px entry and
+column forms, sharing rows and requests, SSH forms, AI context and the narrow
+dashboard rail. The column scenario now allows a compact form to fit without
+vertical scrolling while still checking reachability and no horizontal
+overflow.
+
+Validation: all 1,922 frontend unit tests, type-check, lint, build and the
+documentation check passed. Lint retains 20 unrelated warnings; build reports
+large chunks. The 12 targeted Chromium scenarios passed after rerunning the
+column and dashboard scenarios separately. The first combined run had a stale
+column scroll expectation and a dashboard rename timeout; the corrected column
+scenario and the unchanged dashboard scenario passed on rerun. The full E2E
+suite was not run. Sequence 7's Material Symbols Outlined font decision remains
+open.
+
+## Slice 35: Symbols Outlined interface preview
+
+The application and Quasar's built-in controls now use Material Symbols
+Outlined. Existing semantic ligatures are mapped when Symbols contains a
+glyph; names absent from that installed font retain Material Icons as a
+fallback. The UI kit keeps both fonts side by side for review. This is a
+reversible appearance preview for the product decision, not a change to icon
+meaning or behaviour.
+
+Coverage: a Chromium scenario checks application and kit buttons in light and
+dark themes and captures both appearances. The action contrast and dashboard
+narrow-rail scenarios also pass with the new font.
+
+Validation: all 1,923 frontend unit tests, type-check, lint and build passed;
+lint retains 20 unrelated warnings and build reports large chunks. The three
+targeted Chromium scenarios passed. The full E2E suite was not run.
