@@ -101,7 +101,8 @@ function add() {
   <WindowDialog
     v-model="open"
     title="Add widgets"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     data-testid="add-widgets"
   >
     <AppEmptyState

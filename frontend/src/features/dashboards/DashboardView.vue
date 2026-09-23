@@ -9,6 +9,7 @@ import {
   AppButton,
   AppCardHead,
   AppColorPicker,
+  AppForm,
   AppIconButton,
   AppInput,
   AppSelect,
@@ -407,13 +408,16 @@ onBeforeUnmount(() => {
       v-model="renameOpen"
       title="Rename dashboard"
       size="sm"
+      sizing="content"
     >
-      <AppInput
-        v-model="renameDraft"
-        label="Name"
-        data-testid="dashboard-rename-input"
-        @keydown.enter="applyRename"
-      />
+      <AppForm layout="section">
+        <AppInput
+          v-model="renameDraft"
+          label="Name"
+          data-testid="dashboard-rename-input"
+          @keydown.enter="applyRename"
+        />
+      </AppForm>
       <template #actions>
         <AppButton
           variant="quiet"

@@ -9,6 +9,7 @@ import { serverUrl } from "@/shared/servers/context"
 import {
   AppButton,
   AppCopyButton,
+  AppForm,
   AppIconButton,
   AppInput,
   AppSection,
@@ -225,27 +226,30 @@ async function copy(text: string, what: string) {
     v-model="open"
     title="Sources"
     subtitle="Agents that report a host, and connections that report about themselves"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     data-testid="agents-dialog"
   >
     <AppSection gutter>
-      <div class="agents__register">
-        <AppInput
-          v-model="newName"
-          label="Name of a new agent"
-          compact
-          data-testid="agent-name"
-          @keydown.enter="register"
-        />
-        <AppButton
-          label="Register"
-          icon="add"
-          :loading="creating.isPending.value"
-          :disable="newName.trim() === ''"
-          data-testid="agent-register"
-          @click="register"
-        />
-      </div>
+      <AppForm layout="section">
+        <div class="agents__register">
+          <AppInput
+            v-model="newName"
+            label="Name of a new agent"
+            compact
+            data-testid="agent-name"
+            @keydown.enter="register"
+          />
+          <AppButton
+            label="Register"
+            icon="add"
+            :loading="creating.isPending.value"
+            :disable="newName.trim() === ''"
+            data-testid="agent-register"
+            @click="register"
+          />
+        </div>
+      </AppForm>
 
       <AppTable
         :rows="rows"
@@ -410,12 +414,14 @@ async function copy(text: string, what: string) {
           @click="copy(shown.key, 'The key')"
         />
       </div>
-      <AppInput
-        v-model="hostname"
-        label="Host name it reports as"
-        hint="Empty: the name the host has"
-        compact
-      />
+      <AppForm layout="section">
+        <AppInput
+          v-model="hostname"
+          label="Host name it reports as"
+          hint="Empty: the name the host has"
+          compact
+        />
+      </AppForm>
       <div class="agents__snippet">
         <pre data-testid="agent-snippet">{{ snippet }}</pre>
         <AppCopyButton
@@ -445,6 +451,10 @@ async function copy(text: string, what: string) {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
+}
+
+.agents__key code {
+  overflow-wrap: anywhere;
 }
 
 .agents__snippet {

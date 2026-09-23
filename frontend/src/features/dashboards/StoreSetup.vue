@@ -10,7 +10,7 @@ import { readSchema } from "@/shared/SchemaForm/jsonSchema"
 import type { JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
-import { AppBanner, AppButton, AppProgress, AppTooltip, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppForm, AppProgress, AppTooltip, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 import { useConnectStore, useStartStore } from "./api"
@@ -162,14 +162,17 @@ async function connect() {
       v-model="connectOpen"
       title="Connect an existing TimescaleDB"
       subtitle="It is checked, and prepared with the schema metrics are kept in."
-      size="md"
+      size="form"
+      sizing="stable"
       data-testid="store-connect-dialog"
     >
-      <SchemaFields
-        v-model="form.values.value"
-        :fields="fields"
-        :errors="form.errors.value"
-      />
+      <AppForm layout="section">
+        <SchemaFields
+          v-model="form.values.value"
+          :fields="fields"
+          :errors="form.errors.value"
+        />
+      </AppForm>
       <template #actions>
         <AppButton
           variant="quiet"

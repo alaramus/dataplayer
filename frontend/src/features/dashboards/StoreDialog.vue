@@ -2,7 +2,7 @@
 import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
-import { AppButton, AppEmptyState, AppSection, AppSpinner, useConfirm, useToast } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppForm, AppSpinner, useConfirm, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 import { useRemoveStore, useStoreUsage } from "./api"
@@ -43,10 +43,11 @@ async function remove() {
     v-model="open"
     title="Metrics store"
     subtitle="Where every person's samples are kept"
-    size="md"
+    size="compact-form"
+    sizing="stable"
     data-testid="store-dialog"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <AppSpinner v-if="usage.isPending.value" />
       <AppEmptyState
         v-else-if="facts === null"
@@ -75,7 +76,7 @@ async function remove() {
           </div>
         </dd>
       </dl>
-    </AppSection>
+    </AppForm>
 
     <template #actions>
       <AppButton

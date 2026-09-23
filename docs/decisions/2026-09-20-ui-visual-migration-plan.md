@@ -644,3 +644,31 @@ enough for "Default", and stacks the column above them in a narrow window. The
 browser scenario asserts the preview and the enabled review on opening, the
 full-height side panels under a shortened viewport and the wider Order and
 Nulls fields.
+
+## Slice 24: dashboard windows
+
+Implemented: the add-widgets window and the sources (agents) window are stable
+`wide-form`; the metrics-store window is a stable `compact-form`; the
+store-connect form is a stable `form`; the rename-dashboard window keeps its
+`sm` content sizing. The sources window's register row and key-panel host field
+and the rename input now live in AppForm sections, the store window's body is an
+AppForm section, and the store-connect SchemaFields sit in one as in the generic
+action window. The sources window's agent key wraps anywhere, so a long key can
+no longer push the window past a narrow screen. Behaviour, tables, toggles,
+confirms and texts are unchanged.
+
+Coverage: a browser scene in both themes stubs the metrics APIs and opens each
+window: the add-widgets frame does not move when the held catalog and presets
+arrive, the sources frame does not move when an agent key is read, the store
+frame does not move between the spinner and the store's facts, and the connect
+frame does not move when the adapter fields arrive. Each window is checked for
+horizontal overflow, reflow at 390 px with a footer command in the viewport,
+and screenshotted at both widths.
+
+Validation: all 1,919 frontend unit tests and the 8 new browser scenarios
+passed. Type-check, lint and build passed; lint retains 20 unrelated warnings
+and the build reports large chunks. The existing dashboards browser suite
+passed as well: 10 scenarios green, the store-starting one skipped because the
+development stack already has a store.
+
+Next: the remaining windows named by the migration plan.
