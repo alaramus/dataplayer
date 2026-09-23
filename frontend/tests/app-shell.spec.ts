@@ -125,6 +125,22 @@ test("the workspace meets the shell without an enclosing frame or inset", async 
   }
 })
 
+test("rail and footer icons fill their existing button slots", async ({ page }) => {
+  await login(page)
+
+  for (const zone of ["left-top", "left-bottom", "right-top"]) {
+    const rail = page.getByTestId(`tool-rail-${zone}`)
+    expect((await rail.boundingBox())!.width).toBe(36)
+    await expect(rail.locator(".q-btn .q-icon").first()).toHaveCSS("font-size", "24px")
+  }
+
+  for (const id of ["server-switcher", "activity-indicator"]) {
+    const button = page.getByTestId(id)
+    await expect(button.locator(".q-icon")).toHaveCSS("font-size", "24px")
+    expect((await button.boundingBox())!.height).toBe(32)
+  }
+})
+
 test("a tooltip over the bar at the foot of the screen draws no scrollbar at a zoom that is not a whole number", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   await login(page)

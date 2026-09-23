@@ -187,7 +187,7 @@ function onRailDrop(event: DragEvent) {
   min-height: 32px;
 }
 .tool-rail__content :deep(.q-btn .q-icon) {
-  font-size: 20px;
+  font-size: 24px;
 }
 /* The reused bar components were laid out for a horizontal footer; here they
    stand in a vertical icon column. */

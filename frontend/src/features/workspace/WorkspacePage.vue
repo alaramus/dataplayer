@@ -1106,6 +1106,9 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
   min-width: 32px;
   min-height: 32px;
 }
+.workspace-footer-server :deep(.q-btn .q-icon) {
+  font-size: 24px;
+}
 /* The header button stands on the axis of the left rail buttons below: a
    36 px box pulled back over the toolbar padding, the way the footer server
    icon keeps the rail's 2 px edge padding and 32 px button. */
