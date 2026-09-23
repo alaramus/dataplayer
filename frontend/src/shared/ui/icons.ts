@@ -137,20 +137,7 @@ export const appIcons = {
   wrapText: "wrap_text",
 } as const
 
-export const iconComparison = [
-  { label: "Account", icon: appIcons.accountMenu },
-  { label: "Preferences", icon: appIcons.preferences },
-  { label: "Administration", icon: appIcons.administration },
-  { label: "Copy", icon: appIcons.copy },
-  { label: "Fullscreen", icon: appIcons.enterFullscreen },
-  { label: "Close", icon: appIcons.close },
-  { label: "SSH key", icon: appIcons.sshKey },
-  { label: "Create key", icon: appIcons.createSshKey },
-  { label: "Import key", icon: appIcons.importSshKey },
-  { label: "Unlock key", icon: appIcons.unlockSshKey },
-  { label: "Lock key", icon: appIcons.lockSshKey },
-  { label: "Delete key", icon: appIcons.deleteSshKey },
-] as const
+export const iconComparison = Object.entries(appIcons).map(([name, icon]) => ({ name, icon }))
 
 /** The comparison font dropped this older Material Icons ligature. */
 export function symbolComparisonIcon(icon: string): string {

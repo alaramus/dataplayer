@@ -16,11 +16,10 @@ describe("shared semantic icons", () => {
     }
   })
 
-  it("can show the same names in the UI kit comparison font", () => {
+  it("compares every named icon and resolves the older delete ligature", () => {
     const bundled = new Set(outlinedSymbols)
-    for (const { icon } of iconComparison) {
-      expect(bundled.has(keyOf("symOutlined", symbolComparisonIcon(icon))), icon).toBe(true)
-    }
+    expect(iconComparison).toEqual(Object.entries(appIcons).map(([name, icon]) => ({ name, icon })))
+    expect(bundled.has(keyOf("symOutlined", symbolComparisonIcon(appIcons.deleteSshKey)))).toBe(true)
   })
 
   it("keeps literal icon names out of button templates", () => {

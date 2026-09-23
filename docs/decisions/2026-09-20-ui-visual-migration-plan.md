@@ -842,3 +842,11 @@ slice. The full E2E suite was not run.
 
 Next: review the grouped names and the two font appearances as a separate
 visual decision before changing any glyph or font.
+
+## Slice 33: complete UI kit icon comparison
+
+The UI kit now lists every semantic button icon name beside its current
+Material Icons glyph and the corresponding Material Symbols Outlined glyph.
+The list has a name/ligature filter and marks names missing from the installed
+Symbols font. This is a comparison only; application icons and behaviour are
+unchanged.

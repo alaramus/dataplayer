@@ -212,7 +212,7 @@ Consequences:
 - **Button icon names live in `shared/ui/icons.ts`.** A screen chooses a named
   action from `appIcons`; that map keeps the current Material Icons ligature in
   one place. A source-provided icon remains part of its source contract, and
-  the UI kit compares a representative set with Material Symbols Outlined
+  the UI kit compares every named icon with Material Symbols Outlined
   without changing the application font.
 - **Flat action text has theme colours of its own.** `secondary` and
   `danger-quiet`, icon buttons included, use `--dp-action-secondary` and
