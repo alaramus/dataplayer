@@ -6,18 +6,40 @@ for (const theme of ["light", "dark"] as const) {
   test(`SSH forms keep compact fields and reachable actions in ${theme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: theme })
     await login(page)
-    await page.route("**/api/v1/ssh-keys/", (route) => route.fulfill({ json: [{
-      id: "layout-key", name: "Layout key", algorithm: "ssh-ed25519",
-      public_key: "ssh-ed25519 example", fingerprint: "SHA256:example",
-      passphrase_mode: "ask", unlocked_until: null, created_at: null, used_by: [],
-    }] }))
+    await page.route("**/api/v1/ssh-keys/", (route) => route.fulfill({ json: [
+      {
+        id: "layout-key", name: "Layout key", algorithm: "ssh-ed25519",
+        public_key: "ssh-ed25519 example", fingerprint: "SHA256:example",
+        passphrase_mode: "ask", unlocked_until: null, created_at: null, used_by: [],
+      },
+      {
+        id: "layout-key-two", name: "Second key", algorithm: "ssh-ed25519",
+        public_key: "ssh-ed25519 example-two", fingerprint: "SHA256:example-two",
+        passphrase_mode: "none", unlocked_until: null, created_at: null, used_by: [],
+      },
+    ] }))
     await page.route("**/api/v1/ssh-keys/generate", (route) => route.fulfill({
       status: 400, json: { detail: "The key could not be generated" },
     }))
     await page.goto("/preferences")
+    const footer = page.getByTestId("app-footer")
+    const footerHeight = (await footer.boundingBox())!.height
+    const firstKey = page.getByTestId("ssh-key-Layout key")
+    const secondKey = page.getByTestId("ssh-key-Second key")
+    await expect(firstKey).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+    await expect(firstKey).toHaveCSS("border-radius", "0px")
+    await expect(secondKey).toHaveCSS("border-top-width", "1px")
+    await expect(secondKey).toHaveCSS("border-top-style", "solid")
+    await page.setViewportSize({ width: 390, height: 600 })
+    await expect.poll(() => page.getByTestId("ssh-keys").evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await expect(page.getByTestId("ssh-key-copy-Layout key")).toBeVisible()
+    await expect(page.getByTestId("ssh-key-unlock-Layout key")).toBeVisible()
+    await expect(page.getByTestId("ssh-key-delete-Layout key")).toBeVisible()
+    await page.setViewportSize({ width: 1280, height: 900 })
     for (const mode of ["new", "import"] as const) {
       await page.getByTestId(`ssh-key-${mode}`).click()
       const frame = page.getByRole("dialog", { name: mode === "new" ? "New SSH key" : "Import an SSH key", exact: true })
+      expect(Math.abs((await footer.boundingBox())!.height - footerHeight)).toBeLessThanOrEqual(1)
       const before = await frame.boundingBox()
       await frame.getByRole("textbox", { name: "Name", exact: true }).fill("Layout example")
       const name = await page.getByTestId("ssh-key-name").boundingBox()
@@ -45,6 +67,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect.poll(() => frame.locator(".app-form").evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
       await frame.screenshot({ path: `test-results/ssh-${mode}-${theme}-narrow.png` })
       await frame.getByRole("button", { name: "Cancel", exact: true }).click()
+      expect(Math.abs((await footer.boundingBox())!.height - footerHeight)).toBeLessThanOrEqual(1)
       await page.setViewportSize({ width: 1280, height: 900 })
     }
     await page.getByTestId("ssh-key-unlock-Layout key").click()

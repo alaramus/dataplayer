@@ -39,59 +39,64 @@ function show(id: string) {
 </script>
 
 <template>
-  <AppLayout>
-    <!-- The heading names the page and the list names the section: a header
-         that repeated the section would be saying it twice, and AppPageHeader
-         takes a title and nothing else. -->
-    <AppPageHeader title="Administration">
-      <template #actions>
-        <AppButton
-          variant="quiet"
-          label="Back to workspace"
-          data-testid="back-to-workspace"
-          @click="router.push({ name: 'workspace' })"
-        />
-      </template>
-    </AppPageHeader>
-
-    <!-- The routes behind every section answer 403 to everybody else; this
-         says so once, here, rather than in each section separately. -->
-    <AppEmptyState
-      v-if="me.isFetched.value && !isAdmin"
-      text="Only an administrator manages this installation"
-    />
-
+  <AppLayout fill>
     <div
-      v-else
-      class="admin"
+      class="app-layout__surface"
+      data-testid="admin-page-surface"
     >
-      <nav
-        class="admin__sections"
-        data-testid="admin-sections"
-      >
-        <button
-          v-for="section in ADMIN_SECTIONS"
-          :key="section.id"
-          type="button"
-          class="admin__section"
-          :class="{ 'admin__section--current': section.id === current.id }"
-          :data-testid="`admin-section-${section.id}`"
-          @click="show(section.id)"
-        >
-          <q-icon
-            :name="section.icon"
-            size="18px"
+      <!-- The heading names the page and the list names the section: a header
+           that repeated the section would be saying it twice, and AppPageHeader
+           takes a title and nothing else. -->
+      <AppPageHeader title="Administration">
+        <template #actions>
+          <AppButton
+            variant="quiet"
+            label="Back to workspace"
+            data-testid="back-to-workspace"
+            @click="router.push({ name: 'workspace' })"
           />
-          <span class="admin__section-text">
-            <span class="admin__section-title">{{ section.title }}</span>
-            <span class="admin__section-summary">{{ section.summary }}</span>
-          </span>
-        </button>
-      </nav>
+        </template>
+      </AppPageHeader>
 
-      <section class="admin__body">
-        <component :is="body" />
-      </section>
+      <!-- The routes behind every section answer 403 to everybody else; this
+           says so once, here, rather than in each section separately. -->
+      <AppEmptyState
+        v-if="me.isFetched.value && !isAdmin"
+        text="Only an administrator manages this installation"
+      />
+
+      <div
+        v-else
+        class="admin"
+      >
+        <nav
+          class="admin__sections"
+          data-testid="admin-sections"
+        >
+          <button
+            v-for="section in ADMIN_SECTIONS"
+            :key="section.id"
+            type="button"
+            class="admin__section"
+            :class="{ 'admin__section--current': section.id === current.id }"
+            :data-testid="`admin-section-${section.id}`"
+            @click="show(section.id)"
+          >
+            <q-icon
+              :name="section.icon"
+              size="18px"
+            />
+            <span class="admin__section-text">
+              <span class="admin__section-title">{{ section.title }}</span>
+              <span class="admin__section-summary">{{ section.summary }}</span>
+            </span>
+          </button>
+        </nav>
+
+        <section class="admin__body">
+          <component :is="body" />
+        </section>
+      </div>
     </div>
   </AppLayout>
 </template>

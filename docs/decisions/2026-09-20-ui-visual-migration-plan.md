@@ -744,3 +744,30 @@ No real credentials were submitted; the full E2E suite was not run.
 
 Next: any remaining visible Sequence 5 residuals, then Sequence 7 icon
 centralisation. Admin and Preferences remain deferred.
+
+## Slice 29: Administration and Preferences content chrome
+
+Implemented: the Theme and connection-check selects on Preferences now receive
+`AppForm layout="section"` context and render as outlined fields while keeping
+the existing left-side titles and summaries. SSH key rows use the flat list
+surface, vertical row padding and faint separators. Administration's Users
+section and table already use the shared kit, so no additional page change was
+needed. Shell geometry and footer sizing were already handled and stayed out of
+scope; behaviour, wording, routes, APIs, dialogs and window presets are
+unchanged.
+
+Coverage: browser checks assert both preference selects use the outlined field
+style with their accessible names. SSH list checks cover transparent rows,
+separators and reachable row actions at 390 px, alongside existing key and
+preference behaviour scenarios. Footer invariants remain covered by the shell
+scenario.
+
+Validation: all 1,919 frontend unit tests passed. The 13 targeted Chromium
+scenarios passed, covering both themes, desktop and 390 px SSH rows, preference
+select styling, SSH actions, existing account and preference behaviour, the
+administrator account guard, and footer height while user and SSH windows open
+and close. Type-check, lint, build
+and `bash scripts/check-docs.sh` passed. Lint retains 20 unrelated warnings;
+build reports large chunks. The full E2E suite was not run.
+
+Next: Sequence 7 icon centralisation.

@@ -1,7 +1,70 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { openAdmin } from "./utils/people"
 import { chooseTheme } from "./utils/theme"
+
+test("administration and preferences keep the workspace fill shell and footer height", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await login(page)
+
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme)
+    const footer = page.getByTestId("app-footer")
+    const workspaceHeight = (await footer.boundingBox())!.height
+    const railWidth = (await page.getByTestId("tool-rail-left-top").boundingBox())!.width
+
+    await openAdmin(page)
+    for (const route of ["admin", "preferences"] as const) {
+      const content = page.getByTestId("app-page")
+      const surface = page.getByTestId(`${route}-page-surface`)
+      const header = page.getByTestId("app-header")
+      const body = await content.boundingBox()
+      const surfaceBox = await surface.boundingBox()
+      const top = await header.boundingBox()
+      const bottom = await footer.boundingBox()
+      expect(body).not.toBeNull()
+      expect(surfaceBox).not.toBeNull()
+      expect(top).not.toBeNull()
+      expect(bottom).not.toBeNull()
+      expect(Math.abs(body!.x)).toBeLessThan(1)
+      expect(Math.abs(body!.width - 1280)).toBeLessThan(1)
+      expect(Math.abs(surfaceBox!.x - body!.x - railWidth)).toBeLessThan(1)
+      expect(Math.abs(surfaceBox!.width - body!.width + 2 * railWidth)).toBeLessThan(1)
+      expect(Math.abs(surfaceBox!.height - body!.height)).toBeLessThan(1)
+      expect(Math.abs(body!.y - top!.y - top!.height)).toBeLessThan(1)
+      expect(Math.abs(body!.y + body!.height - bottom!.y)).toBeLessThan(1)
+      expect(Math.abs(bottom!.height - workspaceHeight)).toBeLessThanOrEqual(1)
+      await expect(content).toHaveCSS("border-top-width", "0px")
+      await expect(content).toHaveCSS("border-top-left-radius", "0px")
+      await expect(surface).toHaveCSS("border-top-width", "1px")
+      await expect(surface).toHaveCSS("border-top-left-radius", "8px")
+      expect(await surface.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe(
+        await surface.evaluate((node) => {
+          const probe = document.createElement("div")
+          probe.style.background = "var(--dp-surface)"
+          node.append(probe)
+          const color = getComputedStyle(probe).backgroundColor
+          probe.remove()
+          return color
+        })
+      )
+
+      if (route === "admin") {
+        await page.getByTestId("new-user").click()
+        await expect(page.getByRole("dialog", { name: "New user" })).toBeVisible()
+        expect(Math.abs((await footer.boundingBox())!.height - workspaceHeight)).toBeLessThanOrEqual(1)
+        await page.getByTestId("user-cancel").click()
+        expect(Math.abs((await footer.boundingBox())!.height - workspaceHeight)).toBeLessThanOrEqual(1)
+        await page.getByTestId("user-menu").click()
+        await page.getByTestId("menu-item-preferences").click()
+        await page.waitForURL("/preferences")
+      }
+    }
+    await page.getByTestId("back-to-workspace").click()
+    await page.waitForURL("/")
+  }
+})
 
 test("the workspace meets the shell without an enclosing frame or inset", async ({ page }) => {
   await login(page)

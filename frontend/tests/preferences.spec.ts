@@ -46,6 +46,15 @@ test("keeps how often connections are checked", async ({ page }) => {
   await login(page)
   await openPreferences(page)
   await expect(page.getByTestId("preferences")).toBeVisible()
+  for (const [testId, label] of [
+    ["preference-theme", "Theme"],
+    [CHECKS, "How often connections are checked"],
+  ] as const) {
+    const control = page.getByTestId(testId)
+    const field = page.locator(".q-field").filter({ has: control }).first()
+    await expect(field).toHaveClass(/q-field--outlined/)
+    await expect(control).toHaveAttribute("aria-label", label)
+  }
 
   await choose(page, "Every 5 minutes")
 

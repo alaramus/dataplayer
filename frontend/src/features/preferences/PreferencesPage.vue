@@ -9,6 +9,7 @@ import SshKeysSection from "@/features/sshKeys/SshKeysSection.vue"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppButton,
+  AppForm,
   AppLayout,
   AppPageHeader,
   AppSelect,
@@ -63,69 +64,84 @@ async function chooseInterval(value: unknown) {
 </script>
 
 <template>
-  <AppLayout>
-    <AppPageHeader title="Preferences">
-      <template #actions>
-        <AppButton
-          variant="quiet"
-          label="Back to workspace"
-          data-testid="back-to-workspace"
-          @click="router.push({ name: 'workspace' })"
-        />
-      </template>
-    </AppPageHeader>
-
+  <AppLayout fill>
     <div
-      v-if="preferences.isLoading.value"
-      class="preferences__waiting"
+      class="app-layout__surface"
+      data-testid="preferences-page-surface"
     >
-      <AppSpinner />
-    </div>
+      <AppPageHeader title="Preferences">
+        <template #actions>
+          <AppButton
+            variant="quiet"
+            label="Back to workspace"
+            data-testid="back-to-workspace"
+            @click="router.push({ name: 'workspace' })"
+          />
+        </template>
+      </AppPageHeader>
 
-    <div
-      v-else
-      class="preferences"
-      data-testid="preferences"
-    >
-      <section class="preferences__row">
-        <div class="preferences__what">
-          <span class="preferences__title">Appearance</span>
-          <span class="preferences__summary">
-            Light or dark theme for the whole application, or the one the
-            operating system is using. Kept in this browser.
-          </span>
-        </div>
-        <AppSelect
-          class="preferences__control"
-          :model-value="theme.mode"
-          :options="themes"
-          aria-label="Theme"
-          data-testid="preference-theme"
-          @update:model-value="theme.set($event as ThemeMode)"
-        />
-      </section>
-      <section class="preferences__row">
-        <div class="preferences__what">
-          <span class="preferences__title">Check that connections are reachable</span>
-          <span class="preferences__summary">
-            Every connection is probed on this schedule while a workspace is open, and
-            the dot beside it says what the last answer was. A probe opens a connection
-            of its own, so a slow or distant server is worth asking less often.
-          </span>
-        </div>
-        <AppSelect
-          class="preferences__control"
-          :model-value="chosen"
-          :options="intervals"
-          :loading="save.isPending.value"
-          aria-label="How often connections are checked"
-          data-testid="preference-connector-checks"
-          @update:model-value="chooseInterval"
-        />
-      </section>
-      <!-- Not a preference but the account's own: a list rather than a row,
-           because a person holds several keys and each has its own commands. -->
-      <SshKeysSection />
+      <div
+        v-if="preferences.isLoading.value"
+        class="preferences__waiting"
+      >
+        <AppSpinner />
+      </div>
+
+      <div
+        v-else
+        class="preferences"
+        data-testid="preferences"
+      >
+        <section class="preferences__row">
+          <div class="preferences__what">
+            <span class="preferences__title">Appearance</span>
+            <span class="preferences__summary">
+              Light or dark theme for the whole application, or the one the
+              operating system is using. Kept in this browser.
+            </span>
+          </div>
+          <AppForm
+            class="preferences__control-form"
+            layout="section"
+          >
+            <AppSelect
+              class="preferences__control"
+              :model-value="theme.mode"
+              :options="themes"
+              aria-label="Theme"
+              data-testid="preference-theme"
+              @update:model-value="theme.set($event as ThemeMode)"
+            />
+          </AppForm>
+        </section>
+        <section class="preferences__row">
+          <div class="preferences__what">
+            <span class="preferences__title">Check that connections are reachable</span>
+            <span class="preferences__summary">
+              Every connection is probed on this schedule while a workspace is open, and
+              the dot beside it says what the last answer was. A probe opens a connection
+              of its own, so a slow or distant server is worth asking less often.
+            </span>
+          </div>
+          <AppForm
+            class="preferences__control-form"
+            layout="section"
+          >
+            <AppSelect
+              class="preferences__control"
+              :model-value="chosen"
+              :options="intervals"
+              :loading="save.isPending.value"
+              aria-label="How often connections are checked"
+              data-testid="preference-connector-checks"
+              @update:model-value="chooseInterval"
+            />
+          </AppForm>
+        </section>
+        <!-- Not a preference but the account's own: a list rather than a row,
+             because a person holds several keys and each has its own commands. -->
+        <SshKeysSection />
+      </div>
     </div>
   </AppLayout>
 </template>
@@ -151,6 +167,9 @@ async function chooseInterval(value: unknown) {
   align-items: start;
   padding: var(--dp-space-4) 0;
   border-bottom: 1px solid var(--dp-border);
+}
+.preferences__control-form {
+  padding: 0;
 }
 .preferences__what {
   display: flex;

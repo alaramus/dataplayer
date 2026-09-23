@@ -240,7 +240,7 @@ async function logout() {
   align-items: center;
   gap: var(--dp-space-2);
   min-width: 0;
-  min-height: var(--dp-status-height);
+  min-height: max(var(--dp-status-height), var(--dp-form-control-height));
   padding: 0 var(--dp-space-2);
   font-size: 12px;
 }
@@ -293,5 +293,17 @@ async function logout() {
 .app-layout__content--fill > * {
   flex: 1;
   min-height: 0;
+}
+
+/* A single-page screen occupies the space between the workspace's 32 px
+   rail buttons and their 4 px outer spacing. */
+.app-layout__content--fill :deep(.app-layout__surface) {
+  min-width: 0;
+  margin-inline: calc(var(--dp-tab-strip-height) + var(--dp-space-1));
+  padding: var(--dp-space-4);
+  overflow: auto;
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-panel);
+  background: var(--dp-surface);
 }
 </style>

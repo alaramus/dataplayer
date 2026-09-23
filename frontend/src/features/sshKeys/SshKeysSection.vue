@@ -172,7 +172,7 @@ async function remove(key: SshKeyPublic) {
 .ssh-keys {
   display: flex;
   flex-direction: column;
-  gap: var(--dp-space-2);
+  gap: 0;
   padding: var(--dp-space-4) 0;
   border-bottom: 1px solid var(--dp-border);
 }
@@ -181,7 +181,7 @@ async function remove(key: SshKeyPublic) {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--dp-space-5);
   align-items: start;
-  padding-bottom: var(--dp-space-2);
+  padding-bottom: var(--dp-space-4);
 }
 .ssh-keys__what,
 .ssh-keys__facts {
@@ -217,9 +217,10 @@ async function remove(key: SshKeyPublic) {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  padding: var(--dp-space-2) var(--dp-space-2);
-  border-radius: var(--dp-radius-control);
-  background: var(--dp-surface-raised);
+  padding: var(--dp-space-2) 0;
+}
+.ssh-keys__row + .ssh-keys__row {
+  border-top: 1px solid var(--dp-border-faint);
 }
 @media (max-width: 700px) {
   .ssh-keys__head {
