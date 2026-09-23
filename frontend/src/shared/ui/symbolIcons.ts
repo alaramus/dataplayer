@@ -3,7 +3,7 @@ import outlinedSymbols from "@quasar/extras/material-symbols-outlined/icons.json
 const available = new Set(outlinedSymbols)
 
 const keyOf = (icon: string) =>
-  `symOutlined${icon.replace(/(^|_)([a-z])/g, (_, _separator: string, letter: string) => letter.toUpperCase())}`
+  `symOutlined${icon.replace(/(^|_)([a-z0-9])/g, (_, _separator: string, part: string) => part.toUpperCase())}`
 
 /** Map the application's ligatures to the installed Symbols Outlined font. */
 export function symbolIcon(icon: string): { icon: string } | undefined {

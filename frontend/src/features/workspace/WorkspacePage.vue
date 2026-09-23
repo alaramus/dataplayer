@@ -957,7 +957,7 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
            rail's own buttons stand. -->
       <span class="workspace-header-collapse">
         <AppIconButton
-          :icon="firstPanelCollapsed ? appIcons.chevronRight : appIcons.chevronLeft"
+          :icon="firstPanelCollapsed ? appIcons.panelOpen : appIcons.panelClose"
           :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
           data-testid="app-toggle-first-panel"
           @click="toggleFirstPanel"

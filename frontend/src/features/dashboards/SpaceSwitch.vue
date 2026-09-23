@@ -17,7 +17,7 @@ withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
 const choices: { value: Space; label: string; icon: string; tooltip: string }[] = [
   { value: "data", label: "Data", icon: appIcons.tableChart, tooltip: "Connections, catalogs and the work opened from them" },
   { value: "dashboards", label: "Dashboards", icon: appIcons.dashboard, tooltip: "Metrics your agents report, drawn over time" },
-  { value: "ai", label: "AI", icon: appIcons.autoAwesome, tooltip: "Conversations with the application agent" },
+  { value: "ai", label: "AI", icon: appIcons.robot2, tooltip: "Conversations with the application agent" },
 ]
 </script>
 

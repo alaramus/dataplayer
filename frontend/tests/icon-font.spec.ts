@@ -16,3 +16,13 @@ test("application and Quasar controls draw Symbols Outlined in both themes", asy
     await page.screenshot({ path: `test-results/symbols-interface-${theme}.png` })
   }
 })
+
+test("the first-panel control and AI space use their dedicated Symbols", async ({ page }) => {
+  await login(page)
+  const panel = page.getByTestId("app-toggle-first-panel")
+  if (await panel.getAttribute("aria-label") === "Show first panel") await panel.click()
+  await expect(panel.locator(".q-icon")).toHaveText("left_panel_close")
+  await panel.click()
+  await expect(panel.locator(".q-icon")).toHaveText("left_panel_open")
+  await expect(page.getByTestId("space-ai").locator(".q-icon")).toHaveText("robot_2")
+})

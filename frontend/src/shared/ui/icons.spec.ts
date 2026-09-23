@@ -6,7 +6,7 @@ import { appIcons, namedIcons } from "./icons"
 
 describe("shared semantic icons", () => {
   const keyOf = (prefix: string, icon: string) =>
-    `${prefix}${icon.replace(/(^|_)([a-z])/g, (_, _separator: string, letter: string) => letter.toUpperCase())}`
+    `${prefix}${icon.replace(/(^|_)([a-z0-9])/g, (_, _separator: string, part: string) => part.toUpperCase())}`
 
   it("uses glyphs available in the installed Symbols Outlined font", () => {
     const bundled = new Set(outlinedSymbols)

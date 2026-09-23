@@ -5,6 +5,7 @@ import { symbolIcon } from "./symbolIcons"
 describe("Symbols Outlined icon mapping", () => {
   it("maps available ligatures and leaves special names alone", () => {
     expect(symbolIcon("dashboard")).toEqual({ icon: "sym_o_dashboard" })
+    expect(symbolIcon("robot_2")).toEqual({ icon: "sym_o_robot_2" })
     expect(symbolIcon("delete")).toEqual({ icon: "sym_o_delete" })
     expect(symbolIcon("not_an_icon")).toBeUndefined()
     expect(symbolIcon("img:/icons/source.svg")).toBeUndefined()

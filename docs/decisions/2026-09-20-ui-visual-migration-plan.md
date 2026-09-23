@@ -912,3 +912,18 @@ passed. Lint retains 20 unrelated warnings; build reports large chunks. The
 five targeted AI, catalog, dashboard narrow-rail and icon-font Chromium
 scenarios passed.
 The full E2E suite was not run.
+
+## Slice 37: panel and agent glyphs
+
+The first-panel control now uses the Symbols Outlined `left_panel_close` and
+`left_panel_open` glyphs for its two states. The AI space button uses
+`robot_2`; the AI conversation's own illustration retains its magic-wand
+glyph. Labels, tooltips and panel behaviour are unchanged. The icon map also
+accepts the digit after the underscore in `robot_2` when checking the
+installed font.
+
+Coverage: icon-map unit checks and a Chromium scenario for both panel states
+and the AI space button. Validation: all 1,923 frontend unit tests, type-check,
+lint and build passed. Lint retains 20 unrelated warnings; build reports large
+chunks. The two targeted Chromium icon scenarios passed. The full E2E suite
+was not run.
