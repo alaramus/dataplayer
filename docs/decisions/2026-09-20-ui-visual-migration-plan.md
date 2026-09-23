@@ -671,4 +671,29 @@ and the build reports large chunks. The existing dashboards browser suite
 passed as well: 10 scenarios green, the store-starting one skipped because the
 development stack already has a store.
 
-Next: the remaining windows named by the migration plan.
+Next: the service output window.
+
+## Slice 26: service output window
+
+Implemented: the service logs window opts into stable `wide-form` sizing
+(900×600), so the frame is fixed from the initial loading state through the
+returned output. The viewer fills the bounded body and keeps scrolling inside
+the log region; the dialog-scoped auto-height and 60vh cap are gone. The
+monospace output remains a viewer without AppForm. Title, subtitle, test id and
+the workspace-only open-as-tab move and close action are unchanged.
+
+Coverage: a browser scene stubs a failed service and a held response with known
+output, then checks unchanged frame geometry from loading to loaded, log-region
+scrolling with fixed window chrome, no horizontal overflow, and screenshots in
+both themes at desktop and 390px. It also verifies the open-as-tab action
+closes the window.
+
+Validation: all 1,919 frontend unit tests passed; both new browser scenarios
+passed. Type-check, lint and build passed; lint retains 20 unrelated warnings
+and the build reports large chunks. The browser screenshots cover both themes
+at desktop and 390px. The full E2E suite was not run.
+
+Next: the remaining small windows (AI New/Rename project in `AiSpace.vue`),
+then Sequence 5 bottom-tool list chrome (`ManagedServices.vue`), followed by
+standalone account pages such as Login under Sequence 6. These families remain
+out of scope for this slice.

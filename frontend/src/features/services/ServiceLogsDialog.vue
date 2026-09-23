@@ -38,7 +38,8 @@ const actions = computed(() => {
 <template>
   <WindowDialog
     :model-value="service !== null"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     :title="`Output of ${service?.connector_name ?? ''}`"
     subtitle="The last lines this service printed."
     :actions="actions"
@@ -51,10 +52,3 @@ const actions = computed(() => {
     />
   </WindowDialog>
 </template>
-
-<style scoped>
-.service-logs-dialog__logs {
-  height: auto;
-  max-height: 60vh;
-}
-</style>

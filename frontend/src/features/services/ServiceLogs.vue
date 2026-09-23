@@ -35,7 +35,8 @@ const logs = useServiceLogs(toRef(props, "serviceId"))
 <style scoped>
 .service-logs {
   height: 100%;
-  min-height: 200px;
+  min-height: 0;
+  flex: 1;
   box-sizing: border-box;
   overflow: auto;
 }
