@@ -8,8 +8,8 @@ import {
   AppCardFrame,
   AppCardHead,
   AppIconButton,
+  AppForm,
   AppInput,
-  AppSection,
   AppSpinner,
   useConfirm,
   useToast,
@@ -456,9 +456,10 @@ onScopeDispose(stop)
       v-model="projectDialogShown"
       :title="renamingProject === null ? 'New project' : 'Rename project'"
       size="sm"
+      sizing="stable"
       data-testid="ai-project-dialog"
     >
-      <AppSection gutter>
+      <AppForm layout="section">
         <AppInput
           ref="projectField"
           v-model="projectDraft"
@@ -468,7 +469,7 @@ onScopeDispose(stop)
           @focus="selectProjectName"
           @keyup.enter="saveProject"
         />
-      </AppSection>
+      </AppForm>
       <template #actions>
         <AppButton
           variant="quiet"

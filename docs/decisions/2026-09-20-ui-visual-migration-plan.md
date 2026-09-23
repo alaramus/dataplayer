@@ -697,3 +697,27 @@ Next: the remaining small windows (AI New/Rename project in `AiSpace.vue`),
 then Sequence 5 bottom-tool list chrome (`ManagedServices.vue`), followed by
 standalone account pages such as Login under Sequence 6. These families remain
 out of scope for this slice.
+
+## Slice 27: AI project name window and services list chrome
+
+Implemented: the AI New/Rename project window keeps its `sm` size, now opts into
+stable sizing and uses `AppForm layout="section"` for its name field. Titles,
+field focus and selection, Enter-to-save, actions and empty-name disabling are
+unchanged. Managed Services rows now use the flat list treatment: transparent
+surface, vertical padding and faint separators between rows. Service actions,
+badges and lifecycle behaviour are unchanged.
+
+Coverage: a browser scene in both themes opens New and Rename project, checks
+unchanged geometry when the field mounts, no horizontal overflow and visible
+footer actions at 390px, and captures desktop and narrow screenshots. It also
+shows a running service row in the bottom panel, verifies its actions remain
+visible and the list host has no horizontal overflow, and captures the panel
+at both widths.
+
+Validation: all 1,919 frontend unit tests and both new browser scenarios passed.
+Type-check, lint and build passed; lint retains 20 unrelated warnings and the
+build reports large chunks. The full E2E suite was not run.
+
+Next: standalone account pages (`LoginPage.vue` and related) under Sequence 6;
+review any remaining Sequence 5 residuals only if they are still visibly
+inconsistent after the services list change.
