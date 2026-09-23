@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import type { ActionInfo, ActionPreview, ActionRequest, JobPublic, TableNode } from "../src/client"
+import { isolateJobAttention } from "./utils/activity"
 import { catalogAction, catalogCheck } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
@@ -67,6 +68,7 @@ function chunkJob(
 }
 
 test("a chunk job is reviewed, accepted, followed and explained again after a reload", async ({ page }) => {
+  await isolateJobAttention(page)
   const name = `e2e-chunk-jobs-${Date.now()}`
   const started: ActionRequest[] = []
   let connectorId = ""

@@ -29,10 +29,10 @@ async function checkProjectWindow(page: Page, title: string, screenshotName: str
   await frame.screenshot({ path: `test-results/${screenshotName}-wide.png` })
 
   await page.setViewportSize({ width: 390, height: 640 })
-  const narrow = await frame.boundingBox()
-  expect(narrow).not.toBeNull()
-  expect(narrow!.x).toBeGreaterThanOrEqual(0)
-  expect(narrow!.x + narrow!.width).toBeLessThanOrEqual(390)
+  await expect.poll(async () => {
+    const narrow = await frame.boundingBox()
+    return narrow !== null && narrow.x >= 0 && narrow.x + narrow.width <= 390
+  }).toBe(true)
   await expect.poll(() => content.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
   await expect(page.getByTestId("ai-project-save")).toBeInViewport()
   await expect(frame.getByRole("button", { name: "Close window" })).toBeInViewport()

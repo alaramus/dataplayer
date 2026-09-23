@@ -727,7 +727,7 @@ function moveColumn(by: number): void {
      as one piece like it does at every width outside the three-column one. */
   .designer__body {
     grid-template-columns: 160px minmax(0, 1fr);
-    grid-template-rows: none;
+    grid-template-rows: max-content max-content;
     overflow: auto;
   }
   .designer__editor,

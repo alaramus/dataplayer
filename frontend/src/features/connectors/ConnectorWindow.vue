@@ -46,6 +46,7 @@ import {
   AppColorPicker,
   AppCopyButton,
   AppInput,
+  AppPopup,
   AppForm,
   AppSelect,
   AppSpinner,
@@ -155,6 +156,7 @@ function choosePolicy(value: unknown) {
 const thirdPartyTransfer = ref(false)
 const nameError = ref("")
 const checkResult = ref<ConnectionCheckReport | null>(null)
+const checkPopupOpen = ref(false)
 const connectionString = ref("")
 // What is in the URL box. Held apart from the composed string because the box
 // is typed into as well as read: a pasted address is taken apart into the
@@ -407,6 +409,7 @@ watch([optionValues, typeName], () => {
 
 function load() {
   checkResult.value = null
+  checkPopupOpen.value = false
   nameError.value = ""
   connectionString.value = ""
   urlText.value = ""
@@ -469,6 +472,7 @@ function validateName(): boolean {
 async function check() {
   if (!typeName.value) return
   checkResult.value = null
+  checkPopupOpen.value = false
   try {
     checkResult.value =
       readOnly.value && saved.value
@@ -478,6 +482,7 @@ async function check() {
             options: filledOptions(),
             connector_id: secretsFrom.value,
           })
+    checkPopupOpen.value = true
     // The dot beside the connection reads this. A draft is checked with the
     // values in the form, which may differ from the stored ones, so this is
     // recorded here rather than left to the monitor.
@@ -868,36 +873,41 @@ async function parseTyped(text: string) {
       </div>
 
       <div class="connector-window__foot-area">
-        <ConnectionCheck
-          :result="checkResult"
-          :source-title="selectedType?.title ?? 'Server'"
-          @close="checkResult = null"
-        >
-          <!-- The check said the key is shut, and opening it is the way on:
-               offered where that is said rather than only named (D147). -->
-          <template
-            v-if="checkResult?.error_kind === 'locked' && formKey"
-            #action
-          >
+        <footer class="connector-window__foot">
+          <span class="connector-window__check-anchor">
             <AppButton
               variant="secondary"
-              size="sm"
-              label="Unlock the key"
-              data-testid="unlock-form-key"
-              @click="unlocking = formKey"
+              label="Test Connection"
+              data-testid="check-draft"
+              :disable="!typeName"
+              :loading="checking"
+              @click="check"
             />
-          </template>
-        </ConnectionCheck>
-
-        <footer class="connector-window__foot">
-          <AppButton
-            variant="secondary"
-            label="Test Connection"
-            data-testid="check-draft"
-            :disable="!typeName"
-            :loading="checking"
-            @click="check"
-          />
+            <AppPopup
+              v-model="checkPopupOpen"
+              anchor="top left"
+              self="bottom left"
+            >
+              <ConnectionCheck
+                :result="checkResult"
+                :source-title="selectedType?.title ?? 'Server'"
+              >
+                <!-- The check said the key is shut, and opening it is the way on (D147). -->
+                <template
+                  v-if="checkResult?.error_kind === 'locked' && formKey"
+                  #action
+                >
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    label="Unlock the key"
+                    data-testid="unlock-form-key"
+                    @click="unlocking = formKey"
+                  />
+                </template>
+              </ConnectionCheck>
+            </AppPopup>
+          </span>
           <AppButton
             v-if="isEdit && isOwner"
             variant="danger-quiet"
@@ -1097,6 +1107,9 @@ async function parseTyped(text: string) {
   gap: var(--dp-space-2);
   padding: var(--dp-space-2) var(--dp-space-4);
   border-top: 1px solid var(--dp-border);
+}
+.connector-window__check-anchor {
+  display: inline-flex;
 }
 .connector-window__spacer {
   flex: 1;

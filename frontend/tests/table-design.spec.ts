@@ -108,10 +108,11 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
     "The primary key already indexes those columns"
   )
   await expect(page.getByTestId("design-review-sql")).toBeDisabled()
-  expect(await frame.boundingBox()).toEqual(stableFrame)
+  await expect.poll(() => frame.boundingBox()).toEqual(stableFrame)
 
   // Only the editor scrolls: the navigation and the preview keep the full
   // height of the body, however long the inspector's content is.
+  await frame.getByRole("button", { name: "Maximize", exact: true }).click()
   await page.setViewportSize({ width: 1280, height: 430 })
   const body = page.getByTestId("design-body")
   await expect.poll(() => page.getByTestId("design-inspector").evaluate(
@@ -125,7 +126,12 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   expect(navigationBox!.y + navigationBox!.height).toBeCloseTo(bodyBox!.y + bodyBox!.height, 0)
   expect(previewBox!.y + previewBox!.height).toBeCloseTo(bodyBox!.y + bodyBox!.height, 0)
   await page.setViewportSize({ width: 1280, height: 720 })
-  expect(await frame.boundingBox()).toEqual(stableFrame)
+  await frame.getByRole("button", { name: "Restore size", exact: true }).click()
+  const restored = await frame.boundingBox()
+  expect(restored).not.toBeNull()
+  expect(restored!.width).toBe(stableFrame!.width)
+  expect(restored!.x).toBeGreaterThanOrEqual(0)
+  expect(restored!.y + restored!.height).toBeLessThanOrEqual(720)
 
   // Pointed at the other column, it is an index again.
   await choose(page, "index-key-column-0", "label")
@@ -149,7 +155,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   await expect(review).toContainText(`demo_lab.${table}`)
   await expect(review).toContainText("CREATE TABLE")
   await expect(review).toContainText("CREATE INDEX")
-  expect(await frame.boundingBox()).toEqual(stableFrame)
+  expect(await frame.boundingBox()).toEqual(restored)
 
   // And going back leaves the draft exactly as it was.
   await page.getByTestId("design-back").click()

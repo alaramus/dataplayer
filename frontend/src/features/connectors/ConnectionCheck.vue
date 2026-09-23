@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { ConnectionCheckReport } from "@/client"
 import { sourceFacts } from "@/features/connectors/sourceFacts"
 import { copyText } from "@/shared/clipboard"
-import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
+import { AppCopyButton, useToast } from "@/shared/ui"
 
 const props = defineProps<{
   result: ConnectionCheckReport | null
   /** What this kind of source is called, for the line naming its version. */
   sourceTitle: string
 }>()
-
-const emit = defineEmits<{ close: [] }>()
 
 const toast = useToast()
 
@@ -76,12 +73,6 @@ async function copy() {
         data-testid="copy-check-result"
         @click="copy"
       />
-      <AppIconButton
-        :icon="appIcons.close"
-        tooltip="Dismiss this result"
-        data-testid="dismiss-check-result"
-        @click="emit('close')"
-      />
     </header>
     <div
       class="connection-check__details"
@@ -133,9 +124,12 @@ async function copy() {
 .connection-check {
   display: flex;
   flex-direction: column;
-  max-height: var(--dp-operation-result-height);
+  width: min(420px, calc(100vw - var(--dp-space-5)));
+  max-height: min(var(--dp-operation-result-height), calc(100dvh - var(--dp-space-4)));
+  min-height: 0;
   padding: var(--dp-space-2) var(--dp-space-4);
-  border-top: 1px solid var(--dp-border);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-control);
   background: var(--dp-surface-raised);
 }
 .connection-check__details {

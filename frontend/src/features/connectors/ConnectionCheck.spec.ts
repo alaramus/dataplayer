@@ -10,7 +10,7 @@ vi.mock("@/shared/clipboard", () => ({ copyText: vi.fn().mockResolvedValue(undef
 vi.mock("@/shared/ui/useToast", () => ({ useToast: () => ({ success: vi.fn() }) }))
 
 describe("connection check result", () => {
-  it("keeps failure details, the recovery action, copy and dismissal available", async () => {
+  it("keeps failure details, the recovery action and copy available", async () => {
     const wrapper = mount(ConnectionCheck, {
       global: { plugins: [Quasar] },
       props: {
@@ -24,8 +24,6 @@ describe("connection check result", () => {
     expect(wrapper.text()).toContain("Unlock the key")
     await wrapper.get('[data-testid="copy-check-result"]').trigger("click")
     expect(copyText).toHaveBeenCalledWith("Failed\nKey locked\nUnlock the SSH key to continue\nPing: 0 ms")
-    await wrapper.get('[data-testid="dismiss-check-result"]').trigger("click")
-    expect(wrapper.emitted("close")).toHaveLength(1)
     await wrapper.setProps({ result: null })
     expect(wrapper.find('[data-testid="check-result"]').exists()).toBe(false)
   })

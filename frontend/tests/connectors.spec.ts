@@ -257,7 +257,7 @@ test("a stored secret stands in for itself and needs no retyping", async ({
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
-test("the result of a check sits between the form and footer", async ({ page }) => {
+test("the result of a check is anchored to Test Connection", async ({ page }) => {
   await login(page)
   await pickAdapterType(page, "postgres")
   await fillConnectionFields(page, DATABASE.password)
@@ -266,17 +266,15 @@ test("the result of a check sits between the form and footer", async ({ page }) 
   const result = page.getByTestId("check-result")
   await expect(result).toBeVisible()
 
+  const connectorWindow = page.getByRole("dialog", { name: "New connection" })
+  await expect(page.getByRole("dialog", { name: "Connection check result" })).toHaveCount(0)
+  await expect(connectorWindow.getByTestId("check-result")).toHaveCount(0)
   const panel = await result.boundingBox()
   const button = await page.getByTestId("check-draft").boundingBox()
-  const url = await page.getByTestId("connector-url").boundingBox()
-  if (!panel || !button || !url) throw new Error("nothing was laid out")
-
-  // Above the button, and near enough to belong to it.
-  expect(panel.y + panel.height).toBeLessThanOrEqual(button.y)
-  expect(button.y - (panel.y + panel.height)).toBeLessThan(30)
-  expect(panel.y).toBeGreaterThanOrEqual(url.y + url.height)
-
-  // And it goes away when it has been read, rather than staying in the way.
-  await page.getByTestId("dismiss-check-result").click()
+  expect(panel).not.toBeNull()
+  expect(button).not.toBeNull()
+  expect(panel!.y + panel!.height).toBeLessThanOrEqual(button!.y)
+  await page.keyboard.press("Escape")
   await expect(result).toHaveCount(0)
+  await expect(connectorWindow).toBeVisible()
 })

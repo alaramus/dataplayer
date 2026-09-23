@@ -52,8 +52,9 @@ one line because the options model says they are one address, and the
 server-composed connection string pinned above Test Connection and
 OK / Cancel / Apply. A new connection opens named after its type and addressed
 to localhost. A stored secret shows as `<hidden>`, empties the moment the field
-is entered and comes back if it is left untyped-in. What a check said appears in
-a panel over the button that ran it, not as a line that moves the form about.
+is entered and comes back if it is left untyped-in. A connection check shows
+its result in a small popup anchored above Test Connection, leaving the form's
+layout intact. Clicking outside or pressing Escape dismisses it.
 
 Three things the old application's window engine got wrong are inverted here: a
 z-index counter that only ever grew is now a position in a list; geometry
@@ -87,6 +88,9 @@ Consequences:
 
 Known deviations:
 
+- **The original D14 spec describes an inline connection check panel.** The
+  result now opens in an anchored popup so it remains readable without
+  moving the connection form.
 - **Windows do not survive a reload.** The workspace layout does; a window does
   not, because a half-filled form restored without its secrets would promise
   more than it holds.

@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test"
 
 import type { JobPublic } from "../src/client"
+import { isolateJobAttention } from "./utils/activity"
 import { catalogAction } from "./utils/catalog"
 import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
 test("shows server progress in the footer, opens the sheet on demand and cancels from it", async ({ page }) => {
+  await isolateJobAttention(page)
   let job: JobPublic = {
     id: "12345678-1234-4123-8123-123456789012", kind: "service.create",
     subject_id: null, parameters: null, state: "running",

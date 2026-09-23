@@ -11,7 +11,14 @@ for (const theme of ["light", "dark"] as const) {
     const frame = page.getByRole("dialog", { name: "New connection", exact: true })
     const result = page.getByRole("region", { name: "Connection check result", exact: true })
     for (const narrow of [false, true]) {
-      if (narrow) await page.setViewportSize({ width: 390, height: 600 })
+      if (narrow) {
+        await page.setViewportSize({ width: 390, height: 600 })
+        await expect.poll(async () => {
+          const box = await frame.boundingBox()
+          return box !== null && box.x >= 0 && box.y >= 0 &&
+            box.x + box.width <= 390 && box.y + box.height <= 600
+        }).toBe(true)
+      }
       for (const ok of [true, false]) {
         await page.route("**/api/v1/connectors/check-draft", (route) => route.fulfill({ json: {
           ok,
@@ -24,12 +31,15 @@ for (const theme of ["light", "dark"] as const) {
         await page.getByTestId("check-draft").click()
         await expect(result).toBeVisible()
         await expect(result.getByRole("status")).toHaveText(ok ? "Succeeded" : "Failed")
-        expect(await frame.boundingBox()).toEqual(before)
+        await expect.poll(() => frame.boundingBox()).toEqual(before)
         const panel = await result.boundingBox()
-        const url = await page.getByTestId("connector-url").boundingBox()
         const button = await page.getByTestId("check-draft").boundingBox()
-        if (!panel || !url || !button) throw new Error("Missing connection layout")
-        expect(panel.y).toBeGreaterThanOrEqual(url.y + url.height)
+        if (!panel || !button) throw new Error("Missing connection result popup")
+        expect(panel.x).toBeGreaterThanOrEqual(0)
+        expect(panel.y).toBeGreaterThanOrEqual(0)
+        expect(panel.x + panel.width).toBeLessThanOrEqual(narrow ? 390 : 1280)
+        expect(panel.y + panel.height).toBeLessThanOrEqual(narrow ? 600 : 720)
+        expect(Math.abs(panel.x - button.x)).toBeLessThan(30)
         expect(panel.y + panel.height).toBeLessThanOrEqual(button.y)
         await expect(page.getByTestId("cancel-connector")).toBeInViewport()
         const details = result.getByLabel("Check details")
@@ -40,10 +50,9 @@ for (const theme of ["light", "dark"] as const) {
           await page.keyboard.press("End")
           await expect.poll(() => details.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
         }
-        await frame.screenshot({ path: `test-results/connection-result-${theme}-${narrow ? "narrow" : "wide"}-${ok ? "success" : "error"}.png` })
-        await page.getByTestId("dismiss-check-result").click()
+        await page.keyboard.press("Escape")
         await expect(result).toHaveCount(0)
-        expect(await frame.boundingBox()).toEqual(before)
+        await expect.poll(() => frame.boundingBox()).toEqual(before)
         await page.unroute("**/api/v1/connectors/check-draft")
       }
     }

@@ -83,7 +83,8 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await page.getByTestId("check-draft").click()
   expect((await storedCheck).status()).toBe(200)
   await expect(page.getByTestId("check-result")).toContainText("Succeeded")
-  await page.getByTestId("dismiss-check-result").click()
+  await page.keyboard.press("Escape")
+  await expect(page.getByTestId("check-result")).toHaveCount(0)
   page.off("request", recordDraft)
   expect(draftsNaming).toEqual([])
 
