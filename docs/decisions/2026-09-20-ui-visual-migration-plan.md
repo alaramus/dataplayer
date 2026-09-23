@@ -792,3 +792,26 @@ chunks. The full E2E suite was not run.
 
 Next: centralise icon names for a complete feature family, then decide whether
 the Symbols appearance suits the real toolbar size before switching fonts.
+
+## Slice 31: SSH key icon names
+
+Implemented: SSH key list actions and its empty and row icons now use semantic
+names from `appIcons`. The values are the same Material Icons ligatures as
+before; labels, actions, dialogs and list layout did not change. The UI kit
+comparison includes the key, create, import, unlock, lock and delete icons at
+toolbar size. Material Symbols Outlined is still only a comparison on that page.
+The older `delete_outline` ligature maps to Symbols' `delete` for that preview;
+the current application keeps `delete_outline`.
+
+Coverage: the icon map checks the installed current and comparison fonts for
+every named glyph. The expanded comparison was visually reviewed in Chrome in
+both themes at desktop size; the Symbols variants are lighter, especially the
+key and lock controls.
+
+Validation: both targeted icon unit tests, type-check and the two themed SSH
+form browser scenarios passed. Lint, build and documentation checks passed;
+lint retains 20 unrelated warnings and build reports large chunks. The full
+E2E suite was not run.
+
+Next: move through another complete feature family of icons, retaining the
+current font until a visual decision on the replacement is made.

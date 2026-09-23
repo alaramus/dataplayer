@@ -8,7 +8,18 @@ export const appIcons = {
   exitFullscreen: "fullscreen_exit",
   lightTheme: "light_mode",
   darkTheme: "dark_mode",
+  createSshKey: "add",
+  deleteSshKey: "delete_outline",
+  importSshKey: "upload",
   preferences: "tune",
   signOut: "logout",
+  sshKey: "key",
+  lockSshKey: "lock",
+  unlockSshKey: "lock_open",
   window: "web_asset",
 } as const
+
+/** The comparison font dropped this older Material Icons ligature. */
+export function symbolComparisonIcon(icon: string): string {
+  return icon === appIcons.deleteSshKey ? "delete" : icon
+}

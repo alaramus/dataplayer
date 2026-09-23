@@ -1,15 +1,25 @@
 import { describe, expect, it } from "vitest"
 
 import bundledIcons from "@quasar/extras/material-icons/icons.json"
+import outlinedSymbols from "@quasar/extras/material-symbols-outlined/icons.json"
 
-import { appIcons } from "./icons"
+import { appIcons, symbolComparisonIcon } from "./icons"
 
 describe("shared semantic icons", () => {
+  const keyOf = (prefix: string, icon: string) =>
+    `${prefix}${icon.replace(/(^|_)([a-z])/g, (_, _separator: string, letter: string) => letter.toUpperCase())}`
+
   it("uses glyphs available in the installed Material Icons font", () => {
     const bundled = new Set(bundledIcons)
     for (const icon of Object.values(appIcons)) {
-      const name = `mat${icon.replace(/(^|_)([a-z])/g, (_, _separator: string, letter: string) => letter.toUpperCase())}`
-      expect(bundled.has(name), icon).toBe(true)
+      expect(bundled.has(keyOf("mat", icon)), icon).toBe(true)
+    }
+  })
+
+  it("can show the same names in the UI kit comparison font", () => {
+    const bundled = new Set(outlinedSymbols)
+    for (const icon of Object.values(appIcons)) {
+      expect(bundled.has(keyOf("symOutlined", symbolComparisonIcon(icon))), icon).toBe(true)
     }
   })
 })

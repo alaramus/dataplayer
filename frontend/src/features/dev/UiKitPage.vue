@@ -40,6 +40,7 @@ import {
   AppTooltip,
   AppTree,
   appIcons,
+  symbolComparisonIcon,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -54,6 +55,12 @@ const ICON_COMPARISON = [
   { label: "Copy", icon: appIcons.copy },
   { label: "Fullscreen", icon: appIcons.enterFullscreen },
   { label: "Close", icon: appIcons.close },
+  { label: "SSH key", icon: appIcons.sshKey },
+  { label: "Create key", icon: appIcons.createSshKey },
+  { label: "Import key", icon: appIcons.importSshKey },
+  { label: "Unlock key", icon: appIcons.unlockSshKey },
+  { label: "Lock key", icon: appIcons.lockSshKey },
+  { label: "Delete key", icon: appIcons.deleteSshKey },
 ] as const
 const MENU_ITEMS: MenuItem[] = [
   { name: "check", label: "Check connection", icon: "bolt" },
@@ -331,7 +338,7 @@ function removeSavedEntry(name: string) {
           >
             <div>{{ item.label }}</div>
             <span class="ui-kit__icon-box"><span class="material-icons">{{ item.icon }}</span></span>
-            <span class="ui-kit__icon-box"><span class="material-symbols-outlined">{{ item.icon }}</span></span>
+            <span class="ui-kit__icon-box"><span class="material-symbols-outlined">{{ symbolComparisonIcon(item.icon) }}</span></span>
           </template>
         </div>
       </AppSection>

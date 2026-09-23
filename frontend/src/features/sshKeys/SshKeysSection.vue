@@ -15,6 +15,7 @@ import {
   AppEmptyState,
   AppIconButton,
   AppSpinner,
+  appIcons,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -86,14 +87,14 @@ async function remove(key: SshKeyPublic) {
       </div>
       <div class="ssh-keys__buttons">
         <AppButton
-          icon="add"
+          :icon="appIcons.createSshKey"
           label="New key"
           data-testid="ssh-key-new"
           @click="making = 'generate'"
         />
         <AppButton
           variant="quiet"
-          icon="upload"
+          :icon="appIcons.importSshKey"
           label="Import"
           data-testid="ssh-key-import"
           @click="making = 'import'"
@@ -104,7 +105,7 @@ async function remove(key: SshKeyPublic) {
     <AppSpinner v-if="keys.isLoading.value" />
     <AppEmptyState
       v-else-if="(keys.data.value ?? []).length === 0"
-      icon="key"
+      :icon="appIcons.sshKey"
       text="No SSH keys yet"
     />
     <div
@@ -114,7 +115,7 @@ async function remove(key: SshKeyPublic) {
       :data-testid="`ssh-key-${key.name}`"
     >
       <q-icon
-        name="key"
+        :name="appIcons.sshKey"
         size="18px"
       />
       <div class="ssh-keys__facts">
@@ -134,20 +135,20 @@ async function remove(key: SshKeyPublic) {
       />
       <AppIconButton
         v-if="keyState(key) && !keyState(key)?.open"
-        icon="lock_open"
+        :icon="appIcons.unlockSshKey"
         tooltip="Unlock: type its passphrase"
         :data-testid="`ssh-key-unlock-${key.name}`"
         @click="unlocking = key"
       />
       <AppIconButton
         v-else-if="keyState(key)?.open"
-        icon="lock"
+        :icon="appIcons.lockSshKey"
         tooltip="Lock it now"
         :data-testid="`ssh-key-lock-${key.name}`"
         @click="lock(key)"
       />
       <AppIconButton
-        icon="delete_outline"
+        :icon="appIcons.deleteSshKey"
         :tooltip="key.used_by.length ? 'Point its connections at another key first' : 'Delete this key'"
         :disable="key.used_by.length > 0"
         :data-testid="`ssh-key-delete-${key.name}`"
