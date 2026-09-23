@@ -475,19 +475,19 @@ function moveColumn(by: number): void {
             <AppForm layout="grid">
               <ColumnInspector
                 v-if="section === 'columns'"
-                :key="selected"
+                :key="`column:${selected}`"
                 :design-id="designId"
                 :column-id="selected"
               />
               <IndexInspector
                 v-else-if="section === 'indexes'"
-                :key="selected"
+                :key="`index:${selected}`"
                 :design-id="designId"
                 :index-id="selected"
               />
               <ForeignKeyInspector
                 v-else-if="section === 'foreign-keys'"
-                :key="selected"
+                :key="`foreign-key:${selected}`"
                 :design-id="designId"
                 :foreign-key-id="selected"
                 :connector-id="connectorId"
@@ -551,19 +551,20 @@ function moveColumn(by: number): void {
             </div>
           </aside>
         </div>
-        <ul
+        <div
           v-if="problems.length"
-          class="designer__problems"
           data-testid="design-problems"
           role="alert"
         >
-          <li
-            v-for="(problem, at) in problems"
-            :key="at"
-          >
-            {{ problem.message }}
-          </li>
-        </ul>
+          <ul class="designer__problems">
+            <li
+              v-for="(problem, at) in problems"
+              :key="at"
+            >
+              {{ problem.message }}
+            </li>
+          </ul>
+        </div>
       </template>
       <section
         v-else
