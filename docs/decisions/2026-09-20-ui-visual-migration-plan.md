@@ -721,3 +721,26 @@ build reports large chunks. The full E2E suite was not run.
 Next: standalone account pages (`LoginPage.vue` and related) under Sequence 6;
 review any remaining Sequence 5 residuals only if they are still visibly
 inconsistent after the services list change.
+
+## Slice 28: standalone entry forms
+
+Implemented: Sign in and server-link fields, along with their existing server
+messages and banners, now sit under `AppForm layout="section"` and receive the
+outlined form field look. The existing card shells, login validation and
+redirect, Enter-to-submit, server compatibility check, server profile save and
+switch behaviour, and submit actions are unchanged.
+
+Coverage: a browser scene in both themes checks the Sign in fields at desktop
+and 390px, including outlined controls, persistent labels, no horizontal
+overflow, a visible submit action and screenshots. It also checks the
+server-link fields at 390px and captures the page without connecting to the
+server. The existing missing-credentials scenario still checks Enter-to-submit
+and confirms no login request is sent for empty values.
+
+Validation: all 1,919 frontend unit tests passed; the two new theme scenarios
+and the existing login-validation scenario passed. Type-check, lint and build
+passed; lint retains 20 unrelated warnings and the build reports large chunks.
+No real credentials were submitted; the full E2E suite was not run.
+
+Next: any remaining visible Sequence 5 residuals, then Sequence 7 icon
+centralisation. Admin and Preferences remain deferred.

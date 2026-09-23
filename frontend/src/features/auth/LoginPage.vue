@@ -8,7 +8,7 @@ import { useActiveServerCheck } from "@/features/servers/api"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { safeLocalPath } from "@/shared/servers/profiles"
 import { useServersStore } from "@/stores/servers"
-import { AppActions, AppBanner, AppButton, AppCard, AppInput, AppSection } from "@/shared/ui"
+import { AppActions, AppBanner, AppButton, AppCard, AppForm, AppInput } from "@/shared/ui"
 
 const router = useRouter()
 const route = useRoute()
@@ -63,7 +63,7 @@ async function submit() {
           title="Sign in"
         >
           <q-form @submit.prevent="submit">
-            <AppSection gutter>
+            <AppForm layout="section">
               <ServerSwitcher />
               <div class="login-server-url">
                 {{ servers.active.url }}
@@ -111,7 +111,7 @@ async function submit() {
               >
                 Could not sign in. Check the email and password.
               </AppBanner>
-            </AppSection>
+            </AppForm>
             <AppActions align="left">
               <AppButton
                 type="submit"

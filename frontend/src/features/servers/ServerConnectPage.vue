@@ -11,7 +11,7 @@ import AppBanner from "@/shared/ui/AppBanner.vue"
 import AppButton from "@/shared/ui/AppButton.vue"
 import AppCard from "@/shared/ui/AppCard.vue"
 import AppInput from "@/shared/ui/AppInput.vue"
-import AppSection from "@/shared/ui/AppSection.vue"
+import AppForm from "@/shared/ui/AppForm.vue"
 import { useServersStore } from "@/stores/servers"
 
 const route = useRoute()
@@ -56,7 +56,7 @@ async function connect() {
       size="sm"
       title="Choose the server for this link"
     >
-      <AppSection gutter>
+      <AppForm layout="section">
         <AppBanner tone="info">
           This link uses another server. Check the address before connecting; you may need to sign in there.
         </AppBanner>
@@ -78,7 +78,7 @@ async function connect() {
         >
           {{ error }}
         </AppBanner>
-      </AppSection>
+      </AppForm>
       <AppActions>
         <AppButton
           label="Cancel"
