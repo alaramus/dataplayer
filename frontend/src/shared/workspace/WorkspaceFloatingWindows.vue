@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { defineComponent, h, inject, onBeforeUnmount, provide, ref, watch } from "vue"
 import type { Ref } from "vue"
 
@@ -63,7 +64,7 @@ if (windows !== undefined && targets !== undefined) {
           // The way back sits with the other things this frame can do to
           // itself, rather than inside the panel it holds (D112).
           actions: [{
-            icon: "tab",
+            icon: appIcons.tab,
             tooltip: "Return to panel",
             testid: "dock-panel",
             run: () => { props.context.dock(panelId.value) },

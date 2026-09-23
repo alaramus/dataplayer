@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import { AppButton, AppTooltip } from "@/shared/ui"
@@ -29,7 +30,7 @@ function save() {
   <AppButton
     variant="quiet"
     size="sm"
-    icon="bookmark_add"
+    :icon="appIcons.bookmarkAdd"
     aria-label="Save group"
     :disable="busy"
     data-testid="save-tab-group"

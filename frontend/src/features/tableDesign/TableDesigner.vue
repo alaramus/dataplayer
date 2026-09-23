@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, onBeforeUnmount, reactive, ref, watch } from "vue"
 
 import type { TablePlan } from "@/client"
@@ -462,7 +463,7 @@ function moveColumn(by: number): void {
               <AppButton
                 v-if="section !== 'options'"
                 variant="quiet"
-                icon="add"
+                :icon="appIcons.add"
                 :label="
                   objectLabels[section].charAt(0).toUpperCase() + objectLabels[section].slice(1)
                 "
@@ -509,21 +510,21 @@ function moveColumn(by: number): void {
                   <AppButton
                     variant="quiet"
                     label="Move up"
-                    icon="arrow_upward"
+                    :icon="appIcons.arrowUpward"
                     :disable="columnPosition <= 0"
                     @click="moveColumn(-1)"
                   />
                   <AppButton
                     variant="quiet"
                     label="Move down"
-                    icon="arrow_downward"
+                    :icon="appIcons.arrowDownward"
                     :disable="columnPosition >= draft.columns.length - 1"
                     @click="moveColumn(1)"
                   />
                 </template>
                 <AppButton
                   variant="quiet"
-                  icon="delete_outline"
+                  :icon="appIcons.deleteOutline"
                   :label="`Remove ${objectLabels[section]}`"
                   :disable="section === 'columns' && draft.columns.length === 1"
                   data-testid="remove-object"
@@ -596,7 +597,7 @@ function moveColumn(by: number): void {
       <AppButton
         v-if="step === 'definition'"
         label="Review SQL"
-        icon-right="arrow_forward"
+        :icon-right="appIcons.arrowForward"
         :disable="!ready"
         data-testid="design-review-sql"
         @click="step = 'review'"

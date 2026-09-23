@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui/icons"
 import { computed, ref } from "vue"
 
 import type { ConnectorDraft } from "@/client"
@@ -328,7 +329,7 @@ async function pick(name: string) {
        describes its nodes. -->
   <span v-if="items.length">
     <AppIconButton
-      icon="more_vert"
+      :icon="appIcons.moreVert"
       tooltip="Actions"
       data-testid="catalog-actions"
       :loading="prepareConnector.isPending.value"

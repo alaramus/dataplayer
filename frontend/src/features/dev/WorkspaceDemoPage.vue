@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { defineComponent, h } from "vue"
 import type { Component } from "vue"
 import { z } from "zod"
@@ -83,14 +84,14 @@ const workspace = useWorkspace<DemoPanel>({
     ],
   }),
   kindOf: (panel) => panel.kind,
-  look: (panel) => ({ title: panel.title, icon: "widgets" }),
+  look: (panel) => ({ title: panel.title, icon: appIcons.widgets }),
   component: (panel) => Placeholder(panel.id, panel.title),
   // One column has something worth forty pixels and narrows to them; the other
   // has not, is named, and goes to the bar whole.
   collapsed: (panel) => (panel.kind === "alpha" ? Rail : null),
   empty: (accepts) => (accepts === "note" ? Hint : null),
   sectionLook: (accepts) =>
-    accepts === "beta" ? { title: "Data", icon: "table_chart" } : null,
+    accepts === "beta" ? { title: "Data", icon: appIcons.tableChart } : null,
 })
 
 let opened = 0

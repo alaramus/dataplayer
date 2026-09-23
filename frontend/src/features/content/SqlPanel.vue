@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { ContentRequest } from "@/client"
@@ -59,7 +60,7 @@ function showTable() {
           v-if="tableTitle"
           variant="quiet"
           size="sm"
-          icon="grid_on"
+          :icon="appIcons.gridOn"
           :label="tableTitle"
           data-testid="sql-view-table"
           @click="showTable"

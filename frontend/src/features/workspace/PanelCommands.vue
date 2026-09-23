@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, inject, ref } from "vue"
 
 import { freshnessTooltip, isLive } from "@/shared/freshness/freshness"
@@ -104,7 +105,7 @@ function showInCatalog() {
       class="panel-commands__reload"
     >
       <AppIconButton
-        icon="refresh"
+        :icon="appIcons.refresh"
         :tooltip="reloadSays"
         :aria-label="reloadTooltip"
         :loading="reloading"
@@ -133,7 +134,7 @@ function showInCatalog() {
     </span>
     <AppIconButton
       v-if="reveal && actions"
-      icon="my_location"
+      :icon="appIcons.myLocation"
       tooltip="Show in catalog"
       aria-label="Show in catalog"
       data-testid="panel-reveal"

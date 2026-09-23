@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { AxiosError } from "axios"
 import { computed, ref, watch } from "vue"
 
@@ -89,7 +90,7 @@ async function connect() {
       <div class="store-setup__actions">
         <span class="store-setup__slot">
           <AppButton
-            icon="play_arrow"
+            :icon="appIcons.playArrow"
             label="Start TimescaleDB on this server"
             :disable="!stage.canStart"
             :loading="starting.isPending.value"
@@ -100,7 +101,7 @@ async function connect() {
         </span>
         <AppButton
           variant="secondary"
-          icon="link"
+          :icon="appIcons.link"
           label="Connect an existing TimescaleDB"
           data-testid="store-connect"
           @click="connectOpen = true"
@@ -135,21 +136,21 @@ async function connect() {
       <div class="store-setup__actions">
         <AppButton
           v-if="stage.canStart"
-          icon="replay"
+          :icon="appIcons.replay"
           label="Start it again"
           :loading="starting.isPending.value"
           @click="start"
         />
         <AppButton
           variant="secondary"
-          icon="refresh"
+          :icon="appIcons.refresh"
           label="Ask again"
           @click="emit('retry')"
         />
         <AppButton
           v-if="stage.canRemove"
           variant="danger-quiet"
-          icon="delete_forever"
+          :icon="appIcons.deleteForever"
           label="Remove the store"
           data-testid="store-open-removal"
           @click="storeOpen = true"

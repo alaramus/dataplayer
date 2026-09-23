@@ -1,3 +1,5 @@
+import { appIcons } from "@/shared/ui/icons"
+
 /**
  * A list rather than a page, because there will be more than one section.
  * Nothing here knows what a section shows: the page maps an id onto a
@@ -18,7 +20,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     id: "users",
     title: "Users",
     summary: "Who has an account, and who administers this installation",
-    icon: "group",
+    icon: appIcons.group,
   },
 ]
 

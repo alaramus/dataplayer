@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 /**
  * One `mermaid` fence. Mermaid runs at `securityLevel: "strict"`, so its own
  * HTML labels never appear, and what it draws is sanitised as SVG before it
@@ -62,7 +63,7 @@ onBeforeUnmount(() => {
     <template #actions>
       <AppIconButton
         v-if="!failure"
-        icon="download"
+        :icon="appIcons.download"
         tooltip="Save this diagram as SVG"
         data-testid="mermaid-download"
         @click="download"

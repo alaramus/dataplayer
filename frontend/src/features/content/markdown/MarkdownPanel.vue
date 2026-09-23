@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 /** A bounded Markdown document, rendered, navigated and exported in-browser. */
 import "katex/dist/katex.min.css"
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
@@ -69,8 +70,8 @@ const activeSection = ref("")
 const exporting = ref(false)
 
 const exportItems: MenuItem[] = [
-  { name: "html", label: "Rendered HTML", icon: "html" },
-  { name: "pdf", label: "Print or save as PDF", icon: "print" },
+  { name: "html", label: "Rendered HTML", icon: appIcons.html },
+  { name: "pdf", label: "Print or save as PDF", icon: appIcons.print },
 ]
 
 function showSource() {
@@ -511,7 +512,7 @@ onBeforeUnmount(() => {
             v-if="headings.length > 0"
             variant="quiet"
             size="sm"
-            icon="toc"
+            :icon="appIcons.toc"
             :label="`Contents (${String(headings.length)})`"
             data-testid="markdown-toggle-contents"
             @click="outlineOpen = !outlineOpen"
@@ -535,14 +536,14 @@ onBeforeUnmount(() => {
             {{ searchPosition }}
           </span>
           <AppIconButton
-            icon="keyboard_arrow_up"
+            :icon="appIcons.keyboardArrowUp"
             tooltip="Previous match"
             :disable="searchMatchCount === 0"
             data-testid="markdown-search-previous"
             @click="stepSearch(-1)"
           />
           <AppIconButton
-            icon="keyboard_arrow_down"
+            :icon="appIcons.keyboardArrowDown"
             tooltip="Next match"
             :disable="searchMatchCount === 0"
             data-testid="markdown-search-next"
@@ -555,7 +556,7 @@ onBeforeUnmount(() => {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="download"
+            :icon="appIcons.download"
             label="Export"
             :loading="exporting"
             data-testid="markdown-export"
@@ -568,7 +569,7 @@ onBeforeUnmount(() => {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="code"
+            :icon="appIcons.code"
             :label="sourceTitle ?? 'View as text'"
             data-testid="markdown-view-source"
             @click="showSource"

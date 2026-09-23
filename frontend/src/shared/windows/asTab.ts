@@ -1,4 +1,5 @@
 import type { WindowAction } from "./useWindows"
+import { appIcons } from "@/shared/ui/icons"
 
 /**
  * The command a window declares when what it holds can live as a workspace tab
@@ -6,5 +7,5 @@ import type { WindowAction } from "./useWindows"
  * and closes the window, and the engine knows nothing about either side.
  */
 export function openAsTabAction(run: () => void): WindowAction {
-  return { icon: "tab", tooltip: "Open as a tab", testid: "window-to-tab", run }
+  return { icon: appIcons.tab, tooltip: "Open as a tab", testid: "window-to-tab", run }
 }

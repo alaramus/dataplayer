@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import CodeEditor from "@/features/content/CodeEditor.vue"
@@ -190,7 +191,7 @@ function close() {
       <AppButton
         v-if="drawnAt"
         variant="quiet"
-        icon="open_in_new"
+        :icon="appIcons.openInNew"
         :label="drawnAt.label"
         data-testid="model-code-site"
         @click="visit"

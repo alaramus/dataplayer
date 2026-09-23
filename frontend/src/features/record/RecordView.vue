@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, toRef, watch } from "vue"
 
 import type { FetchRequest, ReferencedRows } from "@/client"
@@ -248,7 +249,7 @@ const errorText = computed(() =>
                 <AppIconButton
                   v-for="reference in cellReferences(cellProps.row.name, cellProps.row.value)"
                   :key="reference.name"
-                  icon="arrow_forward"
+                  :icon="appIcons.arrowForward"
                   compact
                   :tooltip="`Go to ${reference.target_title}`"
                   :disable="jumping"
@@ -259,7 +260,7 @@ const errorText = computed(() =>
                   v-if="cellArriving(cellProps.row.name, cellProps.row.value).length > 0"
                 >
                   <AppIconButton
-                    icon="arrow_back"
+                    :icon="appIcons.arrowBack"
                     compact
                     tooltip="What points at this row"
                     :disable="jumping"
@@ -286,7 +287,7 @@ const errorText = computed(() =>
                   />
                 </span>
                 <AppIconButton
-                  icon="content_copy"
+                  :icon="appIcons.copy"
                   compact
                   tooltip="Copy this value"
                   :data-testid="`record-copy-${cellProps.row.name}`"
@@ -308,7 +309,7 @@ const errorText = computed(() =>
         label="Previous"
         variant="secondary"
         size="sm"
-        icon="chevron_left"
+        :icon="appIcons.chevronLeft"
         :disable="page.isPending.value || Boolean(errorText) || !hasPrevious"
         data-testid="record-previous"
         @click="step(-1)"
@@ -317,7 +318,7 @@ const errorText = computed(() =>
         label="Next"
         variant="secondary"
         size="sm"
-        icon-right="chevron_right"
+        :icon-right="appIcons.chevronRight"
         :disable="page.isPending.value || Boolean(errorText) || !hasNext"
         data-testid="record-next"
         @click="step(1)"

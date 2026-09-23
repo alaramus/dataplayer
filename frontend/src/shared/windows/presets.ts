@@ -1,3 +1,5 @@
+import { appIcons } from "@/shared/ui/icons"
+
 import { h } from "vue"
 import type { Component } from "vue"
 
@@ -46,7 +48,7 @@ export function questionWindowPreset(
 ): OpenWindow {
   return {
     id,
-    look: { title, icon: "help_outline" },
+    look: { title, icon: appIcons.helpOutline },
     size: { width: 420, height: 200 },
     minSize: { width: 320, height: 160 },
     // A question holds nothing a press could lose.
@@ -63,7 +65,7 @@ export function deleteWindowPreset(
 ): OpenWindow {
   return {
     ...questionWindowPreset(id, title, component),
-    look: { title, icon: "warning_amber" },
+    look: { title, icon: appIcons.warningAmber },
   }
 }
 

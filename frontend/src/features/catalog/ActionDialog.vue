@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, onBeforeUnmount, ref, watch } from "vue"
 
 import type { ActionPreview } from "@/client"
@@ -709,7 +710,7 @@ async function runDesign(value: {
           <span class="action-dialog__file-name">{{ chosen.name }}</span>
           <span class="action-dialog__file-size">{{ formatSize(chosen.size) }}</span>
           <AppIconButton
-            icon="close"
+            :icon="appIcons.close"
             :tooltip="`Take ${chosen.name} off the list`"
             :disable="runAction.isPending.value"
             :data-testid="`action-file-remove-${String(index)}`"

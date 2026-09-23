@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { AppButton, AppTooltip } from "@/shared/ui"
 import { useSpaceStore } from "@/stores/space"
 import type { Space } from "@/stores/space"
@@ -14,9 +15,9 @@ const space = useSpaceStore()
 withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
 
 const choices: { value: Space; label: string; icon: string; tooltip: string }[] = [
-  { value: "data", label: "Data", icon: "table_chart", tooltip: "Connections, catalogs and the work opened from them" },
-  { value: "dashboards", label: "Dashboards", icon: "dashboard", tooltip: "Metrics your agents report, drawn over time" },
-  { value: "ai", label: "AI", icon: "auto_awesome", tooltip: "Conversations with the application agent" },
+  { value: "data", label: "Data", icon: appIcons.tableChart, tooltip: "Connections, catalogs and the work opened from them" },
+  { value: "dashboards", label: "Dashboards", icon: appIcons.dashboard, tooltip: "Metrics your agents report, drawn over time" },
+  { value: "ai", label: "AI", icon: appIcons.autoAwesome, tooltip: "Conversations with the application agent" },
 ]
 </script>
 

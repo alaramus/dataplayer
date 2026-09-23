@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 // Imported by file rather than through the kit's barrel: `AppLayout` draws
@@ -63,7 +64,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
           @click="notice.action.run(); store.dismiss(notice.id)"
         />
         <AppIconButton
-          icon="close"
+          :icon="appIcons.close"
           tooltip="Dismiss"
           compact
           @click="store.dismiss(notice.id)"

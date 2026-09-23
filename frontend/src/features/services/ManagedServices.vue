@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { ServicePublic } from "@/client"
@@ -219,14 +220,14 @@ async function forget(service: ServicePublic) {
            that takes its place once the job is over. -->
       <AppIconButton
         v-if="isWorking(service.job)"
-        icon="cancel"
+        :icon="appIcons.cancel"
         tooltip="Cancel what is happening"
         :data-testid="`cancel-service-${service.id}`"
         @click="cancel(service)"
       />
       <AppIconButton
         v-else-if="lifecycleCommand(service) === 'stop'"
-        icon="stop"
+        :icon="appIcons.stop"
         tooltip="Stop it; what is stored in it stays"
         :loading="asking(service)"
         :data-testid="`stop-service-${service.id}`"
@@ -234,7 +235,7 @@ async function forget(service: ServicePublic) {
       />
       <AppIconButton
         v-else-if="lifecycleCommand(service) === 'start'"
-        icon="play_arrow"
+        :icon="appIcons.playArrow"
         tooltip="Start it"
         :loading="asking(service)"
         :data-testid="`start-service-${service.id}`"
@@ -242,7 +243,7 @@ async function forget(service: ServicePublic) {
       />
       <AppIconButton
         v-if="canRetry(service)"
-        icon="restart_alt"
+        :icon="appIcons.restartAlt"
         tooltip="Start over: the earlier attempt and its data are removed"
         :data-testid="`retry-service-${service.id}`"
         @click="retry(service)"
@@ -252,19 +253,19 @@ async function forget(service: ServicePublic) {
            was made up here is not in the answer (D89). -->
       <AppIconButton
         v-if="service.was_connected"
-        icon="vpn_key"
+        :icon="appIcons.vpnKey"
         tooltip="Where it listens, for your own tools"
         :data-testid="`credentials-service-${service.id}`"
         @click="revealing = { id: service.id, name: service.connector_name }"
       />
       <AppIconButton
-        icon="notes"
+        :icon="appIcons.notes"
         tooltip="What it printed"
         :data-testid="`logs-service-${service.id}`"
         @click="reading = service"
       />
       <AppIconButton
-        icon="delete_outline"
+        :icon="appIcons.deleteOutline"
         tooltip="Remove this service"
         :disable="isWorking(service.job)"
         :data-testid="`remove-service-${service.id}`"

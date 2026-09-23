@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { DashboardPublic } from "@/client"
@@ -46,7 +47,7 @@ const emit = defineEmits<{
       data-testid="dashboards-rail-head"
     >
       <AppIconButton
-        icon="add"
+        :icon="appIcons.add"
         tooltip="New dashboard"
         :loading="creating"
         data-testid="dashboard-new"
@@ -69,7 +70,7 @@ const emit = defineEmits<{
         :style="panelColorStyle(dashboard.color)"
       >
         <AppIconButton
-          icon="dashboard"
+          :icon="appIcons.dashboard"
           :tooltip="dashboard.name"
           :data-testid="`dashboard-narrow-${dashboard.name}`"
           @click="emit('select', dashboard.id)"
@@ -92,7 +93,7 @@ const emit = defineEmits<{
         :style="panelColorStyle(dashboard.color)"
       >
         <AppIconButton
-          icon="group"
+          :icon="appIcons.group"
           :tooltip="`${dashboard.name}, shared by ${dashboard.owner ?? 'somebody'}`"
           :data-testid="`dashboard-narrow-${dashboard.name}`"
           @click="emit('select', dashboard.id)"
@@ -105,14 +106,14 @@ const emit = defineEmits<{
         data-testid="rail-narrow-rule"
       />
       <AppIconButton
-        icon="sensors"
+        :icon="appIcons.sensors"
         tooltip="Sources"
         data-testid="agents-open"
         @click="emit('sources')"
       />
       <AppIconButton
         v-if="maySetUp"
-        icon="storage"
+        :icon="appIcons.storage"
         tooltip="The metrics store"
         data-testid="store-open"
         @click="emit('store')"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { ref, watch } from "vue"
 
 import type { ProviderKeyState } from "@/client"
@@ -73,7 +74,7 @@ async function clear() {
       >
         <template #after>
           <AppIconButton
-            :icon="revealed ? 'visibility_off' : 'visibility'"
+            :icon="revealed ? appIcons.visibilityOff : appIcons.visibility"
             :tooltip="revealed ? 'Hide key' : 'Show key'"
             @click="revealed = !revealed"
           />

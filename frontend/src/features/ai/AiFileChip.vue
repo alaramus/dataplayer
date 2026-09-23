@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { AppIconButton, AppTooltip } from "@/shared/ui"
 
 import { shownSize } from "./attachments"
@@ -57,7 +58,7 @@ const emit = defineEmits<{ open: []; remove: [] }>()
     <AppTooltip v-if="problem">{{ problem }}</AppTooltip>
     <AppIconButton
       v-if="removable"
-      icon="close"
+      :icon="appIcons.close"
       :tooltip="`Remove ${name}`"
       compact
       @click="emit('remove')"

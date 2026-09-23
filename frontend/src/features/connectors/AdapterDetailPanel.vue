@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { AdapterTypeInfo, Capability, ServiceTemplateInfo } from "@/client"
@@ -42,8 +43,8 @@ const offers = computed(() => props.templates ?? [])
  * caption on this screen, so it lives here.
  */
 const GROUPS = [
-  { id: "explore", title: "What you can see", icon: "visibility" },
-  { id: "manage", title: "What you can change", icon: "edit" },
+  { id: "explore", title: "What you can see", icon: appIcons.visibility },
+  { id: "manage", title: "What you can change", icon: appIcons.edit },
 ] as const
 
 const groups = computed(() =>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import {
   cellSelectionFeature,
   columnOrderingFeature,
@@ -703,7 +704,7 @@ defineExpose({
               scope="col"
             >
               <AppIconButton
-                icon="select_all"
+                :icon="appIcons.selectAll"
                 tooltip="Select page"
                 data-testid="grid-select-page"
                 @click="selectPage"
@@ -744,7 +745,7 @@ defineExpose({
                   @click.stop="sortColumn(header.column.id, $event)"
                 />
                 <AppIconButton
-                  icon="push_pin"
+                  :icon="appIcons.pushPin"
                   :class="{
                     'data-grid__pin--active': header.column.getIsPinned() === 'start',
                   }"
@@ -754,7 +755,7 @@ defineExpose({
                   @click.stop="togglePin(header.column)"
                 />
                 <AppIconButton
-                  icon="visibility_off"
+                  :icon="appIcons.visibilityOff"
                   :tooltip="`Hide ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
                   :data-testid="`grid-hide-${header.column.id}`"
                   @click.stop="hideColumn(header.column)"
@@ -871,14 +872,14 @@ defineExpose({
       />
       <span data-testid="grid-page-range">{{ range }}</span>
       <AppIconButton
-        icon="chevron_left"
+        :icon="appIcons.chevronLeft"
         tooltip="Previous page"
         :disable="page === 0"
         data-testid="grid-prev"
         @click="emit('turn-page', -1)"
       />
       <AppIconButton
-        icon="chevron_right"
+        :icon="appIcons.chevronRight"
         tooltip="Next page"
         :disable="!hasMore"
         data-testid="grid-next"

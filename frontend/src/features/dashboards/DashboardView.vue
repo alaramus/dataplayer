@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
 import { AxiosError } from "axios"
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from "vue"
@@ -183,7 +184,7 @@ function detach(widget: Widget) {
   const windowId = `metrics-widget:${props.dashboard.id}:${widget.id}`
   windows.open({
     id: windowId,
-    look: { title: widget.title, icon: "dashboard" },
+    look: { title: widget.title, icon: appIcons.dashboard },
     size: widget.type === "stat" ? { width: 360, height: 240 } : { width: 760, height: 440 },
     // A chart takes the room it is given; fitting the frame to it would leave
     // a frame with no height.
@@ -291,7 +292,7 @@ onBeforeUnmount(() => {
       >{{ editable ? "You can edit" : "View only" }} · shared by {{ dashboard.owner ?? "somebody" }}</span>
       <AppIconButton
         v-if="editable"
-        icon="edit"
+        :icon="appIcons.edit"
         tooltip="Rename this dashboard"
         @click="startRename"
       />
@@ -303,14 +304,14 @@ onBeforeUnmount(() => {
         @update:model-value="chooseColor"
       />
       <AppIconButton
-        icon="share"
+        :icon="appIcons.share"
         tooltip="Share this dashboard"
         data-testid="dashboard-share"
         @click="shareOpen = true"
       />
       <AppIconButton
         v-if="manageable"
-        icon="delete"
+        :icon="appIcons.delete"
         tooltip="Delete this dashboard"
         variant="danger-quiet"
         @click="removeDashboard"
@@ -336,7 +337,7 @@ onBeforeUnmount(() => {
         v-if="editable"
         variant="secondary"
         size="sm"
-        icon="add_chart"
+        :icon="appIcons.addChart"
         label="Add widgets"
         :disable="widgets.length >= MAX_WIDGETS"
         data-testid="dashboard-add"
@@ -352,7 +353,7 @@ onBeforeUnmount(() => {
         <span>Nothing on this dashboard yet.</span>
         <AppButton
           v-if="editable"
-          icon="add_chart"
+          :icon="appIcons.addChart"
           label="Add widgets"
           @click="addOpen = true"
         />

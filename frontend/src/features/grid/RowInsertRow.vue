@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { reactive, watch } from "vue"
 import type { CSSProperties } from "vue"
 
@@ -145,7 +146,7 @@ function handleKey(event: KeyboardEvent) {
       <span>{{ rowNumber }}</span>
       <div class="row-insert__actions">
         <AppIconButton
-          icon="check"
+          :icon="appIcons.check"
           tooltip="Insert row"
           compact
           :loading="saving"
@@ -153,7 +154,7 @@ function handleKey(event: KeyboardEvent) {
           @click="save"
         />
         <AppIconButton
-          icon="content_paste"
+          :icon="appIcons.contentPaste"
           tooltip="Fill these fields from a copied row"
           compact
           :disable="saving"
@@ -161,7 +162,7 @@ function handleKey(event: KeyboardEvent) {
           @click="emit('paste')"
         />
         <AppIconButton
-          icon="close"
+          :icon="appIcons.close"
           tooltip="Cancel insertion"
           compact
           :disable="saving"
@@ -212,7 +213,7 @@ function handleKey(event: KeyboardEvent) {
         <div class="row-insert__cell-actions">
           <AppIconButton
             v-if="entry.column.insert_required !== true && included[entry.column.name] === true"
-            icon="restart_alt"
+            :icon="appIcons.restartAlt"
             :tooltip="`Use the default for ${entry.column.name}`"
             :disable="saving"
             :data-testid="`grid-insert-default-${entry.column.name}`"
@@ -220,7 +221,7 @@ function handleKey(event: KeyboardEvent) {
           />
           <AppIconButton
             v-if="entry.column.nullable === true"
-            :icon="nulls[entry.column.name] === true ? 'do_not_disturb_on' : 'block'"
+            :icon="nulls[entry.column.name] === true ? appIcons.doNotDisturbOn : appIcons.block"
             :tooltip="
               nulls[entry.column.name] === true
                 ? `Enter a value for ${entry.column.name}`

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { GRANT_OPTIONS } from "@/features/connectors/access"
@@ -85,7 +86,7 @@ async function revoke(userId: string) {
         @update:model-value="change(grant.user_id, $event as Grant)"
       />
       <AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         variant="danger-quiet"
         tooltip="Take this access away"
         :data-testid="`share-revoke-${grant.email}`"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, nextTick, onMounted, provide, ref, useTemplateRef, watch } from "vue"
 import type { ShallowRef } from "vue"
@@ -956,7 +957,7 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
            rail's own buttons stand. -->
       <span class="workspace-header-collapse">
         <AppIconButton
-          :icon="firstPanelCollapsed ? 'chevron_right' : 'chevron_left'"
+          :icon="firstPanelCollapsed ? appIcons.chevronRight : appIcons.chevronLeft"
           :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
           data-testid="app-toggle-first-panel"
           @click="toggleFirstPanel"

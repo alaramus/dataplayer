@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
@@ -146,7 +147,7 @@ const here = computed(() => {
         label="Back"
         variant="quiet"
         size="sm"
-        icon="arrow_back"
+        :icon="appIcons.arrowBack"
         :data-testid="`${props.testid}-back`"
         @click="back"
       />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { ConnectionCheckReport } from "@/client"
@@ -76,7 +77,7 @@ async function copy() {
         @click="copy"
       />
       <AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         tooltip="Dismiss this result"
         data-testid="dismiss-check-result"
         @click="emit('close')"

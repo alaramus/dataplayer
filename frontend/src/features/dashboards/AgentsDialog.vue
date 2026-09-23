@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { AgentHost, AgentKey, AgentPublic, ConnectorReporting } from "@/client"
@@ -242,7 +243,7 @@ async function copy(text: string, what: string) {
           />
           <AppButton
             label="Register"
-            icon="add"
+            :icon="appIcons.add"
             :loading="creating.isPending.value"
             :disable="newName.trim() === ''"
             data-testid="agent-register"
@@ -269,24 +270,24 @@ async function copy(text: string, what: string) {
         <template #body-cell-actions="cellProps">
           <q-td :props="cellProps">
             <AppIconButton
-              icon="key"
+              :icon="appIcons.key"
               tooltip="Show the key and how to start the agent"
               :data-testid="`agent-key-${cellProps.row.name}`"
               @click="showKey(cellProps.row)"
             />
             <AppIconButton
-              icon="autorenew"
+              :icon="appIcons.autorenew"
               tooltip="Issue a new key"
               @click="rotate(cellProps.row)"
             />
             <AppIconButton
-              icon="delete_sweep"
+              :icon="appIcons.deleteSweep"
               tooltip="Delete every sample it reported"
               variant="danger-quiet"
               @click="purge(cellProps.row)"
             />
             <AppIconButton
-              icon="delete"
+              :icon="appIcons.delete"
               tooltip="Remove this agent"
               variant="danger-quiet"
               @click="remove(cellProps.row)"
@@ -388,7 +389,7 @@ async function copy(text: string, what: string) {
         <template #body-cell-actions="cellProps">
           <q-td :props="cellProps">
             <AppIconButton
-              icon="delete_sweep"
+              :icon="appIcons.deleteSweep"
               tooltip="Delete every sample it reported"
               variant="danger-quiet"
               :disable="!cellProps.row.may_change"

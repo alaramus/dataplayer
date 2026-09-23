@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { AppButton, AppMenu, AppTooltip } from "@/shared/ui"
@@ -37,12 +38,12 @@ const items = computed<MenuItem[]>(() => [
     label: "Off",
     // A tick rather than a highlight: the kit's menu has one way to say
     // "this is the one", and it is the icon slot.
-    ...(props.seconds === null ? { icon: "check" } : {}),
+    ...(props.seconds === null ? { icon: appIcons.check } : {}),
   },
   ...REFRESH_SECONDS.map((seconds) => ({
     name: refreshItemName(seconds),
     label: refreshLabel(seconds),
-    ...(props.seconds === seconds ? { icon: "check" } : {}),
+    ...(props.seconds === seconds ? { icon: appIcons.check } : {}),
   })),
 ])
 
@@ -61,7 +62,7 @@ function pick(name: string) {
   <AppButton
     :variant="seconds === null ? 'quiet' : 'secondary'"
     size="sm"
-    icon="autorenew"
+    :icon="appIcons.autorenew"
     :label="seconds === null ? undefined : refreshLabel(seconds)"
     :aria-label="tooltip"
     layout="toolbar"

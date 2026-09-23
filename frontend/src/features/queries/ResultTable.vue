@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { FetchColumn, ResultColumn, Sort } from "@/client"
@@ -185,7 +186,7 @@ async function save(scope: "page" | "all") {
         of {{ total }} captured
       </span>
       <AppIconButton
-        icon="table_rows"
+        :icon="appIcons.tableRows"
         tooltip="Back to the rows"
         data-testid="result-chart-close"
         @click="charting = false"
@@ -224,7 +225,7 @@ async function save(scope: "page" | "all") {
   >
     <template #commands-open>
       <AppIconButton
-        icon="insert_chart"
+        :icon="appIcons.insertChart"
         tooltip="Chart this page"
         data-testid="result-chart"
         @click="charting = true"
@@ -233,14 +234,14 @@ async function save(scope: "page" | "all") {
 
     <template #commands-out>
       <AppIconButton
-        icon="download"
+        :icon="appIcons.download"
         tooltip="Save this page"
         :disable="download.isPending.value"
         data-testid="result-download-page"
         @click="save('page')"
       />
       <AppIconButton
-        icon="download_for_offline"
+        :icon="appIcons.downloadForOffline"
         tooltip="Save every captured row"
         :disable="download.isPending.value"
         data-testid="result-download-all"

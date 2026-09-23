@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue"
 
 import type { ExplainResult, PreparedScript, StatementPublic } from "@/client"
@@ -1000,7 +1001,7 @@ onBeforeUnmount(() => {
 
         <AppIconButton
           v-if="profile.data.value?.supports_formatting === true"
-          icon="format_align_left"
+          :icon="appIcons.formatAlignLeft"
           :tooltip="
             selection.to > selection.from ? 'Format the selection' : 'Format the document'
           "
@@ -1009,7 +1010,7 @@ onBeforeUnmount(() => {
           @click="format(selection.to > selection.from ? 'selection' : 'document')"
         />
         <AppIconButton
-          icon="wrap_text"
+          :icon="appIcons.wrapText"
           tooltip="Wrap long lines"
           :aria-pressed="draft.wrap"
           data-testid="query-wrap"
@@ -1022,7 +1023,7 @@ onBeforeUnmount(() => {
           v-if="!remembered"
           variant="quiet"
           size="sm"
-          icon="bookmark_add"
+          :icon="appIcons.bookmarkAdd"
           label="Remember"
           :disable="connectorId === null || create.isPending.value"
           data-testid="query-remember"
@@ -1030,7 +1031,7 @@ onBeforeUnmount(() => {
         />
         <AppIconButton
           v-else
-          icon="delete"
+          :icon="appIcons.delete"
           tooltip="Move to Trash"
           data-testid="query-trash"
           @click="moveToTrash"

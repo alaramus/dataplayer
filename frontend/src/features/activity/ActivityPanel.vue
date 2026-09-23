@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { onBeforeUnmount, onMounted } from "vue"
 
 import { notices } from "@/shared/notifications"
@@ -89,7 +90,7 @@ function follow(run: () => void) {
           @update:model-value="log.setDoNotDisturb($event)"
         />
         <AppIconButton
-          icon="close"
+          :icon="appIcons.close"
           tooltip="Close"
           @click="emit('close')"
         />
@@ -135,7 +136,7 @@ function follow(run: () => void) {
             />
             <AppIconButton
               v-if="item.dismiss"
-              icon="close"
+              :icon="appIcons.close"
               tooltip="Dismiss"
               compact
               @click="item.dismiss()"
@@ -224,7 +225,7 @@ function follow(run: () => void) {
               @click="follow(notice.action.run)"
             />
             <AppIconButton
-              icon="close"
+              :icon="appIcons.close"
               tooltip="Remove"
               compact
               @click="log.forget(notice.id)"

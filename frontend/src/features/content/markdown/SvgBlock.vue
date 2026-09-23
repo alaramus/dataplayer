@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 /** One `svg` fence, through the SVG profile with scripting forbidden. See D50. */
 import { computed, ref } from "vue"
 
@@ -32,13 +33,13 @@ function download() {
   <BlockChrome label="svg">
     <template #actions>
       <AppIconButton
-        :icon="showSource ? 'image' : 'code'"
+        :icon="showSource ? appIcons.image : appIcons.code"
         :tooltip="showSource ? 'Show the picture' : 'Show the source'"
         data-testid="svg-source-toggle"
         @click="showSource = !showSource"
       />
       <AppIconButton
-        icon="download"
+        :icon="appIcons.download"
         tooltip="Save this picture as SVG"
         data-testid="svg-download"
         @click="download"

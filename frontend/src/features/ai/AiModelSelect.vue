@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import { AppIconButton, AppSelect } from "@/shared/ui"
@@ -89,7 +90,7 @@ function choose(value: unknown) {
         #after
       >
         <AppIconButton
-          :icon="selectedKeySet ? 'key' : 'key_off'"
+          :icon="selectedKeySet ? appIcons.key : appIcons.keyOff"
           :active="selectedKeySet"
           tooltip="Manage the selected model provider key"
           :disable="modelValue === null"

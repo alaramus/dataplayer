@@ -1,3 +1,5 @@
+import { appIcons } from "@/shared/ui/icons"
+
 /**
  * The commands in the bar at the foot of the screen.
  *
@@ -46,7 +48,7 @@ export function queriesCommand(state: ConnectionState): ConnectionCommand {
   return {
     name: "queries",
     label: "Queries",
-    icon: "manage_search",
+    icon: appIcons.manageSearch,
     enabled: true,
     tooltip: about,
   }
@@ -87,7 +89,7 @@ export function servicesCommand(state: ServicesState): ConnectionCommand {
     return {
       name: "services",
       label: "Services",
-      icon: "dns",
+      icon: appIcons.dns,
       enabled: true,
       // While something is happening, the button is where it is said: this is
       // the only place a start is visible once the dialog that asked for it
@@ -101,7 +103,7 @@ export function servicesCommand(state: ServicesState): ConnectionCommand {
     return {
       name: "services",
       label: "Services",
-      icon: "dns",
+      icon: appIcons.dns,
       enabled: true,
       tooltip: "This server is not running anything for you",
     }
@@ -109,7 +111,7 @@ export function servicesCommand(state: ServicesState): ConnectionCommand {
   return {
     name: "services",
     label: "Services",
-    icon: "dns",
+    icon: appIcons.dns,
     enabled: true,
     tooltip: runningTooltip(state.running, state.count),
   }

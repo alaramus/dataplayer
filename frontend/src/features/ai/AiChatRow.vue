@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { ChatProjectPublic, ConversationSummary } from "@/client"
@@ -28,11 +29,11 @@ const NO_PROJECT = "no-project"
 const moves = computed<MenuItem[]>(() => [
   ...props.projects
     .filter((project) => project.id !== props.chat.project_id)
-    .map((project) => ({ name: project.id, label: project.name, icon: "folder" })),
+    .map((project) => ({ name: project.id, label: project.name, icon: appIcons.folder })),
   ...(props.chat.project_id
-    ? [{ name: NO_PROJECT, label: "No project", icon: "folder_off" }]
+    ? [{ name: NO_PROJECT, label: "No project", icon: appIcons.folderOff }]
     : []),
-  { name: NEW_PROJECT, label: "New project…", icon: "create_new_folder" },
+  { name: NEW_PROJECT, label: "New project…", icon: appIcons.createNewFolder },
 ])
 
 function pick(name: string) {
@@ -59,7 +60,7 @@ function pick(name: string) {
     />
     <span class="ai-chat-row__actions">
       <AppIconButton
-        icon="push_pin"
+        :icon="appIcons.pushPin"
         :tooltip="chat.pinned ? 'Unpin chat' : 'Pin chat'"
         :active="chat.pinned"
         compact
@@ -68,7 +69,7 @@ function pick(name: string) {
       />
       <span>
         <AppIconButton
-          icon="folder"
+          :icon="appIcons.folder"
           tooltip="Move to project"
           compact
           :data-testid="`ai-move-${chat.id}`"
@@ -80,7 +81,7 @@ function pick(name: string) {
         />
       </span>
       <AppIconButton
-        icon="archive"
+        :icon="appIcons.archive"
         tooltip="Archive chat"
         compact
         :data-testid="`ai-archive-${chat.id}`"

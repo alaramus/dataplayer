@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, nextTick, onDeactivated, ref, toRef, useId, watch } from "vue"
 
 import type { DetectedFramework } from "@/client"
@@ -671,7 +672,7 @@ async function afterAction(outcome: ActionOutcome) {
           data-testid="catalog-path"
         >
           <AppIconButton
-            icon="home"
+            :icon="appIcons.home"
             tooltip="The top of this connection"
             :disable="level.path.value.length < 2"
             data-testid="catalog-home"
@@ -869,7 +870,7 @@ async function afterAction(outcome: ActionOutcome) {
           </span>
           <AppIconButton
             v-if="canRunSearch"
-            icon="search"
+            :icon="appIcons.search"
             :tooltip="searchTooltip"
             :loading="level.searching.value"
             data-testid="catalog-search"
@@ -904,7 +905,7 @@ async function afterAction(outcome: ActionOutcome) {
       />
       <span class="catalog-panel__found-text">{{ foundText }}</span>
       <AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         tooltip="Back to the folder"
         data-testid="catalog-search-close"
         @click="level.clearSearch"

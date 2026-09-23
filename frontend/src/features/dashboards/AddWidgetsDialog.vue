@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { MetricsCatalog } from "@/client"
@@ -137,7 +138,7 @@ function add() {
           <AppButton
             variant="secondary"
             size="sm"
-            icon="dashboard_customize"
+            :icon="appIcons.dashboardCustomize"
             label="Add layout"
             :disable="preset.widgets.length === 0 || room === 0"
             :data-testid="`add-preset-${preset.key}`"
@@ -170,7 +171,7 @@ function add() {
       <AppButton
         variant="quiet"
         label="Sources"
-        icon="sensors"
+        :icon="appIcons.sensors"
         @click="emit('agents')"
       />
       <AppButton

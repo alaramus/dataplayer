@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { RowsView } from "@/client"
@@ -332,7 +333,7 @@ async function forget(shareId: string) {
               </span>
               <AppIconButton
                 v-if="other.can_delete"
-                icon="close"
+                :icon="appIcons.close"
                 variant="danger-quiet"
                 tooltip="Delete this link. It does not take anybody's access away."
                 :data-testid="`share-forget-${other.id}`"

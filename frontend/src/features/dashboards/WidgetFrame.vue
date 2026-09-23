@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { nextTick, ref } from "vue"
 
 import { AppCardFrame, AppCardHead, AppIconButton, AppInput } from "@/shared/ui"
@@ -83,21 +84,21 @@ function onHeaderPointerDown(event: PointerEvent) {
         :title="editable === false ? title : `${title} — double-click to rename`"
       >{{ title }}</span>
       <AppIconButton
-        icon="open_in_new"
+        :icon="appIcons.openInNew"
         tooltip="Open in a window, over the data as well"
         compact
         data-testid="widget-detach"
         @click="emit('detach')"
       />
       <AppIconButton
-        :icon="expanded ? 'close_fullscreen' : 'open_in_full'"
+        :icon="expanded ? appIcons.closeFullscreen : appIcons.openInFull"
         :tooltip="expanded ? 'Back to the dashboard' : 'Fill the dashboard with this widget'"
         compact
         @click="emit('toggleExpand')"
       />
       <AppIconButton
         v-if="editable !== false"
-        icon="close"
+        :icon="appIcons.close"
         tooltip="Remove this widget"
         compact
         data-testid="widget-remove"

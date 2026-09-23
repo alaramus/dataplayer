@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { RunPublic, StatementPublic } from "@/client"
@@ -174,13 +175,13 @@ function duration(statement: StatementPublic): string {
         >
           <div class="run-outcome__result-bar">
             <AppIconButton
-              icon="push_pin"
+              :icon="appIcons.pushPin"
               tooltip="Keep this result when the next run finishes"
               data-testid="run-pin"
               @click="emit('toggle-pin')"
             />
             <AppIconButton
-              icon="open_in_new"
+              :icon="appIcons.openInNew"
               tooltip="Open this result in the workspace"
               data-testid="run-promote"
               @click="emit('promote', selected)"

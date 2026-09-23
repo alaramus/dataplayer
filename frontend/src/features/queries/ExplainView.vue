@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { ExplainResult } from "@/client"
@@ -48,7 +49,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
         <template v-if="plan.rows !== null"> · {{ plan.rows }} rows</template>
       </span>
       <AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         tooltip="Back to the results"
         data-testid="explain-close"
         @click="emit('close')"

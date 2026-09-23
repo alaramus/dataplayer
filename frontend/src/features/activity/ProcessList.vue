@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { AppBadge, AppButton, AppEmptyState, AppProgress } from "@/shared/ui"
 import type { ProcessRow } from "./presentation"
 
@@ -67,7 +68,7 @@ defineEmits<{
           v-if="row.canPause"
           variant="quiet"
           size="sm"
-          icon="pause"
+          :icon="appIcons.pause"
           label="Pause after current"
           @click="$emit('pause', row)"
         />
@@ -75,7 +76,7 @@ defineEmits<{
           v-if="row.canResume"
           variant="quiet"
           size="sm"
-          icon="play_arrow"
+          :icon="appIcons.playArrow"
           label="Resume"
           @click="$emit('resume', row)"
         />
@@ -83,7 +84,7 @@ defineEmits<{
           v-if="row.canStop"
           variant="danger-quiet"
           size="sm"
-          icon="stop"
+          :icon="appIcons.stop"
           :label="row.source === 'server' ? 'Cancel job' : row.paused ? 'Stop queue' : 'Stop after current'"
           :loading="stopping.has(row.id)"
           @click="$emit('stop', row)"

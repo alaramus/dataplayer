@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { EditorContent, EditorContentRequest } from "@/client"
@@ -150,7 +151,7 @@ watch(
           v-if="writable"
           variant="primary"
           size="sm"
-          icon="save"
+          :icon="appIcons.save"
           label="Save"
           :loading="updateContent.isPending.value"
           :disable="!canSave"
@@ -161,7 +162,7 @@ watch(
           v-if="tableTitle"
           variant="quiet"
           size="sm"
-          icon="grid_on"
+          :icon="appIcons.gridOn"
           :label="tableTitle"
           data-testid="content-view-table"
           @click="showTable"

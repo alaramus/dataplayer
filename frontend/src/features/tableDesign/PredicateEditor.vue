@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { AppButton, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
@@ -148,7 +149,7 @@ function takesList(term: DraftTerm): boolean {
             @update:model-value="term.values[index] = $event"
           />
           <AppIconButton
-            icon="close"
+            :icon="appIcons.close"
             tooltip="Remove this value"
             compact
             :disable="term.values.length === 1"
@@ -164,7 +165,7 @@ function takesList(term: DraftTerm): boolean {
       </div>
       <span v-else />
       <AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         tooltip="Remove this condition"
         compact
         @click="remove(term)"

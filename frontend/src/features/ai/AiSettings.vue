@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { AppBanner, AppButton, AppEmptyState, AppIconButton, AppSection, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
@@ -120,14 +121,14 @@ async function removeAll() {
               :title="chat.title"
             >{{ chat.title }}</span>
             <AppIconButton
-              icon="unarchive"
+              :icon="appIcons.unarchive"
               tooltip="Restore chat"
               compact
               :data-testid="`ai-restore-${chat.id}`"
               @click="restore(chat.id)"
             />
             <AppIconButton
-              icon="delete"
+              :icon="appIcons.delete"
               tooltip="Delete chat"
               variant="danger-quiet"
               compact

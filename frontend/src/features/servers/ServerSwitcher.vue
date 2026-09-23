@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 import { useRoute } from "vue-router"
@@ -108,7 +109,7 @@ function remove(profile: ServerProfile) {
   <AppButton
     variant="quiet"
     size="sm"
-    icon="vpn_lock"
+    :icon="appIcons.vpnLock"
     class="server-switcher"
     aria-label="Choose server"
     data-testid="server-switcher"
@@ -171,14 +172,14 @@ function remove(profile: ServerProfile) {
           />
           <template v-if="profile.url !== servers.defaultServer.url">
             <AppIconButton
-              icon="edit"
+              :icon="appIcons.edit"
               tooltip="Edit server"
               aria-label="Edit server"
               :disable="busy"
               @click="edit(profile)"
             />
             <AppIconButton
-              icon="delete"
+              :icon="appIcons.delete"
               tooltip="Remove server"
               aria-label="Remove server"
               variant="danger-quiet"
@@ -190,7 +191,7 @@ function remove(profile: ServerProfile) {
         <div>
           <AppButton
             label="Add server"
-            icon="add"
+            :icon="appIcons.add"
             variant="secondary"
             :disable="busy"
             data-testid="server-add"

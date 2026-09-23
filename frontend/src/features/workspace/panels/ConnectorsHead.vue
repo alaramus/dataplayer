@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppIconButton } from "@/shared/ui"
@@ -22,7 +23,7 @@ const workspace = useWorkspaceActions()
     data-testid="connectors-head"
   >
     <AppIconButton
-      icon="add"
+      :icon="appIcons.add"
       tooltip="New connection"
       data-testid="add-connector"
       @click="workspace.editConnector(null)"

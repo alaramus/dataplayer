@@ -815,3 +815,30 @@ E2E suite was not run.
 
 Next: move through another complete feature family of icons, retaining the
 current font until a visual decision on the replacement is made.
+
+## Slice 32: application button icon names
+
+Implemented: all literal icons on `AppButton`, `AppIconButton` and `q-btn`
+controls now refer to the central `appIcons` map. This includes conditional
+icons, right-side button icons, window and taskbar controls, and icons supplied
+by local menu and command lists. The map retains each existing Material Icons
+ligature. Source-provided icons and feature-owned data or content illustrations
+remain values of their own contracts. No font, label, action, route or layout
+changed. The UI kit still compares only a representative set at toolbar size.
+
+Coverage: the icon-map test checks every current ligature against the installed
+Material Icons bundle; the comparison subset is checked against Symbols
+Outlined. Existing frontend and browser behaviour checks cover the affected
+buttons and their menus. A source scan rejects literal button icon attributes.
+The UI kit buttons were inspected in Chrome with the current dark theme.
+
+Validation: all 1,921 existing frontend unit tests passed, then the new source
+scan passed in a targeted run. Type-check, lint, build and documentation checks
+passed; lint retains 20 unrelated warnings and build reports large chunks. Six
+of seven targeted Chromium scenarios passed. The dashboard narrow-rail scenario
+failed on a text-colour comparison in the light theme; the icon glyph and its
+binding remain the same, but that browser scenario is not verified by this
+slice. The full E2E suite was not run.
+
+Next: review the grouped names and the two font appearances as a separate
+visual decision before changing any glyph or font.

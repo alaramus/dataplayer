@@ -1,3 +1,5 @@
+import { appIcons } from "@/shared/ui/icons"
+
 import { defineAsyncComponent, defineComponent, h } from "vue"
 import type { Component, VNode } from "vue"
 import { z } from "zod"
@@ -407,9 +409,9 @@ export function emptyOf(accepts: string | null): Component | null {
 export function sectionLook(accepts: string | null): { title: string; icon: string } | null {
   switch (accepts) {
     case "navigate":
-      return { title: "Navigation", icon: "account_tree" }
+      return { title: "Navigation", icon: appIcons.accountTree }
     case "work":
-      return { title: "Data", icon: "table_chart" }
+      return { title: "Data", icon: appIcons.tableChart }
     default:
       return null
   }
@@ -469,7 +471,7 @@ function baseLookOf(panel: Panel): PanelLook {
     case "relationships":
       return {
         title: `Relationships · ${panel.connectorName}`,
-        icon: "hub",
+        icon: appIcons.hub,
         iconTooltip: `${panel.nodes.length} tables · ${panel.connectorName}`,
         reloadTooltip: "Re-read these relationships",
       }
@@ -478,7 +480,7 @@ function baseLookOf(panel: Panel): PanelLook {
       // with nothing to say about how to bring it back. See T3.
       return {
         title: "Connections",
-        icon: "lan",
+        icon: appIcons.lan,
         closable: false,
         reloadTooltip: "Reload the list of connections",
       }
@@ -516,35 +518,35 @@ function baseLookOf(panel: Panel): PanelLook {
     case "structure":
       return {
         title: panel.title,
-        icon: "account_tree",
+        icon: appIcons.accountTree,
         iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read the structure",
       }
     case "summary":
       return {
         title: panel.title,
-        icon: "info",
+        icon: appIcons.info,
         iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read these details",
       }
     case "record":
       return {
         title: `${panel.title} row`,
-        icon: "table_rows",
+        icon: appIcons.tableRows,
         iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read this row",
       }
     case "chart":
       return {
         title: `${panel.title} chart`,
-        icon: "insert_chart",
+        icon: appIcons.insertChart,
         iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read this chart page",
       }
     case "queries":
       return {
         title: "Queries",
-        icon: "manage_search",
+        icon: appIcons.manageSearch,
         reloadTooltip: "Re-read your queries",
       }
     case "query":
@@ -552,7 +554,7 @@ function baseLookOf(panel: Panel): PanelLook {
       // empty one: a draft is the ordinary state of a console, not a fault.
       return {
         title: panel.title ?? "Untitled query",
-        icon: "terminal",
+        icon: appIcons.terminal,
         iconTooltip:
           panel.connectorName === null
             ? "This connection is no longer available"
@@ -565,7 +567,7 @@ function baseLookOf(panel: Panel): PanelLook {
     case "result":
       return {
         title: panel.title,
-        icon: "table_view",
+        icon: appIcons.tableView,
         iconTooltip: "A captured result",
         reloadTooltip: "Re-read this captured result",
       }
@@ -574,14 +576,14 @@ function baseLookOf(panel: Panel): PanelLook {
       // the dashboard icon (D155).
       return {
         title: panel.widget.title,
-        icon: "dashboard",
+        icon: appIcons.dashboard,
         iconTooltip: "A widget lifted out of its dashboard",
         reloadTooltip: "Re-read these readings",
       }
     case "service-logs":
       return {
         title: `Output of ${panel.serviceName}`,
-        icon: "notes",
+        icon: appIcons.notes,
         reloadTooltip: "Re-read what it printed",
       }
   }

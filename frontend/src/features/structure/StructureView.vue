@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, toRef } from "vue"
 
 import {
@@ -578,7 +579,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           <template #body-cell-actions="cellProps">
             <q-td :props="cellProps">
               <AppIconButton
-                icon="data_object"
+                :icon="appIcons.dataObject"
                 :tooltip="cellProps.row.generated
                   ? 'A generated column cannot have a default'
                   : `Change default for ${cellProps.row.name}`"
@@ -587,14 +588,14 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 @click="openDefault(String(cellProps.row.name), cellProps.row.currentDefault)"
               />
               <AppIconButton
-                icon="edit"
+                :icon="appIcons.edit"
                 :tooltip="changeTooltip('rename', `Rename column ${cellProps.row.name}`)"
                 :disable="!supportsColumn('rename')"
                 :data-testid="`structure-rename-${cellProps.row.name}`"
                 @click="openRename(String(cellProps.row.name))"
               />
               <AppIconButton
-                icon="delete_outline"
+                :icon="appIcons.deleteOutline"
                 :tooltip="changeTooltip('drop', `Drop column ${cellProps.row.name}`)"
                 variant="danger-quiet"
                 :disable="!supportsColumn('drop')"
@@ -646,7 +647,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               <template v-if="key.validated === false"> · not validated</template>
             </span>
             <AppIconButton
-              icon="delete_outline"
+              :icon="appIcons.deleteOutline"
               :tooltip="constraintTooltip(key.name)"
               variant="danger-quiet"
               :disable="query.data.value?.constraint_changes_supported !== true"
@@ -663,7 +664,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           >
             <span>{{ constraint.kind }} · {{ constraint.name }}</span>
             <AppIconButton
-              icon="delete_outline"
+              :icon="appIcons.deleteOutline"
               :tooltip="constraintTooltip(constraint.name)"
               variant="danger-quiet"
               :disable="query.data.value?.constraint_changes_supported !== true"
@@ -717,7 +718,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               <template v-if="index.valid === false"> · invalid</template>
             </span>
             <AppIconButton
-              icon="delete_outline"
+              :icon="appIcons.deleteOutline"
               :tooltip="query.data.value?.index_changes_supported === true ? `Drop index ${index.name}` : query.data.value?.index_changes_reason ?? 'This index cannot be dropped'"
               variant="danger-quiet"
               :disable="query.data.value?.index_changes_supported !== true"

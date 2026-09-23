@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import { connectorNameOf, useConnectors } from "@/features/connectors/api"
@@ -46,9 +47,9 @@ import {
  * did, when, and which document it was run from.
  */
 const PLACES = [
-  { value: "queries", label: "Queries", icon: "description" },
-  { value: "history", label: "History", icon: "history" },
-  { value: "trash", label: "Trash", icon: "delete" },
+  { value: "queries", label: "Queries", icon: appIcons.description },
+  { value: "history", label: "History", icon: appIcons.history },
+  { value: "trash", label: "Trash", icon: appIcons.delete },
 ] as const
 type Place = (typeof PLACES)[number]["value"]
 
@@ -277,7 +278,7 @@ async function deleteForGood(documentId: string) {
   <div class="queries-panel">
     <div class="queries-panel__bar">
       <AppIconButton
-        icon="add"
+        :icon="appIcons.add"
         :tooltip="
           connectorId === null
             ? 'Choose a connection to write a query against'
@@ -351,7 +352,7 @@ async function deleteForGood(documentId: string) {
         <div class="queries-panel__history-bar">
           <span class="queries-panel__heading">What you have run</span>
           <AppIconButton
-            icon="delete_sweep"
+            :icon="appIcons.deleteSweep"
             tooltip="Delete all of your history"
             data-testid="history-delete-all"
             @click="forgetEverything"
@@ -383,7 +384,7 @@ async function deleteForGood(documentId: string) {
             </span>
           </button>
           <AppIconButton
-            icon="delete"
+            :icon="appIcons.delete"
             tooltip="Delete this run"
             :data-testid="`history-delete-${run.id}`"
             @click="forget(run.id)"
@@ -448,21 +449,21 @@ async function deleteForGood(documentId: string) {
             </button>
             <AppIconButton
               v-if="trashed"
-              icon="restore_from_trash"
+              :icon="appIcons.restoreFromTrash"
               tooltip="Restore"
               :data-testid="`restore-query-${row.id}`"
               @click="bringBack(row.id)"
             />
             <AppIconButton
               v-if="trashed"
-              icon="delete_forever"
+              :icon="appIcons.deleteForever"
               tooltip="Delete for good"
               :data-testid="`purge-query-${row.id}`"
               @click="deleteForGood(row.id)"
             />
             <AppIconButton
               v-else
-              icon="delete"
+              :icon="appIcons.delete"
               tooltip="Move to Trash"
               :data-testid="`trash-query-${row.id}`"
               @click="moveToTrash(row.id)"

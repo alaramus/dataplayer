@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 /**
  * One `echarts` fence: a picture the document's author drew, not a chart over
  * a connection's rows. It reads nothing from any source, cannot name a
@@ -109,7 +110,7 @@ onBeforeUnmount(() => {
     <template #actions>
       <AppIconButton
         v-if="drawn"
-        icon="download"
+        :icon="appIcons.download"
         tooltip="Save this chart as SVG"
         data-testid="echarts-download"
         @click="download"

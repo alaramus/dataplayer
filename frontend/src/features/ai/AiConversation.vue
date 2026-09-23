@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import type { AgentRunPublic, ConversationMessagePublic, ConversationUpdate, ScreenContext } from "@/client"
@@ -82,11 +83,11 @@ const attachItems = computed<MenuItem[]>(() => [
   {
     name: "tabs",
     label: "Workspace tabs…",
-    icon: "tab",
+    icon: appIcons.tab,
     disable: props.contexts.length === 0,
     ...(props.contexts.length === 0 ? { hint: "No open tab names a connection or a node" } : {}),
   },
-  { name: "files", label: "Files from computer…", icon: "attach_file", disable: rules.value === null },
+  { name: "files", label: "Files from computer…", icon: appIcons.attachFile, disable: rules.value === null },
 ])
 function chooseAttachment(name: string) {
   if (name === "tabs") contextDialogShown.value = true
@@ -134,10 +135,10 @@ const canSend = computed(() =>
 // are decided, and it holds in every chat that is not read only.
 const EVERY_CHAT = "every"
 const policyOptions: SelectOption[] = [
-  { label: "Read only", value: "read_only", icon: "visibility", description: "Nothing is changed from this chat" },
-  { label: "Ask before changes", value: "ask", icon: "help_outline", description: "Every change is confirmed first" },
-  { label: "Allow changes", value: "allow", icon: "edit", description: "Changes in this chat run without asking" },
-  { label: "Allow all changes in every chat", value: EVERY_CHAT, icon: "done_all", description: "Changes in every chat run without asking", tone: "warning" },
+  { label: "Read only", value: "read_only", icon: appIcons.visibility, description: "Nothing is changed from this chat" },
+  { label: "Ask before changes", value: "ask", icon: appIcons.helpOutline, description: "Every change is confirmed first" },
+  { label: "Allow changes", value: "allow", icon: appIcons.edit, description: "Changes in this chat run without asking" },
+  { label: "Allow all changes in every chat", value: EVERY_CHAT, icon: appIcons.doneAll, description: "Changes in every chat run without asking", tone: "warning" },
 ]
 const changePolicy = computed(() => conversation.data.value?.change_policy ?? "ask")
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
@@ -439,12 +440,12 @@ onBeforeUnmount(() => {
               class="ai-message__actions"
             >
               <AppIconButton
-                icon="content_copy"
+                :icon="appIcons.copy"
                 :tooltip="message.role === 'user' ? 'Copy message' : 'Copy answer'"
                 @click="copy(message.content, message.role === 'user' ? 'Message' : 'Answer')"
               />
               <AppIconButton
-                :icon="speaking === message.content ? 'stop_circle' : 'volume_up'"
+                :icon="speaking === message.content ? appIcons.stopCircle : appIcons.volumeUp"
                 :tooltip="speaking === message.content
                   ? 'Stop reading aloud'
                   : message.role === 'user' ? 'Listen to message' : 'Listen to answer'"
@@ -561,7 +562,7 @@ onBeforeUnmount(() => {
           >
             <span class="ai-context-chip__label">{{ context.label }}</span>
             <AppIconButton
-              icon="close"
+              :icon="appIcons.close"
               :tooltip="`Remove ${context.label}`"
               compact
               @click="selectedContextIds = selectedContextIds.filter((id) => id !== context.panel_id)"
@@ -603,7 +604,7 @@ onBeforeUnmount(() => {
                element to open from while it is disabled. -->
           <span>
             <AppIconButton
-              icon="add"
+              :icon="appIcons.add"
               tooltip="Attach tabs or files"
               data-testid="ai-attach"
               :disable="activeRun !== null"
@@ -642,7 +643,7 @@ onBeforeUnmount(() => {
             @update:model-value="chooseModel"
           />
           <AppIconButton
-            :icon="dictation.listening.value ? 'mic' : 'mic_none'"
+            :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
             :active="dictation.listening.value"
             :tooltip="!dictation.supported
               ? 'This browser cannot listen'
@@ -655,7 +656,7 @@ onBeforeUnmount(() => {
           <AppButton
             v-if="activeRun"
             variant="danger-quiet"
-            icon="stop"
+            :icon="appIcons.stop"
             label="Stop"
             :loading="cancel.isPending.value"
             data-testid="ai-stop"
@@ -663,7 +664,7 @@ onBeforeUnmount(() => {
           />
           <AppButton
             v-else
-            icon="send"
+            :icon="appIcons.send"
             label="Send"
             :disable="!canSend"
             data-testid="ai-send"

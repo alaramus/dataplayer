@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue"
 
@@ -111,7 +112,7 @@ function openStructure(id: string) {
         :value="nodes.length ? loaded / nodes.length : 0"
       />
       <AppIconButton
-        icon="stop"
+        :icon="appIcons.stop"
         tooltip="Stop loading"
         @click="cancel"
       />
@@ -149,7 +150,7 @@ function openStructure(id: string) {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="table_chart"
+            :icon="appIcons.tableChart"
             label="Open table"
             data-testid="graph-open-table"
             @click="openTable(node.id)"
@@ -157,7 +158,7 @@ function openStructure(id: string) {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="account_tree"
+            :icon="appIcons.accountTree"
             label="Structure"
             @click="openStructure(node.id)"
           />
@@ -166,7 +167,7 @@ function openStructure(id: string) {
           v-else
           variant="quiet"
           size="sm"
-          icon="my_location"
+          :icon="appIcons.myLocation"
           label="Show in catalog"
           @click="openTable(node.id)"
         />

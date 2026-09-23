@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import { AppButton, AppMenu, AppPopup, AppTooltip, useToast } from "@/shared/ui"
@@ -27,9 +28,9 @@ const name = ref("")
 const problem = computed(() => groupNameProblem(name.value, list.value, renaming.value ?? undefined))
 
 const menuItems = [
-  { name: "update-group", label: "Update from current layout", icon: "save" },
-  { name: "rename-group", label: "Rename", icon: "edit" },
-  { name: "delete-group", label: "Delete", icon: "delete", danger: true },
+  { name: "update-group", label: "Update from current layout", icon: appIcons.save },
+  { name: "rename-group", label: "Rename", icon: appIcons.edit },
+  { name: "delete-group", label: "Delete", icon: appIcons.delete, danger: true },
 ]
 
 function select(action: string, group: TabGroup) {
@@ -62,7 +63,7 @@ function rename() {
   <AppButton
     variant="quiet"
     size="sm"
-    icon="bookmarks"
+    :icon="appIcons.bookmarks"
     aria-label="Saved tab groups"
     aria-haspopup="menu"
     :aria-expanded="listOpen"
@@ -94,7 +95,7 @@ function rename() {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="view_column"
+            :icon="appIcons.viewColumn"
             :label="group.name"
             :aria-label="`Open group ${group.name}`"
             :disable="busy"
@@ -105,7 +106,7 @@ function rename() {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="more_vert"
+            :icon="appIcons.moreVert"
             :aria-label="`Manage group ${group.name}`"
             :disable="busy"
             data-testid="manage-tab-group"

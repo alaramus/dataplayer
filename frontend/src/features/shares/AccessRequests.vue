@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import { GRANT_OPTIONS } from "@/features/connectors/access"
@@ -97,7 +98,7 @@ async function answer(requestId: string, access: Grant | null) {
           @click="answer(ask.id, answerLevel[ask.id] ?? 'read')"
         />
         <AppIconButton
-          icon="close"
+          :icon="appIcons.close"
           variant="danger-quiet"
           tooltip="Say no. They are told, without a reason."
           :data-testid="`share-decline-${ask.requester_email}`"

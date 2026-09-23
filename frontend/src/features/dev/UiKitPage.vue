@@ -40,6 +40,7 @@ import {
   AppTooltip,
   AppTree,
   appIcons,
+  iconComparison,
   symbolComparisonIcon,
   useConfirm,
   useToast,
@@ -48,31 +49,17 @@ import type { ButtonVariant, MenuItem, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "danger", "danger-quiet", "quiet"]
-const ICON_COMPARISON = [
-  { label: "Account", icon: appIcons.accountMenu },
-  { label: "Preferences", icon: appIcons.preferences },
-  { label: "Administration", icon: appIcons.administration },
-  { label: "Copy", icon: appIcons.copy },
-  { label: "Fullscreen", icon: appIcons.enterFullscreen },
-  { label: "Close", icon: appIcons.close },
-  { label: "SSH key", icon: appIcons.sshKey },
-  { label: "Create key", icon: appIcons.createSshKey },
-  { label: "Import key", icon: appIcons.importSshKey },
-  { label: "Unlock key", icon: appIcons.unlockSshKey },
-  { label: "Lock key", icon: appIcons.lockSshKey },
-  { label: "Delete key", icon: appIcons.deleteSshKey },
-] as const
 const MENU_ITEMS: MenuItem[] = [
-  { name: "check", label: "Check connection", icon: "bolt" },
-  { name: "edit", label: "Edit", icon: "edit" },
+  { name: "check", label: "Check connection", icon: appIcons.bolt },
+  { name: "edit", label: "Edit", icon: appIcons.edit },
   {
     name: "away",
     label: "Not available here",
-    icon: "block",
+    icon: appIcons.block,
     disable: true,
     hint: "Tick a row to use this",
   },
-  { name: "delete", label: "Delete", icon: "delete", danger: true },
+  { name: "delete", label: "Delete", icon: appIcons.delete, danger: true },
 ]
 const menuOpen = ref(false)
 const popupOpen = ref(false)
@@ -220,12 +207,12 @@ function removeSavedEntry(name: string) {
           />
           <AppButton
             label="with icon"
-            icon="add"
+            :icon="appIcons.add"
           />
           <AppButton
             variant="quiet"
             layout="toolbar"
-            icon="autorenew"
+            :icon="appIcons.autorenew"
             label="30 s"
           />
           <AppButton
@@ -238,7 +225,7 @@ function removeSavedEntry(name: string) {
                the action goes. -->
           <AppButton
             label="next"
-            icon-right="chevron_right"
+            :icon-right="appIcons.chevronRight"
           />
           <AppButton
             label="loading"
@@ -252,25 +239,25 @@ function removeSavedEntry(name: string) {
         </div>
         <div class="row items-center ui-kit__row ui-kit__row--spaced">
           <AppIconButton
-            icon="account_tree"
+            :icon="appIcons.accountTree"
             tooltip="Browse catalog"
           />
           <AppIconButton
-            icon="edit"
+            :icon="appIcons.edit"
             tooltip="Edit"
           />
           <AppIconButton
-            icon="key"
+            :icon="appIcons.key"
             tooltip="Configured"
             active
           />
           <AppIconButton
-            icon="delete"
+            :icon="appIcons.delete"
             tooltip="Delete"
             variant="danger-quiet"
           />
           <AppIconButton
-            icon="block"
+            :icon="appIcons.block"
             tooltip="Not available here"
             disable
           />
@@ -278,7 +265,7 @@ function removeSavedEntry(name: string) {
           <AppButton
             variant="secondary"
             label="Row actions"
-            icon="more_vert"
+            :icon="appIcons.moreVert"
             aria-haspopup="menu"
             :aria-expanded="menuOpen"
           >
@@ -291,7 +278,7 @@ function removeSavedEntry(name: string) {
           <AppButton
             variant="secondary"
             label="Popup panel"
-            icon="dashboard"
+            :icon="appIcons.dashboard"
             aria-haspopup="dialog"
             :aria-expanded="popupOpen"
           >
@@ -333,7 +320,7 @@ function removeSavedEntry(name: string) {
             Symbols Outlined
           </div>
           <template
-            v-for="item in ICON_COMPARISON"
+            v-for="item in iconComparison"
             :key="item.label"
           >
             <div>{{ item.label }}</div>
@@ -369,7 +356,7 @@ function removeSavedEntry(name: string) {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="terminal"
+            :icon="appIcons.terminal"
             aria-label="A count on a rail button"
           >
             <AppBadge
@@ -630,13 +617,13 @@ function removeSavedEntry(name: string) {
         <AppTaskbar label="What is open and not in front of you">
           <AppTaskbarItem
             title="Connection"
-            icon="web_asset"
+            :icon="appIcons.window"
             front
             close-label="Close Connection"
           />
           <AppTaskbarItem
             title="Navigation · 2"
-            icon="account_tree"
+            :icon="appIcons.accountTree"
             aside
           />
         </AppTaskbar>
@@ -689,7 +676,7 @@ function removeSavedEntry(name: string) {
           <AppCardHead title="A card">
             <template #actions>
               <AppIconButton
-                icon="add"
+                :icon="appIcons.add"
                 tooltip="Add"
               />
             </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
@@ -33,7 +34,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
          action: the two never exist at the same time. -->
     <AppCardHead class="connector-rail__head">
       <AppIconButton
-        icon="add"
+        :icon="appIcons.add"
         tooltip="New connection"
         data-testid="add-connector"
         @click="workspace.editConnector(null)"

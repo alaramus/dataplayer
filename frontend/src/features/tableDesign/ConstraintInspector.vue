@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { AppButton, AppCheckbox, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
@@ -50,7 +51,7 @@ function addUnique(): void {
       <div class="constraints__heading">
         <h3>Unique constraint</h3>
         <AppIconButton
-          icon="delete_outline"
+          :icon="appIcons.deleteOutline"
           :tooltip="`Remove ${unique.name || 'unique constraint'}`"
           @click="emit('remove', unique.id)"
         />
@@ -95,7 +96,7 @@ function addUnique(): void {
     </section>
     <AppButton
       variant="quiet"
-      icon="add"
+      :icon="appIcons.add"
       label="Unique constraint"
       data-testid="add-unique"
       @click="addUnique"
@@ -109,7 +110,7 @@ function addUnique(): void {
       <div class="constraints__heading">
         <h3>CHECK</h3>
         <AppIconButton
-          icon="delete_outline"
+          :icon="appIcons.deleteOutline"
           :tooltip="`Remove ${check.name || 'check'}`"
           @click="emit('remove', check.id)"
         />

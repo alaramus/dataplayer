@@ -1,3 +1,5 @@
+import { appIcons } from "@/shared/ui/icons"
+
 /**
  * The catalog of what a person's agents reported, as an index and as a tree.
  *
@@ -139,7 +141,7 @@ export function catalogTree(catalog: MetricsCatalog | undefined): TreeNodes {
     children: connector.metrics.map((metric) => ({
       key: `metric:${connector.connector_id}:${metric.metric}`,
       label: metric.metric,
-      icon: "show_chart",
+      icon: appIcons.showChart,
       children: seriesNodes(metric.series),
     })),
   }))
@@ -150,20 +152,20 @@ function agentNodes(catalog: MetricsCatalog | undefined): TreeNodes {
   return (catalog?.agents ?? []).map((agent) => ({
     key: `agent:${agent.agent_id}`,
     label: agent.name,
-    icon: "sensors",
+    icon: appIcons.sensors,
     children: agent.hosts.map((host) => ({
       key: `${HOST_PREFIX}${agent.agent_id}:${host.host}`,
       label: host.host,
-      icon: "dns",
+      icon: appIcons.dns,
       children: [
         ...host.metrics.map((metric) => ({
         key: `metric:${agent.agent_id}:${host.host}:${metric.metric}`,
         label: metric.metric,
-        icon: "show_chart",
+        icon: appIcons.showChart,
         children: seriesNodes(metric.series),
       })),
         ...(host.processes
-          ? [{ key: processesKey({ agentId: agent.agent_id, host: host.host }), label: "processes", icon: "list" }]
+          ? [{ key: processesKey({ agentId: agent.agent_id, host: host.host }), label: "processes", icon: appIcons.list }]
           : []),
       ],
     })),

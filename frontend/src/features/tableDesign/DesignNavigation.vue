@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { PlanProblem } from "@/client"
@@ -19,14 +20,14 @@ const groups = computed(() => [
   {
     section: "columns" as const,
     title: "Columns",
-    icon: "view_column",
+    icon: appIcons.viewColumn,
     count: draft.columns.length,
     rows: draft.columns.map((column) => ({ id: column.id, label: column.name || "(unnamed)" })),
   },
   {
     section: "indexes" as const,
     title: "Indexes",
-    icon: "filter_list",
+    icon: appIcons.filterList,
     count: draft.indexes.length,
     rows: draft.indexes.map((index) => ({
       id: index.id,
@@ -36,7 +37,7 @@ const groups = computed(() => [
   {
     section: "foreign-keys" as const,
     title: "Foreign keys",
-    icon: "link",
+    icon: appIcons.link,
     count: draft.foreignKeys.length,
     rows: draft.foreignKeys.map((foreign) => ({
       id: foreign.id,
@@ -46,14 +47,14 @@ const groups = computed(() => [
   {
     section: "constraints" as const,
     title: "Constraints",
-    icon: "verified_user",
+    icon: appIcons.verifiedUser,
     count: Number(draft.primaryKey.length > 0) + draft.uniques.length + draft.checks.length,
     rows: [{ id: "constraints", label: "Primary / unique / checks" }],
   },
   {
     section: "options" as const,
     title: "Options",
-    icon: "tune",
+    icon: appIcons.preferences,
     count: null,
     rows: [{ id: "options", label: "Storage & partitioning" }],
   },

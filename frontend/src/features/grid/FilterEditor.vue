@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import { AppButton, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
@@ -124,7 +125,7 @@ function removeFilter(index: number) {
       >
         <span>{{ describeFilter(filter) }}</span>
         <AppIconButton
-          icon="close"
+          :icon="appIcons.close"
           :tooltip="`Delete filter ${index + 1}`"
           :data-testid="`grid-filter-delete-${index}`"
           @click="removeFilter(index)"

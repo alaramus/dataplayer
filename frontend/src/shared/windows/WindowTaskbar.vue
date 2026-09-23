@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from "vue"
 
 import AppTaskbar from "@/shared/ui/AppTaskbar.vue"
 import AppTaskbarItem from "@/shared/ui/AppTaskbarItem.vue"
+import { appIcons } from "@/shared/ui/icons"
 
 import type { WindowState, WindowsContext } from "./useWindows"
 
@@ -61,7 +62,7 @@ watch(
       v-for="entry in items"
       :key="entry.key"
       :title="entry.look.title"
-      :icon="entry.look.icon ?? 'web_asset'"
+      :icon="entry.look.icon ?? appIcons.window"
       :color="entry.look.color"
       :front="isFront(entry)"
       :aside="entry.minimized"

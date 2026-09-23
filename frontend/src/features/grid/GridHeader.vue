@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { Sort } from "@/client"
@@ -69,7 +70,7 @@ const groups = TOOLBAR_GROUPS
             <template v-if="group.name === 'view'">
               <span data-testid="grid-filter-command">
                 <AppIconButton
-                  icon="filter_alt"
+                  :icon="appIcons.filterAlt"
                   :tooltip="canFilter
                     ? (filters.length > 0 ? `Filters (${filters.length})` : 'Filters')
                     : tipOf('Filters', NOT_OFFERED.filter)"
@@ -80,7 +81,7 @@ const groups = TOOLBAR_GROUPS
               </span>
               <span data-testid="grid-sort-command">
                 <AppIconButton
-                  icon="sort"
+                  :icon="appIcons.sort"
                   :tooltip="canSort
                     ? (sort.length > 0 ? `Sort (${sort.length})` : 'Sort')
                     : tipOf('Sort', NOT_OFFERED.sort)"
@@ -90,7 +91,7 @@ const groups = TOOLBAR_GROUPS
                 />
               </span>
               <AppIconButton
-                icon="view_column"
+                :icon="appIcons.viewColumn"
                 tooltip="Columns"
                 :disable="columns.length === 0"
                 data-testid="grid-columns"

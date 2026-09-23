@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
@@ -59,7 +60,7 @@ const shortcuts: { keys: string; action: string }[] = []
                can be given here is worse than giving it. -->
           <AppButton
             label="Add connection"
-            icon="add"
+            :icon="appIcons.add"
             data-testid="scene-add-connector"
             @click="workspace.editConnector(null)"
           />

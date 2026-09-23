@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSelect } from "@/shared/ui"
@@ -114,26 +115,26 @@ onBeforeUnmount(stopLayout)
         inset
       />
       <AppIconButton
-        icon="center_focus_strong"
+        :icon="appIcons.centerFocusStrong"
         tooltip="Fit graph"
         data-testid="graph-fit"
         :disable="!ready"
         @click="surface?.fit()"
       />
       <AppIconButton
-        icon="add"
+        :icon="appIcons.add"
         tooltip="Zoom in"
         :disable="!ready"
         @click="surface?.zoom(1.25)"
       />
       <AppIconButton
-        icon="remove"
+        :icon="appIcons.remove"
         tooltip="Zoom out"
         :disable="!ready"
         @click="surface?.zoom(0.8)"
       />
       <AppIconButton
-        icon="auto_awesome_mosaic"
+        :icon="appIcons.autoAwesomeMosaic"
         tooltip="Arrange this view"
         data-testid="graph-arrange"
         :disable="Boolean(problem) || loading"
@@ -141,14 +142,14 @@ onBeforeUnmount(stopLayout)
       />
       <AppIconButton
         v-if="view.mode === '2d'"
-        :icon="view.expanded ? 'unfold_less' : 'unfold_more'"
+        :icon="view.expanded ? appIcons.unfoldLess : appIcons.unfoldMore"
         :tooltip="view.expanded ? 'Collapse fields' : 'Show fields'"
         data-testid="graph-details-toggle"
         @click="patch({ expanded: !view.expanded })"
       />
       <AppIconButton
         v-else
-        :icon="view.labels ? 'label_off' : 'label'"
+        :icon="view.labels ? appIcons.labelOff : appIcons.label"
         :tooltip="view.labels ? 'Hide labels' : 'Show labels'"
         @click="patch({ labels: !view.labels })"
       />
@@ -199,7 +200,7 @@ onBeforeUnmount(stopLayout)
       role="status"
     >
       <span>Arranging graph…</span><AppProgress label="Arranging graph" /><AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         tooltip="Cancel layout"
         @click="cancelLayout"
       />
@@ -251,7 +252,7 @@ onBeforeUnmount(stopLayout)
       >
         <div class="graph-viewer__inspector-head">
           <strong>{{ selectedNode?.label ?? selectedEdge?.label }}</strong><AppIconButton
-            icon="close"
+            :icon="appIcons.close"
             tooltip="Clear selection"
             @click="select(null)"
           />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onScopeDispose, ref, watch } from "vue"
 
@@ -273,13 +274,13 @@ onScopeDispose(stop)
           <AppButton
             variant="quiet"
             size="sm"
-            icon="add_comment"
+            :icon="appIcons.addComment"
             label="New chat"
             data-testid="ai-new-chat"
             @click="makeConversation"
           />
           <AppIconButton
-            icon="create_new_folder"
+            :icon="appIcons.createNewFolder"
             tooltip="New project"
             data-testid="ai-new-project"
             @click="beginProjectFor(null)"
@@ -295,7 +296,7 @@ onScopeDispose(stop)
         data-testid="ai-rail-head"
       >
         <AppIconButton
-          icon="add"
+          :icon="appIcons.add"
           tooltip="New chat"
           data-testid="ai-new-chat"
           @click="makeConversation"
@@ -335,14 +336,14 @@ onScopeDispose(stop)
             </button>
             <span class="ai-window__project-actions">
               <AppIconButton
-                icon="edit"
+                :icon="appIcons.edit"
                 tooltip="Rename project"
                 compact
                 :data-testid="`ai-project-rename-${group.id}`"
                 @click="beginProjectRename(group.id, group.name)"
               />
               <AppIconButton
-                icon="delete"
+                :icon="appIcons.delete"
                 tooltip="Delete project"
                 variant="danger-quiet"
                 compact
@@ -375,7 +376,7 @@ onScopeDispose(stop)
           v-if="!collapsed"
           variant="quiet"
           layout="navigation"
-          icon="settings"
+          :icon="appIcons.settings"
           label="Settings"
           :aria-pressed="settingsShown"
           data-testid="ai-open-settings"
@@ -383,7 +384,7 @@ onScopeDispose(stop)
         />
         <AppIconButton
           v-else
-          icon="settings"
+          :icon="appIcons.settings"
           tooltip="Settings"
           :aria-pressed="settingsShown"
           data-testid="ai-open-settings"
@@ -446,7 +447,7 @@ onScopeDispose(stop)
         class="ai-window__welcome"
       >
         <AppButton
-          icon="add_comment"
+          :icon="appIcons.addComment"
           label="New chat"
           @click="makeConversation"
         />

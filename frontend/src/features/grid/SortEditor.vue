@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { Sort } from "@/client"
@@ -67,21 +68,21 @@ function remove(index: number) {
         @click="toggleDirection(index)"
       />
       <AppIconButton
-        icon="arrow_upward"
+        :icon="appIcons.arrowUpward"
         :tooltip="`Move ${item.column} up`"
         :disable="index === 0"
         :data-testid="`grid-sort-up-${index}`"
         @click="emit('apply', moveSort(sort, index, -1))"
       />
       <AppIconButton
-        icon="arrow_downward"
+        :icon="appIcons.arrowDownward"
         :tooltip="`Move ${item.column} down`"
         :disable="index === sort.length - 1"
         :data-testid="`grid-sort-down-${index}`"
         @click="emit('apply', moveSort(sort, index, 1))"
       />
       <AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         :tooltip="`Remove ${item.column}`"
         :data-testid="`grid-sort-delete-${index}`"
         @click="remove(index)"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { AppIconButton } from "@/shared/ui"
@@ -198,21 +199,21 @@ const resizeEdges: ResizeEdge[] = [
           @click="action.run()"
         />
         <AppIconButton
-          icon="minimize"
+          :icon="appIcons.minimize"
           tooltip="Minimize"
           aria-label="Minimize"
           :data-testid="`window-minimize-${window.id}`"
           @click="emit('minimize')"
         />
         <AppIconButton
-          :icon="window.maximized ? 'filter_none' : 'crop_square'"
+          :icon="window.maximized ? appIcons.filterNone : appIcons.cropSquare"
           :tooltip="window.maximized ? 'Restore size' : 'Maximize'"
           :aria-label="window.maximized ? 'Restore size' : 'Maximize'"
           :data-testid="`window-maximize-${window.id}`"
           @click="emit('toggleMaximize')"
         />
         <AppIconButton
-          icon="close"
+          :icon="appIcons.close"
           tooltip="Close"
           aria-label="Close window"
           :data-testid="`window-close-${window.id}`"

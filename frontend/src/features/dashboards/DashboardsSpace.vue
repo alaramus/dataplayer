@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
@@ -207,7 +208,7 @@ defineExpose({
               <AppButton
                 variant="quiet"
                 size="sm"
-                icon="add"
+                :icon="appIcons.add"
                 label="New"
                 :loading="creating.isPending.value"
                 data-testid="dashboard-new"
@@ -233,7 +234,7 @@ defineExpose({
               :style="panelColorStyle(dashboard.color)"
               layout="navigation"
               size="sm"
-              icon="dashboard"
+              :icon="appIcons.dashboard"
               :label="dashboard.name"
               :data-testid="`dashboard-${dashboard.name}`"
               @click="selectedId = dashboard.id"
@@ -262,7 +263,7 @@ defineExpose({
                 :style="panelColorStyle(dashboard.color)"
                 layout="navigation"
                 size="sm"
-                icon="group"
+                :icon="appIcons.group"
                 :label="dashboard.name"
                 :data-testid="`dashboard-${dashboard.name}`"
                 @click="selectedId = dashboard.id"
@@ -280,7 +281,7 @@ defineExpose({
             <span>
               <AppIconButton
                 v-if="status.data.value?.may_set_up"
-                icon="storage"
+                :icon="appIcons.storage"
                 tooltip="The metrics store"
                 data-testid="store-open"
                 @click="storeOpen = true"
@@ -288,7 +289,7 @@ defineExpose({
               <AppButton
                 variant="quiet"
                 size="sm"
-                icon="sensors"
+                :icon="appIcons.sensors"
                 label="Sources"
                 data-testid="agents-open"
                 @click="agentsOpen = true"
@@ -349,7 +350,7 @@ defineExpose({
           >
             <span>No dashboards yet.</span>
             <AppButton
-              icon="add"
+              :icon="appIcons.add"
               label="Create a dashboard"
               data-testid="dashboard-create-first"
               @click="createDashboard"

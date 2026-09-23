@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, nextTick, ref, watch } from "vue"
 
 import type { ListNode } from "@/features/catalog/nodes"
@@ -220,7 +221,7 @@ const countLabel = computed(() => {
           />
           <AppIconButton
             class="catalog-list__copy"
-            icon="content_copy"
+            :icon="appIcons.copy"
             :tooltip="`Copy “${node.label}”`"
             :data-testid="`catalog-copy-${node.label}`"
             @click.stop="copyName(node)"

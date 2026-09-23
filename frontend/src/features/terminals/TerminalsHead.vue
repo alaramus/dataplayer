@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { adapterIcon } from "@/features/connectors/adapters"
@@ -61,7 +62,7 @@ function open(connectorId: string) {
         v-for="terminal in terminals.sessions.value"
         :key="terminal.id"
         :title="titleOf(terminal)"
-        icon="terminal"
+        :icon="appIcons.terminal"
         :color="connectorColorOf(connectors.data.value, terminal.connectorId)"
         :front="terminal.id === terminals.active.value?.id"
         close-label="Close this terminal"
@@ -73,7 +74,7 @@ function open(connectorId: string) {
     </AppTaskbar>
     <span class="terminals-head__new">
       <AppIconButton
-        icon="add"
+        :icon="appIcons.add"
         tooltip="Open a terminal"
         data-testid="terminal-new"
       />

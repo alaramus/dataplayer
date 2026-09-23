@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { DeclaredReferencePublic } from "@/client"
@@ -137,7 +138,7 @@ async function remove(reference: Drawn) {
       >
         <span>{{ reference.from }} → {{ reference.to }}</span>
         <AppIconButton
-          icon="delete_outline"
+          :icon="appIcons.deleteOutline"
           tooltip="Remove this reference"
           variant="danger-quiet"
           :loading="removing === reference.id"

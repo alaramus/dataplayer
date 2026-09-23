@@ -1,3 +1,5 @@
+import { appIcons } from "@/shared/ui/icons"
+
 import { computed, ref, watch } from "vue"
 import type { Component, Ref } from "vue"
 import type { ZodType } from "zod"
@@ -311,7 +313,7 @@ export function useWorkspace<P extends { id: string }>(
 
   function lookOf(panelId: PanelId): PanelLook {
     const panel = panelOf(panelId)
-    return panel === undefined ? { title: panelId, icon: "help" } : options.look(panel)
+    return panel === undefined ? { title: panelId, icon: appIcons.help } : options.look(panel)
   }
 
   async function closeOthers(leafId: NodeId) {

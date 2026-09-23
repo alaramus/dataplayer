@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import {
   computed,
   nextTick,
@@ -1315,28 +1316,28 @@ defineExpose({
          same rows, which is what puts them together. -->
     <template #commands-open="{ visibleColumns }">
       <AppIconButton
-        icon="account_tree"
+        :icon="appIcons.accountTree"
         :tooltip="tipOf('Structure', canDescribe ? null : NOT_OFFERED.structure)"
         :disable="!canDescribe"
         data-testid="grid-structure"
         @click="emit('describe')"
       />
       <AppIconButton
-        icon="terminal"
+        :icon="appIcons.terminal"
         :tooltip="tipOf('Open as a query', canQuery && offers('query') ? null : NOT_OFFERED.query)"
         :disable="!(canQuery && offers('query'))"
         data-testid="grid-query"
         @click="emit('query')"
       />
       <AppIconButton
-        icon="code"
+        :icon="appIcons.code"
         :tooltip="contentTitle ?? tipOf('Open as a document', NOT_OFFERED.document)"
         :disable="!contentTitle"
         data-testid="grid-content"
         @click="emit('content')"
       />
       <AppIconButton
-        icon="insert_chart"
+        :icon="appIcons.insertChart"
         :tooltip="tipOf('Charts', chartReason)"
         :disable="chartReason !== null"
         data-testid="grid-charts"
@@ -1348,7 +1349,7 @@ defineExpose({
          None of them writes to the source. -->
     <template #commands-out="{ visibleColumns }">
       <AppIconButton
-        icon="download"
+        :icon="appIcons.download"
         :tooltip="tipOf('Download', downloadReason)"
         :disable="downloadReason !== null || writingOut"
         :loading="writingOut"
@@ -1356,14 +1357,14 @@ defineExpose({
         @click="openDownload(visibleColumns)"
       />
       <AppIconButton
-        icon="share"
+        :icon="appIcons.share"
         :tooltip="tipOf('Share this view', offers('share') ? null : NOT_OFFERED.share)"
         :disable="!offers('share')"
         data-testid="grid-share"
         @click="shareOpen = true"
       />
       <AppIconButton
-        icon="post_add"
+        :icon="appIcons.postAdd"
         :tooltip="tipOf('Keep these rows as a new table or file', keepReason)"
         :disable="keepReason !== null"
         data-testid="grid-create-table"
@@ -1381,14 +1382,14 @@ defineExpose({
       }"
     >
       <AppIconButton
-        icon="content_paste"
+        :icon="appIcons.contentPaste"
         :tooltip="tipOf('Paste into the selection', pasteReason(canCopy))"
         :disable="pasteReason(canCopy) !== null"
         data-testid="grid-paste"
         @click="requestPaste"
       />
       <AppIconButton
-        icon="input"
+        :icon="appIcons.input"
         :tooltip="tipOf('Bring rows in', importReason)"
         :disable="importReason !== null"
         data-testid="grid-import"
@@ -1396,7 +1397,7 @@ defineExpose({
       />
       <span data-testid="grid-insert-command">
         <AppIconButton
-          icon="add"
+          :icon="appIcons.add"
           :tooltip="tipOf('Insert row', insertReason)"
           :disable="insertReason !== null"
           data-testid="grid-insert"
@@ -1405,7 +1406,7 @@ defineExpose({
       </span>
       <span data-testid="grid-delete-command">
         <AppIconButton
-          icon="remove"
+          :icon="appIcons.remove"
           :tooltip="tipOf(
             selectedRowIndexes.length > 0
               ? `Delete ${selectedRowIndexes.length} selected rows`
@@ -1497,7 +1498,7 @@ defineExpose({
       />
       <AppIconButton
         v-if="canOpenRecord"
-        icon="table_rows"
+        :icon="appIcons.tableRows"
         compact
         tooltip="Read this row downwards"
         :data-testid="`grid-open-row-${row.id}`"

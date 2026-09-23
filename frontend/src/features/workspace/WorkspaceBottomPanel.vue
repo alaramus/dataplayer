@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, useTemplateRef } from "vue"
 
 import { AppCardFrame, AppCardHead, AppIconButton } from "@/shared/ui"
@@ -48,7 +49,7 @@ function resize(deltaPx: number) {
         />
         <template #actions>
           <AppIconButton
-            icon="remove"
+            :icon="appIcons.remove"
             tooltip="Hide"
             data-testid="bottom-panel-hide"
             @click="panel.hide()"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { AppButton, AppCheckbox, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
@@ -112,7 +113,7 @@ function include(columnId: string, checked: boolean): void {
       <h3>Index keys · in order</h3>
       <AppButton
         variant="quiet"
-        icon="add"
+        :icon="appIcons.add"
         label="Key"
         data-testid="index-add-key"
         @click="addKey"
@@ -148,7 +149,7 @@ function include(columnId: string, checked: boolean): void {
         label="Nulls"
       />
       <AppIconButton
-        icon="close"
+        :icon="appIcons.close"
         :tooltip="`Remove index key ${at + 1}`"
         compact
         :disable="index.keys.length === 1"
@@ -207,7 +208,7 @@ function include(columnId: string, checked: boolean): void {
         </div>
         <AppButton
           variant="quiet"
-          icon="arrow_upward"
+          :icon="appIcons.arrowUpward"
           label="Move key up"
           :disable="at === 0"
           @click="moveKey(key, -1)"

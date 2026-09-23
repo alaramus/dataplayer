@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { UserPublic } from "@/client"
@@ -166,13 +167,13 @@ async function remove(user: UserPublic) {
       <template #body-cell-actions="cellProps">
         <q-td :props="cellProps">
           <AppIconButton
-            icon="edit"
+            :icon="appIcons.edit"
             tooltip="Edit this account"
             :data-testid="`edit-user-${cellProps.row.email}`"
             @click="openEdit(cellProps.row)"
           />
           <AppIconButton
-            icon="delete"
+            :icon="appIcons.delete"
             variant="danger-quiet"
             :tooltip="
               undeletableReason(cellProps.row, myId) || 'Delete this account and all it owns'

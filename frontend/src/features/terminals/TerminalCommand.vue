@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { connectorNameOf, useConnectors } from "@/features/connectors/api"
@@ -69,7 +70,7 @@ function pressed() {
     <AppButton
       :variant="shown ? 'secondary' : 'quiet'"
       size="sm"
-      icon="terminal"
+      :icon="appIcons.terminal"
       :label="'Terminals'"
       :icon-only="iconOnly"
       :aria-pressed="shown"

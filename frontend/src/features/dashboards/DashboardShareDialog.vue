@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { DashboardPublic } from "@/client"
@@ -189,7 +190,7 @@ async function revoke(userId: string) {
               @update:model-value="(level) => change(grant.user_id, level)"
             />
             <AppIconButton
-              icon="close"
+              :icon="appIcons.close"
               variant="danger-quiet"
               :tooltip="`Take access away from ${grant.email}`"
               :data-testid="`dashboard-grant-revoke-${grant.email}`"

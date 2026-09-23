@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
@@ -81,7 +82,7 @@ async function remove() {
     <template #actions>
       <AppButton
         variant="danger"
-        icon="delete_forever"
+        :icon="appIcons.deleteForever"
         label="Remove the store"
         :disable="facts === null"
         :loading="removing.isPending.value"

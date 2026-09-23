@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { AppButton, AppCheckbox, AppIconButton } from "@/shared/ui"
@@ -52,14 +53,14 @@ function togglePin(columnName: string) {
         @update:model-value="setVisible(column.id, $event)"
       />
       <AppIconButton
-        icon="arrow_upward"
+        :icon="appIcons.arrowUpward"
         :tooltip="`Move ${column.label} up`"
         :disable="index === 0"
         :data-testid="`grid-column-up-${column.id}`"
         @click="emit('update:layout', moveColumn(layout, column.id, -1))"
       />
       <AppIconButton
-        icon="arrow_downward"
+        :icon="appIcons.arrowDownward"
         :tooltip="`Move ${column.label} down`"
         :disable="index === orderedColumns.length - 1"
         :data-testid="`grid-column-down-${column.id}`"

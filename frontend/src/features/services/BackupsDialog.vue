@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import {
@@ -193,7 +194,7 @@ async function putBack(filename: string) {
           <!-- Deleting a file needs no runtime and no volume to write into, so
                it stays offered where restoring is not. -->
           <AppIconButton
-            icon="delete_outline"
+            :icon="appIcons.deleteOutline"
             tooltip="Delete this backup"
             :disable="working"
             :data-testid="`delete-backup-${file.filename}`"
