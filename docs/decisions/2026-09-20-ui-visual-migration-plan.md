@@ -771,3 +771,24 @@ and `bash scripts/check-docs.sh` passed. Lint retains 20 unrelated warnings;
 build reports large chunks. The full E2E suite was not run.
 
 Next: Sequence 7 icon centralisation.
+
+## Slice 30: shared control icon names
+
+Implemented: shared shell and kit controls use semantic names in `appIcons` for
+account actions, fullscreen, theme, copy, close and taskbar windows. The map
+retains the exact Material Icons ligatures, so this slice does not switch the
+application font or change icon appearance. The UI kit shows current Material
+Icons beside Material Symbols Outlined at the 32 px toolbar control size for
+visual review before any font decision. Other feature-specific icons remain
+where their feature owns them.
+
+Coverage: the shared icon map is checked against the installed Material Icons
+glyph list. The comparison was reviewed in `/ui-kit` in both themes at desktop
+size. Symbols Outlined appears lighter at this size; no font switch was made.
+
+Validation: the targeted unit test, type-check, lint, build and documentation
+check passed. Lint retains 20 unrelated warnings and build reports large
+chunks. The full E2E suite was not run.
+
+Next: centralise icon names for a complete feature family, then decide whether
+the Symbols appearance suits the real toolbar size before switching fonts.

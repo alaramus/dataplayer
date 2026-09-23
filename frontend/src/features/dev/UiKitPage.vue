@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue"
+import "@quasar/extras/material-symbols-outlined/material-symbols-outlined.css"
 
 import {
   AppActions,
@@ -38,6 +39,7 @@ import {
   AppToggle,
   AppTooltip,
   AppTree,
+  appIcons,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -45,6 +47,14 @@ import type { ButtonVariant, MenuItem, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "danger", "danger-quiet", "quiet"]
+const ICON_COMPARISON = [
+  { label: "Account", icon: appIcons.accountMenu },
+  { label: "Preferences", icon: appIcons.preferences },
+  { label: "Administration", icon: appIcons.administration },
+  { label: "Copy", icon: appIcons.copy },
+  { label: "Fullscreen", icon: appIcons.enterFullscreen },
+  { label: "Close", icon: appIcons.close },
+] as const
 const MENU_ITEMS: MenuItem[] = [
   { name: "check", label: "Check connection", icon: "bolt" },
   { name: "edit", label: "Edit", icon: "edit" },
@@ -292,6 +302,37 @@ function removeSavedEntry(name: string) {
                application when the theme is pressed. -->
           <AppThemeToggle />
           <AppFullscreenToggle />
+        </div>
+      </AppSection>
+    </AppCard>
+
+    <AppCard
+      size="lg"
+      title="Icon comparison"
+      class="ui-kit__card"
+    >
+      <AppSection>
+        <p class="ui-kit__note">
+          Material Icons (current) and Material Symbols Outlined at the 32 px toolbar control size.
+        </p>
+        <div class="ui-kit__icon-grid">
+          <div class="ui-kit__icon-heading">
+            Action
+          </div>
+          <div class="ui-kit__icon-heading">
+            Material Icons
+          </div>
+          <div class="ui-kit__icon-heading">
+            Symbols Outlined
+          </div>
+          <template
+            v-for="item in ICON_COMPARISON"
+            :key="item.label"
+          >
+            <div>{{ item.label }}</div>
+            <span class="ui-kit__icon-box"><span class="material-icons">{{ item.icon }}</span></span>
+            <span class="ui-kit__icon-box"><span class="material-symbols-outlined">{{ item.icon }}</span></span>
+          </template>
         </div>
       </AppSection>
     </AppCard>
@@ -740,5 +781,25 @@ function removeSavedEntry(name: string) {
 }
 .ui-kit__note {
   color: var(--dp-text-muted);
+}
+.ui-kit__icon-grid {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) repeat(2, minmax(110px, 1fr));
+  align-items: center;
+  gap: var(--dp-space-2);
+}
+.ui-kit__icon-heading {
+  color: var(--dp-text-muted);
+  font-weight: 600;
+}
+.ui-kit__icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dp-form-control-height);
+  height: var(--dp-form-control-height);
+}
+.ui-kit__icon-box > span {
+  font-size: 20px;
 }
 </style>

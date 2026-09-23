@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import AppIconButton from "./AppIconButton.vue"
+import { appIcons } from "./icons"
 import { useFullscreen } from "./fullscreen"
 
 /**
@@ -15,8 +16,8 @@ const { active, supported, toggle } = useFullscreen()
 
 const look = computed(() =>
   active.value
-    ? { icon: "fullscreen_exit", tooltip: "Leave fullscreen" }
-    : { icon: "fullscreen", tooltip: "Fill the screen" }
+    ? { icon: appIcons.exitFullscreen, tooltip: "Leave fullscreen" }
+    : { icon: appIcons.enterFullscreen, tooltip: "Fill the screen" }
 )
 </script>
 

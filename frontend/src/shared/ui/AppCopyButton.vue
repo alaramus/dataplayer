@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIconButton from "./AppIconButton.vue"
+import { appIcons } from "./icons"
 
 withDefaults(
   defineProps<{
@@ -12,7 +13,7 @@ withDefaults(
 
 <template>
   <AppIconButton
-    icon="content_copy"
+    :icon="appIcons.copy"
     :tooltip="tooltip"
     :disable="disable"
   />

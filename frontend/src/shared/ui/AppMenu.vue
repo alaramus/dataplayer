@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppIconButton from "./AppIconButton.vue"
 import AppTooltip from "./AppTooltip.vue"
+import { appIcons } from "./icons"
 
 /**
  * A menu of actions, anchored to the element it is placed inside.
@@ -90,7 +91,7 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
           side
         >
           <AppIconButton
-            icon="close"
+            :icon="appIcons.close"
             :tooltip="item.removeLabel"
             :aria-label="item.removeLabel"
             :data-testid="`menu-remove-${item.name}`"

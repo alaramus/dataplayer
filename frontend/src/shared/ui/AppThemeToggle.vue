@@ -4,6 +4,7 @@ import { computed } from "vue"
 import { useThemeStore } from "@/stores/theme"
 
 import AppIconButton from "./AppIconButton.vue"
+import { appIcons } from "./icons"
 
 /**
  * Light or dark, as one button. The icon is what pressing it would give, not
@@ -18,8 +19,8 @@ const theme = useThemeStore()
 
 const look = computed(() =>
   theme.dark
-    ? { icon: "light_mode", tooltip: "Switch to the light theme" }
-    : { icon: "dark_mode", tooltip: "Switch to the dark theme" }
+    ? { icon: appIcons.lightTheme, tooltip: "Switch to the light theme" }
+    : { icon: appIcons.darkTheme, tooltip: "Switch to the dark theme" }
 )
 </script>
 

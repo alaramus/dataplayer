@@ -16,6 +16,7 @@ import AppFullscreenToggle from "./AppFullscreenToggle.vue"
 import AppMenu from "./AppMenu.vue"
 import type { MenuItem } from "./AppMenu.vue"
 import AppTooltip from "./AppTooltip.vue"
+import { appIcons } from "./icons"
 
 defineProps<{ fill?: boolean }>()
 
@@ -33,12 +34,12 @@ let footerObserver: ResizeObserver | null = null
 
 const userMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [
-    { name: "preferences", label: "Preferences", icon: "tune" },
+    { name: "preferences", label: "Preferences", icon: appIcons.preferences },
   ]
   if (me.data.value?.is_superuser === true) {
-    items.push({ name: "admin", label: "Admin", icon: "admin_panel_settings" })
+    items.push({ name: "admin", label: "Admin", icon: appIcons.administration })
   }
-  items.push({ name: "logout", label: "Sign out", icon: "logout" })
+  items.push({ name: "logout", label: "Sign out", icon: appIcons.signOut })
   return items
 })
 
@@ -109,7 +110,7 @@ async function logout() {
           <AppButton
             variant="quiet"
             size="sm"
-            icon="account_circle"
+            :icon="appIcons.accountMenu"
             aria-label="User menu"
             aria-haspopup="menu"
             :aria-expanded="userMenuOpen"

@@ -3,6 +3,7 @@ import AppButton from "./AppButton.vue"
 import AppIconButton from "./AppIconButton.vue"
 import AppTooltip from "./AppTooltip.vue"
 import { panelColorStyle } from "./panelColor"
+import { appIcons } from "./icons"
 
 /**
  * One thing on the bar at the foot of the screen.
@@ -36,7 +37,7 @@ withDefaults(
     closeTestId?: string
   }>(),
   {
-    icon: "web_asset",
+    icon: appIcons.window,
     color: null,
     front: false,
     aside: false,
@@ -76,7 +77,7 @@ defineOptions({ inheritAttrs: false })
     <AppIconButton
       v-if="closeLabel"
       class="taskbar-item__close"
-      icon="close"
+      :icon="appIcons.close"
       compact
       :tooltip="closeLabel"
       :aria-label="closeLabel"
