@@ -1,7 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import "@quasar/extras/material-symbols-outlined/material-symbols-outlined.css"
-import outlinedSymbols from "@quasar/extras/material-symbols-outlined/icons.json"
 
 import {
   AppActions,
@@ -41,8 +39,7 @@ import {
   AppTooltip,
   AppTree,
   appIcons,
-  iconComparison,
-  symbolComparisonIcon,
+  namedIcons,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -51,13 +48,9 @@ import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "danger", "danger-quiet", "quiet"]
 const iconFilter = ref("")
-const outlinedNames = new Set(outlinedSymbols)
-const outlinedIcon = (icon: string) => symbolComparisonIcon(icon)
-const hasOutlinedIcon = (icon: string) =>
-  outlinedNames.has(`symOutlined${outlinedIcon(icon).replace(/(^|_)([a-z])/g, (_, _separator: string, letter: string) => letter.toUpperCase())}`)
 const visibleIcons = computed(() => {
   const query = iconFilter.value.trim().toLowerCase()
-  return iconComparison.filter(({ name, icon }) =>
+  return namedIcons.filter(({ name, icon }) =>
     name.toLowerCase().includes(query) || icon.toLowerCase().includes(query)
   )
 })
@@ -314,12 +307,12 @@ function removeSavedEntry(name: string) {
 
     <AppCard
       size="lg"
-      title="Icon comparison"
+      title="Application icons"
       class="ui-kit__card"
     >
       <AppSection>
         <p class="ui-kit__note">
-          All {{ iconComparison.length }} named icons: Material Icons (previous) and Material Symbols Outlined (current) at the 32 px toolbar control size.
+          All {{ namedIcons.length }} named icons in Material Symbols Outlined at the 32 px toolbar control size.
         </p>
         <AppForm
           layout="section"
@@ -335,9 +328,6 @@ function removeSavedEntry(name: string) {
             Icon name
           </div>
           <div class="ui-kit__icon-heading">
-            Material Icons
-          </div>
-          <div class="ui-kit__icon-heading">
             Symbols Outlined
           </div>
           <template
@@ -345,15 +335,7 @@ function removeSavedEntry(name: string) {
             :key="item.name"
           >
             <div><code>{{ item.name }}</code><br><small>{{ item.icon }}</small></div>
-            <span class="ui-kit__icon-box"><span class="material-icons">{{ item.icon }}</span></span>
-            <span
-              v-if="hasOutlinedIcon(item.icon)"
-              class="ui-kit__icon-box"
-            ><span class="material-symbols-outlined">{{ outlinedIcon(item.icon) }}</span></span>
-            <span
-              v-else
-              class="ui-kit__icon-unavailable"
-            >Unavailable</span>
+            <span class="ui-kit__icon-box"><span class="material-symbols-outlined">{{ item.icon }}</span></span>
           </template>
         </div>
       </AppSection>
@@ -806,7 +788,7 @@ function removeSavedEntry(name: string) {
 }
 .ui-kit__icon-grid {
   display: grid;
-  grid-template-columns: minmax(100px, 1fr) repeat(2, minmax(110px, 1fr));
+  grid-template-columns: minmax(100px, 1fr) minmax(110px, 1fr);
   align-items: center;
   gap: var(--dp-space-2);
 }
@@ -814,8 +796,7 @@ function removeSavedEntry(name: string) {
   max-width: 320px;
   margin-bottom: var(--dp-space-4);
 }
-.ui-kit__icon-grid small,
-.ui-kit__icon-unavailable {
+.ui-kit__icon-grid small {
   color: var(--dp-text-muted);
 }
 .ui-kit__icon-heading {

@@ -46,7 +46,7 @@ export { default as AppToggle } from "./AppToggle.vue"
 export { default as AppTooltip } from "./AppTooltip.vue"
 export { default as AppTree } from "./AppTree.vue"
 export type { TreeLazyLoad, TreeNodes } from "./AppTree.vue"
-export { appIcons, iconComparison, symbolComparisonIcon } from "./icons"
+export { appIcons, namedIcons } from "./icons"
 
 export { useConfirm } from "./useConfirm"
 export type { ConfirmRequest } from "./useConfirm"

@@ -37,14 +37,14 @@ export interface AgentLook {
 
 export const AGENT_LOOKS: Record<AgentKind, AgentLook> = {
   summary: { label: "summary", icon: "summarize", accent: "var(--dp-callout-note)" },
-  warning: { label: "warning", icon: "warning_amber", accent: "var(--dp-callout-caution)" },
+  warning: { label: "warning", icon: "warning", accent: "var(--dp-callout-caution)" },
   decision: { label: "decision", icon: "gavel", accent: "var(--dp-callout-decision)" },
   risk: { label: "risk", icon: "crisis_alert", accent: "var(--dp-callout-caution)" },
   file: { label: "file", icon: "draft", accent: "var(--dp-callout-note)" },
   verification: { label: "verification", icon: "fact_check", accent: "var(--dp-callout-done)" },
   command: { label: "command", icon: "terminal", accent: "var(--dp-callout-plain)" },
   result: { label: "result", icon: "task_alt", accent: "var(--dp-callout-done)" },
-  question: { label: "question", icon: "help_outline", accent: "var(--dp-callout-question)" },
+  question: { label: "question", icon: "help", accent: "var(--dp-callout-question)" },
 }
 
 export interface AgentField {

@@ -106,7 +106,7 @@ const groups = computed(() =>
            to read, and saying so is more use than an empty panel. -->
       <AppEmptyState
         v-if="groups.length === 0"
-        icon="help_outline"
+        icon="help"
         text="This type only checks that it can reach the source."
       />
     </div>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { at, first } from "@/shared/testing/collections"
-import bundledIcons from "@quasar/extras/material-icons/icons.json"
+import bundledIcons from "@quasar/extras/material-symbols-outlined/icons.json"
 
 import {
   ICONS,
@@ -715,13 +715,11 @@ describe("file sources", () => {
 
 describe("the icons a catalog row draws", () => {
   /**
-   * Every name must exist in the fallback Material Icons set.
+   * Every name must exist in the Symbols Outlined font.
    *
-   * A name in neither installed set is not a missing picture: `q-icon` draws
-   * the literal word, which overflows its 18px box and
-   * covers the tick box beside it. That is how `monitoring` was found, and
-   * only a browser noticed. The bundled list keys each icon camel-cased, so
-   * `grid_on` is `matGridOn`.
+   * An unsupported name makes `q-icon` draw the literal word, which overflows
+   * its 18px box and covers the tick box beside it. The bundled list keys
+   * `grid_on` as `symOutlinedGridOn`.
    */
   it("are all in the bundled font", () => {
     const bundled: unknown = bundledIcons
@@ -729,7 +727,7 @@ describe("the icons a catalog row draws", () => {
       Array.isArray(bundled) ? (bundled as string[]) : Object.keys(bundled as object)
     )
     const keyOf = (name: string) =>
-      "mat" + name.split("_").map((part) => part[0]?.toUpperCase() + part.slice(1)).join("")
+      "symOutlined" + name.split("_").map((part) => part[0]?.toUpperCase() + part.slice(1)).join("")
 
     const used = [...Object.values(ICONS), REPORT_SECTION_ICON, MATERIALIZED_VIEW_ICON]
     expect(used.length).toBeGreaterThan(0)

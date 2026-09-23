@@ -196,7 +196,7 @@ async function forget(service: ServicePublic) {
       />
       <q-icon
         v-else
-        :name="service.state === 'failed' ? 'error_outline' : 'dns'"
+        :name="service.state === 'failed' ? 'error' : 'dns'"
         size="16px"
         :class="service.state === 'failed' ? 'starting__failed' : ''"
       />

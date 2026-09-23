@@ -328,7 +328,7 @@ onScopeDispose(stop)
               @click="toggleProject(group.id)"
             >
               <q-icon
-                :name="closedProjects.has(group.id) ? 'chevron_right' : 'expand_more'"
+                :name="closedProjects.has(group.id) ? 'chevron_right' : 'keyboard_arrow_down'"
                 size="16px"
               />
               <span class="ai-window__project-title">{{ group.name }}</span>

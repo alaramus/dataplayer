@@ -52,7 +52,7 @@ async function remove() {
       <AppSpinner v-if="usage.isPending.value" />
       <AppEmptyState
         v-else-if="facts === null"
-        icon="error_outline"
+        icon="error"
         :text="messageOf(usage.error.value, 'The store could not be described')"
       />
       <dl

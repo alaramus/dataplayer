@@ -354,7 +354,7 @@ onBeforeUnmount(() => {
             class="ai-conversation__empty"
           >
             <q-icon
-              name="auto_awesome"
+              :name="appIcons.autoAwesome"
               size="32px"
             />
             <span>What would you like to know?</span>
@@ -376,7 +376,7 @@ onBeforeUnmount(() => {
                 :aria-expanded="expandedSteps.has(runFor(message)!.id)"
                 @click="toggle(expandedSteps, runFor(message)!.id)"
               >
-                <q-icon :name="expandedSteps.has(runFor(message)!.id) ? 'expand_more' : 'chevron_right'" />
+                <q-icon :name="expandedSteps.has(runFor(message)!.id) ? 'keyboard_arrow_down' : 'chevron_right'" />
                 {{ stepSummary(runFor(message)!) }}
               </button>
               <div
@@ -466,7 +466,7 @@ onBeforeUnmount(() => {
                 :aria-expanded="expandedSteps.has(activeRun.id)"
                 @click="toggle(expandedSteps, activeRun.id)"
               >
-                <q-icon :name="expandedSteps.has(activeRun.id) ? 'expand_more' : 'chevron_right'" />{{ stepSummary(activeRun) }}
+                <q-icon :name="expandedSteps.has(activeRun.id) ? 'keyboard_arrow_down' : 'chevron_right'" />{{ stepSummary(activeRun) }}
               </button>
               <div
                 v-if="expandedSteps.has(activeRun.id)"

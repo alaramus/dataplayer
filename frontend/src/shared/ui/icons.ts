@@ -1,4 +1,4 @@
-/** Semantic names for shared controls, with legacy ligatures preserved for font fallback. */
+/** Semantic names for shared controls in Material Symbols Outlined. */
 export const appIcons = {
   accountMenu: "account_circle",
   accountTree: "account_tree",
@@ -12,7 +12,7 @@ export const appIcons = {
   arrowForward: "arrow_forward",
   arrowUpward: "arrow_upward",
   attachFile: "attach_file",
-  autoAwesome: "auto_awesome",
+  autoAwesome: "wand_stars",
   autoAwesomeMosaic: "auto_awesome_mosaic",
   autorenew: "autorenew",
   block: "block",
@@ -38,8 +38,8 @@ export const appIcons = {
   dataObject: "data_object",
   delete: "delete",
   deleteForever: "delete_forever",
-  deleteOutline: "delete_outline",
-  deleteSshKey: "delete_outline",
+  deleteOutline: "delete",
+  deleteSshKey: "delete",
   deleteSweep: "delete_sweep",
   description: "description",
   dns: "dns",
@@ -59,7 +59,7 @@ export const appIcons = {
   gridOn: "grid_on",
   group: "group",
   help: "help",
-  helpOutline: "help_outline",
+  helpOutline: "help",
   history: "history",
   home: "home",
   html: "html",
@@ -82,7 +82,7 @@ export const appIcons = {
   lockSshKey: "lock",
   manageSearch: "manage_search",
   mic: "mic",
-  micNone: "mic_none",
+  micNone: "mic_off",
   minimize: "minimize",
   moreVert: "more_vert",
   myLocation: "my_location",
@@ -94,7 +94,7 @@ export const appIcons = {
   postAdd: "post_add",
   preferences: "tune",
   print: "print",
-  pushPin: "push_pin",
+  pushPin: "keep",
   refresh: "refresh",
   remove: "remove",
   replay: "replay",
@@ -131,15 +131,10 @@ export const appIcons = {
   volumeUp: "volume_up",
   vpnKey: "vpn_key",
   vpnLock: "vpn_lock",
-  warningAmber: "warning_amber",
+  warningAmber: "warning",
   widgets: "widgets",
   window: "web_asset",
   wrapText: "wrap_text",
 } as const
 
-export const iconComparison = Object.entries(appIcons).map(([name, icon]) => ({ name, icon }))
-
-/** The comparison font dropped this older Material Icons ligature. */
-export function symbolComparisonIcon(icon: string): string {
-  return icon === appIcons.deleteSshKey ? "delete" : icon
-}
+export const namedIcons = Object.entries(appIcons).map(([name, icon]) => ({ name, icon }))

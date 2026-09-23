@@ -115,7 +115,7 @@ export interface ListNode {
 }
 
 /**
- * The icon of each kind, by a ligature supported by the bundled icon fonts.
+ * The icon of each kind, by a ligature supported by Symbols Outlined.
  *
  * Exported so a test can check every name against the set that actually ships:
  * an unsupported name is not a missing picture but a broken row, because
@@ -126,13 +126,13 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   table: "table_chart",
   view: "visibility",
   directory: "folder_open",
-  file: "insert_drive_file",
+  file: "draft",
   dataset: "grid_on",
-  entry: "insert_drive_file",
-  // Names from the installed sets. An unsupported name renders as a word, which
+  entry: "draft",
+  // Names from the installed font. An unsupported name renders as a word, which
   // overflows its 18px box and covers the row's tick box — the icon is drawn
   // over the control beside it, and the row cannot be ticked.
-  report: "assessment",
+  report: "analytics",
   database: "storage",
   key: "vpn_key",
 }

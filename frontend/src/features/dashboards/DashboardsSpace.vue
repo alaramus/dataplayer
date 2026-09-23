@@ -162,7 +162,7 @@ defineExpose({
       <AppCardHead title="Dashboards" />
       <div class="dashboards__center">
         <AppEmptyState
-          icon="error_outline"
+          icon="error"
           :text="messageOf(status.error.value, 'Dashboards could not be read')"
         />
       </div>

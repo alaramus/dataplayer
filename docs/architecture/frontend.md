@@ -210,10 +210,10 @@ Consequences:
   selection mark. Screens size fields through their own classes on kit
   components, never by selecting Quasar internals.
 - **Button icon names live in `shared/ui/icons.ts`.** A screen chooses a named
-  action from `appIcons`; that map keeps the current Material Icons ligature in
-  one place. A source-provided icon remains part of its source contract, and
-  the UI kit compares every named icon with Material Symbols Outlined
-  without changing the application font.
+  action from `appIcons`; its ligatures use Material Symbols Outlined, including
+  the application's replacements for older names absent from that font.
+  Quasar's built-in controls use the same icon set. A source-provided icon
+  remains part of its source contract, and the UI kit shows every named icon.
 - **Flat action text has theme colours of its own.** `secondary` and
   `danger-quiet`, icon buttons included, use `--dp-action-secondary` and
   `--dp-action-danger`, lighter in the dark theme than the filled `primary` and

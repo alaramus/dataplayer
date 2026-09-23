@@ -850,13 +850,13 @@ describe("the basic data grid", () => {
     await flushPromises()
 
     const pin = wrapper.get('[data-testid="grid-pin-name"]')
-    expect(pin.get(".q-icon").text()).toContain("push_pin")
+    expect(pin.get(".q-icon").text()).toContain("keep")
     expect(pin.attributes("aria-pressed")).toBe("false")
 
     await pin.trigger("click")
 
     const unpin = wrapper.get('[data-testid="grid-pin-name"]')
-    expect(unpin.get(".q-icon").text()).toContain("push_pin")
+    expect(unpin.get(".q-icon").text()).toContain("keep")
     expect(unpin.attributes("aria-pressed")).toBe("true")
     expect(unpin.classes()).toContain("data-grid__pin--active")
   })

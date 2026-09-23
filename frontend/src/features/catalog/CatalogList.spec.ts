@@ -36,7 +36,7 @@ function report(id: string, label: string, caption: string): ListNode {
     id,
     label,
     caption,
-    icon: "assessment",
+    icon: "analytics",
     kind: "report",
     role: "leaf",
     readable: true,

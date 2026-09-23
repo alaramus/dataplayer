@@ -1,25 +1,22 @@
 import { describe, expect, it } from "vitest"
 
-import bundledIcons from "@quasar/extras/material-icons/icons.json"
 import outlinedSymbols from "@quasar/extras/material-symbols-outlined/icons.json"
 
-import { appIcons, iconComparison, symbolComparisonIcon } from "./icons"
+import { appIcons, namedIcons } from "./icons"
 
 describe("shared semantic icons", () => {
   const keyOf = (prefix: string, icon: string) =>
     `${prefix}${icon.replace(/(^|_)([a-z])/g, (_, _separator: string, letter: string) => letter.toUpperCase())}`
 
-  it("uses glyphs available in the installed Material Icons font", () => {
-    const bundled = new Set(bundledIcons)
+  it("uses glyphs available in the installed Symbols Outlined font", () => {
+    const bundled = new Set(outlinedSymbols)
     for (const icon of Object.values(appIcons)) {
-      expect(bundled.has(keyOf("mat", icon)), icon).toBe(true)
+      expect(bundled.has(keyOf("symOutlined", icon)), icon).toBe(true)
     }
   })
 
-  it("compares every named icon and resolves the older delete ligature", () => {
-    const bundled = new Set(outlinedSymbols)
-    expect(iconComparison).toEqual(Object.entries(appIcons).map(([name, icon]) => ({ name, icon })))
-    expect(bundled.has(keyOf("symOutlined", symbolComparisonIcon(appIcons.deleteSshKey)))).toBe(true)
+  it("lists every semantic icon in the UI kit", () => {
+    expect(namedIcons).toEqual(Object.entries(appIcons).map(([name, icon]) => ({ name, icon })))
   })
 
   it("keeps literal icon names out of button templates", () => {

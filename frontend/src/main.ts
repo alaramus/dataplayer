@@ -4,7 +4,6 @@ import { IconSet, Notify, Quasar } from "quasar"
 import symbolsOutlined from "quasar/icon-set/material-symbols-outlined"
 import { createApp } from "vue"
 
-import "@quasar/extras/material-icons/material-icons.css"
 import "@quasar/extras/material-symbols-outlined/material-symbols-outlined.css"
 import "quasar/src/css/index.sass"
 // After Quasar's own stylesheet: the colours the application draws itself

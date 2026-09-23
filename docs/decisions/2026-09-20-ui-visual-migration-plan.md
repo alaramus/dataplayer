@@ -893,3 +893,22 @@ narrow-rail scenarios also pass with the new font.
 Validation: all 1,923 frontend unit tests, type-check, lint and build passed;
 lint retains 20 unrelated warnings and build reports large chunks. The three
 targeted Chromium scenarios passed. The full E2E suite was not run.
+
+## Slice 36: complete Symbols Outlined transition
+
+The product choice is Material Symbols Outlined. The application no longer
+loads Material Icons, and the UI kit shows only the chosen font. Semantic icon
+names that the installed Symbols font lacks now use equivalent glyphs:
+`wand_stars` for AI, `delete` for outlined delete actions, `help` for
+questions, `mic_off` for inactive dictation, `keep` for pinned items and
+`warning` for caution. Feature-local icon names were also updated: catalog
+files and reports, disclosure arrows, and error and help marks. All action
+labels and behaviour remain unchanged.
+
+Coverage: the semantic and catalog icon tests check the installed font;
+browser scenarios check both themes and that the UI kit has no legacy icon
+class. Validation: all 1,923 frontend unit tests, type-check, lint and build
+passed. Lint retains 20 unrelated warnings; build reports large chunks. The
+five targeted AI, catalog, dashboard narrow-rail and icon-font Chromium
+scenarios passed.
+The full E2E suite was not run.
