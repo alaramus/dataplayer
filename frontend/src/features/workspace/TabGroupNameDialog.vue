@@ -35,7 +35,11 @@ const emit = defineEmits<{ "update:modelValue": [open: boolean]; confirm: [] }>(
       />
     </AppForm>
     <template #actions>
-      <AppButton variant="quiet" label="Cancel" @click="emit('update:modelValue', false)" />
+      <AppButton
+        variant="quiet"
+        label="Cancel"
+        @click="emit('update:modelValue', false)"
+      />
       <AppButton
         label="Save"
         :disable="Boolean(problem) || busy"
