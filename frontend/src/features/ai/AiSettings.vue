@@ -2,7 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
-import { AppBanner, AppButton, AppEmptyState, AppIconButton, AppSection, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppEmptyState, AppForm, AppIconButton, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import AiModelSelect from "./AiModelSelect.vue"
@@ -65,37 +65,40 @@ async function removeAll() {
       Agent settings could not be loaded.
     </AppBanner>
     <template v-else>
-      <AppSection gutter>
-        <h3>Model</h3>
-        <AppBanner
-          v-if="settings.data.value?.model_missing"
-          tone="warning"
+      <section class="ai-settings__group">
+        <AppForm
+          layout="section"
+          class="ai-settings__form"
         >
-          The saved model is no longer available. Choose another one.
-        </AppBanner>
-        <AiModelSelect
-          :model-value="modelValue"
-          key-button
-          data-testid="ai-model"
-          @update:model-value="chooseModel"
-        />
-      </AppSection>
-      <AppSection
-        divided
-        gutter
-      >
-        <h3>Confirmations</h3>
-        <AppToggle
-          :model-value="allowAll"
-          label="Allow all changes in every chat"
-          data-testid="ai-allow-all"
-          @update:model-value="setAllowAll"
-        />
-      </AppSection>
-      <AppSection
-        divided
-        gutter
-      >
+          <AppBanner
+            v-if="settings.data.value?.model_missing"
+            tone="warning"
+          >
+            The saved model is no longer available. Choose another one.
+          </AppBanner>
+          <AiModelSelect
+            :model-value="modelValue"
+            key-button
+            data-testid="ai-model"
+            @update:model-value="chooseModel"
+          />
+        </AppForm>
+      </section>
+      <section class="ai-settings__group">
+        <AppForm
+          layout="section"
+          class="ai-settings__form"
+        >
+          <h3>Confirmations</h3>
+          <AppToggle
+            :model-value="allowAll"
+            label="Allow all changes in every chat"
+            data-testid="ai-allow-all"
+            @update:model-value="setAllowAll"
+          />
+        </AppForm>
+      </section>
+      <section class="ai-settings__archive">
         <h3>Archive</h3>
         <AppSpinner v-if="archive.isPending.value" />
         <AppBanner
@@ -110,33 +113,36 @@ async function removeAll() {
           text="Chats you archive are kept here until you delete them."
         />
         <template v-else>
-          <div
-            v-for="chat in archived"
-            :key="chat.id"
-            class="ai-archived"
-            :data-testid="`ai-archived-${chat.id}`"
-          >
-            <span
-              class="ai-archived__title"
-              :title="chat.title"
-            >{{ chat.title }}</span>
-            <AppIconButton
-              :icon="appIcons.unarchive"
-              tooltip="Restore chat"
-              compact
-              :data-testid="`ai-restore-${chat.id}`"
-              @click="restore(chat.id)"
-            />
-            <AppIconButton
-              :icon="appIcons.delete"
-              tooltip="Delete chat"
-              variant="danger-quiet"
-              compact
-              :data-testid="`ai-delete-${chat.id}`"
-              @click="remove(chat.id, chat.title)"
-            />
+          <div class="ai-settings__archived-list">
+            <div
+              v-for="chat in archived"
+              :key="chat.id"
+              class="ai-archived"
+              :data-testid="`ai-archived-${chat.id}`"
+            >
+              <span
+                class="ai-archived__title"
+                :title="chat.title"
+              >{{ chat.title }}</span>
+              <AppIconButton
+                :icon="appIcons.unarchive"
+                tooltip="Restore chat"
+                compact
+                :data-testid="`ai-restore-${chat.id}`"
+                @click="restore(chat.id)"
+              />
+              <AppIconButton
+                :icon="appIcons.delete"
+                tooltip="Delete chat"
+                variant="danger-quiet"
+                compact
+                :data-testid="`ai-delete-${chat.id}`"
+                @click="remove(chat.id, chat.title)"
+              />
+            </div>
           </div>
           <AppButton
+            class="ai-settings__delete-all"
             variant="danger-quiet"
             size="sm"
             label="Delete all"
@@ -144,7 +150,7 @@ async function removeAll() {
             @click="removeAll"
           />
         </template>
-      </AppSection>
+      </section>
     </template>
   </div>
 </template>
@@ -152,7 +158,13 @@ async function removeAll() {
 <style scoped>
 /* Under the card's head, which names it. */
 .ai-settings { flex: 1; min-height: 0; overflow: auto; }
-.ai-settings h3 { margin: 0; font-size: 14px; font-weight: 500; }
-.ai-archived { display: flex; align-items: center; gap: var(--dp-space-1); }
+.ai-settings h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.ai-settings__group { border-bottom: 1px solid var(--dp-border-faint); }
+.ai-settings__form { max-width: 640px; }
+.ai-settings__archive { display: flex; flex-direction: column; gap: var(--dp-space-3); max-width: 640px; padding: var(--dp-space-4); }
+.ai-settings__archived-list { display: flex; flex-direction: column; }
+.ai-settings__delete-all { align-self: flex-start; }
+.ai-archived { display: flex; align-items: center; gap: var(--dp-space-1); min-width: 0; padding: var(--dp-space-2) 0; }
+.ai-archived + .ai-archived { border-top: 1px solid var(--dp-border-faint); }
 .ai-archived__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

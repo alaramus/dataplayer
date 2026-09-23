@@ -927,3 +927,19 @@ and the AI space button. Validation: all 1,923 frontend unit tests, type-check,
 lint and build passed. Lint retains 20 unrelated warnings; build reports large
 chunks. The two targeted Chromium icon scenarios passed. The full E2E suite
 was not run.
+
+## Slice 38: AI settings form
+
+The AI settings panel uses `AppForm layout="section"` for model selection and
+confirmations. The model field now has the shared outlined form look and a
+bounded width; the confirmation toggle uses the form context. The archive is
+a flat list with quiet row separators, and its Delete all action keeps its
+natural width. Settings remain in the conversation card, with the same model,
+key, confirmation and archive behaviour.
+
+Coverage: Chromium screenshots and form, row and overflow checks in both
+themes at desktop and 390px with the existing first-panel collapse control.
+Validation: all 1,923 frontend unit tests, type-check, lint, build and the
+documentation check passed. Lint retains 20 unrelated warnings; build reports
+large chunks. The two new themed Chromium scenes and the existing AI
+behaviour scenario passed. The full E2E suite was not run.
