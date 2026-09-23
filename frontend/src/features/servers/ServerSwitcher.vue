@@ -7,12 +7,11 @@ import { serverCheckOptions } from "@/features/servers/api"
 import { switchServer } from "@/shared/servers/leaving"
 import { normalizeServerUrl, parseProfile, safeLocalPath } from "@/shared/servers/profiles"
 import type { ServerProfile } from "@/shared/servers/profiles"
-import AppActions from "@/shared/ui/AppActions.vue"
 import AppBanner from "@/shared/ui/AppBanner.vue"
 import AppButton from "@/shared/ui/AppButton.vue"
+import AppForm from "@/shared/ui/AppForm.vue"
 import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import AppInput from "@/shared/ui/AppInput.vue"
-import AppSection from "@/shared/ui/AppSection.vue"
 import AppTooltip from "@/shared/ui/AppTooltip.vue"
 import { WindowDialog } from "@/shared/windows"
 import { useServersStore } from "@/stores/servers"
@@ -125,9 +124,11 @@ function remove(profile: ServerProfile) {
     v-model="open"
     title="Servers"
     subtitle="Choose the server for this browser tab. Accounts are separate on each server."
+    size="form"
+    sizing="stable"
     data-testid="server-manager"
   >
-    <AppSection gutter>
+    <AppForm layout="section">
       <div class="server-switcher__current">
         Current: {{ servers.active.name }} · {{ servers.active.url }}
       </div>
@@ -146,26 +147,6 @@ function remove(profile: ServerProfile) {
           :disable="busy"
           data-testid="server-url"
         />
-        <AppActions align="left">
-          <AppButton
-            label="Check connection"
-            variant="secondary"
-            :disable="busy"
-            @click="checkForm"
-          />
-          <AppButton
-            :label="savingActiveAddress ? 'Save and connect' : 'Save server'"
-            :loading="busy"
-            data-testid="server-save"
-            @click="save"
-          />
-          <AppButton
-            label="Cancel"
-            variant="quiet"
-            :disable="busy"
-            @click="editing = false; error = ''; notice = ''"
-          />
-        </AppActions>
       </template>
       <template v-else>
         <div
@@ -206,30 +187,66 @@ function remove(profile: ServerProfile) {
             />
           </template>
         </div>
+        <div>
+          <AppButton
+            label="Add server"
+            icon="add"
+            variant="secondary"
+            :disable="busy"
+            data-testid="server-add"
+            @click="edit()"
+          />
+        </div>
+      </template>
+    </AppForm>
+
+    <template #actions>
+      <div
+        v-if="error || notice"
+        class="server-switcher__strip"
+      >
+        <AppBanner
+          v-if="error"
+          tone="error"
+          data-testid="server-error"
+        >
+          {{ error }}
+        </AppBanner>
+        <AppBanner
+          v-if="notice"
+          tone="info"
+          data-testid="server-notice"
+        >
+          {{ notice }}
+        </AppBanner>
+      </div>
+      <template v-if="editing">
         <AppButton
-          label="Add server"
-          icon="add"
+          label="Check connection"
           variant="secondary"
           :disable="busy"
-          data-testid="server-add"
-          @click="edit()"
+          @click="checkForm"
+        />
+        <AppButton
+          :label="savingActiveAddress ? 'Save and connect' : 'Save server'"
+          :loading="busy"
+          data-testid="server-save"
+          @click="save"
+        />
+        <AppButton
+          label="Cancel"
+          variant="quiet"
+          :disable="busy"
+          @click="editing = false; error = ''; notice = ''"
         />
       </template>
-      <AppBanner
-        v-if="error"
-        tone="error"
-        data-testid="server-error"
-      >
-        {{ error }}
-      </AppBanner>
-      <AppBanner
-        v-if="notice"
-        tone="info"
-        data-testid="server-notice"
-      >
-        {{ notice }}
-      </AppBanner>
-    </AppSection>
+      <AppButton
+        v-else
+        label="Close"
+        variant="quiet"
+        @click="open = false"
+      />
+    </template>
   </WindowDialog>
 </template>
 
@@ -239,4 +256,5 @@ function remove(profile: ServerProfile) {
 .server-switcher__row { display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2) 0; border-bottom: 1px solid var(--dp-border); }
 .server-switcher__details { flex: 1; min-width: 0; }
 .server-switcher__url, .server-switcher__current { color: var(--dp-text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.server-switcher__strip { flex-basis: 100%; display: flex; flex-direction: column; gap: var(--dp-space-2); }
 </style>

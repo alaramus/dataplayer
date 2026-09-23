@@ -171,8 +171,9 @@ const groups = computed(() =>
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
   width: clamp(240px, 32%, 320px);
-  flex: none;
+  flex: 0 1 auto;
   border-left: 1px solid var(--dp-border);
 }
 .adapter-panel__start {

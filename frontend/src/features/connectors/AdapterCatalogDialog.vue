@@ -98,7 +98,8 @@ function start(template: ServiceTemplateInfo) {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    size="lg"
+    size="wide-form"
+    sizing="stable"
     title="New connection"
     subtitle="Pick the kind of source to connect to."
     data-testid="adapter-catalog"
@@ -189,17 +190,18 @@ function start(template: ServiceTemplateInfo) {
 </template>
 
 <style scoped>
-/* A box of a settled height: the three columns scroll inside it rather than
+/* The three columns fill the stable body and scroll inside it, rather than
    the window growing with the number of source types. */
 .adapter-catalog {
   display: flex;
   min-height: 0;
-  height: min(60vh, 460px);
+  height: 100%;
   border-top: 1px solid var(--dp-border);
   border-bottom: 1px solid var(--dp-border);
 }
 .adapter-catalog__sidebar {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   width: clamp(150px, 22%, 220px);
   min-height: 0;
   overflow-y: auto;

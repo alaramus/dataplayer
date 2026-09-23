@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AppButton, AppInput } from "@/shared/ui"
+import { AppButton, AppForm, AppInput } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /** Naming a tab group: the same window for saving one and renaming one. */
@@ -19,10 +19,11 @@ const emit = defineEmits<{ "update:modelValue": [open: boolean]; confirm: [] }>(
     :model-value="modelValue"
     :title="title"
     size="sm"
+    sizing="stable"
     data-testid="tab-group-name-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <div class="tab-group-name">
+    <AppForm layout="section">
       <AppInput
         v-model="name"
         label="Group name"
@@ -32,13 +33,9 @@ const emit = defineEmits<{ "update:modelValue": [open: boolean]; confirm: [] }>(
         data-testid="tab-group-name"
         @keydown.enter.prevent="emit('confirm')"
       />
-    </div>
+    </AppForm>
     <template #actions>
-      <AppButton
-        variant="quiet"
-        label="Cancel"
-        @click="emit('update:modelValue', false)"
-      />
+      <AppButton variant="quiet" label="Cancel" @click="emit('update:modelValue', false)" />
       <AppButton
         label="Save"
         :disable="Boolean(problem) || busy"
@@ -48,9 +45,3 @@ const emit = defineEmits<{ "update:modelValue": [open: boolean]; confirm: [] }>(
     </template>
   </WindowDialog>
 </template>
-
-<style scoped>
-.tab-group-name {
-  padding: var(--dp-space-3);
-}
-</style>
