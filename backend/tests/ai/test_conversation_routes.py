@@ -3,6 +3,8 @@
 import asyncio
 import time
 import uuid
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from httpx import AsyncClient
@@ -11,7 +13,7 @@ from pydantic import BaseModel
 from sqlalchemy import text as sql
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.ai import tools
+from app.ai import model_routing, preferences, tools
 from app.ai.models import Conversation
 from app.ai.topic import NAME, AgentTopic, AnswerDelta, RunChanged
 from app.core.config import settings
@@ -79,6 +81,48 @@ async def test_an_answer_streams_is_written_down_and_names_the_conversation(
         await asyncio.sleep(0.02)
     assert conversation["title"] == "Tables question"
     assert script.built[0][1] == KEY
+
+
+async def test_jev_selects_within_the_provider_and_records_the_actual_model(
+    client: AsyncClient,
+    headers: dict[str, str],
+    script: Script,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = "anthropic:claude-opus-5"
+
+    class FakeClassifier:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "jev-key"
+
+        async def ainvoke(self, request: dict[str, Any]) -> Any:
+            assert target in request["questions"]["model"].criteria
+            assert all(
+                key.startswith("anthropic:")
+                for key in request["questions"]["model"].criteria
+            )
+            return SimpleNamespace(choices={"model": SimpleNamespace(choice=target)})
+
+    monkeypatch.setattr(model_routing, "TypeSafeClassifier", FakeClassifier)
+    await preferences.set_key(db, await user_id_of(client, headers), "typesafe", "jev-key")
+    conversation_id = await new_conversation(client, headers)
+    chosen = await client.patch(
+        f"{AI}/conversations/{conversation_id}", headers=headers,
+        json={"model_key": MODEL_KEY, "auto_provider": "anthropic"},
+    )
+    assert chosen.status_code == 200, chosen.text
+    script.turns += [Turn(pieces=[text("Answer")]), Turn(pieces=[text("Title")])]
+
+    run = await send(client, headers, conversation_id, "Explain this")
+    finished = await settled(client, headers, run["id"])
+
+    assert finished["model_key"] == target
+    assert script.built[0][0] == target
+    assert finished["steps"][0]["title"] == "Thinking · Jev selected this model"
+    shown = (await client.get(f"{AI}/conversations/{conversation_id}", headers=headers)).json()
+    assert shown["auto_provider"] == "anthropic"
+    assert shown["model_key"] == MODEL_KEY
 
 
 async def test_the_first_line_is_the_title_until_the_model_writes_one(

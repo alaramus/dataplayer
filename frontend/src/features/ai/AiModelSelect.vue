@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
-import { AppIconButton, AppSelect } from "@/shared/ui"
+import { AppIconButton, AppSelect, appIcons, useConfirm, useToast } from "@/shared/ui"
 import type { SelectOption } from "@/shared/ui"
+import { useCurrentUser } from "@/shared/auth/currentUser"
+import { serverStorageKey } from "@/shared/servers/context"
 
 import AiKeyDialog from "./AiKeyDialog.vue"
 import { useAiModels, useAiSettings } from "./api"
@@ -37,6 +38,9 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
 const models = useAiModels()
 const settings = useAiSettings()
+const me = useCurrentUser()
+const confirm = useConfirm()
+const toast = useToast()
 const keyProvider = ref<Provider | null>(null)
 const keyDialogOpen = ref(false)
 
@@ -50,8 +54,11 @@ const options = computed<ModelOption[]>(() =>
 const selectedModel = computed(
   () => (models.data.value ?? []).find((one) => one.key === props.modelValue) ?? null
 )
+const selectedProvider = computed(() => selectedModel.value?.provider
+  ?? (models.data.value ?? []).find((model) => props.modelValue === `auto:${model.provider}`)?.provider
+  ?? null)
 const selectedKeySet = computed(() =>
-  selectedModel.value ? keySet(selectedModel.value.provider) : false
+  selectedProvider.value ? keySet(selectedProvider.value) : false
 )
 const dialogProvider = computed(() => keyProvider.value === null
   ? null
@@ -66,10 +73,34 @@ function manageOptionKey(option: SelectOption) {
   if (provider) manageKey(provider)
 }
 function manageSelectedKey() {
-  if (selectedModel.value) manageKey(selectedModel.value.provider)
+  if (selectedProvider.value) manageKey(selectedProvider.value)
 }
-function choose(value: unknown) {
-  if (typeof value === "string") emit("update:modelValue", value)
+async function choose(value: unknown) {
+  if (typeof value !== "string" || value === props.modelValue) return
+  const option = options.value.find((one) => one.value === value)
+  if (option?.disable) return
+  if (option?.auto) {
+    const provider = option.provider
+    if (!provider) return
+    const userId = me.data.value?.id
+    const warningKey = userId ? serverStorageKey(`dataplayer-ai-jev-routing:skip-warning:${userId}`) : null
+    let skipWarning = false
+    if (warningKey) {
+      try { skipWarning = localStorage.getItem(warningKey) === "true" } catch { /* Ask when unavailable. */ }
+    }
+    if (!skipWarning && !(await confirm({
+      title: "Let Jev choose the model?",
+      message: `Jev will choose from every ${providerLabel(models.data.value ?? [], provider)} model for each answer. Models may differ in cost and capabilities. Your request will be sent to TypeSafe to make the choice.`,
+      confirmLabel: "Use Jev",
+      rememberLabel: "Don't show again",
+      onRemember: () => {
+        if (!warningKey) return
+        try { localStorage.setItem(warningKey, "true") }
+        catch { toast.error("The browser could not remember this preference.") }
+      },
+    }))) return
+  }
+  emit("update:modelValue", value)
 }
 </script>
 
@@ -93,7 +124,7 @@ function choose(value: unknown) {
           :icon="selectedKeySet ? appIcons.key : appIcons.keyOff"
           :active="selectedKeySet"
           tooltip="Manage the selected model provider key"
-          :disable="modelValue === null"
+          :disable="selectedProvider === null"
           data-testid="ai-selected-model-key"
           @click="manageSelectedKey"
         />

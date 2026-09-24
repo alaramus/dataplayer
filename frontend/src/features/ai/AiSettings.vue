@@ -9,14 +9,17 @@ import AiModelSelect from "./AiModelSelect.vue"
 import AiKeyDialog from "./AiKeyDialog.vue"
 import {
   useAiSettings,
+  useAiModels,
   useArchivedAiConversations,
   useDeleteAiConversation,
   useDeleteArchivedAiConversations,
   useUpdateAiConversation,
   useUpdateAiSettings,
 } from "./api"
+import { autoModelValue, fallbackModel } from "./modelOptions"
 
 const settings = useAiSettings()
+const models = useAiModels()
 const update = useUpdateAiSettings()
 const archive = useArchivedAiConversations()
 const updateConversation = useUpdateAiConversation()
@@ -24,14 +27,19 @@ const deleteConversation = useDeleteAiConversation()
 const deleteArchived = useDeleteArchivedAiConversations()
 const confirm = useConfirm()
 const toast = useToast()
-const modelValue = computed(() => settings.data.value?.model_key ?? null)
+const modelValue = computed(() => settings.data.value?.auto_provider
+  ? autoModelValue(settings.data.value.auto_provider)
+  : settings.data.value?.model_key ?? null)
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
 const jevKeySet = computed(() => settings.data.value?.keys.some((key) => key.provider === "typesafe" && key.set) ?? false)
 const jevDialogOpen = ref(false)
 const archived = computed(() => archive.data.value?.data ?? [])
 
 async function chooseModel(value: string) {
-  try { await update.mutateAsync({ model_key: value }) }
+  const provider = models.data.value?.find((one) => value === autoModelValue(one.provider))?.provider
+  const fallback = provider ? fallbackModel(models.data.value ?? [], settings.data.value?.model_key ?? null, provider) : null
+  if (provider && !fallback) return
+  try { await update.mutateAsync({ model_key: fallback?.key ?? value, auto_provider: provider ?? null }) }
   catch (cause) { toast.error(messageOf(cause, "The model could not be selected")) }
 }
 async function setAllowAll(value: boolean) {

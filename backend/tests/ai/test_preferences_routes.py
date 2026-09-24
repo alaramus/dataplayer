@@ -143,6 +143,34 @@ async def test_a_model_is_chosen_only_from_the_list(
     assert chosen.json()["model_missing"] is False
 
 
+async def test_auto_model_selection_needs_jev_and_a_fallback_in_its_provider(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    db: AsyncSession,
+) -> None:
+    headers = normal_user_token_headers
+    body = {"model_key": "anthropic:claude-sonnet-5", "auto_provider": "anthropic"}
+    without_key = await client.patch(f"{AI}/settings", headers=headers, json=body)
+    assert without_key.status_code == 422
+
+    await preferences.set_key(db, await user_id_of(client, headers), "typesafe", "jev-key")
+    wrong_provider = await client.patch(
+        f"{AI}/settings", headers=headers,
+        json={"model_key": body["model_key"], "auto_provider": "openai"},
+    )
+    assert wrong_provider.status_code == 422
+
+    await preferences.set_key(db, await user_id_of(client, headers), "anthropic", KEY)
+
+    selected = await client.patch(f"{AI}/settings", headers=headers, json=body)
+    assert selected.status_code == 200
+    assert selected.json()["auto_provider"] == "anthropic"
+    manual = await client.patch(
+        f"{AI}/settings", headers=headers, json={"model_key": body["model_key"]}
+    )
+    assert manual.json()["auto_provider"] is None
+
+
 async def test_a_stored_model_the_list_dropped_asks_for_another(
     client: AsyncClient, db: AsyncSession
 ) -> None:

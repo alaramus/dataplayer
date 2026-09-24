@@ -17,6 +17,7 @@ from sqlmodel import col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.attachments import NewAttachment
+from app.ai.catalog import ChatProvider, chat_provider_of
 from app.ai.content import opened, sealed, sealed_bytes
 from app.ai.models import (
     MAX_TITLE_CHARS,
@@ -86,6 +87,7 @@ def summary_of(
         pinned=conversation.pinned,
         archived=conversation.archived,
         model_key=conversation.model_key,
+        auto_provider=chat_provider_of(conversation.auto_provider),
         change_policy=policy_of(conversation.change_policy),
         project_id=conversation.project_id,
     )
@@ -170,6 +172,20 @@ async def list_for_owner(
     )
 
 
+async def has_image_attachment(session: AsyncSession, conversation_id: uuid.UUID) -> bool:
+    found = await session.exec(
+        select(MessageAttachment.id)
+        .join(
+            ConversationMessage,
+            col(MessageAttachment.message_id) == col(ConversationMessage.id),
+        )
+        .where(col(ConversationMessage.conversation_id) == conversation_id)
+        .where(col(MessageAttachment.kind) == "image")
+        .limit(1)
+    )
+    return found.first() is not None
+
+
 async def change(
     session: AsyncSession,
     conversation: Conversation,
@@ -178,6 +194,8 @@ async def change(
     pinned: bool | None = None,
     archived: bool | None = None,
     model_key: str | None = None,
+    auto_provider: ChatProvider | None = None,
+    set_auto_provider: bool = False,
     change_policy: ChangePolicy | None = None,
     project_id: uuid.UUID | None = None,
     move: bool = False,
@@ -196,6 +214,8 @@ async def change(
         conversation.archived = archived
     if model_key is not None:
         conversation.model_key = model_key
+    if set_auto_provider:
+        conversation.auto_provider = auto_provider
     if change_policy is not None:
         conversation.change_policy = change_policy
     # Said apart from the value: taking a conversation out of every folder is a
@@ -676,6 +696,7 @@ async def conversation_public(
         title=opened(conversation.title),
         title_is_custom=conversation.title_is_custom,
         model_key=conversation.model_key,
+        auto_provider=chat_provider_of(conversation.auto_provider),
         change_policy=policy_of(conversation.change_policy),
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,

@@ -28,6 +28,11 @@ PROVIDER_TITLES: dict[Provider, str] = {
 }
 
 PROVIDERS: tuple[Provider, ...] = tuple(PROVIDER_TITLES)
+CHAT_PROVIDERS: tuple[ChatProvider, ...] = ("openai", "anthropic", "deepseek", "gemini")
+
+
+def chat_provider_of(value: str | None) -> ChatProvider | None:
+    return next((provider for provider in CHAT_PROVIDERS if provider == value), None)
 
 CATALOG_FILE = Path(__file__).with_name("models.json")
 

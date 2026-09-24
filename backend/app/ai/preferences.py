@@ -14,7 +14,10 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.attachments import RULES as ATTACHMENT_RULES
-from app.ai.catalog import PROVIDER_TITLES, PROVIDERS, ModelCatalog, ModelInfo, Provider
+from app.ai.catalog import (
+    PROVIDER_TITLES, PROVIDERS, ChatProvider, ModelCatalog, ModelInfo, Provider,
+    chat_provider_of,
+)
 from app.ai.models import (
     AgentModelPublic,
     AgentPreferences,
@@ -89,6 +92,7 @@ async def settings_of(
     chosen = models.find(stored.model_key)
     return AgentSettingsPublic(
         model_key=chosen.key if chosen else None,
+        auto_provider=chat_provider_of(stored.auto_provider) if chosen else None,
         model_missing=stored.model_key is not None and chosen is None,
         allow_all_changes=stored.allow_all_changes,
         keys=[ProviderKeyState(provider=p, set=p in keys) for p in PROVIDERS],
@@ -113,6 +117,18 @@ async def update_settings(
         if update.model_key is not None and models.find(update.model_key) is None:
             raise SettingsRefused("That model is not in the list")
         stored.model_key = update.model_key
+        if "auto_provider" not in update.model_fields_set:
+            stored.auto_provider = None
+    if "auto_provider" in update.model_fields_set:
+        if update.auto_provider is not None:
+            fallback = models.find(update.model_key or stored.model_key)
+            if fallback is None or fallback.provider != update.auto_provider:
+                raise SettingsRefused("Choose a fallback model from this provider")
+            if await key_for(session, user_id, update.auto_provider) is None:
+                raise SettingsRefused("Set this model provider's API key first")
+            if await key_for(session, user_id, "typesafe") is None:
+                raise SettingsRefused("Set a Jev API key first")
+        stored.auto_provider = update.auto_provider
     if update.allow_all_changes is not None:
         stored.allow_all_changes = update.allow_all_changes
     session.add(stored)
@@ -121,7 +137,8 @@ async def update_settings(
 
 
 async def remember_model(
-    session: AsyncSession, user_id: uuid.UUID, model_key: str
+    session: AsyncSession, user_id: uuid.UUID, model_key: str,
+    auto_provider: ChatProvider | None = None,
 ) -> None:
     """A model chosen in a chat is what the next chat starts with too (D140).
 
@@ -130,6 +147,7 @@ async def remember_model(
     """
     stored = await _stored(session, user_id)
     stored.model_key = model_key
+    stored.auto_provider = auto_provider
     session.add(stored)
 
 
@@ -154,6 +172,17 @@ async def model_for(
     return models.find(conversation.model_key) or await chosen_model(
         session, user_id, models
     )
+
+
+async def auto_provider_for(
+    session: AsyncSession, user_id: uuid.UUID, conversation: Conversation
+) -> ChatProvider | None:
+    stored = (
+        conversation.auto_provider
+        if conversation.model_key is not None
+        else (await _stored(session, user_id)).auto_provider
+    )
+    return chat_provider_of(stored)
 
 
 async def models_for(

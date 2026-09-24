@@ -454,7 +454,7 @@ export type AgentModelPublic = {
   /**
    * Provider
    */
-  provider: "openai" | "anthropic" | "deepseek" | "gemini" | "typesafe"
+  provider: "openai" | "anthropic" | "deepseek" | "gemini"
   /**
    * Provider Label
    */
@@ -600,6 +600,10 @@ export type AgentSettingsPublic = {
    */
   model_key: string | null
   /**
+   * Auto Provider
+   */
+  auto_provider: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  /**
    * Model Missing
    */
   model_missing: boolean
@@ -624,6 +628,10 @@ export type AgentSettingsUpdate = {
    * Model Key
    */
   model_key?: string | null
+  /**
+   * Auto Provider
+   */
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
   /**
    * Allow All Changes
    */
@@ -2327,6 +2335,10 @@ export type ConversationPublic = {
    */
   model_key?: string | null
   /**
+   * Auto Provider
+   */
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  /**
    * Change Policy
    */
   change_policy?: "read_only" | "ask" | "allow" | "jev"
@@ -2385,6 +2397,10 @@ export type ConversationSummary = {
    */
   model_key?: string | null
   /**
+   * Auto Provider
+   */
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  /**
    * Change Policy
    */
   change_policy?: "read_only" | "ask" | "allow" | "jev"
@@ -2419,6 +2435,10 @@ export type ConversationUpdate = {
    * Model Key
    */
   model_key?: string | null
+  /**
+   * Auto Provider
+   */
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
   /**
    * Change Policy
    */

@@ -30,6 +30,7 @@ import AiContextDialog from "./AiContextDialog.vue"
 import AiFileChip from "./AiFileChip.vue"
 import AiMessageFiles from "./AiMessageFiles.vue"
 import AiModelSelect from "./AiModelSelect.vue"
+import { autoModelValue, fallbackModel } from "./modelOptions"
 
 const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
 const conversation = useAiConversation(() => props.conversationId)
@@ -75,8 +76,10 @@ interface PendingFile { id: string; file: File; kind: AttachmentKind; address: s
 const pending = ref<PendingFile[]>([])
 const picker = ref<HTMLInputElement | null>(null)
 const rules = computed(() => settings.data.value?.attachments ?? null)
-const currentModel = computed(() => (models.data.value ?? []).find((one) => one.key === chatModel.value) ?? null)
-const readsImages = computed(() => currentModel.value?.image_input ?? false)
+const currentModel = computed(() => (models.data.value ?? []).find((one) => one.key === fallbackKey.value) ?? null)
+const readsImages = computed(() => autoProvider.value
+  ? (models.data.value ?? []).some((one) => one.provider === autoProvider.value && one.image_input)
+  : currentModel.value?.image_input ?? false)
 // An image picked for one model stays when another is chosen; the message
 // then waits for a model that reads it, or for the image to go.
 const imageProblem = computed(() =>
@@ -173,10 +176,23 @@ async function choosePolicy(value: unknown) {
 // What this chat is answered with: its own model, or the one the settings
 // chose for every chat that has not said otherwise. Choosing here is also
 // choosing for the next chat; the server keeps both (D140).
-const chatModel = computed(() => conversation.data.value?.model_key ?? settings.data.value?.model_key ?? null)
+const fallbackKey = computed(() => conversation.data.value?.model_key ?? settings.data.value?.model_key ?? null)
+const autoProvider = computed(() => conversation.data.value?.model_key
+  ? conversation.data.value.auto_provider
+  : settings.data.value?.auto_provider)
+const chatModel = computed(() => autoProvider.value ? autoModelValue(autoProvider.value) : fallbackKey.value)
 async function chooseModel(value: string) {
   if (value === chatModel.value) return
-  try { await updateConversation.mutateAsync({ id: props.conversationId, model_key: value }) }
+  const provider = models.data.value?.find((one) => value === autoModelValue(one.provider))?.provider
+  const fallback = provider ? fallbackModel(models.data.value ?? [], fallbackKey.value, provider) : null
+  if (provider && !fallback) return
+  try {
+    await updateConversation.mutateAsync({
+      id: props.conversationId,
+      model_key: fallback?.key ?? value,
+      auto_provider: provider ?? null,
+    })
+  }
   catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
 }
 
@@ -216,11 +232,12 @@ function errorOf(message: ConversationMessagePublic): string | null {
   return run.error ?? "The answer failed."
 }
 function stepSummary(run: AgentRunPublic): string {
+  const model = models.data.value?.find((one) => one.key === run.model_key)?.name ?? run.model_key
   const duration = runDuration(run, now.value)
   const steps = run.steps ?? []
   const current = [...steps].reverse().find((step) => step.status === "running")
-  if (current) return `${current.title} · ${duration}`
-  return `${String(steps.length)} ${steps.length === 1 ? "step" : "steps"}${duration ? ` · ${duration}` : ""}`
+  if (current) return `${model} · ${current.title} · ${duration}`
+  return `${model} · ${String(steps.length)} ${steps.length === 1 ? "step" : "steps"}${duration ? ` · ${duration}` : ""}`
 }
 function toggle(set: Set<string>, id: string) {
   const next = new Set(set)

@@ -245,6 +245,20 @@ async def update_conversation(
         raise HTTPException(
             status_code=422, detail={"message": "That model is not in the list"}
         )
+    if body.auto_provider is not None:
+        fallback = catalog().find(body.model_key)
+        if fallback is None or fallback.provider != body.auto_provider:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "Choose a fallback model from this provider"},
+            )
+        if await preferences.key_for(session, current_user.id, body.auto_provider) is None:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "Set this model provider's API key first"},
+            )
+        if await preferences.key_for(session, current_user.id, "typesafe") is None:
+            raise HTTPException(status_code=422, detail={"message": "Set a Jev API key first"})
     if body.change_policy == "jev" and await preferences.key_for(
         session, current_user.id, "typesafe"
     ) is None:
@@ -260,7 +274,9 @@ async def update_conversation(
             raise HTTPException(status_code=404, detail=NO_PROJECT)
     title = body.title.strip() if body.title is not None else None
     if body.model_key is not None:
-        await preferences.remember_model(session, current_user.id, body.model_key)
+        await preferences.remember_model(
+            session, current_user.id, body.model_key, body.auto_provider
+        )
     changed = await conversations.change(
         session,
         conversation,
@@ -268,6 +284,10 @@ async def update_conversation(
         pinned=body.pinned,
         archived=body.archived,
         model_key=body.model_key,
+        auto_provider=body.auto_provider,
+        set_auto_provider=(
+            "auto_provider" in body.model_fields_set or body.model_key is not None
+        ),
         change_policy=body.change_policy,
         project_id=body.project_id,
         move=move,

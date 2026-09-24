@@ -3,6 +3,7 @@
 import asyncio
 import base64
 import json
+import uuid
 
 import pytest
 from httpx import AsyncClient
@@ -10,6 +11,7 @@ from langchain_core.messages import HumanMessage
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.ai import conversations
 from app.ai.attachments import (
     MAX_FILES,
     MAX_IMAGE_BYTES,
@@ -134,6 +136,7 @@ async def test_a_message_carries_its_files_to_the_model_and_keeps_them(
     ).json()
     sent = conversation["messages"][0]
     assert sent["content"] == "What is here?"
+    assert await conversations.has_image_attachment(db, uuid.UUID(conversation_id))
     assert [
         (one["name"], one["kind"], one["media_type"], one["size"]) for one in sent["attachments"]
     ] == [("photo.png", "image", "image/png", len(PNG)), ("notes.txt", "text", "text/plain", len(NOTES))]

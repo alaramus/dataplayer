@@ -33,6 +33,7 @@ from app.adapters.resources import ResourceStore
 from app.ai import checkpoints, conversations, preferences
 from app.ai.attachments import NewAttachment, model_content
 from app.ai.catalog import PROVIDER_TITLES, ModelCatalog, ModelInfo
+from app.ai.model_routing import choose as choose_model
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
 from app.ai.providers import ChatModels
@@ -155,16 +156,38 @@ class AgentRunner:
         )
         if model is None:
             raise RunRefused(409, "Choose a model in the agent settings first")
+        if await conversations.active_run(session, conversation.id) is not None:
+            raise RunRefused(409, "This conversation is already being answered")
+        route_note = ""
+        auto_provider = await preferences.auto_provider_for(session, owner_id, conversation)
+        provider = auto_provider or model.provider
+        key = await preferences.key_for(session, owner_id, provider)
+        if key is None:
+            raise RunRefused(
+                409,
+                f"Add a key for {PROVIDER_TITLES[provider]} in the agent settings first",
+            )
+        if auto_provider is not None:
+            needs_images = any(one.kind == "image" for one in attachments)
+            needs_images = needs_images or await conversations.has_image_attachment(
+                session, conversation.id
+            )
+            try:
+                route = await choose_model(
+                    catalog=self._catalog,
+                    provider=auto_provider,
+                    fallback=model,
+                    text=text,
+                    needs_images=needs_images,
+                    jev_key=await preferences.key_for(session, owner_id, "typesafe"),
+                )
+            except ValueError as error:
+                raise RunRefused(422, str(error)) from error
+            model, route_note = route.model, route.note
         # The composer offers images only to a model that reads them (D142);
         # this is the same rule for a client that did not ask first.
         if any(one.kind == "image" for one in attachments) and not model.image_input:
             raise RunRefused(422, f"{model.name} does not read images; choose a model that does")
-        key = await preferences.key_for(session, owner_id, model.provider)
-        if key is None:
-            raise RunRefused(
-                409,
-                f"Add a key for {PROVIDER_TITLES[model.provider]} in the agent settings first",
-            )
         async with self._lock:
             # Checked and recorded under one lock: two sends at once would
             # otherwise both find the conversation idle.
@@ -187,6 +210,7 @@ class AgentRunner:
             task = asyncio.create_task(
                 self._carry_out(
                     run.id, owner_id, conversation.id, model, key, text, contexts, first,
+                    route_note=route_note,
                     attachments=attachments,
                 )
             )
@@ -331,6 +355,7 @@ class AgentRunner:
         text: str,
         contexts: list[ScreenContext],
         first: bool,
+        route_note: str = "",
         resume_answer: str | None = None,
         reasoning_seed: str = "",
         initial_tokens: tuple[int, int] = (0, 0),
@@ -347,7 +372,9 @@ class AgentRunner:
                 try:
                     if resume_answer is None:
                         step = await conversations.start_step(
-                            session, run_id, 0, "thinking", THINKING
+                            session, run_id, 0, "thinking",
+                            f"{THINKING} · {route_note}"
+                            if route_note else THINKING,
                         )
                         await self._say(
                             owner_id,

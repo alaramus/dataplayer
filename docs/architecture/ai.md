@@ -5,7 +5,7 @@ it may do, how it asks, how an answer runs and is shown, and which models it
 uses. Read this before adding a tool, before sending a connection's data to a
 model provider, and before changing the chat window.
 
-Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142, D156.
+Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142, D156, D157.
 
 ## What exists today
 
@@ -72,6 +72,9 @@ The model selector groups models by provider. Every model row shows whether
 that provider's one key is configured; its key button opens the same provider
 key window, so setting an Anthropic key, for example, enables every Anthropic
 model rather than attaching a secret to one model.
+Each provider group also offers Jev model selection (D157) when the person's
+provider and TypeSafe keys are set. A conversation remembers its previous model
+as fallback. The actual model used is shown on the run.
 
 The experimental Jev change policy (D156) is a fourth conversation policy.
 Its choice is disabled until the person saves a verified TypeSafe key in AI
@@ -400,3 +403,34 @@ then read as `ask` through `policy_of`; old TypeSafe keys remain encrypted and
 inert until explicitly cleared or removed by a later migration.
 
 Spec: [Jev change-policy experiment](../decisions/2026-09-24-jev-change-policy.md)
+
+## D157. Jev may select any compatible model within one provider
+
+Each model group offers an automatic Jev choice when the person has both that
+provider's key and a TypeSafe key. All catalog models of that provider are
+candidates for each answer; models without image input are excluded whenever
+the conversation has an image. The prior model stays as fallback, or the first
+model in the new group if the person switched providers. A selection stores the
+provider and fallback independently. The actual chosen model is recorded on
+the run, shown beside its steps, and used for the whole run, its summary, and
+its title. A paused run resumes with that same model. Jev sees only the latest
+user text, truncated to 16,000 characters, plus provider and image presence.
+It does not receive attachments, prior messages or tool results for routing.
+
+If Jev fails, returns a model outside the candidates, or its key was removed,
+the fallback answers. If the fallback cannot read an image, the first compatible
+model in that provider answers. If no compatible model exists, the run is
+refused. A server-side key and provider check prevents selecting an unavailable
+auto choice through the API. The first UI selection warns about provider-wide
+choice, different costs and TypeSafe transfer. Its Don't show again checkbox
+uses the same per-user, per-server browser storage pattern as tab groups and
+is remembered only when the person confirms.
+
+The classification runs before the answer is recorded, and has a 10-second
+limit. It uses the same `langchain-typesafe` dependency as D156, called directly
+because its experimental middleware does not carry this application's per-user
+key and fallback model. The database stores nullable `auto_provider` fields on
+the person's preferences and each conversation; removing this feature requires
+reverting the code and downgrading the migration.
+
+Spec: [Jev model routing](../decisions/2026-09-24-jev-model-routing.md)

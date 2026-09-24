@@ -20,7 +20,7 @@ from sqlalchemy import Column, DateTime, Index, LargeBinary
 from sqlmodel import Field, SQLModel
 
 from app.adapters.content import NodeRepresentation
-from app.ai.catalog import Provider
+from app.ai.catalog import ChatProvider, Provider
 from app.core.schemas import get_datetime_utc
 
 # The lifecycle of one answer, and no state outside it. `awaiting_answer` is a
@@ -77,6 +77,7 @@ class AgentPreferences(SQLModel, table=True):
     # `provider:id` from the catalog. Text rather than a closed set: the file
     # changes with a release, and a stored choice it dropped reads as none.
     model_key: str | None = Field(default=None, max_length=160)
+    auto_provider: str | None = Field(default=None, max_length=16)
     # Every change in every conversation proceeds without asking, within what
     # the owner of each connection allows (D136).
     allow_all_changes: bool = Field(
@@ -138,10 +139,11 @@ class Conversation(SQLModel, table=True):
     archived: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
     )
-    # The model this conversation is held with, chosen in the conversation
-    # itself. Empty means the one chosen in the settings, and so does a key the
-    # list no longer has (D140).
+    # The chosen model, or the fallback when Jev routes within its provider.
+    # Empty inherits the person's settings (D140, D157).
     model_key: str | None = Field(default=None, max_length=160)
+    # Empty means this conversation uses its named model directly.
+    auto_provider: str | None = Field(default=None, max_length=16)
     # The folder it was put in, if any. Deleting the folder empties this rather
     # than taking the conversation with it.
     project_id: uuid.UUID | None = Field(
@@ -256,7 +258,7 @@ class AgentStep(SQLModel, table=True):
 
 class AgentModelPublic(BaseModel):
     key: str
-    provider: Provider
+    provider: ChatProvider
     # How the provider is named on screen: the client groups by what it is
     # sent, and knows no provider of its own.
     provider_label: str
@@ -290,6 +292,7 @@ class AttachmentRules(BaseModel):
 
 class AgentSettingsPublic(BaseModel):
     model_key: str | None
+    auto_provider: ChatProvider | None
     # A stored choice the catalog no longer lists. The settings ask for a new
     # one rather than showing a model that cannot be used.
     model_missing: bool
@@ -304,6 +307,7 @@ class AgentSettingsUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     model_key: str | None = None
+    auto_provider: ChatProvider | None = None
     allow_all_changes: bool | None = None
 
 
@@ -336,9 +340,10 @@ class ConversationSummary(BaseModel):
     waiting: bool
     pinned: bool = False
     archived: bool = False
-    # What this conversation names for itself, not what it will be answered
-    # with: empty means the model chosen in the settings.
+    # What this conversation names for itself, possibly as Jev's fallback.
+    # Empty means the model chosen in the settings.
     model_key: str | None = None
+    auto_provider: ChatProvider | None = None
     change_policy: ChangePolicy = "ask"
     project_id: uuid.UUID | None = None
 
@@ -381,6 +386,7 @@ class ConversationUpdate(BaseModel):
     # A model of the catalog, for this conversation alone. Empty leaves
     # whatever it had; there is no command that takes a chosen model away.
     model_key: str | None = PydanticField(default=None, max_length=160)
+    auto_provider: ChatProvider | None = None
     change_policy: ChangePolicy | None = None
     # The folder, or `null` for none. Unlike the fields above it, this one is
     # read as sent rather than as set: taking a conversation out of a folder is
@@ -522,6 +528,7 @@ class ConversationPublic(BaseModel):
     title: str
     title_is_custom: bool
     model_key: str | None = None
+    auto_provider: ChatProvider | None = None
     change_policy: ChangePolicy = "ask"
     created_at: datetime | None
     updated_at: datetime | None

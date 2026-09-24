@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-24 | [Jev model routing within a provider](2026-09-24-jev-model-routing.md) | D157: each provider offers all compatible catalog models to Jev, with the prior model as fallback and one browser warning per user |
 | 2026-09-22 | [A window whose contents can live as a workspace tab](2026-09-22-window-to-tab-design.md) | D155: a window declares the move with one preset in its actions slot; the widget tab keeps the window's snapshot, the service output tab reads again |
 | 2026-09-19 | [An SSH server this application starts](2026-09-19-ssh-service-design.md) | D153–D154: an SSH server is a service template; its connector is pinned to the key the container presents first, over this server's own network; an automatic start fills its home with the sample files; a chosen one may be signed into with one of the owner's keys instead of a password |
 | 2026-09-19 | [A remote tree of files through the explorer](2026-09-19-remote-files-design.md) | D152: a remote file is read from a local copy per version, beside the homes and out of their reach; 200 MB a file, 1 GB in all, an hour unread; a search reads files up to 1 MB |

@@ -232,6 +232,7 @@ files. IDs are stable because specs and commits refer to them.
 | D154 | [sources/ssh](docs/architecture/sources/ssh.md) |
 | D155 | [windows](docs/architecture/windows.md) |
 | D156 | [ai](docs/architecture/ai.md) |
+| D157 | [ai](docs/architecture/ai.md) |
 
 ## Working rules
 
