@@ -237,13 +237,15 @@ async function copy(text: string, what: string) {
         data-testid="agent-register-row"
       >
         <span>Agent name</span>
-        <AppInput
-          v-model="newName"
-          aria-label="Agent name"
-          compact
-          data-testid="agent-name"
-          @keydown.enter="register"
-        />
+        <AppForm class="agents__register-field">
+          <AppInput
+            v-model="newName"
+            aria-label="Agent name"
+            compact
+            data-testid="agent-name"
+            @keydown.enter="register"
+          />
+        </AppForm>
         <AppButton
           label="Register"
           :icon="appIcons.add"
@@ -458,9 +460,12 @@ async function copy(text: string, what: string) {
 .agents__register {
   padding: var(--dp-space-4);
 }
-.agents__register :deep(.q-field) {
+.agents__register-field {
   flex: 1;
   min-width: 0;
+}
+.agents__register-field :deep(.q-field) {
+  width: 100%;
 }
 .agents__register > span {
   white-space: nowrap;

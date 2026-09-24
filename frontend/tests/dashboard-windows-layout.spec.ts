@@ -166,6 +166,7 @@ for (const theme of ["light", "dark"] as const) {
       return Math.max(...centers) - Math.min(...centers) < 3
     })
     expect(await registerAlignment()).toBe(true)
+    await expect(registerRow.locator(".q-field")).toHaveClass(/q-field--outlined/)
     await expect(page.getByTestId("agents-table").getByText("watcher")).toBeVisible()
     const before = await frame.boundingBox()
 
