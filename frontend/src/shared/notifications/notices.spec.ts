@@ -3,11 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CARDS, createNotices, FADES_AFTER } from "./notices"
 
 function news(message: string) {
-  return { tone: "success" as const, message, sticky: false, action: null }
+  return { tone: "success" as const, message, action: null }
 }
 
 function trouble(message: string) {
-  return { tone: "error" as const, message, sticky: true, action: null }
+  return { tone: "error" as const, message, action: null }
 }
 
 describe("what the application has said", () => {
@@ -26,13 +26,15 @@ describe("what the application has said", () => {
     expect(log.entries.value.map((entry) => entry.message)).toEqual(["Row inserted"])
   })
 
-  it("leaves an error on screen, because the message most worth reading is the one most easily missed", () => {
+  it("fades an error card but keeps its message in Activity", () => {
     const log = createNotices()
 
     log.record(trouble("Could not paste those cells"))
-    vi.advanceTimersByTime(FADES_AFTER * 10)
-
     expect(log.cards.value.map((card) => card.message)).toEqual(["Could not paste those cells"])
+    vi.advanceTimersByTime(FADES_AFTER + 1)
+
+    expect(log.cards.value).toEqual([])
+    expect(log.entries.value.map((entry) => entry.message)).toEqual(["Could not paste those cells"])
   })
 
   it("draws only the newest few, and says how many it is not drawing", () => {

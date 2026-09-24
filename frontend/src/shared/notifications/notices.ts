@@ -27,12 +27,10 @@ export interface Notice {
   tone: Tone
   message: string
   at: number
-  /** Stays until it is dismissed: an error, or an offer to act on something. */
-  sticky: boolean
   action: NoticeAction | null
 }
 
-/** How long a message that is only news stays on screen. */
+/** How long any card stays on screen; its message remains in Activity. */
 export const FADES_AFTER = 5000
 
 /** How many cards are drawn at once. The rest are already in the sheet. */
@@ -71,9 +69,7 @@ export function createNotices() {
     // pops up at all while a person has asked not to be disturbed.
     if (!open.value && !doNotDisturb.value) {
       onScreen.value = [...onScreen.value, entry.id]
-      if (!entry.sticky) {
-        timers.set(entry.id, setTimeout(() => { dismiss(entry.id) }, FADES_AFTER))
-      }
+      timers.set(entry.id, setTimeout(() => { dismiss(entry.id) }, FADES_AFTER))
     }
     return entry.id
   }

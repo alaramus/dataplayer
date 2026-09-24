@@ -41,21 +41,18 @@ export function useToast(): Toast {
 
   return {
     success: (message) => {
-      log.record({ tone: "success", message, sticky: false, action: null })
+      log.record({ tone: "success", message, action: null })
     },
-    // An error does not fade: the one message worth reading is the one most
-    // likely to be missed, and it is still in the sheet either way.
     error: (message) => {
-      log.record({ tone: "error", message, sticky: true, action: null })
+      log.record({ tone: "error", message, action: null })
     },
     info: (message) => {
-      log.record({ tone: "info", message, sticky: false, action: null })
+      log.record({ tone: "info", message, action: null })
     },
     offer: (message, action) => {
       log.record({
         tone: "info",
         message,
-        sticky: false,
         action: { label: action.label, run: action.onClick },
       })
     },

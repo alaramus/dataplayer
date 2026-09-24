@@ -4,23 +4,21 @@ import { notices, resetNotices } from "@/shared/notifications"
 import { useToast } from "./useToast"
 
 /**
- * Which messages stay on screen, which is the one thing the four functions
- * decide differently (D114).
+ * Every message goes to Activity, and a card is a temporary way to show it.
  */
 describe("what a screen says", () => {
   afterEach(() => { resetNotices() })
 
-  it("lets news go and keeps a failure", () => {
+  it("records news and failures as temporary cards", () => {
     const toast = useToast()
 
     toast.success("Row inserted")
     toast.info("Left to the source: tag_id")
     toast.error("Could not paste those cells")
 
-    const kept = new Map(notices().entries.value.map((entry) => [entry.message, entry.sticky]))
-    expect(kept.get("Row inserted")).toBe(false)
-    expect(kept.get("Left to the source: tag_id")).toBe(false)
-    expect(kept.get("Could not paste those cells")).toBe(true)
+    expect(notices().cards.value.map((entry) => entry.message)).toEqual([
+      "Row inserted", "Left to the source: tag_id", "Could not paste those cells",
+    ])
   })
 
   it("lets an offer go too, because the sheet still holds what is waiting", () => {
@@ -33,7 +31,6 @@ describe("what a screen says", () => {
     toast.offer("Ivan is asking for access to prod-db", { label: "Open", onClick: vi.fn() })
 
     const [entry] = notices().entries.value
-    expect(entry?.sticky).toBe(false)
     expect(entry?.action?.label).toBe("Open")
   })
 

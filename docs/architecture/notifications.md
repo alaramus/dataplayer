@@ -91,10 +91,9 @@ the log does when the sheet is shut; when the sheet is open the message is a new
 row in it. `useToast` keeps the same four functions, so its hundred or so callers
 did not change.
 
-- **Only a failure stays.** Everything else fades after a few seconds and is in
-  the log afterwards, an offer to act included: the first section of the sheet is
-  where that something already lives, so a card that never leaves is an
-  interruption that has stopped saying anything new.
+- **Every card fades after a few seconds.** Its message stays in the Activity
+  log, including failures and offers to act; the first section of the sheet
+  holds anything still waiting for an answer.
 - **At most three cards.** The rest are already in the sheet, and the stack
   says how many.
 - **Do not disturb suppresses the cards, never the record.** While a large

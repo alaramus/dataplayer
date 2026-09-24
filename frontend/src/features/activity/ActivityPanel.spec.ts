@@ -49,7 +49,7 @@ describe("the activity sheet", () => {
   })
 
   it("keeps what is waiting, what is running and what was said apart", () => {
-    notices().record({ tone: "success", message: "Connection saved", sticky: false, action: null })
+    notices().record({ tone: "success", message: "Connection saved", action: null })
 
     open([waiting()], [running])
 
