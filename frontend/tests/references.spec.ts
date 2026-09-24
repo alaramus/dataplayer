@@ -36,6 +36,8 @@ test("opens the referenced relation showing only the rows the key names", async 
   const owner = (await value.innerText()).trim()
   await page.getByTestId("grid-cell-0-organization_id").hover()
   await page.getByTestId("grid-follow-0-projects_organization_id_fkey").click()
+  await expect(rowsTabs(page)).toHaveCount(1)
+  await page.getByTestId("menu-item-projects_organization_id_fkey").click()
 
   await expect(rowsTabs(page)).toHaveCount(2)
   await expect(rowsTabs(page).last()).toContainText("organizations")

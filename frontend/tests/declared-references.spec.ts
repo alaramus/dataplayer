@@ -67,6 +67,7 @@ test("joins a relation to a CSV and follows it into the other connection", async
   await expect(arrow).toHaveCount(1)
   await page.getByTestId("grid-cell-0-organization_id").hover()
   await arrow.click()
+  await page.locator('[data-testid^="menu-item-declared:"]').click()
 
   // A second tab, on the other connection, showing the row the value names.
   await expect(rowsTabs(page)).toHaveCount(2)

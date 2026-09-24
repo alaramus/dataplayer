@@ -202,6 +202,9 @@ describe("one row read downwards", () => {
 
     await wrapper.get('[data-testid="record-follow-region_id"]').trigger("click")
     await flushPromises()
+    expect(follow).not.toHaveBeenCalled()
+    document.body.querySelector<HTMLElement>('[data-testid="menu-item-projects_region_fkey"]')?.click()
+    await flushPromises()
 
     expect(follow).toHaveBeenCalledWith(
       expect.objectContaining({

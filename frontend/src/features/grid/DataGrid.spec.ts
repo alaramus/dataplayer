@@ -1483,6 +1483,9 @@ describe("following a reference out of a row", () => {
 
     await wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]').trigger("click")
     await flushPromises()
+    expect(follow).not.toHaveBeenCalled()
+    document.body.querySelector<HTMLElement>('[data-testid="menu-item-customers_region_fkey"]')?.click()
+    await flushPromises()
 
     expect(follow).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1597,6 +1600,8 @@ describe("following a reference out of a row", () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="menu-item-customers_region_fkey"]')?.click()
     await flushPromises()
 
     expect(wrapper.findComponent(DataGrid).emitted("follow")).toBeUndefined()

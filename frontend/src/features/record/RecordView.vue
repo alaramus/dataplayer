@@ -246,16 +246,22 @@ const errorText = computed(() =>
                 :data-testid="`record-value-${cellProps.row.name}`"
               >{{ cellProps.row.text }}</span>
               <span class="record-view__ways">
-                <AppIconButton
+                <span
                   v-for="reference in cellReferences(cellProps.row.name, cellProps.row.value)"
                   :key="reference.name"
-                  :icon="appIcons.arrowForward"
-                  compact
-                  :tooltip="`Go to ${reference.target_title}`"
-                  :disable="jumping"
-                  :data-testid="`record-follow-${cellProps.row.name}`"
-                  @click="follow(values ?? [], reference)"
-                />
+                >
+                  <AppIconButton
+                    :icon="appIcons.arrowForward"
+                    compact
+                    :tooltip="`Go to ${reference.target_title}`"
+                    :disable="jumping"
+                    :data-testid="`record-follow-${cellProps.row.name}`"
+                  />
+                  <AppMenu
+                    :items="[{ name: reference.name, label: reference.target_title }]"
+                    @select="follow(values ?? [], reference)"
+                  />
+                </span>
                 <span
                   v-if="cellArriving(cellProps.row.name, cellProps.row.value).length > 0"
                 >

@@ -1522,10 +1522,14 @@ defineExpose({
         :disabled="jumping"
         :aria-label="`Go to ${reference.target_title}`"
         :data-testid="`grid-follow-${row.id}-${reference.name}`"
-        @click.stop="follow(row.values, reference)"
+        @click.stop
         @dblclick.stop
       >
         <AppTooltip>Go to {{ reference.target_title }}</AppTooltip>
+        <AppMenu
+          :items="[{ name: reference.name, label: reference.target_title }]"
+          @select="follow(row.values, reference)"
+        />
       </button>
       <!-- The opposite corner for the opposite direction: what points at this
            row. A menu rather than a jump, because there is usually more than

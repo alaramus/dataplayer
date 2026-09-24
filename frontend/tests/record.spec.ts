@@ -85,6 +85,8 @@ test("reads one row downwards and walks to the next", async ({ page }) => {
   // And the key of the row it is showing leads out of it, into a tab of its
   // own, exactly as the arrow in the grid does.
   await page.getByTestId("record-follow-organization_id").click()
+  await expect(rowsTabs(page)).toHaveCount(1)
+  await page.getByTestId("menu-item-projects_organization_id_fkey").click()
   await expect(rowsTabs(page)).toHaveCount(2)
   await expect(rowsTabs(page).last()).toContainText("organizations")
 
