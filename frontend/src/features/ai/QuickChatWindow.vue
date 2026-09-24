@@ -1,40 +1,57 @@
 <script setup lang="ts">
 import { useQuery, useQueryClient } from "@tanstack/vue-query"
-import { computed, nextTick, ref, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import { AiService } from "@/client"
 import { messageOf } from "@/shared/api/errors"
-import { AppBanner, AppButton, AppInput, AppSelect, AppSpinner, useConfirm, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppIconButton, AppInput, AppSpinner, appIcons, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 import AiModelSelect from "./AiModelSelect.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
-import { useAiSettings } from "./api"
-import { explainRequest, quickChatIntent } from "./quickChatLauncher"
+import { quickChatsKey, useAiSettings } from "./api"
+import { useDictation } from "./dictation"
+import { deletedQuickChat, explainRequest, quickChatIntent, reusableEmptyQuickChat } from "./quickChatLauncher"
 
 const toast = useToast()
-const confirm = useConfirm()
 const cache = useQueryClient()
 const settings = useAiSettings()
 const open = ref(false)
 const selected = ref<string | null>(null)
 const draft = ref("")
+watch(deletedQuickChat, (id) => {
+  if (id !== selected.value) return
+  selected.value = null
+  draft.value = ""
+  open.value = false
+}, { flush: "sync" })
 const busy = ref(false)
 const scroller = ref<HTMLElement | null>(null)
-const history = useQuery({
-  queryKey: ["ai", "quick-chats"],
-  queryFn: async () => (await AiService.listQuickChats()).data,
-  enabled: open,
-})
+const spokenInto = ref("")
+const dictation = useDictation(
+  (heard) => { draft.value = `${spokenInto.value}${heard}` },
+  (reason) => {
+    toast.error(reason === "not-allowed"
+      ? "The microphone is not allowed for this page"
+      : "Dictation stopped")
+  }
+)
+function dictate() {
+  if (!dictation.listening.value) {
+    const typed = draft.value.trimEnd()
+    spokenInto.value = typed ? `${typed} ` : ""
+  }
+  dictation.toggle()
+}
+watch(open, (value) => { if (!value) dictation.stop() })
+onBeforeUnmount(() => dictation.stop())
 const chat = useQuery({
   queryKey: computed(() => ["ai", "quick-chat", selected.value]),
   queryFn: async () => (await AiService.readQuickChat({ path: { chat_id: selected.value as string } })).data,
   enabled: computed(() => open.value && selected.value !== null),
 })
 const modelKey = ref<string | null>(null)
-const choices = computed(() => (history.data.value ?? []).map((item) => ({
-  value: item.id, label: item.title,
-})))
+const title = computed(() => chat.data.value?.id === selected.value ? chat.data.value.title : "Quick chat")
 watch(() => chat.data.value?.model_key, (key) => { if (key) modelKey.value = key })
 watch(() => settings.data.value?.model_key, (key) => {
   if (!modelKey.value && key) modelKey.value = key
@@ -46,68 +63,60 @@ watch(() => chat.data.value?.messages.length, async () => {
 watch(() => quickChatIntent.value?.id, async () => {
   const intent = quickChatIntent.value?.request
   if (!intent) return
+  dictation.stop()
   open.value = true
-  if (intent.kind === "open") {
-    const found = await history.refetch()
-    if (!selected.value && found.data?.length) selected.value = found.data[0]!.id
+  if (intent.kind === "chat") {
+    selected.value = intent.id
+    draft.value = ""
     return
   }
   try {
-    const made = (await AiService.createQuickChat()).data
-    await cache.invalidateQueries({ queryKey: ["ai", "quick-chats"] })
-    selected.value = made.id
-    draft.value = explainRequest(intent.text)
-    await send()
+    await newChat()
+    if (intent.kind === "explain") {
+      draft.value = explainRequest(intent.text)
+      await send()
+    }
   } catch (cause) {
     toast.error(messageOf(cause, "Quick chat could not be opened"))
   }
 })
 
+let startingChat: Promise<void> | null = null
 async function newChat() {
-  if (selected.value && chat.data.value?.id === selected.value && !chat.data.value.messages.length) {
+  if (startingChat !== null) return startingChat
+  const start = async () => {
+    const existing = (await AiService.listQuickChats()).data
+    const empty = await reusableEmptyQuickChat(existing, async (id) => (
+      await AiService.readQuickChat({ path: { chat_id: id } })
+    ).data)
+    selected.value = empty ?? (await AiService.createQuickChat()).data.id
     draft.value = ""
-    return
+    if (empty === null) await cache.invalidateQueries({ queryKey: quickChatsKey })
   }
-  try {
-    selected.value = (await AiService.createQuickChat()).data.id
-    draft.value = ""
-    await cache.invalidateQueries({ queryKey: ["ai", "quick-chats"] })
-  } catch (cause) { toast.error(messageOf(cause, "Quick chat could not be created")) }
+  startingChat = start()
+  try { await startingChat }
+  finally { startingChat = null }
 }
 
 async function send(value = draft.value) {
   const text = value.trim()
   if (!text || busy.value) return
   busy.value = true
+  dictation.stop()
   try {
-    const id = selected.value ?? (await AiService.createQuickChat()).data.id
+    const id = selected.value
+    if (!id) throw new Error("No quick chat is selected")
     selected.value = id
     const result = (await AiService.sendQuickChatMessage({
       path: { chat_id: id }, body: { text, model_key: modelKey.value },
     })).data
     cache.setQueryData(["ai", "quick-chat", id], result)
-    await cache.invalidateQueries({ queryKey: ["ai", "quick-chats"] })
+    await cache.invalidateQueries({ queryKey: quickChatsKey })
     if (value === draft.value) draft.value = ""
   } catch (cause) { toast.error(messageOf(cause, "The model could not answer")) }
   finally { busy.value = false }
 }
 
-async function remove() {
-  const id = selected.value
-  if (!id || busy.value) return
-  if (!(await confirm({
-    title: "Delete quick chat?",
-    message: "This quick chat and its messages will be deleted permanently.",
-    confirmLabel: "Delete",
-    danger: true,
-  }))) return
-  try {
-    await AiService.deleteQuickChat({ path: { chat_id: id } })
-    const found = await history.refetch()
-    selected.value = found.data?.find((item) => item.id !== id)?.id ?? null
-    cache.removeQueries({ queryKey: ["ai", "quick-chat", id] })
-  } catch (cause) { toast.error(messageOf(cause, "Quick chat could not be deleted")) }
-}
 function editorKeydown(event: KeyboardEvent) {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault()
@@ -119,29 +128,18 @@ function editorKeydown(event: KeyboardEvent) {
 <template>
   <WindowDialog
     v-model="open"
-    title="Quick chat"
-    size="form"
+    :title="title"
+    size="chat"
     sizing="stable"
     data-testid="quick-chat-window"
   >
     <div class="quick-chat">
-      <div class="quick-chat__toolbar">
-        <AppSelect
-          class="quick-chat__history"
-          label="Quick chats"
-          :model-value="selected"
-          :options="choices"
-          :disable="busy"
-          @update:model-value="selected = String($event)"
-        />
-        <AppButton label="New" variant="quiet" size="sm" :disable="busy" @click="newChat" />
-        <AppButton label="Delete" variant="quiet" size="sm" :disable="!selected || busy" @click="remove" />
-      </div>
       <div ref="scroller" class="quick-chat__messages" data-testid="quick-chat-messages">
         <AppSpinner v-if="chat.isPending.value && selected" />
         <AppBanner v-else-if="chat.isError.value" tone="error">The chat could not be loaded.</AppBanner>
         <div v-else-if="!chat.data.value?.messages.length" class="quick-chat__empty">
-          Ask anything. This chat does not use agent tools or application data.
+          <q-icon :name="appIcons.autoAwesome" size="30px" />
+          <span>What would you like to know?</span>
         </div>
         <article
           v-for="message in chat.data.value?.messages ?? []"
@@ -154,8 +152,8 @@ function editorKeydown(event: KeyboardEvent) {
         </article>
         <AppSpinner v-if="busy" />
       </div>
-      <div class="quick-chat__composer">
-        <AiModelSelect v-model="modelKey" :allow-auto="false" />
+      <div class="quick-chat__dock">
+        <div class="quick-chat__composer">
         <AppInput
           v-model="draft"
           type="textarea"
@@ -167,7 +165,22 @@ function editorKeydown(event: KeyboardEvent) {
           :disable="busy"
           @keydown="editorKeydown"
         />
-        <AppButton label="Send" :disable="busy || !draft.trim()" @click="send()" />
+        <div class="quick-chat__tools">
+          <AiModelSelect v-model="modelKey" class="quick-chat__model" compact :allow-auto="false" :disable="busy" />
+          <AppIconButton
+            :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
+            :active="dictation.listening.value"
+            :tooltip="!dictation.supported
+              ? 'This browser cannot listen'
+              : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+            :disable="!dictation.supported || busy"
+            data-testid="quick-chat-dictate"
+            @click="dictate"
+          />
+          <span class="quick-chat__gap" />
+          <AppButton :icon="appIcons.send" label="Send" icon-only :disable="busy || !draft.trim() || !selected" data-testid="quick-chat-send" @click="send()" />
+        </div>
+        </div>
       </div>
     </div>
   </WindowDialog>
@@ -175,12 +188,18 @@ function editorKeydown(event: KeyboardEvent) {
 
 <style scoped>
 .quick-chat { height: 100%; min-height: 0; display: flex; flex-direction: column; }
-.quick-chat__toolbar { display: flex; align-items: center; gap: var(--dp-space-2); padding: var(--dp-space-2); border-bottom: 1px solid var(--dp-border); }
-.quick-chat__history { flex: 1; min-width: 0; }
-.quick-chat__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-3); }
-.quick-chat__empty { height: 100%; display: grid; place-items: center; color: var(--dp-text-muted); text-align: center; }
-.quick-chat__message { margin-bottom: var(--dp-space-3); }
+.quick-chat__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-5) var(--dp-space-4); }
+.quick-chat__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
+.quick-chat__message { max-width: 960px; margin: 0 auto var(--dp-space-4); }
 .quick-chat__message--user { display: flex; justify-content: flex-end; }
-.quick-chat__question { max-width: 85%; white-space: pre-wrap; padding: var(--dp-space-2) var(--dp-space-3); background: var(--dp-active); border-radius: var(--dp-radius-panel); }
-.quick-chat__composer { display: grid; gap: var(--dp-space-2); padding: var(--dp-space-2); border-top: 1px solid var(--dp-border); }
+.quick-chat__question { max-width: 78%; white-space: pre-wrap; padding: var(--dp-space-2) var(--dp-space-3); background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
+.quick-chat__dock { flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); }
+.quick-chat__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); max-width: 960px; margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
+.quick-chat__tools { display: flex; align-items: center; gap: var(--dp-space-2); }
+.quick-chat__model { flex: 0 1 200px; min-width: 120px; }
+.quick-chat__gap { flex: 1; }
+.quick-chat__composer :deep(.q-field__control) { background: transparent; }
+.quick-chat__composer :deep(.q-field__control::before) { border-color: transparent; }
+.quick-chat__composer :deep(.q-field--focused .q-field__control::after) { border-color: var(--dp-field-border); }
+.quick-chat__composer :deep(textarea) { max-height: 8lh; }
 </style>

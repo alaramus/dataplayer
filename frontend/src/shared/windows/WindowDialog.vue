@@ -11,7 +11,7 @@ const props = withDefaults(
     modelValue: boolean
     title: string
     subtitle?: string
-    size?: "sm" | "md" | "lg" | "xl" | "form" | "long-form" | "wide-form" | "medium-form" | "compact-form"
+    size?: "sm" | "md" | "lg" | "xl" | "chat" | "form" | "long-form" | "wide-form" | "medium-form" | "compact-form"
     sizing?: "content" | "stable"
     /**
      * Commands of the window's own, before the size controls in its bar — a
@@ -40,6 +40,8 @@ const instance = getCurrentInstance()
 const id = `dialog:${String(attrs["data-testid"] ?? props.title)}:${instance?.uid ?? 0}`
 
 const sizes = {
+  // A plain conversation keeps the transcript tall without covering the workspace.
+  chat: { width: 540, height: 650 },
   "compact-form": { width: 560, height: 360 },
   "medium-form": { width: 560, height: 440 },
   // Variable-content forms keep room for optional fields and inline errors.

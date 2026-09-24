@@ -5,7 +5,7 @@ it may do, how it asks, how an answer runs and is shown, and which models it
 uses. Read this before adding a tool, before sending a connection's data to a
 model provider, and before changing the chat window.
 
-Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142, D156, D157, D158.
+Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142, D156, D157, D158, D159.
 
 ## What exists today
 
@@ -448,10 +448,8 @@ Spec: [Jev model routing](../decisions/2026-09-24-jev-model-routing.md)
 
 ## D158. A separate quick chat answers without agent tools
 
-The AI rail has Quick chat beside New chat. It opens a floating window with
-its own history, model selector, composer and transcript. Quick conversations
-and messages are separate tables, encrypted under `ai_content`, owned by one
-person, and never appear in the agent's history. The request calls the chosen
+Quick conversations and messages are separate tables, encrypted under
+`ai_content`, owned by one person. The request calls the chosen
 chat model directly, with a maximum 16,000-character request and at most 20
 recent messages within an 80,000-character context budget, and no LangGraph agent,
 workspace context or application tools. It uses the same provider keys and
@@ -465,3 +463,24 @@ independently of the AI space, so a later Data surface can call it with its
 own selection. Selection is capped at 8,000 characters.
 
 Spec: [Quick chat and selected text](../decisions/2026-09-24-quick-chat.md)
+
+## D159. Quick chat opens from a global rail and shares the AI history list
+
+The Quick chat button is a movable block on the workspace tool rails, available
+from every space. It opens a new plain conversation in a floating window. The
+opener reuses an untouched empty quick conversation from history before creating
+another one, including when a different conversation is currently shown. The
+window uses the agent conversation's transcript and composer layout, with a
+model selector but without a history selector or New/Delete controls. Plain
+conversations appear in the main AI chat history alongside agent conversations,
+marked with a quick-chat icon. Selecting one opens that conversation in the
+quick-chat window; deleting one is available from its history row. Storage and
+execution remain separate from agent conversations and runs. The shared window
+opener accepts a saved conversation ID as well as new and explain intents, so
+future screens can launch the same window without owning it.
+
+The window starts at 540 × 650 pixels, can be resized, and uses the same browser
+speech recognition control as the agent composer. Dictation appends to the
+current draft and stops when the window closes or a message is sent.
+
+Spec: [Quick chat navigation](../decisions/2026-09-24-quick-chat-navigation.md)

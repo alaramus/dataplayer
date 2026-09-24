@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-24 | [Quick chat navigation](2026-09-24-quick-chat-navigation.md) | D159: global rail entry, shared AI history, and an agent-like plain chat window |
 | 2026-09-24 | [Quick chat and selected text](2026-09-24-quick-chat.md) | D158: a separate persistent plain chat in a floating window, plus selected-text actions in agent messages |
 | 2026-09-24 | [Jev model routing within a provider](2026-09-24-jev-model-routing.md) | D157: each provider offers all compatible catalog models to Jev, with the prior model as fallback and one browser warning per user |
 | 2026-09-22 | [A window whose contents can live as a workspace tab](2026-09-22-window-to-tab-design.md) | D155: a window declares the move with one preset in its actions slot; the widget tab keeps the window's snapshot, the service output tab reads again |

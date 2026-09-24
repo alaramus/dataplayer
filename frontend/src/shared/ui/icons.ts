@@ -5,7 +5,7 @@ export const appIcons = {
   add: "add",
   addChart: "add_chart",
   addComment: "add_comment",
-  quickChat: "chat_bubble_outline",
+  quickChat: "add_comment",
   administration: "admin_panel_settings",
   archive: "archive",
   arrowBack: "arrow_back",

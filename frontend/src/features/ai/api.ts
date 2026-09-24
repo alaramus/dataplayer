@@ -13,6 +13,14 @@ export const aiConversationsKey = ["ai", "conversations"] as const
 export const aiArchivedConversationsKey = ["ai", "archived-conversations"] as const
 export const aiConversationKey = (id: string) => ["ai", "conversations", id] as const
 export const aiProjectsKey = ["ai", "projects"] as const
+export const quickChatsKey = ["ai", "quick-chats"] as const
+
+export function useQuickChats() {
+  return useQuery({
+    queryKey: quickChatsKey,
+    queryFn: async () => (await AiService.listQuickChats()).data,
+  })
+}
 
 export function useAiModels() {
   return useQuery({

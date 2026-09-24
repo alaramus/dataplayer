@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/vue-query"
 import { computed, nextTick, onScopeDispose, ref, watch } from "vue"
 
 import { AiService } from "@/client"
-import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
+import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic, ConversationSummary, QuickChatSummary } from "@/client"
 import {
   AppButton,
   AppCardFrame,
@@ -25,13 +25,16 @@ import { WorkspaceSeparator } from "@/shared/workspace"
 import { useSideRail } from "@/shared/workspace/useSideRail"
 
 import AiChatRow from "./AiChatRow.vue"
+import QuickChatRow from "./QuickChatRow.vue"
 import AiConversation from "./AiConversation.vue"
 import AiSettings from "./AiSettings.vue"
 import {
   aiConversationKey,
   aiConversationsKey,
+  quickChatsKey,
   useAiConversations,
   useAiProjects,
+  useQuickChats,
   useCreateAiConversation,
   useCreateAiProject,
   useDeleteAiProject,
@@ -39,7 +42,7 @@ import {
   useUpdateAiConversation,
 } from "./api"
 import { freshProjectName } from "./projectName"
-import { openQuickChat } from "./quickChatLauncher"
+import { forgetQuickChat, openQuickChat } from "./quickChatLauncher"
 import { reusableEmptyChat } from "./emptyChat"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
@@ -56,6 +59,7 @@ type AiEvent =
   | { kind: "open"; conversation_id: string; intent: AiOpenIntent }
 
 const list = useAiConversations()
+const quickList = useQuickChats()
 const projectList = useAiProjects()
 const createConversation = useCreateAiConversation()
 const updateConversation = useUpdateAiConversation()
@@ -103,6 +107,9 @@ function closeChatFilter() {
 }
 
 const conversations = computed(() => list.data.value?.data ?? [])
+type HistoryChat = { kind: "agent"; chat: ConversationSummary } | { kind: "quick"; chat: QuickChatSummary }
+const byRecent = (a: HistoryChat, b: HistoryChat) =>
+  (b.chat.updated_at ?? "").localeCompare(a.chat.updated_at ?? "")
 const selectedChat = computed(() => conversations.value.find((chat) => chat.id === selected.value) ?? null)
 const projects = computed(() => projectList.data.value?.data ?? [])
 const closedProjects = ref(new Set<string>())
@@ -123,11 +130,16 @@ const grouped = computed(() => {
   const groups = projects.value.map((project) => ({
     id: project.id as string | null,
     name: project.name,
-    chats: conversations.value.filter((chat) => chat.project_id === project.id),
+    chats: conversations.value.filter((chat) => chat.project_id === project.id)
+      .map((chat): HistoryChat => ({ kind: "agent", chat })),
   }))
   return [
     ...groups,
-    { id: null, name: "", chats: conversations.value.filter((chat) => !chat.project_id) },
+    { id: null, name: "", chats: [
+      ...conversations.value.filter((chat) => !chat.project_id)
+        .map((chat): HistoryChat => ({ kind: "agent", chat })),
+      ...(quickList.data.value ?? []).map((chat): HistoryChat => ({ kind: "quick", chat })),
+    ].sort(byRecent) },
   ].filter((group) => group.id !== null || group.chats.length > 0)
 })
 const visibleGroups = computed(() => {
@@ -138,7 +150,7 @@ const visibleGroups = computed(() => {
       ...group,
       chats: group.name.toLocaleLowerCase().includes(query)
         ? group.chats
-        : group.chats.filter((chat) => chat.title.toLocaleLowerCase().includes(query)),
+        : group.chats.filter((entry) => entry.chat.title.toLocaleLowerCase().includes(query)),
     }))
     .filter((group) => group.name.toLocaleLowerCase().includes(query) || group.chats.length > 0)
 })
@@ -243,6 +255,20 @@ async function makeConversation() {
   }
 }
 function select(id: string) { selected.value = id; settingsShown.value = false }
+async function removeQuickChat(id: string) {
+  if (!(await confirm({
+    title: "Delete quick chat?",
+    message: "This quick chat and its messages will be deleted permanently.",
+    confirmLabel: "Delete",
+    danger: true,
+  }))) return
+  try {
+    await AiService.deleteQuickChat({ path: { chat_id: id } })
+    forgetQuickChat(id)
+    queryClient.removeQueries({ queryKey: ["ai", "quick-chat", id] })
+    await queryClient.invalidateQueries({ queryKey: quickChatsKey })
+  } catch (cause) { toast.error(messageOf(cause, "Quick chat could not be deleted")) }
+}
 function beginRename(id: string, title: string) { renaming.value = id; titleDraft.value = title }
 async function finishRename() {
   const id = renaming.value
@@ -360,12 +386,6 @@ onScopeDispose(stop)
             @click="makeConversation"
           />
           <AppIconButton
-            :icon="appIcons.quickChat"
-            tooltip="Quick chat"
-            data-testid="ai-quick-chat"
-            @click="openQuickChat()"
-          />
-          <AppIconButton
             :icon="appIcons.createNewFolder"
             tooltip="New project"
             data-testid="ai-new-project"
@@ -395,7 +415,7 @@ onScopeDispose(stop)
         aria-label="Chat history"
         data-testid="ai-history"
       >
-        <AppSpinner v-if="list.isPending.value" />
+        <AppSpinner v-if="list.isPending.value || quickList.isPending.value" />
         <AppEmptyState
           v-else-if="chatNameFilter.trim() && visibleGroups.length === 0"
           text="No matching chats or projects"
@@ -447,29 +467,29 @@ onScopeDispose(stop)
             v-if="group.id === null || !projectIsClosed(group.id)"
             :class="{ 'ai-window__project-chats': group.id !== null }"
           >
-            <AiChatRow
-              v-for="chat in group.chats"
-              :key="chat.id"
-              :chat="chat"
-              :active="selected === chat.id && !settingsShown"
-              :projects="projects"
-              @select="select(chat.id)"
-              @pin="setPinned(chat.id, $event)"
-              @archive="archive(chat.id)"
-              @move="moveChat(chat.id, $event)"
-              @new-project="beginProjectFor(chat.id)"
-            />
+            <template v-for="entry in group.chats" :key="`${entry.kind}-${entry.chat.id}`">
+              <AiChatRow
+                v-if="entry.kind === 'agent'"
+                :chat="entry.chat"
+                :active="selected === entry.chat.id && !settingsShown"
+                :projects="projects"
+                @select="select(entry.chat.id)"
+                @pin="setPinned(entry.chat.id, $event)"
+                @archive="archive(entry.chat.id)"
+                @move="moveChat(entry.chat.id, $event)"
+                @new-project="beginProjectFor(entry.chat.id)"
+              />
+              <QuickChatRow
+                v-else
+                :chat="entry.chat"
+                @select="openQuickChat({ kind: 'chat', id: entry.chat.id })"
+                @delete="removeQuickChat(entry.chat.id)"
+              />
+            </template>
           </div>
         </div>
       </div>
       <div class="ai-window__rail-foot">
-        <AppIconButton
-          v-if="collapsed"
-          :icon="appIcons.quickChat"
-          tooltip="Quick chat"
-          data-testid="ai-quick-chat"
-          @click="openQuickChat()"
-        />
         <AppButton
           v-if="!collapsed"
           variant="quiet"

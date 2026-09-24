@@ -1,5 +1,6 @@
 import type { Component } from "vue"
 
+import QuickChatCommand from "@/features/ai/QuickChatCommand.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import ServicesCommand from "@/features/services/ServicesCommand.vue"
 import TerminalCommand from "@/features/terminals/TerminalCommand.vue"
@@ -40,6 +41,7 @@ export interface ToolBlock extends BlockSeat {
 export const TOOL_BLOCKS: readonly ToolBlock[] = [
   { id: "spaces", home: "left-top", framed: true, component: SpaceSwitch, props: () => ({ iconOnly: true }) },
   { id: "queries", home: "left-top", component: CommandBar, props: () => ({ iconOnly: true }) },
+  { id: "quick-chat", home: "left-top", beside: "queries", component: QuickChatCommand, props: () => ({}) },
   { id: "services", home: "left-bottom", component: ServicesCommand, props: () => ({ iconOnly: true }) },
   {
     id: "terminals",

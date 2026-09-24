@@ -54,6 +54,22 @@ describe("the arrangement of the tool rails", () => {
     expect(whole["left-bottom"]).toEqual(["services"])
   })
 
+  it("adds a new quick-chat button beside queries in an existing rail layout", () => {
+    const previous = JSON.stringify({
+      "left-top": ["spaces"],
+      "left-bottom": ["queries", "services"],
+      "right-top": ["save", "list"],
+      "right-bottom": [],
+    })
+    const withQuickChat: BlockSeat[] = [
+      ...BLOCKS,
+      { id: "quick-chat", home: "left-top", beside: "queries" },
+    ]
+    expect(readArrangement(previous, withQuickChat)["left-bottom"]).toEqual([
+      "queries", "quick-chat", "services",
+    ])
+  })
+
   it("moves a block before the one it is dropped on, across rails or down its own", () => {
     const start = defaultArrangement(BLOCKS)
     const across = moveBlock(start, "list", "left-bottom", "services")
