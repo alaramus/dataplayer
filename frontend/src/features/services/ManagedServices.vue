@@ -267,6 +267,7 @@ async function forget(service: ServicePublic) {
       <AppIconButton
         :icon="appIcons.deleteOutline"
         tooltip="Remove this service"
+        variant="danger-quiet"
         :disable="isWorking(service.job)"
         :data-testid="`remove-service-${service.id}`"
         @click="forget(service)"
