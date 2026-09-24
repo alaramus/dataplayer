@@ -16,6 +16,12 @@ useReloadable("connectors", async () => {
 })
 
 const rows = computed(() => connectors.data.value?.data ?? [])
+const filteredRows = computed(() => {
+  const query = workspace.connectorNameFilter.value.trim().toLocaleLowerCase()
+  return query
+    ? rows.value.filter((connector) => connector.name.toLocaleLowerCase().includes(query))
+    : rows.value
+})
 </script>
 
 <template>
@@ -31,7 +37,8 @@ const rows = computed(() => connectors.data.value?.data ?? [])
            goes, so they moved into the panel at the foot of the screen
            (D143). -->
       <ConnectorList
-        :rows="rows"
+        :rows="filteredRows"
+        :empty-text="workspace.connectorNameFilter.value.trim() ? 'No matching connections' : undefined"
         :loading="connectors.isLoading.value"
         :selected-id="workspace.activeConnectorId.value"
         :open-ids="workspace.openConnectorIds.value"

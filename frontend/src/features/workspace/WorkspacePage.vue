@@ -108,6 +108,8 @@ import {
  * and a data tab torn off into a section of its own. See the spec, T5.
  */
 const connectors = useConnectors()
+const connectorNameFilter = ref("")
+const connectorFilterOpen = ref(false)
 const connectorColors = computed(() => new Map(
   (connectors.data.value?.data ?? []).map((connector) => [connector.id, connector.tab_color])
 ))
@@ -647,6 +649,8 @@ function replaceNode(connectorId: string, replacement: NodeReplacement) {
 }
 
 const actions: WorkspaceActions = {
+  connectorNameFilter,
+  connectorFilterOpen,
   activeConnectorId,
   openConnectorIds: openConnectors,
   openCatalog,

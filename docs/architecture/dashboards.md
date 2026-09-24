@@ -15,9 +15,11 @@ one, and tells anybody else that an administrator sets it up. With a store it
 lists the person's dashboards and the sources their agents reported. A dashboard
 is a 12-column grid of charts and tiles; widgets are added by ticking series,
 moved by their header, resized by their corner, renamed in place and expanded to
-fill the grid, and the whole is saved a moment after the last change. The Sources
-window registers an agent, shows its key and the Compose file that starts
-`dataplayer-monitor-agent` with it, and lists the hosts the person's agents
+fill the grid, and the whole is saved a moment after the last change. The
+Dashboards rail head can become a name filter; filtering changes the rail list
+without changing the open dashboard. The Sources window registers an agent,
+shows its key and the Compose file that starts `dataplayer-monitor-agent` with
+it, and lists the hosts the person's agents
 report: the system, processors and memory, the agent's version, how long each
 has been up and when it was last heard.
 

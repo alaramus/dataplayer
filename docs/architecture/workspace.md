@@ -12,6 +12,8 @@ Decisions here: D12, D69, D94, D112, D143.
 One screen of three columns: the connections; the catalog of every connection
 that was opened, where the same words filter a level and, on a button, search
 everything below it; and the work opened from a node, in tabs beside each other.
+The connections head can temporarily become a full-width name filter; closing
+it clears the filter and restores the head commands.
 Work may be rows, editable source, bounded media, read-only SQL, relation
 structure, what a node is, or a chart. Columns are resizable and bounded by the
 window so each scrolls inside itself, and the layout a user arrives at is the

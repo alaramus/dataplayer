@@ -21,6 +21,9 @@ import type { DiagramNodeRef } from "@/features/relationships/model"
  * and a panel has no business reaching into the layout.
  */
 export interface WorkspaceActions {
+  /** The first panel's temporary name filter, shared by its head and list. */
+  connectorNameFilter: Ref<string>
+  connectorFilterOpen: Ref<boolean>
   /** The connection whose catalog is being looked at, of those that are open. */
   activeConnectorId: Readonly<Ref<string | null>>
   /** Every connection that has a catalog open somewhere. */

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, onScopeDispose, ref, watch } from "vue"
+import { computed, nextTick, onScopeDispose, ref, watch } from "vue"
 
 import { AiService } from "@/client"
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
@@ -9,6 +9,7 @@ import {
   AppButton,
   AppCardFrame,
   AppCardHead,
+  AppEmptyState,
   AppIconButton,
   AppForm,
   AppInput,
@@ -84,6 +85,21 @@ defineExpose({
 })
 const renaming = ref<string | null>(null)
 const titleDraft = ref("")
+const chatNameFilter = ref("")
+const chatFilterOpen = ref(false)
+const chatFilterField = ref<InstanceType<typeof AppInput> | null>(null)
+const filterClosedProjects = ref(new Set<string>())
+
+async function openChatFilter() {
+  chatFilterOpen.value = true
+  await nextTick()
+  ;(chatFilterField.value?.$el as HTMLElement | undefined)?.querySelector("input")?.focus()
+}
+function closeChatFilter() {
+  chatNameFilter.value = ""
+  chatFilterOpen.value = false
+  filterClosedProjects.value = new Set()
+}
 
 const conversations = computed(() => list.data.value?.data ?? [])
 const selectedChat = computed(() => conversations.value.find((chat) => chat.id === selected.value) ?? null)
@@ -113,12 +129,28 @@ const grouped = computed(() => {
     { id: null, name: "", chats: conversations.value.filter((chat) => !chat.project_id) },
   ].filter((group) => group.id !== null || group.chats.length > 0)
 })
+const visibleGroups = computed(() => {
+  const query = chatNameFilter.value.trim().toLocaleLowerCase()
+  if (!query) return grouped.value
+  return grouped.value
+    .map((group) => ({
+      ...group,
+      chats: group.name.toLocaleLowerCase().includes(query)
+        ? group.chats
+        : group.chats.filter((chat) => chat.title.toLocaleLowerCase().includes(query)),
+    }))
+    .filter((group) => group.name.toLocaleLowerCase().includes(query) || group.chats.length > 0)
+})
 
 function toggleProject(id: string) {
-  const next = new Set(closedProjects.value)
+  const target = chatNameFilter.value.trim() ? filterClosedProjects : closedProjects
+  const next = new Set(target.value)
   if (next.has(id)) next.delete(id)
   else next.add(id)
-  closedProjects.value = next
+  target.value = next
+}
+function projectIsClosed(id: string) {
+  return chatNameFilter.value.trim() ? filterClosedProjects.value.has(id) : closedProjects.value.has(id)
 }
 function beginProjectFor(chatId: string | null) {
   renamingProject.value = null
@@ -284,10 +316,39 @@ onScopeDispose(stop)
     >
       <!-- The header button collapses this rail; no chevron of its own. -->
       <AppCardHead
-        v-if="!collapsed"
+        v-if="!collapsed && chatFilterOpen"
+        class="ai-window__filter-head"
+        @keydown.esc.stop="closeChatFilter"
+      >
+        <AppInput
+          ref="chatFilterField"
+          v-model="chatNameFilter"
+          compact
+          placeholder="Filter chats"
+          aria-label="Filter chats and projects by name"
+          autocomplete="off"
+          data-testid="ai-name-filter"
+        />
+        <template #actions>
+          <AppIconButton
+            :icon="appIcons.close"
+            tooltip="Close chat filter"
+            data-testid="ai-filter-close"
+            @click="closeChatFilter"
+          />
+        </template>
+      </AppCardHead>
+      <AppCardHead
+        v-else-if="!collapsed"
         title="Chats"
       >
         <template #actions>
+          <AppIconButton
+            :icon="appIcons.search"
+            tooltip="Filter chats and projects by name"
+            data-testid="ai-filter-open"
+            @click="openChatFilter"
+          />
           <AppButton
             variant="quiet"
             size="sm"
@@ -328,8 +389,12 @@ onScopeDispose(stop)
         data-testid="ai-history"
       >
         <AppSpinner v-if="list.isPending.value" />
+        <AppEmptyState
+          v-else-if="chatNameFilter.trim() && visibleGroups.length === 0"
+          text="No matching chats or projects"
+        />
         <div
-          v-for="group in grouped"
+          v-for="group in visibleGroups"
           :key="group.id ?? 'loose'"
           class="ai-window__group"
           :data-testid="group.id ? `ai-project-${group.id}` : 'ai-loose-chats'"
@@ -341,13 +406,13 @@ onScopeDispose(stop)
             <button
               type="button"
               class="ai-window__project-name"
-              :aria-expanded="!closedProjects.has(group.id)"
+              :aria-expanded="!projectIsClosed(group.id)"
               :title="group.name"
               :data-testid="`ai-project-toggle-${group.id}`"
               @click="toggleProject(group.id)"
             >
               <q-icon
-                :name="closedProjects.has(group.id) ? 'chevron_right' : 'keyboard_arrow_down'"
+                :name="projectIsClosed(group.id) ? 'chevron_right' : 'keyboard_arrow_down'"
                 size="16px"
               />
               <span class="ai-window__project-title">{{ group.name }}</span>
@@ -372,7 +437,7 @@ onScopeDispose(stop)
             </span>
           </div>
           <div
-            v-if="group.id === null || !closedProjects.has(group.id)"
+            v-if="group.id === null || !projectIsClosed(group.id)"
             :class="{ 'ai-window__project-chats': group.id !== null }"
           >
             <AiChatRow
@@ -531,6 +596,7 @@ onScopeDispose(stop)
    a reader sees what is in it. */
 .ai-window__project-chats { padding-left: var(--dp-space-3); }
 .ai-window__main { flex: 1; }
+.ai-window__filter-head > :first-child { flex: 1; min-width: 0; }
 /* The field takes the heading's type, so renaming moves nothing; its height
    is the head's own (AppCardHead). */
 .ai-window__head :deep(.q-field) { font-size: inherit; }

@@ -352,6 +352,31 @@ test("a signed in user lands on the columns that have something in them", async 
   await deleteConnector(page, name)
 })
 
+test("the connections head becomes a name filter and restores its commands", async ({ page }) => {
+  const name = `e2e-connection-filter-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await freshLayout(page)
+
+  await page.getByTestId("connectors-filter-open").click()
+  const filter = page.getByTestId("connectors-name-filter")
+  await expect(filter).toBeFocused()
+  await expect(page.getByTestId("add-connector")).toHaveCount(0)
+  await expect(page.getByTestId("connectors-head").getByTestId("panel-reload")).toHaveCount(0)
+
+  await filter.fill(name.toUpperCase())
+  await expect(connectorRow(page, name)).toBeVisible()
+  await filter.fill("no connection has this name")
+  await expect(page.getByTestId("connector-list")).toHaveCount(0)
+  await expect(page.getByTestId("connectors-panel")).toContainText("No matching connections")
+
+  await filter.press("Escape")
+  await expect(page.getByTestId("connectors-name-filter")).toHaveCount(0)
+  await expect(page.getByTestId("add-connector")).toBeVisible()
+  await expect(connectorRow(page, name)).toBeVisible()
+  await deleteConnector(page, name)
+})
+
 test("catalogs stand beside each other, and each connection opens once", async ({ page }) => {
   const first = `e2e-cols-a-${Date.now()}`
   const second = `e2e-cols-b-${Date.now()}`

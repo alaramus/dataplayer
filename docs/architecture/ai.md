@@ -315,8 +315,9 @@ AI is the third application space beside Data and Dashboards, reached from the
 status-bar space switch. Data panels remain mounted,
 and detached panels remain visible, by the same covering contract as
 Dashboards. Left column: New chat, history, Settings; settings replace the
-conversation on the right. New chat reopens an existing unarchived "New chat"
-with no messages or runs before creating another one. Unsent text is kept in
+conversation on the right. Its head can become a name filter for chats and
+projects without changing the open conversation. New chat reopens an existing
+unarchived "New chat" with no messages or runs before creating another one. Unsent text is kept in
 memory per conversation while this browser page is open, including when the
 person switches application spaces or opens another chat. Sending clears it.
 Down the left edge of a conversation with more than
@@ -335,7 +336,7 @@ deleting one keeps every conversation it held, out of any folder. Nothing is del
 conversation or deletes it, one at a time or all at once, which is the only
 place anything is deleted. A pin survives archiving, so a restored conversation
 comes back where it was. Content is encrypted at rest under `AI_CONTENT_KEY`.
-No editing, tags, rewind, branches or search.
+No editing, tags, rewind, branches or transcript search.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 

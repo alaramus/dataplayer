@@ -125,6 +125,19 @@ test("opens, restores and manages the application agent space", async ({ page })
   expect((await head.boundingBox())?.height).toBe(closed)
   await expect(active).toContainText("Playwright agent chat")
 
+  await page.getByTestId("ai-filter-open").click()
+  const chatFilter = page.getByTestId("ai-name-filter")
+  await expect(chatFilter).toBeFocused()
+  await expect(page.getByTestId("ai-new-chat")).toHaveCount(0)
+  await chatFilter.fill("PLAYWRIGHT AGENT CHAT")
+  await expect(active).toBeVisible()
+  await chatFilter.fill("no chat has this name")
+  await expect(active).toHaveCount(0)
+  await expect(page.getByTestId("ai-history")).toContainText("No matching chats or projects")
+  await chatFilter.press("Escape")
+  await expect(page.getByTestId("ai-new-chat")).toBeVisible()
+  await expect(active).toBeVisible()
+
   // The composer follows what is typed and then stops: no corner grip to drag,
   // and a long draft never squeezes the transcript off the card.
   const composer = page.getByTestId("ai-message-input")

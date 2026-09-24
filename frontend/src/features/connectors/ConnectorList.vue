@@ -17,6 +17,7 @@ import { panelColorStyle } from "@/shared/ui/panelColor"
 const props = defineProps<{
   rows: ConnectorPublic[]
   loading: boolean
+  emptyText?: string
   /** The connection whose catalog is being looked at, if any. */
   selectedId?: string | null
   /**
@@ -43,7 +44,7 @@ const open = computed(() => props.openIds ?? new Set<string>())
 
   <AppEmptyState
     v-else-if="rows.length === 0"
-    text="No connections yet"
+    :text="emptyText ?? 'No connections yet'"
   />
 
   <div

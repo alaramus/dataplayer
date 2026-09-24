@@ -314,6 +314,19 @@ test("an agent's datagrams describe its host and become a dashboard of widgets",
   await expect(page.getByTestId("dashboard-name")).toHaveText(dashboardName)
   await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
 
+  await page.getByTestId("dashboards-filter-open").click()
+  const dashboardFilter = page.getByTestId("dashboards-name-filter")
+  await expect(dashboardFilter).toBeFocused()
+  await expect(page.getByTestId("dashboard-new")).toHaveCount(0)
+  await dashboardFilter.fill(dashboardName.toUpperCase())
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+  await dashboardFilter.fill("no dashboard has this name")
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toHaveCount(0)
+  await expect(page.getByTestId("dashboards-rail")).toContainText("No matching dashboards")
+  await dashboardFilter.press("Escape")
+  await expect(page.getByTestId("dashboard-new")).toBeVisible()
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+
   // Written in batches of a second; the catalog is read again when asked.
   await expect(async () => {
     await page.reload()

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, ref, watch } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
@@ -10,6 +10,7 @@ import {
   AppCardHead,
   AppEmptyState,
   AppIconButton,
+  AppInput,
   AppSpinner,
   AppTooltip,
   AppTree,
@@ -76,7 +77,28 @@ const current = computed(() => {
   return list.find((one) => one.id === selectedId.value) ?? list[0] ?? null
 })
 const listed = computed(() => splitByOwner(dashboards.data.value ?? []))
-const rules = computed(() => railRules(listed.value.own.length, listed.value.shared.length))
+const dashboardNameFilter = ref("")
+const dashboardFilterOpen = ref(false)
+const dashboardFilterField = ref<InstanceType<typeof AppInput> | null>(null)
+const shownDashboards = computed(() => {
+  const query = dashboardNameFilter.value.trim().toLocaleLowerCase()
+  const matches = (name: string) => !query || name.toLocaleLowerCase().includes(query)
+  return {
+    own: listed.value.own.filter((dashboard) => matches(dashboard.name)),
+    shared: listed.value.shared.filter((dashboard) => matches(dashboard.name)),
+  }
+})
+const rules = computed(() => railRules(shownDashboards.value.own.length, shownDashboards.value.shared.length))
+
+async function openDashboardFilter() {
+  dashboardFilterOpen.value = true
+  await nextTick()
+  ;(dashboardFilterField.value?.$el as HTMLElement | undefined)?.querySelector("input")?.focus()
+}
+function closeDashboardFilter() {
+  dashboardNameFilter.value = ""
+  dashboardFilterOpen.value = false
+}
 
 // Said once, when the list first arrives: the same words for a dashboard that
 // is gone and one nobody shared, as the server gives (D33).
@@ -202,9 +224,41 @@ defineExpose({
           @store="storeOpen = true"
         />
         <template v-else>
-          <AppCardHead title="Dashboards">
+          <AppCardHead
+            v-if="dashboardFilterOpen"
+            class="dashboards__filter-head"
+            @keydown.esc.stop="closeDashboardFilter"
+          >
+            <AppInput
+              ref="dashboardFilterField"
+              v-model="dashboardNameFilter"
+              compact
+              placeholder="Filter dashboards"
+              aria-label="Filter dashboards by name"
+              autocomplete="off"
+              data-testid="dashboards-name-filter"
+            />
+            <template #actions>
+              <AppIconButton
+                :icon="appIcons.close"
+                tooltip="Close dashboard filter"
+                data-testid="dashboards-filter-close"
+                @click="closeDashboardFilter"
+              />
+            </template>
+          </AppCardHead>
+          <AppCardHead
+            v-else
+            title="Dashboards"
+          >
             <template #actions>
               <!-- The header button collapses this rail; no chevron of its own. -->
+              <AppIconButton
+                :icon="appIcons.search"
+                tooltip="Filter dashboards by name"
+                data-testid="dashboards-filter-open"
+                @click="openDashboardFilter"
+              />
               <AppButton
                 variant="quiet"
                 size="sm"
@@ -220,11 +274,11 @@ defineExpose({
                head. A line stands only between groups that both show
                something (railRules). -->
           <div
-            v-if="listed.own.length > 0"
+            v-if="shownDashboards.own.length > 0"
             class="dashboards__list"
           >
             <AppButton
-              v-for="dashboard in listed.own"
+              v-for="dashboard in shownDashboards.own"
               :key="dashboard.id"
               :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
               :class="{
@@ -241,7 +295,7 @@ defineExpose({
             />
           </div>
 
-          <template v-if="listed.shared.length > 0">
+          <template v-if="shownDashboards.shared.length > 0">
             <div
               class="dashboards__heading"
               :class="{ 'dashboards__heading--divided': rules.beforeShared }"
@@ -253,7 +307,7 @@ defineExpose({
               data-testid="dashboards-shared"
             >
               <AppButton
-                v-for="dashboard in listed.shared"
+                v-for="dashboard in shownDashboards.shared"
                 :key="dashboard.id"
                 :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
                 :class="{
@@ -272,6 +326,11 @@ defineExpose({
               </AppButton>
             </div>
           </template>
+
+          <AppEmptyState
+            v-if="dashboardNameFilter.trim() && shownDashboards.own.length === 0 && shownDashboards.shared.length === 0"
+            text="No matching dashboards"
+          />
 
           <div
             class="dashboards__heading"
@@ -387,6 +446,8 @@ defineExpose({
 .dashboards__main {
   flex: 1;
 }
+
+.dashboards__filter-head > :first-child { flex: 1; min-width: 0; }
 
 .dashboards__scroll {
   flex: 1;
