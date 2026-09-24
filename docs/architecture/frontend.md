@@ -92,8 +92,8 @@ accepted visual example and the rejected directions.
   surface, and the composition provides that context rather than each message
   selecting it. Banners outside a form keep their existing presentation.
 - **Form checkboxes align with the control column**, use neutral checked marks
-  and reflow with the fields, and a form's switches are on in the same neutral;
-  outside a form both keep their own look.
+  and reflow with the fields. Switches use the same neutral selected colour in
+  forms and panels; a panel switch must not fall back to Quasar blue.
 - **A choice among a few is `AppRadioGroup`**, each option with its meaning or
   the reason it is unavailable beside it; a select hides both until opened. In a
   form its label takes the label column and its marks are neutral, like a form

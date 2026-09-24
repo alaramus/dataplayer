@@ -126,9 +126,9 @@ export function checkboxLook(form: boolean, dense: boolean) {
   return { dense: form || dense, color: form ? "dp-control-selected" : undefined }
 }
 
-/** A switch in a form is on in the same neutral as a form's checkbox is ticked. */
-export function toggleLook(form: boolean) {
-  return { color: form ? "dp-control-selected" : undefined }
+/** Switches keep the same neutral selected colour in forms and panels. */
+export function toggleLook() {
+  return { color: "dp-control-selected" }
 }
 
 /** A radio is marked the way a form's checkbox is: dense, and neutral when chosen. */

@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import { inject } from "vue"
-
-import { formLayoutKey } from "./formLayout"
 import { toggleLook } from "./tokens"
-
-const formLayout = inject(formLayoutKey, false)
 
 withDefaults(
   defineProps<{
@@ -20,7 +15,7 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
 <template>
   <q-toggle
-    v-bind="toggleLook(formLayout)"
+    v-bind="toggleLook()"
     :model-value="modelValue"
     :label="label"
     :disable="disable"
