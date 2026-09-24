@@ -195,7 +195,11 @@ person's behalf, and nothing is quietly undone.
 - **A service's own output can be read**, bounded to the last few hundred lines.
   The daemon multiplexes two streams into one body with a header per chunk, and the
   header is stripped rather than shown. This application's own log is not a user's
-  to read, and neither are the runtime's words about the machine.
+  to read, and neither are the runtime's words about the machine. Its window and
+  workspace tab offer manual refresh and the same intervals as a data grid,
+  defaulting to five seconds. The choice is remembered per service and server;
+  polling pauses when the
+  view is hidden or a read is still running. The tab re-reads when shown again.
 - **A container this installation made that no row claims is findable**, by label
   rather than by name, and removable. It is an administrator's question and an
   administrator's route: what runs on the machine is not one user's business, and
@@ -226,8 +230,8 @@ Known deviations:
   taken away and made again.
 - **Orphan discovery is a question, not a sweep.** Nothing runs on a timer; an
   administrator asks and decides.
-- **A log tail is a request, not a stream.** There is no following along, and a
-  service that prints faster than it is read loses the middle.
+- **A log tail is a request, not a stream.** Automatic refresh repeats bounded
+  reads, so a service that prints faster than it is read can lose the middle.
 - **Nothing warns before a retry destroys the earlier attempt's data.** The button
   says so, and there is no second confirmation.
 - **A removed service's connection is not marked broken.** It fails its next health

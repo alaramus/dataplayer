@@ -13,6 +13,8 @@ vi.mock("./api", () => ({
   useServiceLogs: () => ({
     data: ref({ lines: ["it started", "it stopped"] }),
     isLoading: ref(false),
+    isFetching: ref(false),
+    refetch: vi.fn(),
   }),
 }))
 

@@ -28,6 +28,8 @@ const props = defineProps<{
   held?: string | null
   /** Nothing has been read yet, so there is nothing to re-read. */
   disable?: boolean
+  /** The owning view's test hook; defaults to the grid's established one. */
+  testId?: string
 }>()
 
 const emit = defineEmits<{ "update:seconds": [value: RefreshSeconds | null] }>()
@@ -67,7 +69,7 @@ function pick(name: string) {
     :aria-label="tooltip"
     layout="toolbar"
     :disable="disable"
-    data-testid="grid-auto-refresh"
+    :data-testid="testId ?? 'grid-auto-refresh'"
     :data-refresh="seconds === null ? 'off' : String(seconds)"
   >
     <AppTooltip>{{ tooltip }}</AppTooltip>

@@ -41,7 +41,6 @@ const actions = computed(() => {
     size="wide-form"
     sizing="stable"
     :title="`Output of ${service?.connector_name ?? ''}`"
-    subtitle="The last lines this service printed."
     :actions="actions"
     data-testid="service-logs"
     @update:model-value="emit('update:service', null)"
