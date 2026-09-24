@@ -493,7 +493,7 @@ const overlayStyle = computed((): CSSProperties => {
   display: flex;
   align-items: flex-start;
   gap: var(--dp-space-half);
-  padding: var(--dp-space-half) var(--dp-space-1);
+  padding: var(--dp-space-half) var(--dp-space-1) var(--dp-space-half) var(--dp-space-2);
   /* The head every card has (AppCardHead). */
   border-bottom: 1px solid var(--dp-border);
   background: var(--dp-card-head);

@@ -595,6 +595,36 @@ test("the head of every column is one height, whatever is in it", async ({ page 
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("workspace heads and grid commands share the same inset rhythm", async ({ page }) => {
+  const name = `e2e-head-inset-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+
+  const rhythm = await page.evaluate(() => {
+    const strip = document.querySelector<HTMLElement>(".workspace-leaf__strip:not(.workspace-leaf__strip--head)")
+    const gridBar = document.querySelector<HTMLElement>(".grid-header__bar")
+    if (!strip || !gridBar) throw new Error("A workspace head or grid toolbar is missing")
+    const stripStyle = getComputedStyle(strip)
+    const gridStyle = getComputedStyle(gridBar)
+    const standardInset = getComputedStyle(document.documentElement).getPropertyValue("--dp-space-2").trim()
+    return {
+      stripLeft: stripStyle.paddingLeft,
+      standardInset,
+      gridTop: gridStyle.paddingTop,
+      gridBottom: gridStyle.paddingBottom,
+    }
+  })
+  expect(rhythm.stripLeft).toBe(rhythm.standardInset)
+  expect(rhythm.gridTop).toBe(rhythm.gridBottom)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("a tab is carried out of its strip and dropped on another one", async ({ page }) => {
   const name = `e2e-carry-${Date.now()}`
   await login(page)

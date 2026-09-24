@@ -161,7 +161,7 @@ const groups = TOOLBAR_GROUPS
   display: flex;
   align-items: stretch;
   overflow-x: auto;
-  padding: var(--dp-space-half) 0 var(--dp-space-1);
+  padding: var(--dp-space-1);
 }
 
 .grid-header__group {
