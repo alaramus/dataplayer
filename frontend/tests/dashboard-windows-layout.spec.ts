@@ -157,6 +157,15 @@ for (const theme of ["light", "dark"] as const) {
     await page.getByTestId("agents-open").click()
     const dialog = page.getByTestId("agents-dialog")
     const frame = page.getByRole("dialog").filter({ has: dialog })
+    const registerRow = dialog.getByTestId("agent-register-row")
+    const registerAlignment = async () => registerRow.evaluate((row) => {
+      const parts = [":scope > span", ".q-field__control", '[data-testid="agent-register"]']
+        .map((selector) => row.querySelector(selector)?.getBoundingClientRect())
+      if (parts.some((part) => part === undefined)) return false
+      const centers = parts.map((part) => part!.top + part!.height / 2)
+      return Math.max(...centers) - Math.min(...centers) < 3
+    })
+    expect(await registerAlignment()).toBe(true)
     await expect(page.getByTestId("agents-table").getByText("watcher")).toBeVisible()
     const before = await frame.boundingBox()
 
@@ -170,6 +179,7 @@ for (const theme of ["light", "dark"] as const) {
     await frame.screenshot({ path: `test-results/dashboard-agents-${theme}.png` })
 
     await page.setViewportSize({ width: 390, height: 600 })
+    expect(await registerAlignment()).toBe(true)
     await expectNoHorizontalOverflow(dialog)
     await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeInViewport()
     await frame.screenshot({ path: `test-results/dashboard-agents-${theme}-narrow.png` })

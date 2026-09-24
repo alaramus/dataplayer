@@ -232,25 +232,27 @@ async function copy(text: string, what: string) {
     data-testid="agents-dialog"
   >
     <AppSection gutter>
-      <AppForm layout="section">
-        <div class="agents__register">
-          <AppInput
-            v-model="newName"
-            label="Name of a new agent"
-            compact
-            data-testid="agent-name"
-            @keydown.enter="register"
-          />
-          <AppButton
-            label="Register"
-            :icon="appIcons.add"
-            :loading="creating.isPending.value"
-            :disable="newName.trim() === ''"
-            data-testid="agent-register"
-            @click="register"
-          />
-        </div>
-      </AppForm>
+      <div
+        class="agents__register"
+        data-testid="agent-register-row"
+      >
+        <span>Agent name</span>
+        <AppInput
+          v-model="newName"
+          aria-label="Agent name"
+          compact
+          data-testid="agent-name"
+          @keydown.enter="register"
+        />
+        <AppButton
+          label="Register"
+          :icon="appIcons.add"
+          :loading="creating.isPending.value"
+          :disable="newName.trim() === ''"
+          data-testid="agent-register"
+          @click="register"
+        />
+      </div>
 
       <AppTable
         :rows="rows"
@@ -452,6 +454,16 @@ async function copy(text: string, what: string) {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
+}
+.agents__register {
+  padding: var(--dp-space-4);
+}
+.agents__register :deep(.q-field) {
+  flex: 1;
+  min-width: 0;
+}
+.agents__register > span {
+  white-space: nowrap;
 }
 
 .agents__key code {
