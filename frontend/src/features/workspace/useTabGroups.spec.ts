@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { ref } from "vue"
 
 import type { ConfirmRequest } from "@/shared/ui"
 import type { RestoreOutcome } from "@/shared/workspace"
@@ -12,6 +13,7 @@ afterEach(() => vi.restoreAllMocks())
 
 function fixture(userId = "user-one") {
   const workspace = {
+    panels: ref(groupFixture().panels),
     snapshot: vi.fn(() => groupFixture().snapshot),
     restore: vi.fn<(raw: string) => Promise<RestoreOutcome>>().mockResolvedValue("restored"),
   }
@@ -25,14 +27,27 @@ describe("the user's tab group library", () => {
     const { library, workspace } = fixture()
     expect(library.save(" Queries ")).toBe(true)
     const original = library.groups.value[0]!
-    workspace.snapshot.mockReturnValue(groupFixture(false).snapshot)
-    expect(library.save("Empty")).toBe(true)
+    expect(library.save("Second group")).toBe(true)
     expect(library.groups.value[0]).toEqual(original)
     expect(library.rename(original.id, "Work")).toBe(true)
     expect(library.groups.value[0]?.snapshot).toBe(original.snapshot)
     expect(library.update(original.id)).toBe(true)
-    expect(library.groups.value[0]?.snapshot).toBe(groupFixture(false).snapshot)
+    expect(library.groups.value[0]?.snapshot).toBe(original.snapshot)
     expect(fixture().library.groups.value).toEqual(library.groups.value)
+  })
+
+  it("does not save or update groups when only the permanent connectors tab is open", () => {
+    const { library, workspace } = fixture()
+    expect(library.save("Queries")).toBe(true)
+    const original = library.groups.value[0]!
+    workspace.panels.value = groupFixture(false).panels
+    workspace.snapshot.mockReturnValue(groupFixture(false).snapshot)
+
+    expect(library.canSave.value).toBe(false)
+    expect(library.save("Empty")).toBe(false)
+    expect(library.update(original.id)).toBe(false)
+    expect(library.groups.value).toEqual([original])
+    expect(workspace.snapshot).toHaveBeenCalledTimes(1)
   })
 
   it("separates users and never lets deleting a saved group close current tabs", async () => {

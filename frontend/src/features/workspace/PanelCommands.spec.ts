@@ -6,6 +6,7 @@ import { defineComponent, h, ref } from "vue"
 import { freshnessOf } from "@/shared/freshness/freshness"
 import type { Freshness } from "@/shared/freshness/freshness"
 import AppIconButton from "@/shared/ui/AppIconButton.vue"
+import AppTooltip from "@/shared/ui/AppTooltip.vue"
 import { makeLeaf, workspaceKey } from "@/shared/workspace"
 import type { PanelLook, WorkspaceContext } from "@/shared/workspace"
 
@@ -234,9 +235,9 @@ describe("PanelCommands", () => {
     })
 
     expect(wrapper.text()).not.toContain("20s")
-    expect(wrapper.getComponent(AppIconButton).props("tooltip")).toBe(
-      "Read from the source 20s ago. This connection keeps answers for 5m. " +
-        "Re-read this table."
+    expect(wrapper.getComponent(AppIconButton).props("tooltip")).toBe("Re-read this table")
+    expect(wrapper.get('[data-testid="panel-freshness"]').getComponent(AppTooltip).text()).toBe(
+      "Read from the source 20s ago. This connection keeps answers for 5m."
     )
   })
 

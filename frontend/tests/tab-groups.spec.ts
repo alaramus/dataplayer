@@ -56,6 +56,7 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   await page.getByTestId("tool-block-groups-list").dragTo(page.getByTestId("tool-rail-left-bottom"))
   await expect(page.getByTestId("tool-rail-left-bottom").getByTestId("open-tab-groups")).toBeVisible()
   await expect(page.getByTestId("tool-rail-right-top").getByTestId("save-tab-group")).toBeVisible()
+  await expect(page.getByTestId("save-tab-group")).toBeDisabled()
 
   // The list button always stands; with nothing saved yet it says so.
   await openGroups(page)
@@ -68,6 +69,7 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   await openConnector(page, connection)
   await pickSchema(page, "pg_catalog")
   await openNode(page, "pg_class")
+  await expect(page.getByTestId("save-tab-group")).toBeEnabled()
   await openNode(page, "pg_namespace")
   const namespaceTab = rowsTabs(page).filter({ hasText: "pg_namespace" })
   const classTab = rowsTabs(page).filter({ hasText: "pg_class" })

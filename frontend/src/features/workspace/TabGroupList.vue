@@ -27,11 +27,12 @@ const renaming = ref<string | null>(null)
 const name = ref("")
 const problem = computed(() => groupNameProblem(name.value, list.value, renaming.value ?? undefined))
 
-const menuItems = [
-  { name: "update-group", label: "Update from current layout", icon: appIcons.save },
+const menuItems = computed(() => [
+  { name: "update-group", label: "Update from current layout", icon: appIcons.save,
+    disable: !props.groups.canSave.value, hint: "Open a tab first" },
   { name: "rename-group", label: "Rename", icon: appIcons.edit },
   { name: "delete-group", label: "Delete", icon: appIcons.delete, danger: true },
-]
+])
 
 function select(action: string, group: TabGroup) {
   listOpen.value = false

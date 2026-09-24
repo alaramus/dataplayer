@@ -1,4 +1,4 @@
-import { ref, shallowRef } from "vue"
+import { computed, ref, shallowRef } from "vue"
 
 import type { ConfirmRequest, Toast } from "@/shared/ui"
 import type { WorkspaceApi } from "@/shared/workspace"
@@ -9,13 +9,14 @@ import type { Panel } from "./panels"
 
 export function useTabGroups(
   userId: string,
-  workspace: Pick<WorkspaceApi<Panel>, "snapshot" | "restore">,
+  workspace: Pick<WorkspaceApi<Panel>, "panels" | "snapshot" | "restore">,
   confirm: (request: ConfirmRequest) => Promise<boolean>,
   toast: Toast,
   storage: Storage = localStorage
 ) {
   const groups = shallowRef<TabGroup[]>([])
   const busy = ref(false)
+  const canSave = computed(() => workspace.panels.value.some((panel) => panel.kind !== "connectors"))
   try {
     const saved = parseGroups(storage.getItem(groupsKey(userId)))
     if (saved === null) toast.error("The saved tab groups could not be read.")
@@ -36,7 +37,7 @@ export function useTabGroups(
   }
 
   function save(name: string): boolean {
-    if (busy.value || groupNameProblem(name, groups.value)) return false
+    if (busy.value || !canSave.value || groupNameProblem(name, groups.value)) return false
     const snapshot = workspace.snapshot()
     if (!validGroupSnapshot(snapshot)) {
       toast.error("This layout could not be saved as a tab group.")
@@ -51,7 +52,7 @@ export function useTabGroups(
   }
 
   function update(id: string): boolean {
-    if (busy.value) return false
+    if (busy.value || !canSave.value) return false
     const snapshot = workspace.snapshot()
     if (!validGroupSnapshot(snapshot)) {
       toast.error("This layout could not be saved as a tab group.")
@@ -99,7 +100,7 @@ export function useTabGroups(
     }
   }
 
-  return { groups, busy, save, rename, update, remove, open }
+  return { groups, busy, canSave, save, rename, update, remove, open }
 }
 
 export type TabGroupLibrary = ReturnType<typeof useTabGroups>

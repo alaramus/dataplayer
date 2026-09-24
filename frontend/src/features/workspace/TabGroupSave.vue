@@ -17,6 +17,7 @@ const busy = computed(() => props.groups.busy.value)
 const problem = computed(() => groupNameProblem(name.value, props.groups.groups.value))
 
 function ask() {
+  if (!props.groups.canSave.value) return
   name.value = suggestedGroupName(props.groups.groups.value)
   saving.value = true
 }
@@ -32,7 +33,7 @@ function save() {
     size="sm"
     :icon="appIcons.bookmarkAdd"
     aria-label="Save group"
-    :disable="busy"
+    :disable="busy || !groups.canSave.value"
     data-testid="save-tab-group"
     @click="ask"
   >

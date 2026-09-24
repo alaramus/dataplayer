@@ -66,12 +66,6 @@ const freshnessSays = computed(() =>
     : freshnessTooltip(props.freshness, props.cacheTtlSeconds, now.value)
 )
 
-const reloadSays = computed(() => {
-  const command = reloadTooltip.value ?? ""
-  if (props.freshness === undefined) return command
-  return `${freshnessSays.value} ${command}.`
-})
-
 const reloading = ref(false)
 
 async function reload() {
@@ -106,7 +100,7 @@ function showInCatalog() {
     >
       <AppIconButton
         :icon="appIcons.refresh"
-        :tooltip="reloadSays"
+        :tooltip="reloadTooltip"
         :aria-label="reloadTooltip"
         :loading="reloading"
         data-testid="panel-reload"

@@ -4,6 +4,7 @@ import { computed } from "vue"
 import ConnectorDot from "@/features/connectors/ConnectorDot.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { describeState } from "@/features/connectors/connectorState"
+import { useNow } from "@/shared/freshness/useNow"
 import { AppIconButton } from "@/shared/ui"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
@@ -30,9 +31,10 @@ const props = withDefaults(
 const emit = defineEmits<{ click: [] }>()
 
 const checks = useConnectorChecksStore()
+const now = useNow()
 
 const explained = computed(
-  () => `${props.tooltip} · ${describeState(props.enabled, checks.reportOf(props.connectorId)).words}`
+  () => `${props.tooltip} · ${describeState(props.enabled, checks.reportOf(props.connectorId), now.value).words}`
 )
 </script>
 

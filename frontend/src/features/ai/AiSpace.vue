@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onScopeDispose, ref, watch } from "vue"
 
+import { AiService } from "@/client"
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
 import {
   AppButton,
@@ -37,6 +38,7 @@ import {
   useUpdateAiConversation,
 } from "./api"
 import { freshProjectName } from "./projectName"
+import { reusableEmptyChat } from "./emptyChat"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
 
@@ -188,9 +190,24 @@ watch(requestedAiConversation, (id) => {
 // again puts back the chat that was open, which is still the selected one.
 function toggleSettings() { settingsShown.value = !settingsShown.value }
 
+const makingConversation = ref(false)
 async function makeConversation() {
-  try { const created = await createConversation.mutateAsync(); selected.value = created.id; settingsShown.value = false }
-  catch (cause) { toast.error(messageOf(cause, "A new chat could not be created")) }
+  if (makingConversation.value) return
+  makingConversation.value = true
+  try {
+    const current = await list.refetch()
+    if (current.isError || current.data === undefined) throw new Error("The chat history could not be read")
+    const empty = await reusableEmptyChat(current.data.data, async (id) => (
+      await AiService.readConversation({ path: { conversation_id: id } })
+    ).data)
+    const id = empty ?? (await createConversation.mutateAsync()).id
+    selected.value = id
+    settingsShown.value = false
+  } catch (cause) {
+    toast.error(messageOf(cause, "A new chat could not be created"))
+  } finally {
+    makingConversation.value = false
+  }
 }
 function select(id: string) { selected.value = id; settingsShown.value = false }
 function beginRename(id: string, title: string) { renaming.value = id; titleDraft.value = title }
@@ -276,6 +293,7 @@ onScopeDispose(stop)
             size="sm"
             :icon="appIcons.addComment"
             label="New chat"
+            :disable="makingConversation"
             data-testid="ai-new-chat"
             @click="makeConversation"
           />
@@ -298,6 +316,7 @@ onScopeDispose(stop)
         <AppIconButton
           :icon="appIcons.add"
           tooltip="New chat"
+          :disable="makingConversation"
           data-testid="ai-new-chat"
           @click="makeConversation"
         />

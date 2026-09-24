@@ -330,7 +330,9 @@ A group is an explicitly saved copy of the layout and panel descriptors:
 sections, sizes, collapsed states, tab order and active tabs. Saving one and the
 list of saved ones are two blocks on the tool rails. Opening or closing tabs
 afterwards does not change the group; Update from current layout replaces its
-saved copy. Groups can be renamed and deleted, and are stored per signed-in user
+saved copy. Saving and updating require an open tab beyond the permanent
+connections panel; their commands are disabled when the workspace has none.
+Groups can be renamed and deleted, and are stored per signed-in user
 in this browser's localStorage. They hold no fetched rows or editor text and do
 not copy per-table filters or other independently persisted feature state.
 

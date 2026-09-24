@@ -365,7 +365,7 @@ anything staler than that is a copy rather than a cache.
   pressed: the same command twice, in two shapes (D112). **How old it is is not
   drawn.** A control whose width follows the age of a page moves while the row
   is being read, so the age is in what is said on hovering — the mark answers
-  how old, the button adds what pressing it does. Whether this may be stale is
+  how old, while the button says what pressing it does. Whether this may be stale is
   a glance; how stale is a question. "Live" lasts five seconds rather than one,
   because a mark that small has to stay long enough to be caught. Freshness
   travels inside the cached value — `{ page, freshness }`, `{ nodes, freshness }`

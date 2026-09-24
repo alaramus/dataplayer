@@ -19,6 +19,7 @@ test("attaches named workspace tabs without overflowing a narrow composer", asyn
   // The composer exists once a chat is open; on an empty history the space is
   // a welcome screen, so the chat is made here rather than presumed.
   await page.getByTestId("ai-new-chat").click()
+  await expect(page.getByTestId("ai-new-chat")).toBeEnabled()
   await page.getByTestId("ai-attach").click()
   await page.getByTestId("menu-item-tabs").click()
   const dialog = page.getByTestId("ai-context-dialog")
@@ -61,15 +62,16 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-conversation-card")).toHaveCSS("background-color", railBackground)
 
   const active = page.locator('[data-testid^="ai-chat-row-"][data-active="true"]')
-  const previousId = (await active.count()) > 0 ? await active.getAttribute("data-testid") : null
   await page.getByTestId("ai-new-chat").click()
-  // Creating a chat is a round trip: the previous row stays active until the new one
-  // arrives, so wait for the switch instead of reading whichever row is active
-  // immediately after the click.
-  if (previousId === null) await expect(active).toBeVisible()
-  else await expect(active).not.toHaveAttribute("data-testid", previousId)
+  await expect(page.getByTestId("ai-new-chat")).toBeEnabled()
+  // An untouched New chat may be reused, so the active row need not change.
+  await expect(active).toBeVisible()
   const conversationId = (await active.getAttribute("data-testid"))?.replace("ai-chat-row-", "")
   expect(conversationId).toBeTruthy()
+  const chatCount = await page.locator('[data-testid^="ai-chat-row-"]').count()
+  await page.getByTestId("ai-new-chat").click()
+  await expect(active).toHaveAttribute("data-testid", `ai-chat-row-${conversationId}`)
+  await expect(page.locator('[data-testid^="ai-chat-row-"]')).toHaveCount(chatCount)
 
   // Collapsed, the rail keeps a head with the plus alone in it, on the strip
   // the open chat's head stands on; Settings stays at its foot.

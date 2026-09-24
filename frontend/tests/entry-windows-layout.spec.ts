@@ -133,6 +133,8 @@ for (const theme of ["light", "dark"] as const) {
   test(`the tab-group name window keeps its frame when the name error appears in ${theme}`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: theme })
     await login(page)
+    await expect(page.getByTestId("save-tab-group")).toBeDisabled()
+    await page.getByTestId("command-queries").click()
     await page.getByTestId("save-tab-group").click()
     const dialog = page.getByTestId("tab-group-name-dialog")
     const frame = page.getByRole("dialog").filter({ has: dialog })
