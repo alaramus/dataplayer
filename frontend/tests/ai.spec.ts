@@ -6,6 +6,20 @@ import { login } from "./utils/login"
 import { chooseTheme } from "./utils/theme"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
+test("keeps unsent text when leaving and returning to the AI space", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("space-ai").click()
+  await page.getByTestId("ai-new-chat").click()
+  const input = page.getByTestId("ai-message-input")
+  await expect(input).toBeVisible()
+  await input.fill("A question I have not sent")
+
+  await page.getByTestId("space-data").click()
+  await page.getByTestId("space-ai").click()
+
+  await expect(page.getByTestId("ai-message-input")).toHaveValue("A question I have not sent")
+})
+
 test("attaches named workspace tabs without overflowing a narrow composer", async ({ page }) => {
   const name = `e2e-ai-context-${Date.now()}`
   await login(page)

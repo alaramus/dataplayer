@@ -12,6 +12,7 @@ import ChatMarkdown from "./ChatMarkdown.vue"
 import { acceptFor, admit, kindOf } from "./attachments"
 import type { AttachmentKind } from "./attachments"
 import { useDictation } from "./dictation"
+import { useAiDraft } from "./draft"
 import { markAt, outlineMarks } from "./outline"
 import { plainSpeechText } from "./streaming"
 import { runDuration } from "./runDuration"
@@ -41,7 +42,7 @@ const cancel = useCancelAiRun()
 const answer = useAnswerAiRun()
 const toast = useToast()
 const now = useNow()
-const draft = ref("")
+const draft = useAiDraft(props.conversationId)
 const contextDialogShown = ref(false)
 const selectedContextIds = ref<string[]>([])
 const selectedContexts = computed(() => selectedContextIds.value.flatMap((id) => {

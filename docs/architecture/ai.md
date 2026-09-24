@@ -316,7 +316,10 @@ status-bar space switch. Data panels remain mounted,
 and detached panels remain visible, by the same covering contract as
 Dashboards. Left column: New chat, history, Settings; settings replace the
 conversation on the right. New chat reopens an existing unarchived "New chat"
-with no messages or runs before creating another one. Down the left edge of a conversation with more than
+with no messages or runs before creating another one. Unsent text is kept in
+memory per conversation while this browser page is open, including when the
+person switches application spaces or opens another chat. Sending clears it.
+Down the left edge of a conversation with more than
 one question is its contents: a mark per question, named by its first line,
 which scrolls to it, and the one being read is drawn apart from the rest. The two cards have the ordinary draggable workspace
 separator; the left card is remembered, collapsible and capped at 40% of the
