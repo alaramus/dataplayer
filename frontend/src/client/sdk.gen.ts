@@ -25,6 +25,8 @@ import type {
   aiCreateProjectData,
   aiCreateProjectErrors,
   aiCreateProjectResponses,
+  aiCreateQuickChatData,
+  aiCreateQuickChatResponses,
   aiDeleteArchivedConversationsData,
   aiDeleteArchivedConversationsResponses,
   aiDeleteConversationData,
@@ -33,6 +35,11 @@ import type {
   aiDeleteProjectData,
   aiDeleteProjectErrors,
   aiDeleteProjectResponses,
+  aiDeleteQuickChatData,
+  aiDeleteQuickChatErrors,
+  aiDeleteQuickChatResponses,
+  aiListQuickChatsData,
+  aiListQuickChatsResponses,
   aiReadAttachmentData,
   aiReadAttachmentErrors,
   aiReadAttachmentResponses,
@@ -46,6 +53,9 @@ import type {
   aiReadModelsResponses,
   aiReadProjectsData,
   aiReadProjectsResponses,
+  aiReadQuickChatData,
+  aiReadQuickChatErrors,
+  aiReadQuickChatResponses,
   aiReadRunData,
   aiReadRunErrors,
   aiReadRunResponses,
@@ -60,6 +70,9 @@ import type {
   aiSendMessageData,
   aiSendMessageErrors,
   aiSendMessageResponses,
+  aiSendQuickChatMessageData,
+  aiSendQuickChatMessageErrors,
+  aiSendQuickChatMessageResponses,
   aiUpdateConversationData,
   aiUpdateConversationErrors,
   aiUpdateConversationResponses,
@@ -5099,6 +5112,92 @@ export class MetricsService {
 }
 
 export class AiService {
+  /**
+   * List Quick Chats
+   */
+  public static listQuickChats<ThrowOnError extends boolean = true>(
+    options?: Options<aiListQuickChatsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<aiListQuickChatsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Quick Chat
+   */
+  public static createQuickChat<ThrowOnError extends boolean = true>(
+    options?: Options<aiCreateQuickChatData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).post<aiCreateQuickChatResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Quick Chat
+   */
+  public static deleteQuickChat<ThrowOnError extends boolean = true>(
+    options: Options<aiDeleteQuickChatData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      aiDeleteQuickChatResponses,
+      aiDeleteQuickChatErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/{chat_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Quick Chat
+   */
+  public static readQuickChat<ThrowOnError extends boolean = true>(
+    options: Options<aiReadQuickChatData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      aiReadQuickChatResponses,
+      aiReadQuickChatErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/{chat_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Send Quick Chat Message
+   */
+  public static sendQuickChatMessage<ThrowOnError extends boolean = true>(
+    options: Options<aiSendQuickChatMessageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiSendQuickChatMessageResponses,
+      aiSendQuickChatMessageErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/{chat_id}/messages",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
   /**
    * Read Models
    *

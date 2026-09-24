@@ -39,6 +39,7 @@ import {
   useUpdateAiConversation,
 } from "./api"
 import { freshProjectName } from "./projectName"
+import { openQuickChat } from "./quickChatLauncher"
 import { reusableEmptyChat } from "./emptyChat"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
@@ -359,6 +360,12 @@ onScopeDispose(stop)
             @click="makeConversation"
           />
           <AppIconButton
+            :icon="appIcons.quickChat"
+            tooltip="Quick chat"
+            data-testid="ai-quick-chat"
+            @click="openQuickChat()"
+          />
+          <AppIconButton
             :icon="appIcons.createNewFolder"
             tooltip="New project"
             data-testid="ai-new-project"
@@ -456,6 +463,13 @@ onScopeDispose(stop)
         </div>
       </div>
       <div class="ai-window__rail-foot">
+        <AppIconButton
+          v-if="collapsed"
+          :icon="appIcons.quickChat"
+          tooltip="Quick chat"
+          data-testid="ai-quick-chat"
+          @click="openQuickChat()"
+        />
         <AppButton
           v-if="!collapsed"
           variant="quiet"

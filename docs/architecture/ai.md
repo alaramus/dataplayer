@@ -5,7 +5,7 @@ it may do, how it asks, how an answer runs and is shown, and which models it
 uses. Read this before adding a tool, before sending a connection's data to a
 model provider, and before changing the chat window.
 
-Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142, D156, D157.
+Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142, D156, D157, D158.
 
 ## What exists today
 
@@ -445,3 +445,23 @@ the person's preferences and each conversation; removing this feature requires
 reverting the code and downgrading the migration.
 
 Spec: [Jev model routing](../decisions/2026-09-24-jev-model-routing.md)
+
+## D158. A separate quick chat answers without agent tools
+
+The AI rail has Quick chat beside New chat. It opens a floating window with
+its own history, model selector, composer and transcript. Quick conversations
+and messages are separate tables, encrypted under `ai_content`, owned by one
+person, and never appear in the agent's history. The request calls the chosen
+chat model directly, with a maximum 16,000-character request and at most 20
+recent messages within an 80,000-character context budget, and no LangGraph agent,
+workspace context or application tools. It uses the same provider keys and
+catalog as the agent. The model cannot read application data through this path.
+
+Selecting text in an agent message offers Add to chat and More details. Add to
+chat quotes the selection in that agent conversation's unsent draft. More
+details creates a quick conversation and immediately sends an explanation
+request containing the selected text. The window opener accepts an intent,
+independently of the AI space, so a later Data surface can call it with its
+own selection. Selection is capped at 8,000 characters.
+
+Spec: [Quick chat and selected text](../decisions/2026-09-24-quick-chat.md)

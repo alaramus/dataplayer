@@ -15,7 +15,7 @@ from fastapi import (
 )
 from pydantic import Json, ValidationError
 
-from app.ai import attachments, conversations, preferences
+from app.ai import attachments, conversations, preferences, quick_chat
 from app.ai.catalog import Provider, catalog
 from app.ai.content import opened, opened_bytes
 from app.ai.models import (
@@ -48,6 +48,69 @@ from app.users.deps import CurrentUser
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 NOT_FOUND = {"message": "No such conversation"}
+
+
+@router.get("/quick-chats", response_model=list[quick_chat.QuickChatSummary])
+async def list_quick_chats(session: SessionDep, current_user: CurrentUser) -> Any:
+    return await quick_chat.list_for_owner(session, current_user.id)
+
+
+@router.post(
+    "/quick-chats", response_model=quick_chat.QuickChatSummary,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_quick_chat(session: SessionDep, current_user: CurrentUser) -> Any:
+    chat = quick_chat.QuickConversation(
+        owner_id=current_user.id, title=quick_chat.sealed("New quick chat")
+    )
+    session.add(chat)
+    await session.commit()
+    return quick_chat.summary(chat)
+
+
+@router.get("/quick-chats/{chat_id}", response_model=quick_chat.QuickChatPublic)
+async def read_quick_chat(
+    session: SessionDep, current_user: CurrentUser, chat_id: uuid.UUID
+) -> Any:
+    chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+    return await quick_chat.public(session, chat)
+
+
+@router.delete("/quick-chats/{chat_id}", response_model=Message)
+async def delete_quick_chat(
+    session: SessionDep, current_user: CurrentUser, chat_id: uuid.UUID
+) -> Any:
+    chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+    await session.delete(chat)
+    await session.commit()
+    return Message(message="Quick chat deleted")
+
+
+@router.post("/quick-chats/{chat_id}/messages", response_model=quick_chat.QuickChatPublic)
+async def send_quick_chat_message(
+    session: SessionDep,
+    current_user: CurrentUser,
+    runner: AgentRunnerDep,
+    chat_id: uuid.UUID,
+    body: quick_chat.QuickChatSend,
+) -> Any:
+    chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+    if body.model_key is not None and catalog().find(body.model_key) is None:
+        raise HTTPException(status_code=422, detail={"message": "That model is not in the list"})
+    try:
+        return await quick_chat.send(
+            session, chat, current_user.id, body, catalog(), runner.chat_models
+        )
+    except ValueError as refused:
+        raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused
+    except RuntimeError as failed:
+        raise HTTPException(status_code=502, detail={"message": str(failed)}) from failed
 
 
 @router.get("/models", response_model=list[AgentModelPublic])

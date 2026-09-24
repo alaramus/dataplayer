@@ -31,8 +31,10 @@ const props = withDefaults(
     disable?: boolean
     /** Also offer the key of the model that is chosen, beside the field. */
     keyButton?: boolean
+    /** Plain chat chooses a concrete model and does not route through Jev. */
+    allowAuto?: boolean
   }>(),
-  { compact: false, disable: false, keyButton: false }
+  { compact: false, disable: false, keyButton: false, allowAuto: true }
 )
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
@@ -49,7 +51,7 @@ const keySet = (provider: Provider) =>
 const options = computed<ModelOption[]>(() =>
   groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? [], {
     keyInField: !props.keyButton,
-  })
+  }).filter((option) => props.allowAuto || !option.auto)
 )
 const selectedModel = computed(
   () => (models.data.value ?? []).find((one) => one.key === props.modelValue) ?? null

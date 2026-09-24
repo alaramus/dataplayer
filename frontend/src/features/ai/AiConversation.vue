@@ -31,6 +31,7 @@ import AiFileChip from "./AiFileChip.vue"
 import AiMessageFiles from "./AiMessageFiles.vue"
 import AiModelSelect from "./AiModelSelect.vue"
 import { autoModelValue, fallbackModel } from "./modelOptions"
+import { openQuickChat, quoteSelection } from "./quickChatLauncher"
 
 const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
 const conversation = useAiConversation(() => props.conversationId)
@@ -55,6 +56,55 @@ watch(() => props.contexts.map((context) => context.panel_id), (openIds) => {
   selectedContextIds.value = selectedContextIds.value.filter((id) => open.has(id))
 })
 const scroller = ref<HTMLElement | null>(null)
+const selectionMenu = ref<{ text: string; left: number; top: number } | null>(null)
+const composer = ref<HTMLElement | null>(null)
+
+function selectedMessageText() {
+  const selection = window.getSelection()
+  const root = scroller.value
+  if (!selection || selection.isCollapsed || !root || !selection.anchorNode || !selection.focusNode) {
+    selectionMenu.value = null
+    return
+  }
+  const anchor = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+    ? selection.anchorNode as Element : selection.anchorNode.parentElement
+  const focus = selection.focusNode.nodeType === Node.ELEMENT_NODE
+    ? selection.focusNode as Element : selection.focusNode.parentElement
+  if (!anchor?.closest(".ai-message__user, .chat-markdown")
+    || !focus?.closest(".ai-message__user, .chat-markdown")
+    || !root.contains(anchor) || !root.contains(focus)) {
+    selectionMenu.value = null
+    return
+  }
+  const text = selection.toString().trim().slice(0, 8000)
+  const rect = selection.getRangeAt(0).getBoundingClientRect()
+  if (!text || !rect.width) { selectionMenu.value = null; return }
+  selectionMenu.value = {
+    text,
+    left: Math.max(8, Math.min(rect.left, window.innerWidth - 260)),
+    top: Math.max(8, rect.top - 42),
+  }
+}
+function onMessagesScroll() {
+  trackOutline()
+  selectionMenu.value = null
+}
+function addSelectionToAgent() {
+  const text = selectionMenu.value?.text
+  if (!text) return
+  const quoted = quoteSelection(text)
+  draft.value = [draft.value.trimEnd(), quoted].filter(Boolean).join("\n\n") + "\n\n"
+  selectionMenu.value = null
+  window.getSelection()?.removeAllRanges()
+  composer.value?.querySelector("textarea")?.focus()
+}
+function explainSelection() {
+  const text = selectionMenu.value?.text
+  if (!text) return
+  selectionMenu.value = null
+  window.getSelection()?.removeAllRanges()
+  openQuickChat({ kind: "explain", text })
+}
 const expandedSteps = ref(new Set<string>())
 const expandedReasoning = ref(new Set<string>())
 let speech: SpeechSynthesisUtterance | null = null
@@ -368,7 +418,9 @@ onBeforeUnmount(() => {
           ref="scroller"
           class="ai-conversation__messages"
           data-testid="ai-messages"
-          @scroll="trackOutline"
+          @scroll="onMessagesScroll"
+          @pointerup="selectedMessageText"
+          @keyup="selectedMessageText"
         >
           <div
             v-if="!conversation.data.value?.messages.length && !activeRun"
@@ -570,8 +622,18 @@ onBeforeUnmount(() => {
           </AppBanner>
         </div>
       </div>
+      <div
+        v-if="selectionMenu"
+        class="ai-selection-menu"
+        :style="{ left: `${selectionMenu.left}px`, top: `${selectionMenu.top}px` }"
+        data-testid="ai-selection-menu"
+        @pointerdown.prevent
+      >
+        <AppButton variant="quiet" size="sm" label="Add to chat" @click="addSelectionToAgent" />
+        <AppButton variant="quiet" size="sm" label="More details" @click="explainSelection" />
+      </div>
       <div class="ai-conversation__dock">
-        <div class="ai-conversation__composer" data-testid="ai-composer">
+        <div ref="composer" class="ai-conversation__composer" data-testid="ai-composer">
           <div
             v-if="selectedContexts.length"
             class="ai-conversation__contexts"
@@ -709,6 +771,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ai-conversation { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ai-selection-menu { position: fixed; z-index: 10000; display: flex; gap: var(--dp-space-1); padding: var(--dp-space-1); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .ai-conversation__body { flex: 1; min-height: 0; display: flex; }
 /* The messages hold the marks' coordinates: offsetTop is measured against this
    box, so it has to be the one they are positioned in. */

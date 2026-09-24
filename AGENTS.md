@@ -233,6 +233,7 @@ files. IDs are stable because specs and commits refer to them.
 | D155 | [windows](docs/architecture/windows.md) |
 | D156 | [ai](docs/architecture/ai.md) |
 | D157 | [ai](docs/architecture/ai.md) |
+| D158 | [ai](docs/architecture/ai.md) |
 
 ## Working rules
 

@@ -6918,6 +6918,90 @@ export type QueryRehearsal = {
 }
 
 /**
+ * QuickChatMessagePublic
+ */
+export type QuickChatMessagePublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Role
+   */
+  role: "user" | "assistant"
+  /**
+   * Content
+   */
+  content: string
+  /**
+   * Created At
+   */
+  created_at: string | null
+}
+
+/**
+ * QuickChatPublic
+ */
+export type QuickChatPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Model Key
+   */
+  model_key: string | null
+  /**
+   * Updated At
+   */
+  updated_at: string | null
+  /**
+   * Messages
+   */
+  messages: Array<QuickChatMessagePublic>
+}
+
+/**
+ * QuickChatSend
+ */
+export type QuickChatSend = {
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Model Key
+   */
+  model_key?: string | null
+}
+
+/**
+ * QuickChatSummary
+ */
+export type QuickChatSummary = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Model Key
+   */
+  model_key: string | null
+  /**
+   * Updated At
+   */
+  updated_at: string | null
+}
+
+/**
  * ReferenceConnection
  *
  * The connection a target lives in, as the screen needs to open a tab.
@@ -16620,6 +16704,132 @@ export type metricsRevokeDashboardGrantResponses = {
 
 export type metricsRevokeDashboardGrantResponse =
   metricsRevokeDashboardGrantResponses[keyof metricsRevokeDashboardGrantResponses]
+
+export type aiListQuickChatsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/quick-chats"
+}
+
+export type aiListQuickChatsResponses = {
+  /**
+   * Response Ai-List Quick Chats
+   *
+   * Successful Response
+   */
+  200: Array<QuickChatSummary>
+}
+
+export type aiListQuickChatsResponse = aiListQuickChatsResponses[keyof aiListQuickChatsResponses]
+
+export type aiCreateQuickChatData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/quick-chats"
+}
+
+export type aiCreateQuickChatResponses = {
+  /**
+   * Successful Response
+   */
+  201: QuickChatSummary
+}
+
+export type aiCreateQuickChatResponse = aiCreateQuickChatResponses[keyof aiCreateQuickChatResponses]
+
+export type aiDeleteQuickChatData = {
+  body?: never
+  path: {
+    /**
+     * Chat Id
+     */
+    chat_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/quick-chats/{chat_id}"
+}
+
+export type aiDeleteQuickChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiDeleteQuickChatError = aiDeleteQuickChatErrors[keyof aiDeleteQuickChatErrors]
+
+export type aiDeleteQuickChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteQuickChatResponse = aiDeleteQuickChatResponses[keyof aiDeleteQuickChatResponses]
+
+export type aiReadQuickChatData = {
+  body?: never
+  path: {
+    /**
+     * Chat Id
+     */
+    chat_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/quick-chats/{chat_id}"
+}
+
+export type aiReadQuickChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiReadQuickChatError = aiReadQuickChatErrors[keyof aiReadQuickChatErrors]
+
+export type aiReadQuickChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: QuickChatPublic
+}
+
+export type aiReadQuickChatResponse = aiReadQuickChatResponses[keyof aiReadQuickChatResponses]
+
+export type aiSendQuickChatMessageData = {
+  body: QuickChatSend
+  path: {
+    /**
+     * Chat Id
+     */
+    chat_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/quick-chats/{chat_id}/messages"
+}
+
+export type aiSendQuickChatMessageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiSendQuickChatMessageError =
+  aiSendQuickChatMessageErrors[keyof aiSendQuickChatMessageErrors]
+
+export type aiSendQuickChatMessageResponses = {
+  /**
+   * Successful Response
+   */
+  200: QuickChatPublic
+}
+
+export type aiSendQuickChatMessageResponse =
+  aiSendQuickChatMessageResponses[keyof aiSendQuickChatMessageResponses]
 
 export type aiReadModelsData = {
   body?: never
