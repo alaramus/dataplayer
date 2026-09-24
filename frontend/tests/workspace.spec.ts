@@ -625,6 +625,35 @@ test("workspace heads and grid commands share the same inset rhythm", async ({ p
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("card heads separate the shell, tabs, and working surface in both themes", async ({ page }) => {
+  const name = `e2e-card-tone-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  for (const theme of ["dark", "light"] as const) {
+    await chooseTheme(page, theme)
+    const colors = await page.evaluate(() => {
+      const shell = document.querySelector<HTMLElement>(".app-layout")
+      const card = document.querySelector<HTMLElement>(".workspace-leaf")
+      const head = document.querySelector<HTMLElement>(".workspace-leaf__strip")
+      const tab = document.querySelector<HTMLElement>(".workspace-leaf__tab")
+      if (!shell || !card || !head || !tab) throw new Error("Workspace surfaces are missing")
+      return {
+        shell: getComputedStyle(shell).backgroundColor,
+        card: getComputedStyle(card).backgroundColor,
+        head: getComputedStyle(head).backgroundColor,
+        tab: getComputedStyle(tab).backgroundColor,
+      }
+    })
+    expect(new Set(Object.values(colors)).size).toBe(4)
+  }
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("a tab is carried out of its strip and dropped on another one", async ({ page }) => {
   const name = `e2e-carry-${Date.now()}`
   await login(page)

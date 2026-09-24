@@ -204,7 +204,9 @@ Consequences:
   every state, empty or loading included. A collapsed rail keeps the head with
   its plus alone in it — the connections, the dashboards, the chats — so the
   strip runs unbroken across the screen. `WorkspaceLeaf` draws the same frame and
-  head from the same tokens, because its root is the engine's.
+  head from the same tokens, because its root is the engine's. The head is a
+  middle tone between the outer chrome and the card's working surface; neutral
+  tabs keep a distinct fill on that tone.
 - **Button layout belongs to the kit.** `toolbar` keeps an icon and label on one
   line, `navigation` aligns an entry to the left, and `AppTree` owns the full-row
   selection mark. Screens size fields through their own classes on kit

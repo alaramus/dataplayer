@@ -126,7 +126,7 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   --dp-chrome: #eee;
   --dp-chrome-raised: #f7f7f7;
   /* The head of every card, a Data section's tab strip included. */
-  --dp-card-head: var(--dp-chrome-raised);
+  --dp-card-head: var(--dp-chrome);
 
   /* What a tab or a marked row of connections is filled with when nobody
      chose a colour for the connection. The plain half of the colour that
@@ -140,7 +140,8 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
      chrome grey lies between the surface and the raised chrome the tab
      strip is drawn with, which is a mark that can be told from
      neither: a fill nobody can see is the transparent tab under another name.
-     The dark theme keeps the chrome value, where it stands clear of both. */
+     The dark theme uses a brighter fill than the head, so a tab remains
+     legible after the head steps away from the outer chrome. */
   --dp-panel-plain: #e4e4e4;
   /* And the same fill said quietly, for a connection that is open somewhere
      but is not the one being read. Half a step towards the surface it is laid
@@ -271,12 +272,12 @@ body.body--dark {
   --dp-surface-raised: #191919;
   --dp-chrome: #222;
   --dp-chrome-raised: #2b2b2b;
-  --dp-card-head: var(--dp-chrome-raised);
+  --dp-card-head: var(--dp-chrome);
   /* Written again rather than inherited: a custom property is substituted
      where it is *declared*, and these values are declared on `body`, so a
      lone :root declaration would hand the dark theme the light grey. The
      same holds for --dp-card-head above. */
-  --dp-panel-plain: var(--dp-chrome);
+  --dp-panel-plain: #303030;
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
 
   --dp-border-faint: rgba(255, 255, 255, 0.09);
