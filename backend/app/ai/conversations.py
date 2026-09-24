@@ -68,6 +68,8 @@ def policy_of(value: str) -> ChangePolicy:
         return "read_only"
     if value == "allow":
         return "allow"
+    if value == "jev":
+        return "jev"
     return "ask"
 
 

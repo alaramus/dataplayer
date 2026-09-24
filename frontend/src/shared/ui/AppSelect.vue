@@ -16,6 +16,8 @@ export interface SelectOption {
   value: string | number
   /** A non-selectable heading separating related choices. */
   group?: boolean
+  /** A visible choice that cannot be selected yet. */
+  disable?: boolean
   /** A quiet second line explaining a choice. */
   description?: string
   /** Meaning shown before the choice. */
@@ -170,7 +172,7 @@ const summary = computed(() => {
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
-    :option-disable="labelled ? 'group' : undefined"
+    :option-disable="labelled ? (option: SelectOption) => Boolean(option.group || option.disable) : undefined"
     :emit-value="labelled"
     :map-options="labelled"
     :loading="loading"

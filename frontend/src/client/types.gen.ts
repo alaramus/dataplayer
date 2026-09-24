@@ -454,7 +454,7 @@ export type AgentModelPublic = {
   /**
    * Provider
    */
-  provider: "openai" | "anthropic" | "deepseek" | "gemini"
+  provider: "openai" | "anthropic" | "deepseek" | "gemini" | "typesafe"
   /**
    * Provider Label
    */
@@ -2329,7 +2329,7 @@ export type ConversationPublic = {
   /**
    * Change Policy
    */
-  change_policy?: "read_only" | "ask" | "allow"
+  change_policy?: "read_only" | "ask" | "allow" | "jev"
   /**
    * Created At
    */
@@ -2387,7 +2387,7 @@ export type ConversationSummary = {
   /**
    * Change Policy
    */
-  change_policy?: "read_only" | "ask" | "allow"
+  change_policy?: "read_only" | "ask" | "allow" | "jev"
   /**
    * Project Id
    */
@@ -2422,7 +2422,7 @@ export type ConversationUpdate = {
   /**
    * Change Policy
    */
-  change_policy?: "read_only" | "ask" | "allow" | null
+  change_policy?: "read_only" | "ask" | "allow" | "jev" | null
   /**
    * Project Id
    */
@@ -6488,7 +6488,7 @@ export type ProviderKeyState = {
   /**
    * Provider
    */
-  provider: "openai" | "anthropic" | "deepseek" | "gemini"
+  provider: "openai" | "anthropic" | "deepseek" | "gemini" | "typesafe"
   /**
    * Set
    */
@@ -16666,7 +16666,7 @@ export type aiRemoveKeyData = {
     /**
      * Provider
      */
-    provider: "openai" | "anthropic" | "deepseek" | "gemini"
+    provider: "openai" | "anthropic" | "deepseek" | "gemini" | "typesafe"
   }
   query?: never
   url: "/api/v1/ai/keys/{provider}"
@@ -16696,7 +16696,7 @@ export type aiWriteKeyData = {
     /**
      * Provider
      */
-    provider: "openai" | "anthropic" | "deepseek" | "gemini"
+    provider: "openai" | "anthropic" | "deepseek" | "gemini" | "typesafe"
   }
   query?: never
   url: "/api/v1/ai/keys/{provider}"
@@ -16729,7 +16729,7 @@ export type aiCheckKeyData = {
     /**
      * Provider
      */
-    provider: "openai" | "anthropic" | "deepseek" | "gemini"
+    provider: "openai" | "anthropic" | "deepseek" | "gemini" | "typesafe"
   }
   query?: never
   url: "/api/v1/ai/keys/{provider}/check"

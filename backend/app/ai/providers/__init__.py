@@ -10,7 +10,7 @@ from typing import Protocol
 
 from langchain_core.language_models import BaseChatModel
 
-from app.ai.catalog import ModelInfo, Provider
+from app.ai.catalog import ChatProvider, ModelInfo
 from app.ai.providers.anthropic import AnthropicModels
 from app.ai.providers.deepseek import DeepSeekModels
 from app.ai.providers.failures import SENTENCES, UNKNOWN_FAILURE, FailureKind
@@ -38,7 +38,7 @@ class ChatModels(Protocol):
     def sentence(self, model: ModelInfo, error: BaseException) -> str: ...
 
 
-_BY_PROVIDER: dict[Provider, ProviderModels] = {
+_BY_PROVIDER: dict[ChatProvider, ProviderModels] = {
     "openai": OpenAIModels(),
     "anthropic": AnthropicModels(),
     "gemini": GeminiModels(),

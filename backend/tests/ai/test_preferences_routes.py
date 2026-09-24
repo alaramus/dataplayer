@@ -1,10 +1,15 @@
 """Keys and choices: set, never shown, checked with a call (D140)."""
 
 import uuid
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
 
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.ai import preferences
 from app.ai.catalog import PROVIDERS
 from app.ai.models import AgentPreferences, ProviderKey
 from tests.ai.conftest import (
@@ -38,6 +43,39 @@ async def test_a_key_is_said_to_be_set_and_never_sent_back(
 
     removed = await client.delete(f"{AI}/keys/gemini", headers=headers)
     assert {"provider": "gemini", "set": False} in removed.json()["keys"]
+
+
+async def test_jev_key_must_answer_before_it_is_saved(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    headers = normal_user_token_headers
+
+    class FakeClassifier:
+        def __init__(self, *, api_key: str) -> None:
+            self.key = api_key
+
+        async def ainvoke(self, request: dict[str, Any]) -> Any:
+            assert "ready" in request["questions"]
+            if self.key == "bad-key":
+                raise RuntimeError("authentication failed")
+            return SimpleNamespace(nouls={"ready": SimpleNamespace(noul=0.9)})
+
+    monkeypatch.setattr(preferences, "TypeSafeClassifier", FakeClassifier)
+    refused = await client.put(
+        f"{AI}/keys/typesafe", headers=headers, json={"key": "bad-key"}
+    )
+    assert refused.status_code == 422
+    assert await db.get(ProviderKey, (await user_id_of(client, headers), "typesafe")) is None
+
+    saved = await client.put(
+        f"{AI}/keys/typesafe", headers=headers, json={"key": "working-key"}
+    )
+    assert saved.status_code == 200
+    assert {"provider": "typesafe", "set": True} in saved.json()["keys"]
+    assert "working-key" not in saved.text
 
 
 async def test_a_provider_outside_the_four_is_refused(

@@ -9,6 +9,7 @@ import logging
 import uuid
 
 from langchain_core.tools import tool
+from langchain_typesafe import Noul, TypeSafeClassifier
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -204,6 +205,20 @@ async def check_key(
     key = candidate if candidate is not None else await key_for(session, user_id, provider)
     if key is None:
         return ProviderKeyCheck(ok=False, message="No key is set for this provider")
+    if provider == "typesafe":
+        try:
+            async with asyncio.timeout(CHECK_TIMEOUT_SECONDS):
+                answer = await TypeSafeClassifier(api_key=key).ainvoke(
+                    {
+                        "state": "Check the Jev API key.",
+                        "questions": {"ready": Noul(instructions="Is this a key check?")},
+                    }
+                )
+            if "ready" in answer.nouls:
+                return ProviderKeyCheck(ok=True, message="The Jev key works")
+        except Exception as error:  # noqa: BLE001 - provider text must stay private
+            logger.info("A Jev key check failed: %s", type(error).__name__)
+        return ProviderKeyCheck(ok=False, message="The Jev key could not be verified")
     chosen = await chosen_model(session, user_id, models)
     model = (
         chosen

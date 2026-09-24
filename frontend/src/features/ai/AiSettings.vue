@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed } from "vue"
+import { computed, ref } from "vue"
 
 import { AppBanner, AppButton, AppEmptyState, AppForm, AppIconButton, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import AiModelSelect from "./AiModelSelect.vue"
+import AiKeyDialog from "./AiKeyDialog.vue"
 import {
   useAiSettings,
   useArchivedAiConversations,
@@ -25,6 +26,8 @@ const confirm = useConfirm()
 const toast = useToast()
 const modelValue = computed(() => settings.data.value?.model_key ?? null)
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
+const jevKeySet = computed(() => settings.data.value?.keys.some((key) => key.provider === "typesafe" && key.set) ?? false)
+const jevDialogOpen = ref(false)
 const archived = computed(() => archive.data.value?.data ?? [])
 
 async function chooseModel(value: string) {
@@ -96,8 +99,20 @@ async function removeAll() {
             data-testid="ai-allow-all"
             @update:model-value="setAllowAll"
           />
+          <AppButton
+            variant="quiet"
+            :label="jevKeySet ? 'Manage Jev API key' : 'Set Jev API key'"
+            data-testid="ai-jev-key"
+            @click="jevDialogOpen = true"
+          />
         </AppForm>
       </section>
+      <AiKeyDialog
+        v-model="jevDialogOpen"
+        provider="typesafe"
+        provider-label="TypeSafe (Jev)"
+        :key-set="jevKeySet"
+      />
       <section class="ai-settings__archive">
         <h3>Archive</h3>
         <AppSpinner v-if="archive.isPending.value" />

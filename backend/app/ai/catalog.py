@@ -12,7 +12,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
-Provider = Literal["openai", "anthropic", "deepseek", "gemini"]
+ChatProvider = Literal["openai", "anthropic", "deepseek", "gemini"]
+Provider = ChatProvider | Literal["typesafe"]
 
 # How each provider is named wherever a person reads it: the settings, the
 # list of models, a message asking for its key. The one copy — the client is
@@ -23,6 +24,7 @@ PROVIDER_TITLES: dict[Provider, str] = {
     "anthropic": "Anthropic",
     "deepseek": "DeepSeek",
     "gemini": "Gemini",
+    "typesafe": "TypeSafe (Jev)",
 }
 
 PROVIDERS: tuple[Provider, ...] = tuple(PROVIDER_TITLES)
@@ -35,7 +37,7 @@ class ModelInfo(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    provider: Provider
+    provider: ChatProvider
     id: str = Field(min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=128)
     # Tokens in and out. The window decides when a conversation is summarised

@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
 from langchain_core.messages import ToolMessage
 from langchain_core.tools import BaseTool, StructuredTool
+from langchain_typesafe import Noul, TypeSafeClassifier
 from langgraph.types import interrupt
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -40,7 +41,7 @@ from app.adapters.query import (
     SupportsRehearsal,
 )
 from app.adapters.resources import ResourceStore
-from app.ai import conversations
+from app.ai import conversations, preferences
 from app.ai.models import (
     AgentPreferences,
     AgentQuestion,
@@ -86,6 +87,8 @@ CHANGE_CHOICES = [ALLOW_ONCE, ALLOW_CHAT, ALLOW_ALL]
 READ_ONLY_CHAT = (
     "This chat may only read. Allow changes in it to make this one."
 )
+JEV_UNAVAILABLE = "Jev could not decide. No change was made. Check the Jev key in settings."
+JEV_DENIED = "Jev declined this change. No change was made."
 
 
 class ToolLimitReached(Exception):
@@ -112,6 +115,9 @@ class ToolRuntime:
     _ordinal_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _current_ordinal: ContextVar[int | None] = field(
         default_factory=lambda: ContextVar("ai_tool_ordinal", default=None)
+    )
+    _decision_substeps: ContextVar[list[str] | None] = field(
+        default_factory=lambda: ContextVar("ai_decision_substeps", default=None)
     )
 
     async def invoke(
@@ -145,6 +151,7 @@ class ToolRuntime:
                 )
             status: StepStatus = "done"
             token = self._current_ordinal.set(ordinal)
+            decisions = self._decision_substeps.set([])
             try:
                 user = await session.get(User, self.owner_id)
                 if user is None or not user.is_active:
@@ -155,11 +162,15 @@ class ToolRuntime:
                 status = "failed"
                 result = {"error": safe_error(failure)}
             finally:
+                decision_substeps = self._decision_substeps.get() or []
+                self._decision_substeps.reset(decisions)
                 self._current_ordinal.reset(token)
             detail = None
             if isinstance(result, ToolResult):
-                detail = json.dumps({"substeps": result.substeps}, ensure_ascii=False)
+                detail = json.dumps({"substeps": decision_substeps + result.substeps}, ensure_ascii=False)
                 result = result.value
+            elif decision_substeps:
+                detail = json.dumps({"substeps": decision_substeps}, ensure_ascii=False)
             finished = await conversations.finish_step(
                 session, self.run_id, ordinal, status=status, detail=detail
             )
@@ -213,6 +224,43 @@ class ToolRuntime:
             return READ_ONLY_CHAT
         if policy == "allow":
             return None
+        if policy == "jev":
+            # A conversation policy wins over the account-wide allow switch.
+            key = await preferences.key_for(session, self.owner_id, "typesafe")
+            if key is None:
+                self._record_jev("Jev · unavailable")
+                return JEV_UNAVAILABLE
+            state = {"action": question, "connection": connector.name}
+            if preview is not None:
+                preview_text = preview.model_dump_json()
+                state["preview"] = (
+                    preview_text
+                    if len(preview_text) <= 16384
+                    else preview_text[:16384] + " [truncated]"
+                )
+            try:
+                async with asyncio.timeout(30):
+                    answer = await TypeSafeClassifier(api_key=key).ainvoke(
+                        {
+                            "state": state,
+                            "questions": {
+                                "allow": Noul(
+                                    instructions=(
+                                        "Should this proposed data change run without human approval? "
+                                        "Answer yes only when the action and its effects are clear "
+                                        "and the risk is acceptable. Treat missing details as no."
+                                    )
+                                )
+                            },
+                        }
+                    )
+                probability = answer.nouls["allow"].noul
+            except Exception:  # noqa: BLE001 - fail closed; never expose provider text
+                self._record_jev("Jev · unavailable")
+                return JEV_UNAVAILABLE
+            allowed = probability >= 0.5
+            self._record_jev("Jev · allowed" if allowed else "Jev · declined")
+            return None if allowed else JEV_DENIED
         stored = await session.get(AgentPreferences, self.owner_id)
         if stored is not None and stored.allow_all_changes:
             return None
@@ -237,6 +285,11 @@ class ToolRuntime:
             session.add(stored)
             await session.commit()
         return None
+
+    def _record_jev(self, text: str) -> None:
+        substeps = self._decision_substeps.get()
+        if substeps is not None:
+            substeps.append(text)
 
     async def connection_label(self, connector_id: str) -> str:
         """Use a visible name in the server-authored step without trusting the model."""

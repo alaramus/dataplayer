@@ -39,7 +39,7 @@ TERMINAL: frozenset[str] = frozenset({"succeeded", "failed", "cancelled", "inter
 # What the agent may do to data in one conversation (D136). Read only is the
 # narrow end and wins over anything the person allowed in general; ask is where
 # a conversation starts.
-ChangePolicy = Literal["read_only", "ask", "allow"]
+ChangePolicy = Literal["read_only", "ask", "allow", "jev"]
 
 StepKind = Literal["thinking", "tool"]
 StepStatus = Literal["running", "done", "failed", "cancelled"]

@@ -138,19 +138,22 @@ const canSend = computed(() =>
 // is not this chat's: it is the settings' own switch, offered where changes
 // are decided, and it holds in every chat that is not read only.
 const EVERY_CHAT = "every"
-const policyOptions: SelectOption[] = [
+const jevKeySet = computed(() => settings.data.value?.keys.some((key) => key.provider === "typesafe" && key.set) ?? false)
+const policyOptions = computed<SelectOption[]>(() => [
   { label: "Read only", value: "read_only", icon: appIcons.visibility, description: "Nothing is changed from this chat" },
   { label: "Ask before changes", value: "ask", icon: appIcons.helpOutline, description: "Every change is confirmed first" },
   { label: "Allow changes", value: "allow", icon: appIcons.edit, description: "Changes in this chat run without asking" },
+  { label: "Let Jev decide", value: "jev", icon: appIcons.key, description: jevKeySet.value ? "Jev decides before each change" : "Set a TypeSafe (Jev) API key in AI settings first", disable: !jevKeySet.value },
   { label: "Allow all changes in every chat", value: EVERY_CHAT, icon: appIcons.doneAll, description: "Changes in every chat run without asking", tone: "warning" },
-]
+])
 const changePolicy = computed(() => conversation.data.value?.change_policy ?? "ask")
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
 const shownPolicy = computed(() =>
-  allowAll.value && changePolicy.value !== "read_only" ? EVERY_CHAT : changePolicy.value
+  allowAll.value && changePolicy.value !== "read_only" && changePolicy.value !== "jev" ? EVERY_CHAT : changePolicy.value
 )
 async function choosePolicy(value: unknown) {
   if (typeof value !== "string" || value === shownPolicy.value) return
+  if (value === "jev" && !jevKeySet.value) return
   try {
     if (value === EVERY_CHAT) {
       // Read only would still stand above it here, and this chat is where it
@@ -161,7 +164,9 @@ async function choosePolicy(value: unknown) {
     }
     if (value !== changePolicy.value) await updateConversation.mutateAsync({ id: props.conversationId, change_policy: value as ConversationUpdate["change_policy"] })
     // Asking, or allowing here alone, cannot hold while every chat is allowed.
-    if (value !== "read_only" && allowAll.value) await updateSettings.mutateAsync({ allow_all_changes: false })
+    if (value !== "read_only" && value !== "jev" && allowAll.value) {
+      await updateSettings.mutateAsync({ allow_all_changes: false })
+    }
   }
   catch (cause) { toast.error(messageOf(cause, "The permission could not be changed")) }
 }

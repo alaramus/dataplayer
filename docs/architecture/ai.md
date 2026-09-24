@@ -5,7 +5,7 @@ it may do, how it asks, how an answer runs and is shown, and which models it
 uses. Read this before adding a tool, before sending a connection's data to a
 model provider, and before changing the chat window.
 
-Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142.
+Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142, D156.
 
 ## What exists today
 
@@ -38,9 +38,9 @@ A change asks first (D136): a `run_query` whose script changes data and a
 `run_action` above reading pause the run on a confirmation card with Allow
 once, Allow all changes in this chat and Allow all changes in every chat, the
 second stored on the conversation, the third on the person's settings and
-revocable there. The chat's composer holds the same policy as a choice of three
-— read only, ask, allow — and offers the person's every-chat switch as a
-fourth, in the caution colour; a read-only chat answers the tool with a sentence
+revocable there. The chat's composer holds a policy choice
+— read only, ask, allow, Jev — and offers the person's every-chat switch as a
+separate choice, in the caution colour; a read-only chat answers the tool with a sentence
 instead of pausing, whatever the person allowed in general. The card carries a preview — a drop and every DDL statement
 rehearsed in a rolled-back transaction, an action's own preview where it has
 one. A `read_only` connection is refused before anybody is asked, in D66's
@@ -72,6 +72,12 @@ The model selector groups models by provider. Every model row shows whether
 that provider's one key is configured; its key button opens the same provider
 key window, so setting an Anthropic key, for example, enables every Anthropic
 model rather than attaching a secret to one model.
+
+The experimental Jev change policy (D156) is a fourth conversation policy.
+Its choice is disabled until the person saves a verified TypeSafe key in AI
+settings. Jev decides each proposed change independently; its denial or failure
+prevents the change and appears on the tool step. It never grants connection
+access or overrides a read-only connection.
 
 ```
 backend/app/ai/
@@ -371,3 +377,26 @@ nobody sent to be swept; PDF and Office documents, drag and drop and pasting,
 in this first version.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
+
+## D156. Experimental Jev policy decides each change
+
+A conversation may choose Jev as its change policy only after its owner stores
+a verified TypeSafe API key. The key uses the same encrypted per-person key store
+as the chat model keys; it is never returned. Settings provide Check, replace
+and Clear. Clearing a key leaves the conversation's selection visible, but
+every later change fails closed until a valid key is stored again. The selector
+shows the unavailable choice with a message pointing to AI settings.
+
+Before each changing query or action, the server sends Jev the proposed action,
+connection name and bounded preview. A `Noul` answer at least 0.5 allows it;
+below 0.5 denies it. Missing answers, network errors and timeouts deny it.
+The decision appears as a tool substep. Jev does not override connection access,
+read-only connections or the third-party transfer flag. This conversation
+policy takes precedence over the person's global allow-all setting.
+
+This experiment pins `langchain-typesafe==0.0.1a3`; its interface is pre-release.
+To roll back, revert the dedicated Jev commit. Stored conversations with `jev`
+then read as `ask` through `policy_of`; old TypeSafe keys remain encrypted and
+inert until explicitly cleared or removed by a later migration.
+
+Spec: [Jev change-policy experiment](../decisions/2026-09-24-jev-change-policy.md)

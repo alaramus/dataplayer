@@ -38,6 +38,7 @@ dependencies = [
     "langchain-deepseek>=1.1.0,<1.2.0",
     "pycryptodome>=3.23.0,<4.0.0",
     "asyncssh>=2.21.0,<3.0.0",
+    "langchain-typesafe==0.0.1a3",
 ]
 
 [dependency-groups]

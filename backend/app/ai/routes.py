@@ -77,10 +77,22 @@ async def update_settings(
 async def write_key(
     session: SessionDep,
     current_user: CurrentUser,
+    runner: AgentRunnerDep,
     provider: Provider,
     body: ProviderKeyWrite,
 ) -> Any:
     """Set or replace a key. What comes back says it is set, never what it is."""
+    if provider == "typesafe":
+        checked = await preferences.check_key(
+            session,
+            current_user.id,
+            provider,
+            catalog(),
+            runner.chat_models,
+            candidate=body.key.get_secret_value(),
+        )
+        if not checked.ok:
+            raise HTTPException(status_code=422, detail={"message": checked.message})
     await preferences.set_key(
         session, current_user.id, provider, body.key.get_secret_value()
     )
@@ -233,6 +245,10 @@ async def update_conversation(
         raise HTTPException(
             status_code=422, detail={"message": "That model is not in the list"}
         )
+    if body.change_policy == "jev" and await preferences.key_for(
+        session, current_user.id, "typesafe"
+    ) is None:
+        raise HTTPException(status_code=422, detail={"message": "Set a Jev API key first"})
     # A folder is named as sent, so that `null` can take a conversation out of
     # one; somebody else's folder is not found, like everything else here.
     move = "project_id" in body.model_fields_set

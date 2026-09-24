@@ -7,6 +7,7 @@ the server wrote.
 """
 
 import uuid
+from types import SimpleNamespace
 from typing import Any
 
 import psycopg
@@ -14,7 +15,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.ai import conversations
+from app.ai import conversations, preferences, tools as ai_tools
 from app.ai.models import AgentPreferences, Conversation
 from app.ai.tools import (
     ALLOW_ALL,
@@ -22,6 +23,8 @@ from app.ai.tools import (
     ALLOW_ONCE,
     CHANGE_CHOICES,
     READ_ONLY_CHAT,
+    JEV_DENIED,
+    JEV_UNAVAILABLE,
 )
 from app.core.config import settings
 from tests.ai.conftest import (
@@ -68,6 +71,77 @@ async def probe_scalar(statement: str) -> Any:
         cursor = await conn.execute(statement)
         row = await cursor.fetchone()
         return None if row is None else row[0]
+
+
+async def test_jev_cannot_be_selected_without_a_key(
+    client: AsyncClient, headers: dict[str, str]
+) -> None:
+    conversation_id = await new_conversation(client, headers)
+    response = await client.patch(
+        f"{AI}/conversations/{conversation_id}",
+        headers=headers,
+        json={"change_policy": "jev"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("probability", "expected_error", "expected_rows"),
+    [(0.2, JEV_DENIED, 0), (0.9, None, 1), (None, JEV_UNAVAILABLE, 0)],
+)
+async def test_jev_decides_even_when_global_allow_is_on(
+    client: AsyncClient,
+    headers: dict[str, str],
+    script: Script,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    probability: float | None,
+    expected_error: str | None,
+    expected_rows: int,
+) -> None:
+    connector_id = await postgres_connector(client, headers, transfer=True)
+    table = f"ai_probe_{uuid.uuid4().hex[:12]}"
+    await probe_execute(f"CREATE TABLE {table} (id integer)")
+    sql = f"INSERT INTO {table} (id) VALUES (1)"
+    script.turns += [
+        Turn(tool_calls=[call("run_query", {"connector_id": connector_id, "sql": sql}, "c1")]),
+        Turn(pieces=[text("Done.")]),
+    ]
+
+    class FakeClassifier:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "jev-test-key"
+
+        async def ainvoke(self, request: dict[str, Any]) -> Any:
+            assert sql in request["state"]["preview"]
+            if probability is None:
+                raise RuntimeError("provider failed")
+            return SimpleNamespace(nouls={"allow": SimpleNamespace(noul=probability)})
+
+    monkeypatch.setattr(ai_tools, "TypeSafeClassifier", FakeClassifier)
+    await preferences.set_key(db, await user_id_of(client, headers), "typesafe", "jev-test-key")
+    await client.patch(f"{AI}/settings", headers=headers, json={"allow_all_changes": True})
+    conversation_id = await new_conversation(client, headers)
+    await rename(client, headers, conversation_id)
+    selected = await client.patch(
+        f"{AI}/conversations/{conversation_id}",
+        headers=headers,
+        json={"change_policy": "jev"},
+    )
+    assert selected.status_code == 200, selected.text
+    try:
+        run = await send(client, headers, conversation_id, "add a row")
+        finished = await settled(client, headers, run["id"])
+        assert finished["status"] == "succeeded"
+        assert finished["question"] is None
+        [result] = tool_results(script, 1)
+        if expected_error is not None:
+            assert result == {"error": expected_error}
+        assert await probe_scalar(f"SELECT count(*) FROM {table}") == expected_rows
+        step = next(one for one in finished["steps"] if one["kind"] == "tool")
+        assert any("Jev ·" in line for line in step["substeps"])
+    finally:
+        await probe_execute(f"DROP TABLE IF EXISTS {table}")
 
 
 async def test_a_change_asks_and_allow_once_runs_it(
