@@ -316,6 +316,17 @@ naming a model the list no longer has falls back to the settings' choice
 rather than refusing to answer. Each provider's reasoning must be
 carried back inside a tool loop, and a test per provider proves it.
 
+The September 2026 catalog update adds GPT-6 Astra, Sol and Luna, Claude
+Opus 5.5, and Gemini 3.7 and 3.8 Flash. It replaces the retired DeepSeek V4
+Flash API ID with `deepseek-flash` (V4.1 Flash) and migrates saved settings
+and conversation choices to that ID. Historical run records retain the ID
+they actually used. The catalog keeps older active models so an existing
+selection remains usable. Model IDs, limits and image support were checked
+against the [OpenAI model catalog](https://developers.openai.com/api/docs/models),
+[Claude models](https://platform.claude.com/docs/en/models/overview),
+[Gemini models](https://ai.google.dev/gemini-api/docs/models) and
+[DeepSeek models](https://api-docs.deepseek.com/quick_start/pricing/).
+
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 
 ## D141. One application space holds the conversations and the agent's settings

@@ -236,7 +236,7 @@ async def test_an_image_is_refused_to_a_model_that_does_not_read_images(
     await client.patch(
         f"{AI}/conversations/{conversation_id}",
         headers=headers,
-        json={"model_key": "deepseek:deepseek-v4-flash"},
+        json={"model_key": "deepseek:deepseek-flash"},
     )
 
     refused = await client.post(

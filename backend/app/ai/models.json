@@ -1,6 +1,15 @@
 [
   {
     "provider": "anthropic",
+    "id": "claude-opus-5-5",
+    "name": "Claude Opus 5.5",
+    "context_window": 1000000,
+    "max_output_tokens": 128000,
+    "reasoning": true,
+    "image_input": true
+  },
+  {
+    "provider": "anthropic",
     "id": "claude-opus-5",
     "name": "Claude Opus 5",
     "context_window": 1000000,
@@ -41,6 +50,33 @@
     "name": "Claude Haiku 4.5",
     "context_window": 200000,
     "max_output_tokens": 64000,
+    "reasoning": true,
+    "image_input": true
+  },
+  {
+    "provider": "openai",
+    "id": "gpt-6-astra",
+    "name": "GPT-6 Astra",
+    "context_window": 1050000,
+    "max_output_tokens": 128000,
+    "reasoning": true,
+    "image_input": true
+  },
+  {
+    "provider": "openai",
+    "id": "gpt-6-sol",
+    "name": "GPT-6 Sol",
+    "context_window": 1050000,
+    "max_output_tokens": 128000,
+    "reasoning": true,
+    "image_input": true
+  },
+  {
+    "provider": "openai",
+    "id": "gpt-6-luna",
+    "name": "GPT-6 Luna",
+    "context_window": 1050000,
+    "max_output_tokens": 128000,
     "reasoning": true,
     "image_input": true
   },
@@ -91,10 +127,28 @@
   },
   {
     "provider": "gemini",
+    "id": "gemini-3.8-flash",
+    "name": "Gemini 3.8 Flash",
+    "context_window": 1048576,
+    "max_output_tokens": 65536,
+    "reasoning": true,
+    "image_input": true
+  },
+  {
+    "provider": "gemini",
+    "id": "gemini-3.7-flash",
+    "name": "Gemini 3.7 Flash",
+    "context_window": 1048576,
+    "max_output_tokens": 65536,
+    "reasoning": true,
+    "image_input": true
+  },
+  {
+    "provider": "gemini",
     "id": "gemini-3.6-flash",
     "name": "Gemini 3.6 Flash",
-    "context_window": 1000000,
-    "max_output_tokens": 64000,
+    "context_window": 1048576,
+    "max_output_tokens": 65536,
     "reasoning": true,
     "image_input": true
   },
@@ -102,7 +156,7 @@
     "provider": "gemini",
     "id": "gemini-3.5-flash",
     "name": "Gemini 3.5 Flash",
-    "context_window": 1000000,
+    "context_window": 1048576,
     "max_output_tokens": 65536,
     "reasoning": true,
     "image_input": true
@@ -136,11 +190,11 @@
   },
   {
     "provider": "deepseek",
-    "id": "deepseek-v4-flash",
-    "name": "DeepSeek V4 Flash",
+    "id": "deepseek-flash",
+    "name": "DeepSeek V4.1 Flash",
     "context_window": 1000000,
     "max_output_tokens": 384000,
     "reasoning": true,
-    "image_input": false
+    "image_input": true
   }
 ]

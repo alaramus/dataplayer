@@ -41,6 +41,15 @@ def test_the_shipped_list_is_valid_and_covers_every_provider() -> None:
         "gemini",
     }
     assert catalog().find("anthropic:claude-sonnet-5") is not None
+    assert catalog().find("anthropic:claude-opus-5-5") is not None
+    assert catalog().find("openai:gpt-6-astra") is not None
+    assert catalog().find("openai:gpt-6-sol") is not None
+    assert catalog().find("openai:gpt-6-luna") is not None
+    assert catalog().find("gemini:gemini-3.8-flash") is not None
+    flash = catalog().find("deepseek:deepseek-flash")
+    assert flash is not None
+    assert flash.image_input
+    assert catalog().find("deepseek:deepseek-v4-flash") is None
 
 
 @pytest.mark.parametrize(
