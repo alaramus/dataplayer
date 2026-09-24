@@ -613,6 +613,15 @@ describe("a workspace", () => {
     expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p2", "p3"])
   })
 
+  it("opens a copy in a section immediately right of its source", () => {
+    const workspace = build()
+    workspace.open({ id: "copy", kind: "catalog" }, { beside: "p1" })
+
+    const leaves = leavesOf(workspace.context.tree.value)
+    expect(leaves.map((leaf) => leaf.panels)).toEqual([["p1"], ["copy"], ["p2"]])
+    expect(workspace.context.focusedLeaf.value).toBe(leaves[1]?.id)
+  })
+
   it("leaves panels of other kinds where they are when replacing", () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "catalog" }, { replace: true })

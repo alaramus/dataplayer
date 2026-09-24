@@ -107,8 +107,13 @@ Consequences:
   broken layout rather than an empty one. Only the right-hand column has an empty
   view, the scene, which derives its stage from the connections list and the
   catalog being read.
-- **There are as many catalogs as were opened.** A connection opens its catalog
-  once, because a panel is identified by what it shows. Which catalog is being
+- **There are as many catalogs as were opened.** A connection's ordinary catalog
+  opens once; its Duplicate command creates another panel immediately to its
+  right, starting at the same level. Each copy has its own navigation, filter
+  and selection. The pair borrows width from the work column when there is
+  room, so both folders remain readable. A source action refreshes the other
+  open catalogs of that connection, so moving a file updates both visible
+  folders. Which catalog is being
   read is asked of the tree — the sections that take `navigate`, the focused one
   first, its active tab — rather than kept beside it. The list of connections has
   two states, open and being read, said with two strengths of one highlight.

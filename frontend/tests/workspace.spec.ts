@@ -377,6 +377,36 @@ test("the connections head becomes a name filter and restores its commands", asy
   await deleteConnector(page, name)
 })
 
+test("a catalog copy opens beside its source and keeps an independent filter", async ({ page }) => {
+  const name = `e2e-catalog-copy-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await freshLayout(page)
+  await openConnector(page, name)
+  await page.getByTestId("catalog-node-reports").click()
+  await expect(page.getByTestId("catalog-path")).toContainText("reports")
+
+  await expect(page.getByTestId("catalog-duplicate")).toHaveText("×2")
+  await page.getByTestId("catalog-duplicate").click()
+  const catalogs = page.getByTestId("catalog-panel")
+  await expect(catalogs).toHaveCount(2)
+  await expect(catalogs.nth(0).getByTestId("catalog-path")).toContainText("reports")
+  await expect(catalogs.nth(1).getByTestId("catalog-path")).toContainText("reports")
+  const original = await catalogs.nth(0).boundingBox()
+  const copy = await catalogs.nth(1).boundingBox()
+  expect(original).not.toBeNull()
+  expect(copy).not.toBeNull()
+  expect(copy!.x).toBeGreaterThan(original!.x)
+  await catalogs.nth(0).getByTestId("catalog-home").click()
+  await expect(catalogs.nth(1).getByTestId("catalog-path")).toContainText("reports")
+  await catalogs.nth(1).getByTestId("catalog-filter").fill("only-in-the-copy")
+  await expect(catalogs.nth(0).getByTestId("catalog-filter")).toHaveValue("")
+
+  await page.reload()
+  await expect(page.getByTestId("catalog-panel")).toHaveCount(2)
+  await deleteConnector(page, name)
+})
+
 test("catalogs stand beside each other, and each connection opens once", async ({ page }) => {
   const first = `e2e-cols-a-${Date.now()}`
   const second = `e2e-cols-b-${Date.now()}`

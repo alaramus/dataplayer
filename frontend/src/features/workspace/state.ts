@@ -29,6 +29,7 @@ export interface WorkspaceActions {
   /** Every connection that has a catalog open somewhere. */
   openConnectorIds: Readonly<Ref<ReadonlySet<string>>>
   openCatalog: (connector: ConnectorPublic) => void
+  duplicateCatalog: (panelId: string, startAt: string | null) => void
   /** Open a new connection with defaults prepared by a source action. */
   createConnector: (draft: ConnectorDraft) => void
   /**

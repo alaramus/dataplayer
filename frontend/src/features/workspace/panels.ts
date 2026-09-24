@@ -94,6 +94,7 @@ export const panelSchema = z.discriminatedUnion("kind", [
     kind: z.literal("catalog"),
     connectorId: z.string(),
     title: z.string(),
+    startAt: z.string().optional(),
     // Carried on the panel so a catalog restored from storage can draw the
     // icon of its source before the list of connections has been read.
     adapterType: z.string(),
@@ -256,7 +257,8 @@ export type Panel = z.infer<typeof panelSchema>
 export type PanelKind = Panel["kind"]
 
 /**
- * A panel is identified by what it shows.
+ * An ordinary panel is identified by what it shows. Catalog copies opt into
+ * separate identities so each can keep a different location.
  *
  * Opening the same table twice then activates the tab that is already there
  * rather than putting a second copy of it beside the first.
@@ -640,6 +642,7 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
           panelId: panel.id,
           connectorId: panel.connectorId,
           title: panel.title,
+          startAt: panel.startAt,
           adapterType: panel.adapterType,
         })
       )

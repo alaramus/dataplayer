@@ -104,6 +104,8 @@ export interface OpenOptions {
    * dropping the flag. See the spec, T4.
    */
   replace?: boolean
+  /** Open a new panel in a section immediately to the right of this panel. */
+  beside?: PanelId
 }
 
 export interface WorkspaceApi<P extends { id: string }> {
@@ -182,7 +184,7 @@ export function useWorkspace<P extends { id: string }>(
     { deep: true }
   )
 
-  function open(panel: P, { replace = false }: OpenOptions = {}) {
+  function open(panel: P, { replace = false, beside }: OpenOptions = {}) {
     if (panelOf(panel.id) !== undefined) {
       activate(panel.id)
       return
@@ -205,6 +207,14 @@ export function useWorkspace<P extends { id: string }>(
     if (target === null) return
     panels.value = [...panels.value, panel]
     tree.value = addPanel(tree.value, target, panel.id)
+    if (beside !== undefined) {
+      const source = leavesOf(tree.value).find((leaf) => leaf.panels.includes(beside))
+      if (source !== undefined && options.kindOf(panel) === source.accepts) {
+        const newLeafId = nextId("leaf")
+        tree.value = movePanel(tree.value, panel.id, source.id, "right", newLeafId)
+        focusedLeaf.value = newLeafId
+      }
+    }
   }
 
   function replace(oldPanelId: string, panel: P) {

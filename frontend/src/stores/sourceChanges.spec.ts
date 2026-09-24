@@ -20,4 +20,13 @@ describe("source changes", () => {
     expect(changes.lastChange("c1")).toBeGreaterThan(0)
     expect(changes.lastChange("c2")).toBe(0)
   })
+
+  it("gives distinct moments to changes made in the same millisecond", () => {
+    const changes = useSourceChangesStore()
+    const first = changes.announce("c1")
+    const second = changes.announce("c1")
+
+    expect(second).toBeGreaterThan(first)
+    expect(changes.lastChange("c1")).toBe(second)
+  })
 })

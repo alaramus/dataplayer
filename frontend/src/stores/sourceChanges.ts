@@ -15,7 +15,9 @@ export const useSourceChangesStore = defineStore("sourceChanges", () => {
   function announce(connectorId: string) {
     // A new object rather than a mutated one, so a watcher on one connection's
     // entry sees the change without watching the whole map deeply.
-    changedAt.value = { ...changedAt.value, [connectorId]: Date.now() }
+    const at = Math.max(Date.now(), (changedAt.value[connectorId] ?? 0) + 1)
+    changedAt.value = { ...changedAt.value, [connectorId]: at }
+    return at
   }
 
   function lastChange(connectorId: string): number {

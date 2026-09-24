@@ -510,9 +510,8 @@ function openCatalog(connector: ConnectorPublic) {
     toast.info(`${connector.name} is switched off`)
     return
   }
-  // As many catalogs as were opened: a panel is identified by what it shows,
-  // so pressing the same connection again brings its tab forward rather than
-  // opening a second one. See P6.
+  // The ordinary catalog keeps one stable identity per connection. Copies
+  // have their own ids, so pressing the connection still brings this one forward.
   openPanel({
     id: catalogPanelId(connector.id),
     kind: "catalog",
@@ -520,6 +519,40 @@ function openCatalog(connector: ConnectorPublic) {
     title: connector.name,
     adapterType: connector.adapter_type,
   })
+}
+
+function duplicateCatalog(panelId: string, startAt: string | null) {
+  const original = workspace.panels.value.find((panel) => panel.id === panelId)
+  if (original?.kind !== "catalog") return
+  space.show("data")
+  const copyId = `${catalogPanelId(original.connectorId)}:copy:${crypto.randomUUID()}`
+  workspace.open({
+    ...original,
+    id: copyId,
+    startAt: startAt ?? undefined,
+  }, { beside: panelId })
+
+  // Splitting the catalog's old share in half would make both folders too
+  // narrow to use. Give the pair room from the work column when they are all
+  // siblings in the main row; the user can still resize every border.
+  const layout = workspace.context.tree.value
+  if (layout.kind !== "split" || layout.direction !== "row") return
+  const indexOf = (id: string) => layout.children.findIndex(
+    (child) => child.kind === "leaf" && child.panels.includes(id)
+  )
+  const sourceIndex = indexOf(panelId)
+  const copyIndex = indexOf(copyId)
+  const workIndex = layout.children.findIndex(
+    (child) => child.kind === "leaf" && child.accepts === "work"
+  )
+  if (sourceIndex < 0 || copyIndex < 0 || workIndex < 0) return
+  const sourceShare = layout.sizes[sourceIndex] ?? 0
+  const copyShare = layout.sizes[copyIndex] ?? 0
+  const workShare = layout.sizes[workIndex] ?? 0
+  const extra = Math.max(0, Math.min(25 - sourceShare, 25 - copyShare, (workShare - 25) / 2))
+  if (extra <= 0) return
+  workspace.context.resize(layout.id, sourceIndex, workIndex, extra, 12)
+  workspace.context.resize(layout.id, copyIndex, workIndex, extra, 12)
 }
 
 /**
@@ -654,6 +687,7 @@ const actions: WorkspaceActions = {
   activeConnectorId,
   openConnectorIds: openConnectors,
   openCatalog,
+  duplicateCatalog,
   revealInCatalog,
   revealTarget,
   takeReveal: (connectorId: string) => {

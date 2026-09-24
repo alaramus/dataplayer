@@ -55,6 +55,7 @@ const props = defineProps<{
   connectorId: string
   title: string
   adapterType: string
+  startAt?: string
 }>()
 
 const toast = useToast()
@@ -175,10 +176,11 @@ const { keepsAnswers, cacheWindow } = useConnectionFreshness(
  * is the only thing on screen.
  */
 const changes = useSourceChangesStore()
+let ownChangeAt = 0
 watch(
   () => changes.lastChange(props.connectorId),
   async (at, before) => {
-    if (at === 0 || at === before) return
+    if (at === 0 || at === before || at === ownChangeAt) return
     await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
   }
 )
@@ -260,6 +262,22 @@ void queue(async () => {
     // What was ticked here last time, when anybody has said. The default rule
     // is for a connection nobody has an opinion about yet.
     await level.load(rememberedGroups(props.connectorId))
+    if (props.startAt) {
+      try {
+        const path = await loadPath(props.connectorId, props.startAt)
+        const current = path[path.length - 1]
+        if (current) {
+          const location = locationOf(path)
+          await level.showLocation({
+            ...location,
+            crumbs: [...location.crumbs, { id: current.id, label: current.name, kind: current.kind }],
+            parentId: current.id,
+          })
+        }
+      } catch (cause) {
+        toast.error(messageOf(cause, "Could not open the copied catalog at that location"))
+      }
+    }
   } finally {
     answered.value = true
   }
@@ -633,6 +651,7 @@ async function afterAction(outcome: ActionOutcome) {
     workspace.replaceNode(props.connectorId, replacement)
   }
   const branches = reloadedBy(outcome)
+  if (branches.length > 0) ownChangeAt = changes.announce(props.connectorId)
   if (asTree.value) {
     // A tree has one reading rather than a level: which branches changed is
     // still the server's answer, and re-reading the whole of a bounded
@@ -797,6 +816,17 @@ async function afterAction(outcome: ActionOutcome) {
           :freshness="!asTree && keepsAnswers ? level.freshness.value : undefined"
           :cache-ttl-seconds="cacheWindow"
         />
+        <AppButton
+          variant="quiet"
+          size="sm"
+          class="catalog-panel__duplicate"
+          aria-label="Duplicate catalog beside this one"
+          data-testid="catalog-duplicate"
+          @click="workspace.duplicateCatalog(panelId, level.currentId.value)"
+        >
+          <span class="catalog-panel__duplicate-label">×2</span>
+          <AppTooltip>Duplicate catalog beside this one</AppTooltip>
+        </AppButton>
       </div>
 
       <!-- On a line of its own: a filter is something a user types into, and
@@ -1030,6 +1060,8 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__menu {
   margin-left: auto;
 }
+.catalog-panel__duplicate { width: var(--dp-tab-strip-height); height: var(--dp-tab-strip-height); min-width: var(--dp-tab-strip-height); padding: 0; }
+.catalog-panel__duplicate-label { font-size: 20px; font-weight: 500; line-height: 1; }
 .catalog-panel__trail {
   display: flex;
   align-items: center;
