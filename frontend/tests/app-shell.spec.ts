@@ -4,6 +4,21 @@ import { login } from "./utils/login"
 import { openAdmin } from "./utils/people"
 import { chooseTheme } from "./utils/theme"
 
+test("scroll tracks leave the surface under them visible in both themes", async ({ page }) => {
+  await login(page)
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme)
+    await page.getByTestId("space-ai").click()
+    await page.getByTestId("ai-new-chat").click()
+    await expect(page.getByTestId("ai-messages")).toBeVisible()
+
+    for (const scroller of [page.getByTestId("ai-history"), page.getByTestId("ai-messages")]) {
+      const scrollbarColor = await scroller.evaluate((element) => getComputedStyle(element).scrollbarColor)
+      expect(scrollbarColor).toMatch(/transparent|rgba\(0, 0, 0, 0\)/)
+    }
+  }
+})
+
 test("administration and preferences keep the workspace fill shell and footer height", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await login(page)

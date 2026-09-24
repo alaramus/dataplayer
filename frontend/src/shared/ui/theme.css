@@ -97,7 +97,20 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   opacity: 0;
 }
 
+/* The track shows the scroll surface itself: a native grey track made dark
+   and raised panels look as though they had the same background. */
+* {
+  scrollbar-color: var(--dp-scrollbar-thumb) transparent;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--dp-scrollbar-thumb);
+}
+
 :root {
+  --dp-scrollbar-thumb: rgba(0, 0, 0, 0.38);
   --dp-action-primary: #343434;
   --dp-on-action-primary: #fff;
   --dp-action-secondary: #454545;
@@ -236,6 +249,7 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
 }
 
 body.body--dark {
+  --dp-scrollbar-thumb: rgba(255, 255, 255, 0.46);
   --dp-action-primary: #d4d4d4;
   --dp-on-action-primary: #191919;
   --dp-action-secondary: #d4d4d4;
@@ -243,7 +257,7 @@ body.body--dark {
   --dp-field-border: #484848;
   --dp-tab-current: #303030;
   --dp-action-danger: #ef9a9a;
-  /* What the browser draws itself, and CSS cannot reach: scrollbars, the
+  /* What the browser draws itself beyond our scrollbar colours: the
      checkboxes in the editor's search bar, an autofilled field. Without this
      they are drawn by the light scheme, because a scheme is not inherited
      from the colours a page happens to use. It does not touch the
