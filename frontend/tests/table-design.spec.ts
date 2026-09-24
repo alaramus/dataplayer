@@ -104,9 +104,16 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   expect(await page.getByRole("combobox", { name: "Nulls" }).evaluate(
     (element) => element.closest(".q-field")?.getBoundingClientRect().width ?? 0
   )).toBeGreaterThan(90)
+  const bodyBeforeProblem = await page.getByTestId("design-body").boundingBox()
   await expect(page.getByTestId("design-problems")).toContainText(
     "The primary key already indexes those columns"
   )
+  await expect(sql).toContainText("Previous valid")
+  await expect(sql).toContainText("CREATE TABLE")
+  expect(await page.getByTestId("design-problems").evaluate(
+    (element) => element.closest('[data-testid="design-sql"]') !== null
+  )).toBe(true)
+  expect(await page.getByTestId("design-body").boundingBox()).toEqual(bodyBeforeProblem)
   await expect(page.getByTestId("design-review-sql")).toBeDisabled()
   await expect.poll(() => frame.boundingBox()).toEqual(stableFrame)
 
@@ -136,6 +143,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   // Pointed at the other column, it is an index again.
   await choose(page, "index-key-column-0", "label")
   await expect(page.getByTestId("design-problems")).toBeHidden()
+  await expect(sql).toContainText("Live")
 
   // A check, built out of a column, a comparison and a typed value: there is
   // no field here that could hold a fragment of SQL.

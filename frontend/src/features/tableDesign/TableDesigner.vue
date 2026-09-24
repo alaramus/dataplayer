@@ -82,6 +82,7 @@ const step = ref<"definition" | "review">("definition")
 const section = ref<DraftSection>("columns")
 const selected = ref(draft.columns[0]?.id ?? "")
 const plan = ref<TablePlan | null>(null)
+const lastValidPlan = ref<TablePlan | null>(null)
 const trouble = ref("")
 const touched = ref(false)
 
@@ -140,15 +141,21 @@ watch(types, (published) => {
 
 const problems = computed(() => plan.value?.problems ?? [])
 const statements = computed(() => plan.value?.statements ?? [])
+const previousPreview = computed(
+  () => problems.value.length > 0 && statements.value.length === 0 && lastValidPlan.value !== null
+)
+const previewStatements = computed(() =>
+  previousPreview.value ? lastValidPlan.value?.statements ?? [] : statements.value
+)
 const script = computed(
   () =>
-    statements.value.map((statement) => statement.sql).join(";\n\n") +
-    (statements.value.length ? ";" : "")
+    previewStatements.value.map((statement) => statement.sql).join(";\n\n") +
+    (previewStatements.value.length ? ";" : "")
 )
 /** The part of the plan the selected object is responsible for. */
 const selectedSql = computed(() => {
-  const own = statements.value.filter((statement) => statement.object_id === selected.value)
-  const [first] = own.length > 0 ? own : statements.value
+  const own = previewStatements.value.filter((statement) => statement.object_id === selected.value)
+  const [first] = own.length > 0 ? own : previewStatements.value
   return first ? first.sql + ";" : ""
 })
 const stale = computed(() => plan.value === null || plan.value.revision !== asked)
@@ -192,7 +199,10 @@ async function ask(): Promise<void> {
       revision,
     })
     // A late answer about an older draft is dropped rather than shown.
-    if (answer.revision === asked) plan.value = answer
+    if (answer.revision === asked) {
+      plan.value = answer
+      if (answer.problems.length === 0 && answer.statements.length > 0) lastValidPlan.value = answer
+    }
   } catch (cause) {
     if (revision === asked) {
       plan.value = null
@@ -540,30 +550,31 @@ function moveColumn(by: number): void {
             :aria-busy="stale"
           >
             <div class="designer__sql-head">
-              <span>SQL preview</span><span>{{ stale && worthPlanning(draft) ? "Updating…" : "Live" }}</span>
+              <span>SQL preview</span><span>{{ stale && worthPlanning(draft) ? "Updating…" : previousPreview ? "Previous valid" : "Live" }}</span>
+            </div>
+            <div
+              v-if="problems.length"
+              class="designer__problems"
+              data-testid="design-problems"
+              role="alert"
+            >
+              <ul>
+                <li
+                  v-for="(problem, at) in problems"
+                  :key="at"
+                >
+                  {{ problem.message }}
+                </li>
+              </ul>
             </div>
             <div :class="{ 'designer__sql--stale': stale }">
               <DesignSql :sql="selectedSql" />
-              <details v-if="statements.length">
+              <details v-if="previewStatements.length">
                 <summary>Full creation script</summary>
                 <DesignSql :sql="script" />
               </details>
             </div>
           </aside>
-        </div>
-        <div
-          v-if="problems.length"
-          data-testid="design-problems"
-          role="alert"
-        >
-          <ul class="designer__problems">
-            <li
-              v-for="(problem, at) in problems"
-              :key="at"
-            >
-              {{ problem.message }}
-            </li>
-          </ul>
         </div>
       </template>
       <section
@@ -705,10 +716,13 @@ function moveColumn(by: number): void {
   color: var(--dp-text-muted);
 }
 .designer__problems {
-  margin: 0;
-  padding: var(--dp-space-2) var(--dp-space-3) var(--dp-space-2) var(--dp-space-5);
-  border-top: 1px solid var(--dp-border);
+  padding: var(--dp-space-2) var(--dp-space-3);
+  border-bottom: 1px solid var(--dp-border);
   color: var(--dp-content-error);
+}
+.designer__problems ul {
+  margin: 0;
+  padding-left: var(--dp-space-4);
 }
 .designer__status {
   margin-right: auto;

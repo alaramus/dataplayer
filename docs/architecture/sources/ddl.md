@@ -312,6 +312,9 @@ the composition before anything runs.
   statements, warnings, per-object problems and a fingerprint over the composed
   statements; creating re-composes from the definition and refuses a fingerprint
   that no longer matches. Statements never travel in a request.
+- Problems appear inside the SQL pane, so their arrival does not resize the
+  editor. When an invalid draft has no statements, the pane keeps the last
+  valid SQL marked as previous; it is never offered for review or creation.
 - Planning executes nothing. That is deliberately not D46's rehearsal: DDL that
   runs and is rolled back still takes locks and still fires whatever the server
   hangs off it, which is not a thing to do while somebody is typing.
