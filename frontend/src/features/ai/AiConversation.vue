@@ -6,6 +6,7 @@ import type { AgentRunPublic, ConversationMessagePublic, ConversationUpdate, Scr
 import { AppBanner, AppButton, AppIconButton, AppInput, AppMenu, AppSelect, AppSpinner, useToast } from "@/shared/ui"
 import type { MenuItem, SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
+import { useNow } from "@/shared/freshness/useNow"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { acceptFor, admit, kindOf } from "./attachments"
@@ -13,6 +14,7 @@ import type { AttachmentKind } from "./attachments"
 import { useDictation } from "./dictation"
 import { markAt, outlineMarks } from "./outline"
 import { plainSpeechText } from "./streaming"
+import { runDuration } from "./runDuration"
 import {
   useAiConversation,
   useAiModels,
@@ -38,6 +40,7 @@ const send = useSendAiMessage()
 const cancel = useCancelAiRun()
 const answer = useAnswerAiRun()
 const toast = useToast()
+const now = useNow()
 const draft = ref("")
 const contextDialogShown = ref(false)
 const selectedContextIds = ref<string[]>([])
@@ -206,17 +209,12 @@ function errorOf(message: ConversationMessagePublic): string | null {
   if (run === undefined || run.status !== "failed") return null
   return run.error ?? "The answer failed."
 }
-function duration(run: AgentRunPublic): string {
-  if (!run.created_at) return ""
-  const end = run.finished_at ? new Date(run.finished_at).getTime() : Date.now()
-  const seconds = Math.max(0, Math.round((end - new Date(run.created_at).getTime()) / 1000))
-  return `${String(seconds)} s`
-}
 function stepSummary(run: AgentRunPublic): string {
+  const duration = runDuration(run, now.value)
   const steps = run.steps ?? []
   const current = [...steps].reverse().find((step) => step.status === "running")
-  if (current) return `${current.title} · ${duration(run)}`
-  return `${String(steps.length)} ${steps.length === 1 ? "step" : "steps"}${duration(run) ? ` · ${duration(run)}` : ""}`
+  if (current) return `${current.title} · ${duration}`
+  return `${String(steps.length)} ${steps.length === 1 ? "step" : "steps"}${duration ? ` · ${duration}` : ""}`
 }
 function toggle(set: Set<string>, id: string) {
   const next = new Set(set)

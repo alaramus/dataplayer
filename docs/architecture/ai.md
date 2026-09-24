@@ -53,7 +53,9 @@ stores a key per provider and chooses a model from `app/ai/models.json` in the
 chat it is for, the settings holding what a new chat starts with; a message
 starts a run, whose Thinking step, reasoning and
 answer stream on the `ai.runs` topic and are written to the transcript when the
-answer ends. Tool steps are named by the server (`Browsing catalog in …`,
+answer ends. While a run is open, its elapsed time advances on the screen's
+shared clock even when no new run event arrives; after it ends, the recorded
+finish time fixes the duration. Tool steps are named by the server (`Browsing catalog in …`,
 `Reading rows from …`), with a query's statements as substeps. A conversation
 that nears the chosen model's context window — `AI_SUMMARY_TRIGGER_FRACTION` of
 the window from `app/ai/models.json` — is summarised by the same model before
