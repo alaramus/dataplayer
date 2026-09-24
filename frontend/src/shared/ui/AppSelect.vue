@@ -176,7 +176,7 @@ const summary = computed(() => {
     :loading="loading"
     :multiple="multiple"
     :use-chips="multiple"
-    v-bind="fieldLook(formLayout, compact, Boolean(error))"
+    v-bind="{ ...fieldLook(formLayout, compact, Boolean(error)), color: 'dp-field-focus' }"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"

@@ -197,7 +197,8 @@ Consequences:
   goes in its `after` slot, which aligns it with the control rather than with the
   line reserved for a validation message. `AppSelect` clips its append area so
   the rotating arrow cannot widen a scrollable toolbar; its teleported options
-  stay outside the clip.
+  stay outside the clip. Select options use the same neutral focus colour in
+  toolbars and forms.
 - **A card is one look.** A Data section, the dashboards rail and dashboard,
   a widget, the chats and a chat are `AppCardFrame` with an `AppCardHead`:
   one frame, and a head of the tab strip's height on `--dp-card-head` in

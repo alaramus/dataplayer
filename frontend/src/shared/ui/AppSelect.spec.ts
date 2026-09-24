@@ -30,6 +30,11 @@ describe("AppSelect", () => {
     expect(select.props("mapOptions")).toBe(true)
   })
 
+  it("uses the neutral selection colour outside forms too", () => {
+    const select = mountSelect({ options: LABELLED, compact: true }).getComponent(QSelect)
+    expect(select.props("color")).toBe("dp-field-focus")
+  })
+
   it("leaves plain string options alone", () => {
     const select = mountSelect({ options: ["disable", "prefer"] }).getComponent(QSelect)
 
