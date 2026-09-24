@@ -76,7 +76,7 @@ function follow(run: () => void) {
     />
     <aside
       class="sheet"
-      :style="{ bottom: `${bottom}px` }"
+      :style="{ bottom: `calc(${bottom}px + var(--dp-space-1))` }"
       role="complementary"
       aria-label="Activity"
       data-testid="activity-panel"
@@ -252,13 +252,17 @@ function follow(run: () => void) {
 .sheet__away { left: 0; right: 0; }
 
 .sheet {
-  right: 0;
+  top: calc(var(--dp-header-height) + var(--dp-space-1));
+  right: var(--dp-space-1);
   width: 380px;
-  max-width: 100vw;
+  max-width: calc(100vw - var(--dp-space-2));
   display: flex;
   flex-direction: column;
-  background: var(--dp-surface-raised);
-  border-left: 1px solid var(--dp-border);
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--dp-surface);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-panel);
   box-shadow: -8px 0 24px var(--dp-shadow-soft);
 }
 
@@ -268,6 +272,7 @@ function follow(run: () => void) {
   gap: var(--dp-space-2);
   padding: var(--dp-space-2) var(--dp-space-2) var(--dp-space-2) var(--dp-space-3);
   border-bottom: 1px solid var(--dp-border);
+  background: var(--dp-card-head);
 }
 
 .sheet__bar > strong { flex: 1; }

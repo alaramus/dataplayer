@@ -56,6 +56,21 @@ test("keeps what was said, shows it in the sheet and stops interrupting on reque
   await page.getByTestId("activity-indicator").click()
   const sheet = page.getByTestId("activity-panel")
   await expect(sheet.getByTestId("notice").filter({ hasText: "Connection saved" })).toHaveCount(1)
+  const frame = await sheet.evaluate((element) => {
+    const sheetStyle = getComputedStyle(element)
+    const headStyle = getComputedStyle(element.querySelector(".sheet__bar")!)
+    return {
+      radius: sheetStyle.borderRadius,
+      border: sheetStyle.borderLeftWidth,
+      surface: sheetStyle.backgroundColor,
+      head: headStyle.backgroundColor,
+      right: Math.round(window.innerWidth - element.getBoundingClientRect().right),
+    }
+  })
+  expect(frame.radius).toBe("8px")
+  expect(frame.border).toBe("1px")
+  expect(frame.head).not.toBe(frame.surface)
+  expect(frame.right).toBe(4)
   // Opening the sheet takes the cards down: it is now saying it properly.
   await expect(page.getByTestId("toast")).toHaveCount(0)
 

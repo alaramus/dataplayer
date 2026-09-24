@@ -67,7 +67,9 @@ Consequences:
   reflow the workspace: a grid that re-measures every time somebody glances at a
   notification jumps under the hand. Not modal and no dim behind it — the point
   is to watch progress while carrying on, so Esc and a click outside close it and
-  nothing is blocked while it is open.
+  nothing is blocked while it is open. The sheet is inset from the header,
+  right edge and footer, and uses the same card edge, radius, surface and head
+  tokens as the workspace panels.
 - **The processes window is gone.** What it held is the "Working" section.
 - **A line goes when its subject goes.** Deleting a connection deletes the
   requests waiting on it, in the database; the list of what is waiting is read
