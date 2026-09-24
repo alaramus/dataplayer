@@ -89,7 +89,7 @@ for (const theme of ["light", "dark"] as const) {
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
   })
 
-  test(`the server switcher keeps its frame from list to edit to the check answer in ${theme}`, async ({ page, context }) => {
+  test(`the server panel keeps its frame from list to edit to the check answer in ${theme}`, async ({ page, context }) => {
     await page.emulateMedia({ colorScheme: theme })
     await page.route("**/api/v1/utils/server-info", (route) =>
       route.fulfill({ json: { product: "dataplayer", client_api_version: 1 } })
@@ -105,7 +105,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.goto("/login")
     await page.getByTestId("server-switcher").click()
     const dialog = page.getByTestId("server-manager")
-    const frame = page.getByRole("dialog").filter({ has: dialog })
+    const frame = dialog
     await expect(page.getByTestId("server-profile").first()).toBeVisible()
     const before = await frame.boundingBox()
 

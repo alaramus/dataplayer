@@ -140,6 +140,8 @@ explicit selection. Old links belong to the configured default server.
 Panel and window close guards run before switching. Server-owned work stays on
 its server; unsaved editor changes and transactions are handled before leaving.
 The server must allow the frontend origin through CORS.
+The Servers control opens an inset panel at the left edge, matching Activity's
+non-modal sheet. Its list and add/edit form stay in that panel.
 
 Spec: [Choosing a DataPlayer server](../decisions/2026-09-04-server-profiles-design.md)
 

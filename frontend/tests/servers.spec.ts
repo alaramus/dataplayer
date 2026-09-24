@@ -121,3 +121,14 @@ test("server management stays available when the configured backend is down", as
   await expect(page.getByTestId("server-switcher")).toContainText("Alpha")
   await expect(page.getByTestId("login-submit")).toBeEnabled()
 })
+
+test("the server panel closes with Escape or a click outside", async ({ page }) => {
+  await page.goto("/login")
+  await page.getByTestId("server-switcher").click()
+  await expect(page.getByTestId("server-manager")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByTestId("server-manager")).toHaveCount(0)
+  await page.getByTestId("server-switcher").click()
+  await page.mouse.click(500, 100)
+  await expect(page.getByTestId("server-manager")).toHaveCount(0)
+})
