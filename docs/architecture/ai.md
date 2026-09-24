@@ -317,7 +317,11 @@ and detached panels remain visible, by the same covering contract as
 Dashboards. Left column: New chat, history, Settings; settings replace the
 conversation on the right. Its head can become a name filter for chats and
 projects without changing the open conversation. New chat reopens an existing
-unarchived "New chat" with no messages or runs before creating another one. Unsent text is kept in
+unarchived "New chat" with no messages or runs before creating another one.
+The transcript has a centered reading width. Agent steps use the same text size
+as answers, with a quieter color; the composer sits on a raised surface below
+the transcript. Copy and speech controls under a message appear on hover or
+keyboard focus, and remain visible on touch screens. Unsent text is kept in
 memory per conversation while this browser page is open, including when the
 person switches application spaces or opens another chat. Sending clears it.
 Down the left edge of a conversation with more than

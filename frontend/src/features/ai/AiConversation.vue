@@ -548,127 +548,131 @@ onBeforeUnmount(() => {
           </AppBanner>
         </div>
       </div>
-      <div class="ai-conversation__composer">
-        <div
-          v-if="selectedContexts.length"
-          class="ai-conversation__contexts"
-          aria-label="Tabs attached to the next message"
-        >
-          <span
-            v-for="context in selectedContexts"
-            :key="context.panel_id"
-            class="ai-context-chip"
+      <div class="ai-conversation__dock">
+        <div class="ai-conversation__composer" data-testid="ai-composer">
+          <div
+            v-if="selectedContexts.length"
+            class="ai-conversation__contexts"
+            aria-label="Tabs attached to the next message"
           >
-            <span class="ai-context-chip__label">{{ context.label }}</span>
-            <AppIconButton
-              :icon="appIcons.close"
-              :tooltip="`Remove ${context.label}`"
+            <span
+              v-for="context in selectedContexts"
+              :key="context.panel_id"
+              class="ai-context-chip"
+            >
+              <span class="ai-context-chip__label">{{ context.label }}</span>
+              <AppIconButton
+                :icon="appIcons.close"
+                :tooltip="`Remove ${context.label}`"
+                compact
+                @click="selectedContextIds = selectedContextIds.filter((id) => id !== context.panel_id)"
+              />
+            </span>
+          </div>
+          <div
+            v-if="pending.length"
+            class="ai-conversation__contexts"
+            aria-label="Files attached to the next message"
+          >
+            <AiFileChip
+              v-for="one in pending"
+              :key="one.id"
+              :name="one.file.name"
+              :size="one.file.size"
+              :kind="one.kind"
+              :thumbnail="one.address"
+              :problem="one.kind === 'image' ? imageProblem : ''"
+              removable
+              @open="openFile(one.address)"
+              @remove="removeFile(one.id)"
+            />
+          </div>
+          <AppInput
+            v-model="draft"
+            type="textarea"
+            grow
+            compact
+            placeholder="Message the agent"
+            aria-label="Message the agent"
+            data-testid="ai-message-input"
+            :disable="activeRun !== null"
+            @keydown="onEditorKeydown"
+          />
+          <!-- What the next message is sent with, under the message itself. -->
+          <div class="ai-conversation__tools">
+            <!-- The menu hangs off the span: the button alone would give it no
+                 element to open from while it is disabled. -->
+            <span>
+              <AppIconButton
+                :icon="appIcons.add"
+                tooltip="Attach tabs or files"
+                data-testid="ai-attach"
+                :disable="activeRun !== null"
+              />
+              <AppMenu
+                v-if="activeRun === null"
+                :items="attachItems"
+                @select="chooseAttachment"
+              />
+            </span>
+            <input
+              ref="picker"
+              type="file"
+              multiple
+              class="ai-conversation__picker"
+              :accept="rules ? acceptFor(rules, readsImages) : undefined"
+              data-testid="ai-file-input"
+              @change="pickFiles"
+            >
+            <AppSelect
+              class="ai-conversation__policy"
               compact
-              @click="selectedContextIds = selectedContextIds.filter((id) => id !== context.panel_id)"
-            />
-          </span>
-        </div>
-        <div
-          v-if="pending.length"
-          class="ai-conversation__contexts"
-          aria-label="Files attached to the next message"
-        >
-          <AiFileChip
-            v-for="one in pending"
-            :key="one.id"
-            :name="one.file.name"
-            :size="one.file.size"
-            :kind="one.kind"
-            :thumbnail="one.address"
-            :problem="one.kind === 'image' ? imageProblem : ''"
-            removable
-            @open="openFile(one.address)"
-            @remove="removeFile(one.id)"
-          />
-        </div>
-        <AppInput
-          v-model="draft"
-          type="textarea"
-          grow
-          compact
-          placeholder="Message the agent"
-          aria-label="Message the agent"
-          data-testid="ai-message-input"
-          :disable="activeRun !== null"
-          @keydown="onEditorKeydown"
-        />
-        <!-- What the next message is sent with, under the message itself. -->
-        <div class="ai-conversation__tools">
-          <!-- The menu hangs off the span: the button alone would give it no
-               element to open from while it is disabled. -->
-          <span>
-            <AppIconButton
-              :icon="appIcons.add"
-              tooltip="Attach tabs or files"
-              data-testid="ai-attach"
+              :model-value="shownPolicy"
+              :options="policyOptions"
               :disable="activeRun !== null"
+              label="Changes"
+              data-testid="ai-chat-policy"
+              @update:model-value="choosePolicy"
             />
-            <AppMenu
-              v-if="activeRun === null"
-              :items="attachItems"
-              @select="chooseAttachment"
+            <AiModelSelect
+              class="ai-conversation__model"
+              compact
+              :model-value="chatModel"
+              :disable="activeRun !== null"
+              data-testid="ai-chat-model"
+              @update:model-value="chooseModel"
             />
-          </span>
-          <input
-            ref="picker"
-            type="file"
-            multiple
-            class="ai-conversation__picker"
-            :accept="rules ? acceptFor(rules, readsImages) : undefined"
-            data-testid="ai-file-input"
-            @change="pickFiles"
-          >
-          <AppSelect
-            class="ai-conversation__policy"
-            compact
-            :model-value="shownPolicy"
-            :options="policyOptions"
-            :disable="activeRun !== null"
-            label="Changes"
-            data-testid="ai-chat-policy"
-            @update:model-value="choosePolicy"
-          />
-          <AiModelSelect
-            class="ai-conversation__model"
-            compact
-            :model-value="chatModel"
-            :disable="activeRun !== null"
-            data-testid="ai-chat-model"
-            @update:model-value="chooseModel"
-          />
-          <AppIconButton
-            :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
-            :active="dictation.listening.value"
-            :tooltip="!dictation.supported
-              ? 'This browser cannot listen'
-              : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
-            :disable="!dictation.supported || activeRun !== null"
-            data-testid="ai-dictate"
-            @click="dictate"
-          />
-          <span class="ai-conversation__gap" />
-          <AppButton
-            v-if="activeRun"
-            variant="danger-quiet"
-            :icon="appIcons.stop"
-            label="Stop"
-            :loading="cancel.isPending.value"
-            data-testid="ai-stop"
-            @click="stop"
-          />
-          <AppButton
-            v-else
-            :icon="appIcons.send"
-            label="Send"
-            :disable="!canSend"
-            data-testid="ai-send"
-            @click="submit"
-          />
+            <AppIconButton
+              :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
+              :active="dictation.listening.value"
+              :tooltip="!dictation.supported
+                ? 'This browser cannot listen'
+                : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+              :disable="!dictation.supported || activeRun !== null"
+              data-testid="ai-dictate"
+              @click="dictate"
+            />
+            <span class="ai-conversation__gap" />
+            <AppButton
+              v-if="activeRun"
+              variant="danger-quiet"
+              :icon="appIcons.stop"
+              label="Stop"
+              :loading="cancel.isPending.value"
+              data-testid="ai-stop"
+              @click="stop"
+            />
+            <AppButton
+              v-else
+              :icon="appIcons.send"
+              label="Send"
+              icon-only
+              class="ai-conversation__send"
+              :disable="!canSend"
+              data-testid="ai-send"
+              @click="submit"
+            />
+          </div>
         </div>
       </div>
       <AiContextDialog
@@ -686,7 +690,8 @@ onBeforeUnmount(() => {
 .ai-conversation__body { flex: 1; min-height: 0; display: flex; }
 /* The messages hold the marks' coordinates: offsetTop is measured against this
    box, so it has to be the one they are positioned in. */
-.ai-conversation__messages { position: relative; flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-4); }
+.ai-conversation__messages { position: relative; flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-5) var(--dp-space-4); }
+.ai-conversation__messages > .ai-message, .ai-conversation__messages > .app-banner { max-width: 960px; margin-left: auto; margin-right: auto; }
 .ai-outline { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-1); padding: var(--dp-space-2) var(--dp-space-1); overflow: hidden; }
 /* The mark is two pixels of ink in a target a finger can hit. */
 .ai-outline__mark { display: grid; place-items: center; width: 20px; height: 12px; border: 0; padding: 0; background: transparent; cursor: pointer; }
@@ -697,24 +702,31 @@ onBeforeUnmount(() => {
 .ai-message { margin: 0 0 var(--dp-space-4); }
 .ai-message--user { display: flex; flex-direction: column; align-items: flex-end; }
 .ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
-.ai-message__actions { display: flex; gap: var(--dp-space-1); margin-top: var(--dp-space-1); }
+.ai-message__actions { display: flex; gap: var(--dp-space-1); margin-top: var(--dp-space-1); opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.ai-message:hover .ai-message__actions, .ai-message:focus-within .ai-message__actions { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .ai-message__actions { opacity: 1; pointer-events: auto; } }
 .ai-message__error { margin-top: var(--dp-space-2); }
-.ai-steps { margin-bottom: var(--dp-space-2); color: var(--dp-text-muted); font-size: 12px; }
+.ai-steps { margin-bottom: var(--dp-space-3); color: var(--dp-text-muted); font-size: inherit; line-height: 1.5; }
 .ai-steps__summary, .ai-step__reasoning { border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; }
-.ai-steps__summary { display: flex; align-items: center; gap: var(--dp-space-1); }
+.ai-steps__summary { display: flex; align-items: center; gap: var(--dp-space-1); font-size: inherit; }
 .ai-steps__list { margin: var(--dp-space-1) 0 0 var(--dp-space-4); }
-.ai-step { display: grid; grid-template-columns: 1fr auto; gap: var(--dp-space-1) var(--dp-space-3); padding: var(--dp-space-1) 0; }
-.ai-step__reasoning { grid-column: 1 / -1; width: fit-content; text-decoration: underline; }
-.ai-step__detail { grid-column: 1 / -1; white-space: pre-wrap; color: var(--dp-text-strong); }
+.ai-step { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--dp-space-1) var(--dp-space-3); padding: var(--dp-space-1) 0; }
+.ai-step__reasoning { grid-column: 1 / -1; width: fit-content; font-size: inherit; text-decoration: underline; }
+.ai-step__detail { grid-column: 1 / -1; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--dp-text-muted); }
 .ai-question { display: grid; gap: var(--dp-space-2); padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface); }
 .ai-question__choices { display: flex; flex-wrap: wrap; gap: var(--dp-space-2); }
 .ai-question__preview { display: grid; gap: var(--dp-space-1); padding: var(--dp-space-2) 0 0; font-size: 12px; color: var(--dp-text-muted); }
 .ai-question__preview-summary { color: var(--dp-text-strong); }
 .ai-question__preview-line { white-space: pre-wrap; }
-.ai-conversation__composer { flex: none; display: flex; flex-direction: column; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
+.ai-conversation__dock { flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); }
+.ai-conversation__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); width: 100%; max-width: 960px; margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .ai-conversation__contexts { display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-conversation__picker { display: none; }
 .ai-conversation__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dp-space-2); }
+.ai-conversation__composer :deep(.q-field__control) { background: transparent; }
+.ai-conversation__composer :deep(.q-field__control::before) { border-color: transparent; }
+.ai-conversation__composer :deep(.q-field--focused .q-field__control::after) { border-color: var(--dp-field-border); }
+.ai-conversation__send { border-radius: var(--dp-radius-control); }
 .ai-conversation__gap { flex: 1; }
 /* Wide enough for a model's name and no wider: the row it stands in belongs
    to the send button at its end. */
