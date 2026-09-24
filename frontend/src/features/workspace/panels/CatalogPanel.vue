@@ -806,6 +806,7 @@ async function afterAction(outcome: ActionOutcome) {
       <AppInput
         v-if="!asTree"
         v-model="level.filter.value"
+        class="catalog-panel__filter"
         :placeholder="canSearch ? 'Filter, or search below' : 'Filter'"
         compact
         clearable
@@ -979,7 +980,13 @@ async function afterAction(outcome: ActionOutcome) {
 }
 .catalog-panel__head {
   flex: none;
-  padding: var(--dp-space-1) var(--dp-space-1) 0;
+  padding: var(--dp-space-1);
+}
+.catalog-panel__filter :deep(.q-field__control) {
+  box-shadow: inset 0 -1px 0 var(--dp-border-strong);
+}
+.catalog-panel__filter:focus-within :deep(.q-field__control) {
+  box-shadow: inset 0 -2px 0 var(--dp-focus-border);
 }
 /* A row beside the filter, not under it: no wrapping and no padding of its
    own, so what a source detects costs the head no height. */

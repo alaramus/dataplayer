@@ -29,6 +29,14 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
 
   await openConnector(page, name)
 
+  const filter = page.getByTestId("catalog-filter")
+  const field = filter.locator(".q-field__control")
+  const idleLine = await field.evaluate((element) => getComputedStyle(element).boxShadow)
+  expect(idleLine).not.toBe("none")
+  await filter.focus()
+  const focusedLine = await field.evaluate((element) => getComputedStyle(element).boxShadow)
+  expect(focusedLine).not.toBe(idleLine)
+
   // Schemas are a grouping, not a level: the list shows the relations of the
   // first real schema straight away, without a step through `public`.
   const list = page.getByTestId("catalog-list")
