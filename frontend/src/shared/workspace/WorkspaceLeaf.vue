@@ -612,12 +612,17 @@ const overlayStyle = computed((): CSSProperties => {
    their own - which two of them beside each other would fight over. */
 .workspace-leaf__collapse {
   border: none;
+  border-radius: var(--dp-radius-control);
   background: transparent;
   /* The icon inside draws itself in currentColor - see the tab above. */
   color: inherit;
   cursor: pointer;
   padding: var(--dp-space-half);
   flex: none;
+}
+.workspace-leaf__collapse:hover,
+.workspace-leaf__collapse:focus-visible {
+  background: var(--dp-hover);
 }
 .workspace-leaf__rail {
   flex: 1;

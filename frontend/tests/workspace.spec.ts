@@ -818,7 +818,11 @@ test("clears a strip of tabs down to the one being looked at", async ({ page }) 
   await openNode(page, "pg_namespace")
   await expect(rowsTabs(page)).toHaveCount(2)
 
-  await page.getByTestId("workspace-close-others-work").click()
+  const closeOthers = page.getByTestId("workspace-close-others-work")
+  const idleBackground = await closeOthers.evaluate((button) => getComputedStyle(button).backgroundColor)
+  await closeOthers.hover()
+  await expect(closeOthers).not.toHaveCSS("background-color", idleBackground)
+  await closeOthers.click()
 
   // The one that was showing is the one that stays: the rest go the way a
   // cross would have sent them, one at a time.
@@ -873,7 +877,11 @@ test("every column goes away and comes back, and none of them scrolls the page",
   for (const id of ["navigate", "work"]) {
     const leaf = page.getByTestId(`workspace-leaf-${id}`)
     const wide = (await leaf.boundingBox())?.width ?? 0
-    await page.getByTestId(`workspace-aside-${id}`).click()
+    const aside = page.getByTestId(`workspace-aside-${id}`)
+    const idleBackground = await aside.evaluate((button) => getComputedStyle(button).backgroundColor)
+    await aside.hover()
+    await expect(aside).not.toHaveCSS("background-color", idleBackground)
+    await aside.click()
 
     const onTheBar = page.getByTestId("workspace-taskbar").getByTestId(`workspace-aside-${id}`)
     await expect(onTheBar).toBeVisible()
