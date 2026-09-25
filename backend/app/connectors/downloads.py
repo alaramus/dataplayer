@@ -18,13 +18,13 @@ import io
 import shutil
 import tempfile
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal
 
 import jwt
-from anyio import open_file, to_thread
+from anyio import AsyncFile, open_file, to_thread
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -87,7 +87,7 @@ class ExportTicketClaims(BaseModel):
     scratch: str | None = None
 
 
-def _safe_stem(title: str) -> str:
+def safe_stem(title: str) -> str:
     stem = "".join(
         character if character.isalnum() or character in "._-" else "-"
         for character in title.strip()
@@ -103,7 +103,7 @@ def _csv_paths(
     now: datetime | None = None,
 ) -> tuple[Path, Path]:
     downloaded_at = now or datetime.now(UTC)
-    filename = f"{_safe_stem(title)}-{downloaded_at:%Y%m%d-%H%M%S-%f}.csv"
+    filename = f"{safe_stem(title)}-{downloaded_at:%Y%m%d-%H%M%S-%f}.csv"
     downloads = home / "downloads"
     directory = downloads / str(connector_id)
     if home.is_symlink() or downloads.is_symlink() or directory.is_symlink():
@@ -147,7 +147,7 @@ def page_csv(*, columns: list[str], result: FetchResult) -> bytes:
 def page_filename(title: str, now: datetime | None = None) -> str:
     """What a page is called wherever it lands."""
     stamped = now or datetime.now(UTC)
-    return f"{_safe_stem(title)}-{stamped:%Y%m%d-%H%M%S-%f}.csv"
+    return f"{safe_stem(title)}-{stamped:%Y%m%d-%H%M%S-%f}.csv"
 
 
 def save_csv_page(
@@ -239,23 +239,60 @@ async def _write_export(
 ) -> tuple[Path, int]:
     """Write a row stream atomically, holding at most one batch in memory."""
     destination, temporary = paths
-    row_count = 0
     try:
-        async with await open_file(temporary, "wb") as output:
-            await output.write(b"\xef\xbb\xbf")
-            header_rows: list[list[str | None]] = [list(columns)]
-            header = await to_thread.run_sync(_encode_csv_rows, header_rows)
-            await output.write(header)
-            async for batch in batches:
-                if any(len(row) != len(columns) for row in batch.rows):
-                    raise ValueError("The source returned an invalid export row")
-                encoded = await to_thread.run_sync(_encode_csv_rows, batch.rows)
-                await output.write(encoded)
-                row_count += len(batch.rows)
+        row_count = await write_csv(temporary, columns=columns, batches=batches)
         await to_thread.run_sync(lambda: temporary.replace(destination))
     finally:
         await to_thread.run_sync(lambda: temporary.unlink(missing_ok=True))
     return destination, row_count
+
+
+class CsvTooLarge(Exception):
+    """A row stream grew past the ceiling it was being written under."""
+
+
+async def write_csv(
+    path: Path,
+    *,
+    columns: list[str],
+    batches: AsyncIterator[ExportBatch],
+    max_bytes: int | None = None,
+) -> int:
+    """Write a header and a row stream into `path`; the count of rows.
+
+    Not atomic: the caller owns the file and decides where it is published.
+    """
+    row_count = 0
+    written = 0
+    try:
+        async with await open_file(path, "wb") as output:
+            header_rows: list[list[str | None]] = [list(columns)]
+            header = await to_thread.run_sync(_encode_csv_rows, header_rows)
+            written = await _write_within(
+                output, BYTE_ORDER_MARK + header, written, max_bytes
+            )
+            async for batch in batches:
+                if any(len(row) != len(columns) for row in batch.rows):
+                    raise ValueError("The source returned an invalid export row")
+                encoded = await to_thread.run_sync(_encode_csv_rows, batch.rows)
+                written = await _write_within(output, encoded, written, max_bytes)
+                row_count += len(batch.rows)
+    finally:
+        # Left open, a source's generator keeps its cursor and pooled
+        # connection until the collector finalises it.
+        if isinstance(batches, AsyncGenerator):
+            await batches.aclose()
+    return row_count
+
+
+async def _write_within(
+    output: AsyncFile[bytes], chunk: bytes, written: int, max_bytes: int | None
+) -> int:
+    written += len(chunk)
+    if max_bytes is not None and written > max_bytes:
+        raise CsvTooLarge
+    await output.write(chunk)
+    return written
 
 
 def issue_export_ticket(

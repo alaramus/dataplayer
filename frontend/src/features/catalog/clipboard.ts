@@ -18,6 +18,8 @@ export interface Clipboard {
   connectorId: string
   nodeIds: string[]
   mode: ClipboardMode
+  /** What the selection was called where it was taken, for a window elsewhere. */
+  label?: string
 }
 
 const held = ref<Clipboard | null>(null)
@@ -28,10 +30,22 @@ export const clipboard = computed(() => held.value)
 export function holdNodes(
   connectorId: string,
   nodeIds: string[],
-  mode: ClipboardMode
+  mode: ClipboardMode,
+  label?: string
 ): void {
   if (nodeIds.length === 0) return
-  held.value = { connectorId, nodeIds: [...nodeIds], mode }
+  held.value = { connectorId, nodeIds: [...nodeIds], mode, ...(label ? { label } : {}) }
+}
+
+/** Forget the selection only if it is still the one a finished move took. */
+export function forgetMoved(connectorId: string, nodeIds: string[]): void {
+  const current = held.value
+  if (
+    current?.mode === "move" &&
+    current.connectorId === connectorId &&
+    current.nodeIds.length === nodeIds.length &&
+    current.nodeIds.every((id, index) => id === nodeIds[index])
+  ) held.value = null
 }
 
 export function forgetClipboard(): void {

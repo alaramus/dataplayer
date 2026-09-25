@@ -1,26 +1,31 @@
 import { flushPromises, mount } from "@vue/test-utils"
-import { AxiosError } from "axios"
 import { computed, defineComponent } from "vue"
 import type { Ref } from "vue"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import type { ActionInfo } from "@/client"
+import type { ActionInfo, ClipboardOffer, PasteOffer } from "@/client"
 import type { MenuItem } from "@/shared/ui"
 import CatalogActions from "./CatalogActions.vue"
 import { clipboard, forgetClipboard, holdNodes } from "./clipboard"
 
 const replies = vi.hoisted(() => new Map<string, ActionInfo[]>())
-const offer = vi.hoisted(() => ({ available: false, reason: "Unavailable", name_conflict: false }))
-const copyFile = vi.hoisted(() => vi.fn())
-const moveFile = vi.hoisted(() => vi.fn())
+const answers = vi.hoisted(() => ({
+  offers: [] as PasteOffer[],
+  hold: undefined as ClipboardOffer | undefined,
+}))
+const pasteCall = vi.hoisted(() => vi.fn())
 
 vi.mock("@/client", () => ({
-  ConnectorsService: { fileCopy: copyFile, fileMove: moveFile },
+  ConnectorsService: { paste: pasteCall },
 }))
 
+// Two questions go to the server through this: what the clipboard can become
+// here, and whether a selection here can be held at all.
 vi.mock("@tanstack/vue-query", () => ({
-  useQuery: () => ({
-    data: computed(() => offer),
+  useQuery: (options: { queryKey: { value: unknown[] } }) => ({
+    data: computed(() =>
+      options.queryKey.value[0] === "paste-offers" ? answers.offers : answers.hold
+    ),
     isPending: computed(() => false),
     isError: computed(() => false),
   }),
@@ -49,6 +54,14 @@ vi.mock("@/shared/windows", () => ({
     name: "WindowDialog",
     props: ["modelValue"],
     template: "<div><slot /><slot name='actions' /></div>",
+  }),
+}))
+vi.mock("./CrossPaste.vue", () => ({
+  default: defineComponent({
+    name: "CrossPaste",
+    props: ["intent"],
+    emits: ["done", "sourceChanged", "close"],
+    template: "<div />",
   }),
 }))
 vi.mock("./ActionDialog.vue", () => ({
@@ -109,124 +122,141 @@ function menu(levelActions: ActionInfo[] = [rename, load]) {
   })
 }
 
+const copying: PasteOffer = { kind: "file_copy", title: "Copy files", available: true }
+
 afterEach(() => {
   replies.clear()
   forgetClipboard()
-  offer.available = false
-  offer.reason = "Unavailable"
-  offer.name_conflict = false
-  copyFile.mockReset()
-  moveFile.mockReset()
+  answers.offers = []
+  answers.hold = undefined
+  pasteCall.mockReset()
 })
 
+function items(wrapper: ReturnType<typeof menu>) {
+  return wrapper.findComponent({ name: "AppMenu" }).props("items") as MenuItem[]
+}
+
 describe("catalog action subjects", () => {
-  it("offers cross-connection Paste only when the pair is available", async () => {
+  it("offers cross-connection Paste only when an offer is usable", () => {
     holdNodes("another", ["report.csv"], "copy")
-    const wrapper = menu()
-    const appMenu = wrapper.findComponent({ name: "AppMenu" })
-    const item = () => (appMenu.props("items") as MenuItem[]).find((one) => one.name === "client:cross-paste")
-    expect(item()?.disable).toBe(true)
-    expect(item()?.hint).toBe("Unavailable")
-    expect(item()?.label).toBe("Paste")
-    wrapper.unmount()
-    offer.available = true
+    answers.offers = [{ ...copying, available: false, reason: "Unavailable" }]
+    const refused = menu()
+    const item = items(refused).find((one) => one.name === "client:cross-paste")
+    expect(item?.label).toBe("Paste")
+    expect(item?.disable).toBe(true)
+    expect(item?.hint).toBe("Unavailable")
+    refused.unmount()
+
+    answers.offers = [copying]
     const enabled = menu()
-    const enabledItem = (enabled.findComponent({ name: "AppMenu" }).props("items") as MenuItem[])
-      .find((one) => one.name === "client:cross-paste")
-    expect(enabledItem?.disable).toBe(false)
+    expect(items(enabled).find((one) => one.name === "client:cross-paste")?.disable).toBe(false)
     enabled.unmount()
+  })
+
+  it("says so when nothing here can take what was copied", () => {
+    holdNodes("another", ["public.people"], "copy")
+    const wrapper = menu()
+
+    const item = items(wrapper).find((one) => one.name === "client:cross-paste")
+
+    expect(item?.disable).toBe(true)
+    expect(item?.hint).toBe("Nothing here can take what was copied")
+    wrapper.unmount()
   })
 
   it("keeps the ordinary Paste label after copying in the same connection", () => {
     holdNodes("connection", ["report.csv"], "copy")
     const wrapper = menu([rename, load, paste])
-    const items = wrapper.findComponent({ name: "AppMenu" }).props("items") as MenuItem[]
-    expect(items.find((one) => one.name === "paste")?.label).toBe("Paste")
+    expect(items(wrapper).find((one) => one.name === "paste")?.label).toBe("Paste")
     wrapper.unmount()
   })
 
-  it("keeps one Paste in the menu and opens conflict choices after selection", async () => {
-    holdNodes("another", ["report.csv"], "copy")
-    offer.name_conflict = true
+  it("keeps one Paste and hands the chosen offer to the paste it starts", async () => {
+    holdNodes("another", ["report.csv"], "move", "report.csv")
+    answers.offers = [{ ...copying, kind: "file_move", name_conflict: true, available: false }]
     const wrapper = menu()
-    const appMenu = wrapper.findComponent({ name: "AppMenu" })
-    const items = appMenu.props("items") as MenuItem[]
-    expect(items.filter((one) => one.name.startsWith("client:cross-paste"))).toHaveLength(1)
-    expect(items.find((one) => one.name === "client:cross-paste")?.disable).toBe(false)
-    appMenu.vm.$emit("select", "client:cross-paste")
-    await flushPromises()
-    expect(wrapper.findComponent({ name: "WindowDialog" }).exists()).toBe(true)
-    expect(copyFile).not.toHaveBeenCalled()
-    copyFile.mockResolvedValue({ data: { copied: 1, reload_node_ids: ["schema"] } })
-    await wrapper.find('[data-testid="cross-paste-keep-both"]').trigger("click")
-    await flushPromises()
-    expect(copyFile).toHaveBeenCalledWith(expect.objectContaining({
-      body: expect.objectContaining({ conflict: "rename" }),
-    }))
-    wrapper.unmount()
-  })
-
-  it("reports a copied destination through the ordinary catalog reload path", async () => {
-    holdNodes("another", ["report.csv"], "copy")
-    offer.available = true
-    copyFile.mockResolvedValue({ data: { copied: 1, reload_node_ids: ["schema"] } })
-    const wrapper = menu()
+    expect(items(wrapper).filter((one) => one.name.startsWith("client:cross-paste"))).toHaveLength(1)
 
     wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
     await flushPromises()
 
-    expect(wrapper.emitted("done")?.[0]?.[0]).toMatchObject({
-      done: [{ reload_node_ids: ["schema"] }],
+    expect(wrapper.findComponent({ name: "CrossPaste" }).props("intent")).toEqual({
+      sourceConnectorId: "another",
+      sourceNodeIds: ["report.csv"],
+      sourceLabel: "report.csv",
+      mode: "move",
+      destinationConnectorId: "connection",
+      destinationNodeId: "schema",
+      destinationLabel: "Schema label",
+      offer: answers.offers[0],
     })
+    // The menu starts it; the paste itself sends the request.
+    expect(pasteCall).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  it("moves a cut file and refreshes its source connection", async () => {
-    holdNodes("another", ["report.csv"], "move")
-    offer.available = true
-    moveFile.mockResolvedValue({ data: { moved: 1, reload_node_ids: ["schema"] } })
+  it("passes on what the paste did and lets it go when it closes", async () => {
+    holdNodes("another", ["report.csv"], "copy")
+    answers.offers = [copying]
     const wrapper = menu()
-
     wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
     await flushPromises()
+    const pasting = wrapper.findComponent({ name: "CrossPaste" })
+    const outcome = { done: [{ message: "1 file copied", reload_node_ids: ["schema"] }], failures: [], total: 1 }
 
-    expect(moveFile).toHaveBeenCalledWith(expect.objectContaining({
-      body: expect.objectContaining({ conflict: "refuse" }),
-    }))
+    pasting.vm.$emit("done", outcome)
+    pasting.vm.$emit("sourceChanged", "another")
+    pasting.vm.$emit("close")
+    await flushPromises()
+
+    expect(wrapper.emitted("done")?.[0]).toEqual([outcome])
     expect(wrapper.emitted("sourceChanged")?.[0]).toEqual(["another"])
-    expect(wrapper.emitted("done")?.[0]?.[0]).toMatchObject({
-      done: [{ reload_node_ids: ["schema"] }],
+    expect(wrapper.findComponent({ name: "CrossPaste" }).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("draws Copy without Cut where the server says a selection can only be copied", () => {
+    answers.hold = { can_copy: { available: true }, can_cut: null }
+    const wrapper = menu()
+
+    const labels = items(wrapper).map((item) => item.label)
+
+    expect(labels).toContain("Copy")
+    expect(labels).not.toContain("Cut")
+    expect(items(wrapper).find((item) => item.label === "Copy")?.disable).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("draws neither where nothing could take this source's nodes", () => {
+    answers.hold = { can_copy: null, can_cut: null }
+    const wrapper = menu()
+
+    expect(items(wrapper).map((item) => item.label)).not.toContain("Copy")
+    wrapper.unmount()
+  })
+
+  it("lets a source with its own Paste hold anything ticked", () => {
+    const wrapper = menu([rename, load, paste])
+
+    const held = items(wrapper).filter((item) => item.label === "Copy" || item.label === "Cut")
+
+    expect(held.map((item) => item.disable)).toEqual([false, false])
+    wrapper.unmount()
+  })
+
+  it("holds what is ticked under the name it is shown by", async () => {
+    answers.hold = { can_copy: { available: true }, can_cut: null }
+    const wrapper = menu()
+
+    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:copy")
+    await flushPromises()
+
+    expect(clipboard.value).toEqual({
+      connectorId: "connection",
+      nodeIds: ["schema.table"],
+      mode: "copy",
+      label: "Table label",
     })
-    expect(clipboard.value).toBeNull()
-    wrapper.unmount()
-  })
-
-  it("offers Keep both for a cut conflict without offering Replace", async () => {
-    holdNodes("another", ["report.csv"], "move")
-    offer.name_conflict = true
-    const wrapper = menu()
-
-    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
-    await flushPromises()
-
-    expect(wrapper.find('[data-testid="cross-paste-keep-both"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cross-paste-replace"]').exists()).toBe(false)
-    wrapper.unmount()
-  })
-
-  it("opens the same conflict window when a name is taken after the offer", async () => {
-    holdNodes("another", ["report.csv"], "copy")
-    offer.available = true
-    copyFile.mockRejectedValueOnce(new AxiosError("refused", undefined, undefined, undefined, {
-      status: 409,
-    } as never))
-    const wrapper = menu()
-
-    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
-    await flushPromises()
-
-    expect(copyFile).toHaveBeenCalledTimes(1)
-    expect(wrapper.findComponent({ name: "WindowDialog" }).exists()).toBe(true)
     wrapper.unmount()
   })
 

@@ -1,11 +1,81 @@
 # Moving rows in and out of a relation
 
-Copying rows from one source into another, loading a file into a relation, and
-streaming every matching row out. Reading a relation and editing the rows in it
-are in [relations.md](relations.md); the grid's own current-page download is in
+Copying rows from one source into another, loading a file into a relation,
+streaming every matching row out, and pasting files or a table into another
+connection. Reading a relation and editing the rows in it are in
+[relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44, D161, D163.
+Decisions here: D43, D45, D44, D161, D163, D164, D165.
+
+## D164. One paste answer for a pair of connections
+
+A clipboard from another connection is pasted through three routes, whatever
+it holds. `POST /connectors/{destination}/paste/offers` lists what it can
+become here; `POST /connectors/{destination}/paste` runs one offer;
+`POST /connectors/{source}/clipboard/offer` says whether a selection can be
+held at all. Each kind of paste is an entry in the `connectors/paste`
+registry. It names the capabilities it needs from each end and the clipboard
+mode it serves, and is matched with `isinstance`, never by adapter type. There
+are three: `file_copy` (D161), `file_move` (D163) and `relation_csv` (D165).
+
+- Asking needs `read` on both ends. A kind that needs more — `write` on the
+  destination, `write` on the source of a move — is listed unavailable with
+  that reason; running it answers 403. A kind neither end matches is not
+  listed, and an empty list reads "Nothing here can take what was copied".
+- An offer says whether it converts, whether Replace is allowed, whether it
+  changes the source, and the suggested name for a kind that asks for one.
+  The client decides from these fields and names no kind.
+- The catalog has one Paste. A conversion opens its window first; a plain copy
+  runs at once and opens D162's conflict window on a taken name. The source
+  catalog is refreshed when the offer changes the source, after success or a
+  partial failure alike.
+- Copy and Cut are drawn for a source with its own Paste (D74) as before, and
+  otherwise from the clipboard answer: a mode no kind serves for this source is
+  not drawn, and a selection a kind refuses is drawn disabled with the reason.
+  A PostgreSQL table has Copy and no Cut.
+- A request carries up to 1000 ids; a kind states its own smaller ceiling as a
+  reason.
+
+Known deviations:
+
+- **Same-connection Paste stays source-owned.** A clipboard from the same
+  connection still goes through the source's own action (D74).
+- **Several usable offers have no chooser.** No pair has two kinds yet, so
+  Paste runs the first.
+
+Spec: [Paste offers, and a table pasted into a folder as CSV](../../decisions/2026-09-25-paste-offers-and-table-csv-design.md)
+
+## D165. A table pasted into a folder becomes a CSV file
+
+Kind `relation_csv`: from a source implementing `SupportsExport` and
+`SupportsRelationModel` — a PostgreSQL table or view today — into a folder of
+an explorer connection. Copy only; nothing offers a Cut of it.
+
+- One relation per paste. Columns come from the relation model in order, rows
+  from one D44 export stream with no filter and the source's own ordering. The
+  encoder is D44's (`downloads.write_csv`), so the bytes equal the grid's
+  whole-relation download.
+- Paste opens "Save as CSV" with `<table>.csv`. The name must be plain, and
+  `.csv` is appended unless it already ends so. Not D45's rule, which keeps any
+  delimited extension: a `.tsv` holding commas reads back as one column.
+- A taken name opens D162's window with Keep both and Replace. Replace is
+  allowed because the source is not a file.
+- The stream goes into the destination's staged file, published after the last
+  batch. At most 200 MB of CSV; crossing it answers `too_large`. A source
+  failure, a refused name or the ceiling discards the staged file, and the
+  source's stream is closed at once rather than when collected.
+- The destination's read cache is invalidated. The source is untouched and the
+  clipboard keeps the table.
+
+Known deviations:
+
+- **A request, not a job.** No progress or cancellation; D81/D95 come before a
+  higher ceiling.
+- **Whole relation only.** Copying from the grid with its filters, sort and
+  visible columns is not offered.
+
+Spec: [Paste offers, and a table pasted into a folder as CSV](../../decisions/2026-09-25-paste-offers-and-table-csv-design.md)
 
 ## D163. A file can be moved between explorer connections
 
@@ -36,11 +106,10 @@ Spec: [Moving a file between connections](../../decisions/2026-09-25-cross-conne
 The first cross-connection interaction is a file copy between two sources that
 expose the explorer's `Storage`, including local files and SSH. The application
 resolves both connections, checks `read` on the source and `write` on the
-destination, and asks each storage about its own opaque node ids. An offer
-route answers whether the selected files can be copied to the current folder;
-execution checks again. The catalog uses that answer to enable Paste when its
-clipboard belongs to another connection. The same-connection Paste of D74
-continues through the source's own action.
+destination, and asks each storage about its own opaque node ids. It is
+D164's `file_copy` kind: the pair answer says whether the selected files can
+be copied to the current folder, and execution checks again. The
+same-connection Paste of D74 continues through the source's own action.
 
 - Copy leaves the source in place. Folders and links are outside this first
   path. A request holds at most 20 files and 200 MB total.

@@ -240,10 +240,15 @@ export interface ClientMenuState {
   diagrams: boolean
   /** Whether the set that would be drawn is one a diagram can hold. */
   diagrammable: boolean
-  /** Whether this source has anywhere to put what is held (D74). */
-  holds: boolean
-  /** How many nodes are ticked. */
-  ticked: number
+  /**
+   * Whether the ticked nodes can be put on the clipboard, and why not.
+   *
+   * Absent when nothing takes this source's nodes that way — neither its own
+   * Paste (D74) nor one in another connection (D164) — so the line would be
+   * a promise nothing keeps.
+   */
+  copy?: { enabled: boolean; reason?: string }
+  cut?: { enabled: boolean; reason?: string }
   /**
    * Whether this connection could be copied out, and why not when it cannot.
    *
@@ -260,8 +265,8 @@ export interface ClientMenuState {
 /**
  * The client's lines of the menu, before the source's.
  *
- * Each is drawn only where it means anything — a database describes no nodes
- * and has nowhere to paste — and disabled rather than hidden while the
+ * Each is drawn only where it means anything — a key store has nothing to
+ * copy anywhere — and disabled rather than hidden while the
  * selection is not the one it needs, so the menu keeps the stable shape the
  * source's own lines have.
  */
@@ -283,22 +288,21 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
       hint: state.diagrammable ? undefined : "Nothing here has a structure to draw",
     })
   }
-  if (state.holds) {
-    const nothingTicked = state.ticked === 0 ? "Tick a row to use this" : undefined
-    items.push(
-      {
-        name: clientCommandName("copy"),
-        label: "Copy",
-        disable: state.ticked === 0,
-        hint: nothingTicked,
-      },
-      {
-        name: clientCommandName("cut"),
-        label: "Cut",
-        disable: state.ticked === 0,
-        hint: nothingTicked,
-      }
-    )
+  if (state.copy) {
+    items.push({
+      name: clientCommandName("copy"),
+      label: "Copy",
+      disable: !state.copy.enabled,
+      hint: state.copy.reason,
+    })
+  }
+  if (state.cut) {
+    items.push({
+      name: clientCommandName("cut"),
+      label: "Cut",
+      disable: !state.cut.enabled,
+      hint: state.cut.reason,
+    })
   }
   // Last of the client's, because it is the one line about the connection
   // rather than about anything picked out inside it.

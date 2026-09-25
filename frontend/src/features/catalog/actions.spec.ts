@@ -569,8 +569,10 @@ describe("what counts as a set", () => {
 
 describe("the client's own lines of the menu", () => {
   const everything = {
-    describes: true, describable: true, diagrams: true, diagrammable: true, holds: true, ticked: 1,
+    describes: true, describable: true, diagrams: true, diagrammable: true,
+    copy: { enabled: true }, cut: { enabled: true },
   }
+  const nothingTicked = { enabled: false, reason: "Tick a row to use this" }
 
   it("puts the four the client owns before the source's own", () => {
     const items = clientMenu(everything)
@@ -614,20 +616,36 @@ describe("the client's own lines of the menu", () => {
   })
 
   it("leaves out what a source has no use for", () => {
-    // A database describes no nodes, draws none of them and has nowhere to
-    // paste.
-    const items = clientMenu({
-      ...everything, describes: false, diagrams: false, holds: false,
-    })
+    // A key store describes no nodes, draws none of them and has nothing
+    // anything else could take.
+    const items = clientMenu({ describes: false, describable: false, diagrams: false, diagrammable: false })
 
     expect(items).toEqual([])
+  })
+
+  it("draws Copy without Cut for a source whose nodes can only be copied out", () => {
+    // A table pastes into a folder as a file, and is never removed by it (D165).
+    const items = clientMenu({ ...everything, cut: undefined })
+
+    expect(items.map((item) => item.label)).toEqual(["Details", "Relationships", "Copy"])
+  })
+
+  it("says why a selection cannot be put on the clipboard", () => {
+    const items = clientMenu({
+      ...everything, copy: { enabled: false, reason: "Copy one table at a time" },
+    })
+    const copy = items.find((item) => item.label === "Copy")
+
+    expect(copy?.disable).toBe(true)
+    expect(copy?.hint).toBe("Copy one table at a time")
   })
 
   it("keeps a line and disables it while the selection is not the one it needs", () => {
     // A diagram of nothing, and a diagram of more than one holds, are the two
     // ways that line is not the one to offer, and neither hides it.
     const items = clientMenu({
-      ...everything, describable: false, diagrammable: false, ticked: 0,
+      ...everything, describable: false, diagrammable: false,
+      copy: nothingTicked, cut: nothingTicked,
     })
 
     expect(items.map((item) => item.disable)).toEqual([true, true, true, true])
@@ -635,7 +653,8 @@ describe("the client's own lines of the menu", () => {
 
   it("says under each greyed line what would make it usable", () => {
     const items = clientMenu({
-      ...everything, describable: false, diagrammable: false, ticked: 0,
+      ...everything, describable: false, diagrammable: false,
+      copy: nothingTicked, cut: nothingTicked,
     })
 
     expect(items.map((item) => item.hint)).toEqual([

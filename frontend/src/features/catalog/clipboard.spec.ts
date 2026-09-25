@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import {
   clipboard,
   forgetClipboard,
+  forgetMoved,
   heldFor,
   holdNodes,
 } from "./clipboard"
@@ -63,5 +64,24 @@ describe("what the catalog is holding", () => {
     forgetClipboard()
 
     expect(clipboard.value).toBeNull()
+  })
+
+  it("keeps the name a selection was shown by, for a window elsewhere", () => {
+    holdNodes("c1", ["public.people"], "copy", "people")
+
+    expect(clipboard.value?.label).toBe("people")
+  })
+
+  it("forgets a moved selection only while it is still the one held", () => {
+    holdNodes("c1", ["a.txt", "b.txt"], "move")
+    forgetMoved("c1", ["a.txt"])
+    expect(clipboard.value).not.toBeNull()
+
+    forgetMoved("c1", ["a.txt", "b.txt"])
+    expect(clipboard.value).toBeNull()
+
+    holdNodes("c1", ["a.txt"], "copy")
+    forgetMoved("c1", ["a.txt"])
+    expect(clipboard.value).not.toBeNull()
   })
 })

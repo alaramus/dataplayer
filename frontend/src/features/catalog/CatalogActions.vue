@@ -6,6 +6,7 @@ import { ConnectorsService } from "@/client"
 import type { ConnectorDraft } from "@/client"
 import { appIcons } from "@/shared/ui/icons"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
+import CrossPaste from "@/features/catalog/CrossPaste.vue"
 import {
   clientCommandOf,
   clientMenu,
@@ -14,10 +15,11 @@ import {
 } from "@/features/catalog/actions"
 import {
   clipboard,
-  forgetClipboard,
   heldFor,
   holdNodes,
 } from "@/features/catalog/clipboard"
+import { chosenOffer, holdLines, pasteHint } from "@/features/catalog/pasteOffers"
+import type { CrossPasteIntent } from "@/features/catalog/pasteOffers"
 import type {
   ActionOutcome,
   ClientCommand,
@@ -32,11 +34,9 @@ import {
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
-import { statusOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
-import { AppButton, AppIconButton, AppMenu, useToast } from "@/shared/ui"
+import { AppIconButton, AppMenu, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
-import { WindowDialog } from "@/shared/windows"
 
 /**
  * What can be done, in one menu whose shape stays stable (D56). The server
@@ -154,30 +154,44 @@ const crossHeld = computed(() =>
 const crossPlace = computed(() =>
   props.places.length === 1 ? props.places[0] ?? null : null
 )
-const crossOffer = useQuery({
+const crossOffers = useQuery({
   queryKey: computed(() => [
-    "file-transfer-offer", props.connectorId, crossPlace.value, crossHeld.value,
+    "paste-offers", props.connectorId, crossPlace.value, crossHeld.value,
   ]),
   enabled: computed(() => crossHeld.value !== null && props.places.length === 1),
   retry: false,
   queryFn: async () => {
     const source = crossHeld.value
-    if (source === null) throw new Error("Copy a file first")
-    const request = {
+    if (source === null) throw new Error("Copy something first")
+    return (await ConnectorsService.pasteOffers({
       path: { connector_id: props.connectorId },
       body: {
         source_connector_id: source.connectorId,
         source_node_ids: source.nodeIds,
         destination_node_id: crossPlace.value,
+        mode: source.mode,
       },
-    }
-    return source.mode === "move"
-      ? (await ConnectorsService.fileMoveOffer(request)).data
-      : (await ConnectorsService.fileCopyOffer(request)).data
+    })).data.offers
   },
 })
+const crossChosen = computed(() => chosenOffer(crossOffers.data.value ?? []))
+/** Whether the source has a Paste of its own for what it lists (D74). */
 const canHold = computed(() =>
   commands.value.some((command) => needsClipboard(command))
+)
+// Asked only of a source without a Paste of its own, and only once its own
+// actions have answered: until then it is not known which one this is.
+const holdOffer = useQuery({
+  queryKey: computed(() => ["clipboard-offer", props.connectorId, [...props.checkedIds]]),
+  enabled: computed(() => level.data.value !== undefined && !canHold.value),
+  retry: false,
+  queryFn: async () => (await ConnectorsService.clipboardOffer({
+    path: { connector_id: props.connectorId },
+    body: { node_ids: [...props.checkedIds] },
+  })).data,
+})
+const holds = computed(() =>
+  holdLines(canHold.value, props.checkedIds.length, holdOffer.data.value)
 )
 
 /**
@@ -202,8 +216,7 @@ const items = computed<MenuItem[]>(() => [
     describable: props.describedNode !== null,
     diagrams: props.drawsNodes,
     diagrammable: props.drawableNodes,
-    holds: canHold.value,
-    ticked: props.checkedIds.length,
+    ...holds.value,
     ...(backups.value.offered
       ? {
           backups: {
@@ -216,12 +229,13 @@ const items = computed<MenuItem[]>(() => [
   ...(crossHeld.value === null ? [] : [{
     name: "client:cross-paste",
     label: "Paste",
-    disable: !crossOffer.data.value?.available && !crossOffer.data.value?.name_conflict,
-    hint: props.places.length !== 1
-        ? "Choose one destination folder"
-        : crossOffer.isPending.value
-          ? "Checking whether these files can be transferred"
-          : crossOffer.data.value?.reason ?? (crossOffer.isError.value ? "Could not check this destination" : undefined),
+    disable: crossChosen.value === null,
+    hint: pasteHint({
+      places: props.places.length,
+      checking: crossOffers.isPending.value,
+      failed: crossOffers.isError.value,
+      offers: crossOffers.data.value,
+    }),
   }]),
   ...commands.value.filter((command) => crossHeld.value === null || !needsClipboard(command)).map((command) => {
     // An empty clipboard is the client's own reason and outranks the source's,
@@ -257,7 +271,12 @@ function run(command: ClientCommand) {
     return
   }
   if (props.checkedIds.length === 0) return
-  holdNodes(props.connectorId, [...props.checkedIds], command === "copy" ? "copy" : "move")
+  holdNodes(
+    props.connectorId,
+    [...props.checkedIds],
+    command === "copy" ? "copy" : "move",
+    props.checkedLabel
+  )
 }
 
 /**
@@ -280,79 +299,9 @@ interface OpenAction {
 const opened = ref<OpenAction[]>([])
 let openings = 0
 
-interface CrossTransferIntent {
-  sourceConnectorId: string
-  sourceNodeIds: string[]
-  destinationConnectorId: string
-  destinationNodeId: string | null
-  mode: "copy" | "move"
-}
-
-const crossConflict = ref<CrossTransferIntent | null>(null)
-const crossFailure = ref("")
-const crossPending = ref(false)
-
-async function transferCross(
-  intent: CrossTransferIntent,
-  conflict: "refuse" | "replace" | "rename"
-) {
-  if (crossPending.value) return
-  crossPending.value = true
-  crossFailure.value = ""
-  try {
-    const request = {
-      path: { connector_id: intent.destinationConnectorId },
-      body: {
-        source_connector_id: intent.sourceConnectorId,
-        source_node_ids: intent.sourceNodeIds,
-        destination_node_id: intent.destinationNodeId,
-        conflict,
-      },
-    }
-    const result = intent.mode === "move"
-      ? (await ConnectorsService.fileMove(request)).data
-      : (await ConnectorsService.fileCopy(request)).data
-    const count = "moved" in result ? result.moved : result.copied
-    const verb = intent.mode === "move" ? "moved" : "copied"
-    crossConflict.value = null
-    if (intent.mode === "move") {
-      const current = clipboard.value
-      if (
-        current?.mode === "move" &&
-        current.connectorId === intent.sourceConnectorId &&
-        current.nodeIds.length === intent.sourceNodeIds.length &&
-        current.nodeIds.every((id, index) => id === intent.sourceNodeIds[index])
-      ) forgetClipboard()
-      emit("sourceChanged", intent.sourceConnectorId)
-    }
-    emit("done", {
-      done: [{
-        message: `${String(count)} files ${verb}`,
-        reload_node_ids: result.reload_node_ids,
-      }],
-      failures: [],
-      total: 1,
-    })
-    toast.success(`${String(count)} files ${verb}`)
-  } catch (cause) {
-    // Earlier files in a batch may already have arrived.
-    if (intent.mode === "move") emit("sourceChanged", intent.sourceConnectorId)
-    emit("done", {
-      done: [{ message: "File transfer ended", reload_node_ids: [intent.destinationNodeId] }],
-      failures: [],
-      total: 1,
-    })
-    const message = messageOf(cause, "The files could not be transferred")
-    if (statusOf(cause) === 409) {
-      crossConflict.value = intent
-      crossFailure.value = message
-    } else if (crossConflict.value !== null) {
-      crossFailure.value = message
-    } else toast.error(message)
-  } finally {
-    crossPending.value = false
-  }
-}
+/** The Paste from another connection under way, and its windows. */
+const crossPasting = ref<CrossPasteIntent | null>(null)
+let pastings = 0
 
 function labelFor(command: MenuCommand) {
   if (command.actsOn === "level") return props.levelLabel
@@ -397,19 +346,19 @@ async function pick(name: string) {
   if (prepareConnector.isPending.value) return
   if (name === "client:cross-paste") {
     const source = crossHeld.value
-    if (source === null) return
-    if (!crossOffer.data.value?.available && !crossOffer.data.value?.name_conflict) return
-    const intent = {
+    const offer = crossChosen.value
+    if (source === null || offer === null || crossPasting.value !== null) return
+    pastings += 1
+    crossPasting.value = {
       sourceConnectorId: source.connectorId,
       sourceNodeIds: [...source.nodeIds],
+      sourceLabel: source.label ?? "The copied selection",
+      mode: source.mode,
       destinationConnectorId: props.connectorId,
       destinationNodeId: crossPlace.value,
-      mode: source.mode,
+      destinationLabel: props.placeLabel,
+      offer,
     }
-    if (crossOffer.data.value.name_conflict) {
-      crossConflict.value = intent
-      crossFailure.value = crossOffer.data.value.reason ?? "A file already exists here"
-    } else await transferCross(intent, "refuse")
     return
   }
   const client = clientCommandOf(name)
@@ -495,41 +444,13 @@ async function pick(name: string) {
       @update:command="closeForm(entry.key)"
       @done="emit('done', $event)"
     />
-    <WindowDialog
-      v-if="crossConflict"
-      :model-value="true"
-      title="File already exists"
-      size="compact-form"
-      data-testid="cross-paste-conflict"
-      @update:model-value="crossConflict = null"
-    >
-      <p>
-        {{ crossFailure }}. Choose what to do with the
-        {{ crossConflict.mode === "move" ? "moved" : "copied" }} file.
-      </p>
-      <template #actions>
-        <AppButton
-          variant="quiet"
-          label="Cancel"
-          :disable="crossPending"
-          @click="crossConflict = null"
-        />
-        <AppButton
-          variant="secondary"
-          label="Keep both"
-          :loading="crossPending"
-          data-testid="cross-paste-keep-both"
-          @click="crossConflict && transferCross(crossConflict, 'rename')"
-        />
-        <AppButton
-          v-if="crossConflict.mode === 'copy'"
-          variant="danger"
-          label="Replace"
-          :loading="crossPending"
-          data-testid="cross-paste-replace"
-          @click="crossConflict && transferCross(crossConflict, 'replace')"
-        />
-      </template>
-    </WindowDialog>
+    <CrossPaste
+      v-if="crossPasting"
+      :key="pastings"
+      :intent="crossPasting"
+      @done="emit('done', $event)"
+      @source-changed="emit('sourceChanged', $event)"
+      @close="crossPasting = null"
+    />
   </span>
 </template>

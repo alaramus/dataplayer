@@ -123,6 +123,9 @@ import type {
   connectorsCheckDraftData,
   connectorsCheckDraftErrors,
   connectorsCheckDraftResponses,
+  connectorsClipboardOfferData,
+  connectorsClipboardOfferErrors,
+  connectorsClipboardOfferResponses,
   connectorsCreateConnectorData,
   connectorsCreateConnectorErrors,
   connectorsCreateConnectorResponses,
@@ -168,18 +171,6 @@ import type {
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
-  connectorsFileCopyData,
-  connectorsFileCopyErrors,
-  connectorsFileCopyOfferData,
-  connectorsFileCopyOfferErrors,
-  connectorsFileCopyOfferResponses,
-  connectorsFileCopyResponses,
-  connectorsFileMoveData,
-  connectorsFileMoveErrors,
-  connectorsFileMoveOfferData,
-  connectorsFileMoveOfferErrors,
-  connectorsFileMoveOfferResponses,
-  connectorsFileMoveResponses,
   connectorsFollowReferenceData,
   connectorsFollowReferenceErrors,
   connectorsFollowReferenceResponses,
@@ -201,6 +192,12 @@ import type {
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
+  connectorsPasteData,
+  connectorsPasteErrors,
+  connectorsPasteOffersData,
+  connectorsPasteOffersErrors,
+  connectorsPasteOffersResponses,
+  connectorsPasteResponses,
   connectorsPlanTableData,
   connectorsPlanTableErrors,
   connectorsPlanTableResponses,
@@ -1095,94 +1092,6 @@ export class UtilsService {
 }
 
 export class ConnectorsService {
-  /**
-   * File Copy Offer
-   */
-  public static fileCopyOffer<ThrowOnError extends boolean = true>(
-    options: Options<connectorsFileCopyOfferData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      connectorsFileCopyOfferResponses,
-      connectorsFileCopyOfferErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/file-copy/offer",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
-  /**
-   * File Copy
-   */
-  public static fileCopy<ThrowOnError extends boolean = true>(
-    options: Options<connectorsFileCopyData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      connectorsFileCopyResponses,
-      connectorsFileCopyErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/file-copy",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
-  /**
-   * File Move Offer
-   */
-  public static fileMoveOffer<ThrowOnError extends boolean = true>(
-    options: Options<connectorsFileMoveOfferData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      connectorsFileMoveOfferResponses,
-      connectorsFileMoveOfferErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/file-move/offer",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
-  /**
-   * File Move
-   */
-  public static fileMove<ThrowOnError extends boolean = true>(
-    options: Options<connectorsFileMoveData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      connectorsFileMoveResponses,
-      connectorsFileMoveErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/file-move",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
   /**
    * Download Finished Export
    *
@@ -2731,6 +2640,79 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/grants/{user_id}",
       ...options,
+    })
+  }
+
+  /**
+   * Paste Offers
+   *
+   * What the clipboard can become here, each with its reason when it cannot.
+   *
+   * Reading both ends is enough to ask. A kind that needs more says so as its
+   * reason rather than as a refusal, and is checked again when it runs.
+   */
+  public static pasteOffers<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPasteOffersData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPasteOffersResponses,
+      connectorsPasteOffersErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/paste/offers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Paste
+   */
+  public static paste<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPasteData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPasteResponses,
+      connectorsPasteErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/paste",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Clipboard Offer
+   *
+   * Whether a selection here can be copied or cut to be pasted elsewhere.
+   */
+  public static clipboardOffer<ThrowOnError extends boolean = true>(
+    options: Options<connectorsClipboardOfferData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsClipboardOfferResponses,
+      connectorsClipboardOfferErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/clipboard/offer",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

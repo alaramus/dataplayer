@@ -981,6 +981,20 @@ export type AutomaticStart = {
 }
 
 /**
+ * Availability
+ */
+export type Availability = {
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+}
+
+/**
  * BackupFile
  *
  * One backup in the caller's own storage.
@@ -1512,6 +1526,29 @@ export type ChosenStart = {
    * Sample Data
    */
   sample_data?: boolean
+}
+
+/**
+ * ClipboardOffer
+ *
+ * Whether Copy and Cut are drawn for a selection, and why one is off.
+ *
+ * None means no kind takes this source's nodes in that mode, so the command
+ * is not drawn at all.
+ */
+export type ClipboardOffer = {
+  can_copy?: Availability | null
+  can_cut?: Availability | null
+}
+
+/**
+ * ClipboardRequest
+ */
+export type ClipboardRequest = {
+  /**
+   * Node Ids
+   */
+  node_ids?: Array<string>
 }
 
 /**
@@ -4087,74 +4124,6 @@ export type FetchResult = {
 }
 
 /**
- * FileCopyOffer
- */
-export type FileCopyOffer = {
-  /**
-   * Available
-   */
-  available: boolean
-  /**
-   * Reason
-   */
-  reason?: string | null
-  /**
-   * Name Conflict
-   */
-  name_conflict?: boolean
-}
-
-/**
- * FileCopyRequest
- */
-export type FileCopyRequest = {
-  /**
-   * Source Connector Id
-   */
-  source_connector_id: string
-  /**
-   * Source Node Ids
-   */
-  source_node_ids: Array<string>
-  /**
-   * Destination Node Id
-   */
-  destination_node_id?: string | null
-  /**
-   * Conflict
-   */
-  conflict?: "refuse" | "replace" | "rename"
-}
-
-/**
- * FileCopyResult
- */
-export type FileCopyResult = {
-  /**
-   * Copied
-   */
-  copied: number
-  /**
-   * Reload Node Ids
-   */
-  reload_node_ids: Array<string | null>
-}
-
-/**
- * FileMoveResult
- */
-export type FileMoveResult = {
-  /**
-   * Moved
-   */
-  moved: number
-  /**
-   * Reload Node Ids
-   */
-  reload_node_ids: Array<string | null>
-}
-
-/**
  * FileNode
  */
 export type FileNode = {
@@ -6211,6 +6180,148 @@ export type Partitioning = {
    * Key
    */
   key: string
+}
+
+/**
+ * PasteOffer
+ */
+export type PasteOffer = {
+  /**
+   * Kind
+   */
+  kind: "file_copy" | "file_move" | "relation_csv"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+  /**
+   * Name Conflict
+   */
+  name_conflict?: boolean
+  /**
+   * Converts
+   */
+  converts?: boolean
+  /**
+   * Can Replace
+   */
+  can_replace?: boolean
+  /**
+   * Changes Source
+   */
+  changes_source?: boolean
+  /**
+   * Suggested Name
+   */
+  suggested_name?: string | null
+}
+
+/**
+ * PasteOffers
+ */
+export type PasteOffers = {
+  /**
+   * Offers
+   */
+  offers: Array<PasteOffer>
+}
+
+/**
+ * PastePair
+ *
+ * What the clipboard holds and where Paste was chosen.
+ */
+export type PastePair = {
+  /**
+   * Source Connector Id
+   */
+  source_connector_id: string
+  /**
+   * Source Node Ids
+   */
+  source_node_ids: Array<string>
+  /**
+   * Mode
+   */
+  mode: "copy" | "move"
+  /**
+   * Destination Node Id
+   */
+  destination_node_id?: string | null
+}
+
+/**
+ * PasteResult
+ */
+export type PasteResult = {
+  /**
+   * Kind
+   */
+  kind: "file_copy" | "file_move" | "relation_csv"
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Written
+   */
+  written: number
+  /**
+   * Rows
+   */
+  rows?: number | null
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Reload Node Ids
+   */
+  reload_node_ids: Array<string | null>
+}
+
+/**
+ * PasteRun
+ *
+ * One offer, run with the choices its window asked for.
+ */
+export type PasteRun = {
+  /**
+   * Source Connector Id
+   */
+  source_connector_id: string
+  /**
+   * Source Node Ids
+   */
+  source_node_ids: Array<string>
+  /**
+   * Mode
+   */
+  mode: "copy" | "move"
+  /**
+   * Destination Node Id
+   */
+  destination_node_id?: string | null
+  /**
+   * Kind
+   */
+  kind: "file_copy" | "file_move" | "relation_csv"
+  /**
+   * Conflict
+   */
+  conflict?: "refuse" | "replace" | "rename"
+  /**
+   * Name
+   */
+  name?: string | null
 }
 
 /**
@@ -11568,132 +11679,6 @@ export type utilsServerInfoResponses = {
 
 export type utilsServerInfoResponse = utilsServerInfoResponses[keyof utilsServerInfoResponses]
 
-export type connectorsFileCopyOfferData = {
-  body: FileCopyRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/file-copy/offer"
-}
-
-export type connectorsFileCopyOfferErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsFileCopyOfferError =
-  connectorsFileCopyOfferErrors[keyof connectorsFileCopyOfferErrors]
-
-export type connectorsFileCopyOfferResponses = {
-  /**
-   * Successful Response
-   */
-  200: FileCopyOffer
-}
-
-export type connectorsFileCopyOfferResponse =
-  connectorsFileCopyOfferResponses[keyof connectorsFileCopyOfferResponses]
-
-export type connectorsFileCopyData = {
-  body: FileCopyRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/file-copy"
-}
-
-export type connectorsFileCopyErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsFileCopyError = connectorsFileCopyErrors[keyof connectorsFileCopyErrors]
-
-export type connectorsFileCopyResponses = {
-  /**
-   * Successful Response
-   */
-  200: FileCopyResult
-}
-
-export type connectorsFileCopyResponse =
-  connectorsFileCopyResponses[keyof connectorsFileCopyResponses]
-
-export type connectorsFileMoveOfferData = {
-  body: FileCopyRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/file-move/offer"
-}
-
-export type connectorsFileMoveOfferErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsFileMoveOfferError =
-  connectorsFileMoveOfferErrors[keyof connectorsFileMoveOfferErrors]
-
-export type connectorsFileMoveOfferResponses = {
-  /**
-   * Successful Response
-   */
-  200: FileCopyOffer
-}
-
-export type connectorsFileMoveOfferResponse =
-  connectorsFileMoveOfferResponses[keyof connectorsFileMoveOfferResponses]
-
-export type connectorsFileMoveData = {
-  body: FileCopyRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/file-move"
-}
-
-export type connectorsFileMoveErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsFileMoveError = connectorsFileMoveErrors[keyof connectorsFileMoveErrors]
-
-export type connectorsFileMoveResponses = {
-  /**
-   * Successful Response
-   */
-  200: FileMoveResult
-}
-
-export type connectorsFileMoveResponse =
-  connectorsFileMoveResponses[keyof connectorsFileMoveResponses]
-
 export type connectorsDownloadFinishedExportData = {
   body?: never
   path: {
@@ -13908,6 +13893,100 @@ export type declaredReferencesUndeclareReferenceResponses = {
 
 export type declaredReferencesUndeclareReferenceResponse =
   declaredReferencesUndeclareReferenceResponses[keyof declaredReferencesUndeclareReferenceResponses]
+
+export type connectorsPasteOffersData = {
+  body: PastePair
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/paste/offers"
+}
+
+export type connectorsPasteOffersErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPasteOffersError =
+  connectorsPasteOffersErrors[keyof connectorsPasteOffersErrors]
+
+export type connectorsPasteOffersResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasteOffers
+}
+
+export type connectorsPasteOffersResponse =
+  connectorsPasteOffersResponses[keyof connectorsPasteOffersResponses]
+
+export type connectorsPasteData = {
+  body: PasteRun
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/paste"
+}
+
+export type connectorsPasteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPasteError = connectorsPasteErrors[keyof connectorsPasteErrors]
+
+export type connectorsPasteResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasteResult
+}
+
+export type connectorsPasteResponse = connectorsPasteResponses[keyof connectorsPasteResponses]
+
+export type connectorsClipboardOfferData = {
+  body: ClipboardRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/clipboard/offer"
+}
+
+export type connectorsClipboardOfferErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsClipboardOfferError =
+  connectorsClipboardOfferErrors[keyof connectorsClipboardOfferErrors]
+
+export type connectorsClipboardOfferResponses = {
+  /**
+   * Successful Response
+   */
+  200: ClipboardOffer
+}
+
+export type connectorsClipboardOfferResponse =
+  connectorsClipboardOfferResponses[keyof connectorsClipboardOfferResponses]
 
 export type sshKeysReadSshKeysData = {
   body?: never

@@ -1,6 +1,6 @@
 # Paste offers, and a table pasted into a folder as CSV
 
-Date: 2026-09-25. Proposed decisions: D164 (one paste answer for a pair) and
+Date: 2026-09-25. Decisions: D164 (one paste answer for a pair) and
 D165 (a table pasted into a folder becomes a CSV file). Builds on D161, D162
 and D163; step 1 and part of step 4 of
 [Interactions between connections](2026-09-25-cross-connector-interactions-design.md).
@@ -40,6 +40,8 @@ It answers a list of offers. Each offer has:
 - `available` and `reason` — the reason is set whenever it is unavailable;
 - `name_conflict` — the default name is taken at the destination;
 - `converts` — the result is a different kind of object than the source;
+- `can_replace` — whether the conflict window may offer Replace;
+- `changes_source` — running it changes the source connection too;
 - `suggested_name` — for a kind that asks for a name, its starting value.
 
 The kinds live in a registry in the `connectors` layer, beside D43's row
@@ -63,11 +65,12 @@ information, never authorization.
 - `conflict` — `refuse`, `rename` or `replace`, as in D162;
 - `name` — for a kind that asks for one, the name typed in its window.
 
-It answers `kind`, the number of objects written, `rows` when rows were
-written, the final `name` when there is one, `reload_node_ids` for the
-destination, and `source_changed`. The client refreshes the source connection
-when `source_changed` is true, instead of inferring it from the clipboard
-mode.
+It answers `kind`, a `message`, the number of objects written, `rows` when
+rows were written, the final `name` when there is one, and `reload_node_ids`
+for the destination. The client refreshes the source connection when the
+offer's `changes_source` is true, instead of inferring it from the clipboard
+mode. The offer rather than the result carries it, because a move that fails
+partway has no result and may still have removed earlier files.
 
 The four routes of D161 and D163 are removed. Their behaviour does not
 change: limits, staging, the check that a moved source is unchanged, and
@@ -114,7 +117,9 @@ D44's writer, not copied.
 
 **The window.** Paste opens a window "Save as CSV". It names the table and the
 destination folder, and has one field, the file name, starting as
-`<table name>.csv`. `.csv` is added when the name has no extension, as in D45.
+`<table name>.csv`. `.csv` is added unless the name already ends in `.csv`.
+D45's rule keeps any delimited extension, and a `.tsv` holding commas would
+read back as one column.
 The destination storage validates the name as a plain name. Save and Cancel.
 
 **A taken name.** Save sends `conflict: refuse`. When the name is taken, the
@@ -159,7 +164,8 @@ folder the person chooses, in any explorer connection. Both remain.
 
 - A copied local file and a cut SSH file still paste as today: both kinds,
   conflict windows, both catalogs refreshed after a move.
-- A ticked PostgreSQL table shows Copy and not Cut; a schema shows neither.
+- A ticked PostgreSQL table shows Copy and not Cut; a ticked schema shows Copy
+  disabled with its reason.
 - Pasting the table in a writable SSH folder and in a local folder opens
   "Save as CSV"; Save writes a file with the same bytes as D44's download of
   that table, and the folder shows it.

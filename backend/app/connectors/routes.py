@@ -81,7 +81,6 @@ from app.adapters.content import (
     UpdateContentRequest,
 )
 from app.adapters.credentials import PinsServerKey, ServerKey
-from app.adapters.explorer.storage import Storage
 from app.adapters.export import ExportRequest
 from app.adapters.features import SourceFeatures, SupportsSourceFeatures
 from app.adapters.fetch import (
@@ -189,7 +188,6 @@ from app.connectors import (
     crud,
     declared,
     downloads,
-    file_transfer,
     health,
     imports,
     ranges,
@@ -234,118 +232,6 @@ from app.users.models import User
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 CATALOG_CACHE_FORMAT: CacheFormat[list[CatalogNode]] = CacheFormat(list[CatalogNode])
 FETCH_CACHE_FORMAT: CacheFormat[FetchResult] = CacheFormat(FetchResult)
-
-
-async def _file_copy_sides(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    destination_connector_id: uuid.UUID,
-    request: file_transfer.FileCopyRequest,
-    *,
-    source_requires: Access = "read",
-) -> tuple[Storage, Storage]:
-    try:
-        source_id = uuid.UUID(request.source_connector_id)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=422, detail={"message": "Invalid source connection"}
-        ) from exc
-    source = await adapter_for(
-        session, source_id, current_user, resources, requires=source_requires
-    )
-    destination = await adapter_for(
-        session, destination_connector_id, current_user, resources, requires="write"
-    )
-    if not isinstance(source, file_transfer.TransfersFiles) or not isinstance(
-        destination, file_transfer.TransfersFiles
-    ):
-        raise HTTPException(
-            status_code=501,
-            detail={"message": "These connections cannot transfer files"},
-        )
-    return source.storage, destination.storage
-
-
-@router.post("/{connector_id}/file-copy/offer", response_model=file_transfer.FileCopyOffer)
-async def file_copy_offer(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    connector_id: uuid.UUID,
-    request: file_transfer.FileCopyRequest,
-) -> file_transfer.FileCopyOffer:
-    source, destination = await _file_copy_sides(
-        session, current_user, resources, connector_id, request
-    )
-    return await to_thread.run_sync(
-        file_transfer.inspect_copy, source, destination, request
-    )
-
-
-@router.post("/{connector_id}/file-copy", response_model=file_transfer.FileCopyResult)
-async def file_copy(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    data_cache: DataCacheDep,
-    connector_id: uuid.UUID,
-    request: file_transfer.FileCopyRequest,
-) -> Any:
-    source, destination = await _file_copy_sides(
-        session, current_user, resources, connector_id, request
-    )
-    return await _invalidate_after(
-        lambda: perform(
-            lambda: to_thread.run_sync(
-                file_transfer.copy_files, source, destination, request
-            )
-        ),
-        data_cache,
-        connector_id,
-        even_on_failure=True,
-    )
-
-
-@router.post("/{connector_id}/file-move/offer", response_model=file_transfer.FileCopyOffer)
-async def file_move_offer(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    connector_id: uuid.UUID,
-    request: file_transfer.FileCopyRequest,
-) -> file_transfer.FileCopyOffer:
-    source, destination = await _file_copy_sides(
-        session, current_user, resources, connector_id, request,
-        source_requires="write",
-    )
-    return await to_thread.run_sync(
-        file_transfer.inspect_move, source, destination, request
-    )
-
-
-@router.post("/{connector_id}/file-move", response_model=file_transfer.FileMoveResult)
-async def file_move(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    data_cache: DataCacheDep,
-    connector_id: uuid.UUID,
-    request: file_transfer.FileCopyRequest,
-) -> file_transfer.FileMoveResult:
-    source, destination = await _file_copy_sides(
-        session, current_user, resources, connector_id, request,
-        source_requires="write",
-    )
-    try:
-        return await perform(
-            lambda: to_thread.run_sync(
-                file_transfer.move_files, source, destination, request
-            )
-        )
-    finally:
-        await data_cache.invalidate_connector(connector_id)
-        await data_cache.invalidate_connector(uuid.UUID(request.source_connector_id))
 
 
 def _cache_key(
