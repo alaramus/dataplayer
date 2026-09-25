@@ -71,14 +71,12 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   align-items: center;
   padding-bottom: var(--dp-space-half);
 }
-/* Centred rather than padded like a head with a title: forty pixels centre a
-   thirty-two pixel button exactly where the wide head's padding puts it. The
-   four pixels under it are the ones the wide list leaves. */
+/* Match the wide head's left inset so the add button stays in place. */
 .connector-rail .connector-rail__head {
   align-self: stretch;
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: var(--dp-space-1);
-  padding: 0;
+  padding: 0 0 0 var(--dp-space-2);
 }
 .connector-rail__slot {
   position: relative;

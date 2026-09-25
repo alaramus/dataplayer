@@ -454,7 +454,7 @@ test("keeps the row of commands still while the connection is being read", async
   const waiting = await page.getByTestId("query-bar").boundingBox()
   const runWaiting = await page.getByTestId("query-run").boundingBox()
 
-  await expect(page.getByTestId("query-knowledge")).toHaveCount(0)
+  await expect(page.getByTestId("query-knowledge")).toBeHidden()
   const read = await page.getByTestId("query-bar").boundingBox()
   const runRead = await page.getByTestId("query-run").boundingBox()
 
@@ -755,9 +755,7 @@ test("runs SQL over the files of a personal directory", async ({ page }) => {
   // --- what it will not do, it says before anything runs -------------------
   await typeQuery(page, 'delete from "sample.csv"')
   await page.getByTestId("query-run").click()
-  await expect(
-    toast(page, "does not change them through SQL")
-  ).toBeVisible()
+  await expect(toast(page, "does not change them through SQL")).toBeVisible()
 
   // --- and a name that leaves the directory is refused by the one rule -----
   // The whole run is refused rather than one statement, so the answer belongs

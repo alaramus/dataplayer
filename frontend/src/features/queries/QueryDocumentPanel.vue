@@ -538,11 +538,12 @@ async function go(target: RunTarget | null) {
   const statements = selectedScript.statements
   const mutating = statements.some((one) => one.kind === "dml" || one.kind === "ddl")
   const risky = mutating && (statements.length > 1 || statements.some((one) => one.kind === "ddl" || one.risk === "high"))
-  const policyConfirm = mutating && (connection.value?.execution_policy ?? "confirm_writes") === "confirm_writes"
-  const mode = manualTransaction.value ? "manual" : mutating ? "auto_commit" : "read"
+  const supportsWrites = profile.data.value?.statement_modes.includes("auto_commit") ?? true
+  const policyConfirm = mutating && supportsWrites && (connection.value?.execution_policy ?? "confirm_writes") === "confirm_writes"
+  const mode = manualTransaction.value ? "manual" : mutating && supportsWrites ? "auto_commit" : "read"
   // The connection's confirmation policy and dangerous changes ask at Run,
   // not through an independent permission switch in the editor (D160).
-  if (risky || policyConfirm) {
+  if ((risky && supportsWrites) || policyConfirm) {
     const rehearsed = risky && needsRehearsal(selectedScript) ? await tryItOut(target) : null
     if (rehearsed === "blocked") return
     const tried =
@@ -907,7 +908,7 @@ onBeforeUnmount(() => {
         <template v-if="searchPath.length > 0"> · {{ searchPath.join(", ") }}</template>
       </span>
       <span
-        v-if="knowledge"
+        :style="{ visibility: knowledge ? 'visible' : 'hidden' }"
         class="query-panel__knowledge"
         data-testid="query-knowledge"
       >{{ knowledge }}</span>
@@ -1226,11 +1227,15 @@ onBeforeUnmount(() => {
   flex: 1 1 auto;
   min-width: 0;
 }
-/* Gives way rather than taking room from the commands: what this one says is
-   worth reading and is not worth the row moving for. */
-.query-panel__knowledge,
+/* The state gives way before the commands do. */
 .query-panel__state {
   flex: 0 1 auto;
+  min-width: 0;
+}
+/* Reserve its width after the read finishes so the commands stay in place. */
+.query-panel__knowledge {
+  flex: 0 0 auto;
+  width: 180px;
   min-width: 0;
 }
 /* Outside the group of commands, and so does not carry them along as the

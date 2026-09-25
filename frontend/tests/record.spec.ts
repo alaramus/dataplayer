@@ -86,7 +86,7 @@ test("reads one row downwards and walks to the next", async ({ page }) => {
   // own, exactly as the arrow in the grid does.
   await page.getByTestId("record-follow-organization_id").click()
   await expect(rowsTabs(page)).toHaveCount(1)
-  await page.getByTestId("menu-item-projects_organization_id_fkey").click()
+  await page.getByTestId("menu-item-app_users_organization_id_fkey").click()
   await expect(rowsTabs(page)).toHaveCount(2)
   await expect(rowsTabs(page).last()).toContainText("organizations")
 

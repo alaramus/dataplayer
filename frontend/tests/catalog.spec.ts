@@ -30,7 +30,7 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await openConnector(page, name)
 
   const filter = page.getByTestId("catalog-filter")
-  const field = filter.locator(".q-field__control")
+  const field = page.locator(".catalog-panel__filter .q-field__control")
   const idleLine = await field.evaluate((element) => getComputedStyle(element).boxShadow)
   expect(idleLine).not.toBe("none")
   await filter.focus()

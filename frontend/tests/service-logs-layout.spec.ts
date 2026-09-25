@@ -40,7 +40,7 @@ for (const theme of ["light", "dark"] as const) {
     const frame = page.getByRole("dialog").filter({ has: content })
     const region = content.locator(".service-logs")
     const before = await frame.boundingBox()
-    await expect(region.locator(".q-spinner")).toBeVisible()
+    await expect(region.locator(":scope > .row.justify-center .q-spinner")).toBeVisible()
     expect(await region.evaluate((el) => el.scrollHeight <= el.clientHeight)).toBe(true)
     logs.release()
     await expect(region).toContainText(LINES[0] ?? "")

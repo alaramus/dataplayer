@@ -28,7 +28,7 @@ async function hold(page: Page, pattern: string, json: unknown) {
 }
 
 async function expectNoHorizontalOverflow(dialog: ReturnType<Page["getByTestId"]>) {
-  const body = dialog.locator(".window-dialog__content")
+  const body = dialog.locator(".window-dialog__content, .server-switcher__body")
   await expect.poll(() => body.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
 }
 

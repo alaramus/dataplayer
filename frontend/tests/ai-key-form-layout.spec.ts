@@ -18,7 +18,8 @@ for (const theme of ["light", "dark"] as const) {
     await page.getByTestId("space-ai").click()
     await page.getByTestId("ai-open-settings").click()
     await page.getByTestId("ai-model").click()
-    await page.getByRole("button", { name: /Manage .* API key/ }).first().click()
+    await page.getByRole("option", { name: /Claude Opus 5 API key/, exact: false })
+      .getByRole("button", { name: "Manage Anthropic API key" }).click()
     const content = page.getByTestId("ai-key-dialog")
     const frame = page.getByRole("dialog").filter({ has: content })
     // The provider is named once, by the title, rather than on a line of its own.

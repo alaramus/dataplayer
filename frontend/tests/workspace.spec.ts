@@ -686,9 +686,12 @@ test("card heads separate the shell, tabs, and working surface in both themes", 
   await freshLayout(page)
   await createPostgresConnector(page, name)
   await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
 
   for (const theme of ["dark", "light"] as const) {
     await chooseTheme(page, theme)
+    await expect(page.locator(".workspace-leaf__tab").first()).toBeVisible()
     const colors = await page.evaluate(() => {
       const shell = document.querySelector<HTMLElement>(".app-layout")
       const card = document.querySelector<HTMLElement>(".workspace-leaf")

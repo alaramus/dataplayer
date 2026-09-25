@@ -7,10 +7,13 @@ test("quick chat uses the same history and archive actions as agent chat", async
   const token = await page.evaluate(() => Object.entries(localStorage)
     .find(([key]) => key.endsWith("access_token"))?.[1])
   expect(token).toBeTruthy()
-  const created = await page.request.post("/api/v1/ai/quick-chats", {
+  const server = await page.evaluate(() => JSON.parse(
+    sessionStorage.getItem("dataplayer:active-server:v1") ?? "null"
+  ) as { url: string })
+  const created = await page.request.post(`${server.url}/api/v1/ai/quick-chats`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  expect(created.ok()).toBe(true)
+  expect(created.ok(), await created.text()).toBe(true)
   const id = (await created.json()).id as string
 
   await page.getByTestId("space-ai").click()
