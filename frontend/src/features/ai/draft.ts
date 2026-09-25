@@ -4,6 +4,10 @@ import type { Ref } from "vue"
 /** Unsent text survives chat and space switches in this browser page. */
 const drafts = new Map<string, string>()
 
+export function hasAiDraft(conversationId: string): boolean {
+  return Boolean(drafts.get(conversationId))
+}
+
 export function useAiDraft(conversationId: string): Ref<string> {
   const draft = ref(drafts.get(conversationId) ?? "")
   watch(draft, (text) => {

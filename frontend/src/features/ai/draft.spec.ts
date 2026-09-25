@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { effectScope } from "vue"
 
-import { useAiDraft } from "./draft"
+import { hasAiDraft, useAiDraft } from "./draft"
 
 describe("unsent agent text", () => {
   it("survives reopening the same chat without mixing chats", () => {
@@ -17,8 +17,11 @@ describe("unsent agent text", () => {
 
   it("forgets text when it is cleared for sending", () => {
     const draft = useAiDraft("draft-test-sent")
+    expect(hasAiDraft("draft-test-sent")).toBe(false)
     draft.value = "Send this"
+    expect(hasAiDraft("draft-test-sent")).toBe(true)
     draft.value = ""
+    expect(hasAiDraft("draft-test-sent")).toBe(false)
     expect(useAiDraft("draft-test-sent").value).toBe("")
   })
 })

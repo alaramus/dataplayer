@@ -39,6 +39,7 @@ import {
   useUpdateQuickChat,
 } from "./api"
 import { freshProjectName } from "./projectName"
+import { hasAiDraft } from "./draft"
 import { openQuickChat } from "./quickChatLauncher"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
@@ -65,8 +66,8 @@ const deleteProject = useDeleteAiProject()
 const queryClient = useQueryClient()
 const confirm = useConfirm()
 const toast = useToast()
-const selected = ref<string | null>(rememberedAiConversation())
-const newDraftOpen = ref(false)
+const newDraftOpen = ref(hasAiDraft(serverStorageKey("new-agent-chat")))
+const selected = ref<string | null>(newDraftOpen.value ? null : rememberedAiConversation())
 const settingsShown = ref(false)
 const spaceElement = ref<HTMLElement | null>(null)
 const {

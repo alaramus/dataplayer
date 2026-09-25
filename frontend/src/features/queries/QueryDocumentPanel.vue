@@ -1211,7 +1211,7 @@ onBeforeUnmount(() => {
 }
 .query-panel__title {
   flex: 0 1 200px;
-  min-width: 0;
+  min-width: 120px;
 }
 .query-panel__context,
 .query-panel__knowledge,
