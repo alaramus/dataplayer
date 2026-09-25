@@ -90,8 +90,9 @@ catalogs stand than as a heading.
 
 ## Out of scope
 
-- Dragging rows from one catalog to the other. That is the next step, and it
-  will run the same offers.
+- Dragging rows from one catalog to the other. It was planned as the next
+  step and dropped once the bar ran one way: the bar, turned round by Swap
+  sides, is the one way to act in a pair.
 - A pair of more than two, a graph of every connection, and pipelines.
 - Keeping pairs across a reload.
 

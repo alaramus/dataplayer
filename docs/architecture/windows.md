@@ -243,14 +243,12 @@ replaces the waiting one; closing the waiting catalog forgets it.
   published by each catalog panel — and lists D164's offers in both verbs: the
   left ticks into the right place, or its one tick. With nothing ticked on the
   left, each kind that goes that way is listed with what to tick, in the
-  kind's own words. A button opens
-  the windows a Paste of the same offer opens and runs `/paste`; the catalogs
-  of both connections re-read afterwards.
-
-Known deviations:
-
-- **No dragging between the two catalogs yet.** Rows are moved across by the
-  bar's buttons; dropping them on the other side is the next step.
+  kind's own words. A button opens the windows a Paste of the same offer
+  opens and runs `/paste`; the catalogs of both connections re-read
+  afterwards.
+- **No dragging between the two catalogs.** It was planned as the next step
+  and dropped: the bar, turned round by Swap sides, is the one way to act in
+  a pair, and a drop would be a second, less visible route to the same offers.
 
 Spec: [Two connections side by side](../decisions/2026-09-25-paired-catalogs-design.md)
 

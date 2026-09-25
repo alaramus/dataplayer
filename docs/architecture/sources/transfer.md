@@ -165,9 +165,6 @@ Known deviations:
 - **This is a bounded request, not an owned job.** It has no byte progress,
   cancellation or recovery after an interrupted request. D81/D95 integration
   is still needed before raising the size or batch ceilings.
-- **The paired catalog view is not present.** The same pair offer currently
-  feeds the catalog's Paste menu only. Further interaction kinds, the paired
-  view and a graph remain in the design spec.
 
 Spec: [Interactions between connections](../../decisions/2026-09-25-cross-connector-interactions-design.md)
 

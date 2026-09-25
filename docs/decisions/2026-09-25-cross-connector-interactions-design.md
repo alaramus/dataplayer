@@ -109,9 +109,9 @@ source objects it explains what to select; it does not guess from all objects
 in the catalog.
 
 Choosing an offer opens only the choices it needs, then runs the same command
-used by Paste. Dragging selected objects from one catalog to the other may
-later select an offer, but a drop must never invent a conversion or bypass the
-offer's confirmation. The paired view is an aid to discovery, not a second
+used by Paste. Dragging selected objects from one catalog to the other was
+considered and dropped in D167: the paired view's bar is the one way to act
+in it. The paired view is an aid to discovery, not a second
 transfer engine. Its placement within the existing workspace and exact panel
 controls should be settled in a focused UI design before implementation.
 
@@ -152,7 +152,7 @@ explicit approval, per AGENTS.md.
 
 ## Deferred
 
-Cross-connection move and directory trees, drag and drop, transformations,
+Cross-connection move and directory trees, transformations,
 pipeline authoring, a graph of possibilities, background discovery across all
 connections, transfer resumption and durable transfer history. Each needs
 semantics beyond the first file-copy path; none is implied by the pair offer.
