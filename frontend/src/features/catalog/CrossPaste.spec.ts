@@ -26,10 +26,37 @@ vi.mock("@/shared/ui", () => ({
   }),
   useToast: () => toasts,
 }))
+vi.mock("@/features/grid/CreateTableDialog.vue", () => ({
+  default: defineComponent({
+    name: "CreateTableDialog",
+    beforeUnmount() {
+      this.$emit("update:modelValue", false)
+    },
+    props: ["modelValue", "sourceTitle", "sourceColumns", "fixedDestination", "running", "error"],
+    emits: ["update:modelValue", "run"],
+    template: "<div />",
+  }),
+}))
+vi.mock("@/features/grid/ImportDialog.vue", () => ({
+  default: defineComponent({
+    name: "ImportDialog",
+    beforeUnmount() {
+      this.$emit("update:modelValue", false)
+    },
+    props: ["modelValue", "connectorId", "nodeId", "targetColumns", "targetLabel", "source", "running", "error"],
+    emits: ["update:modelValue", "run"],
+    template: "<div />",
+  }),
+}))
 vi.mock("@/shared/windows", () => ({
+  // Like the real one, it says it was closed when it is taken away.
   WindowDialog: defineComponent({
     name: "WindowDialog",
     props: ["modelValue", "title", "subtitle"],
+    emits: ["update:modelValue"],
+    beforeUnmount() {
+      this.$emit("update:modelValue", false)
+    },
     template: "<section><h1>{{ title }}</h1><p class='subtitle'>{{ subtitle }}</p><slot /><slot name='actions' /></section>",
   }),
 }))
@@ -40,10 +67,35 @@ const saving: PasteOffer = {
   title: "Save as CSV",
   available: true,
   converts: true,
+  workflow: "file-name",
   suggested_name: "people.csv",
 }
+const columns = [
+  { name: "id", type: { sql: "text", category: "string" as const }, insertable: true },
+  { name: "name", type: { sql: "text", category: "string" as const }, insertable: true },
+]
+const creating: PasteOffer = {
+  kind: "rows_new_relation",
+  title: "Create a table",
+  available: true,
+  converts: true,
+  workflow: "new-relation",
+  source_columns: columns,
+}
+const adding: PasteOffer = {
+  kind: "rows_into_relation",
+  title: "Add rows to a table",
+  available: true,
+  converts: true,
+  workflow: "into-relation",
+  source_columns: columns,
+  target_columns: columns,
+}
 
-function intent(offer: PasteOffer, mode: "copy" | "move" = "copy"): CrossPasteIntent {
+function intent(
+  offer: PasteOffer | PasteOffer[],
+  mode: "copy" | "move" = "copy"
+): CrossPasteIntent {
   return {
     sourceConnectorId: "source",
     sourceNodeIds: ["report.csv"],
@@ -52,7 +104,9 @@ function intent(offer: PasteOffer, mode: "copy" | "move" = "copy"): CrossPasteIn
     destinationConnectorId: "destination",
     destinationNodeId: "incoming",
     destinationLabel: "incoming",
-    offer,
+    targetNodeId: null,
+    targetLabel: "",
+    offers: Array.isArray(offer) ? offer : [offer],
   }
 }
 
@@ -86,6 +140,7 @@ describe("a paste from another connection", () => {
       source_connector_id: "source",
       source_node_ids: ["report.csv"],
       destination_node_id: "incoming",
+      target_node_id: null,
       mode: "copy",
       kind: "file_copy",
       conflict: "refuse",
@@ -217,6 +272,7 @@ describe("a paste from another connection", () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain("people.csv is already there")
+    expect(wrapper.emitted("close")).toBeUndefined()
     pasteCall.mockResolvedValue({
       data: { kind: "relation_csv", message: "people.csv saved with 3 rows", written: 1, reload_node_ids: ["incoming"] },
     })
@@ -238,6 +294,98 @@ describe("a paste from another connection", () => {
     await flushPromises()
 
     expect(wrapper.find(".error").text()).toBe("A name must be a single plain name, without separators")
+    expect(wrapper.emitted("close")).toBeUndefined()
+  })
+
+  it("lists several offers, and goes on with the one chosen", async () => {
+    const wrapper = mount(CrossPaste, {
+      props: {
+        intent: {
+          ...intent([creating, adding]),
+          destinationLabel: "public",
+          targetNodeId: "public.orders",
+          targetLabel: "orders",
+        },
+      },
+    })
+    await flushPromises()
+    expect(pasteCall).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="cross-paste-offer-rows_new_relation"]').text())
+      .toBe("Create a table: public")
+    expect(wrapper.find('[data-testid="cross-paste-offer-rows_into_relation"]').text())
+      .toBe("Add rows to a table: orders")
+
+    await wrapper.find('[data-testid="cross-paste-offer-rows_into_relation"]').trigger("click")
+
+    const form = wrapper.findComponent({ name: "ImportDialog" })
+    expect(form.props("nodeId")).toBe("public.orders")
+    expect(form.props("source")).toEqual({
+      connectorId: "source",
+      nodeId: "report.csv",
+      label: "report.csv",
+      columns,
+    })
+    expect(wrapper.findComponent({ name: "CreateTableDialog" }).exists()).toBe(false)
+    // Taking the list away is moving on, not cancelling.
+    expect(wrapper.emitted("close")).toBeUndefined()
+  })
+
+  it("creates a table in the place Paste was chosen in, with the columns chosen", async () => {
+    pasteCall.mockResolvedValue({
+      data: { kind: "rows_new_relation", message: "people created with 2 rows", written: 1, reload_node_ids: ["incoming"] },
+    })
+    const wrapper = mount(CrossPaste, { props: { intent: intent(creating) } })
+    await flushPromises()
+    const form = wrapper.findComponent({ name: "CreateTableDialog" })
+    expect(form.props("fixedDestination")).toEqual({
+      connectorId: "destination",
+      parentNodeId: "incoming",
+      label: "incoming",
+    })
+    expect(form.props("sourceColumns")).toEqual(columns)
+
+    form.vm.$emit("run", {
+      connectorId: "destination",
+      parentNodeId: "incoming",
+      name: "people",
+      columns: [{ source: "id", target: "id", type_code: "text" }],
+    })
+    await flushPromises()
+
+    expect(sent()[0]).toMatchObject({
+      kind: "rows_new_relation",
+      name: "people",
+      columns: [{ source: "id", target: "id", type_code: "text" }],
+    })
+    expect(toasts.success).toHaveBeenCalledWith("people created with 2 rows")
+    expect(wrapper.emitted("close")).toHaveLength(1)
+  })
+
+  it("keeps the form open with the reason a value could not cross", async () => {
+    pasteCall.mockRejectedValue(new AxiosError("refused", undefined, undefined, undefined, {
+      status: 422,
+      data: { detail: { message: "'nine' cannot be read by id (row 2)" } },
+    } as never))
+    const wrapper = mount(CrossPaste, {
+      props: { intent: { ...intent(adding), targetNodeId: "public.orders", targetLabel: "orders" } },
+    })
+    await flushPromises()
+    const form = wrapper.findComponent({ name: "ImportDialog" })
+
+    form.vm.$emit("run", {
+      connectorId: "source",
+      nodeId: "report.csv",
+      columns: [{ source: "id", target: "id" }],
+    })
+    await flushPromises()
+
+    expect(sent()[0]).toMatchObject({
+      kind: "rows_into_relation",
+      target_node_id: "public.orders",
+      columns: [{ source: "id", target: "id" }],
+    })
+    expect(sent()[0]).not.toHaveProperty("name")
+    expect(form.props("error")).toBe("'nine' cannot be read by id (row 2)")
     expect(wrapper.emitted("close")).toBeUndefined()
   })
 })

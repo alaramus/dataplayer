@@ -35,6 +35,7 @@ from app.connectors.paste.models import (
     PastePair,
     PasteResult,
     PasteRun,
+    PasteWorkflow,
 )
 from app.core.access import Access
 
@@ -64,11 +65,13 @@ class RelationCsv:
     name: PasteKindName = "relation_csv"
     title = "Save as CSV"
     mode: ClipboardMode = "copy"
+    workflow: PasteWorkflow = "file-name"
     converts = True
     # Allowed, unlike a move's (D163): the source is not a file, so the file
     # replaced cannot be the source itself.
     can_replace = True
     source_requires: Access = "read"
+    destination_requires: Access = "write"
     changes_source = False
 
     def takes_from(self, source: DataAdapter) -> bool:

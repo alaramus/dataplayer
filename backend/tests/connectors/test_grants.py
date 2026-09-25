@@ -822,6 +822,68 @@ async def test_a_read_grant_on_the_destination_is_told_why_nothing_pastes(
     assert pasted.status_code == 403
 
 
+async def test_a_write_grant_adds_rows_but_cannot_create_a_table(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+    schema: str,
+) -> None:
+    """Each row kind asks what D43 and D45 ask of the destination (D166)."""
+    user, headers = colleague
+    database = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, database, user, "write")
+    own = await _file_connector(client, headers)
+    name = f"rows-{uuid.uuid4().hex}.csv"
+    uploaded = await client.post(
+        f"{BASE}/{own}/actions/upload/file",
+        headers=headers,
+        files={"file": (name, b"id,code\n5,ZZ\n", "text/csv")},
+        data={"node_id": "", "params": "{}"},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    pair = {
+        "source_connector_id": own,
+        "source_node_ids": [name],
+        "destination_node_id": schema,
+        "target_node_id": f"{schema}.regions",
+        "mode": "copy",
+    }
+
+    offered = await client.post(
+        f"{BASE}/{database}/paste/offers", headers=headers, json=pair
+    )
+    created = await client.post(
+        f"{BASE}/{database}/paste",
+        headers=headers,
+        json={
+            **pair,
+            "kind": "rows_new_relation",
+            "name": "not_allowed",
+            "columns": [{"source": "id", "target": "id", "type_code": "text"}],
+        },
+    )
+    added = await client.post(
+        f"{BASE}/{database}/paste",
+        headers=headers,
+        json={
+            **pair,
+            "kind": "rows_into_relation",
+            "columns": [
+                {"source": "id", "target": "id"},
+                {"source": "code", "target": "code"},
+            ],
+        },
+    )
+
+    create, into = offered.json()["offers"]
+    assert create["reason"] == "This needs structure access to this connection"
+    assert into["available"]
+    assert created.status_code == 403
+    assert created.json()["detail"]["required"] == "structure"
+    assert added.status_code == 200, added.text
+    assert added.json()["message"] == "1 row added"
+
+
 async def test_renaming_a_relation_needs_structure(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

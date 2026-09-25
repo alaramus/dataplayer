@@ -6,7 +6,7 @@ connection. Reading a relation and editing the rows in it are in
 [relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44, D161, D163, D164, D165.
+Decisions here: D43, D45, D44, D161, D163, D164, D165, D166.
 
 ## D164. One paste answer for a pair of connections
 
@@ -17,19 +17,25 @@ become here; `POST /connectors/{destination}/paste` runs one offer;
 held at all. Each kind of paste is an entry in the `connectors/paste`
 registry. It names the capabilities it needs from each end and the clipboard
 mode it serves, and is matched with `isinstance`, never by adapter type. There
-are three: `file_copy` (D161), `file_move` (D163) and `relation_csv` (D165).
+are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
+`rows_new_relation` and `rows_into_relation` (D166).
 
-- Asking needs `read` on both ends. A kind that needs more — `write` on the
-  destination, `write` on the source of a move — is listed unavailable with
-  that reason; running it answers 403. A kind neither end matches is not
-  listed, and an empty list reads "Nothing here can take what was copied".
-- An offer says whether it converts, whether Replace is allowed, whether it
-  changes the source, and the suggested name for a kind that asks for one.
-  The client decides from these fields and names no kind.
-- The catalog has one Paste. A conversion opens its window first; a plain copy
-  runs at once and opens D162's conflict window on a taken name. The source
-  catalog is refreshed when the offer changes the source, after success or a
-  partial failure alike.
+- The pair names the place Paste was chosen in and, when exactly one node is
+  ticked there, that node as `target_node_id`.
+- Asking needs `read` on both ends. A kind states what it needs beyond that
+  on each end — `write` or `structure` on the destination, `write` on the
+  source of a move — and is listed unavailable with that reason; running it
+  answers 403. A kind neither end matches is not listed, and an empty list
+  reads "Nothing here can take what was copied".
+- An offer names the window it opens (`workflow`), whether it converts,
+  whether Replace is allowed and whether it changes the source, with what its
+  window needs: a suggested file name, the source's columns, the target's
+  insertable columns. The client picks a window by `workflow` and names no
+  kind.
+- The catalog has one Paste. Several usable offers open a list first; a
+  conversion opens its window; a plain copy runs at once and opens D162's
+  conflict window on a taken name. The source catalog is refreshed when the
+  offer changes the source, after success or a partial failure alike.
 - Copy and Cut are drawn for a source with its own Paste (D74) as before, and
   otherwise from the clipboard answer: a mode no kind serves for this source is
   not drawn, and a selection a kind refuses is drawn disabled with the reason.
@@ -40,11 +46,41 @@ are three: `file_copy` (D161), `file_move` (D163) and `relation_csv` (D165).
 Known deviations:
 
 - **Same-connection Paste stays source-owned.** A clipboard from the same
-  connection still goes through the source's own action (D74).
-- **Several usable offers have no chooser.** No pair has two kinds yet, so
-  Paste runs the first.
+  connection still goes through the source's own action (D74); a PostgreSQL
+  table copied within its own connection has no Paste at all.
 
 Spec: [Paste offers, and a table pasted into a folder as CSV](../../decisions/2026-09-25-paste-offers-and-table-csv-design.md)
+
+## D166. Rows are pasted as a new table or into a ticked one
+
+Two kinds read the clipboard as rows through `SupportsFetch`, one node at a
+time: a CSV, Parquet or worksheet file on local disk or SSH, a PostgreSQL
+table or view, a Redis key. Both are copies, both convert, and both run what
+D43 and D45 run, from `connectors/imports`: the same bounded read, the same
+check of every value, the same single transaction. The routes of D43 and D45
+call the same two functions.
+
+- `rows_new_relation`, "Create a table": into the place Paste was chosen in,
+  of a source implementing `SupportsCreateRelation`, with `structure` there.
+  Its window is D45's form with the connection and schema fixed. A source
+  beyond 5000 rows is refused.
+- `rows_into_relation`, "Add rows to a table": into the one ticked node, of a
+  source implementing `SupportsInsert` and `SupportsFetch`, with `write`
+  there. Its window is D43's form with the source fixed, same names paired to
+  start with. Beyond 5000 rows the rest is cut off and the answer says so.
+- A value the target cannot read is named — the first one, its row, and how
+  many more — and nothing is written; the window stays open with it.
+- A source that holds files is not a destination for either. A folder takes a
+  file as it is (D161) or a table as CSV (D165); a delimited file made of rows,
+  or rows appended to a ticked CSV, would be a second answer for one Paste.
+
+Known deviations:
+
+- **The forms live in the grid.** D45's and D43's dialogs are imported by the
+  catalog from `features/grid`, where they were first written, with a mode for
+  a destination or source that is already decided.
+
+Spec: [Rows pasted into another connection](../../decisions/2026-09-25-paste-rows-design.md)
 
 ## D165. A table pasted into a folder becomes a CSV file
 

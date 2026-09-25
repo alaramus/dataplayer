@@ -18,7 +18,7 @@ import {
   heldFor,
   holdNodes,
 } from "@/features/catalog/clipboard"
-import { chosenOffer, holdLines, pasteHint } from "@/features/catalog/pasteOffers"
+import { holdLines, pasteHint, usableOffers } from "@/features/catalog/pasteOffers"
 import type { CrossPasteIntent } from "@/features/catalog/pasteOffers"
 import type {
   ActionOutcome,
@@ -154,9 +154,13 @@ const crossHeld = computed(() =>
 const crossPlace = computed(() =>
   props.places.length === 1 ? props.places[0] ?? null : null
 )
+/** The one node ticked here, which rows can be pasted into (D166). */
+const crossTarget = computed(() =>
+  props.checkedIds.length === 1 ? props.checkedIds[0] ?? null : null
+)
 const crossOffers = useQuery({
   queryKey: computed(() => [
-    "paste-offers", props.connectorId, crossPlace.value, crossHeld.value,
+    "paste-offers", props.connectorId, crossPlace.value, crossTarget.value, crossHeld.value,
   ]),
   enabled: computed(() => crossHeld.value !== null && props.places.length === 1),
   retry: false,
@@ -169,12 +173,13 @@ const crossOffers = useQuery({
         source_connector_id: source.connectorId,
         source_node_ids: source.nodeIds,
         destination_node_id: crossPlace.value,
+        target_node_id: crossTarget.value,
         mode: source.mode,
       },
     })).data.offers
   },
 })
-const crossChosen = computed(() => chosenOffer(crossOffers.data.value ?? []))
+const crossUsable = computed(() => usableOffers(crossOffers.data.value ?? []))
 /** Whether the source has a Paste of its own for what it lists (D74). */
 const canHold = computed(() =>
   commands.value.some((command) => needsClipboard(command))
@@ -229,7 +234,7 @@ const items = computed<MenuItem[]>(() => [
   ...(crossHeld.value === null ? [] : [{
     name: "client:cross-paste",
     label: "Paste",
-    disable: crossChosen.value === null,
+    disable: crossUsable.value.length === 0,
     hint: pasteHint({
       places: props.places.length,
       checking: crossOffers.isPending.value,
@@ -346,8 +351,8 @@ async function pick(name: string) {
   if (prepareConnector.isPending.value) return
   if (name === "client:cross-paste") {
     const source = crossHeld.value
-    const offer = crossChosen.value
-    if (source === null || offer === null || crossPasting.value !== null) return
+    const offers = crossUsable.value
+    if (source === null || offers.length === 0 || crossPasting.value !== null) return
     pastings += 1
     crossPasting.value = {
       sourceConnectorId: source.connectorId,
@@ -357,7 +362,9 @@ async function pick(name: string) {
       destinationConnectorId: props.connectorId,
       destinationNodeId: crossPlace.value,
       destinationLabel: props.placeLabel,
-      offer,
+      targetNodeId: crossTarget.value,
+      targetLabel: props.checkedLabel,
+      offers,
     }
     return
   }

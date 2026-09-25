@@ -144,7 +144,6 @@ from app.adapters.references import (
 from app.adapters.registry import AdapterType
 from app.adapters.relation import RelationModel, without_structure_changes
 from app.adapters.relation_changes import (
-    CreateRelationRequest,
     NewRelationOptions,
     RelationCreated,
 )
@@ -174,7 +173,6 @@ from app.adapters.update import (
     DeleteRowsResult,
     InsertRowRequest,
     InsertRowResult,
-    InsertRowsRequest,
     RowConflict,
     RowsInserted,
     UpdateCellRequest,
@@ -1795,15 +1793,8 @@ async def import_rows(
                 "error_kind": "config",
             },
         )
-    read = await _read_for_import(source, request, imports.IMPORT_CEILING)
-    if not read.rows:
-        return imports.RowsMoved(inserted=0, truncated=False)
-    result = await _shape_change(
-        lambda: target.insert_rows(
-            InsertRowsRequest(
-                node_id=request.node_id, columns=read.columns, rows=read.rows
-            )
-        )
+    result, truncated = await _shape_change(
+        lambda: imports.insert_from_source(target, source, request)
     )
     if not isinstance(result, RowsInserted):
         # Named values that could not be read, with nothing written. A 422
@@ -1821,7 +1812,7 @@ async def import_rows(
             ],
         )
     await data_cache.invalidate_connector(connector_id)
-    return imports.RowsMoved(inserted=result.inserted, truncated=read.truncated)
+    return imports.RowsMoved(inserted=result.inserted, truncated=truncated)
 
 
 class RowCommandRequest(BaseModel):
@@ -1972,25 +1963,18 @@ async def create_relation_from_source(
                 "error_kind": "config",
             },
         )
-    read = await _read_for_import(source, request, imports.IMPORT_CEILING)
-    if read.truncated:
+    try:
+        result = await _shape_change(
+            lambda: imports.create_from_source(target, source, request)
+        )
+    except imports.SourceTooLarge:
         raise HTTPException(
             status_code=413,
             detail={
                 "message": "A new table may be filled with at most "
                 f"{imports.IMPORT_CEILING} rows"
             },
-        )
-    result = await _shape_change(
-        lambda: target.create_relation(
-            CreateRelationRequest(
-                parent_node_id=request.parent_node_id,
-                name=request.name,
-                columns=request.new_columns(),
-                rows=read.rows,
-            )
-        )
-    )
+        ) from None
     if not isinstance(result, RelationCreated):
         raise HTTPException(
             status_code=422,

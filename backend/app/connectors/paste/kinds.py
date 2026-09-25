@@ -2,6 +2,7 @@
 
 from typing import Protocol
 
+from app.adapters.fetch import FetchColumn
 from app.adapters.protocol import DataAdapter
 from app.connectors.paste.models import (
     Availability,
@@ -11,6 +12,7 @@ from app.connectors.paste.models import (
     PastePair,
     PasteResult,
     PasteRun,
+    PasteWorkflow,
 )
 from app.core.access import Access
 
@@ -32,6 +34,9 @@ class PasteKind(Protocol):
     def mode(self) -> ClipboardMode: ...
 
     @property
+    def workflow(self) -> PasteWorkflow: ...
+
+    @property
     def converts(self) -> bool: ...
 
     @property
@@ -39,6 +44,9 @@ class PasteKind(Protocol):
 
     @property
     def source_requires(self) -> Access: ...
+
+    @property
+    def destination_requires(self) -> Access: ...
 
     @property
     def changes_source(self) -> bool: ...
@@ -73,6 +81,8 @@ def offered(
     reason: str | None = None,
     name_conflict: bool = False,
     suggested_name: str | None = None,
+    source_columns: list[FetchColumn] | None = None,
+    target_columns: list[FetchColumn] | None = None,
 ) -> PasteOffer:
     """An offer of this kind, carrying what the kind always says about itself."""
     return PasteOffer(
@@ -84,7 +94,10 @@ def offered(
         converts=kind.converts,
         can_replace=kind.can_replace,
         changes_source=kind.changes_source,
+        workflow=kind.workflow,
         suggested_name=suggested_name,
+        source_columns=source_columns or [],
+        target_columns=target_columns or [],
     )
 
 

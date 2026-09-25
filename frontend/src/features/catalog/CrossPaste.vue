@@ -2,10 +2,13 @@
 import { computed, onMounted, ref } from "vue"
 
 import { ConnectorsService } from "@/client"
+import type { PasteColumn, PasteOffer } from "@/client"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { forgetMoved } from "@/features/catalog/clipboard"
-import { firstStep } from "@/features/catalog/pasteOffers"
-import type { CrossPasteIntent } from "@/features/catalog/pasteOffers"
+import { firstStep, offerPlace } from "@/features/catalog/pasteOffers"
+import type { CrossPasteIntent, PasteStep } from "@/features/catalog/pasteOffers"
+import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
+import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { AppButton, AppForm, AppInput, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -13,9 +16,10 @@ import { WindowDialog } from "@/shared/windows"
 /**
  * One Paste from another connection, from the choice to the result (D164).
  *
- * Mounted when Paste is chosen and gone when it ends. A plain copy runs at
- * once and shows a window only for a taken name (D162); a conversion first
- * asks for the name of what it makes (D165).
+ * Mounted when Paste is chosen and gone when it ends. Several usable offers
+ * are listed first (D166). A plain copy runs at once and shows a window only
+ * for a taken name (D162); a conversion first asks what it needs: a file
+ * name (D165), or the columns of a new table or of the one ticked (D166).
  */
 const props = defineProps<{ intent: CrossPasteIntent }>()
 
@@ -26,15 +30,16 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
-const offer = computed(() => props.intent.offer)
-const step = ref(firstStep(props.intent.offer))
-const name = ref(props.intent.offer.suggested_name ?? "")
+const only = props.intent.offers.length === 1 ? props.intent.offers[0] ?? null : null
+const offer = ref<PasteOffer | null>(only)
+const step = ref<PasteStep | "choose">(only === null ? "choose" : firstStep(only))
+const name = ref(only?.suggested_name ?? "")
 const failure = ref(
-  step.value === "conflict" ? props.intent.offer.reason ?? "A file already exists here" : ""
+  step.value === "conflict" ? only?.reason ?? "A file already exists here" : ""
 )
 const pending = ref(false)
 const nameHint = computed(() =>
-  offer.value.name_conflict === true && name.value.trim() === offer.value.suggested_name
+  offer.value?.name_conflict === true && name.value.trim() === offer.value.suggested_name
     ? "A file with this name is already here"
     : undefined
 )
@@ -43,10 +48,23 @@ onMounted(() => {
   if (step.value === "run") void paste("refuse")
 })
 
-async function paste(conflict: "refuse" | "replace" | "rename") {
-  if (pending.value) return
+function choose(chosen: PasteOffer) {
+  offer.value = chosen
+  name.value = chosen.suggested_name ?? ""
+  failure.value = chosen.name_conflict === true ? chosen.reason ?? "" : ""
+  step.value = firstStep(chosen)
+  if (step.value === "run") void paste("refuse")
+}
+
+async function paste(
+  conflict: "refuse" | "replace" | "rename",
+  columns?: PasteColumn[]
+) {
+  const chosen = offer.value
+  if (pending.value || chosen === null) return
   pending.value = true
   const intent = props.intent
+  const named = chosen.workflow === "file-name" || chosen.workflow === "new-relation"
   try {
     const result = (await ConnectorsService.paste({
       path: { connector_id: intent.destinationConnectorId },
@@ -54,13 +72,15 @@ async function paste(conflict: "refuse" | "replace" | "rename") {
         source_connector_id: intent.sourceConnectorId,
         source_node_ids: intent.sourceNodeIds,
         destination_node_id: intent.destinationNodeId,
+        target_node_id: intent.targetNodeId,
         mode: intent.mode,
-        kind: intent.offer.kind,
+        kind: chosen.kind,
         conflict,
-        ...(intent.offer.suggested_name != null ? { name: name.value.trim() } : {}),
+        ...(named ? { name: name.value.trim() } : {}),
+        ...(columns ? { columns } : {}),
       },
     })).data
-    if (intent.offer.changes_source === true) {
+    if (chosen.changes_source === true) {
       forgetMoved(intent.sourceConnectorId, intent.sourceNodeIds)
       emit("sourceChanged", intent.sourceConnectorId)
     }
@@ -73,14 +93,15 @@ async function paste(conflict: "refuse" | "replace" | "rename") {
     emit("close")
   } catch (cause) {
     // A batch may have changed both ends before it failed.
-    if (intent.offer.changes_source === true) emit("sourceChanged", intent.sourceConnectorId)
+    if (chosen.changes_source === true) emit("sourceChanged", intent.sourceConnectorId)
     emit("done", {
       done: [{ message: "Paste ended", reload_node_ids: [intent.destinationNodeId] }],
       failures: [],
       total: 1,
     })
     const message = messageOf(cause, "Nothing was pasted")
-    if (statusOf(cause) === 409) {
+    // Only a file is kept or replaced; a table has no such choice.
+    if (statusOf(cause) === 409 && (step.value === "run" || step.value === "file-name")) {
       step.value = "conflict"
       failure.value = message
     } else if (step.value === "run") {
@@ -92,20 +113,65 @@ async function paste(conflict: "refuse" | "replace" | "rename") {
   }
 }
 
+/**
+ * A window reports being closed when it is taken away as well, and taking one
+ * away is how this moves from one step to the next — so only the window of the
+ * current step closes the paste.
+ */
+function closeFrom(from: PasteStep | "choose") {
+  if (step.value === from) emit("close")
+}
+
 function save() {
   if (name.value.trim() && !pending.value) void paste("refuse")
+}
+
+function createTable(made: { name: string; columns: PasteColumn[] }) {
+  name.value = made.name
+  void paste("refuse", made.columns)
+}
+
+function addRows(pairs: { columns: PasteColumn[] }) {
+  void paste("refuse", pairs.columns)
 }
 </script>
 
 <template>
   <WindowDialog
-    v-if="step === 'name'"
+    v-if="step === 'choose'"
+    :model-value="true"
+    title="Paste"
+    :subtitle="`What ${intent.sourceLabel} becomes here`"
+    size="compact-form"
+    data-testid="cross-paste-choose"
+    @update:model-value="closeFrom('choose')"
+  >
+    <div class="cross-paste__offers">
+      <AppButton
+        v-for="choice in intent.offers"
+        :key="choice.kind"
+        variant="secondary"
+        :label="`${choice.title}: ${offerPlace(choice, intent)}`"
+        :data-testid="`cross-paste-offer-${choice.kind}`"
+        @click="choose(choice)"
+      />
+    </div>
+    <template #actions>
+      <AppButton
+        variant="quiet"
+        label="Cancel"
+        @click="emit('close')"
+      />
+    </template>
+  </WindowDialog>
+  <WindowDialog
+    v-else-if="step === 'file-name' && offer"
     :model-value="true"
     :title="offer.title"
     :subtitle="`${intent.sourceLabel} into ${intent.destinationLabel}`"
     size="compact-form"
     data-testid="cross-paste-name"
-    @update:model-value="emit('close')"
+    @update:model-value="closeFrom('file-name')"
   >
     <AppForm layout="section">
       <AppInput
@@ -133,13 +199,46 @@ function save() {
       />
     </template>
   </WindowDialog>
+  <CreateTableDialog
+    v-else-if="step === 'new-relation' && offer"
+    :model-value="true"
+    :source-title="intent.sourceLabel"
+    :source-columns="offer.source_columns ?? []"
+    :fixed-destination="{
+      connectorId: intent.destinationConnectorId,
+      parentNodeId: intent.destinationNodeId ?? '',
+      label: intent.destinationLabel,
+    }"
+    :running="pending"
+    :error="failure"
+    @update:model-value="closeFrom('new-relation')"
+    @run="createTable"
+  />
+  <ImportDialog
+    v-else-if="step === 'into-relation' && offer && intent.targetNodeId !== null"
+    :model-value="true"
+    :connector-id="intent.destinationConnectorId"
+    :node-id="intent.targetNodeId"
+    :target-columns="offer.target_columns ?? []"
+    :target-label="intent.targetLabel"
+    :source="{
+      connectorId: intent.sourceConnectorId,
+      nodeId: intent.sourceNodeIds[0] ?? '',
+      label: intent.sourceLabel,
+      columns: offer.source_columns ?? [],
+    }"
+    :running="pending"
+    :error="failure"
+    @update:model-value="closeFrom('into-relation')"
+    @run="addRows"
+  />
   <WindowDialog
-    v-else-if="step === 'conflict'"
+    v-else-if="step === 'conflict' && offer"
     :model-value="true"
     title="File already exists"
     size="compact-form"
     data-testid="cross-paste-conflict"
-    @update:model-value="emit('close')"
+    @update:model-value="closeFrom('conflict')"
   >
     <p>{{ failure }}. Choose what to do with the pasted file.</p>
     <template #actions>
@@ -167,3 +266,11 @@ function save() {
     </template>
   </WindowDialog>
 </template>
+
+<style scoped>
+.cross-paste__offers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+}
+</style>

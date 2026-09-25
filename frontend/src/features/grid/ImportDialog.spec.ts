@@ -19,7 +19,7 @@ const TARGET_COLUMNS: FetchColumn[] = [
   { name: "label", type: { sql: "text", category: "string" }, insertable: true },
 ]
 
-function mountDialog() {
+function mountDialog(extra: Record<string, unknown> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
@@ -31,6 +31,7 @@ function mountDialog() {
       targetColumns: TARGET_COLUMNS,
       running: false,
       error: "",
+      ...extra,
     }),
     {
       global: {
@@ -196,6 +197,40 @@ describe("bringing rows in from another source", () => {
       body: { node_id: "demo_lab.tasks", limit: 1 },
     })
     expect(document.body.querySelector('[data-testid="grid-import-trouble"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it("pairs a source a Paste brought, with nothing to pick", async () => {
+    const preview = vi.spyOn(ConnectorsService, "previewImport").mockResolvedValue({
+      data: { columns: ["label"], rows: [["one"]], more: false },
+    } as never)
+    const wrapper = mountDialog({
+      source: {
+        connectorId: "source-1",
+        nodeId: "sample.tsv",
+        label: "sample.tsv",
+        columns: [{ name: "label", type: { sql: "text", category: "string" } }],
+      },
+      targetLabel: "tags",
+    })
+    await flushPromises()
+
+    // One select per target column and none for a source: it is known.
+    expect(wrapper.findAllComponents(AppSelect)).toHaveLength(TARGET_COLUMNS.length)
+    expect(document.body.textContent).toContain("From sample.tsv, into tags")
+    document.body.querySelector<HTMLElement>('[data-testid="grid-import-preview"]')?.click()
+    await flushPromises()
+
+    // The same-named column is paired to start with.
+    expect(preview).toHaveBeenCalledWith({
+      path: { connector_id: "target-1" },
+      body: {
+        node_id: "public.tags",
+        source_connector_id: "source-1",
+        source_node_id: "sample.tsv",
+        columns: [{ source: "label", target: "label" }],
+      },
+    })
     wrapper.unmount()
   })
 })

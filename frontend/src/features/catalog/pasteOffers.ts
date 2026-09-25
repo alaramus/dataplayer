@@ -22,19 +22,16 @@ export interface CrossPasteIntent {
   destinationConnectorId: string
   destinationNodeId: string | null
   destinationLabel: string
-  offer: PasteOffer
+  /** The one node ticked at the destination, which some offers act on (D166). */
+  targetNodeId: string | null
+  targetLabel: string
+  /** Every usable offer; more than one opens a list to choose from. */
+  offers: PasteOffer[]
 }
 
 /** The offers Paste can run: available, or held back only by a taken name. */
 export function usableOffers(offers: PasteOffer[]): PasteOffer[] {
   return offers.filter((offer) => offer.available || offer.name_conflict === true)
-}
-
-/** The offer Paste runs, or nothing when there is none. */
-export function chosenOffer(offers: PasteOffer[]): PasteOffer | null {
-  // Several usable offers would open a list to choose from (D164); no pair
-  // has two kinds yet, so the first is the only one.
-  return usableOffers(offers)[0] ?? null
 }
 
 /** Why Paste is off here, or nothing when it is on. */
@@ -44,20 +41,26 @@ export function pasteHint(state: {
   failed: boolean
   offers: PasteOffer[] | undefined
 }): string | undefined {
-  if (state.places !== 1) return "Choose one destination folder"
+  if (state.places !== 1) return "Choose one place to paste into"
   if (state.checking) return "Checking what can be pasted here"
   if (state.failed) return "Could not check this destination"
   const offers = state.offers ?? []
-  if (chosenOffer(offers) !== null) return undefined
+  if (usableOffers(offers).length > 0) return undefined
   return offers.find((offer) => offer.reason)?.reason ?? "Nothing here can take what was copied"
 }
 
-/** Which window a chosen offer opens first, if any. */
-export function firstStep(offer: PasteOffer): "name" | "conflict" | "run" {
-  // A conversion is never run straight from the menu.
-  if (offer.converts === true || offer.suggested_name != null) return "name"
-  if (offer.name_conflict === true) return "conflict"
-  return "run"
+export type PasteStep = "run" | "conflict" | "file-name" | "new-relation" | "into-relation"
+
+/** Which window a chosen offer opens first; `run` opens none. */
+export function firstStep(offer: PasteOffer): PasteStep {
+  const workflow = offer.workflow ?? "run"
+  if (workflow !== "run") return workflow
+  return offer.name_conflict === true ? "conflict" : "run"
+}
+
+/** Where an offer acts, in the words the catalog shows it by. */
+export function offerPlace(offer: PasteOffer, intent: CrossPasteIntent): string {
+  return offer.workflow === "into-relation" ? intent.targetLabel : intent.destinationLabel
 }
 
 export interface HoldLine {

@@ -56,8 +56,13 @@ async def paste_offers(
     for kind in KINDS:
         if kind.mode != pair.mode or not kind.serves(source, destination):
             continue
-        if not at_least(destination_access, "write"):
-            offers.append(refused(kind, "This needs write access to this connection"))
+        if not at_least(destination_access, kind.destination_requires):
+            offers.append(
+                refused(
+                    kind,
+                    f"This needs {kind.destination_requires} access to this connection",
+                )
+            )
         elif not at_least(source_access, kind.source_requires):
             offers.append(
                 refused(
@@ -93,7 +98,11 @@ async def paste(
         requires=kind.source_requires,
     )
     destination = await adapter_for(
-        session, connector_id, current_user, resources, requires="write"
+        session,
+        connector_id,
+        current_user,
+        resources,
+        requires=kind.destination_requires,
     )
     if not kind.serves(source, destination):
         raise HTTPException(

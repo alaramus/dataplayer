@@ -6183,13 +6183,33 @@ export type Partitioning = {
 }
 
 /**
+ * PasteColumn
+ *
+ * A source column, and the column it fills or becomes.
+ */
+export type PasteColumn = {
+  /**
+   * Source
+   */
+  source: string
+  /**
+   * Target
+   */
+  target: string
+  /**
+   * Type Code
+   */
+  type_code?: string | null
+}
+
+/**
  * PasteOffer
  */
 export type PasteOffer = {
   /**
    * Kind
    */
-  kind: "file_copy" | "file_move" | "relation_csv"
+  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
   /**
    * Title
    */
@@ -6219,9 +6239,21 @@ export type PasteOffer = {
    */
   changes_source?: boolean
   /**
+   * Workflow
+   */
+  workflow?: "run" | "file-name" | "new-relation" | "into-relation"
+  /**
    * Suggested Name
    */
   suggested_name?: string | null
+  /**
+   * Source Columns
+   */
+  source_columns?: Array<FetchColumn>
+  /**
+   * Target Columns
+   */
+  target_columns?: Array<FetchColumn>
 }
 
 /**
@@ -6256,6 +6288,10 @@ export type PastePair = {
    * Destination Node Id
    */
   destination_node_id?: string | null
+  /**
+   * Target Node Id
+   */
+  target_node_id?: string | null
 }
 
 /**
@@ -6265,7 +6301,7 @@ export type PasteResult = {
   /**
    * Kind
    */
-  kind: "file_copy" | "file_move" | "relation_csv"
+  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
   /**
    * Message
    */
@@ -6311,9 +6347,13 @@ export type PasteRun = {
    */
   destination_node_id?: string | null
   /**
+   * Target Node Id
+   */
+  target_node_id?: string | null
+  /**
    * Kind
    */
-  kind: "file_copy" | "file_move" | "relation_csv"
+  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
   /**
    * Conflict
    */
@@ -6322,6 +6362,10 @@ export type PasteRun = {
    * Name
    */
   name?: string | null
+  /**
+   * Columns
+   */
+  columns?: Array<PasteColumn> | null
 }
 
 /**

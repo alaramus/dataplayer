@@ -32,6 +32,11 @@ const props = defineProps<{
   sourceColumns: FetchColumn[]
   running: boolean
   error: string
+  /**
+   * Where the table goes when that is already decided — a Paste is chosen in
+   * the place itself (D166) — so there is no connection or schema to pick.
+   */
+  fixedDestination?: { connectorId: string; parentNodeId: string; label: string } | null
 }>()
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
@@ -73,7 +78,9 @@ const creating = computed(
 // very first question this dialog asks, and offering it would be offering a
 // dead end (D45).
 const targets = computed(() =>
-  (connectors.data.value?.data ?? [])
+  props.fixedDestination
+    ? [{ label: props.fixedDestination.label, value: props.fixedDestination.connectorId }]
+    : (connectors.data.value?.data ?? [])
     .filter(
       (connector) =>
         connector.enabled &&
@@ -149,6 +156,13 @@ async function loadSchemas(id: string) {
   options.value = null
   mappings.value = []
   if (id === "") return
+  const fixed = props.fixedDestination
+  if (fixed) {
+    schemas.value = [{ label: fixed.label, value: fixed.parentNodeId, kind: "schema" }]
+    schemaId.value = fixed.parentNodeId
+    await loadOptions(fixed.parentNodeId)
+    return
+  }
   catalogLoading.value = true
   trouble.value = ""
   try {
@@ -256,7 +270,11 @@ function run() {
   <WindowDialog
     :model-value="modelValue"
     :title="destination === 'folder' ? 'Save this data as a file' : 'Create table from this data'"
-    :subtitle="`Choose where the new ${madeThing} goes and which columns it receives`"
+    :subtitle="
+      fixedDestination
+        ? `In ${fixedDestination.label}, with the columns you choose`
+        : `Choose where the new ${madeThing} goes and which columns it receives`
+    "
     size="wide-form"
     sizing="stable"
     data-testid="grid-create-table-dialog"
@@ -277,6 +295,7 @@ function run() {
         {{ trouble }}
       </AppBanner>
       <AppSelect
+        v-if="!fixedDestination"
         v-model="connectorId"
         :options="targets"
         label="Connection"
@@ -284,6 +303,7 @@ function run() {
         data-testid="grid-create-table-connector"
       />
       <AppSelect
+        v-if="!fixedDestination"
         :model-value="schemaId"
         :options="schemas"
         :label="placeLabel"

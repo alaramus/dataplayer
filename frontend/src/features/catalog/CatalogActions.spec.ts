@@ -188,7 +188,9 @@ describe("catalog action subjects", () => {
       destinationConnectorId: "connection",
       destinationNodeId: "schema",
       destinationLabel: "Schema label",
-      offer: answers.offers[0],
+      targetNodeId: "schema.table",
+      targetLabel: "Table label",
+      offers: answers.offers,
     })
     // The menu starts it; the paste itself sends the request.
     expect(pasteCall).not.toHaveBeenCalled()

@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test"
 
-import { catalogAction, catalogCheck, catalogRow, openNode, pickSchema } from "./utils/catalog"
+import {
+  catalogAction,
+  catalogCheck,
+  catalogRow,
+  openNode,
+  pickSchema,
+  showOnlySchema,
+} from "./utils/catalog"
 import {
   createFileConnector,
   createPostgresConnector,
@@ -119,4 +126,66 @@ test("copies a file to an SSH server and moves it back", async ({ page }) => {
 
   await deleteConnector(page, server)
   await deleteConnector(page, files)
+})
+
+test("pastes a CSV into a database as a new table, then adds its rows to that table", async ({
+  page,
+}) => {
+  const database = `e2e-rows-db-${Date.now()}`
+  const files = `e2e-rows-files-${Date.now()}`
+  const csv = `e2e-rows-${Date.now()}.csv`
+  // Named per run: the fixture schema is rebuilt on `docker compose up`, not
+  // between runs.
+  const table = `pasted_rows_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, database)
+  await createFileConnector(page, files)
+
+  await openConnector(page, files)
+  await catalogAction(page, "upload")
+  await page.getByTestId("action-file").setInputFiles({
+    name: csv,
+    mimeType: "text/csv",
+    buffer: Buffer.from("id,name\n1,Ada\n2,Grace\n"),
+  })
+  await page.getByTestId("action-submit").click()
+  await catalogCheck(page, csv).click()
+  await catalogAction(page, "client:copy")
+
+  // A new table: D45's form, with the connection and schema already decided
+  // by where Paste was chosen (D166).
+  await openConnector(page, database)
+  await showOnlySchema(page, "demo_lab")
+  await catalogAction(page, "client:cross-paste")
+  await expect(page.getByTestId("grid-create-table-connector")).toHaveCount(0)
+  await page.getByTestId("grid-create-table-name").fill(table)
+  await page.getByTestId("grid-create-table-run").click()
+  await expect(catalogRow(page, table)).toBeVisible()
+
+  // With that table ticked there are two answers, and the list asks which.
+  const box = catalogCheck(page, table)
+  if (!(await box.isChecked())) await box.click()
+  await catalogAction(page, "client:cross-paste")
+  await expect(page.getByTestId("cross-paste-offer-rows_new_relation")).toBeVisible()
+  await page.getByTestId("cross-paste-offer-rows_into_relation").click()
+  // Same names are paired to start with, so the rows can go straight in.
+  await page.getByTestId("grid-import-run").click()
+  await expect(page.getByTestId("grid-import-dialog")).toHaveCount(0)
+
+  await openNode(page, table)
+  await expect(page.getByTestId("row-grid").locator("tbody tr")).toHaveCount(4)
+
+  if (!(await box.isChecked())) await box.click()
+  await catalogAction(page, "drop_relation")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, table)).toHaveCount(0)
+
+  await openConnector(page, files)
+  const copied = catalogCheck(page, csv)
+  if (!(await copied.isChecked())) await copied.click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, csv)).toHaveCount(0)
+  await deleteConnector(page, files)
+  await deleteConnector(page, database)
 })

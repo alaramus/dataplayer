@@ -9,7 +9,7 @@ import { withWindowHost } from "@/shared/testing/windows"
 
 import CreateTableDialog from "./CreateTableDialog.vue"
 
-function mountDialog() {
+function mountDialog(extra: Record<string, unknown> = {}) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0, staleTime: Number.POSITIVE_INFINITY },
@@ -53,6 +53,7 @@ function mountDialog() {
       ],
       running: false,
       error: "",
+      ...extra,
     }),
     {
       global: {
@@ -104,6 +105,31 @@ describe("the initial create-table destination", () => {
       path: { connector_id: "database-1" },
       body: { parent_node_id: "public" },
     })
+    wrapper.unmount()
+  })
+
+  it("asks nothing about where when a Paste already chose the place", async () => {
+    // D166: the table goes where Paste was chosen, so no catalog is read.
+    const readCatalog = vi.spyOn(ConnectorsService, "readCatalog")
+    const readOptions = vi
+      .spyOn(ConnectorsService, "newRelationOptions")
+      .mockResolvedValue({
+        data: { supported: true, column_type_options: [{ code: "text", title: "Text" }] },
+      } as never)
+
+    const wrapper = mountDialog({
+      fixedDestination: { connectorId: "database-2", parentNodeId: "sales", label: "sales" },
+    })
+    await flushPromises()
+
+    expect(readCatalog).not.toHaveBeenCalled()
+    expect(readOptions).toHaveBeenCalledWith({
+      path: { connector_id: "database-2" },
+      body: { parent_node_id: "sales" },
+    })
+    expect(document.body.querySelector('[data-testid="grid-create-table-connector"]')).toBeNull()
+    expect(document.body.querySelector('[data-testid="grid-create-table-schema"]')).toBeNull()
+    expect(document.body.textContent).toContain("In sales, with the columns you choose")
     wrapper.unmount()
   })
 })

@@ -4,7 +4,7 @@ import { computed, ref, watch } from "vue"
 import { ConnectorsService } from "@/client"
 import type { ColumnPair, FetchColumn, ImportPreview } from "@/client"
 import NodePicker from "@/features/catalog/NodePicker.vue"
-import type { CatalogNode, PickedNode } from "@/features/catalog/nodes"
+import type { PickedNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
 import { AppBanner, AppButton, AppForm, AppPairs, AppPairsRow, AppSelect, AppTable } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -18,6 +18,13 @@ const props = defineProps<{
   targetColumns: FetchColumn[]
   running: boolean
   error: string
+  /**
+   * The source when it is already known — a Paste brings it from the
+   * clipboard (D166) — so there is nothing to pick.
+   */
+  source?: { connectorId: string; nodeId: string; label: string; columns: FetchColumn[] } | null
+  /** What this relation is called, where the dialog is not opened from its grid. */
+  targetLabel?: string
 }>()
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
@@ -25,7 +32,7 @@ const emit = defineEmits<{
 }>()
 
 const sourceId = ref("")
-const chosen = ref<CatalogNode | null>(null)
+const chosen = ref<{ id: string; name: string } | null>(null)
 const sourceColumns = ref<FetchColumn[]>([])
 const pairs = ref<Record<string, string>>({})
 const preview = ref<ImportPreview | null>(null)
@@ -41,16 +48,29 @@ watch(
     pairs.value = {}
     preview.value = null
     trouble.value = ""
+    const known = props.source
+    if (known) {
+      take(known.connectorId, { id: known.nodeId, name: known.label }, known.columns)
+    }
   },
   { immediate: true }
 )
 
-/** What the picker found, and the pairing it suggests to start from. */
+/** What the picker found. */
 function picked(source: PickedNode | null) {
+  take(source?.connectorId ?? "", source?.node ?? null, source?.columns ?? [])
+}
+
+/** The source, and the pairing it suggests to start from. */
+function take(
+  connectorId: string,
+  node: { id: string; name: string } | null,
+  columns: FetchColumn[]
+) {
   preview.value = null
-  sourceId.value = source?.connectorId ?? ""
-  chosen.value = source?.node ?? null
-  sourceColumns.value = source?.columns ?? []
+  sourceId.value = connectorId
+  chosen.value = node === null ? null : { id: node.id, name: node.name }
+  sourceColumns.value = columns
   // Same-named columns are offered as a starting point, never applied
   // silently: the reader confirms every pair before anything is read.
   const names = new Set(sourceColumns.value.map((column) => column.name))
@@ -117,7 +137,11 @@ function run() {
   <WindowDialog
     :model-value="modelValue"
     title="Bring rows in"
-    subtitle="From another source of yours, into this relation"
+    :subtitle="
+      source
+        ? `From ${source.label}, into ${targetLabel ?? 'this relation'}`
+        : 'From another source of yours, into this relation'
+    "
     size="wide-form"
     sizing="stable"
     data-testid="grid-import-dialog"
@@ -139,6 +163,7 @@ function run() {
         {{ trouble }}
       </AppBanner>
       <NodePicker
+        v-if="!source"
         :key="modelValue ? 'open' : 'closed'"
         testid="grid-import"
         @pick="picked"

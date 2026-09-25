@@ -18,6 +18,7 @@ from app.connectors.paste.models import (
     PastePair,
     PasteResult,
     PasteRun,
+    PasteWorkflow,
 )
 from app.core.access import Access
 
@@ -192,6 +193,8 @@ class _Files:
     source_requires: Access
     changes_source: bool
     converts = False
+    workflow: PasteWorkflow = "run"
+    destination_requires: Access = "write"
 
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, TransfersFiles)

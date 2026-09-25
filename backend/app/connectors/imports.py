@@ -10,8 +10,13 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.fetch import MAX_LIMIT, FetchColumn, FetchRequest
-from app.adapters.protocol import SupportsFetch
-from app.adapters.relation_changes import NewColumn
+from app.adapters.protocol import SupportsCreateRelation, SupportsFetch, SupportsInsert
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    NewColumn,
+    RelationCreated,
+)
+from app.adapters.update import InsertRowsRequest, RowsInserted, ValuesRejected
 
 # How many rows one move may carry. More than this is a durable job with
 # progress and cancellation, which is Phase 4; a larger number here would only
@@ -184,3 +189,48 @@ async def read_rows(
         # only reachable when the first page came back with none at all.
         targets, indexes = _pick(pairs, [])
     return ReadRows(columns=targets, rows=rows, truncated=more)
+
+
+class SourceTooLarge(Exception):
+    """A new relation would hold only the first part of its source."""
+
+
+async def create_from_source(
+    target: SupportsCreateRelation,
+    source: SupportsFetch,
+    request: CreateRelationFromSourceRequest,
+) -> RelationCreated | ValuesRejected:
+    """Create one relation holding the whole of a bounded source (D45).
+
+    Refused rather than truncated: a new table made from only the first part
+    of one would carry a false identity.
+    """
+    read = await read_rows(
+        source, request.source_node_id, request.pairs(), IMPORT_CEILING
+    )
+    if read.truncated:
+        raise SourceTooLarge
+    return await target.create_relation(
+        CreateRelationRequest(
+            parent_node_id=request.parent_node_id,
+            name=request.name,
+            columns=request.new_columns(),
+            rows=read.rows,
+        )
+    )
+
+
+async def insert_from_source(
+    target: SupportsInsert, source: SupportsFetch, request: ImportRowsRequest
+) -> tuple[RowsInserted | ValuesRejected, bool]:
+    """Insert up to the ceiling of a source into one relation, and whether the
+    rest was cut off (D43)."""
+    read = await read_rows(
+        source, request.source_node_id, request.columns, IMPORT_CEILING
+    )
+    if not read.rows:
+        return RowsInserted(inserted=0), False
+    result = await target.insert_rows(
+        InsertRowsRequest(node_id=request.node_id, columns=read.columns, rows=read.rows)
+    )
+    return result, read.truncated

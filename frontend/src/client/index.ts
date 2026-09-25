@@ -900,6 +900,7 @@ export type {
   ParsedOptions,
   Partitioning,
   PartitionOf,
+  PasteColumn,
   PasteOffer,
   PasteOffers,
   PastePair,

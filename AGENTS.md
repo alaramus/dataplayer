@@ -241,6 +241,7 @@ files. IDs are stable because specs and commits refer to them.
 | D163 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D164 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D165 | [sources/transfer](docs/architecture/sources/transfer.md) |
+| D166 | [sources/transfer](docs/architecture/sources/transfer.md) |
 
 ## Working rules
 

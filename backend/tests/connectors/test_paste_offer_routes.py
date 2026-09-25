@@ -180,7 +180,7 @@ async def test_a_table_is_saved_as_csv_in_a_folder(
     assert again.json()["detail"]["reason"] == "conflict"
 
 
-async def test_nothing_is_offered_where_nothing_can_take_the_clipboard(
+async def test_what_cannot_be_read_as_rows_is_named_and_not_run(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     home: Path,
@@ -196,7 +196,7 @@ async def test_nothing_is_offered_where_nothing_can_take_the_clipboard(
         headers=normal_user_token_headers,
         json={
             "source_connector_id": files,
-            "source_node_ids": [filename],
+            "source_node_ids": ["reports"],
             "destination_node_id": schema,
             "mode": "copy",
         },
@@ -223,7 +223,15 @@ async def test_nothing_is_offered_where_nothing_can_take_the_clipboard(
         },
     )
 
-    assert file_into_database.json() == {"offers": []}
+    # A folder is not rows: both row kinds say so, and a file copy is not
+    # among them, because a database holds no files.
+    assert [
+        (offer["kind"], offer["available"], offer["reason"])
+        for offer in file_into_database.json()["offers"]
+    ] == [
+        ("rows_new_relation", False, "This cannot be read as rows"),
+        ("rows_into_relation", False, "Tick the table the rows go into"),
+    ]
     assert cut_table.json() == {"offers": []}
     assert run_anyway.status_code == 501
 
@@ -265,3 +273,145 @@ async def test_the_clipboard_offer_says_what_a_selection_can_be_held_as(
         "can_copy": {"available": True, "reason": None},
         "can_cut": {"available": True, "reason": None},
     }
+
+
+async def test_a_csv_file_becomes_a_table_in_a_schema(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+    schema: str,
+) -> None:
+    filename = f"people-{uuid.uuid4().hex}.csv"
+    (home / filename).write_text("id,name\n1,Ada\n2,Grace\n")
+    files = await _files(client, normal_user_token_headers)
+    database = await _postgres(client, normal_user_token_headers)
+    pair = {
+        "source_connector_id": files,
+        "source_node_ids": [filename],
+        "destination_node_id": schema,
+        "mode": "copy",
+    }
+
+    offered = await client.post(
+        f"{BASE}/{database}/paste/offers", headers=normal_user_token_headers, json=pair
+    )
+    assert offered.status_code == 200, offered.text
+    create, into = offered.json()["offers"]
+    assert create["kind"] == "rows_new_relation" and create["available"]
+    assert create["workflow"] == "new-relation"
+    assert [column["name"] for column in create["source_columns"]] == ["id", "name"]
+    assert not into["available"]
+
+    made = await client.post(
+        f"{BASE}/{database}/paste",
+        headers=normal_user_token_headers,
+        json={
+            **pair,
+            "kind": "rows_new_relation",
+            "name": "pasted_people",
+            "columns": [
+                {"source": "id", "target": "id", "type_code": "text"},
+                {"source": "name", "target": "who", "type_code": "text"},
+            ],
+        },
+    )
+    assert made.status_code == 200, made.text
+    assert made.json()["message"] == "pasted_people created with 2 rows"
+    assert made.json()["reload_node_ids"] == [schema]
+
+    rows = await client.post(
+        f"{BASE}/{database}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": f"{schema}.pasted_people", "limit": 10},
+    )
+    assert rows.status_code == 200, rows.text
+    assert [column["name"] for column in rows.json()["columns"]] == ["id", "who"]
+    assert sorted(rows.json()["rows"]) == [["1", "Ada"], ["2", "Grace"]]
+
+
+async def test_rows_are_added_to_a_ticked_table(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+    schema: str,
+) -> None:
+    filename = f"regions-{uuid.uuid4().hex}.csv"
+    (home / filename).write_text("region,label\n7,AS\n8,AF\n")
+    files = await _files(client, normal_user_token_headers)
+    database = await _postgres(client, normal_user_token_headers)
+    pair = {
+        "source_connector_id": files,
+        "source_node_ids": [filename],
+        "destination_node_id": schema,
+        "target_node_id": f"{schema}.regions",
+        "mode": "copy",
+    }
+
+    offered = await client.post(
+        f"{BASE}/{database}/paste/offers", headers=normal_user_token_headers, json=pair
+    )
+    create, into = offered.json()["offers"]
+    # Both are usable: a table in the schema, or these rows in the ticked one.
+    assert create["available"] and into["available"]
+    assert into["workflow"] == "into-relation"
+    assert [column["name"] for column in into["target_columns"]] == ["id", "code"]
+
+    added = await client.post(
+        f"{BASE}/{database}/paste",
+        headers=normal_user_token_headers,
+        json={
+            **pair,
+            "kind": "rows_into_relation",
+            "columns": [
+                {"source": "region", "target": "id"},
+                {"source": "label", "target": "code"},
+            ],
+        },
+    )
+    assert added.status_code == 200, added.text
+    assert added.json()["message"] == "2 rows added"
+
+    rows = await client.post(
+        f"{BASE}/{database}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": f"{schema}.regions", "limit": 10},
+    )
+    assert sorted(rows.json()["rows"]) == [["1", "EU"], ["2", "US"], ["7", "AS"], ["8", "AF"]]
+
+
+async def test_a_value_the_table_cannot_read_is_named_and_nothing_is_written(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+    schema: str,
+) -> None:
+    filename = f"broken-{uuid.uuid4().hex}.csv"
+    (home / filename).write_text("id,code\n9,OK\nnine,NO\n")
+    files = await _files(client, normal_user_token_headers)
+    database = await _postgres(client, normal_user_token_headers)
+
+    refused = await client.post(
+        f"{BASE}/{database}/paste",
+        headers=normal_user_token_headers,
+        json={
+            "source_connector_id": files,
+            "source_node_ids": [filename],
+            "destination_node_id": schema,
+            "target_node_id": f"{schema}.regions",
+            "mode": "copy",
+            "kind": "rows_into_relation",
+            "columns": [
+                {"source": "id", "target": "id"},
+                {"source": "code", "target": "code"},
+            ],
+        },
+    )
+
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["message"] == "'nine' cannot be read by id (row 2)"
+    rows = await client.post(
+        f"{BASE}/{database}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": f"{schema}.regions", "limit": 10},
+    )
+    assert len(rows.json()["rows"]) == 2

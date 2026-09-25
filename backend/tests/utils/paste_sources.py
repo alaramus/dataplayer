@@ -3,9 +3,21 @@
 from collections.abc import AsyncIterator
 
 from app.adapters.export import ExportBatch, ExportRequest
+from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, NodeNotFound
 from app.adapters.relation import Column, ColumnType, RelationModel
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    CreateRelationResult,
+    NewRelationOptions,
+)
+from app.adapters.update import (
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+)
 
 ROWS: list[list[str | None]] = [["1", "Ada"], ["2", None], ["3", 'Grace "G"']]
 
@@ -63,3 +75,28 @@ class Explorer:
 
     async def check_connection(self) -> ConnectionCheckResult:
         return ConnectionCheckResult(ok=True, message="")
+
+
+class Database:
+    """A source that reads, inserts and creates relations, as far as the
+    registry can tell; nothing here is ever called."""
+
+    async def check_connection(self) -> ConnectionCheckResult:
+        return ConnectionCheckResult(ok=True, message="")
+
+    async def fetch(self, request: FetchRequest) -> FetchResult:
+        raise NotImplementedError
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        raise NotImplementedError
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        raise NotImplementedError
+
+    async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
+        raise NotImplementedError
+
+    async def create_relation(
+        self, request: CreateRelationRequest
+    ) -> CreateRelationResult:
+        raise NotImplementedError
