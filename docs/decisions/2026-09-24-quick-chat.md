@@ -13,6 +13,9 @@ tools, workspace context or data-source access. It reuses the person's model
 provider keys and curated catalog. The first answer titles the conversation
 from its question. Messages are encrypted under the same AI content key as
 agent messages.
+Opening and closing an empty window does not create a history entry. The first
+send creates the chat and stores the question before asking the model, so a
+failed model call leaves that question available for a follow-up.
 
 Within an agent transcript, selecting message text offers Add to chat, which
 quotes it into the current agent draft without sending, and More details,

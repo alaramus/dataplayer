@@ -336,14 +336,16 @@ status-bar space switch. Data panels remain mounted,
 and detached panels remain visible, by the same covering contract as
 Dashboards. Left column: New chat, history, Settings; settings replace the
 conversation on the right. Its head can become a name filter for chats and
-projects without changing the open conversation. New chat reopens an existing
-unarchived "New chat" with no messages or runs before creating another one.
+projects without changing the open conversation. New chat opens a local draft;
+the conversation enters history when its first message is sent. Closing an
+untouched draft leaves no history entry.
 The transcript has a centered reading width. Agent steps use the same text size
 as answers, with a quieter color; the composer sits on a raised surface below
 the transcript. Copy and speech controls under a message appear on hover or
 keyboard focus, and remain visible on touch screens. Unsent text is kept in
 memory per conversation while this browser page is open, including when the
-person switches application spaces or opens another chat. Sending clears it.
+person switches application spaces or opens another chat. Sending clears it
+after the server accepts the message.
 Down the left edge of a conversation with more than
 one question is its contents: a mark per question, named by its first line,
 which scrolls to it, and the one being read is drawn apart from the rest. The two cards have the ordinary draggable workspace
@@ -461,6 +463,9 @@ details creates a quick conversation and immediately sends an explanation
 request containing the selected text. The window opener accepts an intent,
 independently of the AI space, so a later Data surface can call it with its
 own selection. Selection is capped at 8,000 characters.
+An empty quick chat is a local draft. Its first send creates the stored chat;
+the question is committed before the model call, so a model error leaves the
+question in history for a follow-up.
 
 Spec: [Quick chat and selected text](../decisions/2026-09-24-quick-chat.md)
 
@@ -468,9 +473,8 @@ Spec: [Quick chat and selected text](../decisions/2026-09-24-quick-chat.md)
 
 The Quick chat button is a movable block on the workspace tool rails, available
 from every space. It opens a new plain conversation in a floating window. The
-opener reuses an untouched empty quick conversation from history before creating
-another one, including when a different conversation is currently shown. The
-window uses the agent conversation's transcript and composer layout, with a
+window remains a local draft until its first message is sent. It uses the agent
+conversation's transcript and composer layout, with a
 model selector but without a history selector or New/Delete controls. Plain
 conversations appear in the main AI chat history alongside agent conversations,
 with the same row appearance and actions: pin, project and archive. The archive

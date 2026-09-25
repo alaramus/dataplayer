@@ -3,7 +3,6 @@ import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, nextTick, onScopeDispose, ref, watch } from "vue"
 
-import { AiService } from "@/client"
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic, ConversationSummary, QuickChatSummary } from "@/client"
 import {
   AppButton,
@@ -33,7 +32,6 @@ import {
   useAiConversations,
   useAiProjects,
   useQuickChats,
-  useCreateAiConversation,
   useCreateAiProject,
   useDeleteAiProject,
   useRenameAiProject,
@@ -42,7 +40,6 @@ import {
 } from "./api"
 import { freshProjectName } from "./projectName"
 import { openQuickChat } from "./quickChatLauncher"
-import { reusableEmptyChat } from "./emptyChat"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
 
@@ -60,7 +57,6 @@ type AiEvent =
 const list = useAiConversations()
 const quickList = useQuickChats()
 const projectList = useAiProjects()
-const createConversation = useCreateAiConversation()
 const updateConversation = useUpdateAiConversation()
 const updateQuickChat = useUpdateQuickChat()
 const createProject = useCreateAiProject()
@@ -70,6 +66,7 @@ const queryClient = useQueryClient()
 const confirm = useConfirm()
 const toast = useToast()
 const selected = ref<string | null>(rememberedAiConversation())
+const newDraftOpen = ref(false)
 const settingsShown = ref(false)
 const spaceElement = ref<HTMLElement | null>(null)
 const {
@@ -224,6 +221,7 @@ async function moveChat(entry: HistoryChat, projectId: string | null) {
 }
 
 watch(conversations, (rows) => {
+  if (newDraftOpen.value) return
   if (selected.value !== null && rows.some((row) => row.id === selected.value)) return
   // Trap: the list is empty while it loads; falling back to the first row then drops the
   // remembered selection and erases it from storage, so restore after reload lands on
@@ -235,6 +233,7 @@ watch(selected, (id) => rememberAiConversation(id))
 // A Needs-you row names its chat; opening the sheet's space is not enough (D113).
 watch(requestedAiConversation, (id) => {
   if (id === null) return
+  newDraftOpen.value = false
   selected.value = id
   settingsShown.value = false
   requestedAiConversation.value = null
@@ -244,26 +243,17 @@ watch(requestedAiConversation, (id) => {
 // again puts back the chat that was open, which is still the selected one.
 function toggleSettings() { settingsShown.value = !settingsShown.value }
 
-const makingConversation = ref(false)
-async function makeConversation() {
-  if (makingConversation.value) return
-  makingConversation.value = true
-  try {
-    const current = await list.refetch()
-    if (current.isError || current.data === undefined) throw new Error("The chat history could not be read")
-    const empty = await reusableEmptyChat(current.data.data, async (id) => (
-      await AiService.readConversation({ path: { conversation_id: id } })
-    ).data)
-    const id = empty ?? (await createConversation.mutateAsync()).id
-    selected.value = id
-    settingsShown.value = false
-  } catch (cause) {
-    toast.error(messageOf(cause, "A new chat could not be created"))
-  } finally {
-    makingConversation.value = false
-  }
+function makeConversation() {
+  if (newDraftOpen.value) return
+  newDraftOpen.value = true
+  selected.value = null
+  settingsShown.value = false
 }
-function select(id: string) { selected.value = id; settingsShown.value = false }
+function select(id: string) { newDraftOpen.value = false; selected.value = id; settingsShown.value = false }
+function startedConversation(id: string) {
+  newDraftOpen.value = false
+  selected.value = id
+}
 function selectHistory(entry: HistoryChat) {
   if (entry.kind === "agent") select(entry.chat.id)
   else openQuickChat({ kind: "chat", id: entry.chat.id })
@@ -403,7 +393,6 @@ onScopeDispose(stop)
             size="sm"
             :icon="appIcons.addComment"
             label="New chat"
-            :disable="makingConversation"
             data-testid="ai-new-chat"
             @click="makeConversation"
           />
@@ -426,7 +415,6 @@ onScopeDispose(stop)
         <AppIconButton
           :icon="appIcons.add"
           tooltip="New chat"
-          :disable="makingConversation"
           data-testid="ai-new-chat"
           @click="makeConversation"
         />
@@ -567,13 +555,18 @@ onScopeDispose(stop)
           {{ selectedChat.title }}
         </button>
       </AppCardHead>
+      <AppCardHead
+        v-else-if="newDraftOpen"
+        title="New chat"
+      />
       <AppCardHead v-else />
       <AiSettings v-if="settingsShown" />
       <AiConversation
-        v-else-if="selected"
-        :key="selected"
+        v-else-if="selected || newDraftOpen"
+        :key="selected ?? 'new-agent-chat'"
         :conversation-id="selected"
         :contexts="contexts"
+        @started="startedConversation"
       />
       <div
         v-else

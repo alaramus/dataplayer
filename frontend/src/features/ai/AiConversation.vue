@@ -2,11 +2,13 @@
 import { appIcons } from "@/shared/ui"
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
+import { AiService } from "@/client"
 import type { AgentRunPublic, ConversationMessagePublic, ConversationUpdate, ScreenContext } from "@/client"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppMenu, AppSelect, AppSpinner, useToast } from "@/shared/ui"
 import type { MenuItem, SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
+import { serverStorageKey } from "@/shared/servers/context"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { acceptFor, admit, kindOf } from "./attachments"
@@ -20,6 +22,8 @@ import {
   useAiConversation,
   useAiModels,
   useAiSettings,
+  useCreateAiConversation,
+  useDeleteAiConversation,
   useAnswerAiRun,
   useCancelAiRun,
   useSendAiMessage,
@@ -33,18 +37,23 @@ import AiModelSelect from "./AiModelSelect.vue"
 import { autoModelValue, fallbackModel } from "./modelOptions"
 import { openQuickChat, quoteSelection } from "./quickChatLauncher"
 
-const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
-const conversation = useAiConversation(() => props.conversationId)
+const props = defineProps<{ conversationId: string | null; contexts: ScreenContext[] }>()
+const emit = defineEmits<{ started: [id: string] }>()
+const createdId = ref<string | null>(null)
+const currentId = computed(() => props.conversationId ?? createdId.value)
+const conversation = useAiConversation(currentId)
 const settings = useAiSettings()
 const models = useAiModels()
 const updateConversation = useUpdateAiConversation()
+const createConversation = useCreateAiConversation()
+const deleteConversation = useDeleteAiConversation()
 const updateSettings = useUpdateAiSettings()
 const send = useSendAiMessage()
 const cancel = useCancelAiRun()
 const answer = useAnswerAiRun()
 const toast = useToast()
 const now = useNow()
-const draft = useAiDraft(props.conversationId)
+const draft = useAiDraft(props.conversationId ?? serverStorageKey("new-agent-chat"))
 const contextDialogShown = ref(false)
 const selectedContextIds = ref<string[]>([])
 const selectedContexts = computed(() => selectedContextIds.value.flatMap((id) => {
@@ -180,17 +189,22 @@ function openFile(address: string) {
   window.open(address, "_blank", "noopener")
 }
 
+const starting = ref(false)
 const canSend = computed(() =>
   (draft.value.trim().length > 0 || pending.value.length > 0)
   && !blocked.value
   && activeRun.value === null
   && !send.isPending.value
+  && !starting.value
 )
 // What the agent may do to data from this chat (D136). Read only is the narrow
 // end and stands above what the settings allow in general. The fourth choice
 // is not this chat's: it is the settings' own switch, offered where changes
 // are decided, and it holds in every chat that is not read only.
 const EVERY_CHAT = "every"
+const pendingPolicy = ref<ConversationUpdate["change_policy"]>("ask")
+const pendingModelKey = ref<string | null>(null)
+const pendingAutoProvider = ref<ConversationUpdate["auto_provider"]>(null)
 const jevKeySet = computed(() => settings.data.value?.keys.some((key) => key.provider === "typesafe" && key.set) ?? false)
 const policyOptions = computed<SelectOption[]>(() => [
   { label: "Read only", value: "read_only", icon: appIcons.visibility, description: "Nothing is changed from this chat" },
@@ -199,7 +213,7 @@ const policyOptions = computed<SelectOption[]>(() => [
   { label: "Let Jev decide", value: "jev", icon: appIcons.key, description: jevKeySet.value ? "Jev decides before each change" : "Set a TypeSafe (Jev) API key in AI settings first", disable: !jevKeySet.value },
   { label: "Allow all changes in every chat", value: EVERY_CHAT, icon: appIcons.doneAll, description: "Changes in every chat run without asking", tone: "warning" },
 ])
-const changePolicy = computed(() => conversation.data.value?.change_policy ?? "ask")
+const changePolicy = computed(() => conversation.data.value?.change_policy ?? pendingPolicy.value ?? "ask")
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
 const shownPolicy = computed(() =>
   allowAll.value && changePolicy.value !== "read_only" && changePolicy.value !== "jev" ? EVERY_CHAT : changePolicy.value
@@ -208,14 +222,21 @@ async function choosePolicy(value: unknown) {
   if (typeof value !== "string" || value === shownPolicy.value) return
   if (value === "jev" && !jevKeySet.value) return
   try {
+    const id = currentId.value
     if (value === EVERY_CHAT) {
       // Read only would still stand above it here, and this chat is where it
       // was asked for.
-      if (changePolicy.value === "read_only") await updateConversation.mutateAsync({ id: props.conversationId, change_policy: "ask" })
+      if (changePolicy.value === "read_only") {
+        if (id) await updateConversation.mutateAsync({ id, change_policy: "ask" })
+        else pendingPolicy.value = "ask"
+      }
       await updateSettings.mutateAsync({ allow_all_changes: true })
       return
     }
-    if (value !== changePolicy.value) await updateConversation.mutateAsync({ id: props.conversationId, change_policy: value as ConversationUpdate["change_policy"] })
+    if (value !== changePolicy.value) {
+      if (id) await updateConversation.mutateAsync({ id, change_policy: value as ConversationUpdate["change_policy"] })
+      else pendingPolicy.value = value as ConversationUpdate["change_policy"]
+    }
     // Asking, or allowing here alone, cannot hold while every chat is allowed.
     if (value !== "read_only" && value !== "jev" && allowAll.value) {
       await updateSettings.mutateAsync({ allow_all_changes: false })
@@ -226,10 +247,10 @@ async function choosePolicy(value: unknown) {
 // What this chat is answered with: its own model, or the one the settings
 // chose for every chat that has not said otherwise. Choosing here is also
 // choosing for the next chat; the server keeps both (D140).
-const fallbackKey = computed(() => conversation.data.value?.model_key ?? settings.data.value?.model_key ?? null)
+const fallbackKey = computed(() => conversation.data.value?.model_key ?? pendingModelKey.value ?? settings.data.value?.model_key ?? null)
 const autoProvider = computed(() => conversation.data.value?.model_key
   ? conversation.data.value.auto_provider
-  : settings.data.value?.auto_provider)
+  : pendingModelKey.value ? pendingAutoProvider.value : settings.data.value?.auto_provider)
 const chatModel = computed(() => autoProvider.value ? autoModelValue(autoProvider.value) : fallbackKey.value)
 async function chooseModel(value: string) {
   if (value === chatModel.value) return
@@ -237,11 +258,12 @@ async function chooseModel(value: string) {
   const fallback = provider ? fallbackModel(models.data.value ?? [], fallbackKey.value, provider) : null
   if (provider && !fallback) return
   try {
-    await updateConversation.mutateAsync({
-      id: props.conversationId,
-      model_key: fallback?.key ?? value,
-      auto_provider: provider ?? null,
-    })
+    const id = currentId.value
+    if (id) await updateConversation.mutateAsync({ id, model_key: fallback?.key ?? value, auto_provider: provider ?? null })
+    else {
+      pendingModelKey.value = fallback?.key ?? value
+      pendingAutoProvider.value = provider ?? null
+    }
   }
   catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
 }
@@ -299,20 +321,50 @@ function toggle(set: Set<string>, id: string) {
 async function submit() {
   const text = draft.value.trim()
   if (!canSend.value) return
-  draft.value = ""
+  starting.value = true
   dictation.stop()
+  let id = currentId.value
+  let madeHere = false
   try {
+    if (id === null) {
+      id = (await createConversation.mutateAsync()).id
+      createdId.value = id
+      madeHere = true
+      await updateConversation.mutateAsync({
+        id,
+        change_policy: pendingPolicy.value,
+        ...(pendingModelKey.value ? { model_key: pendingModelKey.value, auto_provider: pendingAutoProvider.value } : {}),
+      })
+    }
     await send.mutateAsync({
-      id: props.conversationId,
+      id,
       text,
       contexts: selectedContexts.value,
       files: pending.value.map((one) => one.file),
     })
+    draft.value = ""
+    if (props.conversationId === null) emit("started", id)
     selectedContextIds.value = []
     for (const one of pending.value) URL.revokeObjectURL(one.address)
     pending.value = []
   }
-  catch (cause) { draft.value = text; toast.error(messageOf(cause, "The message could not be sent")) }
+  catch (cause) {
+    if (props.conversationId === null && id !== null) {
+      try {
+        const saved = (await AiService.readConversation({ path: { conversation_id: id } })).data
+        if (saved.messages.length || saved.runs.length) {
+          draft.value = ""
+          emit("started", id)
+        } else {
+          if (madeHere || createdId.value === id) {
+            await deleteConversation.mutateAsync(id)
+            createdId.value = null
+          }
+        }
+      } catch { /* Retain the chat ID until its saved state can be checked. */ }
+    }
+    toast.error(messageOf(cause, "The message could not be sent"))
+  } finally { starting.value = false }
 }
 function onEditorKeydown(event: KeyboardEvent) {
   if (event.key !== "Enter" || event.shiftKey) return
@@ -320,16 +372,16 @@ function onEditorKeydown(event: KeyboardEvent) {
   void submit()
 }
 async function stop() {
-  if (!activeRun.value) return
-  try { await cancel.mutateAsync({ id: activeRun.value.id, conversationId: props.conversationId }) }
+  if (!activeRun.value || !currentId.value) return
+  try { await cancel.mutateAsync({ id: activeRun.value.id, conversationId: currentId.value }) }
   catch (cause) { toast.error(messageOf(cause, "The answer could not be stopped")) }
 }
 async function answerQuestion(choice: string) {
-  if (!activeRun.value?.question) return
+  if (!activeRun.value?.question || !currentId.value) return
   try {
     await answer.mutateAsync({
       id: activeRun.value.id,
-      conversationId: props.conversationId,
+      conversationId: currentId.value,
       answer: choice,
     })
   }
@@ -387,7 +439,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="ai-conversation">
-    <AppSpinner v-if="conversation.isPending.value" />
+    <AppSpinner v-if="currentId !== null && conversation.isPending.value" />
     <AppBanner
       v-else-if="conversation.isError.value"
       tone="error"
@@ -488,7 +540,7 @@ onBeforeUnmount(() => {
             </div>
             <AiMessageFiles
               v-if="message.role === 'user' && message.attachments?.length"
-              :conversation-id="conversationId"
+              :conversation-id="currentId ?? ''"
               :files="message.attachments"
             />
             <div

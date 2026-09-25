@@ -2,6 +2,17 @@ import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
 
+test("opening and closing a quick chat leaves history unchanged", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("space-ai").click()
+  const rows = page.locator('[data-testid^="ai-chat-row-"]')
+  const before = await rows.count()
+  await page.getByTestId("quick-chat-rail").click()
+  await expect(page.getByTestId("quick-chat-window")).toBeVisible()
+  await page.getByRole("button", { name: "Close window" }).click()
+  await expect(rows).toHaveCount(before)
+})
+
 test("quick chat uses the same history and archive actions as agent chat", async ({ page }) => {
   await login(page)
   const token = await page.evaluate(() => Object.entries(localStorage)

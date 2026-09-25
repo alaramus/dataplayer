@@ -47,6 +47,27 @@ async def test_quick_chat_stores_a_separate_conversation_without_tools(
     assert (await client.get(f"{AI}/quick-chats", headers=headers)).json()[0]["id"] == chat_id
 
 
+async def test_quick_chat_keeps_the_question_when_the_model_fails(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], script: Script
+) -> None:
+    headers = normal_user_token_headers
+    await ready_agent(client, headers)
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    script.turns.append(Turn(error=RuntimeError("provider unavailable")))
+
+    sent = await client.post(
+        f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
+        json={"text": "Keep this question", "model_key": MODEL_KEY},
+    )
+
+    assert sent.status_code >= 400
+    saved = await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)
+    assert saved.status_code == 200
+    assert [(message["role"], message["content"]) for message in saved.json()["messages"]] == [
+        ("user", "Keep this question"),
+    ]
+
+
 async def test_quick_chat_is_private_and_requires_a_model_key(
     client: AsyncClient, normal_user_token_headers: dict[str, str], db: AsyncSession
 ) -> None:

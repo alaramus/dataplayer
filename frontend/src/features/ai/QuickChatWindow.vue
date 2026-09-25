@@ -11,7 +11,7 @@ import AiModelSelect from "./AiModelSelect.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { quickChatsKey, useAiSettings } from "./api"
 import { useDictation } from "./dictation"
-import { deletedQuickChat, explainRequest, quickChatIntent, reusableEmptyQuickChat } from "./quickChatLauncher"
+import { deletedQuickChat, explainRequest, quickChatIntent } from "./quickChatLauncher"
 
 const toast = useToast()
 const cache = useQueryClient()
@@ -51,7 +51,7 @@ const chat = useQuery({
   enabled: computed(() => open.value && selected.value !== null),
 })
 const modelKey = ref<string | null>(null)
-const title = computed(() => chat.data.value?.id === selected.value ? chat.data.value.title : "Quick chat")
+const title = computed(() => chat.data.value?.id === selected.value ? chat.data.value.title : "New chat")
 watch(() => chat.data.value?.model_key, (key) => { if (key) modelKey.value = key })
 watch(() => settings.data.value?.model_key, (key) => {
   if (!modelKey.value && key) modelKey.value = key
@@ -70,42 +70,24 @@ watch(() => quickChatIntent.value?.id, async () => {
     draft.value = ""
     return
   }
-  try {
-    await newChat()
-    if (intent.kind === "explain") {
-      draft.value = explainRequest(intent.text)
-      await send()
-    }
-  } catch (cause) {
-    toast.error(messageOf(cause, "Quick chat could not be opened"))
+  selected.value = null
+  draft.value = ""
+  if (intent.kind === "explain") {
+    draft.value = explainRequest(intent.text)
+    await send()
   }
 })
-
-let startingChat: Promise<void> | null = null
-async function newChat() {
-  if (startingChat !== null) return startingChat
-  const start = async () => {
-    const existing = (await AiService.listQuickChats()).data
-    const empty = await reusableEmptyQuickChat(existing, async (id) => (
-      await AiService.readQuickChat({ path: { chat_id: id } })
-    ).data)
-    selected.value = empty ?? (await AiService.createQuickChat()).data.id
-    draft.value = ""
-    if (empty === null) await cache.invalidateQueries({ queryKey: quickChatsKey })
-  }
-  startingChat = start()
-  try { await startingChat }
-  finally { startingChat = null }
-}
 
 async function send(value = draft.value) {
   const text = value.trim()
   if (!text || busy.value) return
   busy.value = true
   dictation.stop()
+  let created: string | null = null
+  const beforeCount = chat.data.value?.id === selected.value ? chat.data.value.messages.length : 0
   try {
-    const id = selected.value
-    if (!id) throw new Error("No quick chat is selected")
+    const id = selected.value ?? (await AiService.createQuickChat()).data.id
+    if (selected.value === null) created = id
     selected.value = id
     const result = (await AiService.sendQuickChatMessage({
       path: { chat_id: id }, body: { text, model_key: modelKey.value },
@@ -113,7 +95,23 @@ async function send(value = draft.value) {
     cache.setQueryData(["ai", "quick-chat", id], result)
     await cache.invalidateQueries({ queryKey: quickChatsKey })
     if (value === draft.value) draft.value = ""
-  } catch (cause) { toast.error(messageOf(cause, "The model could not answer")) }
+  } catch (cause) {
+    const id = created ?? selected.value
+    if (id !== null) {
+      try {
+        const saved = (await AiService.readQuickChat({ path: { chat_id: id } })).data
+        if (saved.messages.length > beforeCount && saved.messages.some((message) => message.role === "user" && message.content === text)) {
+          cache.setQueryData(["ai", "quick-chat", id], saved)
+          await cache.invalidateQueries({ queryKey: quickChatsKey })
+          if (value === draft.value) draft.value = ""
+        } else if (created !== null) {
+          await AiService.deleteQuickChat({ path: { chat_id: id } })
+          selected.value = null
+        }
+      } catch { /* Keep the draft and chat ID when the server cannot confirm what was saved. */ }
+    }
+    toast.error(messageOf(cause, "The model could not answer"))
+  }
   finally { busy.value = false }
 }
 
@@ -211,7 +209,7 @@ function editorKeydown(event: KeyboardEvent) {
               :icon="appIcons.send"
               label="Send"
               icon-only
-              :disable="busy || !draft.trim() || !selected"
+              :disable="busy || !draft.trim()"
               data-testid="quick-chat-send"
               @click="send()"
             />

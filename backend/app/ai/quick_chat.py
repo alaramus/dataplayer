@@ -220,6 +220,15 @@ async def send(
         for row in reversed(kept)
     )
     messages.append(HumanMessage(content=text))
+    if not previous and opened(chat.title) in {"New chat", "New quick chat"}:
+        chat.title = sealed(text.splitlines()[0][:80])
+    chat.model_key = model.key
+    chat.updated_at = get_datetime_utc()
+    session.add_all([
+        chat,
+        QuickMessage(conversation_id=chat.id, role="user", content=sealed(text)),
+    ])
+    await session.commit()
     try:
         async with asyncio.timeout(120):
             response = await chat_models.build(
@@ -231,13 +240,9 @@ async def send(
     answer = response_text(response)[:ANSWER_LIMIT]
     if not answer.strip():
         raise RuntimeError("The model returned an empty answer")
-    if not previous and opened(chat.title) in {"New chat", "New quick chat"}:
-        chat.title = sealed(text.splitlines()[0][:80])
-    chat.model_key = model.key
     chat.updated_at = get_datetime_utc()
     session.add_all([
         chat,
-        QuickMessage(conversation_id=chat.id, role="user", content=sealed(text)),
         QuickMessage(conversation_id=chat.id, role="assistant", content=sealed(answer)),
     ])
     await session.commit()

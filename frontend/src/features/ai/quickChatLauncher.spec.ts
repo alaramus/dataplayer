@@ -1,8 +1,6 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
-import type { QuickChatSummary } from "@/client"
-
-import { explainRequest, openQuickChat, quickChatIntent, quoteSelection, reusableEmptyQuickChat } from "./quickChatLauncher"
+import { explainRequest, openQuickChat, quickChatIntent, quoteSelection } from "./quickChatLauncher"
 
 describe("quick chat opening", () => {
   it("delivers a fresh intent on every opening", () => {
@@ -22,15 +20,4 @@ describe("quick chat opening", () => {
     )
   })
 
-  it("reuses an empty quick chat from history even when another chat was selected", async () => {
-    const chats = [
-      { id: "used", title: "New quick chat" },
-      { id: "named", title: "Research" },
-      { id: "empty", title: "New chat" },
-    ] as QuickChatSummary[]
-    const read = vi.fn(async (id: string) => ({ messages: id === "used" ? ["hello"] : [] }))
-    expect(await reusableEmptyQuickChat(chats, read)).toBe("empty")
-    expect(read.mock.calls.map(([id]) => id)).toEqual(["used", "empty"])
-    expect(await reusableEmptyQuickChat([], read)).toBeNull()
-  })
 })

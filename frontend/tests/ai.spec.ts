@@ -9,6 +9,7 @@ import { deleteConnector, openConnector } from "./utils/workspace"
 test("keeps unsent text when leaving and returning to the AI space", async ({ page }) => {
   await login(page)
   await page.getByTestId("space-ai").click()
+  const before = await page.locator('[data-testid^="ai-chat-row-"]').count()
   await page.getByTestId("ai-new-chat").click()
   const input = page.getByTestId("ai-message-input")
   await expect(input).toBeVisible()
@@ -18,6 +19,10 @@ test("keeps unsent text when leaving and returning to the AI space", async ({ pa
   await page.getByTestId("space-ai").click()
 
   await expect(page.getByTestId("ai-message-input")).toHaveValue("A question I have not sent")
+  await expect(page.locator('[data-testid^="ai-chat-row-"]')).toHaveCount(before)
+  await page.getByTestId("space-data").click()
+  await page.getByTestId("space-ai").click()
+  await expect(page.locator('[data-testid^="ai-chat-row-"]')).toHaveCount(before)
 })
 
 test("attaches named workspace tabs without overflowing a narrow composer", async ({ page }) => {
@@ -83,16 +88,25 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-send")).toHaveAttribute("aria-label", "Send")
 
   const active = page.locator('[data-testid^="ai-chat-row-"][data-active="true"]')
-  await page.getByTestId("ai-new-chat").click()
-  await expect(page.getByTestId("ai-new-chat")).toBeEnabled()
-  // An untouched New chat may be reused, so the active row need not change.
-  await expect(active).toBeVisible()
-  const conversationId = (await active.getAttribute("data-testid"))?.replace("ai-chat-row-", "")
-  expect(conversationId).toBeTruthy()
   const chatCount = await page.locator('[data-testid^="ai-chat-row-"]').count()
   await page.getByTestId("ai-new-chat").click()
-  await expect(active).toHaveAttribute("data-testid", `ai-chat-row-${conversationId}`)
+  await expect(page.getByTestId("ai-new-chat")).toBeEnabled()
+  await expect(active).toHaveCount(0)
   await expect(page.locator('[data-testid^="ai-chat-row-"]')).toHaveCount(chatCount)
+  await page.getByTestId("ai-new-chat").click()
+  await expect(page.locator('[data-testid^="ai-chat-row-"]')).toHaveCount(chatCount)
+  const token = await page.evaluate(() => Object.entries(localStorage)
+    .find(([key]) => key.endsWith("access_token"))?.[1])
+  const server = await page.evaluate(() => JSON.parse(
+    sessionStorage.getItem("dataplayer:active-server:v1") ?? "null"
+  ) as { url: string })
+  const created = await page.request.post(`${server.url}/api/v1/ai/conversations`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  expect(created.ok(), await created.text()).toBe(true)
+  const conversationId = (await created.json()).id as string
+  await page.getByTestId(`ai-chat-${conversationId}`).click()
+  await expect(active).toHaveAttribute("data-testid", `ai-chat-row-${conversationId}`)
 
   // Collapsed, the rail keeps a head with the plus alone in it, on the strip
   // the open chat's head stands on; Settings stays at its foot.

@@ -1,7 +1,5 @@
 import { ref } from "vue"
 
-import type { QuickChatSummary } from "@/client"
-
 export type QuickChatIntent =
   | { kind: "open" }
   | { kind: "chat"; id: string }
@@ -18,19 +16,6 @@ export function openQuickChat(request: QuickChatIntent = { kind: "open" }) {
 
 export function forgetQuickChat(id: string) {
   deletedQuickChat.value = id
-}
-
-/** Find an untouched draft anywhere in quick-chat history, as the agent chat does. */
-export async function reusableEmptyQuickChat(
-  chats: readonly QuickChatSummary[],
-  read: (id: string) => Promise<{ messages: readonly unknown[] }>
-): Promise<string | null> {
-  for (const chat of chats) {
-    if (chat.title !== "New chat" && chat.title !== "New quick chat") continue
-    const loaded = await read(chat.id)
-    if (loaded.messages.length === 0) return chat.id
-  }
-  return null
 }
 
 export function explainRequest(text: string): string {

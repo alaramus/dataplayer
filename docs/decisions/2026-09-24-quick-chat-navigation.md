@@ -3,8 +3,8 @@
 Date: 2026-09-24. Decision: D159.
 
 Quick chat is useful outside the AI space, so its launch button belongs to the
-workspace tool rails. It creates a plain conversation in the existing floating
-window. The window should look and behave like the agent conversation for
+workspace tool rails. It opens a local draft in the existing floating window;
+the conversation enters history on its first send. The window should look and behave like the agent conversation for
 reading and composing, while retaining a direct model call and separate storage.
 
 The window no longer manages its own history. Quick conversations appear in
