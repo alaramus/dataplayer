@@ -56,6 +56,7 @@ function closeFilter() {
       />
     </template>
     <template v-else>
+      <span class="connectors-head__title">Connections</span>
       <AppIconButton
         :icon="appIcons.add"
         tooltip="New connection"
@@ -90,6 +91,13 @@ function closeFilter() {
 .connectors-head__filter :deep(.q-field__native) {
   height: calc(var(--dp-tab-strip-height) - 1px);
   min-height: calc(var(--dp-tab-strip-height) - 1px);
+}
+.connectors-head__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
 }
 .connectors-head__commands {
   display: flex;

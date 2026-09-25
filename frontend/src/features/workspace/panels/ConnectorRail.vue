@@ -71,12 +71,13 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   align-items: center;
   padding-bottom: var(--dp-space-half);
 }
-/* Match the wide head's left inset so the add button stays in place. */
+/* Centred like the rails of the dashboards and the chats, so the plus sits
+   over the connector icons below it rather than the wide head's inset. */
 .connector-rail .connector-rail__head {
   align-self: stretch;
-  justify-content: flex-start;
+  justify-content: center;
   margin-bottom: var(--dp-space-1);
-  padding: 0 0 0 var(--dp-space-2);
+  padding: 0;
 }
 .connector-rail__slot {
   position: relative;
