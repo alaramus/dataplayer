@@ -34,6 +34,11 @@ class PasteKind(Protocol):
     def mode(self) -> ClipboardMode: ...
 
     @property
+    def needs(self) -> str:
+        """What the source must be, in the words that ask for it."""
+        ...
+
+    @property
     def workflow(self) -> PasteWorkflow: ...
 
     @property
@@ -88,6 +93,7 @@ def offered(
     return PasteOffer(
         kind=kind.name,
         title=kind.title,
+        mode=kind.mode,
         available=available,
         reason=reason,
         name_conflict=name_conflict,

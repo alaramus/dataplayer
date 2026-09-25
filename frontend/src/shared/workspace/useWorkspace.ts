@@ -277,7 +277,7 @@ export function useWorkspace<P extends { id: string }>(
       removePanel(tree.value, panelId) !== null
   }
 
-  function detach(panelId: PanelId) {
+  function detach(panelId: PanelId, group?: string) {
     if (!canDetach(panelId)) return
     const leaf = leavesOf(tree.value).find((one) => one.panels.includes(panelId))
     const panel = panelOf(panelId)
@@ -287,6 +287,7 @@ export function useWorkspace<P extends { id: string }>(
     detached.value = [...detached.value, {
       panelId, leafId: leaf.id, at: leaf.panels.indexOf(panelId),
       accepts: options.kindOf(panel), fallbackLeafId: nextId("returned"),
+      ...(group === undefined ? {} : { group }),
     }]
     tree.value = without
     focusedDetached.value = panelId

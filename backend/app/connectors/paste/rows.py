@@ -70,6 +70,7 @@ class _Rows:
     name: PasteKindName
     title: str
     workflow: PasteWorkflow
+    needs = "Tick a file or a table readable as rows"
     destination_requires: Access
     mode: ClipboardMode = "copy"
     converts = True

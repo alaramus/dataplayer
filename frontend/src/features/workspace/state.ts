@@ -30,6 +30,11 @@ export interface WorkspaceActions {
   openConnectorIds: Readonly<Ref<ReadonlySet<string>>>
   openCatalog: (connector: ConnectorPublic) => void
   duplicateCatalog: (panelId: string, startAt: string | null) => void
+  /**
+   * Offer this catalog to a pair: it waits for a second, or completes the one
+   * waiting (D167). Absent where the page makes no pairs.
+   */
+  pairCatalog?: (panelId: string) => void
   /** Open a new connection with defaults prepared by a source action. */
   createConnector: (draft: ConnectorDraft) => void
   /**

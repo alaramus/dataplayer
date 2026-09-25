@@ -6081,6 +6081,50 @@ export type OwnKey = {
 }
 
 /**
+ * PairOffers
+ *
+ * What can be done between two catalogs, in both directions (D167).
+ */
+export type PairOffers = {
+  /**
+   * Left To Right
+   */
+  left_to_right: Array<PasteOffer>
+  /**
+   * Right To Left
+   */
+  right_to_left: Array<PasteOffer>
+}
+
+/**
+ * PairRequest
+ */
+export type PairRequest = {
+  left: PairSide
+  right: PairSide
+}
+
+/**
+ * PairSide
+ *
+ * One catalog of a pair: where it stands and what is ticked in it.
+ */
+export type PairSide = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Place
+   */
+  place?: string | null
+  /**
+   * Ticked
+   */
+  ticked?: Array<string>
+}
+
+/**
  * ParameterMetadata
  *
  * What a run remembers about a binding: everything except the value.
@@ -6214,6 +6258,10 @@ export type PasteOffer = {
    * Title
    */
   title: string
+  /**
+   * Mode
+   */
+  mode?: "copy" | "move"
   /**
    * Available
    */
@@ -13969,6 +14017,32 @@ export type connectorsPasteOffersResponses = {
 
 export type connectorsPasteOffersResponse =
   connectorsPasteOffersResponses[keyof connectorsPasteOffersResponses]
+
+export type connectorsPairOffersData = {
+  body: PairRequest
+  path?: never
+  query?: never
+  url: "/api/v1/connectors/pair/offers"
+}
+
+export type connectorsPairOffersErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPairOffersError = connectorsPairOffersErrors[keyof connectorsPairOffersErrors]
+
+export type connectorsPairOffersResponses = {
+  /**
+   * Successful Response
+   */
+  200: PairOffers
+}
+
+export type connectorsPairOffersResponse =
+  connectorsPairOffersResponses[keyof connectorsPairOffersResponses]
 
 export type connectorsPasteData = {
   body: PasteRun

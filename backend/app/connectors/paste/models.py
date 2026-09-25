@@ -59,6 +59,9 @@ class PasteRun(PastePair):
 class PasteOffer(BaseModel):
     kind: PasteKindName
     title: str
+    # The clipboard verb it runs as: in a pair nothing is held, so the offer
+    # says it (D167).
+    mode: ClipboardMode = "copy"
     available: bool
     reason: str | None = None
     name_conflict: bool = False
@@ -89,6 +92,30 @@ class PasteResult(BaseModel):
     rows: int | None = None
     name: str | None = None
     reload_node_ids: list[str | None]
+
+
+class PairSide(BaseModel):
+    """One catalog of a pair: where it stands and what is ticked in it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    connector_id: uuid.UUID
+    place: str | None = None
+    ticked: list[str] = Field(default_factory=list, max_length=MAX_CLIPBOARD_NODES)
+
+
+class PairRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    left: PairSide
+    right: PairSide
+
+
+class PairOffers(BaseModel):
+    """What can be done between two catalogs, in both directions (D167)."""
+
+    left_to_right: list[PasteOffer]
+    right_to_left: list[PasteOffer]
 
 
 class Availability(BaseModel):

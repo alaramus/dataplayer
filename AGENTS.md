@@ -54,7 +54,7 @@ legacy notes and stay unchanged.
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, the bar and card at the foot | [workspace.md](docs/architecture/workspace.md) |
-| A floating window, the forms in it, detaching a tab | [windows.md](docs/architecture/windows.md) |
+| A floating window, the forms in it, detaching a tab, a pair of catalogs | [windows.md](docs/architecture/windows.md) |
 | A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
@@ -242,6 +242,7 @@ files. IDs are stable because specs and commits refer to them.
 | D164 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D165 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D166 | [sources/transfer](docs/architecture/sources/transfer.md) |
+| D167 | [windows](docs/architecture/windows.md) |
 
 ## Working rules
 

@@ -95,7 +95,8 @@ export interface WorkspaceContext {
   admissionOf: (leafId: NodeId) => DropAdmission
   activate: (panelId: PanelId) => void
   canDetach: (panelId: PanelId) => boolean
-  detach: (panelId: PanelId) => void
+  /** With a group, the window is the feature's to draw, shared with the rest of it. */
+  detach: (panelId: PanelId, group?: string) => void
   dock: (panelId: PanelId) => void
   /** Reached only from a look that sets `iconCommand`. */
   onIconClick?: (panelId: PanelId) => void

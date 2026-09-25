@@ -415,3 +415,126 @@ async def test_a_value_the_table_cannot_read_is_named_and_nothing_is_written(
         json={"node_id": f"{schema}.regions", "limit": 10},
     )
     assert len(rows.json()["rows"]) == 2
+
+
+def _answer(offers: list[dict[str, object]]) -> list[tuple[object, object, object]]:
+    return [(offer["kind"], offer["available"], offer["reason"]) for offer in offers]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_pair_says_what_it_could_do_before_anything_is_ticked(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    schema: str,
+) -> None:
+    files = await _files(client, normal_user_token_headers)
+    database = await _postgres(client, normal_user_token_headers)
+
+    answer = await client.post(
+        f"{BASE}/pair/offers",
+        headers=normal_user_token_headers,
+        json={
+            "left": {"connector_id": files, "place": None, "ticked": []},
+            "right": {"connector_id": database, "place": schema, "ticked": []},
+        },
+    )
+
+    assert answer.status_code == 200, answer.text
+    assert _answer(answer.json()["left_to_right"]) == [
+        ("rows_new_relation", False, "Tick a file or a table readable as rows"),
+        ("rows_into_relation", False, "Tick a file or a table readable as rows"),
+    ]
+    assert _answer(answer.json()["right_to_left"]) == [
+        ("relation_csv", False, "Tick a table or a view"),
+    ]
+
+
+async def test_a_pair_answers_from_the_ticks_of_both_sides(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+    schema: str,
+) -> None:
+    filename = f"pair-{uuid.uuid4().hex}.csv"
+    (home / "reports" / filename).write_text("id,code\n3,PA\n")
+    files = await _files(client, normal_user_token_headers)
+    database = await _postgres(client, normal_user_token_headers)
+
+    answer = await client.post(
+        f"{BASE}/pair/offers",
+        headers=normal_user_token_headers,
+        json={
+            "left": {
+                "connector_id": files,
+                "place": "reports",
+                "ticked": [f"reports/{filename}"],
+            },
+            "right": {
+                "connector_id": database,
+                "place": schema,
+                "ticked": [f"{schema}.regions"],
+            },
+        },
+    )
+
+    assert answer.status_code == 200, answer.text
+    # The CSV into the schema, or into the ticked table; the ticked table back
+    # into the folder the left side stands in.
+    assert _answer(answer.json()["left_to_right"]) == [
+        ("rows_new_relation", True, None),
+        ("rows_into_relation", True, None),
+    ]
+    [back] = answer.json()["right_to_left"]
+    assert (back["kind"], back["available"], back["mode"]) == ("relation_csv", True, "copy")
+    assert back["suggested_name"] == "regions.csv"
+
+
+async def test_two_folders_offer_copy_and_move_both_ways(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    filename = f"pair-{uuid.uuid4().hex}.txt"
+    (home / filename).write_bytes(b"pair")
+    left = await _files(client, normal_user_token_headers)
+    right = await _files(client, normal_user_token_headers, path="/reports")
+
+    answer = await client.post(
+        f"{BASE}/pair/offers",
+        headers=normal_user_token_headers,
+        json={
+            "left": {"connector_id": left, "place": None, "ticked": [filename]},
+            "right": {"connector_id": right, "place": None, "ticked": []},
+        },
+    )
+
+    assert answer.status_code == 200, answer.text
+    assert [
+        (offer["kind"], offer["mode"], offer["available"])
+        for offer in answer.json()["left_to_right"]
+    ] == [("file_copy", "copy", True), ("file_move", "move", True)]
+    assert _answer(answer.json()["right_to_left"]) == [
+        ("file_copy", False, "Tick files to copy"),
+        ("file_move", False, "Tick files to move"),
+    ]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_pair_is_two_connections(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    files = await _files(client, normal_user_token_headers)
+
+    answer = await client.post(
+        f"{BASE}/pair/offers",
+        headers=normal_user_token_headers,
+        json={
+            "left": {"connector_id": files, "ticked": []},
+            "right": {"connector_id": files, "ticked": []},
+        },
+    )
+
+    assert answer.status_code == 422
+    assert answer.json()["detail"]["message"] == "Pair two different connections"
+

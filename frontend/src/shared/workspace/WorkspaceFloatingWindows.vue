@@ -27,7 +27,8 @@ if (windows !== undefined && targets !== undefined) {
   const manager = windows
   const registry = targets
   watch(
-    () => props.context.detached.value.map((entry) => ({
+    // A group's window is drawn by the feature that made the group.
+    () => props.context.detached.value.filter((entry) => entry.group === undefined).map((entry) => ({
       ...entry, look: props.context.lookOf(entry.panelId),
     })),
     (entries) => {

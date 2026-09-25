@@ -5,7 +5,7 @@ maximized or detached from the workspace. The panel engine and the columns are
 in [workspace.md](workspace.md); the component kit is in
 [frontend.md](frontend.md).
 
-Decisions here: D14, D92, D93, D132, D155.
+Decisions here: D14, D92, D93, D132, D155, D167.
 
 ## What exists today
 
@@ -213,3 +213,41 @@ it forward. The first participants are the detached dashboard widget and the
 service output dialog.
 
 Spec: [A window whose contents can live as a workspace tab](../decisions/2026-09-22-window-to-tab-design.md)
+
+## D167. Two catalogs of two connections share a window with what goes between them
+
+A pair is D93's gesture with a second step. While a catalog tab is carried,
+the header offers **Pair** beside Open in a window. The first drop only
+remembers the catalog — a waiting pair in the header, with the connection's
+name, a list of the other connections and a cross — and the catalog stays
+where it was. The second catalog, dropped on Pair or chosen from that list,
+opens the pair window. A catalog's own **Pair** command does what the first
+or the second drop does, so no step needs a pointer. A catalog of the waiting
+connection is refused with "Pick another connection"; a new first drop
+replaces the waiting one; closing the waiting catalog forgets it.
+
+- **The engine knows a group, not a pair.** `detach(panelId, group)` tears a
+  panel off into a group whose window the feature draws; the engine's own
+  floating windows skip grouped panels, and docking and persistence treat them
+  as any detached panel. `WorkspaceRoot` has a `windows` slot inside the panel
+  host, where the feature's windows register their panel targets, and
+  `WorkspaceDetachTarget` a `beside` slot for a second target in the header.
+- **The window** holds the two catalog panels, alive, and swaps them from its
+  bar. Closing it docks both where D93 would. A catalog that leaves by any
+  other way — closed with its connection — takes the pair apart. Asking for a
+  paired catalog brings its window forward. Pairs last for the page session.
+- **The bar** asks `POST /connectors/pair/offers` with both sides — place and
+  ticks, published by each catalog panel — and lists D164's offers for both
+  directions and both verbs: the ticks of one side into the place, or the one
+  tick, of the other. With nothing ticked, each kind the two connections
+  share is listed with what to tick, in the kind's own words. A button opens
+  the windows a Paste of the same offer opens and runs `/paste`; the catalogs
+  of both connections re-read afterwards.
+
+Known deviations:
+
+- **No dragging between the two catalogs yet.** Rows are moved across by the
+  bar's buttons; dropping them on the other side is the next step.
+
+Spec: [Two connections side by side](../decisions/2026-09-25-paired-catalogs-design.md)
+

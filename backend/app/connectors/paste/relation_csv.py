@@ -64,6 +64,7 @@ def csv_name(typed: str) -> str:
 class RelationCsv:
     name: PasteKindName = "relation_csv"
     title = "Save as CSV"
+    needs = "Tick a table or a view"
     mode: ClipboardMode = "copy"
     workflow: PasteWorkflow = "file-name"
     converts = True

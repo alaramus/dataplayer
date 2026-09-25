@@ -187,6 +187,7 @@ def transfer_files(
 class _Files:
     name: PasteKindName
     title: str
+    needs: str
     done: str
     mode: ClipboardMode
     can_replace: bool
@@ -259,6 +260,7 @@ class _Files:
 class FileCopy(_Files):
     name: PasteKindName = "file_copy"
     title = "Copy files"
+    needs = "Tick files to copy"
     done = "copied"
     mode: ClipboardMode = "copy"
     can_replace = True
@@ -272,6 +274,7 @@ class FileMove(_Files):
 
     name: PasteKindName = "file_move"
     title = "Move files"
+    needs = "Tick files to move"
     done = "moved"
     mode: ClipboardMode = "move"
     can_replace = False

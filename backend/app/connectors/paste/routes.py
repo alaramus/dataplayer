@@ -13,12 +13,15 @@ from app.adapters.protocol import DataAdapter
 from app.adapters.resources import ResourcesDep
 from app.connectors.access import adapter_for, resolve_adapter
 from app.connectors.action_lookup import perform
-from app.connectors.paste.kinds import refused
+from app.connectors.paste.kinds import PasteKind, refused
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
     ClipboardOffer,
     ClipboardRequest,
+    PairOffers,
+    PairRequest,
+    PairSide,
     PasteOffer,
     PasteOffers,
     PastePair,
@@ -52,27 +55,101 @@ async def paste_offers(
     destination, destination_access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
+    return PasteOffers(
+        offers=[
+            await _offer(kind, source, source_access, destination, destination_access, pair)
+            for kind in KINDS
+            if kind.mode == pair.mode and kind.serves(source, destination)
+        ]
+    )
+
+
+@router.post("/pair/offers", response_model=PairOffers)
+async def pair_offers(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    request: PairRequest,
+) -> PairOffers:
+    """What can be done between two catalogs, both ways and both verbs (D167).
+
+    The ticks of one side are its source and the other side's place, and its
+    one tick, the destination. A side with nothing ticked still hears every
+    kind the two connections could do, each saying what to tick.
+    """
+    if request.left.connector_id == request.right.connector_id:
+        raise HTTPException(
+            status_code=422, detail={"message": "Pair two different connections"}
+        )
+    left, left_access = await resolve_adapter(
+        session, request.left.connector_id, current_user, resources, requires="read"
+    )
+    right, right_access = await resolve_adapter(
+        session, request.right.connector_id, current_user, resources, requires="read"
+    )
+    return PairOffers(
+        left_to_right=await _across(
+            (request.left, left, left_access), (request.right, right, right_access)
+        ),
+        right_to_left=await _across(
+            (request.right, right, right_access), (request.left, left, left_access)
+        ),
+    )
+
+
+type _End = tuple[PairSide, DataAdapter, Access]
+
+
+async def _across(source: _End, destination: _End) -> list[PasteOffer]:
+    source_side, source_adapter, source_access = source
+    destination_side, destination_adapter, destination_access = destination
     offers: list[PasteOffer] = []
     for kind in KINDS:
-        if kind.mode != pair.mode or not kind.serves(source, destination):
+        if not kind.serves(source_adapter, destination_adapter):
             continue
-        if not at_least(destination_access, kind.destination_requires):
-            offers.append(
-                refused(
-                    kind,
-                    f"This needs {kind.destination_requires} access to this connection",
-                )
+        if not source_side.ticked:
+            offers.append(refused(kind, kind.needs))
+            continue
+        pair = PastePair(
+            source_connector_id=source_side.connector_id,
+            source_node_ids=source_side.ticked,
+            mode=kind.mode,
+            destination_node_id=destination_side.place,
+            target_node_id=(
+                destination_side.ticked[0] if len(destination_side.ticked) == 1 else None
+            ),
+        )
+        offers.append(
+            await _offer(
+                kind,
+                source_adapter,
+                source_access,
+                destination_adapter,
+                destination_access,
+                pair,
             )
-        elif not at_least(source_access, kind.source_requires):
-            offers.append(
-                refused(
-                    kind,
-                    f"This needs {kind.source_requires} access to the copied connection",
-                )
-            )
-        else:
-            offers.append(await kind.offer(source, destination, pair))
-    return PasteOffers(offers=offers)
+        )
+    return offers
+
+
+async def _offer(
+    kind: PasteKind,
+    source: DataAdapter,
+    source_access: Access,
+    destination: DataAdapter,
+    destination_access: Access,
+    pair: PastePair,
+) -> PasteOffer:
+    """One kind's answer, after what it needs of each end beyond reading."""
+    if not at_least(destination_access, kind.destination_requires):
+        return refused(
+            kind, f"This needs {kind.destination_requires} access to this connection"
+        )
+    if not at_least(source_access, kind.source_requires):
+        return refused(
+            kind, f"This needs {kind.source_requires} access to the copied connection"
+        )
+    return await kind.offer(source, destination, pair)
 
 
 @router.post("/{connector_id}/paste", response_model=PasteResult)

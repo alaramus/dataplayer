@@ -59,3 +59,9 @@ def test_a_table_can_be_copied_but_never_cut(tmp_path: Path) -> None:
 
 def test_every_kind_is_reachable_by_its_name() -> None:
     assert [kind_named(kind.name) for kind in KINDS] == list(KINDS)
+
+
+def test_every_kind_says_what_its_source_must_be() -> None:
+    """What a pair shows before anything is ticked (D167)."""
+    assert all(kind.needs.startswith("Tick ") for kind in KINDS)
+

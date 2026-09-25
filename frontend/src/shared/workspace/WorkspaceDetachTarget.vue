@@ -19,27 +19,42 @@ function release() {
 <template>
   <div
     v-if="offered"
-    class="detach-target"
-    :class="{ 'detach-target--hovered': hovered }"
-    data-testid="workspace-detach-target"
-    role="status"
-    @pointerenter="hovered = true"
-    @pointerleave="hovered = false"
-    @pointerup.stop="release"
+    class="detach-targets"
   >
-    <q-icon
-      name="web_asset"
-      size="28px"
+    <div
+      class="detach-target"
+      :class="{ 'detach-target--hovered': hovered }"
+      data-testid="workspace-detach-target"
+      role="status"
+      @pointerenter="hovered = true"
+      @pointerleave="hovered = false"
+      @pointerup.stop="release"
+    >
+      <q-icon
+        name="web_asset"
+        size="28px"
+      />
+      <span>Drop here to open in a window</span>
+    </div>
+    <!-- Another place the feature offers for the same carried tab, beside
+         this one rather than instead of it. -->
+    <slot
+      name="beside"
+      :panel-id="context.dragging.value"
     />
-    <span>Drop here to open in a window</span>
   </div>
 </template>
 
 <style scoped>
-.detach-target {
+.detach-targets {
   position: absolute;
   inset: 0;
   z-index: var(--dp-layer-overlay);
+  display: flex;
+  gap: var(--dp-space-2);
+}
+.detach-target {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;

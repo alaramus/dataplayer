@@ -189,6 +189,9 @@ import type {
   connectorsNewRelationOptionsData,
   connectorsNewRelationOptionsErrors,
   connectorsNewRelationOptionsResponses,
+  connectorsPairOffersData,
+  connectorsPairOffersErrors,
+  connectorsPairOffersResponses,
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
@@ -2662,6 +2665,34 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/paste/offers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Pair Offers
+   *
+   * What can be done between two catalogs, both ways and both verbs (D167).
+   *
+   * The ticks of one side are its source and the other side's place, and its
+   * one tick, the destination. A side with nothing ticked still hears every
+   * kind the two connections could do, each saying what to tick.
+   */
+  public static pairOffers<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPairOffersData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPairOffersResponses,
+      connectorsPairOffersErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/pair/offers",
       ...options,
       headers: {
         "Content-Type": "application/json",

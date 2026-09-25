@@ -9,6 +9,11 @@ export interface DetachedPanel {
   accepts: string
   /** Stable even when persistence has to reconstruct a missing section. */
   fallbackLeafId: NodeId
+  /**
+   * Torn off together with others into one window that the feature draws.
+   * Absent: a window of its own, drawn by the engine.
+   */
+  group?: string
 }
 
 /** The same return rule is used by the button and the persisted layout. */

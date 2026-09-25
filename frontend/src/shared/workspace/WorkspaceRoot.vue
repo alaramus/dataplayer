@@ -79,6 +79,9 @@ onBeforeUnmount(() => {
         :node="context.tree.value"
       />
       <WorkspaceFloatingWindows :context="context" />
+      <!-- Windows the feature draws around panels it tore off as a group:
+           inside the host, where the panels' targets are registered. -->
+      <slot name="windows" />
     </WorkspacePanels>
 
     <WorkspaceDragGhost

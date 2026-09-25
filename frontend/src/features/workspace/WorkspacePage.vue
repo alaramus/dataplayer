@@ -32,6 +32,10 @@ import type { AiOpenIntent } from "@/features/ai/context"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import WorkspaceBottomPanel from "@/features/workspace/WorkspaceBottomPanel.vue"
 import WorkspaceToolRail from "@/features/workspace/WorkspaceToolRail.vue"
+import PairTarget from "@/features/workspace/PairTarget.vue"
+import PairWaiting from "@/features/workspace/PairWaiting.vue"
+import PairWindows from "@/features/workspace/PairWindows.vue"
+import { usePairs } from "@/features/workspace/usePairs"
 import { useTabGroups } from "@/features/workspace/useTabGroups"
 import {
   catalogPanelId,
@@ -681,6 +685,9 @@ function replaceNode(connectorId: string, replacement: NodeReplacement) {
   }
 }
 
+/** Two catalogs of two connections in one window (D167). */
+const pairs = usePairs(workspace, openCatalog)
+
 const actions: WorkspaceActions = {
   connectorNameFilter,
   connectorFilterOpen,
@@ -688,6 +695,7 @@ const actions: WorkspaceActions = {
   openConnectorIds: openConnectors,
   openCatalog,
   duplicateCatalog,
+  pairCatalog: (panelId) => { pairs.offer(panelId) },
   revealInCatalog,
   revealTarget,
   takeReveal: (connectorId: string) => {
@@ -1001,9 +1009,17 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
           @click="toggleFirstPanel"
         />
       </span>
+      <PairWaiting :pairs="pairs" />
     </template>
     <template #header-overlay>
-      <WorkspaceDetachTarget :context="workspace.context" />
+      <WorkspaceDetachTarget :context="workspace.context">
+        <template #beside="{ panelId }">
+          <PairTarget
+            :pairs="pairs"
+            :panel-id="panelId"
+          />
+        </template>
+      </WorkspaceDetachTarget>
     </template>
     <template #status>
       <!-- The icon-only server at the very left edge, on the same axis as
@@ -1059,6 +1075,9 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
                 :contexts="screenContexts(workspace.panels.value)"
                 @open="openFromAgent"
               />
+            </template>
+            <template #windows>
+              <PairWindows :pairs="pairs" />
             </template>
           </WorkspaceRoot>
         </div>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, nextTick, onDeactivated, ref, toRef, useId, watch } from "vue"
+import { computed, inject, nextTick, onBeforeUnmount, onDeactivated, ref, toRef, useId, watch } from "vue"
 
 import type { DetectedFramework } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
@@ -29,6 +29,9 @@ import type { ListNode } from "@/features/catalog/nodes"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
+import { publishSide } from "@/features/workspace/catalogSides"
+import { workspaceKey } from "@/shared/workspace"
+import type { CatalogSide } from "@/features/workspace/catalogSides"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
@@ -535,6 +538,31 @@ const treeChecked = computed(() =>
 )
 const tree = ref<{ reload: () => Promise<void> } | null>(null)
 
+/** Where this catalog stands and what is ticked, for a pair to read (D167). */
+const side = computed<CatalogSide>(() => asTree.value
+  ? {
+      connectorId: props.connectorId,
+      place: treeLevelId.value,
+      placeLabel: picked.value && pickedIsPlace.value ? picked.value.label : groupLabel.value,
+      ticked: treeChecked.value.map((node) => node.id),
+      tickedLabel: treeChecked.value[0]?.label ?? "",
+    }
+  : {
+      connectorId: props.connectorId,
+      place: places.value.length === 1 ? places.value[0] ?? null : null,
+      placeLabel: placeLabel.value,
+      ticked: [...level.checked.value],
+      tickedLabel: checkedLabel.value,
+    })
+watch(side, (value) => publishSide(props.panelId, value), { immediate: true })
+onBeforeUnmount(() => publishSide(props.panelId, null))
+
+/** Already one side of a pair, where offering it to another means nothing. */
+const engine = inject(workspaceKey, null)
+const paired = computed(() =>
+  engine?.detached.value.some((entry) => entry.panelId === props.panelId && entry.group !== undefined) ?? false
+)
+
 /** Offered once there is something to look for, exactly as a filter is. */
 const canRunSearch = computed(() => canSearch.value && level.filter.value.trim() !== "")
 
@@ -829,6 +857,13 @@ async function afterAction(outcome: ActionOutcome) {
           <span class="catalog-panel__duplicate-label">×2</span>
           <AppTooltip>Duplicate catalog beside this one</AppTooltip>
         </AppButton>
+        <AppIconButton
+          v-if="workspace.pairCatalog && !paired"
+          :icon="appIcons.pair"
+          tooltip="Pair with another connection"
+          data-testid="catalog-pair"
+          @click="workspace.pairCatalog?.(panelId)"
+        />
       </div>
 
       <!-- On a line of its own: a filter is something a user types into, and

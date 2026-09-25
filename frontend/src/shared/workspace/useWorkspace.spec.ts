@@ -260,6 +260,15 @@ describe("a section put aside", () => {
 })
 
 describe("detached workspace panels", () => {
+  it("keeps the group a panel was torn off in, and docks it back like any other", () => {
+    const workspace = buildDragging()
+
+    workspace.context.detach("p2", "pair-1")
+
+    expect(workspace.context.detached.value.map((entry) => entry.group)).toEqual(["pair-1"])
+    expect(JSON.parse(workspace.snapshot()).tree).toEqual(JSON.parse(serializeWorkspace(dragging().tree, dragging().panels)).tree)
+  })
+
   it("removes only the layout reference and raises the existing detached panel on open", () => {
     const workspace = buildDragging()
     workspace.context.detach("p2")
