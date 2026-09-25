@@ -43,26 +43,31 @@ only the first.
 
 A window of the window manager (D14), opened large and maximizable, titled
 with both connections: "Files and Postgres". There may be several at once.
-Its two halves are the two catalog panels, unchanged: their own navigation,
-menu, Copy and Paste. A **Swap sides** command exchanges them. Closing the
+Its two halves are the two catalog panels with their own navigation, but
+without their actions menu and ×2: what is done in a pair is done from the
+bar. A **Swap sides** command exchanges them. Closing the
 window returns both catalogs to the catalog column, to the places D93 would
 return them to. Like a detached panel, a pair lasts for the page session; the
 persisted layout holds its catalogs docked.
 
 ### The bar
 
-Beneath the two catalogs, one bar lists what can be done between them, in
-both directions at once, so there is no direction to choose first.
+Beneath the two catalogs, one bar lists what can be done from the left
+catalog into the right one. The direction is always left to right; Swap sides
+is how the other one is reached. The first draft listed both directions side
+by side, one column each, and that was dropped on review: a person reads two
+columns as two places to act in, and a direction is clearer as where the
+catalogs stand than as a heading.
 
-- **From the ticks.** For each direction, the ticked nodes of one side are
-  the source, and the other side's place — and its one ticked node, when
-  there is exactly one — the destination. Copy and move are both listed: in a
+- **From the ticks.** The ticked nodes of the left side are the source, and
+  the right side's place — and its one ticked node, when there is exactly
+  one — the destination. Copy and move are both listed: in a
   pair nothing is held on a clipboard, so the mode is the item's own. Each
   item names what it does, to what and where — "Create a table in demo_lab",
   "Add rows to orders", "Save orders as CSV in reports" — with a button.
 - **Unavailable items stay**, greyed, with their reason, as a Paste hint does.
-- **Before anything is ticked**, the bar lists what the two connections can
-  do between them at all, by kind and direction, each with what to tick:
+- **Before anything is ticked**, the bar lists what can go from the left
+  connection into the right one, by kind, each with what to tick:
   "Files → Postgres: Create a table — tick a file readable as rows". This is
   the discovery the window is for, and it needs no node: whether a kind serves
   a pair of connections is what the registry of D164 already decides.
@@ -74,10 +79,11 @@ both directions at once, so there is no direction to choose first.
 
 ### What the server adds
 
-- **One answer for a pair of sides.** Both sides are sent — connection, place,
-  ticked nodes — and the answer is D164's offers for both directions and both
-  modes, computed by the same registry and the same checks. The bar asks it
-  once per change of either side rather than four times.
+- **One answer for a pair of sides.** Both sides are sent as a source and a
+  destination — connection, place, ticked nodes — and the answer is D164's
+  offers for that direction in both modes, computed by the same registry and
+  the same checks. The bar asks it once per change of either side rather than
+  twice; after Swap sides it asks with the sides exchanged.
 - **What a kind needs ticked.** Each kind states, in words, what its source
   must be ("Tick files", "Tick a table or a view"), so the bar before any tick
   and an unavailable item say it without the client naming a kind.
@@ -99,9 +105,11 @@ both directions at once, so there is no direction to choose first.
   both catalogs where they were; a catalog of the same connection is refused.
 - Choosing a connection from the empty slot opens its catalog as the second
   side, with no dragging at all.
-- With nothing ticked the bar lists the kinds for both directions and what to
-  tick; ticking a CSV on the left lists "Create a table" and, with a table
-  ticked on the right, "Add rows to" it and "Save … as CSV" back to the left.
+- A paired catalog shows no actions menu and no ×2; docked again, it does.
+- With nothing ticked the bar lists the kinds that go left to right and what
+  to tick; Swap sides lists the other way. Ticking a CSV on the left lists
+  "Create a table" and, with a table ticked on the right, "Add rows to" it;
+  swapped, the ticked table offers "Save … as CSV" into the files side.
 - A button opens the same window as Paste and the catalogs refresh after it.
 - Closing the pair window puts both catalogs back in the catalog column.
 

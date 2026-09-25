@@ -29,22 +29,22 @@ vi.mock("@/shared/ui", () => ({
 vi.mock("@/features/grid/CreateTableDialog.vue", () => ({
   default: defineComponent({
     name: "CreateTableDialog",
+    props: ["modelValue", "sourceTitle", "sourceColumns", "fixedDestination", "running", "error"],
+    emits: ["update:modelValue", "run"],
     beforeUnmount() {
       this.$emit("update:modelValue", false)
     },
-    props: ["modelValue", "sourceTitle", "sourceColumns", "fixedDestination", "running", "error"],
-    emits: ["update:modelValue", "run"],
     template: "<div />",
   }),
 }))
 vi.mock("@/features/grid/ImportDialog.vue", () => ({
   default: defineComponent({
     name: "ImportDialog",
+    props: ["modelValue", "connectorId", "nodeId", "targetColumns", "targetLabel", "source", "running", "error"],
+    emits: ["update:modelValue", "run"],
     beforeUnmount() {
       this.$emit("update:modelValue", false)
     },
-    props: ["modelValue", "connectorId", "nodeId", "targetColumns", "targetLabel", "source", "running", "error"],
-    emits: ["update:modelValue", "run"],
     template: "<div />",
   }),
 }))

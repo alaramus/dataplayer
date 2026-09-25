@@ -900,7 +900,6 @@ export type {
   NullTest,
   OperatorClassOption,
   OwnKey,
-  PairOffers,
   PairRequest,
   PairSide,
   ParameterMetadata,

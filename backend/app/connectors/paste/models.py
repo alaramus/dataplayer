@@ -105,17 +105,12 @@ class PairSide(BaseModel):
 
 
 class PairRequest(BaseModel):
+    """A pair asked one way: the ticks of `source` into `destination` (D167)."""
+
     model_config = ConfigDict(extra="forbid")
 
-    left: PairSide
-    right: PairSide
-
-
-class PairOffers(BaseModel):
-    """What can be done between two catalogs, in both directions (D167)."""
-
-    left_to_right: list[PasteOffer]
-    right_to_left: list[PasteOffer]
+    source: PairSide
+    destination: PairSide
 
 
 class Availability(BaseModel):

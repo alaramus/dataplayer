@@ -233,14 +233,17 @@ replaces the waiting one; closing the waiting catalog forgets it.
   host, where the feature's windows register their panel targets, and
   `WorkspaceDetachTarget` a `beside` slot for a second target in the header.
 - **The window** holds the two catalog panels, alive, and swaps them from its
-  bar. Closing it docks both where D93 would. A catalog that leaves by any
+  bar. A paired catalog hides its actions menu and ×2: what is done in a pair
+  is done from the pair's bar. Closing the window docks both where D93 would. A catalog that leaves by any
   other way — closed with its connection — takes the pair apart. Asking for a
   paired catalog brings its window forward. Pairs last for the page session.
-- **The bar** asks `POST /connectors/pair/offers` with both sides — place and
-  ticks, published by each catalog panel — and lists D164's offers for both
-  directions and both verbs: the ticks of one side into the place, or the one
-  tick, of the other. With nothing ticked, each kind the two connections
-  share is listed with what to tick, in the kind's own words. A button opens
+- **The bar** is one, and always runs left to right; Swap sides is how the
+  other direction is reached. It asks `POST /connectors/pair/offers` with the
+  left side as the source and the right as the destination — place and ticks,
+  published by each catalog panel — and lists D164's offers in both verbs: the
+  left ticks into the right place, or its one tick. With nothing ticked on the
+  left, each kind that goes that way is listed with what to tick, in the
+  kind's own words. A button opens
   the windows a Paste of the same offer opens and runs `/paste`; the catalogs
   of both connections re-read afterwards.
 

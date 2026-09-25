@@ -2676,11 +2676,12 @@ export class ConnectorsService {
   /**
    * Pair Offers
    *
-   * What can be done between two catalogs, both ways and both verbs (D167).
+   * What the ticks of one catalog can become in the other, both verbs (D167).
    *
-   * The ticks of one side are its source and the other side's place, and its
-   * one tick, the destination. A side with nothing ticked still hears every
-   * kind the two connections could do, each saying what to tick.
+   * The destination is the other side's place, and its one tick. A source with
+   * nothing ticked still hears every kind the two connections could do that
+   * way, each saying what to tick. The other way is the same question with the
+   * sides swapped, as the window asks it.
    */
   public static pairOffers<ThrowOnError extends boolean = true>(
     options: Options<connectorsPairOffersData, ThrowOnError>

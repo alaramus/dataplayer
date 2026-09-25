@@ -54,17 +54,40 @@ test("pairs two catalogs by dropping them on Pair, and pastes between them", asy
   const left = page.getByTestId("pair-side-left")
   const right = page.getByTestId("pair-side-right")
   await expect(right.getByTestId("catalog-list")).toContainText("projects")
-  // A catalog already in a pair is offered to no other.
+  // A catalog already in a pair is offered to no other, and leaves its own
+  // menu and ×2 to the window.
   await expect(pair.getByTestId("catalog-pair")).toHaveCount(0)
+  await expect(pair.getByTestId("catalog-actions")).toHaveCount(0)
+  await expect(pair.getByTestId("catalog-duplicate")).toHaveCount(0)
 
-  // Before anything is ticked the bar says what the two could do, and what
-  // to tick for it.
-  await expect(page.getByTestId("pair-bar-left")).toContainText("Tick a file or a table readable as rows")
-  await expect(page.getByTestId("pair-bar-right")).toContainText("Tick a table or a view")
+  // One bar, left to right: before anything is ticked it says what could go
+  // that way, and what to tick for it. Swap sides turns it round.
+  const bar = page.getByTestId("pair-bar")
+  await expect(bar).toContainText(`${files} → ${database}`)
+  await expect(bar).toContainText("Tick a file or a table readable as rows")
+  await page.getByTestId("pair-swap").click()
+  await expect(bar).toContainText(`${database} → ${files}`)
+  await expect(bar).toContainText("Tick a table or a view")
+  await page.getByTestId("pair-swap").click()
+  await expect(bar).toContainText(`${files} → ${database}`)
+  await expect(bar).toContainText("Tick a file or a table readable as rows")
 
+  // Each new tick is a new question, and the bar keeps the last answer until
+  // the next arrives: collapsing to "Checking" made both catalogs jump.
+  await bar.evaluate((element) => {
+    const seen = { checking: false }
+    Object.assign(window, { pairBarSeen: seen })
+    new MutationObserver(() => {
+      if (element.textContent?.includes("Checking what can be done")) seen.checking = true
+    }).observe(element, { childList: true, subtree: true, characterData: true })
+  })
   await left.getByTestId("catalog-node-reports").click()
   await left.getByTestId("catalog-check-q3.csv").click()
-  await page.getByTestId("pair-run-left-rows_new_relation").click()
+  await expect(page.getByTestId("pair-run-rows_new_relation")).toBeVisible()
+  expect(await page.evaluate(() =>
+    (window as unknown as { pairBarSeen: { checking: boolean } }).pairBarSeen.checking
+  )).toBe(false)
+  await page.getByTestId("pair-run-rows_new_relation").click()
   await page.getByTestId("grid-create-table-name").fill(table)
   await page.getByTestId("grid-create-table-run").click()
   await expect(right.getByTestId(`catalog-node-${table}`)).toBeVisible()

@@ -6081,27 +6081,13 @@ export type OwnKey = {
 }
 
 /**
- * PairOffers
- *
- * What can be done between two catalogs, in both directions (D167).
- */
-export type PairOffers = {
-  /**
-   * Left To Right
-   */
-  left_to_right: Array<PasteOffer>
-  /**
-   * Right To Left
-   */
-  right_to_left: Array<PasteOffer>
-}
-
-/**
  * PairRequest
+ *
+ * A pair asked one way: the ticks of `source` into `destination` (D167).
  */
 export type PairRequest = {
-  left: PairSide
-  right: PairSide
+  source: PairSide
+  destination: PairSide
 }
 
 /**
@@ -14038,7 +14024,7 @@ export type connectorsPairOffersResponses = {
   /**
    * Successful Response
    */
-  200: PairOffers
+  200: PasteOffers
 }
 
 export type connectorsPairOffersResponse =

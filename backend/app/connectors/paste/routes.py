@@ -19,7 +19,6 @@ from app.connectors.paste.models import (
     ClipboardMode,
     ClipboardOffer,
     ClipboardRequest,
-    PairOffers,
     PairRequest,
     PairSide,
     PasteOffer,
@@ -64,36 +63,35 @@ async def paste_offers(
     )
 
 
-@router.post("/pair/offers", response_model=PairOffers)
+@router.post("/pair/offers", response_model=PasteOffers)
 async def pair_offers(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
     request: PairRequest,
-) -> PairOffers:
-    """What can be done between two catalogs, both ways and both verbs (D167).
+) -> PasteOffers:
+    """What the ticks of one catalog can become in the other, both verbs (D167).
 
-    The ticks of one side are its source and the other side's place, and its
-    one tick, the destination. A side with nothing ticked still hears every
-    kind the two connections could do, each saying what to tick.
+    The destination is the other side's place, and its one tick. A source with
+    nothing ticked still hears every kind the two connections could do that
+    way, each saying what to tick. The other way is the same question with the
+    sides swapped, as the window asks it.
     """
-    if request.left.connector_id == request.right.connector_id:
+    if request.source.connector_id == request.destination.connector_id:
         raise HTTPException(
             status_code=422, detail={"message": "Pair two different connections"}
         )
-    left, left_access = await resolve_adapter(
-        session, request.left.connector_id, current_user, resources, requires="read"
+    source, source_access = await resolve_adapter(
+        session, request.source.connector_id, current_user, resources, requires="read"
     )
-    right, right_access = await resolve_adapter(
-        session, request.right.connector_id, current_user, resources, requires="read"
+    destination, destination_access = await resolve_adapter(
+        session, request.destination.connector_id, current_user, resources, requires="read"
     )
-    return PairOffers(
-        left_to_right=await _across(
-            (request.left, left, left_access), (request.right, right, right_access)
-        ),
-        right_to_left=await _across(
-            (request.right, right, right_access), (request.left, left, left_access)
-        ),
+    return PasteOffers(
+        offers=await _across(
+            (request.source, source, source_access),
+            (request.destination, destination, destination_access),
+        )
     )
 
 

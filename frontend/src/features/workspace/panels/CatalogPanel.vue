@@ -557,7 +557,11 @@ const side = computed<CatalogSide>(() => asTree.value
 watch(side, (value) => publishSide(props.panelId, value), { immediate: true })
 onBeforeUnmount(() => publishSide(props.panelId, null))
 
-/** Already one side of a pair, where offering it to another means nothing. */
+/**
+ * Already one side of a pair, where offering it to another means nothing.
+ * Its actions menu and ×2 are hidden there too: in a pair, what is done is
+ * done from the pair's bar (D167).
+ */
 const engine = inject(workspaceKey, null)
 const paired = computed(() =>
   engine?.detached.value.some((entry) => entry.panelId === props.panelId && entry.group !== undefined) ?? false
@@ -788,7 +792,7 @@ async function afterAction(outcome: ActionOutcome) {
              or a tree's one selected node. What an action may do to them is
              still the server's answer about those nodes. -->
         <CatalogActions
-          v-if="asTree"
+          v-if="asTree && !paired"
           class="catalog-panel__menu"
           :connector-id="connectorId"
           :level-id="treeLevelId"
@@ -812,7 +816,7 @@ async function afterAction(outcome: ActionOutcome) {
           @backups="showBackups"
         />
         <CatalogActions
-          v-else
+          v-else-if="!paired"
           class="catalog-panel__menu"
           :connector-id="connectorId"
           :level-id="level.currentId.value"
@@ -847,6 +851,7 @@ async function afterAction(outcome: ActionOutcome) {
           :cache-ttl-seconds="cacheWindow"
         />
         <AppButton
+          v-if="!paired"
           variant="quiet"
           size="sm"
           class="catalog-panel__duplicate"

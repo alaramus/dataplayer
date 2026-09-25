@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useQuery, useQueryClient } from "@tanstack/vue-query"
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 
 import { ConnectorsService } from "@/client"
@@ -15,9 +15,10 @@ import { itemDetail, pasteIntentFor, usable } from "./pairs"
 import type { PairCandidate } from "./pairs"
 
 /**
- * What can be done between the two catalogs of a pair, both ways at once
- * (D167). Every item is a Paste the server offers; its button opens the
- * windows that Paste would, and nothing here names a kind.
+ * What the ticks of the left catalog can become in the right one (D167).
+ * One direction only: Swap sides turns it round. Every item is a Paste the
+ * server offers; its button opens the windows that Paste would, and nothing
+ * here names a kind.
  */
 const props = defineProps<{ left: PairCandidate; right: PairCandidate }>()
 
@@ -27,13 +28,17 @@ const rightSide = useCatalogSide(() => props.right.panelId)
 const answer = useQuery({
   queryKey: computed(() => ["pair-offers", leftSide.value, rightSide.value]),
   enabled: computed(() => leftSide.value !== null && rightSide.value !== null),
+  // Every new tick is a new question. Without the last answer held while it
+  // is asked, the bar shrank to one line of "Checking" and back, and both
+  // catalogs above it jumped with it.
+  placeholderData: keepPreviousData,
   retry: false,
   queryFn: async () => {
     const left = leftSide.value
     const right = rightSide.value
     if (left === null || right === null) throw new Error("A catalog of the pair is not open")
     return (await ConnectorsService.pairOffers({
-      body: { left: sideOf(left), right: sideOf(right) },
+      body: { source: sideOf(left), destination: sideOf(right) },
     })).data
   },
 })
@@ -48,30 +53,16 @@ interface Item {
   detail: string
 }
 
-function itemsOf(offers: PasteOffer[], source: CatalogSide, destination: CatalogSide): Item[] {
-  return offers.map((offer) => {
-    const intent = pasteIntentFor(offer, source, destination)
-    return { offer, intent, detail: itemDetail(offer, intent) }
-  })
-}
+const heading = computed(() => `${props.left.title} → ${props.right.title}`)
 
-const directions = computed(() => {
+const items = computed<Item[]>(() => {
   const left = leftSide.value
   const right = rightSide.value
   if (left === null || right === null) return []
-  const offers = answer.data.value
-  return [
-    {
-      key: "left",
-      heading: `${props.left.title} → ${props.right.title}`,
-      items: itemsOf(offers?.left_to_right ?? [], left, right),
-    },
-    {
-      key: "right",
-      heading: `${props.right.title} → ${props.left.title}`,
-      items: itemsOf(offers?.right_to_left ?? [], right, left),
-    },
-  ]
+  return (answer.data.value?.offers ?? []).map((offer) => {
+    const intent = pasteIntentFor(offer, left, right)
+    return { offer, intent, detail: itemDetail(offer, intent) }
+  })
 })
 
 const pasting = ref<CrossPasteIntent | null>(null)
@@ -80,7 +71,9 @@ const changes = useSourceChangesStore()
 const queryClient = useQueryClient()
 
 function run(intent: CrossPasteIntent) {
-  if (pasting.value !== null) return
+  // The items shown are the last answer until the new one arrives, a few
+  // milliseconds; greying the buttons for that long would be the flicker again.
+  if (pasting.value !== null || answer.isPlaceholderData.value) return
   pastings += 1
   pasting.value = intent
 }
@@ -97,55 +90,48 @@ function afterPaste() {
     class="pair-bar"
     data-testid="pair-bar"
   >
-    <section
-      v-for="direction in directions"
-      :key="direction.key"
-      class="pair-bar__direction"
-      :data-testid="`pair-bar-${direction.key}`"
+    <div class="pair-bar__heading">
+      {{ heading }}
+    </div>
+    <div
+      v-if="answer.isPending.value"
+      class="pair-bar__note"
     >
-      <div class="pair-bar__heading">
-        {{ direction.heading }}
-      </div>
-      <div
-        v-if="answer.isPending.value"
-        class="pair-bar__note"
-      >
-        Checking what can be done
-      </div>
-      <div
-        v-else-if="answer.isError.value"
-        class="pair-bar__note"
-      >
-        Could not check these two connections
-      </div>
-      <div
-        v-else-if="direction.items.length === 0"
-        class="pair-bar__note"
-      >
-        Nothing goes this way
-      </div>
-      <div
-        v-for="entry in direction.items"
-        :key="entry.offer.kind"
-        class="pair-bar__item"
-        :data-testid="`pair-item-${direction.key}-${entry.offer.kind}`"
-      >
-        <template v-if="usable(entry.offer)">
-          <span class="pair-bar__detail">{{ entry.detail }}</span>
-          <AppButton
-            variant="secondary"
-            size="sm"
-            :label="entry.offer.title"
-            :data-testid="`pair-run-${direction.key}-${entry.offer.kind}`"
-            @click="run(entry.intent)"
-          />
-        </template>
-        <template v-else>
-          <span class="pair-bar__detail pair-bar__detail--off">{{ entry.offer.title }}</span>
-          <span class="pair-bar__reason">{{ entry.detail }}</span>
-        </template>
-      </div>
-    </section>
+      Checking what can be done
+    </div>
+    <div
+      v-else-if="answer.isError.value"
+      class="pair-bar__note"
+    >
+      Could not check these two connections
+    </div>
+    <div
+      v-else-if="items.length === 0"
+      class="pair-bar__note"
+    >
+      Nothing goes this way. Swap sides to go the other way.
+    </div>
+    <div
+      v-for="entry in items"
+      :key="entry.offer.kind"
+      class="pair-bar__item"
+      :data-testid="`pair-item-${entry.offer.kind}`"
+    >
+      <template v-if="usable(entry.offer)">
+        <span class="pair-bar__detail">{{ entry.detail }}</span>
+        <AppButton
+          variant="secondary"
+          size="sm"
+          :label="entry.offer.title"
+          :data-testid="`pair-run-${entry.offer.kind}`"
+          @click="run(entry.intent)"
+        />
+      </template>
+      <template v-else>
+        <span class="pair-bar__detail pair-bar__detail--off">{{ entry.offer.title }}</span>
+        <span class="pair-bar__reason">{{ entry.detail }}</span>
+      </template>
+    </div>
     <CrossPaste
       v-if="pasting"
       :key="pastings"
@@ -159,20 +145,13 @@ function afterPaste() {
 
 <style scoped>
 .pair-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  border-top: 1px solid var(--dp-border);
-  max-height: 40%;
-  overflow: auto;
-}
-.pair-bar__direction {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-1);
   padding: var(--dp-space-2) var(--dp-space-3);
-}
-.pair-bar__direction + .pair-bar__direction {
-  border-left: 1px solid var(--dp-border);
+  border-top: 1px solid var(--dp-border);
+  max-height: 40%;
+  overflow: auto;
 }
 .pair-bar__heading {
   color: var(--dp-text-strong);
