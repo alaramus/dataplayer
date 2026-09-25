@@ -15,16 +15,17 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.ai import conversations, preferences, tools as ai_tools
+from app.ai import conversations, preferences
+from app.ai import tools as ai_tools
 from app.ai.models import AgentPreferences, Conversation
 from app.ai.tools import (
     ALLOW_ALL,
     ALLOW_CHAT,
     ALLOW_ONCE,
     CHANGE_CHOICES,
-    READ_ONLY_CHAT,
     JEV_DENIED,
     JEV_UNAVAILABLE,
+    READ_ONLY_CHAT,
 )
 from app.core.config import settings
 from tests.ai.conftest import (

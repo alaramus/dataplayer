@@ -232,11 +232,15 @@ async def test_somebody_elses_file_is_not_found(
 async def test_an_image_is_refused_to_a_model_that_does_not_read_images(
     client: AsyncClient, headers: dict[str, str]
 ) -> None:
+    keyed = await client.put(
+        f"{AI}/keys/deepseek", headers=headers, json={"key": "sk-test-not-a-real-key-7f3a"}
+    )
+    assert keyed.status_code == 200, keyed.text
     conversation_id = await new_conversation(client, headers)
     await client.patch(
         f"{AI}/conversations/{conversation_id}",
         headers=headers,
-        json={"model_key": "deepseek:deepseek-flash"},
+        json={"model_key": "deepseek:deepseek-v4-pro"},
     )
 
     refused = await client.post(
@@ -248,7 +252,7 @@ async def test_an_image_is_refused_to_a_model_that_does_not_read_images(
 
     assert refused.status_code == 422
     assert refused.json()["detail"]["message"] == (
-        "DeepSeek V4 Flash does not read images; choose a model that does"
+        "DeepSeek V4 Pro does not read images; choose a model that does"
     )
     conversation = (
         await client.get(f"{AI}/conversations/{conversation_id}", headers=headers)

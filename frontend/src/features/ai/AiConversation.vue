@@ -629,11 +629,25 @@ onBeforeUnmount(() => {
         data-testid="ai-selection-menu"
         @pointerdown.prevent
       >
-        <AppButton variant="quiet" size="sm" label="Add to chat" @click="addSelectionToAgent" />
-        <AppButton variant="quiet" size="sm" label="More details" @click="explainSelection" />
+        <AppButton
+          variant="quiet"
+          size="sm"
+          label="Add to chat"
+          @click="addSelectionToAgent"
+        />
+        <AppButton
+          variant="quiet"
+          size="sm"
+          label="More details"
+          @click="explainSelection"
+        />
       </div>
       <div class="ai-conversation__dock">
-        <div ref="composer" class="ai-conversation__composer" data-testid="ai-composer">
+        <div
+          ref="composer"
+          class="ai-conversation__composer"
+          data-testid="ai-composer"
+        >
           <div
             v-if="selectedContexts.length"
             class="ai-conversation__contexts"
@@ -771,7 +785,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ai-conversation { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.ai-selection-menu { position: fixed; z-index: 10000; display: flex; gap: var(--dp-space-1); padding: var(--dp-space-1); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
+.ai-selection-menu { position: fixed; z-index: var(--dp-layer-popover); display: flex; gap: var(--dp-space-1); padding: var(--dp-space-1); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .ai-conversation__body { flex: 1; min-height: 0; display: flex; }
 /* The messages hold the marks' coordinates: offsetTop is measured against this
    box, so it has to be the one they are positioned in. */

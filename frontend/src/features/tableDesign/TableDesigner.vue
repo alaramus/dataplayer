@@ -201,7 +201,7 @@ async function ask(): Promise<void> {
     // A late answer about an older draft is dropped rather than shown.
     if (answer.revision === asked) {
       plan.value = answer
-      if (answer.problems.length === 0 && answer.statements.length > 0) lastValidPlan.value = answer
+      if ((answer.problems ?? []).length === 0 && (answer.statements ?? []).length > 0) lastValidPlan.value = answer
     }
   } catch (cause) {
     if (revision === asked) {

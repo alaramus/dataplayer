@@ -24,7 +24,7 @@ function fixture(userId = "user-one") {
 
 describe("the user's tab group library", () => {
   it("keeps saved copies until explicitly updated and preserves them on rename", () => {
-    const { library, workspace } = fixture()
+    const { library } = fixture()
     expect(library.save(" Queries ")).toBe(true)
     const original = library.groups.value[0]!
     expect(library.save("Second group")).toBe(true)

@@ -116,6 +116,20 @@ function mountCommands(
   })
 }
 
+/**
+ * What a tooltip would say on hover, read from its slot: Quasar teleports the
+ * tooltip to the body and renders a placeholder in place, so `text()` of the
+ * component is always empty in a test.
+ */
+function slotText(tip: { vm: unknown }): string {
+  const slots = (tip.vm as { $slots: Record<string, (() => unknown[]) | undefined> }).$slots
+  const nodes = slots.default?.() ?? []
+  return nodes
+    .map((node) => (node as { children?: unknown }).children)
+    .filter((child): child is string => typeof child === "string")
+    .join("")
+}
+
 describe("PanelCommands", () => {
   it("draws nothing at all outside a workspace", () => {
     // Every panel has a unit test that mounts it on its own. There is no tab
@@ -236,9 +250,11 @@ describe("PanelCommands", () => {
 
     expect(wrapper.text()).not.toContain("20s")
     expect(wrapper.getComponent(AppIconButton).props("tooltip")).toBe("Re-read this table")
-    expect(wrapper.get('[data-testid="panel-freshness"]').getComponent(AppTooltip).text()).toBe(
-      "Read from the source 20s ago. This connection keeps answers for 5m."
-    )
+    // Quasar teleports a tooltip away and renders nothing of it in place, so
+    // what hovering would say is read from the slot rather than from the text.
+    expect(
+      slotText(wrapper.get('[data-testid="panel-freshness"]').findComponent(AppTooltip))
+    ).toBe("Read from the source 20s ago. This connection keeps answers for 5m.")
   })
 
   it("re-reads from the button under the mark", async () => {

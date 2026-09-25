@@ -134,11 +134,26 @@ function editorKeydown(event: KeyboardEvent) {
     data-testid="quick-chat-window"
   >
     <div class="quick-chat">
-      <div ref="scroller" class="quick-chat__messages" data-testid="quick-chat-messages">
+      <div
+        ref="scroller"
+        class="quick-chat__messages"
+        data-testid="quick-chat-messages"
+      >
         <AppSpinner v-if="chat.isPending.value && selected" />
-        <AppBanner v-else-if="chat.isError.value" tone="error">The chat could not be loaded.</AppBanner>
-        <div v-else-if="!chat.data.value?.messages.length" class="quick-chat__empty">
-          <q-icon :name="appIcons.autoAwesome" size="30px" />
+        <AppBanner
+          v-else-if="chat.isError.value"
+          tone="error"
+        >
+          The chat could not be loaded.
+        </AppBanner>
+        <div
+          v-else-if="!chat.data.value?.messages.length"
+          class="quick-chat__empty"
+        >
+          <q-icon
+            :name="appIcons.autoAwesome"
+            size="30px"
+          />
           <span>What would you like to know?</span>
         </div>
         <article
@@ -147,39 +162,60 @@ function editorKeydown(event: KeyboardEvent) {
           class="quick-chat__message"
           :class="`quick-chat__message--${message.role}`"
         >
-          <div v-if="message.role === 'user'" class="quick-chat__question">{{ message.content }}</div>
-          <ChatMarkdown v-else :text="message.content" />
+          <div
+            v-if="message.role === 'user'"
+            class="quick-chat__question"
+          >
+            {{ message.content }}
+          </div>
+          <ChatMarkdown
+            v-else
+            :text="message.content"
+          />
         </article>
         <AppSpinner v-if="busy" />
       </div>
       <div class="quick-chat__dock">
         <div class="quick-chat__composer">
-        <AppInput
-          v-model="draft"
-          type="textarea"
-          grow
-          compact
-          placeholder="Message the model"
-          aria-label="Quick chat message"
-          data-testid="quick-chat-input"
-          :disable="busy"
-          @keydown="editorKeydown"
-        />
-        <div class="quick-chat__tools">
-          <AiModelSelect v-model="modelKey" class="quick-chat__model" compact :allow-auto="false" :disable="busy" />
-          <AppIconButton
-            :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
-            :active="dictation.listening.value"
-            :tooltip="!dictation.supported
-              ? 'This browser cannot listen'
-              : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
-            :disable="!dictation.supported || busy"
-            data-testid="quick-chat-dictate"
-            @click="dictate"
+          <AppInput
+            v-model="draft"
+            type="textarea"
+            grow
+            compact
+            placeholder="Message the model"
+            aria-label="Quick chat message"
+            data-testid="quick-chat-input"
+            :disable="busy"
+            @keydown="editorKeydown"
           />
-          <span class="quick-chat__gap" />
-          <AppButton :icon="appIcons.send" label="Send" icon-only :disable="busy || !draft.trim() || !selected" data-testid="quick-chat-send" @click="send()" />
-        </div>
+          <div class="quick-chat__tools">
+            <AiModelSelect
+              v-model="modelKey"
+              class="quick-chat__model"
+              compact
+              :allow-auto="false"
+              :disable="busy"
+            />
+            <AppIconButton
+              :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
+              :active="dictation.listening.value"
+              :tooltip="!dictation.supported
+                ? 'This browser cannot listen'
+                : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+              :disable="!dictation.supported || busy"
+              data-testid="quick-chat-dictate"
+              @click="dictate"
+            />
+            <span class="quick-chat__gap" />
+            <AppButton
+              :icon="appIcons.send"
+              label="Send"
+              icon-only
+              :disable="busy || !draft.trim() || !selected"
+              data-testid="quick-chat-send"
+              @click="send()"
+            />
+          </div>
         </div>
       </div>
     </div>

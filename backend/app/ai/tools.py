@@ -230,7 +230,7 @@ class ToolRuntime:
             if key is None:
                 self._record_jev("Jev · unavailable")
                 return JEV_UNAVAILABLE
-            state = {"action": question, "connection": connector.name}
+            state: dict[str, Any] = {"action": question, "connection": connector.name}
             if preview is not None:
                 preview_text = preview.model_dump_json()
                 state["preview"] = (
@@ -264,7 +264,7 @@ class ToolRuntime:
         stored = await session.get(AgentPreferences, self.owner_id)
         if stored is not None and stored.allow_all_changes:
             return None
-        answer = await self.pause(
+        decision = await self.pause(
             AgentQuestion(
                 kind="confirm_change",
                 question=question,
@@ -273,12 +273,12 @@ class ToolRuntime:
                 preview=preview,
             )
         )
-        if answer == ALLOW_CHAT and conversation is not None:
+        if decision == ALLOW_CHAT and conversation is not None:
             conversation.change_policy = "allow"
             conversation.updated_at = get_datetime_utc()
             session.add(conversation)
             await session.commit()
-        elif answer == ALLOW_ALL:
+        elif decision == ALLOW_ALL:
             if stored is None:
                 stored = AgentPreferences(user_id=self.owner_id)
             stored.allow_all_changes = True

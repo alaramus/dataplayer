@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass
 
 from langchain_typesafe import Choice, TypeSafeClassifier
+from pydantic import JsonValue
 
 from app.ai.catalog import ChatProvider, ModelCatalog, ModelInfo
 
@@ -37,7 +38,7 @@ async def choose(
         return ModelRoute(safe_fallback, "Jev unavailable; using fallback")
     if len(candidates) == 1:
         return ModelRoute(candidates[0], "Only compatible model in this provider")
-    criteria = {
+    criteria: dict[str, JsonValue] = {
         model.key: (
             f"{model.name}; context window {model.context_window} tokens; "
             f"maximum output {model.max_output_tokens} tokens; "

@@ -32,8 +32,8 @@ declare module "d3-force-3d" {
 
   export function forceSimulation<T extends Node3D>(nodes: T[], dimensions: 1 | 2 | 3): Simulation<T>
   export function forceLink<T extends Node3D, L>(links: L[]): LinkForce<T>
-  export function forceManyBody<T extends Node3D>(): ManyBodyForce
-  export function forceCollide<T extends Node3D>(radius: number): CollisionForce
+  export function forceManyBody(): ManyBodyForce
+  export function forceCollide(radius: number): CollisionForce
   export function forceCenter(x: number, y: number, z: number): unknown
   export function forceX<T extends Node3D>(position: (node: T) => number): PositionForce<T>
   export function forceZ<T extends Node3D>(position: (node: T) => number): PositionForce<T>

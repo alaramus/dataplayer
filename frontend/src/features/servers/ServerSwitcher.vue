@@ -151,7 +151,9 @@ function remove(profile: ServerProfile) {
             @click="open = false"
           />
         </header>
-        <p class="server-switcher__intro">Choose the server for this browser tab. Accounts are separate on each server.</p>
+        <p class="server-switcher__intro">
+          Choose the server for this browser tab. Accounts are separate on each server.
+        </p>
         <div class="server-switcher__body">
           <AppForm layout="section">
             <div class="server-switcher__current">
@@ -225,8 +227,14 @@ function remove(profile: ServerProfile) {
             </template>
           </AppForm>
         </div>
-        <footer v-if="editing || error || notice" class="server-switcher__footer">
-          <div v-if="error || notice" class="server-switcher__strip">
+        <footer
+          v-if="editing || error || notice"
+          class="server-switcher__footer"
+        >
+          <div
+            v-if="error || notice"
+            class="server-switcher__strip"
+          >
             <AppBanner
               v-if="error"
               tone="error"

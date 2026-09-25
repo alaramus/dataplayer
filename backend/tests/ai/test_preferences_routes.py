@@ -5,7 +5,6 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 

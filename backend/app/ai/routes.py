@@ -18,7 +18,7 @@ from sqlmodel import col, update
 
 from app.ai import attachments, conversations, preferences, quick_chat
 from app.ai.catalog import Provider, catalog
-from app.ai.content import opened, opened_bytes
+from app.ai.content import opened, opened_bytes, sealed
 from app.ai.models import (
     TERMINAL,
     AgentAnswer,
@@ -64,7 +64,7 @@ async def list_quick_chats(
 )
 async def create_quick_chat(session: SessionDep, current_user: CurrentUser) -> Any:
     chat = quick_chat.QuickConversation(
-        owner_id=current_user.id, title=quick_chat.sealed("New chat")
+        owner_id=current_user.id, title=sealed("New chat")
     )
     session.add(chat)
     await session.commit()
@@ -106,7 +106,7 @@ async def update_quick_chat(
     if body.title is not None:
         if not body.title.strip():
             raise HTTPException(status_code=422, detail={"message": "Write a chat title first"})
-        chat.title = quick_chat.sealed(body.title.strip())
+        chat.title = sealed(body.title.strip())
     if body.pinned is not None:
         chat.pinned = body.pinned
     if body.archived is not None:

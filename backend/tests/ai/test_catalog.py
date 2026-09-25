@@ -26,9 +26,20 @@ def _write(tmp_path: Path, entries: list[dict[str, Any]]) -> Path:
     return path
 
 
+def _provider_values(tp: Any) -> set[str]:
+    """Flatten a Literal union: Provider is ChatProvider plus TypeSafe."""
+    values: set[str] = set()
+    for arg in get_args(tp):
+        if isinstance(arg, str):
+            values.add(arg)
+        else:
+            values.update(_provider_values(arg))
+    return values
+
+
 def test_every_provider_is_named() -> None:
     """A provider without a name would reach the screen as its bare id."""
-    assert set(PROVIDER_TITLES) == set(get_args(Provider))
+    assert set(PROVIDER_TITLES) == _provider_values(Provider)
 
 
 def test_the_shipped_list_is_valid_and_covers_every_provider() -> None:

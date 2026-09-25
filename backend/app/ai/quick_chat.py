@@ -6,7 +6,8 @@ import uuid
 from datetime import datetime
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from pydantic import BaseModel, ConfigDict, Field as PydanticField
+from pydantic import BaseModel, ConfigDict
+from pydantic import Field as PydanticField
 from sqlalchemy import Column, DateTime, Index, LargeBinary
 from sqlmodel import Field, SQLModel, col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession

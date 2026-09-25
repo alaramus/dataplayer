@@ -47,10 +47,20 @@ describe("AppSelect", () => {
       options: [
         { label: "Anthropic", value: "provider:anthropic", group: true },
         { label: "Claude", value: "claude", description: "API key required" },
+        { label: "GPT", value: "gpt", disable: true },
       ],
     }).getComponent(QSelect)
 
-    expect(select.props("optionDisable")).toBe("group")
+    // A heading and a choice that cannot be taken yet are both unselectable,
+    // so one function answers for both rather than the name of one field.
+    const disable = select.props("optionDisable") as (option: {
+      group?: boolean
+      disable?: boolean
+    }) => boolean
+    expect(typeof disable).toBe("function")
+    expect(disable({ group: true })).toBe(true)
+    expect(disable({ disable: true })).toBe(true)
+    expect(disable({})).toBe(false)
   })
 
   it("shows the selected string option", () => {

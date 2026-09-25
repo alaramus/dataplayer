@@ -15,7 +15,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.attachments import RULES as ATTACHMENT_RULES
 from app.ai.catalog import (
-    PROVIDER_TITLES, PROVIDERS, ChatProvider, ModelCatalog, ModelInfo, Provider,
+    PROVIDER_TITLES,
+    PROVIDERS,
+    ChatProvider,
+    ModelCatalog,
+    ModelInfo,
+    Provider,
     chat_provider_of,
 )
 from app.ai.models import (
@@ -259,7 +264,7 @@ async def check_key(
     chat = chat_models.build(model, key, max_output_tokens=CHECK_OUTPUT_TOKENS)
     try:
         async with asyncio.timeout(CHECK_TIMEOUT_SECONDS):
-            answer = await chat.bind_tools([ping]).ainvoke(
+            chat_answer = await chat.bind_tools([ping]).ainvoke(
                 "Call the ping tool to check the connection."
             )
     except TimeoutError:
@@ -268,7 +273,7 @@ async def check_key(
         # By type only: a provider's text may carry the request it failed on.
         logger.info("A key check failed: %s", type(error).__name__)
         return ProviderKeyCheck(ok=False, message=chat_models.sentence(model, error))
-    if not getattr(answer, "tool_calls", None):
+    if not getattr(chat_answer, "tool_calls", None):
         return ProviderKeyCheck(
             ok=True,
             message=f"The key works, but {model.name} did not call a tool when asked",

@@ -53,8 +53,8 @@ export function arrange3(graph: GraphDocument, positions2: Record<string, Point2
   // copy so the graph document and saved positions remain unchanged.
   const simulation = forceSimulation(nodes, 3)
     .force("links", forceLink<LayoutNode, LayoutLink>([...pairs.values()]).id((node) => node.id).distance(LINK_LENGTH).strength(0.35))
-    .force("charge", forceManyBody<LayoutNode>().strength(-9500))
-    .force("collisions", forceCollide<LayoutNode>(COLLISION_RADIUS).strength(1).iterations(3))
+    .force("charge", forceManyBody().strength(-9500))
+    .force("collisions", forceCollide(COLLISION_RADIUS).strength(1).iterations(3))
     .force("center", forceCenter(0, 0, 0))
     .force("sketch-x", forceX<LayoutNode>((node) => (positions2[node.id]!.x - xMiddle) * 0.58).strength(0.015))
     .force("sketch-z", forceZ<LayoutNode>((node) => (positions2[node.id]!.y - zMiddle) * 0.58).strength(0.015))

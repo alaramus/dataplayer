@@ -103,10 +103,15 @@ describe("the library of queries", () => {
     const draft = wrapper.get('[data-testid="query-row-d2"]')
     expect(draft.text()).toContain("Untitled query")
     expect(draft.text()).toContain("select * from invoices")
-    expect(wrapper.findAllComponents(AppIconButton).map((button) => button.props("variant"))).toEqual([
-      "danger-quiet",
-      "danger-quiet",
-    ])
+    // Deleting a document asks first and never comes back, so its button is
+    // in the caution colour; the bar's own buttons say something else and are
+    // not what this asserts.
+    expect(
+      wrapper
+        .findAllComponents(AppIconButton)
+        .filter((button) => button.props("tooltip") === "Delete query")
+        .map((button) => button.props("variant"))
+    ).toEqual(["danger-quiet", "danger-quiet"])
   })
 
   it("opens the console of the row that was pressed", async () => {
