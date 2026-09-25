@@ -32,8 +32,16 @@ references are not inferred. Graph bounds are 300 nodes, 5,000 rows/ports and
 1,000 edges; oversize input is refused without truncation.
 
 Dagre lays out the 2D cards. SVG edges attach to fields or node headers.
-Three.js supplies the 3D scene and camera controls. Selection, neighboring
-objects, search and details are available in both modes. Rendering and input
+The 3D layout starts from Dagre's sketch, seeds depth by stable node identity,
+then runs d3-force-3d with link, charge, collision, center and weak sketch
+forces. Nodes can move in all three dimensions rather than staying on fixed
+group planes. Collision treats each table as a sphere around its center; it
+does not guarantee that every line misses every table box. The simulation runs
+for a bounded number of ticks in the layout worker, not on every frame.
+Existing untouched flat 3D layouts are recalculated once while
+manually moved positions remain as they were. Three.js supplies the 3D scene
+and camera controls. Selection, neighboring objects, search and details are
+available in both modes. Rendering and input
 follow the actual panel lifecycle, including detachment and minimization;
 WebGL absence leaves a usable 2D mode. Theme colors and layers use the existing
 UI tokens. Source text is never injected as HTML.

@@ -7,7 +7,7 @@ import GraphViewer from "./GraphViewer.vue"
 import { deliveryGraph } from "./fixtures"
 import { arrange } from "./layout"
 import { emptyGraphView } from "./viewState"
-import type { GraphDocument } from "./model"
+import type { GraphDocument, GraphViewState, Point3 } from "./model"
 
 // WebGL picking is exercised in Playwright. Here the alternate renderer is a
 // boundary: selection must survive replacing either presentation component.
@@ -36,15 +36,48 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-function mountViewer() {
+function mountViewer(view = ref<GraphViewState>(emptyGraphView())) {
   return mount(defineComponent({
     components: { GraphViewer },
-    setup: () => ({ graph: deliveryGraph, view: ref(emptyGraphView()) }),
+    setup: () => ({ graph: deliveryGraph, view }),
     template: '<GraphViewer v-model="view" :graph="graph" />',
   }), { global: { plugins: [Quasar] } })
 }
 
 describe("the shared graph viewer", () => {
+  it("upgrades untouched flat 3D positions while keeping manual edits", async () => {
+    const first = arrange(deliveryGraph, true)
+    const groups = [...new Set(deliveryGraph.nodes.map((node) => node.groupId ?? ""))].sort()
+    const flat: Record<string, Point3> = Object.fromEntries(deliveryGraph.nodes.map((node) => [
+      node.id, {
+        x: first.positions2[node.id]!.x * 0.7,
+        y: groups.indexOf(node.groupId ?? "") * 180,
+        z: first.positions2[node.id]!.y * 0.55,
+      },
+    ]))
+    const view = ref<GraphViewState>({
+      ...emptyGraphView(), positions2: first.positions2, positions3: flat,
+    })
+    const wrapper = mountViewer(view)
+    LayoutWorker.instances[0]!.complete()
+    await flushPromises()
+
+    expect(view.value.positions3).toEqual(first.positions3)
+    expect(view.value.positions2).toEqual(first.positions2)
+    wrapper.unmount()
+
+    const moved = { ...flat, api: { ...flat.api!, y: flat.api!.y + 20 } }
+    const manual = ref<GraphViewState>({
+      ...emptyGraphView(), positions2: first.positions2, positions3: moved,
+    })
+    const second = mountViewer(manual)
+    LayoutWorker.instances[1]!.complete()
+    await flushPromises()
+
+    expect(manual.value.positions3).toEqual(moved)
+    second.unmount()
+  })
+
   it("shows a non-table graph, its ports and shared selection in both presentations", async () => {
     const wrapper = mountViewer()
     LayoutWorker.instances[0]!.complete()

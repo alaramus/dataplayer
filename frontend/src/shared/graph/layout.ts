@@ -2,6 +2,7 @@ import { Graph, layout } from "@dagrejs/dagre"
 import type { EdgeLabel, GraphLabel, NodeLabel } from "@dagrejs/dagre"
 
 import type { Camera2, GraphDocument, GraphEdge, GraphEndpoint, GraphNode, Point2, Point3 } from "./model"
+import { arrange3 } from "./layout3d"
 
 export const CARD_WIDTH = 280
 export const HEADER_HEIGHT = 52
@@ -22,11 +23,7 @@ export function arrange(graph: GraphDocument, expanded: boolean) {
     const placed = dag.node(node.id)
     return [node.id, { x: (placed.x ?? 0) - CARD_WIDTH / 2, y: (placed.y ?? 0) - nodeHeight(node, expanded) / 2 }]
   }))
-  const groups = [...new Set(ordered.map((node) => node.groupId ?? ""))].sort()
-  const positions3: Record<string, Point3> = Object.fromEntries(ordered.map((node) => {
-    const point = positions2[node.id]!
-    return [node.id, { x: point.x * 0.7, y: groups.indexOf(node.groupId ?? "") * 180, z: point.y * 0.55 }]
-  }))
+  const positions3: Record<string, Point3> = arrange3(graph, positions2)
   return { positions2, positions3 }
 }
 

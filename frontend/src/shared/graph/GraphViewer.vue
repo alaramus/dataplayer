@@ -4,6 +4,7 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch }
 
 import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSelect } from "@/shared/ui"
 import Graph2D from "./Graph2D.vue"
+import { isLegacyFlat3 } from "./layout3d"
 import { edgesOf, graphProblem, groupGraph } from "./model"
 import type { GraphDocument, GraphSelection, GraphViewState, Point2, Point3 } from "./model"
 
@@ -42,6 +43,7 @@ function cancelLayout() { stopLayout(); layoutError.value = "Layout cancelled. U
 function arrange(force?: "2d" | "3d") {
   stopLayout()
   if (problem.value || !props.graph.nodes.length) return
+  const upgrade3 = force === undefined && isLegacyFlat3(props.graph, view.value.positions2, view.value.positions3)
   loading.value = true
   layoutError.value = ""
   try {
@@ -49,9 +51,13 @@ function arrange(force?: "2d" | "3d") {
     worker.onmessage = (event: MessageEvent<{ result?: { positions2: Record<string, Point2>; positions3: Record<string, Point3> }; error?: string }>) => {
       const result = event.data.result
       if (result) {
+        const upgradeNow = upgrade3 && isLegacyFlat3(props.graph, view.value.positions2, view.value.positions3)
         const positions2 = Object.fromEntries(props.graph.nodes.map((node) => [node.id, force !== "2d" && Object.hasOwn(view.value.positions2, node.id) ? view.value.positions2[node.id]! : result.positions2[node.id]!]))
-        const positions3 = Object.fromEntries(props.graph.nodes.map((node) => [node.id, force !== "3d" && Object.hasOwn(view.value.positions3, node.id) ? view.value.positions3[node.id]! : result.positions3[node.id]!]))
-        patch({ positions2, positions3, ...(force === "2d" ? { camera2: null } : {}), ...(force === "3d" ? { camera3: null } : {}) })
+        const keep3 = force !== "3d" && !upgradeNow &&
+          Object.keys(view.value.positions3).length === props.graph.nodes.length &&
+          props.graph.nodes.every((node) => Object.hasOwn(view.value.positions3, node.id))
+        const positions3 = keep3 ? view.value.positions3 : Object.fromEntries(props.graph.nodes.map((node) => [node.id, force !== "3d" && !upgradeNow && Object.hasOwn(view.value.positions3, node.id) ? view.value.positions3[node.id]! : result.positions3[node.id]!]))
+        patch({ positions2, positions3, ...(force === "2d" ? { camera2: null } : {}), ...(force === "3d" || upgradeNow ? { camera3: null } : {}) })
         if (force) void nextTick(() => surface.value?.fit())
       } else layoutError.value = event.data.error ?? "This graph could not be arranged."
       stopLayout()
@@ -85,6 +91,9 @@ watch(() => props.graph, () => {
   arrange()
 }, { immediate: true })
 watch(ready, (value) => { if (!value && !loading.value) arrange() })
+watch(() => view.value.positions3, () => {
+  if (!loading.value && isLegacyFlat3(props.graph, view.value.positions2, view.value.positions3)) arrange()
+})
 onBeforeUnmount(stopLayout)
 </script>
 
