@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file -- a panel and the host that provides its registry, not components of the application. */
 import { mount } from "@vue/test-utils"
 import { defineComponent, h, nextTick, ref } from "vue"
 import { describe, expect, it, vi } from "vitest"

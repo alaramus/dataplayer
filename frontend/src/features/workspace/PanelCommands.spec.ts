@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file -- a panel body and a host that provides the registries, not components of the application. */
 import { mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { describe, expect, it, vi } from "vitest"

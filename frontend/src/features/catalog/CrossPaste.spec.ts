@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file -- stand-ins for the kit, a window and two dialogs, not components of the application. */
 import { flushPromises, mount } from "@vue/test-utils"
 import { AxiosError } from "axios"
 import { defineComponent } from "vue"
@@ -15,10 +16,15 @@ vi.mock("@/client", () => ({
   ConnectorsService: { paste: pasteCall },
 }))
 vi.mock("@/shared/ui", () => ({
-  AppButton: defineComponent({ props: ["label"], template: "<button>{{ label }}</button>" }),
+  AppButton: defineComponent({ props: { label: { type: String, default: "" } }, template: "<button>{{ label }}</button>" }),
   AppForm: defineComponent({ template: "<form><slot /></form>" }),
   AppInput: defineComponent({
-    props: ["modelValue", "label", "hint", "error"],
+    props: {
+      modelValue: { type: String, default: "" },
+      label: { type: String, default: "" },
+      hint: { type: String, default: "" },
+      error: { type: String, default: "" },
+    },
     emits: ["update:modelValue"],
     template:
       "<label><input :value='modelValue' @input=\"$emit('update:modelValue', $event.target.value)\" />" +
@@ -29,7 +35,14 @@ vi.mock("@/shared/ui", () => ({
 vi.mock("@/features/grid/CreateTableDialog.vue", () => ({
   default: defineComponent({
     name: "CreateTableDialog",
-    props: ["modelValue", "sourceTitle", "sourceColumns", "fixedDestination", "running", "error"],
+    props: {
+      modelValue: Boolean,
+      sourceTitle: { type: String, default: "" },
+      sourceColumns: { type: Array, default: () => [] },
+      fixedDestination: { type: Object, default: null },
+      running: Boolean,
+      error: { type: String, default: "" },
+    },
     emits: ["update:modelValue", "run"],
     beforeUnmount() {
       this.$emit("update:modelValue", false)
@@ -40,7 +53,16 @@ vi.mock("@/features/grid/CreateTableDialog.vue", () => ({
 vi.mock("@/features/grid/ImportDialog.vue", () => ({
   default: defineComponent({
     name: "ImportDialog",
-    props: ["modelValue", "connectorId", "nodeId", "targetColumns", "targetLabel", "source", "running", "error"],
+    props: {
+      modelValue: Boolean,
+      connectorId: { type: String, default: "" },
+      nodeId: { type: String, default: "" },
+      targetColumns: { type: Array, default: () => [] },
+      targetLabel: { type: String, default: "" },
+      source: { type: Object, default: null },
+      running: Boolean,
+      error: { type: String, default: "" },
+    },
     emits: ["update:modelValue", "run"],
     beforeUnmount() {
       this.$emit("update:modelValue", false)
@@ -52,7 +74,7 @@ vi.mock("@/shared/windows", () => ({
   // Like the real one, it says it was closed when it is taken away.
   WindowDialog: defineComponent({
     name: "WindowDialog",
-    props: ["modelValue", "title", "subtitle"],
+    props: { modelValue: Boolean, title: { type: String, default: "" }, subtitle: { type: String, default: "" } },
     emits: ["update:modelValue"],
     beforeUnmount() {
       this.$emit("update:modelValue", false)

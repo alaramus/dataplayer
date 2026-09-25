@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file -- a page host and stand-ins for panel bodies, not components of the application. */
 import { DOMWrapper, flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { defineComponent, h, inject, onBeforeUnmount, onDeactivated, provide, ref } from "vue"

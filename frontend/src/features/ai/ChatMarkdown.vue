@@ -13,6 +13,8 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
 </script>
 
 <template>
+  <!-- eslint-disable vue/no-v-html -- the prose is rendered and sanitised by
+  features/content/markdown/render.ts, the one place that does it. -->
   <div
     class="chat-markdown"
     data-testid="ai-markdown"

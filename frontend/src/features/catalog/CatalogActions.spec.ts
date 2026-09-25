@@ -1,3 +1,4 @@
+/* eslint-disable vue/one-component-per-file -- stand-ins for the kit, a window and two dialogs, not components of the application. */
 import { flushPromises, mount } from "@vue/test-utils"
 import { computed, defineComponent } from "vue"
 import type { Ref } from "vue"
@@ -45,21 +46,21 @@ vi.mock("@/features/services/backups", () => ({
 }))
 vi.mock("@/shared/ui", () => ({
   AppIconButton: defineComponent({ template: "<button>Actions</button>" }),
-  AppButton: defineComponent({ props: ["label"], template: "<button>{{ label }}</button>" }),
-  AppMenu: defineComponent({ name: "AppMenu", props: ["items"], emits: ["select"], template: "<div />" }),
+  AppButton: defineComponent({ props: { label: { type: String, default: "" } }, template: "<button>{{ label }}</button>" }),
+  AppMenu: defineComponent({ name: "AppMenu", props: { items: { type: Array, default: () => [] } }, emits: ["select"], template: "<div />" }),
   useToast: () => ({ error: vi.fn(), success: vi.fn() }),
 }))
 vi.mock("@/shared/windows", () => ({
   WindowDialog: defineComponent({
     name: "WindowDialog",
-    props: ["modelValue"],
+    props: { modelValue: Boolean },
     template: "<div><slot /><slot name='actions' /></div>",
   }),
 }))
 vi.mock("./CrossPaste.vue", () => ({
   default: defineComponent({
     name: "CrossPaste",
-    props: ["intent"],
+    props: { intent: { type: Object, default: null } },
     emits: ["done", "sourceChanged", "close"],
     template: "<div />",
   }),
@@ -67,7 +68,12 @@ vi.mock("./CrossPaste.vue", () => ({
 vi.mock("./ActionDialog.vue", () => ({
   default: defineComponent({
     name: "ActionDialog",
-    props: ["command", "nodeIds", "nodeLabel", "targetNode"],
+    props: {
+      command: { type: Object, default: null },
+      nodeIds: { type: Array, default: () => [] },
+      nodeLabel: { type: String, default: "" },
+      targetNode: { type: Object, default: null },
+    },
     template: "<div />",
   }),
 }))

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/one-component-per-file -- placeholder panel bodies of a development page, not components of the application. */
 import { appIcons } from "@/shared/ui"
 import { defineComponent, h } from "vue"
 import type { Component } from "vue"
