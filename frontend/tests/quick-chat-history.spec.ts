@@ -1,0 +1,41 @@
+import { expect, test } from "@playwright/test"
+
+import { login } from "./utils/login"
+
+test("quick chat uses the same history and archive actions as agent chat", async ({ page }) => {
+  await login(page)
+  const token = await page.evaluate(() => Object.entries(localStorage)
+    .find(([key]) => key.endsWith("access_token"))?.[1])
+  expect(token).toBeTruthy()
+  const created = await page.request.post("/api/v1/ai/quick-chats", {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  expect(created.ok()).toBe(true)
+  const id = (await created.json()).id as string
+
+  await page.getByTestId("space-ai").click()
+  const row = page.getByTestId(`ai-chat-row-${id}`)
+  await expect(row).toBeVisible()
+  await expect(row.getByTestId(`ai-chat-${id}`).locator(".q-icon")).toHaveCount(0)
+  await expect(row.getByTestId(`quick-chat-delete-${id}`)).toHaveCount(0)
+  await row.hover()
+  await row.getByTestId(`ai-pin-${id}`).click()
+  await row.hover()
+  await row.getByTestId(`ai-archive-${id}`).click()
+  await expect(page.getByTestId(`ai-chat-row-${id}`)).toHaveCount(0)
+
+  await page.getByTestId("ai-open-settings").click()
+  const archived = page.getByTestId(`ai-archived-${id}`)
+  await expect(archived).toBeVisible()
+  await page.getByTestId(`ai-restore-${id}`).click()
+  await page.getByTestId("ai-open-settings").click()
+  await page.getByTestId(`ai-chat-${id}`).click()
+  await expect(page.getByTestId("quick-chat-window")).toBeVisible()
+  await page.getByRole("button", { name: "Close window" }).click()
+  await row.hover()
+  await row.getByTestId(`ai-archive-${id}`).click()
+  await page.getByTestId("ai-open-settings").click()
+  await page.getByTestId(`ai-delete-${id}`).click()
+  await page.getByRole("dialog", { name: "Delete chat?" }).getByRole("button", { name: "Delete" }).click()
+  await expect(page.getByTestId(`ai-archived-${id}`)).toHaveCount(0)
+})

@@ -8,8 +8,10 @@ window. The window should look and behave like the agent conversation for
 reading and composing, while retaining a direct model call and separate storage.
 
 The window no longer manages its own history. Quick conversations appear in
-the main AI chat history with a distinct icon; selecting a saved one opens it
-in the quick-chat window. Deletion remains on the history row with confirmation.
+the main AI chat history with the same row and actions as agent conversations:
+pin, move to project and archive. Both kinds share the settings archive, where
+they can be restored or permanently deleted. Their rows do not reveal which
+kind of chat they are; selecting one opens the corresponding chat surface.
 This keeps one place to find conversations while preserving the separate agent
 and plain-chat data models. The shared opener also accepts a saved chat ID, so
 other application surfaces can open one without depending on the AI space.

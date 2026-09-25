@@ -26,7 +26,7 @@ describe("quick chat opening", () => {
     const chats = [
       { id: "used", title: "New quick chat" },
       { id: "named", title: "Research" },
-      { id: "empty", title: "New quick chat" },
+      { id: "empty", title: "New chat" },
     ] as QuickChatSummary[]
     const read = vi.fn(async (id: string) => ({ messages: id === "used" ? ["hello"] : [] }))
     expect(await reusableEmptyQuickChat(chats, read)).toBe("empty")

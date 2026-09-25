@@ -14,6 +14,7 @@ from fastapi import (
     status,
 )
 from pydantic import Json, ValidationError
+from sqlmodel import col, update
 
 from app.ai import attachments, conversations, preferences, quick_chat
 from app.ai.catalog import Provider, catalog
@@ -51,8 +52,10 @@ NOT_FOUND = {"message": "No such conversation"}
 
 
 @router.get("/quick-chats", response_model=list[quick_chat.QuickChatSummary])
-async def list_quick_chats(session: SessionDep, current_user: CurrentUser) -> Any:
-    return await quick_chat.list_for_owner(session, current_user.id)
+async def list_quick_chats(
+    session: SessionDep, current_user: CurrentUser, archived: bool = False
+) -> Any:
+    return await quick_chat.list_for_owner(session, current_user.id, archived=archived)
 
 
 @router.post(
@@ -61,11 +64,19 @@ async def list_quick_chats(session: SessionDep, current_user: CurrentUser) -> An
 )
 async def create_quick_chat(session: SessionDep, current_user: CurrentUser) -> Any:
     chat = quick_chat.QuickConversation(
-        owner_id=current_user.id, title=quick_chat.sealed("New quick chat")
+        owner_id=current_user.id, title=quick_chat.sealed("New chat")
     )
     session.add(chat)
     await session.commit()
     return quick_chat.summary(chat)
+
+
+@router.delete("/quick-chats/archived", response_model=Message)
+async def delete_archived_quick_chats(
+    session: SessionDep, current_user: CurrentUser
+) -> Any:
+    count = await quick_chat.delete_archived_for_owner(session, current_user.id)
+    return Message(message=f"{count} quick chats deleted")
 
 
 @router.get("/quick-chats/{chat_id}", response_model=quick_chat.QuickChatPublic)
@@ -76,6 +87,35 @@ async def read_quick_chat(
     if chat is None:
         raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
     return await quick_chat.public(session, chat)
+
+
+@router.patch("/quick-chats/{chat_id}", response_model=quick_chat.QuickChatSummary)
+async def update_quick_chat(
+    session: SessionDep,
+    current_user: CurrentUser,
+    chat_id: uuid.UUID,
+    body: quick_chat.QuickChatUpdate,
+) -> Any:
+    chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+    if "project_id" in body.model_fields_set and body.project_id is not None:
+        project = await conversations.project_for_owner(session, body.project_id, current_user.id)
+        if project is None:
+            raise HTTPException(status_code=404, detail=NO_PROJECT)
+    if body.title is not None:
+        if not body.title.strip():
+            raise HTTPException(status_code=422, detail={"message": "Write a chat title first"})
+        chat.title = quick_chat.sealed(body.title.strip())
+    if body.pinned is not None:
+        chat.pinned = body.pinned
+    if body.archived is not None:
+        chat.archived = body.archived
+    if "project_id" in body.model_fields_set:
+        chat.project_id = body.project_id
+    session.add(chat)
+    await session.commit()
+    return quick_chat.summary(chat)
 
 
 @router.delete("/quick-chats/{chat_id}", response_model=Message)
@@ -233,6 +273,11 @@ async def delete_project(
     project = await conversations.project_for_owner(session, project_id, current_user.id)
     if project is None:
         raise HTTPException(status_code=404, detail=NO_PROJECT)
+    await session.exec(
+        update(quick_chat.QuickConversation)
+        .where(col(quick_chat.QuickConversation.project_id) == project.id)
+        .values(project_id=None)
+    )
     await conversations.delete_project(session, project)
     return Message(message="Project deleted")
 

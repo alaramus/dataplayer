@@ -3,9 +3,10 @@
 Date: 2026-09-24. Decision: D158.
 
 The application has an agent chat for acting through connections. A second,
-plain chat is needed for ordinary questions. Its Quick chat button sits beside
-New chat in the AI rail and opens a floating window. Plain conversations have
-their own persistent history, separate from agent conversations and runs.
+plain chat is needed for ordinary questions. Its Quick chat button on the
+workspace rail opens a floating window. Plain conversations have separate
+persistent storage from agent conversations and runs, with a shared history
+list (D159).
 
 Quick chat calls the selected provider model with text history and no agent,
 tools, workspace context or data-source access. It reuses the person's model

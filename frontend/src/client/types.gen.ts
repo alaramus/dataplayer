@@ -6952,6 +6952,18 @@ export type QuickChatPublic = {
    */
   updated_at: string | null
   /**
+   * Pinned
+   */
+  pinned: boolean
+  /**
+   * Archived
+   */
+  archived: boolean
+  /**
+   * Project Id
+   */
+  project_id: string | null
+  /**
    * Messages
    */
   messages: Array<QuickChatMessagePublic>
@@ -6991,6 +7003,40 @@ export type QuickChatSummary = {
    * Updated At
    */
   updated_at: string | null
+  /**
+   * Pinned
+   */
+  pinned: boolean
+  /**
+   * Archived
+   */
+  archived: boolean
+  /**
+   * Project Id
+   */
+  project_id: string | null
+}
+
+/**
+ * QuickChatUpdate
+ */
+export type QuickChatUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null
+  /**
+   * Pinned
+   */
+  pinned?: boolean | null
+  /**
+   * Archived
+   */
+  archived?: boolean | null
+  /**
+   * Project Id
+   */
+  project_id?: string | null
 }
 
 /**
@@ -16499,9 +16545,23 @@ export type metricsRevokeDashboardGrantResponse =
 export type aiListQuickChatsData = {
   body?: never
   path?: never
-  query?: never
+  query?: {
+    /**
+     * Archived
+     */
+    archived?: boolean
+  }
   url: "/api/v1/ai/quick-chats"
 }
+
+export type aiListQuickChatsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiListQuickChatsError = aiListQuickChatsErrors[keyof aiListQuickChatsErrors]
 
 export type aiListQuickChatsResponses = {
   /**
@@ -16529,6 +16589,23 @@ export type aiCreateQuickChatResponses = {
 }
 
 export type aiCreateQuickChatResponse = aiCreateQuickChatResponses[keyof aiCreateQuickChatResponses]
+
+export type aiDeleteArchivedQuickChatsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/quick-chats/archived"
+}
+
+export type aiDeleteArchivedQuickChatsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteArchivedQuickChatsResponse =
+  aiDeleteArchivedQuickChatsResponses[keyof aiDeleteArchivedQuickChatsResponses]
 
 export type aiDeleteQuickChatData = {
   body?: never
@@ -16589,6 +16666,36 @@ export type aiReadQuickChatResponses = {
 }
 
 export type aiReadQuickChatResponse = aiReadQuickChatResponses[keyof aiReadQuickChatResponses]
+
+export type aiUpdateQuickChatData = {
+  body: QuickChatUpdate
+  path: {
+    /**
+     * Chat Id
+     */
+    chat_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/quick-chats/{chat_id}"
+}
+
+export type aiUpdateQuickChatErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiUpdateQuickChatError = aiUpdateQuickChatErrors[keyof aiUpdateQuickChatErrors]
+
+export type aiUpdateQuickChatResponses = {
+  /**
+   * Successful Response
+   */
+  200: QuickChatSummary
+}
+
+export type aiUpdateQuickChatResponse = aiUpdateQuickChatResponses[keyof aiUpdateQuickChatResponses]
 
 export type aiSendQuickChatMessageData = {
   body: QuickChatSend

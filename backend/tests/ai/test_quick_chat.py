@@ -64,3 +64,50 @@ async def test_quick_chat_is_private_and_requires_a_model_key(
         f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
         json={"text": "Hello", "model_key": "openai:missing"},
     )).status_code == 422
+
+
+async def test_quick_chat_history_uses_the_same_pin_project_and_archive_actions(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], db: AsyncSession
+) -> None:
+    headers = normal_user_token_headers
+    stranger = await authentication_token_from_email(
+        client=client, email=random_email(), db=db
+    )
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    project = await client.post(f"{AI}/projects", headers=headers, json={"name": "Research"})
+    assert project.status_code == 201
+    project_id = project.json()["id"]
+
+    changed = await client.patch(
+        f"{AI}/quick-chats/{chat_id}", headers=headers,
+        json={"pinned": True, "project_id": project_id, "title": "Notes"},
+    )
+    assert changed.status_code == 200, changed.text
+    assert (changed.json()["title"], changed.json()["pinned"], changed.json()["project_id"]) == (
+        "Notes", True, project_id,
+    )
+    assert (await client.patch(
+        f"{AI}/quick-chats/{chat_id}", headers=stranger, json={"archived": True}
+    )).status_code == 404
+    assert (await client.patch(
+        f"{AI}/quick-chats/{chat_id}", headers=headers,
+        json={"project_id": "00000000-0000-0000-0000-000000000000"},
+    )).status_code == 404
+
+    assert (await client.patch(
+        f"{AI}/quick-chats/{chat_id}", headers=headers, json={"archived": True}
+    )).status_code == 200
+    assert chat_id not in {
+        row["id"] for row in (await client.get(f"{AI}/quick-chats", headers=headers)).json()
+    }
+    assert chat_id in {
+        row["id"] for row in (await client.get(
+            f"{AI}/quick-chats", headers=headers, params={"archived": "true"}
+        )).json()
+    }
+    assert (await client.delete(f"{AI}/quick-chats/archived", headers=stranger)).status_code == 200
+    assert (await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)).status_code == 200
+    assert (await client.delete(f"{AI}/projects/{project_id}", headers=headers)).status_code == 200
+    assert (await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)).json()["project_id"] is None
+    assert (await client.delete(f"{AI}/quick-chats/archived", headers=headers)).status_code == 200
+    assert (await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)).status_code == 404

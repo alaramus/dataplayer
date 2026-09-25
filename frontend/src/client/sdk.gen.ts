@@ -29,6 +29,8 @@ import type {
   aiCreateQuickChatResponses,
   aiDeleteArchivedConversationsData,
   aiDeleteArchivedConversationsResponses,
+  aiDeleteArchivedQuickChatsData,
+  aiDeleteArchivedQuickChatsResponses,
   aiDeleteConversationData,
   aiDeleteConversationErrors,
   aiDeleteConversationResponses,
@@ -39,6 +41,7 @@ import type {
   aiDeleteQuickChatErrors,
   aiDeleteQuickChatResponses,
   aiListQuickChatsData,
+  aiListQuickChatsErrors,
   aiListQuickChatsResponses,
   aiReadAttachmentData,
   aiReadAttachmentErrors,
@@ -76,6 +79,9 @@ import type {
   aiUpdateConversationData,
   aiUpdateConversationErrors,
   aiUpdateConversationResponses,
+  aiUpdateQuickChatData,
+  aiUpdateQuickChatErrors,
+  aiUpdateQuickChatResponses,
   aiUpdateSettingsData,
   aiUpdateSettingsErrors,
   aiUpdateSettingsResponses,
@@ -3883,8 +3889,8 @@ export class QueriesService {
    * Carry a structure change out, describe it, and undo it (D66).
    *
    * Everything that stands in front of running the change stands in front of
-   * rehearsing it, because rehearsing *is* running it: the same policy, the
-   * same connection policy and grant. What differs is only the ending — the
+   * rehearsing it, because rehearsing *is* running it: the same connection
+   * policy and grant. What differs is only the ending — the
    * transaction is rolled back, so nothing that happened survives.
    *
    * It is a preview and not a permission. What actually decides whether the
@@ -4998,7 +5004,11 @@ export class AiService {
   public static listQuickChats<ThrowOnError extends boolean = true>(
     options?: Options<aiListQuickChatsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<aiListQuickChatsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      aiListQuickChatsResponses,
+      aiListQuickChatsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/quick-chats",
@@ -5016,6 +5026,24 @@ export class AiService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/quick-chats",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Archived Quick Chats
+   */
+  public static deleteArchivedQuickChats<ThrowOnError extends boolean = true>(
+    options?: Options<aiDeleteArchivedQuickChatsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).delete<
+      aiDeleteArchivedQuickChatsResponses,
+      unknown,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/archived",
       ...options,
     })
   }
@@ -5053,6 +5081,28 @@ export class AiService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/quick-chats/{chat_id}",
       ...options,
+    })
+  }
+
+  /**
+   * Update Quick Chat
+   */
+  public static updateQuickChat<ThrowOnError extends boolean = true>(
+    options: Options<aiUpdateQuickChatData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      aiUpdateQuickChatResponses,
+      aiUpdateQuickChatErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/{chat_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

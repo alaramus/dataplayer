@@ -2,6 +2,8 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
+import type { ConversationSummary, QuickChatSummary } from "@/client"
+
 import { AppBanner, AppButton, AppEmptyState, AppForm, AppIconButton, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
@@ -11,9 +13,13 @@ import {
   useAiSettings,
   useAiModels,
   useArchivedAiConversations,
+  useArchivedQuickChats,
   useDeleteAiConversation,
   useDeleteArchivedAiConversations,
+  useDeleteQuickChat,
+  useDeleteArchivedQuickChats,
   useUpdateAiConversation,
+  useUpdateQuickChat,
   useUpdateAiSettings,
 } from "./api"
 import { autoModelValue, fallbackModel } from "./modelOptions"
@@ -22,9 +28,13 @@ const settings = useAiSettings()
 const models = useAiModels()
 const update = useUpdateAiSettings()
 const archive = useArchivedAiConversations()
+const quickArchive = useArchivedQuickChats()
 const updateConversation = useUpdateAiConversation()
+const updateQuickChat = useUpdateQuickChat()
 const deleteConversation = useDeleteAiConversation()
+const deleteQuickChat = useDeleteQuickChat()
 const deleteArchived = useDeleteArchivedAiConversations()
+const deleteArchivedQuick = useDeleteArchivedQuickChats()
 const confirm = useConfirm()
 const toast = useToast()
 const modelValue = computed(() => settings.data.value?.auto_provider
@@ -33,7 +43,11 @@ const modelValue = computed(() => settings.data.value?.auto_provider
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
 const jevKeySet = computed(() => settings.data.value?.keys.some((key) => key.provider === "typesafe" && key.set) ?? false)
 const jevDialogOpen = ref(false)
-const archived = computed(() => archive.data.value?.data ?? [])
+type ArchivedChat = { kind: "agent"; chat: ConversationSummary } | { kind: "quick"; chat: QuickChatSummary }
+const archived = computed<ArchivedChat[]>(() => [
+  ...(archive.data.value?.data ?? []).map((chat): ArchivedChat => ({ kind: "agent", chat })),
+  ...(quickArchive.data.value ?? []).map((chat): ArchivedChat => ({ kind: "quick", chat })),
+].sort((a, b) => (b.chat.updated_at ?? "").localeCompare(a.chat.updated_at ?? "")))
 
 async function chooseModel(value: string) {
   const provider = models.data.value?.find((one) => value === autoModelValue(one.provider))?.provider
@@ -46,19 +60,29 @@ async function setAllowAll(value: boolean) {
   try { await update.mutateAsync({ allow_all_changes: value }) }
   catch (cause) { toast.error(messageOf(cause, "The confirmation setting could not be changed")) }
 }
-async function restore(id: string) {
-  try { await updateConversation.mutateAsync({ id, archived: false }); toast.success("Chat restored") }
+async function restore(entry: ArchivedChat) {
+  try {
+    if (entry.kind === "agent") await updateConversation.mutateAsync({ id: entry.chat.id, archived: false })
+    else await updateQuickChat.mutateAsync({ id: entry.chat.id, archived: false })
+    toast.success("Chat restored")
+  }
   catch (cause) { toast.error(messageOf(cause, "The chat could not be restored")) }
 }
-async function remove(id: string, title: string) {
-  if (!(await confirm({ title: "Delete chat?", message: `“${title}” will be permanently deleted.`, confirmLabel: "Delete", danger: true }))) return
-  try { await deleteConversation.mutateAsync(id) }
+async function remove(entry: ArchivedChat) {
+  if (!(await confirm({ title: "Delete chat?", message: `“${entry.chat.title}” will be permanently deleted.`, confirmLabel: "Delete", danger: true }))) return
+  try {
+    if (entry.kind === "agent") await deleteConversation.mutateAsync(entry.chat.id)
+    else await deleteQuickChat.mutateAsync(entry.chat.id)
+  }
   catch (cause) { toast.error(messageOf(cause, "The chat could not be deleted")) }
 }
 async function removeAll() {
   const count = archived.value.length
   if (!(await confirm({ title: "Empty the archive?", message: `${String(count)} ${count === 1 ? "chat" : "chats"} will be permanently deleted.`, confirmLabel: "Delete all", danger: true }))) return
-  try { await deleteArchived.mutateAsync() }
+  try {
+    if (archive.data.value?.data.length) await deleteArchived.mutateAsync()
+    if (quickArchive.data.value?.length) await deleteArchivedQuick.mutateAsync()
+  }
   catch (cause) { toast.error(messageOf(cause, "The chats could not be deleted")) }
 }
 </script>
@@ -123,9 +147,9 @@ async function removeAll() {
       />
       <section class="ai-settings__archive">
         <h3>Archive</h3>
-        <AppSpinner v-if="archive.isPending.value" />
+        <AppSpinner v-if="archive.isPending.value || quickArchive.isPending.value" />
         <AppBanner
-          v-else-if="archive.isError.value"
+          v-else-if="archive.isError.value || quickArchive.isError.value"
           tone="error"
         >
           The archive could not be loaded.
@@ -138,29 +162,29 @@ async function removeAll() {
         <template v-else>
           <div class="ai-settings__archived-list">
             <div
-              v-for="chat in archived"
-              :key="chat.id"
+              v-for="entry in archived"
+              :key="`${entry.kind}-${entry.chat.id}`"
               class="ai-archived"
-              :data-testid="`ai-archived-${chat.id}`"
+              :data-testid="`ai-archived-${entry.chat.id}`"
             >
               <span
                 class="ai-archived__title"
-                :title="chat.title"
-              >{{ chat.title }}</span>
+                :title="entry.chat.title"
+              >{{ entry.chat.title }}</span>
               <AppIconButton
                 :icon="appIcons.unarchive"
                 tooltip="Restore chat"
                 compact
-                :data-testid="`ai-restore-${chat.id}`"
-                @click="restore(chat.id)"
+                :data-testid="`ai-restore-${entry.chat.id}`"
+                @click="restore(entry)"
               />
               <AppIconButton
                 :icon="appIcons.delete"
                 tooltip="Delete chat"
                 variant="danger-quiet"
                 compact
-                :data-testid="`ai-delete-${chat.id}`"
-                @click="remove(chat.id, chat.title)"
+                :data-testid="`ai-delete-${entry.chat.id}`"
+                @click="remove(entry)"
               />
             </div>
           </div>

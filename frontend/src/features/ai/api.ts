@@ -3,9 +3,10 @@ import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { AiService } from "@/client"
-import type { AgentSettingsUpdate, ConversationUpdate, ScreenContext } from "@/client"
+import type { AgentSettingsUpdate, ConversationUpdate, QuickChatSummary, QuickChatUpdate, ScreenContext } from "@/client"
 
 import type { Provider } from "./modelOptions"
+import { forgetQuickChat } from "./quickChatLauncher"
 
 export const aiModelsKey = ["ai", "models"] as const
 export const aiSettingsKey = ["ai", "settings"] as const
@@ -14,11 +15,69 @@ export const aiArchivedConversationsKey = ["ai", "archived-conversations"] as co
 export const aiConversationKey = (id: string) => ["ai", "conversations", id] as const
 export const aiProjectsKey = ["ai", "projects"] as const
 export const quickChatsKey = ["ai", "quick-chats"] as const
+export const quickArchivedChatsKey = ["ai", "quick-chats-archived"] as const
 
 export function useQuickChats() {
   return useQuery({
     queryKey: quickChatsKey,
     queryFn: async () => (await AiService.listQuickChats()).data,
+  })
+}
+
+export function useArchivedQuickChats() {
+  return useQuery({
+    queryKey: quickArchivedChatsKey,
+    queryFn: async () => (await AiService.listQuickChats({ query: { archived: true } })).data,
+  })
+}
+
+function useQuickChatInvalidation() {
+  const queryClient = useQueryClient()
+  return async (id?: string) => {
+    await queryClient.invalidateQueries({ queryKey: quickChatsKey })
+    await queryClient.invalidateQueries({ queryKey: quickArchivedChatsKey })
+    if (id) await queryClient.invalidateQueries({ queryKey: ["ai", "quick-chat", id] })
+  }
+}
+
+export function useUpdateQuickChat() {
+  const invalidate = useQuickChatInvalidation()
+  return useMutation({
+    mutationFn: async ({ id, ...body }: { id: string } & QuickChatUpdate) => (
+      await AiService.updateQuickChat({ path: { chat_id: id }, body })
+    ).data,
+    onSuccess: (chat) => invalidate(chat.id),
+  })
+}
+
+export function useDeleteQuickChat() {
+  const queryClient = useQueryClient()
+  const invalidate = useQuickChatInvalidation()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await AiService.deleteQuickChat({ path: { chat_id: id } })
+      return id
+    },
+    onSuccess: async (id) => {
+      forgetQuickChat(id)
+      queryClient.removeQueries({ queryKey: ["ai", "quick-chat", id] })
+      await invalidate()
+    },
+  })
+}
+
+export function useDeleteArchivedQuickChats() {
+  const queryClient = useQueryClient()
+  const invalidate = useQuickChatInvalidation()
+  return useMutation({
+    mutationFn: async () => { await AiService.deleteArchivedQuickChats() },
+    onSuccess: async () => {
+      for (const chat of queryClient.getQueryData<QuickChatSummary[]>(quickArchivedChatsKey) ?? []) {
+        forgetQuickChat(chat.id)
+      }
+      queryClient.removeQueries({ queryKey: ["ai", "quick-chat"] })
+      await invalidate()
+    },
   })
 }
 
@@ -163,6 +222,8 @@ export function useDeleteAiProject() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: aiProjectsKey })
       await invalidate()
+      await queryClient.invalidateQueries({ queryKey: quickChatsKey })
+      await queryClient.invalidateQueries({ queryKey: quickArchivedChatsKey })
     },
   })
 }

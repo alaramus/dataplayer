@@ -25,13 +25,11 @@ import { WorkspaceSeparator } from "@/shared/workspace"
 import { useSideRail } from "@/shared/workspace/useSideRail"
 
 import AiChatRow from "./AiChatRow.vue"
-import QuickChatRow from "./QuickChatRow.vue"
 import AiConversation from "./AiConversation.vue"
 import AiSettings from "./AiSettings.vue"
 import {
   aiConversationKey,
   aiConversationsKey,
-  quickChatsKey,
   useAiConversations,
   useAiProjects,
   useQuickChats,
@@ -40,9 +38,10 @@ import {
   useDeleteAiProject,
   useRenameAiProject,
   useUpdateAiConversation,
+  useUpdateQuickChat,
 } from "./api"
 import { freshProjectName } from "./projectName"
-import { forgetQuickChat, openQuickChat } from "./quickChatLauncher"
+import { openQuickChat } from "./quickChatLauncher"
 import { reusableEmptyChat } from "./emptyChat"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
@@ -63,6 +62,7 @@ const quickList = useQuickChats()
 const projectList = useAiProjects()
 const createConversation = useCreateAiConversation()
 const updateConversation = useUpdateAiConversation()
+const updateQuickChat = useUpdateQuickChat()
 const createProject = useCreateAiProject()
 const renameProject = useRenameAiProject()
 const deleteProject = useDeleteAiProject()
@@ -109,6 +109,7 @@ function closeChatFilter() {
 const conversations = computed(() => list.data.value?.data ?? [])
 type HistoryChat = { kind: "agent"; chat: ConversationSummary } | { kind: "quick"; chat: QuickChatSummary }
 const byRecent = (a: HistoryChat, b: HistoryChat) =>
+  Number(b.chat.pinned) - Number(a.chat.pinned) ||
   (b.chat.updated_at ?? "").localeCompare(a.chat.updated_at ?? "")
 const selectedChat = computed(() => conversations.value.find((chat) => chat.id === selected.value) ?? null)
 const projects = computed(() => projectList.data.value?.data ?? [])
@@ -118,7 +119,7 @@ const projectDraft = ref("")
 // Which project the dialog is renaming, or the chat a new one is being made
 // for — the two things the one dialog is opened for.
 const renamingProject = ref<string | null>(null)
-const projectFor = ref<string | null>(null)
+const projectFor = ref<HistoryChat | null>(null)
 
 /**
  * The history as it is drawn: every folder in turn, then what is in no folder.
@@ -130,15 +131,20 @@ const grouped = computed(() => {
   const groups = projects.value.map((project) => ({
     id: project.id as string | null,
     name: project.name,
-    chats: conversations.value.filter((chat) => chat.project_id === project.id)
-      .map((chat): HistoryChat => ({ kind: "agent", chat })),
+    chats: [
+      ...conversations.value.filter((chat) => chat.project_id === project.id)
+        .map((chat): HistoryChat => ({ kind: "agent", chat })),
+      ...(quickList.data.value ?? []).filter((chat) => chat.project_id === project.id)
+        .map((chat): HistoryChat => ({ kind: "quick", chat })),
+    ].sort(byRecent),
   }))
   return [
     ...groups,
     { id: null, name: "", chats: [
       ...conversations.value.filter((chat) => !chat.project_id)
         .map((chat): HistoryChat => ({ kind: "agent", chat })),
-      ...(quickList.data.value ?? []).map((chat): HistoryChat => ({ kind: "quick", chat })),
+      ...(quickList.data.value ?? []).filter((chat) => !chat.project_id)
+        .map((chat): HistoryChat => ({ kind: "quick", chat })),
     ].sort(byRecent) },
   ].filter((group) => group.id !== null || group.chats.length > 0)
 })
@@ -165,9 +171,9 @@ function toggleProject(id: string) {
 function projectIsClosed(id: string) {
   return chatNameFilter.value.trim() ? filterClosedProjects.value.has(id) : closedProjects.value.has(id)
 }
-function beginProjectFor(chatId: string | null) {
+function beginProjectFor(entry: HistoryChat | null) {
   renamingProject.value = null
-  projectFor.value = chatId
+  projectFor.value = entry
   projectDraft.value = freshProjectName(projects.value.map((project) => project.name))
   projectDialogShown.value = true
 }
@@ -209,8 +215,11 @@ async function removeProject(id: string, name: string) {
   try { await deleteProject.mutateAsync(id) }
   catch (cause) { toast.error(messageOf(cause, "The project could not be deleted")) }
 }
-async function moveChat(id: string, projectId: string | null) {
-  try { await updateConversation.mutateAsync({ id, project_id: projectId }) }
+async function moveChat(entry: HistoryChat, projectId: string | null) {
+  try {
+    if (entry.kind === "agent") await updateConversation.mutateAsync({ id: entry.chat.id, project_id: projectId })
+    else await updateQuickChat.mutateAsync({ id: entry.chat.id, project_id: projectId })
+  }
   catch (cause) { toast.error(messageOf(cause, "The chat could not be moved")) }
 }
 
@@ -255,19 +264,17 @@ async function makeConversation() {
   }
 }
 function select(id: string) { selected.value = id; settingsShown.value = false }
-async function removeQuickChat(id: string) {
-  if (!(await confirm({
-    title: "Delete quick chat?",
-    message: "This quick chat and its messages will be deleted permanently.",
-    confirmLabel: "Delete",
-    danger: true,
-  }))) return
-  try {
-    await AiService.deleteQuickChat({ path: { chat_id: id } })
-    forgetQuickChat(id)
-    queryClient.removeQueries({ queryKey: ["ai", "quick-chat", id] })
-    await queryClient.invalidateQueries({ queryKey: quickChatsKey })
-  } catch (cause) { toast.error(messageOf(cause, "Quick chat could not be deleted")) }
+function selectHistory(entry: HistoryChat) {
+  if (entry.kind === "agent") select(entry.chat.id)
+  else openQuickChat({ kind: "chat", id: entry.chat.id })
+}
+function pinHistory(entry: HistoryChat, pinned: boolean) {
+  if (entry.kind === "agent") void setPinned(entry.chat.id, pinned)
+  else void setQuickPinned(entry.chat.id, pinned)
+}
+function archiveHistory(entry: HistoryChat) {
+  if (entry.kind === "agent") void archive(entry.chat.id)
+  else void archiveQuick(entry.chat.id)
 }
 function beginRename(id: string, title: string) { renaming.value = id; titleDraft.value = title }
 async function finishRename() {
@@ -283,6 +290,10 @@ async function setPinned(id: string, pinned: boolean) {
   try { await updateConversation.mutateAsync({ id, pinned }) }
   catch (cause) { toast.error(messageOf(cause, pinned ? "The chat could not be pinned" : "The chat could not be unpinned")) }
 }
+async function setQuickPinned(id: string, pinned: boolean) {
+  try { await updateQuickChat.mutateAsync({ id, pinned }) }
+  catch (cause) { toast.error(messageOf(cause, pinned ? "The chat could not be pinned" : "The chat could not be unpinned")) }
+}
 // Archiving is not deleting: it is offered without a confirmation and taken
 // back from the message it leaves. What is in the archive is deleted in the
 // settings, which is the only place that can (D141).
@@ -292,6 +303,17 @@ async function archive(id: string) {
     toast.offer("Chat archived", { label: "Undo", onClick: () => { void restore(id) } })
   }
   catch (cause) { toast.error(messageOf(cause, "The chat could not be archived")) }
+}
+async function archiveQuick(id: string) {
+  try {
+    await updateQuickChat.mutateAsync({ id, archived: true })
+    toast.offer("Chat archived", { label: "Undo", onClick: () => { void restoreQuick(id) } })
+  }
+  catch (cause) { toast.error(messageOf(cause, "The chat could not be archived")) }
+}
+async function restoreQuick(id: string) {
+  try { await updateQuickChat.mutateAsync({ id, archived: false }) }
+  catch (cause) { toast.error(messageOf(cause, "The chat could not be restored")) }
 }
 async function restore(id: string) {
   try { await updateConversation.mutateAsync({ id, archived: false }); selected.value = id }
@@ -467,25 +489,18 @@ onScopeDispose(stop)
             v-if="group.id === null || !projectIsClosed(group.id)"
             :class="{ 'ai-window__project-chats': group.id !== null }"
           >
-            <template v-for="entry in group.chats" :key="`${entry.kind}-${entry.chat.id}`">
-              <AiChatRow
-                v-if="entry.kind === 'agent'"
-                :chat="entry.chat"
-                :active="selected === entry.chat.id && !settingsShown"
-                :projects="projects"
-                @select="select(entry.chat.id)"
-                @pin="setPinned(entry.chat.id, $event)"
-                @archive="archive(entry.chat.id)"
-                @move="moveChat(entry.chat.id, $event)"
-                @new-project="beginProjectFor(entry.chat.id)"
-              />
-              <QuickChatRow
-                v-else
-                :chat="entry.chat"
-                @select="openQuickChat({ kind: 'chat', id: entry.chat.id })"
-                @delete="removeQuickChat(entry.chat.id)"
-              />
-            </template>
+            <AiChatRow
+              v-for="entry in group.chats"
+              :key="`${entry.kind}-${entry.chat.id}`"
+              :chat="entry.chat"
+              :active="entry.kind === 'agent' && selected === entry.chat.id && !settingsShown"
+              :projects="projects"
+              @select="selectHistory(entry)"
+              @pin="pinHistory(entry, $event)"
+              @archive="archiveHistory(entry)"
+              @move="moveChat(entry, $event)"
+              @new-project="beginProjectFor(entry)"
+            />
           </div>
         </div>
       </div>

@@ -2,12 +2,12 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
-import type { ChatProjectPublic, ConversationSummary } from "@/client"
+import type { ChatProjectPublic, ConversationSummary, QuickChatSummary } from "@/client"
 import { AppButton, AppIconButton, AppMenu } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 const props = defineProps<{
-  chat: ConversationSummary
+  chat: ConversationSummary | QuickChatSummary
   active: boolean
   projects: ChatProjectPublic[]
 }>()
@@ -93,11 +93,16 @@ function pick(name: string) {
 
 <style scoped>
 .ai-chat-row { display: flex; align-items: center; border-radius: var(--dp-radius-control); }
-.ai-chat-row--active { background: var(--dp-active); }
+.ai-chat-row--active,
+.ai-chat-row:hover,
+.ai-chat-row:has(:focus-visible),
+.ai-chat-row--menu { background: var(--dp-active); }
 .ai-chat-row > :first-child { flex: 1; min-width: 0; }
 /* A generated title is a sentence; the row gets one line of it, the rest is
    on the button's tooltip. */
 .ai-chat-row__title :deep(.q-btn__content) { display: block; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+/* Quasar's focus helper shades the title button separately from its row. */
+.ai-chat-row__title :deep(.q-focus-helper) { display: none; }
 .ai-chat-row__actions { display: none; flex: none; }
 /* Pointed at, or reached by keyboard, and nothing else: the row of a selected
    chat carries no buttons either.

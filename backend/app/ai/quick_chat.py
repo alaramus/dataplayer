@@ -8,13 +8,13 @@ from datetime import datetime
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel, ConfigDict, Field as PydanticField
 from sqlalchemy import Column, DateTime, Index, LargeBinary
-from sqlmodel import Field, SQLModel, col, select
+from sqlmodel import Field, SQLModel, col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai import preferences
 from app.ai.catalog import ModelCatalog
 from app.ai.content import opened, sealed
-from app.ai.models import Role
+from app.ai.models import MAX_TITLE_CHARS, Role
 from app.ai.providers import ChatModels
 from app.core.schemas import get_datetime_utc
 
@@ -39,6 +39,11 @@ class QuickConversation(SQLModel, table=True):
     owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
     title: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
     model_key: str | None = Field(default=None, max_length=160)
+    pinned: bool = Field(default=False, sa_column_kwargs={"server_default": "false"})
+    archived: bool = Field(default=False, sa_column_kwargs={"server_default": "false"})
+    project_id: uuid.UUID | None = Field(
+        default=None, foreign_key="chatproject.id", ondelete="SET NULL", index=True
+    )
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
@@ -71,6 +76,18 @@ class QuickChatSummary(BaseModel):
     title: str
     model_key: str | None
     updated_at: datetime | None
+    pinned: bool
+    archived: bool
+    project_id: uuid.UUID | None
+
+
+class QuickChatUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = PydanticField(default=None, min_length=1, max_length=MAX_TITLE_CHARS)
+    pinned: bool | None = None
+    archived: bool | None = None
+    project_id: uuid.UUID | None = None
 
 
 class QuickChatMessagePublic(BaseModel):
@@ -92,9 +109,12 @@ class QuickChatSend(BaseModel):
 
 
 def summary(chat: QuickConversation) -> QuickChatSummary:
+    title = opened(chat.title)
     return QuickChatSummary(
-        id=chat.id, title=opened(chat.title), model_key=chat.model_key,
-        updated_at=chat.updated_at,
+        id=chat.id, title="New chat" if title == "New quick chat" else title,
+        model_key=chat.model_key,
+        updated_at=chat.updated_at, pinned=chat.pinned, archived=chat.archived,
+        project_id=chat.project_id,
     )
 
 
@@ -105,14 +125,29 @@ async def get_for_owner(
     return chat if chat is not None and chat.owner_id == owner_id else None
 
 
-async def list_for_owner(session: AsyncSession, owner_id: uuid.UUID) -> list[QuickChatSummary]:
+async def list_for_owner(
+    session: AsyncSession, owner_id: uuid.UUID, *, archived: bool = False
+) -> list[QuickChatSummary]:
     rows = (await session.exec(
         select(QuickConversation)
-        .where(QuickConversation.owner_id == owner_id)
-        .order_by(col(QuickConversation.updated_at).desc())
-        .limit(100)
+        .where(QuickConversation.owner_id == owner_id, col(QuickConversation.archived).is_(archived))
+        .order_by(col(QuickConversation.pinned).desc(), col(QuickConversation.updated_at).desc())
+        .limit(200)
     )).all()
     return [summary(chat) for chat in rows]
+
+
+async def delete_archived_for_owner(session: AsyncSession, owner_id: uuid.UUID) -> int:
+    ids = list((await session.exec(
+        select(QuickConversation.id).where(
+            QuickConversation.owner_id == owner_id,
+            col(QuickConversation.archived).is_(True),
+        )
+    )).all())
+    if ids:
+        await session.exec(delete(QuickConversation).where(col(QuickConversation.id).in_(ids)))
+        await session.commit()
+    return len(ids)
 
 
 async def public(session: AsyncSession, chat: QuickConversation) -> QuickChatPublic:
@@ -195,7 +230,7 @@ async def send(
     answer = response_text(response)[:ANSWER_LIMIT]
     if not answer.strip():
         raise RuntimeError("The model returned an empty answer")
-    if not previous:
+    if not previous and opened(chat.title) in {"New chat", "New quick chat"}:
         chat.title = sealed(text.splitlines()[0][:80])
     chat.model_key = model.key
     chat.updated_at = get_datetime_utc()

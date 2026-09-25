@@ -473,9 +473,11 @@ another one, including when a different conversation is currently shown. The
 window uses the agent conversation's transcript and composer layout, with a
 model selector but without a history selector or New/Delete controls. Plain
 conversations appear in the main AI chat history alongside agent conversations,
-marked with a quick-chat icon. Selecting one opens that conversation in the
-quick-chat window; deleting one is available from its history row. Storage and
-execution remain separate from agent conversations and runs. The shared window
+with the same row appearance and actions: pin, project and archive. The archive
+in AI settings restores or permanently deletes either kind of chat; the history
+does not delete chats directly. Selecting a plain conversation opens it in the
+quick-chat window, while selecting an agent conversation opens it in the AI
+space. Storage and execution remain separate from agent conversations and runs. The shared window
 opener accepts a saved conversation ID as well as new and explain intents, so
 future screens can launch the same window without owning it.
 

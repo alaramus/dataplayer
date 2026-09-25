@@ -26,7 +26,7 @@ export async function reusableEmptyQuickChat(
   read: (id: string) => Promise<{ messages: readonly unknown[] }>
 ): Promise<string | null> {
   for (const chat of chats) {
-    if (chat.title !== "New quick chat") continue
+    if (chat.title !== "New chat" && chat.title !== "New quick chat") continue
     const loaded = await read(chat.id)
     if (loaded.messages.length === 0) return chat.id
   }
