@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-25 | [Transfers as owned jobs](2026-09-25-transfer-jobs-design.md) | D168: file copy, file move and table-to-CSV pastes run as owned jobs with bytes in the footer and Processes, Stop at once, per-file outcomes and live catalog refresh; 1000 files and 10 GB per paste, three at a time per person; SSH destinations are written as the bytes arrive |
 | 2026-09-25 | [Two connections side by side](2026-09-25-paired-catalogs-design.md) | D167: a catalog tab dropped on Pair waits in the header; a second of another connection opens a pair window with both catalogs and a bar of what can go from the left one into the right one, turned round by Swap sides |
 | 2026-09-25 | [Rows pasted into another connection](2026-09-25-paste-rows-design.md) | D166: a copied CSV or table pastes as a new table in a schema or as rows into a ticked table, through D45's and D43's forms and limits; several offers open a list |
 | 2026-09-25 | [Paste offers, and a table pasted into a folder as CSV](2026-09-25-paste-offers-and-table-csv-design.md) | D164 and D165: one paste answer for a pair replaces the per-kind file routes; a PostgreSQL table gains Copy and pastes into any explorer folder as a CSV file, through a name window, within 200 MB |
