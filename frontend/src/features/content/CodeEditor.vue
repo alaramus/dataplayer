@@ -66,7 +66,6 @@ const emit = defineEmits<{
 }>()
 
 const host = ref<HTMLElement | null>(null)
-const languageName = ref("Plain text")
 const languageSlot = new Compartment()
 const permissionSlot = new Compartment()
 const validationSlot = new Compartment()
@@ -195,7 +194,6 @@ async function loadLanguage() {
   if (!editor) return
   const request = ++languageRequest
   const description = languageFor(props.filename, props.languageHint)
-  languageName.value = description?.name ?? "Plain text"
   const support = description ? await description.load() : []
   if (view !== editor || request !== languageRequest) return
   editor.dispatch({ effects: languageSlot.reconfigure(support) })
@@ -414,12 +412,6 @@ watch([() => props.filename, () => props.languageHint], () => void loadLanguage(
       ref="host"
       class="code-editor__surface"
     />
-    <span
-      class="code-editor__language"
-      data-testid="editor-language"
-    >
-      {{ languageName }}
-    </span>
   </div>
 </template>
 
@@ -434,17 +426,5 @@ watch([() => props.filename, () => props.languageHint], () => void loadLanguage(
 }
 .code-editor__surface {
   height: 100%;
-}
-.code-editor__language {
-  position: absolute;
-  right: 14px;
-  bottom: 8px;
-  padding: var(--dp-space-half) var(--dp-space-2);
-  border: 1px solid var(--dp-border-faint);
-  border-radius: var(--dp-radius-control);
-  background: var(--dp-surface);
-  color: var(--dp-text-muted);
-  font-size: 10px;
-  pointer-events: none;
 }
 </style>

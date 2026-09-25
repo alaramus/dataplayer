@@ -348,7 +348,6 @@ test("opens Markdown as a document, with its diagram, chart and source", async (
   // document is changed.
   await page.getByTestId("markdown-view-source").click()
   await expect(page.getByTestId("content-editor")).toContainText("# Sample document")
-  await expect(page.getByTestId("editor-language")).toHaveText("Markdown")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
@@ -386,8 +385,6 @@ test("opens a file as its own source and saves an edit back", async ({ page }) =
   const editor = page.getByTestId("content-editor")
   await expect(editor).toContainText("VALUE = 'before'")
   await expect(page.getByTestId("content-view-table")).toHaveCount(0)
-  // The language is named by CodeMirror's own metadata, from the filename.
-  await expect(page.getByTestId("editor-language")).toHaveText("Python")
   // Nothing has changed yet, so there is nothing to save.
   await expect(page.getByTestId("content-save")).toBeDisabled()
 
