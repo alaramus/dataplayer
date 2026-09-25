@@ -772,8 +772,8 @@ async function parseTyped(text: string) {
                 executionPolicy === "read_only"
                   ? "Consoles on this connection can only read."
                   : executionPolicy === "allow_writes"
-                    ? "Writing is unlocked by choosing a writing mode."
-                    : "Writing asks for the name of this connection first."
+                    ? "Consoles on this connection can write."
+                    : "Each write asks for confirmation before it runs."
               }}
             </span>
           </div>

@@ -22,7 +22,7 @@ import {
  *
  * What no unit test can show: that the console is a panel of this workspace,
  * that a draft survives a reload because the server holds it, and that
- * deleting one is Trash rather than loss (D63, D65). There is no Run in this
+ * deleting one removes it after confirmation (D160). There is no Run in this
  * slice — the document is the whole subject.
  */
 
@@ -57,7 +57,7 @@ test("writes a query document, names it, and finds it again after a reload", asy
 
   // --- a new console is in its own tab and in nothing else -----------------
   await page.getByTestId("new-query").click()
-  await expect(page.getByTestId("query-state")).toHaveText("Not kept")
+  await expect(page.getByTestId("query-state")).toHaveCount(0)
   await expect(page.getByTestId("query-context")).toContainText(name)
   // Nothing on the server to read again, so nothing offers to: the press used
   // to ask for the document that does not exist yet and be told the id it
@@ -71,19 +71,19 @@ test("writes a query document, names it, and finds it again after a reload", asy
 
   // --- keeping it is one press, and names it what the box says -------------
   await page.getByTestId("query-title").fill(title)
+  const rememberSize = await page.getByTestId("query-remember").evaluate((button) => ({
+    width: button.getBoundingClientRect().width,
+    height: button.getBoundingClientRect().height,
+  }))
   await page.getByTestId("query-remember").click()
-  await expect(page.getByTestId("query-state")).toHaveText("Saved")
-  await expect(page.getByTestId("query-remember")).toHaveCount(0)
-  // And now that there is a document behind it, re-reading it is offered and
-  // asks for that document rather than failing on the way out.
-  const reread = page.waitForRequest(
-    (request) =>
-      /\/api\/v1\/queries\/documents\/[0-9a-f-]{36}$/.test(request.url()) &&
-      request.method() === "GET"
-  )
-  await page.getByTestId("query-bar").getByTestId("panel-reload").click()
-  await reread
-  await expect(page.getByTestId("query-error")).toHaveCount(0)
+  await expect(page.getByTestId("query-remember")).toContainText("Remembered")
+  await expect(page.getByTestId("query-remember")).toBeDisabled()
+  expect(await page.getByTestId("query-remember").evaluate((button) => ({
+    width: button.getBoundingClientRect().width,
+    height: button.getBoundingClientRect().height,
+  }))).toEqual(rememberSize)
+  await expect(page.getByTestId("query-state")).toHaveCount(0)
+  await expect(page.getByTestId("query-bar").getByTestId("panel-reload")).toHaveCount(0)
   // The tab takes the name, because a tab is what a person looks for.
   await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toContainText(title)
 
@@ -98,24 +98,13 @@ test("writes a query document, names it, and finds it again after a reload", asy
   await expect(row).toHaveCount(1)
   await expect(row).toContainText(title)
 
-  // --- deleting is Trash for thirty days, and Trash gives it back ----------
-  await page.getByTestId("query-trash").click()
-  await expect(toast(page, "Trash")).toBeVisible()
-  await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(0)
-  await expect(page.getByTestId("queries-empty")).toBeVisible()
-
-  await page.getByTestId("queries-place-trash").click()
-  const trashed = page.locator('[data-testid^="query-row-"]')
-  await expect(trashed).toContainText(title)
-  await trashed.locator('[data-testid^="restore-query-"]').click()
-  await page.getByTestId("queries-place-queries").click()
-  await expect(page.locator('[data-testid^="query-row-"]')).toContainText(title)
-
-  // --- and deleting it for good is a second, deliberate step ---------------
-  await page.locator('[data-testid^="trash-query-"]').click()
-  await page.getByTestId("queries-place-trash").click()
-  await page.locator('[data-testid^="purge-query-"]').click()
+  // --- deletion asks once and removes the stored document -----------------
+  await row.locator('[data-testid^="delete-query-"]').click()
+  await page.getByTestId("confirm-cancel").click()
+  await expect(row).toContainText(title)
+  await row.locator('[data-testid^="delete-query-"]').click()
   await page.getByTestId("confirm-accept").click()
+  await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(0)
   await expect(page.getByTestId("queries-empty")).toBeVisible()
 
   await deleteConnector(page, name)
@@ -130,7 +119,9 @@ test("a query outlives the connection it was written against", async ({ page }) 
   await page.getByTestId("new-query").click()
   await typeQuery(page, "select 'kept'")
   await page.getByTestId("query-remember").click()
-  await expect(page.getByTestId("query-state")).toHaveText("Saved")
+  await expect(page.getByTestId("query-remember")).toContainText("Remembered")
+  await expect(page.getByTestId("query-remember")).toBeDisabled()
+  await expect(page.getByTestId("query-state")).toHaveCount(0)
 
   await deleteConnector(page, name)
   await page.reload()
@@ -282,7 +273,9 @@ test("asks for the values a query needs, and keeps the ones it is told to", asyn
   // this. Being kept is a rename of the tab and not a new one: the answer
   // already typed into it is still there afterwards.
   await page.getByTestId("query-remember").click()
-  await expect(page.getByTestId("query-state")).toHaveText("Saved")
+  await expect(page.getByTestId("query-remember")).toContainText("Remembered")
+  await expect(page.getByTestId("query-remember")).toBeDisabled()
+  await expect(page.getByTestId("query-state")).toHaveCount(0)
   await expect(page.getByTestId("parameter-value-from_here")).toHaveValue("7")
 
   await page.getByTestId("query-run").click()
@@ -511,12 +504,6 @@ test("plans a statement without running it, in three views of one selection", as
   await deleteConnector(page, name)
 })
 
-/** Choose what the console may do, the way the strip above the editor does. */
-async function chooseMode(page: Page, label: string) {
-  await page.getByTestId("query-mode").click()
-  await page.getByRole("option", { name: label, exact: true }).click()
-}
-
 /**
  * A row nothing else in the fixture owns.
  *
@@ -534,7 +521,7 @@ function countTag(label: string): string {
   return `select count(*) as n from demo_lab.tags where label = '${label}'`
 }
 
-test("a console reads until somebody unlocks it, and auto-commit keeps what it did", async ({
+test("the connection policy confirms writes and auto-commit keeps what ran", async ({
   page,
 }) => {
   const name = `e2e-write-${Date.now()}`
@@ -544,26 +531,13 @@ test("a console reads until somebody unlocks it, and auto-commit keeps what it d
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
 
-  // --- read-only is where every document starts, and it holds --------------
+  // --- the connector's confirm policy asks at the run itself --------------
   await typeQuery(page, insertTag(label))
   await page.getByTestId("query-run").click()
-  await expect(
-    toast(page, "this run is a read")
-  ).toBeVisible()
+  await expect(page.getByTestId("confirm-accept")).toBeVisible()
+  await page.getByTestId("confirm-accept").click()
 
-  // --- leaving it is typing the name of the connection, and only that ------
-  await chooseMode(page, "Auto-commit")
-  await expect(page.getByTestId("query-unlock")).toBeVisible()
-  await page.getByTestId("query-unlock-name").fill("not the name")
-  await page.getByTestId("query-unlock-submit").click()
-  await expect(toast(page, "exactly")).toBeVisible()
-
-  await page.getByTestId("query-unlock-name").fill(name)
-  await page.getByTestId("query-unlock-submit").click()
-  await expect(page.getByTestId("query-relock")).toBeVisible()
-
-  // --- and then the same statement goes through, and stays -----------------
-  await page.getByTestId("query-run").click()
+  // --- the confirmed statement goes through, and stays --------------------
   await expect(page.getByTestId("run-no-rows")).toContainText("INSERT")
 
   await typeQuery(page, countTag(label))
@@ -591,10 +565,7 @@ test("a console follows the connection it is open on", async ({ page }) => {
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
 
-  // Confirmation is where every connection starts, so the console asks for a
-  // name before it will write.
-  await chooseMode(page, "Auto-commit")
-  await expect(page.getByTestId("query-unlock-name")).toBeVisible()
+  await typeQuery(page, insertTag(`e2e-follow-tag-${Date.now()}`))
 
   // The owner closes writing while this console is open, and nothing in the
   // console is touched afterwards: either it is told, or it goes on judging
@@ -602,20 +573,18 @@ test("a console follows the connection it is open on", async ({ page }) => {
   await editConnector(page, name)
   await choosePolicy(page, "Read only")
   await page.getByTestId("save-connector").click()
-  await expect(page.getByTestId("query-write-forbidden")).toBeVisible()
-  await expect(page.getByTestId("query-unlock")).toHaveCount(0)
+  await page.getByTestId("query-run").click()
+  await expect(toast(page, "reading only")).toBeVisible()
 
-  // Opened again, under another name. What has to be typed back is the name
-  // the connection has now, because that is the one the server compares with.
+  // The policy changes back while the same console remains open.
   await editConnector(page, name)
   await choosePolicy(page, "Ask before writing")
   await page.getByTestId("connector-name").fill(renamed)
   await page.getByTestId("save-connector").click()
 
-  await expect(page.getByTestId("query-unlock")).toContainText(renamed)
-  await page.getByTestId("query-unlock-name").fill(renamed)
-  await page.getByTestId("query-unlock-submit").click()
-  await expect(page.getByTestId("query-relock")).toBeVisible()
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("confirm-accept")).toBeVisible()
+  await page.getByTestId("confirm-cancel").click()
 
   await deleteConnector(page, renamed)
 })
@@ -636,11 +605,22 @@ test("a transaction says what it has done, and closing the console rolls it back
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
 
-  // --- allowed means no name to type, but still a movement one makes ------
-  await chooseMode(page, "Transaction")
-  await expect(page.getByTestId("query-unlock")).toContainText("will change")
-  await page.getByTestId("query-unlock-submit").click()
-  await expect(page.getByTestId("query-relock")).toBeVisible()
+  // --- manual transaction is a transaction choice, not a write unlock -----
+  await expect(page.getByTestId("query-manual-transaction")).toContainText("Manual: Off")
+  const manualSize = await page.getByTestId("query-manual-transaction").evaluate((button) => ({
+    width: button.getBoundingClientRect().width,
+    height: button.getBoundingClientRect().height,
+  }))
+  await page.getByTestId("query-manual-transaction").hover()
+  await expect(page.getByText("Changes commit after each run")).toBeVisible()
+  await page.getByTestId("query-manual-transaction").click()
+  await expect(page.getByTestId("query-manual-transaction")).toContainText("Manual: On")
+  expect(await page.getByTestId("query-manual-transaction").evaluate((button) => ({
+    width: button.getBoundingClientRect().width,
+    height: button.getBoundingClientRect().height,
+  }))).toEqual(manualSize)
+  await page.getByTestId("query-manual-transaction").hover()
+  await expect(page.getByText("Changes wait for Commit or Roll back")).toBeVisible()
 
   // --- the bar is the commit preview: what it did, and how long it has -----
   await typeQuery(page, insertTag(label))
@@ -688,10 +668,6 @@ test("a structure change is tried out first, and the catalog follows it", async 
   await pickSchema(page, "demo_lab")
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
-  await chooseMode(page, "Auto-commit")
-  await page.getByTestId("query-unlock-name").fill(name)
-  await page.getByTestId("query-unlock-submit").click()
-  await expect(page.getByTestId("query-relock")).toBeVisible()
 
   // --- every structure change is asked about, even a harmless one (D66) ----
   await typeQuery(page, `create table demo_lab.${table} (id int primary key)`)
@@ -734,9 +710,6 @@ test("what the editor will not change is refused before anything runs", async ({
   await createPostgresConnector(page, name)
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
-  await chooseMode(page, "Auto-commit")
-  await page.getByTestId("query-unlock-name").fill(name)
-  await page.getByTestId("query-unlock-submit").click()
 
   await typeQuery(page, "grant select on demo_lab.tags to public")
   await page.getByTestId("query-run").click()
@@ -777,7 +750,7 @@ test("runs SQL over the files of a personal directory", async ({ page }) => {
   await expect(page.getByTestId("grid-cell-0-1")).toHaveText("250")
 
   // --- the source writes the statement, and there is no writing mode -------
-  await expect(page.getByTestId("query-mode")).toHaveCount(0)
+  await expect(page.getByTestId("query-manual-transaction")).toHaveCount(0)
 
   // --- what it will not do, it says before anything runs -------------------
   await typeQuery(page, 'delete from "sample.csv"')
@@ -838,7 +811,7 @@ test("opens a log as a table and queries all its lines from the grid", async ({ 
   await expect(consolePanel.getByTestId("grid-cell-0-1")).toHaveText("25")
   await expect(consolePanel.getByTestId("grid-cell-1-0")).toHaveText("INFO")
   await expect(consolePanel.getByTestId("grid-cell-1-1")).toHaveText("125")
-  await expect(consolePanel.getByTestId("query-mode")).toHaveCount(0)
+  await expect(consolePanel.getByTestId("query-manual-transaction")).toHaveCount(0)
 
   await catalogCheck(page, filename).click()
   await catalogAction(page, "delete")

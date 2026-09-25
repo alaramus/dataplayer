@@ -214,7 +214,7 @@ async def delete(
 async def sweep(session: AsyncSession, *, now: datetime | None = None) -> int:
     """Enforce each person's retention, and the ceiling above it.
 
-    Idempotent and cheap, so it runs beside the Trash sweep on the same timer.
+    Idempotent and cheap, so it runs on the query cleanup timer.
     A user who chose no retention keeps a run only until it is over.
     """
     moment = now or datetime.now(UTC)

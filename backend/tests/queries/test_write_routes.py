@@ -1,6 +1,6 @@
 """Changing data through SQL, and everything that stands in front of it.
 
-D66: the owner's policy, the level, the unlock, and a question asked every time
+D66/D160: the owner's policy, the grant, and a question asked every time
 about what cannot be undone. Against a real PostgreSQL, on a table these tests
 create for themselves, because what a transaction does is only true of a real
 one.
@@ -39,7 +39,7 @@ async def _person(client: AsyncClient, db: AsyncSession) -> tuple[User, dict[str
 
 
 async def _postgres(
-    client: AsyncClient, headers: dict[str, str], policy: str | None = None
+    client: AsyncClient, headers: dict[str, str], policy: str | None = "allow_writes"
 ) -> str:
     response = await client.post(
         f"{CONNECTORS}/",
@@ -60,22 +60,6 @@ async def _postgres(
         )
         assert changed.status_code == 200, changed.text
     return connector_id
-
-
-async def _name_of(client: AsyncClient, headers: dict[str, str], connector_id: str) -> str:
-    response = await client.get(f"{CONNECTORS}/{connector_id}", headers=headers)
-    assert response.status_code == 200, response.text
-    return str(response.json()["name"])
-
-
-async def _unlock(
-    client: AsyncClient, headers: dict[str, str], connector_id: str
-) -> Any:
-    return await client.post(
-        f"{BASE}/connectors/{connector_id}/unlock",
-        headers=headers,
-        json={"connector_name": await _name_of(client, headers, connector_id)},
-    )
 
 
 async def _settled(
@@ -145,72 +129,66 @@ async def _rows(
     return int(page.json()["rows"][0][0])
 
 
-# --- the policy and the unlock ----------------------------------------------
+# --- the connection's execution policy -------------------------------------
 
 
 async def test_a_connection_asks_for_confirmation_by_default(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     headers = await _headers(client, db)
-    connector_id = await _postgres(client, headers)
+    connector_id = await _postgres(client, headers, policy=None)
+    table = await _table()
+    statement = f"update demo_lab.{table} set note = 'confirmed' where id = 1"
 
-    state = await client.get(f"{BASE}/connectors/{connector_id}/unlock", headers=headers)
-
-    assert state.status_code == 200, state.text
-    assert state.json()["policy"] == "confirm_writes"
-    assert state.json()["unlocked"] is False
-
-
-async def test_leaving_read_only_needs_the_name_typed_out(
-    client: AsyncClient, db: AsyncSession
-) -> None:
-    """D66: a deliberate movement is one that cannot be made by a stray press."""
-    headers = await _headers(client, db)
-    connector_id = await _postgres(client, headers)
-
-    wrong = await client.post(
-        f"{BASE}/connectors/{connector_id}/unlock",
-        headers=headers,
-        json={"connector_name": "not the name"},
+    refused = await _run(client, headers, connector_id, statement, mode="auto_commit")
+    accepted = await _run(
+        client, headers, connector_id, statement,
+        mode="auto_commit", confirm_write=True,
     )
-    right = await _unlock(client, headers, connector_id)
 
-    assert wrong.status_code == 422
-    assert right.status_code == 200, right.text
-    assert right.json()["unlocked"] is True
-    assert right.json()["expires_at"] is not None
+    assert refused.status_code == 409
+    assert "Confirm this write" in refused.json()["detail"]
+    assert accepted.status_code == 200, accepted.text
+    run = await _settled(client, headers, accepted.json()["id"])
+    assert run["status"] == "succeeded"
 
 
-async def test_a_connection_its_owner_keeps_read_only_never_unlocks(
+async def test_a_connection_its_owner_keeps_read_only_blocks_writes(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers, policy="read_only")
+    table = await _table()
 
-    response = await _unlock(client, headers, connector_id)
-    state = await client.get(f"{BASE}/connectors/{connector_id}/unlock", headers=headers)
-
-    assert response.status_code == 403
-    assert state.json()["unlocked"] is False
-    assert "reading only" in (state.json()["reason"] or "")
-
-
-async def test_allowing_writes_still_asks_once(
-    client: AsyncClient, db: AsyncSession
-) -> None:
-    """Under `allow_writes` the name is not typed, but writing is still opened."""
-    headers = await _headers(client, db)
-    connector_id = await _postgres(client, headers, policy="allow_writes")
-
-    without_name = await client.post(
-        f"{BASE}/connectors/{connector_id}/unlock", headers=headers, json={}
+    response = await _run(
+        client, headers, connector_id,
+        f"update demo_lab.{table} set note = 'x' where id = 1",
+        mode="auto_commit", confirm_write=True,
     )
 
-    assert without_name.status_code == 200, without_name.text
-    assert without_name.json()["unlocked"] is True
+    assert response.status_code == 403
+    assert "reading only" in response.json()["detail"]
 
 
-async def test_a_reader_cannot_unlock_what_they_may_only_read(
+async def test_allowing_writes_needs_no_editor_unlock(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers, policy="allow_writes")
+    table = await _table()
+
+    response = await _run(
+        client, headers, connector_id,
+        f"update demo_lab.{table} set note = 'allowed' where id = 1",
+        mode="auto_commit",
+    )
+
+    assert response.status_code == 200, response.text
+    run = await _settled(client, headers, response.json()["id"])
+    assert run["status"] == "succeeded"
+
+
+async def test_a_reader_cannot_write_what_they_may_only_read(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     owner_headers = await _headers(client, db)
@@ -223,26 +201,15 @@ async def test_a_reader_cannot_unlock_what_they_may_only_read(
     )
     assert granted.status_code == 200, granted.text
 
-    response = await client.post(
-        f"{BASE}/connectors/{connector_id}/unlock", headers=reader_headers, json={}
+    table = await _table()
+    response = await _run(
+        client, reader_headers, connector_id,
+        f"update demo_lab.{table} set note = 'x' where id = 1",
+        mode="auto_commit",
     )
 
     assert response.status_code == 403
-    assert "read access" in response.json()["detail"]
-
-
-async def test_going_back_to_reading_is_immediate(
-    client: AsyncClient, db: AsyncSession
-) -> None:
-    headers = await _headers(client, db)
-    connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
-
-    relocked = await client.delete(
-        f"{BASE}/connectors/{connector_id}/unlock", headers=headers
-    )
-
-    assert relocked.json()["unlocked"] is False
+    assert "write access" in response.json()["detail"]
 
 
 # --- what a run may do ------------------------------------------------------
@@ -256,30 +223,14 @@ async def test_a_change_is_refused_while_the_document_is_read_only(
     table = await _table()
 
     response = await _run(
-        client, headers, connector_id, f"update demo_lab.{table} set note = 'x' where id = 1"
-    )
-
-    assert response.status_code == 422
-    assert "read" in response.json()["detail"]
-
-
-async def test_a_change_is_refused_until_writing_is_unlocked(
-    client: AsyncClient, db: AsyncSession
-) -> None:
-    headers = await _headers(client, db)
-    connector_id = await _postgres(client, headers)
-    table = await _table()
-
-    response = await _run(
         client,
         headers,
         connector_id,
         f"update demo_lab.{table} set note = 'x' where id = 1",
-        mode="auto_commit",
     )
 
-    assert response.status_code == 409
-    assert "not unlocked" in response.json()["detail"]
+    assert response.status_code == 422
+    assert "read" in response.json()["detail"]
 
 
 async def test_an_auto_commit_change_is_made_and_kept(
@@ -288,7 +239,6 @@ async def test_an_auto_commit_change_is_made_and_kept(
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
 
     started = await _run(
         client,
@@ -314,7 +264,6 @@ async def test_an_auto_commit_script_that_fails_keeps_nothing(
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
 
     started = await _run(
         client,
@@ -340,10 +289,13 @@ async def test_something_that_cannot_be_undone_is_asked_about_every_time(
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
 
     unconfirmed = await _run(
-        client, headers, connector_id, f"delete from demo_lab.{table}", mode="auto_commit"
+        client,
+        headers,
+        connector_id,
+        f"delete from demo_lab.{table}",
+        mode="auto_commit",
     )
     confirmed = await _run(
         client,
@@ -404,7 +356,6 @@ async def test_a_manual_transaction_holds_changes_until_it_is_committed(
     watcher = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
     opened = await _open(client, headers, connector_id)
     assert opened.status_code == 200, opened.text
     transaction_id = opened.json()["id"]
@@ -444,7 +395,6 @@ async def test_rolling_back_undoes_what_succeeded(
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
     transaction_id = (await _open(client, headers, connector_id)).json()["id"]
     started = await _run(
         client,
@@ -473,7 +423,6 @@ async def test_a_failed_statement_leaves_a_transaction_that_can_only_be_rolled_b
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
     transaction_id = (await _open(client, headers, connector_id)).json()["id"]
     started = await _run(
         client,
@@ -510,7 +459,6 @@ async def test_a_transaction_belonging_to_somebody_else_does_not_exist(
     headers = await _headers(client, db)
     stranger = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     transaction_id = (await _open(client, headers, connector_id)).json()["id"]
 
     read = await client.get(f"{BASE}/transactions/{transaction_id}", headers=stranger)
@@ -523,15 +471,21 @@ async def test_a_transaction_belonging_to_somebody_else_does_not_exist(
     await client.post(f"{BASE}/transactions/{transaction_id}/rollback", headers=headers)
 
 
-async def test_opening_a_transaction_needs_the_same_unlock_a_write_does(
+async def test_opening_a_transaction_uses_the_connection_policy_and_grant(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
+    read_only = await _postgres(client, headers, policy="read_only")
 
-    response = await _open(client, headers, connector_id)
+    allowed = await _open(client, headers, connector_id)
+    blocked = await _open(client, headers, read_only)
 
-    assert response.status_code == 409
+    assert allowed.status_code == 200, allowed.text
+    assert blocked.status_code == 403
+    await client.post(
+        f"{BASE}/transactions/{allowed.json()['id']}/rollback", headers=headers
+    )
 
 
 async def test_a_manual_run_needs_a_transaction_that_is_open(
@@ -540,7 +494,6 @@ async def test_a_manual_run_needs_a_transaction_that_is_open(
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
 
     without = await _run(
         client,
@@ -571,7 +524,6 @@ async def test_an_idle_transaction_is_rolled_back_by_its_lease(
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
     table = await _table()
-    await _unlock(client, headers, connector_id)
     transaction_id = (await _open(client, headers, connector_id)).json()["id"]
     started = await _run(
         client,

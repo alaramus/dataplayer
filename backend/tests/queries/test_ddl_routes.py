@@ -55,18 +55,6 @@ async def _postgres(client: AsyncClient, headers: dict[str, str]) -> str:
     return str(response.json()["id"])
 
 
-async def _unlock(
-    client: AsyncClient, headers: dict[str, str], connector_id: str
-) -> None:
-    named = await client.get(f"{CONNECTORS}/{connector_id}", headers=headers)
-    response = await client.post(
-        f"{BASE}/connectors/{connector_id}/unlock",
-        headers=headers,
-        json={"connector_name": str(named.json()["name"])},
-    )
-    assert response.status_code == 200, response.text
-
-
 async def _settled(
     client: AsyncClient, headers: dict[str, str], run_id: str, *, seconds: float = 15.0
 ) -> dict[str, Any]:
@@ -96,6 +84,7 @@ async def _run(
             "run_id": str(uuid.uuid4()),
             "connector_id": connector_id,
             "text": text,
+            "confirm_write": True,
             **extra,
         },
     )
@@ -179,7 +168,6 @@ async def test_a_table_is_created_and_the_source_says_what_to_re_read(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     name = f"dp_new_{uuid.uuid4().hex[:8]}"
 
     run = await _change(
@@ -212,7 +200,6 @@ async def test_what_is_outside_the_vocabulary_is_refused_in_the_sources_words(
     """D66: administering permissions is not a thing a text box may invent."""
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
 
     response = await _run(
         client,
@@ -232,7 +219,6 @@ async def test_a_maintenance_command_is_refused_before_anything_is_recorded(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
 
     response = await _run(
         client,
@@ -251,7 +237,6 @@ async def test_every_structure_change_is_asked_about_even_a_harmless_one(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     name = f"dp_ask_{uuid.uuid4().hex[:8]}"
 
     response = await _run(
@@ -279,7 +264,6 @@ async def test_a_structure_change_needs_more_than_write_access(
         json={"user_id": str(writer.id), "access": "write"},
     )
     assert granted.status_code == 200, granted.text
-    await _unlock(client, writer_headers, connector_id)
 
     response = await _run(
         client,
@@ -303,7 +287,6 @@ async def test_a_rehearsal_says_what_a_cascade_would_take_and_changes_nothing(
     """The database's own answer, not a dependency list this project invented."""
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     table = await _table()
     view = f"dp_view_{uuid.uuid4().hex[:8]}"
     await _change(
@@ -335,7 +318,6 @@ async def test_a_rehearsal_reports_a_drop_the_source_would_refuse(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     table = await _table()
     view = f"dp_view_{uuid.uuid4().hex[:8]}"
     await _change(
@@ -360,7 +342,6 @@ async def test_a_rehearsal_names_what_would_have_to_be_re_read(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     table = await _table()
 
     response = await _rehearse(
@@ -370,7 +351,7 @@ async def test_a_rehearsal_names_what_would_have_to_be_re_read(
     assert response.json()["effect"]["reload_node_ids"] == ["demo_lab"]
 
 
-async def test_a_rehearsal_needs_the_same_unlock_the_change_does(
+async def test_a_rehearsal_uses_the_connection_grant_without_an_editor_unlock(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     """Rehearsing is running: it takes the locks and does the work (D66)."""
@@ -382,8 +363,8 @@ async def test_a_rehearsal_needs_the_same_unlock_the_change_does(
         client, headers, connector_id, f"drop table demo_lab.{table}"
     )
 
-    assert response.status_code == 409
-    assert "not unlocked" in response.json()["detail"]
+    assert response.status_code == 200, response.text
+    assert await _exists(client, headers, connector_id, table)
 
 
 async def test_a_rehearsal_refuses_what_the_vocabulary_refuses(
@@ -391,7 +372,6 @@ async def test_a_rehearsal_refuses_what_the_vocabulary_refuses(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
 
     response = await _rehearse(
         client, headers, connector_id, "drop database something"
@@ -411,7 +391,6 @@ async def test_a_rehearsal_inside_a_transaction_is_not_blocked_by_that_transacti
     """
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     table = await _table()
     opened = await client.post(
         f"{BASE}/transactions", headers=headers, json={"connector_id": connector_id}
@@ -456,7 +435,6 @@ async def test_a_committed_transaction_issues_what_its_changes_mean(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     name = f"dp_tx_{uuid.uuid4().hex[:8]}"
     opened = await client.post(
         f"{BASE}/transactions", headers=headers, json={"connector_id": connector_id}
@@ -495,7 +473,6 @@ async def test_a_rolled_back_transaction_issues_nothing(
     """Nothing changed, so telling a client to re-read would be a lie (D66)."""
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
     name = f"dp_gone_{uuid.uuid4().hex[:8]}"
     opened = await client.post(
         f"{BASE}/transactions", headers=headers, json={"connector_id": connector_id}
@@ -526,7 +503,6 @@ async def test_a_structure_change_that_failed_issues_nothing(
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
 
     run = await _change(
         client, headers, connector_id, "drop table demo_lab.dp_not_there"

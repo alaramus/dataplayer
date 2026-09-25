@@ -134,9 +134,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             resources=application.state.resources,
             data_cache=application.state.data_cache,
         )
-        # Emptying query Trash is the one thing here that is not a resource: it
-        # is a timer, and it belongs to the application for the same reason a
-        # pool does — nothing else outlives a request.
+        # Run history retention is timer driven and belongs to the application;
+        # nothing else outlives a request.
         try:
             async with sweeping(application.state.query_sessions):
                 yield

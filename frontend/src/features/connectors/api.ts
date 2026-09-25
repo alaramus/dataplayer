@@ -25,9 +25,8 @@ export function useConnectors() {
  * What a connection is called now.
  *
  * By id and out of the list, never from a name copied when a tab was opened.
- * A rename leaves every such copy behind, and the name is the word a console
- * has to type back to leave read-only — the server compares it with the one
- * the connection has now (D66).
+ * A rename leaves every such copy behind. The current name belongs to the
+ * connection rather than whichever tab first opened it.
  */
 export function connectorNameOf(
   connectors: ConnectorsPublic | undefined,

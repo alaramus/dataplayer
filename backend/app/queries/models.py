@@ -96,12 +96,6 @@ class QueryDocument(SQLModel, table=True):
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
     )
-    # When it went to Trash. Thirty days later the sweep removes it for good.
-    trashed_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
-        index=True,
-    )
 
 
 def _within_size(value: str) -> str:
@@ -179,7 +173,6 @@ class QueryDocumentPublic(BaseModel):
     parameters: RememberedParameters = PydanticField(default_factory=dict)
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    trashed_at: datetime | None = None
 
 
 class QueryDocumentSummary(BaseModel):
@@ -198,7 +191,6 @@ class QueryDocumentSummary(BaseModel):
     revision: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
-    trashed_at: datetime | None = None
 
 
 class QueryDocumentsPublic(BaseModel):

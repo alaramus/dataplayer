@@ -9,7 +9,6 @@ import {
   useCreateQueryDocument,
   useQueryDocument,
   useSaveQueryDocument,
-  useTrashQueryDocument,
 } from "@/features/queries/api"
 import {
   bindingsOf,
@@ -40,7 +39,6 @@ import type { DraftState, SaveState } from "@/features/queries/draft"
 import ExplainView from "@/features/queries/ExplainView.vue"
 import ParameterForm from "@/features/queries/ParameterForm.vue"
 import TransactionBar from "@/features/queries/TransactionBar.vue"
-import WriteMode from "@/features/queries/WriteMode.vue"
 import RunOutcome from "@/features/queries/RunOutcome.vue"
 import {
   marks,
@@ -52,16 +50,13 @@ import {
 } from "@/features/queries/intelligence"
 import {
   useCancelRun,
-  useCloseWrites,
   useEndTransaction,
   useExplainQuery,
   useFormatQuery,
   useOpenTransaction,
-  useOpenWrites,
   useRehearseChange,
   useSchemaInvalidation,
   useTransaction,
-  useUnlockState,
   usePrepareQuery,
   useQueryMetadata,
   useQueryProfile,
@@ -74,8 +69,6 @@ import {
   rehearsalReport,
 } from "@/features/queries/structure"
 import { useClosable } from "@/features/workspace/closable"
-import PanelCommands from "@/features/workspace/PanelCommands.vue"
-import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
@@ -85,6 +78,7 @@ import {
   AppIconButton,
   AppInput,
   AppSpinner,
+  AppTooltip,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -121,14 +115,11 @@ const confirm = useConfirm()
 const document = useQueryDocument(computed(() => props.documentId ?? null))
 const save = useSaveQueryDocument()
 const create = useCreateQueryDocument()
-const trash = useTrashQueryDocument()
 const prepare = usePrepareQuery()
 const startRun = useStartRun()
 const cancelRun = useCancelRun()
 const formatting = useFormatQuery()
 const explaining = useExplainQuery()
-const openWrites = useOpenWrites()
-const closeWrites = useCloseWrites()
 const openTransaction = useOpenTransaction()
 const endTransaction = useEndTransaction()
 const rehearse = useRehearseChange()
@@ -153,12 +144,10 @@ const startedAt = ref(0)
 const now = ref(0)
 const plan = ref<ExplainResult | null>(null)
 /**
- * What this console may do, chosen every time it is opened.
- *
- * Never restored from anywhere: a document opens read-only, and leaving that
- * is a movement somebody makes deliberately in front of this screen (D66).
+ * Whether statements run in a manually held transaction. Permissions are
+ * resolved from the connection on every request, not chosen by this editor.
  */
-const mode = ref<"read" | "auto_commit" | "manual">("read")
+const manualTransaction = ref(false)
 const transactionId = ref<string | null>(null)
 const frame = useTemplateRef<HTMLElement>("frame")
 
@@ -204,7 +193,6 @@ const connectorId = computed(
   () => server.value === undefined ? props.connectorId ?? null : server.value.connector_id
 )
 const profile = useQueryProfile(connectorId)
-const unlockState = useUnlockState(connectorId)
 const transaction = useTransaction(transactionId)
 /**
  * What this connection holds, asked for progressively (D65).
@@ -243,6 +231,14 @@ const kept = useRun(keptRunId)
  * connection back on screen.
  */
 const connectors = useConnectors()
+const connection = computed(() =>
+  connectors.data.value?.data.find((item) => item.id === connectorId.value)
+)
+const canUseTransaction = computed(() =>
+  profile.data.value?.statement_modes.includes("manual") === true &&
+  connection.value?.execution_policy !== "read_only" &&
+  connection.value?.access !== "read" && connection.value !== undefined
+)
 const connectorLabel = computed(() => {
   const listed = connectorNameOf(connectors.data.value, connectorId.value)
   if (listed !== null) return listed
@@ -255,10 +251,10 @@ const error = computed(() =>
     ? messageOf(document.error.value, "Could not open this query")
     : ""
 )
-/** One word for each state, and no state without one. */
+/** Only states needing attention appear beside the editor commands. */
 const STATE_LABELS: Record<SaveState, string> = {
-  unremembered: "Not kept",
-  saved: "Saved",
+  unremembered: "",
+  saved: "",
   dirty: "Unsaved changes",
   saving: "Saving…",
   conflict: "Changed elsewhere",
@@ -276,18 +272,8 @@ const canRun = computed(
   () =>
     runnable.value &&
     !going.value &&
-    ready(parameters.value) &&
-    (mode.value === "read" || unlockState.data.value?.unlocked === true)
+    ready(parameters.value)
 )
-/** What the statements about to run would do that cannot be undone (D66). */
-const risky = computed(() => {
-  const statements = script.value?.statements ?? []
-  const mutating = statements.filter(
-    (statement) => statement.kind === "dml" || statement.kind === "ddl"
-  )
-  if (mutating.length === 0) return false
-  return mutating.some((statement) => statement.risk === "high") || statements.length > 1
-})
 /**
  * What the result area shows.
  *
@@ -334,15 +320,6 @@ watch(
     await forgetStale(connector, effect)
   }
 )
-
-// `enabled` stops a query reading by itself; it does not stop a refetch asked
-// for by hand. A console with no document behind it would send the literal
-// `{document_id}` — the client drops a null path parameter and leaves the
-// placeholder in the URL — and be told it is not a UUID.
-useReloadable(() => props.panelId, async () => {
-  if (!remembered.value) return
-  await document.refetch()
-})
 
 /**
  * An open transaction is not left behind by closing the tab (D66).
@@ -549,20 +526,36 @@ async function go(target: RunTarget | null) {
     toast.info("Fill in the parameters this query asks for")
     return
   }
-  // Asked every time, with what it would do in front of the person (D66).
-  if (risky.value) {
-    const rehearsed = needsRehearsal(script.value) ? await tryItOut(target) : null
+  let selectedScript: PreparedScript
+  try {
+    // The selection can have a different class than another statement in the
+    // document. Use the source's answer for exactly the text being run.
+    selectedScript = await prepare.mutateAsync({ connector_id: connector, text: target.text })
+  } catch (cause) {
+    toast.error(messageOf(cause, "This query could not be prepared"))
+    return
+  }
+  const statements = selectedScript.statements
+  const mutating = statements.some((one) => one.kind === "dml" || one.kind === "ddl")
+  const risky = mutating && (statements.length > 1 || statements.some((one) => one.kind === "ddl" || one.risk === "high"))
+  const policyConfirm = mutating && (connection.value?.execution_policy ?? "confirm_writes") === "confirm_writes"
+  const mode = manualTransaction.value ? "manual" : mutating ? "auto_commit" : "read"
+  // The connection's confirmation policy and dangerous changes ask at Run,
+  // not through an independent permission switch in the editor (D160).
+  if (risky || policyConfirm) {
+    const rehearsed = risky && needsRehearsal(selectedScript) ? await tryItOut(target) : null
     if (rehearsed === "blocked") return
     const tried =
       rehearsed === null || rehearsed === ""
         ? ""
         : "\n\nTried out on the source, then undone:\n" + rehearsed
     const accepted = await confirm({
-      title: "Run something that cannot be undone?",
+      title: risky ? "Run something that cannot be undone?" : "Confirm this write?",
       message:
-        `This changes ${connectorLabel.value ?? "the source"} and there is no ` +
-        "undo. In a transaction you can still roll it back; with auto-commit " +
-        "you cannot." +
+        `This changes ${connectorLabel.value ?? "the source"}. ` +
+        (mode === "manual"
+          ? "You can roll back the open transaction before committing it."
+          : "Auto-commit applies the change when the run succeeds.") +
         tried,
       confirmLabel: "Run it",
       danger: true,
@@ -571,7 +564,7 @@ async function go(target: RunTarget | null) {
   }
   // A transaction is opened when the first statement needs one, not when the
   // mode is chosen: an empty transaction would hold a connection for nothing.
-  if (mode.value === "manual" && transactionId.value === null) {
+  if (mode === "manual" && transactionId.value === null) {
     try {
       const opened = await openTransaction.mutateAsync({
         connector_id: connector,
@@ -595,9 +588,10 @@ async function go(target: RunTarget | null) {
       range_start: target.start,
       range_end: target.end,
       scope: target.scope,
-      mode: mode.value,
-      transaction_id: mode.value === "manual" ? transactionId.value : null,
-      confirm_high_risk: risky.value,
+      mode,
+      transaction_id: mode === "manual" ? transactionId.value : null,
+      confirm_write: policyConfirm,
+      confirm_high_risk: risky,
       parameters: bindingsOf(parameters.value),
     })
     plan.value = null
@@ -690,23 +684,6 @@ async function format(scope: "document" | "selection") {
   }
 }
 
-async function unlockWrites(typedName: string) {
-  const connector = connectorId.value
-  if (connector === null) return
-  try {
-    await openWrites.mutateAsync({ connectorId: connector, connectorName: typedName })
-  } catch (cause) {
-    toast.error(messageOf(cause, "Writing was not unlocked"))
-  }
-}
-
-async function lockWrites() {
-  const connector = connectorId.value
-  if (connector === null) return
-  await closeWrites.mutateAsync(connector)
-  mode.value = "read"
-}
-
 /** End the transaction, and say what became of what it did. */
 async function endTheTransaction(commit: boolean) {
   const id = transactionId.value
@@ -742,7 +719,7 @@ async function tryItOut(target: RunTarget): Promise<string | "blocked" | null> {
       connector_id: connector,
       text: target.text,
       document_id: loaded?.id ?? null,
-      transaction_id: mode.value === "manual" ? transactionId.value : null,
+      transaction_id: manualTransaction.value ? transactionId.value : null,
       parameters: bindingsOf(parameters.value),
     })
     const blocked = blockedReason(rehearsal)
@@ -877,19 +854,6 @@ function dropShadow() {
   if (props.documentId !== undefined) clearShadow(props.documentId)
 }
 
-async function moveToTrash() {
-  const documentId = props.documentId
-  if (documentId === undefined) return
-  try {
-    await trash.mutateAsync(documentId)
-    clearShadow(documentId)
-    workspace.closeQueryDocument(documentId)
-    toast.success("Moved to Trash")
-  } catch (cause) {
-    toast.error(messageOf(cause, "Could not delete this query"))
-  }
-}
-
 /** Drag the line between the two halves; where it ends up is remembered. */
 function startResize(event: PointerEvent) {
   const host = frame.value
@@ -948,6 +912,7 @@ onBeforeUnmount(() => {
         data-testid="query-knowledge"
       >{{ knowledge }}</span>
       <span
+        v-if="stateLabel"
         class="query-panel__state"
         :data-state="state"
         data-testid="query-state"
@@ -963,6 +928,22 @@ onBeforeUnmount(() => {
            a row that gave it room out of the buttons wrapped their labels onto
            two lines for as long as it was there. -->
       <div class="query-panel__actions">
+        <AppButton
+          v-if="canUseTransaction || transactionId !== null"
+          :variant="manualTransaction ? 'secondary' : 'quiet'"
+          layout="toolbar"
+          size="sm"
+          :label="manualTransaction ? 'Manual: On' : 'Manual: Off'"
+          :aria-pressed="manualTransaction"
+          :disable="transactionId !== null"
+          class="query-panel__manual-button"
+          data-testid="query-manual-transaction"
+          @click="manualTransaction = !manualTransaction"
+        >
+          <AppTooltip>
+            {{ manualTransaction ? "Changes wait for Commit or Roll back" : "Changes commit after each run" }}
+          </AppTooltip>
+        </AppButton>
         <AppButton
           v-if="going"
           variant="secondary"
@@ -1020,25 +1001,16 @@ onBeforeUnmount(() => {
              is pressed the text is in this tab and nowhere else, which is why
              the button says what it does rather than "Save". -->
         <AppButton
-          v-if="!remembered"
           variant="quiet"
+          layout="toolbar"
           size="sm"
           :icon="appIcons.bookmarkAdd"
-          label="Remember"
-          :disable="connectorId === null || create.isPending.value"
+          :label="remembered ? 'Remembered' : 'Remember'"
+          :disable="remembered || connectorId === null || create.isPending.value"
+          class="query-panel__remember-button"
           data-testid="query-remember"
           @click="remember"
         />
-        <AppIconButton
-          v-else
-          :icon="appIcons.delete"
-          tooltip="Move to Trash"
-          data-testid="query-trash"
-          @click="moveToTrash"
-        />
-        <!-- A console is written against a connection rather than opened on a
-             node, so there is nowhere in a catalog to be shown (D112). -->
-        <PanelCommands :panel-id="panelId" />
       </div>
     </div>
 
@@ -1120,19 +1092,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </AppBanner>
-
-    <WriteMode
-      v-if="profile.data.value !== undefined"
-      :mode="mode"
-      :modes="profile.data.value.statement_modes"
-      :unlock="unlockState.data.value"
-      :connector-label="connectorLabel"
-      :busy="openWrites.isPending.value"
-      class="query-panel__mode"
-      @update:mode="mode = $event"
-      @unlock="unlockWrites"
-      @relock="lockWrites"
-    />
 
     <TransactionBar
       v-if="transaction.data.value !== undefined"
@@ -1238,6 +1197,17 @@ onBeforeUnmount(() => {
   /* The same gap the bar sets, so the join is invisible. */
   gap: var(--dp-space-2);
 }
+.query-panel__manual-button,
+.query-panel__remember-button {
+  flex: none;
+  height: var(--dp-form-control-height);
+}
+.query-panel__manual-button {
+  width: 7.5rem;
+}
+.query-panel__remember-button {
+  width: 8rem;
+}
 .query-panel__title {
   flex: 0 1 200px;
   min-width: 0;
@@ -1273,8 +1243,7 @@ onBeforeUnmount(() => {
   color: var(--dp-callout-caution);
 }
 .query-panel__banner,
-.query-panel__parameters,
-.query-panel__mode {
+.query-panel__parameters {
   flex: none;
 }
 .query-panel__resolve {

@@ -99,16 +99,7 @@ from app.queries.runs import (
 )
 from app.queries.sessions import SessionsDep, TransactionEnded, TransactionPublic
 from app.queries.snapshot import SnapshotView
-from app.queries.unlocks import (
-    UnlockRequest,
-    UnlockState,
-    WriteRefused,
-    admit_write,
-    relock,
-    state_of,
-    touch,
-    unlock,
-)
+from app.queries.write_access import WriteRefused, admit_transaction, admit_write
 from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 from app.users.models import User
@@ -159,7 +150,6 @@ def _public(
         parameters=values_of(document),
         created_at=document.created_at,
         updated_at=document.updated_at,
-        trashed_at=document.trashed_at,
     )
 
 
@@ -175,7 +165,6 @@ def _summary(
         revision=document.revision,
         created_at=document.created_at,
         updated_at=document.updated_at,
-        trashed_at=document.trashed_at,
     )
 
 
@@ -205,17 +194,15 @@ async def list_documents(
     current_user: CurrentUser,
     connector_id: uuid.UUID | None = None,
     search: str = Query(default="", max_length=200),
-    trashed: bool = False,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=MAX_PAGE),
 ) -> QueryDocumentsPublic:
-    """This user's documents, newest first, or what is waiting in Trash."""
+    """This user's documents, newest first."""
     documents, count = await crud.list_for(
         session,
         owner=current_user,
         connector_id=connector_id,
         search=search.strip(),
-        trashed=trashed,
         skip=skip,
         limit=limit,
     )
@@ -298,10 +285,6 @@ async def update_document(
     takes the name off the document and makes it a draft again.
     """
     document = await _owned_or_404(session, document_id, current_user)
-    if document.trashed_at is not None:
-        raise HTTPException(
-            status_code=409, detail="This document is in Trash; restore it first"
-        )
     if body.revision != document.revision:
         raise HTTPException(
             status_code=409,
@@ -326,42 +309,12 @@ async def update_document(
 
 
 @router.delete("/documents/{document_id}", response_model=Message)
-async def trash_document(
+async def delete_document(
     session: SessionDep, current_user: CurrentUser, document_id: uuid.UUID
 ) -> Message:
-    """Move a document to Trash, where it waits its retention out (D63)."""
+    """Permanently delete one owned document (D160)."""
     document = await _owned_or_404(session, document_id, current_user)
-    if document.trashed_at is None:
-        await crud.trash(session, document=document)
-    return Message(message="Document moved to Trash")
-
-
-@router.post("/documents/{document_id}/restore", response_model=QueryDocumentPublic)
-async def restore_document(
-    session: SessionDep, current_user: CurrentUser, document_id: uuid.UUID
-) -> QueryDocumentPublic:
-    document = await _owned_or_404(session, document_id, current_user)
-    restored = await crud.restore(session, document=document)
-    return _public(
-        restored, connector_label=await _label_of(session, restored, current_user)
-    )
-
-
-@router.delete("/documents/{document_id}/purge", response_model=Message)
-async def purge_document(
-    session: SessionDep, current_user: CurrentUser, document_id: uuid.UUID
-) -> Message:
-    """Delete a document for good, before its retention runs out.
-
-    Only from Trash: the deliberate second step is what makes the first one
-    safe to press.
-    """
-    document = await _owned_or_404(session, document_id, current_user)
-    if document.trashed_at is None:
-        raise HTTPException(
-            status_code=409, detail="Move this document to Trash before deleting it"
-        )
-    await crud.purge(session, document=document)
+    await crud.delete(session, document=document)
     return Message(message="Document deleted")
 
 
@@ -482,8 +435,8 @@ async def rehearse_change(
     """Carry a structure change out, describe it, and undo it (D66).
 
     Everything that stands in front of running the change stands in front of
-    rehearsing it, because rehearsing *is* running it: the same policy, the
-    same level, the same unlock. What differs is only the ending — the
+    rehearsing it, because rehearsing *is* running it: the same connection
+    policy and grant. What differs is only the ending — the
     transaction is rolled back, so nothing that happened survives.
 
     It is a preview and not a permission. What actually decides whether the
@@ -496,15 +449,14 @@ async def rehearse_change(
     source = await _source_or_501(session, body.connector_id, current_user, resources)
     script = source.prepare_query(body.text)
     try:
-        await admit_write(
-            session,
+        admit_write(
             connector=connector,
-            user_id=current_user.id,
             access=access,
             # A rehearsal is a transaction that is thrown away, so the mode it
             # is judged by is the one that ends by itself.
             mode="auto_commit",
             kinds=[statement.kind for statement in script.statements],
+            confirmed_write=True,
             confirmed_high_risk=True,
             risky=False,
         )
@@ -567,7 +519,6 @@ async def rehearse_change(
             status_code=502,
             detail={"message": failure.message, "error_kind": failure.error_kind},
         ) from None
-    await touch(session, connector_id=connector.id, user_id=current_user.id)
     return rehearsal
 
 
@@ -635,21 +586,22 @@ async def start_run(
             status_code=refusal.status_code, detail=refusal.message
         ) from None
 
-    # Everything the owner's policy, this person's level and the unlock have to
-    # say before a written statement reaches the database (D66).
+    # The owner's policy, grant and this run's confirmation gate writes (D160).
     connector, access = await resolve(
         session, body.connector_id, current_user, requires="read"
     )
     try:
-        await admit_write(
-            session,
+        admit_write(
             connector=connector,
-            user_id=current_user.id,
             access=access,
             mode=body.mode,
             kinds=[statement.kind for statement in script.statements],
+            confirmed_write=body.confirm_write,
             confirmed_high_risk=body.confirm_high_risk,
-            risky=any(statement.risk == "high" for statement in script.statements)
+            risky=any(
+                statement.kind == "ddl" or statement.risk == "high"
+                for statement in script.statements
+            )
             or (
                 len(script.statements) > 1
                 and any(
@@ -729,8 +681,6 @@ async def start_run(
         topics=topics,
         mode=body.mode,
     )
-    if body.mode != "read":
-        await touch(session, connector_id=connector.id, user_id=current_user.id)
     return await _run_public(session, run)
 
 
@@ -961,7 +911,7 @@ async def choose_retention(
     """How long finished runs are kept, chosen from what the interface offers.
 
     Choosing "none" does not empty history at once; the sweep that runs beside
-    Trash does, and it is the same idempotent pass either way.
+    history retention does, and it is the same idempotent pass either way.
     """
     return await history.choose_retention(session, current_user.id, body.days)
 
@@ -1130,69 +1080,7 @@ async def generate_query(
         raise HTTPException(status_code=404, detail=str(refusal)) from None
 
 
-# --- writing ----------------------------------------------------------------
-#
-# D66: every document opens read-only, the owner's policy sits above every
-# grant, and leaving read-only is a deliberate movement that expires. What is
-# open is visible, and it ends because somebody said so.
-
-
-@router.get("/connectors/{connector_id}/unlock", response_model=UnlockState)
-async def read_unlock(
-    session: SessionDep,
-    current_user: CurrentUser,
-    connector_id: uuid.UUID,
-) -> UnlockState:
-    """Whether writing is open on this connection, and why not when it is not."""
-    connector, access = await resolve(
-        session, connector_id, current_user, requires="read"
-    )
-    return await state_of(
-        session, connector=connector, user_id=current_user.id, access=access
-    )
-
-
-@router.post("/connectors/{connector_id}/unlock", response_model=UnlockState)
-async def open_writes(
-    session: SessionDep,
-    current_user: CurrentUser,
-    connector_id: uuid.UUID,
-    body: UnlockRequest,
-) -> UnlockState:
-    """Leave read-only on this connection, in the way its policy requires."""
-    connector, access = await resolve(
-        session, connector_id, current_user, requires="read"
-    )
-    try:
-        return await unlock(
-            session,
-            connector=connector,
-            user_id=current_user.id,
-            access=access,
-            typed_name=body.connector_name,
-        )
-    except WriteRefused as refusal:
-        raise HTTPException(
-            status_code=refusal.status_code, detail=refusal.message
-        ) from None
-
-
-@router.delete("/connectors/{connector_id}/unlock", response_model=UnlockState)
-async def close_writes(
-    session: SessionDep,
-    current_user: CurrentUser,
-    connector_id: uuid.UUID,
-) -> UnlockState:
-    """Go back to reading, now rather than when the unlock expires."""
-    connector, access = await resolve(
-        session, connector_id, current_user, requires="read"
-    )
-    await relock(session, connector_id=connector_id, user_id=current_user.id)
-    return await state_of(
-        session, connector=connector, user_id=current_user.id, access=access
-    )
-
-
+# --- transactions -----------------------------------------------------------
 @router.post("/transactions", response_model=TransactionPublic)
 async def open_transaction(
     session: SessionDep,
@@ -1204,20 +1092,18 @@ async def open_transaction(
     """Open a transaction and hold it for this person.
 
     A physical connection is leased here, so opening one asks for everything a
-    write asks for: the owner's policy, the level, and an unlock. It ends by
+    write asks for: the owner's policy and the user's grant. It ends by
     Commit, by Rollback, or by the lease running out (D66).
     """
     connector, access = await resolve(
         session, body.connector_id, current_user, requires="read"
     )
-    state = await state_of(
-        session, connector=connector, user_id=current_user.id, access=access
-    )
-    if not state.unlocked:
+    try:
+        admit_transaction(connector=connector, access=access)
+    except WriteRefused as refusal:
         raise HTTPException(
-            status_code=409,
-            detail=state.reason or "Writing is not unlocked on this connection",
-        )
+            status_code=refusal.status_code, detail=refusal.message
+        ) from None
     document = (
         None
         if body.document_id is None
@@ -1270,7 +1156,6 @@ async def open_transaction(
         document_id=None if document is None else document.id,
         transaction=transaction,
     )
-    await touch(session, connector_id=connector.id, user_id=current_user.id)
     return sessions.public(lease)
 
 
@@ -1320,7 +1205,6 @@ async def commit_transaction(
             detail={"message": failure.message, "error_kind": failure.error_kind},
         ) from None
     await execution.settle(session, transaction_id=transaction_id, committed=True)
-    await touch(session, connector_id=lease.connector_id, user_id=current_user.id)
     changed = not state.effect.is_empty()
     if changed:
         # What was read from this connection describes a source that has just

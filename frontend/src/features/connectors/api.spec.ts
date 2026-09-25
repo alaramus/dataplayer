@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest"
 import type { AdapterTypeInfo, ConnectorsPublic } from "@/client"
 import { grantsKey } from "@/features/connectors/grants"
 import { sourceFeaturesKey } from "@/features/connectors/features"
-import { unlockKey } from "@/features/queries/runs"
 
 import {
   connectionKeepsAnswers,
@@ -52,18 +51,12 @@ describe("the colour a connection was given", () => {
 
 describe("what a change to a connection invalidates", () => {
   it("drops everything cached about that connection, not only the list", async () => {
-    // Whether writing is open on a connection is made of the owner's policy
-    // and this person's level — both facts about the connection, both stale
-    // the moment it is edited. It was cached under `queries` once, so an open
-    // console went on judging a connection by the policy it used to have.
     const client = new QueryClient()
-    client.setQueryData(unlockKey("c1"), { unlocked: true })
     client.setQueryData(grantsKey("c1"), { data: [], count: 0 })
     client.setQueryData(sourceFeaturesKey("c1"), { features: [] })
 
     await client.invalidateQueries({ queryKey: connectorsKey })
 
-    expect(client.getQueryState(unlockKey("c1"))?.isInvalidated).toBe(true)
     expect(client.getQueryState(grantsKey("c1"))?.isInvalidated).toBe(true)
     expect(client.getQueryState(sourceFeaturesKey("c1"))?.isInvalidated).toBe(true)
   })

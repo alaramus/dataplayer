@@ -216,6 +216,8 @@ class RunStart(BaseModel):
     # That the person has been told what a statement of this run would do
     # and said yes to it. Asked every time, never remembered (D66).
     confirm_high_risk: bool = False
+    # A fresh acknowledgement for a write under the owner's confirm policy.
+    confirm_write: bool = False
     scope: ExecutionScope = "statement"
     parameters: list[RunParameter] = PydanticField(default_factory=list)
     timeout_seconds: int | None = PydanticField(default=None, ge=1)

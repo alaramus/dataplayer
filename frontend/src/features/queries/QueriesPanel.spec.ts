@@ -9,6 +9,7 @@ import { ref } from "vue"
 
 import { workspaceActionsKey } from "@/features/workspace/state"
 import { withWindowHost } from "@/shared/testing/windows"
+import { AppIconButton } from "@/shared/ui"
 
 import QueriesPanel from "./QueriesPanel.vue"
 
@@ -102,6 +103,10 @@ describe("the library of queries", () => {
     const draft = wrapper.get('[data-testid="query-row-d2"]')
     expect(draft.text()).toContain("Untitled query")
     expect(draft.text()).toContain("select * from invoices")
+    expect(wrapper.findAllComponents(AppIconButton).map((button) => button.props("variant"))).toEqual([
+      "danger-quiet",
+      "danger-quiet",
+    ])
   })
 
   it("opens the console of the row that was pressed", async () => {
@@ -141,26 +146,7 @@ describe("the library of queries", () => {
     )
   })
 
-  it("asks the server for what is in Trash rather than filtering the library", async () => {
-    mockConnectors()
-    const list = vi.spyOn(QueriesService, "listDocuments").mockResolvedValue({
-      data: { data: [], count: 0 },
-    } as never)
-    const wrapper = mountPanel()
-    await flushPromises()
-
-    await wrapper.get('[data-testid="queries-place-trash"]').trigger("click")
-    await flushPromises()
-
-    expect(list).toHaveBeenLastCalledWith({
-      query: { search: "", trashed: true },
-    })
-    expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("Nothing in Trash")
-  })
-
-  it("is in one of its three places at a time", async () => {
-    // Two toggles overlapped: pressing Trash while History was showing did
-    // nothing, and the button had to be greyed out to say so.
+  it("shows saved queries and run history without a Trash place", async () => {
     mockConnectors()
     vi.spyOn(QueriesService, "listDocuments").mockResolvedValue({
       data: { data: [], count: 0 },
@@ -171,11 +157,11 @@ describe("the library of queries", () => {
     await wrapper.get('[data-testid="queries-place-history"]').trigger("click")
     await flushPromises()
     expect(wrapper.find('[data-testid="queries-history-list"]').exists()).toBe(true)
-
-    await wrapper.get('[data-testid="queries-place-trash"]').trigger("click")
+    expect(wrapper.find('[data-testid="queries-place-trash"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="queries-place-queries"]').trigger("click")
     await flushPromises()
     expect(wrapper.find('[data-testid="queries-history-list"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("Nothing in Trash")
+    expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("No queries yet")
   })
 
   it("filters itself to the connection it was opened from", async () => {

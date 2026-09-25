@@ -6,7 +6,6 @@ into text is `content.py`, and nothing here logs either form.
 
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
 
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -86,22 +85,17 @@ async def list_for(
     owner: User,
     connector_id: uuid.UUID | None = None,
     search: str = "",
-    trashed: bool = False,
     skip: int = 0,
     limit: int = 50,
 ) -> tuple[list[QueryDocument], int]:
-    """The library, newest first, or what is waiting in Trash.
+    """The library, newest first.
 
     Without a search the database does the paging. With one it cannot: the
     body it would have to match is ciphertext, so the newest
     QUERY_SEARCH_MAX_DOCUMENTS are read and filtered here. The bound is the
     reason this is not a way to decrypt everything at once.
     """
-    condition = (col(QueryDocument.owner_id) == owner.id) & (
-        col(QueryDocument.trashed_at).is_not(None)
-        if trashed
-        else col(QueryDocument.trashed_at).is_(None)
-    )
+    condition = col(QueryDocument.owner_id) == owner.id
     if connector_id is not None:
         condition = condition & (col(QueryDocument.connector_id) == connector_id)
 
@@ -126,40 +120,6 @@ async def list_for(
     return found[skip : skip + limit], len(found)
 
 
-async def trash(session: AsyncSession, *, document: QueryDocument) -> QueryDocument:
-    document.trashed_at = get_datetime_utc()
-    return await save(session, document=document)
-
-
-async def restore(session: AsyncSession, *, document: QueryDocument) -> QueryDocument:
-    document.trashed_at = None
-    return await save(session, document=document)
-
-
-async def purge(session: AsyncSession, *, document: QueryDocument) -> None:
+async def delete(session: AsyncSession, *, document: QueryDocument) -> None:
     await session.delete(document)
     await session.commit()
-
-
-async def sweep_trash(session: AsyncSession, *, now: datetime | None = None) -> int:
-    """Remove what has been in Trash longer than the retention (D63).
-
-    Idempotent and cheap, so it can run at startup and on a timer without
-    anybody coordinating it. Returns how many rows went, for the caller to log
-    as a count — never as content.
-    """
-    moment = now or datetime.now(UTC)
-    deadline = moment - timedelta(days=settings.QUERY_TRASH_DAYS)
-    expired = (
-        await session.exec(
-            select(QueryDocument).where(
-                col(QueryDocument.trashed_at).is_not(None),
-                col(QueryDocument.trashed_at) < deadline,
-            )
-        )
-    ).all()
-    for document in expired:
-        await session.delete(document)
-    if expired:
-        await session.commit()
-    return len(expired)

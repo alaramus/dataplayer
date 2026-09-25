@@ -235,6 +235,7 @@ files. IDs are stable because specs and commits refer to them.
 | D157 | [ai](docs/architecture/ai.md) |
 | D158 | [ai](docs/architecture/ai.md) |
 | D159 | [ai](docs/architecture/ai.md) |
+| D160 | [querying](docs/architecture/querying.md) |
 
 ## Working rules
 

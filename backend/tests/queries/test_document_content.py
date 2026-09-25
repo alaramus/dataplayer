@@ -1,18 +1,15 @@
-"""What is in the column, and what leaves Trash on its own.
+"""Encrypted document content and immediate deletion.
 
-The route tests prove behaviour through the API; these two things cannot be
-seen from there. D63 requires the body to be unreadable in the database, and
-the retention to be enforced by something nobody has to press.
+The route tests prove behaviour through the API; these storage details cannot
+be seen there. D63 requires the body to be unreadable in the database.
 """
 
 import uuid
-from datetime import UTC, datetime, timedelta
 
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
-from app.queries import crud
 from app.queries.content import body_of, encrypted, preview_of
 from app.queries.models import QueryDocument
 from tests.utils.user import authentication_token_from_email
@@ -77,34 +74,19 @@ def test_two_documents_with_the_same_text_do_not_share_ciphertext() -> None:
     assert encrypted("select 1") != encrypted("select 1")
 
 
-async def test_trash_is_emptied_once_the_retention_has_run_out(
+async def test_deleting_a_document_removes_its_stored_body_immediately(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     headers = await _headers(client, db)
     connector_id = await _connector(client, headers)
-    kept_id = await _document(client, headers, connector_id, "select 1")
-    expired_id = await _document(client, headers, connector_id, "select 2")
-    for document_id in (kept_id, expired_id):
-        removed = await client.delete(f"{BASE}/{document_id}", headers=headers)
-        assert removed.status_code == 200, removed.text
+    document_id = await _document(client, headers, connector_id, "select 2")
+    assert await db.get(QueryDocument, document_id) is not None
 
-    expired = await db.get(QueryDocument, expired_id)
-    assert expired is not None
-    expired.trashed_at = datetime.now(UTC) - timedelta(
-        days=settings.QUERY_TRASH_DAYS + 1
-    )
-    await crud.save(db, document=expired)
+    removed = await client.delete(f"{BASE}/{document_id}", headers=headers)
 
-    swept = await crud.sweep_trash(db)
-
-    assert swept >= 1
-    assert await db.get(QueryDocument, expired_id) is None
-    kept = await db.get(QueryDocument, kept_id)
-    assert kept is not None
-    # Idempotent: running it again finds nothing left to do.
-    assert await crud.sweep_trash(db) == 0
-
-    await crud.purge(db, document=kept)
+    assert removed.status_code == 200, removed.text
+    db.expire_all()
+    assert await db.get(QueryDocument, document_id) is None
 
 
 def test_a_preview_is_the_first_line_with_anything_on_it() -> None:

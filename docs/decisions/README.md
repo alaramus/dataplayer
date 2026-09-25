@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-24 | [SQL editor permissions and immediate deletion](2026-09-24-sql-editor-simplification.md) | D160: connector rights govern SQL, manual transactions remain, saved queries delete after confirmation without Trash |
 | 2026-09-24 | [Quick chat navigation](2026-09-24-quick-chat-navigation.md) | D159: global rail entry, shared AI history, and an agent-like plain chat window |
 | 2026-09-24 | [Quick chat and selected text](2026-09-24-quick-chat.md) | D158: a separate persistent plain chat in a floating window, plus selected-text actions in agent messages |
 | 2026-09-24 | [Jev model routing within a provider](2026-09-24-jev-model-routing.md) | D157: each provider offers all compatible catalog models to Jev, with the prior model as fallback and one browser warning per user |

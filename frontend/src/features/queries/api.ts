@@ -17,11 +17,10 @@ import type { QueryDocumentCreate, QueryDocumentUpdate } from "@/client"
 export interface LibraryFilters {
   connectorId: string | null
   search: string
-  trashed: boolean
 }
 
 export const libraryKey = (filters: LibraryFilters) =>
-  ["queries", "documents", filters.connectorId ?? "any", filters.search, filters.trashed] as const
+  ["queries", "documents", filters.connectorId ?? "any", filters.search] as const
 
 export const documentKey = (documentId: string) =>
   ["queries", "documents", documentId] as const
@@ -38,7 +37,6 @@ export function useQueryDocuments(filters: MaybeRefOrGetter<LibraryFilters>) {
               ? {}
               : { connector_id: current.value.connectorId }),
             search: current.value.search,
-            trashed: current.value.trashed,
           },
         })
       ).data,
@@ -95,33 +93,15 @@ export function useSaveQueryDocument() {
   })
 }
 
-export function useTrashQueryDocument() {
-  const invalidate = useLibraryInvalidation()
-  return useMutation({
-    mutationFn: async (documentId: string) =>
-      (await QueriesService.trashDocument({ path: { document_id: documentId } })).data,
-    onSuccess: invalidate,
-  })
-}
-
-export function useRestoreQueryDocument() {
+export function useDeleteQueryDocument() {
   const queryClient = useQueryClient()
   const invalidate = useLibraryInvalidation()
   return useMutation({
     mutationFn: async (documentId: string) =>
-      (await QueriesService.restoreDocument({ path: { document_id: documentId } })).data,
-    onSuccess: async (restored) => {
-      queryClient.setQueryData(documentKey(restored.id), restored)
+      (await QueriesService.deleteDocument({ path: { document_id: documentId } })).data,
+    onSuccess: async (_removed, documentId) => {
+      queryClient.removeQueries({ queryKey: documentKey(documentId) })
       await invalidate()
     },
-  })
-}
-
-export function usePurgeQueryDocument() {
-  const invalidate = useLibraryInvalidation()
-  return useMutation({
-    mutationFn: async (documentId: string) =>
-      (await QueriesService.purgeDocument({ path: { document_id: documentId } })).data,
-    onSuccess: invalidate,
   })
 }

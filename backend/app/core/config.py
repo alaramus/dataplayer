@@ -185,8 +185,7 @@ class Settings(BaseSettings):
 
     # A deleted query document waits this long before its body is gone for
     # good, and the sweep that removes the expired ones runs this often. D63.
-    QUERY_TRASH_DAYS: int = 30
-    QUERY_TRASH_SWEEP_SECONDS: float = 3600.0
+    QUERY_HISTORY_SWEEP_SECONDS: float = 3600.0
     # One document, and the whole library one search may decrypt. The first is
     # D64's ceiling; the second is why the search builds no index: it reads a
     # bounded number of bodies in memory and nothing else.
@@ -213,9 +212,7 @@ class Settings(BaseSettings):
     QUERY_HISTORY_DEFAULT_DAYS: int = 90
     QUERY_HISTORY_MAX_RUNS: int = 1000
     QUERY_HISTORY_SEARCH_MAX: int = 500
-    # How long an unlock survives without being used, and how long a manual
-    # transaction may sit idle before it is rolled back (D66).
-    QUERY_UNLOCK_IDLE_MINUTES: int = 15
+    # How long a manual transaction may sit idle before rollback (D66).
     QUERY_TRANSACTION_IDLE_SECONDS: float = 300.0
     QUERY_TRANSACTION_SWEEP_SECONDS: float = 10.0
     QUERY_MAX_TRANSACTIONS: int = 3

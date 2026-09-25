@@ -1,4 +1,4 @@
-"""The library, one console, its revisions and Trash.
+"""The library, one console, its revisions and permanent deletion.
 
 A file connection stands in for a source throughout: nothing in this slice
 reaches one, because there is no execution yet (D63).
@@ -77,7 +77,6 @@ async def test_a_new_console_is_an_unnamed_document_bound_to_a_connection(
     assert document["connector_id"] == connector_id
     assert document["body"] == "select 1"
     assert document["revision"] == 1
-    assert document["trashed_at"] is None
     # The name of the connection travels with it, so a library can say what a
     # document is about without asking per row.
     assert document["connector_label"] is not None
@@ -395,7 +394,7 @@ async def test_search_reads_titles_and_bodies_and_nobody_else_s(
     assert listed["count"] == 2
 
 
-async def test_deleting_a_document_moves_it_to_trash_and_restore_brings_it_back(
+async def test_deleting_a_document_removes_it_without_a_trash_stage(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     email = random_email()
@@ -407,19 +406,12 @@ async def test_deleting_a_document_moves_it_to_trash_and_restore_brings_it_back(
     assert removed.status_code == 200, removed.text
 
     library = await client.get(BASE, headers=headers)
-    trash = await client.get(BASE, headers=headers, params={"trashed": True})
     assert [row["id"] for row in library.json()["data"]] == []
-    assert [row["id"] for row in trash.json()["data"]] == [document["id"]]
-
-    restored = await client.post(f"{BASE}/{document['id']}/restore", headers=headers)
-    assert restored.status_code == 200, restored.text
-    assert restored.json()["trashed_at"] is None
-    assert restored.json()["body"] == "select 9"
-    again = await client.get(BASE, headers=headers)
-    assert [row["id"] for row in again.json()["data"]] == [document["id"]]
+    assert (await client.get(f"{BASE}/{document['id']}", headers=headers)).status_code == 404
+    assert (await client.post(f"{BASE}/{document['id']}/restore", headers=headers)).status_code == 404
 
 
-async def test_a_document_in_trash_is_not_edited_until_it_is_restored(
+async def test_a_deleted_document_cannot_be_edited(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector_id = await _connector(client, normal_user_token_headers)
@@ -432,28 +424,33 @@ async def test_a_document_in_trash_is_not_edited_until_it_is_restored(
         json={"revision": document["revision"], "body": "select 5"},
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 404
 
 
-async def test_permanent_deletion_is_only_offered_from_trash(
-    client: AsyncClient, normal_user_token_headers: dict[str, str]
+async def test_deletion_is_owned_and_has_no_second_purge_route(
+    client: AsyncClient, db: AsyncSession, normal_user_token_headers: dict[str, str]
 ) -> None:
-    """The deliberate second step is what makes the first one safe to press."""
+    """Only the owner can delete, and there is no later purge step."""
     connector_id = await _connector(client, normal_user_token_headers)
     document = await _document(client, normal_user_token_headers, connector_id)
+    other_headers = await authentication_token_from_email(
+        client=client, email=random_email(), db=db
+    )
 
-    early = await client.delete(
+    no_purge = await client.delete(
         f"{BASE}/{document['id']}/purge", headers=normal_user_token_headers
     )
-    assert early.status_code == 409
-
-    await client.delete(f"{BASE}/{document['id']}", headers=normal_user_token_headers)
-    purged = await client.delete(
-        f"{BASE}/{document['id']}/purge", headers=normal_user_token_headers
+    refused = await client.delete(
+        f"{BASE}/{document['id']}", headers=other_headers
+    )
+    removed = await client.delete(
+        f"{BASE}/{document['id']}", headers=normal_user_token_headers
     )
     gone = await client.get(
         f"{BASE}/{document['id']}", headers=normal_user_token_headers
     )
 
-    assert purged.status_code == 200, purged.text
+    assert no_purge.status_code == 404
+    assert refused.status_code == 404
+    assert removed.status_code == 200, removed.text
     assert gone.status_code == 404

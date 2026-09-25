@@ -204,10 +204,9 @@ describe("the panel registry", () => {
     expect(after(samples.rows, "k1")).not.toBe(before(samples.catalog, "k1"))
   })
 
-  it("offers to re-read a console only once it is a document", () => {
-    // A console nobody kept holds its text in the browser tab, so there is
-    // nothing on the server to ask for again. Pressing the button asked for
-    // the document all the same, and was told `{document_id}` is not a UUID.
+  it("does not offer reload for a console's live editor text", () => {
+    // A temporary console has nothing on the server to reload. A saved one
+    // protects its in-progress text from refetch, so reload cannot replace it.
     const draft: Panel = {
       id: queryDraftPanelId("d9"),
       kind: "query",
@@ -221,7 +220,7 @@ describe("the panel registry", () => {
     expect(
       lookOf({ ...draft, id: queryPanelId("doc-9"), documentId: "doc-9", draftId: undefined })
         .reloadTooltip
-    ).toBe("Re-read this query")
+    ).toBeUndefined()
   })
 
   it.each(KINDS)("has a title and an icon for %s", (kind) => {

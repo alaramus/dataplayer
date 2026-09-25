@@ -400,15 +400,15 @@ import type {
   queriesChooseRetentionData,
   queriesChooseRetentionErrors,
   queriesChooseRetentionResponses,
-  queriesCloseWritesData,
-  queriesCloseWritesErrors,
-  queriesCloseWritesResponses,
   queriesCommitTransactionData,
   queriesCommitTransactionErrors,
   queriesCommitTransactionResponses,
   queriesCreateDocumentData,
   queriesCreateDocumentErrors,
   queriesCreateDocumentResponses,
+  queriesDeleteDocumentData,
+  queriesDeleteDocumentErrors,
+  queriesDeleteDocumentResponses,
   queriesDeleteRunsData,
   queriesDeleteRunsErrors,
   queriesDeleteRunsResponses,
@@ -433,15 +433,9 @@ import type {
   queriesOpenTransactionData,
   queriesOpenTransactionErrors,
   queriesOpenTransactionResponses,
-  queriesOpenWritesData,
-  queriesOpenWritesErrors,
-  queriesOpenWritesResponses,
   queriesPrepareTextData,
   queriesPrepareTextErrors,
   queriesPrepareTextResponses,
-  queriesPurgeDocumentData,
-  queriesPurgeDocumentErrors,
-  queriesPurgeDocumentResponses,
   queriesReadDocumentData,
   queriesReadDocumentErrors,
   queriesReadDocumentResponses,
@@ -468,24 +462,15 @@ import type {
   queriesReadTransactionData,
   queriesReadTransactionErrors,
   queriesReadTransactionResponses,
-  queriesReadUnlockData,
-  queriesReadUnlockErrors,
-  queriesReadUnlockResponses,
   queriesRehearseChangeData,
   queriesRehearseChangeErrors,
   queriesRehearseChangeResponses,
-  queriesRestoreDocumentData,
-  queriesRestoreDocumentErrors,
-  queriesRestoreDocumentResponses,
   queriesRollbackTransactionData,
   queriesRollbackTransactionErrors,
   queriesRollbackTransactionResponses,
   queriesStartRunData,
   queriesStartRunErrors,
   queriesStartRunResponses,
-  queriesTrashDocumentData,
-  queriesTrashDocumentErrors,
-  queriesTrashDocumentResponses,
   queriesUpdateDocumentData,
   queriesUpdateDocumentErrors,
   queriesUpdateDocumentResponses,
@@ -3723,7 +3708,7 @@ export class QueriesService {
   /**
    * List Documents
    *
-   * This user's documents, newest first, or what is waiting in Trash.
+   * This user's documents, newest first.
    */
   public static listDocuments<ThrowOnError extends boolean = true>(
     options?: Options<queriesListDocumentsData, ThrowOnError>
@@ -3768,16 +3753,16 @@ export class QueriesService {
   }
 
   /**
-   * Trash Document
+   * Delete Document
    *
-   * Move a document to Trash, where it waits its retention out (D63).
+   * Permanently delete one owned document (D160).
    */
-  public static trashDocument<ThrowOnError extends boolean = true>(
-    options: Options<queriesTrashDocumentData, ThrowOnError>
+  public static deleteDocument<ThrowOnError extends boolean = true>(
+    options: Options<queriesDeleteDocumentData, ThrowOnError>
   ) {
     return (options.client ?? client).delete<
-      queriesTrashDocumentResponses,
-      queriesTrashDocumentErrors,
+      queriesDeleteDocumentResponses,
+      queriesDeleteDocumentErrors,
       ThrowOnError
     >({
       responseType: "json",
@@ -3835,47 +3820,6 @@ export class QueriesService {
         "Content-Type": "application/json",
         ...options.headers,
       },
-    })
-  }
-
-  /**
-   * Restore Document
-   */
-  public static restoreDocument<ThrowOnError extends boolean = true>(
-    options: Options<queriesRestoreDocumentData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      queriesRestoreDocumentResponses,
-      queriesRestoreDocumentErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/queries/documents/{document_id}/restore",
-      ...options,
-    })
-  }
-
-  /**
-   * Purge Document
-   *
-   * Delete a document for good, before its retention runs out.
-   *
-   * Only from Trash: the deliberate second step is what makes the first one
-   * safe to press.
-   */
-  public static purgeDocument<ThrowOnError extends boolean = true>(
-    options: Options<queriesPurgeDocumentData, ThrowOnError>
-  ) {
-    return (options.client ?? client).delete<
-      queriesPurgeDocumentResponses,
-      queriesPurgeDocumentErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/queries/documents/{document_id}/purge",
-      ...options,
     })
   }
 
@@ -3940,7 +3884,7 @@ export class QueriesService {
    *
    * Everything that stands in front of running the change stands in front of
    * rehearsing it, because rehearsing *is* running it: the same policy, the
-   * same level, the same unlock. What differs is only the ending — the
+   * same connection policy and grant. What differs is only the ending — the
    * transaction is rolled back, so nothing that happened survives.
    *
    * It is a preview and not a permission. What actually decides whether the
@@ -4210,7 +4154,7 @@ export class QueriesService {
    * How long finished runs are kept, chosen from what the interface offers.
    *
    * Choosing "none" does not empty history at once; the sweep that runs beside
-   * Trash does, and it is the same idempotent pass either way.
+   * history retention does, and it is the same idempotent pass either way.
    */
   public static chooseRetention<ThrowOnError extends boolean = true>(
     options: Options<queriesChooseRetentionData, ThrowOnError>
@@ -4344,76 +4288,12 @@ export class QueriesService {
   }
 
   /**
-   * Close Writes
-   *
-   * Go back to reading, now rather than when the unlock expires.
-   */
-  public static closeWrites<ThrowOnError extends boolean = true>(
-    options: Options<queriesCloseWritesData, ThrowOnError>
-  ) {
-    return (options.client ?? client).delete<
-      queriesCloseWritesResponses,
-      queriesCloseWritesErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/queries/connectors/{connector_id}/unlock",
-      ...options,
-    })
-  }
-
-  /**
-   * Read Unlock
-   *
-   * Whether writing is open on this connection, and why not when it is not.
-   */
-  public static readUnlock<ThrowOnError extends boolean = true>(
-    options: Options<queriesReadUnlockData, ThrowOnError>
-  ) {
-    return (options.client ?? client).get<
-      queriesReadUnlockResponses,
-      queriesReadUnlockErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/queries/connectors/{connector_id}/unlock",
-      ...options,
-    })
-  }
-
-  /**
-   * Open Writes
-   *
-   * Leave read-only on this connection, in the way its policy requires.
-   */
-  public static openWrites<ThrowOnError extends boolean = true>(
-    options: Options<queriesOpenWritesData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      queriesOpenWritesResponses,
-      queriesOpenWritesErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/queries/connectors/{connector_id}/unlock",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
-  /**
    * Open Transaction
    *
    * Open a transaction and hold it for this person.
    *
    * A physical connection is leased here, so opening one asks for everything a
-   * write asks for: the owner's policy, the level, and an unlock. It ends by
+   * write asks for: the owner's policy and the user's grant. It ends by
    * Commit, by Rollback, or by the lease running out (D66).
    */
   public static openTransaction<ThrowOnError extends boolean = true>(

@@ -6661,10 +6661,6 @@ export type QueryDocumentPublic = {
    * Updated At
    */
   updated_at?: string | null
-  /**
-   * Trashed At
-   */
-  trashed_at?: string | null
 }
 
 /**
@@ -6709,10 +6705,6 @@ export type QueryDocumentSummary = {
    * Updated At
    */
   updated_at?: string | null
-  /**
-   * Trashed At
-   */
-  trashed_at?: string | null
 }
 
 /**
@@ -8260,6 +8252,10 @@ export type RunStart = {
    * Confirm High Risk
    */
   confirm_high_risk?: boolean
+  /**
+   * Confirm Write
+   */
+  confirm_write?: boolean
   /**
    * Scope
    */
@@ -10227,54 +10223,6 @@ export type UniqueConstraintSpec = {
    * Columns
    */
   columns: Array<string>
-}
-
-/**
- * UnlockRequest
- *
- * Asking to leave read-only, in the words the policy requires.
- *
- * Under `confirm_writes` the name of the connection is typed out: a
- * deliberate movement is one that cannot be made by pressing what happened to
- * be under the pointer.
- */
-export type UnlockRequest = {
-  /**
-   * Connector Name
-   */
-  connector_name?: string
-}
-
-/**
- * UnlockState
- *
- * Whether writes are open on this connection, and until when.
- */
-export type UnlockState = {
-  /**
-   * Connector Id
-   */
-  connector_id: string
-  /**
-   * Policy
-   */
-  policy: "read_only" | "confirm_writes" | "allow_writes"
-  /**
-   * Access
-   */
-  access: "read" | "write" | "structure" | "own"
-  /**
-   * Unlocked
-   */
-  unlocked: boolean
-  /**
-   * Expires At
-   */
-  expires_at?: string | null
-  /**
-   * Reason
-   */
-  reason?: string | null
 }
 
 /**
@@ -14899,10 +14847,6 @@ export type queriesListDocumentsData = {
      */
     search?: string
     /**
-     * Trashed
-     */
-    trashed?: boolean
-    /**
      * Skip
      */
     skip?: number
@@ -14960,7 +14904,7 @@ export type queriesCreateDocumentResponses = {
 export type queriesCreateDocumentResponse =
   queriesCreateDocumentResponses[keyof queriesCreateDocumentResponses]
 
-export type queriesTrashDocumentData = {
+export type queriesDeleteDocumentData = {
   body?: never
   path: {
     /**
@@ -14972,24 +14916,25 @@ export type queriesTrashDocumentData = {
   url: "/api/v1/queries/documents/{document_id}"
 }
 
-export type queriesTrashDocumentErrors = {
+export type queriesDeleteDocumentErrors = {
   /**
    * Validation Error
    */
   422: HTTPValidationError
 }
 
-export type queriesTrashDocumentError = queriesTrashDocumentErrors[keyof queriesTrashDocumentErrors]
+export type queriesDeleteDocumentError =
+  queriesDeleteDocumentErrors[keyof queriesDeleteDocumentErrors]
 
-export type queriesTrashDocumentResponses = {
+export type queriesDeleteDocumentResponses = {
   /**
    * Successful Response
    */
   200: Message
 }
 
-export type queriesTrashDocumentResponse =
-  queriesTrashDocumentResponses[keyof queriesTrashDocumentResponses]
+export type queriesDeleteDocumentResponse =
+  queriesDeleteDocumentResponses[keyof queriesDeleteDocumentResponses]
 
 export type queriesReadDocumentData = {
   body?: never
@@ -15053,69 +14998,6 @@ export type queriesUpdateDocumentResponses = {
 
 export type queriesUpdateDocumentResponse =
   queriesUpdateDocumentResponses[keyof queriesUpdateDocumentResponses]
-
-export type queriesRestoreDocumentData = {
-  body?: never
-  path: {
-    /**
-     * Document Id
-     */
-    document_id: string
-  }
-  query?: never
-  url: "/api/v1/queries/documents/{document_id}/restore"
-}
-
-export type queriesRestoreDocumentErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type queriesRestoreDocumentError =
-  queriesRestoreDocumentErrors[keyof queriesRestoreDocumentErrors]
-
-export type queriesRestoreDocumentResponses = {
-  /**
-   * Successful Response
-   */
-  200: QueryDocumentPublic
-}
-
-export type queriesRestoreDocumentResponse =
-  queriesRestoreDocumentResponses[keyof queriesRestoreDocumentResponses]
-
-export type queriesPurgeDocumentData = {
-  body?: never
-  path: {
-    /**
-     * Document Id
-     */
-    document_id: string
-  }
-  query?: never
-  url: "/api/v1/queries/documents/{document_id}/purge"
-}
-
-export type queriesPurgeDocumentErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type queriesPurgeDocumentError = queriesPurgeDocumentErrors[keyof queriesPurgeDocumentErrors]
-
-export type queriesPurgeDocumentResponses = {
-  /**
-   * Successful Response
-   */
-  200: Message
-}
-
-export type queriesPurgeDocumentResponse =
-  queriesPurgeDocumentResponses[keyof queriesPurgeDocumentResponses]
 
 export type queriesReadProfileData = {
   body?: never
@@ -15675,97 +15557,6 @@ export type queriesGenerateQueryResponses = {
 
 export type queriesGenerateQueryResponse =
   queriesGenerateQueryResponses[keyof queriesGenerateQueryResponses]
-
-export type queriesCloseWritesData = {
-  body?: never
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/queries/connectors/{connector_id}/unlock"
-}
-
-export type queriesCloseWritesErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type queriesCloseWritesError = queriesCloseWritesErrors[keyof queriesCloseWritesErrors]
-
-export type queriesCloseWritesResponses = {
-  /**
-   * Successful Response
-   */
-  200: UnlockState
-}
-
-export type queriesCloseWritesResponse =
-  queriesCloseWritesResponses[keyof queriesCloseWritesResponses]
-
-export type queriesReadUnlockData = {
-  body?: never
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/queries/connectors/{connector_id}/unlock"
-}
-
-export type queriesReadUnlockErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type queriesReadUnlockError = queriesReadUnlockErrors[keyof queriesReadUnlockErrors]
-
-export type queriesReadUnlockResponses = {
-  /**
-   * Successful Response
-   */
-  200: UnlockState
-}
-
-export type queriesReadUnlockResponse = queriesReadUnlockResponses[keyof queriesReadUnlockResponses]
-
-export type queriesOpenWritesData = {
-  body: UnlockRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/queries/connectors/{connector_id}/unlock"
-}
-
-export type queriesOpenWritesErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type queriesOpenWritesError = queriesOpenWritesErrors[keyof queriesOpenWritesErrors]
-
-export type queriesOpenWritesResponses = {
-  /**
-   * Successful Response
-   */
-  200: UnlockState
-}
-
-export type queriesOpenWritesResponse = queriesOpenWritesResponses[keyof queriesOpenWritesResponses]
 
 export type queriesOpenTransactionData = {
   body: TransactionStart

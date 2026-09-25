@@ -65,7 +65,7 @@ from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
 from app.queries.execution import RunRefused as QueryRefused
 from app.queries.execution import admit, limits
-from app.queries.unlocks import NEEDED
+from app.queries.write_access import NEEDED
 from app.users.models import User
 
 MAX_ROWS = 20

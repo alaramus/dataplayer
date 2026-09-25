@@ -227,54 +227,6 @@ export function useQueryMetadata(
  * dropped when a connection changes, so editing one left an open console
  * judging it by the policy it used to have (D66).
  */
-export const unlockKey = (connectorId: string) =>
-  ["connectors", connectorId, "unlock"] as const
-
-/**
- * Whether writing is open on this connection, and until when (D66).
- *
- * Server state like everything else, and asked again after every unlock:
- * whether a person may change anything is not something a screen decides.
- */
-export function useUnlockState(connectorId: MaybeRefOrGetter<string | null>) {
-  const id = computed(() => toValue(connectorId))
-  return useQuery({
-    queryKey: computed(() => unlockKey(id.value ?? "none")),
-    queryFn: async () =>
-      (await QueriesService.readUnlock({ path: { connector_id: id.value as string } }))
-        .data,
-    enabled: computed(() => id.value !== null),
-    retry: false,
-  })
-}
-
-export function useOpenWrites() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (request: { connectorId: string; connectorName: string }) =>
-      (
-        await QueriesService.openWrites({
-          path: { connector_id: request.connectorId },
-          body: { connector_name: request.connectorName },
-        })
-      ).data,
-    onSuccess: (state) =>
-      queryClient.setQueryData(unlockKey(state.connector_id), state),
-  })
-}
-
-export function useCloseWrites() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (connectorId: string) =>
-      (
-        await QueriesService.closeWrites({ path: { connector_id: connectorId } })
-      ).data,
-    onSuccess: (state) =>
-      queryClient.setQueryData(unlockKey(state.connector_id), state),
-  })
-}
-
 /**
  * One open transaction, re-read while it is open.
  *

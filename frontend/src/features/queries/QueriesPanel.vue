@@ -4,12 +4,10 @@ import { computed, ref, watch } from "vue"
 
 import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import {
-  usePurgeQueryDocument,
+  useDeleteQueryDocument,
   useQueryDocuments,
-  useRestoreQueryDocument,
-  useTrashQueryDocument,
 } from "@/features/queries/api"
-import { emptyDraft, writeDraft } from "@/features/queries/draft"
+import { clearShadow, emptyDraft, writeDraft } from "@/features/queries/draft"
 import {
   useDeleteRuns,
   useRunHistory,
@@ -39,7 +37,7 @@ import {
  */
 
 /**
- * The three places this panel holds, and what each of them answers.
+ * The two places this panel holds, and what each of them answers.
  *
  * Queries are documents somebody is writing; History is what actually ran.
  * They read alike — both are lists of SQL — so each row says which kind of
@@ -49,7 +47,6 @@ import {
 const PLACES = [
   { value: "queries", label: "Queries", icon: appIcons.description },
   { value: "history", label: "History", icon: appIcons.history },
-  { value: "trash", label: "Trash", icon: appIcons.delete },
 ] as const
 type Place = (typeof PLACES)[number]["value"]
 
@@ -63,21 +60,13 @@ const connectors = useConnectors()
 const connectorId = ref<string | null>(null)
 const search = ref("")
 /**
- * Which of the three places this panel is showing.
- *
- * One state rather than two flags that overlap. Queries are what somebody is
- * writing, Trash is what they deleted, and History is what actually ran — the
- * same person's three questions about their own queries, in the one place they
- * look for them (D63). As two booleans, pressing Trash while looking at
- * History did nothing and the button had to be greyed out to say so.
+ * Queries are remembered documents; History is what actually ran.
  */
 const showing = ref<Place>("queries")
-const trashed = computed(() => showing.value === "trash")
 
 const filters = computed(() => ({
   connectorId: connectorId.value,
   search: search.value.trim(),
-  trashed: trashed.value,
 }))
 const documents = useQueryDocuments(filters)
 const history = useRunHistory(
@@ -86,9 +75,7 @@ const history = useRunHistory(
 )
 const runText = useRunText()
 const deleteRuns = useDeleteRuns()
-const trash = useTrashQueryDocument()
-const restore = useRestoreQueryDocument()
-const purge = usePurgeQueryDocument()
+const deleteDocument = useDeleteQueryDocument()
 
 useReloadable(() => props.panelId, async () => {
   await documents.refetch()
@@ -174,24 +161,6 @@ function openDocument(row: {
   })
 }
 
-async function moveToTrash(documentId: string) {
-  try {
-    await trash.mutateAsync(documentId)
-    toast.success("Moved to Trash")
-  } catch (cause) {
-    toast.error(messageOf(cause, "Could not delete this query"))
-  }
-}
-
-async function bringBack(documentId: string) {
-  try {
-    await restore.mutateAsync(documentId)
-    toast.success("Restored")
-  } catch (cause) {
-    toast.error(messageOf(cause, "Could not restore this query"))
-  }
-}
-
 const runs = computed(() =>
   (history.data.value?.data ?? []).filter(
     (run) => connectorId.value === null || run.connector_id === connectorId.value
@@ -257,7 +226,7 @@ async function forgetEverything() {
   }
 }
 
-async function deleteForGood(documentId: string) {
+async function deleteQuery(documentId: string) {
   const accepted = await confirm({
     title: "Delete this query for good?",
     message: "Its text cannot be recovered afterwards.",
@@ -266,7 +235,9 @@ async function deleteForGood(documentId: string) {
   })
   if (!accepted) return
   try {
-    await purge.mutateAsync(documentId)
+    await deleteDocument.mutateAsync(documentId)
+    clearShadow(documentId)
+    workspace.closeQueryDocument(documentId)
     toast.success("Deleted")
   } catch (cause) {
     toast.error(messageOf(cause, "Could not delete this query"))
@@ -300,9 +271,7 @@ async function deleteForGood(documentId: string) {
       <PanelCommands :panel-id="panelId" />
     </div>
 
-    <!-- Three places, one of which is always the one you are in. As two
-         toggles they overlapped: Trash did nothing while History was showing,
-         and had to be greyed out to say so. -->
+    <!-- Saved documents and execution history answer different questions. -->
     <div
       class="queries-panel__places"
       role="tablist"
@@ -407,13 +376,7 @@ async function deleteForGood(documentId: string) {
       <AppSpinner v-else-if="documents.isPending.value" />
       <AppEmptyState
         v-else-if="rows.length === 0"
-        :text="
-          trashed
-            ? 'Nothing in Trash'
-            : search
-              ? 'No query matches that'
-              : 'No queries yet'
-        "
+        :text="search ? 'No query matches that' : 'No queries yet'"
         data-testid="queries-empty"
       />
       <template v-else>
@@ -448,25 +411,11 @@ async function deleteForGood(documentId: string) {
               </span>
             </button>
             <AppIconButton
-              v-if="trashed"
-              :icon="appIcons.restoreFromTrash"
-              tooltip="Restore"
-              :data-testid="`restore-query-${row.id}`"
-              @click="bringBack(row.id)"
-            />
-            <AppIconButton
-              v-if="trashed"
-              :icon="appIcons.deleteForever"
-              tooltip="Delete for good"
-              :data-testid="`purge-query-${row.id}`"
-              @click="deleteForGood(row.id)"
-            />
-            <AppIconButton
-              v-else
               :icon="appIcons.delete"
-              tooltip="Move to Trash"
-              :data-testid="`trash-query-${row.id}`"
-              @click="moveToTrash(row.id)"
+              tooltip="Delete query"
+              variant="danger-quiet"
+              :data-testid="`delete-query-${row.id}`"
+              @click="deleteQuery(row.id)"
             />
           </div>
         </section>

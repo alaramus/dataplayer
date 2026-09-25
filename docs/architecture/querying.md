@@ -5,12 +5,12 @@ documents in which a user develops one, the bounded results it produces and the
 transaction state of mutations. Read this before changing query documents, SQL
 parsing, execution, history, result snapshots, Explain or query transactions.
 
-Decisions here: D62, D63, D64, D65, D66, D77, D78, D96.
+Decisions here: D62, D63, D64, D65, D66, D77, D78, D96, D160.
 
 ## What exists today
 
-`app/queries` owns `QueryDocument`, the library, revisioned autosave, Trash and
-its sweep; the frontend has a Queries navigation panel and a console panel.
+`app/queries` owns `QueryDocument`, the library, revisioned autosave and run
+history; the frontend has a Queries navigation panel and a console panel.
 
 `SupportsQuery` is declared and PostgreSQL implements it. A run is started,
 read, cancelled and paged through routes; the console runs the selection, the
@@ -25,9 +25,9 @@ own: a source that will plan a statement without running it answers with the
 tree it built, the plan it prints and the estimate for the whole statement, and
 the console shows those as three views of one selection.
 
-A connection carries an execution policy its owner sets. A console opens
-read-only every time and is taken out of it deliberately, by typing the name of
-the connection where the policy asks for it. Auto-commit makes the whole run one
+A connection carries an execution policy its owner sets. The editor chooses
+read mode for reads and auto-commit for writes automatically; it has no separate
+write unlock. A confirm-writes policy asks at each changing run. Auto-commit makes the whole run one
 transaction; a manual transaction is opened by the console, held by the server
 across requests, shown as a commit preview and ended by Commit or Roll back — by
 the person, by the idle lease, or by closing the panel, which asks first. A
@@ -167,8 +167,8 @@ anywhere.
 From `Remember` on it is an ordinary document and behaves as it always has.
 Debounced autosave sends the base revision; a mismatch stops saving and offers
 keep mine, use remote or save mine as a copy. Closing a tab only removes it
-from the workspace. Deletion moves it to a thirty-day Trash; permanent
-deletion removes its body, remembered parameters and layout. While autosave
+from the workspace. Deletion removes its body, remembered parameters and layout
+immediately after confirmation. While autosave
 cannot reach the server, one unsynchronised shadow may live in that browser
 tab's `sessionStorage`, is marked visibly and is removed after a successful
 save. No durable plaintext browser cache is introduced.
@@ -205,10 +205,8 @@ text — and the screen has to say so, because a list of runs and a list of
 documents are both lists of SQL and read alike. A run row names the document it
 was run from when that document still has a name, which is what makes it
 visibly an event of a document rather than another copy of one; the library
-holds three named places — Queries, History, Trash — one of which is always the
-one you are in. They were two independent toggles, and the pair had a state
-that meant nothing: Trash pressed while History showed did nothing, and had to
-be greyed out to say so. Successful, failed, cancelled, timed-out and interrupted runs are kept;
+  holds two named places — Queries and History. Successful, failed, cancelled,
+  timed-out and interrupted runs are kept;
 requests rejected before execution are not. Rows are never retained. The
 default is the earlier of ninety days and one thousand runs per user, with
 7/30/90-day and no-retention choices and deletion of one, selected, older or
@@ -227,8 +225,8 @@ Known deviations:
   not keeping it means, and the history still holds whatever was run from it;
   but a tab restored in a *new* browser tab comes back empty rather than with
   the text, because the text was never anywhere durable.
-- **Remember has no undo of its own.** What it makes is an ordinary document,
-  so the way back is Trash.
+- **Remember has no undo of its own.** What it makes is an ordinary document;
+  removing it requires confirmation and deletes it permanently.
 
 Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
@@ -314,7 +312,7 @@ Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 A query document opens as a `work` panel, with the existing workspace identity
 and persistence rules. Its top bar keeps title/save state, connector, database,
-schema context, transaction mode, execution policy, Run/Cancel, elapsed time and
+schema context, manual transaction choice, Run/Cancel, elapsed time and
 layout controls visible. The editor and result area start in a vertical 60/40
 split, resizable to either side; geometry and line wrapping persist per document.
 The editor stays above the results at every panel width. Narrowing the panel
@@ -367,25 +365,23 @@ Known deviations:
 
 - **The gutter Run is not drawn.** The console has the two keyboard commands and
   their two buttons.
-- **The writing mode is never restored.** A reopened document is read-only again,
-  though the unlock on the connection outlives it and the mode can be chosen
-  again without typing the name a second time.
+- **The manual transaction choice is never restored.** A reopened document
+  runs reads in read mode and changes in auto-commit unless chosen again.
 
 Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
-## D66. Writes require an explicit mode and the UI owns the transaction
+## D66. The UI owns the transaction and the source bounds SQL changes
 
-Every document opens read-only. A connector adds an owner-controlled execution
+Every document follows its connection's owner-controlled execution
 policy above grants: `read_only`, `confirm_writes` or `allow_writes`, defaulting
 to confirmation. A shared user cannot weaken it. `read` admits the editor and
 read mode, `write` admits DML, and `structure` admits the bounded DDL set; owning
 a connector is not an unconditional SQL bypass.
 
-The modes are read-only, auto-commit and manual transaction. Switching out of
-read-only is deliberate and never restored after reload or copied to another
-document. Under confirm policy the user types the connector name and the unlock
-expires after fifteen idle minutes; allow policy still asks once with the full
-context. High-risk DML and every DDL statement ask each time. High risk includes
+The modes are read-only, auto-commit and manual transaction. The editor picks
+read-only for reads and auto-commit for changes; a person may explicitly choose
+a manual transaction. Under confirm policy, each changing run asks for consent.
+High-risk statements and every DDL statement ask each time. High risk includes
 UPDATE/DELETE without a top-level predicate, unrestricted MERGE, truncation,
 drop, destructive alter, permission change and a mutating script.
 
@@ -429,7 +425,7 @@ Known deviations:
 
 - **The rehearsal is what a person reads before answering, not a precondition the
   server enforces.** What decides whether a change may be made is the same four
-  checks a write goes through — policy, level, unlock, confirmation — and the
+  checks a write goes through — policy, level and confirmation — and the
   console will not run a change whose rehearsal came back blocked, but a caller
   that never asked for one is not refused for that reason.
 - **`DROP INDEX s.i` widens the invalidation to the whole connection.** The
@@ -554,3 +550,26 @@ and a deadline and always closes its engine, including on failure. Result
 bounds, read-only execution and path containment remain D64, D77 and D78's.
 
 Spec: [SQL over log files](../decisions/2026-09-04-log-sql-design.md)
+
+## D160. Connection rights govern SQL; saved queries have no Trash
+
+The connector's execution policy and the caller's grant are the only persistent
+permissions for user-authored SQL. A read runs in read mode; a change runs in
+auto-commit unless the user selected a manual transaction. There is no editor
+write unlock or unlock expiry. The server checks the current policy and grant
+for every changing run and when opening a manual transaction. Under
+`confirm_writes`, each changing run must carry a fresh confirmation; high-risk
+statements still require their specific confirmation. A source that only
+supports reads continues to reject writes independently of connector access.
+
+Deleting a remembered SQL document requires confirmation and deletes its body,
+layout and remembered parameters in that request. Queries and History remain
+separate views; History retains its own deletion and retention controls. The
+migration deletes documents already in Trash, removes the Trash column and
+write-unlock table, and keeps run history through its nullable document link.
+The editor keeps Remember in its toolbar as a disabled command after the query
+is in the library; deletion is available in the library row. The editor has no
+reload command: its live text is deliberately not replaced by a server refetch,
+while the library can still re-read its list.
+
+Spec: [SQL editor permissions and immediate deletion](../decisions/2026-09-24-sql-editor-simplification.md)

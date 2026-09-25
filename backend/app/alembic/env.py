@@ -34,7 +34,6 @@ from app.shares.models import AccessRequest, Share, ShareOpen  # noqa
 from app.queries.models import QueryDocument  # noqa
 from app.queries.runs import ExecutionRun, StatementRun  # noqa
 from app.queries.history import QueryRetention  # noqa
-from app.queries.unlocks import WriteUnlock  # noqa
 from app.jobs.models import Job  # noqa
 from app.services.models import ManagedService  # noqa
 from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetting  # noqa

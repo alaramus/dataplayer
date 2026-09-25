@@ -104,13 +104,12 @@ beforeEach(() => {
     data: { data: [], count: 0 },
   } as never)
   // What the console asks about its connection and its text as it opens and
-  // is typed in — the dialect, the names to complete, whether writing is
-  // unlocked, the statements. None of these tests is about that, so the
+  // is typed in — the dialect, the names to complete, and the statements.
+  // None of these tests is about that, so the
   // server is simply not there, as it was when these went to the network.
   const offline = new Error("Network Error")
   vi.spyOn(QueriesService, "readProfile").mockRejectedValue(offline)
   vi.spyOn(QueriesService, "readMetadata").mockRejectedValue(offline)
-  vi.spyOn(QueriesService, "readUnlock").mockRejectedValue(offline)
   vi.spyOn(QueriesService, "prepareText").mockRejectedValue(offline)
   vi.useFakeTimers()
   sessionStorage.clear()
@@ -120,6 +119,44 @@ beforeEach(() => {
 })
 
 describe("one console", () => {
+  it("keeps the Remember command visible but disabled for a saved query", async () => {
+    vi.spyOn(QueriesService, "readDocument").mockResolvedValue({ data: document() } as never)
+    const creating = vi.spyOn(QueriesService, "createDocument")
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    const remember = wrapper.get('[data-testid="query-remember"]')
+    expect(remember.text()).toContain("Remembered")
+    expect(remember.attributes("disabled")).toBeDefined()
+    expect(wrapper.find('[data-testid="query-delete"]').exists()).toBe(false)
+    await remember.trigger("click")
+    expect(creating).not.toHaveBeenCalled()
+  })
+
+  it("shows whether manual transaction mode will hold changes", async () => {
+    vi.spyOn(QueriesService, "readDocument").mockResolvedValue({ data: document() } as never)
+    vi.spyOn(QueriesService, "readProfile").mockResolvedValue({
+      data: { statement_modes: ["read", "auto_commit", "manual"] },
+    } as never)
+    vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
+      data: {
+        data: [{ id: "c1", name: "local pg", access: "own", execution_policy: "allow_writes" }],
+        count: 1,
+      },
+    } as never)
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    const toggle = wrapper.get('[data-testid="query-bar"]').get('[data-testid="query-manual-transaction"]')
+    expect(toggle.text()).toContain("Manual: Off")
+    expect(toggle.attributes("aria-pressed")).toBe("false")
+
+    await toggle.trigger("click")
+    await flushPromises()
+    expect(toggle.text()).toContain("Manual: On")
+    expect(toggle.attributes("aria-pressed")).toBe("true")
+  })
+
   it("saves what changed once typing stops, on the revision it started from", async () => {
     vi.spyOn(QueriesService, "readDocument").mockResolvedValue({ data: document() } as never)
     const save = vi
@@ -134,7 +171,7 @@ describe("one console", () => {
       path: { document_id: "d1" },
       body: { revision: 3, body: "select 2" },
     })
-    expect(wrapper.get('[data-testid="query-state"]').text()).toBe("Saved")
+    expect(wrapper.find('[data-testid="query-state"]').exists()).toBe(false)
   })
 
   it("offers three answers when the document changed elsewhere, and takes the remote text", async () => {
@@ -182,7 +219,7 @@ describe("one console", () => {
         layout: { split_ratio: 0.6, wrap: false },
       },
     })
-    expect(wrapper.get('[data-testid="query-state"]').text()).toBe("Saved")
+    expect(wrapper.find('[data-testid="query-state"]').exists()).toBe(false)
   })
 
   it("keeps unsaved text in this tab when the server cannot be reached", async () => {
@@ -234,7 +271,7 @@ describe("one console", () => {
 
     expect(reading).not.toHaveBeenCalled()
     expect(creating).not.toHaveBeenCalled()
-    expect(wrapper.get('[data-testid="query-state"]').text()).toBe("Not kept")
+    expect(wrapper.find('[data-testid="query-state"]').exists()).toBe(false)
     expect(
       (wrapper.get('[data-testid="query-editor"]').element as HTMLTextAreaElement).value
     ).toBe("select 7")

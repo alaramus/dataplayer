@@ -126,7 +126,7 @@ export interface WorkspaceActions {
    * connector clears an identity whose connection has gone away.
    */
   renameQueryDocument: (documentId: string, title: string | null, connectorId?: string | null) => void
-  /** Close the tab of a document that has just gone to Trash. */
+  /** Close the tab of a document that was deleted from the library. */
   closeQueryDocument: (documentId: string) => void
   openChart: (request: OpenChartRequest) => void
   /**
