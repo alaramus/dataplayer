@@ -115,6 +115,42 @@ async def test_file_copy_between_two_connections_uses_both_roots(
     ).read_bytes()
 
 
+async def test_file_move_between_two_connections_removes_the_source(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    filename = f"move-{uuid.uuid4().hex}.txt"
+    (home / filename).write_bytes(b"move across roots")
+    source = await _create_connector(client, normal_user_token_headers)
+    destination = await _create_connector(
+        client, normal_user_token_headers, path="/reports"
+    )
+    body = {
+        "source_connector_id": source,
+        "source_node_ids": [filename],
+        "destination_node_id": None,
+    }
+
+    offered = await client.post(
+        f"{BASE}/{destination}/file-move/offer",
+        headers=normal_user_token_headers,
+        json=body,
+    )
+    assert offered.status_code == 200
+    assert offered.json()["available"]
+
+    moved = await client.post(
+        f"{BASE}/{destination}/file-move",
+        headers=normal_user_token_headers,
+        json=body,
+    )
+    assert moved.status_code == 200, moved.text
+    assert moved.json() == {"moved": 1, "reload_node_ids": [None]}
+    assert not (home / filename).exists()
+    assert (home / "reports" / filename).read_bytes() == b"move across roots"
+
+
 @pytest.mark.usefixtures("home")
 async def test_the_catalog_shows_the_personal_directory(
     client: AsyncClient, normal_user_token_headers: dict[str, str]

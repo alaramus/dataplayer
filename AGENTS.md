@@ -238,6 +238,7 @@ files. IDs are stable because specs and commits refer to them.
 | D160 | [querying](docs/architecture/querying.md) |
 | D161 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D162 | [sources/actions](docs/architecture/sources/actions.md) |
+| D163 | [sources/transfer](docs/architecture/sources/transfer.md) |
 
 ## Working rules
 

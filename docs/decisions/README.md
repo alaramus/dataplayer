@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-25 | [Moving a file between connections](2026-09-25-cross-connector-cut-design.md) | D163: cross-connection Cut publishes then removes an unchanged source; both catalogs refresh, and conflicting moves may Keep both but not Replace |
 | 2026-09-25 | [Paste conflict window](2026-09-25-paste-conflict-window-design.md) | D162: one Paste command, with conflict choices in a window for either a source-owned or cross-connection copy |
 | 2026-09-25 | [Interactions between connections](2026-09-25-cross-connector-interactions-design.md) | D161 first slice: bounded file copy between local and SSH explorers with pair availability in Paste; paired view, jobs and other interactions remain proposed |
 | 2026-09-24 | [SQL editor permissions and immediate deletion](2026-09-24-sql-editor-simplification.md) | D160: connector rights govern SQL, manual transactions remain, saved queries delete after confirmation without Trash |

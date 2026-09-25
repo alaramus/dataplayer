@@ -5,7 +5,31 @@ streaming every matching row out. Reading a relation and editing the rows in it
 are in [relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44, D161.
+Decisions here: D43, D45, D44, D161, D163.
+
+## D163. A file can be moved between explorer connections
+
+Cross-connection Cut uses the same clipboard and Paste as Copy, but the
+application asks for `write` on both connections. It publishes the complete
+file at the destination, confirms the source still has the version read, then
+removes that source file. A failed deletion leaves both copies and reports that
+state. The server invalidates both connections' read caches; the client
+refreshes both open catalogs. The clipboard is cleared after full success.
+
+A name conflict offers Keep both in the same window as Copy. Replace is not
+offered for cross-connection Cut because two connectors may name the same
+backing file. Replacing it and then deleting the source could remove the new
+destination. The existing same-connection Cut remains source-owned.
+
+Known deviations:
+
+- **A batch is not atomic.** Earlier files may have moved when a later one
+  fails. A file whose destination was published but whose source could not be
+  removed remains in both places; the error names that outcome.
+- **No directory moves or owned job.** The first path retains D161's file,
+  count and byte limits and its request lifetime.
+
+Spec: [Moving a file between connections](../../decisions/2026-09-25-cross-connector-cut-design.md)
 
 ## D161. A file can be copied between explorer connections
 
@@ -18,8 +42,8 @@ execution checks again. The catalog uses that answer to enable Paste when its
 clipboard belongs to another connection. The same-connection Paste of D74
 continues through the source's own action.
 
-- Copy leaves the source in place. Folders, links and cross-connection Cut are
-  outside this first path. A request holds at most 20 files and 200 MB total.
+- Copy leaves the source in place. Folders and links are outside this first
+  path. A request holds at most 20 files and 200 MB total.
   Bytes are read in bounded chunks into a destination-owned staged file; the
   destination publishes only after the whole file has arrived.
 - Existing names are refused by default. The catalog has one Paste command;

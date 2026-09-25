@@ -4141,6 +4141,20 @@ export type FileCopyResult = {
 }
 
 /**
+ * FileMoveResult
+ */
+export type FileMoveResult = {
+  /**
+   * Moved
+   */
+  moved: number
+  /**
+   * Reload Node Ids
+   */
+  reload_node_ids: Array<string | null>
+}
+
+/**
  * FileNode
  */
 export type FileNode = {
@@ -11616,6 +11630,69 @@ export type connectorsFileCopyResponses = {
 
 export type connectorsFileCopyResponse =
   connectorsFileCopyResponses[keyof connectorsFileCopyResponses]
+
+export type connectorsFileMoveOfferData = {
+  body: FileCopyRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/file-move/offer"
+}
+
+export type connectorsFileMoveOfferErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsFileMoveOfferError =
+  connectorsFileMoveOfferErrors[keyof connectorsFileMoveOfferErrors]
+
+export type connectorsFileMoveOfferResponses = {
+  /**
+   * Successful Response
+   */
+  200: FileCopyOffer
+}
+
+export type connectorsFileMoveOfferResponse =
+  connectorsFileMoveOfferResponses[keyof connectorsFileMoveOfferResponses]
+
+export type connectorsFileMoveData = {
+  body: FileCopyRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/file-move"
+}
+
+export type connectorsFileMoveErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsFileMoveError = connectorsFileMoveErrors[keyof connectorsFileMoveErrors]
+
+export type connectorsFileMoveResponses = {
+  /**
+   * Successful Response
+   */
+  200: FileMoveResult
+}
+
+export type connectorsFileMoveResponse =
+  connectorsFileMoveResponses[keyof connectorsFileMoveResponses]
 
 export type connectorsDownloadFinishedExportData = {
   body?: never

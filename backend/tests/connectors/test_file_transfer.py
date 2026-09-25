@@ -7,7 +7,13 @@ import pytest
 from app.adapters.actions import ActionRefused
 from app.adapters.file.storage import LocalStorage
 from app.connectors import file_transfer
-from app.connectors.file_transfer import FileCopyRequest, copy_files, inspect_copy
+from app.connectors.file_transfer import (
+    FileCopyRequest,
+    copy_files,
+    inspect_copy,
+    inspect_move,
+    move_files,
+)
 
 
 @pytest.fixture
@@ -115,3 +121,55 @@ def test_size_ceiling_refuses_before_publication(
     with pytest.raises(ActionRefused):
         copy_files(source, destination, request())
     assert list((right / "incoming").iterdir()) == []
+
+
+def test_move_publishes_then_removes_the_source(
+    sides: tuple[LocalStorage, LocalStorage, Path, Path],
+) -> None:
+    source, destination, left, right = sides
+    assert inspect_move(source, destination, request()).available
+
+    result = move_files(source, destination, request())
+
+    assert result.moved == 1
+    assert result.reload_node_ids == ["incoming"]
+    assert not (left / "report.csv").exists()
+    assert (right / "incoming" / "report.csv").read_bytes() == b"id,name\n1,Ada\n"
+
+
+def test_move_keeps_both_copies_if_source_removal_fails(
+    sides: tuple[LocalStorage, LocalStorage, Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source, destination, left, right = sides
+
+    def refuse_removal(_place: object) -> None:
+        raise PermissionError("cannot remove")
+
+    monkeypatch.setattr(source, "remove", refuse_removal)
+
+    with pytest.raises(ActionRefused, match="source could not be removed"):
+        move_files(source, destination, request())
+    assert (left / "report.csv").exists()
+    assert (right / "incoming" / "report.csv").exists()
+
+
+def test_move_conflict_can_keep_both_but_cannot_replace(
+    sides: tuple[LocalStorage, LocalStorage, Path, Path],
+) -> None:
+    source, destination, left, right = sides
+    target = right / "incoming" / "report.csv"
+    target.write_bytes(b"old")
+
+    assert inspect_move(source, destination, request()).name_conflict
+    assert not inspect_move(
+        source, destination, request(conflict="replace")
+    ).available
+    with pytest.raises(ActionRefused):
+        move_files(source, destination, request(conflict="replace"))
+    assert target.read_bytes() == b"old"
+    assert (left / "report.csv").exists()
+
+    move_files(source, destination, request(conflict="rename"))
+    assert not (left / "report.csv").exists()
+    assert (right / "incoming" / "report (1).csv").exists()

@@ -736,6 +736,44 @@ async def test_a_read_grant_can_run_the_download_action(
     assert downloaded.content == b"shared body"
 
 
+async def test_a_read_grant_can_copy_a_file_out_but_not_move_it(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """Moving removes the source file, so it needs write there (D163)."""
+    user, headers = colleague
+    shared = await _file_connector(client, normal_user_token_headers)
+    name = f"shared-{uuid.uuid4().hex}.txt"
+    uploaded = await client.post(
+        f"{BASE}/{shared}/actions/upload/file",
+        headers=normal_user_token_headers,
+        files={"file": (name, b"shared body", "text/plain")},
+        data={"node_id": "", "params": "{}"},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    await _grant(client, normal_user_token_headers, shared, user, "read")
+    own = await _file_connector(client, headers)
+    body = {
+        "source_connector_id": shared,
+        "source_node_ids": [name],
+        "destination_node_id": None,
+    }
+
+    offered = await client.post(
+        f"{BASE}/{own}/file-move/offer", headers=headers, json=body
+    )
+    moved = await client.post(f"{BASE}/{own}/file-move", headers=headers, json=body)
+    copied = await client.post(f"{BASE}/{own}/file-copy", headers=headers, json=body)
+
+    assert offered.status_code == 403
+    assert moved.status_code == 403
+    assert moved.json()["detail"]["required"] == "write"
+    # The refused move left the source where it was, so the copy finds it.
+    assert copied.status_code == 200, copied.text
+    assert copied.json()["copied"] == 1
+
+
 async def test_renaming_a_relation_needs_structure(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

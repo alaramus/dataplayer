@@ -1,10 +1,12 @@
 /**
  * What the catalog is holding, waiting to be put somewhere else.
  *
- * Copy and Cut change nothing: they remember a selection and a verb, and the
- * move itself is one action of the source — the client never learns what
- * copying a file means. Module-level rather than a store: one small piece of
- * state with one reader, and Pinia is for what one screen shares with another.
+ * Copy and Cut change nothing: they remember a selection and a verb, and Paste
+ * does the work — the source's own action within one connection (D74), the
+ * application's transfer between two (D161, D163). The client never learns
+ * what copying a file means. Module-level rather than a store: one small piece
+ * of state with one reader, and Pinia is for what one screen shares with
+ * another.
  */
 
 import { computed, ref } from "vue"
@@ -12,7 +14,7 @@ import { computed, ref } from "vue"
 export type ClipboardMode = "copy" | "move"
 
 export interface Clipboard {
-  /** The connection the nodes belong to. Nothing crosses connections. */
+  /** The connection the nodes belong to. */
   connectorId: string
   nodeIds: string[]
   mode: ClipboardMode
@@ -37,12 +39,13 @@ export function forgetClipboard(): void {
 }
 
 /**
- * What is held for this connection, or nothing.
+ * What is held for this connection's own Paste action, or nothing.
  *
  * A selection belongs to the connection it came from: an opaque node id means
  * nothing to another source, and the two roots have nothing to do with each
  * other. Asked rather than assumed, so a second connection opened beside the
- * first does not offer to paste what is not its own.
+ * first does not hand its own action what is not its own; a selection from
+ * elsewhere goes through the application's transfer instead (D161).
  */
 export function heldFor(connectorId: string | null): Clipboard | null {
   const current = held.value

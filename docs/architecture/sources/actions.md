@@ -10,7 +10,8 @@ Decisions here: D9, D56, D118, D79, D46, D68, D74, D162.
 
 The catalog offers one Paste command for either a same-connection or a
 cross-connection clipboard. A taken destination name opens a window with
-Cancel, Keep both and Replace. An offer may know about the conflict before
+Cancel, Keep both and, where safe, Replace. D163 withholds Replace for a
+cross-connection Cut. An offer may know about the conflict before
 the command runs; a concurrent change may reveal it only when execution is
 attempted. Both paths open the same choice, rather than adding Paste variants
 to the action menu. The source-owned and application-owned transports retain

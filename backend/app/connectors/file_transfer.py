@@ -1,4 +1,4 @@
-"""Copy file bytes between independent explorer connections."""
+"""Copy or move files between independent explorer connections."""
 
 from typing import Literal, Protocol, runtime_checkable
 
@@ -32,6 +32,11 @@ class FileCopyOffer(BaseModel):
 
 class FileCopyResult(BaseModel):
     copied: int
+    reload_node_ids: list[str | None]
+
+
+class FileMoveResult(BaseModel):
+    moved: int
     reload_node_ids: list[str | None]
 
 
@@ -88,9 +93,47 @@ def inspect_copy(
         return FileCopyOffer(available=False, reason="A source or destination is unavailable")
 
 
+def inspect_move(
+    source: Storage, destination: Storage, request: FileCopyRequest
+) -> FileCopyOffer:
+    """A move cannot replace a name that may alias its own source."""
+    if request.conflict == "replace":
+        return FileCopyOffer(
+            available=False,
+            reason="Keep both or cancel a move when the name is already taken",
+        )
+    return inspect_copy(source, destination, request)
+
+
 def copy_files(
     source: Storage, destination: Storage, request: FileCopyRequest
 ) -> FileCopyResult:
+    """Copy file bytes and leave the source in place."""
+    copied = _transfer_files(source, destination, request, move=False)
+    return FileCopyResult(
+        copied=copied, reload_node_ids=[request.destination_node_id]
+    )
+
+
+def move_files(
+    source: Storage, destination: Storage, request: FileCopyRequest
+) -> FileMoveResult:
+    """Publish each copy before removing its unchanged source file."""
+    if request.conflict == "replace":
+        raise ActionRefused(
+            "not_applicable", "A cross-connection move cannot replace a file"
+        )
+    moved = _transfer_files(source, destination, request, move=True)
+    return FileMoveResult(moved=moved, reload_node_ids=[request.destination_node_id])
+
+
+def _transfer_files(
+    source: Storage,
+    destination: Storage,
+    request: FileCopyRequest,
+    *,
+    move: bool,
+) -> int:
     """Stage every file at its destination; each published file is complete."""
     offer = inspect_copy(source, destination, request)
     if not offer.available:
@@ -99,7 +142,7 @@ def copy_files(
             offer.reason or "File copy is unavailable",
         )
     folder = destination.place(request.destination_node_id)
-    copied = 0
+    completed = 0
     remaining = MAX_TRANSFER_BYTES
     for node_id in request.source_node_ids:
         place = source.place(node_id)
@@ -146,7 +189,18 @@ def copy_files(
             raise ActionRefused("conflict", f"{target.name} is already there") from None
         except OSError:
             raise ActionRefused("not_applicable", "The file could not be copied") from None
-        copied += 1
-    return FileCopyResult(
-        copied=copied, reload_node_ids=[request.destination_node_id]
-    )
+        if move:
+            try:
+                if source.version(place) != version:
+                    raise ActionRefused(
+                        "not_applicable",
+                        f"{entry.name} was copied, but its source changed and was kept",
+                    )
+                source.remove(place)
+            except OSError:
+                raise ActionRefused(
+                    "not_applicable",
+                    f"{entry.name} was copied, but its source could not be removed",
+                ) from None
+        completed += 1
+    return completed

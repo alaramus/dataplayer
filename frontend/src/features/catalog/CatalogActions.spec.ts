@@ -7,14 +7,15 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { ActionInfo } from "@/client"
 import type { MenuItem } from "@/shared/ui"
 import CatalogActions from "./CatalogActions.vue"
-import { forgetClipboard, holdNodes } from "./clipboard"
+import { clipboard, forgetClipboard, holdNodes } from "./clipboard"
 
 const replies = vi.hoisted(() => new Map<string, ActionInfo[]>())
 const offer = vi.hoisted(() => ({ available: false, reason: "Unavailable", name_conflict: false }))
 const copyFile = vi.hoisted(() => vi.fn())
+const moveFile = vi.hoisted(() => vi.fn())
 
 vi.mock("@/client", () => ({
-  ConnectorsService: { fileCopy: copyFile },
+  ConnectorsService: { fileCopy: copyFile, fileMove: moveFile },
 }))
 
 vi.mock("@tanstack/vue-query", () => ({
@@ -87,8 +88,8 @@ const paste: ActionInfo = {
   },
 }
 
-function menu() {
-  replies.set("null", [rename, load])
+function menu(levelActions: ActionInfo[] = [rename, load]) {
+  replies.set("null", levelActions)
   replies.set('["schema"]', [rename, paste])
   replies.set('["schema.table"]', [{ ...rename, applicable: false }])
   replies.set('["schema","other"]', [load])
@@ -115,6 +116,7 @@ afterEach(() => {
   offer.reason = "Unavailable"
   offer.name_conflict = false
   copyFile.mockReset()
+  moveFile.mockReset()
 })
 
 describe("catalog action subjects", () => {
@@ -137,7 +139,7 @@ describe("catalog action subjects", () => {
 
   it("keeps the ordinary Paste label after copying in the same connection", () => {
     holdNodes("connection", ["report.csv"], "copy")
-    const wrapper = menu()
+    const wrapper = menu([rename, load, paste])
     const items = wrapper.findComponent({ name: "AppMenu" }).props("items") as MenuItem[]
     expect(items.find((one) => one.name === "paste")?.label).toBe("Paste")
     wrapper.unmount()
@@ -176,6 +178,39 @@ describe("catalog action subjects", () => {
     expect(wrapper.emitted("done")?.[0]?.[0]).toMatchObject({
       done: [{ reload_node_ids: ["schema"] }],
     })
+    wrapper.unmount()
+  })
+
+  it("moves a cut file and refreshes its source connection", async () => {
+    holdNodes("another", ["report.csv"], "move")
+    offer.available = true
+    moveFile.mockResolvedValue({ data: { moved: 1, reload_node_ids: ["schema"] } })
+    const wrapper = menu()
+
+    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
+    await flushPromises()
+
+    expect(moveFile).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.objectContaining({ conflict: "refuse" }),
+    }))
+    expect(wrapper.emitted("sourceChanged")?.[0]).toEqual(["another"])
+    expect(wrapper.emitted("done")?.[0]?.[0]).toMatchObject({
+      done: [{ reload_node_ids: ["schema"] }],
+    })
+    expect(clipboard.value).toBeNull()
+    wrapper.unmount()
+  })
+
+  it("offers Keep both for a cut conflict without offering Replace", async () => {
+    holdNodes("another", ["report.csv"], "move")
+    offer.name_conflict = true
+    const wrapper = menu()
+
+    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="cross-paste-keep-both"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cross-paste-replace"]').exists()).toBe(false)
     wrapper.unmount()
   })
 

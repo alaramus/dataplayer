@@ -174,6 +174,12 @@ import type {
   connectorsFileCopyOfferErrors,
   connectorsFileCopyOfferResponses,
   connectorsFileCopyResponses,
+  connectorsFileMoveData,
+  connectorsFileMoveErrors,
+  connectorsFileMoveOfferData,
+  connectorsFileMoveOfferErrors,
+  connectorsFileMoveOfferResponses,
+  connectorsFileMoveResponses,
   connectorsFollowReferenceData,
   connectorsFollowReferenceErrors,
   connectorsFollowReferenceResponses,
@@ -1125,6 +1131,50 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/file-copy",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * File Move Offer
+   */
+  public static fileMoveOffer<ThrowOnError extends boolean = true>(
+    options: Options<connectorsFileMoveOfferData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsFileMoveOfferResponses,
+      connectorsFileMoveOfferErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/file-move/offer",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * File Move
+   */
+  public static fileMove<ThrowOnError extends boolean = true>(
+    options: Options<connectorsFileMoveData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsFileMoveResponses,
+      connectorsFileMoveErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/file-move",
       ...options,
       headers: {
         "Content-Type": "application/json",
