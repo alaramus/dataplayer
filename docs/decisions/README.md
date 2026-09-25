@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-25 | [Folders carried between connections](2026-09-25-folder-transfers-design.md) | D169: ticked folders copy and move whole between connections in one transfer, up to 10,000 entries and 10 GB; links inside are skipped, a taken folder name offers Keep both only, and every move removes its sources only once everything arrived |
 | 2026-09-25 | [Transfers as owned jobs](2026-09-25-transfer-jobs-design.md) | D168: file copy, file move and table-to-CSV pastes run as owned jobs with bytes in the footer and Processes, Stop at once, per-file outcomes and live catalog refresh; 1000 files and 10 GB per paste, three at a time per person; SSH destinations are written as the bytes arrive |
 | 2026-09-25 | [Two connections side by side](2026-09-25-paired-catalogs-design.md) | D167: a catalog tab dropped on Pair waits in the header; a second of another connection opens a pair window with both catalogs and a bar of what can go from the left one into the right one, turned round by Swap sides |
 | 2026-09-25 | [Rows pasted into another connection](2026-09-25-paste-rows-design.md) | D166: a copied CSV or table pastes as a new table in a schema or as rows into a ticked table, through D45's and D43's forms and limits; several offers open a list |
