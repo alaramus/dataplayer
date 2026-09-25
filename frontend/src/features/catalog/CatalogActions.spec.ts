@@ -6,10 +6,27 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import type { ActionInfo } from "@/client"
 import type { MenuItem } from "@/shared/ui"
 import CatalogActions from "./CatalogActions.vue"
+import { forgetClipboard, holdNodes } from "./clipboard"
 
 const replies = vi.hoisted(() => new Map<string, ActionInfo[]>())
+const offer = vi.hoisted(() => ({ available: false, reason: "Unavailable", name_conflict: false }))
+const copyFile = vi.hoisted(() => vi.fn())
+
+vi.mock("@/client", () => ({
+  ConnectorsService: { fileCopy: copyFile },
+}))
+
+vi.mock("@tanstack/vue-query", () => ({
+  useQuery: () => ({
+    data: computed(() => offer),
+    isPending: computed(() => false),
+    isError: computed(() => false),
+  }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}))
 
 vi.mock("@/features/catalog/api", () => ({
+  catalogKey: (connectorId: string, nodeId: string | null) => ["catalog", connectorId, nodeId],
   useNodeActions: (_connector: Ref<string>, ids: Ref<string[] | null>, enabled?: Ref<boolean>) => ({
     data: computed(() => enabled?.value === false ? undefined : replies.get(JSON.stringify(ids.value))),
   }),
@@ -22,7 +39,8 @@ vi.mock("@/features/services/backups", () => ({
 vi.mock("@/shared/ui", () => ({
   AppIconButton: defineComponent({ template: "<button>Actions</button>" }),
   AppMenu: defineComponent({ name: "AppMenu", props: ["items"], emits: ["select"], template: "<div />" }),
-  useToast: () => ({ error: vi.fn() }),
+  useToast: () => ({ error: vi.fn(), success: vi.fn() }),
+  useConfirm: () => vi.fn().mockResolvedValue(true),
 }))
 vi.mock("./ActionDialog.vue", () => ({
   default: defineComponent({
@@ -65,9 +83,57 @@ function menu() {
   })
 }
 
-afterEach(() => { replies.clear() })
+afterEach(() => {
+  replies.clear()
+  forgetClipboard()
+  offer.available = false
+  offer.reason = "Unavailable"
+  offer.name_conflict = false
+})
 
 describe("catalog action subjects", () => {
+  it("offers cross-connection Paste only when the pair is available", async () => {
+    holdNodes("another", ["report.csv"], "copy")
+    const wrapper = menu()
+    const appMenu = wrapper.findComponent({ name: "AppMenu" })
+    const item = () => (appMenu.props("items") as MenuItem[]).find((one) => one.name === "client:cross-paste")
+    expect(item()?.disable).toBe(true)
+    expect(item()?.hint).toBe("Unavailable")
+    wrapper.unmount()
+    offer.available = true
+    const enabled = menu()
+    const enabledItem = (enabled.findComponent({ name: "AppMenu" }).props("items") as MenuItem[])
+      .find((one) => one.name === "client:cross-paste")
+    expect(enabledItem?.disable).toBe(false)
+    enabled.unmount()
+  })
+
+  it("offers explicit conflict choices without enabling ordinary Paste", () => {
+    holdNodes("another", ["report.csv"], "copy")
+    offer.name_conflict = true
+    const wrapper = menu()
+    const items = wrapper.findComponent({ name: "AppMenu" }).props("items") as MenuItem[]
+    expect(items.find((one) => one.name === "client:cross-paste")?.disable).toBe(true)
+    expect(items.find((one) => one.name === "client:cross-paste-rename")).toBeDefined()
+    expect(items.find((one) => one.name === "client:cross-paste-replace")?.danger).toBe(true)
+    wrapper.unmount()
+  })
+
+  it("reports a copied destination through the ordinary catalog reload path", async () => {
+    holdNodes("another", ["report.csv"], "copy")
+    offer.available = true
+    copyFile.mockResolvedValue({ data: { copied: 1, reload_node_ids: ["schema"] } })
+    const wrapper = menu()
+
+    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
+    await flushPromises()
+
+    expect(wrapper.emitted("done")?.[0]?.[0]).toMatchObject({
+      done: [{ reload_node_ids: ["schema"] }],
+    })
+    wrapper.unmount()
+  })
+
   it("opens schema rename with the schema label and default while a table is checked", async () => {
     const wrapper = menu()
     const appMenu = wrapper.findComponent({ name: "AppMenu" })

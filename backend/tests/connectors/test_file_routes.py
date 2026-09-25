@@ -78,6 +78,43 @@ async def _create_connector(
     return str(response.json()["id"])
 
 
+async def test_file_copy_between_two_connections_uses_both_roots(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    filename = f"copy-{uuid.uuid4().hex}.txt"
+    (home / filename).write_bytes(b"copy across roots")
+    source = await _create_connector(client, normal_user_token_headers)
+    destination = await _create_connector(
+        client, normal_user_token_headers, path="/reports"
+    )
+    body = {
+        "source_connector_id": source,
+        "source_node_ids": [filename],
+        "destination_node_id": None,
+    }
+
+    offered = await client.post(
+        f"{BASE}/{destination}/file-copy/offer",
+        headers=normal_user_token_headers,
+        json=body,
+    )
+    assert offered.status_code == 200
+    assert offered.json()["available"]
+
+    copied = await client.post(
+        f"{BASE}/{destination}/file-copy",
+        headers=normal_user_token_headers,
+        json=body,
+    )
+    assert copied.status_code == 200, copied.text
+    assert copied.json() == {"copied": 1, "reload_node_ids": [None]}
+    assert (home / "reports" / filename).read_bytes() == (
+        home / filename
+    ).read_bytes()
+
+
 @pytest.mark.usefixtures("home")
 async def test_the_catalog_shows_the_personal_directory(
     client: AsyncClient, normal_user_token_headers: dict[str, str]

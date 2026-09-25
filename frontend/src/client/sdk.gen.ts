@@ -168,6 +168,12 @@ import type {
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
+  connectorsFileCopyData,
+  connectorsFileCopyErrors,
+  connectorsFileCopyOfferData,
+  connectorsFileCopyOfferErrors,
+  connectorsFileCopyOfferResponses,
+  connectorsFileCopyResponses,
   connectorsFollowReferenceData,
   connectorsFollowReferenceErrors,
   connectorsFollowReferenceResponses,
@@ -1083,6 +1089,50 @@ export class UtilsService {
 }
 
 export class ConnectorsService {
+  /**
+   * File Copy Offer
+   */
+  public static fileCopyOffer<ThrowOnError extends boolean = true>(
+    options: Options<connectorsFileCopyOfferData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsFileCopyOfferResponses,
+      connectorsFileCopyOfferErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/file-copy/offer",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * File Copy
+   */
+  public static fileCopy<ThrowOnError extends boolean = true>(
+    options: Options<connectorsFileCopyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsFileCopyResponses,
+      connectorsFileCopyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/file-copy",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
   /**
    * Download Finished Export
    *

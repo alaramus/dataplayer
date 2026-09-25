@@ -5,7 +5,41 @@ streaming every matching row out. Reading a relation and editing the rows in it
 are in [relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44.
+Decisions here: D43, D45, D44, D161.
+
+## D161. A file can be copied between explorer connections
+
+The first cross-connection interaction is a file copy between two sources that
+expose the explorer's `Storage`, including local files and SSH. The application
+resolves both connections, checks `read` on the source and `write` on the
+destination, and asks each storage about its own opaque node ids. An offer
+route answers whether the selected files can be copied to the current folder;
+execution checks again. The catalog uses that answer to enable Paste when its
+clipboard belongs to another connection. The same-connection Paste of D74
+continues through the source's own action.
+
+- Copy leaves the source in place. Folders, links and cross-connection Cut are
+  outside this first path. A request holds at most 20 files and 200 MB total.
+  Bytes are read in bounded chunks into a destination-owned staged file; the
+  destination publishes only after the whole file has arrived.
+- Existing names are refused by default. The catalog explicitly offers Keep
+  both and Replace when the offer reports a conflict; Replace asks for
+  confirmation. A batch checks its names before starting, but a source or
+  destination can change during execution, so completed files may remain if a
+  later one fails. The destination catalog is invalidated even on failure.
+- The offer is advisory. Both rights and connector states are resolved again
+  at execution, and every node is checked by the source storage when read.
+
+Known deviations:
+
+- **This is a bounded request, not an owned job.** It has no byte progress,
+  cancellation or recovery after an interrupted request. D81/D95 integration
+  is still needed before raising the size or batch ceilings.
+- **The paired catalog view is not present.** The same pair offer currently
+  feeds the catalog's Paste menu only. Further interaction kinds, the paired
+  view and a graph remain in the design spec.
+
+Spec: [Interactions between connections](../../decisions/2026-09-25-cross-connector-interactions-design.md)
 
 ## D43. Rows move between sources through the platform
 

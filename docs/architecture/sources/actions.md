@@ -70,8 +70,9 @@ guard.
 
 Known deviations:
 
-- **Nothing moves or copies across connectors.** D74 defines copying and moving
-  within a file source.
+- **Source-owned Paste stays within one connector.** D74 defines copying and
+  moving within a file source; D161's first cross-connector file copy belongs
+  to the application layer.
 - **Folder creation and rename can still race another writer.** Upload retries
   through no-overwrite publication; the other two use ordinary filesystem
   operations after choosing their target.
@@ -390,8 +391,9 @@ Consequences:
 
 Known deviations:
 
-- **Nothing crosses connections.** A held selection belongs to the connection
-  it came from, because an opaque node id means nothing to another source.
+- **The source-owned action still takes ids from its own connection.** D161
+  lets the application copy files between two connections while keeping each
+  node id paired with the connection that issued it.
 - **A large copy has no internal progress or cancel.** D95 shows its request as
   an indeterminate process; the request still has no filesystem checkpoints.
 - **There is no undo.** A move is a move.

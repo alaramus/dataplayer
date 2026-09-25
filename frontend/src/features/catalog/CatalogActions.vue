@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { appIcons } from "@/shared/ui/icons"
+import { useQuery } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 
+import { ConnectorsService } from "@/client"
 import type { ConnectorDraft } from "@/client"
+import { appIcons } from "@/shared/ui/icons"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import {
   clientCommandOf,
@@ -10,19 +12,28 @@ import {
   needsClipboard,
   toMenu,
 } from "@/features/catalog/actions"
-import { clipboardWording, heldFor, holdNodes } from "@/features/catalog/clipboard"
+import {
+  clipboard,
+  clipboardWording,
+  heldFor,
+  holdNodes,
+} from "@/features/catalog/clipboard"
 import type {
   ActionOutcome,
   ClientCommand,
   Grouping,
   MenuCommand,
 } from "@/features/catalog/actions"
-import { useDownloadAction, useNodeActions, usePrepareConnectorAction } from "@/features/catalog/api"
+import {
+  useDownloadAction,
+  useNodeActions,
+  usePrepareConnectorAction,
+} from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
-import { AppIconButton, AppMenu, useToast } from "@/shared/ui"
+import { AppIconButton, AppMenu, useConfirm, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 /**
@@ -73,6 +84,7 @@ const emit = defineEmits<{
   connector: [draft: ConnectorDraft]
 }>()
 const toast = useToast()
+const confirm = useConfirm()
 const downloadAction = useDownloadAction()
 const prepareConnector = usePrepareConnectorAction()
 
@@ -133,6 +145,31 @@ const commands = computed(() =>
  * and the source's own command is what puts it somewhere (D74).
  */
 const held = computed(() => heldFor(props.connectorId))
+const crossHeld = computed(() =>
+  clipboard.value?.connectorId !== props.connectorId ? clipboard.value : null
+)
+const crossPlace = computed(() =>
+  props.places.length === 1 ? props.places[0] ?? null : null
+)
+const crossOffer = useQuery({
+  queryKey: computed(() => [
+    "file-copy-offer", props.connectorId, crossPlace.value, crossHeld.value,
+  ]),
+  enabled: computed(() => crossHeld.value?.mode === "copy" && props.places.length === 1),
+  retry: false,
+  queryFn: async () => {
+    const source = crossHeld.value
+    if (source === null) throw new Error("Copy a file first")
+    return (await ConnectorsService.fileCopyOffer({
+      path: { connector_id: props.connectorId },
+      body: {
+        source_connector_id: source.connectorId,
+        source_node_ids: source.nodeIds,
+        destination_node_id: crossPlace.value,
+      },
+    })).data
+  },
+})
 const canHold = computed(() =>
   commands.value.some((command) => needsClipboard(command))
 )
@@ -170,7 +207,23 @@ const items = computed<MenuItem[]>(() => [
         }
       : {}),
   }),
-  ...commands.value.map((command) => {
+  ...(crossHeld.value === null ? [] : [{
+    name: "client:cross-paste",
+    label: `Paste — ${clipboardWording(crossHeld.value)}`,
+    disable: crossHeld.value.mode !== "copy" || !crossOffer.data.value?.available,
+    hint: crossHeld.value.mode !== "copy"
+      ? "Moving between connections is not available yet"
+      : props.places.length !== 1
+        ? "Choose one destination folder"
+        : crossOffer.isPending.value
+          ? "Checking whether these files can be copied"
+          : crossOffer.data.value?.reason ?? (crossOffer.isError.value ? "Could not check this destination" : undefined),
+  }]),
+  ...(crossOffer.data.value?.name_conflict && crossHeld.value !== null ? [
+    { name: "client:cross-paste-rename", label: "Paste and keep both" },
+    { name: "client:cross-paste-replace", label: "Paste and replace", danger: true },
+  ] : []),
+  ...commands.value.filter((command) => crossHeld.value === null || !needsClipboard(command)).map((command) => {
     // An empty clipboard is the client's own reason and outranks the source's,
     // because it is the one the reader can act on immediately.
     const empty = needsClipboard(command) && held.value === null
@@ -270,6 +323,50 @@ function closeForm(key: string) {
 
 async function pick(name: string) {
   if (prepareConnector.isPending.value) return
+  if (name.startsWith("client:cross-paste")) {
+    const source = crossHeld.value
+    const conflict = name === "client:cross-paste-rename" ? "rename"
+      : name === "client:cross-paste-replace" ? "replace" : "refuse"
+    if (source === null || source.mode !== "copy") return
+    if (conflict === "refuse" && !crossOffer.data.value?.available) return
+    if (conflict !== "refuse" && !crossOffer.data.value?.name_conflict) return
+    if (conflict === "replace" && !(await confirm({
+      title: "Replace existing files?",
+      message: "Files with the same names at the destination will be replaced.",
+      confirmLabel: "Replace files",
+      danger: true,
+    }))) return
+    try {
+      const result = (await ConnectorsService.fileCopy({
+        path: { connector_id: props.connectorId },
+        body: {
+          source_connector_id: source.connectorId,
+          source_node_ids: source.nodeIds,
+          destination_node_id: crossPlace.value,
+          conflict,
+        },
+      })).data
+      emit("done", {
+        done: [{
+          message: `${String(result.copied)} files copied`,
+          reload_node_ids: result.reload_node_ids,
+        }],
+        failures: [],
+        total: 1,
+      })
+      toast.success(`${String(result.copied)} files copied`)
+    } catch (cause) {
+      // A batch may have published earlier files before a later one failed.
+      // The ordinary catalog action callback re-reads the visible level.
+      emit("done", {
+        done: [{ message: "File copy ended", reload_node_ids: [crossPlace.value] }],
+        failures: [],
+        total: 1,
+      })
+      toast.error(messageOf(cause, "The files could not be copied"))
+    }
+    return
+  }
   const client = clientCommandOf(name)
   if (client !== null) {
     run(client)

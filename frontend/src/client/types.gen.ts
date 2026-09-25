@@ -4087,6 +4087,60 @@ export type FetchResult = {
 }
 
 /**
+ * FileCopyOffer
+ */
+export type FileCopyOffer = {
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+  /**
+   * Name Conflict
+   */
+  name_conflict?: boolean
+}
+
+/**
+ * FileCopyRequest
+ */
+export type FileCopyRequest = {
+  /**
+   * Source Connector Id
+   */
+  source_connector_id: string
+  /**
+   * Source Node Ids
+   */
+  source_node_ids: Array<string>
+  /**
+   * Destination Node Id
+   */
+  destination_node_id?: string | null
+  /**
+   * Conflict
+   */
+  conflict?: "refuse" | "replace" | "rename"
+}
+
+/**
+ * FileCopyResult
+ */
+export type FileCopyResult = {
+  /**
+   * Copied
+   */
+  copied: number
+  /**
+   * Reload Node Ids
+   */
+  reload_node_ids: Array<string | null>
+}
+
+/**
  * FileNode
  */
 export type FileNode = {
@@ -11499,6 +11553,69 @@ export type utilsServerInfoResponses = {
 }
 
 export type utilsServerInfoResponse = utilsServerInfoResponses[keyof utilsServerInfoResponses]
+
+export type connectorsFileCopyOfferData = {
+  body: FileCopyRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/file-copy/offer"
+}
+
+export type connectorsFileCopyOfferErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsFileCopyOfferError =
+  connectorsFileCopyOfferErrors[keyof connectorsFileCopyOfferErrors]
+
+export type connectorsFileCopyOfferResponses = {
+  /**
+   * Successful Response
+   */
+  200: FileCopyOffer
+}
+
+export type connectorsFileCopyOfferResponse =
+  connectorsFileCopyOfferResponses[keyof connectorsFileCopyOfferResponses]
+
+export type connectorsFileCopyData = {
+  body: FileCopyRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/file-copy"
+}
+
+export type connectorsFileCopyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsFileCopyError = connectorsFileCopyErrors[keyof connectorsFileCopyErrors]
+
+export type connectorsFileCopyResponses = {
+  /**
+   * Successful Response
+   */
+  200: FileCopyResult
+}
+
+export type connectorsFileCopyResponse =
+  connectorsFileCopyResponses[keyof connectorsFileCopyResponses]
 
 export type connectorsDownloadFinishedExportData = {
   body?: never

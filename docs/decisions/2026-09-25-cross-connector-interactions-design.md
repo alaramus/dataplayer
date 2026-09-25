@@ -1,8 +1,9 @@
 # Interactions between connections
 
-Date: 2026-09-25. Status: proposed for implementation. This specification
-describes intended behavior; the current single-connection paste remains as
-documented in D74 until the new path is implemented.
+Date: 2026-09-25. D161 covers the first bounded file-copy slice. This
+specification also describes proposed later work: owned transfer jobs, a paired
+catalog view, and further interactions. The current single-connection paste
+remains as documented in D74.
 
 ## The problem
 
