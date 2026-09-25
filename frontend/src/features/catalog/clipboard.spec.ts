@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from "vitest"
 
 import {
   clipboard,
-  clipboardWording,
   forgetClipboard,
   heldFor,
   holdNodes,
@@ -64,16 +63,5 @@ describe("what the catalog is holding", () => {
     forgetClipboard()
 
     expect(clipboard.value).toBeNull()
-  })
-})
-
-describe("what is said about what is held", () => {
-  it("counts, rather than listing five names in a menu", () => {
-    expect(
-      clipboardWording({ connectorId: "c1", nodeIds: ["a"], mode: "copy" })
-    ).toBe("1 item to copy")
-    expect(
-      clipboardWording({ connectorId: "c1", nodeIds: ["a", "b"], mode: "move" })
-    ).toBe("2 items to move")
   })
 })

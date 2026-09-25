@@ -50,14 +50,3 @@ export function heldFor(connectorId: string | null): Clipboard | null {
   return current.connectorId === connectorId ? current : null
 }
 
-/**
- * What is held, said in one phrase.
- *
- * The count rather than the names: the names are on screen in the catalog the
- * selection came from, and a bar is not the place to list five of them.
- */
-export function clipboardWording(current: Clipboard): string {
-  const what =
-    current.nodeIds.length === 1 ? "1 item" : `${String(current.nodeIds.length)} items`
-  return current.mode === "copy" ? `${what} to copy` : `${what} to move`
-}

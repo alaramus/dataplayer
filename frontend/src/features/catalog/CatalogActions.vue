@@ -14,7 +14,6 @@ import {
 } from "@/features/catalog/actions"
 import {
   clipboard,
-  clipboardWording,
   heldFor,
   holdNodes,
 } from "@/features/catalog/clipboard"
@@ -210,7 +209,7 @@ const items = computed<MenuItem[]>(() => [
   }),
   ...(crossHeld.value === null ? [] : [{
     name: "client:cross-paste",
-    label: `Paste — ${clipboardWording(crossHeld.value)}`,
+    label: "Paste",
     disable: crossHeld.value.mode !== "copy" ||
       (!crossOffer.data.value?.available && !crossOffer.data.value?.name_conflict),
     hint: crossHeld.value.mode !== "copy"
@@ -227,9 +226,7 @@ const items = computed<MenuItem[]>(() => [
     const empty = needsClipboard(command) && held.value === null
     return {
       name: command.name,
-      label: needsClipboard(command) && held.value !== null
-        ? `${command.label} — ${clipboardWording(held.value)}`
-        : command.label,
+      label: command.label,
       danger: command.destructive,
       disable: !command.enabled || empty,
       hint: empty

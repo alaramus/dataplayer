@@ -69,10 +69,27 @@ const load: ActionInfo = {
   takes_file: true, available_node_ids: ["schema", "other"],
   params_schema: { type: "object", "x-ui-workflow": "file-to-relation" },
 }
+const paste: ActionInfo = {
+  ...rename,
+  name: "paste",
+  title: "Paste",
+  acts_on: "children",
+  params_schema: {
+    type: "object",
+    properties: {
+      sources: {
+        type: "array",
+        items: { type: "string" },
+        "x-ui-purpose": "clipboard-nodes",
+        "x-ui-hidden": true,
+      },
+    },
+  },
+}
 
 function menu() {
   replies.set("null", [rename, load])
-  replies.set('["schema"]', [rename])
+  replies.set('["schema"]', [rename, paste])
   replies.set('["schema.table"]', [{ ...rename, applicable: false }])
   replies.set('["schema","other"]', [load])
   return mount(CatalogActions, {
@@ -108,6 +125,7 @@ describe("catalog action subjects", () => {
     const item = () => (appMenu.props("items") as MenuItem[]).find((one) => one.name === "client:cross-paste")
     expect(item()?.disable).toBe(true)
     expect(item()?.hint).toBe("Unavailable")
+    expect(item()?.label).toBe("Paste")
     wrapper.unmount()
     offer.available = true
     const enabled = menu()
@@ -115,6 +133,14 @@ describe("catalog action subjects", () => {
       .find((one) => one.name === "client:cross-paste")
     expect(enabledItem?.disable).toBe(false)
     enabled.unmount()
+  })
+
+  it("keeps the ordinary Paste label after copying in the same connection", () => {
+    holdNodes("connection", ["report.csv"], "copy")
+    const wrapper = menu()
+    const items = wrapper.findComponent({ name: "AppMenu" }).props("items") as MenuItem[]
+    expect(items.find((one) => one.name === "paste")?.label).toBe("Paste")
+    wrapper.unmount()
   })
 
   it("keeps one Paste in the menu and opens conflict choices after selection", async () => {
