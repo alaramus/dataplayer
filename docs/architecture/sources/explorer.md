@@ -59,7 +59,9 @@ says what the bytes mean.
   connection is the exception: `incoming` writes it where it is going, piece
   by piece — beside its target on the disk, under a temporary name on an SSH
   server — because gigabytes staged here first would fill this machine's disk
-  (D168).
+  (D168). A move between connections removes the folders it emptied through
+  `remove_empty`, which refuses a folder holding anything rather than taking
+  what somebody added meanwhile (D169).
 - **A format whose library takes a path reads a local file.** DuckDB,
   openpyxl, pyarrow and `zipfile` do. The storage lends one: on the local disk
   the file itself, for a remote storage a copy that carries the file's own

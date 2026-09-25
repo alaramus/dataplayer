@@ -37,12 +37,15 @@ KIND: JobKind = "paste.transfer"
 WAITING = "waiting for a free transfer slot"
 CHECKING = "checking both connections"
 TRANSFERRING = "transferring"
+# A move, once everything is copied (D169).
+REMOVING = "removing the sources"
 
 # Transfers carried out at once across the server. Each has worker threads of
 # its own: a copy of gigabytes holding a thread of the shared pool for twenty
 # minutes would take it from every other blocking call (D168).
 SLOTS = 8
-# How often bytes on the move reach the row; an item's outcome goes at once.
+# How often the payload reaches the row while it runs; a Stop and the end go
+# at once. Ten thousand files written one by one would be gigabytes (D169).
 PROGRESS_SECONDS = 1.0
 
 NOTHING = "nothing was transferred"
@@ -50,7 +53,7 @@ NOTHING = "nothing was transferred"
 
 class RunTransfer:
     kind: ClassVar[JobKind] = KIND
-    steps: ClassVar[tuple[str, ...]] = (WAITING, CHECKING, TRANSFERRING)
+    steps: ClassVar[tuple[str, ...]] = (WAITING, CHECKING, TRANSFERRING, REMOVING)
 
     def __init__(self, cache: DataCache, resources: ResourceStore | None = None) -> None:
         self._cache = cache
@@ -84,7 +87,7 @@ class RunTransfer:
             except TransferStopped as stop:
                 stopped = stop.message
             await report.touch()
-            await report.changed()
+            await report.written()
         message = kind.told(transfer, stopped)
         if stopped is not None or any(item.outcome != "done" for item in transfer.items):
             raise JobFailed(message)
@@ -180,11 +183,20 @@ class _Report:
         self._touched = touched
         self._published = transfer.published
         self._last = 0.0
+        self._step = TRANSFERRING
 
     async def in_thread[T](self, work: Callable[[], T]) -> T:
         return await in_worker(work, limiter=self._threads)
 
-    async def changed(self) -> None:
+    async def progressed(self) -> None:
+        if time.monotonic() - self._last >= PROGRESS_SECONDS:
+            await self.written()
+
+    async def removing(self) -> None:
+        self._step = REMOVING
+        await self.written()
+
+    async def written(self) -> None:
         # A file that arrived is dropped from the read cache before anyone is
         # told, or the catalog that re-reads would be answered from before it.
         if self._transfer.published != self._published:
@@ -192,12 +204,8 @@ class _Report:
             await self.touch()
         self._job.parameters = self._transfer.model_dump(mode="json")
         # The same step again: the row is written and a listening owner told.
-        await self._progress.reached(TRANSFERRING)
+        await self._progress.reached(self._step)
         self._last = time.monotonic()
-
-    async def progressed(self) -> None:
-        if time.monotonic() - self._last >= PROGRESS_SECONDS:
-            await self.changed()
 
     async def touch(self) -> None:
         for connector_id in self._touched:

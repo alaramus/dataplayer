@@ -14,24 +14,30 @@ import {
 const MB = 1024 * 1024
 
 function item(name: string, outcome: string, extra: Record<string, unknown> = {}) {
-  return { name, node_id: name, size_bytes: 1, outcome, message: null, published_as: null, rows: null, ...extra }
+  return {
+    name, node_id: name, is_folder: false, size_bytes: 1, files: 1,
+    arrived: outcome === "done" ? 1 : 0, failed: outcome === "failed" ? 1 : 0,
+    skipped: 0, removed: 0, outcome, message: null, published_as: null, rows: null,
+    ...extra,
+  }
 }
 
 function job(changes: Partial<JobPublic> = {}, parameters: Record<string, unknown> = {}): JobPublic {
   return {
     id: "job-1", kind: "paste.transfer", subject_id: "ssh",
     parameters: {
-      version: 1, kind: "file_copy", title: "Copy files", doing: "Copying", done: "copied",
+      version: 2, kind: "file_copy", title: "Copy files", doing: "Copying", done: "copied",
       mode: "copy", conflict: "refuse",
       source_connector_id: "files", source_label: "Files",
       destination_connector_id: "ssh", destination_node_id: null, destination_label: "SSH server",
       place_label: "SSH server", name: null,
       items: [item("q1.csv", "done"), item("q2.csv", "done"), item("q3.csv", "running"),
         item("q4.csv", "pending"), item("q5.csv", "pending")],
-      bytes_total: 120 * MB, bytes_done: 45 * MB, published: 2,
+      bytes_total: 120 * MB, bytes_done: 45 * MB, files_done: 2, current: "q3.csv",
+      published: 2, problems: [], problems_more: 0,
       ...parameters,
     },
-    state: "running", step: "transferring", step_index: 3, step_count: 3,
+    state: "running", step: "transferring", step_index: 3, step_count: 4,
     message: null, created_at: "2026-09-25T10:00:00Z", started_at: null, finished_at: null,
     ...changes,
   }
@@ -46,6 +52,7 @@ describe("a transfer as its job records it", () => {
     expect(transferOf(job())?.items).toHaveLength(5)
     expect(transferOf(job({}, { items: [item("q1.csv", "vanished")] }))).toBeNull()
     expect(transferOf(job({}, { doing: undefined }))).toBeNull()
+    expect(transferOf(job({}, { problems: [{ path: "a" }] }))).toBeNull()
     expect(transferOf(job({ kind: "service.create" }))).toBeNull()
   })
 
@@ -54,16 +61,23 @@ describe("a transfer as its job records it", () => {
     expect(transfer && transferBrief(transfer)).toBe("Copying to SSH server · 45.0 MB of 120.0 MB")
     const table = transferOf(job({}, {
       doing: "Saving as CSV", bytes_total: null, bytes_done: 12 * MB,
-      items: [item("orders", "running", { rows: 1200 })],
+      items: [item("orders", "running", { rows: 1200 })], current: "orders",
     }))
     expect(table && transferBrief(table)).toBe("Saving as CSV to SSH server · 12.0 MB written")
   })
 
-  it("shows the file in hand while it runs, and each outcome after", () => {
+  it("shows the file in hand by its path and how far, then each outcome", () => {
     const running = job()
     expect(transferLines(running, transferOf(running)!)).toEqual(["q3.csv — 3 of 5"])
+    const deep = job({}, {
+      items: [item("reports", "running", { is_folder: true, files: 4211 })],
+      current: "reports/2025/q3.csv", files_done: 311,
+    })
+    expect(transferLines(deep, transferOf(deep)!)).toEqual(["reports/2025/q3.csv — 312 of 4,211"])
     const waiting = job({ step: "waiting for a free transfer slot" })
     expect(transferLines(waiting, transferOf(waiting)!)).toEqual(["Waiting for a free transfer slot"])
+    const removing = job({ step: "removing the sources" })
+    expect(transferLines(removing, transferOf(removing)!)).toEqual(["Removing the sources"])
 
     const ended = job({ state: "failed", message: "Copied 2 of 5 files to SSH server; 1 failed, 2 not attempted" }, {
       items: [
@@ -84,12 +98,37 @@ describe("a transfer as its job records it", () => {
     ])
   })
 
-  it("lists the first ten items and counts the rest", () => {
+  it("counts a ticked folder, then lists the files that did not arrive", () => {
+    const ended = job({ state: "failed", message: "Copied 4,208 of 4,211 files to SSH server; 3 failed" }, {
+      items: [item("reports", "failed", {
+        is_folder: true, files: 4211, arrived: 4208, failed: 3, skipped: 1, published_as: "reports (1)",
+      })],
+      problems: [
+        { path: "reports/a.csv", message: "reports/a.csv could not be copied" },
+        { path: "reports/link", message: "reports/link is a link and was skipped" },
+      ],
+    })
+    expect(transferLines(ended, transferOf(ended)!)).toEqual([
+      "Copied 4,208 of 4,211 files to SSH server; 3 failed",
+      "reports as reports (1) — 4,208 copied, 3 failed, 1 skipped",
+      "reports/a.csv could not be copied",
+      "reports/link is a link and was skipped",
+    ])
+    const moved = job({ state: "failed", message: null }, {
+      mode: "move", done: "moved",
+      items: [item("tree", "kept", { is_folder: true, files: 3, arrived: 3, removed: 2 })],
+    })
+    expect(transferLines(moved, transferOf(moved)!)).toEqual(["tree — 2 moved, 1 kept at the source"])
+  })
+
+  it("lists the first ten of each and counts the rest", () => {
     const many = Array.from({ length: 12 }, (_, index) => item(`f${String(index)}.txt`, "done"))
-    const ended = job({ state: "succeeded", message: "Copied 12 files to SSH server" }, { items: many })
+    const problems = Array.from({ length: 11 }, (_, index) => ({ path: `p${String(index)}`, message: `p${String(index)} failed` }))
+    const ended = job({ state: "failed", message: "Copied" }, { items: many, problems, problems_more: 89 })
     const lines = transferLines(ended, transferOf(ended)!)
-    expect(lines).toHaveLength(12)
-    expect(lines.at(-1)).toBe("and 2 more")
+    expect(lines).toHaveLength(1 + 11 + 11)
+    expect(lines[11]).toBe("and 2 more")
+    expect(lines.at(-1)).toBe("and 90 more")
   })
 
   it("is a Processes row with both connections, a bar only when a total is known, and Stop", () => {
@@ -102,7 +141,7 @@ describe("a transfer as its job records it", () => {
     })
     expect(serverRow(job({}, { bytes_total: null }), undefined).progress).toBeNull()
     expect(serverRow(job({}, { mode: "move" }), undefined).controlsHint)
-      .toBe("Stops at once; files already moved stay moved.")
+      .toBe("Stops at once; the sources stay until everything has arrived.")
   })
 })
 

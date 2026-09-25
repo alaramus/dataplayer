@@ -6,7 +6,47 @@ connection. Reading a relation and editing the rows in it are in
 [relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168.
+Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168, D169.
+
+## D169. A folder is carried whole between connections
+
+`file_copy` and `file_move` take any mix of ticked files and folders. A
+folder goes whole: every file and every folder below it, empty ones included,
+under the same relative path.
+
+- **Before anything starts** the request walks the folders, stopping as soon
+  as a ceiling is crossed: 10,000 files and folders — D74's ceiling within one
+  connection — and D168's 10 GB. The job walks again when it begins and carries
+  the tree as it is then.
+- **Links.** One inside a folder is skipped and listed; one ticked itself is
+  refused, "Copy files and folders, not links", since resolved it would carry
+  the tree it points at.
+- **A taken folder name** offers Keep both, `name (1)`, and never Replace: the
+  old folder would go before the new one had arrived. An offer says so by
+  `can_replace`, narrowed for the selection.
+- **Not into itself.** Where both ends are on this machine (`OnThisDisk`),
+  a folder pasted into its own subtree is refused by comparing real paths.
+- **A move removes its sources only at the end**, files included: each file
+  that arrived and is still the version read, then each folder left empty,
+  deepest first, through `Storage.remove_empty`, which refuses a folder that
+  holds anything. A Stop or a failure before that leaves the source whole.
+- **The payload holds what was ticked**, with files and bytes planned and the
+  files arrived, failed, skipped and removed, the path in hand and the first
+  hundred files that did not arrive. The row is written at most once a second,
+  and at once at a Stop or the end.
+- **Processes** shows "reports/2025/q3.csv — 312 of 4,211", then one line per
+  ticked item — "reports — 4,208 copied, 3 failed, 1 skipped" — and the files
+  that did not arrive, the first ten of each and how many more. A move shows a
+  "removing the sources" step.
+
+Known deviations:
+
+- **Two SSH connections to one server are not compared.** A folder pasted into
+  its own subtree through them is carried as walked at the start, so it cannot
+  recurse, but it is not refused either.
+- **A crash leaves a partial copy**, complete file by file.
+
+Spec: [Folders carried between connections](../../decisions/2026-09-25-folder-transfers-design.md)
 
 ## D168. A transfer between connections is an owned job
 
@@ -28,8 +68,8 @@ answers `done` with the result or `started` with the job.
 - **The payload is the record.** `Transfer` holds both connections, the place,
   the conflict rule, each item with its size and outcome, the bytes moved and
   of how many, and the kind's own words (`doing`, `done`) so the screen names
-  no kind. The row is written at every item and at most once a second for
-  bytes, and every write is announced.
+  no kind. The row is written at most once a second, and at once at a Stop
+  or the end (D169); every write is announced.
 - **Both ends are checked again** when the job starts, as its owner sees them
   then: a connection gone, switched off or no longer granted enough fails it
   before a byte moves.
@@ -170,10 +210,10 @@ Spec: [Paste offers, and a table pasted into a folder as CSV](../../decisions/20
 ## D163. A file can be moved between explorer connections
 
 Cross-connection Cut uses the same clipboard and Paste as Copy, but the
-application asks for `write` on both connections. It publishes the complete
-file at the destination, confirms the source still has the version read, then
-removes that source file. A failed deletion leaves both copies and reports that
-state. The server invalidates both connections' read caches; the client
+application asks for `write` on both connections. It publishes every complete
+file at the destination first; only then does it remove each source file that
+is still the version read (D169). A failed deletion leaves both copies and
+reports that state. The server invalidates both connections' read caches; the client
 refreshes both open catalogs. The clipboard is cleared when the move starts
 (D168).
 
@@ -184,9 +224,9 @@ destination. The existing same-connection Cut remains source-owned.
 
 Known deviations:
 
-- **A batch is not atomic.** Earlier files may have moved when a later one
-  fails. A file whose destination was published but whose source could not be
-  removed remains in both places; its outcome says so.
+- **A batch is not atomic.** A file that fails stays at the source while the
+  rest move. A file whose destination was published but whose source could
+  not be removed remains in both places; its outcome says so.
 - **No directory moves.**
 
 Spec: [Moving a file between connections](../../decisions/2026-09-25-cross-connector-cut-design.md)
@@ -201,8 +241,8 @@ D164's `file_copy` kind: the pair answer says whether the selected files can
 be copied to the current folder, and execution checks again. The
 same-connection Paste of D74 continues through the source's own action.
 
-- Copy leaves the source in place. Folders and links are outside this first
-  path. A paste holds at most 1000 files and 10 GB (D168). Bytes are read in
+- Copy leaves the source in place. A folder is carried whole (D169); a
+  ticked link is refused. A paste holds at most 1000 files and 10 GB (D168). Bytes are read in
   1 MB pieces and written where they are going; the destination publishes
   only after the whole file has arrived.
 - Existing names are refused by default. The catalog has one Paste command;

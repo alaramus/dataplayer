@@ -49,7 +49,7 @@ class Scripted(FileCopy):
     ) -> None:
         for item, outcome in zip(transfer.items, self.script, strict=True):
             item.outcome = "running"
-            await report.changed()
+            await report.progressed()
             if outcome is None:
                 self.waiting.set()
                 try:
@@ -60,8 +60,11 @@ class Scripted(FileCopy):
             else:
                 item.outcome = outcome
                 if outcome == "done":
+                    item.arrived = 1
                     transfer.published += 1
-            await report.changed()
+                else:
+                    item.failed = 1
+            await report.progressed()
 
 
 @pytest.fixture
@@ -191,7 +194,7 @@ async def test_stopping_keeps_what_arrived_and_says_how_far_it_got(
 
     settled = await read(job.id)
     assert settled.state == "cancelled"
-    assert settled.message == "Copied 1 of 3 files to incoming; 1 stopped, 1 not attempted"
+    assert settled.message == "Copied 1 of 3 files to incoming; stopped, 2 not attempted"
     assert outcomes(settled) == ["done", "stopped", "pending"]
 
 

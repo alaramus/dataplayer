@@ -587,8 +587,8 @@ async def test_two_folders_offer_copy_and_move(
         ("file_move", "move", True),
     ]
     assert _answer(await _pair(client, normal_user_token_headers, right, left)) == [
-        ("file_copy", False, "Tick files to copy"),
-        ("file_move", False, "Tick files to move"),
+        ("file_copy", False, "Tick files or folders to copy"),
+        ("file_move", False, "Tick files or folders to move"),
     ]
 
 

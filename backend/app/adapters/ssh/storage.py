@@ -356,6 +356,17 @@ class SftpStorage(PathPlaces):
         self._ask(work)
         self._forget(place)
 
+    def remove_empty(self, place: Place) -> None:
+        async def work(remote: Remote) -> None:
+            try:
+                await remote.sftp.rmdir(remote.path_of(place.key))
+            except asyncssh.SFTPError:
+                # A folder that is not empty is an answer, not a server gone.
+                raise _Carried(OSError(place.key)) from None
+
+        self._ask(work)
+        self._forget(place)
+
     def _forget(self, place: Place) -> None:
         """The copies of a node just written, and of everything below it."""
         copies().forget(

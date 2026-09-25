@@ -292,6 +292,14 @@ class Storage(Protocol):
         """A file, or a folder with everything in it."""
         ...
 
+    def remove_empty(self, place: Place) -> None:
+        """A folder, only while nothing is in it; OSError otherwise.
+
+        The storage refuses rather than the caller checking first, so a file
+        added in between is never removed with the folder (D169).
+        """
+        ...
+
 
 class Incoming(Protocol):
     """A file on its way into a storage, beside the place it will take."""

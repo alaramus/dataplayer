@@ -199,3 +199,63 @@ test("pastes a CSV into a database as a new table, then adds its rows to that ta
   await deleteConnector(page, files)
   await deleteConnector(page, database)
 })
+
+test("carries a folder whole to an SSH server and moves it back", async ({ page }) => {
+  const files = `e2e-folder-files-${Date.now()}`
+  const server = `e2e-folder-ssh-${Date.now()}`
+  const folder = `e2e-folder-${Date.now()}`
+  const file = `inside-${Date.now()}.txt`
+  await login(page)
+  await createFileConnector(page, files)
+  await createSshConnector(page, server)
+
+  await openConnector(page, files)
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("action-dialog").getByRole("textbox").first().fill(folder)
+  await page.getByTestId("action-submit").click()
+  await openNode(page, folder)
+  await catalogAction(page, "upload")
+  await page.getByTestId("action-file").setInputFiles({
+    name: file,
+    mimeType: "text/plain",
+    buffer: Buffer.from("inside a folder\n"),
+  })
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, file)).toBeVisible()
+  await page.getByTestId("catalog-up").click()
+
+  // A ticked folder is copied whole, with what is inside it (D169).
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "client:copy")
+  await openConnector(page, server)
+  await catalogAction(page, "client:cross-paste")
+  await expect(catalogRow(page, folder)).toBeVisible()
+  await openNode(page, folder)
+  await expect(catalogRow(page, file)).toBeVisible()
+  await page.getByTestId("catalog-up").click()
+
+  // Cut it on the server and paste it into reports at home: the server's copy
+  // goes once everything has arrived.
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "client:cut")
+  await openConnector(page, files)
+  await openNode(page, "reports")
+  await catalogAction(page, "client:cross-paste")
+  await expect(catalogRow(page, folder)).toBeVisible()
+  await openConnector(page, server)
+  await expect(page.getByTestId("catalog-list")).not.toContainText(folder)
+
+  await openConnector(page, files)
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toHaveCount(0)
+  await page.getByTestId("catalog-up").click()
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toHaveCount(0)
+
+  await deleteConnector(page, server)
+  await deleteConnector(page, files)
+})

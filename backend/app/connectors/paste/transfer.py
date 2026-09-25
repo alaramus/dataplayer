@@ -3,6 +3,10 @@
 The kinds that move bytes plan here, in the request, and transfer later, in a
 job that owns the `Transfer` below as its payload. The job itself lives above
 this package; a kind only reports to a `TransferReport` it is handed.
+
+The payload holds what was ticked, with counts, rather than every file: a
+folder of ten thousand files rewritten into the row at every file would be
+gigabytes of writes (D169).
 """
 
 import asyncio
@@ -22,6 +26,8 @@ from app.connectors.paste.models import (
 
 # What a transfer reads and writes at a time, and so how late a Stop can be.
 PIECE_BYTES = 1024 * 1024
+# Files that did not arrive, listed by path; the rest are counted.
+MAX_PROBLEMS = 100
 
 # `stopped` is the one in hand when the job was stopped: discarded, so nothing
 # is left under its name. `kept` is a move whose copy arrived while its source
@@ -30,11 +36,23 @@ TransferOutcome = Literal["pending", "running", "done", "kept", "failed", "stopp
 
 
 class TransferItem(BaseModel):
+    """One ticked file, folder or table, and what became of what it holds."""
+
     model_config = ConfigDict(extra="forbid")
 
     node_id: str = Field(max_length=4096)
     name: str = Field(max_length=255)
+    is_folder: bool = False
+    # What the request measured: bytes, and files below a folder (one for a
+    # file or a table).
     size_bytes: int | None = None
+    files: int = 1
+    # What the job did with them.
+    arrived: int = 0
+    failed: int = 0
+    skipped: int = 0
+    # Of those that arrived, the sources a move removed.
+    removed: int = 0
     outcome: TransferOutcome = "pending"
     # The name it has at the destination, when that is decided there: Keep
     # both renamed it, or it is the file a table became.
@@ -42,6 +60,15 @@ class TransferItem(BaseModel):
     # A sentence that names the item, so a list of them reads on its own.
     message: str | None = Field(default=None, max_length=600)
     rows: int | None = None
+
+
+class TransferProblem(BaseModel):
+    """A file below a ticked folder that did not arrive, or was not removed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    path: str = Field(max_length=4096)
+    message: str = Field(max_length=600)
 
 
 class TransferPlan(BaseModel):
@@ -60,7 +87,7 @@ class Transfer(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    version: Literal[1] = 1
+    version: Literal[2] = 2
     kind: PasteKindName
     title: str = Field(max_length=100)
     # The kind's own words while it runs and for an item that arrived, so
@@ -82,8 +109,24 @@ class Transfer(BaseModel):
     # Unknown for a table, whose CSV is as long as it turns out to be.
     bytes_total: int | None = None
     bytes_done: int = 0
-    # Files put in place so far, for a client that re-reads as they arrive.
+    files_done: int = 0
+    # The file in hand, by its path below what was ticked.
+    current: str | None = Field(default=None, max_length=4096)
+    # Files and folders put in place so far, for a client that re-reads as
+    # they arrive.
     published: int = 0
+    problems: list[TransferProblem] = Field(default_factory=list, max_length=MAX_PROBLEMS)
+    problems_more: int = 0
+
+    @property
+    def files_total(self) -> int:
+        return sum(item.files for item in self.items)
+
+    def problem(self, path: str, message: str) -> None:
+        if len(self.problems) < MAX_PROBLEMS:
+            self.problems.append(TransferProblem(path=path, message=message))
+        else:
+            self.problems_more += 1
 
 
 class TransferStopped(Exception):
@@ -101,12 +144,12 @@ class TransferReport(Protocol):
         """Blocking work, on the transfers' own threads (D168)."""
         ...
 
-    async def changed(self) -> None:
-        """An item's outcome changed: written and told now."""
+    async def progressed(self) -> None:
+        """Something moved: written and told at most once a second (D169)."""
         ...
 
-    async def progressed(self) -> None:
-        """Bytes moved: written and told at most once a second."""
+    async def removing(self) -> None:
+        """Everything is copied, and a move's sources go now."""
         ...
 
 

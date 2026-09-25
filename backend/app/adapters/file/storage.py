@@ -254,6 +254,9 @@ class LocalStorage(PathPlaces):
             return
         shutil.rmtree(path)
 
+    def remove_empty(self, place: Place) -> None:
+        self.path_of(place).rmdir()
+
     # --- a folder as a connection of its own ---------------------------------
 
     def connection_for(self, place: Place) -> ConnectorDraft:

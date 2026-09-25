@@ -134,8 +134,13 @@ def offered(
     suggested_name: str | None = None,
     source_columns: list[FetchColumn] | None = None,
     target_columns: list[FetchColumn] | None = None,
+    can_replace: bool | None = None,
 ) -> PasteOffer:
-    """An offer of this kind, carrying what the kind always says about itself."""
+    """An offer of this kind, carrying what the kind always says about itself.
+
+    `can_replace` narrows the kind's own answer for this selection: a folder's
+    taken name is never replaced (D169).
+    """
     return PasteOffer(
         kind=kind.name,
         title=kind.title,
@@ -144,7 +149,7 @@ def offered(
         reason=reason,
         name_conflict=name_conflict,
         converts=kind.converts,
-        can_replace=kind.can_replace,
+        can_replace=kind.can_replace if can_replace is None else can_replace,
         changes_source=kind.changes_source,
         workflow=kind.workflow,
         suggested_name=suggested_name,

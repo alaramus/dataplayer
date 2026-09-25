@@ -15,27 +15,23 @@ class Recorder:
     def __init__(
         self,
         *,
-        on_change: Callable[[Transfer], Awaitable[None]] | None = None,
         on_progress: Callable[[Transfer], Awaitable[None]] | None = None,
     ) -> None:
         self.transfer: Transfer | None = None
-        self.changes = 0
         self.progress = 0
-        self._on_change = on_change
+        self.removing_seen = False
         self._on_progress = on_progress
 
     async def in_thread[T](self, work: Callable[[], T]) -> T:
         return await in_worker(work)
 
-    async def changed(self) -> None:
-        self.changes += 1
-        if self._on_change is not None and self.transfer is not None:
-            await self._on_change(self.transfer)
-
     async def progressed(self) -> None:
         self.progress += 1
         if self._on_progress is not None and self.transfer is not None:
             await self._on_progress(self.transfer)
+
+    async def removing(self) -> None:
+        self.removing_seen = True
 
 
 async def planned(

@@ -188,6 +188,25 @@ async def test_a_file_arrives_on_the_server_in_pieces_and_is_never_staged_here(
     assert names == ["arrived.bin"]
 
 
+async def test_a_folder_on_the_server_is_removed_only_while_it_is_empty(
+    adapter: SshAdapter,
+) -> None:
+    # A move removes folders it emptied; one still holding something is an
+    # answer, not a server that went away (D169).
+    await adapter.action("create_folder").perform(None, {"name": "full"})
+    await _upload(adapter, "kept.txt", b"kept", into="full")
+    storage = adapter.storage
+
+    def attempt() -> list[str]:
+        with pytest.raises(OSError):
+            storage.remove_empty(storage.place("full"))
+        storage.remove(storage.place("full/kept.txt"))
+        storage.remove_empty(storage.place("full"))
+        return [entry.name for entry in storage.entries(storage.place(None))]
+
+    assert "full" not in await to_thread.run_sync(attempt)
+
+
 async def test_a_folder_is_archived_and_extracted_on_the_server(adapter: SshAdapter) -> None:
     await adapter.action("create_folder").perform(None, {"name": "reports"})
     await _upload(adapter, "q3.csv", b"a\n1\n", into="reports")

@@ -83,8 +83,10 @@ meanwhile — stays with what it holds.
   the transfer keeps a bounded list of the files that did not arrive (the
   first hundred and a count of the rest) and the path in hand. Ten thousand
   per-file records rewritten at every file would be gigabytes of writes.
-- **The row is written at most once a second**, and at once when a ticked
-  item ends, a Stop or the end — rather than at every file, as D168 did. The
+- **The row is written at most once a second**, and at once at a Stop or the
+  end — rather than at every file, as D168 did. (The first draft also wrote at
+  once when a ticked item ended; a thousand ticked files made that a thousand
+  full writes, so an item's end waits for the next second like the rest.) The
   catalogs still re-read on what arrived, which the payload counts.
 - **The walk the job carries out is its own.** The request counts in order to
   refuse early; the job walks again when it starts, so a folder is carried as

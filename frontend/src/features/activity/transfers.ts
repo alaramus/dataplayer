@@ -6,8 +6,8 @@ import { isWorking } from "@/features/services/jobs"
 
 /**
  * A transfer between connections as its job records it
- * (app/connectors/paste/transfer.py, D168): what it carries, where, and what
- * became of each item.
+ * (app/connectors/paste/transfer.py, D168, D169): what was ticked, with the
+ * files it held and what became of them, and the files that did not arrive.
  *
  * Read out of the job's parameters, whose type the API leaves open. Every
  * field is checked, and a record that is not recognised is drawn as an
@@ -18,10 +18,16 @@ export type TransferOutcome = "pending" | "running" | "done" | "kept" | "failed"
 
 export interface TransferItemRecord {
   name: string
+  isFolder: boolean
   outcome: TransferOutcome
   message: string | null
   publishedAs: string | null
   rows: number | null
+  files: number
+  arrived: number
+  failed: number
+  skipped: number
+  removed: number
 }
 
 export interface TransferRecord {
@@ -37,6 +43,10 @@ export interface TransferRecord {
   bytesTotal: number | null
   bytesDone: number
   published: number
+  filesDone: number
+  current: string | null
+  problems: string[]
+  problemsMore: number
 }
 
 const OUTCOMES: ReadonlySet<string> = new Set<TransferOutcome>([
@@ -50,9 +60,10 @@ const WORDS: Record<Exclude<TransferOutcome, "done">, string> = {
   failed: "failed",
   stopped: "stopped",
 }
-/** The step a transfer shows while all the slots are taken (app/transfers/handler.py). */
+/** The steps a transfer shows besides its work (app/transfers/handler.py). */
 const WAITING = "waiting for a free transfer slot"
-/** Items listed under a finished transfer; the rest are counted. */
+const REMOVING = "removing the sources"
+/** Items, and files that did not arrive, listed under a finished transfer. */
 const LISTED = 10
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,18 +78,36 @@ function count(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null
 }
 
+/** Counts as a person reads them: "4,211". */
+function counted(value: number): string {
+  return value.toLocaleString("en-US")
+}
+
 function itemOf(value: unknown): TransferItemRecord | null {
   if (!isRecord(value)) return null
   const name = text(value.name)
   const outcome = value.outcome
+  const numbers = [value.files, value.arrived, value.failed, value.skipped, value.removed].map(count)
   if (name === null || typeof outcome !== "string" || !OUTCOMES.has(outcome)) return null
+  if (typeof value.is_folder !== "boolean" || numbers.some((number) => number === null)) return null
+  const [files, arrived, failed, skipped, removed] = numbers as number[]
   return {
     name,
+    isFolder: value.is_folder,
     outcome: outcome as TransferOutcome,
     message: text(value.message),
     publishedAs: text(value.published_as),
     rows: count(value.rows),
+    files: files ?? 0,
+    arrived: arrived ?? 0,
+    failed: failed ?? 0,
+    skipped: skipped ?? 0,
+    removed: removed ?? 0,
   }
+}
+
+function problemOf(value: unknown): string | null {
+  return isRecord(value) ? text(value.message) : null
 }
 
 export function transferOf(job: Pick<JobPublic, "kind" | "parameters">): TransferRecord | null {
@@ -90,20 +119,26 @@ export function transferOf(job: Pick<JobPublic, "kind" | "parameters">): Transfe
     destinationConnectorId: text(at.destination_connector_id),
     destinationLabel: text(at.destination_label),
   }
-  const bytesDone = count(at.bytes_done)
-  const published = count(at.published)
+  const numbers = {
+    bytesDone: count(at.bytes_done), published: count(at.published),
+    filesDone: count(at.files_done), problemsMore: count(at.problems_more),
+  }
   if (Object.values(fields).some((field) => field === null)) return null
+  if (Object.values(numbers).some((number) => number === null)) return null
   if (at.mode !== "copy" && at.mode !== "move") return null
-  if (bytesDone === null || published === null || !Array.isArray(at.items)) return null
+  if (!Array.isArray(at.items) || !Array.isArray(at.problems)) return null
   const items = at.items.map(itemOf)
+  const problems = at.problems.map(problemOf)
   if (items.length === 0 || items.some((item) => item === null)) return null
+  if (problems.some((problem) => problem === null)) return null
   return {
     ...(fields as { [key in keyof typeof fields]: string }),
+    ...(numbers as { [key in keyof typeof numbers]: number }),
     mode: at.mode,
     items: items as TransferItemRecord[],
     bytesTotal: count(at.bytes_total),
-    bytesDone,
-    published,
+    current: text(at.current),
+    problems: problems as string[],
   }
 }
 
@@ -111,7 +146,7 @@ export function transferOf(job: Pick<JobPublic, "kind" | "parameters">): Transfe
 export function transferMeasure(transfer: TransferRecord): string {
   return transfer.bytesTotal === null
     ? `${formatSize(transfer.bytesDone)} written`
-    : `${formatSize(transfer.bytesDone)} of ${formatSize(transfer.bytesTotal)}`
+    : `${formatSize(Math.min(transfer.bytesDone, transfer.bytesTotal))} of ${formatSize(transfer.bytesTotal)}`
 }
 
 /** What the footer says of it: "Copying to SSH server · 45 MB of 120 MB". */
@@ -119,7 +154,30 @@ export function transferBrief(transfer: TransferRecord): string {
   return `${transfer.doing} to ${transfer.destinationLabel} · ${transferMeasure(transfer)}`
 }
 
+function filesTotal(transfer: TransferRecord): number {
+  return transfer.items.reduce((total, item) => total + item.files, 0)
+}
+
+/** A ticked folder: how many of its files arrived, and what became of the rest. */
+function folderLine(transfer: TransferRecord, item: TransferItemRecord): string {
+  const moving = transfer.mode === "move"
+  const arrived = moving ? item.removed : item.arrived
+  const kept = moving ? item.arrived - item.removed : 0
+  const parts = [
+    `${counted(arrived)} ${transfer.done}`,
+    ...(kept > 0 ? [`${counted(kept)} kept at the source`] : []),
+    ...(item.failed > 0 ? [`${counted(item.failed)} failed`] : []),
+    ...(item.skipped > 0 ? [`${counted(item.skipped)} skipped`] : []),
+  ]
+  const renamed = item.publishedAs !== null && item.publishedAs !== item.name
+  return `${item.name}${renamed ? ` as ${item.publishedAs ?? ""}` : ""} — ${parts.join(", ")}`
+}
+
 function itemLine(transfer: TransferRecord, item: TransferItemRecord): string {
+  if (item.outcome === "pending" || item.outcome === "running") {
+    return `${item.name} — ${WORDS[item.outcome]}`
+  }
+  if (item.isFolder && item.outcome !== "stopped") return folderLine(transfer, item)
   if (item.outcome === "done") {
     const renamed = item.publishedAs !== null && item.publishedAs !== item.name
     return `${item.name} — ${transfer.done}${renamed ? ` as ${item.publishedAs ?? ""}` : ""}`
@@ -127,33 +185,41 @@ function itemLine(transfer: TransferRecord, item: TransferItemRecord): string {
   return item.message ?? `${item.name} — ${WORDS[item.outcome]}`
 }
 
+function listed(lines: string[], more: number): string[] {
+  const rest = lines.length - LISTED + more
+  return [...lines.slice(0, LISTED), ...(rest > 0 ? [`and ${counted(rest)} more`] : [])]
+}
+
 /**
- * The lines under a transfer: the item in hand while it runs, and afterwards
- * the job's sentence and each item's outcome, the first ten and how many more.
+ * The lines under a transfer: the file in hand while it runs, and afterwards
+ * the job's sentence, one line for each ticked item and each file that did
+ * not arrive — the first ten of each and how many more.
  */
 export function transferLines(job: JobPublic, transfer: TransferRecord): string[] {
   if (isWorking(job)) {
     if (job.step === WAITING) return ["Waiting for a free transfer slot"]
-    const index = transfer.items.findIndex((item) => item.outcome === "running")
-    const item = transfer.items[index]
-    if (item === undefined) return [job.step ?? "Starting"]
-    const total = transfer.items.length
-    if (total > 1) return [`${item.name} — ${String(index + 1)} of ${String(total)}`]
-    return [item.rows === null ? item.name : `${item.name} · ${String(item.rows)} rows`]
+    if (job.step === REMOVING) return ["Removing the sources"]
+    const current = transfer.current
+    if (current === null) return [job.step ?? "Starting"]
+    const total = filesTotal(transfer)
+    if (total > 1) {
+      const at = Math.min(transfer.filesDone + 1, total)
+      return [`${current} — ${counted(at)} of ${counted(total)}`]
+    }
+    const rows = transfer.items[0]?.rows ?? null
+    return [rows === null ? current : `${current} · ${counted(rows)} rows`]
   }
-  const lines = transfer.items.slice(0, LISTED).map((item) => itemLine(transfer, item))
-  const more = transfer.items.length - LISTED
   return [
     ...(job.message === null ? [] : [job.message]),
-    ...lines,
-    ...(more > 0 ? [`and ${String(more)} more`] : []),
+    ...listed(transfer.items.map((item) => itemLine(transfer, item)), 0),
+    ...listed(transfer.problems, transfer.problemsMore),
   ]
 }
 
 /** What Stop will do, said before it is pressed. */
 export function transferStopHint(transfer: TransferRecord): string {
   return transfer.mode === "move"
-    ? "Stops at once; files already moved stay moved."
+    ? "Stops at once; the sources stay until everything has arrived."
     : "Stops at once; what already arrived stays."
 }
 

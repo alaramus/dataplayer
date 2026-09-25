@@ -149,7 +149,8 @@ class RelationCsv:
     ) -> None:
         item = transfer.items[0]
         item.outcome = "running"
-        await report.changed()
+        transfer.current = item.name
+        await report.progressed()
         try:
             await _saved(source, storage_of(destination), transfer, item, report)
         except asyncio.CancelledError:
@@ -160,12 +161,15 @@ class RelationCsv:
             item.outcome, item.message = "failed", refusal.message
         except AdapterError as failure:
             item.outcome, item.message = "failed", failure.message
+            item.failed = 1
             raise TransferStopped(failure.message) from None
         except FileExistsError:
             item.outcome, item.message = "failed", f"{transfer.name} is already there"
         except (OSError, ValueError):
             item.outcome, item.message = "failed", "The file could not be written"
-        await report.changed()
+        if item.outcome == "failed":
+            item.failed = 1
+        transfer.current = None
 
     def told(self, transfer: Transfer, stopped: str | None = None) -> str:
         item = transfer.items[0]
@@ -255,4 +259,5 @@ async def _saved(
         await report.in_thread(stack.close)
     transfer.published += 1
     item.published_as = target.name
+    item.arrived = 1
     item.outcome = "done"
