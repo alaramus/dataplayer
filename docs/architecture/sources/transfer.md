@@ -22,9 +22,10 @@ continues through the source's own action.
   outside this first path. A request holds at most 20 files and 200 MB total.
   Bytes are read in bounded chunks into a destination-owned staged file; the
   destination publishes only after the whole file has arrived.
-- Existing names are refused by default. The catalog explicitly offers Keep
-  both and Replace when the offer reports a conflict; Replace asks for
-  confirmation. A batch checks its names before starting, but a source or
+- Existing names are refused by default. The catalog has one Paste command;
+  choosing it opens a conflict window with Keep both and Replace when the
+  offer reports a taken name or execution discovers one. A batch checks its
+  names before starting, but a source or
   destination can change during execution, so completed files may remain if a
   later one fails. The destination catalog is invalidated even on failure.
 - The offer is advisory. Both rights and connector states are resolved again

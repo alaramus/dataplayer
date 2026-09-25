@@ -32,9 +32,11 @@ import {
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
+import { statusOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
-import { AppIconButton, AppMenu, useConfirm, useToast } from "@/shared/ui"
+import { AppButton, AppIconButton, AppMenu, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 /**
  * What can be done, in one menu whose shape stays stable (D56). The server
@@ -84,7 +86,6 @@ const emit = defineEmits<{
   connector: [draft: ConnectorDraft]
 }>()
 const toast = useToast()
-const confirm = useConfirm()
 const downloadAction = useDownloadAction()
 const prepareConnector = usePrepareConnectorAction()
 
@@ -210,7 +211,8 @@ const items = computed<MenuItem[]>(() => [
   ...(crossHeld.value === null ? [] : [{
     name: "client:cross-paste",
     label: `Paste — ${clipboardWording(crossHeld.value)}`,
-    disable: crossHeld.value.mode !== "copy" || !crossOffer.data.value?.available,
+    disable: crossHeld.value.mode !== "copy" ||
+      (!crossOffer.data.value?.available && !crossOffer.data.value?.name_conflict),
     hint: crossHeld.value.mode !== "copy"
       ? "Moving between connections is not available yet"
       : props.places.length !== 1
@@ -219,10 +221,6 @@ const items = computed<MenuItem[]>(() => [
           ? "Checking whether these files can be copied"
           : crossOffer.data.value?.reason ?? (crossOffer.isError.value ? "Could not check this destination" : undefined),
   }]),
-  ...(crossOffer.data.value?.name_conflict && crossHeld.value !== null ? [
-    { name: "client:cross-paste-rename", label: "Paste and keep both" },
-    { name: "client:cross-paste-replace", label: "Paste and replace", danger: true },
-  ] : []),
   ...commands.value.filter((command) => crossHeld.value === null || !needsClipboard(command)).map((command) => {
     // An empty clipboard is the client's own reason and outranks the source's,
     // because it is the one the reader can act on immediately.
@@ -282,6 +280,62 @@ interface OpenAction {
 const opened = ref<OpenAction[]>([])
 let openings = 0
 
+interface CrossCopyIntent {
+  sourceConnectorId: string
+  sourceNodeIds: string[]
+  destinationNodeId: string | null
+}
+
+const crossConflict = ref<CrossCopyIntent | null>(null)
+const crossFailure = ref("")
+const crossPending = ref(false)
+
+async function copyCross(
+  intent: CrossCopyIntent,
+  conflict: "refuse" | "replace" | "rename"
+) {
+  if (crossPending.value) return
+  crossPending.value = true
+  crossFailure.value = ""
+  try {
+    const result = (await ConnectorsService.fileCopy({
+      path: { connector_id: props.connectorId },
+      body: {
+        source_connector_id: intent.sourceConnectorId,
+        source_node_ids: intent.sourceNodeIds,
+        destination_node_id: intent.destinationNodeId,
+        conflict,
+      },
+    })).data
+    crossConflict.value = null
+    emit("done", {
+      done: [{
+        message: `${String(result.copied)} files copied`,
+        reload_node_ids: result.reload_node_ids,
+      }],
+      failures: [],
+      total: 1,
+    })
+    toast.success(`${String(result.copied)} files copied`)
+  } catch (cause) {
+    // Earlier files in a batch may already have arrived.
+    emit("done", {
+      done: [{ message: "File copy ended", reload_node_ids: [intent.destinationNodeId] }],
+      failures: [],
+      total: 1,
+    })
+    const message = messageOf(cause, "The files could not be copied")
+    if (statusOf(cause) === 409) {
+      crossConflict.value = intent
+      crossFailure.value = message
+    } else if (crossConflict.value !== null) {
+      crossFailure.value = message
+    } else toast.error(message)
+  } finally {
+    crossPending.value = false
+  }
+}
+
 function labelFor(command: MenuCommand) {
   if (command.actsOn === "level") return props.levelLabel
   if (command.actsOn === "children") return props.placeLabel
@@ -323,48 +377,19 @@ function closeForm(key: string) {
 
 async function pick(name: string) {
   if (prepareConnector.isPending.value) return
-  if (name.startsWith("client:cross-paste")) {
+  if (name === "client:cross-paste") {
     const source = crossHeld.value
-    const conflict = name === "client:cross-paste-rename" ? "rename"
-      : name === "client:cross-paste-replace" ? "replace" : "refuse"
     if (source === null || source.mode !== "copy") return
-    if (conflict === "refuse" && !crossOffer.data.value?.available) return
-    if (conflict !== "refuse" && !crossOffer.data.value?.name_conflict) return
-    if (conflict === "replace" && !(await confirm({
-      title: "Replace existing files?",
-      message: "Files with the same names at the destination will be replaced.",
-      confirmLabel: "Replace files",
-      danger: true,
-    }))) return
-    try {
-      const result = (await ConnectorsService.fileCopy({
-        path: { connector_id: props.connectorId },
-        body: {
-          source_connector_id: source.connectorId,
-          source_node_ids: source.nodeIds,
-          destination_node_id: crossPlace.value,
-          conflict,
-        },
-      })).data
-      emit("done", {
-        done: [{
-          message: `${String(result.copied)} files copied`,
-          reload_node_ids: result.reload_node_ids,
-        }],
-        failures: [],
-        total: 1,
-      })
-      toast.success(`${String(result.copied)} files copied`)
-    } catch (cause) {
-      // A batch may have published earlier files before a later one failed.
-      // The ordinary catalog action callback re-reads the visible level.
-      emit("done", {
-        done: [{ message: "File copy ended", reload_node_ids: [crossPlace.value] }],
-        failures: [],
-        total: 1,
-      })
-      toast.error(messageOf(cause, "The files could not be copied"))
+    if (!crossOffer.data.value?.available && !crossOffer.data.value?.name_conflict) return
+    const intent = {
+      sourceConnectorId: source.connectorId,
+      sourceNodeIds: [...source.nodeIds],
+      destinationNodeId: crossPlace.value,
     }
+    if (crossOffer.data.value.name_conflict) {
+      crossConflict.value = intent
+      crossFailure.value = crossOffer.data.value.reason ?? "A file already exists here"
+    } else await copyCross(intent, "refuse")
     return
   }
   const client = clientCommandOf(name)
@@ -450,5 +475,37 @@ async function pick(name: string) {
       @update:command="closeForm(entry.key)"
       @done="emit('done', $event)"
     />
+    <WindowDialog
+      v-if="crossConflict"
+      :model-value="true"
+      title="File already exists"
+      size="compact-form"
+      data-testid="cross-paste-conflict"
+      @update:model-value="crossConflict = null"
+    >
+      <p>{{ crossFailure }}. Choose what to do with the copied file.</p>
+      <template #actions>
+        <AppButton
+          variant="quiet"
+          label="Cancel"
+          :disable="crossPending"
+          @click="crossConflict = null"
+        />
+        <AppButton
+          variant="secondary"
+          label="Keep both"
+          :loading="crossPending"
+          data-testid="cross-paste-keep-both"
+          @click="crossConflict && copyCross(crossConflict, 'rename')"
+        />
+        <AppButton
+          variant="danger"
+          label="Replace"
+          :loading="crossPending"
+          data-testid="cross-paste-replace"
+          @click="crossConflict && copyCross(crossConflict, 'replace')"
+        />
+      </template>
+    </WindowDialog>
   </span>
 </template>

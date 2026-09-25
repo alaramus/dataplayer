@@ -464,13 +464,19 @@ async function download(command: ActionCommand, params: Record<string, unknown>)
 function report(failed: ActionFailure[]) {
   const left = failed.flatMap((one) => (one.file === undefined ? [] : [one.file]))
   if (left.length > 0) files.value = left
+  const clipboardConflict =
+    props.command !== null &&
+    needsClipboard(props.command) &&
+    left.length === 0
   conflict.value =
     conflictField.value !== null &&
-    left.length === failed.length &&
+    (left.length === failed.length || clipboardConflict) &&
     failed.length > 0 &&
     failed.every((one) => one.conflict === true)
   failure.value = conflict.value
-    ? takenNames(left)
+    ? clipboardConflict
+      ? `${failed[0]?.message ?? "A file already exists"}. Replace it or keep both files.`
+      : takenNames(left)
     : failed.map((one) => one.message).join("; ")
 }
 

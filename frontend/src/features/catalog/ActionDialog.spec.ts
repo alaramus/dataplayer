@@ -819,6 +819,15 @@ describe("an action with nothing to fill in", () => {
         group: "general",
         purpose: "clipboard-mode",
       },
+      {
+        name: "conflict",
+        label: "Name conflict",
+        kind: "hidden",
+        required: false,
+        defaultValue: "refuse",
+        group: "general",
+        purpose: "file-conflict",
+      },
     ],
   }
 
@@ -843,6 +852,24 @@ describe("an action with nothing to fill in", () => {
 
     expect(document.body.querySelector('[data-testid="action-dialog"]')).not.toBeNull()
     expect(text("action-error")).not.toBe("")
+    wrapper.unmount()
+  })
+
+  it("offers conflict choices for a clipboard Paste in the window", async () => {
+    const run = vi.spyOn(ConnectorsService, "runAction")
+      .mockRejectedValueOnce(refused(409))
+      .mockResolvedValueOnce({
+        data: { message: "1 file copied", reload_node_ids: ["reports"] },
+      } as never)
+    const wrapper = mountDialog(PASTE, ["reports"])
+    await flushPromises()
+
+    expect(document.body.querySelector('[data-testid="action-keep-both"]')).not.toBeNull()
+    click("action-keep-both")
+    await flushPromises()
+    expect(run).toHaveBeenLastCalledWith(expect.objectContaining({
+      body: expect.objectContaining({ params: expect.objectContaining({ conflict: "rename" }) }),
+    }))
     wrapper.unmount()
   })
 })

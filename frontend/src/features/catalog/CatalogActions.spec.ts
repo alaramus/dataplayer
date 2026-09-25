@@ -1,4 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils"
+import { AxiosError } from "axios"
 import { computed, defineComponent } from "vue"
 import type { Ref } from "vue"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -38,9 +39,16 @@ vi.mock("@/features/services/backups", () => ({
 }))
 vi.mock("@/shared/ui", () => ({
   AppIconButton: defineComponent({ template: "<button>Actions</button>" }),
+  AppButton: defineComponent({ props: ["label"], template: "<button>{{ label }}</button>" }),
   AppMenu: defineComponent({ name: "AppMenu", props: ["items"], emits: ["select"], template: "<div />" }),
   useToast: () => ({ error: vi.fn(), success: vi.fn() }),
-  useConfirm: () => vi.fn().mockResolvedValue(true),
+}))
+vi.mock("@/shared/windows", () => ({
+  WindowDialog: defineComponent({
+    name: "WindowDialog",
+    props: ["modelValue"],
+    template: "<div><slot /><slot name='actions' /></div>",
+  }),
 }))
 vi.mock("./ActionDialog.vue", () => ({
   default: defineComponent({
@@ -89,6 +97,7 @@ afterEach(() => {
   offer.available = false
   offer.reason = "Unavailable"
   offer.name_conflict = false
+  copyFile.mockReset()
 })
 
 describe("catalog action subjects", () => {
@@ -108,14 +117,24 @@ describe("catalog action subjects", () => {
     enabled.unmount()
   })
 
-  it("offers explicit conflict choices without enabling ordinary Paste", () => {
+  it("keeps one Paste in the menu and opens conflict choices after selection", async () => {
     holdNodes("another", ["report.csv"], "copy")
     offer.name_conflict = true
     const wrapper = menu()
-    const items = wrapper.findComponent({ name: "AppMenu" }).props("items") as MenuItem[]
-    expect(items.find((one) => one.name === "client:cross-paste")?.disable).toBe(true)
-    expect(items.find((one) => one.name === "client:cross-paste-rename")).toBeDefined()
-    expect(items.find((one) => one.name === "client:cross-paste-replace")?.danger).toBe(true)
+    const appMenu = wrapper.findComponent({ name: "AppMenu" })
+    const items = appMenu.props("items") as MenuItem[]
+    expect(items.filter((one) => one.name.startsWith("client:cross-paste"))).toHaveLength(1)
+    expect(items.find((one) => one.name === "client:cross-paste")?.disable).toBe(false)
+    appMenu.vm.$emit("select", "client:cross-paste")
+    await flushPromises()
+    expect(wrapper.findComponent({ name: "WindowDialog" }).exists()).toBe(true)
+    expect(copyFile).not.toHaveBeenCalled()
+    copyFile.mockResolvedValue({ data: { copied: 1, reload_node_ids: ["schema"] } })
+    await wrapper.find('[data-testid="cross-paste-keep-both"]').trigger("click")
+    await flushPromises()
+    expect(copyFile).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.objectContaining({ conflict: "rename" }),
+    }))
     wrapper.unmount()
   })
 
@@ -131,6 +150,22 @@ describe("catalog action subjects", () => {
     expect(wrapper.emitted("done")?.[0]?.[0]).toMatchObject({
       done: [{ reload_node_ids: ["schema"] }],
     })
+    wrapper.unmount()
+  })
+
+  it("opens the same conflict window when a name is taken after the offer", async () => {
+    holdNodes("another", ["report.csv"], "copy")
+    offer.available = true
+    copyFile.mockRejectedValueOnce(new AxiosError("refused", undefined, undefined, undefined, {
+      status: 409,
+    } as never))
+    const wrapper = menu()
+
+    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste")
+    await flushPromises()
+
+    expect(copyFile).toHaveBeenCalledTimes(1)
+    expect(wrapper.findComponent({ name: "WindowDialog" }).exists()).toBe(true)
     wrapper.unmount()
   })
 
