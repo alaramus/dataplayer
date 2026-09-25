@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.postgres.system_reports import ROLES_REPORT_ID
 from app.connectors.models import ConnectorGrant
 from app.core.config import settings
+from app.main import app
 from app.users import crud
 from app.users.models import User
 from tests.utils.database import working_postgres_options
@@ -781,7 +782,10 @@ async def test_a_read_grant_can_copy_a_file_out_but_not_move_it(
     assert moved.json()["detail"]["required"] == "write"
     # The refused move left the source where it was, so the copy finds it.
     assert copied.status_code == 200, copied.text
-    assert copied.json()["written"] == 1
+    job = copied.json()["job"]
+    await app.state.job_runner.wait_for(uuid.UUID(job["id"]))
+    settled = await client.get(f"{settings.API_V1_STR}/jobs/{job['id']}", headers=headers)
+    assert settled.json()["state"] == "succeeded"
 
 
 async def test_a_read_grant_on_the_destination_is_told_why_nothing_pastes(

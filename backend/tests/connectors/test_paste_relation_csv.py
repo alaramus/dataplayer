@@ -1,5 +1,6 @@
-"""A table pasted into a folder as a CSV file (D165)."""
+"""A table pasted into a folder as a CSV file (D165, D168)."""
 
+import asyncio
 import shutil
 import uuid
 from pathlib import Path
@@ -9,12 +10,13 @@ import pytest
 from app.adapters.actions import ActionRefused
 from app.adapters.export import ExportRequest
 from app.adapters.file.storage import LocalStorage
-from app.adapters.protocol import AdapterError
 from app.connectors import downloads
 from app.connectors.paste import relation_csv
 from app.connectors.paste.models import PastePair, PasteRun
 from app.connectors.paste.relation_csv import RelationCsv
+from app.connectors.paste.transfer import Transfer, TransferStopped
 from tests.utils.paste_sources import Explorer, Table
+from tests.utils.transfers import Recorder, planned, transferred
 
 
 @pytest.fixture
@@ -94,7 +96,7 @@ async def test_the_file_holds_the_same_bytes_as_the_download(
 ) -> None:
     destination, incoming = folder
 
-    result = await RelationCsv().run(Table(), destination, run())
+    done = await transferred(RelationCsv(), Table(), destination, run())
 
     downloaded, row_count = await downloads.stream_csv_export(
         title="people",
@@ -108,21 +110,23 @@ async def test_the_file_holds_the_same_bytes_as_the_download(
     finally:
         shutil.rmtree(downloaded.parent)
     assert row_count == 3
-    assert result.rows == 3
-    assert result.name == "people.csv"
-    assert result.message == "people.csv saved with 3 rows"
-    assert result.reload_node_ids == ["incoming"]
+    [item] = done.items
+    assert (item.outcome, item.rows, item.published_as) == ("done", 3, "people.csv")
+    # No total is known before the rows are read, so none is claimed.
+    assert done.bytes_total is None
+    assert done.bytes_done == (incoming / "people.csv").stat().st_size
+    assert RelationCsv().told(done) == "people.csv saved in incoming with 3 rows"
 
 
 async def test_a_typed_name_ends_in_csv(folder: tuple[Explorer, Path]) -> None:
     destination, incoming = folder
     kind = RelationCsv()
 
-    await kind.run(Table(), destination, run(name="export"))
-    await kind.run(Table(), destination, run(name="export.tsv"))
-    await kind.run(Table(), destination, run(name="Report.CSV"))
+    await transferred(kind, Table(), destination, run(name="export"))
+    await transferred(kind, Table(), destination, run(name="export.tsv"))
+    await transferred(kind, Table(), destination, run(name="Report.CSV"))
     with pytest.raises(ActionRefused, match="plain name"):
-        await kind.run(Table(), destination, run(name="../escape"))
+        await kind.plan(Table(), destination, run(name="../escape"))
 
     assert sorted(path.name for path in incoming.iterdir()) == [
         "Report.CSV",
@@ -139,16 +143,17 @@ async def test_a_taken_name_is_refused_kept_or_replaced(
     existing.write_bytes(b"old")
     kind = RelationCsv()
 
+    # Refused before anything starts, so Paste can ask what to do.
     with pytest.raises(ActionRefused, match="already there") as refused:
-        await kind.run(Table(), destination, run())
+        await kind.plan(Table(), destination, run())
     assert refused.value.reason == "conflict"
     assert existing.read_bytes() == b"old"
 
-    kept = await kind.run(Table(), destination, run(conflict="rename"))
-    assert kept.name == "people (1).csv"
+    kept = await transferred(kind, Table(), destination, run(conflict="rename"))
+    assert kept.items[0].published_as == "people (1).csv"
     assert existing.read_bytes() == b"old"
 
-    await kind.run(Table(), destination, run(conflict="replace"))
+    await transferred(kind, Table(), destination, run(conflict="replace"))
     assert existing.read_bytes() == (incoming / "people (1).csv").read_bytes()
 
 
@@ -160,12 +165,15 @@ async def test_the_ceiling_publishes_nothing_and_closes_the_stream(
     monkeypatch.setattr(relation_csv, "MAX_TRANSFER_BYTES", 20)
     table = Table()
 
-    with pytest.raises(ActionRefused) as refused:
-        await RelationCsv().run(table, destination, run())
+    done = await transferred(RelationCsv(), table, destination, run())
 
-    assert refused.value.reason == "too_large"
+    [item] = done.items
+    assert (item.outcome, item.message) == ("failed", "The table exceeds 10 GB as CSV")
     assert list(incoming.iterdir()) == []
     assert table.closed
+    assert RelationCsv().told(done) == (
+        "people.csv was not saved: The table exceeds 10 GB as CSV"
+    )
 
 
 async def test_a_source_failing_halfway_leaves_no_file(
@@ -173,7 +181,35 @@ async def test_a_source_failing_halfway_leaves_no_file(
 ) -> None:
     destination, incoming = folder
 
-    with pytest.raises(AdapterError):
-        await RelationCsv().run(Table(fail_at_batch=1), destination, run())
+    with pytest.raises(TransferStopped, match="The source went away"):
+        await transferred(RelationCsv(), Table(fail_at_batch=1), destination, run())
 
     assert list(incoming.iterdir()) == []
+
+
+async def test_stop_while_writing_leaves_no_file_and_closes_the_stream(
+    folder: tuple[Explorer, Path],
+) -> None:
+    destination, incoming = folder
+    table = Table()
+    prepared = await planned(RelationCsv(), table, destination, run())
+    writing = asyncio.Event()
+
+    async def after_a_piece(done: Transfer) -> None:
+        # After the first rows rather than the header: the source's stream is
+        # open by then, and a Stop must close it.
+        if done.items[0].rows:
+            writing.set()
+            await asyncio.sleep(10)
+
+    recorder = Recorder(on_progress=after_a_piece)
+    recorder.transfer = prepared
+    task = asyncio.create_task(RelationCsv().transfer(table, destination, prepared, recorder))
+    await asyncio.wait_for(writing.wait(), timeout=5)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert prepared.items[0].outcome == "stopped"
+    assert list(incoming.iterdir()) == []
+    assert table.closed

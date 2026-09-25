@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
+from anyio import to_thread
 
 from app.adapters.content import ContentRequest, TextContent, VideoContent
 from app.adapters.explorer.copies import copies
@@ -153,6 +154,38 @@ async def test_a_file_is_copied_and_moved_on_the_server(adapter: SshAdapter) -> 
     inside = sorted(node.name for node in await adapter.list_children("kept"))
     assert top == ["kept"]
     assert inside == ["notes.txt", "notes.txt (1)"]
+
+
+async def test_a_file_arrives_on_the_server_in_pieces_and_is_never_staged_here(
+    adapter: SshAdapter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A transfer of gigabytes must not pass through this machine's disk (D168).
+    def staged_here(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("staged on this server")
+
+    monkeypatch.setattr(type(copies()), "scratch", staged_here)
+    storage = adapter.storage
+    target = storage.place("arrived.bin")
+
+    def arrive() -> tuple[bytes, list[str]]:
+        with storage.incoming(target) as arriving:
+            arriving.write(b"first, ")
+            arriving.write(b"second")
+            arriving.publish(target)
+        with storage.incoming(target) as arriving:
+            arriving.write(b"never published")
+        with storage.incoming(target) as arriving, pytest.raises(FileExistsError):
+            arriving.write(b"a taken name")
+            arriving.publish(target)
+        with storage.open(target) as readable:
+            data = readable.read()
+        return data, sorted(entry.name for entry in storage.entries(storage.place(None)))
+
+    data, names = await to_thread.run_sync(arrive)
+
+    assert data == b"first, second"
+    # Neither the abandoned file nor the refused one is left beside it.
+    assert names == ["arrived.bin"]
 
 
 async def test_a_folder_is_archived_and_extracted_on_the_server(adapter: SshAdapter) -> None:

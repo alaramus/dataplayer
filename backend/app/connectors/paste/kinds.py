@@ -1,6 +1,6 @@
 """What one kind of paste between connections has to say about itself (D164)."""
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from app.adapters.fetch import FetchColumn
 from app.adapters.protocol import DataAdapter
@@ -14,6 +14,7 @@ from app.connectors.paste.models import (
     PasteRun,
     PasteWorkflow,
 )
+from app.connectors.paste.transfer import Transfer, TransferPlan, TransferReport
 from app.core.access import Access
 
 
@@ -74,9 +75,54 @@ class PasteKind(Protocol):
         """What running it now would do, checked without changing anything."""
         ...
 
+
+@runtime_checkable
+class PastesNow(PasteKind, Protocol):
+    """A kind carried out inside the request that asks for it."""
+
     async def run(
         self, source: DataAdapter, destination: DataAdapter, request: PasteRun
     ) -> PasteResult: ...
+
+
+@runtime_checkable
+class PastesAsJob(PasteKind, Protocol):
+    """A kind that moves bytes, carried out as an owned job (D168).
+
+    The request plans — everything that answers at once, a taken name
+    included — and the job transfers.
+    """
+
+    @property
+    def doing(self) -> str:
+        """What it is doing, for the footer: "Copying"."""
+        ...
+
+    @property
+    def done(self) -> str:
+        """What became of an item that arrived: "copied"."""
+        ...
+
+    async def plan(
+        self, source: DataAdapter, destination: DataAdapter, request: PasteRun
+    ) -> TransferPlan: ...
+
+    async def transfer(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        """Carry it out, writing each item's outcome into `transfer`.
+
+        Raises TransferStopped when nothing further could arrive.
+        """
+        ...
+
+    def told(self, transfer: Transfer, stopped: str | None = None) -> str:
+        """The job's one sentence: what arrived, and what did not."""
+        ...
 
 
 def offered(

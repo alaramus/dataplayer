@@ -254,6 +254,18 @@ class Storage(Protocol):
         """
         ...
 
+    def incoming(
+        self, near: Place, *, prefix: str = ".dataplayer-"
+    ) -> AbstractContextManager[Incoming]:
+        """A new file written piece by piece where it is going, to be
+        published at `near`.
+
+        Unlike `staged`, nothing is held whole on this machine first: a
+        transfer of gigabytes passes through in pieces (D168). Whatever is
+        not published by the end of the block is thrown away.
+        """
+        ...
+
     def filled(self, place: Place) -> AbstractContextManager[Path]:
         """A local folder whose contents become those of an existing folder.
 
@@ -278,6 +290,16 @@ class Storage(Protocol):
 
     def remove(self, place: Place) -> None:
         """A file, or a folder with everything in it."""
+        ...
+
+
+class Incoming(Protocol):
+    """A file on its way into a storage, beside the place it will take."""
+
+    def write(self, data: bytes) -> None: ...
+
+    def publish(self, place: Place, *, replace: bool = False) -> None:
+        """Put what was written at a place in one step, by `publish`'s rules."""
         ...
 
 

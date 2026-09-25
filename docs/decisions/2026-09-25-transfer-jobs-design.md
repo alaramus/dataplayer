@@ -110,7 +110,10 @@ closes. Nothing announces that work has begun (D95): the footer shows it.
 - **Transfers have threads of their own.** Copying blocks, and a copy of
   10 GB holding a thread of the shared pool for twenty minutes takes it from
   every other blocking call. Transfers run on a limiter of their own, eight
-  across the server; one beyond them stays Queued until a slot frees.
+  across the server; one beyond them waits, its step saying "waiting for a
+  free transfer slot", until a slot frees. (The first draft said it stays
+  Queued; the runner starts a job before its handler can wait, so the wait is
+  a step.)
 - **A file for an SSH server is written there as it arrives,** into the
   temporary name beside its target, then renamed — no longer staged whole on
   this server first. A local folder keeps its staged file beside the target.

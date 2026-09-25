@@ -5014,6 +5014,7 @@ export type JobPublic = {
     | "backup.restore"
     | "source.operation"
     | "metrics.store.create"
+    | "paste.transfer"
   /**
    * Subject Id
    */
@@ -6330,8 +6331,14 @@ export type PastePair = {
 
 /**
  * PasteResult
+ *
+ * A paste done inside the request; a transfer answers with its job (D168).
  */
 export type PasteResult = {
+  /**
+   * Outcome
+   */
+  outcome: "done"
   /**
    * Kind
    */
@@ -6347,11 +6354,11 @@ export type PasteResult = {
   /**
    * Rows
    */
-  rows?: number | null
+  rows: number | null
   /**
    * Name
    */
-  name?: string | null
+  name: string | null
   /**
    * Reload Node Ids
    */
@@ -6400,6 +6407,19 @@ export type PasteRun = {
    * Columns
    */
   columns?: Array<PasteColumn> | null
+}
+
+/**
+ * PasteStarted
+ *
+ * A transfer accepted as a job; the footer follows it from here.
+ */
+export type PasteStarted = {
+  /**
+   * Outcome
+   */
+  outcome: "started"
+  job: JobPublic
 }
 
 /**
@@ -14030,36 +14050,6 @@ export type connectorsPairOffersResponses = {
 export type connectorsPairOffersResponse =
   connectorsPairOffersResponses[keyof connectorsPairOffersResponses]
 
-export type connectorsPasteData = {
-  body: PasteRun
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/paste"
-}
-
-export type connectorsPasteErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsPasteError = connectorsPasteErrors[keyof connectorsPasteErrors]
-
-export type connectorsPasteResponses = {
-  /**
-   * Successful Response
-   */
-  200: PasteResult
-}
-
-export type connectorsPasteResponse = connectorsPasteResponses[keyof connectorsPasteResponses]
-
 export type connectorsClipboardOfferData = {
   body: ClipboardRequest
   path: {
@@ -14977,6 +14967,44 @@ export type connectorsStartActionJobResponses = {
 
 export type connectorsStartActionJobResponse =
   connectorsStartActionJobResponses[keyof connectorsStartActionJobResponses]
+
+export type connectorsPasteData = {
+  body: PasteRun
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/paste"
+}
+
+export type connectorsPasteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPasteError = connectorsPasteErrors[keyof connectorsPasteErrors]
+
+export type connectorsPasteResponses = {
+  /**
+   * Response Connectors-Paste
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        outcome: "done"
+      } & PasteResult)
+    | ({
+        outcome: "started"
+      } & PasteStarted)
+}
+
+export type connectorsPasteResponse = connectorsPasteResponses[keyof connectorsPasteResponses]
 
 export type sharesListSharesData = {
   body?: never

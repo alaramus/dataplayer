@@ -18,13 +18,14 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from app.adapters.actions import ActionRefused, ConnectorDraft
 from app.adapters.explorer.storage import (
     LOCAL_SEARCH,
     ROOT,
     Entry,
+    Incoming,
     PathPlaces,
     Place,
     VersionChanged,
@@ -205,6 +206,13 @@ class LocalStorage(PathPlaces):
             os.utime(target, ns=(now, now))
 
     @contextmanager
+    def incoming(self, near: Place, *, prefix: str = ".dataplayer-") -> Iterator[Incoming]:
+        # On this disk the staged file already lies beside its target, so
+        # what arrives is written straight into it.
+        with self.staged(near, prefix=prefix) as staged, staged.open("wb") as writable:
+            yield _Arriving(self, staged, cast(BinaryIO, writable))
+
+    @contextmanager
     def filled(self, place: Place) -> Iterator[Path]:
         yield self.path_of(place)
 
@@ -286,3 +294,17 @@ def _entry(place: Place, facts: os.stat_result, is_link: bool) -> Entry:
         permissions=filestat.filemode(facts.st_mode),
     )
 
+
+class _Arriving:
+    def __init__(self, storage: LocalStorage, staged: Path, writable: BinaryIO) -> None:
+        self._storage = storage
+        self._staged = staged
+        self._writable = writable
+
+    def write(self, data: bytes) -> None:
+        self._writable.write(data)
+
+    def publish(self, place: Place, *, replace: bool = False) -> None:
+        # Closed first: Windows neither links nor replaces a file held open.
+        self._writable.close()
+        self._storage.publish(self._staged, place, replace=replace)

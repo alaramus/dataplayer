@@ -1,18 +1,17 @@
-"""Asking what a clipboard can become in another connection, and doing it (D164).
+"""Asking what a clipboard can become in another connection (D164).
 
 The routes hang off the destination, as Paste is chosen there; the source is
-named in the body because a clipboard carries its connection with it.
+named in the body because a clipboard carries its connection with it. Doing
+it is `app.transfers`', which may start a job (D168).
 """
 
 import uuid
 
 from fastapi import APIRouter, HTTPException
 
-from app.adapters.cache import DataCacheDep
 from app.adapters.protocol import DataAdapter
 from app.adapters.resources import ResourcesDep
-from app.connectors.access import adapter_for, resolve_adapter
-from app.connectors.action_lookup import perform
+from app.connectors.access import resolve_adapter
 from app.connectors.paste.kinds import PasteKind, refused
 from app.connectors.paste.models import (
     Availability,
@@ -24,10 +23,8 @@ from app.connectors.paste.models import (
     PasteOffer,
     PasteOffers,
     PastePair,
-    PasteResult,
-    PasteRun,
 )
-from app.connectors.paste.registry import KINDS, kind_named
+from app.connectors.paste.registry import KINDS
 from app.core.access import Access, at_least
 from app.core.db import SessionDep
 from app.users.deps import CurrentUser
@@ -148,49 +145,6 @@ async def _offer(
             kind, f"This needs {kind.source_requires} access to the copied connection"
         )
     return await kind.offer(source, destination, pair)
-
-
-@router.post("/{connector_id}/paste", response_model=PasteResult)
-async def paste(
-    session: SessionDep,
-    current_user: CurrentUser,
-    resources: ResourcesDep,
-    data_cache: DataCacheDep,
-    connector_id: uuid.UUID,
-    request: PasteRun,
-) -> PasteResult:
-    kind = kind_named(request.kind)
-    if kind.mode != request.mode:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": f"{kind.title} does not take this clipboard"},
-        )
-    source = await adapter_for(
-        session,
-        request.source_connector_id,
-        current_user,
-        resources,
-        requires=kind.source_requires,
-    )
-    destination = await adapter_for(
-        session,
-        connector_id,
-        current_user,
-        resources,
-        requires=kind.destination_requires,
-    )
-    if not kind.serves(source, destination):
-        raise HTTPException(
-            status_code=501,
-            detail={"message": f"{kind.title} is not possible between these connections"},
-        )
-    try:
-        return await perform(lambda: kind.run(source, destination, request))
-    finally:
-        # On failure too: earlier files of a batch may already have arrived.
-        await data_cache.invalidate_connector(connector_id)
-        if kind.changes_source:
-            await data_cache.invalidate_connector(request.source_connector_id)
 
 
 @router.post("/{connector_id}/clipboard/offer", response_model=ClipboardOffer)

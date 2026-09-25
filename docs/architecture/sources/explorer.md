@@ -55,7 +55,11 @@ says what the bytes mean.
   rewritten CSV, an upload and a packed archive are all written to a staged
   local file and published in one step: claiming a name that nothing holds, or
   replacing a file that is still the version it was read as. On the local disk
-  that is the link and the rename it always was.
+  that is the link and the rename it always was. A transfer from another
+  connection is the exception: `incoming` writes it where it is going, piece
+  by piece — beside its target on the disk, under a temporary name on an SSH
+  server — because gigabytes staged here first would fill this machine's disk
+  (D168).
 - **A format whose library takes a path reads a local file.** DuckDB,
   openpyxl, pyarrow and `zipfile` do. The storage lends one: on the local disk
   the file itself, for a remote storage a copy that carries the file's own

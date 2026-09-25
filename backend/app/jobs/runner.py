@@ -59,6 +59,18 @@ class JobHandler(Protocol):
     async def carry_out(self, job: Job, progress: Progress) -> str: ...
 
 
+@runtime_checkable
+class ExplainsStop(Protocol):
+    """A handler that says in its own words how far a stopped job got.
+
+    Asked after the job was stopped on request, of the row as the handler
+    left it: "Stopped before it finished" says nothing about the three files
+    that did arrive (D168).
+    """
+
+    def stopped_message(self, job: Job) -> str | None: ...
+
+
 class Progress:
     """How a handler says where it has got to.
 
@@ -232,7 +244,8 @@ class JobRunner:
             # Cancellation may have interrupted a database operation. Let
             # that session unwind, then settle through a fresh transaction.
             await self._finish_after_failure(
-                job_id, "cancelled", "Stopped before it finished", topics
+                job_id, "cancelled", "Stopped before it finished", topics,
+                explains=self._handlers.get(kind),
             )
         except JobFailed as refusal:
             await self._finish_after_failure(job_id, "failed", str(refusal), topics)
@@ -248,11 +261,13 @@ class JobRunner:
 
     async def _finish_after_failure(
         self, job_id: uuid.UUID, state: JobState, message: str,
-        topics: TopicSet | None,
+        topics: TopicSet | None, *, explains: JobHandler | None = None,
     ) -> None:
         async with async_session_maker() as session:
             job = await session.get(Job, job_id)
             if job is not None and job.state not in TERMINAL:
+                if isinstance(explains, ExplainsStop):
+                    message = explains.stopped_message(job) or message
                 await self._settle(session, job, state, message, topics)
 
     async def _execute(

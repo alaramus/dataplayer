@@ -13,7 +13,9 @@ One table, one runner, one topic, owner-scoped reads and cancellation. Its first
 lifecycle of a [managed service](services.md); the phase that introduced it
 names backup and restore as the second. The third is a source operation
 (D123, `app/source_operations/`): a reviewed action over a fixed set of source
-targets, whose typed payload in `parameters` holds each target's outcome.
+targets, whose typed payload in `parameters` holds each target's outcome. The
+fourth is a transfer between connections (D168, `app/transfers/`), the same
+arrangement for files and bytes, and the one kind bounded per person.
 
 ```
 backend/app/jobs/
@@ -45,7 +47,9 @@ up.
   image pull, and a client that has the id can ask again after a reload.
 - **The states are closed**: `queued → running → succeeded | failed |
   cancelled | interrupted`. Cancellation leaves completed effects in place;
-  service retry and idempotency are defined by D84.
+  service retry and idempotency are defined by D84. A handler that can say
+  how far a stopped job got implements `ExplainsStop`; any other reads
+  "Stopped before it finished".
 - **Progress is a named step, never a percentage.** A handler declares its
   steps in order, and a step it did not declare raises rather than being
   shown: a person promised a list of steps must not be shown something that is
@@ -93,8 +97,8 @@ Known deviations:
   restarted by its supervisor would end its neighbours' live jobs. Work left
   `queued` by a process that died before starting it is settled as
   `interrupted`, never picked up.
-- **Nothing bounds how many jobs one user may have.** Runs have an admission
-  limit; jobs do not yet.
+- **Only transfers are bounded per person.** `admit_within` refuses one over
+  `TRANSFER_MAX_ACTIVE` (D168); other kinds have no such limit yet.
 - **Jobs are not fanned out through infrastructure Redis.** The database row
   remains the authority and the accepting process performs it. D104 requires
   measured need and a separate durable delivery contract before that changes.

@@ -5,6 +5,7 @@ import { defineComponent } from "vue"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { PasteOffer } from "@/client"
+import { startedHere, toldInThisTab } from "@/features/activity/transfers"
 import CrossPaste from "./CrossPaste.vue"
 import { clipboard, forgetClipboard, holdNodes } from "./clipboard"
 import type { CrossPasteIntent } from "./pasteOffers"
@@ -216,6 +217,24 @@ describe("a paste from another connection", () => {
 
     expect(wrapper.emitted("sourceChanged")?.[0]).toEqual(["source"])
     expect(clipboard.value).toBeNull()
+  })
+
+  it("hands a transfer started as a job to the footer and closes at once", async () => {
+    holdNodes("source", ["report.csv"], "move")
+    pasteCall.mockResolvedValue({ data: { outcome: "started", job: { id: "job-7" } } })
+    const wrapper = mount(CrossPaste, {
+      props: { intent: intent({ ...copying, kind: "file_move", changes_source: true }, "move") },
+    })
+    await flushPromises()
+
+    expect(wrapper.emitted("close")).toHaveLength(1)
+    // Nothing has arrived yet, so nothing is announced or re-read here.
+    expect(wrapper.emitted("done")).toBeUndefined()
+    expect(toasts.success).not.toHaveBeenCalled()
+    // A Cut is spent the moment its move starts.
+    expect(clipboard.value).toBeNull()
+    expect(startedHere.value.has("job-7")).toBe(true)
+    toldInThisTab("job-7")
   })
 
   it("keeps a clipboard that has moved on since the paste began", async () => {

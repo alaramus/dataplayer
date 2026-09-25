@@ -40,6 +40,8 @@ JobKind = Literal[
     "source.operation",
     # The installation's TimescaleDB, started as a service (D126).
     "metrics.store.create",
+    # Files or a table carried from one connection into another (D168).
+    "paste.transfer",
 ]
 
 # The lifecycle, and no state outside it.

@@ -35,6 +35,7 @@ from app.services.jobs import handlers as service_handlers
 from app.services.restore_files import remove_stranded_snapshots
 from app.source_operations.handler import handlers as source_operation_handlers
 from app.source_operations.recovery import settle_interrupted_operations
+from app.transfers.handler import handlers as transfer_handlers
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -103,6 +104,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         **service_handlers(engine),
         **backup_handlers(engine),
         **source_operation_handlers(application.state.data_cache),
+        **transfer_handlers(application.state.data_cache, application.state.resources),
         **metrics_handlers(engine),
     })
     # The web process reads the metrics store and never writes points (D127).

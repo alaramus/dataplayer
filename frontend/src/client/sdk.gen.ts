@@ -2703,28 +2703,6 @@ export class ConnectorsService {
   }
 
   /**
-   * Paste
-   */
-  public static paste<ThrowOnError extends boolean = true>(
-    options: Options<connectorsPasteData, ThrowOnError>
-  ) {
-    return (options.client ?? client).post<
-      connectorsPasteResponses,
-      connectorsPasteErrors,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/paste",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    })
-  }
-
-  /**
    * Clipboard Offer
    *
    * Whether a selection here can be copied or cut to be pasted elsewhere.
@@ -2770,6 +2748,28 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/actions/{action_name}/jobs",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Paste
+   */
+  public static paste<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPasteData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPasteResponses,
+      connectorsPasteErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/paste",
       ...options,
       headers: {
         "Content-Type": "application/json",

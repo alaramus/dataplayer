@@ -5,11 +5,17 @@ import { isActive } from "@/shared/operations"
 import type { Operation } from "@/shared/operations"
 import type { Tone } from "@/shared/ui"
 import { operationLines, settledCount, sourceOperationOf } from "./sourceOperations"
+import {
+  transferBrief, transferLines, transferMeasure, transferOf, transferStopHint,
+} from "./transfers"
+import type { TransferRecord } from "./transfers"
 
 export interface ProcessRow {
   id: string
   source: "local" | "server"
   label: string
+  /** What the footer says instead of the label, where that is shorter. */
+  brief?: string
   detail: string
   status: string
   tone: Tone
@@ -34,11 +40,15 @@ export const JOB_LABELS: Record<JobPublic["kind"], string> = {
   "backup.restore": "Restore backup",
   "source.operation": "Source operation",
   "metrics.store.create": "Start metrics store",
+  "paste.transfer": "Transfer",
 }
 
-/** What a job is called: a source operation by its action's title, any other by its kind. */
+/**
+ * What a job is called: a source operation by its action's title, a transfer
+ * by its kind's, any other by its kind.
+ */
 export function jobTitle(job: JobPublic): string {
-  return sourceOperationOf(job)?.title ?? JOB_LABELS[job.kind]
+  return sourceOperationOf(job)?.title ?? transferOf(job)?.title ?? JOB_LABELS[job.kind]
 }
 
 const STATUS: Record<JobPublic["state"] | Operation["state"], string> = {
@@ -78,6 +88,8 @@ export function localRow(item: Operation): ProcessRow {
 }
 
 export function serverRow(job: JobPublic, subject: string | undefined): ProcessRow {
+  const transfer = transferOf(job)
+  if (transfer !== null) return transferRow(job, transfer)
   const active = isWorking(job)
   const operation = sourceOperationOf(job)
   const settled = operation === null ? 0 : settledCount(operation)
@@ -97,6 +109,30 @@ export function serverRow(job: JobPublic, subject: string | undefined): ProcessR
     controlsHint: !active ? "" : operation !== null
       ? "Cancelling stops before the next target; what is already done stays done."
       : "Cancellation keeps completed changes. This job does not support pause.",
+  }
+}
+
+/**
+ * A transfer between connections (D168): both connections in its name, the
+ * item in hand, and bytes that were measured rather than estimated — a table
+ * written as CSV has no total, so it has no bar either.
+ */
+function transferRow(job: JobPublic, transfer: TransferRecord): ProcessRow {
+  const active = isWorking(job)
+  const total = transfer.bytesTotal
+  return {
+    id: job.id, source: "server",
+    label: `${transfer.title} · ${transfer.sourceLabel} → ${transfer.destinationLabel}`,
+    brief: transferBrief(transfer),
+    detail: transferLines(job, transfer).join("\n"),
+    status: STATUS[job.state], tone: toneOf(job.state),
+    active, paused: false,
+    progress: job.state === "succeeded" ? 1
+      : active && total !== null && total > 0 ? Math.min(transfer.bytesDone / total, 1) : null,
+    measurement: transferMeasure(transfer),
+    createdAt: Date.parse(job.created_at),
+    canPause: false, canResume: false, canStop: active,
+    controlsHint: active ? transferStopHint(transfer) : "",
   }
 }
 

@@ -86,6 +86,11 @@ class PasteOffers(BaseModel):
 
 
 class PasteResult(BaseModel):
+    """A paste done inside the request; a transfer answers with its job (D168)."""
+
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
+    outcome: Literal["done"] = "done"
     kind: PasteKindName
     message: str
     written: int

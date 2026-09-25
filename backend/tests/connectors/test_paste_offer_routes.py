@@ -1,14 +1,19 @@
-"""Paste between connections through the API (D164, D165)."""
+"""Paste between connections through the API (D164, D165, D168)."""
 
 import uuid
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from typing import Any
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
+from sqlmodel import col, delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.core.db import async_session_maker
+from app.jobs.models import Job
+from app.main import app
 from app.users import crud, storage
 from tests.utils.database import working_postgres_options
 from tests.utils.relation_fixture import make_schema, run
@@ -45,6 +50,22 @@ async def _files(client: AsyncClient, headers: dict[str, str], path: str = "/") 
     )
     assert response.status_code == 200
     return str(response.json()["id"])
+
+
+async def _finished(
+    client: AsyncClient, headers: dict[str, str], answer: Response
+) -> dict[str, Any]:
+    """A transfer answers with its job at once; this waits for how it ended."""
+    assert answer.status_code == 200, answer.text
+    started = answer.json()
+    assert started["outcome"] == "started"
+    await app.state.job_runner.wait_for(uuid.UUID(started["job"]["id"]))
+    job = await client.get(
+        f"{settings.API_V1_STR}/jobs/{started['job']['id']}", headers=headers
+    )
+    assert job.status_code == 200, job.text
+    result: dict[str, Any] = job.json()
+    return result
 
 
 async def _postgres(client: AsyncClient, headers: dict[str, str]) -> str:
@@ -92,9 +113,17 @@ async def test_a_file_is_copied_between_two_connections(
         headers=normal_user_token_headers,
         json={**pair, "kind": "file_copy"},
     )
-    assert copied.status_code == 200, copied.text
-    assert copied.json()["message"] == "1 file copied"
-    assert copied.json()["reload_node_ids"] == [None]
+    job = await _finished(client, normal_user_token_headers, copied)
+    assert (job["kind"], job["state"], job["subject_id"]) == (
+        "paste.transfer",
+        "succeeded",
+        destination,
+    )
+    # The top of a connection is called by the connection's name.
+    assert job["message"].startswith("Copied 1 file to files ")
+    [item] = job["parameters"]["items"]
+    assert (item["name"], item["outcome"]) == (filename, "done")
+    assert job["parameters"]["bytes_done"] == job["parameters"]["bytes_total"] == 17
     assert (home / "reports" / filename).read_bytes() == (home / filename).read_bytes()
 
 
@@ -128,8 +157,9 @@ async def test_a_file_is_moved_between_two_connections(
         headers=normal_user_token_headers,
         json={**pair, "kind": "file_move"},
     )
-    assert moved.status_code == 200, moved.text
-    assert moved.json()["message"] == "1 file moved"
+    job = await _finished(client, normal_user_token_headers, moved)
+    assert job["state"] == "succeeded"
+    assert job["message"].startswith("Moved 1 file to files ")
     assert not (home / filename).exists()
     assert (home / "reports" / filename).read_bytes() == b"move across roots"
 
@@ -164,9 +194,12 @@ async def test_a_table_is_saved_as_csv_in_a_folder(
         headers=normal_user_token_headers,
         json={**pair, "kind": "relation_csv", "name": name},
     )
-    assert saved.status_code == 200, saved.text
-    assert saved.json()["rows"] == 2
-    assert saved.json()["reload_node_ids"] == ["reports"]
+    job = await _finished(client, normal_user_token_headers, saved)
+    assert (job["state"], job["message"]) == (
+        "succeeded",
+        f"{name} saved in reports with 2 rows",
+    )
+    assert job["parameters"]["items"][0]["rows"] == 2
     assert (home / "reports" / name).read_bytes() == (
         b'\xef\xbb\xbf"id","code"\r\n"1","EU"\r\n"2","US"\r\n'
     )
@@ -176,8 +209,53 @@ async def test_a_table_is_saved_as_csv_in_a_folder(
         headers=normal_user_token_headers,
         json={**pair, "kind": "relation_csv", "name": name},
     )
+    # A taken name answers at once, before any job, so Paste can ask.
     assert again.status_code == 409
     assert again.json()["detail"]["reason"] == "conflict"
+
+
+async def test_a_fourth_transfer_is_refused_while_three_run(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+    db: AsyncSession,
+) -> None:
+    filename = f"fourth-{uuid.uuid4().hex}.txt"
+    (home / filename).write_bytes(b"wait")
+    source = await _files(client, normal_user_token_headers)
+    destination = await _files(client, normal_user_token_headers, path="/reports")
+    user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    running = [
+        Job(owner_id=user.id, kind="paste.transfer", state="running") for _ in range(3)
+    ]
+    async with async_session_maker() as session:
+        session.add_all(running)
+        await session.commit()
+    try:
+        refused = await client.post(
+            f"{BASE}/{destination}/paste",
+            headers=normal_user_token_headers,
+            json={
+                "source_connector_id": source,
+                "source_node_ids": [filename],
+                "destination_node_id": None,
+                "mode": "copy",
+                "kind": "file_copy",
+            },
+        )
+    finally:
+        async with async_session_maker() as session:
+            await session.exec(
+                delete(Job).where(col(Job.id).in_([job.id for job in running]))
+            )
+            await session.commit()
+
+    assert refused.status_code == 429
+    assert refused.json()["detail"]["message"] == (
+        "Three transfers are running — wait for one to finish"
+    )
+    assert not (home / "reports" / filename).exists()
 
 
 async def test_what_cannot_be_read_as_rows_is_named_and_not_run(

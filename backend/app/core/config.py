@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     # Ceiling for one upload, counted as the bytes arrive: the length a client
     # declares is a claim, not a fact.
     MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024
+    # Transfers between connections one person may have running at once (D168).
+    TRANSFER_MAX_ACTIVE: int = 3
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

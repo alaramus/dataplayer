@@ -6,13 +6,69 @@ connection. Reading a relation and editing the rows in it are in
 [relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44, D161, D163, D164, D165, D166.
+Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168.
+
+## D168. A transfer between connections is an owned job
+
+`file_copy`, `file_move` and `relation_csv` run as D81 jobs of kind
+`paste.transfer`; the row kinds of D166 stay in the request, held to D45's
+16 MB. A kind says which by the protocol it implements, `PastesNow` or
+`PastesAsJob`, and `/paste` — in `app/transfers`, above the jobs it starts —
+answers `done` with the result or `started` with the job.
+
+- **Planned at once.** `plan` makes every check that answers immediately: the
+  ceilings, a taken name, access. D162's window still opens before anything
+  starts. At most 1000 files and 10 GB per paste; a CSV stops at 10 GB.
+- **Three at a time per person** (`TRANSFER_MAX_ACTIVE`). A fourth is refused
+  with 429, "Three transfers are running — wait for one to finish", counted
+  under an advisory lock on the owner (`jobs.crud.admit_within`). Eight run at
+  once across the server, on worker threads of their own so a long copy takes
+  none from the shared pool; one beyond them shows "waiting for a free
+  transfer slot" until a slot frees.
+- **The payload is the record.** `Transfer` holds both connections, the place,
+  the conflict rule, each item with its size and outcome, the bytes moved and
+  of how many, and the kind's own words (`doing`, `done`) so the screen names
+  no kind. The row is written at every item and at most once a second for
+  bytes, and every write is announced.
+- **Both ends are checked again** when the job starts, as its owner sees them
+  then: a connection gone, switched off or no longer granted enough fails it
+  before a byte moves.
+- **One file failing is that file's outcome**, in a sentence that names it; a
+  connection that cannot be reached, or a destination folder gone, ends the
+  rest as not attempted. Anything short of every item done fails the job, which
+  then waits in Needs you (D115).
+- **Stop is at once.** Every 1 MB piece is a short call on a worker thread that
+  a Stop waits for (`in_worker`: a native cancel does not wait for a thread),
+  then the file in hand is discarded. The handler says how far it got
+  (`ExplainsStop`); a stopped transfer is news in Recent, not a question.
+- **A file for an SSH server is written there as it arrives**
+  (`Storage.incoming`), into a temporary name beside its target, and is never
+  staged whole on this machine. A local folder keeps its staged file beside the
+  target.
+- **The screen follows it.** The footer says "Copying to SSH server · 45 MB of
+  120 MB"; Processes names both connections, the item in hand and afterwards
+  each item's outcome, the first ten and how many more. A table has no known
+  total, so it shows the bytes written and no bar. The catalogs it writes into
+  re-read as files arrive, at most every two seconds and once at the end, and
+  the tab that started it says how it ended.
+
+Known deviations:
+
+- **A crash can leave a staged file.** A process that dies mid-file leaves its
+  `.dataplayer-…` beside the target, locally or on the SSH server. It is never
+  published under the real name; the startup sweep does not reach a
+  connection's disk.
+- **No folders, pause or resume.** An interrupted transfer is not continued;
+  pasting again decides the files already there by the conflict rule chosen.
+
+Spec: [Transfers as owned jobs](../../decisions/2026-09-25-transfer-jobs-design.md)
 
 ## D164. One paste answer for a pair of connections
 
 A clipboard from another connection is pasted through three routes, whatever
 it holds. `POST /connectors/{destination}/paste/offers` lists what it can
-become here; `POST /connectors/{destination}/paste` runs one offer;
+become here; `POST /connectors/{destination}/paste` runs one offer, at
+once or as a transfer job (D168);
 `POST /connectors/{source}/clipboard/offer` says whether a selection can be
 held at all. Each kind of paste is an entry in the `connectors/paste`
 registry. It names the capabilities it needs from each end and the clipboard
@@ -97,17 +153,15 @@ an explorer connection. Copy only; nothing offers a Cut of it.
   delimited extension: a `.tsv` holding commas reads back as one column.
 - A taken name opens D162's window with Keep both and Replace. Replace is
   allowed because the source is not a file.
-- The stream goes into the destination's staged file, published after the last
-  batch. At most 200 MB of CSV; crossing it answers `too_large`. A source
-  failure, a refused name or the ceiling discards the staged file, and the
-  source's stream is closed at once rather than when collected.
+- The stream is written where it is going as it comes (D168) and published
+  after the last batch. At most 10 GB of CSV; crossing it fails the paste. A
+  source failure, a refused name, the ceiling or a Stop discards the file, and
+  the source's stream is closed at once rather than when collected.
 - The destination's read cache is invalidated. The source is untouched and the
   clipboard keeps the table.
 
 Known deviations:
 
-- **A request, not a job.** No progress or cancellation; D81/D95 come before a
-  higher ceiling.
 - **Whole relation only.** Copying from the grid with its filters, sort and
   visible columns is not offered.
 
@@ -120,7 +174,8 @@ application asks for `write` on both connections. It publishes the complete
 file at the destination, confirms the source still has the version read, then
 removes that source file. A failed deletion leaves both copies and reports that
 state. The server invalidates both connections' read caches; the client
-refreshes both open catalogs. The clipboard is cleared after full success.
+refreshes both open catalogs. The clipboard is cleared when the move starts
+(D168).
 
 A name conflict offers Keep both in the same window as Copy. Replace is not
 offered for cross-connection Cut because two connectors may name the same
@@ -131,9 +186,8 @@ Known deviations:
 
 - **A batch is not atomic.** Earlier files may have moved when a later one
   fails. A file whose destination was published but whose source could not be
-  removed remains in both places; the error names that outcome.
-- **No directory moves or owned job.** The first path retains D161's file,
-  count and byte limits and its request lifetime.
+  removed remains in both places; its outcome says so.
+- **No directory moves.**
 
 Spec: [Moving a file between connections](../../decisions/2026-09-25-cross-connector-cut-design.md)
 
@@ -148,23 +202,18 @@ be copied to the current folder, and execution checks again. The
 same-connection Paste of D74 continues through the source's own action.
 
 - Copy leaves the source in place. Folders and links are outside this first
-  path. A request holds at most 20 files and 200 MB total.
-  Bytes are read in bounded chunks into a destination-owned staged file; the
-  destination publishes only after the whole file has arrived.
+  path. A paste holds at most 1000 files and 10 GB (D168). Bytes are read in
+  1 MB pieces and written where they are going; the destination publishes
+  only after the whole file has arrived.
 - Existing names are refused by default. The catalog has one Paste command;
   choosing it opens a conflict window with Keep both and Replace when the
   offer reports a taken name or execution discovers one. A batch checks its
   names before starting, but a source or
-  destination can change during execution, so completed files may remain if a
-  later one fails. The destination catalog is invalidated even on failure.
+  destination can change during execution: a file that then fails is that
+  file's outcome, and the files around it still arrive (D168). The destination
+  catalog is invalidated even on failure.
 - The offer is advisory. Both rights and connector states are resolved again
   at execution, and every node is checked by the source storage when read.
-
-Known deviations:
-
-- **This is a bounded request, not an owned job.** It has no byte progress,
-  cancellation or recovery after an interrupted request. D81/D95 integration
-  is still needed before raising the size or batch ceilings.
 
 Spec: [Interactions between connections](../../decisions/2026-09-25-cross-connector-interactions-design.md)
 

@@ -22,7 +22,7 @@ import stat
 import time
 import uuid
 from collections.abc import Awaitable, Callable, Iterator
-from contextlib import AsyncExitStack, contextmanager
+from contextlib import AsyncExitStack, contextmanager, suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO, TypeVar
@@ -35,6 +35,7 @@ from app.adapters.explorer.copies import TooLargeToCopy, copies
 from app.adapters.explorer.storage import (
     REMOTE_SEARCH,
     Entry,
+    Incoming,
     PathPlaces,
     Place,
     VersionChanged,
@@ -257,6 +258,17 @@ class SftpStorage(PathPlaces):
         self._forget(place)
 
     @contextmanager
+    def incoming(self, near: Place, *, prefix: str = ".dataplayer-") -> Iterator[Incoming]:
+        """Written on the server as it arrives, into a temporary name beside
+        its target: nothing is staged whole on this machine first (D168)."""
+        arriving = _RemoteArriving(self._session, self.parent(near), prefix, self._forget)
+        from_thread.run(arriving.opened)
+        try:
+            yield arriving
+        finally:
+            from_thread.run(arriving.discarded)
+
+    @contextmanager
     def filled(self, place: Place) -> Iterator[Path]:
         with copies().scratch(self._owner) as folder:
             yield folder
@@ -414,7 +426,10 @@ class _RemoteFile(io.RawIOBase):
     async def _read(self, size: int) -> bytes:
         if self._file is None:
             return b""
-        chunk = await self._file.read(size, self._position)
+        try:
+            chunk = await self._file.read(size, self._position)
+        except (asyncssh.Error, TimeoutError):
+            raise OSError("The file could not be read from the server") from None
         return chunk if isinstance(chunk, bytes) else chunk.encode()
 
     def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
@@ -440,6 +455,95 @@ class _RemoteFile(io.RawIOBase):
         if self._file is not None:
             await self._file.close()
         await self._stack.aclose()
+
+
+class _RemoteArriving:
+    """A remote file written in pieces from a worker thread, then renamed
+    into place — or removed, when the block ends without that.
+
+    Holds its own use of the session while it is open, as a file being read
+    does: a transfer writes long after the request that started it answered.
+    """
+
+    def __init__(
+        self,
+        session: SshSession,
+        folder: Place,
+        prefix: str,
+        forget: Callable[[Place], None],
+    ) -> None:
+        self._session = session
+        self._folder = folder
+        self._prefix = prefix
+        self._forget = forget
+        self._stack = AsyncExitStack()
+        self._remote: Remote | None = None
+        self._file: asyncssh.SFTPClientFile | None = None
+        self._temporary = ""
+        self._offset = 0
+        self._published = False
+
+    async def opened(self) -> None:
+        remote = await self._stack.enter_async_context(self._session.remote())
+        self._remote = remote
+        self._temporary = posixpath.join(
+            remote.path_of(self._folder.key), f"{self._prefix}{uuid.uuid4().hex}"
+        )
+        try:
+            self._file = await remote.sftp.open(self._temporary, "wb", encoding=None)
+        except _MISSING:
+            await self._stack.aclose()
+            raise FileNotFoundError(self._folder.key) from None
+        except (asyncssh.Error, TimeoutError):
+            await self._stack.aclose()
+            raise OSError("The file could not be created on the server") from None
+
+    def write(self, data: bytes) -> None:
+        from_thread.run(self._write, data)
+
+    async def _write(self, data: bytes) -> None:
+        if self._file is None:
+            raise OSError("The file is no longer open")
+        try:
+            await self._file.write(data, self._offset)
+        except (asyncssh.Error, TimeoutError):
+            raise OSError("The file could not be written on the server") from None
+        self._offset += len(data)
+
+    def publish(self, place: Place, *, replace: bool = False) -> None:
+        try:
+            from_thread.run(self._publish, place, replace)
+        except _Carried as carried:
+            raise carried.error from None
+        self._forget(place)
+
+    async def _publish(self, place: Place, replace: bool) -> None:
+        remote, file = self._remote, self._file
+        if remote is None or file is None:
+            raise OSError("The file is no longer open")
+        self._file = None
+        try:
+            await file.close()
+            target = remote.path_of(place.key)
+            if replace:
+                await _replaced(remote, self._temporary, target, None)
+            else:
+                await _claimed(remote, self._temporary, target, place)
+        except (asyncssh.Error, TimeoutError):
+            raise OSError("The file could not be put in place on the server") from None
+        self._published = True
+
+    async def discarded(self) -> None:
+        try:
+            if self._file is not None:
+                with suppress(asyncssh.Error, OSError, TimeoutError):
+                    await self._file.close()
+                self._file = None
+            if not self._published and self._remote is not None:
+                with suppress(asyncssh.Error, OSError, TimeoutError):
+                    await self._remote.sftp.remove(self._temporary)
+        finally:
+            await self._stack.aclose()
 
 
 async def _described(remote: Remote, place: Place) -> Entry | None:

@@ -96,6 +96,16 @@ test("copies a file to an SSH server and moves it back", async ({ page }) => {
   await catalogAction(page, "client:cross-paste")
   await expect(catalogRow(page, file)).toBeVisible()
 
+  // It ran as a job the server owns: the sheet lists it with both
+  // connections and what became of each file (D168).
+  await page.getByTestId("activity-indicator").click()
+  const transfer = page.getByTestId("processes").locator("article", {
+    hasText: `Copy files · ${files} → ${server}`,
+  })
+  await expect(transfer).toContainText("Completed")
+  await expect(transfer).toContainText(`${file} — copied`)
+  await page.getByTestId("activity-indicator").click()
+
   // Cut on the server, Paste back home: the file leaves the server, and the
   // server's catalog says so without being reloaded by hand.
   await catalogCheck(page, file).click()

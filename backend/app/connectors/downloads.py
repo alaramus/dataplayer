@@ -264,25 +264,49 @@ async def write_csv(
     """
     row_count = 0
     written = 0
+    pieces = csv_pieces(columns, batches)
     try:
         async with await open_file(path, "wb") as output:
-            header_rows: list[list[str | None]] = [list(columns)]
-            header = await to_thread.run_sync(_encode_csv_rows, header_rows)
-            written = await _write_within(
-                output, BYTE_ORDER_MARK + header, written, max_bytes
-            )
-            async for batch in batches:
-                if any(len(row) != len(columns) for row in batch.rows):
-                    raise ValueError("The source returned an invalid export row")
-                encoded = await to_thread.run_sync(_encode_csv_rows, batch.rows)
-                written = await _write_within(output, encoded, written, max_bytes)
-                row_count += len(batch.rows)
+            async for piece, rows in pieces:
+                written = await _write_within(output, piece, written, max_bytes)
+                row_count += rows
+    finally:
+        await close_pieces(pieces, batches)
+    return row_count
+
+
+async def close_pieces(
+    pieces: AsyncGenerator[tuple[bytes, int]], batches: AsyncIterator[ExportBatch]
+) -> None:
+    """Close both, whether or not the pieces were ever read: an abandoned
+    `async for` leaves a generator open, and one never started does not reach
+    its own `finally`."""
+    await pieces.aclose()
+    if isinstance(batches, AsyncGenerator):
+        await batches.aclose()
+
+
+async def csv_pieces(
+    columns: list[str], batches: AsyncIterator[ExportBatch]
+) -> AsyncGenerator[tuple[bytes, int]]:
+    """The header, then each batch, encoded, with how many rows each holds.
+
+    For a writer that is not a local file: a transfer writes the pieces where
+    they are going as they come (D168).
+    """
+    try:
+        header_rows: list[list[str | None]] = [list(columns)]
+        header = await to_thread.run_sync(_encode_csv_rows, header_rows)
+        yield BYTE_ORDER_MARK + header, 0
+        async for batch in batches:
+            if any(len(row) != len(columns) for row in batch.rows):
+                raise ValueError("The source returned an invalid export row")
+            yield await to_thread.run_sync(_encode_csv_rows, batch.rows), len(batch.rows)
     finally:
         # Left open, a source's generator keeps its cursor and pooled
         # connection until the collector finalises it.
         if isinstance(batches, AsyncGenerator):
             await batches.aclose()
-    return row_count
 
 
 async def _write_within(

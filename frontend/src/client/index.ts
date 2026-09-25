@@ -913,6 +913,7 @@ export type {
   PastePair,
   PasteResult,
   PasteRun,
+  PasteStarted,
   PdfContent,
   PdfContents,
   PlannedStatement,

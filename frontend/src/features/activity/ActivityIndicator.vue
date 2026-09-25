@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, ref, watch } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 
 import { connectorsKey, useConnectors } from "@/features/connectors/api"
 import { backupsKey, servicesKey, useCancelJob, useServices } from "@/features/services/api"
@@ -9,12 +9,16 @@ import { notices } from "@/shared/notifications"
 import { isActive, useOperations } from "@/shared/operations"
 import { AppBadge, AppButton, AppProgress, AppTooltip, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
+import { useSourceChangesStore } from "@/stores/sourceChanges"
 import ActivityPanel from "./ActivityPanel.vue"
-import { useJobs } from "./api"
+import { jobsKey, useJobs } from "./api"
 import { foreground, jobTitle, localRow, serverRow } from "./presentation"
 import type { ProcessRow } from "./presentation"
 import { useAttention } from "./sources"
 import { sourceDataKeys, touchedSources } from "./sourceOperations"
+import {
+  createRereader, startedHere, toldInThisTab, transferChanges,
+} from "./transfers"
 
 /**
  * The bell at the end of the status bar, and the sheet it opens (D113).
@@ -69,6 +73,32 @@ watch(serverJobs, (listed) => {
     }
   }
 })
+
+// A transfer re-reads the catalogs it writes into as files arrive, at most
+// every two seconds, and the tab that started it says how it ended (D168).
+const changes = useSourceChangesStore()
+const rereader = createRereader((connectorId) => { changes.announce(connectorId) })
+onBeforeUnmount(() => { rereader.dispose() })
+let transferSignatures = new Map<string, string>()
+watch([serverJobs, startedHere], ([listed, started]) => {
+  const { seen, touched, ended } = transferChanges(transferSignatures, listed, started)
+  transferSignatures = seen
+  for (const { connectorId, settled } of touched) rereader.reread(connectorId, settled)
+  for (const job of ended) {
+    toldInThisTab(job.id)
+    if (job.state === "succeeded" && job.message !== null) toast.success(job.message)
+    // Stopped on request is news rather than a question; a failure waits in
+    // Needs you instead (D115).
+    if (job.state === "cancelled" && job.message !== null) toast.info(job.message)
+  }
+  if (touched.some((change) => change.settled)) {
+    for (const queryKey of [["paste-offers"], ["pair-offers"], ["clipboard-offer"]]) {
+      void queryClient.invalidateQueries({ queryKey })
+    }
+  }
+})
+// A transfer just started is read at once rather than at the next poll.
+watch(startedHere, () => { void queryClient.invalidateQueries({ queryKey: jobsKey }) })
 
 function subjectOf(kind: string, subjectId: string | null): string | undefined {
   if (subjectId === null) return undefined
@@ -151,10 +181,10 @@ function clearFinished() {
       data-testid="activity-progress"
       @click="log.setOpen(!log.open.value)"
     >
-      <span class="activity-indicator__step">{{ current.label }}</span>
+      <span class="activity-indicator__step">{{ current.brief ?? current.label }}</span>
       <AppProgress
         class="activity-indicator__progress"
-        :label="current.label"
+        :label="current.brief ?? current.label"
         :value="current.progress"
         :paused="current.paused"
       />

@@ -39,7 +39,7 @@ legacy notes and stay unchanged.
 | An SSH server, the server key it trusts, SSH keys and their passphrases | [sources/ssh.md](docs/architecture/sources/ssh.md) |
 | A terminal, its socket, who may open one | [terminals.md](docs/architecture/terminals.md) |
 | Reading a relation, changing the rows in it | [sources/relations.md](docs/architecture/sources/relations.md) |
-| Copying rows between sources, pasting into another connection, loading a file in, exporting every row | [sources/transfer.md](docs/architecture/sources/transfer.md) |
+| Copying rows between sources, pasting into another connection, a transfer job, loading a file in, exporting every row | [sources/transfer.md](docs/architecture/sources/transfer.md) |
 | A reference somebody drew by hand between two columns or two sources | [sources/declared.md](docs/architecture/sources/declared.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
 | Opening a node as anything but rows: documents, media, archives | [sources/content.md](docs/architecture/sources/content.md) |
@@ -243,6 +243,7 @@ files. IDs are stable because specs and commits refer to them.
 | D165 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D166 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D167 | [windows](docs/architecture/windows.md) |
+| D168 | [sources/transfer](docs/architecture/sources/transfer.md) |
 
 ## Working rules
 

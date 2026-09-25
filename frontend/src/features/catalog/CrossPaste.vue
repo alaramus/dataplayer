@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { PasteColumn, PasteOffer } from "@/client"
+import { startedInThisTab } from "@/features/activity/transfers"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { forgetMoved } from "@/features/catalog/clipboard"
 import { firstStep, offerPlace } from "@/features/catalog/pasteOffers"
@@ -66,7 +67,7 @@ async function paste(
   const intent = props.intent
   const named = chosen.workflow === "file-name" || chosen.workflow === "new-relation"
   try {
-    const result = (await ConnectorsService.paste({
+    const answer = (await ConnectorsService.paste({
       path: { connector_id: intent.destinationConnectorId },
       body: {
         source_connector_id: intent.sourceConnectorId,
@@ -80,16 +81,25 @@ async function paste(
         ...(columns ? { columns } : {}),
       },
     })).data
+    if (answer.outcome === "started") {
+      // A transfer runs on the server from here: the footer shows it, the
+      // catalogs re-read as its files arrive, and this tab is told how it
+      // ended (D168). A Cut is spent the moment its move starts.
+      if (chosen.changes_source === true) forgetMoved(intent.sourceConnectorId, intent.sourceNodeIds)
+      startedInThisTab(answer.job.id)
+      emit("close")
+      return
+    }
     if (chosen.changes_source === true) {
       forgetMoved(intent.sourceConnectorId, intent.sourceNodeIds)
       emit("sourceChanged", intent.sourceConnectorId)
     }
     emit("done", {
-      done: [{ message: result.message, reload_node_ids: result.reload_node_ids }],
+      done: [{ message: answer.message, reload_node_ids: answer.reload_node_ids }],
       failures: [],
       total: 1,
     })
-    toast.success(result.message)
+    toast.success(answer.message)
     emit("close")
   } catch (cause) {
     // A batch may have changed both ends before it failed.

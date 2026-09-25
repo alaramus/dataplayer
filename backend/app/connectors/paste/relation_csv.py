@@ -1,6 +1,6 @@
-"""A table pasted into a folder becomes a CSV file (D165)."""
+"""A table pasted into a folder becomes a CSV file (D165, D168)."""
 
-from collections.abc import AsyncIterator
+import asyncio
 from contextlib import ExitStack
 from functools import partial
 
@@ -8,7 +8,7 @@ from anyio import to_thread
 
 from app.adapters.actions import ActionRefused
 from app.adapters.explorer.storage import Place, Storage, is_plain_name
-from app.adapters.export import ExportBatch, ExportRequest
+from app.adapters.export import ExportRequest
 from app.adapters.protocol import (
     AdapterError,
     DataAdapter,
@@ -33,9 +33,15 @@ from app.connectors.paste.models import (
     PasteKindName,
     PasteOffer,
     PastePair,
-    PasteResult,
     PasteRun,
     PasteWorkflow,
+)
+from app.connectors.paste.transfer import (
+    Transfer,
+    TransferItem,
+    TransferPlan,
+    TransferReport,
+    TransferStopped,
 )
 from app.core.access import Access
 
@@ -65,6 +71,8 @@ class RelationCsv:
     name: PasteKindName = "relation_csv"
     title = "Save as CSV"
     needs = "Tick a table or a view"
+    doing = "Saving as CSV"
+    done = "saved"
     mode: ClipboardMode = "copy"
     workflow: PasteWorkflow = "file-name"
     converts = True
@@ -108,39 +116,67 @@ class RelationCsv:
             return refused(self, "The destination is unavailable")
         return offered(self, available=True, name_conflict=taken, suggested_name=name)
 
-    async def run(
+    async def plan(
         self, source: DataAdapter, destination: DataAdapter, request: PasteRun
-    ) -> PasteResult:
-        if not isinstance(source, SupportsExport):
-            raise ActionRefused("not_applicable", "This connection cannot export rows")
+    ) -> TransferPlan:
         found = await _relation(source, request.source_node_ids, gone=GONE)
         if isinstance(found, str):
             raise ActionRefused("not_applicable", found)
-        columns = [column.name for column in found.columns]
-        if not columns:
+        if not found.columns:
             raise ActionRefused("not_applicable", "The table has no columns")
         name = csv_name(request.name or suggested_name(found.name))
         storage = storage_of(destination)
-        target = await to_thread.run_sync(
-            _target, storage, request.destination_node_id, name, request.conflict
+        try:
+            target = await to_thread.run_sync(
+                _target, storage, request.destination_node_id, name, request.conflict
+            )
+        except (OSError, ValueError):
+            raise ActionRefused("not_applicable", "The destination is unavailable") from None
+        folder = storage.parent(target)
+        return TransferPlan(
+            items=[TransferItem(node_id=request.source_node_ids[0], name=found.name)],
+            bytes_total=None,
+            place=folder.name,
+            name=name,
         )
-        rows = await _write(
-            storage,
-            target,
-            columns,
-            source.export_rows(
-                ExportRequest(node_id=request.source_node_ids[0], columns=columns)
-            ),
-            replace=request.conflict == "replace",
-        )
-        return PasteResult(
-            kind=self.name,
-            message=f"{target.name} saved with {counted(rows, 'row')}",
-            written=1,
-            rows=rows,
-            name=target.name,
-            reload_node_ids=[request.destination_node_id],
-        )
+
+    async def transfer(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        report: TransferReport,
+    ) -> None:
+        item = transfer.items[0]
+        item.outcome = "running"
+        await report.changed()
+        try:
+            await _saved(source, storage_of(destination), transfer, item, report)
+        except asyncio.CancelledError:
+            item.outcome = "stopped"
+            item.message = f"{transfer.name} was stopped while it was being written; no file was left"
+            raise
+        except ActionRefused as refusal:
+            item.outcome, item.message = "failed", refusal.message
+        except AdapterError as failure:
+            item.outcome, item.message = "failed", failure.message
+            raise TransferStopped(failure.message) from None
+        except FileExistsError:
+            item.outcome, item.message = "failed", f"{transfer.name} is already there"
+        except (OSError, ValueError):
+            item.outcome, item.message = "failed", "The file could not be written"
+        await report.changed()
+
+    def told(self, transfer: Transfer, stopped: str | None = None) -> str:
+        item = transfer.items[0]
+        if item.outcome == "done":
+            return (
+                f"{item.published_as} saved in {transfer.place_label} "
+                f"with {counted(item.rows or 0, 'row')}"
+            )
+        if item.outcome == "stopped":
+            return f"{transfer.name} was not saved: it was stopped"
+        return f"{transfer.name} was not saved: {stopped or item.message or 'it failed'}"
 
 
 async def _relation(
@@ -172,29 +208,51 @@ def _target(
     return place_for(storage, destination_folder(storage, folder_id), name, conflict)
 
 
-async def _write(
+async def _saved(
+    source: DataAdapter,
     storage: Storage,
-    target: Place,
-    columns: list[str],
-    batches: AsyncIterator[ExportBatch],
-    *,
-    replace: bool,
-) -> int:
-    """Stream the rows into a staged file and publish it only when complete."""
-    staging = ExitStack()
+    transfer: Transfer,
+    item: TransferItem,
+    report: TransferReport,
+) -> None:
+    """Stream the rows into the file where it is going; publish it only whole."""
+    if not isinstance(source, SupportsExport):
+        raise ActionRefused("not_applicable", "This connection cannot export rows")
+    found = await _relation(source, [item.node_id], gone=GONE)
+    if isinstance(found, str):
+        raise ActionRefused("not_applicable", found)
+    columns = [column.name for column in found.columns]
+    if not columns:
+        raise ActionRefused("not_applicable", "The table has no columns")
+    target = await report.in_thread(
+        partial(
+            _target,
+            storage,
+            transfer.destination_node_id,
+            transfer.name or suggested_name(found.name),
+            transfer.conflict,
+        )
+    )
+    batches = source.export_rows(ExportRequest(node_id=item.node_id, columns=columns))
+    pieces = downloads.csv_pieces(columns, batches)
+    stack = ExitStack()
     try:
-        staged = await to_thread.run_sync(staging.enter_context, storage.staged(target))
-        try:
-            rows = await downloads.write_csv(
-                staged, columns=columns, batches=batches, max_bytes=MAX_TRANSFER_BYTES
-            )
-        except downloads.CsvTooLarge:
-            raise ActionRefused("too_large", "The table exceeds 200 MB as CSV") from None
-        await to_thread.run_sync(partial(storage.publish, staged, target, replace=replace))
-    except FileExistsError:
-        raise ActionRefused("conflict", f"{target.name} is already there") from None
-    except OSError:
-        raise ActionRefused("not_applicable", "The file could not be saved") from None
+        arriving = await report.in_thread(partial(stack.enter_context, storage.incoming(target)))
+        rows = 0
+        async for piece, count in pieces:
+            if transfer.bytes_done + len(piece) > MAX_TRANSFER_BYTES:
+                raise ActionRefused("too_large", "The table exceeds 10 GB as CSV")
+            await report.in_thread(partial(arriving.write, piece))
+            transfer.bytes_done += len(piece)
+            rows += count
+            item.rows = rows
+            await report.progressed()
+        await report.in_thread(
+            partial(arriving.publish, target, replace=transfer.conflict == "replace")
+        )
     finally:
-        await to_thread.run_sync(staging.close)
-    return rows
+        await downloads.close_pieces(pieces, batches)
+        await report.in_thread(stack.close)
+    transfer.published += 1
+    item.published_as = target.name
+    item.outcome = "done"

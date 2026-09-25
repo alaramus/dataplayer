@@ -11,6 +11,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.jobs.models import TERMINAL, Job, JobKind, JobsPublic, public
 
 
+class TooManyActive(Exception):
+    """The owner already has as many unfinished jobs of this kind as allowed."""
+
+
 class SubjectBusy(Exception):
     """A job this one may not run beside is unfinished for the same subject."""
 
@@ -96,6 +100,41 @@ async def admit_exclusive(
         busy_id = busy.id
         await session.rollback()
         raise SubjectBusy(busy_id)
+    return await create(
+        session, owner_id=owner_id, kind=kind, subject_id=subject_id,
+        step_count=step_count, parameters=parameters,
+    )
+
+
+async def admit_within(
+    session: AsyncSession,
+    *,
+    owner_id: uuid.UUID,
+    kind: JobKind,
+    limit: int,
+    subject_id: uuid.UUID | None,
+    step_count: int,
+    parameters: dict[str, Any] | None = None,
+) -> Job:
+    """Record a job unless its owner already has `limit` of this kind unfinished.
+
+    Refused rather than queued, as a run over the limit is (D64). The same
+    advisory lock as `admit_exclusive`, on the owner and the kind, so two tabs
+    cannot both take the last place.
+    """
+    await session.exec(select(func.pg_advisory_xact_lock(
+        func.hashtextextended(f"job-owner:{kind}:{owner_id}", 0)
+    )))
+    active = (await session.exec(
+        select(func.count())
+        .select_from(Job)
+        .where(Job.owner_id == owner_id)
+        .where(Job.kind == kind)
+        .where(col(Job.state).not_in(TERMINAL))
+    )).one()
+    if active >= limit:
+        await session.rollback()
+        raise TooManyActive
     return await create(
         session, owner_id=owner_id, kind=kind, subject_id=subject_id,
         step_count=step_count, parameters=parameters,
