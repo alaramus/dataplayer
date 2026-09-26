@@ -187,6 +187,34 @@ async def test_a_table_is_scanned_without_a_ceiling() -> None:
     assert ["count", None] not in rows
 
 
+async def test_a_table_filtered_to_one_key_exports_that_row() -> None:
+    client = await _client()
+    try:
+        await client.hset("user:1", mapping={"name": "Ada"})
+        await client.hset("user:2", mapping={"name": "Grace"})
+    finally:
+        await client.aclose()
+    table = DeclaredTable.model_validate(
+        {"place_id": folder_id(DB, "user:"), "name": "users", "columns": [{"name": "name"}]}
+    )
+    adapter = RedisAdapter(redis_options(), [table])
+
+    def by_key(value: str, column: str = "key") -> ExportRequest:
+        return ExportRequest(
+            node_id=table_id(DB, "user:"),
+            columns=["key", "name"],
+            filters=[ScalarFilter(column=column, op="eq", value=value)],
+        )
+
+    one = [batch.rows async for batch in adapter.export_rows(by_key("2"))]
+    none = [batch.rows async for batch in adapter.export_rows(by_key("9"))]
+
+    assert one == [[["2", "Grace"]]]
+    assert none == []
+    with pytest.raises(ValueError, match="filtered only by key"):
+        [batch async for batch in adapter.export_rows(by_key("Ada", "name"))]
+
+
 async def test_what_is_not_there_is_not_exported() -> None:
     adapter = RedisAdapter(redis_options())
 

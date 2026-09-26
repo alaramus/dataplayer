@@ -15,7 +15,7 @@ from app.adapters.declared_tables import (
     DeclaredTable,
     DeclareTableRequest,
 )
-from app.adapters.fetch import FetchRequest
+from app.adapters.fetch import FetchRequest, ScalarFilter, Sort
 from app.adapters.protocol import (
     NodeNotFound,
     SupportsDeclaredTables,
@@ -26,6 +26,7 @@ from app.adapters.protocol import (
 from app.adapters.redis import tables as redis_tables
 from app.adapters.redis.adapter import RedisAdapter
 from app.adapters.redis.keyspace import (
+    RedisKeyspace,
     database_id,
     folder_id,
     key_id,
@@ -258,7 +259,9 @@ async def test_the_table_reads_one_row_per_hash_in_key_order() -> None:
     assert page.notice == "1 key of another type is not a row"
     assert not page.update_supported and page.update_reason == "A declared table is read-only"
     assert not page.insert_supported and not page.delete_supported
-    assert not any(column.sortable or column.filter_operators for column in page.columns)
+    assert not any(column.sortable for column in page.columns)
+    # Looking a key up is the one filter it takes (D172).
+    assert [column.name for column in page.columns if column.filter_operators] == ["key"]
 
 
 async def test_the_table_pages_over_its_hashes() -> None:
@@ -287,6 +290,80 @@ async def test_a_folder_past_the_ceiling_is_shown_in_part(
 
     assert page.notice == "Only 10 keys under this folder were read; the rest are not shown"
     assert 10 <= len(page.rows) < 30
+
+
+# --- looked up by key (D172) ------------------------------------------------
+
+
+def _key(value: str) -> FetchRequest:
+    return FetchRequest(
+        node_id=TABLE, filters=[ScalarFilter(column="key", op="eq", value=value)]
+    )
+
+
+async def test_key_alone_admits_equality() -> None:
+    await _users()
+
+    page = await adapter(declared(("name", "text"), ("age", "number"))).fetch(
+        FetchRequest(node_id=TABLE)
+    )
+
+    assert {column.name: column.filter_operators for column in page.columns} == {
+        "key": ["eq"],
+        "name": [],
+        "age": [],
+    }
+    assert not any(column.sortable for column in page.columns)
+
+
+async def test_a_key_is_looked_up_by_reading_that_key_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _users()
+    subject = adapter(declared(("name", "text"), ("email", "text")))
+
+    async def no_scan(*_: object) -> None:
+        raise AssertionError("a key lookup scanned the folder")
+
+    monkeypatch.setattr(RedisKeyspace, "scan_names", no_scan)
+    monkeypatch.setattr(RedisKeyspace, "types_of", no_scan)
+
+    found = await subject.fetch(_key("1"))
+    missing = await subject.fetch(_key("gone"))
+    a_string = await subject.fetch(_key("count"))
+    below = await subject.fetch(_key("1:settings"))
+    padded = await subject.fetch(_key("01"))
+
+    assert found.rows == [["1", "Ada", "ada@example.com"]]
+    assert not found.has_more and found.notice is None
+    assert [column.name for column in found.columns] == ["key", "name", "email"]
+    assert missing.rows == a_string.rows == below.rows == padded.rows == []
+
+
+async def test_nothing_but_key_equality_is_taken() -> None:
+    subject = adapter(declared(("name", "text")))
+
+    for request in (
+        FetchRequest(
+            node_id=TABLE, filters=[ScalarFilter(column="name", op="eq", value="Ada")]
+        ),
+        FetchRequest(
+            node_id=TABLE, filters=[ScalarFilter(column="key", op="ne", value="1")]
+        ),
+        FetchRequest(
+            node_id=TABLE,
+            filters=[
+                ScalarFilter(column="key", op="eq", value="1"),
+                ScalarFilter(column="key", op="eq", value="2"),
+            ],
+        ),
+    ):
+        with pytest.raises(ValueError, match="filtered only by key"):
+            await subject.fetch(request)
+    with pytest.raises(ValueError, match="cannot be sorted"):
+        await subject.fetch(
+            FetchRequest(node_id=TABLE, sort=[Sort(column="key", direction="asc")])
+        )
 
 
 async def test_a_table_nobody_declared_is_not_there() -> None:

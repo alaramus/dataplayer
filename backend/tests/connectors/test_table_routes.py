@@ -1,4 +1,5 @@
-"""Declaring a table over a Redis folder through the API (D170)."""
+"""Declaring a table over a Redis folder through the API (D170), and
+referencing its key from another source (D172)."""
 
 import uuid
 from collections.abc import AsyncGenerator
@@ -14,11 +15,14 @@ from app.adapters.redis.options import RedisPassword
 from app.core.config import settings
 from app.users import crud
 from app.users.models import User
+from tests.utils.database import working_postgres_options
 from tests.utils.keyspace import chosen_database, empty_keyspace, redis_options
+from tests.utils.relation_fixture import make_schema, run
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
 BASE = f"{settings.API_V1_STR}/connectors"
+DECLARED = f"{settings.API_V1_STR}/declared-references"
 DB = chosen_database()
 USERS = folder_id(DB, "user:")
 TABLE = table_id(DB, "user:")
@@ -261,6 +265,102 @@ async def test_what_cannot_carry_a_table_says_so(
     assert declared_on_a_key.status_code == 422
     assert called_key.status_code == 422
     assert "cannot be called key" in called_key.json()["detail"]["message"]
+
+
+# --- a reference to its key (D172) ----------------------------------------
+
+
+@pytest.fixture
+async def schema() -> AsyncGenerator[str]:
+    async for name in make_schema():
+        yield name
+
+
+async def test_its_key_is_an_end_of_a_reference_followed_both_ways(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    headers = normal_user_token_headers
+    options = redis_options()
+    keys = redis.Redis(host=options.host, port=options.port, db=options.database)
+    try:
+        await keys.hset("region:north", mapping={"label": "Northern"})
+        await keys.hset("region:south", mapping={"label": "Southern"})
+    finally:
+        await keys.aclose()
+    await run(
+        f"INSERT INTO {schema}.regions (id, code) "  # noqa: S608 -- fixture-owned.
+        "VALUES (7, 'north'), (8, 'south')"
+    )
+    redis_id = await _connector(client, headers)
+    await client.put(
+        f"{BASE}/{redis_id}/tables",
+        headers=headers,
+        json=_declaration(folder_id(DB, "region:"), name="regions", columns=[{"name": "label"}]),
+    )
+    created = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={
+            "name": f"declared {uuid.uuid4()}",
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+        },
+    )
+    postgres_id = str(created.json()["id"])
+    regions = table_id(DB, "region:")
+
+    def end(connector_id: str, node_id: str, column: str) -> dict[str, str]:
+        return {"connector_id": connector_id, "node_id": node_id, "column": column}
+
+    refused = await client.post(
+        f"{DECLARED}/",
+        headers=headers,
+        json={"ends": [end(postgres_id, f"{schema}.regions", "code"), end(redis_id, regions, "label")]},
+    )
+    drawn = await client.post(
+        f"{DECLARED}/",
+        headers=headers,
+        json={"ends": [end(postgres_id, f"{schema}.regions", "code"), end(redis_id, regions, "key")]},
+    )
+    assert refused.status_code == 422
+    assert "cannot look up" in refused.text
+    assert drawn.status_code == 200, drawn.text
+    reference = drawn.json()["id"]
+
+    into_redis = await client.post(
+        f"{BASE}/{postgres_id}/references",
+        headers=headers,
+        json={
+            "node_id": f"{schema}.regions",
+            "reference": f"declared:{reference}:a",
+            "values": [{"column": "code", "value": "north"}],
+        },
+    )
+    target = into_redis.json()
+    rows = await client.post(
+        f"{BASE}/{redis_id}/fetch",
+        headers=headers,
+        json={"node_id": target["node"]["id"], "filters": target["filters"]},
+    )
+    arrow = await client.post(
+        f"{BASE}/{redis_id}/fetch", headers=headers, json={"node_id": regions}
+    )
+    back = await client.post(
+        f"{BASE}/{redis_id}/references",
+        headers=headers,
+        json={
+            "node_id": regions,
+            "reference": f"declared:{reference}:b",
+            "values": [{"column": "key", "value": "south"}],
+        },
+    )
+
+    assert target["node"] == {**target["node"], "id": regions, "kind": "table"}
+    assert target["filters"] == [{"column": "key", "op": "eq", "value": "north"}]
+    assert rows.json()["rows"] == [["north", "Northern"]]
+    assert [ref["columns"] for ref in arrow.json()["references"]] == [["key"]]
+    assert back.json()["node"]["id"] == f"{schema}.regions"
+    assert back.json()["filters"] == [{"column": "code", "op": "eq", "value": "south"}]
 
 
 async def test_a_source_without_the_capability_answers_501(

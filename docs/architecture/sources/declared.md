@@ -5,7 +5,7 @@ the second: a foreign key, read from the source, followed within one connection.
 This file covers a line somebody draws by hand between two columns that no
 source knows are related — including columns in two different connections and
 in two different kinds of source — and a table somebody declares over keys a
-source keeps without structure (D170).
+source keeps without structure (D170), whose key such a line can join (D172).
 
 Neither source is changed. The line is a row in the application's database,
 and the table is kept with its connection.
@@ -13,7 +13,35 @@ and the table is kept with its connection.
 Read [relations.md](relations.md) first for what a reference is and how one is
 followed; nothing here replaces that path, it adds a second issuer to it.
 
-Decisions here: D106, D107, D108, D170.
+Decisions here: D106, D107, D108, D170, D172.
+
+## D172. A Redis table's `key` can be an end of a declared reference
+
+D107 lets a column be an end only when its source can look a value up in it.
+A declared table (D170) can, for `key` alone.
+
+- **`key` admits equality, and nothing else of Redis does.** Looking a key up
+  reads one hash: `42` on the table over `user:` is `user:42`. A declared
+  field has no index, and finding a value in one would read every hash of the
+  folder on every click. D106's window lists only columns that admit equality,
+  so a Redis table offers `key` there with no change to the window.
+- **A key filter reads that key and nothing more**: its type and declared
+  fields in one pipeline. A hash directly in the folder is the one row; no
+  such key, another type, or a name that lies in a folder below — `42:x` — is
+  no row. No scan, no ceiling, no notice.
+- **The value is the key's name within the folder, as text, exactly.**
+- **Only `key` equal to a value.** Any other filter, and any sort, is refused
+  on a Redis table's page and in its export; the whole download filtered to a
+  key is that key's row.
+- Following and drawing are D106–D108's own: from the far side the Redis
+  table opens filtered to the key, and the arrow on a `key` cell leads back.
+
+Known deviations:
+
+- **Text meets text exactly.** `42` finds `user:42`, but a key `042`, or a
+  far value written `42.0`, finds nothing.
+
+Spec: [References to and from a Redis table, by its key](../../decisions/2026-09-26-redis-references-design.md)
 
 ## D170. A folder of Redis hashes can be declared a table
 
@@ -46,7 +74,8 @@ driver shows it.
   missing one empty. A key of another type is not a row, and
   `FetchResult.notice` says how many were left out. At most 100,000 keys under
   the folder are read, the first by name of those scanned, and the notice says
-  when there were more. Nothing is editable, sortable or filterable.
+  when there were more. Nothing is editable or sortable, and `key` equal to a
+  value is the one filter (D172).
 - **Every Redis node reads as a relation** (`SupportsRelationModel`): a key its
   type's columns (kind `key`), a folder or a database the listing's four
   (`key_listing`), a declared table `key` and its fields (`declared_table`).

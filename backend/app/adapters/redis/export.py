@@ -38,7 +38,7 @@ from app.adapters.redis.shapes import (
     stream_fields,
     table_shape,
 )
-from app.adapters.redis.tables import RedisTables
+from app.adapters.redis.tables import RedisTables, key_asked
 
 type Rows = AsyncIterator[list[list[str | None]]]
 
@@ -54,9 +54,7 @@ class RedisExport:
         self._tables = tables
 
     async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
-        if request.filters or request.sort:
-            raise ValueError("Redis rows cannot be filtered or sorted")
-        shape, rows = await self._reader(request.node_id)
+        shape, rows = await self._reader(request)
         names = [name for name, _, _ in shape]
         unknown = [column for column in request.columns if column not in names]
         if unknown:
@@ -71,11 +69,24 @@ class RedisExport:
         if pending:
             yield ExportBatch(rows=pending)
 
-    async def _reader(self, node_id: str) -> tuple[Shape, Rows]:
-        """The node's columns and its rows, checked before anything is read."""
+    async def _reader(self, request: ExportRequest) -> tuple[Shape, Rows]:
+        """The node's columns and its rows, checked before anything is read.
+
+        A table filtered to one key is that key's row (D172); nothing else
+        takes a filter or a sort.
+        """
+        node_id = request.node_id
         if is_table(node_id):
             _, table = self._tables.declared(node_id)
-            return table_shape(table), self._tables.scanned(node_id)
+            key = key_asked(request.filters, request.sort)
+            rows = (
+                self._tables.scanned(node_id)
+                if key is None
+                else self._tables.one(node_id, key)
+            )
+            return table_shape(table), rows
+        if request.filters or request.sort:
+            raise ValueError("Redis rows cannot be filtered or sorted")
         if is_key(node_id):
             ref = key_ref(node_id)
             facts = await self._keyspace.facts_of(ref.database, ref.name)

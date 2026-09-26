@@ -1,14 +1,111 @@
 import { expect, test } from "@playwright/test"
+import type { Page } from "@playwright/test"
 
-import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
-import { createFileConnector, createRedisConnector } from "./utils/connectors"
+import { catalogAction, catalogCheck, catalogRow, openNode, pickSchema } from "./utils/catalog"
+import {
+  createFileConnector,
+  createPostgresConnector,
+  createRedisConnector,
+} from "./utils/connectors"
 import { login } from "./utils/login"
 import { REDIS, redisCommands } from "./utils/redis"
-import { deleteConnector, openConnector } from "./utils/workspace"
+import { deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
 
 // A folder of Redis hashes declared a table (D170), and a Redis key saved as
 // CSV through Paste (D171). The keys are written straight into the scenarios'
 // own database of the development Redis, and taken out again at the end.
+
+/** The text of a cell without the controls that live in it. */
+function cellValue(page: Page, testId: string) {
+  return page.getByTestId(testId).locator("> span").first()
+}
+
+async function choose(page: Page, testId: string, option: string) {
+  await page.getByTestId(testId).click()
+  await page.getByRole("option", { name: option, exact: true }).click()
+}
+
+test("references a Redis table by its key from a relation, and follows it both ways", async ({
+  page,
+}) => {
+  const stamp = Date.now()
+  const database = `e2e-redis-ref-db-${stamp}`
+  const redis = `e2e-redis-ref-${stamp}`
+  const orgs = `o${stamp}:`
+  let keys: string[] = []
+  try {
+    await login(page)
+    await createPostgresConnector(page, database)
+    await createRedisConnector(page, redis)
+
+    // The value the first organization holds, which the Redis table is given
+    // a hash for.
+    await openConnector(page, database)
+    await pickSchema(page, "demo_lab")
+    await openNode(page, "organizations")
+    await expect(page.getByTestId("grid-cell-0-organization_id")).toBeVisible()
+    const owner = (await cellValue(page, "grid-cell-0-organization_id").innerText()).trim()
+    keys = [`${orgs}${owner}`, `${orgs}elsewhere`]
+    await redisCommands([
+      ["HSET", `${orgs}${owner}`, "name", "Kept in Redis"],
+      ["HSET", `${orgs}elsewhere`, "name", "Another"],
+    ])
+
+    await openConnector(page, redis)
+    await page.getByTestId(`keyspace-row-f${String(REDIS.database)}:${orgs}`).click()
+    await catalogAction(page, "client:describe-table")
+    await page.getByTestId("declare-table-name").fill("orgs")
+    await page.getByTestId("declare-table-save").click()
+    await expect(page.getByTestId("declare-table")).toHaveCount(0)
+
+    // Drawn from the relation's structure: of the Redis table, `key` alone
+    // can be looked up, so it is the one column offered (D172).
+    await rowsTabs(page).first().click()
+    await page.getByTestId("grid-structure").click()
+    const view = page.getByTestId("structure-view")
+    await view.getByTestId("structure-declare-reference").click()
+    const dialog = page.getByTestId("declare-reference-dialog")
+    await choose(page, "declare-reference-near-column", "organization_id")
+    await choose(page, "declare-reference-source", redis)
+    await page.getByTestId(`declare-reference-node-db${String(REDIS.database)}`).click()
+    await page.getByTestId("declare-reference-node-orgs").click()
+    await page.getByTestId("declare-reference-far-column").click()
+    await expect(page.getByRole("option")).toHaveText(["key"])
+    await page.getByRole("option", { name: "key", exact: true }).click()
+    await page.getByTestId("declare-reference-run").click()
+    await expect(dialog).toBeHidden()
+    await expect(view.getByTestId("declared-reference")).toContainText(
+      `organization_id → ${redis} · orgs.key`
+    )
+
+    // Followed from the relation: the Redis table, filtered to the one key.
+    await rowsTabs(page).first().click()
+    await page.getByTestId("grid-cell-0-organization_id").hover()
+    await page.locator('[data-testid^="grid-follow-0-declared:"]').click()
+    await page.locator('[data-testid^="menu-item-declared:"]').click()
+    await expect(rowsTabs(page)).toHaveCount(2)
+    await expect(rowsTabs(page).last()).toContainText("orgs")
+    await expect(page.getByTestId("grid-page-range")).toHaveText("Rows 1–1")
+    await expect(cellValue(page, "grid-cell-0-key")).toHaveText(owner)
+    await expect(cellValue(page, "grid-cell-0-name")).toHaveText("Kept in Redis")
+    await page.screenshot({ path: "test-results/redis-reference-followed.png" })
+
+    // And back, from the key.
+    await page.getByTestId("grid-cell-0-key").hover()
+    await page.locator('[data-testid^="grid-follow-0-declared:"]').click()
+    await page.locator('[data-testid^="menu-item-declared:"]').click()
+    // The relation's tab is already open, so it is the one that shows them.
+    await expect(
+      page.locator('[data-testid^="workspace-tab-rows:"][aria-label="organizations"]')
+    ).toHaveAttribute("aria-selected", "true")
+    await expect(cellValue(page, "grid-cell-0-organization_id")).toHaveText(owner)
+
+    await deleteConnector(page, redis)
+    await deleteConnector(page, database)
+  } finally {
+    if (keys.length > 0) await redisCommands([["DEL", ...keys]])
+  }
+})
 
 test("declares a table over a folder of hashes and saves a key as CSV", async ({ page }) => {
   const stamp = Date.now()

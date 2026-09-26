@@ -54,6 +54,21 @@ def table_shape(table: DeclaredTable) -> Shape:
     )
 
 
+def table_columns(table: DeclaredTable) -> list[FetchColumn]:
+    """A declared table's page columns: `key` alone admits equality.
+
+    Looking a key up reads one hash; a declared field has no index, and
+    finding a value in one would read every hash of the folder (D172).
+    """
+    columns = fetch_columns(table_shape(table))
+    return [
+        column.model_copy(update={"filter_operators": ["eq"]})
+        if column.name == KEY_COLUMN
+        else column
+        for column in columns
+    ]
+
+
 def fetch_columns(shape: Shape) -> list[FetchColumn]:
     """The columns of a page, saying they can be neither sorted nor filtered.
 

@@ -9,7 +9,8 @@ folder hold, and the rows it reads as.
 
 The rows are the hashes directly in the folder, in key order, each read for
 the declared fields alone. A key of another type is counted out rather than
-shown, and no cell is written: equality lookup and editing come later.
+shown, and no cell is written. `key` equal to a value is looked up by reading
+the one key it names, which is what makes it an end of a reference (D172).
 """
 
 import re
@@ -26,7 +27,7 @@ from app.adapters.declared_tables import (
     TablePlace,
     TableProposal,
 )
-from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.fetch import FetchRequest, FetchResult, Filter, ScalarFilter, Sort
 from app.adapters.protocol import NodeNotFound
 from app.adapters.redis.keyspace import (
     SCAN_BATCH,
@@ -47,8 +48,8 @@ from app.adapters.redis.keyspace import (
 from app.adapters.redis.session import RedisSession, text
 from app.adapters.redis.shapes import (
     KEY_COLUMN,
-    fetch_columns,
     model_columns,
+    table_columns,
     table_shape,
 )
 from app.adapters.relation import RelationModel
@@ -64,6 +65,7 @@ SAMPLE_FIELDS = 200
 
 CHOOSE_FOLDER = "Select a folder to describe as a table"
 READ_ONLY = "A declared table is read-only"
+KEY_ONLY = "A Redis table is filtered only by key equal to a value"
 
 _NUMBER = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
@@ -179,6 +181,12 @@ class RedisTables:
     async def fetch(self, request: FetchRequest) -> FetchResult:
         """One page of rows: the folder's hashes in key order, at most a ceiling of them."""
         place, table = self.declared(request.node_id)
+        key = key_asked(request.filters, request.sort)
+        if key is not None:
+            found = await self._looked_up(place, table, key)
+            return _page(
+                table, found[request.offset : request.offset + request.limit], False, None
+            )
         names, complete = await self._keyspace.scan_names(
             place.database, pattern_under(place.prefix), TABLE_CEILING
         )
@@ -190,16 +198,39 @@ class RedisTables:
         hashes = [name for name, kind in zip(direct, types, strict=True) if kind == "hash"]
         others = sum(1 for kind in types if kind not in ("hash", "none"))
         page = hashes[request.offset : request.offset + request.limit]
-        return FetchResult(
-            columns=fetch_columns(table_shape(table)),
-            rows=await self._rows(place, table, page),
-            has_more=len(hashes) > request.offset + request.limit,
-            update_reason=READ_ONLY,
-            insert_reason=READ_ONLY,
-            delete_reason=READ_ONLY,
-            page_commands=["download", "share"],
-            notice=_notice(others, complete),
+        return _page(
+            table,
+            await self._rows(place, table, page),
+            len(hashes) > request.offset + request.limit,
+            _notice(others, complete),
         )
+
+    async def one(self, node_id: str, key: str) -> AsyncIterator[list[list[str | None]]]:
+        """The row a key names, for an export filtered to it."""
+        place, table = self.declared(node_id)
+        found = await self._looked_up(place, table, key)
+        if found:
+            yield found
+
+    async def _looked_up(
+        self, place: PlaceRef, table: DeclaredTable, key: str
+    ) -> list[list[str | None]]:
+        """The one hash a key names, read in one round trip, or no row.
+
+        Exactly the name within the folder: a key of another type, or one that
+        lies in a folder below — `42:x` — is not a row of this table.
+        """
+        name = f"{place.prefix}{key}"
+        if not is_direct(name, place.prefix):
+            return []
+        async with self._session.connection(place.database) as client:
+            pipe = client.pipeline(transaction=False)
+            pipe.type(name)
+            pipe.hmget(name, [column.name for column in table.columns])
+            kind, values = await pipe.execute(raise_on_error=False)
+        if text(kind) != "hash" or not isinstance(values, list):
+            return []
+        return [_row(place, name, values)]
 
     async def scanned(self, node_id: str) -> AsyncIterator[list[list[str | None]]]:
         """Every row, batch by batch as `SCAN` finds the keys: no ceiling, no order.
@@ -283,6 +314,42 @@ class RedisTables:
             for answer in answers
             if isinstance(answer, (list, tuple)) and len(answer) == 2
         ]
+
+
+def key_asked(filters: Sequence[Filter], sort: Sequence[Sort]) -> str | None:
+    """The key a request looks up, or nothing for the whole table.
+
+    Equality on `key` and nothing else: every other filter and any sort would
+    mean reading every hash of the folder (D172).
+    """
+    if sort:
+        raise ValueError("A Redis table cannot be sorted")
+    if not filters:
+        return None
+    [only, *rest] = filters
+    if rest or not isinstance(only, ScalarFilter):
+        raise ValueError(KEY_ONLY)
+    if only.column != KEY_COLUMN or only.op != "eq":
+        raise ValueError(KEY_ONLY)
+    return only.value
+
+
+def _page(
+    table: DeclaredTable,
+    rows: list[list[str | None]],
+    has_more: bool,
+    notice: str | None,
+) -> FetchResult:
+    return FetchResult(
+        columns=table_columns(table),
+        rows=rows,
+        has_more=has_more,
+        update_reason=READ_ONLY,
+        insert_reason=READ_ONLY,
+        delete_reason=READ_ONLY,
+        page_commands=["download", "share"],
+        notice=notice,
+    )
 
 
 def guessed_type(values: Sequence[str]) -> DeclaredType:
