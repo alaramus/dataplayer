@@ -243,6 +243,8 @@ import type {
   connectorsReadGrantsData,
   connectorsReadGrantsErrors,
   connectorsReadGrantsResponses,
+  connectorsReadInteractionMapData,
+  connectorsReadInteractionMapResponses,
   connectorsReadNodePathData,
   connectorsReadNodePathErrors,
   connectorsReadNodePathResponses,
@@ -2735,6 +2737,26 @@ export class ConnectorsService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read Interaction Map
+   *
+   * What every connection of this person's can give each other (D174).
+   */
+  public static readInteractionMap<ThrowOnError extends boolean = true>(
+    options?: Options<connectorsReadInteractionMapData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      connectorsReadInteractionMapResponses,
+      unknown,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/interactions/map",
+      ...options,
     })
   }
 

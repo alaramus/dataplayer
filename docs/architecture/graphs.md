@@ -3,7 +3,7 @@
 Read this before changing graph documents, graph rendering, layout or a feature
 that turns source metadata into a graph.
 
-Decisions here: D97.
+Decisions here: D97, D174.
 
 ## D97. Graphs have a domain-independent document and two presentations
 
@@ -52,3 +52,40 @@ positions of surviving nodes. Source changes never become layout edits, and
 layouts never become schema changes.
 
 Spec: [A graph viewer with 2D and 3D presentations](../decisions/2026-09-04-graph-viewer-design.md)
+
+## D174. The connections map is a space of its own
+
+A graph of what the person's connections can give each other, drawn by
+`features/interactions` over D97's viewer.
+
+- **A node per switched-on connection** the person sees, captioned by its type
+  and grouped by its category; **one arrow per direction** labelled by the
+  paste kinds that serve it — "Copy files · Move files", "Save as CSV",
+  "Create a table · Add rows to a table".
+- **Answered by `GET /interactions/map`** from the paste registry (D164): for
+  every ordered pair, each kind whose `serves` holds and whether the person's
+  standing on both ends meets what it requires. No source is opened: adapters
+  are built and asked by capability, and one whose options no longer read is
+  a node without arrows. More than 300 connections, the graph's ceiling, are
+  refused rather than drawn in part.
+- **An arrow claims what the two connections can do**, never what a
+  selection will: that stays the pair window's answer. One the person cannot
+  use is dashed, and each operation names what it needs. Declared references
+  are not drawn: a line between data is not a possibility of transfer.
+- **A space of the rail's switch**, beside Data, Dashboards and AI, covering
+  the data workspace by D125's contract. It has no first panel, so the
+  header's button is not drawn over it. Layout and camera are kept per person.
+- **What it opens opens in Data**: a node's "Open catalog" and its activation
+  open the catalog; an arrow's "Open as pair" opens the pair window (D167)
+  with the source on the left.
+- The viewer names, for a selected node, the other end and the direction of
+  each of its connections, and offers a producer's own `edge-actions` beside
+  `node-actions`.
+
+Known deviations:
+
+- **Many connections make a dense map.** Arrows grow with the square of the
+  connections; the group filter, search and a selected node's highlighted
+  neighbours are what narrows it.
+
+Spec: [A map of what the connections can do to each other](../decisions/2026-09-26-interaction-map-design.md)

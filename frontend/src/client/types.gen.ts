@@ -5028,6 +5028,20 @@ export type InsertValue = {
 }
 
 /**
+ * InteractionMap
+ */
+export type InteractionMap = {
+  /**
+   * Connections
+   */
+  connections: Array<MapConnection>
+  /**
+   * Arrows
+   */
+  arrows: Array<MapArrow>
+}
+
+/**
  * JobPublic
  *
  * A job as its owner reads it.
@@ -5403,6 +5417,86 @@ export type LiteralValue = {
    * Text
    */
   text?: string
+}
+
+/**
+ * MapArrow
+ *
+ * What one connection can give another, in that direction.
+ */
+export type MapArrow = {
+  /**
+   * Source Connector Id
+   */
+  source_connector_id: string
+  /**
+   * Destination Connector Id
+   */
+  destination_connector_id: string
+  /**
+   * Operations
+   */
+  operations: Array<MapOperation>
+}
+
+/**
+ * MapConnection
+ */
+export type MapConnection = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Type Title
+   */
+  type_title: string
+  /**
+   * Category
+   */
+  category: "sql" | "keyvalue" | "files"
+  /**
+   * Category Title
+   */
+  category_title: string
+  /**
+   * Access
+   */
+  access: "read" | "write" | "structure" | "own"
+}
+
+/**
+ * MapOperation
+ */
+export type MapOperation = {
+  /**
+   * Kind
+   */
+  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Mode
+   */
+  mode: "copy" | "move"
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
 }
 
 /**
@@ -14236,6 +14330,23 @@ export type connectorsClipboardOfferResponses = {
 
 export type connectorsClipboardOfferResponse =
   connectorsClipboardOfferResponses[keyof connectorsClipboardOfferResponses]
+
+export type connectorsReadInteractionMapData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/interactions/map"
+}
+
+export type connectorsReadInteractionMapResponses = {
+  /**
+   * Successful Response
+   */
+  200: InteractionMap
+}
+
+export type connectorsReadInteractionMapResponse =
+  connectorsReadInteractionMapResponses[keyof connectorsReadInteractionMapResponses]
 
 export type connectorsTableOfferData = {
   body: TableSubject

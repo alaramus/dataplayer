@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import { deliveryGraph } from "./fixtures"
-import { edgesOf, graphProblem, groupGraph, neighborsOf, GRAPH_LIMITS } from "./model"
+import { edgesOf, graphProblem, groupGraph, neighborsOf, relatedLabel, GRAPH_LIMITS } from "./model"
+import type { GraphDocument } from "./model"
 
 describe("a graph of services and ports", () => {
   it("selects only connections on the chosen port, including self references", () => {
@@ -31,5 +32,25 @@ describe("a graph of services and ports", () => {
   it("refuses oversized documents instead of dropping their contents", () => {
     expect(graphProblem({ nodes: Array.from({ length: GRAPH_LIMITS.nodes + 1 }, (_, id) => ({ id: String(id), label: "Node", rows: [] })), edges: [], groups: [] })).toContain("too large")
     expect(graphProblem({ nodes: [{ id: "a", label: "A", rows: Array.from({ length: GRAPH_LIMITS.rows + 1 }, (_, id) => ({ id: String(id), label: "Port" })) }], edges: [], groups: [] })).toContain("too large")
+  })
+})
+
+describe("a node's connections, listed", () => {
+  const graph: GraphDocument = {
+    nodes: [
+      { id: "a", label: "Sales", rows: [] },
+      { id: "b", label: "Files", rows: [] },
+    ],
+    edges: [
+      { id: "ab", source: { nodeId: "a" }, target: { nodeId: "b" }, label: "Save as CSV", directed: true },
+      { id: "aa", source: { nodeId: "a" }, target: { nodeId: "a" }, label: "Self", directed: true },
+    ],
+    groups: [],
+  }
+
+  it("names the other end and which way it goes", () => {
+    expect(relatedLabel(graph, "a", graph.edges[0]!)).toBe("→ Files: Save as CSV")
+    expect(relatedLabel(graph, "b", graph.edges[0]!)).toBe("← Sales: Save as CSV")
+    expect(relatedLabel(graph, "a", graph.edges[1]!)).toBe("↻ Sales: Self")
   })
 })

@@ -175,6 +175,8 @@ are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
   A PostgreSQL table has Copy and no Cut.
 - A request carries up to 1000 ids; a kind states its own smaller ceiling as a
   reason.
+- The same registry, asked of every pair of a person's connections at once,
+  draws the connections map ([D174](../graphs.md)).
 
 Known deviations:
 

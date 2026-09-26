@@ -81,6 +81,19 @@ export function edgesOf(graph: GraphDocument, selected: GraphSelection): readonl
   ))
 }
 
+/**
+ * One connection of a selected node, as its list shows it: which way it goes,
+ * the node at the other end, and what the connection is. Without the other
+ * end, forty arrows that each say "Save as CSV" are forty identical lines.
+ */
+export function relatedLabel(graph: GraphDocument, nodeId: string, edge: GraphEdge): string {
+  const outgoing = edge.source.nodeId === nodeId
+  const other = outgoing ? edge.target.nodeId : edge.source.nodeId
+  const name = graph.nodes.find((node) => node.id === other)?.label ?? other
+  const way = other === nodeId ? "↻" : outgoing ? "→" : "←"
+  return `${way} ${name}: ${edge.label}`
+}
+
 export function neighborsOf(graph: GraphDocument, selected: GraphSelection): Set<string> {
   const found = new Set<string>()
   if (selected?.kind === "node") found.add(selected.id)

@@ -4,13 +4,13 @@ import { ref } from "vue"
 import { serverStorageKey } from "@/shared/servers/context"
 
 /**
- * Which space fills the screen: Data, Dashboards or the application agent
- * (D125, D141).
+ * Which space fills the screen: Data, Dashboards, the application agent (D125,
+ * D141) or the map of what the connections can give each other (D174).
  *
  * Pinia, because the server knows nothing about it (D6). Remembered per
  * browser and per server, like the layout it stands beside.
  */
-export const SPACES = ["data", "dashboards", "ai"] as const
+export const SPACES = ["data", "dashboards", "ai", "map"] as const
 export type Space = (typeof SPACES)[number]
 
 const KEY = "dataplayer-space"

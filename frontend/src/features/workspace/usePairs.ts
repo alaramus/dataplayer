@@ -53,6 +53,15 @@ export function usePairs(
     offer(catalogPanelId(connector.id))
   }
 
+  /** Two connections as a pair at once, the first on the left (D174). */
+  function pairBoth(left: ConnectorPublic, right: ConnectorPublic) {
+    openCatalog(left)
+    openCatalog(right)
+    const first = candidateOf(catalogPanelId(left.id))
+    const second = candidateOf(catalogPanelId(right.id))
+    if (first !== null && second !== null) open(first, second)
+  }
+
   function cancel() {
     waiting.value = null
   }
@@ -118,6 +127,7 @@ export function usePairs(
     offer,
     drop,
     pairWith,
+    pairBoth,
     cancel,
     unpair,
     swap,

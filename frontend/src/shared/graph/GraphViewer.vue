@@ -5,7 +5,7 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch }
 import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSelect } from "@/shared/ui"
 import Graph2D from "./Graph2D.vue"
 import { isLegacyFlat3 } from "./layout3d"
-import { edgesOf, graphProblem, groupGraph } from "./model"
+import { edgesOf, graphProblem, groupGraph, relatedLabel } from "./model"
 import type { GraphDocument, GraphSelection, GraphViewState, Point2, Point3 } from "./model"
 
 const Graph3D = defineAsyncComponent(() => import("./Graph3D.vue"))
@@ -308,6 +308,12 @@ onBeforeUnmount(stopLayout)
             :label="`To: ${nameOf(selectedEdge.target.nodeId)}`"
             @click="select({ kind: 'node', id: selectedEdge.target.nodeId }, true)"
           />
+          <!-- What a producer offers to do with a connection it drew, as
+               `node-actions` does for a node (D174). -->
+          <slot
+            name="edge-actions"
+            :edge="selectedEdge"
+          />
           <dl>
             <template
               v-for="(detail, index) in selectedEdge.details"
@@ -327,7 +333,7 @@ onBeforeUnmount(stopLayout)
             :key="edge.id"
             variant="quiet"
             size="sm"
-            :label="edge.label"
+            :label="relatedLabel(props.graph, selectedNode.id, edge)"
             @click="select({ kind: 'edge', id: edge.id })"
           />
           <span v-if="!related.length">No connections in this graph</span>
