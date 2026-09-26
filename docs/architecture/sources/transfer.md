@@ -161,10 +161,15 @@ are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
   answers 403. A kind neither end matches is not listed, and an empty list
   reads "Nothing here can take what was copied".
 - An offer names the window it opens (`workflow`), whether it converts,
-  whether Replace is allowed and whether it changes the source, with what its
-  window needs: a suggested file name, the source's columns, the target's
-  insertable columns. The client picks a window by `workflow` and names no
-  kind.
+  whether Replace is allowed, whether it changes the source and whether it
+  makes a node of its own (`makes`), with what its window needs: a suggested
+  file name, the source's columns, the target's insertable columns. The
+  client picks a window by `workflow` and names no kind.
+- **A kind also says what it makes, from a description rather than a node**
+  (`made`), and answers an offer where either end is such a description
+  (`foresee`): a pipeline's chain is drawn before anything along it exists
+  ([D178](../pipelines.md)). What it made is told back: a row paste's
+  `made_node_id`, a transfer item's `published_id`.
 - The catalog has one Paste. Several usable offers open a list first; a
   conversion opens its window; a plain copy runs at once and opens D162's
   conflict window on a taken name. The source catalog is refreshed when the

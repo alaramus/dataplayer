@@ -5551,7 +5551,8 @@ export type Link = {
 /**
  * LinkEnd
  *
- * A row of a card, by the card and the node the row names.
+ * A row of a card, by the card and the node the row names — or what a
+ * link makes, drawn as a row of the card that link writes into (D178).
  */
 export type LinkEnd = {
   /**
@@ -5562,6 +5563,20 @@ export type LinkEnd = {
    * Node Id
    */
   node_id?: string | null
+  /**
+   * Made By
+   */
+  made_by?: string | null
+}
+
+/**
+ * LinkOffersRequest
+ *
+ * The two ends of a link that is being drawn, or is drawn.
+ */
+export type LinkOffersRequest = {
+  source: LinkEnd
+  target: LinkEnd
 }
 
 /**
@@ -5606,6 +5621,14 @@ export type LinkRun = {
    * Finished At
    */
   finished_at?: string | null
+  /**
+   * Made
+   */
+  made?: string | null
+  /**
+   * Read
+   */
+  read?: string | null
 }
 
 /**
@@ -6559,6 +6582,10 @@ export type PasteOffer = {
    */
   workflow?: "run" | "file-name" | "new-relation" | "into-relation"
   /**
+   * Makes
+   */
+  makes?: boolean
+  /**
    * Suggested Name
    */
   suggested_name?: string | null
@@ -6644,6 +6671,10 @@ export type PasteResult = {
    * Reload Node Ids
    */
   reload_node_ids: Array<string | null>
+  /**
+   * Made Node Id
+   */
+  made_node_id: string | null
 }
 
 /**
@@ -6795,6 +6826,10 @@ export type PipelinePublic = {
    * Order
    */
   order?: Array<LinkPlace>
+  /**
+   * Results
+   */
+  results?: Array<ResultRow>
 }
 
 /**
@@ -8573,6 +8608,40 @@ export type ResultPage = {
    * Truncated
    */
   truncated: boolean
+}
+
+/**
+ * ResultRow
+ *
+ * What a link makes, as a row of the card it writes into (D178).
+ */
+export type ResultRow = {
+  /**
+   * Link Id
+   */
+  link_id: string
+  /**
+   * Card Id
+   */
+  card_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Kind
+   */
+  kind:
+    | "schema"
+    | "table"
+    | "view"
+    | "directory"
+    | "file"
+    | "dataset"
+    | "entry"
+    | "report"
+    | "database"
+    | "key"
 }
 
 /**
@@ -15896,6 +15965,38 @@ export type pipelinesRunPipelineResponses = {
 
 export type pipelinesRunPipelineResponse =
   pipelinesRunPipelineResponses[keyof pipelinesRunPipelineResponses]
+
+export type pipelinesReadLinkOffersData = {
+  body: LinkOffersRequest
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/offers"
+}
+
+export type pipelinesReadLinkOffersErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadLinkOffersError =
+  pipelinesReadLinkOffersErrors[keyof pipelinesReadLinkOffersErrors]
+
+export type pipelinesReadLinkOffersResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasteOffers
+}
+
+export type pipelinesReadLinkOffersResponse =
+  pipelinesReadLinkOffersResponses[keyof pipelinesReadLinkOffersResponses]
 
 export type pipelinesReadHintData = {
   body: HintRequest

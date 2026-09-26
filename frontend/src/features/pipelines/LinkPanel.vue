@@ -27,6 +27,11 @@ const props = defineProps<{
   from: LinkSide
   to: LinkSide
   name: EndNamer
+  pipelineId: string
+  /** The links making what either end is, as the offers are keyed by (D178). */
+  chain: string
+  /** Keeps the draft: the offers are the pipeline's as kept. */
+  prepare: () => Promise<boolean>
   place: LinkPlace | undefined
   linkRun: LinkRun | undefined
   lastRun: PipelineRunPublic | null | undefined
@@ -34,14 +39,19 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   change: [link: Link]
+  /** Another operation chosen, and whether it makes something later links read. */
+  operate: [link: Link, makes: boolean]
   remove: []
   close: []
 }>()
 
 const now = useNow()
 const offers = useQuery({
-  queryKey: computed(() => linkOffersKey(props.from, props.to)),
-  queryFn: () => readLinkOffers(props.from, props.to),
+  queryKey: computed(() => linkOffersKey(props.pipelineId, props.from, props.to, props.chain)),
+  queryFn: async () => {
+    await props.prepare()
+    return readLinkOffers(props.pipelineId, props.from, props.to)
+  },
   staleTime: 60_000,
   retry: false,
 })
@@ -61,7 +71,7 @@ const closed = computed(() =>
 
 function chooseOperation(kind: unknown) {
   const chosen = choices.value.find((one) => one.kind === kind)
-  if (chosen !== undefined) emit("change", withOffer(props.link, chosen))
+  if (chosen !== undefined) emit("operate", withOffer(props.link, chosen), chosen.makes === true)
 }
 
 function rename(value: string | number | null) {
@@ -192,6 +202,13 @@ const columnsWord = computed(() => {
     >
       {{ closed ?? runWords(linkRun, lastRun, now) }}
     </p>
+    <p
+      v-if="!closed && (linkRun?.read || linkRun?.made)"
+      class="link-panel__result"
+      data-testid="link-panel-made"
+    >
+      {{ [linkRun?.read ? `Read ${linkRun.read}` : "", linkRun?.made ? `Made ${linkRun.made}` : ""].filter(Boolean).join(" · ") }}
+    </p>
 
     <CreateTableDialog
       v-if="tableOpen && offer"
@@ -206,11 +223,13 @@ const columnsWord = computed(() => {
       @update:model-value="tableOpen = false"
       @run="keepTable"
     />
+    <!-- A table a link makes has no node yet: the pairing is chosen all the
+         same, only its preview has nothing to read (D178). -->
     <ImportDialog
-      v-if="pairsOpen && offer && to.end.node_id"
+      v-if="pairsOpen && offer"
       :model-value="true"
       :connector-id="to.connectorId"
-      :node-id="to.end.node_id"
+      :node-id="to.end.node_id ?? ''"
       :target-columns="offer.target_columns ?? []"
       :target-label="name(link.target)"
       :source="{

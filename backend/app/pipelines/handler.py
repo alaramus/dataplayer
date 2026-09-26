@@ -3,7 +3,8 @@
 Each step is the Paste its link stands for, both ends opened again as the
 owner stands now: rows are pasted here, and a transfer is carried out on the
 transfers' own slots and threads, reporting as a transfer job does. The first
-step that fails stops the run, and the steps after it are not run.
+step that fails stops the run, and the steps after it are not run. A step
+reading what an earlier one makes reads the node made in this run (D178).
 """
 
 import asyncio
@@ -76,6 +77,13 @@ class RunPipeline:
         at = 0
         try:
             for at, step in enumerate(record.steps):
+                unmade = _fed(record, step)
+                if unmade is not None:
+                    # Never what an earlier run left under that name.
+                    step.outcome, step.finished_at = "not_run", _now()
+                    step.message = clipped(f"{unmade} made nothing in this run", STEP_SAYS)
+                    await _kept(job, record, progress, RUNNING)
+                    continue
                 step.outcome, step.started_at = "running", _now()
                 await _kept(job, record, progress, RUNNING)
                 try:
@@ -142,6 +150,9 @@ class RunPipeline:
             message = kind.told(transfer, stopped)
             if stopped is not None or any(item.outcome != "done" for item in transfer.items):
                 raise _StepFailed(message)
+            # One node on the clipboard, one item: what it arrived as.
+            item = transfer.items[0]
+            step.made, step.made_name = item.published_id, item.published_as or item.name
             return message
         if isinstance(kind, PastesNow):
             try:
@@ -150,6 +161,8 @@ class RunPipeline:
                 )
             except HTTPException as refused:
                 raise _StepFailed(_said(refused)) from None
+            if result.made_node_id is not None:
+                step.made, step.made_name = result.made_node_id, result.name
             return result.message
         raise _StepFailed(f"{kind.title} cannot run")
 
@@ -189,6 +202,24 @@ class _StepKeeper:
     async def abandoned(self) -> None:
         # The run writes its record as it stopped, the step's outcome with it.
         return None
+
+
+def _fed(record: RunRecord, step: RunStep) -> str | None:
+    """Put in the nodes earlier steps made that this one reads or writes into;
+    the title of a link that made nothing, if one did (D178)."""
+    for maker_id, into in ((step.reads, False), (step.writes_into, True)):
+        if maker_id is None:
+            continue
+        maker = record.step_of(maker_id)
+        if maker is None or maker.made is None:
+            return maker.title if maker is not None else "The link it reads"
+        update = (
+            {"destination_node_id": maker.made, "target_node_id": maker.made}
+            if into
+            else {"source_node_ids": [maker.made]}
+        )
+        step.paste = step.paste.model_copy(update=update)
+    return None
 
 
 def _stopped_words(step: RunStep) -> str:

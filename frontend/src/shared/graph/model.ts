@@ -8,6 +8,8 @@ export interface GraphRow {
   icon?: string
   /** Named, and not there any more. */
   muted?: boolean
+  /** Not there yet: what something on the canvas will make. */
+  made?: boolean
 }
 export interface GraphDetail { label: string; value: string }
 export interface GraphNode {

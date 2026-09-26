@@ -185,9 +185,9 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
 
   // The hint: what else could be drawn, dashed; pressed, one becomes a link.
   await page.getByTestId("pipeline-hint").click()
-  const hinted = page.locator('[data-testid^="graph-edge-hint:"]')
+  // The file the runs made is a row of its card too (D178), and hinted from.
+  const hinted = page.locator('[data-testid^="graph-edge-hint:"][aria-label="Save as CSV"]')
   await expect(hinted.first()).toBeAttached()
-  await expect(hinted.first()).toHaveAttribute("aria-label", "Save as CSV")
   await page.screenshot({ path: "test-results/pipelines-hint.png" })
   await hinted.first().press("Enter")
   await expect(panel.getByTestId("link-panel-sentence")).toHaveText(
@@ -298,6 +298,80 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await page.getByTestId("pipeline-delete").click()
   await page.getByTestId("confirm-accept").click()
   await page.getByTestId("space-data").click()
+  await deleteConnector(page, files)
+  await deleteConnector(page, database)
+})
+
+test("draws a chain before anything is made, runs it by one Run, and takes it apart with its maker", async ({ page }) => {
+  const stamp = Date.now()
+  const database = `e2e-chain-db-${stamp}`
+  const files = `e2e-chain-files-${stamp}`
+  const backup = `e2e-chain-backup-${stamp}`
+  const csv = `e2e-chain-${stamp}.csv`
+  await login(page)
+  await createPostgresConnector(page, database)
+  await createFileConnector(page, files)
+  await createFileConnector(page, backup)
+  await page.getByTestId("space-pipelines").click()
+  const first = page.getByTestId("pipeline-create-first")
+  await expect(first.or(page.getByTestId("pipeline-new"))).toBeVisible()
+  if (await first.isVisible()) await first.click()
+  else await page.getByTestId("pipeline-new").click()
+  await expect(page.getByTestId("pipeline-view")).toBeVisible()
+
+  const rail = page.getByTestId("pipelines-rail")
+  const picker = page.getByTestId("card-picker")
+  await rail.getByTestId(`connector-${database}`).click()
+  await picker.getByTestId("catalog-node-public").click()
+  await picker.getByTestId("catalog-check-pipeline").click()
+  await picker.getByTestId("card-picker-done").click()
+  await rail.getByTestId(`connector-${files}`).click()
+  await picker.getByTestId("catalog-check-reports").click()
+  await picker.getByTestId("card-picker-done").click()
+  await rail.getByTestId(`connector-${backup}`).click()
+  await picker.getByTestId("card-picker-top").click()
+  await picker.getByTestId("card-picker-done").click()
+  await expect(cards(page, backup)).toHaveCount(1)
+  // Three cards side by side: the first has been panned under the list.
+  await page.getByTestId("pipeline-fit").click()
+
+  // The table saved as CSV: the file it will make is a row of the folder's
+  // card at once, before anything has run.
+  const panel = page.getByTestId("link-panel")
+  await drawLink(page, port(page, "public.pipeline"), port(page, "reports"))
+  await panel.getByTestId("link-panel-name").fill(csv)
+  const kept = saved(page)
+  await panel.getByTestId("link-panel-close").click()
+  await kept
+  const result = cards(page, files).locator('[data-testid^="graph-port-"][data-testid*="-made:"]')
+  await expect(result).toContainText(csv)
+  await expect(result).toContainText("← 1")
+
+  // And it is the source of the next link: copied to the other connection.
+  await drawLink(page, result, cards(page, backup).locator('[data-testid^="graph-port-"][data-testid$="-top"]'))
+  await expect(panel.getByTestId("link-panel-sentence")).toHaveText(
+    `Copy files: ${files} · ${csv} → ${backup} (top)`
+  )
+  await panel.getByTestId("link-panel-close").click()
+  await page.screenshot({ path: "test-results/pipelines-chain.png" })
+
+  await page.getByTestId("pipeline-run").click()
+  await expect(page.getByTestId("pipeline-last-run")).toContainText("All 2 links ran", { timeout: 20_000 })
+  await page.locator('[data-testid^="graph-edge-label-"]', { hasText: "Copy files" }).click()
+  await expect(panel.getByTestId("link-panel-made")).toHaveText(`Read ${csv} · Made ${csv}`)
+
+  // The link making the file taken away takes the copy with it, after saying so.
+  await page.locator('[data-testid^="graph-edge-label-"]', { hasText: "Save as CSV" }).click()
+  await panel.getByTestId("link-panel-remove").click()
+  await expect(page.getByTestId("confirm-message")).toContainText(`${backup} (top)`)
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.locator('[data-testid^="graph-edge-label-"]')).toHaveCount(0)
+  await expect(result).toHaveCount(0)
+
+  await page.getByTestId("pipeline-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, backup)
   await deleteConnector(page, files)
   await deleteConnector(page, database)
 })

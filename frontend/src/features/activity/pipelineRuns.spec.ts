@@ -73,6 +73,12 @@ describe("a pipeline's run as its job records it", () => {
       "2. Create a table — no columns",
       "3. Add rows — not run",
     ])
+    // A link reading what another made says which one it read (D178).
+    const chained = job({ state: "succeeded", message: "All 2 links ran" }, [
+      step("Save as CSV", "done", { message: "saved", made_name: "orders (1).csv" }),
+      step("Copy files", "done", { message: "copied", reads: "link-Save as CSV" }),
+    ])
+    expect(pipelineLines(chained, pipelineRunOf(chained)!).at(-1)).toBe("2. Copy files — copied · read orders (1).csv")
     // The server stopped under it: nothing settled the link in hand.
     const cut = job({ state: "interrupted", message: "The server stopped while this was running" })
     expect(pipelineLines(cut, pipelineRunOf(cut)!).slice(2)).toEqual([

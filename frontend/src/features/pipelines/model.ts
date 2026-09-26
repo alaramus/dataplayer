@@ -55,6 +55,41 @@ function rowOf(row: CardRow, missing: ReadonlySet<string>): GraphRow {
   }
 }
 
+/** A row a link will make, and the row of its card it is drawn below (D178). */
+export interface MadeRow {
+  cardId: string
+  after: string
+  row: GraphRow
+}
+
+/**
+ * The card's rows with what links make drawn below the rows they write into,
+ * a result made into a result below that one. One whose row is gone goes last.
+ */
+export function withMade(rows: readonly GraphRow[], made: readonly MadeRow[]): GraphRow[] {
+  const drawn = [...rows]
+  let waiting = [...made]
+  while (waiting.length > 0) {
+    const later: MadeRow[] = []
+    for (const one of waiting) {
+      const at = drawn.findIndex((row) => row.id === one.after)
+      if (at < 0) {
+        later.push(one)
+        continue
+      }
+      let below = at + 1
+      while (drawn[below]?.made === true) below += 1
+      drawn.splice(below, 0, one.row)
+    }
+    if (later.length === waiting.length) {
+      drawn.push(...later.map((one) => one.row))
+      break
+    }
+    waiting = later
+  }
+  return drawn
+}
+
 /**
  * Why a card cannot be worked with, or nothing: the server's word once it has
  * checked, the list of connections' until then.
@@ -70,7 +105,8 @@ export function cardNode(
   card: Card,
   connection: CardConnection | undefined,
   state: CardState | undefined,
-  typeTitle: string | undefined
+  typeTitle: string | undefined,
+  made: readonly MadeRow[] = []
 ): GraphNode {
   const problem = cardProblem(connection, state)
   const missing = new Set(state?.missing ?? [])
@@ -80,7 +116,10 @@ export function cardNode(
     caption: problem ?? typeTitle ?? connection?.adapterType ?? "",
     // One accent a connection, so its cards are seen to be one source.
     groupId: card.connector_id,
-    rows: card.rows.map((row) => rowOf(row, missing)),
+    rows: withMade(
+      card.rows.map((row) => rowOf(row, missing)),
+      made.filter((one) => one.cardId === card.id)
+    ),
     placeholder: problem !== null,
   }
 }
@@ -90,7 +129,8 @@ export function pipelineGraph(
   connections: ReadonlyMap<string, CardConnection>,
   states: ReadonlyMap<string, CardState>,
   typeTitles: ReadonlyMap<string, string>,
-  edges: readonly GraphEdge[] = []
+  edges: readonly GraphEdge[] = [],
+  made: readonly MadeRow[] = []
 ): GraphDocument {
   return {
     nodes: cards.map((card) => {
@@ -99,7 +139,8 @@ export function pipelineGraph(
         card,
         connection,
         states.get(card.id),
-        connection === undefined ? undefined : typeTitles.get(connection.adapterType)
+        connection === undefined ? undefined : typeTitles.get(connection.adapterType),
+        made
       )
     }),
     edges,

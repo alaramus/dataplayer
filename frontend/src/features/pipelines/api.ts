@@ -3,7 +3,7 @@ import { AxiosError } from "axios"
 import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
-import { ConnectorsService, PipelinesService } from "@/client"
+import { PipelinesService } from "@/client"
 import type { Card, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary } from "@/client"
 
 import { isRunning } from "./links"
@@ -127,26 +127,29 @@ export async function readHint(pipelineId: string, cardId: string | null) {
   return (await PipelinesService.readHint({ path: { pipeline_id: pipelineId }, body: { card_id: cardId } })).data
 }
 
-/** One end of a link as a connection and a node, which is what the offers are asked of. */
+/** One end of a link and the connection its card is on. */
 export interface LinkSide {
   connectorId: string
   end: LinkEnd
 }
 
-export function linkOffersKey(from: LinkSide, to: LinkSide) {
-  return ["link-offers", from.connectorId, from.end.node_id ?? null, to.connectorId, to.end.node_id ?? null] as const
+/**
+ * Keyed by both ends and by the links making what either end is (D178): a
+ * choice changed along a chain changes the answer.
+ */
+export function linkOffersKey(pipelineId: string, from: LinkSide, to: LinkSide, chain: string) {
+  const at = (side: LinkSide) => [side.connectorId, side.end.card_id, side.end.node_id ?? null, side.end.made_by ?? null]
+  return ["link-offers", pipelineId, ...at(from), ...at(to), chain] as const
 }
 
 /**
- * What can go from one row into another: the pair window's question with
- * one tick on each side, the target standing for the place as well (D167).
+ * What can go from one row into another, asked of the pipeline as kept: the
+ * pair window's question for two ticked rows (D167), and for what a link
+ * makes, the same question of it as it will be made (D178).
  */
-export async function readLinkOffers(from: LinkSide, to: LinkSide) {
-  const target = to.end.node_id ?? null
-  return (await ConnectorsService.pairOffers({
-    body: {
-      source: { connector_id: from.connectorId, place: null, ticked: from.end.node_id == null ? [] : [from.end.node_id] },
-      destination: { connector_id: to.connectorId, place: target, ticked: target === null ? [] : [target] },
-    },
+export async function readLinkOffers(pipelineId: string, from: LinkSide, to: LinkSide) {
+  return (await PipelinesService.readLinkOffers({
+    path: { pipeline_id: pipelineId },
+    body: { source: from.end, target: to.end },
   })).data.offers
 }

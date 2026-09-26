@@ -12,7 +12,7 @@ from functools import partial
 from anyio import to_thread
 
 from app.adapters.actions import ActionRefused
-from app.adapters.explorer.storage import Place, Storage, is_plain_name
+from app.adapters.explorer.storage import Place, Storage, is_plain_name, node_id_of
 from app.adapters.export import ExportRequest
 from app.adapters.protocol import (
     AdapterError,
@@ -31,11 +31,14 @@ from app.connectors.paste.files import (
     place_for,
     storage_of,
 )
-from app.connectors.paste.kinds import counted, offered, refused
+from app.connectors.paste.kinds import counted, offered, refused, text_column
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
     Conflict,
+    Foreseen,
+    PairEnd,
+    PasteColumn,
     PasteKindName,
     PasteOffer,
     PastePair,
@@ -91,6 +94,7 @@ class RelationCsv:
     source_requires: Access = "read"
     destination_requires: Access = "write"
     changes_source = False
+    makes = True
 
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, SupportsExport) and isinstance(
@@ -115,14 +119,9 @@ class RelationCsv:
         if isinstance(found, str):
             return refused(self, found)
         names = [suggested_name(model.name) for model in found]
-        try:
-            taken = await to_thread.run_sync(
-                _taken, storage_of(destination), pair.destination_node_id, names
-            )
-        except ActionRefused as refusal:
-            return refused(self, refusal.message)
-        except (OSError, ValueError):
-            return refused(self, "The destination is unavailable")
+        taken = await _taken_in(destination, pair.destination_node_id, names)
+        if isinstance(taken, str):
+            return refused(self, taken)
         if len(found) == 1:
             return offered(
                 self, available=True, name_conflict=bool(taken), suggested_name=names[0]
@@ -136,6 +135,50 @@ class RelationCsv:
             name_conflict=bool(taken),
             workflow="run",
         )
+
+    def made(
+        self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
+    ) -> Foreseen | None:
+        del columns  # every column goes, as the window saves them
+        if source.kind != "table":
+            return None
+        try:
+            file = csv_name(name) if name else suggested_name(source.name)
+        except ActionRefused:
+            file = suggested_name(source.name)
+        # Read back, a CSV names what it holds and types none of it.
+        return Foreseen(
+            kind="file", name=file, columns=[text_column(column.name) for column in source.columns]
+        )
+
+    async def foresee(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        source_end: PairEnd,
+        target_end: PairEnd,
+    ) -> PasteOffer:
+        if isinstance(source_end, Foreseen):
+            if source_end.kind != "table":
+                return refused(self, NOT_A_RELATION)
+            relation = source_end.name
+        elif source_end is None or not isinstance(source, SupportsRelationModel):
+            return refused(self, NOT_A_RELATION)
+        else:
+            found = await _relation(source, source_end, gone=GONE)
+            if isinstance(found, str):
+                return refused(self, found)
+            relation = found.name
+        suggested = suggested_name(relation)
+        if isinstance(target_end, Foreseen):
+            if target_end.kind != "folder":
+                return refused(self, "Choose a destination folder")
+            # A folder a link has yet to make holds no name to be taken.
+            return offered(self, available=True, suggested_name=suggested)
+        taken = await _taken_in(destination, target_end, [suggested])
+        if isinstance(taken, str):
+            return refused(self, taken)
+        return offered(self, available=True, name_conflict=bool(taken), suggested_name=suggested)
 
     async def plan(
         self, source: DataAdapter, destination: DataAdapter, request: PasteRun
@@ -274,6 +317,18 @@ async def _relation(
         return "The copied connection is unavailable"
 
 
+async def _taken_in(
+    destination: DataAdapter, folder_id: str | None, names: list[str]
+) -> list[str] | str:
+    """Which of these names the folder holds already, or why it cannot say."""
+    try:
+        return await to_thread.run_sync(_taken, storage_of(destination), folder_id, names)
+    except ActionRefused as refusal:
+        return refusal.message
+    except (OSError, ValueError):
+        return "The destination is unavailable"
+
+
 def _taken(storage: Storage, folder_id: str | None, names: list[str]) -> list[str]:
     folder = destination_folder(storage, folder_id)
     return sorted(
@@ -383,5 +438,6 @@ async def _saved(
     written.add(name)
     transfer.published += 1
     item.published_as = target.name
+    item.published_id = node_id_of(target)
     item.arrived = 1
     item.outcome = "done"

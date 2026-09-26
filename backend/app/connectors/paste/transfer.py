@@ -57,6 +57,9 @@ class TransferItem(BaseModel):
     # The name it has at the destination, when that is decided there: Keep
     # both renamed it, or it is the file a table became.
     published_as: str | None = Field(default=None, max_length=255)
+    # Its node id at the destination once it arrived, whatever it was named:
+    # a pipeline's next link reads it (D178).
+    published_id: str | None = Field(default=None, max_length=4096)
     # A sentence that names the item, so a list of them reads on its own.
     message: str | None = Field(default=None, max_length=600)
     rows: int | None = None

@@ -24,7 +24,7 @@ from app.connectors.paste.models import (
     PasteOffers,
     PastePair,
 )
-from app.connectors.paste.registry import KINDS
+from app.connectors.paste.registry import KINDS, short_of
 from app.core.access import Access, at_least
 from app.core.db import SessionDep
 from app.users.deps import CurrentUser
@@ -136,15 +136,8 @@ async def _offer(
     pair: PastePair,
 ) -> PasteOffer:
     """One kind's answer, after what it needs of each end beyond reading."""
-    if not at_least(destination_access, kind.destination_requires):
-        return refused(
-            kind, f"This needs {kind.destination_requires} access to this connection"
-        )
-    if not at_least(source_access, kind.source_requires):
-        return refused(
-            kind, f"This needs {kind.source_requires} access to the copied connection"
-        )
-    return await kind.offer(source, destination, pair)
+    short = short_of(kind, source_access, destination_access)
+    return short if short is not None else await kind.offer(source, destination, pair)
 
 
 @router.post("/{connector_id}/clipboard/offer", response_model=ClipboardOffer)

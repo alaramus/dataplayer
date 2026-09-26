@@ -17,13 +17,17 @@ from app.adapters.explorer.storage import (
     Storage,
     VersionChanged,
     is_plain_name,
+    node_id_of,
 )
 from app.adapters.protocol import AdapterError, DataAdapter
-from app.connectors.paste.kinds import offered
+from app.connectors.paste.kinds import offered, refused
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
     Conflict,
+    Foreseen,
+    PairEnd,
+    PasteColumn,
     PasteKindName,
     PasteOffer,
     PastePair,
@@ -271,6 +275,27 @@ def _measured(source: Storage, entries: list[Entry]) -> tuple[list[TransferItem]
     return items, total
 
 
+def taken_there(
+    destination: Storage, folder_id: str | None, name: str, is_folder: bool
+) -> tuple[ActionRefused | None, bool]:
+    """Whether one name is taken in a folder, and whether Replace may be offered.
+
+    What a pipeline asks of a file a link has yet to make (D178): its name is
+    known, and nothing else about it is.
+    """
+    try:
+        folder = destination_folder(destination, folder_id)
+        existing = destination.entry(destination.child(folder, name))
+    except ActionRefused as refusal:
+        return refusal, True
+    except (OSError, ValueError):
+        return ActionRefused("not_applicable", "A source or destination is unavailable"), True
+    if existing is None:
+        return None, True
+    replaceable = not (is_folder or existing.is_directory)
+    return ActionRefused("conflict", f"{name} is already there"), replaceable
+
+
 def _into_itself(source: Storage, destination: Storage, checked: Checked) -> None:
     """A folder pasted into its own subtree would be read while it is written.
 
@@ -352,6 +377,7 @@ class _Run:
             item.arrived = 1
             if target.name != item.name:
                 item.published_as = target.name
+            item.published_id = node_id_of(target)
             self.arrivals.append(_Arrival(item, place, version, item.name))
 
         failure = await self._attempt(carry, item.name)
@@ -385,6 +411,7 @@ class _Run:
         self.transfer.published += 1
         if target.name != item.name:
             item.published_as = target.name
+        item.published_id = node_id_of(target)
         self.folders.append(place)
         tree = await self.report.in_thread(lambda: list(walk(self.source, place)))
         made: dict[tuple[str, ...], Place] = {(): target}
@@ -554,6 +581,7 @@ class _Files:
     converts = False
     workflow: PasteWorkflow = "run"
     destination_requires: Access = "write"
+    makes = True
 
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, TransfersFiles)
@@ -583,6 +611,57 @@ class _Files:
             pair.destination_node_id,
         )
         can_replace = self.can_replace and replaceable
+        if problem is None:
+            return offered(self, available=True, can_replace=can_replace)
+        return offered(
+            self,
+            available=False,
+            reason=problem.message,
+            name_conflict=problem.reason == "conflict",
+            can_replace=can_replace,
+        )
+
+    def made(
+        self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
+    ) -> Foreseen | None:
+        del name, columns  # a file keeps its own name, and its columns with it
+        return None if source.kind == "table" else source
+
+    async def foresee(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        source_end: PairEnd,
+        target_end: PairEnd,
+    ) -> PasteOffer:
+        if isinstance(source_end, Foreseen):
+            if source_end.kind == "table":
+                return refused(self, self.needs)
+            if not is_plain_name(source_end.name):
+                return refused(self, "A file has an invalid name")
+            name, is_folder = source_end.name, source_end.kind == "folder"
+        elif source_end is None:
+            return refused(self, self.needs)
+        else:
+            try:
+                entries = await to_thread.run_sync(
+                    source_files, storage_of(source), [source_end]
+                )
+            except ActionRefused as refusal:
+                return refused(self, refusal.message)
+            except (OSError, ValueError):
+                return refused(self, "The selection is unavailable")
+            name, is_folder = entries[0].name, entries[0].is_directory
+        can_replace = self.can_replace and not is_folder
+        if isinstance(target_end, Foreseen):
+            if target_end.kind != "folder":
+                return refused(self, "Choose a destination folder")
+            # A folder a link has yet to make holds no name to be taken.
+            return offered(self, available=True, can_replace=can_replace)
+        problem, replaceable = await to_thread.run_sync(
+            taken_there, storage_of(destination), target_end, name, is_folder
+        )
+        can_replace = can_replace and replaceable
         if problem is None:
             return offered(self, available=True, can_replace=can_replace)
         return offered(

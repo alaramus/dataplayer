@@ -14,6 +14,7 @@ from app.adapters.protocol import (
     SupportsFetch,
     SupportsInsert,
 )
+from app.adapters.relation import ColumnType
 from app.adapters.update import ValuesRejected
 from app.connectors import imports
 from app.connectors.paste.files import TransfersFiles
@@ -21,6 +22,9 @@ from app.connectors.paste.kinds import counted, offered, refused
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
+    Foreseen,
+    PairEnd,
+    PasteColumn,
     PasteKindName,
     PasteOffer,
     PastePair,
@@ -90,6 +94,14 @@ class _Rows:
             return Availability(available=False, reason=found)
         return Availability(available=True)
 
+    async def _read_from(self, source: DataAdapter, end: PairEnd) -> list[FetchColumn] | str:
+        """The columns rows are read by, from a node or from what a link makes."""
+        if isinstance(end, Foreseen):
+            return end.columns or NOT_ROWS
+        if end is None:
+            return self.needs
+        return await columns_of(source, [end])
+
 
 class RowsNewRelation(_Rows):
     name: PasteKindName = "rows_new_relation"
@@ -97,6 +109,7 @@ class RowsNewRelation(_Rows):
     workflow: PasteWorkflow = "new-relation"
     # What D45 asks of the place the table is made in.
     destination_requires: Access = "structure"
+    makes = True
 
     def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
         return (
@@ -111,12 +124,46 @@ class RowsNewRelation(_Rows):
         columns = await columns_of(source, pair.source_node_ids)
         if isinstance(columns, str):
             return refused(self, columns)
+        return await self._into(destination, pair.destination_node_id, columns)
+
+    def made(
+        self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
+    ) -> Foreseen | None:
+        del source  # the table is what its window chose, whatever it was made from
+        return Foreseen(
+            kind="table",
+            name=name or "a new table",
+            columns=[
+                FetchColumn(
+                    name=column.target,
+                    type=ColumnType(sql=column.type_code or "text", category="other"),
+                    insertable=True,
+                )
+                for column in columns or []
+            ],
+        )
+
+    async def foresee(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        source_end: PairEnd,
+        target_end: PairEnd,
+    ) -> PasteOffer:
+        columns = await self._read_from(source, source_end)
+        if isinstance(columns, str):
+            return refused(self, columns)
+        if isinstance(target_end, Foreseen):
+            return refused(self, "Choose the schema the table goes in")
+        return await self._into(destination, target_end, columns)
+
+    async def _into(
+        self, destination: DataAdapter, place: str | None, columns: list[FetchColumn]
+    ) -> PasteOffer:
         if not isinstance(destination, SupportsCreateRelation):
             return refused(self, "This connection cannot create tables")
         try:
-            options = await destination.new_relation_options(
-                pair.destination_node_id or ""
-            )
+            options = await destination.new_relation_options(place or "")
         except (NodeNotFound, ValueError):
             return refused(self, "Choose the schema the table goes in")
         except AdapterError:
@@ -168,6 +215,7 @@ class RowsNewRelation(_Rows):
             rows=result.inserted,
             name=result.node.name,
             reload_node_ids=[request.destination_node_id],
+            made_node_id=result.node.id,
         )
 
 
@@ -177,6 +225,8 @@ class RowsIntoRelation(_Rows):
     workflow: PasteWorkflow = "into-relation"
     # What D43 asks of the relation written.
     destination_requires: Access = "write"
+    # The rows go into a table that is there already.
+    makes = False
 
     def serves(self, source: DataAdapter, destination: DataAdapter) -> bool:
         return (
@@ -194,11 +244,39 @@ class RowsIntoRelation(_Rows):
         columns = await columns_of(source, pair.source_node_ids)
         if isinstance(columns, str):
             return refused(self, columns)
-        if not isinstance(destination, SupportsFetch):
+        return await self._into(destination, pair.target_node_id, columns)
+
+    def made(
+        self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
+    ) -> Foreseen | None:
+        del source, name, columns
+        return None
+
+    async def foresee(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        source_end: PairEnd,
+        target_end: PairEnd,
+    ) -> PasteOffer:
+        if target_end is None or (isinstance(target_end, Foreseen) and target_end.kind != "table"):
+            return refused(self, "Tick the table the rows go into")
+        columns = await self._read_from(source, source_end)
+        if isinstance(columns, str):
+            return refused(self, columns)
+        return await self._into(destination, target_end, columns)
+
+    async def _into(
+        self, destination: DataAdapter, target_end: str | Foreseen, columns: list[FetchColumn]
+    ) -> PasteOffer:
+        if isinstance(target_end, Foreseen):
+            target: list[FetchColumn] | str = target_end.columns
+        elif not isinstance(destination, SupportsFetch):
             return refused(self, "This connection cannot take rows")
-        target = await _columns(
-            destination, pair.target_node_id, gone="The ticked table no longer exists"
-        )
+        else:
+            target = await _columns(
+                destination, target_end, gone="The ticked table no longer exists"
+            )
         if isinstance(target, str):
             return refused(self, "The ticked node cannot take rows")
         insertable = [column for column in target if column.insertable]

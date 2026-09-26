@@ -48,6 +48,8 @@ import type { LinkSide } from "./api"
 import CardPickerWindow from "./CardPickerWindow.vue"
 import LinkPanel from "./LinkPanel.vue"
 import {
+  chainOf,
+  dependents,
   endOf,
   hintEdges,
   hintOf,
@@ -57,6 +59,7 @@ import {
   linkEdge,
   linkFromOffer,
   listed,
+  madeRows,
   refusal,
   runProblem,
   runSummary,
@@ -231,13 +234,18 @@ const states = computed(() => {
 // Numbered as the server last answered: a link drawn since gets its number
 // when its save comes back.
 const order = computed(() => new Map((pipeline.data.value?.order ?? []).map((place) => [place.link_id, place])))
+// What each link makes, named by the server as its last save stood (D178).
+const results = computed(() => pipeline.data.value?.results ?? [])
 const linkRuns = computed(() => new Map((lastRun.data.value?.links ?? []).map((run) => [run.link_id, run])))
 const edges = computed(() => [
   ...links.value.map((link) => linkEdge(link, order.value.get(link.id), linkRuns.value.get(link.id))),
   ...hintEdges(hints.value),
 ])
 const graph = computed(() =>
-  pipelineGraph(cards.value, connectionsById.value, states.value, typeTitles.value, edges.value)
+  pipelineGraph(
+    cards.value, connectionsById.value, states.value, typeTitles.value, edges.value,
+    madeRows(results.value, links.value, order.value)
+  )
 )
 const positions = computed(() => positionsOf(cards.value))
 const switcher = computed(() => props.pipelines.map((one) => ({ label: one.name, value: one.id })))
@@ -256,6 +264,10 @@ function cardName(card: Card): string {
 function nameEnd(end: LinkEnd): string {
   const card = cards.value.find((one) => one.id === end.card_id)
   if (card === undefined) return "a card no longer here"
+  if (end.made_by != null) {
+    const made = results.value.find((one) => one.link_id === end.made_by)
+    return `${cardName(card)} · ${made?.name ?? "what a link makes"}`
+  }
   if (end.node_id == null) return `${cardName(card)} (top)`
   const row = card.rows.find((one) => one.node_id === end.node_id)
   return `${cardName(card)} · ${row?.label ?? end.node_id}`
@@ -264,6 +276,14 @@ function nameEnd(end: LinkEnd): string {
 function sideOf(end: LinkEnd): LinkSide | null {
   const card = cards.value.find((one) => one.id === end.card_id)
   return card === undefined ? null : { connectorId: card.connector_id, end }
+}
+
+/** The links making what either end is, as a key: a choice changed along the chain asks again. */
+function chainKey(from: LinkEnd, to: LinkEnd): string {
+  return JSON.stringify(
+    [...chainOf(links.value, from), ...chainOf(links.value, to)]
+      .map((link) => [link.id, link.kind, link.name ?? null, link.columns ?? null, link.source])
+  )
 }
 
 // Hints answer for the canvas as it was asked; a card or a link changed
@@ -371,7 +391,8 @@ async function picked(rows: CardRow[]) {
 
 async function remove(cardId: string) {
   const card = cards.value.find((one) => one.id === cardId)
-  const going = links.value.filter((link) => link.source.card_id === cardId || link.target.card_id === cardId)
+  const touching = links.value.filter((link) => link.source.card_id === cardId || link.target.card_id === cardId)
+  const going = [...touching, ...dependents(links.value, new Set(touching.map((link) => link.id)))]
   const label = card === undefined ? "The card" : cardName(card)
   const sure = await confirm({
     title: "Take this card off the pipeline?",
@@ -412,9 +433,12 @@ async function join(from: LinkEnd, to: LinkEnd) {
   if (source === null || target === null) return
   let offers
   try {
+    // The pipeline as kept answers: a card just placed, or the link making
+    // what an end is, has to be there first (D178).
+    if (!(await save())) return
     offers = await queryClient.fetchQuery({
-      queryKey: linkOffersKey(source, target),
-      queryFn: () => readLinkOffers(source, target),
+      queryKey: linkOffersKey(props.pipelineId, source, target, chainKey(from, to)),
+      queryFn: () => readLinkOffers(props.pipelineId, source, target),
       staleTime: 60_000,
     })
   } catch (cause) {
@@ -463,14 +487,32 @@ function changeLink(changed: Link) {
   schedule()
 }
 
+/** Another operation chosen: one that makes nothing takes the links using what this one made. */
+async function operate(changed: Link, makes: boolean) {
+  const going = makes ? [] : dependents(links.value, new Set([changed.id]))
+  if (going.length > 0) {
+    const sure = await confirm({
+      title: "Change what this link does?",
+      message: `${changed.title} makes nothing for later links to read, so these go: ${listed(going, nameEnd)}.`,
+      confirmLabel: "Change",
+    })
+    if (!sure) return
+    links.value = links.value.filter((link) => !going.includes(link))
+  }
+  changeLink(changed)
+}
+
 async function removeLink(link: Link) {
+  const going = dependents(links.value, new Set([link.id]))
   const sure = await confirm({
     title: "Remove this link?",
-    message: `${nameEnd(link.source)} → ${nameEnd(link.target)} and the choices kept with it go. Nothing in the connections changes.`,
+    message: going.length === 0
+      ? `${nameEnd(link.source)} → ${nameEnd(link.target)} and the choices kept with it go. Nothing in the connections changes.`
+      : `${nameEnd(link.source)} → ${nameEnd(link.target)} goes, and with what it makes these links: ${listed(going, nameEnd)}. Nothing in the connections changes.`,
     confirmLabel: "Remove",
   })
   if (!sure) return
-  links.value = links.value.filter((one) => one.id !== link.id)
+  links.value = links.value.filter((one) => one.id !== link.id && !going.includes(one))
   selection.value = null
   schedule()
 }
@@ -710,10 +752,14 @@ defineExpose({ place })
         :from="panelSides.from"
         :to="panelSides.to"
         :name="nameEnd"
+        :pipeline-id="pipelineId"
+        :chain="chainKey(selectedLink.source, selectedLink.target)"
+        :prepare="save"
         :place="order.get(selectedLink.id)"
         :link-run="linkRuns.get(selectedLink.id)"
         :last-run="lastRun.data.value"
         @change="changeLink"
+        @operate="operate"
         @remove="removeLink(selectedLink)"
         @close="selection = null"
       />

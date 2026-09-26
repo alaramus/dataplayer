@@ -65,6 +65,25 @@ so.
 - Before anything runs, a link from or into a result is checked for its
   choices as any link is (D177).
 
+## Settled during implementation
+
+- **A link's offers are asked of the pipeline** (`POST /pipelines/{id}/offers`),
+  which answers two ticked rows as the pair window does and a result as its
+  link will make it; the screen saves before it asks, so the link making a
+  result is there to be read.
+- **Each kind says whether it makes something, what it makes from a
+  description, and answers an offer where an end is one** (`makes`, `made`,
+  `foresee`); a kind's offer for two nodes is unchanged.
+- **A result's name is the server's**, arriving with each save as the numbers
+  do (D177): a link just drawn gets its result row when its save comes back.
+  It is drawn in italics, "← 1" beside it.
+- **A result's columns**: a CSV's are the table's, as text; a new table's are
+  those chosen for it, typed by the codes chosen.
+- **A run in which a link had no result to read** says "2 of 3 links ran; 1
+  not run".
+- **Only an operation that makes nothing takes the links using the result**;
+  Copy changed to Move keeps them.
+
 ## Out of scope
 
 - Transformations on the way: a result is what the operation makes, as it

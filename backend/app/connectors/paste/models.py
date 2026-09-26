@@ -73,6 +73,9 @@ class PasteOffer(BaseModel):
     # a failed move may already have removed earlier files.
     changes_source: bool = False
     workflow: PasteWorkflow = "run"
+    # Whether running it makes a node of its own there — a file, a table, a
+    # copy — which a pipeline's next link may read (D178).
+    makes: bool = False
     # Set by a kind that asks for a name: what its field starts as.
     suggested_name: str | None = None
     # What a rows window pairs: the source's columns, and the insertable
@@ -97,6 +100,8 @@ class PasteResult(BaseModel):
     rows: int | None = None
     name: str | None = None
     reload_node_ids: list[str | None]
+    # The node it made, when it made one: a pipeline's next link reads it (D178).
+    made_node_id: str | None = None
 
 
 class PairSide(BaseModel):
@@ -138,3 +143,25 @@ class ClipboardOffer(BaseModel):
 
     can_copy: Availability | None = None
     can_cut: Availability | None = None
+
+
+ForeseenKind = Literal["file", "folder", "table"]
+
+
+class Foreseen(BaseModel):
+    """A node as a pipeline's link will make it (D178): described, not read.
+
+    What a kind is asked of in place of a node that may not exist yet. The
+    columns are what it will read as rows, when it will.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: ForeseenKind
+    name: str
+    columns: list[FetchColumn] = Field(default_factory=list)
+
+
+# One end of a pair a pipeline asks about: a node by its id, the top of a
+# connection as None, or a node a link will make.
+type PairEnd = str | Foreseen | None

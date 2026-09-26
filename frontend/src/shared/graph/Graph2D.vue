@@ -334,7 +334,7 @@ defineExpose({ fit, zoom, focus })
             class="graph-node__row"
             role="button"
             tabindex="0"
-            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id, 'graph-node__row--muted': row.muted, 'graph-node__row--aimed': aimed?.nodeId === node.id && aimed.portId === row.id }"
+            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id, 'graph-node__row--muted': row.muted, 'graph-node__row--made': row.made, 'graph-node__row--aimed': aimed?.nodeId === node.id && aimed.portId === row.id }"
             :style="{ height: `${ROW_HEIGHT}px` }"
             :aria-label="`${node.label}: ${row.label}`"
             :data-testid="`graph-port-${node.id}-${row.id}`"
@@ -415,6 +415,7 @@ defineExpose({ fit, zoom, focus })
 .graph-node__head:focus-visible, .graph-node__row:focus-visible { outline: 2px solid var(--dp-accent); }
 .graph-node__badges { flex: 0 0 34px; display: flex; align-items: center; color: var(--node-accent); font-size: 9px; font-weight: 600; }
 .graph-node__row--muted .graph-node__name { color: var(--dp-text-muted); text-decoration: line-through; }
+.graph-node__row--made .graph-node__name { font-style: italic; }
 .graph-node__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graph-node__type { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dp-text-muted); font-family: var(--dp-font-mono); font-size: 10px; }
 .graph-node__port { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--node-accent); top: calc(50% - 2.5px); }

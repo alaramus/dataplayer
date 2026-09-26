@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import type { Card, Link, LinkRun, PasteOffer, PipelineRunPublic } from "@/client"
 
 import {
+  chainOf,
+  dependents,
   endOf,
   hintEdges,
   hintOf,
@@ -12,6 +14,7 @@ import {
   linkEdge,
   linkFromOffer,
   listed,
+  madeRows,
   nodeIdOf,
   refusal,
   runProblem,
@@ -165,5 +168,51 @@ describe("the hint", () => {
     expect(hintOf(hints, "hint:1")).toBe(hints[1])
     expect(hintOf(hints, "l1")).toBeNull()
     expect(hintOf(hints, "hint:9")).toBeNull()
+  })
+})
+
+describe("a chain: what a link makes, read by the next (D178)", () => {
+  const save: Link = { ...saving, id: "save" }
+  const copy: Link = {
+    ...saving, id: "copy", kind: "file_copy", title: "Copy files",
+    source: { card_id: "files", node_id: null, made_by: "save" },
+    target: { card_id: "sales", node_id: "public" },
+  }
+  const load: Link = {
+    ...saving, id: "load", kind: "rows_new_relation", title: "Create a table",
+    source: { card_id: "sales", node_id: null, made_by: "copy" },
+    target: { card_id: "files", node_id: "reports" },
+  }
+
+  it("names a result by the link that makes it, as a row of the card it goes into", () => {
+    expect(endOf({ nodeId: "files", portId: "made:save" })).toEqual({ card_id: "files", node_id: null, made_by: "save" })
+    expect(linkEdge(copy).source).toEqual({ nodeId: "files", portIds: ["made:save"] })
+    // A result is something to take, where the top of a connection is not.
+    expect(joinProblem([sales, files], copy.source, copy.target)).toBeNull()
+    expect(linkBetween([copy], { card_id: "files", node_id: null }, copy.target)).toBeNull()
+  })
+
+  it("draws each result below the row its link writes into, numbered by its maker", () => {
+    const made = madeRows(
+      [{ link_id: "save", card_id: "files", name: "orders.csv", kind: "file" }],
+      [save],
+      new Map([["save", { link_id: "save", number: 1 }]])
+    )
+    expect(made).toEqual([{
+      cardId: "files",
+      after: "node:reports",
+      row: { id: "made:save", label: "orders.csv", detail: "← 1", icon: expect.any(String) as string, made: true },
+    }])
+    // A link the draft no longer holds draws nothing.
+    expect(madeRows([{ link_id: "gone", card_id: "files", name: "x", kind: "file" }], [save], new Map())).toEqual([])
+  })
+
+  it("takes along every link reading what goes, however far along", () => {
+    expect(dependents([save, copy, load], new Set(["save"])).map((link) => link.id)).toEqual(["copy", "load"])
+    expect(dependents([save, copy, load], new Set(["load"]))).toEqual([])
+    // Unticking the folder the file is saved into takes the whole chain.
+    expect(keptLinks([save, copy, load], "files", [files.rows[0]!]).map((link) => link.id)).toEqual([])
+    expect(chainOf([save, copy, load], load.source).map((link) => link.id)).toEqual(["copy", "save"])
+    expect(chainOf([save], { card_id: "files", node_id: "reports" })).toEqual([])
   })
 })

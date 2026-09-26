@@ -47,6 +47,16 @@ def link(
     }
 
 
+def end(card: dict[str, Any], node_id: str | None = None, made_by: dict[str, Any] | None = None) -> dict[str, Any]:
+    """A row of a card: a ticked node, or what a link makes (D178)."""
+    return {"card_id": card["id"], "node_id": node_id, "made_by": None if made_by is None else made_by["id"]}
+
+
+def joined(source: dict[str, Any], target: dict[str, Any], kind: str, **choices: Any) -> dict[str, Any]:
+    """A link between two ends as `end` names them."""
+    return {"id": str(uuid.uuid4()), "source": source, "target": target, "kind": kind, "title": kind.replace("_", " "), **choices}
+
+
 class Canvas:
     """One pipeline of the test user, saved whole as the screen saves it."""
 
@@ -84,6 +94,14 @@ class Canvas:
         """What each link did in the last run, by link id."""
         last = await self.last()
         return {one["link_id"]: (one["outcome"], one["message"]) for one in last["links"]}
+
+    async def offers(self, source: dict[str, Any], target: dict[str, Any]) -> dict[str, Any]:
+        """What can go between two ends, by kind."""
+        answer = await self.client.post(
+            f"{BASE}/{self.id}/offers", headers=self.headers, json={"source": source, "target": target}
+        )
+        assert answer.status_code == 200, answer.text
+        return {one["kind"]: one for one in answer.json()["offers"]}
 
     async def hint(self, card_id: str | None = None) -> dict[str, Any]:
         answer = await self.client.post(f"{BASE}/{self.id}/hint", headers=self.headers, json={"card_id": card_id})

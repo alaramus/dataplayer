@@ -254,6 +254,7 @@ files. IDs are stable because specs and commits refer to them.
 | D175 | [pipelines](docs/architecture/pipelines.md) |
 | D176 | [pipelines](docs/architecture/pipelines.md) |
 | D177 | [pipelines](docs/architecture/pipelines.md) |
+| D178 | [pipelines](docs/architecture/pipelines.md) |
 
 ## Working rules
 

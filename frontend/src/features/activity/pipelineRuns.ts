@@ -14,6 +14,7 @@ import type { TransferRecord, Writing } from "./transfers"
 export type StepOutcome = "waiting" | "running" | "done" | "failed" | "not_run"
 
 export interface RunStepRecord {
+  linkId: string
   title: string
   sourceLabel: string
   targetLabel: string
@@ -24,6 +25,9 @@ export interface RunStepRecord {
   message: string | null
   /** A transfer step's own payload, once it is planned. */
   transfer: TransferRecord | null
+  /** The link whose result it reads (D178), and the name it made its own under. */
+  reads: string | null
+  madeName: string | null
 }
 
 export interface PipelineRunRecord {
@@ -36,6 +40,7 @@ const OUTCOMES: ReadonlySet<string> = new Set<StepOutcome>(["waiting", "running"
 function stepOf(value: unknown): RunStepRecord | null {
   if (!isRecord(value) || !isRecord(value.paste)) return null
   const fields = {
+    linkId: text(value.link_id),
     title: text(value.title),
     sourceLabel: text(value.source_label),
     targetLabel: text(value.target_label),
@@ -51,6 +56,8 @@ function stepOf(value: unknown): RunStepRecord | null {
     outcome: outcome as StepOutcome,
     message: text(value.message),
     transfer: isRecord(value.transfer) ? transferOf({ kind: "paste.transfer", parameters: value.transfer }) : null,
+    reads: text(value.reads),
+    madeName: text(value.made_name),
   }
 }
 
@@ -107,8 +114,15 @@ export function pipelineLines(job: JobPublic, run: PipelineRunRecord): string[] 
   }
   return [
     ...(job.message === null ? [] : [job.message]),
-    ...listed(run.steps.map((step, index) => `${String(index + 1)}. ${step.title} — ${ending(step)}`), 0),
+    ...listed(run.steps.map((step, index) => `${String(index + 1)}. ${step.title} — ${ending(step)}${read(run, step)}`), 0),
   ]
+}
+
+/** What a link that ran read of another's result, by the name it was made under. */
+function read(run: PipelineRunRecord, step: RunStepRecord): string {
+  if (step.reads === null || (step.outcome !== "done" && step.outcome !== "failed")) return ""
+  const maker = run.steps.find((one) => one.linkId === step.reads)
+  return maker?.madeName ? ` · read ${maker.madeName}` : ""
 }
 
 /** The connections a run has written into, re-read as its links end (D177). */

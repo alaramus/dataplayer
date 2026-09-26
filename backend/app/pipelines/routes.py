@@ -16,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.resources import ResourcesDep
 from app.connectors import crud as connector_crud
+from app.connectors.paste.models import PasteOffers
 from app.core.db import SessionDep
 from app.core.schemas import Message
 from app.jobs.runner import JobRunnerDep
@@ -34,7 +35,9 @@ from app.pipelines.models import (
     content_of,
     summary,
 )
+from app.pipelines.offers import Asking, LinkOffersRequest
 from app.pipelines.order import ordered
+from app.pipelines.results import Foresight
 from app.pipelines.runs import LastRun, PipelineRunPublic, last_run, start_run
 from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
@@ -58,7 +61,7 @@ async def _content(session: AsyncSession, user: User, pipeline_id: uuid.UUID) ->
 
 def public(pipeline: Pipeline) -> PipelinePublic:
     """The pipeline as its owner reads it, each link numbered in the order a
-    run takes it (D177)."""
+    run takes it (D177), and what each makes as a row of its card (D178)."""
     content = content_of(pipeline)
     return PipelinePublic(
         id=pipeline.id,
@@ -74,6 +77,7 @@ def public(pipeline: Pipeline) -> PipelinePublic:
             LinkPlace(link_id=placed.link.id, number=placed.number, circle=placed.circle)
             for placed in ordered(content)
         ],
+        results=[] if content is None else Foresight(content).rows(),
     )
 
 
@@ -206,6 +210,24 @@ async def run_pipeline(
     """
     pipeline, content = await _content(session, current_user, pipeline_id)
     return await start_run(session, current_user, runner, topics, pipeline, content)
+
+
+@router.post("/{pipeline_id}/offers", response_model=PasteOffers)
+async def read_link_offers(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    pipeline_id: uuid.UUID,
+    body: LinkOffersRequest,
+) -> Any:
+    """What can go from one row of the pipeline into another (D176).
+
+    A row that is what a link makes is asked of as the link will make it
+    (D178), so the pipeline as kept is what answers: a screen saves first.
+    """
+    _, content = await _content(session, current_user, pipeline_id)
+    asking = Asking(session, current_user, resources, content, strict=True)
+    return PasteOffers(offers=await asking.offers(body.source, body.target))
 
 
 @router.post("/{pipeline_id}/hint", response_model=Hint)

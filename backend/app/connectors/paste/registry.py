@@ -2,8 +2,8 @@
 
 from app.adapters.protocol import DataAdapter
 from app.connectors.paste.files import FileCopy, FileMove
-from app.connectors.paste.kinds import PasteKind
-from app.connectors.paste.models import PasteKindName
+from app.connectors.paste.kinds import PasteKind, refused
+from app.connectors.paste.models import PasteKindName, PasteOffer
 from app.connectors.paste.relation_csv import RelationCsv
 from app.connectors.paste.rows import RowsIntoRelation, RowsNewRelation
 from app.core.access import Access, at_least
@@ -39,3 +39,18 @@ def open_kinds(
         and at_least(source_access, kind.source_requires)
         and at_least(destination_access, kind.destination_requires)
     ]
+
+
+def short_of(
+    kind: PasteKind, source_access: Access, destination_access: Access
+) -> PasteOffer | None:
+    """The kind refused for what it needs of each end beyond reading, or None."""
+    if not at_least(destination_access, kind.destination_requires):
+        return refused(
+            kind, f"This needs {kind.destination_requires} access to this connection"
+        )
+    if not at_least(source_access, kind.source_requires):
+        return refused(
+            kind, f"This needs {kind.source_requires} access to the copied connection"
+        )
+    return None

@@ -3,7 +3,7 @@
 Read this before changing the pipelines space, a pipeline's cards, links or
 run, or the answer of what a person's connections can give each other.
 
-Decisions here: D174, D175, D176, D177.
+Decisions here: D174, D175, D176, D177, D178.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -73,9 +73,12 @@ Spec: [Pipelines: connections laid out on a canvas, and links run between them](
 - **A row dragged onto a row of another card** asks the pair window's
   question with one tick each side (D167): the target row stands for the
   place and for the target, and each kind's offer takes the one it
-  understands. None usable — available, or held back only by a taken name —
-  draws nothing and says the first reason. Both ends in one connection, or a
-  start at the top of a connection, are refused before anything is asked.
+  understands. It is asked of the pipeline as kept,
+  `POST /pipelines/{id}/offers`, so the screen saves first; that is how an
+  end that is a link's result is answered too (D178). None usable —
+  available, or held back only by a taken name — draws nothing and says the
+  first reason. Both ends in one connection, or a start at the top of a
+  connection, are refused before anything is asked.
 - **A link is part of the pipeline's body**: its ends, its kind, the title
   it was chosen by, and the choices Paste asks — a file name, what to do with
   a taken name, the columns of a new table or the pairing into a ticked one.
@@ -162,3 +165,47 @@ Known deviations:
   connection renamed since keeps its old name in the run's record.
 
 Spec: [One Run for a whole pipeline](../decisions/2026-09-26-pipeline-run-design.md)
+
+## D178. What a link makes is a row of its card, and the next link reads it
+
+- **A link end names a node, the top, or what a link makes** (`made_by`).
+  Save as CSV makes a file, Create a table a table, Copy and Move the node
+  carried; Add rows makes nothing. The body refuses a result end whose link
+  writes into another card or makes nothing, and a link that reads or writes
+  into, however far along, what it makes itself.
+- **The server names each result** (`results.py`), sent with every read and
+  save as `results`: each kind's `made` asked of what its link reads — a
+  ticked row by its label and kind, a result by the link before it — with
+  the link's choices. The canvas draws it in italics below the row its link
+  writes into, marked with that link's number, "← 1". It is not checked
+  against the connection as ticked rows are.
+- **What can be done with a result is asked of what the link will make**
+  (`offers.py`): the chain's root is read for its columns, each link along it
+  describes what it makes, and each kind's `foresee` takes that description
+  in place of a node. The column windows open on those columns before the
+  first run. The hint asks the same, results included.
+- **At run time a link reading or writing into a result waits for the link
+  making it**, and a circle is never broken at such a link (`order.py`).
+  Each step keeps the node it made and the name it was made under; the next
+  is handed that node when it starts. A result not made in this run leaves
+  the link reading it not run, saying so — never what an earlier run left
+  under that name.
+- **The panel and the footer** say what a link read and what it made, by
+  name. A link taken away, or given an operation that makes nothing, takes
+  the links using what it made, after a confirmation naming them; so does a
+  card taken off or a row unticked.
+
+Known deviations:
+
+- **What is said ahead is checked again when the step runs**: a table
+  changed since, a name taken meanwhile, a file too large fail the step with
+  its sentence, as any step does (D177).
+- **A result's columns are a CSV's as text and a new table's as chosen**,
+  not as the database will spell them; a pairing into it is by name.
+- **The pairing window's preview has nothing to read** from a result not
+  made yet, and says so.
+- **Every operation change takes the links using the result when the new
+  one makes nothing**; between two that make something, as Copy and Move,
+  they stay.
+
+Spec: [Chains: what one link makes, read by the next](../decisions/2026-09-26-pipeline-chains-design.md)

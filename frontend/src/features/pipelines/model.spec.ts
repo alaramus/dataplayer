@@ -90,6 +90,26 @@ describe("a pipeline's cards on the canvas", () => {
     expect(gone).toMatchObject({ label: "Sales (old name)", placeholder: true })
   })
 
+  it("draws what links make below the rows they write into, a result made into one below it", () => {
+    const made = (id: string, cardId: string, after: string) => ({
+      cardId, after, row: { id: `made:${id}`, label: id, made: true },
+    })
+    const graph = pipelineGraph([orders, files], connections, new Map(), titles, [], [
+      made("inner", "card-2", "made:outer"),
+      made("outer", "card-2", "node:reports"),
+      made("first", "card-2", "top"),
+      made("second", "card-2", "top"),
+      made("lost", "card-2", "node:gone"),
+      made("elsewhere", "card-1", "node:public"),
+    ])
+
+    expect(graph.nodes[1]?.rows.map((row) => row.id)).toEqual([
+      "top", "made:first", "made:second", "node:reports", "made:outer", "made:inner", "made:lost",
+    ])
+    expect(graph.nodes[0]?.rows.map((row) => row.id)).toEqual(["node:sales.orders", "node:public", "made:elsewhere"])
+    expect(graphProblem(graph)).toBeNull()
+  })
+
   it("keeps a node's id apart from the top of a connection", () => {
     expect(rowId(null)).toBe("top")
     expect(rowId(undefined)).toBe("top")

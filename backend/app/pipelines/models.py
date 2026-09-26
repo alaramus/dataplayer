@@ -19,6 +19,7 @@ from sqlmodel import Field, SQLModel
 
 from app.adapters.catalog import NodeKind
 from app.connectors.paste.models import Conflict, PasteColumn, PasteKindName
+from app.connectors.paste.registry import kind_named
 from app.core.schemas import get_datetime_utc
 
 MAX_PIPELINES = 100
@@ -85,10 +86,18 @@ class Card(_Strict):
 
 
 class LinkEnd(_Strict):
-    """A row of a card, by the card and the node the row names."""
+    """A row of a card, by the card and the node the row names — or what a
+    link makes, drawn as a row of the card that link writes into (D178)."""
 
     card_id: uuid.UUID
     node_id: str | None = PydanticField(default=None, min_length=1, max_length=MAX_NODE_ID)
+    made_by: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def names_one_row(self) -> Self:
+        if self.made_by is not None and self.node_id is not None:
+            raise ValueError("A result is named by the link that makes it, not by a node")
+        return self
 
 
 class Link(_Strict):
@@ -128,24 +137,60 @@ class PipelineContent(_Strict):
     @model_validator(mode="after")
     def links_join_rows_of_two_connections(self) -> Self:
         cards = {card.id: card for card in self.cards}
-        ends: set[tuple[uuid.UUID, str | None, uuid.UUID, str | None]] = set()
+        ends: set[tuple[tuple[uuid.UUID, str | None, uuid.UUID | None], ...]] = set()
         for link in self.links:
             source = cards.get(link.source.card_id)
             target = cards.get(link.target.card_id)
             if source is None or target is None:
                 raise ValueError("A link names a card that is not on the pipeline")
-            if not _holds(source, link.source.node_id) or not _holds(target, link.target.node_id):
+            if not self.holds(link.source) or not self.holds(link.target):
                 raise ValueError("A link names a row its card does not hold")
-            if link.source.node_id is None:
+            if link.source.node_id is None and link.source.made_by is None:
                 raise ValueError("A link cannot start at the top of a connection")
             # Inside one connection is its catalog's own Paste (D74).
             if source.connector_id == target.connector_id:
                 raise ValueError("A link joins two different connections")
-            pair = (source.id, link.source.node_id, target.id, link.target.node_id)
+            pair = (_key(link.source), _key(link.target))
             if pair in ends:
                 raise ValueError("Two links join the same rows")
             ends.add(pair)
         return self
+
+    @model_validator(mode="after")
+    def no_link_reads_what_it_makes(self) -> Self:
+        """However far along a chain: it would wait for itself (D178)."""
+        makers = {link.id: _makers(link) for link in self.links}
+        # False while a link is on the walk, True once all it reads is clear.
+        cleared: dict[uuid.UUID, bool] = {}
+
+        def clear(link_id: uuid.UUID) -> None:
+            if cleared.get(link_id) is True:
+                return
+            if link_id in cleared:
+                raise ValueError("A link reads, however far along, what it makes itself")
+            cleared[link_id] = False
+            for maker in makers.get(link_id, ()):
+                clear(maker)
+            cleared[link_id] = True
+
+        for link_id in makers:
+            clear(link_id)
+        return self
+
+    def holds(self, end: LinkEnd) -> bool:
+        """Whether the end names a row of its card: a ticked node, or what a
+        link writing into that card makes."""
+        card = self.card(end.card_id)
+        if card is None:
+            return False
+        if end.made_by is None:
+            return any(row.node_id == end.node_id for row in card.rows)
+        maker = self.link(end.made_by)
+        return (
+            maker is not None
+            and maker.target.card_id == card.id
+            and kind_named(maker.kind).makes
+        )
 
     def card(self, card_id: uuid.UUID) -> Card | None:
         return next((card for card in self.cards if card.id == card_id), None)
@@ -154,8 +199,13 @@ class PipelineContent(_Strict):
         return next((link for link in self.links if link.id == link_id), None)
 
 
-def _holds(card: Card, node_id: str | None) -> bool:
-    return any(row.node_id == node_id for row in card.rows)
+def _key(end: LinkEnd) -> tuple[uuid.UUID, str | None, uuid.UUID | None]:
+    return (end.card_id, end.node_id, end.made_by)
+
+
+def _makers(link: Link) -> list[uuid.UUID]:
+    """The links whose results this one reads or writes into."""
+    return [end.made_by for end in (link.source, link.target) if end.made_by is not None]
 
 
 class Pipeline(SQLModel, table=True):
@@ -204,6 +254,17 @@ class LinkPlace(BaseModel):
     circle: str | None = None
 
 
+class ResultRow(BaseModel):
+    """What a link makes, as a row of the card it writes into (D178)."""
+
+    link_id: uuid.UUID
+    card_id: uuid.UUID
+    # Its name as it will be made: the file name kept or suggested, the
+    # table's, the carried node's own.
+    name: str
+    kind: NodeKind
+
+
 class PipelinePublic(PipelineContent):
     id: uuid.UUID
     name: str
@@ -212,6 +273,7 @@ class PipelinePublic(PipelineContent):
     # The stored content could not be read and is shown empty.
     broken: bool = False
     order: list[LinkPlace] = PydanticField(default_factory=list)
+    results: list[ResultRow] = PydanticField(default_factory=list)
 
 
 class CardState(BaseModel):

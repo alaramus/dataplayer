@@ -4,9 +4,13 @@ from typing import Protocol, runtime_checkable
 
 from app.adapters.fetch import FetchColumn
 from app.adapters.protocol import DataAdapter
+from app.adapters.relation import ColumnType
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
+    Foreseen,
+    PairEnd,
+    PasteColumn,
     PasteKindName,
     PasteOffer,
     PastePair,
@@ -57,6 +61,11 @@ class PasteKind(Protocol):
     @property
     def changes_source(self) -> bool: ...
 
+    @property
+    def makes(self) -> bool:
+        """Whether running it makes a node of its own at the destination."""
+        ...
+
     def takes_from(self, source: DataAdapter) -> bool:
         """Whether this source has what the kind reads, whatever the nodes."""
         ...
@@ -73,6 +82,30 @@ class PasteKind(Protocol):
         self, source: DataAdapter, destination: DataAdapter, pair: PastePair
     ) -> PasteOffer:
         """What running it now would do, checked without changing anything."""
+        ...
+
+    def made(
+        self, source: Foreseen, name: str | None, columns: list[PasteColumn] | None
+    ) -> Foreseen | None:
+        """What running it on a node like `source` makes, by these choices (D178).
+
+        Asked of a description, never of a node: a pipeline's chain is drawn
+        before anything along it exists.
+        """
+        ...
+
+    async def foresee(
+        self,
+        source: DataAdapter,
+        destination: DataAdapter,
+        source_end: PairEnd,
+        target_end: PairEnd,
+    ) -> PasteOffer:
+        """The offer between two ends of which one or both are foreseen (D178).
+
+        A foreseen end is taken as described; a node id is read as `offer`
+        reads it. What cannot be known ahead is checked when it runs.
+        """
         ...
 
 
@@ -153,6 +186,7 @@ def offered(
         converts=kind.converts,
         can_replace=kind.can_replace if can_replace is None else can_replace,
         changes_source=kind.changes_source,
+        makes=kind.makes,
         workflow=kind.workflow if workflow is None else workflow,
         suggested_name=suggested_name,
         source_columns=source_columns or [],
@@ -162,6 +196,11 @@ def offered(
 
 def refused(kind: PasteKind, reason: str) -> PasteOffer:
     return offered(kind, available=False, reason=reason)
+
+
+def text_column(name: str) -> FetchColumn:
+    """A column as a delimited file holds it: named, and text."""
+    return FetchColumn(name=name, type=ColumnType(sql="text", category="string"))
 
 
 def counted(count: int, noun: str) -> str:

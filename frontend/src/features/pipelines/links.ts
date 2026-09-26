@@ -8,24 +8,37 @@
  */
 
 import type {
-  Card, CardRow, HintLink, Link, LinkEnd, LinkPlace, LinkRun, PasteOffer, PipelineRunPublic,
+  Card, CardRow, HintLink, Link, LinkEnd, LinkPlace, LinkRun, PasteOffer, PipelineRunPublic, ResultRow,
 } from "@/client"
+import { ICONS } from "@/features/catalog/nodes"
 import { ageLabel } from "@/shared/freshness/freshness"
 import type { GraphEdge, GraphEdgeTone, GraphPort } from "@/shared/graph/model"
 
 import { rowId } from "./model"
+import type { MadeRow } from "./model"
+
+const MADE = "made:"
 
 /** The node a row of the canvas names; the top of a connection names none. */
 export function nodeIdOf(portId: string): string | null {
   return portId.startsWith("node:") ? portId.slice("node:".length) : null
 }
 
+/** A row of the canvas as a link's end: a node, the top, or what a link makes (D178). */
 export function endOf(port: GraphPort): LinkEnd {
+  if (port.portId.startsWith(MADE)) {
+    return { card_id: port.nodeId, node_id: null, made_by: port.portId.slice(MADE.length) }
+  }
   return { card_id: port.nodeId, node_id: nodeIdOf(port.portId) }
 }
 
+/** The canvas's row an end names. */
+export function endRowId(end: LinkEnd): string {
+  return end.made_by == null ? rowId(end.node_id) : `${MADE}${end.made_by}`
+}
+
 function endpoint(end: LinkEnd) {
-  return { nodeId: end.card_id, portIds: [rowId(end.node_id)] }
+  return { nodeId: end.card_id, portIds: [endRowId(end)] }
 }
 
 /** A result's colour on its line; a link still waiting keeps the plain one. */
@@ -74,7 +87,7 @@ export function hintOf(hints: readonly HintLink[], edgeId: string): HintLink | n
 }
 
 function sameEnd(a: LinkEnd, b: LinkEnd): boolean {
-  return a.card_id === b.card_id && (a.node_id ?? null) === (b.node_id ?? null)
+  return a.card_id === b.card_id && endRowId(a) === endRowId(b)
 }
 
 /** The link already drawn between these two rows, that way round. */
@@ -87,7 +100,9 @@ export function joinProblem(cards: readonly Card[], from: LinkEnd, to: LinkEnd):
   const source = cards.find((card) => card.id === from.card_id)
   const target = cards.find((card) => card.id === to.card_id)
   if (source === undefined || target === undefined) return "That card is no longer on the canvas"
-  if (from.node_id == null) return "The top of a connection is a place things arrive in, not something to take"
+  if (from.node_id == null && from.made_by == null) {
+    return "The top of a connection is a place things arrive in, not something to take"
+  }
   if (source.connector_id === target.connector_id) {
     return "Both ends are in one connection: use Paste in its catalog for that"
   }
@@ -115,11 +130,75 @@ export function withOffer(link: Link, offer: PasteOffer): Link {
   return { ...link, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null }
 }
 
-/** Links that stay when a card keeps only these rows. */
+/**
+ * The links that go with these: every one reading or writing into what they
+ * make, however far along (D178).
+ */
+export function dependents(links: readonly Link[], going: ReadonlySet<string>): Link[] {
+  const gone = new Set(going)
+  const found: Link[] = []
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const link of links) {
+      if (gone.has(link.id)) continue
+      if ([link.source, link.target].some((end) => end.made_by != null && gone.has(end.made_by))) {
+        gone.add(link.id)
+        found.push(link)
+        grew = true
+      }
+    }
+  }
+  return found
+}
+
+/** Links that stay when a card keeps only these rows, and what they make with them. */
 export function keptLinks(links: readonly Link[], cardId: string, rows: readonly CardRow[]): Link[] {
   const held = new Set(rows.map((row) => rowId(row.node_id)))
-  const stays = (end: LinkEnd) => end.card_id !== cardId || held.has(rowId(end.node_id))
-  return links.filter((link) => stays(link.source) && stays(link.target))
+  const stays = (end: LinkEnd) => end.card_id !== cardId || end.made_by != null || held.has(rowId(end.node_id))
+  const going = new Set(links.filter((link) => !(stays(link.source) && stays(link.target))).map((link) => link.id))
+  for (const link of dependents(links, going)) going.add(link.id)
+  return links.filter((link) => !going.has(link.id))
+}
+
+/**
+ * What each link makes, as a row below the one it writes into (D178). The
+ * server names it; the link as drawn says which card and row it goes under.
+ */
+export function madeRows(
+  results: readonly ResultRow[],
+  links: readonly Link[],
+  order: ReadonlyMap<string, LinkPlace>
+): MadeRow[] {
+  return results.flatMap((result) => {
+    const link = links.find((one) => one.id === result.link_id)
+    if (link === undefined) return []
+    const place = order.get(link.id)
+    return [{
+      cardId: link.target.card_id,
+      after: endRowId(link.target),
+      row: {
+        id: `${MADE}${link.id}`,
+        label: result.name,
+        detail: place === undefined ? "to be made" : `← ${String(place.number)}`,
+        icon: ICONS[result.kind],
+        made: true,
+      },
+    }]
+  })
+}
+
+/** The links making what an end is, nearest first: what its answer depends on. */
+export function chainOf(links: readonly Link[], end: LinkEnd): Link[] {
+  const chain: Link[] = []
+  let at: LinkEnd | undefined = end
+  while (at?.made_by != null) {
+    const maker: Link | undefined = links.find((one) => one.id === at?.made_by)
+    if (maker === undefined || chain.includes(maker)) break
+    chain.push(maker)
+    at = maker.source
+  }
+  return chain
 }
 
 /** How a card and its row are named in a sentence about a link. */

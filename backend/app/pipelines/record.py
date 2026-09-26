@@ -47,11 +47,18 @@ class RunStep(_Strict):
     destination_connector_id: uuid.UUID
     # Whether carrying it out changes the source connection too: a move.
     changes_source: bool = False
+    # The paste it stands for. Where an end is what an earlier step makes
+    # (D178), that step is named here and its node is put in when this runs.
     paste: PasteRun
+    reads: uuid.UUID | None = None
+    writes_into: uuid.UUID | None = None
     outcome: StepOutcome = "waiting"
     message: str | None = Field(default=None, max_length=STEP_SAYS)
     # A transfer's own payload once it is planned, as a transfer job keeps it.
     transfer: Transfer | None = None
+    # The node it made in this run, and the name it was made with.
+    made: str | None = Field(default=None, max_length=4096)
+    made_name: str | None = Field(default=None, max_length=255)
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -61,6 +68,9 @@ class RunRecord(_Strict):
     pipeline_id: uuid.UUID
     pipeline_name: str = Field(max_length=MAX_NAME)
     steps: list[RunStep] = Field(min_length=1, max_length=MAX_LINKS)
+
+    def step_of(self, link_id: uuid.UUID) -> RunStep | None:
+        return next((step for step in self.steps if step.link_id == link_id), None)
 
     def not_run_after(self, index: int) -> None:
         for step in self.steps[index + 1 :]:
@@ -72,7 +82,11 @@ class RunRecord(_Strict):
         return clipped(said if rest == 0 else f"{said}; {rest} not run", JOB_SAYS)
 
     def ran(self) -> str:
-        """The run's sentence when every step is done."""
+        """The run's sentence when no step failed."""
+        done = sum(1 for step in self.steps if step.outcome == "done")
+        if done < len(self.steps):
+            # A link reading what another made nothing of in this run (D178).
+            return self._rest(f"{done} of {len(self.steps)} links ran")
         if len(self.steps) == 1:
             return clipped(self.steps[0].message or "Its one link ran", JOB_SAYS)
         return f"All {len(self.steps)} links ran"

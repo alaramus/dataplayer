@@ -20,9 +20,10 @@ from app.core.config import settings
 from app.jobs import crud as job_crud
 from app.jobs.models import TERMINAL, Job, JobKind, JobState
 from app.jobs.runner import JobRunner
-from app.pipelines.models import Card, Link, Pipeline, PipelineContent
+from app.pipelines.models import Card, Link, LinkEnd, Pipeline, PipelineContent
 from app.pipelines.order import ordered
 from app.pipelines.record import RunRecord, RunStep, StepOutcome
+from app.pipelines.results import Foresight
 from app.realtime.topics import TopicSet
 from app.users.models import User
 
@@ -45,6 +46,9 @@ class LinkRun(BaseModel):
     outcome: StepOutcome
     message: str | None = None
     finished_at: datetime | None = None
+    # What it made, and what it read of what another made (D178), by name.
+    made: str | None = None
+    read: str | None = None
 
 
 class PipelineRunPublic(BaseModel):
@@ -75,40 +79,49 @@ def missing(link: Link) -> str | None:
     return None
 
 
-def _named(card: Card, node_id: str | None) -> str:
-    if node_id is None:
+def _named(card: Card, end: LinkEnd, foresight: Foresight) -> str:
+    if end.made_by is not None:
+        made = foresight.made(end.made_by)
+        return f"{card.connector_name} · {made.name if made is not None else 'a result'}"
+    if end.node_id is None:
         return f"{card.connector_name} (top)"
-    row = next((one for one in card.rows if one.node_id == node_id), None)
-    return f"{card.connector_name} · {row.label if row is not None else node_id}"
+    row = next((one for one in card.rows if one.node_id == end.node_id), None)
+    return f"{card.connector_name} · {row.label if row is not None else end.node_id}"
 
 
-def _step(content: PipelineContent, link: Link) -> RunStep:
+def _step(content: PipelineContent, link: Link, foresight: Foresight) -> RunStep:
     source = content.card(link.source.card_id)
     target = content.card(link.target.card_id)
     # Validated with the content; said again for the types.
-    if source is None or target is None or link.source.node_id is None:
+    if source is None or target is None:
         raise HTTPException(422, detail={"message": "A link of this pipeline no longer joins two rows"})
     kind = kind_named(link.kind)
+    # A result's node is known only once its maker has run: named here by the
+    # maker, and put in by the step when it starts (D178).
+    source_node = link.source.node_id or str(link.source.made_by)
+    target_node = link.target.node_id if link.target.made_by is None else None
     return RunStep(
         link_id=link.id,
         title=link.title,
         source_connection=source.connector_name,
         destination_connection=target.connector_name,
-        source_label=_named(source, link.source.node_id),
-        target_label=_named(target, link.target.node_id),
+        source_label=_named(source, link.source, foresight),
+        target_label=_named(target, link.target, foresight),
         destination_connector_id=target.connector_id,
         changes_source=kind.changes_source,
         paste=PasteRun(
             source_connector_id=source.connector_id,
-            source_node_ids=[link.source.node_id],
+            source_node_ids=[source_node],
             mode=kind.mode,
-            destination_node_id=link.target.node_id,
-            target_node_id=link.target.node_id,
+            destination_node_id=target_node,
+            target_node_id=target_node,
             kind=link.kind,
             conflict=link.conflict,
             name=link.name,
             columns=link.columns,
         ),
+        reads=link.source.made_by,
+        writes_into=link.target.made_by,
     )
 
 
@@ -134,10 +147,11 @@ async def start_run(
                 "link_ids": [str(placed.link.id) for placed, _ in lacking],
             },
         )
+    foresight = Foresight(content)
     record = RunRecord(
         pipeline_id=pipeline.id,
         pipeline_name=pipeline.name,
-        steps=[_step(content, placed.link) for placed in order],
+        steps=[_step(content, placed.link, foresight) for placed in order],
     )
     try:
         job = await job_crud.admit_within(
@@ -186,8 +200,16 @@ def _public(job: Job, content: PipelineContent) -> PipelineRunPublic:
         if step.link_id not in kept:
             continue
         outcome, message = _outcome(step, job)
+        maker = None if step.reads is None or record is None else record.step_of(step.reads)
         links.append(
-            LinkRun(link_id=step.link_id, outcome=outcome, message=message, finished_at=step.finished_at)
+            LinkRun(
+                link_id=step.link_id,
+                outcome=outcome,
+                message=message,
+                finished_at=step.finished_at,
+                made=step.made_name,
+                read=None if maker is None or outcome not in ("done", "failed") else maker.made_name,
+            )
         )
     return PipelineRunPublic(
         job_id=job.id,

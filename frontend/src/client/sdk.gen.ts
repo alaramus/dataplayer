@@ -436,6 +436,9 @@ import type {
   pipelinesReadLastRunData,
   pipelinesReadLastRunErrors,
   pipelinesReadLastRunResponses,
+  pipelinesReadLinkOffersData,
+  pipelinesReadLinkOffersErrors,
+  pipelinesReadLinkOffersResponses,
   pipelinesReadPipelineData,
   pipelinesReadPipelineErrors,
   pipelinesReadPipelineResponses,
@@ -3892,6 +3895,33 @@ export class PipelinesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/pipelines/{pipeline_id}/run",
       ...options,
+    })
+  }
+
+  /**
+   * Read Link Offers
+   *
+   * What can go from one row of the pipeline into another (D176).
+   *
+   * A row that is what a link makes is asked of as the link will make it
+   * (D178), so the pipeline as kept is what answers: a screen saves first.
+   */
+  public static readLinkOffers<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadLinkOffersData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      pipelinesReadLinkOffersResponses,
+      pipelinesReadLinkOffersErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/offers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 
