@@ -243,8 +243,6 @@ import type {
   connectorsReadGrantsData,
   connectorsReadGrantsErrors,
   connectorsReadGrantsResponses,
-  connectorsReadInteractionMapData,
-  connectorsReadInteractionMapResponses,
   connectorsReadNodePathData,
   connectorsReadNodePathErrors,
   connectorsReadNodePathResponses,
@@ -432,11 +430,20 @@ import type {
   pipelinesReadCardStateData,
   pipelinesReadCardStateErrors,
   pipelinesReadCardStateResponses,
+  pipelinesReadHintData,
+  pipelinesReadHintErrors,
+  pipelinesReadHintResponses,
   pipelinesReadPipelineData,
   pipelinesReadPipelineErrors,
   pipelinesReadPipelineResponses,
   pipelinesReadPipelinesData,
   pipelinesReadPipelinesResponses,
+  pipelinesReadRunsData,
+  pipelinesReadRunsErrors,
+  pipelinesReadRunsResponses,
+  pipelinesRunPipelineLinkData,
+  pipelinesRunPipelineLinkErrors,
+  pipelinesRunPipelineLinkResponses,
   pipelinesSavePipelineData,
   pipelinesSavePipelineErrors,
   pipelinesSavePipelineResponses,
@@ -2758,26 +2765,6 @@ export class ConnectorsService {
   }
 
   /**
-   * Read Interaction Map
-   *
-   * What every connection of this person's can give each other (D174).
-   */
-  public static readInteractionMap<ThrowOnError extends boolean = true>(
-    options?: Options<connectorsReadInteractionMapData, ThrowOnError>
-  ) {
-    return (options?.client ?? client).get<
-      connectorsReadInteractionMapResponses,
-      unknown,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/interactions/map",
-      ...options,
-    })
-  }
-
-  /**
    * Table Offer
    */
   public static tableOffer<ThrowOnError extends boolean = true>(
@@ -3862,6 +3849,73 @@ export class PipelinesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/pipelines/{pipeline_id}/cards/{card_id}/state",
       ...options,
+    })
+  }
+
+  /**
+   * Read Runs
+   *
+   * The last run of each link, a transfer's as its job says now (D176).
+   */
+  public static readRuns<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadRunsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      pipelinesReadRunsResponses,
+      pipelinesReadRunsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/runs",
+      ...options,
+    })
+  }
+
+  /**
+   * Run Pipeline Link
+   *
+   * Run one link by what is kept with it, as Paste runs (D176).
+   *
+   * What the paste refuses is the run's outcome rather than this route's: it
+   * stays on the link, which is where the person looks for it.
+   */
+  public static runPipelineLink<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesRunPipelineLinkData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      pipelinesRunPipelineLinkResponses,
+      pipelinesRunPipelineLinkErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/links/{link_id}/run",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Hint
+   *
+   * Every link that could be drawn among the rows kept on the pipeline.
+   */
+  public static readHint<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadHintData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      pipelinesReadHintResponses,
+      pipelinesReadHintErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/hint",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 }

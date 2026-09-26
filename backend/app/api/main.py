@@ -5,7 +5,6 @@ from app.ai import topic as agent_topic
 from app.ai.routes import router as agent_router
 from app.connectors import health as connector_health
 from app.connectors.declared_routes import router as declared_references_router
-from app.connectors.paste.routes import map_router as interactions_router
 from app.connectors.paste.routes import router as paste_router
 from app.connectors.routes import router as connectors_router
 from app.connectors.ssh_key_routes import router as ssh_keys_router
@@ -37,7 +36,6 @@ api_router.include_router(utils_router)
 api_router.include_router(connectors_router)
 api_router.include_router(declared_references_router)
 api_router.include_router(paste_router)
-api_router.include_router(interactions_router)
 api_router.include_router(tables_router)
 api_router.include_router(ssh_keys_router)
 api_router.include_router(adapter_types_router)

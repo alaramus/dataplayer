@@ -117,6 +117,25 @@ between connections are laid out, joined, kept, and run again.
 - **D174 moved** to the pipelines' architecture file with its route: the map's
   screen, its pair-opening and the header's rule for a space without a first
   panel went with the screen.
+- **A pressed card goes beside the others before below them**, 120 pixels
+  clear, and the view pans just enough to show it: links run from a card's
+  right edge to the next card's left, and a column of cards made them loop.
+- **What a link can do is the pair window's answer** (`pair/offers`) with one
+  tick each side, so drawing one needs no route of its own.
+- **A link keeps its operation's title** beside its kind, as a row keeps its
+  label, so the canvas labels it without naming kinds.
+- **The last run is a row of its own**, not a field of the body: a run must
+  not raise the version the next save is checked against. A transfer's
+  outcome is its job's, read when the runs are read; the screen reads them
+  again when such a job ends.
+- **Run saves the draft first**, and a paste goes through `transfers/run.py`,
+  taken out of the paste route so Paste and a link share one door.
+- **The windows for a new table's columns and for a pairing** open on what
+  the link kept, and their button keeps the choice rather than running.
+- **The map's route went**, and with it the map for every pair of
+  connections: the hint asks `open_kinds` pair by pair. With no card selected
+  on a canvas past the ceiling, the hint says to select one.
+- **The hint goes when pressed again**, and when a card or a link changes.
 
 ## Out of scope
 

@@ -13,12 +13,6 @@ from app.adapters.protocol import DataAdapter
 from app.adapters.resources import ResourcesDep
 from app.connectors.access import resolve_adapter
 from app.connectors.paste.kinds import PasteKind, refused
-from app.connectors.paste.map import (
-    MAX_MAP_CONNECTIONS,
-    InteractionMap,
-    TooManyConnections,
-    interaction_map,
-)
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
@@ -36,25 +30,6 @@ from app.core.db import SessionDep
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
-# Its own prefix: `/connectors/{connector_id}` would take a word in its place
-# and refuse it as an id.
-map_router = APIRouter(prefix="/interactions", tags=["connectors"])
-
-
-@map_router.get("/map", response_model=InteractionMap)
-async def read_interaction_map(
-    session: SessionDep, current_user: CurrentUser
-) -> InteractionMap:
-    """What every connection of this person's can give each other (D174)."""
-    try:
-        return await interaction_map(session, current_user)
-    except TooManyConnections:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "message": f"More than {MAX_MAP_CONNECTIONS} connections cannot be drawn"
-            },
-        ) from None
 
 
 @router.post("/{connector_id}/paste/offers", response_model=PasteOffers)

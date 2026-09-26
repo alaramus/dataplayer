@@ -72,6 +72,46 @@ describe("the generic 2D canvas", () => {
     wrapper.unmount()
   })
 
+  it("joins a row dragged onto a row of another card, and only then", async () => {
+    const wrapper = mount(Graph2D, { props: { ...props, linkable: true, edgeLabels: true }, attachTo: document.body })
+    const root = wrapper.get('[data-testid="graph-2d"]').element as HTMLElement
+    root.getBoundingClientRect = () => ({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600, x: 0, y: 0, toJSON: () => ({}) })
+    const row = wrapper.get('[data-testid="graph-port-api-events"]').element as HTMLElement
+    const aim = wrapper.get('[data-testid="graph-port-worker-input"]').element
+    row.setPointerCapture = vi.fn()
+    row.hasPointerCapture = () => true
+    row.releasePointerCapture = vi.fn()
+    const under = vi.fn(() => aim)
+    Object.defineProperty(document, "elementFromPoint", { value: under, configurable: true })
+
+    pointer(row, "pointerdown", 100, 100)
+    pointer(root, "pointermove", 101, 100)
+    await wrapper.vm.$nextTick()
+    // A press is a press until it has moved.
+    expect(wrapper.find('[data-testid="graph-draft-edge"]').exists()).toBe(false)
+    pointer(root, "pointermove", 300, 120)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="graph-draft-edge"]').exists()).toBe(true)
+    expect(aim.classList.contains("graph-node__row--aimed")).toBe(true)
+    pointer(root, "pointerup", 300, 120)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted("connect")).toEqual([[{ nodeId: "api", portId: "events" }, { nodeId: "worker", portId: "input" }]])
+    expect(wrapper.find('[data-testid="graph-draft-edge"]').exists()).toBe(false)
+    // The click the drag ends with is not a selection of the row it left.
+    await wrapper.get('[data-testid="graph-port-api-events"]').trigger("click")
+    expect(wrapper.emitted("select")).toBeUndefined()
+
+    // Onto its own card: nothing to join.
+    under.mockReturnValue(wrapper.get('[data-testid="graph-port-api-metrics"]').element)
+    pointer(row, "pointerdown", 100, 100)
+    pointer(root, "pointermove", 140, 140)
+    pointer(root, "pointerup", 140, 140)
+    expect(wrapper.emitted("connect")).toHaveLength(1)
+    // Labels are written along the edges.
+    expect(wrapper.findAll(".graph-2d__label").map((label) => label.text())).toContain("Dispatch jobs")
+    wrapper.unmount()
+  })
+
   it("moves in world coordinates and restores the original position on Escape", async () => {
     const wrapper = mount(Graph2D, { props })
     const root = wrapper.get('[data-testid="graph-2d"]')

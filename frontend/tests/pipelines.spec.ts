@@ -6,8 +6,9 @@ import { login } from "./utils/login"
 import { deleteConnector } from "./utils/workspace"
 
 /**
- * Pipelines (D175): connections dragged, or pressed, onto a canvas become
- * cards of what was ticked in them, and the pipeline is kept on the server.
+ * Pipelines (D175, D176): connections dragged, or pressed, onto a canvas
+ * become cards of what was ticked in them; rows are joined by links that run
+ * as Paste does; the pipeline is kept on the server.
  */
 
 function cards(page: Page, name: string): Locator {
@@ -107,6 +108,91 @@ test("lays connections out as cards of what was ticked in them, and keeps them",
   await expect(page.getByTestId("pipeline-view").or(page.getByTestId("pipeline-create-first"))).toBeVisible()
   await expect(page.getByTestId("pipelines-space")).not.toContainText(name)
 
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, files)
+  await deleteConnector(page, database)
+})
+
+function row(page: Page, text: string): Locator {
+  return page.getByTestId("pipeline-canvas").locator('[data-testid^="graph-port-"]', { hasText: text })
+}
+
+/** A row dragged onto another with the mouse, as a person draws a link. */
+async function drawLink(page: Page, from: Locator, to: Locator) {
+  const start = await from.boundingBox()
+  const end = await to.boundingBox()
+  if (start === null || end === null) throw new Error("A row to join is not on screen")
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 12 })
+  await page.mouse.up()
+}
+
+test("joins two rows by a link, runs it from the panel below, and hints the others", async ({ page }) => {
+  const stamp = Date.now()
+  const database = `e2e-link-db-${stamp}`
+  const files = `e2e-link-files-${stamp}`
+  const csv = `e2e-link-${stamp}.csv`
+  await login(page)
+  await createPostgresConnector(page, database)
+  await createFileConnector(page, files)
+  await page.getByTestId("space-pipelines").click()
+  const first = page.getByTestId("pipeline-create-first")
+  await expect(first.or(page.getByTestId("pipeline-new"))).toBeVisible()
+  if (await first.isVisible()) await first.click()
+  else await page.getByTestId("pipeline-new").click()
+  await expect(page.getByTestId("pipeline-view")).toBeVisible()
+
+  const rail = page.getByTestId("pipelines-rail")
+  const picker = page.getByTestId("card-picker")
+  await rail.getByTestId(`connector-${files}`).click()
+  await picker.getByTestId("card-picker-top").click()
+  await picker.getByTestId("catalog-check-reports").click()
+  await picker.getByTestId("card-picker-done").click()
+  await rail.getByTestId(`connector-${database}`).click()
+  await picker.getByTestId("catalog-node-public").click()
+  await picker.getByTestId("catalog-check-pipeline").click()
+  await picker.getByTestId("card-picker-done").click()
+  await expect(cards(page, database)).toContainText("pipeline")
+
+  // Drawn with the mouse from a table to a folder: the panel says what it does.
+  await drawLink(page, row(page, "pipeline"), row(page, "reports"))
+  const panel = page.getByTestId("link-panel")
+  await expect(panel.getByTestId("link-panel-sentence")).toHaveText(
+    `Save as CSV: ${database} · pipeline → ${files} · reports`
+  )
+  await expect(panel.getByTestId("link-panel-result")).toHaveText("Not run yet")
+  await panel.getByTestId("link-panel-name").fill(csv)
+
+  // Run saves what is on the screen first, then runs what was saved.
+  await panel.getByTestId("link-panel-run").click()
+  const result = panel.getByTestId("link-panel-result")
+  await expect(result).toContainText("Done", { timeout: 20_000 })
+  await expect(result).toContainText(`${csv} saved in reports`)
+  await page.screenshot({ path: "test-results/pipelines-link.png" })
+
+  // It stays, and runs again: the name is taken now, and the link says so.
+  await panel.getByTestId("link-panel-run").click()
+  await expect(result).toContainText("Failed", { timeout: 20_000 })
+  await panel.getByTestId("link-panel-close").click()
+  await expect(panel).toHaveCount(0)
+
+  // The hint: what else could be drawn, dashed; pressed, one becomes a link.
+  await page.getByTestId("pipeline-hint").click()
+  const hinted = page.locator('[data-testid^="graph-edge-hint:"]')
+  await expect(hinted.first()).toBeAttached()
+  await expect(hinted.first()).toHaveAttribute("aria-label", "Save as CSV")
+  await page.screenshot({ path: "test-results/pipelines-hint.png" })
+  await hinted.first().press("Enter")
+  await expect(panel.getByTestId("link-panel-sentence")).toHaveText(
+    `Save as CSV: ${database} · pipeline → ${files} (top)`
+  )
+  await panel.getByTestId("link-panel-remove").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(panel).toHaveCount(0)
+
+  await page.getByTestId("pipeline-delete").click()
+  await page.getByTestId("confirm-accept").click()
   await page.getByTestId("space-data").click()
   await deleteConnector(page, files)
   await deleteConnector(page, database)

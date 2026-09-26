@@ -13,14 +13,18 @@ from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.cache import DataCacheDep
 from app.adapters.resources import ResourcesDep
 from app.connectors import crud as connector_crud
 from app.core.db import SessionDep
 from app.core.schemas import Message
+from app.jobs.runner import JobRunnerDep
 from app.pipelines.check import card_state
+from app.pipelines.hint import Hint, HintRequest, hint
 from app.pipelines.models import (
     MAX_PIPELINES,
     CardState,
+    LinkRun,
     Pipeline,
     PipelineContent,
     PipelineCreate,
@@ -31,6 +35,9 @@ from app.pipelines.models import (
     public,
     summary,
 )
+from app.pipelines.runs import LinkRunAnswer, forget_gone, run_link, runs_of
+from app.realtime.topics import TopicsDep
+from app.transfers.run import Carrying
 from app.users.deps import CurrentUser
 from app.users.models import User
 
@@ -42,6 +49,12 @@ async def _owned(session: AsyncSession, user: User, pipeline_id: uuid.UUID) -> P
     if pipeline is None or pipeline.owner_id != user.id:
         raise HTTPException(404, detail={"message": "No such pipeline"})
     return pipeline
+
+
+async def _content(session: AsyncSession, user: User, pipeline_id: uuid.UUID) -> tuple[Pipeline, PipelineContent]:
+    pipeline = await _owned(session, user, pipeline_id)
+    # A body that no longer reads is shown empty (D175), so it holds nothing.
+    return pipeline, content_of(pipeline) or PipelineContent()
 
 
 @router.get("", response_model=list[PipelineSummary])
@@ -108,12 +121,13 @@ async def save_pipeline(
             raise HTTPException(
                 422, detail={"message": "A card names a connection you cannot read"}
             )
-    content = PipelineContent(cards=body.cards)
+    content = PipelineContent(cards=body.cards, links=body.links)
     pipeline.name = body.name
     pipeline.content = content.model_dump(mode="json")
     pipeline.version += 1
     pipeline.updated_at = datetime.now(UTC)
     session.add(pipeline)
+    await forget_gone(session, pipeline.id, content)
     await session.commit()
     await session.refresh(pipeline)
     return public(pipeline)
@@ -142,11 +156,54 @@ async def read_card_state(
     The card is read from the stored pipeline rather than sent: what is asked
     of a source is what the owner kept, never what a client names.
     """
-    pipeline = await _owned(session, current_user, pipeline_id)
-    content = content_of(pipeline)
-    card = None if content is None else next(
-        (one for one in content.cards if one.id == card_id), None
-    )
+    _, content = await _content(session, current_user, pipeline_id)
+    card = content.card(card_id)
     if card is None:
         raise HTTPException(404, detail={"message": "No such card"})
     return await card_state(session, current_user, resources, card)
+
+
+@router.get("/{pipeline_id}/runs", response_model=list[LinkRun])
+async def read_runs(
+    session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID
+) -> Any:
+    """The last run of each link, a transfer's as its job says now (D176)."""
+    pipeline, content = await _content(session, current_user, pipeline_id)
+    return await runs_of(session, pipeline, content)
+
+
+@router.post("/{pipeline_id}/links/{link_id}/run", response_model=LinkRunAnswer)
+async def run_pipeline_link(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    runner: JobRunnerDep,
+    topics: TopicsDep,
+    pipeline_id: uuid.UUID,
+    link_id: uuid.UUID,
+) -> Any:
+    """Run one link by what is kept with it, as Paste runs (D176).
+
+    What the paste refuses is the run's outcome rather than this route's: it
+    stays on the link, which is where the person looks for it.
+    """
+    pipeline, content = await _content(session, current_user, pipeline_id)
+    link = content.link(link_id)
+    if link is None:
+        raise HTTPException(404, detail={"message": "No such link"})
+    carrying = Carrying(session, current_user, resources, data_cache, runner, topics)
+    return await run_link(carrying, pipeline, content, link)
+
+
+@router.post("/{pipeline_id}/hint", response_model=Hint)
+async def read_hint(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    pipeline_id: uuid.UUID,
+    body: HintRequest,
+) -> Any:
+    """Every link that could be drawn among the rows kept on the pipeline."""
+    _, content = await _content(session, current_user, pipeline_id)
+    return await hint(session, current_user, resources, content, body.card_id)

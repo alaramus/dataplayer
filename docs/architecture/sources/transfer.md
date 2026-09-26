@@ -175,8 +175,10 @@ are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
   A PostgreSQL table has Copy and no Cut.
 - A request carries up to 1000 ids; a kind states its own smaller ceiling as a
   reason.
-- The same registry, asked of every pair of a person's connections at once,
-  answers what each can give each other ([D174](../pipelines.md)).
+- The same registry answers what two connections can give each other
+  without reading either ([D174](../pipelines.md)), and a pipeline's link runs
+  a paste through the same door Paste does, `transfers/run.py`
+  ([D176](../pipelines.md)).
 
 Known deviations:
 

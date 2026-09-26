@@ -106,16 +106,22 @@ export function edgePaths(graph: GraphDocument, positions: Record<string, Point2
     ]
     const a = anchor(edge.source, nodes, positions, expanded, right)
     const b = anchor(edge.target, nodes, positions, expanded, self || !right)
-    let path: string
+    let c1: Point2
+    let c2: Point2
     if (self) {
       const offset = 60 + lane * 26
       const lift = 40 + lane * 18
-      path = `M ${a.x} ${a.y} C ${a.x + offset} ${a.y - lift}, ${b.x + offset} ${b.y + lift}, ${b.x} ${b.y}`
+      c1 = { x: a.x + offset, y: a.y - lift }
+      c2 = { x: b.x + offset, y: b.y + lift }
     } else {
       const bend = Math.max(45, Math.abs(b.x - a.x) * 0.45) + lane * 26
       const direction = right ? 1 : -1
-      path = `M ${a.x} ${a.y} C ${a.x + direction * bend} ${a.y + lane * 12}, ${b.x - direction * bend} ${b.y + lane * 12}, ${b.x} ${b.y}`
+      c1 = { x: a.x + direction * bend, y: a.y + lane * 12 }
+      c2 = { x: b.x - direction * bend, y: b.y + lane * 12 }
     }
-    return { edge, path, ends }
+    const path = `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`
+    // The curve's own middle, where a label is written on it.
+    const mid = { x: (a.x + 3 * c1.x + 3 * c2.x + b.x) / 8, y: (a.y + 3 * c1.y + 3 * c2.y + b.y) / 8 }
+    return { edge, path, ends, mid }
   })
 }

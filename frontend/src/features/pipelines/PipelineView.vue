@@ -3,11 +3,14 @@ import { useQueries, useQueryClient } from "@tanstack/vue-query"
 import { AxiosError } from "axios"
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue"
 
-import type { Card, CardRow, CardState, ConnectorPublic, PipelineSummary } from "@/client"
+import type { Card, CardRow, CardState, ConnectorPublic, HintLink, Link, LinkEnd, PipelineSummary } from "@/client"
+import { startedInThisTab } from "@/features/activity/transfers"
 import { useAdapterTypes } from "@/features/connectors/api"
+import { isJobEvent, JOBS_TOPIC } from "@/features/services/jobs"
 import { messageOf } from "@/shared/api/errors"
 import Graph2D from "@/shared/graph/Graph2D.vue"
-import type { Camera2, GraphSelection, Point2 } from "@/shared/graph/model"
+import type { Camera2, GraphPort, GraphSelection, Point2 } from "@/shared/graph/model"
+import { realtime } from "@/shared/realtime/client"
 import {
   AppBanner,
   AppButton,
@@ -24,8 +27,37 @@ import {
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
-import { cardStateKey, pipelineKey, readCardState, useDeletePipeline, usePipeline, useSavePipeline } from "./api"
+import {
+  cardStateKey,
+  linkOffersKey,
+  pipelineKey,
+  readCardState,
+  readHint,
+  readLinkOffers,
+  runLink,
+  runsKey,
+  useDeletePipeline,
+  usePipeline,
+  useRuns,
+  useSavePipeline,
+  withRun,
+} from "./api"
+import type { LinkSide } from "./api"
 import CardPickerWindow from "./CardPickerWindow.vue"
+import LinkPanel from "./LinkPanel.vue"
+import {
+  endOf,
+  hintEdges,
+  hintOf,
+  joinProblem,
+  keptLinks,
+  linkBetween,
+  linkEdge,
+  linkFromOffer,
+  listed,
+  refusal,
+  usable,
+} from "./links"
 import {
   CONNECTION_DRAG,
   dropSpot,
@@ -33,6 +65,7 @@ import {
   movedCard,
   pipelineGraph,
   positionsOf,
+  revealing,
   withoutCard,
   withRows,
   worldPoint,
@@ -40,10 +73,12 @@ import {
 import type { CardConnection } from "./model"
 
 /**
- * One pipeline: its head, and the canvas of its cards (D175).
+ * One pipeline: its head, the canvas of its cards and the links between their
+ * rows (D175, D176), and the panel of the link selected.
  *
- * The cards are held here as a draft and saved whole a moment after the last
- * change, with the version they were read at, as a dashboard is (D129).
+ * Cards and links are held here as a draft and saved whole a moment after the
+ * last change, with the version they were read at, as a dashboard is (D129).
+ * A link runs by what was saved, so Run saves first.
  */
 const props = defineProps<{
   pipelineId: string
@@ -59,8 +94,9 @@ const emit = defineEmits<{
 }>()
 
 const SAVE_DELAY_MS = 800
-/** The server's bound on a pipeline (MAX_CARDS), said before a card is made. */
+/** The server's bounds on a pipeline (MAX_CARDS, MAX_LINKS), said before one is made. */
 const MAX_CARDS = 50
+const MAX_LINKS = 200
 const HOME: Camera2 = { x: 32, y: 32, zoom: 1 }
 
 const toast = useToast()
@@ -70,30 +106,37 @@ const pipeline = usePipeline(() => props.pipelineId)
 const saving = useSavePipeline()
 const deleting = useDeletePipeline()
 const adapterTypes = useAdapterTypes()
+const runs = useRuns(() => props.pipelineId)
 
 const name = ref("")
 const version = ref(0)
 const cards = ref<Card[]>([])
+const links = ref<Link[]>([])
 // The cards as the server last confirmed them: what a check is asked about.
 const saved = ref<Card[]>([])
 const camera = ref<Camera2 | null>(null)
 const selection = ref<GraphSelection>(null)
+const hints = ref<HintLink[]>([])
+const hinting = ref(false)
+const runningLink = ref<string | null>(null)
 const canvasBox = useTemplateRef<HTMLElement>("canvasBox")
 const canvas = useTemplateRef<InstanceType<typeof Graph2D>>("canvas")
 
 let timer: ReturnType<typeof setTimeout> | undefined
+// A change not yet sent, and the save on its way with whether it kept it.
 let pending = false
-let inFlight = false
+let sending: Promise<boolean> | null = null
 
 // Read, or read again after a conflict. Not while a change of this screen is
 // waiting or on its way: the answer to that save is the newer one.
 watch(
   () => pipeline.data.value,
   (read) => {
-    if (read === undefined || pending || inFlight || read.version === version.value) return
+    if (read === undefined || pending || sending !== null || read.version === version.value) return
     name.value = read.name
     version.value = read.version
     cards.value = [...(read.cards ?? [])]
+    links.value = [...(read.links ?? [])]
     saved.value = cards.value
   },
   { immediate: true }
@@ -105,31 +148,46 @@ function schedule() {
   timer = setTimeout(() => void save(), SAVE_DELAY_MS)
 }
 
-async function save() {
-  if (!pending || inFlight) return
-  pending = false
-  inFlight = true
+async function send(): Promise<boolean> {
   try {
     const answer = await saving.mutateAsync({
       id: props.pipelineId,
-      body: { name: name.value, version: version.value, cards: cards.value },
+      body: { name: name.value, version: version.value, cards: cards.value, links: links.value },
     })
     version.value = answer.version
     saved.value = answer.cards ?? []
+    return true
   } catch (cause) {
     if (cause instanceof AxiosError && cause.response?.status === 409) {
       toast.error("This pipeline was changed somewhere else; it has been read again")
       pending = false
       version.value = 0
       await queryClient.invalidateQueries({ queryKey: pipelineKey(props.pipelineId) })
-      return
+      return false
     }
     toast.error(messageOf(cause, "The pipeline could not be saved"))
-  } finally {
-    inFlight = false
-    // A change made while the last one was on its way.
-    if (pending) schedule()
+    return false
   }
+}
+
+/**
+ * Send what is waiting, after whatever is on its way; whether all of it was
+ * kept. Every caller loops rather than trusting one answer: a change made
+ * while a save was travelling is sent by the next turn.
+ */
+async function save(): Promise<boolean> {
+  let kept = true
+  while (sending !== null || pending) {
+    if (sending !== null) {
+      kept = await sending
+      continue
+    }
+    clearTimeout(timer)
+    pending = false
+    sending = send().finally(() => { sending = null })
+    kept = await sending
+  }
+  return kept
 }
 
 onBeforeUnmount(() => {
@@ -165,13 +223,41 @@ const states = computed(() => {
   return found
 })
 
-const graph = computed(() => pipelineGraph(cards.value, connectionsById.value, states.value, typeTitles.value))
+const edges = computed(() => [...links.value.map(linkEdge), ...hintEdges(hints.value)])
+const graph = computed(() =>
+  pipelineGraph(cards.value, connectionsById.value, states.value, typeTitles.value, edges.value)
+)
 const positions = computed(() => positionsOf(cards.value))
 const switcher = computed(() => props.pipelines.map((one) => ({ label: one.name, value: one.id })))
 
 function move(id: string, point: Point2) {
   cards.value = movedCard(cards.value, id, point)
   schedule()
+}
+
+/** A card by its id and what it is called now. */
+function cardName(card: Card): string {
+  return connectionsById.value.get(card.connector_id)?.name ?? card.connector_name
+}
+
+/** One end of a link as a sentence names it: "Sales · orders", "Files (top)". */
+function nameEnd(end: LinkEnd): string {
+  const card = cards.value.find((one) => one.id === end.card_id)
+  if (card === undefined) return "a card no longer here"
+  if (end.node_id == null) return `${cardName(card)} (top)`
+  const row = card.rows.find((one) => one.node_id === end.node_id)
+  return `${cardName(card)} · ${row?.label ?? end.node_id}`
+}
+
+function sideOf(end: LinkEnd): LinkSide | null {
+  const card = cards.value.find((one) => one.id === end.card_id)
+  return card === undefined ? null : { connectorId: card.connector_id, end }
+}
+
+// Hints answer for the canvas as it was asked; a card or a link changed
+// since makes them an answer to another question.
+function forgetHints() {
+  hints.value = []
 }
 
 // A card in the making: the window is open on its connection, and it is
@@ -227,7 +313,7 @@ function edit(cardId: string) {
   if (card === undefined) return
   picking.value = {
     connectorId: card.connector_id,
-    connectionName: connectionsById.value.get(card.connector_id)?.name ?? card.connector_name,
+    connectionName: cardName(card),
     cardId,
     rows: card.rows,
     spot: { x: card.x, y: card.y },
@@ -235,7 +321,7 @@ function edit(cardId: string) {
   }
 }
 
-function picked(rows: CardRow[]) {
+async function picked(rows: CardRow[]) {
   const made = picking.value
   picking.value = null
   if (made === null) return
@@ -251,23 +337,179 @@ function picked(rows: CardRow[]) {
     }
     cards.value = [...cards.value, card]
     selection.value = { kind: "node", id: card.id }
+    const box = canvasBox.value?.getBoundingClientRect()
+    if (box !== undefined) camera.value = revealing(camera.value ?? HOME, box, spot, rows.length)
   } else {
+    const staying = keptLinks(links.value, made.cardId, rows)
+    const going = links.value.filter((link) => !staying.includes(link))
+    if (going.length > 0) {
+      const sure = await confirm({
+        title: "Untick rows that links use?",
+        message: `These links go with the rows unticked: ${listed(going, nameEnd)}.`,
+        confirmLabel: "Untick",
+      })
+      if (!sure) return
+    }
     cards.value = withRows(cards.value, made.cardId, rows)
+    links.value = staying
   }
+  forgetHints()
   schedule()
 }
 
 async function remove(cardId: string) {
-  const card = graph.value.nodes.find((one) => one.id === cardId)
+  const card = cards.value.find((one) => one.id === cardId)
+  const going = links.value.filter((link) => link.source.card_id === cardId || link.target.card_id === cardId)
+  const label = card === undefined ? "The card" : cardName(card)
   const sure = await confirm({
     title: "Take this card off the pipeline?",
-    message: `${card?.label ?? "The card"} and what is ticked on it leave this pipeline. Nothing in the connection changes.`,
+    message: going.length === 0
+      ? `${label} and what is ticked on it leave this pipeline. Nothing in the connection changes.`
+      : `${label} leaves this pipeline, and with it these links: ${listed(going, nameEnd)}. Nothing in the connections changes.`,
     confirmLabel: "Take off",
   })
   if (!sure) return
   cards.value = withoutCard(cards.value, cardId)
-  if (selection.value?.id === cardId) selection.value = null
+  links.value = links.value.filter((link) => !going.includes(link))
+  if (selection.value?.id === cardId || going.some((link) => link.id === selection.value?.id)) selection.value = null
+  forgetHints()
   schedule()
+}
+
+/**
+ * Join two rows: the server says what can go from one into the other, and
+ * a link is drawn only when something can (D176).
+ */
+async function join(from: LinkEnd, to: LinkEnd) {
+  const problem = joinProblem(cards.value, from, to)
+  if (problem !== null) {
+    toast.info(problem)
+    return
+  }
+  const already = linkBetween(links.value, from, to)
+  if (already !== null) {
+    selection.value = { kind: "edge", id: already.id }
+    return
+  }
+  if (links.value.length >= MAX_LINKS) {
+    toast.error(`A pipeline holds at most ${String(MAX_LINKS)} links`)
+    return
+  }
+  const source = sideOf(from)
+  const target = sideOf(to)
+  if (source === null || target === null) return
+  let offers
+  try {
+    offers = await queryClient.fetchQuery({
+      queryKey: linkOffersKey(source, target),
+      queryFn: () => readLinkOffers(source, target),
+      staleTime: 60_000,
+    })
+  } catch (cause) {
+    toast.error(messageOf(cause, "What these rows can do could not be read"))
+    return
+  }
+  const fit = usable(offers)
+  const first = fit[0]
+  if (first === undefined) {
+    toast.info(refusal(offers))
+    return
+  }
+  const link = linkFromOffer(crypto.randomUUID(), from, to, first)
+  links.value = [...links.value, link]
+  hints.value = hints.value.filter((hint) => linkBetween([link], hint.source, hint.target) === null)
+  selection.value = { kind: "edge", id: link.id }
+  schedule()
+}
+
+function connect(from: GraphPort, to: GraphPort) {
+  void join(endOf(from), endOf(to))
+}
+
+function select(value: GraphSelection) {
+  const hint = value?.kind === "edge" ? hintOf(hints.value, value.id) : null
+  if (hint !== null) {
+    void join(hint.source, hint.target)
+    return
+  }
+  selection.value = value
+}
+
+const selectedLink = computed(() =>
+  selection.value?.kind === "edge" ? links.value.find((link) => link.id === selection.value?.id) ?? null : null
+)
+const panelSides = computed(() => {
+  const link = selectedLink.value
+  if (link === null) return null
+  const from = sideOf(link.source)
+  const to = sideOf(link.target)
+  return from === null || to === null ? null : { from, to }
+})
+const runOf = computed(() => new Map((runs.data.value ?? []).map((run) => [run.link_id, run])))
+
+function changeLink(changed: Link) {
+  links.value = links.value.map((link) => (link.id === changed.id ? changed : link))
+  schedule()
+}
+
+async function removeLink(link: Link) {
+  const sure = await confirm({
+    title: "Remove this link?",
+    message: `${nameEnd(link.source)} → ${nameEnd(link.target)} and the choices kept with it go. Nothing in the connections changes.`,
+    confirmLabel: "Remove",
+  })
+  if (!sure) return
+  links.value = links.value.filter((one) => one.id !== link.id)
+  selection.value = null
+  schedule()
+}
+
+async function run(link: Link) {
+  if (runningLink.value !== null) return
+  runningLink.value = link.id
+  try {
+    // What runs is what is kept, so what is on the screen is kept first.
+    if (!(await save())) return
+    const answer = await runLink(props.pipelineId, link.id)
+    queryClient.setQueryData(runsKey(props.pipelineId), (list: typeof runs.data.value) => withRun(list, answer.run))
+    if (answer.job) startedInThisTab(answer.job.id)
+    else if (answer.run.outcome === "done" && answer.run.message) toast.success(answer.run.message)
+  } catch (cause) {
+    toast.error(messageOf(cause, "The link could not run"))
+  } finally {
+    runningLink.value = null
+  }
+}
+
+// A transfer a link started says how it ended through its job; the runs are
+// read again then, so the panel says it too.
+const stopListening = realtime().subscribe(JOBS_TOPIC, (payload) => {
+  if (!isJobEvent(payload) || payload.state === "queued" || payload.state === "running") return
+  if ((runs.data.value ?? []).some((one) => one.job_id === payload.job_id)) {
+    void queryClient.invalidateQueries({ queryKey: runsKey(props.pipelineId) })
+  }
+})
+onBeforeUnmount(stopListening)
+
+/** Every link that could be drawn, dashed; pressed again, they go. */
+async function toggleHint() {
+  if (hints.value.length > 0) {
+    forgetHints()
+    return
+  }
+  hinting.value = true
+  try {
+    if (!(await save())) return
+    const card = selection.value?.kind === "node" ? selection.value.id : null
+    const answer = await readHint(props.pipelineId, card)
+    hints.value = answer.links
+    if (answer.notice) toast.info(answer.notice)
+    else if (answer.links.length === 0) toast.info("No other link can be drawn between these rows")
+  } catch (cause) {
+    toast.error(messageOf(cause, "The possible links could not be read"))
+  } finally {
+    hinting.value = false
+  }
 }
 
 const renameOpen = ref(false)
@@ -323,6 +565,14 @@ defineExpose({ place })
         @update:model-value="emit('select', String($event))"
       />
       <template #actions>
+        <AppIconButton
+          :icon="appIcons.lightbulb"
+          :tooltip="hints.length > 0 ? 'Hide the possible links' : 'Show the links that could be drawn'"
+          :active="hints.length > 0"
+          :loading="hinting"
+          data-testid="pipeline-hint"
+          @click="toggleHint"
+        />
         <AppIconButton
           :icon="appIcons.centerFocusStrong"
           tooltip="Fit every card in view"
@@ -387,10 +637,13 @@ defineExpose({ place })
           :expanded="true"
           :selection="selection"
           :dim-others="false"
+          linkable
+          edge-labels
           @camera="camera = $event"
           @move="move"
-          @select="selection = $event"
+          @select="select"
           @activate="edit"
+          @connect="connect"
         >
           <template #node-head="{ node }">
             <AppIconButton
@@ -417,6 +670,20 @@ defineExpose({ place })
           />
         </div>
       </div>
+      <LinkPanel
+        v-if="selectedLink && panelSides"
+        :key="selectedLink.id"
+        :link="selectedLink"
+        :from="panelSides.from"
+        :to="panelSides.to"
+        :name="nameEnd"
+        :run="runOf.get(selectedLink.id)"
+        :running="runningLink === selectedLink.id"
+        @change="changeLink"
+        @run="run(selectedLink)"
+        @remove="removeLink(selectedLink)"
+        @close="selection = null"
+      />
     </template>
 
     <CardPickerWindow

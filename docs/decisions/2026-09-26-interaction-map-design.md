@@ -95,5 +95,6 @@ arrow.
 ## Later
 
 The map stopped being a screen when pipelines took its place on the rail
-(D175, [Pipelines](2026-09-26-pipelines-design.md)); its answer stays, as the
-first filter of the hint of possible links (D176).
+(D175, [Pipelines](2026-09-26-pipelines-design.md)), and its route went when
+the hint of possible links came (D176): what stays is the question for one
+pair of connections, asked by the hint first.

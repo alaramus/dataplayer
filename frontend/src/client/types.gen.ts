@@ -4611,6 +4611,42 @@ export type HTTPValidationError = {
 }
 
 /**
+ * Hint
+ */
+export type Hint = {
+  /**
+   * Links
+   */
+  links: Array<HintLink>
+  /**
+   * Notice
+   */
+  notice?: string | null
+}
+
+/**
+ * HintLink
+ */
+export type HintLink = {
+  source: LinkEnd
+  target: LinkEnd
+  /**
+   * Titles
+   */
+  titles: Array<string>
+}
+
+/**
+ * HintRequest
+ */
+export type HintRequest = {
+  /**
+   * Card Id
+   */
+  card_id?: string | null
+}
+
+/**
  * HistoryAnswer
  */
 export type HistoryAnswer = {
@@ -5125,20 +5161,6 @@ export type InsertValue = {
 }
 
 /**
- * InteractionMap
- */
-export type InteractionMap = {
-  /**
-   * Connections
-   */
-  connections: Array<MapConnection>
-  /**
-   * Arrows
-   */
-  arrows: Array<MapArrow>
-}
-
-/**
  * JobPublic
  *
  * A job as its owner reads it.
@@ -5478,6 +5500,98 @@ export type KeyNode = {
 }
 
 /**
+ * Link
+ *
+ * A paste from one row into another, with the choices it runs by (D176).
+ *
+ * The target row is both the place a kind puts something in and the table
+ * it writes into; each kind takes the one it understands, as the pair
+ * window's destination does (D167).
+ */
+export type Link = {
+  /**
+   * Id
+   */
+  id: string
+  source: LinkEnd
+  target: LinkEnd
+  /**
+   * Kind
+   */
+  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Conflict
+   */
+  conflict?: "refuse" | "replace" | "rename"
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Columns
+   */
+  columns?: Array<PasteColumn> | null
+}
+
+/**
+ * LinkEnd
+ *
+ * A row of a card, by the card and the node the row names.
+ */
+export type LinkEnd = {
+  /**
+   * Card Id
+   */
+  card_id: string
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+}
+
+/**
+ * LinkRun
+ */
+export type LinkRun = {
+  /**
+   * Link Id
+   */
+  link_id: string
+  /**
+   * Outcome
+   */
+  outcome: "running" | "done" | "failed"
+  /**
+   * Message
+   */
+  message?: string | null
+  /**
+   * Job Id
+   */
+  job_id?: string | null
+  /**
+   * Started At
+   */
+  started_at: string
+  /**
+   * Finished At
+   */
+  finished_at?: string | null
+}
+
+/**
+ * LinkRunAnswer
+ */
+export type LinkRunAnswer = {
+  run: LinkRun
+  job?: JobPublic | null
+}
+
+/**
  * LiteralDefault
  *
  * A value the column type coerces, exactly as D30 assigns one.
@@ -5514,86 +5628,6 @@ export type LiteralValue = {
    * Text
    */
   text?: string
-}
-
-/**
- * MapArrow
- *
- * What one connection can give another, in that direction.
- */
-export type MapArrow = {
-  /**
-   * Source Connector Id
-   */
-  source_connector_id: string
-  /**
-   * Destination Connector Id
-   */
-  destination_connector_id: string
-  /**
-   * Operations
-   */
-  operations: Array<MapOperation>
-}
-
-/**
- * MapConnection
- */
-export type MapConnection = {
-  /**
-   * Id
-   */
-  id: string
-  /**
-   * Name
-   */
-  name: string
-  /**
-   * Adapter Type
-   */
-  adapter_type: string
-  /**
-   * Type Title
-   */
-  type_title: string
-  /**
-   * Category
-   */
-  category: "sql" | "keyvalue" | "files"
-  /**
-   * Category Title
-   */
-  category_title: string
-  /**
-   * Access
-   */
-  access: "read" | "write" | "structure" | "own"
-}
-
-/**
- * MapOperation
- */
-export type MapOperation = {
-  /**
-   * Kind
-   */
-  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
-  /**
-   * Title
-   */
-  title: string
-  /**
-   * Mode
-   */
-  mode: "copy" | "move"
-  /**
-   * Available
-   */
-  available: boolean
-  /**
-   * Reason
-   */
-  reason?: string | null
 }
 
 /**
@@ -6717,6 +6751,10 @@ export type PipelinePublic = {
    */
   cards?: Array<Card>
   /**
+   * Links
+   */
+  links?: Array<Link>
+  /**
    * Id
    */
   id: string
@@ -6746,6 +6784,10 @@ export type PipelineSave = {
    * Cards
    */
   cards?: Array<Card>
+  /**
+   * Links
+   */
+  links?: Array<Link>
   /**
    * Name
    */
@@ -14506,23 +14548,6 @@ export type connectorsClipboardOfferResponses = {
 export type connectorsClipboardOfferResponse =
   connectorsClipboardOfferResponses[keyof connectorsClipboardOfferResponses]
 
-export type connectorsReadInteractionMapData = {
-  body?: never
-  path?: never
-  query?: never
-  url: "/api/v1/interactions/map"
-}
-
-export type connectorsReadInteractionMapResponses = {
-  /**
-   * Successful Response
-   */
-  200: InteractionMap
-}
-
-export type connectorsReadInteractionMapResponse =
-  connectorsReadInteractionMapResponses[keyof connectorsReadInteractionMapResponses]
-
 export type connectorsTableOfferData = {
   body: TableSubject
   path: {
@@ -15756,6 +15781,104 @@ export type pipelinesReadCardStateResponses = {
 
 export type pipelinesReadCardStateResponse =
   pipelinesReadCardStateResponses[keyof pipelinesReadCardStateResponses]
+
+export type pipelinesReadRunsData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/runs"
+}
+
+export type pipelinesReadRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadRunsError = pipelinesReadRunsErrors[keyof pipelinesReadRunsErrors]
+
+export type pipelinesReadRunsResponses = {
+  /**
+   * Response Pipelines-Read Runs
+   *
+   * Successful Response
+   */
+  200: Array<LinkRun>
+}
+
+export type pipelinesReadRunsResponse = pipelinesReadRunsResponses[keyof pipelinesReadRunsResponses]
+
+export type pipelinesRunPipelineLinkData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+    /**
+     * Link Id
+     */
+    link_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/links/{link_id}/run"
+}
+
+export type pipelinesRunPipelineLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesRunPipelineLinkError =
+  pipelinesRunPipelineLinkErrors[keyof pipelinesRunPipelineLinkErrors]
+
+export type pipelinesRunPipelineLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: LinkRunAnswer
+}
+
+export type pipelinesRunPipelineLinkResponse =
+  pipelinesRunPipelineLinkResponses[keyof pipelinesRunPipelineLinkResponses]
+
+export type pipelinesReadHintData = {
+  body: HintRequest
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/hint"
+}
+
+export type pipelinesReadHintErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadHintError = pipelinesReadHintErrors[keyof pipelinesReadHintErrors]
+
+export type pipelinesReadHintResponses = {
+  /**
+   * Successful Response
+   */
+  200: Hint
+}
+
+export type pipelinesReadHintResponse = pipelinesReadHintResponses[keyof pipelinesReadHintResponses]
 
 export type sharesListSharesData = {
   body?: never

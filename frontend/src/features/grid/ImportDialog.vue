@@ -25,6 +25,13 @@ const props = defineProps<{
   source?: { connectorId: string; nodeId: string; label: string; columns: FetchColumn[] } | null
   /** What this relation is called, where the dialog is not opened from its grid. */
   targetLabel?: string
+  /**
+   * The pairs chosen before, to start from rather than same-named columns: a
+   * pipeline's link keeps them and opens this again on them (D176).
+   */
+  kept?: readonly ColumnPair[] | null
+  /** The button's word, where it keeps a choice rather than bringing rows in. */
+  actionLabel?: string
 }>()
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
@@ -74,10 +81,14 @@ function take(
   // Same-named columns are offered as a starting point, never applied
   // silently: the reader confirms every pair before anything is read.
   const names = new Set(sourceColumns.value.map((column) => column.name))
+  const before = props.kept ?? null
   pairs.value = Object.fromEntries(
-    props.targetColumns
-      .filter((column) => names.has(column.name))
-      .map((column) => [column.name, column.name])
+    props.targetColumns.flatMap((column) => {
+      const source = before === null
+        ? column.name
+        : before.find((pair) => pair.target === column.name)?.source
+      return source !== undefined && names.has(source) ? [[column.name, source]] : []
+    })
   )
 }
 
@@ -249,7 +260,7 @@ function run() {
         @click="showPreview"
       />
       <AppButton
-        label="Bring in"
+        :label="actionLabel ?? 'Bring in'"
         :disable="!ready"
         :loading="running"
         data-testid="grid-import-run"

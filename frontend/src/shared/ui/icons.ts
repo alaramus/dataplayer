@@ -77,6 +77,7 @@ export const appIcons = {
   label: "label",
   labelOff: "label_off",
   lan: "lan",
+  lightbulb: "lightbulb",
   pair: "view_column_2",
   panelClose: "left_panel_close",
   panelOpen: "left_panel_open",

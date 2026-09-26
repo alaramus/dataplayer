@@ -14,6 +14,7 @@ import {
   newPipelineName,
   pipelineGraph,
   positionsOf,
+  revealing,
   rowId,
   TOP_ICON,
   withoutCard,
@@ -103,21 +104,31 @@ describe("placing and changing cards", () => {
     expect(dropSpot({ x: 400, y: 300 })).toEqual({ x: 400 - CARD_WIDTH / 2, y: 300 - HEADER_HEIGHT / 2 })
   })
 
-  it("places a pressed card at the nearest spot where it covers no other card", () => {
-    // Orders is two rows tall: a card of one row goes as near as clears it,
-    // below it rather than as far above.
-    const below = freeSpot([orders], { x: 40, y: 60 }, 1)
-    expect(below).toEqual({ x: 40, y: 60 + 2 * (HEADER_HEIGHT + 48) })
+  it("places a pressed card beside the others, clear of all of them", () => {
+    const step = CARD_WIDTH + 120
+    // Beside rather than below, and to the right first.
+    expect(freeSpot([orders], { x: 40, y: 60 }, 1)).toEqual({ x: 40 + step, y: 60 })
+    expect(freeSpot([orders, { ...files, x: 40 + step, y: 60 }], { x: 40, y: 60 }, 1)).toEqual({ x: 40 - step, y: 60 })
     // Nothing there: exactly where it was asked.
     expect(freeSpot([orders], { x: 1000, y: 60 }, 3)).toEqual({ x: 1000, y: 60 })
-    // Every spot it tries is clear of both cards by the gap.
-    const crowded = [orders, { ...files, x: 40, y: below.y }]
+    // Every spot it takes is clear of every card by the gap.
+    const crowded = [orders, { ...files, x: 40 + step, y: 60 }, { ...files, id: "c3", x: 40 - step, y: 60 }]
     const spot = freeSpot(crowded, { x: 40, y: 60 }, 1)
     for (const card of crowded) {
-      const apart = spot.x >= card.x + CARD_WIDTH + 48 || card.x >= spot.x + CARD_WIDTH + 48 ||
+      const apart = spot.x >= card.x + CARD_WIDTH + 120 || card.x >= spot.x + CARD_WIDTH + 120 ||
         spot.y >= card.y + HEADER_HEIGHT + card.rows.length * 24 + 48 || card.y >= spot.y + HEADER_HEIGHT + 24 + 48
       expect(apart).toBe(true)
     }
+  })
+
+  it("pans just enough for a card placed past the edge to be seen whole", () => {
+    const camera = { x: 0, y: 0, zoom: 1 }
+    const view = { width: 900, height: 600 }
+    expect(revealing(camera, view, { x: 100, y: 100 }, 2)).toBe(camera)
+    // Past the right edge by 16 + 280 + 700 - 900.
+    expect(revealing(camera, view, { x: 700, y: 100 }, 2)).toEqual({ x: -96, y: 0, zoom: 1 })
+    // Above the top, at half size.
+    expect(revealing({ x: 0, y: 0, zoom: 0.5 }, view, { x: 0, y: -100 }, 0)).toEqual({ x: 16, y: 66, zoom: 0.5 })
   })
 
   it("moves, changes and removes one card and leaves the others", () => {

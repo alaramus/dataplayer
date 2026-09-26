@@ -7,7 +7,7 @@
 import type { Card, CardRow, CardState } from "@/client"
 import { ICONS } from "@/features/catalog/nodes"
 import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT } from "@/shared/graph/layout"
-import type { Camera2, GraphDocument, GraphNode, GraphRow, Point2 } from "@/shared/graph/model"
+import type { Camera2, GraphDocument, GraphEdge, GraphNode, GraphRow, Point2 } from "@/shared/graph/model"
 
 /** What the list of connections says of the one a card is on. */
 export interface CardConnection {
@@ -89,7 +89,8 @@ export function pipelineGraph(
   cards: readonly Card[],
   connections: ReadonlyMap<string, CardConnection>,
   states: ReadonlyMap<string, CardState>,
-  typeTitles: ReadonlyMap<string, string>
+  typeTitles: ReadonlyMap<string, string>,
+  edges: readonly GraphEdge[] = []
 ): GraphDocument {
   return {
     nodes: cards.map((card) => {
@@ -101,7 +102,7 @@ export function pipelineGraph(
         connection === undefined ? undefined : typeTitles.get(connection.adapterType)
       )
     }),
-    edges: [],
+    edges,
     groups: [],
   }
 }
@@ -120,9 +121,11 @@ export function dropSpot(point: Point2): Point2 {
   return { x: Math.round(point.x - CARD_WIDTH / 2), y: Math.round(point.y - HEADER_HEIGHT / 2) }
 }
 
-// Room left between two cards placed for the person, so neither hides the
-// other's head and a link between them has somewhere to run.
+// Room left between two cards placed for the person: below, so neither hides
+// the other's head; beside, so a link between them and its label have
+// somewhere to run.
 const GAP = 48
+const ACROSS = 120
 const REACH = 6
 
 function heightOf(rows: number): number {
@@ -133,23 +136,44 @@ function heightOf(rows: number): number {
  * The nearest place to this one where a card of so many rows covers no other
  * card. A card pressed into the middle of the view would otherwise land on
  * whatever is there already, and two cards over each other read as one.
+ *
+ * Beside before below: a link is drawn from the right edge of one card to
+ * the left edge of the next, and cards stacked in a column make every link
+ * loop round them.
  */
 export function freeSpot(cards: readonly Card[], point: Point2, rows: number): Point2 {
   const height = heightOf(rows)
   const clashes = (spot: Point2) =>
     cards.some((card) =>
-      spot.x < card.x + CARD_WIDTH + GAP && card.x < spot.x + CARD_WIDTH + GAP &&
+      spot.x < card.x + CARD_WIDTH + ACROSS && card.x < spot.x + CARD_WIDTH + ACROSS &&
       spot.y < card.y + heightOf(card.rows.length) + GAP && card.y < spot.y + height + GAP
     )
-  // Nearest first, and of two as near, below or to the right: the sort keeps
+  // Right before left, and a step down costs two steps across; the sort keeps
   // this order among equals.
   const steps = [0, ...Array.from({ length: REACH }, (_, n) => [n + 1, -(n + 1)]).flat()]
-  const spots = steps.flatMap((across) =>
-    steps.map((down) => ({ x: point.x + across * (CARD_WIDTH + GAP), y: point.y + down * (HEADER_HEIGHT + GAP) }))
-  )
-  const distance = (spot: Point2) => Math.hypot(spot.x - point.x, spot.y - point.y)
-  spots.sort((a, b) => distance(a) - distance(b))
-  return spots.find((spot) => !clashes(spot)) ?? point
+  const spots = steps.flatMap((down) => steps.map((across) => ({ across, down })))
+  spots.sort((a, b) => Math.abs(a.across) + 2 * Math.abs(a.down) - (Math.abs(b.across) + 2 * Math.abs(b.down)))
+  const found = spots
+    .map(({ across, down }) => ({ x: point.x + across * (CARD_WIDTH + ACROSS), y: point.y + down * (HEADER_HEIGHT + GAP) }))
+    .find((spot) => !clashes(spot))
+  return found ?? point
+}
+
+const MARGIN = 16
+
+/**
+ * The camera moved just enough for a card of so many rows at this spot to be
+ * wholly in a view of this size; unmoved when it already is. Never zoomed: a
+ * card placed should not change how big everything else looks.
+ */
+export function revealing(camera: Camera2, view: { width: number; height: number }, spot: Point2, rows: number): Camera2 {
+  const left = spot.x * camera.zoom + camera.x
+  const top = spot.y * camera.zoom + camera.y
+  const right = left + CARD_WIDTH * camera.zoom
+  const bottom = top + heightOf(rows) * camera.zoom
+  const dx = right > view.width - MARGIN ? view.width - MARGIN - right : left < MARGIN ? MARGIN - left : 0
+  const dy = bottom > view.height - MARGIN ? view.height - MARGIN - bottom : top < MARGIN ? MARGIN - top : 0
+  return dx === 0 && dy === 0 ? camera : { ...camera, x: camera.x + dx, y: camera.y + dy }
 }
 
 export function movedCard(cards: readonly Card[], id: string, point: Point2): Card[] {

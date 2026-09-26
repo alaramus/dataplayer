@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { FetchColumn, NewRelationColumn, NewRelationOptions } from "@/client"
+import type { FetchColumn, NewRelationColumn, NewRelationOptions, PasteColumn } from "@/client"
 import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { placesIn } from "@/features/grid/relationPlaces"
 import type { Destination } from "@/features/grid/relationPlaces"
@@ -37,6 +37,13 @@ const props = defineProps<{
    * the place itself (D166) — so there is no connection or schema to pick.
    */
   fixedDestination?: { connectorId: string; parentNodeId: string; label: string } | null
+  /**
+   * What was chosen before, to start from: a pipeline's link keeps its
+   * choices and opens this again on them (D176).
+   */
+  kept?: { name: string | null; columns: readonly PasteColumn[] | null } | null
+  /** The button's word, where it keeps a choice rather than making the table. */
+  actionLabel?: string
 }>()
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
@@ -128,7 +135,7 @@ watch(
     const reloadCurrent =
       initialConnector !== "" && connectorId.value === initialConnector
     connectorId.value = initialConnector
-    tableName.value = defaultName(props.sourceTitle)
+    tableName.value = props.kept?.name ?? defaultName(props.sourceTitle)
     schemas.value = []
     schemaId.value = ""
     options.value = null
@@ -237,12 +244,17 @@ async function loadOptions(id: string) {
       choices.find((choice) => choice.code === "text")?.code ??
       choices[0]?.code ??
       ""
-    mappings.value = props.sourceColumns.map((column) => ({
-      source: column.name,
-      target: column.name,
-      typeCode: initialType,
-      include: true,
-    }))
+    const before = props.kept?.columns ?? null
+    const known = new Set(choices.map((choice) => choice.code))
+    mappings.value = props.sourceColumns.map((column) => {
+      const chosen = before?.find((one) => one.source === column.name)
+      return {
+        source: column.name,
+        target: chosen?.target ?? column.name,
+        typeCode: chosen?.type_code != null && known.has(chosen.type_code) ? chosen.type_code : initialType,
+        include: before === null || chosen !== undefined,
+      }
+    })
   } catch (cause) {
     if (mine !== optionsAsked) return
     trouble.value = messageOf(cause, "Could not read the table options")
@@ -386,7 +398,7 @@ function run() {
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        :label="destination === 'folder' ? 'Create file' : 'Create table'"
+        :label="actionLabel ?? (destination === 'folder' ? 'Create file' : 'Create table')"
         :disable="!ready"
         :loading="running"
         data-testid="grid-create-table-run"

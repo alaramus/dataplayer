@@ -3,7 +3,7 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, 
 
 import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, portAnchors, zoomAt } from "./layout"
 import { accentIndex, edgesOf, neighborsOf } from "./model"
-import type { Camera2, GraphDocument, GraphSelection, Point2 } from "./model"
+import type { Camera2, GraphDocument, GraphPort, GraphSelection, Point2 } from "./model"
 
 const props = withDefaults(defineProps<{
   graph: GraphDocument
@@ -17,12 +17,17 @@ const props = withDefaults(defineProps<{
    * the card just placed would fade every other.
    */
   dimOthers?: boolean
-}>(), { dimOthers: true })
+  /** Whether a row is dragged onto a row of another card to join the two. */
+  linkable?: boolean
+  /** Whether each edge has its label written along it. */
+  edgeLabels?: boolean
+}>(), { dimOthers: true, linkable: false, edgeLabels: false })
 const emit = defineEmits<{
   camera: [value: Camera2]
   move: [id: string, position: Point2]
   select: [value: GraphSelection]
   activate: [id: string]
+  connect: [from: GraphPort, to: GraphPort]
 }>()
 const root = ref<HTMLDivElement>()
 const camera = computed(() => props.camera ?? { x: 32, y: 32, zoom: 1 })
@@ -37,6 +42,23 @@ const arrowId = `graph-arrow-${useId()}`
 const dragging = ref(false)
 let resize: ResizeObserver | undefined
 let gesture: { pointer: number; capture: HTMLElement; start: Point2; camera: Camera2; node?: { id: string; position: Point2 }; moved: boolean } | null = null
+// A row being dragged towards another: where it started, and where the
+// pointer is once it has moved far enough to be a drag rather than a press.
+const linking = ref<{ pointer: number; capture: HTMLElement; from: GraphPort; start: Point2; at: Point2 | null } | null>(null)
+const aimed = ref<GraphPort | null>(null)
+// The press that ends a drag is also a click on the row it started from.
+let swallowClick = false
+const draft = computed(() => {
+  const drawn = linking.value
+  if (drawn === null || drawn.at === null) return null
+  const node = props.graph.nodes.find((one) => one.id === drawn.from.nodeId)
+  const point = props.positions[drawn.from.nodeId]
+  if (!node || !point) return null
+  const index = Math.max(0, node.rows.findIndex((row) => row.id === drawn.from.portId))
+  const a = { x: point.x + CARD_WIDTH, y: point.y + HEADER_HEIGHT + (index + 0.5) * ROW_HEIGHT }
+  const b = drawn.at
+  return `M ${a.x} ${a.y} C ${a.x + 60} ${a.y}, ${b.x - 60} ${b.y}, ${b.x} ${b.y}`
+})
 
 function dimensions() {
   return { width: root.value?.clientWidth ?? 0, height: root.value?.clientHeight ?? 0 }
@@ -56,6 +78,27 @@ function focus(id: string) {
   const scale = Math.max(0.6, camera.value.zoom)
   emit("camera", { zoom: scale, x: size.width / 2 - (point.x + CARD_WIDTH / 2) * scale, y: size.height / 2 - (point.y + HEADER_HEIGHT / 2) * scale })
 }
+function worldOf(event: PointerEvent): Point2 {
+  const bounds = root.value!.getBoundingClientRect()
+  return { x: (event.clientX - bounds.left - camera.value.x) / camera.value.zoom, y: (event.clientY - bounds.top - camera.value.y) / camera.value.zoom }
+}
+/** The row under the pointer, read off the page: a captured pointer hovers nothing else. */
+function portAt(event: PointerEvent): GraphPort | null {
+  const found = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-port-id]")
+  const nodeId = found?.dataset.portNode
+  const portId = found?.dataset.portId
+  return nodeId === undefined || portId === undefined ? null : { nodeId, portId }
+}
+function startLink(event: PointerEvent, nodeId: string, portId: string) {
+  if (!props.linkable || event.button !== 0 || !event.isPrimary) return
+  const capture = event.currentTarget as HTMLElement
+  linking.value = { pointer: event.pointerId, capture, from: { nodeId, portId }, start: { x: event.clientX, y: event.clientY }, at: null }
+  capture.setPointerCapture(event.pointerId)
+}
+function pressRow(nodeId: string, portId: string) {
+  if (swallowClick) return
+  emit("select", { kind: "node", id: nodeId, portId })
+}
 function wheel(event: WheelEvent) {
   const bounds = root.value!.getBoundingClientRect()
   emit("camera", zoomAt(camera.value, Math.exp(-Math.max(-150, Math.min(150, event.deltaY)) * 0.006), { x: event.clientX - bounds.left, y: event.clientY - bounds.top }))
@@ -74,6 +117,14 @@ function start(event: PointerEvent, nodeId?: string) {
   gesture.capture.setPointerCapture(event.pointerId)
 }
 function move(event: PointerEvent) {
+  const drawn = linking.value
+  if (drawn && drawn.pointer === event.pointerId) {
+    if (drawn.at === null && Math.hypot(event.clientX - drawn.start.x, event.clientY - drawn.start.y) < 3) return
+    linking.value = { ...drawn, at: worldOf(event) }
+    const port = portAt(event)
+    aimed.value = port !== null && port.nodeId !== drawn.from.nodeId ? port : null
+    return
+  }
   if (!gesture || gesture.pointer !== event.pointerId) return
   const dx = event.clientX - gesture.start.x
   const dy = event.clientY - gesture.start.y
@@ -87,6 +138,18 @@ function move(event: PointerEvent) {
   }
 }
 function end(event: PointerEvent) {
+  const drawn = linking.value
+  if (drawn && drawn.pointer === event.pointerId) {
+    linking.value = null
+    aimed.value = null
+    if (drawn.capture.hasPointerCapture(event.pointerId)) drawn.capture.releasePointerCapture(event.pointerId)
+    if (drawn.at === null) return
+    swallowClick = true
+    setTimeout(() => { swallowClick = false }, 0)
+    const port = portAt(event)
+    if (port !== null && port.nodeId !== drawn.from.nodeId) emit("connect", drawn.from, port)
+    return
+  }
   if (!gesture || gesture.pointer !== event.pointerId) return
   const ended = gesture
   gesture = null
@@ -95,6 +158,10 @@ function end(event: PointerEvent) {
   if (!ended.moved) emit("select", ended.node ? { kind: "node", id: ended.node.id } : null)
 }
 function cancel() {
+  const drawn = linking.value
+  linking.value = null
+  aimed.value = null
+  if (drawn?.capture.hasPointerCapture(drawn.pointer)) drawn.capture.releasePointerCapture(drawn.pointer)
   const ended = gesture
   gesture = null
   dragging.value = false
@@ -119,7 +186,7 @@ defineExpose({ fit, zoom, focus })
   <div
     ref="root"
     class="graph-2d"
-    :class="{ 'graph-2d--dragging': dragging }"
+    :class="{ 'graph-2d--dragging': dragging, 'graph-2d--linkable': linkable }"
     data-testid="graph-2d"
     tabindex="0"
     aria-label="Graph canvas. Drag the background to pan, scroll to zoom."
@@ -175,7 +242,21 @@ defineExpose({ fit, zoom, focus })
             @pointerdown.stop="emit('select', { kind: 'edge', id: item.edge.id })"
             @keydown.enter.prevent="emit('select', { kind: 'edge', id: item.edge.id })"
           ><title>{{ item.edge.label }}</title></path>
+          <text
+            v-if="edgeLabels && item.edge.label"
+            class="graph-2d__label"
+            :x="item.mid.x"
+            :y="item.mid.y"
+            text-anchor="middle"
+            dominant-baseline="middle"
+          >{{ item.edge.label }}</text>
         </g>
+        <path
+          v-if="draft"
+          :d="draft"
+          class="graph-2d__edge graph-2d__edge--dashed"
+          data-testid="graph-draft-edge"
+        />
       </svg>
       <article
         v-for="node in graph.nodes"
@@ -223,12 +304,14 @@ defineExpose({ fit, zoom, focus })
             class="graph-node__row"
             role="button"
             tabindex="0"
-            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id, 'graph-node__row--muted': row.muted }"
+            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id, 'graph-node__row--muted': row.muted, 'graph-node__row--aimed': aimed?.nodeId === node.id && aimed.portId === row.id }"
             :style="{ height: `${ROW_HEIGHT}px` }"
             :aria-label="`${node.label}: ${row.label}`"
             :data-testid="`graph-port-${node.id}-${row.id}`"
-            @pointerdown.stop
-            @click.stop="emit('select', { kind: 'node', id: node.id, portId: row.id })"
+            :data-port-node="node.id"
+            :data-port-id="row.id"
+            @pointerdown.stop="startLink($event, node.id, row.id)"
+            @click.stop="pressRow(node.id, row.id)"
             @keydown.enter.prevent="emit('select', { kind: 'node', id: node.id, portId: row.id })"
           >
             <!-- A dot where a line actually arrives, and nowhere else: every
@@ -270,6 +353,8 @@ defineExpose({ fit, zoom, focus })
 .graph-2d__edges { position: absolute; overflow: visible; }
 .graph-2d__edge { fill: none; stroke: var(--dp-graph-edge); stroke-width: 1.6; vector-effect: non-scaling-stroke; pointer-events: none; }
 .graph-2d__edge--dashed { stroke-dasharray: 5 4; }
+.graph-2d__label { fill: var(--dp-text-muted); font-size: 11px; stroke: var(--dp-chrome-raised); stroke-width: 4px; paint-order: stroke; pointer-events: none; }
+.graph-2d--linkable .graph-node__row { cursor: crosshair; }
 .graph-2d__arrow { fill: var(--dp-graph-edge); }
 .graph-2d__edge--active .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
 .graph-2d__edge-hit { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
@@ -284,7 +369,7 @@ defineExpose({ fit, zoom, focus })
 .graph-node__title > span { color: var(--dp-text-muted); font-size: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .graph-node__actions { flex: none; display: flex; align-items: center; cursor: default; }
 .graph-node__row { display: flex; position: relative; align-items: center; gap: var(--dp-space-2); padding: 0 var(--dp-space-2); border-top: 1px solid var(--dp-border-faint); box-sizing: border-box; font-size: 11px; cursor: pointer; }
-.graph-node__row:hover, .graph-node__row--selected { background: var(--dp-selected); }
+.graph-node__row:hover, .graph-node__row--selected, .graph-node__row--aimed { background: var(--dp-selected); }
 .graph-node__head:focus-visible, .graph-node__row:focus-visible { outline: 2px solid var(--dp-accent); }
 .graph-node__badges { flex: 0 0 34px; display: flex; align-items: center; color: var(--node-accent); font-size: 9px; font-weight: 600; }
 .graph-node__row--muted .graph-node__name { color: var(--dp-text-muted); text-decoration: line-through; }

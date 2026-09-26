@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
-import { PipelinesService } from "@/client"
-import type { Card, PipelinePublic, PipelineSave, PipelineSummary } from "@/client"
+import { ConnectorsService, PipelinesService } from "@/client"
+import type { Card, LinkEnd, LinkRun, PipelinePublic, PipelineSave, PipelineSummary } from "@/client"
 
 import { checkedRowsKey } from "./model"
 
@@ -90,4 +90,52 @@ export function cardStateKey(pipelineId: string, card: Card) {
 
 export async function readCardState(pipelineId: string, cardId: string) {
   return (await PipelinesService.readCardState({ path: { pipeline_id: pipelineId, card_id: cardId } })).data
+}
+
+export function runsKey(pipelineId: string) {
+  return ["pipeline-runs", pipelineId] as const
+}
+
+export function useRuns(pipelineId: MaybeRefOrGetter<string>) {
+  return useQuery({
+    queryKey: computed(() => runsKey(toValue(pipelineId))),
+    queryFn: async () => (await PipelinesService.readRuns({ path: { pipeline_id: toValue(pipelineId) } })).data,
+  })
+}
+
+/** One run kept in the list of runs, in place of the one before it. */
+export function withRun(runs: readonly LinkRun[] | undefined, run: LinkRun): LinkRun[] {
+  return [...(runs ?? []).filter((one) => one.link_id !== run.link_id), run]
+}
+
+export async function runLink(pipelineId: string, linkId: string) {
+  return (await PipelinesService.runPipelineLink({ path: { pipeline_id: pipelineId, link_id: linkId } })).data
+}
+
+export async function readHint(pipelineId: string, cardId: string | null) {
+  return (await PipelinesService.readHint({ path: { pipeline_id: pipelineId }, body: { card_id: cardId } })).data
+}
+
+/** One end of a link as a connection and a node, which is what the offers are asked of. */
+export interface LinkSide {
+  connectorId: string
+  end: LinkEnd
+}
+
+export function linkOffersKey(from: LinkSide, to: LinkSide) {
+  return ["link-offers", from.connectorId, from.end.node_id ?? null, to.connectorId, to.end.node_id ?? null] as const
+}
+
+/**
+ * What can go from one row into another: the pair window's question with
+ * one tick on each side, the target standing for the place as well (D167).
+ */
+export async function readLinkOffers(from: LinkSide, to: LinkSide) {
+  const target = to.end.node_id ?? null
+  return (await ConnectorsService.pairOffers({
+    body: {
+      source: { connector_id: from.connectorId, place: null, ticked: from.end.node_id == null ? [] : [from.end.node_id] },
+      destination: { connector_id: to.connectorId, place: target, ticked: target === null ? [] : [target] },
+    },
+  })).data.offers
 }

@@ -20,6 +20,8 @@ export interface GraphNode {
   placeholder?: boolean
 }
 export interface GraphEndpoint { nodeId: string; portIds?: readonly string[] }
+/** One row of one node, as a gesture names it. */
+export interface GraphPort { nodeId: string; portId: string }
 export interface GraphEdge {
   id: string
   source: GraphEndpoint

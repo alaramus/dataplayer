@@ -1,5 +1,5 @@
 """A pipeline: connections laid out on a canvas as cards of what was ticked
-in them (D175).
+in them (D175), and links drawn between their rows (D176).
 
 The body is read and written whole and never queried into, as a dashboard's
 is (D129): one JSON column, validated on the way in and again on the way out.
@@ -9,18 +9,20 @@ refused, so one damaged row does not lock its owner out of the rest.
 
 import uuid
 from datetime import datetime
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 from pydantic import Field as PydanticField
-from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import JSON, Column, DateTime, String
 from sqlmodel import Field, SQLModel
 
 from app.adapters.catalog import NodeKind
+from app.connectors.paste.models import Conflict, PasteColumn, PasteKindName
 from app.core.schemas import get_datetime_utc
 
 MAX_PIPELINES = 100
 MAX_CARDS = 50
+MAX_LINKS = 200
 MAX_ROWS = 100
 MAX_NAME = 120
 MAX_LABEL = 255
@@ -81,15 +83,78 @@ class Card(_Strict):
         return self
 
 
+class LinkEnd(_Strict):
+    """A row of a card, by the card and the node the row names."""
+
+    card_id: uuid.UUID
+    node_id: str | None = PydanticField(default=None, min_length=1, max_length=MAX_NODE_ID)
+
+
+class Link(_Strict):
+    """A paste from one row into another, with the choices it runs by (D176).
+
+    The target row is both the place a kind puts something in and the table
+    it writes into; each kind takes the one it understands, as the pair
+    window's destination does (D167).
+    """
+
+    id: uuid.UUID
+    source: LinkEnd
+    target: LinkEnd
+    kind: PasteKindName
+    # The operation's title when it was chosen, for the line on the canvas;
+    # what runs is the kind.
+    title: str = PydanticField(min_length=1, max_length=MAX_LABEL)
+    conflict: Conflict = "refuse"
+    name: str | None = PydanticField(default=None, min_length=1, max_length=255)
+    columns: list[PasteColumn] | None = PydanticField(default=None, max_length=100)
+
+
 class PipelineContent(_Strict):
     cards: list[Card] = PydanticField(default_factory=list, max_length=MAX_CARDS)
+    links: list[Link] = PydanticField(default_factory=list, max_length=MAX_LINKS)
 
     @model_validator(mode="after")
-    def card_ids_are_unique(self) -> Self:
-        ids = [card.id for card in self.cards]
-        if len(ids) != len(set(ids)):
+    def ids_are_unique(self) -> Self:
+        cards = [card.id for card in self.cards]
+        if len(cards) != len(set(cards)):
             raise ValueError("Two cards have the same id")
+        links = [link.id for link in self.links]
+        if len(links) != len(set(links)):
+            raise ValueError("Two links have the same id")
         return self
+
+    @model_validator(mode="after")
+    def links_join_rows_of_two_connections(self) -> Self:
+        cards = {card.id: card for card in self.cards}
+        ends: set[tuple[uuid.UUID, str | None, uuid.UUID, str | None]] = set()
+        for link in self.links:
+            source = cards.get(link.source.card_id)
+            target = cards.get(link.target.card_id)
+            if source is None or target is None:
+                raise ValueError("A link names a card that is not on the pipeline")
+            if not _holds(source, link.source.node_id) or not _holds(target, link.target.node_id):
+                raise ValueError("A link names a row its card does not hold")
+            if link.source.node_id is None:
+                raise ValueError("A link cannot start at the top of a connection")
+            # Inside one connection is its catalog's own Paste (D74).
+            if source.connector_id == target.connector_id:
+                raise ValueError("A link joins two different connections")
+            pair = (source.id, link.source.node_id, target.id, link.target.node_id)
+            if pair in ends:
+                raise ValueError("Two links join the same rows")
+            ends.add(pair)
+        return self
+
+    def card(self, card_id: uuid.UUID) -> Card | None:
+        return next((card for card in self.cards if card.id == card_id), None)
+
+    def link(self, link_id: uuid.UUID) -> Link | None:
+        return next((link for link in self.links if link.id == link_id), None)
+
+
+def _holds(card: Card, node_id: str | None) -> bool:
+    return any(row.node_id == node_id for row in card.rows)
 
 
 class Pipeline(SQLModel, table=True):
@@ -110,6 +175,44 @@ class Pipeline(SQLModel, table=True):
         default_factory=get_datetime_utc,
         sa_column=Column(DateTime(timezone=True), nullable=False),
     )
+
+
+RunOutcome = Literal["running", "done", "failed"]
+
+
+class PipelineRun(SQLModel, table=True):
+    """The last run of one link (D176).
+
+    A row of its own rather than a field of the pipeline's body: a run does
+    not change what the person drew, so it must not raise the version their
+    next save is checked against.
+    """
+
+    pipeline_id: uuid.UUID = Field(
+        foreign_key="pipeline.id", primary_key=True, ondelete="CASCADE"
+    )
+    link_id: uuid.UUID = Field(primary_key=True)
+    outcome: RunOutcome = Field(sa_column=Column(String(16), nullable=False))
+    message: str | None = Field(default=None, max_length=512)
+    # A transfer is a job: while it runs, the job is what says how it ended.
+    # No foreign key, as a job keeps none to what it was about.
+    job_id: uuid.UUID | None = None
+    started_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    finished_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
+
+
+class LinkRun(BaseModel):
+    link_id: uuid.UUID
+    outcome: RunOutcome
+    message: str | None = None
+    job_id: uuid.UUID | None = None
+    started_at: datetime
+    finished_at: datetime | None = None
 
 
 class PipelineCreate(_Strict):
@@ -170,5 +273,6 @@ def public(pipeline: Pipeline) -> PipelinePublic:
         version=pipeline.version,
         updated_at=pipeline.updated_at,
         cards=[] if content is None else content.cards,
+        links=[] if content is None else content.links,
         broken=content is None,
     )
