@@ -32,6 +32,8 @@ export interface RunStepRecord {
 
 export interface PipelineRunRecord {
   pipelineName: string
+  /** Started by the pipeline's schedule rather than by Run (D179). */
+  scheduled: boolean
   steps: RunStepRecord[]
 }
 
@@ -66,7 +68,11 @@ export function pipelineRunOf(job: Pick<JobPublic, "kind" | "parameters">): Pipe
   const name = text(job.parameters.pipeline_name)
   const steps = Array.isArray(job.parameters.steps) ? job.parameters.steps.map(stepOf) : []
   if (name === null || steps.length === 0 || steps.some((step) => step === null)) return null
-  return { pipelineName: name, steps: steps as RunStepRecord[] }
+  return {
+    pipelineName: name,
+    scheduled: text(job.parameters.scheduled_for) !== null,
+    steps: steps as RunStepRecord[],
+  }
 }
 
 /** The step being carried out, and where it is: "2 of 5". */
@@ -76,10 +82,15 @@ function current(run: PipelineRunRecord): { step: RunStepRecord; at: string } | 
   return step === undefined ? null : { step, at: `${String(index + 1)} of ${String(run.steps.length)}` }
 }
 
+/** The pipeline's name, and that the schedule started it when it did. */
+export function pipelineName(run: PipelineRunRecord): string {
+  return run.scheduled ? `${run.pipelineName} · scheduled` : run.pipelineName
+}
+
 /** What the footer says of it: "Nightly · 2 of 5: Save as CSV". */
 export function pipelineBrief(run: PipelineRunRecord): string {
   const now = current(run)
-  return now === null ? `${run.pipelineName} · starting` : `${run.pipelineName} · ${now.at}: ${now.step.title}`
+  return now === null ? `${pipelineName(run)} · starting` : `${pipelineName(run)} · ${now.at}: ${now.step.title}`
 }
 
 /** Links that have ended, done or not. */

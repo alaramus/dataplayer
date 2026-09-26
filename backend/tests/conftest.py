@@ -100,7 +100,20 @@ def _memory_cache() -> Generator[None]:
 
 
 @pytest.fixture(scope="session")
-async def client(_memory_cache: None) -> AsyncGenerator[AsyncClient]:
+def _quiet_schedules() -> Generator[None]:
+    """The suite drives the scheduler's clock itself (D179).
+
+    The application's own loop looks once when it starts and then not for an
+    hour, so a schedule a test puts in the past is started by the test's
+    `tick`, never by the loop in between.
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(settings, "SCHEDULE_TICK_SECONDS", 3600)
+        yield
+
+
+@pytest.fixture(scope="session")
+async def client(_memory_cache: None, _quiet_schedules: None) -> AsyncGenerator[AsyncClient]:
     # The lifespan is entered explicitly: ASGITransport does not run it, and
     # without it the application has no resource store, so every request would
     # quietly fall back to opening its own connection — the very thing the

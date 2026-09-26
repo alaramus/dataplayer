@@ -444,12 +444,18 @@ import type {
   pipelinesReadPipelineResponses,
   pipelinesReadPipelinesData,
   pipelinesReadPipelinesResponses,
+  pipelinesReadScheduleData,
+  pipelinesReadScheduleErrors,
+  pipelinesReadScheduleResponses,
   pipelinesRunPipelineData,
   pipelinesRunPipelineErrors,
   pipelinesRunPipelineResponses,
   pipelinesSavePipelineData,
   pipelinesSavePipelineErrors,
   pipelinesSavePipelineResponses,
+  pipelinesSetScheduleData,
+  pipelinesSetScheduleErrors,
+  pipelinesSetScheduleResponses,
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
@@ -3895,6 +3901,50 @@ export class PipelinesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/pipelines/{pipeline_id}/run",
       ...options,
+    })
+  }
+
+  /**
+   * Read Schedule
+   *
+   * When the pipeline runs by itself, when next, and what last came of it.
+   */
+  public static readSchedule<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadScheduleData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      pipelinesReadScheduleResponses,
+      pipelinesReadScheduleErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/schedule",
+      ...options,
+    })
+  }
+
+  /**
+   * Set Schedule
+   *
+   * The schedule, replaced; switched off, it keeps what was chosen.
+   */
+  public static setSchedule<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesSetScheduleData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      pipelinesSetScheduleResponses,
+      pipelinesSetScheduleErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/schedule",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

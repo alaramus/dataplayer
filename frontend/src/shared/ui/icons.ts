@@ -107,6 +107,7 @@ export const appIcons = {
   restoreFromTrash: "restore_from_trash",
   robot2: "robot_2",
   save: "save",
+  schedule: "schedule",
   search: "search",
   selectAll: "select_all",
   send: "send",

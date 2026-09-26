@@ -132,8 +132,11 @@ async def start_run(
     topics: TopicSet,
     pipeline: Pipeline,
     content: PipelineContent,
+    *,
+    scheduled_for: datetime | None = None,
 ) -> PipelineRunPublic:
-    """Every link, in order, as one job — or nothing, and why."""
+    """Every link, in order, as one job — or nothing, and why. A schedule
+    starts it the same way, saying when it came (D179)."""
     if not content.links:
         raise HTTPException(422, detail={"message": "Draw a link first"})
     order = ordered(content)
@@ -151,6 +154,7 @@ async def start_run(
     record = RunRecord(
         pipeline_id=pipeline.id,
         pipeline_name=pipeline.name,
+        scheduled_for=scheduled_for,
         steps=[_step(content, placed.link, foresight) for placed in order],
     )
     try:

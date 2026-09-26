@@ -17,8 +17,11 @@ withDefaults(
     label?: string
     /** Keep the label clear of values supplied by browser autofill. */
     persistentLabel?: boolean
-    /** `textarea` is a box of several lines rather than a longer line. */
-    type?: "text" | "password" | "email" | "textarea"
+    /**
+     * `textarea` is a box of several lines rather than a longer line; `time`
+     * is a time of day, "09:30", picked with the browser's own control.
+     */
+    type?: "text" | "password" | "email" | "textarea" | "time"
     /**
      * The message, not a boolean: an empty string means no error.
      *

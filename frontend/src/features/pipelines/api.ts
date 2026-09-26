@@ -4,7 +4,9 @@ import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { PipelinesService } from "@/client"
-import type { Card, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary } from "@/client"
+import type {
+  Card, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary, ScheduleSettings,
+} from "@/client"
 
 import { isRunning } from "./links"
 import { checkedRowsKey } from "./model"
@@ -112,6 +114,29 @@ export function useLastRun(pipelineId: MaybeRefOrGetter<string>) {
 /** Every link of the pipeline as saved, one after another, as one job. */
 export async function runPipeline(pipelineId: string): Promise<PipelineRunPublic> {
   return (await PipelinesService.runPipeline({ path: { pipeline_id: pipelineId } })).data
+}
+
+/** The pipeline's schedule, when it comes next and what last came of it (D179). */
+export function scheduleKey(pipelineId: string) {
+  return ["pipeline-schedule", pipelineId] as const
+}
+
+export function useSchedule(pipelineId: MaybeRefOrGetter<string>) {
+  return useQuery({
+    queryKey: computed(() => scheduleKey(toValue(pipelineId))),
+    queryFn: async () => (await PipelinesService.readSchedule({ path: { pipeline_id: toValue(pipelineId) } })).data,
+  })
+}
+
+export function useSaveSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { pipelineId: string; settings: ScheduleSettings }) =>
+      (await PipelinesService.setSchedule({ path: { pipeline_id: input.pipelineId }, body: input.settings })).data,
+    onSuccess: (schedule, input) => {
+      queryClient.setQueryData(scheduleKey(input.pipelineId), schedule)
+    },
+  })
 }
 
 /** The links a refused run named as lacking a choice, first in run order. */

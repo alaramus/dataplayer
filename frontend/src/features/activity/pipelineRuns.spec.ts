@@ -54,6 +54,13 @@ describe("a pipeline's run as its job records it", () => {
     expect(pipelineLines(job(), pipelineRunOf(job())!)).toEqual([
       "2 of 3: Create a table — Sales · orders → Files · reports",
     ])
+    // Started by the schedule, and said so (D179).
+    const scheduled = job()
+    scheduled.parameters = { ...scheduled.parameters, scheduled_for: "2026-09-26T00:00:00Z" }
+    expect(serverRow(scheduled, undefined)).toMatchObject({
+      label: "Pipeline · Nightly · scheduled",
+      brief: "Nightly · scheduled · 2 of 3: Create a table",
+    })
     const waiting = job({ step: "waiting for a free transfer slot" })
     expect(pipelineLines(waiting, pipelineRunOf(waiting)!).at(-1)).toBe("Waiting for a free transfer slot")
   })

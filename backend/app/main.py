@@ -24,6 +24,7 @@ from app.jobs.runner import JobRunner
 from app.metrics.holder import StoreHolder
 from app.metrics.jobs import handlers as metrics_handlers
 from app.pipelines.handler import handlers as pipeline_handlers
+from app.pipelines.scheduler import scheduling
 from app.queries.cleanup import sweeping
 from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
@@ -143,7 +144,10 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         # Run history retention is timer driven and belongs to the application;
         # nothing else outlives a request.
         try:
-            async with sweeping(application.state.query_sessions):
+            async with (
+                sweeping(application.state.query_sessions),
+                scheduling(application.state.job_runner, application.state.topics),
+            ):
                 yield
         finally:
             await application.state.agent_runner.aclose()

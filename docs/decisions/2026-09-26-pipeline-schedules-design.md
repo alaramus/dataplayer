@@ -57,6 +57,22 @@ the clock rather than by a hand.
   run's sentence (D177), and the last skip or miss when there is one.
 - The clock button is highlighted while the schedule is on.
 
+## Settled during implementation
+
+- **Two kinds, not three**: every so long, and times of the day on chosen
+  days — every day is all seven ticked.
+- **An interval counts from when the schedule was switched on or last
+  changed**, and a changed schedule clears the last skip or miss.
+- **"Not caught up" allows two minutes**: a time that far or less behind
+  when the server starts still runs, a restart taking seconds.
+- **A run the schedule started clears the note** of an earlier skip.
+- **The schedule's form checks nothing the server checks**: its refusal is
+  what the window says.
+- **`tzdata` became a dependency**, so a zone is known on Windows and on an
+  image that keeps no zone files.
+- **The test suite drives the clock**: the application's own loop looks
+  once when it starts and then not for an hour there.
+
 ## Out of scope
 
 - Starting on an event: a file arriving in a folder, a table changing. The

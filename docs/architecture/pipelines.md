@@ -1,9 +1,10 @@
 # Pipelines
 
-Read this before changing the pipelines space, a pipeline's cards, links or
-run, or the answer of what a person's connections can give each other.
+Read this before changing the pipelines space, a pipeline's cards, links,
+run or schedule, or the answer of what a person's connections can give each
+other.
 
-Decisions here: D174, D175, D176, D177, D178.
+Decisions here: D174, D175, D176, D177, D178, D179.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -209,3 +210,40 @@ Known deviations:
   they stay.
 
 Spec: [Chains: what one link makes, read by the next](../decisions/2026-09-26-pipeline-chains-design.md)
+
+## D179. A pipeline runs by itself on a schedule of its own
+
+- **One schedule a pipeline, in a row of its own** (`PipelineSchedule`), set
+  and read by `PUT` and `GET /pipelines/{id}/schedule`: every N minutes,
+  hours or days, 5 minutes to 7 days, counted from when it was switched on or
+  changed; or up to twelve times of the day on chosen days of the week. Kept
+  beside the body, so a change of it is not checked against the canvas's
+  version. Switched off, it keeps what was chosen.
+- **Times are the owner's wall clock**: the browser's zone is saved with the
+  schedule and every save takes the browser's again. `timing.py` works out
+  the next time as a plain function: a time the clock skips runs as it moves
+  past, one it repeats runs the first time round. The zones come from
+  `tzdata` where the system keeps none.
+- **`scheduler.py` looks every `SCHEDULE_TICK_SECONDS`** (30) in the one
+  process (D124), from the application's lifespan. A schedule whose time has
+  come starts the Run of D177 as the owner, the record saying when the
+  schedule came (`scheduled_for`), and its next time is worked out from now.
+  A run Run refuses — one going, too many a person, a link lacking a choice,
+  no link — is not started, and the schedule notes "Skipped at 03:00: …".
+- **A time more than two minutes past when the server starts is not caught
+  up**: noted "Missed at 03:00: the server was off", and the next time is
+  worked out from then. One less late still runs: a restart takes seconds.
+- **On the canvas** a clock button beside Run opens the schedule's window and
+  is highlighted while it is on; the head says "Next run: tomorrow 03:00" in
+  the browser's clock, and the last skip or miss. A run started by the
+  schedule clears it. The footer names such a run "Nightly · scheduled".
+
+Known deviations:
+
+- **A run starts up to half a minute after its time**: the server looks
+  every thirty seconds rather than sleeping until each one.
+- **Only the latest skip or miss is kept**, with the last run.
+- **The zone is the browser's that last saved the schedule**; the owner's
+  moving elsewhere changes nothing until it is saved again.
+
+Spec: [Schedules: a pipeline that runs by itself](../decisions/2026-09-26-pipeline-schedules-design.md)

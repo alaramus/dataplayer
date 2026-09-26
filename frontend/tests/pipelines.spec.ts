@@ -375,3 +375,57 @@ test("draws a chain before anything is made, runs it by one Run, and takes it ap
   await deleteConnector(page, files)
   await deleteConnector(page, database)
 })
+
+test("runs a pipeline by itself on a schedule, says when next, and is switched off", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("space-pipelines").click()
+  const created = page.waitForResponse(
+    (response) => response.url().endsWith("/api/v1/pipelines") && response.request().method() === "POST"
+  )
+  const first = page.getByTestId("pipeline-create-first")
+  await expect(first.or(page.getByTestId("pipeline-new"))).toBeVisible()
+  if (await first.isVisible()) await first.click()
+  else await page.getByTestId("pipeline-new").click()
+  await created
+  const next = page.getByTestId("pipeline-next-run")
+  await expect(next).toHaveCount(0)
+
+  // Every night at 03:00, in this browser's clock.
+  const window = page.getByTestId("schedule-window")
+  const kept = () => page.waitForResponse(
+    (response) => response.url().endsWith("/schedule") && response.request().method() === "PUT"
+  )
+  await page.getByTestId("pipeline-schedule").click()
+  await window.getByTestId("schedule-enabled").click()
+  await expect(window.getByTestId("schedule-time-0")).toHaveValue("03:00")
+  await page.screenshot({ path: "test-results/pipelines-schedule-window.png" })
+  let saved = kept()
+  await window.getByTestId("schedule-save").click()
+  await saved
+  await expect(window).toHaveCount(0)
+  await expect(next).toContainText(/Next run: (today|tomorrow) 03:00/)
+  await page.screenshot({ path: "test-results/pipelines-schedule.png" })
+
+  // Every hour instead: the next time is within the hour.
+  await page.getByTestId("pipeline-schedule").click()
+  await window.getByTestId("schedule-kind-interval").click()
+  await expect(window.getByTestId("schedule-every")).toHaveValue("1")
+  saved = kept()
+  await window.getByTestId("schedule-save").click()
+  await saved
+  await expect(next).toContainText(/Next run: (today|tomorrow) \d\d:\d\d/)
+
+  // Off: nothing runs by itself, and the choice is kept for next time.
+  await page.getByTestId("pipeline-schedule").click()
+  await window.getByTestId("schedule-enabled").click()
+  saved = kept()
+  await window.getByTestId("schedule-save").click()
+  await saved
+  await expect(next).toHaveCount(0)
+  await page.getByTestId("pipeline-schedule").click()
+  await expect(window.getByTestId("schedule-every")).toHaveValue("1")
+  await window.getByRole("button", { name: "Cancel" }).click()
+
+  await page.getByTestId("pipeline-delete").click()
+  await page.getByTestId("confirm-accept").click()
+})

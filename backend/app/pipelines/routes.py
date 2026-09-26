@@ -1,5 +1,5 @@
-"""A person's pipelines: listed, made, saved whole, removed (D175) and run
-(D177).
+"""A person's pipelines: listed, made, saved whole, removed (D175), run
+(D177) and run by a schedule (D179).
 
 Private in this step: every route answers only the owner, and anyone else is
 told there is no such pipeline, as a connection nobody shared is (D33).
@@ -39,6 +39,9 @@ from app.pipelines.offers import Asking, LinkOffersRequest
 from app.pipelines.order import ordered
 from app.pipelines.results import Foresight
 from app.pipelines.runs import LastRun, PipelineRunPublic, last_run, start_run
+from app.pipelines.schedule import PipelineSchedule, SchedulePublic, ScheduleSettings
+from app.pipelines.scheduler import public as schedule_public
+from app.pipelines.scheduler import save as save_schedule
 from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 from app.users.models import User
@@ -210,6 +213,24 @@ async def run_pipeline(
     """
     pipeline, content = await _content(session, current_user, pipeline_id)
     return await start_run(session, current_user, runner, topics, pipeline, content)
+
+
+@router.get("/{pipeline_id}/schedule", response_model=SchedulePublic)
+async def read_schedule(
+    session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID
+) -> Any:
+    """When the pipeline runs by itself, when next, and what last came of it."""
+    pipeline = await _owned(session, current_user, pipeline_id)
+    return schedule_public(await session.get(PipelineSchedule, pipeline.id))
+
+
+@router.put("/{pipeline_id}/schedule", response_model=SchedulePublic)
+async def set_schedule(
+    session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID, body: ScheduleSettings
+) -> Any:
+    """The schedule, replaced; switched off, it keeps what was chosen."""
+    pipeline = await _owned(session, current_user, pipeline_id)
+    return await save_schedule(session, pipeline.id, body, datetime.now(UTC))
 
 
 @router.post("/{pipeline_id}/offers", response_model=PasteOffers)

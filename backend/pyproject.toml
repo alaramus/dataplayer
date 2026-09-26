@@ -39,6 +39,9 @@ dependencies = [
     "pycryptodome>=3.23.0,<4.0.0",
     "asyncssh>=2.21.0,<3.0.0",
     "langchain-typesafe==0.0.1a3",
+    # Time zones for pipeline schedules (D179) where the system keeps none:
+    # Windows, or a slim image.
+    "tzdata>=2026.3",
 ]
 
 [dependency-groups]

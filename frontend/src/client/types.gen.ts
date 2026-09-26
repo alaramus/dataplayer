@@ -9207,6 +9207,59 @@ export type ScalarFilter = {
 }
 
 /**
+ * SchedulePublic
+ *
+ * A pipeline's schedule as its owner reads it; no settings before the first.
+ */
+export type SchedulePublic = {
+  settings?: ScheduleSettings | null
+  /**
+   * Next At
+   */
+  next_at?: string | null
+  /**
+   * Note
+   */
+  note?: string | null
+  /**
+   * Note At
+   */
+  note_at?: string | null
+}
+
+/**
+ * ScheduleSettings
+ *
+ * What the owner chose: every so long, or at times on chosen days.
+ */
+export type ScheduleSettings = {
+  /**
+   * Enabled
+   */
+  enabled?: boolean
+  /**
+   * Kind
+   */
+  kind?: "interval" | "times"
+  /**
+   * Every Minutes
+   */
+  every_minutes?: number
+  /**
+   * Times
+   */
+  times?: Array<string>
+  /**
+   * Days
+   */
+  days?: Array<number>
+  /**
+   * Time Zone
+   */
+  time_zone: string
+}
+
+/**
  * SchemaEffect
  *
  * What a committed structure change means for what is already on screen.
@@ -15965,6 +16018,69 @@ export type pipelinesRunPipelineResponses = {
 
 export type pipelinesRunPipelineResponse =
   pipelinesRunPipelineResponses[keyof pipelinesRunPipelineResponses]
+
+export type pipelinesReadScheduleData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/schedule"
+}
+
+export type pipelinesReadScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadScheduleError =
+  pipelinesReadScheduleErrors[keyof pipelinesReadScheduleErrors]
+
+export type pipelinesReadScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: SchedulePublic
+}
+
+export type pipelinesReadScheduleResponse =
+  pipelinesReadScheduleResponses[keyof pipelinesReadScheduleResponses]
+
+export type pipelinesSetScheduleData = {
+  body: ScheduleSettings
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/schedule"
+}
+
+export type pipelinesSetScheduleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesSetScheduleError = pipelinesSetScheduleErrors[keyof pipelinesSetScheduleErrors]
+
+export type pipelinesSetScheduleResponses = {
+  /**
+   * Successful Response
+   */
+  200: SchedulePublic
+}
+
+export type pipelinesSetScheduleResponse =
+  pipelinesSetScheduleResponses[keyof pipelinesSetScheduleResponses]
 
 export type pipelinesReadLinkOffersData = {
   body: LinkOffersRequest

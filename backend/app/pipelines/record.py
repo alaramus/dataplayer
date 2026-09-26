@@ -67,6 +67,8 @@ class RunRecord(_Strict):
     version: Literal[1] = 1
     pipeline_id: uuid.UUID
     pipeline_name: str = Field(max_length=MAX_NAME)
+    # The time a schedule came, when the schedule started it (D179).
+    scheduled_for: datetime | None = None
     steps: list[RunStep] = Field(min_length=1, max_length=MAX_LINKS)
 
     def step_of(self, link_id: uuid.UUID) -> RunStep | None:

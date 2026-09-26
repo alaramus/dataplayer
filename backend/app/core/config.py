@@ -79,6 +79,8 @@ class Settings(BaseSettings):
     TRANSFER_MAX_ACTIVE: int = 3
     # Pipelines one person may have running at once (D177).
     PIPELINE_MAX_ACTIVE: int = 3
+    # How often the server looks for pipelines whose schedule has come (D179).
+    SCHEDULE_TICK_SECONDS: int = 30
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

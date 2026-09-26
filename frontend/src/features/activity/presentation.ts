@@ -4,7 +4,7 @@ import { isWorking, progressOf } from "@/features/services/jobs"
 import { isActive } from "@/shared/operations"
 import type { Operation } from "@/shared/operations"
 import type { Tone } from "@/shared/ui"
-import { pipelineBrief, pipelineLines, pipelineRunOf, settledSteps } from "./pipelineRuns"
+import { pipelineBrief, pipelineLines, pipelineName, pipelineRunOf, settledSteps } from "./pipelineRuns"
 import type { PipelineRunRecord } from "./pipelineRuns"
 import { operationLines, settledCount, sourceOperationOf } from "./sourceOperations"
 import {
@@ -153,7 +153,7 @@ function pipelineRow(job: JobPublic, run: PipelineRunRecord): ProcessRow {
   const total = run.steps.length
   return {
     id: job.id, source: "server",
-    label: `Pipeline · ${run.pipelineName}`,
+    label: `Pipeline · ${pipelineName(run)}`,
     brief: pipelineBrief(run),
     detail: pipelineLines(job, run).join("\n"),
     status: STATUS[job.state], tone: toneOf(job.state),

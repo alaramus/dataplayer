@@ -34,6 +34,7 @@ import {
   lackingLinks,
   lastRunKey,
   linkOffersKey,
+  scheduleKey,
   pipelineKey,
   readCardState,
   readHint,
@@ -43,10 +44,13 @@ import {
   useLastRun,
   usePipeline,
   useSavePipeline,
+  useSchedule,
 } from "./api"
 import type { LinkSide } from "./api"
 import CardPickerWindow from "./CardPickerWindow.vue"
 import LinkPanel from "./LinkPanel.vue"
+import { nextRunWords, scheduleWords } from "./schedule"
+import ScheduleWindow from "./ScheduleWindow.vue"
 import {
   chainOf,
   dependents,
@@ -114,7 +118,13 @@ const saving = useSavePipeline()
 const deleting = useDeletePipeline()
 const adapterTypes = useAdapterTypes()
 const lastRun = useLastRun(() => props.pipelineId)
+const timetable = useSchedule(() => props.pipelineId)
+const scheduling = ref(false)
 const now = useNow()
+// When it runs by itself next, and what last came of a time that came (D179).
+const nextRun = computed(() =>
+  timetable.data.value?.settings?.enabled ? nextRunWords(timetable.data.value.next_at, now.value) : null
+)
 
 const name = ref("")
 const version = ref(0)
@@ -545,6 +555,10 @@ async function run() {
 const stopListening = realtime().subscribe(JOBS_TOPIC, (payload) => {
   if (!isJobEvent(payload) || payload.kind !== "pipeline.run" || payload.subject_id !== props.pipelineId) return
   void queryClient.invalidateQueries({ queryKey: lastRunKey(props.pipelineId) })
+  // A run the schedule started moves its next time on (D179).
+  if (payload.state === "queued" || payload.state === "running") {
+    void queryClient.invalidateQueries({ queryKey: scheduleKey(props.pipelineId) })
+  }
 })
 onBeforeUnmount(stopListening)
 
@@ -627,6 +641,11 @@ defineExpose({ place })
         :class="{ 'pipeline-view__last-run--failed': lastRunFailed }"
         data-testid="pipeline-last-run"
       >{{ runSummary(lastRun.data.value, now) }}<AppTooltip>{{ runSummary(lastRun.data.value, now) }}</AppTooltip></span>
+      <span
+        v-if="nextRun || timetable.data.value?.note"
+        class="pipeline-view__next-run"
+        data-testid="pipeline-next-run"
+      >{{ [nextRun ? `Next run: ${nextRun}` : "", timetable.data.value?.note ?? ""].filter(Boolean).join(" · ") }}</span>
       <template #actions>
         <span class="pipeline-view__run">
           <AppButton
@@ -640,6 +659,13 @@ defineExpose({ place })
           />
           <AppTooltip>{{ runBlocked ?? "Run every link, one after another, as saved" }}</AppTooltip>
         </span>
+        <AppIconButton
+          :icon="appIcons.schedule"
+          :tooltip="`Schedule: ${scheduleWords(timetable.data.value?.settings)}`"
+          :active="timetable.data.value?.settings?.enabled === true"
+          data-testid="pipeline-schedule"
+          @click="scheduling = true"
+        />
         <AppIconButton
           :icon="appIcons.lightbulb"
           :tooltip="hints.length > 0 ? 'Hide the possible links' : 'Show the links that could be drawn'"
@@ -765,6 +791,14 @@ defineExpose({ place })
       />
     </template>
 
+    <ScheduleWindow
+      v-if="scheduling && !timetable.isPending.value"
+      :pipeline-id="pipelineId"
+      :pipeline-name="name"
+      :settings="timetable.data.value?.settings"
+      @close="scheduling = false"
+    />
+
     <CardPickerWindow
       v-if="picking"
       :connector-id="picking.connectorId"
@@ -827,6 +861,15 @@ defineExpose({ place })
 }
 .pipeline-view__last-run--failed {
   color: var(--dp-tone-warning-text);
+}
+.pipeline-view__next-run {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dp-text-muted);
+  font-size: 12px;
 }
 .pipeline-view__run {
   display: inline-flex;
