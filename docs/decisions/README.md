@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-26 | [References to and from a Redis table, by its key](2026-09-26-redis-references-design.md) | D172: a Redis table's `key` can be an end of a declared reference, looked up by reading the one key it names; its other columns cannot, having no index |
 | 2026-09-25 | [Tables declared over Redis, and Redis saved as CSV](2026-09-25-redis-tables-design.md) | D170: a folder of Redis hashes can be declared a table — key first, the chosen fields as columns — kept with the connection, and every Redis node gains a relation model and a path; D171: a Redis key, folder or table pastes into a folder as CSV through D44's export, which Redis now streams, and several ticked save as one file each |
 | 2026-09-25 | [Folders carried between connections](2026-09-25-folder-transfers-design.md) | D169: ticked folders copy and move whole between connections in one transfer, up to 10,000 entries and 10 GB; links inside are skipped, a taken folder name offers Keep both only, and every move removes its sources only once everything arrived |
 | 2026-09-25 | [Transfers as owned jobs](2026-09-25-transfer-jobs-design.md) | D168: file copy, file move and table-to-CSV pastes run as owned jobs with bytes in the footer and Processes, Stop at once, per-file outcomes and live catalog refresh; 1000 files and 10 GB per paste, three at a time per person; SSH destinations are written as the bytes arrive |
