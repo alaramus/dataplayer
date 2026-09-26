@@ -9,8 +9,9 @@ folder hold, and the rows it reads as.
 
 The rows are the hashes directly in the folder, in key order, each read for
 the declared fields alone. A key of another type is counted out rather than
-shown, and no cell is written. `key` equal to a value is looked up by reading
-the one key it names, which is what makes it an end of a reference (D172).
+shown. `key` equal to a value is looked up by reading the one key it names,
+which is what makes it an end of a reference (D172). Writing the rows is
+`table_update.py`'s (D173).
 """
 
 import re
@@ -45,6 +46,7 @@ from app.adapters.redis.keyspace import (
     place_ref,
     table_ref,
 )
+from app.adapters.redis.row_handle import encode_row_handle, fingerprint
 from app.adapters.redis.session import RedisSession, text
 from app.adapters.redis.shapes import (
     KEY_COLUMN,
@@ -64,8 +66,14 @@ SAMPLE_KEYS = 100
 SAMPLE_FIELDS = 200
 
 CHOOSE_FOLDER = "Select a folder to describe as a table"
-READ_ONLY = "A declared table is read-only"
 KEY_ONLY = "A Redis table is filtered only by key equal to a value"
+
+# What a row handle says it names: a row of a declared table, not an element
+# of one key (D173).
+TABLE_ROW = "table"
+# Stands for a field the hash lacks in a fingerprint, which no value typed
+# into a cell contains.
+_ABSENT = "\x01"
 
 _NUMBER = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}")
@@ -340,16 +348,52 @@ def _page(
     has_more: bool,
     notice: str | None,
 ) -> FetchResult:
+    """A page, editable as its rows (D173): every field, never the key."""
     return FetchResult(
-        columns=table_columns(table),
+        columns=[
+            column.model_copy(
+                update={
+                    "editable": column.name != KEY_COLUMN,
+                    "nullable": column.name != KEY_COLUMN,
+                    "insertable": True,
+                    "insert_required": column.name == KEY_COLUMN,
+                }
+            )
+            for column in table_columns(table)
+        ],
         rows=rows,
         has_more=has_more,
-        update_reason=READ_ONLY,
-        insert_reason=READ_ONLY,
-        delete_reason=READ_ONLY,
+        row_handles=[table_row_handle(row[0] or "", row[1:]) for row in rows],
+        update_supported=True,
+        insert_supported=True,
+        delete_supported=True,
         page_commands=["download", "share"],
         notice=notice,
     )
+
+
+def table_fingerprint(values: Sequence[str | None]) -> str:
+    """What a row's declared fields held, a lacking one marked apart from any value."""
+    return fingerprint(*(_ABSENT if value is None else value for value in values))
+
+
+def table_row_handle(key: str, values: Sequence[str | None]) -> str:
+    """One row of a declared table as it was read: its key and its fields."""
+    return encode_row_handle(
+        TABLE_ROW, key, *(_ABSENT if value is None else value for value in values)
+    )
+
+
+def reads_as(declared: DeclaredType, value: str) -> bool:
+    """Whether a typed value is one its declared column holds (D173)."""
+    stripped = value.strip()
+    if declared == "number":
+        return _NUMBER.match(stripped) is not None
+    if declared == "boolean":
+        return stripped.lower() in ("true", "false")
+    if declared == "datetime":
+        return _is_datetime(stripped)
+    return True
 
 
 def guessed_type(values: Sequence[str]) -> DeclaredType:

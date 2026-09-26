@@ -107,6 +107,50 @@ test("references a Redis table by its key from a relation, and follows it both w
   }
 })
 
+test("adds a row to a Redis table, edits a cell and deletes the row", async ({ page }) => {
+  const stamp = Date.now()
+  const redis = `e2e-redis-edit-${stamp}`
+  const folder = `e${stamp}:`
+  const database = String(REDIS.database)
+  await redisCommands([["HSET", `${folder}1`, "name", "Ada", "age", "36"]])
+  try {
+    await login(page)
+    await createRedisConnector(page, redis)
+    await openConnector(page, redis)
+    await page.getByTestId(`keyspace-row-f${database}:${folder}`).click()
+    await catalogAction(page, "client:describe-table")
+    await page.getByTestId("declare-table-name").fill("people")
+    await page.getByTestId("declare-table-save").click()
+    await page.getByTestId(`keyspace-row-t${database}:${folder}`).click()
+    await expect(page.getByTestId("grid-cell-0-name")).toHaveText("Ada")
+
+    // A new row is a new hash, named by its key (D173).
+    await page.getByTestId("grid-insert").click()
+    await page.getByTestId("grid-insert-value-key").fill("2")
+    await page.getByTestId("grid-insert-value-name").fill("Grace")
+    await page.getByTestId("grid-insert-save").click()
+    await expect(page.getByTestId("grid-cell-1-key")).toHaveText("2")
+    await expect(page.getByTestId("grid-cell-1-name")).toHaveText("Grace")
+
+    // A cell is one field of one hash.
+    await page.getByTestId("grid-cell-0-age").dblclick()
+    await page.getByTestId("grid-edit-value").fill("37")
+    await page.getByTestId("grid-edit-save").click()
+    await expect(page.getByTestId("grid-cell-0-age")).toHaveText("37")
+
+    // Deleting the row deletes its key.
+    await page.getByTestId("grid-select-row-1").click()
+    await page.getByTestId("grid-delete").click()
+    await page.getByTestId("confirm-accept").click()
+    await expect(page.getByTestId("grid-cell-1-key")).toHaveCount(0)
+    await page.screenshot({ path: "test-results/redis-table-edited.png" })
+
+    await deleteConnector(page, redis)
+  } finally {
+    await redisCommands([["DEL", `${folder}1`, `${folder}2`]])
+  }
+})
+
 test("declares a table over a folder of hashes and saves a key as CSV", async ({ page }) => {
   const stamp = Date.now()
   const redis = `e2e-redis-${stamp}`

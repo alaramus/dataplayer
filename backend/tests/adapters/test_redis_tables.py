@@ -257,8 +257,8 @@ async def test_the_table_reads_one_row_per_hash_in_key_order() -> None:
     assert not page.has_more
     # user:count is a string: not a row, and said so.
     assert page.notice == "1 key of another type is not a row"
-    assert not page.update_supported and page.update_reason == "A declared table is read-only"
-    assert not page.insert_supported and not page.delete_supported
+    # Edited as its rows (D173), in test_redis_table_update.py.
+    assert page.update_supported and page.insert_supported and page.delete_supported
     assert not any(column.sortable for column in page.columns)
     # Looking a key up is the one filter it takes (D172).
     assert [column.name for column in page.columns if column.filter_operators] == ["key"]

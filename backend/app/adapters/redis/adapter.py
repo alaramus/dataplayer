@@ -45,6 +45,7 @@ from app.adapters.redis.model import RedisModel
 from app.adapters.redis.options import RedisOptions
 from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.session import RedisSession
+from app.adapters.redis.table_update import RedisTableUpdate
 from app.adapters.redis.tables import RedisTables
 from app.adapters.redis.update import RedisUpdate
 from app.adapters.redis.url import (
@@ -87,6 +88,7 @@ class RedisAdapter:
         self._model = RedisModel(self._keyspace, self._tables)
         self._export = RedisExport(self._session, self._keyspace, self._tables)
         self._update = RedisUpdate(self._session, self._keyspace)
+        self._table_update = RedisTableUpdate(self._session, self._tables)
         self._samples = RedisSamples(self._session)
         self._metrics = RedisMetrics(self._session)
         self._actions = ActionSet(
@@ -199,22 +201,26 @@ class RedisAdapter:
     # The ordinary editing contract (D25, D26): the six actions write a whole
     # key, and these change one field, one element, one member of the key
     # somebody is already looking at. What each type admits is the writer's to
-    # say, and the page said the same thing before the edit was offered.
+    # say, and the page said the same thing before the edit was offered. A
+    # declared table is written as its rows, one hash each (D173).
+
+    def _editor(self, node_id: str) -> RedisUpdate | RedisTableUpdate:
+        return self._table_update if is_table(node_id) else self._update
 
     async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
-        return await self._update.update_cell(request)
+        return await self._editor(request.node_id).update_cell(request)
 
     async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
-        return await self._update.update_cells(request)
+        return await self._editor(request.node_id).update_cells(request)
 
     async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
-        return await self._update.insert_row(request)
+        return await self._editor(request.node_id).insert_row(request)
 
     async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
-        return await self._update.insert_rows(request)
+        return await self._editor(request.node_id).insert_rows(request)
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
-        return await self._update.delete_rows(request)
+        return await self._editor(request.node_id).delete_rows(request)
 
     # --- what may be done to a key -----------------------------------------
 

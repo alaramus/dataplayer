@@ -13,7 +13,44 @@ and the table is kept with its connection.
 Read [relations.md](relations.md) first for what a reference is and how one is
 followed; nothing here replaces that path, it adds a second issuer to it.
 
-Decisions here: D106, D107, D108, D170, D172.
+Decisions here: D106, D107, D108, D170, D172, D173.
+
+## D173. A declared table is edited as its rows
+
+The grid's editing contract (D25, D26), answered by the folder's hashes in
+`redis/table_update.py`; the adapter hands a table's edits there and a key's to
+`update.py`.
+
+- **A cell is one field of one hash.** A value writes the field; an empty one
+  removes it, which is how the table shows a field a hash lacks. `key` is not
+  editable: it is where the row lives. A field the table does not declare is
+  neither shown nor written.
+- **A new row is a new hash**, `prefix` + `key`: the key is required, must lie
+  directly in the folder and must be free, and at least one field must have a
+  value. **A deleted row is a deleted key**, all of the selection or none.
+- **Values are checked against the declared type** — number, true or false,
+  ISO 8601 — and are at most 64 KB. A batch names every cell it refuses and
+  writes nothing.
+- **What was read is what is changed.** A row handle carries the key and a
+  fingerprint of the declared fields as shown, a lacking field marked apart
+  from any value; a hash changed since, of another type or gone is a
+  conflict. Only the fields that changed are written, in one transaction for
+  the whole batch.
+- **Emptying the last field a hash holds is refused**, since Redis would
+  delete the key: that is a delete, which has its own command.
+- **Many new rows** — a paste, D43's import, D166's "Add rows to a table" from
+  any source — are all checked and their keys found free before one is
+  written, in one transaction.
+
+Known deviations:
+
+- **Checked, then written.** Redis has no compare-and-set for a hash: a change
+  made between the check and the write is lost, and a key created in that
+  moment by somebody else gains the new fields.
+- **The declared type binds writes only.** A value already held that does not
+  read as its column's type is shown as it is.
+
+Spec: [Editing a table declared over Redis](../../decisions/2026-09-26-redis-table-editing-design.md)
 
 ## D172. A Redis table's `key` can be an end of a declared reference
 
@@ -74,8 +111,8 @@ driver shows it.
   missing one empty. A key of another type is not a row, and
   `FetchResult.notice` says how many were left out. At most 100,000 keys under
   the folder are read, the first by name of those scanned, and the notice says
-  when there were more. Nothing is editable or sortable, and `key` equal to a
-  value is the one filter (D172).
+  when there were more. Nothing is sortable, `key` equal to a value is the
+  one filter (D172), and the rows are edited as hashes (D173).
 - **Every Redis node reads as a relation** (`SupportsRelationModel`): a key its
   type's columns (kind `key`), a folder or a database the listing's four
   (`key_listing`), a declared table `key` and its fields (`declared_table`).
@@ -194,8 +231,9 @@ backend/app/connectors/
 backend/app/adapters/
 ├── declared_tables.py  a declaration, a proposal, `SupportsDeclaredTables`'s
 │                       answers
-└── redis/tables.py     where one stands, the sample, the rows of a table;
-                        `model.py` and `export.py` beside it read every node
+├── redis/tables.py     where one stands, the sample, the rows of a table;
+│                       `model.py` and `export.py` beside it read every node
+└── redis/table_update.py  a table's rows edited, added and deleted (D173)
 
 frontend/src/features/declared/
 ├── api.ts              the list, and what drawing or removing one invalidates

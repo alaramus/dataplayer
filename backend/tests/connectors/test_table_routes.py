@@ -13,7 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.redis.keyspace import database_id, folder_id, key_id, table_id
 from app.adapters.redis.options import RedisPassword
 from app.core.config import settings
-from app.users import crud
+from app.users import crud, storage
 from app.users.models import User
 from tests.utils.database import working_postgres_options
 from tests.utils.keyspace import chosen_database, empty_keyspace, redis_options
@@ -361,6 +361,61 @@ async def test_its_key_is_an_end_of_a_reference_followed_both_ways(
     assert [ref["columns"] for ref in arrow.json()["references"]] == [["key"]]
     assert back.json()["node"]["id"] == f"{schema}.regions"
     assert back.json()["filters"] == [{"column": "code", "op": "eq", "value": "south"}]
+
+
+# --- rows added to it from elsewhere (D173) ---------------------------------
+
+
+async def test_rows_from_a_csv_become_hashes_of_the_table(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], db: AsyncSession
+) -> None:
+    headers = normal_user_token_headers
+    user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    filename = f"users-{uuid.uuid4().hex}.csv"
+    (storage.create_home(user.id) / filename).write_text("id,name\n7,Eve\n8,Bob\n")
+    redis_id = await _connector(client, headers)
+    declared = await client.put(
+        f"{BASE}/{redis_id}/tables", headers=headers, json=_declaration(columns=[{"name": "name"}])
+    )
+    assert declared.status_code == 200, declared.text
+    made = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={"name": f"files {uuid.uuid4()}", "adapter_type": "file", "options": {"path": "/"}},
+    )
+    files_id = made.json()["id"]
+    pair = {
+        "source_connector_id": files_id,
+        "source_node_ids": [filename],
+        "destination_node_id": database_id(DB),
+        "target_node_id": TABLE,
+        "mode": "copy",
+    }
+
+    offers = await client.post(f"{BASE}/{redis_id}/paste/offers", headers=headers, json=pair)
+    into = next(
+        offer for offer in offers.json()["offers"] if offer["kind"] == "rows_into_relation"
+    )
+    added = await client.post(
+        f"{BASE}/{redis_id}/paste",
+        headers=headers,
+        json={
+            **pair,
+            "kind": "rows_into_relation",
+            "columns": [
+                {"source": "id", "target": "key"},
+                {"source": "name", "target": "name"},
+            ],
+        },
+    )
+    rows = await client.post(f"{BASE}/{redis_id}/fetch", headers=headers, json={"node_id": TABLE})
+
+    assert into["available"], into
+    assert [column["name"] for column in into["target_columns"]] == ["key", "name"]
+    assert added.status_code == 200, added.text
+    assert added.json()["message"] == "2 rows added"
+    assert rows.json()["rows"] == [["7", "Eve"], ["8", "Bob"]]
 
 
 async def test_a_source_without_the_capability_answers_501(
