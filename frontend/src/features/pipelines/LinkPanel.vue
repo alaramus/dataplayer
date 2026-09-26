@@ -2,37 +2,38 @@
 import { useQuery } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 
-import type { ColumnPair, Link, LinkRun, NewRelationColumn } from "@/client"
+import type { ColumnPair, Link, LinkPlace, LinkRun, NewRelationColumn, PipelineRunPublic } from "@/client"
 import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
 import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
-import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, AppTooltip, appIcons } from "@/shared/ui"
+import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, appIcons } from "@/shared/ui"
 
 import { linkOffersKey, readLinkOffers } from "./api"
 import type { LinkSide } from "./api"
-import { CONFLICT_CHOICES, missingChoice, runWords, sentence, usable, withOffer } from "./links"
+import { CONFLICT_CHOICES, runWords, sentence, usable, withOffer } from "./links"
 import type { EndNamer } from "./links"
 
 /**
- * The panel below the canvas, on the link selected (D176): what it does, the
- * choices it runs by — the ones Paste asks — and what its last run did.
+ * The panel below the canvas, on the link selected (D176): what it does and
+ * where it comes in a run, the choices it runs by — the ones Paste asks — and
+ * what it did in the pipeline's last run (D177).
  *
- * Every choice is the link's and is saved with the pipeline; Run runs what
- * was saved, never what is on this screen.
+ * Every choice is the link's and is saved with the pipeline; the head's Run
+ * runs what was saved, never what is on this screen.
  */
 const props = defineProps<{
   link: Link
   from: LinkSide
   to: LinkSide
   name: EndNamer
-  run: LinkRun | undefined
-  running: boolean
+  place: LinkPlace | undefined
+  linkRun: LinkRun | undefined
+  lastRun: PipelineRunPublic | null | undefined
 }>()
 
 const emit = defineEmits<{
   change: [link: Link]
-  run: []
   remove: []
   close: []
 }>()
@@ -51,14 +52,12 @@ const operations = computed(() => choices.value.map((one) => ({ label: one.title
 const conflicts = computed(() =>
   CONFLICT_CHOICES.filter((choice) => choice.value !== "replace" || offer.value?.can_replace !== false)
 )
-const missing = computed(() => missingChoice(props.link, offer.value))
 // The operation is not open to this person any more, or not for these rows.
 const closed = computed(() =>
   offer.value !== undefined && !offer.value.available && offer.value.name_conflict !== true
     ? offer.value.reason ?? "This cannot run between these rows now"
     : null
 )
-const blocked = computed(() => closed.value ?? missing.value)
 
 function chooseOperation(kind: unknown) {
   const chosen = choices.value.find((one) => one.kind === kind)
@@ -98,22 +97,16 @@ const columnsWord = computed(() => {
     data-testid="link-panel"
   >
     <div class="link-panel__head">
+      <span
+        v-if="place"
+        class="link-panel__number"
+        :class="{ 'link-panel__number--caution': place.circle }"
+        data-testid="link-panel-number"
+      >{{ place.number }}</span>
       <strong
         class="link-panel__sentence"
         data-testid="link-panel-sentence"
       >{{ sentence(link, name) }}</strong>
-      <span class="link-panel__run">
-        <AppButton
-          label="Run"
-          :icon="appIcons.playArrow"
-          size="sm"
-          :disable="blocked !== null || offers.isPending.value"
-          :loading="running"
-          data-testid="link-panel-run"
-          @click="emit('run')"
-        />
-        <AppTooltip v-if="blocked">{{ blocked }}</AppTooltip>
-      </span>
       <AppIconButton
         :icon="appIcons.delete"
         tooltip="Remove this link"
@@ -186,11 +179,18 @@ const columnsWord = computed(() => {
     </div>
 
     <p
+      v-if="place?.circle"
+      class="link-panel__circle"
+      data-testid="link-panel-circle"
+    >
+      {{ place.circle }}
+    </p>
+    <p
       class="link-panel__result"
-      :class="{ 'link-panel__result--failed': run?.outcome === 'failed' }"
+      :class="{ 'link-panel__result--failed': closed !== null || linkRun?.outcome === 'failed' }"
       data-testid="link-panel-result"
     >
-      {{ closed ?? runWords(run, now) }}
+      {{ closed ?? runWords(linkRun, lastRun, now) }}
     </p>
 
     <CreateTableDialog
@@ -251,8 +251,13 @@ const columnsWord = computed(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.link-panel__run {
-  display: inline-flex;
+.link-panel__number {
+  flex: none;
+  font-weight: 600;
+}
+.link-panel__number--caution,
+.link-panel__circle {
+  color: var(--dp-tone-warning-text);
 }
 .link-panel__choices {
   display: flex;
@@ -267,6 +272,7 @@ const columnsWord = computed(() => {
 .link-panel__columns {
   color: var(--dp-text-muted);
 }
+.link-panel__circle,
 .link-panel__result,
 .link-panel__problem {
   margin: 0;

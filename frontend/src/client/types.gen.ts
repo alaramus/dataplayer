@@ -5187,6 +5187,7 @@ export type JobPublic = {
     | "source.operation"
     | "metrics.store.create"
     | "paste.transfer"
+    | "pipeline.run"
   /**
    * Subject Id
    */
@@ -5500,6 +5501,16 @@ export type KeyNode = {
 }
 
 /**
+ * LastRun
+ *
+ * The last run, or none before the first: an answer that is an object
+ * either way, where a bare null would reach a client as nothing at all.
+ */
+export type LastRun = {
+  run?: PipelineRunPublic | null
+}
+
+/**
  * Link
  *
  * A paste from one row into another, with the choices it runs by (D176).
@@ -5554,7 +5565,29 @@ export type LinkEnd = {
 }
 
 /**
+ * LinkPlace
+ *
+ * Where a link comes in a run, as the canvas numbers it (D177).
+ */
+export type LinkPlace = {
+  /**
+   * Link Id
+   */
+  link_id: string
+  /**
+   * Number
+   */
+  number: number
+  /**
+   * Circle
+   */
+  circle?: string | null
+}
+
+/**
  * LinkRun
+ *
+ * What one link did in the last run.
  */
 export type LinkRun = {
   /**
@@ -5564,31 +5597,15 @@ export type LinkRun = {
   /**
    * Outcome
    */
-  outcome: "running" | "done" | "failed"
+  outcome: "waiting" | "running" | "done" | "failed" | "not_run"
   /**
    * Message
    */
   message?: string | null
   /**
-   * Job Id
-   */
-  job_id?: string | null
-  /**
-   * Started At
-   */
-  started_at: string
-  /**
    * Finished At
    */
   finished_at?: string | null
-}
-
-/**
- * LinkRunAnswer
- */
-export type LinkRunAnswer = {
-  run: LinkRun
-  job?: JobPublic | null
 }
 
 /**
@@ -6774,6 +6791,42 @@ export type PipelinePublic = {
    * Broken
    */
   broken?: boolean
+  /**
+   * Order
+   */
+  order?: Array<LinkPlace>
+}
+
+/**
+ * PipelineRunPublic
+ *
+ * The last run of a pipeline, as its job says now.
+ */
+export type PipelineRunPublic = {
+  /**
+   * Job Id
+   */
+  job_id: string
+  /**
+   * State
+   */
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "interrupted"
+  /**
+   * Message
+   */
+  message: string | null
+  /**
+   * Started At
+   */
+  started_at: string
+  /**
+   * Finished At
+   */
+  finished_at: string | null
+  /**
+   * Links
+   */
+  links: Array<LinkRun>
 }
 
 /**
@@ -15782,7 +15835,7 @@ export type pipelinesReadCardStateResponses = {
 export type pipelinesReadCardStateResponse =
   pipelinesReadCardStateResponses[keyof pipelinesReadCardStateResponses]
 
-export type pipelinesReadRunsData = {
+export type pipelinesReadLastRunData = {
   body?: never
   path: {
     /**
@@ -15791,64 +15844,58 @@ export type pipelinesReadRunsData = {
     pipeline_id: string
   }
   query?: never
-  url: "/api/v1/pipelines/{pipeline_id}/runs"
+  url: "/api/v1/pipelines/{pipeline_id}/run"
 }
 
-export type pipelinesReadRunsErrors = {
+export type pipelinesReadLastRunErrors = {
   /**
    * Validation Error
    */
   422: HTTPValidationError
 }
 
-export type pipelinesReadRunsError = pipelinesReadRunsErrors[keyof pipelinesReadRunsErrors]
+export type pipelinesReadLastRunError = pipelinesReadLastRunErrors[keyof pipelinesReadLastRunErrors]
 
-export type pipelinesReadRunsResponses = {
+export type pipelinesReadLastRunResponses = {
   /**
-   * Response Pipelines-Read Runs
-   *
    * Successful Response
    */
-  200: Array<LinkRun>
+  200: LastRun
 }
 
-export type pipelinesReadRunsResponse = pipelinesReadRunsResponses[keyof pipelinesReadRunsResponses]
+export type pipelinesReadLastRunResponse =
+  pipelinesReadLastRunResponses[keyof pipelinesReadLastRunResponses]
 
-export type pipelinesRunPipelineLinkData = {
+export type pipelinesRunPipelineData = {
   body?: never
   path: {
     /**
      * Pipeline Id
      */
     pipeline_id: string
-    /**
-     * Link Id
-     */
-    link_id: string
   }
   query?: never
-  url: "/api/v1/pipelines/{pipeline_id}/links/{link_id}/run"
+  url: "/api/v1/pipelines/{pipeline_id}/run"
 }
 
-export type pipelinesRunPipelineLinkErrors = {
+export type pipelinesRunPipelineErrors = {
   /**
    * Validation Error
    */
   422: HTTPValidationError
 }
 
-export type pipelinesRunPipelineLinkError =
-  pipelinesRunPipelineLinkErrors[keyof pipelinesRunPipelineLinkErrors]
+export type pipelinesRunPipelineError = pipelinesRunPipelineErrors[keyof pipelinesRunPipelineErrors]
 
-export type pipelinesRunPipelineLinkResponses = {
+export type pipelinesRunPipelineResponses = {
   /**
    * Successful Response
    */
-  200: LinkRunAnswer
+  200: PipelineRunPublic
 }
 
-export type pipelinesRunPipelineLinkResponse =
-  pipelinesRunPipelineLinkResponses[keyof pipelinesRunPipelineLinkResponses]
+export type pipelinesRunPipelineResponse =
+  pipelinesRunPipelineResponses[keyof pipelinesRunPipelineResponses]
 
 export type pipelinesReadHintData = {
   body: HintRequest

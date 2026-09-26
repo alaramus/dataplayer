@@ -112,6 +112,29 @@ describe("the generic 2D canvas", () => {
     wrapper.unmount()
   })
 
+  it("draws a line in its result's colour, its number before its label", async () => {
+    const graph = {
+      ...deliveryGraph,
+      edges: [
+        { ...deliveryGraph.edges[0]!, tone: "success" as const, badge: "1" },
+        { ...deliveryGraph.edges[2]!, tone: "muted" as const, badge: "2", caution: "They write into each other" },
+      ],
+    }
+    const wrapper = mount(Graph2D, { props: { ...props, graph, edgeLabels: true }, global: { plugins: [Quasar] } })
+
+    expect(wrapper.get('[data-testid="graph-edge-label-jobs"]').text()).toBe("1 · Dispatch jobs")
+    const line = wrapper.get('[data-testid="graph-edge-jobs"]').element.parentElement!
+    expect(line.getAttribute("data-tone")).toBe("success")
+    expect(line.querySelector(".graph-2d__edge")!.getAttribute("marker-end")).toMatch(/-success\)$/)
+    // A number the arrows could not give is in the caution colour.
+    expect(wrapper.get('[data-testid="graph-edge-badge-jobs"]').classes()).not.toContain("graph-2d__badge--caution")
+    expect(wrapper.get('[data-testid="graph-edge-badge-retry"]').classes()).toContain("graph-2d__badge--caution")
+    // A label pressed selects its line.
+    await wrapper.get('[data-testid="graph-edge-label-retry"]').trigger("pointerdown")
+    expect(wrapper.emitted("select")!.at(-1)).toEqual([{ kind: "edge", id: "retry" }])
+    wrapper.unmount()
+  })
+
   it("moves in world coordinates and restores the original position on Escape", async () => {
     const wrapper = mount(Graph2D, { props })
     const root = wrapper.get('[data-testid="graph-2d"]')

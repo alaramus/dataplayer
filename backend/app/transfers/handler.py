@@ -8,8 +8,9 @@ kind threads of its own and writes down what it reports.
 import asyncio
 import time
 import uuid
-from collections.abc import Callable
-from typing import ClassVar
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+from typing import ClassVar, Protocol
 
 from anyio import CapacityLimiter
 from pydantic import ValidationError
@@ -66,33 +67,57 @@ class RunTransfer:
     async def carry_out(self, job: Job, progress: Progress) -> str:
         transfer = _loaded(job)
         kind = _kind(transfer)
-        slots, threads = self._pools()
-        if slots.locked():
-            await progress.reached(WAITING)
-        async with slots:
+        keeper = _OwnJob(job, transfer, progress)
+        async with self.slot(keeper) as threads:
             await progress.reached(CHECKING)
             source, destination = await self._ends(job, transfer, kind)
-            touched = (transfer.destination_connector_id,) + (
-                (transfer.source_connector_id,) if kind.changes_source else ()
-            )
-            report = _Report(progress, job, transfer, threads, self._cache, touched)
-            stopped: str | None = None
-            try:
-                await kind.transfer(source, destination, transfer, report)
-            except asyncio.CancelledError:
-                # This session may have been cut off mid-write; the runner
-                # settles the row through a fresh one, and so does this.
-                await report.touch()
-                await _kept(job.id, transfer)
-                raise
-            except TransferStopped as stop:
-                stopped = stop.message
-            await report.touch()
-            await report.written()
+            stopped = await self.transferred(kind, source, destination, transfer, keeper, threads)
         message = kind.told(transfer, stopped)
         if stopped is not None or any(item.outcome != "done" for item in transfer.items):
             raise JobFailed(message)
         return message
+
+    @asynccontextmanager
+    async def slot(self, keeper: Keeper) -> AsyncIterator[CapacityLimiter]:
+        """One of the server's transfer slots, and the threads of the slots."""
+        slots, threads = self._pools()
+        if slots.locked():
+            await keeper.waiting()
+        async with slots:
+            yield threads
+
+    async def transferred(
+        self,
+        kind: PastesAsJob,
+        source: DataAdapter,
+        destination: DataAdapter,
+        transfer: Transfer,
+        keeper: Keeper,
+        threads: CapacityLimiter,
+    ) -> str | None:
+        """Carry a planned transfer out inside a slot; what stopped it, if anything.
+
+        A job of its own and a step of a pipeline's run (D177) both come
+        through here, so a transfer moves, reports and stops the same way.
+        """
+        touched = (transfer.destination_connector_id,) + (
+            (transfer.source_connector_id,) if kind.changes_source else ()
+        )
+        report = _Report(keeper, transfer, threads, self._cache, touched)
+        stopped: str | None = None
+        try:
+            await kind.transfer(source, destination, transfer, report)
+        except asyncio.CancelledError:
+            # The job's session may have been cut off mid-write; the runner
+            # settles the row through a fresh one, and so does the keeper.
+            await report.touch()
+            await keeper.abandoned()
+            raise
+        except TransferStopped as stop:
+            stopped = stop.message
+        await report.touch()
+        await report.written()
+        return stopped
 
     def stopped_message(self, job: Job) -> str | None:
         try:
@@ -166,20 +191,55 @@ class RunTransfer:
             raise JobFailed(f"{label} can no longer be opened; {NOTHING}") from None
 
 
+class Keeper(Protocol):
+    """Where a transfer's payload is kept as it moves: the row of a job of its
+    own, or a step of a pipeline's run (D177)."""
+
+    async def waiting(self) -> None:
+        """Every slot is taken; said before waiting for one."""
+        ...
+
+    async def kept(self, step: str) -> None:
+        """Write the payload as it stands and tell its owner, at `step`."""
+        ...
+
+    async def abandoned(self) -> None:
+        """Stopped: the payload as it stood, through a session of its own."""
+        ...
+
+
+class _OwnJob:
+    """A transfer that is a job of its own: the payload is the job's parameters."""
+
+    def __init__(self, job: Job, transfer: Transfer, progress: Progress) -> None:
+        self._job = job
+        self._transfer = transfer
+        self._progress = progress
+
+    async def waiting(self) -> None:
+        await self._progress.reached(WAITING)
+
+    async def kept(self, step: str) -> None:
+        self._job.parameters = self._transfer.model_dump(mode="json")
+        # The same step again: the row is written and a listening owner told.
+        await self._progress.reached(step)
+
+    async def abandoned(self) -> None:
+        await _kept(self._job.id, self._transfer)
+
+
 class _Report:
-    """What a kind reports, written to the job's row and told to its owner."""
+    """What a kind reports, handed to its keeper."""
 
     def __init__(
         self,
-        progress: Progress,
-        job: Job,
+        keeper: Keeper,
         transfer: Transfer,
         threads: CapacityLimiter,
         cache: DataCache,
         touched: tuple[uuid.UUID, ...],
     ) -> None:
-        self._progress = progress
-        self._job = job
+        self._keeper = keeper
         self._transfer = transfer
         self._threads = threads
         self._cache = cache
@@ -205,9 +265,7 @@ class _Report:
         if self._transfer.published != self._published:
             self._published = self._transfer.published
             await self.touch()
-        self._job.parameters = self._transfer.model_dump(mode="json")
-        # The same step again: the row is written and a listening owner told.
-        await self._progress.reached(self._step)
+        await self._keeper.kept(self._step)
         self._last = time.monotonic()
 
     async def touch(self) -> None:
@@ -239,6 +297,7 @@ async def _kept(job_id: uuid.UUID, transfer: Transfer) -> None:
             await session.commit()
 
 
-def handlers(cache: DataCache, resources: ResourceStore | None) -> dict[str, JobHandler]:
-    handler: JobHandler = RunTransfer(cache, resources)
+def handlers(transfers: RunTransfer) -> dict[str, JobHandler]:
+    """One handler, made by the assembly: a pipeline's run (D177) shares its slots."""
+    handler: JobHandler = transfers
     return {handler.kind: handler}

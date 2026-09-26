@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import type { Card, Link, LinkRun, PasteOffer } from "@/client"
+import type { Card, Link, LinkRun, PasteOffer, PipelineRunPublic } from "@/client"
 
 import {
   endOf,
@@ -12,9 +12,10 @@ import {
   linkEdge,
   linkFromOffer,
   listed,
-  missingChoice,
   nodeIdOf,
   refusal,
+  runProblem,
+  runSummary,
   runWords,
   sentence,
   usable,
@@ -91,14 +92,19 @@ describe("a link between two rows", () => {
     })
   })
 
-  it("asks for columns before a table is made or filled", () => {
-    const create = offer("rows_new_relation", "Create a table", { workflow: "new-relation" })
-    const into = offer("rows_into_relation", "Add rows to a table", { workflow: "into-relation" })
-    const bare: Link = { ...saving, kind: "rows_new_relation", title: "Create a table" }
-    expect(missingChoice(bare, create)).toBe("Choose the new table's name and columns first")
-    expect(missingChoice({ ...bare, name: "t", columns: [{ source: "a", target: "a", type_code: "text" }] }, create)).toBeNull()
-    expect(missingChoice(bare, into)).toBe("Pair the columns first")
-    expect(missingChoice(saving, csv)).toBeNull()
+  it("is numbered by its place in a run and coloured by what it did in the last", () => {
+    const place = { link_id: "l1", number: 2, circle: null }
+    const drawn = linkEdge(saving, place, { link_id: "l1", outcome: "done" })
+    expect(drawn).toMatchObject({ badge: "2", label: "Save as CSV", tone: "success" })
+    expect(drawn.caution).toBeUndefined()
+    expect(linkEdge(saving, place, { link_id: "l1", outcome: "running" }).tone).toBe("info")
+    expect(linkEdge(saving, place, { link_id: "l1", outcome: "failed" }).tone).toBe("error")
+    expect(linkEdge(saving, place, { link_id: "l1", outcome: "not_run" }).tone).toBe("muted")
+    // Still to come in a run going on: the plain line.
+    expect(linkEdge(saving, place, { link_id: "l1", outcome: "waiting" }).tone).toBeUndefined()
+    // Where the arrows gave no first link, the number says why.
+    const broken = linkEdge(saving, { ...place, circle: "Sales and Files write into each other" })
+    expect(broken).toMatchObject({ badge: "2", caution: "Sales and Files write into each other" })
   })
 
   it("goes with the rows it joins when they are unticked", () => {
@@ -115,12 +121,35 @@ describe("a link between two rows", () => {
 
     const now = Date.parse("2026-09-26T12:10:00Z")
     const done: LinkRun = {
-      link_id: "l1", outcome: "done", message: "orders.csv saved in reports",
-      started_at: "2026-09-26T12:06:00Z", finished_at: "2026-09-26T12:07:00Z",
+      link_id: "l1", outcome: "done", message: "orders.csv saved in reports", finished_at: "2026-09-26T12:07:00Z",
     }
-    expect(runWords(done, now)).toBe("Done 3m ago: orders.csv saved in reports")
-    expect(runWords({ ...done, outcome: "running", message: null, finished_at: null }, now)).toBe("Running")
-    expect(runWords(undefined, now)).toBe("Not run yet")
+    const run: PipelineRunPublic = {
+      job_id: "j1", state: "failed", message: "Stopped at 2 of 3, Save as CSV: taken; 1 not run",
+      started_at: "2026-09-26T12:06:00Z", finished_at: "2026-09-26T12:08:00Z",
+      links: [done, { link_id: "l2", outcome: "failed", message: "taken" }, { link_id: "l3", outcome: "not_run" }],
+    }
+    expect(runWords(done, run, now)).toBe("Done 3m ago: orders.csv saved in reports")
+    expect(runWords(run.links[2], run, now)).toBe("Not run: the run stopped before it")
+    expect(runWords(undefined, run, now)).toBe("Drawn since the last run")
+    expect(runWords(undefined, null, now)).toBe("Not run yet")
+    expect(runSummary(run, now)).toBe("Last run 2m ago: Stopped at 2 of 3, Save as CSV: taken; 1 not run")
+    expect(runSummary(null, now)).toBe("Not run yet")
+    const going: PipelineRunPublic = {
+      ...run, state: "running", message: null, finished_at: null,
+      links: [done, { link_id: "l2", outcome: "running" }, { link_id: "l3", outcome: "waiting" }],
+    }
+    expect(runSummary(going, now)).toBe("Running 2 of 3")
+    expect(runWords(going.links[1], going, now)).toBe("Running")
+    expect(runWords(going.links[2], going, now)).toBe("Waiting for the links before it")
+  })
+
+  it("is run whole, once there is a link and while no run is going", () => {
+    const run: PipelineRunPublic = {
+      job_id: "j1", state: "running", message: null, started_at: "2026-09-26T12:06:00Z", finished_at: null, links: [],
+    }
+    expect(runProblem([], null)).toBe("Draw a link first")
+    expect(runProblem([saving], run)).toBe("This pipeline is running; Stop is in the activity below")
+    expect(runProblem([saving], { ...run, state: "succeeded" })).toBeNull()
   })
 })
 

@@ -12,12 +12,13 @@ import { useWindowManager } from "@/shared/windows"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 import ActivityPanel from "./ActivityPanel.vue"
 import { jobsKey, useJobs } from "./api"
+import { pipelineWriting } from "./pipelineRuns"
 import { foreground, jobTitle, localRow, serverRow } from "./presentation"
 import type { ProcessRow } from "./presentation"
 import { useAttention } from "./sources"
 import { sourceDataKeys, touchedSources } from "./sourceOperations"
 import {
-  createRereader, startedHere, toldInThisTab, transferChanges,
+  createRereader, startedHere, toldInThisTab, transferChanges, transferWriting,
 } from "./transfers"
 
 /**
@@ -76,12 +77,15 @@ watch(serverJobs, (listed) => {
 
 // A transfer re-reads the catalogs it writes into as files arrive, at most
 // every two seconds, and the tab that started it says how it ended (D168).
+// A pipeline's run does the same as its links end (D177).
 const changes = useSourceChangesStore()
 const rereader = createRereader((connectorId) => { changes.announce(connectorId) })
 onBeforeUnmount(() => { rereader.dispose() })
 let transferSignatures = new Map<string, string>()
 watch([serverJobs, startedHere], ([listed, started]) => {
-  const { seen, touched, ended } = transferChanges(transferSignatures, listed, started)
+  const { seen, touched, ended } = transferChanges(
+    transferSignatures, listed, started, (job) => transferWriting(job) ?? pipelineWriting(job)
+  )
   transferSignatures = seen
   for (const { connectorId, settled } of touched) rereader.reread(connectorId, settled)
   for (const job of ended) {

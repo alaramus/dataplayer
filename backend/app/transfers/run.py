@@ -2,9 +2,9 @@
 job (D164, D168).
 
 Above the jobs package, which the paste offers are not: a kind that moves
-bytes is planned here and carried out by `RunTransfer`. Paste and a
-pipeline's link (D176) both come through here, so a link runs exactly as the
-Paste it stands for.
+bytes is planned here and carried out by `RunTransfer`. A pipeline's run
+(D177) carries each link out through `paste_now` and `planned` as well, so a
+link runs exactly as the Paste it stands for.
 """
 
 import uuid
@@ -85,32 +85,45 @@ async def run_paste(
             detail={"message": f"{kind.title} is not possible between these connections"},
         )
     if isinstance(kind, PastesAsJob):
-        return await _started(carrying, kind, source, destination, connector_id, request)
+        transfer = await planned(session, kind, source, destination, connector_id, request)
+        return await _started(carrying, transfer, connector_id)
     if not isinstance(kind, PastesNow):
         raise HTTPException(status_code=501, detail={"message": f"{kind.title} cannot run"})
+    return await paste_now(carrying.data_cache, kind, source, destination, connector_id, request)
+
+
+async def paste_now(
+    data_cache: DataCache,
+    kind: PastesNow,
+    source: DataAdapter,
+    destination: DataAdapter,
+    connector_id: uuid.UUID,
+    request: PasteRun,
+) -> PasteResult:
+    """A kind carried out where it is asked: in a request, or in a pipeline's job."""
     try:
         return await perform(lambda: kind.run(source, destination, request))
     finally:
         # On failure too: earlier rows or files may already have arrived.
-        await carrying.data_cache.invalidate_connector(connector_id)
+        await data_cache.invalidate_connector(connector_id)
         if kind.changes_source:
-            await carrying.data_cache.invalidate_connector(request.source_connector_id)
+            await data_cache.invalidate_connector(request.source_connector_id)
 
 
-async def _started(
-    carrying: Carrying,
+async def planned(
+    session: AsyncSession,
     kind: PastesAsJob,
     source: DataAdapter,
     destination: DataAdapter,
     connector_id: uuid.UUID,
     request: PasteRun,
-) -> PasteStarted:
-    """Plan now — a taken name answers at once — and carry it out as a job."""
-    session = carrying.session
-    planned = await perform(lambda: kind.plan(source, destination, request))
+) -> Transfer:
+    """What a transfer will move, planned before anything does: a taken name
+    answers here. The session is the one both ends were opened in."""
+    plan = await perform(lambda: kind.plan(source, destination, request))
     source_label = await _label(session, request.source_connector_id)
     destination_label = await _label(session, connector_id)
-    transfer = Transfer(
+    return Transfer(
         kind=kind.name,
         title=kind.title,
         doing=kind.doing,
@@ -122,11 +135,18 @@ async def _started(
         destination_connector_id=connector_id,
         destination_node_id=request.destination_node_id,
         destination_label=destination_label,
-        place_label=planned.place or destination_label,
-        name=planned.name,
-        items=planned.items,
-        bytes_total=planned.bytes_total,
+        place_label=plan.place or destination_label,
+        name=plan.name,
+        items=plan.items,
+        bytes_total=plan.bytes_total,
     )
+
+
+async def _started(
+    carrying: Carrying, transfer: Transfer, connector_id: uuid.UUID
+) -> PasteStarted:
+    """A planned transfer, carried out as a job of its own."""
+    session = carrying.session
     try:
         job = await job_crud.admit_within(
             session,

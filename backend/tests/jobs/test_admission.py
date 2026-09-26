@@ -78,6 +78,30 @@ async def test_kinds_not_excluded_and_finished_jobs_do_not_block(owner: User) ->
     assert admitted.state == "queued" and admitted.subject_id == subject
 
 
+async def test_alone_refuses_a_second_of_the_kind_for_the_subject_within_the_limit(owner: User) -> None:
+    subject = uuid.uuid4()
+
+    async def within() -> Job:
+        async with async_session_maker() as session:
+            return await crud.admit_within(
+                session, owner_id=owner.id, kind="pipeline.run", limit=3,
+                subject_id=subject, step_count=2, alone=True,
+            )
+
+    results = await asyncio.gather(within(), within(), return_exceptions=True)
+    admitted = [result for result in results if isinstance(result, Job)]
+    refused = [result for result in results if isinstance(result, crud.SubjectBusy)]
+    assert len(admitted) == 1 and len(refused) == 1
+    assert refused[0].job_id == admitted[0].id
+    async with async_session_maker() as session:
+        ended = await session.get(Job, admitted[0].id)
+        assert ended is not None
+        ended.state = "succeeded"
+        session.add(ended)
+        await session.commit()
+    assert (await within()).state == "queued"
+
+
 async def test_another_subject_is_not_blocked(owner: User) -> None:
     await _existing(owner, uuid.uuid4(), "source.operation", "running")
     assert (await _admit(owner, uuid.uuid4())).state == "queued"

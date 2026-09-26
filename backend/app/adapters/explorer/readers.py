@@ -106,7 +106,9 @@ class CsvReader:
     def read(
         self, path: Path, limit: int, offset: int, filters: Sequence[Filter] = ()
     ) -> Page:
-        with path.open("r", encoding="utf-8", errors="replace", newline="") as handle:
+        # `utf-8-sig`: a file that starts with a BOM — every CSV Save as CSV
+        # writes, for Excel — would otherwise have it in its first column's name.
+        with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as handle:
             reader = csv.reader(handle, delimiter=_delimiter(path, handle))
             header = next(reader, None)
             if header is None:

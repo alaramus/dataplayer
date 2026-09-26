@@ -1,5 +1,6 @@
 """A pipeline: connections laid out on a canvas as cards of what was ticked
-in them (D175), and links drawn between their rows (D176).
+in them (D175), and links drawn between their rows (D176). Its runs are jobs
+(D177), and nothing of them is kept here.
 
 The body is read and written whole and never queried into, as a dashboard's
 is (D129): one JSON column, validated on the way in and again on the way out.
@@ -9,11 +10,11 @@ refused, so one damaged row does not lock its owner out of the rest.
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 from pydantic import Field as PydanticField
-from sqlalchemy import JSON, Column, DateTime, String
+from sqlalchemy import JSON, Column, DateTime
 from sqlmodel import Field, SQLModel
 
 from app.adapters.catalog import NodeKind
@@ -177,44 +178,6 @@ class Pipeline(SQLModel, table=True):
     )
 
 
-RunOutcome = Literal["running", "done", "failed"]
-
-
-class PipelineRun(SQLModel, table=True):
-    """The last run of one link (D176).
-
-    A row of its own rather than a field of the pipeline's body: a run does
-    not change what the person drew, so it must not raise the version their
-    next save is checked against.
-    """
-
-    pipeline_id: uuid.UUID = Field(
-        foreign_key="pipeline.id", primary_key=True, ondelete="CASCADE"
-    )
-    link_id: uuid.UUID = Field(primary_key=True)
-    outcome: RunOutcome = Field(sa_column=Column(String(16), nullable=False))
-    message: str | None = Field(default=None, max_length=512)
-    # A transfer is a job: while it runs, the job is what says how it ended.
-    # No foreign key, as a job keeps none to what it was about.
-    job_id: uuid.UUID | None = None
-    started_at: datetime = Field(
-        default_factory=get_datetime_utc,
-        sa_column=Column(DateTime(timezone=True), nullable=False),
-    )
-    finished_at: datetime | None = Field(
-        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
-    )
-
-
-class LinkRun(BaseModel):
-    link_id: uuid.UUID
-    outcome: RunOutcome
-    message: str | None = None
-    job_id: uuid.UUID | None = None
-    started_at: datetime
-    finished_at: datetime | None = None
-
-
 class PipelineCreate(_Strict):
     name: str = PydanticField(min_length=1, max_length=MAX_NAME)
 
@@ -232,6 +195,15 @@ class PipelineSummary(BaseModel):
     updated_at: datetime
 
 
+class LinkPlace(BaseModel):
+    """Where a link comes in a run, as the canvas numbers it (D177)."""
+
+    link_id: uuid.UUID
+    number: int
+    # Why it goes first among links writing into each other, where it does.
+    circle: str | None = None
+
+
 class PipelinePublic(PipelineContent):
     id: uuid.UUID
     name: str
@@ -239,6 +211,7 @@ class PipelinePublic(PipelineContent):
     updated_at: datetime
     # The stored content could not be read and is shown empty.
     broken: bool = False
+    order: list[LinkPlace] = PydanticField(default_factory=list)
 
 
 class CardState(BaseModel):
@@ -263,16 +236,3 @@ def content_of(pipeline: Pipeline) -> PipelineContent | None:
         return PipelineContent.model_validate(pipeline.content)
     except ValidationError:
         return None
-
-
-def public(pipeline: Pipeline) -> PipelinePublic:
-    content = content_of(pipeline)
-    return PipelinePublic(
-        id=pipeline.id,
-        name=pipeline.name,
-        version=pipeline.version,
-        updated_at=pipeline.updated_at,
-        cards=[] if content is None else content.cards,
-        links=[] if content is None else content.links,
-        broken=content is None,
-    )

@@ -97,8 +97,9 @@ Known deviations:
   restarted by its supervisor would end its neighbours' live jobs. Work left
   `queued` by a process that died before starting it is settled as
   `interrupted`, never picked up.
-- **Only transfers are bounded per person.** `admit_within` refuses one over
-  `TRANSFER_MAX_ACTIVE` (D168); other kinds have no such limit yet.
+- **Only transfers and pipeline runs are bounded per person.**
+  `admit_within` refuses one over `TRANSFER_MAX_ACTIVE` (D168) or
+  `PIPELINE_MAX_ACTIVE` (D177); other kinds have no such limit yet.
 - **Jobs are not fanned out through infrastructure Redis.** The database row
   remains the authority and the accepting process performs it. D104 requires
   measured need and a separate durable delivery contract before that changes.

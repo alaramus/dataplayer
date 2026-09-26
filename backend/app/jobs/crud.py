@@ -115,16 +115,33 @@ async def admit_within(
     subject_id: uuid.UUID | None,
     step_count: int,
     parameters: dict[str, Any] | None = None,
+    alone: bool = False,
 ) -> Job:
     """Record a job unless its owner already has `limit` of this kind unfinished.
 
     Refused rather than queued, as a run over the limit is (D64). The same
     advisory lock as `admit_exclusive`, on the owner and the kind, so two tabs
     cannot both take the last place.
+
+    `alone` refuses one of this kind already unfinished for the subject too.
+    The owner's lock covers it only where the owner is the one person who
+    starts jobs about that subject, as with a pipeline (D177).
     """
     await session.exec(select(func.pg_advisory_xact_lock(
         func.hashtextextended(f"job-owner:{kind}:{owner_id}", 0)
     )))
+    if alone and subject_id is not None:
+        busy = (await session.exec(
+            select(Job)
+            .where(Job.subject_id == subject_id)
+            .where(Job.kind == kind)
+            .where(col(Job.state).not_in(TERMINAL))
+            .limit(1)
+        )).first()
+        if busy is not None:
+            busy_id = busy.id
+            await session.rollback()
+            raise SubjectBusy(busy_id)
     active = (await session.exec(
         select(func.count())
         .select_from(Job)

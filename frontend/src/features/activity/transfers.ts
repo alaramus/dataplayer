@@ -61,16 +61,16 @@ const WORDS: Record<Exclude<TransferOutcome, "done">, string> = {
   stopped: "stopped",
 }
 /** The steps a transfer shows besides its work (app/transfers/handler.py). */
-const WAITING = "waiting for a free transfer slot"
+export const WAITING = "waiting for a free transfer slot"
 const REMOVING = "removing the sources"
 /** Items, and files that did not arrive, listed under a finished transfer. */
 const LISTED = 10
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function text(value: unknown): string | null {
+export function text(value: unknown): string | null {
   return typeof value === "string" ? value : null
 }
 
@@ -185,7 +185,7 @@ function itemLine(transfer: TransferRecord, item: TransferItemRecord): string {
   return item.message ?? `${item.name} — ${WORDS[item.outcome]}`
 }
 
-function listed(lines: string[], more: number): string[] {
+export function listed(lines: string[], more: number): string[] {
   const rest = lines.length - LISTED + more
   return [...lines.slice(0, LISTED), ...(rest > 0 ? [`and ${counted(rest)} more`] : [])]
 }
@@ -249,30 +249,52 @@ export interface TransferChanges {
 }
 
 /**
+ * What a job writing into connections says of itself: a signature that
+ * changes as things arrive, and the connections it writes into.
+ */
+export interface Writing {
+  signature: string
+  connectorIds: string[]
+}
+
+export function transferWriting(job: JobPublic): Writing | null {
+  const transfer = transferOf(job)
+  if (transfer === null) return null
+  return {
+    signature: `${job.state}:${String(transfer.published)}`,
+    connectorIds: [
+      transfer.destinationConnectorId,
+      ...(transfer.mode === "move" ? [transfer.sourceConnectorId] : []),
+    ],
+  }
+}
+
+/**
  * What the listing says moved since the last look.
  *
  * A transfer moves when a file arrives or it ends. A transfer this tab just
  * started counts as seen before its first listing, so one that ended before
  * the listing was read again still re-reads the catalogs and is told (D168).
+ * `writingOf` reads other jobs that write the same way: a pipeline's run
+ * (D177).
  */
 export function transferChanges(
   previous: ReadonlyMap<string, string>,
   jobs: JobPublic[],
-  started: ReadonlySet<string>
+  started: ReadonlySet<string>,
+  writingOf: (job: JobPublic) => Writing | null = transferWriting
 ): TransferChanges {
   const seen = new Map<string, string>()
   const touched: TransferChanges["touched"] = []
   const ended: JobPublic[] = []
   for (const job of jobs) {
-    const transfer = transferOf(job)
-    if (transfer === null) continue
-    const signature = `${job.state}:${String(transfer.published)}`
-    seen.set(job.id, signature)
+    const writing = writingOf(job)
+    if (writing === null) continue
+    seen.set(job.id, writing.signature)
     const before = previous.get(job.id) ?? (started.has(job.id) ? "started" : undefined)
-    if (before === undefined || before === signature) continue
+    if (before === undefined || before === writing.signature) continue
     const settled = !isWorking(job)
-    touched.push({ connectorId: transfer.destinationConnectorId, settled })
-    if (transfer.mode === "move") touched.push({ connectorId: transfer.sourceConnectorId, settled })
+    for (const connectorId of writing.connectorIds) touched.push({ connectorId, settled })
     if (settled && started.has(job.id)) ended.push(job)
   }
   return { seen, touched, ended }

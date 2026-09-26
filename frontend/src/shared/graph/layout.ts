@@ -120,8 +120,52 @@ export function edgePaths(graph: GraphDocument, positions: Record<string, Point2
       c2 = { x: b.x - direction * bend, y: b.y + lane * 12 }
     }
     const path = `M ${a.x} ${a.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${b.x} ${b.y}`
+    const curve: Curve = [a, c1, c2, b]
     // The curve's own middle, where a label is written on it.
-    const mid = { x: (a.x + 3 * c1.x + 3 * c2.x + b.x) / 8, y: (a.y + 3 * c1.y + 3 * c2.y + b.y) / 8 }
-    return { edge, path, ends, mid }
+    return { edge, path, ends, mid: along(curve, 0.5), curve }
   })
+}
+
+/** A cubic curve by its ends and its two control points. */
+export type Curve = readonly [Point2, Point2, Point2, Point2]
+
+/** The point of a curve a share `t` of the way along it. */
+export function along([a, c1, c2, b]: Curve, t: number): Point2 {
+  const u = 1 - t
+  const [wa, w1, w2, wb] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t]
+  return { x: wa * a.x + w1 * c1.x + w2 * c2.x + wb * b.x, y: wa * a.y + w1 * c1.y + w2 * c2.y + wb * b.y }
+}
+
+/** A label's box, as the canvas writes it: 11px text, a line high. */
+const LABEL_HEIGHT = 16
+const LABEL_CHAR = 6.5
+/** Where along its line a label is tried, the middle first. */
+const LABEL_STOPS = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]
+
+/** How many label heights above or below its middle a label may be stacked. */
+const LABEL_STACK = 6
+
+/**
+ * Where each label is written: the middle of its line, or, where that would
+ * cover a label already placed, the nearest point along its own line that
+ * does not, and failing that a clear place stacked above or below the
+ * middle. Two lines from one row to neighbouring rows share a middle, and the
+ * second label hid the first, number and all.
+ */
+export function labelSpots(items: readonly { id: string; text: string; curve: Curve }[]): Map<string, Point2> {
+  const placed: { x: number; y: number; width: number }[] = []
+  const clear = (spot: Point2, width: number) => placed.every((box) =>
+    Math.abs(box.x - spot.x) * 2 >= box.width + width || Math.abs(box.y - spot.y) >= LABEL_HEIGHT)
+  const spots = new Map<string, Point2>()
+  for (const item of items) {
+    const width = item.text.length * LABEL_CHAR
+    const middle = along(item.curve, 0.5)
+    const stacked = Array.from({ length: LABEL_STACK }, (_, n) => [n + 1, -(n + 1)]).flat()
+      .map((step) => ({ x: middle.x, y: middle.y + step * LABEL_HEIGHT }))
+    const spot = [...LABEL_STOPS.map((t) => along(item.curve, t)), ...stacked]
+      .find((one) => clear(one, width)) ?? middle
+    placed.push({ ...spot, width })
+    spots.set(item.id, spot)
+  }
+  return spots
 }

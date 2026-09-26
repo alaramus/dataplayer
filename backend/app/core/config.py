@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024
     # Transfers between connections one person may have running at once (D168).
     TRANSFER_MAX_ACTIVE: int = 3
+    # Pipelines one person may have running at once (D177).
+    PIPELINE_MAX_ACTIVE: int = 3
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

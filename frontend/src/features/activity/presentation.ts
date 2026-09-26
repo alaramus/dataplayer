@@ -4,6 +4,8 @@ import { isWorking, progressOf } from "@/features/services/jobs"
 import { isActive } from "@/shared/operations"
 import type { Operation } from "@/shared/operations"
 import type { Tone } from "@/shared/ui"
+import { pipelineBrief, pipelineLines, pipelineRunOf, settledSteps } from "./pipelineRuns"
+import type { PipelineRunRecord } from "./pipelineRuns"
 import { operationLines, settledCount, sourceOperationOf } from "./sourceOperations"
 import {
   transferBrief, transferLines, transferMeasure, transferOf, transferStopHint,
@@ -41,13 +43,16 @@ export const JOB_LABELS: Record<JobPublic["kind"], string> = {
   "source.operation": "Source operation",
   "metrics.store.create": "Start metrics store",
   "paste.transfer": "Transfer",
+  "pipeline.run": "Pipeline run",
 }
 
 /**
  * What a job is called: a source operation by its action's title, a transfer
- * by its kind's, any other by its kind.
+ * by its kind's, a pipeline's run by the pipeline, any other by its kind.
  */
 export function jobTitle(job: JobPublic): string {
+  const run = pipelineRunOf(job)
+  if (run !== null) return `Pipeline ${run.pipelineName}`
   return sourceOperationOf(job)?.title ?? transferOf(job)?.title ?? JOB_LABELS[job.kind]
 }
 
@@ -90,6 +95,8 @@ export function localRow(item: Operation): ProcessRow {
 export function serverRow(job: JobPublic, subject: string | undefined): ProcessRow {
   const transfer = transferOf(job)
   if (transfer !== null) return transferRow(job, transfer)
+  const run = pipelineRunOf(job)
+  if (run !== null) return pipelineRow(job, run)
   const active = isWorking(job)
   const operation = sourceOperationOf(job)
   const settled = operation === null ? 0 : settledCount(operation)
@@ -133,6 +140,29 @@ function transferRow(job: JobPublic, transfer: TransferRecord): ProcessRow {
     createdAt: Date.parse(job.created_at),
     canPause: false, canResume: false, canStop: active,
     controlsHint: active ? transferStopHint(transfer) : "",
+  }
+}
+
+/**
+ * A pipeline's run (D177): the pipeline by its name, the link in hand and how
+ * many have ended; Stop ends the link running and the rest are not run.
+ */
+function pipelineRow(job: JobPublic, run: PipelineRunRecord): ProcessRow {
+  const active = isWorking(job)
+  const settled = settledSteps(run)
+  const total = run.steps.length
+  return {
+    id: job.id, source: "server",
+    label: `Pipeline · ${run.pipelineName}`,
+    brief: pipelineBrief(run),
+    detail: pipelineLines(job, run).join("\n"),
+    status: STATUS[job.state], tone: toneOf(job.state),
+    active, paused: false,
+    progress: job.state === "succeeded" ? 1 : active ? settled / total : null,
+    measurement: `${String(settled)} of ${String(total)} links`,
+    createdAt: Date.parse(job.created_at),
+    canPause: false, canResume: false, canStop: active,
+    controlsHint: active ? "Stops the link running now; the links after it are not run." : "",
   }
 }
 

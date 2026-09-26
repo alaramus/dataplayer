@@ -1,9 +1,9 @@
 # Pipelines
 
-Read this before changing the pipelines space, a pipeline's cards or links,
-or the answer of what a person's connections can give each other.
+Read this before changing the pipelines space, a pipeline's cards, links or
+run, or the answer of what a person's connections can give each other.
 
-Decisions here: D174, D175, D176.
+Decisions here: D174, D175, D176, D177.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -68,7 +68,7 @@ Known deviations:
 
 Spec: [Pipelines: connections laid out on a canvas, and links run between them](../decisions/2026-09-26-pipelines-design.md)
 
-## D176. A link is drawn row to row, set in a panel below, and run from it
+## D176. A link is drawn row to row and set in a panel below
 
 - **A row dragged onto a row of another card** asks the pair window's
   question with one tick each side (D167): the target row stands for the
@@ -81,21 +81,12 @@ Spec: [Pipelines: connections laid out on a canvas, and links run between them](
   a taken name, the columns of a new table or the pairing into a ticked one.
   The server refuses a link whose ends are not rows of the pipeline's cards,
   two links between the same rows, and more than 200 links.
-- **The panel below the canvas** is the selected link's: what it does in one
-  sentence, a choice of operation when several fit, the operation's own
-  choices, and its last run. A new table's columns and a pairing are chosen
-  in the windows Paste opens for them, started from what the link kept; they
-  keep the choice rather than run.
-- **Run saves the draft first, then runs what was saved.**
-  `POST /pipelines/{id}/links/{link}/run` builds the paste from the stored
-  link and goes through `transfers/run.py`, the door Paste uses: access and
-  what the kind serves are checked again, a transfer becomes a job (D168), a
-  row paste runs in the request. A refusal is the run's outcome, not the
-  route's.
-- **The last run stays with the link** in a row of its own, so a run never
-  raises the version the next save is checked against. A transfer's outcome
-  is read from its job; the screen reads the runs again when a job it
-  started ends. A link taken away takes its run with it.
+- **The panel below the canvas** is the selected link's: its number and
+  what it does in one sentence, a choice of operation when several fit, the
+  operation's own choices, and what it did in the pipeline's last run. A new
+  table's columns and a pairing are chosen in the windows Paste opens for
+  them, started from what the link kept; they keep the choice rather than
+  run. A link is run only with the pipeline (D177).
 - **The hint** — a button in the head — draws dashed every link that could be
   made among the rows kept on the pipeline, labelled by what it would do. It
   asks each pair of connections first (D174), then each kind's offer for
@@ -106,11 +97,68 @@ Spec: [Pipelines: connections laid out on a canvas, and links run between them](
 
 Known deviations:
 
-- **A row paste runs in the request**, as D166's does, up to its 5,000 rows.
-  Running every link at once, when it comes, needs them all as jobs.
 - **A link's title is kept as it was chosen**, as a row's label is: the
   canvas draws it without naming kinds.
 - **The hint asks every offer one after another.** Four hundred pairs of rows
   can take seconds on sources that are slow to answer.
 
 Spec: [Pipelines: connections laid out on a canvas, and links run between them](../decisions/2026-09-26-pipelines-design.md)
+
+## D177. A pipeline runs as one job, link by link along its arrows
+
+- **Run in the head is the only Run.** It saves the draft, then
+  `POST /pipelines/{id}/run` runs the pipeline as saved. It refuses before
+  anything runs with no link drawn, and when a link lacks a choice its kind's
+  workflow needs — a new table's name and columns, a pairing — naming those
+  links, their ids beside the message; the screen opens the first. That is
+  asked of the kind alone, reading no source.
+- **The order is `order.py`'s**, a plain function of the body, sent with every
+  read and save as `order`: a link goes after every link writing into its
+  source card; links free at once go by their source card's x, then its y,
+  then the row, then the order they were drawn. Where links write into each
+  other in a circle, the first link by that rule whose own waits all lie in
+  the circle goes first, and carries `circle` — the cards, and why it — drawn
+  as its number in the caution colour with a hint over it.
+- **One job of kind `pipeline.run`** carries the steps out. Its payload
+  (`record.py`) is what each step runs, copied in when the run starts, so an
+  edit made while it runs changes nothing in it; and each step's outcome,
+  with a transfer's own payload. Each step opens both ends again as the owner
+  stands now through the one door to a source, checks what the kind serves,
+  and carries the kind out: rows by `paste_now`, a transfer by `planned` and
+  `RunTransfer.transferred`, on the transfers' slots and threads. No step runs
+  in the request.
+- **The first step that fails stops the run.** The steps after it are
+  `not_run`, and the job fails with "Stopped at 3 of 5, Save as CSV: …; 2 not
+  run". Stop in the footer cancels the job: the step in hand stops as a
+  transfer does (D168) and says what it got done, and the job says "Stopped on
+  request at …".
+- **One run of a pipeline at a time**, and `PIPELINE_MAX_ACTIVE` a person, by
+  `admit_within(alone=True)` under the owner's lock: 409 and 429.
+- **The last run is the pipeline's newest `pipeline.run` job.**
+  `GET /pipelines/{id}/run` answers `{run}`: the job's state, sentence and
+  times, and each link still drawn with what it did. A step a restart left
+  running reads as failed with the job's sentence, and one never reached as
+  not run. D176's row per link went with the route that ran one link.
+- **On the canvas** each line takes its result's colour — the link running
+  highlighted, done, failed, not run faded — and its number before its title;
+  the head says the last run's sentence and when, and the panel the link's
+  part. The screen reads the last run again at each move of its job told over
+  the socket, and every three seconds while it runs.
+- **The footer** shows the run by the pipeline's name and where it is —
+  "Nightly · 2 of 5: Save as CSV" — and lists what each link did once it
+  ends; the connections its links wrote into are read again as a transfer's
+  are.
+
+Known deviations:
+
+- **The order is by card, not by node.** A link writing into a folder and one
+  reading a file of that folder from the same card are ordered; from two
+  cards of one connection they are not, and position decides.
+- **Every link that goes before a circle writing into its card says so.** Two
+  links from one card into a card that writes back both run before it, and
+  both numbers are in the caution colour.
+- **A step's rows keep D166's ceiling** of 5,000, now inside the job.
+- **A step names its connections as their cards kept them** (D175): a
+  connection renamed since keeps its old name in the run's record.
+
+Spec: [One Run for a whole pipeline](../decisions/2026-09-26-pipeline-run-design.md)

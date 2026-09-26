@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onMounted, ref } from "vue"
 
 import type { CardRow } from "@/client"
@@ -34,6 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const loadChildren = useCatalogLoader()
+const queryClient = useQueryClient()
 // The levels walked into, below the top of the connection.
 const trail = ref<{ id: string; label: string }[]>([])
 const nodes = ref<ListNode[]>([])
@@ -76,7 +78,13 @@ async function show(nodeId: string | null): Promise<boolean> {
   }
 }
 
-onMounted(() => void show(null))
+// Read as the connection is now: a pipeline's run may have written into it a
+// moment ago, and the levels another screen keeps would still be fresh.
+onMounted(() => {
+  void queryClient
+    .invalidateQueries({ queryKey: ["catalog", props.connectorId], refetchType: "none" })
+    .then(() => show(null))
+})
 
 function apply(result: CardRow[] | string) {
   if (typeof result === "string") {

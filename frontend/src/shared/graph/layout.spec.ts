@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import { deliveryGraph } from "./fixtures"
-import { arrange, CARD_WIDTH, edgePaths, fit2, HEADER_HEIGHT, nodeHeight, portAnchors, ROW_HEIGHT, zoomAt } from "./layout"
+import {
+  along, arrange, CARD_WIDTH, edgePaths, fit2, HEADER_HEIGHT, labelSpots, nodeHeight, portAnchors, ROW_HEIGHT, zoomAt,
+} from "./layout"
+import type { Curve } from "./layout"
 
 describe("graph geometry", () => {
   it("places cyclic and disconnected components deterministically without overlapping cards", () => {
@@ -68,5 +71,28 @@ describe("graph geometry", () => {
       edgePaths(deliveryGraph, { ...positions, api: { x: 500, y: 0 }, worker: { x: 0, y: 0 } }, true)
     )
     expect(mirrored.get("api")?.get("events")).toEqual({ left: true, right: false })
+  })
+
+  it("writes a label that would cover another further along its own line", () => {
+    // From one row to two rows a step apart: the middles all but meet.
+    const first: Curve = [{ x: 0, y: 0 }, { x: 150, y: 0 }, { x: 250, y: 100 }, { x: 400, y: 100 }]
+    const second: Curve = [{ x: 0, y: 0 }, { x: 150, y: 0 }, { x: 250, y: 110 }, { x: 400, y: 110 }]
+    const spots = labelSpots([
+      { id: "a", text: "1 · Save as CSV", curve: first },
+      { id: "b", text: "2 · Save as CSV", curve: second },
+    ])
+    expect(spots.get("a")).toEqual(along(first, 0.5))
+    const moved = spots.get("b")!
+    expect(moved).not.toEqual(along(second, 0.5))
+    expect(Math.abs(moved.y - spots.get("a")!.y) >= 16 || Math.abs(moved.x - spots.get("a")!.x) >= 15 * 6.5).toBe(true)
+    // Alone, a label keeps the middle.
+    expect(labelSpots([{ id: "b", text: "2 · Save as CSV", curve: second }]).get("b")).toEqual(along(second, 0.5))
+    // Two cards close together leave no clear point along the line: stacked.
+    const short: Curve = [{ x: 0, y: 0 }, { x: 45, y: 0 }, { x: 75, y: 10 }, { x: 120, y: 10 }]
+    const close = labelSpots([
+      { id: "a", text: "1 · Save as CSV", curve: short },
+      { id: "b", text: "2 · Save as CSV", curve: short },
+    ])
+    expect(close.get("b")).toEqual({ x: along(short, 0.5).x, y: along(short, 0.5).y + 16 })
   })
 })

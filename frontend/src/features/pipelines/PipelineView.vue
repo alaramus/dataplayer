@@ -8,6 +8,7 @@ import { startedInThisTab } from "@/features/activity/transfers"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { isJobEvent, JOBS_TOPIC } from "@/features/services/jobs"
 import { messageOf } from "@/shared/api/errors"
+import { useNow } from "@/shared/freshness/useNow"
 import Graph2D from "@/shared/graph/Graph2D.vue"
 import type { Camera2, GraphPort, GraphSelection, Point2 } from "@/shared/graph/model"
 import { realtime } from "@/shared/realtime/client"
@@ -21,6 +22,7 @@ import {
   AppInput,
   AppSelect,
   AppSpinner,
+  AppTooltip,
   appIcons,
   useConfirm,
   useToast,
@@ -29,18 +31,18 @@ import { WindowDialog } from "@/shared/windows"
 
 import {
   cardStateKey,
+  lackingLinks,
+  lastRunKey,
   linkOffersKey,
   pipelineKey,
   readCardState,
   readHint,
   readLinkOffers,
-  runLink,
-  runsKey,
+  runPipeline,
   useDeletePipeline,
+  useLastRun,
   usePipeline,
-  useRuns,
   useSavePipeline,
-  withRun,
 } from "./api"
 import type { LinkSide } from "./api"
 import CardPickerWindow from "./CardPickerWindow.vue"
@@ -56,6 +58,8 @@ import {
   linkFromOffer,
   listed,
   refusal,
+  runProblem,
+  runSummary,
   usable,
 } from "./links"
 import {
@@ -78,7 +82,7 @@ import type { CardConnection } from "./model"
  *
  * Cards and links are held here as a draft and saved whole a moment after the
  * last change, with the version they were read at, as a dashboard is (D129).
- * A link runs by what was saved, so Run saves first.
+ * The pipeline runs whole by what was saved, so Run saves first (D177).
  */
 const props = defineProps<{
   pipelineId: string
@@ -106,7 +110,8 @@ const pipeline = usePipeline(() => props.pipelineId)
 const saving = useSavePipeline()
 const deleting = useDeletePipeline()
 const adapterTypes = useAdapterTypes()
-const runs = useRuns(() => props.pipelineId)
+const lastRun = useLastRun(() => props.pipelineId)
+const now = useNow()
 
 const name = ref("")
 const version = ref(0)
@@ -118,7 +123,7 @@ const camera = ref<Camera2 | null>(null)
 const selection = ref<GraphSelection>(null)
 const hints = ref<HintLink[]>([])
 const hinting = ref(false)
-const runningLink = ref<string | null>(null)
+const starting = ref(false)
 const canvasBox = useTemplateRef<HTMLElement>("canvasBox")
 const canvas = useTemplateRef<InstanceType<typeof Graph2D>>("canvas")
 
@@ -223,7 +228,14 @@ const states = computed(() => {
   return found
 })
 
-const edges = computed(() => [...links.value.map(linkEdge), ...hintEdges(hints.value)])
+// Numbered as the server last answered: a link drawn since gets its number
+// when its save comes back.
+const order = computed(() => new Map((pipeline.data.value?.order ?? []).map((place) => [place.link_id, place])))
+const linkRuns = computed(() => new Map((lastRun.data.value?.links ?? []).map((run) => [run.link_id, run])))
+const edges = computed(() => [
+  ...links.value.map((link) => linkEdge(link, order.value.get(link.id), linkRuns.value.get(link.id))),
+  ...hintEdges(hints.value),
+])
 const graph = computed(() =>
   pipelineGraph(cards.value, connectionsById.value, states.value, typeTitles.value, edges.value)
 )
@@ -445,7 +457,6 @@ const panelSides = computed(() => {
   const to = sideOf(link.target)
   return from === null || to === null ? null : { from, to }
 })
-const runOf = computed(() => new Map((runs.data.value ?? []).map((run) => [run.link_id, run])))
 
 function changeLink(changed: Link) {
   links.value = links.value.map((link) => (link.id === changed.id ? changed : link))
@@ -464,30 +475,34 @@ async function removeLink(link: Link) {
   schedule()
 }
 
-async function run(link: Link) {
-  if (runningLink.value !== null) return
-  runningLink.value = link.id
+const runBlocked = computed(() => runProblem(links.value, lastRun.data.value))
+const lastRunFailed = computed(() => ["failed", "interrupted"].includes(lastRun.data.value?.state ?? ""))
+
+/** Every link, in order, as one job; the footer follows it from here. */
+async function run() {
+  if (starting.value || runBlocked.value !== null) return
+  starting.value = true
   try {
     // What runs is what is kept, so what is on the screen is kept first.
     if (!(await save())) return
-    const answer = await runLink(props.pipelineId, link.id)
-    queryClient.setQueryData(runsKey(props.pipelineId), (list: typeof runs.data.value) => withRun(list, answer.run))
-    if (answer.job) startedInThisTab(answer.job.id)
-    else if (answer.run.outcome === "done" && answer.run.message) toast.success(answer.run.message)
+    const answer = await runPipeline(props.pipelineId)
+    queryClient.setQueryData(lastRunKey(props.pipelineId), answer)
+    startedInThisTab(answer.job_id)
   } catch (cause) {
-    toast.error(messageOf(cause, "The link could not run"))
+    // A link lacking a choice is opened, so the choice is one press away.
+    const first = lackingLinks(cause)[0]
+    if (first !== undefined) selection.value = { kind: "edge", id: first }
+    toast.error(messageOf(cause, "The pipeline could not run"))
   } finally {
-    runningLink.value = null
+    starting.value = false
   }
 }
 
-// A transfer a link started says how it ended through its job; the runs are
-// read again then, so the panel says it too.
+// Every step of a run moves its job; the last run is read again each time,
+// so the lines take their colours as the steps end.
 const stopListening = realtime().subscribe(JOBS_TOPIC, (payload) => {
-  if (!isJobEvent(payload) || payload.state === "queued" || payload.state === "running") return
-  if ((runs.data.value ?? []).some((one) => one.job_id === payload.job_id)) {
-    void queryClient.invalidateQueries({ queryKey: runsKey(props.pipelineId) })
-  }
+  if (!isJobEvent(payload) || payload.kind !== "pipeline.run" || payload.subject_id !== props.pipelineId) return
+  void queryClient.invalidateQueries({ queryKey: lastRunKey(props.pipelineId) })
 })
 onBeforeUnmount(stopListening)
 
@@ -564,7 +579,25 @@ defineExpose({ place })
         data-testid="pipeline-switcher"
         @update:model-value="emit('select', String($event))"
       />
+      <span
+        v-if="lastRun.data.value"
+        class="pipeline-view__last-run"
+        :class="{ 'pipeline-view__last-run--failed': lastRunFailed }"
+        data-testid="pipeline-last-run"
+      >{{ runSummary(lastRun.data.value, now) }}<AppTooltip>{{ runSummary(lastRun.data.value, now) }}</AppTooltip></span>
       <template #actions>
+        <span class="pipeline-view__run">
+          <AppButton
+            size="sm"
+            :icon="appIcons.playArrow"
+            label="Run"
+            :disable="runBlocked !== null"
+            :loading="starting"
+            data-testid="pipeline-run"
+            @click="run"
+          />
+          <AppTooltip>{{ runBlocked ?? "Run every link, one after another, as saved" }}</AppTooltip>
+        </span>
         <AppIconButton
           :icon="appIcons.lightbulb"
           :tooltip="hints.length > 0 ? 'Hide the possible links' : 'Show the links that could be drawn'"
@@ -677,10 +710,10 @@ defineExpose({ place })
         :from="panelSides.from"
         :to="panelSides.to"
         :name="nameEnd"
-        :run="runOf.get(selectedLink.id)"
-        :running="runningLink === selectedLink.id"
+        :place="order.get(selectedLink.id)"
+        :link-run="linkRuns.get(selectedLink.id)"
+        :last-run="lastRun.data.value"
         @change="changeLink"
-        @run="run(selectedLink)"
         @remove="removeLink(selectedLink)"
         @close="selection = null"
       />
@@ -736,6 +769,21 @@ defineExpose({ place })
 .pipeline-view__switcher {
   flex: 0 1 280px;
   min-width: 0;
+}
+.pipeline-view__last-run {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dp-text-muted);
+  font-size: 12px;
+}
+.pipeline-view__last-run--failed {
+  color: var(--dp-tone-warning-text);
+}
+.pipeline-view__run {
+  display: inline-flex;
 }
 .pipeline-view__center {
   flex: 1;

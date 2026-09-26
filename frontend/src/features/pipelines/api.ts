@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
+import { AxiosError } from "axios"
 import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { ConnectorsService, PipelinesService } from "@/client"
-import type { Card, LinkEnd, LinkRun, PipelinePublic, PipelineSave, PipelineSummary } from "@/client"
+import type { Card, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary } from "@/client"
 
+import { isRunning } from "./links"
 import { checkedRowsKey } from "./model"
 
 /**
@@ -92,24 +94,33 @@ export async function readCardState(pipelineId: string, cardId: string) {
   return (await PipelinesService.readCardState({ path: { pipeline_id: pipelineId, card_id: cardId } })).data
 }
 
-export function runsKey(pipelineId: string) {
-  return ["pipeline-runs", pipelineId] as const
+/** The pipeline's last run (D177): its job, as the server reads it now. */
+export function lastRunKey(pipelineId: string) {
+  return ["pipeline-run", pipelineId] as const
 }
 
-export function useRuns(pipelineId: MaybeRefOrGetter<string>) {
+export function useLastRun(pipelineId: MaybeRefOrGetter<string>) {
   return useQuery({
-    queryKey: computed(() => runsKey(toValue(pipelineId))),
-    queryFn: async () => (await PipelinesService.readRuns({ path: { pipeline_id: toValue(pipelineId) } })).data,
+    queryKey: computed(() => lastRunKey(toValue(pipelineId))),
+    queryFn: async () =>
+      (await PipelinesService.readLastRun({ path: { pipeline_id: toValue(pipelineId) } })).data.run ?? null,
+    // Each step's end arrives by the socket; this is for a socket that missed it.
+    refetchInterval: (query) => (isRunning(query.state.data) ? 3000 : false),
   })
 }
 
-/** One run kept in the list of runs, in place of the one before it. */
-export function withRun(runs: readonly LinkRun[] | undefined, run: LinkRun): LinkRun[] {
-  return [...(runs ?? []).filter((one) => one.link_id !== run.link_id), run]
+/** Every link of the pipeline as saved, one after another, as one job. */
+export async function runPipeline(pipelineId: string): Promise<PipelineRunPublic> {
+  return (await PipelinesService.runPipeline({ path: { pipeline_id: pipelineId } })).data
 }
 
-export async function runLink(pipelineId: string, linkId: string) {
-  return (await PipelinesService.runPipelineLink({ path: { pipeline_id: pipelineId, link_id: linkId } })).data
+/** The links a refused run named as lacking a choice, first in run order. */
+export function lackingLinks(cause: unknown): string[] {
+  if (!(cause instanceof AxiosError)) return []
+  const detail: unknown = cause.response?.data?.detail
+  if (detail === null || typeof detail !== "object" || !("link_ids" in detail)) return []
+  const ids: unknown = detail.link_ids
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : []
 }
 
 export async function readHint(pipelineId: string, cardId: string | null) {

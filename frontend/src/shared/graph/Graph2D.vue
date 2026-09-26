@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useId } from "vue"
 
-import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, portAnchors, zoomAt } from "./layout"
+import { AppTooltip } from "@/shared/ui"
+
+import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, labelSpots, portAnchors, zoomAt } from "./layout"
 import { accentIndex, edgesOf, neighborsOf } from "./model"
-import type { Camera2, GraphDocument, GraphPort, GraphSelection, Point2 } from "./model"
+import type { Camera2, GraphDocument, GraphEdge, GraphPort, GraphSelection, Point2 } from "./model"
 
 const props = withDefaults(defineProps<{
   graph: GraphDocument
@@ -38,7 +40,17 @@ const anchorOf = (nodeId: string, portId: string) =>
   anchors.value.get(nodeId)?.get(portId) ?? NO_ANCHOR
 const neighbors = computed(() => neighborsOf(props.graph, props.selection))
 const highlighted = computed(() => new Set(edgesOf(props.graph, props.selection).map((edge) => edge.id)))
+const labelled = computed(() => paths.value.filter((item) => item.edge.label !== "" || item.edge.badge))
+const labelText = (edge: GraphEdge) => [edge.badge, edge.label].filter(Boolean).join(" · ")
+const spots = computed(() =>
+  labelSpots(labelled.value.map((item) => ({ id: item.edge.id, text: labelText(item.edge), curve: item.curve })))
+)
 const arrowId = `graph-arrow-${useId()}`
+const ARROW_TONES = ["plain", "active", "info", "success", "error", "muted"] as const
+/** The arrowhead a line ends in: its result's colour, else the selection's. */
+function arrowTone(edge: GraphEdge, active: boolean): (typeof ARROW_TONES)[number] {
+  return edge.tone ?? (active ? "active" : "plain")
+}
 const dragging = ref(false)
 let resize: ResizeObserver | undefined
 let gesture: { pointer: number; capture: HTMLElement; start: Point2; camera: Camera2; node?: { id: string; position: Point2 }; moved: boolean } | null = null
@@ -208,8 +220,12 @@ defineExpose({ fit, zoom, focus })
         height="1"
         aria-label="Connections"
       >
+        <!-- One arrowhead per colour a line takes: a marker does not take
+             the colour of the line it ends. -->
         <defs><marker
-          :id="arrowId"
+          v-for="tone in ARROW_TONES"
+          :id="`${arrowId}-${tone}`"
+          :key="tone"
           viewBox="0 0 10 10"
           refX="9"
           refY="5"
@@ -219,17 +235,19 @@ defineExpose({ fit, zoom, focus })
         ><path
           d="M 0 0 L 10 5 L 0 10 z"
           class="graph-2d__arrow"
+          :class="`graph-2d__arrow--${tone}`"
         /></marker></defs>
         <g
           v-for="item in paths"
           :key="item.edge.id"
-          :class="{ 'graph-2d__edge--active': highlighted.has(item.edge.id), 'graph-2d__dim': dimOthers && selection && !highlighted.has(item.edge.id) }"
+          :class="[item.edge.tone ? `graph-2d__tone--${item.edge.tone}` : '', { 'graph-2d__edge--active': highlighted.has(item.edge.id), 'graph-2d__dim': dimOthers && selection && !highlighted.has(item.edge.id) }]"
+          :data-tone="item.edge.tone"
         >
           <path
             :d="item.path"
             class="graph-2d__edge"
             :class="{ 'graph-2d__edge--dashed': item.edge.dashed }"
-            :marker-end="item.edge.directed ? `url(#${arrowId})` : undefined"
+            :marker-end="item.edge.directed ? `url(#${arrowId}-${arrowTone(item.edge, highlighted.has(item.edge.id))})` : undefined"
           />
           <path
             :d="item.path"
@@ -242,14 +260,6 @@ defineExpose({ fit, zoom, focus })
             @pointerdown.stop="emit('select', { kind: 'edge', id: item.edge.id })"
             @keydown.enter.prevent="emit('select', { kind: 'edge', id: item.edge.id })"
           ><title>{{ item.edge.label }}</title></path>
-          <text
-            v-if="edgeLabels && item.edge.label"
-            class="graph-2d__label"
-            :x="item.mid.x"
-            :y="item.mid.y"
-            text-anchor="middle"
-            dominant-baseline="middle"
-          >{{ item.edge.label }}</text>
         </g>
         <path
           v-if="draft"
@@ -258,6 +268,26 @@ defineExpose({ fit, zoom, focus })
           data-testid="graph-draft-edge"
         />
       </svg>
+      <!-- Written over the lines rather than in them, so a number can carry a
+           hint of its own; a press on one selects its line. -->
+      <template v-if="edgeLabels">
+        <span
+          v-for="item in labelled"
+          :key="item.edge.id"
+          class="graph-2d__label"
+          :class="{ 'graph-2d__label--active': highlighted.has(item.edge.id), 'graph-2d__dim': dimOthers && selection && !highlighted.has(item.edge.id) }"
+          :style="{ left: `${(spots.get(item.edge.id) ?? item.mid).x}px`, top: `${(spots.get(item.edge.id) ?? item.mid).y}px` }"
+          :data-testid="`graph-edge-label-${item.edge.id}`"
+          data-graph-interactive
+          @pointerdown.stop="emit('select', { kind: 'edge', id: item.edge.id })"
+        ><span
+          v-if="item.edge.badge"
+          class="graph-2d__badge"
+          :class="{ 'graph-2d__badge--caution': item.edge.caution }"
+          :data-testid="`graph-edge-badge-${item.edge.id}`"
+        >{{ item.edge.badge }}<AppTooltip v-if="item.edge.caution">{{ item.edge.caution }}</AppTooltip></span>{{
+          item.edge.badge && item.edge.label ? " · " : "" }}{{ item.edge.label }}</span>
+      </template>
       <article
         v-for="node in graph.nodes"
         :key="node.id"
@@ -353,10 +383,22 @@ defineExpose({ fit, zoom, focus })
 .graph-2d__edges { position: absolute; overflow: visible; }
 .graph-2d__edge { fill: none; stroke: var(--dp-graph-edge); stroke-width: 1.6; vector-effect: non-scaling-stroke; pointer-events: none; }
 .graph-2d__edge--dashed { stroke-dasharray: 5 4; }
-.graph-2d__label { fill: var(--dp-text-muted); font-size: 11px; stroke: var(--dp-chrome-raised); stroke-width: 4px; paint-order: stroke; pointer-events: none; }
-.graph-2d--linkable .graph-node__row { cursor: crosshair; }
+.graph-2d__label { position: absolute; transform: translate(-50%, -50%); padding: 0 var(--dp-space-half); border-radius: var(--dp-radius-control); background: var(--dp-chrome-raised); color: var(--dp-text-muted); font-size: 11px; white-space: nowrap; cursor: pointer; }
+.graph-2d__label--active { color: var(--dp-text-strong); }
+.graph-2d__badge { font-weight: 600; color: var(--dp-text-strong); }
+.graph-2d__badge--caution { color: var(--dp-tone-warning-text); cursor: help; }
+/* A row is dragged towards another, and selects no text on the way. */
+.graph-2d--linkable .graph-node__row { cursor: crosshair; user-select: none; }
 .graph-2d__arrow { fill: var(--dp-graph-edge); }
+.graph-2d__arrow--active, .graph-2d__arrow--info { fill: var(--dp-accent); }
+.graph-2d__arrow--success { fill: var(--dp-content-success); }
+.graph-2d__arrow--error { fill: var(--dp-content-error); }
 .graph-2d__edge--active .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
+/* After the selection's rule: a selected line keeps its result's colour. */
+.graph-2d__tone--info .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
+.graph-2d__tone--success .graph-2d__edge { stroke: var(--dp-content-success); }
+.graph-2d__tone--error .graph-2d__edge { stroke: var(--dp-content-error); }
+.graph-2d__tone--muted { opacity: 0.45; }
 .graph-2d__edge-hit { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
 .graph-2d__edge-hit:focus { stroke: var(--dp-focus-border); }
 .graph-2d__dim { opacity: 0.3; }

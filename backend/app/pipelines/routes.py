@@ -1,4 +1,5 @@
-"""A person's pipelines: listed, made, saved whole and removed (D175).
+"""A person's pipelines: listed, made, saved whole, removed (D175) and run
+(D177).
 
 Private in this step: every route answers only the owner, and anyone else is
 told there is no such pipeline, as a connection nobody shared is (D33).
@@ -13,7 +14,6 @@ from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.adapters.cache import DataCacheDep
 from app.adapters.resources import ResourcesDep
 from app.connectors import crud as connector_crud
 from app.core.db import SessionDep
@@ -24,7 +24,7 @@ from app.pipelines.hint import Hint, HintRequest, hint
 from app.pipelines.models import (
     MAX_PIPELINES,
     CardState,
-    LinkRun,
+    LinkPlace,
     Pipeline,
     PipelineContent,
     PipelineCreate,
@@ -32,12 +32,11 @@ from app.pipelines.models import (
     PipelineSave,
     PipelineSummary,
     content_of,
-    public,
     summary,
 )
-from app.pipelines.runs import LinkRunAnswer, forget_gone, run_link, runs_of
+from app.pipelines.order import ordered
+from app.pipelines.runs import LastRun, PipelineRunPublic, last_run, start_run
 from app.realtime.topics import TopicsDep
-from app.transfers.run import Carrying
 from app.users.deps import CurrentUser
 from app.users.models import User
 
@@ -55,6 +54,27 @@ async def _content(session: AsyncSession, user: User, pipeline_id: uuid.UUID) ->
     pipeline = await _owned(session, user, pipeline_id)
     # A body that no longer reads is shown empty (D175), so it holds nothing.
     return pipeline, content_of(pipeline) or PipelineContent()
+
+
+def public(pipeline: Pipeline) -> PipelinePublic:
+    """The pipeline as its owner reads it, each link numbered in the order a
+    run takes it (D177)."""
+    content = content_of(pipeline)
+    return PipelinePublic(
+        id=pipeline.id,
+        name=pipeline.name,
+        version=pipeline.version,
+        updated_at=pipeline.updated_at,
+        cards=[] if content is None else content.cards,
+        links=[] if content is None else content.links,
+        broken=content is None,
+        order=[]
+        if content is None
+        else [
+            LinkPlace(link_id=placed.link.id, number=placed.number, circle=placed.circle)
+            for placed in ordered(content)
+        ],
+    )
 
 
 @router.get("", response_model=list[PipelineSummary])
@@ -127,7 +147,6 @@ async def save_pipeline(
     pipeline.version += 1
     pipeline.updated_at = datetime.now(UTC)
     session.add(pipeline)
-    await forget_gone(session, pipeline.id, content)
     await session.commit()
     await session.refresh(pipeline)
     return public(pipeline)
@@ -163,37 +182,30 @@ async def read_card_state(
     return await card_state(session, current_user, resources, card)
 
 
-@router.get("/{pipeline_id}/runs", response_model=list[LinkRun])
-async def read_runs(
+@router.get("/{pipeline_id}/run", response_model=LastRun)
+async def read_last_run(
     session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID
 ) -> Any:
-    """The last run of each link, a transfer's as its job says now (D176)."""
+    """The pipeline's last run as its job says now, or nothing before the first."""
     pipeline, content = await _content(session, current_user, pipeline_id)
-    return await runs_of(session, pipeline, content)
+    return await last_run(session, pipeline, content)
 
 
-@router.post("/{pipeline_id}/links/{link_id}/run", response_model=LinkRunAnswer)
-async def run_pipeline_link(
+@router.post("/{pipeline_id}/run", response_model=PipelineRunPublic)
+async def run_pipeline(
     session: SessionDep,
     current_user: CurrentUser,
-    resources: ResourcesDep,
-    data_cache: DataCacheDep,
     runner: JobRunnerDep,
     topics: TopicsDep,
     pipeline_id: uuid.UUID,
-    link_id: uuid.UUID,
 ) -> Any:
-    """Run one link by what is kept with it, as Paste runs (D176).
+    """Run every link of the pipeline as saved, one after another (D177).
 
-    What the paste refuses is the run's outcome rather than this route's: it
-    stays on the link, which is where the person looks for it.
+    Refused whole, before anything runs, when a link lacks a choice its
+    operation needs; each link's own refusal is its step's outcome instead.
     """
     pipeline, content = await _content(session, current_user, pipeline_id)
-    link = content.link(link_id)
-    if link is None:
-        raise HTTPException(404, detail={"message": "No such link"})
-    carrying = Carrying(session, current_user, resources, data_cache, runner, topics)
-    return await run_link(carrying, pipeline, content, link)
+    return await start_run(session, current_user, runner, topics, pipeline, content)
 
 
 @router.post("/{pipeline_id}/hint", response_model=Hint)

@@ -70,6 +70,39 @@ is the work the pipeline was drawn to take away.
 - **The head says the pipeline's last run**: when, and its sentence.
 - The panel's result line is the link's own result in that run.
 
+## Settled during implementation
+
+- **The run is its job.** What each step runs, copied in at the start, and
+  what it did live in the job's payload; the last run is the pipeline's newest
+  `pipeline.run` job. D176's table of one row per link was dropped with the
+  route that ran one link.
+- **A step goes through the parts of Paste's door**: both ends opened by the
+  one door to a source, then `paste_now` or `planned`, taken out of
+  `run_paste`, and a transfer carried out by `RunTransfer` on the transfers'
+  slots, its payload kept in the step rather than a job of its own.
+- **A circle is broken where nothing outside it writes in**: a link after a
+  circle waits for it however far left it lies. The hint names the cards'
+  connections and the part of the position rule that decided. Two links from
+  one card into a card that writes back both go before it, and both say so.
+- **The refusal for missing choices names the links' ids** beside its
+  sentence, and the screen opens the first.
+- **The last run is answered as `{run}`**, not as a bare null: a null body
+  reached the screen as an empty value it read as a run.
+- **Labels are placed so none covers another**: along its own line first,
+  then stacked beside its middle. Two links from one row to neighbouring rows
+  shared a middle, and the second hid the first's number. A label pressed
+  selects its link.
+- **A card's window reads its connection afresh when it opens**: a run had
+  just written files the catalog's cache still kept as fresh for a minute.
+- **A CSV that Save as CSV writes reads back**: its byte order mark had been
+  read into the first column's name, which the first acceptance chain found.
+- **The footer** says "Nightly · 2 of 5: Save as CSV", reads again the
+  connections the links wrote into as they end, and the tab that started the
+  run tells how it ended, as for a transfer. At most `PIPELINE_MAX_ACTIVE`
+  runs a person.
+- **Rows of a canvas that draws links select no text** while a link is
+  dragged across them.
+
 ## Out of scope
 
 - Running one link on its own, n8n's "execute step".

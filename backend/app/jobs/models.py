@@ -42,6 +42,8 @@ JobKind = Literal[
     "metrics.store.create",
     # Files or a table carried from one connection into another (D168).
     "paste.transfer",
+    # Every link of a pipeline, one after another (D177).
+    "pipeline.run",
 ]
 
 # The lifecycle, and no state outside it.

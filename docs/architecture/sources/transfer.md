@@ -176,9 +176,9 @@ are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
 - A request carries up to 1000 ids; a kind states its own smaller ceiling as a
   reason.
 - The same registry answers what two connections can give each other
-  without reading either ([D174](../pipelines.md)), and a pipeline's link runs
-  a paste through the same door Paste does, `transfers/run.py`
-  ([D176](../pipelines.md)).
+  without reading either ([D174](../pipelines.md)), and a pipeline's run
+  carries each link out through the parts of the door Paste uses,
+  `transfers/run.py`, inside its own job ([D177](../pipelines.md)).
 
 Known deviations:
 
@@ -366,7 +366,9 @@ own, so nothing on the screen learned anything about PostgreSQL.
   afterwards through [D38](ddl.md), which counts the rows in the way first.
 - `adapters/delimited` holds the delimiter rule, the naming of a header written
   by hand and the fitting of a short row. The file source pages a file through
-  it and this action takes a whole one; neither adapter imports the other.
+  it and this action takes a whole one; neither adapter imports the other. A
+  leading byte order mark — every CSV that Save as CSV writes has one, for
+  Excel — is not read as part of the first column's name.
 - Both ceilings refuse rather than truncate: at most 5000 rows and 16 MB. D43
   truncates because it samples a live source; here the reader handed over a whole
   file, and a part of one arriving would go unnoticed.

@@ -2,13 +2,16 @@
  * Links between the rows of a pipeline's cards (D176), as plain decisions.
  *
  * What a link can do is the server's answer — the same offers Paste and the
- * pair window get (D164, D167) — so no kind of paste is named on this side;
- * these only draw, keep and word what came back.
+ * pair window get (D164, D167) — and so are the order a run takes them in and
+ * what each did in it (D177). No kind of paste is named on this side; these
+ * only draw, keep and word what came back.
  */
 
-import type { Card, CardRow, HintLink, Link, LinkEnd, LinkRun, PasteOffer } from "@/client"
+import type {
+  Card, CardRow, HintLink, Link, LinkEnd, LinkPlace, LinkRun, PasteOffer, PipelineRunPublic,
+} from "@/client"
 import { ageLabel } from "@/shared/freshness/freshness"
-import type { GraphEdge, GraphPort } from "@/shared/graph/model"
+import type { GraphEdge, GraphEdgeTone, GraphPort } from "@/shared/graph/model"
 
 import { rowId } from "./model"
 
@@ -25,8 +28,31 @@ function endpoint(end: LinkEnd) {
   return { nodeId: end.card_id, portIds: [rowId(end.node_id)] }
 }
 
-export function linkEdge(link: Link): GraphEdge {
-  return { id: link.id, source: endpoint(link.source), target: endpoint(link.target), label: link.title, directed: true }
+/** A result's colour on its line; a link still waiting keeps the plain one. */
+const TONES: Record<LinkRun["outcome"], GraphEdgeTone | undefined> = {
+  waiting: undefined,
+  running: "info",
+  done: "success",
+  failed: "error",
+  not_run: "muted",
+}
+
+/**
+ * A link as its line: numbered by its place in a run, the number in the
+ * caution colour where a circle was broken at it, and coloured by what it did
+ * in the last run.
+ */
+export function linkEdge(link: Link, place?: LinkPlace, run?: LinkRun): GraphEdge {
+  const edge: GraphEdge = {
+    id: link.id, source: endpoint(link.source), target: endpoint(link.target), label: link.title, directed: true,
+  }
+  const tone = run === undefined ? undefined : TONES[run.outcome]
+  return {
+    ...edge,
+    ...(place === undefined ? {} : { badge: String(place.number) }),
+    ...(place?.circle ? { caution: place.circle } : {}),
+    ...(tone === undefined ? {} : { tone }),
+  }
 }
 
 export const HINT_PREFIX = "hint:"
@@ -89,16 +115,6 @@ export function withOffer(link: Link, offer: PasteOffer): Link {
   return { ...link, kind: offer.kind, title: offer.title, conflict: "refuse", name: null, columns: null }
 }
 
-/** What running the link still needs chosen, or nothing when it is ready. */
-export function missingChoice(link: Link, offer: PasteOffer | undefined): string | null {
-  const workflow = offer?.workflow ?? "run"
-  if (workflow === "new-relation" && (link.name == null || !link.columns?.length)) {
-    return "Choose the new table's name and columns first"
-  }
-  if (workflow === "into-relation" && !link.columns?.length) return "Pair the columns first"
-  return null
-}
-
 /** Links that stay when a card keeps only these rows. */
 export function keptLinks(links: readonly Link[], cardId: string, rows: readonly CardRow[]): Link[] {
   const held = new Set(rows.map((row) => rowId(row.node_id)))
@@ -119,19 +135,46 @@ export function listed(links: readonly Link[], name: EndNamer): string {
   return links.map((link) => `${name(link.source)} → ${name(link.target)}`).join("; ")
 }
 
-const OUTCOME_WORDS: Record<LinkRun["outcome"], string> = {
-  running: "Running",
-  done: "Done",
-  failed: "Failed",
+/** Whether a run is still going: its job not yet ended. */
+export function isRunning(run: PipelineRunPublic | null | undefined): boolean {
+  return run?.state === "queued" || run?.state === "running"
 }
 
-/** The last run, as the panel says it: "Done 3m ago: orders.csv saved in reports". */
-export function runWords(run: LinkRun | undefined, now: number): string {
-  if (run === undefined) return "Not run yet"
-  const at = Date.parse(run.finished_at ?? run.started_at)
-  const when = Number.isNaN(at) ? "" : ` ${ageLabel(now - at)} ago`
+/** Why Run is off, or nothing when it can be pressed. */
+export function runProblem(links: readonly Link[], run: PipelineRunPublic | null | undefined): string | null {
+  if (links.length === 0) return "Draw a link first"
+  if (isRunning(run)) return "This pipeline is running; Stop is in the activity below"
+  return null
+}
+
+function ago(at: string | null | undefined, now: number): string {
+  const time = Date.parse(at ?? "")
+  return Number.isNaN(time) ? "" : ` ${ageLabel(now - time)} ago`
+}
+
+/** The last run in the head: "Running 2 of 5", "Last run 3m ago: All 5 links ran". */
+export function runSummary(run: PipelineRunPublic | null | undefined, now: number): string {
+  if (run == null) return "Not run yet"
+  if (isRunning(run)) {
+    const at = run.links.findIndex((one) => one.outcome === "running")
+    return at < 0 ? "Starting" : `Running ${String(at + 1)} of ${String(run.links.length)}`
+  }
   const said = run.message ? `: ${run.message}` : ""
-  return `${OUTCOME_WORDS[run.outcome]}${run.outcome === "running" ? "" : when}${said}`
+  return `Last run${ago(run.finished_at ?? run.started_at, now)}${said}`
+}
+
+/** A link's part in the last run, as its panel says it: "Done 3m ago: orders.csv saved in reports". */
+export function runWords(linkRun: LinkRun | undefined, run: PipelineRunPublic | null | undefined, now: number): string {
+  if (run == null) return "Not run yet"
+  if (linkRun === undefined) return "Drawn since the last run"
+  const said = linkRun.message ? `: ${linkRun.message}` : ""
+  switch (linkRun.outcome) {
+    case "waiting": return "Waiting for the links before it"
+    case "running": return "Running"
+    case "not_run": return "Not run: the run stopped before it"
+    case "done": return `Done${ago(linkRun.finished_at, now)}${said}`
+    case "failed": return `Failed${ago(linkRun.finished_at, now)}${said}`
+  }
 }
 
 export const CONFLICT_CHOICES = [

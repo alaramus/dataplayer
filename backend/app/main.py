@@ -23,6 +23,7 @@ from app.jobs.recovery import settle_stranded
 from app.jobs.runner import JobRunner
 from app.metrics.holder import StoreHolder
 from app.metrics.jobs import handlers as metrics_handlers
+from app.pipelines.handler import handlers as pipeline_handlers
 from app.queries.cleanup import sweeping
 from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
@@ -35,6 +36,7 @@ from app.services.jobs import handlers as service_handlers
 from app.services.restore_files import remove_stranded_snapshots
 from app.source_operations.handler import handlers as source_operation_handlers
 from app.source_operations.recovery import settle_interrupted_operations
+from app.transfers.handler import RunTransfer
 from app.transfers.handler import handlers as transfer_handlers
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
@@ -100,11 +102,13 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         else NoEngine(SWITCHED_OFF_MESSAGE)
     )
     application.state.service_engine = engine
+    transfers = RunTransfer(application.state.data_cache, application.state.resources)
     application.state.job_runner = JobRunner({
         **service_handlers(engine),
         **backup_handlers(engine),
         **source_operation_handlers(application.state.data_cache),
-        **transfer_handlers(application.state.data_cache, application.state.resources),
+        **transfer_handlers(transfers),
+        **pipeline_handlers(application.state.data_cache, application.state.resources, transfers),
         **metrics_handlers(engine),
     })
     # The web process reads the metrics store and never writes points (D127).

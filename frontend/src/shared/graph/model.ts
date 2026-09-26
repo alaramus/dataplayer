@@ -22,6 +22,8 @@ export interface GraphNode {
 export interface GraphEndpoint { nodeId: string; portIds?: readonly string[] }
 /** One row of one node, as a gesture names it. */
 export interface GraphPort { nodeId: string; portId: string }
+/** What a line says by its colour: at work, done, failed, or passed over. */
+export type GraphEdgeTone = "info" | "success" | "error" | "muted"
 export interface GraphEdge {
   id: string
   source: GraphEndpoint
@@ -30,6 +32,11 @@ export interface GraphEdge {
   directed: boolean
   dashed?: boolean
   details?: readonly GraphDetail[]
+  tone?: GraphEdgeTone
+  /** Written before the label and apart from it: a step's number. */
+  badge?: string
+  /** Why the badge is in the caution colour, said when it is pointed at. */
+  caution?: string
 }
 export interface GraphGroup { id: string; label: string }
 export interface GraphDocument {

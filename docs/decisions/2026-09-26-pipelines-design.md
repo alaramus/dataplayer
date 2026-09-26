@@ -139,7 +139,8 @@ between connections are laid out, joined, kept, and run again.
 
 ## Out of scope
 
-- Running every link of a pipeline in one press: the next step.
+- Running every link of a pipeline in one press: the next step, D177, which
+  replaced this Run of one link.
 - Chains — the result of one link as the source of the next — and
   transformations on the way.
 - Schedules, sharing a pipeline, a history of its runs beyond the last.

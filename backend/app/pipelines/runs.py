@@ -1,155 +1,217 @@
-"""A link run, and what became of it (D176).
+"""A pipeline's run: started as one job, read back as its last (D177).
 
-A link runs as the Paste it stands for, through the same door (`run_paste`),
-by the choices kept with it and never by what a client sends. What the run
-answered stays on the link until the next one.
+The run is its job. The job keeps what each link was to run and what it
+did, so the last run is the pipeline's newest `pipeline.run` job and nothing
+else is stored beside it.
 """
 
 import uuid
-from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import datetime
+from typing import cast
 
 from fastapi import HTTPException
-from pydantic import BaseModel
-from sqlmodel import col, delete, select
+from pydantic import BaseModel, ValidationError
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.connectors.paste.models import PasteResult, PasteRun
+from app.connectors.paste.models import PasteRun
 from app.connectors.paste.registry import kind_named
-from app.jobs.models import Job, JobPublic
-from app.pipelines.models import (
-    Link,
-    LinkRun,
-    Pipeline,
-    PipelineContent,
-    PipelineRun,
-    RunOutcome,
-)
-from app.transfers.run import Carrying, run_paste
+from app.core.config import settings
+from app.jobs import crud as job_crud
+from app.jobs.models import TERMINAL, Job, JobKind, JobState
+from app.jobs.runner import JobRunner
+from app.pipelines.models import Card, Link, Pipeline, PipelineContent
+from app.pipelines.order import ordered
+from app.pipelines.record import RunRecord, RunStep, StepOutcome
+from app.realtime.topics import TopicSet
+from app.users.models import User
 
-_JOB_OUTCOMES: Mapping[str, RunOutcome] = {
-    "queued": "running",
-    "running": "running",
-    "succeeded": "done",
-    "failed": "failed",
-    "cancelled": "failed",
-    "interrupted": "failed",
+KIND: JobKind = "pipeline.run"
+
+# What a link lacks before it can run, by the window its kind opens; the other
+# workflows run with what they have.
+_NEEDS = {
+    "new-relation": "needs its table named and its columns chosen",
+    "into-relation": "needs its columns paired",
 }
 
-# The one door to a source says these in its own words; a link has two ends,
-# so which of them it was is not known here.
-_REFUSALS = {
-    404: "A connection of this link is gone, or no longer shared with you",
-    409: "A connection of this link is switched off",
-}
+_SPELLED = ("Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine")
 
 
-class LinkRunAnswer(BaseModel):
-    run: LinkRun
-    # A transfer, followed from here as Paste's is (D168).
-    job: JobPublic | None = None
+class LinkRun(BaseModel):
+    """What one link did in the last run."""
+
+    link_id: uuid.UUID
+    outcome: StepOutcome
+    message: str | None = None
+    finished_at: datetime | None = None
 
 
-def _said(refused: HTTPException) -> str:
-    detail = refused.detail
-    if isinstance(detail, dict) and isinstance(detail.get("message"), str):
-        return str(detail["message"])
-    return _REFUSALS.get(refused.status_code, "The link could not run")
+class PipelineRunPublic(BaseModel):
+    """The last run of a pipeline, as its job says now."""
+
+    job_id: uuid.UUID
+    state: JobState
+    message: str | None
+    started_at: datetime
+    finished_at: datetime | None
+    links: list[LinkRun]
 
 
-def _public(row: PipelineRun) -> LinkRun:
-    return LinkRun(
-        link_id=row.link_id,
-        outcome=row.outcome,
-        message=row.message,
-        job_id=row.job_id,
-        started_at=row.started_at,
-        finished_at=row.finished_at,
-    )
+class LastRun(BaseModel):
+    """The last run, or none before the first: an answer that is an object
+    either way, where a bare null would reach a client as nothing at all."""
+
+    run: PipelineRunPublic | None = None
 
 
-async def _settled(session: AsyncSession, row: PipelineRun) -> bool:
-    """Take a transfer's outcome from its job once it has one; whether it changed."""
-    if row.outcome != "running" or row.job_id is None:
-        return False
-    job = await session.get(Job, row.job_id)
-    if job is None:
-        row.outcome, row.message = "failed", "The transfer is no longer known"
-        row.finished_at = datetime.now(UTC)
-        return True
-    outcome = _JOB_OUTCOMES.get(job.state, "failed")
-    if outcome == "running":
-        return False
-    row.outcome, row.message, row.finished_at = outcome, job.message, job.finished_at
-    return True
+def missing(link: Link) -> str | None:
+    """What running the link still needs chosen, asked of its kind alone."""
+    workflow = kind_named(link.kind).workflow
+    if workflow == "new-relation" and (link.name is None or not link.columns):
+        return _NEEDS[workflow]
+    if workflow == "into-relation" and not link.columns:
+        return _NEEDS[workflow]
+    return None
 
 
-async def runs_of(
-    session: AsyncSession, pipeline: Pipeline, content: PipelineContent
-) -> list[LinkRun]:
-    """The last run of every link still on the pipeline."""
-    kept = {link.id for link in content.links}
-    found = await session.exec(
-        select(PipelineRun).where(PipelineRun.pipeline_id == pipeline.id)
-    )
-    rows = [row for row in found.all() if row.link_id in kept]
-    changed = False
-    for row in rows:
-        if await _settled(session, row):
-            session.add(row)
-            changed = True
-    if changed:
-        await session.commit()
-    return [_public(row) for row in rows]
+def _named(card: Card, node_id: str | None) -> str:
+    if node_id is None:
+        return f"{card.connector_name} (top)"
+    row = next((one for one in card.rows if one.node_id == node_id), None)
+    return f"{card.connector_name} · {row.label if row is not None else node_id}"
 
 
-async def forget_gone(
-    session: AsyncSession, pipeline_id: uuid.UUID, content: PipelineContent
-) -> None:
-    """Drop the runs of links no longer drawn; the caller commits."""
-    kept = [link.id for link in content.links]
-    await session.exec(
-        delete(PipelineRun)
-        .where(col(PipelineRun.pipeline_id) == pipeline_id)
-        .where(col(PipelineRun.link_id).not_in(kept))
-    )
-
-
-async def run_link(
-    carrying: Carrying, pipeline: Pipeline, content: PipelineContent, link: Link
-) -> LinkRunAnswer:
-    """Run the link by what is kept with it, and keep what it answered."""
+def _step(content: PipelineContent, link: Link) -> RunStep:
     source = content.card(link.source.card_id)
     target = content.card(link.target.card_id)
     # Validated with the content; said again for the types.
     if source is None or target is None or link.source.node_id is None:
-        raise HTTPException(404, detail={"message": "No such link"})
+        raise HTTPException(422, detail={"message": "A link of this pipeline no longer joins two rows"})
     kind = kind_named(link.kind)
-    request = PasteRun(
-        source_connector_id=source.connector_id,
-        source_node_ids=[link.source.node_id],
-        mode=kind.mode,
-        destination_node_id=link.target.node_id,
-        target_node_id=link.target.node_id,
-        kind=link.kind,
-        conflict=link.conflict,
-        name=link.name,
-        columns=link.columns,
+    return RunStep(
+        link_id=link.id,
+        title=link.title,
+        source_connection=source.connector_name,
+        destination_connection=target.connector_name,
+        source_label=_named(source, link.source.node_id),
+        target_label=_named(target, link.target.node_id),
+        destination_connector_id=target.connector_id,
+        changes_source=kind.changes_source,
+        paste=PasteRun(
+            source_connector_id=source.connector_id,
+            source_node_ids=[link.source.node_id],
+            mode=kind.mode,
+            destination_node_id=link.target.node_id,
+            target_node_id=link.target.node_id,
+            kind=link.kind,
+            conflict=link.conflict,
+            name=link.name,
+            columns=link.columns,
+        ),
     )
-    session = carrying.session
-    started = datetime.now(UTC)
-    row = PipelineRun(pipeline_id=pipeline.id, link_id=link.id, outcome="running", started_at=started)
-    job: JobPublic | None = None
+
+
+async def start_run(
+    session: AsyncSession,
+    user: User,
+    runner: JobRunner,
+    topics: TopicSet,
+    pipeline: Pipeline,
+    content: PipelineContent,
+) -> PipelineRunPublic:
+    """Every link, in order, as one job — or nothing, and why."""
+    if not content.links:
+        raise HTTPException(422, detail={"message": "Draw a link first"})
+    order = ordered(content)
+    lacking = [(placed, needs) for placed in order if (needs := missing(placed.link))]
+    if lacking:
+        said = "; ".join(f"{placed.number} · {placed.link.title} {needs}" for placed, needs in lacking)
+        raise HTTPException(
+            422,
+            detail={
+                "message": f"Nothing ran: {said}",
+                "link_ids": [str(placed.link.id) for placed, _ in lacking],
+            },
+        )
+    record = RunRecord(
+        pipeline_id=pipeline.id,
+        pipeline_name=pipeline.name,
+        steps=[_step(content, placed.link) for placed in order],
+    )
     try:
-        answer = await run_paste(carrying, target.connector_id, request)
-    except HTTPException as refused:
-        row.outcome, row.message, row.finished_at = "failed", _said(refused), datetime.now(UTC)
-    else:
-        if isinstance(answer, PasteResult):
-            row.outcome, row.message, row.finished_at = "done", answer.message, datetime.now(UTC)
-        else:
-            job = answer.job
-            row.job_id = job.id
-    await session.merge(row)
-    await session.commit()
-    return LinkRunAnswer(run=_public(row), job=job)
+        job = await job_crud.admit_within(
+            session,
+            owner_id=user.id,
+            kind=KIND,
+            limit=settings.PIPELINE_MAX_ACTIVE,
+            subject_id=pipeline.id,
+            step_count=len(runner.steps_of(KIND)),
+            parameters=record.model_dump(mode="json"),
+            alone=True,
+        )
+    except job_crud.SubjectBusy:
+        raise HTTPException(
+            409, detail={"message": "This pipeline is running; wait for it to finish"}
+        ) from None
+    except job_crud.TooManyActive:
+        limit = settings.PIPELINE_MAX_ACTIVE
+        count = _SPELLED[limit] if limit < len(_SPELLED) else str(limit)
+        raise HTTPException(
+            429, detail={"message": f"{count} pipelines are running — wait for one to finish"}
+        ) from None
+    await runner.launch(job, topics)
+    return _public(job, content)
+
+
+def _outcome(step: RunStep, job: Job) -> tuple[StepOutcome, str | None]:
+    """A step as it ended. A run the server stopped left its steps as they were."""
+    if job.state not in TERMINAL:
+        return step.outcome, step.message
+    if step.outcome == "waiting":
+        return "not_run", None
+    if step.outcome == "running":
+        return "failed", job.message
+    return step.outcome, step.message
+
+
+def _public(job: Job, content: PipelineContent) -> PipelineRunPublic:
+    try:
+        record = RunRecord.model_validate(job.parameters)
+    except ValidationError:
+        record = None
+    kept = {link.id for link in content.links}
+    links: list[LinkRun] = []
+    for step in record.steps if record is not None else []:
+        if step.link_id not in kept:
+            continue
+        outcome, message = _outcome(step, job)
+        links.append(
+            LinkRun(link_id=step.link_id, outcome=outcome, message=message, finished_at=step.finished_at)
+        )
+    return PipelineRunPublic(
+        job_id=job.id,
+        # The column is a string; only the runner writes it, from JobState.
+        state=cast(JobState, job.state),
+        message=job.message,
+        started_at=job.started_at or job.created_at,
+        finished_at=job.finished_at,
+        links=links,
+    )
+
+
+async def last_run(
+    session: AsyncSession, pipeline: Pipeline, content: PipelineContent
+) -> LastRun:
+    """The pipeline's newest run, the links still drawn on it only."""
+    job = (
+        await session.exec(
+            select(Job)
+            .where(Job.subject_id == pipeline.id)
+            .where(Job.owner_id == pipeline.owner_id)
+            .where(Job.kind == KIND)
+            .order_by(col(Job.created_at).desc())
+            .limit(1)
+        )
+    ).first()
+    return LastRun(run=None if job is None else _public(job, content))

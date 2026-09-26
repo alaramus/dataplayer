@@ -433,17 +433,17 @@ import type {
   pipelinesReadHintData,
   pipelinesReadHintErrors,
   pipelinesReadHintResponses,
+  pipelinesReadLastRunData,
+  pipelinesReadLastRunErrors,
+  pipelinesReadLastRunResponses,
   pipelinesReadPipelineData,
   pipelinesReadPipelineErrors,
   pipelinesReadPipelineResponses,
   pipelinesReadPipelinesData,
   pipelinesReadPipelinesResponses,
-  pipelinesReadRunsData,
-  pipelinesReadRunsErrors,
-  pipelinesReadRunsResponses,
-  pipelinesRunPipelineLinkData,
-  pipelinesRunPipelineLinkErrors,
-  pipelinesRunPipelineLinkResponses,
+  pipelinesRunPipelineData,
+  pipelinesRunPipelineErrors,
+  pipelinesRunPipelineResponses,
   pipelinesSavePipelineData,
   pipelinesSavePipelineErrors,
   pipelinesSavePipelineResponses,
@@ -3853,44 +3853,44 @@ export class PipelinesService {
   }
 
   /**
-   * Read Runs
+   * Read Last Run
    *
-   * The last run of each link, a transfer's as its job says now (D176).
+   * The pipeline's last run as its job says now, or nothing before the first.
    */
-  public static readRuns<ThrowOnError extends boolean = true>(
-    options: Options<pipelinesReadRunsData, ThrowOnError>
+  public static readLastRun<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadLastRunData, ThrowOnError>
   ) {
     return (options.client ?? client).get<
-      pipelinesReadRunsResponses,
-      pipelinesReadRunsErrors,
+      pipelinesReadLastRunResponses,
+      pipelinesReadLastRunErrors,
       ThrowOnError
     >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/pipelines/{pipeline_id}/runs",
+      url: "/api/v1/pipelines/{pipeline_id}/run",
       ...options,
     })
   }
 
   /**
-   * Run Pipeline Link
+   * Run Pipeline
    *
-   * Run one link by what is kept with it, as Paste runs (D176).
+   * Run every link of the pipeline as saved, one after another (D177).
    *
-   * What the paste refuses is the run's outcome rather than this route's: it
-   * stays on the link, which is where the person looks for it.
+   * Refused whole, before anything runs, when a link lacks a choice its
+   * operation needs; each link's own refusal is its step's outcome instead.
    */
-  public static runPipelineLink<ThrowOnError extends boolean = true>(
-    options: Options<pipelinesRunPipelineLinkData, ThrowOnError>
+  public static runPipeline<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesRunPipelineData, ThrowOnError>
   ) {
     return (options.client ?? client).post<
-      pipelinesRunPipelineLinkResponses,
-      pipelinesRunPipelineLinkErrors,
+      pipelinesRunPipelineResponses,
+      pipelinesRunPipelineErrors,
       ThrowOnError
     >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/pipelines/{pipeline_id}/links/{link_id}/run",
+      url: "/api/v1/pipelines/{pipeline_id}/run",
       ...options,
     })
   }

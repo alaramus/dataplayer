@@ -52,12 +52,15 @@ positions of surviving nodes. Source changes never become layout edits, and
 layouts never become schema changes.
 
 A producer may draw on the 2D canvas without the viewer, as pipelines do
-(D175, D176), and then owns the positions and the camera. The canvas takes a
-producer's commands in a card's head, where a press neither drags nor
+(D175, D176, D177), and then owns the positions and the camera. The canvas
+takes a producer's commands in a card's head, where a press neither drags nor
 selects; an icon and a struck-out state on a row; whether a selection fades
-what it does not touch; labels written along the edges; and, when it is
-asked to, a row dragged onto a row of another card, which it reports as the
-two joined and never joins itself. The viewer offers `node-actions` for a
+what it does not touch; labels written over the edges, a label that would
+cover another moved along its own line or stacked beside its middle, a press
+on one selecting its edge; an edge's tone — at work, done, failed, passed
+over — a number before its label, and a hint over a number drawn in the
+caution colour; and, when it is asked to, a row dragged onto a row of another
+card, which it reports as the two joined and never joins itself. The viewer offers `node-actions` for a
 selected node and `edge-actions` for a selected edge, and names the other
 end and the direction of each connection of a selected node.
 

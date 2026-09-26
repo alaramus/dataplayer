@@ -1,3 +1,4 @@
+import codecs
 import json
 from pathlib import Path
 
@@ -74,6 +75,17 @@ async def test_the_last_page_knows_it_is_last(fetch: ExplorerFetch) -> None:
 
     assert len(result.rows) == 5
     assert result.has_more is False
+
+
+async def test_a_byte_order_mark_is_not_part_of_the_first_column(
+    fetch: ExplorerFetch, root: Path
+) -> None:
+    (root / "excel.csv").write_bytes(codecs.BOM_UTF8 + b'"id","name"\r\n1,one\r\n')
+
+    result = await fetch.fetch(FetchRequest(node_id="excel.csv"))
+
+    assert [column.name for column in result.columns] == ["id", "name"]
+    assert result.rows == [["1", "one"]]
 
 
 async def test_a_semicolon_file_is_still_read_as_columns(fetch: ExplorerFetch) -> None:
