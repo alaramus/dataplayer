@@ -28,6 +28,11 @@ const props = defineProps<{
    * it. See P7.
    */
   openIds?: ReadonlySet<string>
+  /**
+   * What a row is carried as when it is dragged, or nothing when it is not:
+   * the pipelines' list is dragged onto a canvas (D175), Data's is not.
+   */
+  dragType?: string
 }>()
 
 const emit = defineEmits<{
@@ -37,6 +42,13 @@ const emit = defineEmits<{
 
 const selected = computed(() => props.selectedId ?? null)
 const open = computed(() => props.openIds ?? new Set<string>())
+
+function startDrag(event: DragEvent, connector: ConnectorPublic) {
+  if (props.dragType === undefined || event.dataTransfer === null) return
+  event.dataTransfer.setData(props.dragType, connector.id)
+  event.dataTransfer.setData("text/plain", connector.name)
+  event.dataTransfer.effectAllowed = "copy"
+}
 </script>
 
 <template>
@@ -67,6 +79,8 @@ const open = computed(() => props.openIds ?? new Set<string>())
       }"
       :style="panelColorStyle(connector.tab_color)"
       :data-testid="`connector-${connector.name}`"
+      :draggable="dragType === undefined ? undefined : 'true'"
+      @dragstart="startDrag($event, connector)"
       @click="emit('open', connector)"
       @keydown.enter="emit('open', connector)"
       @keydown.space.prevent="emit('open', connector)"

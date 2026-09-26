@@ -17,6 +17,7 @@ layers =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.jobs
     app.terminals
@@ -40,6 +41,7 @@ forbidden_modules =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.jobs
     app.shares
@@ -66,6 +68,7 @@ source_modules =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.jobs
     app.shares
@@ -107,6 +110,7 @@ source_modules =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.jobs
     app.shares
@@ -144,6 +148,7 @@ source_modules =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.jobs
     app.shares
@@ -169,7 +174,7 @@ forbidden_modules =
 # cache contract where D31 calls for invalidation, but may not depend on its
 # concrete Redis implementation or driver surface (D104).
 [importlinter:contract:redis-cache-is-not-coordination]
-name = jobs, queries, services, source operations, transfers, shares and metrics do not use infrastructure Redis
+name = jobs, queries, services, source operations, pipelines, transfers, shares and metrics do not use infrastructure Redis
 type = forbidden
 source_modules =
     app.metrics
@@ -177,6 +182,7 @@ source_modules =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.shares
 forbidden_modules =
@@ -201,6 +207,7 @@ source_modules =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.jobs
     app.shares
@@ -258,6 +265,7 @@ source_modules =
     app.queries
     app.services
     app.source_operations
+    app.pipelines
     app.transfers
     app.jobs
     app.shares

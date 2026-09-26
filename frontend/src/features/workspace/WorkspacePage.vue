@@ -27,10 +27,10 @@ import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
-import InteractionMapSpace from "@/features/interactions/InteractionMapSpace.vue"
 import { screenContexts } from "@/features/ai/context"
 import type { AiOpenIntent } from "@/features/ai/context"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
+import PipelinesSpace from "@/features/pipelines/PipelinesSpace.vue"
 import WorkspaceBottomPanel from "@/features/workspace/WorkspaceBottomPanel.vue"
 import WorkspaceToolRail from "@/features/workspace/WorkspaceToolRail.vue"
 import PairTarget from "@/features/workspace/PairTarget.vue"
@@ -185,17 +185,12 @@ const space = useSpaceStore()
 interface FirstPanelControl {
   toggleFirstPanel: () => void
   firstPanelCollapsed: boolean
-  /** False for a space with no first panel: the button is not drawn over it. */
-  hasFirstPanel?: boolean
 }
 const covers: Record<Exclude<Space, "data">, Readonly<ShallowRef<FirstPanelControl | null>>> = {
   dashboards: useTemplateRef<InstanceType<typeof DashboardsSpace>>("dashboards-cover"),
   ai: useTemplateRef<InstanceType<typeof AiSpace>>("ai-cover"),
-  map: useTemplateRef<InstanceType<typeof InteractionMapSpace>>("map-cover"),
+  pipelines: useTemplateRef<InstanceType<typeof PipelinesSpace>>("pipelines-cover"),
 }
-const hasFirstPanel = computed(() =>
-  space.current === "data" || cover.value?.hasFirstPanel !== false
-)
 const cover = computed(() => (space.current === "data" ? null : covers[space.current].value))
 const firstDataLeaf = computed(() => leavesOf(workspace.context.tree.value)[0] ?? null)
 const firstPanelCollapsed = computed(() =>
@@ -695,29 +690,6 @@ function replaceNode(connectorId: string, replacement: NodeReplacement) {
 /** Two catalogs of two connections in one window (D167). */
 const pairs = usePairs(workspace, openCatalog)
 
-/** A connection of the map, named by its id, or said to be gone. */
-function mapped(connectorId: string): ConnectorPublic | null {
-  const found = (connectors.data.value?.data ?? []).find((one) => one.id === connectorId)
-  if (found === undefined) toast.info("That connection is no longer in your list")
-  return found ?? null
-}
-
-/** What the map opens, it opens in Data (D174). */
-function openFromMap(connectorId: string) {
-  const connector = mapped(connectorId)
-  if (connector === null) return
-  space.show("data")
-  openCatalog(connector)
-}
-
-function pairFromMap(sourceId: string, destinationId: string) {
-  const source = mapped(sourceId)
-  const destination = mapped(destinationId)
-  if (source === null || destination === null) return
-  space.show("data")
-  pairs.pairBoth(source, destination)
-}
-
 const actions: WorkspaceActions = {
   connectorNameFilter,
   connectorFilterOpen,
@@ -1031,10 +1003,7 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
       <!-- On the axis of the left rail buttons below: a 36 px box pulled
            back over the toolbar padding, so the button stands where the
            rail's own buttons stand. -->
-      <span
-        v-if="hasFirstPanel"
-        class="workspace-header-collapse"
-      >
+      <span class="workspace-header-collapse">
         <AppIconButton
           :icon="firstPanelCollapsed ? appIcons.panelOpen : appIcons.panelClose"
           :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
@@ -1108,11 +1077,9 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
                 :contexts="screenContexts(workspace.panels.value)"
                 @open="openFromAgent"
               />
-              <InteractionMapSpace
-                v-else-if="space.current === 'map'"
-                ref="map-cover"
-                @open-catalog="openFromMap"
-                @open-pair="pairFromMap"
+              <PipelinesSpace
+                v-else-if="space.current === 'pipelines'"
+                ref="pipelines-cover"
               />
             </template>
             <template #windows>

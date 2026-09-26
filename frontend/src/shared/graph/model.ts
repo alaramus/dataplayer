@@ -4,6 +4,10 @@ export interface GraphRow {
   label: string
   detail?: string
   badges?: readonly string[]
+  /** Drawn where the badges are, for a row that is a kind of thing. */
+  icon?: string
+  /** Named, and not there any more. */
+  muted?: boolean
 }
 export interface GraphDetail { label: string; value: string }
 export interface GraphNode {

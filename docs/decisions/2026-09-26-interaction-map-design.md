@@ -91,3 +91,9 @@ Tests cover the answer for such a set of connections and for a read-only
 grant, the ceiling, the graph built from an answer as a plain function, and
 in the browser the map opened from the rail with a pair opened from an
 arrow.
+
+## Later
+
+The map stopped being a screen when pipelines took its place on the rail
+(D175, [Pipelines](2026-09-26-pipelines-design.md)); its answer stays, as the
+first filter of the hint of possible links (D176).

@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.jobs.routes import router as jobs_router
 from app.metrics import live as metrics_live
 from app.metrics.routes import router as metrics_router
+from app.pipelines.routes import router as pipelines_router
 from app.queries.routes import router as queries_router
 from app.realtime.routes import router as realtime_router
 from app.services.backup_routes import router as backups_router
@@ -45,6 +46,7 @@ api_router.include_router(backups_router)
 api_router.include_router(jobs_router)
 api_router.include_router(source_operations_router)
 api_router.include_router(transfers_router)
+api_router.include_router(pipelines_router)
 api_router.include_router(shares_router)
 api_router.include_router(queries_router)
 api_router.include_router(metrics_router)

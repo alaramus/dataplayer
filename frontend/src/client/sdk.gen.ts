@@ -423,6 +423,23 @@ import type {
   metricsWriteDashboardGrantData,
   metricsWriteDashboardGrantErrors,
   metricsWriteDashboardGrantResponses,
+  pipelinesCreatePipelineData,
+  pipelinesCreatePipelineErrors,
+  pipelinesCreatePipelineResponses,
+  pipelinesDeletePipelineData,
+  pipelinesDeletePipelineErrors,
+  pipelinesDeletePipelineResponses,
+  pipelinesReadCardStateData,
+  pipelinesReadCardStateErrors,
+  pipelinesReadCardStateResponses,
+  pipelinesReadPipelineData,
+  pipelinesReadPipelineErrors,
+  pipelinesReadPipelineResponses,
+  pipelinesReadPipelinesData,
+  pipelinesReadPipelinesResponses,
+  pipelinesSavePipelineData,
+  pipelinesSavePipelineErrors,
+  pipelinesSavePipelineResponses,
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
@@ -3717,6 +3734,133 @@ export class JobsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/jobs/{job_id}/cancel",
+      ...options,
+    })
+  }
+}
+
+export class PipelinesService {
+  /**
+   * Read Pipelines
+   *
+   * The caller's pipelines, by name.
+   */
+  public static readPipelines<ThrowOnError extends boolean = true>(
+    options?: Options<pipelinesReadPipelinesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<pipelinesReadPipelinesResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Pipeline
+   */
+  public static createPipeline<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesCreatePipelineData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      pipelinesCreatePipelineResponses,
+      pipelinesCreatePipelineErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Pipeline
+   */
+  public static deletePipeline<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesDeletePipelineData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      pipelinesDeletePipelineResponses,
+      pipelinesDeletePipelineErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Pipeline
+   */
+  public static readPipeline<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadPipelineData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      pipelinesReadPipelineResponses,
+      pipelinesReadPipelineErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Save Pipeline
+   *
+   * The pipeline, replaced whole.
+   *
+   * A card already on it stays whatever happened to its connection since; a
+   * connection a card is added for must be one the caller can read now, or a
+   * stored pipeline would become a list of other people's ids.
+   */
+  public static savePipeline<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesSavePipelineData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      pipelinesSavePipelineResponses,
+      pipelinesSavePipelineErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Card State
+   *
+   * Whether the card's connection can be read, and which of its rows are gone.
+   *
+   * The card is read from the stored pipeline rather than sent: what is asked
+   * of a source is what the owner kept, never what a client names.
+   */
+  public static readCardState<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadCardStateData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      pipelinesReadCardStateResponses,
+      pipelinesReadCardStateErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/cards/{card_id}/state",
       ...options,
     })
   }

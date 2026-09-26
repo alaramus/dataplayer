@@ -1271,6 +1271,103 @@ export type Capability = {
 }
 
 /**
+ * Card
+ *
+ * A connection on the canvas, and the rows ticked in it.
+ *
+ * It names nodes and does not hold them: what they are is asked of the
+ * source when the card is checked (D175).
+ */
+export type Card = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Connector Name
+   */
+  connector_name: string
+  /**
+   * X
+   */
+  x: number
+  /**
+   * Y
+   */
+  y: number
+  /**
+   * Rows
+   */
+  rows: Array<CardRow>
+}
+
+/**
+ * CardRow
+ *
+ * One ticked node, named as it was when it was ticked.
+ *
+ * No node id is the top of the connection: a place too, where a folder of
+ * personal storage has nothing above it to be ticked in.
+ */
+export type CardRow = {
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Kind
+   */
+  kind?:
+    | "schema"
+    | "table"
+    | "view"
+    | "directory"
+    | "file"
+    | "dataset"
+    | "entry"
+    | "report"
+    | "database"
+    | "key"
+    | null
+  /**
+   * Trail
+   */
+  trail?: Array<string>
+}
+
+/**
+ * CardState
+ *
+ * What a card's connection says of it now.
+ *
+ * `problem` is why the connection could not be asked at all; `missing` the
+ * rows it answered do not exist. A source that cannot say where a node lives
+ * is not asked, and says so by `checked`.
+ */
+export type CardState = {
+  /**
+   * Problem
+   */
+  problem?: string | null
+  /**
+   * Missing
+   */
+  missing?: Array<string>
+  /**
+   * Checked
+   */
+  checked?: boolean
+}
+
+/**
  * Cast
  */
 export type Cast = {
@@ -6599,6 +6696,84 @@ export type PdfContents = {
    * Version
    */
   version: string
+}
+
+/**
+ * PipelineCreate
+ */
+export type PipelineCreate = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * PipelinePublic
+ */
+export type PipelinePublic = {
+  /**
+   * Cards
+   */
+  cards?: Array<Card>
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Version
+   */
+  version: number
+  /**
+   * Updated At
+   */
+  updated_at: string
+  /**
+   * Broken
+   */
+  broken?: boolean
+}
+
+/**
+ * PipelineSave
+ */
+export type PipelineSave = {
+  /**
+   * Cards
+   */
+  cards?: Array<Card>
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Version
+   */
+  version: number
+}
+
+/**
+ * PipelineSummary
+ *
+ * What the switcher lists: a pipeline by its name.
+ */
+export type PipelineSummary = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Updated At
+   */
+  updated_at: string
 }
 
 /**
@@ -15403,6 +15578,184 @@ export type connectorsPasteResponses = {
 }
 
 export type connectorsPasteResponse = connectorsPasteResponses[keyof connectorsPasteResponses]
+
+export type pipelinesReadPipelinesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/pipelines"
+}
+
+export type pipelinesReadPipelinesResponses = {
+  /**
+   * Response Pipelines-Read Pipelines
+   *
+   * Successful Response
+   */
+  200: Array<PipelineSummary>
+}
+
+export type pipelinesReadPipelinesResponse =
+  pipelinesReadPipelinesResponses[keyof pipelinesReadPipelinesResponses]
+
+export type pipelinesCreatePipelineData = {
+  body: PipelineCreate
+  path?: never
+  query?: never
+  url: "/api/v1/pipelines"
+}
+
+export type pipelinesCreatePipelineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesCreatePipelineError =
+  pipelinesCreatePipelineErrors[keyof pipelinesCreatePipelineErrors]
+
+export type pipelinesCreatePipelineResponses = {
+  /**
+   * Successful Response
+   */
+  200: PipelinePublic
+}
+
+export type pipelinesCreatePipelineResponse =
+  pipelinesCreatePipelineResponses[keyof pipelinesCreatePipelineResponses]
+
+export type pipelinesDeletePipelineData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}"
+}
+
+export type pipelinesDeletePipelineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesDeletePipelineError =
+  pipelinesDeletePipelineErrors[keyof pipelinesDeletePipelineErrors]
+
+export type pipelinesDeletePipelineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type pipelinesDeletePipelineResponse =
+  pipelinesDeletePipelineResponses[keyof pipelinesDeletePipelineResponses]
+
+export type pipelinesReadPipelineData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}"
+}
+
+export type pipelinesReadPipelineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadPipelineError =
+  pipelinesReadPipelineErrors[keyof pipelinesReadPipelineErrors]
+
+export type pipelinesReadPipelineResponses = {
+  /**
+   * Successful Response
+   */
+  200: PipelinePublic
+}
+
+export type pipelinesReadPipelineResponse =
+  pipelinesReadPipelineResponses[keyof pipelinesReadPipelineResponses]
+
+export type pipelinesSavePipelineData = {
+  body: PipelineSave
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}"
+}
+
+export type pipelinesSavePipelineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesSavePipelineError =
+  pipelinesSavePipelineErrors[keyof pipelinesSavePipelineErrors]
+
+export type pipelinesSavePipelineResponses = {
+  /**
+   * Successful Response
+   */
+  200: PipelinePublic
+}
+
+export type pipelinesSavePipelineResponse =
+  pipelinesSavePipelineResponses[keyof pipelinesSavePipelineResponses]
+
+export type pipelinesReadCardStateData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+    /**
+     * Card Id
+     */
+    card_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/cards/{card_id}/state"
+}
+
+export type pipelinesReadCardStateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadCardStateError =
+  pipelinesReadCardStateErrors[keyof pipelinesReadCardStateErrors]
+
+export type pipelinesReadCardStateResponses = {
+  /**
+   * Successful Response
+   */
+  200: CardState
+}
+
+export type pipelinesReadCardStateResponse =
+  pipelinesReadCardStateResponses[keyof pipelinesReadCardStateResponses]
 
 export type sharesListSharesData = {
   body?: never

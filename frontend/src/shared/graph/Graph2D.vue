@@ -5,13 +5,19 @@ import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, portAnchors, zo
 import { accentIndex, edgesOf, neighborsOf } from "./model"
 import type { Camera2, GraphDocument, GraphSelection, Point2 } from "./model"
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   graph: GraphDocument
   positions: Record<string, Point2>
   camera: Camera2 | null
   expanded: boolean
   selection: GraphSelection
-}>()
+  /**
+   * Whether a selection fades what it is not connected to. A diagram read
+   * for one table's references wants it; a canvas being built does not, where
+   * the card just placed would fade every other.
+   */
+  dimOthers?: boolean
+}>(), { dimOthers: true })
 const emit = defineEmits<{
   camera: [value: Camera2]
   move: [id: string, position: Point2]
@@ -150,7 +156,7 @@ defineExpose({ fit, zoom, focus })
         <g
           v-for="item in paths"
           :key="item.edge.id"
-          :class="{ 'graph-2d__edge--active': highlighted.has(item.edge.id), 'graph-2d__dim': selection && !highlighted.has(item.edge.id) }"
+          :class="{ 'graph-2d__edge--active': highlighted.has(item.edge.id), 'graph-2d__dim': dimOthers && selection && !highlighted.has(item.edge.id) }"
         >
           <path
             :d="item.path"
@@ -176,7 +182,7 @@ defineExpose({ fit, zoom, focus })
         :key="node.id"
         class="graph-node"
         :data-testid="`graph-node-${node.id}`"
-        :class="{ 'graph-node--selected': selection?.kind === 'node' && selection.id === node.id, 'graph-node--placeholder': node.placeholder, 'graph-2d__dim': selection && !neighbors.has(node.id) }"
+        :class="{ 'graph-node--selected': selection?.kind === 'node' && selection.id === node.id, 'graph-node--placeholder': node.placeholder, 'graph-2d__dim': dimOthers && selection && !neighbors.has(node.id) }"
         :style="{ left: `${positions[node.id]!.x}px`, top: `${positions[node.id]!.y}px`, width: `${CARD_WIDTH}px`, '--node-accent': `var(--dp-chart-${accentIndex(node)})` }"
         data-graph-interactive
       >
@@ -190,8 +196,25 @@ defineExpose({ fit, zoom, focus })
           @dblclick.stop="emit('activate', node.id)"
           @keydown.enter.prevent="emit('select', { kind: 'node', id: node.id })"
         >
-          <strong :title="node.label">{{ node.label }}</strong>
-          <span :title="node.caption">{{ node.caption || `${node.rows.length} fields` }}</span>
+          <div class="graph-node__title">
+            <strong :title="node.label">{{ node.label }}</strong>
+            <span :title="node.caption">{{ node.caption || `${node.rows.length} fields` }}</span>
+          </div>
+          <!-- A producer's commands for its card. Out of the head's gestures:
+               a press here neither drags the card nor selects it. -->
+          <span
+            v-if="$slots['node-head']"
+            class="graph-node__actions"
+            data-graph-interactive
+            @pointerdown.stop
+            @dblclick.stop
+            @keydown.stop
+          >
+            <slot
+              name="node-head"
+              :node="node"
+            />
+          </span>
         </div>
         <template v-if="expanded">
           <div
@@ -200,7 +223,7 @@ defineExpose({ fit, zoom, focus })
             class="graph-node__row"
             role="button"
             tabindex="0"
-            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id }"
+            :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id, 'graph-node__row--muted': row.muted }"
             :style="{ height: `${ROW_HEIGHT}px` }"
             :aria-label="`${node.label}: ${row.label}`"
             :data-testid="`graph-port-${node.id}-${row.id}`"
@@ -220,7 +243,11 @@ defineExpose({ fit, zoom, focus })
               class="graph-node__port graph-node__port--right"
               :data-testid="`graph-anchor-${node.id}-${row.id}`"
             />
-            <span class="graph-node__badges">{{ row.badges?.join(' ') }}</span>
+            <span class="graph-node__badges"><q-icon
+              v-if="row.icon"
+              :name="row.icon"
+              size="14px"
+            />{{ row.badges?.join(' ') }}</span>
             <span
               class="graph-node__name"
               :title="row.label"
@@ -251,13 +278,16 @@ defineExpose({ fit, zoom, focus })
 .graph-node { position: absolute; border: 1px solid var(--dp-border-strong); border-radius: var(--dp-radius-panel); background: var(--dp-surface); box-shadow: 0 3px 12px var(--dp-border-faint); box-sizing: border-box; }
 .graph-node--selected { outline: 2px solid var(--dp-accent); }
 .graph-node--placeholder { border-style: dashed; }
-.graph-node__head { display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-half); padding: var(--dp-space-1) var(--dp-space-3); border-top: 4px solid var(--node-accent); border-radius: var(--dp-radius-panel) var(--dp-radius-panel) 0 0; background: var(--dp-chrome); box-sizing: border-box; cursor: grab; }
-.graph-node__head strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.graph-node__head > span { color: var(--dp-text-muted); font-size: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.graph-node__head { display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-1) var(--dp-space-1) var(--dp-space-1) var(--dp-space-3); border-top: 4px solid var(--node-accent); border-radius: var(--dp-radius-panel) var(--dp-radius-panel) 0 0; background: var(--dp-chrome); box-sizing: border-box; cursor: grab; }
+.graph-node__title { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-half); }
+.graph-node__title strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.graph-node__title > span { color: var(--dp-text-muted); font-size: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.graph-node__actions { flex: none; display: flex; align-items: center; cursor: default; }
 .graph-node__row { display: flex; position: relative; align-items: center; gap: var(--dp-space-2); padding: 0 var(--dp-space-2); border-top: 1px solid var(--dp-border-faint); box-sizing: border-box; font-size: 11px; cursor: pointer; }
 .graph-node__row:hover, .graph-node__row--selected { background: var(--dp-selected); }
 .graph-node__head:focus-visible, .graph-node__row:focus-visible { outline: 2px solid var(--dp-accent); }
-.graph-node__badges { flex: 0 0 34px; color: var(--node-accent); font-size: 9px; font-weight: 600; }
+.graph-node__badges { flex: 0 0 34px; display: flex; align-items: center; color: var(--node-accent); font-size: 9px; font-weight: 600; }
+.graph-node__row--muted .graph-node__name { color: var(--dp-text-muted); text-decoration: line-through; }
 .graph-node__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graph-node__type { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dp-text-muted); font-family: var(--dp-font-mono); font-size: 10px; }
 .graph-node__port { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--node-accent); top: calc(50% - 2.5px); }

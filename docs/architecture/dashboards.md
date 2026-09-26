@@ -169,7 +169,7 @@ old a range is.
 ## D125. Dashboards are a space of their own
 
 A **Data | Dashboards** choice at the foot of the screen, extended with AI by
-D141 and the connections map by D174, replaces the whole workspace with one dashboards card: dashboards and
+D141 and Pipelines by D175, replaces the whole workspace with one dashboards card: dashboards and
 sources on the left, a 12-column grid of widgets on the right.
 
 - The data workspace is hidden, not closed: panels, their state and an open

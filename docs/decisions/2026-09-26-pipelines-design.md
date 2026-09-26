@@ -97,6 +97,27 @@ between connections are laid out, joined, kept, and run again.
 - A canvas with more pairs of rows than one answer checks, 400, hints only
   the links of the card selected, and says so.
 
+## Settled during implementation
+
+- **Built in two passes**: the space, pipelines and cards first (D175), then
+  links, the panel, Run and the hint (D176).
+- **A connection pressed in the list** opens the same window as one dropped,
+  and its card goes to the nearest spot clear of the others in the middle of
+  the view; a dropped one lands under the pointer.
+- **Groupings are walked into in the window**, not D75's filter above the
+  list, so a schema can be ticked as a place. The top of a connection is
+  tickable where it holds no groupings, as the top of personal storage does.
+- **A card also keeps its connection's name** from when it was dropped, for a
+  card whose connection is gone and can no longer say it, and each row keeps
+  the names of the places above it, so two `orders` of two schemas differ.
+- **A card is checked by a request of its own**, against the card as stored,
+  one row after another; a source without a way to say where a node lives is
+  not checked. A card taken off asks first.
+- **A selection fades nothing on this canvas**, unlike D97's diagram.
+- **D174 moved** to the pipelines' architecture file with its route: the map's
+  screen, its pair-opening and the header's rule for a space without a first
+  panel went with the screen.
+
 ## Out of scope
 
 - Running every link of a pipeline in one press: the next step.
