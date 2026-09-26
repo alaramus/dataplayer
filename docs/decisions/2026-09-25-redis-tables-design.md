@@ -79,7 +79,7 @@ shows, not only for declared tables:
 
 - **Copy, then Paste in a folder** of a file connection or from a pair's bar:
   "Save as CSV" offers a name from the relation model — `session:42:token`
-  becomes `session_42_token.csv`, because a colon is not a file name on every
+  becomes `session-42-token.csv`, because a colon is not a file name on every
   system — and runs as D168's transfer.
 - **What is written is the grid's**: a key with its type's columns, a string
   whole rather than cut where the viewer cuts it; a folder as its list of keys;
@@ -103,6 +103,25 @@ shows, not only for declared tables:
   workflow is narrowed by the selection as its `can_replace` is (D169).
 - **The grid's "export all rows" follows**: it is D44's capability, so a Redis
   key, folder or table gains the whole download PostgreSQL has had.
+
+## Settled during implementation
+
+- **The file name is the downloads' safe name** (D49), so `session:42:token`
+  is `session-42-token.csv` rather than `session_42_token.csv` as first
+  written: one rule for every file a table becomes.
+- **At most 100 tables in one paste.** Each is described at every change of a
+  tick, and a thousand would be a thousand relation models behind one menu.
+- **Two of one name in one paste are both kept**, the second as
+  `name (1).csv`, whatever was chosen for names already in the folder.
+- **A column cannot be called `key`**: the table's first column is.
+- **The sample** is the first hundred hashes by name among the keys the
+  catalog lists, each read with one `HSCAN` of at most 200 fields.
+- **In the catalog the table says `over user:`** where a table's row count
+  stands, rather than the "N/A" of a table nobody analysed.
+- **A page's notice** — keys left out, a folder read in part — is a new
+  `FetchResult.notice`, drawn above the grid.
+- **The grid keeps the first 100,000 names of what it scanned**, since a scan's
+  last batch can overshoot the ceiling.
 
 ## Out of scope
 

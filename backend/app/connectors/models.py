@@ -4,7 +4,7 @@ from typing import Annotated, Any
 
 from pydantic import Field as Constrained
 from pydantic import StringConstraints
-from sqlalchemy import Column, DateTime, Index, LargeBinary, String
+from sqlalchemy import Column, DateTime, Index, LargeBinary, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -59,6 +59,13 @@ class Connector(SQLModel, table=True):
     # hence the server default (D135).
     allow_third_party_transfer: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
+    )
+    # Tables people declared over what the source keeps without structure, as
+    # `DeclaredTable` dumps: the application's, never written into the source,
+    # and gone with the connection (D170).
+    declared_tables: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSONB, nullable=False, server_default=text("'[]'::jsonb")),
     )
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,

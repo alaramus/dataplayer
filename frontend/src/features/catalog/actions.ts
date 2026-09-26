@@ -220,7 +220,9 @@ export function nodeSetOf(nodeIds: (string | null)[]): string[] | null {
  * The names are prefixed because one menu carries two vocabularies: a source
  * names its actions with identifiers, so a colon cannot collide.
  */
-export const CLIENT_COMMANDS = ["details", "relationships", "copy", "cut", "backups"] as const
+export const CLIENT_COMMANDS = [
+  "details", "relationships", "copy", "cut", "describe-table", "backups",
+] as const
 export type ClientCommand = (typeof CLIENT_COMMANDS)[number]
 
 export function clientCommandName(command: ClientCommand): string {
@@ -249,6 +251,13 @@ export interface ClientMenuState {
    */
   copy?: { enabled: boolean; reason?: string }
   cut?: { enabled: boolean; reason?: string }
+  /**
+   * Whether the selection can be described as a table, and why not (D170).
+   *
+   * Absent for a source over which nothing can be declared: only a type that
+   * says `declared_tables` shows the line.
+   */
+  table?: { enabled: boolean; reason?: string }
   /**
    * Whether this connection could be copied out, and why not when it cannot.
    *
@@ -302,6 +311,14 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
       label: "Cut",
       disable: !state.cut.enabled,
       hint: state.cut.reason,
+    })
+  }
+  if (state.table) {
+    items.push({
+      name: clientCommandName("describe-table"),
+      label: "Describe as table",
+      disable: !state.table.enabled,
+      hint: state.table.reason,
     })
   }
   // Last of the client's, because it is the one line about the connection

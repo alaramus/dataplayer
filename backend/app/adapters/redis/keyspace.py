@@ -22,14 +22,21 @@ tree, and a page that tried to draw one would fail slowly instead of quickly.
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
 from redis.exceptions import ResponseError
 
-from app.adapters.catalog import CatalogNode, DatabaseNode, DirectoryNode, KeyNode
+from app.adapters.catalog import (
+    CatalogNode,
+    DatabaseNode,
+    DirectoryNode,
+    KeyNode,
+    TableNode,
+)
 from app.adapters.content import NodeRepresentation
+from app.adapters.declared_tables import DeclaredTable
 from app.adapters.protocol import NodeNotFound
 from app.adapters.redis.session import RedisSession, resolved, text
 
@@ -55,6 +62,11 @@ MAX_STRING_BYTES = 64 * 1024
 # limit, which is what Redis documents it as.
 SCAN_BATCH = 500
 
+# How many commands one pipeline carries when every key of a folder is asked
+# about: enough to make a round trip worth it, few enough to keep its answer
+# small.
+TYPE_BATCH = 1000
+
 # How many key spaces a server has when it will not say. Redis is started with
 # sixteen unless somebody chose otherwise, and a managed server may refuse
 # `CONFIG GET` outright — in which case sixteen is the number every client
@@ -68,12 +80,16 @@ DEFAULT_DATABASES = 16
 DATABASE_PREFIX = "d"
 KEY_PREFIX = "k"
 FOLDER_PREFIX = "f"
+# A table declared over a folder (D170): the folder's prefix, marked apart so
+# opening the table and listing the folder stay two requests.
+TABLE_PREFIX = "t"
 
 # Read strictly. An id reaching this module came from a client, and a string
 # that is nearly one of ours must be refused rather than nearly understood.
 _DATABASE_ID = re.compile(r"^d(\d{1,3})$")
 _KEY_ID = re.compile(r"^k(\d{1,3}):(.+)$", re.DOTALL)
 _FOLDER_ID = re.compile(r"^f(\d{1,3}):(.*)$", re.DOTALL)
+_TABLE_ID = re.compile(r"^t(\d{1,3}):(.+)$", re.DOTALL)
 
 DataType = Literal["string", "list", "set", "zset", "hash", "stream"]
 
@@ -134,6 +150,55 @@ def folder_id(database: int, prefix: str) -> str:
     return f"{FOLDER_PREFIX}{database}{SEPARATOR}{prefix}"
 
 
+def table_id(database: int, prefix: str) -> str:
+    return f"{TABLE_PREFIX}{database}{SEPARATOR}{prefix}"
+
+
+def folders_above(name: str) -> list[str]:
+    """The folder prefixes a name lies in, outermost first, by the listing's rule.
+
+    A segment is a folder when a separator follows it and it is not empty, so
+    `a::b` lies in `a:` and is a key there. For a folder's own prefix the
+    last one is the folder itself.
+    """
+    found: list[str] = []
+    prefix = ""
+    while True:
+        head, separated, _ = name[len(prefix) :].partition(SEPARATOR)
+        if not (separated and head):
+            return found
+        prefix = f"{prefix}{head}{SEPARATOR}"
+        found.append(prefix)
+
+
+def pattern_under(prefix: str) -> str:
+    """The `SCAN` pattern for every key under a prefix, the prefix taken literally.
+
+    A glob character in a key's name — `[`, `*`, `?` — would otherwise make
+    the pattern mean something else than the folder.
+    """
+    escaped = "".join(f"\\{char}" if char in "\\*?[]" else char for char in prefix)
+    return f"{escaped}*"
+
+
+def is_direct(name: str, prefix: str) -> bool:
+    """Whether a name under a prefix is a key of that folder, not of one below."""
+    head, separated, _ = name[len(prefix) :].partition(SEPARATOR)
+    return not (separated and head)
+
+
+def is_folder_prefix(prefix: str) -> bool:
+    """Whether the listing could have issued this prefix as a folder."""
+    above = folders_above(prefix)
+    return bool(above) and above[-1] == prefix
+
+
+def parent_prefix(prefix: str) -> str:
+    """The place a folder is listed in: the folder above it, or the database."""
+    above = folders_above(prefix)
+    return above[-2] if len(above) > 1 else ""
+
+
 def key_ref(node_id: str | None) -> KeyRef:
     """The key an id names, or a refusal.
 
@@ -160,6 +225,14 @@ def place_ref(node_id: str | None) -> PlaceRef:
     if folder is None:
         raise NotAKey(node_id)
     return PlaceRef(database=int(folder.group(1)), prefix=folder.group(2))
+
+
+def table_ref(node_id: str | None) -> PlaceRef:
+    """The folder a table id reads, or a refusal."""
+    found = _TABLE_ID.match(node_id or "")
+    if found is None or not is_folder_prefix(found.group(2)):
+        raise NotAKey(node_id)
+    return PlaceRef(database=int(found.group(1)), prefix=found.group(2))
 
 
 def place_of(node_id: str | None) -> PlaceRef:
@@ -191,11 +264,44 @@ def is_database(node_id: str | None) -> bool:
     return _DATABASE_ID.match(node_id or "") is not None
 
 
+def is_table(node_id: str | None) -> bool:
+    return _TABLE_ID.match(node_id or "") is not None
+
+
+def folder_node(database: int, prefix: str) -> DirectoryNode:
+    """A folder as the catalog shows it, named by its last segment."""
+    return DirectoryNode(
+        id=folder_id(database, prefix),
+        name=prefix[len(parent_prefix(prefix)) :],
+        has_children=True,
+        representations=[],
+        describable=True,
+    )
+
+
+def table_node(database: int, prefix: str, table: DeclaredTable) -> TableNode:
+    """A declared table, standing beside the folder it reads (D170)."""
+    return TableNode(
+        id=table_id(database, prefix),
+        name=table.name,
+        has_children=False,
+        representations=[AS_ROWS],
+        describable=True,
+        declared_over=prefix,
+    )
+
+
 class RedisKeyspace:
     """Listing what is under one prefix, and asking about one key."""
 
-    def __init__(self, session: RedisSession) -> None:
+    def __init__(
+        self,
+        session: RedisSession,
+        tables: Mapping[str, DeclaredTable] | None = None,
+    ) -> None:
         self._session = session
+        # Declared tables by the id of the folder each reads (D170).
+        self._tables = tables or {}
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         """The databases at the root, and one level of names inside one.
@@ -214,7 +320,7 @@ class RedisKeyspace:
             # would quietly answer for the wrong one.
             return []
         place = place_of(node_id)
-        names = await self._scan(place.database, f"{place.prefix}*")
+        names = await self._scan(place.database, pattern_under(place.prefix))
         folders: set[str] = set()
         keys: list[str] = []
         for name in names:
@@ -225,20 +331,48 @@ class RedisKeyspace:
             else:
                 keys.append(name)
         described = await self.describe(place.database, sorted(keys))
+        prefixes = [f"{place.prefix}{head}{SEPARATOR}" for head in sorted(folders)]
         return [
-            *(
-                DirectoryNode(
-                    id=folder_id(
-                        place.database, f"{place.prefix}{head}{SEPARATOR}"
-                    ),
-                    name=f"{head}{SEPARATOR}",
-                    has_children=True,
-                    representations=[],
-                )
-                for head in sorted(folders)
-            ),
-            *(_node(place.database, facts) for facts in described),
+            *self._with_tables(place, prefixes),
+            *(key_node(place.database, facts) for facts in described),
         ]
+
+    def _with_tables(self, place: PlaceRef, prefixes: list[str]) -> list[CatalogNode]:
+        """The folders, each with the table declared over it right after.
+
+        A table whose folder holds no key now still stands here, after the
+        folders: the declaration outlives the keys, and its rows are none.
+        """
+        declared = {
+            prefix: table
+            for prefix, table in self.tables_in(place.database)
+            if parent_prefix(prefix) == place.prefix
+        }
+        nodes: list[CatalogNode] = []
+        for prefix in prefixes:
+            nodes.append(folder_node(place.database, prefix))
+            table = declared.pop(prefix, None)
+            if table is not None:
+                nodes.append(table_node(place.database, prefix, table))
+        nodes.extend(
+            table_node(place.database, prefix, table)
+            for prefix, table in sorted(declared.items())
+        )
+        return nodes
+
+    def tables_in(self, database: int) -> list[tuple[str, DeclaredTable]]:
+        """Every table declared in one database, with its folder's prefix."""
+        found: list[tuple[str, DeclaredTable]] = []
+        for place_id, table in self._tables.items():
+            match = _FOLDER_ID.match(place_id)
+            if match is None or int(match.group(1)) != database:
+                continue
+            if is_folder_prefix(match.group(2)):
+                found.append((match.group(2), table))
+        return found
+
+    def table_at(self, database: int, prefix: str) -> DeclaredTable | None:
+        return self._tables.get(folder_id(database, prefix))
 
     async def databases(self) -> list[CatalogNode]:
         """Every key space this server has, with the one to open on marked.
@@ -259,6 +393,7 @@ class RedisKeyspace:
                 name=f"db{index}",
                 has_children=True,
                 representations=[],
+                describable=True,
                 preferred=index == opens_on,
                 keys=filled.get(index, 0),
             )
@@ -365,7 +500,13 @@ class RedisKeyspace:
         return answers
 
     async def _scan(self, database: int, match: str) -> list[str]:
-        """Every key matching this pattern, up to the ceiling.
+        names, _ = await self.scan_names(database, match, SCAN_CEILING)
+        return names
+
+    async def scan_names(
+        self, database: int, match: str, ceiling: int
+    ) -> tuple[list[str], bool]:
+        """Every key matching this pattern up to a ceiling, and whether that was all.
 
         `SCAN` rather than `KEYS`, which blocks the server for the whole of
         its own run. The cursor is followed until it comes back to zero or
@@ -381,9 +522,20 @@ class RedisKeyspace:
                 )
                 for raw in batch:
                     seen.add(text(raw))
-                if cursor == 0 or len(seen) >= SCAN_CEILING:
+                if cursor == 0 or len(seen) >= ceiling:
                     break
-        return list(seen)
+        return list(seen), cursor == 0
+
+    async def types_of(self, database: int, names: list[str]) -> list[str]:
+        """The type of each key, `none` for one that has gone, in pipelines."""
+        found: list[str] = []
+        async with self._session.connection(database) as client:
+            for start in range(0, len(names), TYPE_BATCH):
+                pipe = client.pipeline(transaction=False)
+                for name in names[start : start + TYPE_BATCH]:
+                    pipe.type(name)
+                found.extend(text(one) for one in await pipe.execute())
+        return found
 
 
 def _keys_in(facts: Any) -> int | None:
@@ -415,12 +567,13 @@ _LENGTH_COMMANDS: dict[str, str] = {
 }
 
 
-def _node(database: int, facts: KeyFacts) -> KeyNode:
+def key_node(database: int, facts: KeyFacts) -> KeyNode:
     return KeyNode(
         id=key_id(database, facts.name),
         name=facts.name.rsplit(SEPARATOR, 1)[-1] or facts.name,
         has_children=False,
         representations=[AS_ROWS],
+        describable=True,
         data_type=facts.data_type,
         ttl_seconds=facts.ttl_seconds,
         length=facts.length,

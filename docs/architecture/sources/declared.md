@@ -1,17 +1,69 @@
-# Declared references
+# Declared references and tables
 
 A reference the person drew, as opposed to one the source declares. D36 covers
 the second: a foreign key, read from the source, followed within one connection.
 This file covers a line somebody draws by hand between two columns that no
 source knows are related — including columns in two different connections and
-in two different kinds of source.
+in two different kinds of source — and a table somebody declares over keys a
+source keeps without structure (D170).
 
-Neither source is changed. The line is a row in the application's database.
+Neither source is changed. The line is a row in the application's database,
+and the table is kept with its connection.
 
 Read [relations.md](relations.md) first for what a reference is and how one is
 followed; nothing here replaces that path, it adds a second issuer to it.
 
-Decisions here: D106, D107, D108.
+Decisions here: D106, D107, D108, D170.
+
+## D170. A folder of Redis hashes can be declared a table
+
+A person can say of a Redis folder: its keys are hashes, and these fields are
+the columns. Redis has no word for that, so the application keeps it, and the
+driver shows it.
+
+- **Kept with the connection**, in the connector row's `declared_tables`, never
+  in Redis: everybody who reads the connection sees it, and it goes with the
+  connection. It reaches the driver through `AdapterContext.declared_tables`;
+  a driver without `SupportsDeclaredTables` ignores it.
+- **Declaring, changing and removing need `structure`**, the level that changes
+  a table's structure elsewhere; asking whether the command applies needs
+  `read`. One table per folder; a second declaration over the same folder
+  replaces the first. Removing forgets the description and touches no key.
+- **The driver answers three things** about a node: where a table over it would
+  stand (`table_place`: a folder, or the table already over one; anything else
+  is refused "Select a folder to describe as a table"), a proposal read off the
+  folder, and the declaration it would keep, refusing a column called `key`.
+- **The proposal** is the fields of the first hundred hashes directly in the
+  folder, by name, each read with one bounded `HSCAN`; a type is guessed from
+  every sampled value — number, boolean, date and time, else text. A declared
+  table proposes its own columns first, ticked, and what else the sample holds
+  unticked.
+- **In the catalog** a `TableNode` with id `t<db>:<prefix>` stands right after
+  its folder, named as declared, saying `over user:` where a table's row count
+  would be. The folder stays as it was.
+- **Opened, it is a grid** of one row per hash directly in the folder, in key
+  order: `key` — the name within the folder — then the declared fields, a
+  missing one empty. A key of another type is not a row, and
+  `FetchResult.notice` says how many were left out. At most 100,000 keys under
+  the folder are read, the first by name of those scanned, and the notice says
+  when there were more. Nothing is editable, sortable or filterable.
+- **Every Redis node reads as a relation** (`SupportsRelationModel`): a key its
+  type's columns (kind `key`), a folder or a database the listing's four
+  (`key_listing`), a declared table `key` and its fields (`declared_table`).
+  The columns of each are said once, in `redis/shapes.py`, for the grid, the
+  model and the export alike. **Every node has a path** (`SupportsNodePath`):
+  database, folders, then the node, a folder derived from its name rather than
+  scanned for.
+
+Known deviations:
+
+- **Each page scans the folder again**, up to its ceiling, and asks every key's
+  type: the rows are paged over hashes the scan found, and nothing keeps the
+  list between pages but the read cache.
+- **A hash's field named `key` cannot be a column**: the first column has that
+  name.
+
+Spec: [Tables declared over Redis, and Redis saved as CSV](../../decisions/2026-09-25-redis-tables-design.md)
 
 ## D106. The application keeps references no source has
 
@@ -106,13 +158,25 @@ backend/app/connectors/
 ├── declared.py         the row, its two ends, the names this module issues,
 │                       reading an end against its source, the references of
 │                       one node, and following one
-└── declared_routes.py  GET / POST /declared-references, DELETE one
+├── declared_routes.py  GET / POST /declared-references, DELETE one
+├── tables.py           the declared tables a connector row keeps (D170)
+└── table_routes.py     /connectors/{id}/tables: offer, proposal, PUT, DELETE
+
+backend/app/adapters/
+├── declared_tables.py  a declaration, a proposal, `SupportsDeclaredTables`'s
+│                       answers
+└── redis/tables.py     where one stands, the sample, the rows of a table;
+                        `model.py` and `export.py` beside it read every node
 
 frontend/src/features/declared/
 ├── api.ts              the list, and what drawing or removing one invalidates
 ├── model.ts            which end you are standing on, and how it reads
 ├── DeclareReferenceDialog.vue        one window, both ends
 └── DeclaredReferencesSection.vue     the list, beside constraints and indexes
+
+frontend/src/features/catalog/
+├── declaredTable.ts         the window's decisions: draft, added field, why not
+└── DeclareTableWindow.vue   "Describe as table", from the catalog's menu
 ```
 
 The catalog walk both this and D43 need is `frontend/src/features/catalog/NodePicker.vue`.

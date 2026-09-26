@@ -26,6 +26,7 @@ from app.connectors.paste.kinds import PastesAsJob
 from app.connectors.paste.registry import kind_named
 from app.connectors.paste.transfer import Transfer, TransferStopped, in_worker
 from app.connectors.service import build_adapter, merge_options
+from app.connectors.tables import tables_of
 from app.core.access import Access, at_least
 from app.core.db import async_session_maker
 from app.jobs.models import TERMINAL, Job, JobKind
@@ -157,7 +158,9 @@ class RunTransfer:
             return build_adapter(
                 registry.get(connector.adapter_type),
                 merge_options(connector.config, connector.secrets),
-                context_for(connector.owner_id, pooling=pooling),
+                context_for(
+                    connector.owner_id, pooling=pooling, tables=tables_of(connector)
+                ),
             )
         except (UnknownAdapterType, ValueError, AdapterError):
             raise JobFailed(f"{label} can no longer be opened; {NOTHING}") from None

@@ -265,6 +265,9 @@ function iconOf(node: CatalogNode): string {
 function captionOf(node: CatalogNode): string | undefined {
   switch (node.kind) {
     case "table":
+      // A table somebody declared over a folder has no count to estimate;
+      // where it reads is what there is to say (D170).
+      if (node.declared_over) return `over ${node.declared_over}`
       return node.row_count_estimate === null || node.row_count_estimate === undefined
         ? NOT_COUNTED
         : `~${node.row_count_estimate} rows`
@@ -310,6 +313,9 @@ function captionHintOf(node: CatalogNode): string | undefined {
     return "A view stores no rows; how many it returns is known only when it runs"
   }
   if (node.kind !== "table") return undefined
+  if (node.declared_over) {
+    return `Declared over the hashes in ${node.declared_over}, one row each`
+  }
   if (node.row_count_estimate !== null && node.row_count_estimate !== undefined) {
     return undefined
   }

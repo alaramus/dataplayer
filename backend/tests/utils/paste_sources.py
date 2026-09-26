@@ -20,13 +20,26 @@ from app.adapters.update import (
 )
 
 ROWS: list[list[str | None]] = [["1", "Ada"], ["2", None], ["3", 'Grace "G"']]
+PETS: list[list[str | None]] = [["1", "cat"]]
+
+# Each relation's columns and rows. `sales.people` shares its name with
+# `public.people`, so two of them saved together want the same file.
+RELATIONS: dict[str, tuple[list[str], list[list[str | None]]]] = {
+    "public.people": (["id", "name"], ROWS),
+    "public.pets": (["id", "species"], PETS),
+    "sales.people": (["id", "name"], ROWS),
+}
 
 
 class Table:
-    """A source holding one relation, `public.people`, read in batches of two."""
+    """A source holding a few relations, `public.people` first, read in batches of two."""
 
-    def __init__(self, *, fail_at_batch: int | None = None) -> None:
+    def __init__(
+        self, *, fail_at_batch: int | None = None, failing: str | None = None
+    ) -> None:
         self.fail_at_batch = fail_at_batch
+        # The one relation whose stream fails, when the others must not.
+        self.failing = failing
         self.closed = False
 
     async def check_connection(self) -> ConnectionCheckResult:
@@ -35,21 +48,22 @@ class Table:
     async def relation_model(self, node_id: str) -> RelationModel:
         if "." not in node_id:
             raise ValueError(f'"{node_id}" is not a relation')
-        if node_id != "public.people":
+        if node_id not in RELATIONS:
             raise NodeNotFound(node_id)
+        schema, _, name = node_id.partition(".")
         return RelationModel(
             node_id=node_id,
-            schema_name="public",
-            name="people",
+            schema_name=schema,
+            name=name,
             kind="table",
             columns=[
                 Column(
                     position=position,
-                    name=name,
+                    name=column,
                     type=ColumnType(sql="text", category="string"),
                     nullable=True,
                 )
-                for position, name in enumerate(["id", "name"], start=1)
+                for position, column in enumerate(RELATIONS[node_id][0], start=1)
             ],
         )
 
@@ -57,12 +71,14 @@ class Table:
         return self._stream(request)
 
     async def _stream(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
-        assert request.columns == ["id", "name"]
+        columns, rows = RELATIONS[request.node_id]
+        assert request.columns == columns
+        failing = self.failing in (None, request.node_id)
         try:
-            for number, start in enumerate(range(0, len(ROWS), 2)):
-                if number == self.fail_at_batch:
+            for number, start in enumerate(range(0, len(rows), 2)):
+                if failing and number == self.fail_at_batch:
                     raise AdapterError("network", "The source went away")
-                yield ExportBatch(rows=ROWS[start : start + 2])
+                yield ExportBatch(rows=rows[start : start + 2])
         finally:
             self.closed = True
 

@@ -32,6 +32,12 @@ from app.adapters.content import (
     EditorContentRequest,
     UpdateContentRequest,
 )
+from app.adapters.declared_tables import (
+    DeclaredTable,
+    DeclareTableRequest,
+    TablePlace,
+    TableProposal,
+)
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -403,6 +409,39 @@ class SupportsRelationModel(Protocol):
 
         Raises NodeNotFound for an id that names nothing, AdapterError for
         source failures, and ValueError for an id this source may not reach.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsDeclaredTables(Protocol):
+    """A source over whose unstructured data a person can declare a table (D170).
+
+    The declarations are the application's and reach the driver when it is
+    built; these three are what only the driver can answer about one.
+    """
+
+    async def table_place(self, node_id: str) -> TablePlace:
+        """Where a table declared on this node would stand.
+
+        A node that can carry one, or the table already declared over it.
+        Raises ValueError for any other node, NodeNotFound for an id that
+        names nothing and AdapterError for source failures.
+        """
+        ...
+
+    async def propose_table(self, node_id: str) -> TableProposal:
+        """A declaration read off a sample of the node, or the one it has.
+
+        Raises what `table_place` raises.
+        """
+        ...
+
+    async def declared_table(self, request: DeclareTableRequest) -> DeclaredTable:
+        """The declaration this source would keep for the request.
+
+        Raises ValueError for a node that cannot carry one or a column the
+        table cannot have, and what `table_place` raises.
         """
         ...
 

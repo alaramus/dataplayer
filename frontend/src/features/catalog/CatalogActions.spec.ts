@@ -4,7 +4,7 @@ import { computed, defineComponent } from "vue"
 import type { Ref } from "vue"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import type { ActionInfo, ClipboardOffer, PasteOffer } from "@/client"
+import type { ActionInfo, ClipboardOffer, PasteOffer, TableOffer } from "@/client"
 import type { MenuItem } from "@/shared/ui"
 import CatalogActions from "./CatalogActions.vue"
 import { clipboard, forgetClipboard, holdNodes } from "./clipboard"
@@ -13,6 +13,9 @@ const replies = vi.hoisted(() => new Map<string, ActionInfo[]>())
 const answers = vi.hoisted(() => ({
   offers: [] as PasteOffer[],
   hold: undefined as ClipboardOffer | undefined,
+  // Whether the source type says a table can be declared over it (D170).
+  declares: false,
+  table: undefined as TableOffer | undefined,
 }))
 const pasteCall = vi.hoisted(() => vi.fn())
 
@@ -24,9 +27,12 @@ vi.mock("@/client", () => ({
 // here, and whether a selection here can be held at all.
 vi.mock("@tanstack/vue-query", () => ({
   useQuery: (options: { queryKey: { value: unknown[] } }) => ({
-    data: computed(() =>
-      options.queryKey.value[0] === "paste-offers" ? answers.offers : answers.hold
-    ),
+    data: computed(() => {
+      const asked = options.queryKey.value[0]
+      if (asked === "paste-offers") return answers.offers
+      if (asked === "table-offer") return answers.table
+      return answers.hold
+    }),
     isPending: computed(() => false),
     isError: computed(() => false),
   }),
@@ -40,6 +46,13 @@ vi.mock("@/features/catalog/api", () => ({
   }),
   useDownloadAction: () => ({ mutateAsync: vi.fn() }),
   usePrepareConnectorAction: () => ({ isPending: computed(() => false), mutateAsync: vi.fn() }),
+}))
+vi.mock("@/features/connectors/api", () => ({
+  useAdapterTypes: () => ({
+    data: computed(() => answers.declares
+      ? [{ name: "postgres", capabilities: [{ code: "declared_tables" }] }]
+      : []),
+  }),
 }))
 vi.mock("@/features/services/backups", () => ({
   useBackupSupport: () => computed(() => ({ offered: false })),
@@ -62,6 +75,18 @@ vi.mock("./CrossPaste.vue", () => ({
     name: "CrossPaste",
     props: { intent: { type: Object, default: null } },
     emits: ["done", "sourceChanged", "close"],
+    template: "<div />",
+  }),
+}))
+vi.mock("./DeclareTableWindow.vue", () => ({
+  default: defineComponent({
+    name: "DeclareTableWindow",
+    props: {
+      connectorId: { type: String, default: "" },
+      nodeId: { type: String, default: "" },
+      nodeLabel: { type: String, default: "" },
+    },
+    emits: ["done", "close"],
     template: "<div />",
   }),
 }))
@@ -135,6 +160,8 @@ afterEach(() => {
   forgetClipboard()
   answers.offers = []
   answers.hold = undefined
+  answers.declares = false
+  answers.table = undefined
   pasteCall.mockReset()
 })
 
@@ -143,6 +170,43 @@ function items(wrapper: ReturnType<typeof menu>) {
 }
 
 describe("catalog action subjects", () => {
+  it("describes the one ticked node as a table, where the source can have one (D170)", async () => {
+    answers.declares = true
+    answers.table = { available: true, reason: null, declared: false }
+    const wrapper = menu()
+    expect(items(wrapper).find((one) => one.name === "client:describe-table")?.disable).toBe(false)
+
+    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:describe-table")
+    await flushPromises()
+    const window = wrapper.findComponent({ name: "DeclareTableWindow" })
+    expect(window.props()).toEqual({
+      connectorId: "connection", nodeId: "schema.table", nodeLabel: "Table label",
+    })
+    const outcome = { done: [{ message: "users declared", reload_node_ids: ["d0"] }], failures: [], total: 1 }
+    window.vm.$emit("done", outcome)
+    window.vm.$emit("close")
+    await flushPromises()
+
+    expect(wrapper.emitted("done")?.[0]).toEqual([outcome])
+    expect(wrapper.findComponent({ name: "DeclareTableWindow" }).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("says why a selection cannot be described as a table, and draws nothing elsewhere", () => {
+    answers.declares = true
+    answers.table = { available: false, reason: "Select a folder to describe as a table" }
+    const refused = menu()
+    const line = items(refused).find((one) => one.name === "client:describe-table")
+    expect(line?.disable).toBe(true)
+    expect(line?.hint).toBe("Select a folder to describe as a table")
+    refused.unmount()
+
+    answers.declares = false
+    const elsewhere = menu()
+    expect(items(elsewhere).some((one) => one.name === "client:describe-table")).toBe(false)
+    elsewhere.unmount()
+  })
+
   it("offers cross-connection Paste only when an offer is usable", () => {
     holdNodes("another", ["report.csv"], "copy")
     answers.offers = [{ ...copying, available: false, reason: "Unavailable" }]

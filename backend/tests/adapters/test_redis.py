@@ -60,8 +60,14 @@ def test_what_it_can_do_is_read_off_the_driver() -> None:
         "Remove expiry",
     } <= set(titles)
     assert {"Edit rows", "Insert rows", "Delete rows"} <= set(titles)
-    # Still not a source with statements, relations or a query console.
-    assert "Describe a relation" not in titles
+    # What it holds reads as relations, and a folder of hashes can be declared
+    # one (D170); it is still not a source with statements or references.
+    assert {
+        "Describe a relation",
+        "Locate a node",
+        "Export all matching rows",
+        "Describe keys as a table",
+    } <= set(titles)
     assert "Follow references" not in titles
 
 

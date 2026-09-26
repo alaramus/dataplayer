@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
+import { REDIS } from "./redis"
 import { connectorRow } from "./workspace"
 
 /**
@@ -85,6 +86,18 @@ export async function choosePolicy(page: Page, label: string) {
 export async function createFileConnector(page: Page, name: string) {
   await pickAdapterType(page, "file")
   await page.getByTestId("connector-name").fill(name)
+  await page.getByTestId("save-connector").click()
+  await expect(connectorRow(page, name)).toBeVisible()
+}
+
+/** The development Redis, opening on the scenarios' own database. */
+export async function createRedisConnector(page: Page, name: string) {
+  await pickAdapterType(page, "redis")
+  await page.getByTestId("connector-name").fill(name)
+  await page.getByTestId("field-auth_method").click()
+  await page.getByRole("option", { name: "No auth", exact: true }).click()
+  await page.getByTestId("field-host").fill(REDIS.serverHost)
+  await page.getByTestId("field-database").fill(String(REDIS.database))
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, name)).toBeVisible()
 }

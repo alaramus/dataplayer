@@ -8,11 +8,13 @@ change that touches only one of the copies.
 """
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.declared_tables import DeclaredTable
 from app.adapters.protocol import DataAdapter
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
@@ -20,6 +22,7 @@ from app.adapters.resources import Pooling, ResourceStore
 from app.connectors import crud, service
 from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys
+from app.connectors.tables import tables_of
 from app.core.access import Access, at_least
 from app.users import storage
 from app.users.models import User
@@ -95,17 +98,20 @@ def context_for(
     owner_id: uuid.UUID,
     *,
     pooling: Pooling | None = None,
+    tables: Sequence[DeclaredTable] = (),
 ) -> AdapterContext:
     """What the driver may reach, decided here rather than by the request.
 
     Always the owner's: a grantee reading a connection signs in with the
     owner's credentials and reads the owner's storage (D33), and a key is a
-    credential like the rest (D146).
+    credential like the rest (D146). The tables declared over the connection
+    are everybody's who reads it (D170).
     """
     return AdapterContext(
         home_dir=storage.home_dir(owner_id),
         pooling=pooling,
         keys=OwnerKeys(owner_id),
+        declared_tables=tuple(tables),
     )
 
 
@@ -162,7 +168,11 @@ async def resolve_source(
     )
     return ResolvedSource(
         adapter=service.build_adapter(
-            adapter_type, options, context_for(connector.owner_id, pooling=pooling)
+            adapter_type,
+            options,
+            context_for(
+                connector.owner_id, pooling=pooling, tables=tables_of(connector)
+            ),
         ),
         access=access,
         cache_ttl_seconds=connector.cache_ttl_seconds,

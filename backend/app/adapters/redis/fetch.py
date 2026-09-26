@@ -1,10 +1,11 @@
 """Reading a Redis node as rows.
 
-Two things can be read. A key is read as what it holds, and what that looks
+Three things can be read. A key is read as what it holds, and what that looks
 like depends on its type: a hash is fields and values, a list is positions and
 values, a sorted set is members and scores. A folder is read as the keys under
 it — name, type, expiry and size — which is the listing a person wants when
-they are looking for a key rather than at one.
+they are looking for a key rather than at one. A table somebody declared over
+a folder is read as one row per hash in it (D170), in `tables.py`.
 
 Neither sorts and neither filters. Redis has no index over values and no
 ordering except the one a list or a sorted set carries in itself, so the
@@ -25,11 +26,14 @@ from app.adapters.redis.keyspace import (
     KeyRef,
     RedisKeyspace,
     is_key,
+    is_table,
     key_of,
     key_ref,
     place_of,
 )
 from app.adapters.redis.session import RedisSession, resolved, text
+from app.adapters.redis.shapes import KEY_SHAPES, LISTING, fetch_columns, stream_fields
+from app.adapters.redis.tables import RedisTables
 from app.adapters.redis.update import (
     NO_DELETE,
     NO_INSERT,
@@ -37,37 +41,30 @@ from app.adapters.redis.update import (
     row_handle_of,
     writer_for,
 )
-from app.adapters.relation import ColumnType, TypeCategory
 
 
-def _column(name: str, sql: str, category: TypeCategory) -> FetchColumn:
-    """One column, saying it can be neither sorted nor filtered.
-
-    Redis has no index over values, so a source that offered either would be
-    offering to read everything and do it here.
-
-    Whether it can be written is added afterwards, from the one place that
-    knows how each type is written: a reader that also declared what is
-    editable would be a second answer to that question.
-    """
-    return FetchColumn(
-        name=name,
-        type=ColumnType(sql=sql, category=category),
-        sortable=False,
-        filter_operators=[],
-    )
+def _columns_of(data_type: str) -> list[FetchColumn]:
+    """A key's columns. Whether one can be written is added afterwards, from the
+    one place that knows how each type is written: a reader that also declared
+    what is editable would be a second answer to that question."""
+    return fetch_columns(KEY_SHAPES[data_type])
 
 
 class RedisFetch:
     """One page of whatever a node holds."""
 
-    def __init__(self, session: RedisSession, keyspace: RedisKeyspace) -> None:
+    def __init__(
+        self, session: RedisSession, keyspace: RedisKeyspace, tables: RedisTables
+    ) -> None:
         self._session = session
         self._keyspace = keyspace
+        self._tables = tables
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         if is_key(request.node_id):
             return await self._one_key(request)
+        if is_table(request.node_id):
+            return await self._tables.fetch(request)
         return await self._keys_under(request)
 
     # --- a folder, read as the keys under it -------------------------------
@@ -84,21 +81,8 @@ class RedisFetch:
         page = names[request.offset : request.offset + request.limit]
         facts = await self._keyspace.describe(place.database, page)
         return FetchResult(
-            columns=[
-                _column("key", "key", "string"),
-                _column("type", "type", "string"),
-                _column("ttl", "seconds", "number"),
-                _column("size", "count", "number"),
-            ],
-            rows=[
-                [
-                    one.name,
-                    one.data_type,
-                    None if one.ttl_seconds is None else str(one.ttl_seconds),
-                    None if one.length is None else str(one.length),
-                ]
-                for one in facts
-            ],
+            columns=fetch_columns(LISTING),
+            rows=[listing_row(one) for one in facts],
             has_more=len(names) > request.offset + request.limit,
             # Deliberately not the same as "there are no more keys": a scan
             # that reached its ceiling has stopped looking, and a page that
@@ -116,12 +100,12 @@ class RedisFetch:
         if facts is None:
             raise NodeNotFound(request.node_id)
         reader = _READERS[facts.data_type]
-        columns, rows, has_more = await reader(self, ref, request)
-        return _writable(facts.data_type, columns, rows, has_more)
+        rows, has_more = await reader(self, ref, request)
+        return _writable(facts.data_type, _columns_of(facts.data_type), rows, has_more)
 
     async def _string(
         self, ref: KeyRef, request: FetchRequest
-    ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
+    ) -> tuple[list[list[str | None]], bool]:
         """One row, because a string key is one value.
 
         Read by range rather than whole: `GET` on a key holding ten megabytes
@@ -133,28 +117,20 @@ class RedisFetch:
             size = int(await client.strlen(ref.name))
         value = text(raw)
         truncated = size > MAX_STRING_BYTES
-        return (
-            [_column("value", "string", "string")],
-            [[value + (" …" if truncated else "")]],
-            False,
-        )
+        return [[value + (" …" if truncated else "")]], False
 
     async def _hash(
         self, ref: KeyRef, request: FetchRequest
-    ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
+    ) -> tuple[list[list[str | None]], bool]:
         async with self._session.connection(ref.database) as client:
             found = await resolved(client.hgetall(ref.name))
         pairs = sorted((text(k), text(v)) for k, v in found.items())
         page = _page(pairs, request)
-        return (
-            [_column("field", "field", "string"), _column("value", "string", "string")],
-            [[field, value] for field, value in page],
-            _has_more(pairs, request),
-        )
+        return [[field, value] for field, value in page], _has_more(pairs, request)
 
     async def _list(
         self, ref: KeyRef, request: FetchRequest
-    ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
+    ) -> tuple[list[list[str | None]], bool]:
         """A page of a list, read by index: the one type that pages honestly."""
         start = request.offset
         stop = request.offset + request.limit
@@ -163,7 +139,6 @@ class RedisFetch:
         values = [text(one) for one in found]
         has_more = len(values) > request.limit
         return (
-            [_column("index", "position", "number"), _column("value", "string", "string")],
             [
                 [str(start + index), value]
                 for index, value in enumerate(values[: request.limit])
@@ -173,19 +148,15 @@ class RedisFetch:
 
     async def _set(
         self, ref: KeyRef, request: FetchRequest
-    ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
+    ) -> tuple[list[list[str | None]], bool]:
         async with self._session.connection(ref.database) as client:
             found = await resolved(client.smembers(ref.name))
         members = sorted(text(one) for one in found)
-        return (
-            [_column("member", "member", "string")],
-            [[one] for one in _page(members, request)],
-            _has_more(members, request),
-        )
+        return [[one] for one in _page(members, request)], _has_more(members, request)
 
     async def _zset(
         self, ref: KeyRef, request: FetchRequest
-    ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
+    ) -> tuple[list[list[str | None]], bool]:
         """A page of a sorted set, in the order the set itself carries."""
         start = request.offset
         stop = request.offset + request.limit
@@ -193,34 +164,31 @@ class RedisFetch:
             found = await client.zrange(ref.name, start, stop, withscores=True)
         scored = [(text(member), str(score)) for member, score in found]
         return (
-            [_column("member", "member", "string"), _column("score", "score", "number")],
             [[member, score] for member, score in scored[: request.limit]],
             len(scored) > request.limit,
         )
 
     async def _stream(
         self, ref: KeyRef, request: FetchRequest
-    ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
-        """Entries of a stream, each as its id and its fields written out.
-
-        The fields are one column rather than columns of their own: a stream's
-        entries need not agree on what they hold, so a grid built from the
-        first one would hide what is in the rest.
-        """
+    ) -> tuple[list[list[str | None]], bool]:
+        """Entries of a stream, each as its id and its fields written out."""
         async with self._session.connection(ref.database) as client:
             found = await client.xrange(ref.name, count=request.offset + request.limit + 1)
-        entries = [
-            (
-                text(entry_id),
-                ", ".join(f"{text(k)}={text(v)}" for k, v in fields.items()),
-            )
-            for entry_id, fields in found
-        ]
+        entries = [(text(entry_id), stream_fields(fields)) for entry_id, fields in found]
         return (
-            [_column("id", "id", "string"), _column("fields", "text", "string")],
             [[entry_id, fields] for entry_id, fields in _page(entries, request)],
             _has_more(entries, request),
         )
+
+
+def listing_row(facts: KeyFacts) -> list[str | None]:
+    """One key of a folder's listing: name, type, expiry and size."""
+    return [
+        facts.name,
+        facts.data_type,
+        None if facts.ttl_seconds is None else str(facts.ttl_seconds),
+        None if facts.length is None else str(facts.length),
+    ]
 
 
 def _writable(

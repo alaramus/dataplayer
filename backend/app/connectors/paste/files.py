@@ -75,7 +75,7 @@ def destination_folder(storage: Storage, folder_id: str | None) -> Place:
     return place
 
 
-def _free(storage: Storage, folder: Place, name: str) -> Place:
+def free_place(storage: Storage, folder: Place, name: str) -> Place:
     """Keep both: the first `name (n)` nothing holds."""
     stem, dot, suffix = name.rpartition(".")
     if not dot or not stem:
@@ -101,7 +101,7 @@ def place_for(storage: Storage, folder: Place, name: str, conflict: Conflict) ->
         raise ActionRefused("conflict", f"{name} is already there")
     if conflict == "replace":
         return target
-    return _free(storage, folder, name)
+    return free_place(storage, folder, name)
 
 
 def folder_place_for(
@@ -118,7 +118,7 @@ def folder_place_for(
         raise ActionRefused(
             "not_applicable", f"{name} is a folder, which is kept rather than replaced"
         )
-    return _free(storage, folder, name)
+    return free_place(storage, folder, name)
 
 
 def source_files(source: Storage, node_ids: list[str]) -> list[Entry]:

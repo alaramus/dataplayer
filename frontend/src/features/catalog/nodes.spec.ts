@@ -383,6 +383,24 @@ describe("toListNodes", () => {
     expect(node.captionHint).toContain("analysed")
   })
 
+  it("says where a declared table reads instead of a count nobody made (D170)", () => {
+    const node = first(
+      toListNodes([
+        {
+          kind: "table",
+          id: "t0:user:",
+          name: "users",
+          has_children: false,
+          declared_over: "user:",
+          representations: [{ kind: "table", title: "View what it holds" }],
+        },
+      ])
+    )
+
+    expect(node.caption).toBe("over user:")
+    expect(node.captionHint).toBe("Declared over the hashes in user:, one row each")
+  })
+
   it("draws a hypertable as Timescale and a plain table as a table", () => {
     const [plain, hyper] = toListNodes([
       {

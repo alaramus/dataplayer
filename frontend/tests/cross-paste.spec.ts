@@ -66,6 +66,53 @@ test("saves a database table as a CSV file in a folder of another connection", a
   await deleteConnector(page, database)
 })
 
+test("saves several tables as one CSV file each, and asks once about taken names", async ({
+  page,
+}) => {
+  const database = `e2e-several-db-${Date.now()}`
+  const files = `e2e-several-files-${Date.now()}`
+  const folder = `e2e-several-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, database)
+  await createFileConnector(page, files)
+
+  await openConnector(page, files)
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("action-dialog").getByRole("textbox").first().fill(folder)
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toBeVisible()
+
+  await openConnector(page, database)
+  await pickSchema(page, "demo_lab")
+  await catalogCheck(page, "projects").click()
+  await catalogCheck(page, "teams").click()
+  await catalogAction(page, "client:copy")
+
+  // Named after themselves, so no window asks for a name (D171).
+  await openConnector(page, files)
+  await openNode(page, folder)
+  await catalogAction(page, "client:cross-paste")
+  await expect(page.getByTestId("cross-paste-name")).toHaveCount(0)
+  await expect(catalogRow(page, "projects.csv")).toBeVisible()
+  await expect(catalogRow(page, "teams.csv")).toBeVisible()
+
+  // Both names are taken now; the window asks once, for both.
+  await catalogAction(page, "client:cross-paste")
+  const conflict = page.getByTestId("cross-paste-conflict")
+  await expect(conflict).toContainText("projects.csv and 1 other file are already there")
+  await page.getByTestId("cross-paste-keep-both").click()
+  await expect(catalogRow(page, "projects (1).csv")).toBeVisible()
+  await expect(catalogRow(page, "teams (1).csv")).toBeVisible()
+
+  await page.getByTestId("catalog-up").click()
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toHaveCount(0)
+  await deleteConnector(page, files)
+  await deleteConnector(page, database)
+})
+
 test("copies a file to an SSH server and moves it back", async ({ page }) => {
   const files = `e2e-cross-files-${Date.now()}`
   const server = `e2e-cross-ssh-${Date.now()}`

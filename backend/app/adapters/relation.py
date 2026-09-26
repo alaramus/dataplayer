@@ -33,6 +33,13 @@ RelationKind = Literal[
     # A file that states its own columns: a Parquet file, a worksheet. Not a
     # table, because nothing in it can be changed and no server owns it (D51).
     "dataset",
+    # A key of a key-value store, read as its type reads: a hash as fields and
+    # values, a list as positions and values.
+    "key",
+    # A folder or a database of keys, read as the keys directly in it.
+    "key_listing",
+    # Rows somebody declared over keys the source does not call a table (D170).
+    "declared_table",
 ]
 Persistence = Literal["permanent", "unlogged", "temporary"]
 RefAction = Literal["no_action", "restrict", "cascade", "set_null", "set_default"]

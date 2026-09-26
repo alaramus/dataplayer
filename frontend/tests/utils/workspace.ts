@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 /**
@@ -48,6 +49,9 @@ export async function deleteConnector(page: Page, name: string) {
   await editConnector(page, name)
   await page.locator('[data-testid="delete-connector"][tabindex="0"]').click()
   await page.getByTestId("confirm-accept").click()
+  // Until the list drops it: a scenario that ends on the click closes its page
+  // with the request in flight, and the connection outlives the run.
+  await expect(connectorRow(page, name)).toHaveCount(0)
 }
 
 /**

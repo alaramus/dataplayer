@@ -6,7 +6,44 @@ connection. Reading a relation and editing the rows in it are in
 [relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168, D169.
+Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168, D169, D171.
+
+## D171. A Redis key, folder or table is saved as CSV, and several are one file each
+
+`relation_csv` (D165) takes any source with a relation model and a D44 export,
+and Redis now has both (D170).
+
+- **Redis implements D44** with the command each type reads itself in pieces
+  by: `HSCAN` and `SSCAN`, index ranges for a list and a sorted set, `XRANGE`
+  from the id after the last for a stream, and for a declared table `SCAN` over
+  its folder with each batch's types and declared fields read in one pipeline.
+  A string is read whole, being one value. The order is the source's. No
+  filter or sort is taken; the grid offers neither.
+- **A folder or a database** is its listing, refused "This folder holds more
+  keys than can be listed" beyond the catalog's 5,000 names rather than saved
+  short. A table has no ceiling in a CSV: it is scanned, not listed.
+- **The file is named from the relation model** by the downloads' safe name
+  (D49's): `session:42:token` becomes `session-42-token.csv`.
+- **Several ticked are one transfer and one file each**, named after each, at
+  most 100 at once — each is described at every change of a tick. The offer's
+  `workflow` narrows to `run`, so no name window opens; any taken name makes it
+  unavailable with `name_conflict`, and D162's window asks once, for all. Two
+  of one name in the same paste are both kept, the second as `name (1).csv`.
+- **One failing does not stop the next**: a refused node, a source failure or
+  an unwritable file fails that file alone. The 10 GB ceiling is for all of
+  them together, and crossing it stops the transfer, leaving the rest not
+  attempted. This holds for PostgreSQL tables too.
+- **The grid's "export all rows" follows**: D44's capability is the source's,
+  so a Redis key, folder or table gains the whole download.
+
+Known deviations:
+
+- **A hash, a set or a table changing while it is saved** may give an element
+  twice or miss one: that is `SCAN`'s promise, and the alternative is reading
+  it whole.
+- **A string is read whole**, up to Redis's 512 MB.
+
+Spec: [Tables declared over Redis, and Redis saved as CSV](../../decisions/2026-09-25-redis-tables-design.md)
 
 ## D169. A folder is carried whole between connections
 
@@ -181,20 +218,23 @@ Spec: [Rows pasted into another connection](../../decisions/2026-09-25-paste-row
 ## D165. A table pasted into a folder becomes a CSV file
 
 Kind `relation_csv`: from a source implementing `SupportsExport` and
-`SupportsRelationModel` — a PostgreSQL table or view today — into a folder of
-an explorer connection. Copy only; nothing offers a Cut of it.
+`SupportsRelationModel` — a PostgreSQL table or view, a Redis key, folder or
+declared table (D171) — into a folder of an explorer connection. Copy only;
+nothing offers a Cut of it.
 
-- One relation per paste. Columns come from the relation model in order, rows
-  from one D44 export stream with no filter and the source's own ordering. The
-  encoder is D44's (`downloads.write_csv`), so the bytes equal the grid's
-  whole-relation download.
-- Paste opens "Save as CSV" with `<table>.csv`. The name must be plain, and
-  `.csv` is appended unless it already ends so. Not D45's rule, which keeps any
-  delimited extension: a `.tsv` holding commas reads back as one column.
+- One file per relation; several ticked are one transfer (D171). Columns come
+  from the relation model in order, rows from one D44 export stream with no
+  filter and the source's own ordering. The encoder is D44's
+  (`downloads.write_csv`), so the bytes equal the grid's whole-relation
+  download.
+- Paste of one opens "Save as CSV" with `<table>.csv`. The name must be plain,
+  and `.csv` is appended unless it already ends so. Not D45's rule, which keeps
+  any delimited extension: a `.tsv` holding commas reads back as one column.
 - A taken name opens D162's window with Keep both and Replace. Replace is
   allowed because the source is not a file.
 - The stream is written where it is going as it comes (D168) and published
-  after the last batch. At most 10 GB of CSV; crossing it fails the paste. A
+  after the last batch. At most 10 GB of CSV for the whole paste; crossing it
+  stops it. A
   source failure, a refused name, the ceiling or a Stop discards the file, and
   the source's stream is closed at once rather than when collected.
 - The destination's read cache is invalidated. The source is untouched and the
@@ -379,6 +419,8 @@ than in the driver.
 - PostgreSQL keeps one validated query open through a server-side cursor; each
   batch crosses as D23's lossless text cells, the sort keeps its source-owned
   tiebreaker, and only requested visible columns are selected.
+- Redis reads each kind of node with its own bounded command and takes no
+  filter or sort (D171).
 - The file source deliberately does not opt in: [D49](actions.md)'s node
   download and exporting a tabular interpretation are different operations.
 - CSV stays outside the adapter. The connector layer encodes one batch at a time

@@ -1,4 +1,9 @@
-"""A table pasted into a folder becomes a CSV file (D165, D168)."""
+"""Tables pasted into a folder become CSV files, one each (D165, D168, D171).
+
+A table is anything its source describes and exports whole: a PostgreSQL
+relation, a Redis key, folder or declared table. One is saved under the name
+its window asks for; several go straight to Save, each named after itself.
+"""
 
 import asyncio
 from contextlib import ExitStack
@@ -22,6 +27,7 @@ from app.connectors.paste.files import (
     MAX_TRANSFER_BYTES,
     TransfersFiles,
     destination_folder,
+    free_place,
     place_for,
     storage_of,
 )
@@ -47,6 +53,9 @@ from app.core.access import Access
 
 NOT_A_RELATION = "Copy a table or a view"
 GONE = "The copied table no longer exists"
+# Each one is described at every change of a tick; a hundred bounds that.
+MAX_TABLES = 100
+TOO_LARGE = "The tables exceed 10 GB as CSV"
 
 
 def suggested_name(relation: str) -> str:
@@ -94,7 +103,7 @@ class RelationCsv:
     async def supply(self, source: DataAdapter, node_ids: list[str]) -> Availability:
         # The selection is on screen, so a node the source cannot describe is
         # one that is not a relation rather than one that went away.
-        found = await _relation(source, node_ids, gone=NOT_A_RELATION)
+        found = await _relations(source, node_ids, gone=NOT_A_RELATION)
         if isinstance(found, str):
             return Availability(available=False, reason=found)
         return Availability(available=True)
@@ -102,42 +111,62 @@ class RelationCsv:
     async def offer(
         self, source: DataAdapter, destination: DataAdapter, pair: PastePair
     ) -> PasteOffer:
-        found = await _relation(source, pair.source_node_ids, gone=GONE)
+        found = await _relations(source, pair.source_node_ids, gone=GONE)
         if isinstance(found, str):
             return refused(self, found)
-        name = suggested_name(found.name)
+        names = [suggested_name(model.name) for model in found]
         try:
             taken = await to_thread.run_sync(
-                _taken, storage_of(destination), pair.destination_node_id, name
+                _taken, storage_of(destination), pair.destination_node_id, names
             )
         except ActionRefused as refusal:
             return refused(self, refusal.message)
         except (OSError, ValueError):
             return refused(self, "The destination is unavailable")
-        return offered(self, available=True, name_conflict=taken, suggested_name=name)
+        if len(found) == 1:
+            return offered(
+                self, available=True, name_conflict=bool(taken), suggested_name=names[0]
+            )
+        # Several are named after themselves, so no window asks for a name; a
+        # taken one asks once, for all of them (D171).
+        return offered(
+            self,
+            available=not taken,
+            reason=_already_there(taken),
+            name_conflict=bool(taken),
+            workflow="run",
+        )
 
     async def plan(
         self, source: DataAdapter, destination: DataAdapter, request: PasteRun
     ) -> TransferPlan:
-        found = await _relation(source, request.source_node_ids, gone=GONE)
+        found = await _relations(source, request.source_node_ids, gone=GONE)
         if isinstance(found, str):
             raise ActionRefused("not_applicable", found)
-        if not found.columns:
-            raise ActionRefused("not_applicable", "The table has no columns")
-        name = csv_name(request.name or suggested_name(found.name))
+        empty = next((model for model in found if not model.columns), None)
+        if empty is not None:
+            raise ActionRefused("not_applicable", f"{empty.name} has no columns")
+        one = len(found) == 1
+        names = (
+            [csv_name(request.name or suggested_name(found[0].name))]
+            if one
+            else [suggested_name(model.name) for model in found]
+        )
         storage = storage_of(destination)
         try:
-            target = await to_thread.run_sync(
-                _target, storage, request.destination_node_id, name, request.conflict
+            folder = await to_thread.run_sync(
+                _checked, storage, request.destination_node_id, names, request.conflict
             )
         except (OSError, ValueError):
             raise ActionRefused("not_applicable", "The destination is unavailable") from None
-        folder = storage.parent(target)
         return TransferPlan(
-            items=[TransferItem(node_id=request.source_node_ids[0], name=found.name)],
+            items=[
+                TransferItem(node_id=node_id, name=model.name[:255])
+                for node_id, model in zip(request.source_node_ids, found, strict=True)
+            ],
             bytes_total=None,
             place=folder.name,
-            name=name,
+            name=names[0] if one else None,
         )
 
     async def transfer(
@@ -147,52 +176,96 @@ class RelationCsv:
         transfer: Transfer,
         report: TransferReport,
     ) -> None:
-        item = transfer.items[0]
-        item.outcome = "running"
-        transfer.current = item.name
-        await report.progressed()
-        try:
-            await _saved(source, storage_of(destination), transfer, item, report)
-        except asyncio.CancelledError:
-            item.outcome = "stopped"
-            item.message = f"{transfer.name} was stopped while it was being written; no file was left"
-            raise
-        except ActionRefused as refusal:
-            item.outcome, item.message = "failed", refusal.message
-        except AdapterError as failure:
-            item.outcome, item.message = "failed", failure.message
-            item.failed = 1
-            raise TransferStopped(failure.message) from None
-        except FileExistsError:
-            item.outcome, item.message = "failed", f"{transfer.name} is already there"
-        except (OSError, ValueError):
-            item.outcome, item.message = "failed", "The file could not be written"
-        if item.outcome == "failed":
-            item.failed = 1
+        """One file after another; one failing does not stop the next."""
+        storage = storage_of(destination)
+        written: set[str] = set()
+        for item in transfer.items:
+            item.outcome = "running"
+            transfer.current = item.name
+            await report.progressed()
+            try:
+                await _saved(source, storage, transfer, item, report, written)
+            except asyncio.CancelledError:
+                item.outcome = "stopped"
+                item.message = f"{_file_of(transfer, item)} was stopped while it was being written; no file was left"
+                raise
+            except TransferStopped as stop:
+                item.outcome, item.failed = "failed", 1
+                item.message = _about(transfer, item, stop.message)
+                raise
+            except ActionRefused as refusal:
+                item.outcome = "failed"
+                item.message = _about(transfer, item, refusal.message)
+            except AdapterError as failure:
+                item.outcome = "failed"
+                item.message = _about(transfer, item, failure.message)
+            except FileExistsError:
+                item.outcome = "failed"
+                item.message = f"{_file_of(transfer, item)} is already there"
+            except (OSError, ValueError):
+                item.outcome = "failed"
+                item.message = _about(transfer, item, "The file could not be written")
+            if item.outcome == "failed":
+                item.failed = 1
+            await report.progressed()
         transfer.current = None
 
     def told(self, transfer: Transfer, stopped: str | None = None) -> str:
-        item = transfer.items[0]
-        if item.outcome == "done":
-            return (
-                f"{item.published_as} saved in {transfer.place_label} "
-                f"with {counted(item.rows or 0, 'row')}"
-            )
-        if item.outcome == "stopped":
-            return f"{transfer.name} was not saved: it was stopped"
-        return f"{transfer.name} was not saved: {stopped or item.message or 'it failed'}"
+        items = transfer.items
+        if len(items) == 1:
+            item = items[0]
+            if item.outcome == "done":
+                return (
+                    f"{item.published_as} saved in {transfer.place_label} "
+                    f"with {counted(item.rows or 0, 'row')}"
+                )
+            if item.outcome == "stopped":
+                return f"{transfer.name} was not saved: it was stopped"
+            if item.message is not None:
+                return item.message
+            return f"{transfer.name} was not saved: {stopped or 'it failed'}"
+        saved = sum(1 for item in items if item.outcome == "done")
+        where = f"in {transfer.place_label}"
+        if saved == len(items):
+            return f"{counted(saved, 'file')} saved {where}"
+        failed = sum(1 for item in items if item.outcome == "failed")
+        halted = any(item.outcome == "stopped" for item in items)
+        missing = sum(1 for item in items if item.outcome in ("pending", "running"))
+        parts = [
+            *([f"{failed} failed"] if failed else []),
+            *(["stopped"] if halted else []),
+            *([f"{missing} not attempted"] if missing else []),
+        ]
+        sentence = f"{saved} of {counted(len(items), 'file')} saved {where}"
+        if parts:
+            sentence += f"; {', '.join(parts)}"
+        return sentence if stopped is None else f"{sentence}. {stopped}"
+
+
+async def _relations(
+    source: DataAdapter, node_ids: list[str], *, gone: str
+) -> list[RelationModel] | str:
+    """Each relation on the clipboard, or why they cannot all be saved."""
+    if not isinstance(source, SupportsRelationModel):
+        return NOT_A_RELATION
+    if len(node_ids) > MAX_TABLES:
+        return f"Save at most {MAX_TABLES} tables at a time"
+    if len(set(node_ids)) != len(node_ids):
+        return "The selection contains a table twice"
+    found: list[RelationModel] = []
+    for node_id in node_ids:
+        one = await _relation(source, node_id, gone=gone)
+        if isinstance(one, str):
+            return one
+        found.append(one)
+    return found
 
 
 async def _relation(
-    source: DataAdapter, node_ids: list[str], *, gone: str
+    source: SupportsRelationModel, node_id: str, *, gone: str
 ) -> RelationModel | str:
-    """The one relation on the clipboard, or why there is none."""
-    if not isinstance(source, SupportsRelationModel):
-        return NOT_A_RELATION
-    if len(node_ids) != 1:
-        return "Copy one table at a time"
     try:
-        return await source.relation_model(node_ids[0])
+        return await source.relation_model(node_id)
     except NodeNotFound:
         return gone
     except ValueError:
@@ -201,15 +274,55 @@ async def _relation(
         return "The copied connection is unavailable"
 
 
-def _taken(storage: Storage, folder_id: str | None, name: str) -> bool:
+def _taken(storage: Storage, folder_id: str | None, names: list[str]) -> list[str]:
     folder = destination_folder(storage, folder_id)
-    return storage.entry(storage.child(folder, name)) is not None
+    return sorted(
+        name for name in set(names) if storage.entry(storage.child(folder, name)) is not None
+    )
+
+
+def _already_there(taken: list[str]) -> str | None:
+    if not taken:
+        return None
+    if len(taken) == 1:
+        return f"{taken[0]} is already there"
+    return f"{taken[0]} and {counted(len(taken) - 1, 'other file')} are already there"
+
+
+def _checked(
+    storage: Storage, folder_id: str | None, names: list[str], conflict: Conflict
+) -> Place:
+    """The destination folder, once every name has a place under the conflict rule."""
+    folder = destination_folder(storage, folder_id)
+    for name in dict.fromkeys(names):
+        place_for(storage, folder, name, conflict)
+    return folder
 
 
 def _target(
-    storage: Storage, folder_id: str | None, name: str, conflict: Conflict
+    storage: Storage,
+    folder_id: str | None,
+    name: str,
+    conflict: Conflict,
+    written: set[str],
 ) -> Place:
-    return place_for(storage, destination_folder(storage, folder_id), name, conflict)
+    """Where one file goes; a name this transfer already wrote keeps both."""
+    folder = destination_folder(storage, folder_id)
+    if name in written:
+        return free_place(storage, folder, name)
+    return place_for(storage, folder, name, conflict)
+
+
+def _file_of(transfer: Transfer, item: TransferItem) -> str:
+    """The file an item is saved as, before it is known what it was published as."""
+    if len(transfer.items) == 1 and transfer.name:
+        return transfer.name
+    return suggested_name(item.name)
+
+
+def _about(transfer: Transfer, item: TransferItem, reason: str) -> str:
+    """Why one file was not saved, in a sentence that names it."""
+    return f"{_file_of(transfer, item)} was not saved: {reason[:1].lower()}{reason[1:]}"
 
 
 async def _saved(
@@ -218,23 +331,28 @@ async def _saved(
     transfer: Transfer,
     item: TransferItem,
     report: TransferReport,
+    written: set[str],
 ) -> None:
     """Stream the rows into the file where it is going; publish it only whole."""
-    if not isinstance(source, SupportsExport):
+    if not isinstance(source, SupportsExport) or not isinstance(
+        source, SupportsRelationModel
+    ):
         raise ActionRefused("not_applicable", "This connection cannot export rows")
-    found = await _relation(source, [item.node_id], gone=GONE)
+    found = await _relation(source, item.node_id, gone=GONE)
     if isinstance(found, str):
         raise ActionRefused("not_applicable", found)
     columns = [column.name for column in found.columns]
     if not columns:
         raise ActionRefused("not_applicable", "The table has no columns")
+    name = _file_of(transfer, item)
     target = await report.in_thread(
         partial(
             _target,
             storage,
             transfer.destination_node_id,
-            transfer.name or suggested_name(found.name),
+            name,
             transfer.conflict,
+            written,
         )
     )
     batches = source.export_rows(ExportRequest(node_id=item.node_id, columns=columns))
@@ -243,20 +361,26 @@ async def _saved(
     try:
         arriving = await report.in_thread(partial(stack.enter_context, storage.incoming(target)))
         rows = 0
-        async for piece, count in pieces:
-            if transfer.bytes_done + len(piece) > MAX_TRANSFER_BYTES:
-                raise ActionRefused("too_large", "The table exceeds 10 GB as CSV")
-            await report.in_thread(partial(arriving.write, piece))
-            transfer.bytes_done += len(piece)
-            rows += count
-            item.rows = rows
-            await report.progressed()
+        try:
+            async for piece, count in pieces:
+                if transfer.bytes_done + len(piece) > MAX_TRANSFER_BYTES:
+                    raise TransferStopped(TOO_LARGE)
+                await report.in_thread(partial(arriving.write, piece))
+                transfer.bytes_done += len(piece)
+                rows += count
+                item.rows = rows
+                await report.progressed()
+        except ValueError as refusal:
+            # What the source refused to read, in its own safe words: a folder
+            # of more keys than can be listed, for one (D171).
+            raise ActionRefused("not_applicable", str(refusal)) from None
         await report.in_thread(
             partial(arriving.publish, target, replace=transfer.conflict == "replace")
         )
     finally:
         await downloads.close_pieces(pieces, batches)
         await report.in_thread(stack.close)
+    written.add(name)
     transfer.published += 1
     item.published_as = target.name
     item.arrived = 1

@@ -138,6 +138,9 @@ import type {
   connectorsCreateRelationFromSourceData,
   connectorsCreateRelationFromSourceErrors,
   connectorsCreateRelationFromSourceResponses,
+  connectorsDeclareTableData,
+  connectorsDeclareTableErrors,
+  connectorsDeclareTableResponses,
   connectorsDeleteConnectorData,
   connectorsDeleteConnectorErrors,
   connectorsDeleteConnectorResponses,
@@ -252,6 +255,9 @@ import type {
   connectorsReadSourceFeaturesData,
   connectorsReadSourceFeaturesErrors,
   connectorsReadSourceFeaturesResponses,
+  connectorsRemoveTableData,
+  connectorsRemoveTableErrors,
+  connectorsRemoveTableResponses,
   connectorsRenameColumnData,
   connectorsRenameColumnErrors,
   connectorsRenameColumnResponses,
@@ -282,6 +288,12 @@ import type {
   connectorsTableDesignOptionsData,
   connectorsTableDesignOptionsErrors,
   connectorsTableDesignOptionsResponses,
+  connectorsTableOfferData,
+  connectorsTableOfferErrors,
+  connectorsTableOfferResponses,
+  connectorsTableProposalData,
+  connectorsTableProposalErrors,
+  connectorsTableProposalResponses,
   connectorsUpdateCellData,
   connectorsUpdateCellErrors,
   connectorsUpdateCellResponses,
@@ -2718,6 +2730,96 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/clipboard/offer",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Table Offer
+   */
+  public static tableOffer<ThrowOnError extends boolean = true>(
+    options: Options<connectorsTableOfferData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsTableOfferResponses,
+      connectorsTableOfferErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/tables/offer",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Table Proposal
+   *
+   * The fields of the folder's first hashes, or the table and what else they hold.
+   */
+  public static tableProposal<ThrowOnError extends boolean = true>(
+    options: Options<connectorsTableProposalData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsTableProposalResponses,
+      connectorsTableProposalErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/tables/proposal",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove Table
+   *
+   * Forget a declaration. No key is touched.
+   */
+  public static removeTable<ThrowOnError extends boolean = true>(
+    options: Options<connectorsRemoveTableData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      connectorsRemoveTableResponses,
+      connectorsRemoveTableErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/tables",
+      ...options,
+    })
+  }
+
+  /**
+   * Declare Table
+   *
+   * Declare a table over a folder, or change the one declared there.
+   */
+  public static declareTable<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDeclareTableData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      connectorsDeclareTableResponses,
+      connectorsDeclareTableErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/tables",
       ...options,
       headers: {
         "Content-Type": "application/json",

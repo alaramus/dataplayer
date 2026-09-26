@@ -11,27 +11,41 @@ What is deliberately not here is a query language. Redis has commands, not
 statements, and a console that accepted them would be a shell on somebody's
 server rather than a way of reading data (D65).
 
+What Redis has no word for, a person can supply: a folder of hashes declared
+a table (D170), kept by the application and handed in when this is built.
+Every node reads as a relation and can be exported whole (D171).
+
 `redis` is imported by this package and by nothing else, the rule `psycopg`
 already follows: a driver upgrade has one place to change.
 """
 
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.declared_tables import (
+    DeclaredTable,
+    DeclareTableRequest,
+    TablePlace,
+    TableProposal,
+)
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.redis.actions import REDIS_ACTION_TYPES
+from app.adapters.redis.export import RedisExport
 from app.adapters.redis.fetch import RedisFetch
-from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
+from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key, is_table
 from app.adapters.redis.metrics import PRESETS as METRIC_PRESETS
 from app.adapters.redis.metrics import RedisMetrics
+from app.adapters.redis.model import RedisModel
 from app.adapters.redis.options import RedisOptions
 from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.session import RedisSession
+from app.adapters.redis.tables import RedisTables
 from app.adapters.redis.update import RedisUpdate
 from app.adapters.redis.url import (
     compose_url,
@@ -39,6 +53,7 @@ from app.adapters.redis.url import (
     options_from_url,
 )
 from app.adapters.registry import AdapterContext, register
+from app.adapters.relation import RelationModel
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -61,11 +76,16 @@ class RedisAdapter:
     module composed here rather than another hundred lines in this class.
     """
 
-    def __init__(self, options: Any) -> None:
+    def __init__(self, options: Any, tables: Sequence[DeclaredTable] = ()) -> None:
         self._options = options
         self._session = RedisSession(options)
-        self._keyspace = RedisKeyspace(self._session)
-        self._fetch = RedisFetch(self._session, self._keyspace)
+        self._keyspace = RedisKeyspace(
+            self._session, {table.place_id: table for table in tables}
+        )
+        self._tables = RedisTables(self._session, self._keyspace)
+        self._fetch = RedisFetch(self._session, self._keyspace, self._tables)
+        self._model = RedisModel(self._keyspace, self._tables)
+        self._export = RedisExport(self._session, self._keyspace, self._tables)
         self._update = RedisUpdate(self._session, self._keyspace)
         self._samples = RedisSamples(self._session)
         self._metrics = RedisMetrics(self._session)
@@ -152,6 +172,28 @@ class RedisAdapter:
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
 
+    # --- what a node is, where it lies, and all of it -----------------------
+
+    async def relation_model(self, node_id: str) -> RelationModel:
+        return await self._model.relation_model(node_id)
+
+    async def path_to(self, node_id: str) -> list[CatalogNode]:
+        return await self._model.path_to(node_id)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
+
+    # --- tables somebody declared over a folder (D170) ---------------------
+
+    async def table_place(self, node_id: str) -> TablePlace:
+        return await self._tables.place(node_id)
+
+    async def propose_table(self, node_id: str) -> TableProposal:
+        return await self._tables.propose(node_id)
+
+    async def declared_table(self, request: DeclareTableRequest) -> DeclaredTable:
+        return await self._tables.checked(request)
+
     # --- writing what a key holds, one element at a time -------------------
     #
     # The ordinary editing contract (D25, D26): the six actions write a whole
@@ -192,12 +234,15 @@ class RedisAdapter:
         A key takes the three that act on a key; a database and a folder take
         the six that write one. The root takes none: what is there is the list
         of databases, and a key is written in a database rather than on a
-        server. Asked of the id rather than of the server, so the kinds are
-        told apart without a round trip; an id naming a key that has since
-        expired is refused by the action itself.
+        server. Nor does a declared table, which is read-only (D170). Asked
+        of the id rather than of the server, so the kinds are told apart
+        without a round trip; an id naming a key that has since expired is
+        refused by the action itself.
         """
         if is_key(node_id):
             return self._actions.for_kind("key")
+        if is_table(node_id):
+            return []
         if is_database(node_id):
             return self._actions.for_kind("database")
         if node_id is None:
@@ -224,10 +269,10 @@ class RedisAdapter:
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,
 )
-def _build(options: Any, _context: AdapterContext) -> RedisAdapter:
+def _build(options: Any, context: AdapterContext) -> RedisAdapter:
     # No home directory and no pooling: everything this source does is a
     # handful of round trips against a server that answers in microseconds.
-    return RedisAdapter(options)
+    return RedisAdapter(options, context.declared_tables)
 
 
 def _as_number(value: Any) -> int | None:

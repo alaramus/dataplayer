@@ -179,6 +179,9 @@ class FetchResult(BaseModel):
     # What this relation offers to do to rows somebody selects. Filled by the
     # route from the composed adapter's capability, like export above (D70).
     row_commands: list[RowCommand] = Field(default_factory=list)
+    # One sentence the source says about the page as a whole: keys left out
+    # of a declared table, a folder read only in part (D170).
+    notice: str | None = None
 
 
 def as_read_only(result: FetchResult, reason: str) -> FetchResult:

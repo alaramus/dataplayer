@@ -135,11 +135,13 @@ def offered(
     source_columns: list[FetchColumn] | None = None,
     target_columns: list[FetchColumn] | None = None,
     can_replace: bool | None = None,
+    workflow: PasteWorkflow | None = None,
 ) -> PasteOffer:
     """An offer of this kind, carrying what the kind always says about itself.
 
-    `can_replace` narrows the kind's own answer for this selection: a folder's
-    taken name is never replaced (D169).
+    `can_replace` and `workflow` narrow the kind's own answer for this
+    selection: a folder's taken name is never replaced (D169), and several
+    tables are named after themselves rather than in a window (D171).
     """
     return PasteOffer(
         kind=kind.name,
@@ -151,7 +153,7 @@ def offered(
         converts=kind.converts,
         can_replace=kind.can_replace if can_replace is None else can_replace,
         changes_source=kind.changes_source,
-        workflow=kind.workflow,
+        workflow=kind.workflow if workflow is None else workflow,
         suggested_name=suggested_name,
         source_columns=source_columns or [],
         target_columns=target_columns or [],

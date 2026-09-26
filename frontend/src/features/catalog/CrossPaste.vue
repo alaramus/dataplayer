@@ -250,7 +250,7 @@ function addRows(pairs: { columns: PasteColumn[] }) {
     data-testid="cross-paste-conflict"
     @update:model-value="closeFrom('conflict')"
   >
-    <p>{{ failure }}. Choose what to do with the pasted file.</p>
+    <p>{{ failure }}. Choose what to do with the pasted {{ intent.sourceNodeIds.length > 1 ? "files" : "file" }}.</p>
     <template #actions>
       <AppButton
         variant="quiet"
