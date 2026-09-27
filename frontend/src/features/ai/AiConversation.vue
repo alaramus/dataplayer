@@ -852,7 +852,7 @@ onBeforeUnmount(() => {
 .ai-conversation__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .ai-message { margin: 0 0 var(--dp-space-4); }
 .ai-message--user { display: flex; flex-direction: column; align-items: flex-end; }
-.ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
+.ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); font-size: var(--dp-prose-font-size); line-height: 1.65; white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .ai-message__actions { display: flex; gap: var(--dp-space-1); margin-top: var(--dp-space-1); opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
 .ai-message:hover .ai-message__actions, .ai-message:focus-within .ai-message__actions { opacity: 1; pointer-events: auto; }
 @media (hover: none) { .ai-message__actions { opacity: 1; pointer-events: auto; } }

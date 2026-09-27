@@ -12,6 +12,11 @@
      the same stack as a string, because xterm takes one. */
   --dp-font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   --dp-font-size: 13px;
+  /* Text that is read rather than scanned: a Markdown document, the agent's
+     answer and the question it answers. The chrome around it stays at the
+     size above. */
+  --dp-prose-font-size: 15px;
+  --dp-prose-code-font-size: 14px;
   --dp-form-control-height: 32px;
   --dp-form-label-width: 108px;
   --dp-operation-result-height: min(176px, 25vh);

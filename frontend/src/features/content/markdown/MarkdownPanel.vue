@@ -10,6 +10,7 @@ import { useCatalogLoader, useNodePathLoader } from "@/features/catalog/api"
 import { useContent, useContentLoader } from "@/features/content/api"
 import { splitDocument } from "@/features/content/markdown/blocks"
 import type { DocumentBlock, RichDocumentBlock } from "@/features/content/markdown/blocks"
+import ProseBlock from "@/features/content/markdown/ProseBlock.vue"
 import RichBlock from "@/features/content/markdown/RichBlock.vue"
 import {
   createHtmlFileName,
@@ -499,8 +500,6 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-v-html -- every prose string below comes from
-  markdown/sanitize.ts; diagrams have their own SVG sanitising boundary. -->
   <div class="markdown-panel">
     <!-- Above the banner rather than inside the branch that draws a document:
          a document that failed to load is exactly when re-reading it is worth
@@ -664,10 +663,10 @@ onBeforeUnmount(() => {
             v-for="(block, index) in blocks"
             :key="`${block.type}-${String(index)}`"
           >
-            <div
+            <ProseBlock
               v-if="block.type === 'prose'"
               class="markdown-panel__prose"
-              v-html="block.html"
+              :html="block.html"
             />
             <RichBlock
               v-else
@@ -774,86 +773,8 @@ onBeforeUnmount(() => {
   overflow: auto;
   padding: var(--dp-space-4) var(--dp-space-5);
   color: var(--dp-text-strong);
-  font-size: 13px;
-  line-height: 1.6;
-}
-.markdown-panel__prose :deep(h1),
-.markdown-panel__prose :deep(h2),
-.markdown-panel__prose :deep(h3) {
-  margin: var(--dp-space-5) 0 var(--dp-space-2);
-  font-weight: 600;
-  line-height: 1.3;
-  scroll-margin-top: 12px;
-}
-.markdown-panel__prose :deep(h1) {
-  font-size: 20px;
-}
-.markdown-panel__prose :deep(h2) {
-  font-size: 16px;
-}
-.markdown-panel__prose :deep(h3) {
-  font-size: 14px;
-}
-.markdown-panel__prose :deep(p),
-.markdown-panel__prose :deep(ul),
-.markdown-panel__prose :deep(ol),
-.markdown-panel__prose :deep(blockquote) {
-  margin: var(--dp-space-2) 0;
-}
-.markdown-panel__prose :deep(ul),
-.markdown-panel__prose :deep(ol) {
-  padding-left: var(--dp-space-5);
-}
-.markdown-panel__prose :deep(blockquote) {
-  padding: var(--dp-space-half) var(--dp-space-3);
-  border-left: 3px solid var(--dp-border-faint);
-  color: var(--dp-text-muted);
-}
-.markdown-panel__prose :deep(code) {
-  padding: 1px var(--dp-space-1);
-  border-radius: var(--dp-radius-control);
-  background: var(--dp-hover);
-  font-family: var(--dp-font-mono);
-  font-size: 12px;
-}
-.markdown-panel__prose :deep(table) {
-  border-collapse: collapse;
-  margin: var(--dp-space-3) 0;
-}
-.markdown-panel__prose :deep(th),
-.markdown-panel__prose :deep(td) {
-  padding: var(--dp-space-1) var(--dp-space-2);
-  border: 1px solid var(--dp-border-faint);
-  text-align: left;
-}
-.markdown-panel__prose :deep(th) {
-  background: var(--dp-chrome-raised);
-}
-.markdown-panel__prose :deep(img) {
-  max-width: 100%;
-}
-.markdown-panel__prose :deep(img[data-remote-blocked]),
-.markdown-panel__prose :deep(img[data-relative-source]),
-.markdown-panel__prose :deep(img[data-relative-error]) {
-  display: inline-block;
-  min-width: 120px;
-  min-height: 24px;
-  border: 1px dashed var(--dp-border-faint);
-  border-radius: var(--dp-radius-control);
-}
-.markdown-panel__prose :deep(img[data-relative-error]) {
-  border-color: var(--dp-content-error);
-}
-.markdown-panel__prose :deep(a) {
-  color: var(--dp-link);
-}
-.markdown-panel__prose :deep(a[data-relative-link]) {
-  border-bottom: 1px dotted currentColor;
-  cursor: pointer;
-}
-.markdown-panel__prose :deep(a[data-relative-loading]) {
-  cursor: wait;
-  opacity: 0.7;
+  font-size: var(--dp-prose-font-size);
+  line-height: 1.65;
 }
 .markdown-panel__document :deep(mark[data-search-highlight]) {
   border-radius: var(--dp-radius-control);
@@ -864,22 +785,6 @@ onBeforeUnmount(() => {
   outline: 2px solid var(--dp-find);
   background: color-mix(in srgb, var(--dp-find) 70%, transparent);
 }
-.markdown-panel__prose :deep(.katex) {
-  display: inline-block;
-  line-height: normal;
-  vertical-align: middle;
-}
-.markdown-panel__prose :deep(.katex-display) {
-  overflow-x: auto;
-  overflow-y: hidden;
-  margin: var(--dp-space-3) 0;
-  padding: var(--dp-space-half) 0;
-}
-.markdown-panel__prose :deep(hr) {
-  border: 0;
-  border-top: 1px solid var(--dp-border-faint);
-}
-
 @media (max-width: 760px) {
   .markdown-panel__head {
     align-items: flex-start;

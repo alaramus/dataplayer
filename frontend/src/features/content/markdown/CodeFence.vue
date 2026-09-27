@@ -53,7 +53,7 @@ function mount() {
           "&": {
             color: "var(--dp-text-strong)",
             backgroundColor: "transparent",
-            fontSize: "12px",
+            fontSize: "var(--dp-prose-code-font-size)",
           },
           ".cm-content": { padding: "0" },
           ".cm-scroller": {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+import ProseBlock from "@/features/content/markdown/ProseBlock.vue"
 import { renderProse } from "@/features/content/markdown/render"
 import RichBlock from "@/features/content/markdown/RichBlock.vue"
 
@@ -13,8 +14,6 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
 </script>
 
 <template>
-  <!-- eslint-disable vue/no-v-html -- the prose is rendered and sanitised by
-  features/content/markdown/render.ts, the one place that does it. -->
   <div
     class="chat-markdown"
     data-testid="ai-markdown"
@@ -23,10 +22,10 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
       v-for="(block, index) in blocks"
       :key="`${block.type}-${String(index)}`"
     >
-      <div
+      <ProseBlock
         v-if="block.type === 'prose'"
         class="chat-markdown__prose"
-        v-html="block.html"
+        :html="block.html"
       />
       <div
         v-else-if="block.type === 'pending-fence'"
@@ -44,10 +43,9 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
 </template>
 
 <style scoped>
-.chat-markdown { min-width: 0; color: var(--dp-text-strong); }
+.chat-markdown { min-width: 0; color: var(--dp-text-strong); font-size: var(--dp-prose-font-size); line-height: 1.65; }
+/* An answer starts and ends at its own edge, not a heading's margin away. */
 .chat-markdown__prose :deep(:first-child) { margin-top: 0; }
 .chat-markdown__prose :deep(:last-child) { margin-bottom: 0; }
-.chat-markdown__prose :deep(table) { display: block; max-width: 100%; overflow: auto; border-collapse: collapse; }
-.chat-markdown__prose :deep(th), .chat-markdown__prose :deep(td) { padding: var(--dp-space-1) var(--dp-space-2); border: 1px solid var(--dp-border); }
 .chat-markdown__pending { min-height: 72px; padding: var(--dp-space-3); border: 1px solid var(--dp-border-faint); border-radius: var(--dp-radius-panel); background: var(--dp-hover); color: var(--dp-text-muted); }
 </style>

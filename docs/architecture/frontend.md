@@ -347,6 +347,11 @@ an ordinary code block. `BlockChrome` gives every rich block one header: what it
 is on the left, copy and save on the right, through `shared/clipboard.ts` and
 `shared/download.ts`.
 
+Prose is set once, by `ProseBlock`, for a document and for the agent's answer
+alike, at `--dp-prose-font-size` (15px) with code at 14px. It is text to read,
+so it is larger than the 13px of the chrome around it. The question in a chat
+matches its answer.
+
 Traps found by reading real documents:
 
 - **Mermaid is not re-entrant.** It renders through one shared element and
