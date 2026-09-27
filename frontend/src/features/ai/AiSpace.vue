@@ -387,18 +387,16 @@ onScopeDispose(stop)
       >
         <template #actions>
           <AppIconButton
+            :icon="appIcons.add"
+            tooltip="New chat"
+            data-testid="ai-new-chat"
+            @click="makeConversation"
+          />
+          <AppIconButton
             :icon="appIcons.search"
             tooltip="Filter chats and projects by name"
             data-testid="ai-filter-open"
             @click="openChatFilter"
-          />
-          <AppButton
-            variant="quiet"
-            size="sm"
-            :icon="appIcons.addComment"
-            label="New chat"
-            data-testid="ai-new-chat"
-            @click="makeConversation"
           />
           <AppIconButton
             :icon="appIcons.createNewFolder"

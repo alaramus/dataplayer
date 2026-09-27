@@ -6,7 +6,7 @@ import type { PropType } from "vue"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
-import { makeLeaf } from "./model"
+import { makeLeaf, MIN_PANEL_PX } from "./model"
 import type { LeafNode } from "./model"
 import WorkspaceLeaf from "./WorkspaceLeaf.vue"
 import WorkspacePanels from "./WorkspacePanels.vue"
@@ -42,6 +42,7 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     collapsedOf: () => null,
     headOf: () => null,
     sectionLookOf: () => ({ title: "Section", icon: "square" }),
+    sectionMinWidthOf: () => MIN_PANEL_PX,
     aside: ref([]),
     activate: () => undefined,
     canDetach: () => true,

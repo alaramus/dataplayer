@@ -20,6 +20,7 @@ export type {
   WorkspaceOptions,
 } from "./useWorkspace"
 export { COLLAPSED_PX, makeLeaf, makeSplit, MIN_PANEL_PX, nextId } from "./model"
+export { RAIL_MIN_PX } from "./railWidth"
 export { leavesOf } from "./tree"
 export type {
   DropZone,

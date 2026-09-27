@@ -254,19 +254,17 @@ defineExpose({
             <template #actions>
               <!-- The header button collapses this rail; no chevron of its own. -->
               <AppIconButton
+                :icon="appIcons.add"
+                tooltip="New dashboard"
+                :loading="creating.isPending.value"
+                data-testid="dashboard-new"
+                @click="createDashboard"
+              />
+              <AppIconButton
                 :icon="appIcons.search"
                 tooltip="Filter dashboards by name"
                 data-testid="dashboards-filter-open"
                 @click="openDashboardFilter"
-              />
-              <AppButton
-                variant="quiet"
-                size="sm"
-                :icon="appIcons.add"
-                label="New"
-                :loading="creating.isPending.value"
-                data-testid="dashboard-new"
-                @click="createDashboard"
               />
             </template>
           </AppCardHead>
@@ -345,11 +343,9 @@ defineExpose({
                 data-testid="store-open"
                 @click="storeOpen = true"
               />
-              <AppButton
-                variant="quiet"
-                size="sm"
+              <AppIconButton
                 :icon="appIcons.sensors"
-                label="Sources"
+                tooltip="Sources"
                 data-testid="agents-open"
                 @click="agentsOpen = true"
               />

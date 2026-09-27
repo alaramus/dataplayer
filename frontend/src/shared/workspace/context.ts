@@ -83,6 +83,8 @@ export interface WorkspaceContext {
    * section with no name cannot be put aside — there would be no way back.
    */
   sectionLookOf: (accepts: string | null) => { title: string; icon: string } | null
+  /** The narrowest a section of this role may be dragged to, in pixels. */
+  sectionMinWidthOf: (accepts: string | null) => number
   /** The sections that are off the screen, in the order they were put aside. */
   aside: Ref<AsideSection[]>
   /**
@@ -125,12 +127,14 @@ export interface WorkspaceContext {
   putAside: (leafId: NodeId) => void
   /** Bring one back, into the column it was in. */
   bringBack: (leafId: NodeId) => void
+  /** `minAfterPercent` defaults to `minPercent`, the limit of the side before. */
   resize: (
     splitId: NodeId,
     beforeIndex: number,
     afterIndex: number,
     delta: number,
-    minPercent: number
+    minPercent: number,
+    minAfterPercent?: number
   ) => void
   /** A tab was pressed. Not yet a drag: see `pointerMoved`. */
   press: (panelId: PanelId, x: number, y: number) => void

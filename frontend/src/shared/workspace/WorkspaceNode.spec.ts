@@ -5,7 +5,7 @@ import { defineComponent, h, ref } from "vue"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
-import { makeLeaf, makeSplit } from "./model"
+import { makeLeaf, makeSplit, MIN_PANEL_PX } from "./model"
 import WorkspaceNode from "./WorkspaceNode.vue"
 import { createPanelTargets, panelTargetsKey } from "./panelTargets"
 
@@ -44,6 +44,7 @@ function contextFor(): WorkspaceContext {
     collapsedOf: () => null,
     headOf: () => null,
     sectionLookOf: () => ({ title: "Section", icon: "square" }),
+    sectionMinWidthOf: () => MIN_PANEL_PX,
     aside: ref([]),
     activate: () => undefined,
     canDetach: () => true,

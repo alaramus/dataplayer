@@ -277,7 +277,8 @@ export function setMinimized(root: LayoutNode, leafId: NodeId, minimized: boolea
  * not neighbours in the tree, and everything between them keeps its width.
  *
  * Sizes are percentages and the limit is pixels, so the caller converts — this
- * function knows nothing about the screen.
+ * function knows nothing about the screen. Each side has its own limit, the
+ * side after taking the one before unless told otherwise.
  */
 export function resizeSplit(
   root: LayoutNode,
@@ -285,7 +286,8 @@ export function resizeSplit(
   beforeIndex: number,
   afterIndex: number,
   delta: number,
-  minPercent: number
+  minPercent: number,
+  minAfterPercent: number = minPercent
 ): LayoutNode {
   const path = pathOfNode(root, splitId)
   if (path === null) return root
@@ -297,7 +299,7 @@ export function resizeSplit(
   if (before === undefined || after === undefined) return root
 
   const room = before + after
-  const clamped = Math.min(Math.max(before + delta, minPercent), room - minPercent)
+  const clamped = Math.min(Math.max(before + delta, minPercent), room - minAfterPercent)
   if (!Number.isFinite(clamped) || clamped <= 0) return root
 
   const sizes = [...split.sizes]

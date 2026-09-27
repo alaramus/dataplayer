@@ -116,7 +116,10 @@ function stretchOf(index: number): number {
  * sections showing no longer add up to a hundred, and a percentage taken
  * against the whole would move the border at the wrong speed. These two are
  * enough, because resizing trades room between them and leaves every other
- * section where it is.
+ * section where it is. Their shares and not their sizes: a share is what the
+ * row divides its pixels by, and a size leaves out the room a hidden column
+ * lent — with the catalog column empty, a pixel was read as half of one and
+ * every minimum came out half as wide.
  *
  * Deliberately not a computed: getBoundingClientRect is not reactive, so a
  * memoised value would keep answering with the size the sections had when
@@ -130,16 +133,27 @@ function stretchOf(index: number): number {
  */
 function percentPerPx(indexes: number[]): number {
   if (props.node.kind !== "split") return 0
-  let sizes = 0
+  let shares = 0
   let pixels = 0
   for (const index of indexes) {
     const child = props.node.children[index]
     if (child === undefined) return 0
     if (child.kind === "leaf" && child.collapsed) return 0
-    sizes += props.node.sizes[index] ?? 0
+    shares += slots.value.find((slot) => slot.index === index)?.share.share ?? 0
     pixels += stretchOf(index)
   }
-  return pixels > 0 ? sizes / pixels : 0
+  return pixels > 0 ? shares / pixels : 0
+}
+
+/**
+ * The narrowest this child may be dragged to. Only a section across a row has
+ * a minimum of its own; a height, and a split of sections, keep MIN_PANEL_PX.
+ */
+function minPxOf(index: number): number {
+  if (props.node.kind !== "split" || props.node.direction !== "row") return MIN_PANEL_PX
+  const child = props.node.children[index]
+  if (child?.kind !== "leaf") return MIN_PANEL_PX
+  return workspace.sectionMinWidthOf(child.accepts ?? null)
 }
 
 function onMove(beforeIndex: number, afterIndex: number, deltaPx: number) {
@@ -151,7 +165,8 @@ function onMove(beforeIndex: number, afterIndex: number, deltaPx: number) {
     beforeIndex,
     afterIndex,
     deltaPx * percent,
-    MIN_PANEL_PX * percent
+    minPxOf(beforeIndex) * percent,
+    minPxOf(afterIndex) * percent
   )
 }
 

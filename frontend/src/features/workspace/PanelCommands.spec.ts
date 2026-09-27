@@ -8,7 +8,7 @@ import { freshnessOf } from "@/shared/freshness/freshness"
 import type { Freshness } from "@/shared/freshness/freshness"
 import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import AppTooltip from "@/shared/ui/AppTooltip.vue"
-import { makeLeaf, workspaceKey } from "@/shared/workspace"
+import { makeLeaf, MIN_PANEL_PX, workspaceKey } from "@/shared/workspace"
 import type { PanelLook, WorkspaceContext } from "@/shared/workspace"
 
 import PanelCommands from "./PanelCommands.vue"
@@ -53,6 +53,7 @@ function contextFor(
     collapsedOf: () => null,
     headOf: () => null,
     sectionLookOf: () => null,
+    sectionMinWidthOf: () => MIN_PANEL_PX,
     aside: ref([]),
     activate: () => undefined,
     canDetach: () => true,

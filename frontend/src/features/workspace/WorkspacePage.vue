@@ -96,6 +96,7 @@ import {
   leavesOf,
   makeLeaf,
   makeSplit,
+  RAIL_MIN_PX,
   useWorkspace,
   WorkspaceRoot,
   WorkspaceTaskbar,
@@ -140,6 +141,9 @@ const workspace = useWorkspace<Panel>({
   collapsed: collapsedOf,
   head: headOf,
   sectionLook,
+  // Connections is dragged no narrower than the Dashboards and AI rails, so the
+  // three heads keep their names at the same width.
+  sectionMinWidth: (accepts) => (accepts === "sources" ? RAIL_MIN_PX : null),
   // The header button collapses the first column; its strip keeps no chevron
   // of its own.
   hideFirstCollapse: true,

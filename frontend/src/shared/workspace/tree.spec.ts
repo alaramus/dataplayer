@@ -308,6 +308,14 @@ describe("resizing", () => {
     expect(next.sizes[1]).toBeCloseTo(90)
   })
 
+  it("holds each side to its own minimum", () => {
+    // The column of connections keeps a wider minimum than the one beside it.
+    const narrowed = resizeSplit(sample(), "root", 0, 1, -100, 25, 10) as SplitNode
+    expect(narrowed.sizes[0]).toBeCloseTo(25)
+    const widened = resizeSplit(sample(), "root", 0, 1, 100, 25, 10) as SplitNode
+    expect(widened.sizes[1]).toBeCloseTo(10)
+  })
+
   it("refuses to move a border that is already at the minimum", () => {
     const tight = makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"])], [10, 90])
     const next = resizeSplit(tight, "root", 0, 1, -5, 10) as SplitNode

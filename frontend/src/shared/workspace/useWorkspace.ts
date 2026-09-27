@@ -10,7 +10,7 @@ import { dockedLayout, returnPanel } from "./detached"
 import type { DetachedPanel } from "./detached"
 import { admittedZone } from "./dropZone"
 import type { DropAdmission } from "./dropZone"
-import { nextId, PRESS_THRESHOLD_PX } from "./model"
+import { MIN_PANEL_PX, nextId, PRESS_THRESHOLD_PX } from "./model"
 import type { LayoutNode, NodeId, PanelId } from "./model"
 import { parseWorkspace, serializeWorkspace } from "./persist"
 import { leafForKind } from "./placement"
@@ -71,6 +71,11 @@ export interface WorkspaceOptions<P extends { id: string }> {
    * role with no name here is a section that cannot be put aside.
    */
   sectionLook?: (accepts: string | null) => { title: string; icon: string } | null
+  /**
+   * The narrowest a section of this role may be dragged to, in pixels. Null:
+   * MIN_PANEL_PX, as for any section.
+   */
+  sectionMinWidth?: (accepts: string | null) => number | null
   /**
    * What a click on the icon of a tab does, if anything.
    *
@@ -383,6 +388,7 @@ export function useWorkspace<P extends { id: string }>(
     emptyOf: (accepts) => options.empty?.(accepts) ?? null,
     admissionOf: (leafId) => admissionFor(leafId, dragging.value),
     sectionLookOf: (accepts) => options.sectionLook?.(accepts) ?? null,
+    sectionMinWidthOf: (accepts) => options.sectionMinWidth?.(accepts) ?? MIN_PANEL_PX,
     aside,
     collapsedOf: (panelId) => {
       const panel = panelOf(panelId)
@@ -431,8 +437,8 @@ export function useWorkspace<P extends { id: string }>(
     bringBack: (leafId) => {
       tree.value = setMinimized(tree.value, leafId, false)
     },
-    resize: (splitId, beforeIndex, afterIndex, delta, minPercent) => {
-      tree.value = resizeSplit(tree.value, splitId, beforeIndex, afterIndex, delta, minPercent)
+    resize: (splitId, beforeIndex, afterIndex, delta, minPercent, minAfterPercent) => {
+      tree.value = resizeSplit(tree.value, splitId, beforeIndex, afterIndex, delta, minPercent, minAfterPercent)
     },
     press: (panelId, x, y) => {
       pressed = { panelId, x, y }

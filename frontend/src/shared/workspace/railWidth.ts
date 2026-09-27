@@ -3,6 +3,7 @@ import { COLLAPSED_PX } from "./model"
 /** Shared two-card rail sizing: narrow enough to leave the main card primary. */
 export const RAIL_NARROW_PX = COLLAPSED_PX
 export const RAIL_DEFAULT_PX = 260
+/** Also the narrowest the column of connections is dragged to (WorkspacePage). */
 export const RAIL_MIN_PX = 200
 export const RAIL_MAX_SHARE = 0.4
 
