@@ -6,7 +6,7 @@ import type { DetectedFramework } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
-import { reloadedBy, replacementsOf } from "@/features/catalog/actions"
+import { reloadedBy, replacementsOf, ticksAfter } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { useNodePathLoader } from "@/features/catalog/api"
 import type { SearchScope } from "@/features/catalog/api"
@@ -29,7 +29,7 @@ import type { ListNode } from "@/features/catalog/nodes"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
-import { publishSide } from "@/features/workspace/catalogSides"
+import { offerSettle, publishSide } from "@/features/workspace/catalogSides"
 import { workspaceKey } from "@/shared/workspace"
 import type { CatalogSide } from "@/features/workspace/catalogSides"
 import { useReloadable } from "@/features/workspace/reloadable"
@@ -556,6 +556,11 @@ const side = computed<CatalogSide>(() => asTree.value
     })
 watch(side, (value) => publishSide(props.panelId, value), { immediate: true })
 onBeforeUnmount(() => publishSide(props.panelId, null))
+offerSettle(props.panelId, (outcome) => {
+  if (outcome === null) untick()
+  else settleTicks(outcome)
+})
+onBeforeUnmount(() => offerSettle(props.panelId, null))
 
 /**
  * Already one side of a pair, where offering it to another means nothing.
@@ -677,11 +682,24 @@ function onToggle(id: string, on: boolean) {
     : level.checked.value.filter((other) => other !== id)
 }
 
+/**
+ * An action has been carried out: its ticks go, but for what it failed on.
+ * A tree's pick is where it stands rather than a tick, and stays.
+ */
+function settleTicks(outcome: ActionOutcome) {
+  if (!asTree.value) level.checked.value = ticksAfter(level.checked.value, outcome)
+}
+
+function untick() {
+  if (!asTree.value) level.checked.value = []
+}
+
 async function afterAction(outcome: ActionOutcome) {
   for (const replacement of replacementsOf(outcome)) {
     level.replaceNode(replacement)
     workspace.replaceNode(props.connectorId, replacement)
   }
+  settleTicks(outcome)
   const branches = reloadedBy(outcome)
   if (branches.length > 0) ownChangeAt = changes.announce(props.connectorId)
   if (asTree.value) {
@@ -810,6 +828,7 @@ async function afterAction(outcome: ActionOutcome) {
           :drawable-nodes="false"
           :adapter-type="adapterType"
           @done="afterAction"
+          @untick="untick"
           @source-changed="changes.announce($event)"
           @connector="workspace.createConnector"
           @details="showDetails"
@@ -834,6 +853,7 @@ async function afterAction(outcome: ActionOutcome) {
           :drawable-nodes="drawableNodes"
           :adapter-type="adapterType"
           @done="afterAction"
+          @untick="untick"
           @source-changed="changes.announce($event)"
           @connector="workspace.createConnector"
           @details="showDetails"

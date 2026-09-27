@@ -10,6 +10,7 @@ import {
   replacementsOf,
   reloadedBy,
   summarize,
+  ticksAfter,
   toCommands,
   toMenu as resolveMenu,
   withGroupingChoices,
@@ -433,6 +434,29 @@ describe("what became of a set", () => {
     }
 
     expect(reloadedBy(outcome)).toEqual(["reports", "archive", null])
+  })
+
+  it("leaves ticked only what the action could not be carried out on", () => {
+    const outcome = {
+      done: [result("a gone", "reports")],
+      failures: [{ nodeId: "b", message: "refused" }],
+      skipped: [{ nodeId: "c", message: "not sent" }],
+      total: 3,
+    }
+
+    expect(ticksAfter(["a", "b", "c"], outcome)).toEqual(["b", "c"])
+  })
+
+  it("takes every tick off once everything was done", () => {
+    const outcome = { done: [result("a gone", "reports")], failures: [], total: 1 }
+
+    expect(ticksAfter(["a", "b"], outcome)).toEqual([])
+  })
+
+  it("leaves the ticks alone when nothing was done at all", () => {
+    const outcome = { done: [], failures: [{ nodeId: null, message: "refused" }], total: 1 }
+
+    expect(ticksAfter(["a", "b"], outcome)).toEqual(["a", "b"])
   })
 
   it("keeps source-issued node replacements", () => {

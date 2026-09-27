@@ -683,10 +683,12 @@ test("copies a file into another folder, then moves one out again", async ({ pag
   await expect(catalogRow(page, folder)).toBeVisible()
 
   // Copy changes nothing on its own: it remembers what is ticked (D74). It is
-  // a line of the one menu, beside the source's own actions.
+  // a line of the one menu, beside the source's own actions, and it lets the
+  // tick go and says so, since the tick was the only sign it had been taken.
   await catalogCheck(page, "notes.txt").click()
   await catalogAction(page, "client:copy")
-  await catalogCheck(page, "notes.txt").click()
+  await expect(catalogCheck(page, "notes.txt")).not.toBeChecked()
+  await expect(toast(page, "Copied “notes.txt”")).toBeVisible()
 
   // Paste acts on the place being looked at, so the folder is walked into. It
   // asks nothing — what to put here and whether it was cut are both already

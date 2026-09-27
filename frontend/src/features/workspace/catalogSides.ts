@@ -10,6 +10,8 @@
 
 import { computed, reactive } from "vue"
 
+import type { ActionOutcome } from "@/features/catalog/actions"
+
 export interface CatalogSide {
   connectorId: string
   /** The place Paste would act on; null is the top of the connection. */
@@ -28,4 +30,25 @@ export function publishSide(panelId: string, side: CatalogSide | null): void {
 
 export function useCatalogSide(panelId: () => string) {
   return computed(() => sides.get(panelId()) ?? null)
+}
+
+// Apart from the sides: a side is part of a query key, and a function in one
+// would be a key nothing can hash.
+const settlers = new Map<string, (outcome: ActionOutcome | null) => void>()
+
+/**
+ * How a catalog lets go of its ticks once a pair has done what they chose;
+ * null forgets it. An outcome narrows the ticks as an action of the catalog's
+ * own does, and none takes them all off.
+ */
+export function offerSettle(
+  panelId: string,
+  settle: ((outcome: ActionOutcome | null) => void) | null
+): void {
+  if (settle === null) settlers.delete(panelId)
+  else settlers.set(panelId, settle)
+}
+
+export function settleSide(panelId: string, outcome: ActionOutcome | null): void {
+  settlers.get(panelId)?.(outcome)
 }

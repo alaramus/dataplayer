@@ -228,8 +228,10 @@ describe("a paste from another connection", () => {
     await flushPromises()
 
     expect(wrapper.emitted("close")).toHaveLength(1)
-    // Nothing has arrived yet, so nothing is announced or re-read here.
+    // Nothing has arrived yet, so nothing is announced or re-read here; what
+    // was ticked for it is let go all the same.
     expect(wrapper.emitted("done")).toBeUndefined()
+    expect(wrapper.emitted("started")).toHaveLength(1)
     expect(toasts.success).not.toHaveBeenCalled()
     // A Cut is spent the moment its move starts.
     expect(clipboard.value).toBeNull()

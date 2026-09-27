@@ -26,6 +26,11 @@ const props = defineProps<{ intent: CrossPasteIntent }>()
 
 const emit = defineEmits<{
   done: [outcome: ActionOutcome]
+  /**
+   * Handed to a job on the server. Not `done`: nothing has arrived to re-read
+   * or announce, but what was ticked for it has been dealt with.
+   */
+  started: []
   sourceChanged: [connectorId: string]
   close: []
 }>()
@@ -87,6 +92,7 @@ async function paste(
       // ended (D168). A Cut is spent the moment its move starts.
       if (chosen.changes_source === true) forgetMoved(intent.sourceConnectorId, intent.sourceNodeIds)
       startedInThisTab(answer.job.id)
+      emit("started")
       emit("close")
       return
     }
@@ -102,14 +108,18 @@ async function paste(
     toast.success(answer.message)
     emit("close")
   } catch (cause) {
-    // A batch may have changed both ends before it failed.
+    const message = messageOf(cause, "Nothing was pasted")
+    // A batch may have changed both ends before it failed, so the destination
+    // is re-read; and what it was about stays ticked, for another try.
     if (chosen.changes_source === true) emit("sourceChanged", intent.sourceConnectorId)
     emit("done", {
       done: [{ message: "Paste ended", reload_node_ids: [intent.destinationNodeId] }],
-      failures: [],
+      failures: [intent.targetNodeId, ...intent.sourceNodeIds].map((nodeId) => ({
+        nodeId,
+        message,
+      })),
       total: 1,
     })
-    const message = messageOf(cause, "Nothing was pasted")
     // Only a file is kept or replaced; a table has no such choice.
     if (statusOf(cause) === 409 && (step.value === "run" || step.value === "file-name")) {
       step.value = "conflict"

@@ -401,9 +401,18 @@ Consequences:
   moved away is offering a refusal.
 - **The ceilings are the archive's** — ten thousand entries and two gigabytes,
   counted before anything is written ([D71](content.md)).
+- **What was acted on is unticked.** Copy and Cut let the ticks go and say what
+  was taken: left on, the tick was the only sign anything had been, and Paste
+  aimed at the copied file rather than at the folder. The same holds for every
+  action that was carried out — from the menu, a form, a download or a pair's
+  bar — except that what it failed on stays ticked for another try
+  (`ticksAfter` in `actions.ts`). What only shows something, and a form closed
+  with Cancel, leave the ticks alone.
 
 Known deviations:
 
+- **A tree's pick is not let go.** In a catalog drawn as a tree, the one node
+  acted on is where the tree stands rather than a tick, and stays picked.
 - **The source-owned action still takes ids from its own connection.** D161
   lets the application copy files between two connections while keeping each
   node id paired with the connection that issued it.

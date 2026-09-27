@@ -82,6 +82,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   done: [outcome: ActionOutcome]
+  /** Carried out on the ticked nodes with no outcome to report: they are let go. */
+  untick: []
   sourceChanged: [connectorId: string]
   details: []
   relationships: []
@@ -336,6 +338,13 @@ function run(command: ClientCommand) {
     command === "copy" ? "copy" : "move",
     props.checkedLabel
   )
+  // Said aloud, because the ticks go: they were the only sign that anything
+  // had been taken, and Paste aims at a ticked node.
+  const what = props.checkedIds.length === 1 ? `“${props.checkedLabel}”` : props.checkedLabel
+  toast.success(
+    `${command === "copy" ? "Copied" : "Cut"} ${what} — paste it from the actions menu where it should go`
+  )
+  emit("untick")
 }
 
 /**
@@ -469,6 +478,7 @@ async function pick(name: string) {
       nodeIds: command.targets.filter((id): id is string => id !== null),
     })
     saveNativeDownload(ready.download_url)
+    emit("untick")
   } catch (cause) {
     toast.error(messageOf(cause, "The download could not be prepared"))
   }
@@ -510,6 +520,7 @@ async function pick(name: string) {
       :key="pastings"
       :intent="crossPasting"
       @done="emit('done', $event)"
+      @started="emit('untick')"
       @source-changed="emit('sourceChanged', $event)"
       @close="crossPasting = null"
     />

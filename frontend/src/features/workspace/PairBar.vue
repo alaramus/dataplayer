@@ -5,11 +5,12 @@ import { computed, ref } from "vue"
 import { ConnectorsService } from "@/client"
 import type { PasteOffer } from "@/client"
 import CrossPaste from "@/features/catalog/CrossPaste.vue"
+import type { ActionOutcome } from "@/features/catalog/actions"
 import type { CrossPasteIntent } from "@/features/catalog/pasteOffers"
 import { AppButton } from "@/shared/ui"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 
-import { useCatalogSide } from "./catalogSides"
+import { settleSide, useCatalogSide } from "./catalogSides"
 import type { CatalogSide } from "./catalogSides"
 import { itemDetail, pasteIntentFor, usable } from "./pairs"
 import type { PairCandidate } from "./pairs"
@@ -78,10 +79,19 @@ function run(intent: CrossPasteIntent) {
   pasting.value = intent
 }
 
-/** The destination catalog re-reads as after any change to its connection. */
-function afterPaste() {
+/**
+ * The destination catalog re-reads as after any change to its connection, and
+ * both let go of the ticks the paste was about — but for what it failed on.
+ */
+function afterPaste(outcome: ActionOutcome) {
   if (pasting.value !== null) changes.announce(pasting.value.destinationConnectorId)
   void queryClient.invalidateQueries({ queryKey: ["pair-offers"] })
+  settle(outcome)
+}
+
+function settle(outcome: ActionOutcome | null) {
+  settleSide(props.left.panelId, outcome)
+  settleSide(props.right.panelId, outcome)
 }
 </script>
 
@@ -137,6 +147,7 @@ function afterPaste() {
       :key="pastings"
       :intent="pasting"
       @done="afterPaste"
+      @started="settle(null)"
       @source-changed="changes.announce($event)"
       @close="pasting = null"
     />

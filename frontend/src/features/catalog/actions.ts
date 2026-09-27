@@ -354,6 +354,23 @@ export interface ActionOutcome {
 }
 
 /**
+ * What stays ticked once an action has been carried out.
+ *
+ * Only what it could not be carried out on: a tick left on what was done
+ * offers it for the same action again, and one left on a copied file made the
+ * next Paste aim at that file rather than at the folder. What failed stays
+ * ticked so a retry is one click, and an action that did nothing at all
+ * leaves the ticks as they were.
+ */
+export function ticksAfter(ticked: string[], outcome: ActionOutcome): string[] {
+  if (outcome.done.length === 0) return ticked
+  const unfinished = new Set(
+    [...outcome.failures, ...(outcome.skipped ?? [])].map((failure) => failure.nodeId)
+  )
+  return ticked.filter((id) => unfinished.has(id))
+}
+
+/**
  * The branches to re-read, each named once.
  *
  * Deleting five files out of one folder names that folder five times; reading

@@ -329,6 +329,8 @@ describe("catalog action subjects", () => {
       mode: "copy",
       label: "Table label",
     })
+    // And lets the ticks go: left on, they made Paste aim at what was copied.
+    expect(wrapper.emitted("untick")).toHaveLength(1)
     wrapper.unmount()
   })
 
