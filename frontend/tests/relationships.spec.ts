@@ -133,11 +133,30 @@ test("draws the checked tables, the keys between them and what they point at", a
   await expect(inspector).toContainText("projects_owner_id_fkey")
   await expect(inspector).not.toContainText("projects_organization_id_fkey")
 
+  // Pressed with the pointer, the curve selects its key and draws nothing of
+  // its own: the fourteen pixels it is pressed by showed as a grey band once
+  // it had focus, and the browser's ring as a rectangle round the whole curve.
+  const hit = page.getByTestId(ORGANIZATION_EDGE)
+  const onCurve = await hit.evaluate((node) => {
+    const path = node as SVGPathElement
+    const point = path.getPointAtLength(path.getTotalLength() * 0.35)
+    const screen = point.matrixTransform(path.getScreenCTM() ?? undefined)
+    return { x: screen.x, y: screen.y }
+  })
+  await page.mouse.click(onCurve.x, onCurve.y)
+  await expect(inspector).toContainText("organization_id → organization_id")
+  await expect(hit).toHaveCSS("stroke", "rgba(0, 0, 0, 0)")
+  await expect(hit).toHaveCSS("outline-style", "none")
+  await page.getByTestId("graph-port-demo_lab.projects-owner_id").click()
+  await expect(inspector).not.toContainText("projects_organization_id_fkey")
+
   // The other key is taken the way a pointer cannot take a hairline: the curve
-  // is focusable, and Enter on it selects the relationship it draws.
-  await page.getByTestId(ORGANIZATION_EDGE).press("Enter")
+  // is focusable, and Enter on it selects the relationship it draws. Reached
+  // by the keyboard, it shows where the keyboard is.
+  await hit.press("Enter")
   await expect(inspector).toContainText("organization_id → organization_id")
   await expect(inspector).toContainText("cascade")
+  await expect(hit).not.toHaveCSS("stroke", "rgba(0, 0, 0, 0)")
 
   // Collapsing the fields keeps every connection, moved onto the headers.
   await page.getByTestId("graph-details-toggle").click()

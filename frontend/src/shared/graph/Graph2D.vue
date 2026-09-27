@@ -399,8 +399,11 @@ defineExpose({ fit, zoom, focus })
 .graph-2d__tone--success .graph-2d__edge { stroke: var(--dp-content-success); }
 .graph-2d__tone--error .graph-2d__edge { stroke: var(--dp-content-error); }
 .graph-2d__tone--muted { opacity: 0.45; }
-.graph-2d__edge-hit { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
-.graph-2d__edge-hit:focus { stroke: var(--dp-focus-border); }
+/* Its own stroke is the mark of focus, and only the keyboard's: a pointer press
+   focuses the curve too, and with :focus the fourteen pixels showed as a grey
+   band, while the browser's ring drew a rectangle round the whole curve. */
+.graph-2d__edge-hit { fill: none; stroke: transparent; stroke-width: 14; vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; outline: none; }
+.graph-2d__edge-hit:focus-visible { stroke: var(--dp-focus-border); }
 .graph-2d__dim { opacity: 0.3; }
 .graph-node { position: absolute; border: 1px solid var(--dp-border-strong); border-radius: var(--dp-radius-panel); background: var(--dp-surface); box-shadow: 0 3px 12px var(--dp-border-faint); box-sizing: border-box; }
 .graph-node--selected { outline: 2px solid var(--dp-accent); }
