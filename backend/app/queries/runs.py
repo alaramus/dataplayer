@@ -349,6 +349,9 @@ class SnapshotDownloadRequest(BaseModel):
     view: SnapshotView = PydanticField(default_factory=SnapshotView)
     offset: int = PydanticField(default=0, ge=0)
     limit: int = PydanticField(default=100, ge=1, le=500)
+    # The ids of the columns on screen, in their order; every captured column
+    # when absent.
+    columns: list[str] | None = PydanticField(default=None, min_length=1)
 
 
 class ResultPage(BaseModel):

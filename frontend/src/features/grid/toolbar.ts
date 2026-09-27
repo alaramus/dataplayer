@@ -13,6 +13,8 @@
  * group. Twenty buttons in one undifferentiated run is what this replaces.
  */
 
+import { appIcons } from "@/shared/ui/icons"
+
 /** The groups, in the order they are drawn. */
 export const TOOLBAR_GROUPS = [
   { name: "view", label: "The view" },
@@ -23,6 +25,30 @@ export const TOOLBAR_GROUPS = [
 ] as const
 
 export type ToolbarGroup = (typeof TOOLBAR_GROUPS)[number]["name"]
+
+/**
+ * The picture and the name of each command the row can hold.
+ *
+ * Read by the grid of a node and by the table of a query result, which draw
+ * the same row: a result greys most of these out rather than leaving whole
+ * groups empty, and the two must not drift apart in how a command looks.
+ */
+export const GRID_COMMANDS = {
+  structure: { icon: appIcons.accountTree, label: "Structure" },
+  query: { icon: appIcons.terminal, label: "Open as a query" },
+  document: { icon: appIcons.code, label: "Open as a document" },
+  chart: { icon: appIcons.insertChart, label: "Charts" },
+  download: { icon: appIcons.download, label: "Download" },
+  share: { icon: appIcons.share, label: "Share this view" },
+  keep: { icon: appIcons.postAdd, label: "Keep these rows as a new table or file" },
+  paste: { icon: appIcons.contentPaste, label: "Paste into the selection" },
+  import: { icon: appIcons.input, label: "Bring rows in" },
+  insert: { icon: appIcons.add, label: "Insert row" },
+  remove: { icon: appIcons.remove, label: "Delete selected rows" },
+  refresh: { icon: appIcons.autorenew, label: "Refresh automatically" },
+} as const
+
+export type GridCommand = keyof typeof GRID_COMMANDS
 
 /**
  * Why a command cannot be used, or nothing when it can.
@@ -62,6 +88,23 @@ export const NOT_OFFERED = {
   insert: "this source does not add rows",
   remove: "this source does not delete rows",
 } as const
+
+/**
+ * Why a query result offers what it does not: an arbitrary projection has no
+ * row identity to act on and names no node of any source (D64).
+ */
+export const NOT_IN_A_RESULT = {
+  structure: "a query result is not a table",
+  query: "this is the result of a query already",
+  document: NOT_OFFERED.document,
+  share: "a query result cannot be shared",
+  keep: "a query result cannot be kept as a table",
+  paste: "a query result cannot be changed",
+  import: "a query result cannot be changed",
+  insert: "a query result cannot be changed",
+  remove: "a query result cannot be changed",
+  refresh: "a query result is read again only by running the query",
+} as const satisfies Partial<Record<GridCommand, string>>
 
 /** And the ones that name something to do, rather than something to accept. */
 export const NOT_YET = {

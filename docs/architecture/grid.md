@@ -37,7 +37,9 @@ updates the visible widths and saved layout continuously, including pinned offse
 A captured query result is the second controller of that surface: it supplies
 typed columns and a page read from the snapshot store, offers paging, filtering
 and ordering over what was captured, and offers none of the row commands,
-because an arbitrary projection has no row identity to act on.
+because an arbitrary projection has no row identity to act on. They stand
+greyed where a table has them, each saying why (D116); `GRID_COMMANDS` in
+`toolbar.ts` gives both controllers the same picture and name for each.
 
 TanStack Table v9 is the headless engine for cell selection, column sizing and
 resizing, ordering, visibility, left pinning and controlled sorting state.

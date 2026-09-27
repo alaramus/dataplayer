@@ -331,7 +331,8 @@ view. Errors are outputs, not pseudo-table rows or generic toasts. While a new
 run is active the previous result remains readable and is labelled as previous;
 success replaces only the current unpinned result. Pin keeps a card in the
 console, while Open in workspace gives one `result_id` one independent work
-panel. Two runs are two panels even when their SQL is equal, and existing split
+panel; both stand in the result grid's *This tab* group rather than a bar of
+their own above it. Two runs are two panels even when their SQL is equal, and existing split
 and drag behaviour supplies side-by-side comparison; a data-diff language does
 not.
 

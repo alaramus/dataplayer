@@ -4,13 +4,16 @@ import { computed, ref, watch } from "vue"
 
 import type { FetchColumn, ResultColumn, Sort } from "@/client"
 import ChartView from "@/features/charts/ChartView.vue"
+import DownloadDialog from "@/features/grid/DownloadDialog.vue"
 import TabularGrid from "@/features/grid/TabularGrid.vue"
 import { defaultColumnLayout } from "@/features/grid/columnLayout"
 import type { ColumnLayoutState } from "@/features/grid/columnLayout"
 import { saveBrowserDownload, filenameFromDisposition } from "@/features/grid/download"
-import type { TabularColumn } from "@/features/grid/tabular"
+import type { DownloadDestination, DownloadScope } from "@/features/grid/download"
+import type { TabularColumn, TabularVisibleColumn } from "@/features/grid/tabular"
+import { GRID_COMMANDS, NOT_IN_A_RESULT, tipOf } from "@/features/grid/toolbar"
 import type { Filter, GridRow, PageSize } from "@/features/grid/types"
-import { useDownloadResult, useResultPage } from "@/features/queries/runs"
+import { useDownloadResult, useKeepResult, useResultPage } from "@/features/queries/runs"
 import { messageOf } from "@/shared/api/errors"
 import { AppIconButton, useToast } from "@/shared/ui"
 
@@ -22,6 +25,9 @@ import { AppIconButton, useToast } from "@/shared/ui"
  * command, because an arbitrary projection has no row identity to act on. What
  * it does have is paging, filtering and ordering — over the snapshot, which
  * the empty state and the download both say.
+ *
+ * The commands it lacks are drawn greyed with their reason rather than left
+ * out, so the row has the grid's shape and no group of it stands empty.
  */
 
 const props = withDefaults(
@@ -49,6 +55,10 @@ const request = computed(() => ({
 }))
 const snapshot = useResultPage(() => props.resultId, request)
 const download = useDownloadResult()
+const keep = useKeepResult()
+const writingOut = computed(() => download.isPending.value || keep.isPending.value)
+const downloadOpen = ref(false)
+const downloadColumns = ref<TabularVisibleColumn[]>([])
 
 defineExpose({ reload: async () => void (await snapshot.refetch()) })
 
@@ -148,27 +158,56 @@ const chartColumns = computed<FetchColumn[]>(() =>
 )
 const chartRows = computed(() => snapshot.data.value?.rows ?? [])
 
-async function save(scope: "page" | "all") {
+/** What the grid of a node offers here and a result cannot, by group. */
+type Missing = keyof typeof NOT_IN_A_RESULT
+const MISSING_OPEN: Missing[] = ["structure", "query", "document"]
+const MISSING_OUT: Missing[] = ["share", "keep"]
+const MISSING_WRITE: Missing[] = ["paste", "import", "insert", "remove"]
+
+const pageRange = computed(() =>
+  rows.value.length === 0
+    ? "Rows 0"
+    : `Rows ${page.value * pageSize.value + 1}–${page.value * pageSize.value + rows.value.length}`
+)
+const allDescription = computed(() =>
+  filters.value.length === 0
+    ? `Every one of the ${total.value} captured rows`
+    : `${filters.value.length} active filters over ${total.value} captured rows`
+)
+
+function openDownload(columns: TabularVisibleColumn[]) {
+  downloadColumns.value = [...columns]
+  downloadOpen.value = true
+}
+
+/**
+ * The table's choice, over the snapshot: a page or every captured row, to the
+ * browser or into the caller's own files (D28). Written from what was
+ * captured, so nothing is sent to the source again (D64).
+ */
+async function save(scope: DownloadScope, destination: DownloadDestination) {
+  const body = {
+    scope,
+    title: props.title,
+    view: { filters: filters.value, sort: sort.value },
+    offset: page.value * pageSize.value,
+    limit: pageSize.value,
+    columns: downloadColumns.value.map((column) => column.id),
+  }
   try {
-    const saved = await download.mutateAsync({
-      resultId: props.resultId,
-      body: {
-        scope,
-        title: props.title,
-        view: { filters: filters.value, sort: sort.value },
-        offset: page.value * pageSize.value,
-        limit: pageSize.value,
-      },
-    })
+    if (destination === "files") {
+      const kept = await keep.mutateAsync({ resultId: props.resultId, body })
+      downloadOpen.value = false
+      toast.success(`${kept.row_count} rows saved to your files as ${kept.filename}`)
+      return
+    }
+    const saved = await download.mutateAsync({ resultId: props.resultId, body })
     saveBrowserDownload(
       saved.blob,
       filenameFromDisposition(saved.disposition ?? "", `${props.title}.csv`)
     )
-    toast.success(
-      scope === "all"
-        ? "Every captured row saved to your Downloads folder"
-        : "This page saved to your Downloads folder"
-    )
+    downloadOpen.value = false
+    toast.success(scope === "all" ? "Every captured row downloaded" : "Page downloaded")
   } catch (cause) {
     toast.error(messageOf(cause, "Could not save this result"))
   }
@@ -225,32 +264,76 @@ async function save(scope: "page" | "all") {
   >
     <template #commands-open>
       <AppIconButton
-        :icon="appIcons.insertChart"
+        v-for="command in MISSING_OPEN"
+        :key="command"
+        :icon="GRID_COMMANDS[command].icon"
+        :tooltip="tipOf(GRID_COMMANDS[command].label, NOT_IN_A_RESULT[command])"
+        disable
+        :data-testid="`result-${command}`"
+      />
+      <AppIconButton
+        :icon="GRID_COMMANDS.chart.icon"
         tooltip="Chart this page"
         data-testid="result-chart"
         @click="charting = true"
       />
     </template>
 
-    <template #commands-out>
+    <template #commands-out="{ visibleColumns }">
       <AppIconButton
-        :icon="appIcons.download"
-        tooltip="Save this page"
-        :disable="download.isPending.value"
-        data-testid="result-download-page"
-        @click="save('page')"
+        :icon="GRID_COMMANDS.download.icon"
+        :tooltip="GRID_COMMANDS.download.label"
+        :disable="writingOut || visibleColumns.length === 0"
+        :loading="writingOut"
+        data-testid="result-download"
+        @click="openDownload(visibleColumns)"
       />
       <AppIconButton
-        :icon="appIcons.downloadForOffline"
-        tooltip="Save every captured row"
-        :disable="download.isPending.value"
-        data-testid="result-download-all"
-        @click="save('all')"
+        v-for="command in MISSING_OUT"
+        :key="command"
+        :icon="GRID_COMMANDS[command].icon"
+        :tooltip="tipOf(GRID_COMMANDS[command].label, NOT_IN_A_RESULT[command])"
+        disable
+        :data-testid="`result-${command}`"
+      />
+    </template>
+
+    <template #commands-write>
+      <AppIconButton
+        v-for="command in MISSING_WRITE"
+        :key="command"
+        :icon="GRID_COMMANDS[command].icon"
+        :tooltip="tipOf(GRID_COMMANDS[command].label, NOT_IN_A_RESULT[command])"
+        disable
+        :data-testid="`result-${command}`"
       />
     </template>
 
     <template #commands-tab>
+      <AppIconButton
+        :icon="GRID_COMMANDS.refresh.icon"
+        :tooltip="tipOf(GRID_COMMANDS.refresh.label, NOT_IN_A_RESULT.refresh)"
+        disable
+        data-testid="result-refresh"
+      />
       <slot name="commands-end" />
+    </template>
+
+    <template #after-grid>
+      <!-- The table's own window, so a result asks the same question a table
+           does; only what "all" means is said in its own words. -->
+      <DownloadDialog
+        v-if="downloadOpen"
+        :model-value="true"
+        :page-range="pageRange"
+        :column-count="downloadColumns.length"
+        :filter-count="filters.length"
+        :all-supported="true"
+        :all-description="allDescription"
+        :running="writingOut"
+        @run="save"
+        @update:model-value="downloadOpen = false"
+      />
     </template>
 
     <!-- Beside the range rather than among the commands: neither of these is

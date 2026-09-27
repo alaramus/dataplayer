@@ -313,6 +313,16 @@ test("a captured result is paged, ordered and opened in a panel of its own", asy
   await page.getByTestId("grid-sort-direction-0").click()
   await expect(page.getByTestId("grid-cell-0-0")).toHaveText("12")
 
+  // The row of commands has the grid's shape: what a result cannot do is
+  // greyed where a table has it, so no group of the row stands empty.
+  for (const command of [
+    "structure", "query", "document", "share", "keep",
+    "paste", "import", "insert", "remove", "refresh",
+  ]) {
+    await expect(page.getByTestId(`result-${command}`)).toBeDisabled()
+  }
+  await expect(page.getByTestId("grid-group-tab").getByTestId("run-promote")).toBeVisible()
+
   // And the result can leave the console for a tab of its own (D65).
   await page.getByTestId("run-promote").click()
   await expect(page.locator('[data-testid^="workspace-tab-result:"]')).toHaveCount(1)

@@ -225,14 +225,29 @@ def safe_stem(title: str) -> str:
     return stem[:120] or "result"
 
 
-def to_csv(columns: list[ResultColumn], rows: list[list[str | None]]) -> bytes:
+def to_csv(
+    columns: list[ResultColumn],
+    rows: list[list[str | None]],
+    chosen: list[str] | None = None,
+) -> bytes:
     """The rows as they are shown, with a heading line.
+
+    `chosen` is the ids of the columns on screen in the order they stand
+    there, and every captured column when absent. An id the result has not got
+    is refused rather than skipped, so a stale layout cannot put a value under
+    the wrong heading.
 
     UTF-8 with a byte order mark, as everywhere else a table is saved: it is
     what a spreadsheet on Windows opens without asking.
     """
+    if chosen is None:
+        indexes = list(range(len(columns)))
+    else:
+        if len(chosen) != len(set(chosen)):
+            raise ValueError("Download columns must be unique")
+        indexes = [_index_of(columns, column_id) for column_id in chosen]
     output = io.StringIO(newline="")
     writer = csv.writer(output, quoting=NULL_QUOTING)
-    writer.writerow([column.name for column in columns])
-    writer.writerows(rows)
+    writer.writerow([columns[index].name for index in indexes])
+    writer.writerows([row[index] for index in indexes] for row in rows)
     return output.getvalue().encode("utf-8-sig")

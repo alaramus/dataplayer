@@ -182,6 +182,19 @@ export function useDownloadResult() {
   })
 }
 
+/** The same CSV, kept among the caller's own files rather than handed over (D28). */
+export function useKeepResult() {
+  return useMutation({
+    mutationFn: async (request: { resultId: string; body: SnapshotDownloadRequest }) =>
+      (
+        await QueriesService.keepResult({
+          path: { result_id: request.resultId },
+          body: request.body,
+        })
+      ).data,
+  })
+}
+
 /**
  * What this connection holds, for completion and for conservative marks.
  *

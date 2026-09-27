@@ -40,6 +40,10 @@ const statements = computed(() => props.run.statements ?? [])
 const selected = computed<StatementPublic | undefined>(
   () => statements.value.find((statement) => statement.ordinal === chosen.value)
 )
+
+function promoteSelected() {
+  if (selected.value !== undefined) emit("promote", selected.value)
+}
 /**
  * Everything the run said, in the order it said it.
  *
@@ -173,26 +177,30 @@ function duration(statement: StatementPublic): string {
           v-if="selected.result_id"
           class="run-outcome__result"
         >
-          <div class="run-outcome__result-bar">
-            <AppIconButton
-              :icon="appIcons.pushPin"
-              tooltip="Keep this result when the next run finishes"
-              data-testid="run-pin"
-              @click="emit('toggle-pin')"
-            />
-            <AppIconButton
-              :icon="appIcons.openInNew"
-              tooltip="Open this result in the workspace"
-              data-testid="run-promote"
-              @click="emit('promote', selected)"
-            />
-          </div>
           <ResultTable
             :key="selected.result_id"
             :result-id="selected.result_id"
             :stale="stale"
             class="run-outcome__table"
-          />
+          >
+            <!-- In the table's own row rather than a bar above it: a row of
+                 their own cost the rows a line, and left the table's last
+                 group empty. -->
+            <template #commands-end>
+              <AppIconButton
+                :icon="appIcons.pushPin"
+                tooltip="Keep this result when the next run finishes"
+                data-testid="run-pin"
+                @click="emit('toggle-pin')"
+              />
+              <AppIconButton
+                :icon="appIcons.openInNew"
+                tooltip="Open this result in the workspace"
+                data-testid="run-promote"
+                @click="promoteSelected"
+              />
+            </template>
+          </ResultTable>
         </div>
         <AppEmptyState
           v-else-if="!selected.diagnostic"
@@ -267,13 +275,6 @@ function duration(statement: StatementPublic): string {
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-.run-outcome__result-bar {
-  flex: none;
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--dp-space-half);
-  padding: var(--dp-space-half) var(--dp-space-1) 0;
 }
 .run-outcome__table {
   flex: 1;

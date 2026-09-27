@@ -13,6 +13,7 @@ anything is offered to a user (D62).
 
 import uuid
 
+from anyio import to_thread
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -44,6 +45,7 @@ from app.adapters.query import (
 )
 from app.adapters.resources import ResourcesDep, ResourceStore
 from app.connectors import crud as connector_crud
+from app.connectors import downloads
 from app.connectors.access import (
     adapter_for,
     get_or_404,
@@ -101,6 +103,7 @@ from app.queries.sessions import SessionsDep, TransactionEnded, TransactionPubli
 from app.queries.snapshot import SnapshotView
 from app.queries.write_access import WriteRefused, admit_transaction, admit_write
 from app.realtime.topics import TopicsDep
+from app.users import storage
 from app.users.deps import CurrentUser
 from app.users.models import User
 
@@ -823,15 +826,82 @@ async def download_result(
     streaming operation that belongs to a relation.
     """
     result = await _captured_or_404(results, result_id, current_user.id)
-    rows = _viewed(result, body.view)
-    if body.scope == "page":
-        rows = rows[body.offset : body.offset + body.limit]
+    content, _ = _csv_of(result, body)
     filename = f"{snapshot.safe_stem(body.title)}.csv"
     return Response(
-        content=snapshot.to_csv(result.columns, rows),
+        content=content,
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# Where a kept result lands in its owner's files: beside the folders of the
+# connections whose pages were kept, because a result names no node of any
+# source and may outlive the connection it was read from (D65).
+KEPT_RESULTS_FOLDER = "results"
+
+
+@router.post(
+    "/results/{result_id}/download/keep", response_model=downloads.KeptDownload
+)
+async def keep_result(
+    results: ResultsDep,
+    current_user: CurrentUser,
+    result_id: str,
+    body: SnapshotDownloadRequest,
+) -> downloads.KeptDownload:
+    """The same CSV written into the caller's own files, and nothing sent back.
+
+    The other destination of one choice, as a table's download has (D28): a
+    person who wanted a copy among their files does not also get the file.
+    """
+    result = await _captured_or_404(results, result_id, current_user.id)
+    content, row_count = _csv_of(result, body)
+    try:
+        path = await to_thread.run_sync(
+            lambda: downloads.keep_csv(
+                home=storage.home_dir(current_user.id),
+                folder=KEPT_RESULTS_FOLDER,
+                title=body.title,
+                body=content,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    except OSError:
+        raise HTTPException(
+            status_code=507,
+            detail={
+                "message": "The result could not be stored",
+                "error_kind": "config",
+            },
+        ) from None
+    return downloads.KeptDownload(filename=path.name, row_count=row_count)
+
+
+def _csv_of(
+    result: MaterialisedResult, body: SnapshotDownloadRequest
+) -> tuple[bytes, int]:
+    """The CSV both destinations write, and how many rows are in it."""
+    rows = _viewed(result, body.view)
+    if body.scope == "page":
+        rows = rows[body.offset : body.offset + body.limit]
+    try:
+        return snapshot.to_csv(result.columns, rows, body.columns), len(rows)
+    except ValueError as unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "columns"],
+                    "msg": str(unknown),
+                    "type": "value_error",
+                }
+            ],
+        ) from None
 
 
 # --- history ----------------------------------------------------------------

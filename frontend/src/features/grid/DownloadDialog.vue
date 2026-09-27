@@ -14,6 +14,11 @@ const props = defineProps<{
   filterCount: number
   allSupported: boolean
   allReason?: string
+  /**
+   * What "all" is where it is not a relation streamed from its source: a
+   * query result's rows were captured once and are written from memory.
+   */
+  allDescription?: string
   running: boolean
 }>()
 const emit = defineEmits<{
@@ -32,10 +37,11 @@ const scopes = computed<RadioOption[]>(() => [
   {
     label: "All matching rows",
     value: "all",
-    description: props.allSupported
-      ? `${props.filterCount === 0 ? "The whole relation" : `${props.filterCount} active filters`}` +
-        " · streamed rather than held in memory"
-      : props.allReason ?? "This source cannot export all matching rows",
+    description: !props.allSupported
+      ? props.allReason ?? "This source cannot export all matching rows"
+      : props.allDescription ??
+        `${props.filterCount === 0 ? "The whole relation" : `${props.filterCount} active filters`}` +
+          " · streamed rather than held in memory",
     disable: !props.allSupported,
   },
 ])

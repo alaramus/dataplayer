@@ -9996,6 +9996,10 @@ export type SnapshotDownloadRequest = {
    * Limit
    */
   limit?: number
+  /**
+   * Columns
+   */
+  columns?: Array<string> | null
 }
 
 /**
@@ -17031,6 +17035,36 @@ export type queriesDownloadResultResponses = {
 
 export type queriesDownloadResultResponse =
   queriesDownloadResultResponses[keyof queriesDownloadResultResponses]
+
+export type queriesKeepResultData = {
+  body: SnapshotDownloadRequest
+  path: {
+    /**
+     * Result Id
+     */
+    result_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/results/{result_id}/download/keep"
+}
+
+export type queriesKeepResultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesKeepResultError = queriesKeepResultErrors[keyof queriesKeepResultErrors]
+
+export type queriesKeepResultResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeptDownload
+}
+
+export type queriesKeepResultResponse = queriesKeepResultResponses[keyof queriesKeepResultResponses]
 
 export type queriesReadRunTextData = {
   body?: never

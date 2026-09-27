@@ -495,6 +495,9 @@ import type {
   queriesGenerateQueryData,
   queriesGenerateQueryErrors,
   queriesGenerateQueryResponses,
+  queriesKeepResultData,
+  queriesKeepResultErrors,
+  queriesKeepResultResponses,
   queriesListDocumentsData,
   queriesListDocumentsErrors,
   queriesListDocumentsResponses,
@@ -4649,6 +4652,33 @@ export class QueriesService {
       responseType: "text",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/queries/results/{result_id}/download",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Keep Result
+   *
+   * The same CSV written into the caller's own files, and nothing sent back.
+   *
+   * The other destination of one choice, as a table's download has (D28): a
+   * person who wanted a copy among their files does not also get the file.
+   */
+  public static keepResult<ThrowOnError extends boolean = true>(
+    options: Options<queriesKeepResultData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesKeepResultResponses,
+      queriesKeepResultErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/results/{result_id}/download/keep",
       ...options,
       headers: {
         "Content-Type": "application/json",

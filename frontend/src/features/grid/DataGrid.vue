@@ -56,7 +56,7 @@ import {
   useUpdateCells,
 } from "./api"
 import AutoRefreshButton from "./AutoRefreshButton.vue"
-import { NOT_OFFERED, NOT_YET, tipOf } from "./toolbar"
+import { GRID_COMMANDS, NOT_OFFERED, NOT_YET, tipOf } from "./toolbar"
 import type { Unavailable } from "./toolbar"
 import {
   loadRefreshSeconds,
@@ -1316,29 +1316,29 @@ defineExpose({
          same rows, which is what puts them together. -->
     <template #commands-open="{ visibleColumns }">
       <AppIconButton
-        :icon="appIcons.accountTree"
-        :tooltip="tipOf('Structure', canDescribe ? null : NOT_OFFERED.structure)"
+        :icon="GRID_COMMANDS.structure.icon"
+        :tooltip="tipOf(GRID_COMMANDS.structure.label, canDescribe ? null : NOT_OFFERED.structure)"
         :disable="!canDescribe"
         data-testid="grid-structure"
         @click="emit('describe')"
       />
       <AppIconButton
-        :icon="appIcons.terminal"
-        :tooltip="tipOf('Open as a query', canQuery && offers('query') ? null : NOT_OFFERED.query)"
+        :icon="GRID_COMMANDS.query.icon"
+        :tooltip="tipOf(GRID_COMMANDS.query.label, canQuery && offers('query') ? null : NOT_OFFERED.query)"
         :disable="!(canQuery && offers('query'))"
         data-testid="grid-query"
         @click="emit('query')"
       />
       <AppIconButton
-        :icon="appIcons.code"
-        :tooltip="contentTitle ?? tipOf('Open as a document', NOT_OFFERED.document)"
+        :icon="GRID_COMMANDS.document.icon"
+        :tooltip="contentTitle ?? tipOf(GRID_COMMANDS.document.label, NOT_OFFERED.document)"
         :disable="!contentTitle"
         data-testid="grid-content"
         @click="emit('content')"
       />
       <AppIconButton
-        :icon="appIcons.insertChart"
-        :tooltip="tipOf('Charts', chartReason)"
+        :icon="GRID_COMMANDS.chart.icon"
+        :tooltip="tipOf(GRID_COMMANDS.chart.label, chartReason)"
         :disable="chartReason !== null"
         data-testid="grid-charts"
         @click="openChart(visibleColumns)"
@@ -1349,23 +1349,23 @@ defineExpose({
          None of them writes to the source. -->
     <template #commands-out="{ visibleColumns }">
       <AppIconButton
-        :icon="appIcons.download"
-        :tooltip="tipOf('Download', downloadReason)"
+        :icon="GRID_COMMANDS.download.icon"
+        :tooltip="tipOf(GRID_COMMANDS.download.label, downloadReason)"
         :disable="downloadReason !== null || writingOut"
         :loading="writingOut"
         data-testid="grid-download"
         @click="openDownload(visibleColumns)"
       />
       <AppIconButton
-        :icon="appIcons.share"
-        :tooltip="tipOf('Share this view', offers('share') ? null : NOT_OFFERED.share)"
+        :icon="GRID_COMMANDS.share.icon"
+        :tooltip="tipOf(GRID_COMMANDS.share.label, offers('share') ? null : NOT_OFFERED.share)"
         :disable="!offers('share')"
         data-testid="grid-share"
         @click="shareOpen = true"
       />
       <AppIconButton
-        :icon="appIcons.postAdd"
-        :tooltip="tipOf('Keep these rows as a new table or file', keepReason)"
+        :icon="GRID_COMMANDS.keep.icon"
+        :tooltip="tipOf(GRID_COMMANDS.keep.label, keepReason)"
         :disable="keepReason !== null"
         data-testid="grid-create-table"
         @click="openCreateTable"
@@ -1382,23 +1382,23 @@ defineExpose({
       }"
     >
       <AppIconButton
-        :icon="appIcons.contentPaste"
-        :tooltip="tipOf('Paste into the selection', pasteReason(canCopy))"
+        :icon="GRID_COMMANDS.paste.icon"
+        :tooltip="tipOf(GRID_COMMANDS.paste.label, pasteReason(canCopy))"
         :disable="pasteReason(canCopy) !== null"
         data-testid="grid-paste"
         @click="requestPaste"
       />
       <AppIconButton
-        :icon="appIcons.input"
-        :tooltip="tipOf('Bring rows in', importReason)"
+        :icon="GRID_COMMANDS.import.icon"
+        :tooltip="tipOf(GRID_COMMANDS.import.label, importReason)"
         :disable="importReason !== null"
         data-testid="grid-import"
         @click="openImport"
       />
       <span data-testid="grid-insert-command">
         <AppIconButton
-          :icon="appIcons.add"
-          :tooltip="tipOf('Insert row', insertReason)"
+          :icon="GRID_COMMANDS.insert.icon"
+          :tooltip="tipOf(GRID_COMMANDS.insert.label, insertReason)"
           :disable="insertReason !== null"
           data-testid="grid-insert"
           @click="openInsert"
@@ -1406,11 +1406,11 @@ defineExpose({
       </span>
       <span data-testid="grid-delete-command">
         <AppIconButton
-          :icon="appIcons.remove"
+          :icon="GRID_COMMANDS.remove.icon"
           :tooltip="tipOf(
             selectedRowIndexes.length > 0
               ? `Delete ${selectedRowIndexes.length} selected rows`
-              : 'Delete selected rows',
+              : GRID_COMMANDS.remove.label,
             deleteReason(selectedRowIndexes)
           )"
           :disable="deleteReason(selectedRowIndexes) !== null"

@@ -98,14 +98,14 @@ def safe_stem(title: str) -> str:
 def _csv_paths(
     *,
     home: Path,
-    connector_id: uuid.UUID,
+    folder: str,
     title: str,
     now: datetime | None = None,
 ) -> tuple[Path, Path]:
     downloaded_at = now or datetime.now(UTC)
     filename = f"{safe_stem(title)}-{downloaded_at:%Y%m%d-%H%M%S-%f}.csv"
     downloads = home / "downloads"
-    directory = downloads / str(connector_id)
+    directory = downloads / folder
     if home.is_symlink() or downloads.is_symlink() or directory.is_symlink():
         raise ValueError("The downloads directory is not safe")
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -160,10 +160,29 @@ def save_csv_page(
     now: datetime | None = None,
 ) -> Path:
     """Write one fetched page atomically into personal storage."""
-    body = page_csv(columns=columns, result=result)
-    destination, temporary = _csv_paths(
-        home=home, connector_id=connector_id, title=title, now=now
+    return keep_csv(
+        home=home,
+        folder=str(connector_id),
+        title=title,
+        body=page_csv(columns=columns, result=result),
+        now=now,
     )
+
+
+def keep_csv(
+    *,
+    home: Path,
+    folder: str,
+    title: str,
+    body: bytes,
+    now: datetime | None = None,
+) -> Path:
+    """Write a finished CSV atomically under `downloads/<folder>` of a home.
+
+    `folder` is named by the server — a connection's id, or the one place
+    captured query results go — and never by a client.
+    """
+    destination, temporary = _csv_paths(home=home, folder=folder, title=title, now=now)
     try:
         temporary.write_bytes(body)
         temporary.replace(destination)
@@ -223,7 +242,7 @@ async def save_csv_export(
     return await _write_export(
         paths=await to_thread.run_sync(
             lambda: _csv_paths(
-                home=home, connector_id=connector_id, title=title, now=now
+                home=home, folder=str(connector_id), title=title, now=now
             )
         ),
         columns=columns,

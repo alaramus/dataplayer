@@ -14,6 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.queries import history
 from app.queries.runs import ExecutionRun
+from app.users import storage
 from tests.utils.database import working_postgres_options
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
@@ -388,6 +389,64 @@ async def test_a_captured_result_is_downloaded_without_the_source(
     assert "counts.csv" in everything.headers["content-disposition"]
     assert everything.text.strip().splitlines()[1:] == ['"1"', '"2"', '"3"', '"4"', '"5"']
     assert page.text.strip().splitlines()[1:] == ['"1"', '"2"']
+
+
+async def test_a_downloaded_result_keeps_the_columns_on_screen_in_their_order(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    run = await _run(client, headers, connector_id, "select 1 as a, 2 as b, 3 as c")
+    result_id = run["statements"][0]["result_id"]
+
+    chosen = await client.post(
+        f"{BASE}/results/{result_id}/download",
+        headers=headers,
+        json={"scope": "all", "columns": ["2", "0"]},
+    )
+    unknown = await client.post(
+        f"{BASE}/results/{result_id}/download",
+        headers=headers,
+        json={"scope": "all", "columns": ["0", "9"]},
+    )
+
+    assert chosen.status_code == 200, chosen.text
+    assert chosen.text.lstrip("﻿").strip().splitlines() == ['"c","a"', '"3","1"']
+    # Refused rather than skipped: a layout that names a column the result has
+    # not got is stale, and writing around it would shift the headings.
+    assert unknown.status_code == 422
+
+
+async def test_a_kept_result_is_filed_among_the_owner_s_files_and_not_sent_back(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    run = await _run(
+        client, headers, connector_id, "select i from generate_series(1, 5) i"
+    )
+    result_id = run["statements"][0]["result_id"]
+
+    response = await client.post(
+        f"{BASE}/results/{result_id}/download/keep",
+        headers=headers,
+        json={"scope": "page", "limit": 3, "title": "counts"},
+    )
+
+    assert response.status_code == 200, response.text
+    answer = response.json()
+    assert answer["row_count"] == 3
+    assert answer["filename"].startswith("counts-")
+    assert "download_url" not in answer
+    me = await client.get(f"{settings.API_V1_STR}/users/me", headers=headers)
+    home = storage.home_dir(uuid.UUID(me.json()["id"]))
+    saved = home / "downloads" / "results" / answer["filename"]
+    assert saved.read_text(encoding="utf-8-sig").splitlines() == [
+        '"i"',
+        '"1"',
+        '"2"',
+        '"3"',
+    ]
 
 
 async def test_a_download_of_somebody_else_s_result_is_not_there(
