@@ -2,7 +2,7 @@
 import { useQuery } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 
-import type { ColumnPair, Link, LinkPlace, LinkRun, NewRelationColumn, PipelineRunPublic } from "@/client"
+import type { ColumnPair, Link, LinkEnd, LinkPlace, LinkRun, NewRelationColumn, PipelineRunPublic } from "@/client"
 import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
 import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf } from "@/shared/api/errors"
@@ -28,6 +28,8 @@ const props = defineProps<{
   from: LinkSide
   to: LinkSide
   name: EndNamer
+  /** What an end is called on its own, which a table made from it is named after. */
+  label: (end: LinkEnd) => string | null
   pipelineId: string
   /** The links making what either end is, as the offers are keyed by (D178). */
   chain: string
@@ -216,7 +218,7 @@ const columnsWord = computed(() => {
     <CreateTableDialog
       v-if="tableOpen && offer"
       :model-value="true"
-      :source-title="name(link.source)"
+      :source-title="label(link.source) ?? name(link.source)"
       :source-columns="offer.source_columns ?? []"
       :fixed-destination="{ connectorId: to.connectorId, parentNodeId: to.end.node_id ?? '', label: name(link.target) }"
       :running="false"

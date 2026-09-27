@@ -295,17 +295,27 @@ function cardName(card: Card): string {
   return connectionsById.value.get(card.connector_id)?.name ?? card.connector_name
 }
 
+/**
+ * What one end is called on its own: a row's label, or what a link makes.
+ * Nothing for the top of a card, which is named by its connection alone.
+ */
+function labelEnd(end: LinkEnd): string | null {
+  const card = cards.value.find((one) => one.id === end.card_id)
+  if (card === undefined) return null
+  if (end.made_by != null) {
+    const made = results.value.find((one) => one.link_id === end.made_by)
+    return made?.name ?? "what a link makes"
+  }
+  if (end.node_id == null) return null
+  return card.rows.find((one) => one.node_id === end.node_id)?.label ?? end.node_id
+}
+
 /** One end of a link as a sentence names it: "Sales · orders", "Files (top)". */
 function nameEnd(end: LinkEnd): string {
   const card = cards.value.find((one) => one.id === end.card_id)
   if (card === undefined) return "a card no longer here"
-  if (end.made_by != null) {
-    const made = results.value.find((one) => one.link_id === end.made_by)
-    return `${cardName(card)} · ${made?.name ?? "what a link makes"}`
-  }
-  if (end.node_id == null) return `${cardName(card)} (top)`
-  const row = card.rows.find((one) => one.node_id === end.node_id)
-  return `${cardName(card)} · ${row?.label ?? end.node_id}`
+  const label = labelEnd(end)
+  return label === null ? `${cardName(card)} (top)` : `${cardName(card)} · ${label}`
 }
 
 function sideOf(end: LinkEnd): LinkSide | null {
@@ -821,6 +831,7 @@ defineExpose({ place })
         :from="panelSides.from"
         :to="panelSides.to"
         :name="nameEnd"
+        :label="labelEnd"
         :pipeline-id="pipelineId"
         :chain="chainKey(selectedLink.source, selectedLink.target)"
         :prepare="save"

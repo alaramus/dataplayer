@@ -313,6 +313,11 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await picker.getByTestId("card-picker-done").click()
   await drawLink(page, port(page, csv), port(page, "public"))
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Create a table")
+  // The table is offered the name of the file it is read from. It was offered
+  // the sentence's "connection · file", which had to be typed over.
+  await panel.getByTestId("link-panel-choose-columns").click()
+  await expect(page.getByTestId("grid-create-table-name")).toHaveValue(csv.replace(/\.csv$/, ""))
+  await page.getByTestId("grid-create-table-dialog").getByRole("button", { name: "Cancel" }).click()
   const drawn = saved(page)
   await panel.getByTestId("link-panel-close").click()
   await drawn
