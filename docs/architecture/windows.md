@@ -108,7 +108,9 @@ Spec: [The connection window: floating windows and form layout](../decisions/202
 ## D92. A window can be put aside without losing its contents
 
 Every window offers Minimize, Maximize or Restore size, and Close;
-double-clicking the title bar also toggles maximization. Maximization fills the
+double-clicking the title bar also toggles maximization. The bar has a column
+head's height and inset (`--dp-tab-strip-height`), so a window reads as the
+same kind of card as the columns behind it. Maximization fills the
 viewport above the application footer — an application window state, not the
 browser's fullscreen mode. The layout reports its measured footer height to the
 window manager, so the engine knows an inset rather than what the footer holds.

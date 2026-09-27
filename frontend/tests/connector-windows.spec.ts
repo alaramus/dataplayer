@@ -144,6 +144,10 @@ test("a window can be dragged, and cannot be dragged out of reach", async ({ pag
   const bar = page.locator('[data-testid^="window-bar-connector"]').first()
   const before = await frame.boundingBox()
   const grip = await bar.boundingBox()
+  // A window's head is as tall as a column's: grown around its buttons by
+  // padding, it stood 8px taller than every head behind it.
+  const head = (await page.getByTestId("connectors-head").boundingBox())?.height ?? 0
+  expect(Math.abs((grip?.height ?? 0) - head)).toBeLessThan(1)
   // From where the cursor actually is, not from where the window is: the two
   // differ by half the width of the bar.
   const from = { x: (grip?.x ?? 0) + 20, y: (grip?.y ?? 0) + (grip?.height ?? 0) / 2 }

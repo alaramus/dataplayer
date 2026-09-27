@@ -271,12 +271,17 @@ const resizeEdges: ResizeEdge[] = [
   display: flex;
   flex: none;
 }
+/* The height and inset of a column's head, so a window reads as the same kind
+   of card: grown around its 32px buttons by padding, it stood 8px taller than
+   every head of the workspace behind it. */
 .app-window__bar {
   flex: none;
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  padding: var(--dp-space-1) var(--dp-space-1) var(--dp-space-1) var(--dp-space-3);
+  box-sizing: border-box;
+  height: var(--dp-tab-strip-height);
+  padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   background: var(--dp-panel-background, var(--dp-chrome));
   color: var(--dp-panel-foreground, inherit);
   cursor: grab;
