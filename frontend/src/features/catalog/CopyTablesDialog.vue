@@ -63,6 +63,9 @@ const places = useQuery({
       .filter((place) => place.kind === "schema"),
 })
 const place = ref<string | null>(null)
+const placeLabel = computed(
+  () => places.data.value?.find((one) => one.value === place.value)?.label ?? place.value ?? ""
+)
 watch(
   () => places.data.value,
   (found) => {
@@ -232,11 +235,13 @@ function copy() {
       >
         {{ failure }}
       </AppBanner>
+      <!-- Beside the names once there are names; alone only while a plan
+           that failed leaves nothing else to choose it by. -->
       <AppSelect
+        v-if="plan === null && failure && (places.data.value?.length ?? 0) > 0"
         :model-value="place"
         :options="places.data.value ?? []"
         label="Into schema"
-        :loading="places.isFetching.value"
         data-testid="copy-tables-place"
         @update:model-value="choosePlace"
       />
@@ -264,10 +269,10 @@ function copy() {
           Table
         </template>
         <template #to>
-          Copy
+          Copy into
         </template>
         <AppPairsRow
-          v-for="table in plan.tables"
+          v-for="(table, index) in plan.tables"
           :key="table.node_id"
           :data-testid="`copy-tables-table-${table.node_id}`"
         >
@@ -281,14 +286,32 @@ function copy() {
             </span>
           </template>
           <template #to>
-            <AppInput
-              :model-value="nameOf(table.node_id, table.name)"
-              :aria-label="`Name of the copy of ${table.label}`"
-              autocomplete="off"
-              compact
-              :data-testid="`copy-tables-name-${table.node_id}`"
-              @update:model-value="rename(table.node_id, $event)"
-            />
+            <!-- One schema for every copy: chosen on the first line, and
+                 named on the others so the names still line up. -->
+            <span class="copy-tables__target">
+              <AppSelect
+                v-if="index === 0"
+                :model-value="place"
+                :options="places.data.value ?? []"
+                aria-label="Schema the copies go into"
+                :loading="places.isFetching.value"
+                compact
+                data-testid="copy-tables-place"
+                @update:model-value="choosePlace"
+              />
+              <span
+                v-else
+                class="copy-tables__schema"
+              >{{ placeLabel }}</span>
+              <AppInput
+                :model-value="nameOf(table.node_id, table.name)"
+                :aria-label="`Name of the copy of ${table.label}`"
+                autocomplete="off"
+                compact
+                :data-testid="`copy-tables-name-${table.node_id}`"
+                @update:model-value="rename(table.node_id, $event)"
+              />
+            </span>
           </template>
         </AppPairsRow>
       </AppPairs>
@@ -415,6 +438,20 @@ function copy() {
 }
 .copy-tables__line {
   display: block;
+}
+.copy-tables__target {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: center;
+  gap: var(--dp-space-2);
+  min-width: 0;
+}
+.copy-tables__schema {
+  padding: 0 var(--dp-space-2);
+  overflow: hidden;
+  color: var(--dp-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .copy-tables__planning {
   display: flex;
