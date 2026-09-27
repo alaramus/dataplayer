@@ -65,13 +65,24 @@ test("opens a tab in a window from its own commands, keeps the grid page and dar
   await expect(page.getByTestId("grid-page-range")).toHaveText(range)
   await expect(page.getByTestId("row-grid")).toHaveCSS("background-color", surface)
 
-  // And the same button of the row, which says the other way in a window.
+  // In a window the row offers no way back of its own: the window's head
+  // has one, and a second beside it only repeated it.
   await toWindow.click()
-  const back = floating.getByTestId("panel-window")
-  await expect(back).toHaveAttribute("aria-label", "Return to panel")
-  await back.click()
+  await expect(floating.getByTestId("panel-window")).toHaveCount(0)
+  await floating.getByTestId("dock-panel").click()
   await expect(floating).toHaveCount(0)
-  await expect(tab).toBeVisible()
+
+  // A catalog in a window offers no ×2 and no Pair: there is no column to
+  // open one beside, and the window is already the tearing off.
+  const catalog = page.getByRole("dialog", { name, exact: true })
+  await page.getByTestId("catalog-panel").getByTestId("panel-window").click()
+  await expect(catalog).toBeVisible()
+  await expect(catalog.getByTestId("catalog-list")).toBeVisible()
+  await expect(catalog.getByTestId("catalog-duplicate")).toHaveCount(0)
+  await expect(catalog.getByTestId("catalog-pair")).toHaveCount(0)
+  await catalog.getByTestId("dock-panel").click()
+  await expect(catalog).toHaveCount(0)
+  await expect(page.getByTestId("catalog-duplicate")).toBeVisible()
 
   await toWindow.click()
   await expect(floating).toBeVisible()

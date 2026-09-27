@@ -572,6 +572,15 @@ const paired = computed(() =>
   engine?.detached.value.some((entry) => entry.panelId === props.panelId && entry.group !== undefined) ?? false
 )
 
+/**
+ * In a window of any kind. ×2 and Pair open a catalog beside this one in the
+ * column, or tear it off into a pair; from a window there is no beside, and
+ * the window is already the tearing off.
+ */
+const floating = computed(() =>
+  engine?.detached.value.some((entry) => entry.panelId === props.panelId) ?? false
+)
+
 /** What Pair says here, with whatever is waiting for a second catalog (D167). */
 const pairing = computed(() =>
   workspace.pairCommandOf?.(props.panelId) ?? { tooltip: "Pair with another connection", refused: false }
@@ -876,7 +885,7 @@ async function afterAction(outcome: ActionOutcome) {
           :cache-ttl-seconds="cacheWindow"
         />
         <AppButton
-          v-if="!paired"
+          v-if="!floating"
           variant="quiet"
           size="sm"
           class="catalog-panel__duplicate"
@@ -888,7 +897,7 @@ async function afterAction(outcome: ActionOutcome) {
           <AppTooltip>Duplicate catalog beside this one</AppTooltip>
         </AppButton>
         <AppIconButton
-          v-if="workspace.pairCatalog && !paired"
+          v-if="workspace.pairCatalog && !floating"
           :icon="appIcons.pair"
           :tooltip="pairing.tooltip"
           :disable="pairing.refused"

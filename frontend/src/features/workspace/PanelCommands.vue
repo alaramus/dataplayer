@@ -85,38 +85,20 @@ const floating = computed(() =>
 )
 
 /**
- * A panel that never leaves the workspace — the column of connections — has
- * no such button at all, as a panel of no node has no Show in catalog: a
- * command that could never be used there is not one to learn the place of.
+ * Only where the panel is in a column it could leave. The column of
+ * connections never leaves the workspace, and a panel of no node has no Show
+ * in catalog for the same reason: a command that could never be used there is
+ * not one to learn the place of. In a window the way back is the window's own
+ * Return to panel, beside minimize and close; a second one here only repeated
+ * it.
  */
-const movable = computed(() => workspace?.lookOf(props.panelId).closable !== false)
+const offersWindow = computed(() =>
+  workspace?.lookOf(props.panelId).closable !== false && floating.value === undefined
+)
+const mayDetach = computed(() => workspace?.canDetach(props.panelId) === true)
 
-/**
- * One button for both ways, so it is in the same place whichever way it goes.
- * A catalog in a pair returns with its partner, by closing the pair's window.
- */
-const frame = computed(() => {
-  const here = floating.value
-  if (here?.group !== undefined) {
-    return {
-      icon: appIcons.tab,
-      tooltip: "Return to panel — closing the pair's window returns both catalogs",
-      enabled: false,
-    }
-  }
-  if (here !== undefined) return { icon: appIcons.tab, tooltip: "Return to panel", enabled: true }
-  const may = workspace?.canDetach(props.panelId) === true
-  return {
-    icon: appIcons.window,
-    tooltip: may ? "Open in a window" : "Open in a window — this tab stays in its column",
-    enabled: may,
-  }
-})
-
-function moveFrame() {
-  if (workspace === null || !frame.value.enabled) return
-  if (floating.value === undefined) workspace.detach(props.panelId)
-  else workspace.dock(props.panelId)
+function openWindow() {
+  if (workspace !== null && mayDetach.value) workspace.detach(props.panelId)
 }
 
 function showInCatalog() {
@@ -176,13 +158,12 @@ function showInCatalog() {
       @click="showInCatalog"
     />
     <AppIconButton
-      v-if="movable"
-      :icon="frame.icon"
-      :tooltip="frame.tooltip"
-      :disable="!frame.enabled"
+      v-if="offersWindow"
+      :icon="appIcons.window"
+      :tooltip="mayDetach ? 'Open in a window' : 'Open in a window — this tab stays in its column'"
+      :disable="!mayDetach"
       data-testid="panel-window"
-      :data-floating="floating === undefined ? 'no' : 'yes'"
-      @click="moveFrame"
+      @click="openWindow"
     />
   </span>
 </template>

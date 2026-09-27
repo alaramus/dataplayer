@@ -139,11 +139,13 @@ Spec: [Minimizing and maximizing floating windows](../decisions/2026-09-04-windo
 
 **Open in a window** is the last button of a panel's own row of commands, after
 reload and Show in catalog (D112): pressing it removes the tab from its section
-and opens it in the window manager. In the window the same button reads
-**Return to panel**, so the way back is where the way out was. The fixed
-connections panel stays in the workspace and draws no such button, as D112 draws
-no Show in catalog where there is no node; a tab that could leave but cannot
-right now has it greyed, with the reason.
+and opens it in the window manager. In the window the row has no such button:
+the way back is **Return to panel** in the window's own head, and a second one
+in the row only repeated it. A catalog in a window also drops ×2 and Pair —
+there is no column to open one beside, and the window is already the tearing
+off. The fixed connections panel stays in the workspace and draws no window
+button, as D112 draws no Show in catalog where there is no node; a tab that
+could leave but cannot right now has it greyed, with the reason.
 
 Carrying a tab to the application header used to be the gesture, with a window
 outline to drop on. It was removed: nothing on screen said the header would take

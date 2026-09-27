@@ -19,8 +19,9 @@ import type { WorkspaceActions } from "./state"
 
 /**
  * The row of commands a panel keeps about itself (D112): the way back to its
- * node in a catalog, the re-read, and the way into a window and back (D93) —
- * a button rather than a tab carried to the header, which nobody found.
+ * node in a catalog, the re-read, and the way into a window (D93) — a button
+ * rather than a tab carried to the header, which nobody found. The way back
+ * out of the window is the window's own.
  *
  * The re-read absorbed the freshness badge, which stood beside it as a control
  * of its own and re-read the source when pressed. It is a mark now, "Live" or
@@ -143,20 +144,15 @@ describe("the way into a window and back", () => {
     expect(detach).toHaveBeenCalledWith("p1")
   })
 
-  it("brings it back from the window, from the same place", async () => {
-    const dock = vi.fn()
+  it("offers nothing of the kind in a window, whose own bar returns it", () => {
+    // A Return to panel here stood beside the one in the window's head.
     const wrapper = mountCommands({
       context: {
-        dock,
         detached: ref([{ panelId: "p1", leafId: "work", at: 0, accepts: "work", fallbackLeafId: "r1" }]),
       },
     })
-    const button = wrapper.get('[data-testid="panel-window"]')
 
-    expect(button.attributes("aria-label")).toBe("Return to panel")
-    await button.trigger("click")
-
-    expect(dock).toHaveBeenCalledWith("p1")
+    expect(wrapper.find('[data-testid="panel-window"]').exists()).toBe(false)
   })
 
   it("is greyed, not gone, where the tab cannot leave its column", () => {
@@ -175,17 +171,6 @@ describe("the way into a window and back", () => {
     expect(wrapper.find('[data-testid="panel-window"]').exists()).toBe(false)
   })
 
-  it("leaves a catalog in a pair to the pair's window", () => {
-    const wrapper = mountCommands({
-      context: {
-        detached: ref([
-          { panelId: "p1", leafId: "work", at: 0, accepts: "work", fallbackLeafId: "r1", group: "pair-1" },
-        ]),
-      },
-    })
-
-    expect(wrapper.get('[data-testid="panel-window"]').attributes("disabled")).toBeDefined()
-  })
 })
 
 describe("PanelCommands", () => {
