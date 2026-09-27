@@ -15,6 +15,8 @@ export interface AttentionItem {
   tone: Tone
   title: string
   detail: string
+  /** The steps behind it, one to a line: each link of a pipeline's run. */
+  lines?: string[]
   at: number
   /** The one thing to do about it, offered beside it. */
   action: { label: string; run: () => void } | null

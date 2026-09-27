@@ -6,7 +6,7 @@ not resolve itself until somebody answers it. Read this before adding a
 notification, before making something ask for attention, and before putting a
 count on a button.
 
-Decisions here: D113, D114, D115.
+Decisions here: D113, D114, D115, D181.
 
 ## What exists today
 
@@ -21,6 +21,8 @@ frontend/src/features/activity/
 ├── ActivityPanel.vue       the sheet, and its three sections
 ├── ProcessList.vue         the rows of the working section
 ├── attention.ts            a job nobody was told about
+├── endings.ts              what a job's ending becomes, and when it is told
+├── dismissed.ts            the endings waved away, kept in the browser
 ├── sources.ts              which features supply the rest
 ├── presentation.ts         a job or a local operation as a row
 └── api.ts                  the jobs listing
@@ -42,7 +44,8 @@ single list makes the important one unfindable:
   access to a connection, a job that failed or was interrupted, a connection
   that stopped answering. Nothing here disappears on a timer.
 - **Working.** What is running now, with its step and its controls — the
-  server's own jobs (D81) and the operations this tab is carrying out.
+  server's own jobs (D81) and the operations this tab is carrying out. Only
+  while they run (D181).
 - **Recent.** What happened. Trimmed, dismissible, and of no consequence.
 
 Consequences:
@@ -93,9 +96,9 @@ the log does when the sheet is shut; when the sheet is open the message is a new
 row in it. `useToast` keeps the same four functions, so its hundred or so callers
 did not change.
 
-- **Every card fades after a few seconds.** Its message stays in the Activity
-  log, including failures and offers to act; the first section of the sheet
-  holds anything still waiting for an answer.
+- **Every card fades after a few seconds**, one about a failure after ten. Its
+  message stays in the Activity log, including failures and offers to act; the
+  first section of the sheet holds anything still waiting for an answer.
 - **At most three cards.** The rest are already in the sheet, and the stack
   says how many.
 - **Do not disturb suppresses the cards, never the record.** While a large
@@ -103,7 +106,8 @@ did not change.
 - **The log lives in the tab, not on the server.** The two things worth
   surviving a reload are already durable rows that the sheet reads — jobs (D81)
   and access requests (D61) — and a five-minute-old "Row inserted" is worth
-  nothing after a reload. There is no notifications table, and inventing one
+  nothing after a reload. A job's ending is read again from those rows into
+  the log (D181). There is no notifications table, and inventing one
   would bring read-state, retention and pruning with it.
 - **A card is drawn above everything.** What this application calls a dialog
   is a floating window (D14), and most of its messages are raised from inside
@@ -138,3 +142,37 @@ job runner uses for its kinds of work (D81) and the workspace for its panels
   rather than a state to apologise for.
 
 Spec: [Everything that needs a person](../decisions/2026-09-06-activity-centre-design.md)
+
+## D181. One event is one entry, and it moves between the sections
+
+A job used to be drawn by three pieces of code that each decided where it
+showed: Working kept it after it ended, Needs you derived an item from it when
+it failed, and the tab that started it wrote a message when it ended. So one
+ending was two entries, and a card for a failure would have made three.
+
+Now an event has one entry, which moves rather than being copied.
+
+- **Working holds what runs.** An ended job or local operation leaves it, and
+  there is nothing to clear.
+- **An ending is recorded once, under the job's id.** Succeeded or stopped on
+  request, it is one entry in Recent — the job's name, its message and its steps
+  one to a line, what its row used to say. Failed or interrupted, it is one
+  entry in Needs you with the same lines, and nothing in Recent.
+- **A card is an entry arriving.** It goes up when a job this tab saw running,
+  or started a moment ago, ends — not a pipeline run its schedule started — and
+  for anything new in Needs you since the page opened. What was already waiting
+  when the page opened is not announced again on a reload. The log can show a
+  card for something it does not record (`announce`), which is how an item of
+  Needs you arrives without a second record.
+- **Recent outlives a reload, for jobs.** Endings of the last day are read again
+  from the jobs listing and recorded without a card. What was waved away, in
+  Recent or in Needs you, is kept in the browser for two days so a poll does
+  not bring it back.
+- **A local operation's ending is said by whoever started it**: an action's
+  window reports what came of it, and Working does not say it again.
+- **A request for access is its entry in Needs you**, and its card is that
+  entry arriving; there is no separate message with an Open button.
+
+The rules are plain functions in `features/activity/endings.ts`.
+
+Spec: [One event, one entry](../decisions/2026-09-27-one-event-one-entry-design.md)

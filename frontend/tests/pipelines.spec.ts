@@ -264,6 +264,16 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await expect(panel.getByTestId("link-panel-result")).toHaveText("Not run: the run stopped before it")
   await page.screenshot({ path: "test-results/pipelines-run.png" })
 
+  // The failure is said on screen at once, and is one entry, in Needs you —
+  // not also a row left in Working or a message in Recent (D181).
+  await expect(page.getByTestId("toast").filter({ hasText: "could not be completed" })).toBeVisible({ timeout: 20_000 })
+  await page.getByTestId("activity-indicator").click()
+  const sheet = page.getByTestId("activity-panel")
+  await expect(sheet.getByTestId("attention-section")).toContainText("Stopped at 1 of 2, Save as CSV")
+  await expect(sheet.getByTestId("working-section")).toContainText("Nothing is running")
+  await expect(sheet.getByTestId("recent-section")).not.toContainText("Stopped at 1 of 2")
+  await page.keyboard.press("Escape")
+
   // The history (D180): both runs, newest first, by hand, each with its
   // sentence; the canvas shows the newest.
   await page.getByTestId("pipeline-history").click()
@@ -313,12 +323,12 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await picker.getByTestId("card-picker-done").click()
   await drawLink(page, port(page, csv), port(page, "public"))
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Create a table")
+  const drawn = saved(page)
   // The table is offered the name of the file it is read from. It was offered
   // the sentence's "connection · file", which had to be typed over.
   await panel.getByTestId("link-panel-choose-columns").click()
   await expect(page.getByTestId("grid-create-table-name")).toHaveValue(csv.replace(/\.csv$/, ""))
   await page.getByTestId("grid-create-table-dialog").getByRole("button", { name: "Cancel" }).click()
-  const drawn = saved(page)
   await panel.getByTestId("link-panel-close").click()
   await drawn
   await expect(labels.filter({ hasText: "Create a table" })).toHaveText("3 · Create a table")

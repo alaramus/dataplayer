@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { CARDS, createNotices, FADES_AFTER } from "./notices"
+import { CARDS, createNotices, ERROR_FADES_AFTER, FADES_AFTER } from "./notices"
 
 function news(message: string) {
   return { tone: "success" as const, message, action: null }
@@ -26,12 +26,15 @@ describe("what the application has said", () => {
     expect(log.entries.value.map((entry) => entry.message)).toEqual(["Row inserted"])
   })
 
-  it("fades an error card but keeps its message in Activity", () => {
+  it("fades an error card later, but keeps its message in Activity", () => {
     const log = createNotices()
 
     log.record(trouble("Could not paste those cells"))
     expect(log.cards.value.map((card) => card.message)).toEqual(["Could not paste those cells"])
+    // Missing a failure costs more than missing a success.
     vi.advanceTimersByTime(FADES_AFTER + 1)
+    expect(log.cards.value).toHaveLength(1)
+    vi.advanceTimersByTime(ERROR_FADES_AFTER - FADES_AFTER)
 
     expect(log.cards.value).toEqual([])
     expect(log.entries.value.map((entry) => entry.message)).toEqual(["Could not paste those cells"])
@@ -85,6 +88,50 @@ describe("what the application has said", () => {
     log.record(news("Cell updated"))
 
     expect(log.unseen.value).toBe(1)
+  })
+
+  it("records a thing named by an id once, however often it is seen", () => {
+    // A job is read again at every poll; its ending is one entry.
+    const log = createNotices()
+
+    log.record(news("Pipeline run completed"), { id: "job:1" })
+    log.record(news("Pipeline run completed"), { id: "job:1" })
+
+    expect(log.entries.value).toHaveLength(1)
+    expect(log.cards.value).toHaveLength(1)
+  })
+
+  it("keeps out what was forgotten by hand, under the same id", () => {
+    const log = createNotices()
+    log.record(news("Backup created"), { id: "job:2" })
+
+    log.forget("job:2")
+    log.record(news("Backup created"), { id: "job:2" })
+
+    expect(log.entries.value).toEqual([])
+  })
+
+  it("places what happened earlier by when it happened, and does not interrupt for it", () => {
+    const log = createNotices()
+    log.record(news("Saved"))
+
+    log.record(news("Transfer completed"), { id: "job:3", at: Date.now() - 60_000, card: false })
+
+    expect(log.entries.value.map((entry) => entry.message)).toEqual(["Saved", "Transfer completed"])
+    expect(log.cards.value.map((card) => card.message)).toEqual(["Saved"])
+  })
+
+  it("puts up a card for what is recorded elsewhere, without writing it into the log", () => {
+    // What needs somebody is recorded in the first section of the sheet; the
+    // card is only the moment it arrived (D181).
+    const log = createNotices()
+
+    log.announce({ id: "attention:job:4", tone: "error", title: "Pipeline could not be completed", message: "Stopped at 1 of 1", action: null })
+
+    expect(log.cards.value.map((card) => card.title)).toEqual(["Pipeline could not be completed"])
+    expect(log.entries.value).toEqual([])
+    vi.advanceTimersByTime(ERROR_FADES_AFTER + 1)
+    expect(log.cards.value).toEqual([])
   })
 
   it("forgets one message without forgetting the rest", () => {

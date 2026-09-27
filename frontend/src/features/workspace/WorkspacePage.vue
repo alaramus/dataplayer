@@ -333,12 +333,10 @@ function answerRequestsFor(connectorId: string) {
 }
 
 useAccessRequestEvents({
-  onAsked: (event) => {
-    toast.offer(wordingOf(event), {
-      label: "Open",
-      onClick: () => answerRequestsFor(event.connector_id),
-    })
-  },
+  // Nothing said here: the request is one entry in Needs you, which the event
+  // has just refreshed, and its card is that entry arriving (D181). A message
+  // of its own was a second record of the same request.
+  onAsked: () => undefined,
   onAnswered: (event) => {
     // Nothing opens by itself: the person is working on something else, and a
     // tab appearing under their hands is not a courtesy.

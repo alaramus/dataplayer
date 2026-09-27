@@ -1,4 +1,4 @@
-import { computed, ref } from "vue"
+import { computed } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
 import type { JobPublic } from "@/client"
@@ -9,6 +9,8 @@ import { useAccessAttention } from "@/features/shares/attention"
 import { ranked } from "@/shared/notifications"
 import type { AttentionItem } from "@/shared/notifications"
 import { outstandingJobs } from "./attention"
+import type { JobDescription } from "./attention"
+import type { DismissedJobs } from "./dismissed"
 
 /**
  * Which features have unfinished business worth showing (D115).
@@ -30,14 +32,12 @@ export interface AttentionHandlers {
 export function useAttention(
   handlers: AttentionHandlers,
   jobs: Ref<JobPublic[]>,
-  jobLabel: (job: JobPublic) => string
+  describeJob: (job: JobPublic) => JobDescription,
+  dismissed: DismissedJobs
 ): ComputedRef<AttentionItem[]> {
-  const waved = ref(new Set<string>())
   const sources = [
     useAccessAttention(handlers.answerAccess),
-    outstandingJobs(jobs, jobLabel, waved, (id) => {
-      waved.value = new Set([...waved.value, id])
-    }),
+    outstandingJobs(jobs, describeJob, dismissed.ids, dismissed.dismiss),
     useHealthAttention(handlers.openConnection),
     useRestartAttention(),
     useAiAttention(),

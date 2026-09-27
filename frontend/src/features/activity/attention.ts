@@ -24,16 +24,25 @@ const WORDING: Record<"failed" | "interrupted", string> = {
   interrupted: "stopped when the server restarted",
 }
 
+/** What a job is called, and the lines of its row beyond its message. */
+export interface JobDescription {
+  label: string
+  lines: string[]
+}
+
 export function jobItem(
   job: JobPublic & { state: "failed" | "interrupted" },
-  label: string,
+  described: JobDescription,
   dismiss: () => void
 ): AttentionItem {
   return {
     id: `job:${job.id}`,
     tone: job.state === "failed" ? "error" : "warning",
-    title: `${label} ${WORDING[job.state]}`,
+    title: `${described.label} ${WORDING[job.state]}`,
     detail: job.message ?? `Last step: ${job.step ?? "none recorded"}`,
+    // Where the row of the working section used to say them: an ended job
+    // has left that section, and this is the one entry it has (D181).
+    lines: described.lines,
     at: Date.parse(job.finished_at ?? job.created_at ?? "") || Date.now(),
     action: null,
     dismiss,
@@ -43,13 +52,13 @@ export function jobItem(
 /**
  * The jobs worth a person's attention, minus the ones already waved away.
  *
- * Dismissal is by id and kept here: a failed job is news, and news that has
- * been read does not come back. The row itself is untouched — it is still in
- * the history the sheet lists below.
+ * Dismissal is by id and kept in the browser (`dismissed.ts`): a failed job is
+ * news, and news that has been read does not come back, after a reload either.
+ * The job itself is untouched.
  */
 export function outstandingJobs(
   jobs: Ref<JobPublic[]>,
-  labelOf: (job: JobPublic) => string,
+  describe: (job: JobPublic) => JobDescription,
   waved: Ref<ReadonlySet<string>>,
   wave: (id: string) => void
 ): ComputedRef<AttentionItem[]> {
@@ -58,7 +67,7 @@ export function outstandingJobs(
     .filter((job) => !waved.value.has(job.id))
     .map((job) => jobItem(
       job as JobPublic & { state: "failed" | "interrupted" },
-      labelOf(job),
+      describe(job),
       () => { wave(job.id) }
     )))
 }

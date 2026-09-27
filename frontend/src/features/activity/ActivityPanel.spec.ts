@@ -63,6 +63,23 @@ describe("the activity sheet", () => {
     expect(sections[0]).not.toContain("Connection saved")
   })
 
+  it("carries an ended job's steps in its one entry, with nothing left to clear in Working", () => {
+    // A job used to stay in Working after it ended, beside the entry that
+    // said how it ended: one event, two records (D181).
+    notices().record(
+      { tone: "success", title: "Pipeline · Nightly", message: "orders.csv saved", lines: ["1. Save as CSV — orders.csv saved"], action: null },
+      { id: "job:run-1" }
+    )
+
+    open([waiting({ id: "job:run-2", tone: "error", title: "Pipeline Nightly could not be completed", lines: ["1. Save as CSV — orders.csv is already there"] })])
+
+    const text = (name: string) => document.querySelector(`[data-testid="${name}"]`)?.textContent ?? ""
+    expect(text("attention-section")).toContain("1. Save as CSV — orders.csv is already there")
+    expect(text("recent-section")).toContain("Pipeline · Nightly")
+    expect(text("recent-section")).toContain("1. Save as CSV — orders.csv saved")
+    expect(text("working-section")).not.toContain("Clear finished")
+  })
+
   it("says so plainly when nothing is waiting, rather than leaving the reader to guess", () => {
     open([], [running])
 

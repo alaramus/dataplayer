@@ -54,6 +54,10 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
           size="18px"
         />
         <p class="toasts__message">
+          <strong
+            v-if="notice.title"
+            class="toasts__title"
+          >{{ notice.title }}</strong>
           {{ notice.message }}
         </p>
         <AppButton
@@ -102,6 +106,10 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
   pointer-events: auto;
 }
 
+/* What it is about, above what it says: a job's name. */
+.toasts__title {
+  display: block;
+}
 .toasts__message {
   flex: 1;
   min-width: 0;

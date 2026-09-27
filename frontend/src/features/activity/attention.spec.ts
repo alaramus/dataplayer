@@ -39,7 +39,7 @@ describe("which jobs are somebody's business", () => {
 
   it("says what a restart left behind, which nothing said before", () => {
     const jobs = ref([job("interrupted")])
-    const items = outstandingJobs(jobs, () => "Create backup", ref(new Set()), () => {})
+    const items = outstandingJobs(jobs, () => ({ label: "Create backup", lines: [] }), ref(new Set()), () => {})
 
     expect(items.value[0]?.title).toBe("Create backup stopped when the server restarted")
     expect(items.value[0]?.tone).toBe("warning")
@@ -47,7 +47,7 @@ describe("which jobs are somebody's business", () => {
 
   it("carries the handler's own sentence when there is one", () => {
     const jobs = ref([job("failed", { message: "pg_dump exited with code 1" })])
-    const items = outstandingJobs(jobs, () => "Create backup", ref(new Set()), () => {})
+    const items = outstandingJobs(jobs, () => ({ label: "Create backup", lines: [] }), ref(new Set()), () => {})
 
     expect(items.value[0]?.detail).toBe("pg_dump exited with code 1")
     expect(items.value[0]?.tone).toBe("error")
@@ -57,7 +57,7 @@ describe("which jobs are somebody's business", () => {
     const failed = job("failed")
     const jobs = ref([failed])
     const waved = ref(new Set<string>())
-    const items = outstandingJobs(jobs, () => "Create backup", waved, (id) => {
+    const items = outstandingJobs(jobs, () => ({ label: "Create backup", lines: [] }), waved, (id) => {
       waved.value = new Set([...waved.value, id])
     })
 

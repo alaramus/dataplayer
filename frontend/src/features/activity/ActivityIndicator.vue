@@ -2,6 +2,7 @@
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, ref, watch } from "vue"
 
+import type { JobPublic } from "@/client"
 import { connectorsKey, useConnectors } from "@/features/connectors/api"
 import { backupsKey, servicesKey, useCancelJob, useServices } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
@@ -12,6 +13,10 @@ import { useWindowManager } from "@/shared/windows"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 import ActivityPanel from "./ActivityPanel.vue"
 import { jobsKey, useJobs } from "./api"
+import { createDismissedJobs } from "./dismissed"
+import {
+  arrivals, endedEntry, endings, isRecent, jobOfEnding, linesBeyond, toldOnScreen,
+} from "./endings"
 import { pipelineWriting } from "./pipelineRuns"
 import { foreground, jobTitle, localRow, serverRow } from "./presentation"
 import type { ProcessRow } from "./presentation"
@@ -46,7 +51,7 @@ const cancel = useCancelJob()
 const toast = useToast()
 const log = notices()
 const stopping = ref(new Set<string>())
-const hidden = ref(new Set<string>())
+const dismissed = createDismissedJobs()
 const serverJobs = computed(() => [...new Map(
   (jobs.data.value?.pages.flatMap((page) => page.data) ?? []).map((job) => [job.id, job])
 ).values()])
@@ -88,13 +93,8 @@ watch([serverJobs, startedHere], ([listed, started]) => {
   )
   transferSignatures = seen
   for (const { connectorId, settled } of touched) rereader.reread(connectorId, settled)
-  for (const job of ended) {
-    toldInThisTab(job.id)
-    if (job.state === "succeeded" && job.message !== null) toast.success(job.message)
-    // Stopped on request is news rather than a question; a failure waits in
-    // Needs you instead (D115).
-    if (job.state === "cancelled" && job.message !== null) toast.info(job.message)
-  }
+  // What it ended as is told below, with every other job's ending (D181).
+  for (const job of ended) toldInThisTab(job.id)
   if (touched.some((change) => change.settled)) {
     for (const queryKey of [["paste-offers"], ["pair-offers"], ["clipboard-offer"]]) {
       void queryClient.invalidateQueries({ queryKey })
@@ -111,13 +111,18 @@ function subjectOf(kind: string, subjectId: string | null): string | undefined {
     : connectors.data.value?.data.find((connector) => connector.id === subjectId)?.name
 }
 
-const rows = computed(() => {
-  const server = serverJobs.value
-    .map((job) => serverRow(job, subjectOf(job.kind, job.subject_id)))
-    .filter((row) => row.active || !hidden.value.has(row.id))
-  return [...operations.items.value.map(localRow), ...server]
-    .sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt - a.createdAt)
-})
+function rowOf(job: JobPublic) {
+  return serverRow(job, subjectOf(job.kind, job.subject_id))
+}
+
+/**
+ * What runs, and nothing else (D181): an ended job is one entry in Recent or
+ * Needs you, and a local operation's ending is said by whoever started it.
+ */
+const rows = computed(() => [
+  ...operations.items.value.map(localRow),
+  ...serverJobs.value.map(rowOf),
+].filter((row) => row.active).sort((a, b) => b.createdAt - a.createdAt))
 
 const attention = useAttention(
   {
@@ -127,9 +132,65 @@ const attention = useAttention(
   serverJobs,
   (job) => {
     const subject = subjectOf(job.kind, job.subject_id)
-    return `${jobTitle(job)}${subject ? ` · ${subject}` : ""}`
-  }
+    return {
+      label: `${jobTitle(job)}${subject ? ` · ${subject}` : ""}`,
+      lines: linesBeyond(rowOf(job).detail, job.message ?? ""),
+    }
+  },
+  dismissed
 )
+
+/**
+ * Every ending, recorded once (D181). One that happens while this tab watches
+ * — a job it saw running, or started a moment ago — puts its card up; one
+ * found already over, after a reload or ended elsewhere, is only recorded.
+ * A failure is not recorded here: it waits in Needs you, and arrives there.
+ */
+let watchedJobs = new Set<string>()
+// Taken the moment a job is started here, before any poll: the watcher above
+// forgets it as soon as it ends, and a job that ends before it is ever seen
+// running is still one this tab was waiting for.
+watch(startedHere, (started) => {
+  watchedJobs = new Set([...watchedJobs, ...started])
+}, { immediate: true, flush: "sync" })
+watch(serverJobs, (listed) => {
+  const { watched, ended } = endings(watchedJobs, listed)
+  watchedJobs = watched
+  for (const job of ended) recordEnding(job, toldOnScreen(job))
+  const now = Date.now()
+  for (const job of listed) if (isRecent(job, now)) recordEnding(job, false)
+}, { immediate: true })
+
+function recordEnding(job: JobPublic, card: boolean) {
+  if (dismissed.ids.value.has(job.id)) return
+  const entry = endedEntry(job, rowOf(job))
+  if (entry !== null) log.record(entry.notice, { id: entry.id, at: entry.at, card })
+}
+
+// An ending waved away in Recent stays away after the next poll and reload.
+watch(log.forgotten, (ids) => {
+  for (const id of ids) {
+    const jobId = jobOfEnding(id)
+    if (jobId !== null) dismissed.dismiss(jobId)
+  }
+})
+
+/**
+ * A card for what is new in Needs you since the page opened: the thing is
+ * recorded there, and the card is only its arrival, so one failure is one
+ * entry however it is seen (D181).
+ */
+const openedAt = Date.now()
+let knownAttention = new Set<string>()
+watch(attention, (items) => {
+  const { known, arrived } = arrivals(knownAttention, items, openedAt)
+  knownAttention = known
+  for (const item of arrived) {
+    log.announce({
+      id: `attention:${item.id}`, tone: item.tone, title: item.title, message: item.detail, action: item.action,
+    })
+  }
+}, { immediate: true })
 
 const activeCount = computed(() => operations.items.value.filter(isActive).length +
   (jobs.data.value?.pages[0]?.active_count ?? 0))
@@ -166,10 +227,6 @@ async function stop(row: ProcessRow) {
 function loadMore() { void jobs.fetchNextPage() }
 function refresh() { void jobs.refetch() }
 
-function clearFinished() {
-  operations.clearFinished()
-  hidden.value = new Set([...hidden.value, ...rows.value.filter((row) => !row.active).map((row) => row.id)])
-}
 </script>
 
 <template>
@@ -229,7 +286,6 @@ function clearFinished() {
     @pause="operations.pause($event.id)"
     @resume="operations.resume($event.id)"
     @stop="stop"
-    @clear-finished="clearFinished"
     @more="loadMore"
     @refresh="refresh"
   />

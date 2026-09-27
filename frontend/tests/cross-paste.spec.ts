@@ -143,14 +143,16 @@ test("copies a file to an SSH server and moves it back", async ({ page }) => {
   await catalogAction(page, "client:cross-paste")
   await expect(catalogRow(page, file)).toBeVisible()
 
-  // It ran as a job the server owns: the sheet lists it with both
-  // connections and what became of each file (D168).
+  // It ran as a job the server owns. Ended, it is one entry in Recent with
+  // both connections and what became of each file (D168, D181), and it has
+  // left Working.
   await page.getByTestId("activity-indicator").click()
-  const transfer = page.getByTestId("processes").locator("article", {
+  const transfer = page.getByTestId("recent-section").getByTestId("notice").filter({
     hasText: `Copy files · ${files} → ${server}`,
   })
-  await expect(transfer).toContainText("Completed")
+  await expect(transfer).toHaveCount(1)
   await expect(transfer).toContainText(`${file} — copied`)
+  await expect(page.getByTestId("working-section")).not.toContainText(`Copy files · ${files} → ${server}`)
   await page.getByTestId("activity-indicator").click()
 
   // Cut on the server, Paste back home: the file leaves the server, and the

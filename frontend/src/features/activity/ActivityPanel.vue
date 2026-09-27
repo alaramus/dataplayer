@@ -13,7 +13,9 @@ import type { ProcessRow } from "./presentation"
  *
  * Three sections, because they behave differently: what is waiting stays until
  * it is dealt with, what is working ends by itself, and what happened is only
- * a record. A single list makes the first of the three unfindable.
+ * a record. A single list makes the first of the three unfindable. One thing
+ * is in one of them at a time: a job leaves Working when it ends, for Recent
+ * or for Needs you, and is not also listed where it used to be (D181).
  *
  * Not a floating window: a window is a piece of work somebody opened, and this
  * is the application talking about the work. Not modal and undimmed either —
@@ -37,7 +39,6 @@ const emit = defineEmits<{
   stop: [row: ProcessRow]
   more: []
   refresh: []
-  clearFinished: []
 }>()
 
 const log = notices()
@@ -126,6 +127,13 @@ function follow(run: () => void) {
             <div class="sheet__text">
               <strong>{{ item.title }}</strong>
               <p>{{ item.detail }}</p>
+              <p
+                v-for="(line, index) in item.lines ?? []"
+                :key="index"
+                class="sheet__line"
+              >
+                {{ line }}
+              </p>
             </div>
             <AppButton
               v-if="item.action"
@@ -154,12 +162,6 @@ function follow(run: () => void) {
               v-if="working() > 0"
               class="sheet__count"
             >{{ working() }}</span>
-            <AppButton
-              variant="quiet"
-              size="sm"
-              label="Clear finished"
-              @click="emit('clearFinished')"
-            />
             <AppButton
               variant="quiet"
               size="sm"
@@ -192,7 +194,7 @@ function follow(run: () => void) {
               variant="quiet"
               size="sm"
               label="Clear all"
-              @click="log.clear()"
+              @click="log.forgetAll()"
             />
           </h3>
           <AppEmptyState
@@ -211,7 +213,15 @@ function follow(run: () => void) {
               size="18px"
             />
             <div class="sheet__text">
+              <strong v-if="notice.title">{{ notice.title }}</strong>
               <p>{{ notice.message }}</p>
+              <p
+                v-for="(line, index) in notice.lines ?? []"
+                :key="index"
+                class="sheet__line"
+              >
+                {{ line }}
+              </p>
               <time
                 class="sheet__when"
                 :datetime="new Date(notice.at).toISOString()"
@@ -319,5 +329,7 @@ function follow(run: () => void) {
 .sheet__text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sheet__text p { margin: 0; }
 .sheet__text strong + p { color: var(--dp-text-muted); }
+/* The steps behind an entry: one to a line, quieter than what it says. */
+.sheet__line { color: var(--dp-text-muted); }
 .sheet__when { font-size: 11px; color: var(--dp-text-faint); }
 </style>

@@ -71,12 +71,20 @@ test("shows server progress in the footer, opens the sheet on demand and cancels
   await indicator.hover()
   await expect(page.locator(".app-tooltip")).toContainText("Show activity")
   await expect(page.locator(".app-tooltip")).not.toContainText("pulling the image")
+  // Ended, the job leaves Working for one entry in Recent (D181), and a
+  // reload reads that entry again from the server.
+  await expect(sheet.getByTestId("working-section")).toContainText("Nothing is running")
   await page.reload()
   await expect(page.getByTestId("activity-panel")).toHaveCount(0)
   await indicator.click()
-  await expect(sheet).toContainText("Stopped before it finished")
-  await sheet.getByRole("button", { name: "Clear finished", exact: true }).click()
-  await expect(sheet).toContainText("Nothing is running")
+  await expect(sheet.getByTestId("working-section")).toContainText("Nothing is running")
+  const ending = sheet.getByTestId("notice").filter({ hasText: "Stopped before it finished" })
+  await expect(ending).toHaveCount(1)
+  // Waved away, it stays away after the next reload too.
+  await ending.getByRole("button", { name: "Remove", exact: true }).click()
+  await page.reload()
+  await indicator.click()
+  await expect(sheet.getByTestId("notice").filter({ hasText: "Stopped before it finished" })).toHaveCount(0)
 })
 
 test("pauses an upload batch, resumes it and leaves only unsent files after stopping", async ({ page }) => {
@@ -117,11 +125,13 @@ test("pauses an upload batch, resumes it and leaves only unsent files after stop
   await expect.poll(() => uploads).toBe(2)
   await window.getByRole("button", { name: "Stop after current", exact: true }).click()
   release?.()
-  await expect(window.getByText("Stopped", { exact: true })).toBeVisible()
-  await expect(window).toContainText("1 not started")
+  // Stopped, it leaves Working (D181): what became of it is said once, in
+  // the window that asked, which keeps the file that was never sent.
+  await expect(window.getByTestId("working-section")).toContainText("Nothing is running")
   expect(uploads).toBe(2)
   await page.keyboard.press("Escape")
   await expect(page.getByTestId("action-files")).toContainText("third.csv")
+  await expect(page.getByTestId("action-error")).toContainText("Not started: the queue was stopped")
   await expect(page.getByTestId("action-files")).not.toContainText("first.csv")
   await expect(page.getByTestId("action-files")).not.toContainText("second.csv")
   await page.getByRole("button", { name: "Cancel", exact: true }).click()
