@@ -180,6 +180,16 @@ test("browses a personal directory and opens each implemented viewer", async ({ 
   await page.getByTestId("grid-next").click()
   await expect(grid).toContainText("Rows 101–200")
 
+  // A command a CSV cannot carry out stands in line with those it can: the
+  // disabled one is wrapped for its tooltip, and the wrapper once sat on the
+  // baseline of the cell, above its neighbours.
+  await page.getByTestId("grid-structure").click()
+  await expect(page.getByTestId("structure-view")).toContainText("population")
+  const off = await page.getByTestId("structure-default-id").boundingBox()
+  const on = await page.getByTestId("structure-rename-id").boundingBox()
+  if (!off || !on) throw new Error("The column commands have no bounds")
+  expect(Math.abs(off.y + off.height / 2 - (on.y + on.height / 2))).toBeLessThan(1)
+
   // The list is a column of its own, so nothing covered it and nothing had to
   // be clicked to get back to it.
   await openNode(page, "notes.txt")

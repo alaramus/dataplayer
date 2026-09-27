@@ -101,10 +101,13 @@ const spokenName = computed(() =>
 
 <style scoped>
 /* Tight around the button: the wrapper stands in for it in whatever row it
-   was dropped into, so it must take exactly the room the button takes. */
+   was dropped into, so it must take exactly the room the button takes — and
+   the line it takes, which for QBtn is the middle rather than the baseline:
+   in a table cell a disabled command otherwise sat above its neighbours. */
 .app-icon-button {
   display: inline-flex;
   align-items: center;
+  vertical-align: middle;
 }
 /* It is what the keyboard lands on, so it has to say where the keyboard is. */
 .app-icon-button:focus-visible {
