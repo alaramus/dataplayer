@@ -46,7 +46,7 @@ const spots = computed(() =>
   labelSpots(labelled.value.map((item) => ({ id: item.edge.id, text: labelText(item.edge), curve: item.curve })))
 )
 const arrowId = `graph-arrow-${useId()}`
-const ARROW_TONES = ["plain", "active", "info", "success", "error", "muted"] as const
+const ARROW_TONES = ["plain", "active", "info", "success", "error", "muted", "secondary"] as const
 /** The arrowhead a line ends in: its result's colour, else the selection's. */
 function arrowTone(edge: GraphEdge, active: boolean): (typeof ARROW_TONES)[number] {
   return edge.tone ?? (active ? "active" : "plain")
@@ -393,12 +393,14 @@ defineExpose({ fit, zoom, focus })
 .graph-2d__arrow--active, .graph-2d__arrow--info { fill: var(--dp-accent); }
 .graph-2d__arrow--success { fill: var(--dp-content-success); }
 .graph-2d__arrow--error { fill: var(--dp-content-error); }
+.graph-2d__arrow--secondary { fill: var(--dp-graph-edge-secondary); }
 .graph-2d__edge--active .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
 /* After the selection's rule: a selected line keeps its result's colour. */
 .graph-2d__tone--info .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
 .graph-2d__tone--success .graph-2d__edge { stroke: var(--dp-content-success); }
 .graph-2d__tone--error .graph-2d__edge { stroke: var(--dp-content-error); }
 .graph-2d__tone--muted { opacity: 0.45; }
+.graph-2d__tone--secondary .graph-2d__edge { stroke: var(--dp-graph-edge-secondary); }
 /* Its own stroke is the mark of focus, and only the keyboard's: a pointer press
    focuses the curve too, and with :focus the fourteen pixels showed as a grey
    band, while the browser's ring drew a rectangle round the whole curve. */

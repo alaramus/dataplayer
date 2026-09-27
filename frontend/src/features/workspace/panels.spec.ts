@@ -297,6 +297,14 @@ describe("the panel registry", () => {
     }
   })
 
+  it("keeps that a node of a relationship scope is drawn as what it holds", () => {
+    // Dropped on the way back from storage, a workbook was read as a relation
+    // and drawn as one that could not be read, instead of as its sheets.
+    const nodes = [{ id: "budget.xlsx", label: "budget.xlsx", holdsNodes: true }]
+    const parsed = panelSchema.parse({ ...samples.relationships, nodes })
+    expect(parsed.kind === "relationships" && parsed.nodes).toEqual(nodes)
+  })
+
   it("gives a data tab the name of the node and nothing else", () => {
     // The connection used to stand beside it. It moved into the tooltip when
     // the icon started leading to the catalog: the tab is a fifth of a narrow

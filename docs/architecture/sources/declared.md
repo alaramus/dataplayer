@@ -153,7 +153,8 @@ a connection, a node in it, and one of that node's columns.
   leaves one reference, held by a unique constraint rather than by the lookup
   before the insert.
 - It reaches the grid as an ordinary `FetchResult.references` entry, so the
-  arrow, the tooltip and the click are the ones D36 built. The name is issued by
+  arrow, the tooltip and the click are the ones D36 built. A diagram draws it
+  too, as a line of its own colour between the two columns (D97). The name is issued by
   the application and names both the reference and the end being stood on, so a
   node referenced to itself still offers two distinct ways out.
 - The node's own label is copied in when the reference is made, the way a share

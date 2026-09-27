@@ -34,8 +34,8 @@ export function useDeclaredReferences(
 }
 
 /**
- * Drop what a drawn reference changes: every list of them, and the pages of
- * both connections, because the arrow is part of a page (D106).
+ * Drop what a drawn reference changes: every list of them, every diagram, and
+ * the pages of both connections, because the arrow is part of a page (D106).
  */
 function useReferenceChange<TInput>(
   run: (input: TInput) => Promise<unknown>,
@@ -46,6 +46,7 @@ function useReferenceChange<TInput>(
     mutationFn: run,
     onSuccess: async (_result, input: TInput) => {
       await queryClient.invalidateQueries({ queryKey: ["declaredReferences"] })
+      await queryClient.invalidateQueries({ queryKey: ["relationshipGraph"] })
       for (const connectorId of new Set(touched(input))) {
         await queryClient.invalidateQueries({ queryKey: ["rows", connectorId] })
       }

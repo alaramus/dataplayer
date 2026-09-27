@@ -119,6 +119,9 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   --dp-tab-current: #e4e4e4;
   --dp-action-danger: #c10015;
   --dp-graph-edge: #73869e;
+  /* A line of a second kind: a reference a person drew rather than one the
+     source declares. */
+  --dp-graph-edge-secondary: #00897b;
   --dp-graph-label: #172435;
   /* The ground a panel stands on, and what floats above it. */
   --dp-surface: #fff;
@@ -267,6 +270,7 @@ body.body--dark {
   color-scheme: dark;
 
   --dp-graph-edge: #8499b6;
+  --dp-graph-edge-secondary: #4db6ac;
   --dp-graph-label: #e8eef7;
   --dp-surface: #121212;
   --dp-surface-raised: #191919;

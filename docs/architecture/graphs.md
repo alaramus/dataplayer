@@ -11,7 +11,12 @@ Decisions here: D97.
 contains no table, database, connector or API types. Domain modules supply
 presentation data and handle activation actions. The first producer,
 `features/relationships`, maps existing relation models and declared foreign
-keys; composite keys retain all column pairs in a single relationship.
+keys; composite keys retain all column pairs in a single relationship. It also
+draws the references a person declared (D106) that touch a relation it read,
+in a colour of their own and without a direction, since neither end is the
+key. A far end the selection does not hold is read from its own connection and
+drawn as a card of it, grouped under that connection's name and keyed with it,
+because two connections can hold the same id.
 
 2D and 3D share the document, selection and filters. They keep separate node
 positions and cameras. Moving nodes changes view state only; this slice has no
@@ -20,7 +25,11 @@ view-state type leave that possible without introducing a second graph model.
 
 The catalog's actions menu opens a diagram for checked describable nodes, or
 for the current filtered list if none are checked; the line is disabled, not
-hidden, while that set is empty or larger than one diagram holds. Whether the
+hidden, while that set is empty or larger than one diagram holds. A node that
+opens and holds nodes of its own — a workbook — is drawn as the relations
+directly inside it, grouped under its name. A tree ticks nothing, so its menu
+draws the tables where it stands: the one kind of node in a key space a
+declared reference can end in (D172). Whether the
 line is there at all is read off the source type's `relation_model` capability
 code and never off the rows on screen: a level listing nothing — no schema
 ticked, or an empty one — is not evidence about what the source describes. The panel's
@@ -58,7 +67,7 @@ selects; an icon, a struck-out state and a not-yet-made state on a row; whether 
 what it does not touch; labels written over the edges, a label that would
 cover another moved along its own line or stacked beside its middle, a press
 on one selecting its edge; an edge's tone — at work, done, failed, passed
-over — a number before its label, and a hint over a number drawn in the
+over, or a line of a second kind — a number before its label, and a hint over a number drawn in the
 caution colour; and, when it is asked to, a row dragged onto a row of another
 card, which it reports as the two joined and never joins itself. The viewer offers `node-actions` for a
 selected node and `edge-actions` for a selected edge, and names the other

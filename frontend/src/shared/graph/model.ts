@@ -24,8 +24,11 @@ export interface GraphNode {
 export interface GraphEndpoint { nodeId: string; portIds?: readonly string[] }
 /** One row of one node, as a gesture names it. */
 export interface GraphPort { nodeId: string; portId: string }
-/** What a line says by its colour: at work, done, failed, or passed over. */
-export type GraphEdgeTone = "info" | "success" | "error" | "muted"
+/**
+ * What a line says by its colour: at work, done, failed, passed over, or a
+ * line of a second kind drawn beside the ordinary ones.
+ */
+export type GraphEdgeTone = "info" | "success" | "error" | "muted" | "secondary"
 export interface GraphEdge {
   id: string
   source: GraphEndpoint

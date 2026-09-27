@@ -3,7 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue"
 
-import { ConnectorsService } from "@/client"
+import { ConnectorsService, DeclaredReferencesService } from "@/client"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -14,8 +14,8 @@ import GraphViewer from "@/shared/graph/GraphViewer.vue"
 import { emptyGraphView, parseGraphView, serializeGraphView } from "@/shared/graph/viewState"
 import { AppBanner, AppButton, AppIconButton, AppProgress, useToast } from "@/shared/ui"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
-import { GraphLoadError, loadRelations } from "./load"
-import { relationGraph } from "./model"
+import { expandHolders, GraphLoadError, loadRelations, withDeclared } from "./load"
+import { graphIdOf, relationGraph } from "./model"
 import type { DiagramNodeRef } from "./model"
 
 const props = defineProps<{ panelId: string; connectorId: string; connectorName: string; adapterType: string; nodes: DiagramNodeRef[] }>()
@@ -24,6 +24,7 @@ const client = useQueryClient()
 const toast = useToast()
 const me = useCurrentUser()
 const loaded = ref(0)
+const total = ref(props.nodes.length)
 const cancelled = ref(false)
 const view = shallowRef(emptyGraphView())
 const queryKey = computed(() => ["relationshipGraph", props.connectorId, props.nodes.map((node) => node.id).sort()])
@@ -31,9 +32,19 @@ const source = useQuery({
   queryKey,
   queryFn: async ({ signal }) => {
     loaded.value = 0; cancelled.value = false
-    return loadRelations(props.nodes, async (nodeId, readSignal) => (
+    const requested = await expandHolders(props.nodes, async (nodeId) => (
+      await ConnectorsService.readCatalog({ path: { connector_id: props.connectorId }, query: { node_id: nodeId }, signal })
+    ).data)
+    total.value = requested.length
+    const read = await loadRelations(requested, async (nodeId, readSignal) => (
       await ConnectorsService.readRelationModel({ path: { connector_id: props.connectorId }, query: { node_id: nodeId }, signal: readSignal })
     ).data, signal, (count) => { loaded.value = count })
+    const references = (await DeclaredReferencesService.referencesListDeclaredReferences({
+      query: { connector_id: props.connectorId }, signal,
+    })).data
+    return withDeclared(read, props.connectorId, references, async (end, readSignal) => (
+      await ConnectorsService.readRelationModel({ path: { connector_id: end.connector_id }, query: { node_id: end.node_id }, signal: readSignal })
+    ).data, signal)
   },
   staleTime: 5 * 60_000,
   retry: false,
@@ -41,7 +52,15 @@ const source = useQuery({
 const graph = computed(() => source.data.value ? relationGraph(source.data.value) : null)
 const loadError = computed(() => source.error.value instanceof GraphLoadError
   ? source.error.value.message : messageOf(source.error.value, "Could not load the diagram"))
-const modelOf = (id: string) => source.data.value?.models.find((model) => model.node_id === id)
+
+/** Where a card's relation lives: this connection, or the far end of a declared reference. */
+function placeOf(id: string) {
+  const model = source.data.value?.models.find((one) => one.node_id === id)
+  if (model) return { connectorId: props.connectorId, connectorName: props.connectorName, adapterType: props.adapterType, nodeId: model.node_id, label: model.name, model }
+  const far = source.data.value?.far?.find((one) => graphIdOf(props.connectorId, one.connectorId, one.nodeId) === id)
+  return far ? { ...far, label: far.model?.name ?? far.label } : null
+}
+const modelOf = (id: string) => placeOf(id)?.model ?? null
 const storageKey = computed(() => me.data.value ? serverStorageKey(`dataplayer-graph:${me.data.value.id}:${props.panelId}`) : null)
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let storageReported = false
@@ -78,13 +97,13 @@ watch(() => changes.lastChange(props.connectorId), (at, before) => { if (at && a
 
 async function cancel() { cancelled.value = true; await client.cancelQueries({ queryKey: queryKey.value, exact: true }) }
 function openTable(id: string) {
-  const model = modelOf(id)
-  if (!model) { workspace.revealInCatalog(props.connectorId, id, id); return }
-  workspace.openRows({ connectorId: props.connectorId, connectorName: props.connectorName, adapterType: props.adapterType, nodeId: model.node_id, title: model.name, describable: true })
+  const place = placeOf(id)
+  if (!place?.model) { workspace.revealInCatalog(place?.connectorId ?? props.connectorId, place?.nodeId ?? id, place?.label ?? id); return }
+  workspace.openRows({ connectorId: place.connectorId, connectorName: place.connectorName, adapterType: place.adapterType, nodeId: place.nodeId, title: place.label, describable: true })
 }
 function openStructure(id: string) {
-  const model = modelOf(id)
-  if (model) workspace.openStructure({ connectorId: props.connectorId, connectorName: props.connectorName, adapterType: props.adapterType, nodeId: model.node_id, title: model.name })
+  const place = placeOf(id)
+  if (place?.model) workspace.openStructure({ connectorId: place.connectorId, connectorName: place.connectorName, adapterType: place.adapterType, nodeId: place.nodeId, title: place.label })
 }
 </script>
 
@@ -106,10 +125,10 @@ function openStructure(id: string) {
       class="relationship-panel__loading"
       role="status"
     >
-      <span>Reading structure {{ loaded }} / {{ nodes.length }}</span>
+      <span>Reading structure {{ loaded }} / {{ total }}</span>
       <AppProgress
         label="Reading table structures"
-        :value="nodes.length ? loaded / nodes.length : 0"
+        :value="total ? loaded / total : 0"
       />
       <AppIconButton
         :icon="appIcons.stop"

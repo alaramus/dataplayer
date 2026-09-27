@@ -84,7 +84,7 @@ export const panelSchema = z.discriminatedUnion("kind", [
     connectorId: z.string(),
     connectorName: z.string(),
     adapterType: z.string(),
-    nodes: z.array(z.object({ id: z.string().min(1).max(2048), label: z.string() }))
+    nodes: z.array(z.object({ id: z.string().min(1).max(2048), label: z.string(), holdsNodes: z.boolean().optional() }))
       .min(1).max(MAX_RELATIONS)
       .refine((nodes) => new Set(nodes.map((node) => node.id)).size === nodes.length, "Nodes must be distinct"),
   }),

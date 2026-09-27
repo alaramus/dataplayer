@@ -8,7 +8,7 @@ import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { reloadedBy, replacementsOf, ticksAfter } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
-import { useNodePathLoader } from "@/features/catalog/api"
+import { useCatalogLoader, useNodePathLoader } from "@/features/catalog/api"
 import type { SearchScope } from "@/features/catalog/api"
 import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
@@ -25,7 +25,7 @@ import {
   useConnectors,
 } from "@/features/connectors/api"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
-import { groupTitle, levelPath, showsPath } from "@/features/catalog/nodes"
+import { groupTitle, levelPath, showsPath, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
@@ -144,6 +144,29 @@ function showRelationships() {
 }
 
 /**
+ * A tree ticks nothing, so its diagram is of the tables where it stands: the
+ * picked folder, or the root. A table is the one node of a key space a
+ * declared reference can end in (D172); its keys and folders would be cards
+ * nothing joins.
+ */
+async function showTreeRelationships() {
+  try {
+    const tables = toListNodes((await loadChildren(props.connectorId, treeLevelId.value)).nodes)
+      .filter((node) => node.kind === "table" && node.describable)
+    if (tables.length === 0) {
+      toast.info("There are no tables here to draw")
+      return
+    }
+    workspace.openRelationships({
+      connectorId: props.connectorId, connectorName: props.title, adapterType: props.adapterType,
+      nodes: tables.slice(0, MAX_RELATIONS).map(({ id, label }) => ({ id, label })),
+    })
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not read the catalog"))
+  }
+}
+
+/**
  * Whether the first level has come back.
  *
  * What the head shows follows from what the level holds, and before the first
@@ -212,6 +235,7 @@ const {
 } = useFadingMark<string>(REVEAL_SECONDS * 1000)
 
 const loadPath = useNodePathLoader()
+const loadChildren = useCatalogLoader()
 
 /**
  * Stand where the node lives, then point at it.
@@ -861,14 +885,15 @@ async function afterAction(outcome: ActionOutcome) {
           :checked-label="treeChecked[0]?.label ?? ''"
           :describes-nodes="false"
           :described-node="null"
-          :draws-nodes="false"
-          :drawable-nodes="false"
+          :draws-nodes="drawsNodes"
+          :drawable-nodes="true"
           :adapter-type="adapterType"
           @done="afterAction"
           @untick="untick"
           @source-changed="changes.announce($event)"
           @connector="workspace.createConnector"
           @details="showDetails"
+          @relationships="showTreeRelationships"
           @backups="showBackups"
         />
         <CatalogActions
