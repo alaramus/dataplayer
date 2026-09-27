@@ -70,6 +70,14 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   await pickSchema(page, "pg_catalog")
   await openNode(page, "pg_class")
   await expect(page.getByTestId("save-tab-group")).toBeEnabled()
+  // A group is the tabs of Data: in another space both buttons are greyed,
+  // and the rail keeps them where they were.
+  await page.getByTestId("space-dashboards").click()
+  await expect(page.getByTestId("save-tab-group")).toBeDisabled()
+  await expect(page.getByTestId("open-tab-groups")).toBeDisabled()
+  await page.getByTestId("space-data").click()
+  await expect(page.getByTestId("save-tab-group")).toBeEnabled()
+  await expect(page.getByTestId("open-tab-groups")).toBeEnabled()
   await openNode(page, "pg_namespace")
   const namespaceTab = rowsTabs(page).filter({ hasText: "pg_namespace" })
   const classTab = rowsTabs(page).filter({ hasText: "pg_class" })

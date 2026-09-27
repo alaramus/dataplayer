@@ -3,8 +3,24 @@ import { describe, expect, it } from "vitest"
 import { makeLeaf } from "@/shared/workspace/model"
 import { serializeWorkspace } from "@/shared/workspace/persist"
 
-import { groupNameProblem, parseGroups, serializeGroups, suggestedGroupName, validGroupSnapshot } from "./groups"
+import {
+  groupNameProblem,
+  groupsUnavailableIn,
+  parseGroups,
+  serializeGroups,
+  suggestedGroupName,
+  validGroupSnapshot,
+} from "./groups"
 import { groupFixture } from "./testing/tabGroups"
+
+describe("where tab groups can be used", () => {
+  it("is Data alone, and every other space says why not", () => {
+    expect(groupsUnavailableIn("data")).toBeNull()
+    for (const space of ["dashboards", "ai", "pipelines"] as const) {
+      expect(groupsUnavailableIn(space)).toBe("tab groups keep the tabs of Data")
+    }
+  })
+})
 
 describe("saved tab group data", () => {
   it("round trips several independently saved layouts", () => {

@@ -341,6 +341,9 @@ list of saved ones are two blocks on the tool rails. Opening or closing tabs
 afterwards does not change the group; Update from current layout replaces its
 saved copy. Saving and updating require an open tab beyond the permanent
 connections panel; their commands are disabled when the workspace has none.
+A group is the tabs of Data, so in any other space both blocks stay on their
+rail greyed, saying so (`groupsUnavailableIn`), rather than saving or opening a
+layout nobody is looking at.
 Groups can be renamed and deleted, and are stored per signed-in user
 in this browser's localStorage. They hold no fetched rows or editor text and do
 not copy per-table filters or other independently persisted feature state.

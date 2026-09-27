@@ -3,8 +3,9 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import { AppButton, AppMenu, AppPopup, AppTooltip, useToast } from "@/shared/ui"
+import { useSpaceStore } from "@/stores/space"
 
-import { groupNameProblem } from "./groups"
+import { groupNameProblem, groupsUnavailableIn } from "./groups"
 import type { TabGroup } from "./groups"
 import TabGroupNameDialog from "./TabGroupNameDialog.vue"
 import type { TabGroupLibrary } from "./useTabGroups"
@@ -19,6 +20,8 @@ const props = defineProps<{
 const toast = useToast()
 const list = computed(() => props.groups.groups.value)
 const busy = computed(() => props.groups.busy.value)
+const space = useSpaceStore()
+const unavailable = computed(() => groupsUnavailableIn(space.current))
 const listOpen = ref(false)
 const anchor = computed(() => (props.side === "left" ? "top right" : "top left"))
 const self = computed(() => (props.side === "left" ? "top left" : "top right"))
@@ -60,68 +63,72 @@ function rename() {
   <!-- No click handler: the popup opens on anchor clicks by itself (the same
        way the manage menus do), and a manual toggle on top of it opens and
        instantly closes the list. v-model stays for closing it from the code.
-       The popup lives inside the button so neighbours do not toggle it. -->
-  <AppButton
-    variant="quiet"
-    size="sm"
-    :icon="appIcons.bookmarks"
-    aria-label="Saved tab groups"
-    aria-haspopup="menu"
-    :aria-expanded="listOpen"
-    :disable="busy"
-    data-testid="open-tab-groups"
-  >
-    <AppTooltip>Saved tab groups</AppTooltip>
-    <AppPopup
-      v-model="listOpen"
-      :anchor="anchor"
-      :self="self"
+       The popup lives inside the button so neighbours do not toggle it; the
+       tooltip hangs off a wrapper, as Save group's does, because a disabled
+       Quasar button takes no pointer events. -->
+  <span class="tab-group-list">
+    <AppButton
+      variant="quiet"
+      size="sm"
+      :icon="appIcons.bookmarks"
+      aria-label="Saved tab groups"
+      aria-haspopup="menu"
+      :aria-expanded="listOpen"
+      :disable="busy || unavailable !== null"
+      data-testid="open-tab-groups"
     >
-      <div
-        class="group-list"
-        role="menu"
-        aria-label="Saved tab groups"
+      <AppPopup
+        v-model="listOpen"
+        :anchor="anchor"
+        :self="self"
       >
         <div
-          v-if="!list.length"
-          class="group-list__empty"
+          class="group-list"
+          role="menu"
+          aria-label="Saved tab groups"
         >
-          No saved groups yet
-        </div>
-        <div
-          v-for="group in list"
-          :key="group.id"
-          class="group-list__row"
-        >
-          <AppButton
-            variant="quiet"
-            size="sm"
-            :icon="appIcons.viewColumn"
-            :label="group.name"
-            :aria-label="`Open group ${group.name}`"
-            :disable="busy"
-            class="group-list__open"
-            data-testid="open-tab-group"
-            @click="openGroup(group)"
-          />
-          <AppButton
-            variant="quiet"
-            size="sm"
-            :icon="appIcons.moreVert"
-            :aria-label="`Manage group ${group.name}`"
-            :disable="busy"
-            data-testid="manage-tab-group"
+          <div
+            v-if="!list.length"
+            class="group-list__empty"
           >
-            <AppTooltip>Manage group</AppTooltip>
-            <AppMenu
-              :items="menuItems"
-              @select="select($event, group)"
+            No saved groups yet
+          </div>
+          <div
+            v-for="group in list"
+            :key="group.id"
+            class="group-list__row"
+          >
+            <AppButton
+              variant="quiet"
+              size="sm"
+              :icon="appIcons.viewColumn"
+              :label="group.name"
+              :aria-label="`Open group ${group.name}`"
+              :disable="busy || unavailable !== null"
+              class="group-list__open"
+              data-testid="open-tab-group"
+              @click="openGroup(group)"
             />
-          </AppButton>
+            <AppButton
+              variant="quiet"
+              size="sm"
+              :icon="appIcons.moreVert"
+              :aria-label="`Manage group ${group.name}`"
+              :disable="busy || unavailable !== null"
+              data-testid="manage-tab-group"
+            >
+              <AppTooltip>Manage group</AppTooltip>
+              <AppMenu
+                :items="menuItems"
+                @select="select($event, group)"
+              />
+            </AppButton>
+          </div>
         </div>
-      </div>
-    </AppPopup>
-  </AppButton>
+      </AppPopup>
+    </AppButton>
+    <AppTooltip>{{ unavailable === null ? "Saved tab groups" : `Saved tab groups — ${unavailable}` }}</AppTooltip>
+  </span>
   <TabGroupNameDialog
     v-model:name="name"
     :model-value="renaming !== null"
@@ -134,6 +141,10 @@ function rename() {
 </template>
 
 <style scoped>
+.tab-group-list {
+  display: inline-flex;
+  align-items: center;
+}
 /* The saved groups dropping out of the list button: one row per group, the
    name opening it and horizontal dots managing it. */
 .group-list {

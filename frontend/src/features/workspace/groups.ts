@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { serverStorageKey } from "@/shared/servers/context"
+import type { Space } from "@/stores/space"
 
 import { parseWorkspace } from "@/shared/workspace/persist"
 import { leavesOf } from "@/shared/workspace/tree"
@@ -12,6 +13,17 @@ const groupSchema = z.object({
   snapshot: z.string(),
 })
 export type TabGroup = z.infer<typeof groupSchema>
+
+/**
+ * Why tab groups cannot be used in this space, or nothing.
+ *
+ * A group is the tabs of Data. Its buttons stand on a rail every space shows,
+ * so elsewhere they are greyed with this rather than saving or opening a
+ * layout nobody is looking at.
+ */
+export function groupsUnavailableIn(space: Space): string | null {
+  return space === "data" ? null : "tab groups keep the tabs of Data"
+}
 
 export const groupsKey = (userId: string) => serverStorageKey(`dataplayer-tab-groups:${userId}`)
 export const groupWarningKey = (userId: string) => serverStorageKey(`dataplayer-tab-groups:skip-warning:${userId}`)
