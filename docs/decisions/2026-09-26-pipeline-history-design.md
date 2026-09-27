@@ -88,3 +88,27 @@ Tests cover the history's order and rows, skips and misses among the runs,
 the ceiling with a run still going, what a deletion takes, access, the words
 of a history row and the lines of a shown run as plain functions, and in the
 browser two runs listed, an older one shown and the canvas brought back.
+
+## Settled during implementation
+
+- **A skip or a miss is a row of its own table**, `ScheduleNote`: the time
+  that came, `skipped` or `missed`, and why. The schedule's one latest note
+  and its time went; the migration carries a note already kept over, its
+  kind read off its first word.
+- **The row's time is its own column**, so the sentence is "Skipped: the
+  previous run was still going", not "Skipped at 03:00: …", and every row
+  says its time in the browser's clock. The schedule's times stay in the
+  zone it was saved in (D179), so the two can differ when the browser moved.
+- **The history is one list from the server**, runs and notes merged newest
+  first; the screen does no ordering. A run says who started it by whether
+  its record has `scheduled_for`.
+- **The newest row pressed is the last run**, not a past one: no strip, and
+  the canvas follows it as it goes. Only the last can still be going, so a
+  past run is read once.
+- **The window stays open** while runs are pressed, the one shown marked in
+  it; the canvas behind changes. A past run that can no longer be read — kept
+  no more — brings the last back, saying so.
+- **Deleting a pipeline says its history goes too** in the question it
+  asks, and the footer's activity is read again after it.
+- **A banner's one action sits at the end of its line** (`AppBanner`), which
+  keeps the strip one line tall.

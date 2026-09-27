@@ -17,7 +17,8 @@ import type { EndNamer } from "./links"
 /**
  * The panel below the canvas, on the link selected (D176): what it does and
  * where it comes in a run, the choices it runs by — the ones Paste asks — and
- * what it did in the pipeline's last run (D177).
+ * what it did in the run shown: the last (D177), or one pressed in the
+ * history (D180).
  *
  * Every choice is the link's and is saved with the pipeline; the head's Run
  * runs what was saved, never what is on this screen.
@@ -34,7 +35,9 @@ const props = defineProps<{
   prepare: () => Promise<boolean>
   place: LinkPlace | undefined
   linkRun: LinkRun | undefined
-  lastRun: PipelineRunPublic | null | undefined
+  run: PipelineRunPublic | null | undefined
+  /** The run shown is older than the last. */
+  past: boolean
 }>()
 
 const emit = defineEmits<{
@@ -200,7 +203,7 @@ const columnsWord = computed(() => {
       :class="{ 'link-panel__result--failed': closed !== null || linkRun?.outcome === 'failed' }"
       data-testid="link-panel-result"
     >
-      {{ closed ?? runWords(linkRun, lastRun, now) }}
+      {{ closed ?? runWords(linkRun, run, now, past) }}
     </p>
     <p
       v-if="!closed && (linkRun?.read || linkRun?.made)"

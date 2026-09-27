@@ -5,7 +5,7 @@ from collections.abc import Collection
 from typing import Any
 
 from sqlalchemy import func
-from sqlmodel import col, select
+from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.jobs.models import TERMINAL, Job, JobKind, JobsPublic, public
@@ -156,6 +156,28 @@ async def admit_within(
         session, owner_id=owner_id, kind=kind, subject_id=subject_id,
         step_count=step_count, parameters=parameters,
     )
+
+
+async def forget_finished(
+    session: AsyncSession, *, kind: JobKind, subject_id: uuid.UUID, keep: int = 0
+) -> int:
+    """Remove the ended jobs of this kind about the subject, all but the newest
+    `keep` of its jobs; how many went. The caller commits.
+
+    One still going is never removed: its runner writes into it until it ends.
+    """
+    about = (col(Job.subject_id) == subject_id, col(Job.kind) == kind)
+    newest = (
+        select(Job.id).where(*about).order_by(col(Job.created_at).desc(), col(Job.id).desc()).limit(keep)
+    )
+    stale = list((await session.exec(
+        select(Job.id).where(
+            *about, col(Job.state).in_(TERMINAL), col(Job.id).not_in(newest.scalar_subquery())
+        )
+    )).all())
+    if stale:
+        await session.exec(delete(Job).where(col(Job.id).in_(stale)))
+    return len(stale)
 
 
 async def get_for_owner(

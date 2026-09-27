@@ -100,6 +100,9 @@ Known deviations:
 - **Only transfers and pipeline runs are bounded per person.**
   `admit_within` refuses one over `TRANSFER_MAX_ACTIVE` (D168) or
   `PIPELINE_MAX_ACTIVE` (D177); other kinds have no such limit yet.
+- **Only pipeline runs are ever removed.** `forget_finished` keeps a
+  pipeline's newest hundred and takes the rest with the pipeline (D180),
+  never one still going; every other kind's rows stay.
 - **Jobs are not fanned out through infrastructure Redis.** The database row
   remains the authority and the accepting process performs it. D104 requires
   measured need and a separate durable delivery contract before that changes.

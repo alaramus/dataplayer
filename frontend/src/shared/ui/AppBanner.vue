@@ -18,13 +18,15 @@ const look = computed(() => bannerLook(props.tone, formLayout))
 <template>
   <q-banner
     dense
+    inline-actions
     :class="[look.classes, { 'app-banner--form': formLayout }]"
   >
     <template #avatar>
       <q-icon :name="look.icon" />
     </template>
     <slot />
-    <!-- The one thing to do about what the banner says, at its end. -->
+    <!-- The one thing to do about what the banner says, at the end of its
+         line rather than on a line of its own. -->
     <template
       v-if="$slots.action"
       #action

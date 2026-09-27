@@ -1,10 +1,10 @@
 # Pipelines
 
 Read this before changing the pipelines space, a pipeline's cards, links,
-run or schedule, or the answer of what a person's connections can give each
-other.
+run, schedule or history, or the answer of what a person's connections can
+give each other.
 
-Decisions here: D174, D175, D176, D177, D178, D179.
+Decisions here: D174, D175, D176, D177, D178, D179, D180.
 
 ## D174. What two connections can give each other is asked of no node
 
@@ -145,9 +145,10 @@ Spec: [Pipelines: connections laid out on a canvas, and links run between them](
   not run. D176's row per link went with the route that ran one link.
 - **On the canvas** each line takes its result's colour — the link running
   highlighted, done, failed, not run faded — and its number before its title;
-  the head says the last run's sentence and when, and the panel the link's
-  part. The screen reads the last run again at each move of its job told over
-  the socket, and every three seconds while it runs.
+  the panel says the link's part. The screen reads the last run again at each
+  move of its job told over the socket, and every three seconds while it
+  runs. The head said the last run's sentence until D180 moved it to the
+  history.
 - **The footer** shows the run by the pipeline's name and where it is —
   "Nightly · 2 of 5: Save as CSV" — and lists what each link did once it
   ends; the connections its links wrote into are read again as a transfer's
@@ -229,21 +230,59 @@ Spec: [Chains: what one link makes, read by the next](../decisions/2026-09-26-pi
   come starts the Run of D177 as the owner, the record saying when the
   schedule came (`scheduled_for`), and its next time is worked out from now.
   A run Run refuses — one going, too many a person, a link lacking a choice,
-  no link — is not started, and the schedule notes "Skipped at 03:00: …".
+  no link — is not started, and the schedule notes it skipped, and why.
 - **A time more than two minutes past when the server starts is not caught
-  up**: noted "Missed at 03:00: the server was off", and the next time is
-  worked out from then. One less late still runs: a restart takes seconds.
+  up**: noted as missed, "the server was off", and the next time is worked
+  out from then. One less late still runs: a restart takes seconds.
 - **On the canvas** a clock button beside Run opens the schedule's window and
   is highlighted while it is on; the head says "Next run: tomorrow 03:00" in
-  the browser's clock, and the last skip or miss. A run started by the
-  schedule clears it. The footer names such a run "Nightly · scheduled".
+  the browser's clock. The skips and misses are rows of the history (D180).
+  The footer names a run the schedule started "Nightly · scheduled".
 
 Known deviations:
 
 - **A run starts up to half a minute after its time**: the server looks
   every thirty seconds rather than sleeping until each one.
-- **Only the latest skip or miss is kept**, with the last run.
 - **The zone is the browser's that last saved the schedule**; the owner's
   moving elsewhere changes nothing until it is saved again.
 
 Spec: [Schedules: a pipeline that runs by itself](../decisions/2026-09-26-pipeline-schedules-design.md)
+
+## D180. A pipeline's runs are kept, a hundred of them, and one can be shown
+
+- **`GET /pipelines/{id}/history`** (`history.py`) answers the pipeline's
+  runs and its schedule's skips and misses as one list, newest first: a run
+  is its job — state, sentence, start and end, and whether the schedule
+  started it (`scheduled_for`) — and a skip or a miss is a `ScheduleNote`,
+  the time that came, its kind and why. The screen only words the rows.
+- **A History button in the head** opens a window of those rows: the
+  sentence, then "26 Sep 03:00 · by the schedule · took 12.4 s"; a run that
+  failed or was interrupted in the caution colour, a skip or a miss faded.
+  The window reads again at each move of a run told over the socket and
+  stays open while runs are pressed.
+- **A run pressed is shown on the canvas**: `GET /pipelines/{id}/runs/{job}`
+  answers it as the last run is answered (D177), the links still drawn only.
+  The lines and the panel say what it did then, a link drawn since saying
+  "Drawn since this run"; a strip over the canvas says "Showing the run of 26
+  Sep 03:00" with "Back to the last run". The newest row pressed is the last
+  run itself, and Run brings the canvas back to the run it starts.
+- **The head says only when the schedule comes next.** A run going is
+  followed by its lines and the footer.
+- **The last hundred of each are kept.** Starting a run removes the ended runs
+  of the pipeline after its newest hundred (`jobs.crud.forget_finished`), and
+  a note removes the notes after the newest hundred. A run still going is
+  never removed: its runner writes into it until it ends.
+- **A pipeline deleted takes its ended runs**, and its notes by the foreign
+  key. A run going then ends as it would have and stays in the footer's
+  activity, which is read again.
+
+Known deviations:
+
+- **A past run is shown on today's canvas**: a card moved since is where it
+  is now, and a result row (D178) is named as it would be made today.
+- **A run removed from the history is removed from the footer's activity
+  too**: they are one row.
+- **A row says its time in this browser's clock**, a skip or a miss too,
+  though the schedule's times are the zone it was saved in.
+
+Spec: [A pipeline's history of runs](../decisions/2026-09-26-pipeline-history-design.md)

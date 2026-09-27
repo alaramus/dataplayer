@@ -4669,6 +4669,24 @@ export type HistoryAnswer = {
 }
 
 /**
+ * HistoryNote
+ */
+export type HistoryNote = {
+  /**
+   * Kind
+   */
+  kind: "skipped" | "missed"
+  /**
+   * At
+   */
+  at: string
+  /**
+   * Reason
+   */
+  reason: string
+}
+
+/**
  * HistoryRequest
  */
 export type HistoryRequest = {
@@ -4692,6 +4710,40 @@ export type HistoryRequest = {
    * Dashboard Id
    */
   dashboard_id?: string | null
+}
+
+/**
+ * HistoryRun
+ */
+export type HistoryRun = {
+  /**
+   * Kind
+   */
+  kind?: "run"
+  /**
+   * Job Id
+   */
+  job_id: string
+  /**
+   * State
+   */
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "interrupted"
+  /**
+   * Message
+   */
+  message: string | null
+  /**
+   * Started At
+   */
+  started_at: string
+  /**
+   * Finished At
+   */
+  finished_at: string | null
+  /**
+   * Scheduled
+   */
+  scheduled: boolean
 }
 
 /**
@@ -5602,7 +5654,7 @@ export type LinkPlace = {
 /**
  * LinkRun
  *
- * What one link did in the last run.
+ * What one link did in a run.
  */
 export type LinkRun = {
   /**
@@ -6791,6 +6843,23 @@ export type PipelineCreate = {
 }
 
 /**
+ * PipelineHistory
+ */
+export type PipelineHistory = {
+  /**
+   * Rows
+   */
+  rows: Array<
+    | ({
+        kind: "run"
+      } & HistoryRun)
+    | ({
+        kind: "missed" | "skipped"
+      } & HistoryNote)
+  >
+}
+
+/**
  * PipelinePublic
  */
 export type PipelinePublic = {
@@ -6835,7 +6904,7 @@ export type PipelinePublic = {
 /**
  * PipelineRunPublic
  *
- * The last run of a pipeline, as its job says now.
+ * A run of a pipeline, as its job says now.
  */
 export type PipelineRunPublic = {
   /**
@@ -9217,14 +9286,6 @@ export type SchedulePublic = {
    * Next At
    */
   next_at?: string | null
-  /**
-   * Note
-   */
-  note?: string | null
-  /**
-   * Note At
-   */
-  note_at?: string | null
 }
 
 /**
@@ -16018,6 +16079,71 @@ export type pipelinesRunPipelineResponses = {
 
 export type pipelinesRunPipelineResponse =
   pipelinesRunPipelineResponses[keyof pipelinesRunPipelineResponses]
+
+export type pipelinesReadHistoryData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/history"
+}
+
+export type pipelinesReadHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadHistoryError = pipelinesReadHistoryErrors[keyof pipelinesReadHistoryErrors]
+
+export type pipelinesReadHistoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: PipelineHistory
+}
+
+export type pipelinesReadHistoryResponse =
+  pipelinesReadHistoryResponses[keyof pipelinesReadHistoryResponses]
+
+export type pipelinesReadRunData = {
+  body?: never
+  path: {
+    /**
+     * Pipeline Id
+     */
+    pipeline_id: string
+    /**
+     * Job Id
+     */
+    job_id: string
+  }
+  query?: never
+  url: "/api/v1/pipelines/{pipeline_id}/runs/{job_id}"
+}
+
+export type pipelinesReadRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type pipelinesReadRunError = pipelinesReadRunErrors[keyof pipelinesReadRunErrors]
+
+export type pipelinesReadRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: PipelineRunPublic
+}
+
+export type pipelinesReadRunResponse = pipelinesReadRunResponses[keyof pipelinesReadRunResponses]
 
 export type pipelinesReadScheduleData = {
   body?: never

@@ -3,7 +3,8 @@
 In the one process (D124), every half minute: a schedule whose time has
 come starts the Run of D177 as the pipeline's owner, and a run Run would
 refuse is noted as skipped. A time that passed while the server was off is
-noted as missed when it starts again, and nothing is caught up.
+noted as missed when it starts again, and nothing is caught up. The notes are
+rows of the pipeline's history (D180).
 """
 
 import asyncio
@@ -12,11 +13,10 @@ import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlmodel import col, select
+from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings as app_settings
@@ -24,7 +24,14 @@ from app.core.db import async_session_maker
 from app.jobs.runner import JobRunner
 from app.pipelines.models import Pipeline, PipelineContent, content_of
 from app.pipelines.runs import start_run
-from app.pipelines.schedule import PipelineSchedule, SchedulePublic, ScheduleSettings
+from app.pipelines.schedule import (
+    KEPT_NOTES,
+    NoteKind,
+    PipelineSchedule,
+    ScheduleNote,
+    SchedulePublic,
+    ScheduleSettings,
+)
 from app.pipelines.timing import next_time
 from app.realtime.topics import TopicSet
 from app.users.models import User
@@ -50,9 +57,7 @@ def _settings_of(row: PipelineSchedule) -> ScheduleSettings | None:
 def public(row: PipelineSchedule | None) -> SchedulePublic:
     if row is None:
         return SchedulePublic()
-    return SchedulePublic(
-        settings=_settings_of(row), next_at=row.next_at, note=row.note, note_at=row.note_at
-    )
+    return SchedulePublic(settings=_settings_of(row), next_at=row.next_at)
 
 
 async def save(
@@ -66,8 +71,6 @@ async def save(
     if chosen.enabled and before != chosen:
         # Switched on, or changed: an interval counts from now.
         row.counted_from = now
-    if before != chosen:
-        row.note = row.note_at = None
     row.settings = chosen.model_dump(mode="json")
     row.next_at = next_time(chosen, now, row.counted_from) if chosen.enabled else None
     session.add(row)
@@ -75,9 +78,25 @@ async def save(
     return public(row)
 
 
-def _clock(moment: datetime, chosen: ScheduleSettings) -> str:
-    """A moment as the owner's wall clock shows it: "03:00"."""
-    return moment.astimezone(ZoneInfo(chosen.time_zone)).strftime("%H:%M")
+async def _noted(
+    session: AsyncSession, pipeline_id: uuid.UUID, kind: NoteKind, at: datetime, reason: str
+) -> None:
+    """A time that came and started nothing, kept among the last hundred; the
+    caller commits."""
+    session.add(ScheduleNote(pipeline_id=pipeline_id, kind=kind, at=at, reason=reason[:512]))
+    await session.flush()
+    about = col(ScheduleNote.pipeline_id) == pipeline_id
+    newest = (
+        select(ScheduleNote.id)
+        .where(about)
+        .order_by(col(ScheduleNote.at).desc(), col(ScheduleNote.id).desc())
+        .limit(KEPT_NOTES)
+    )
+    stale = list((await session.exec(
+        select(ScheduleNote.id).where(about, col(ScheduleNote.id).not_in(newest.scalar_subquery()))
+    )).all())
+    if stale:
+        await session.exec(delete(ScheduleNote).where(col(ScheduleNote.id).in_(stale)))
 
 
 def _why(refused: HTTPException) -> str:
@@ -116,8 +135,7 @@ class Scheduler:
                 if chosen is None or row.next_at is None:
                     row.next_at = None
                 else:
-                    row.note = f"Missed at {_clock(row.next_at, chosen)}: the server was off"
-                    row.note_at = row.next_at
+                    await _noted(session, row.pipeline_id, "missed", row.next_at, "the server was off")
                     row.next_at = next_time(chosen, now, row.counted_from)
                 session.add(row)
             await session.commit()
@@ -156,7 +174,7 @@ class Scheduler:
             chosen = _settings_of(row)
             owner = await session.get(User, pipeline.owner_id)
             came, counted_from = row.next_at, row.counted_from
-        note: str | None = None
+        skipped: str | None = None
         if chosen is not None and owner is not None:
             # A session of its own: a refused admission rolls it back.
             async with async_session_maker() as running:
@@ -171,13 +189,14 @@ class Scheduler:
                         scheduled_for=came,
                     )
                 except HTTPException as refused:
-                    note = f"Skipped at {_clock(came, chosen)}: {_why(refused)}"
+                    skipped = _why(refused)
         async with async_session_maker() as session:
             row = await session.get(PipelineSchedule, pipeline_id)
             # Changed or switched off while it was starting: that answer stands.
             if row is None or row.next_at != came:
                 return
-            row.note, row.note_at = note, (came if note is not None else None)
+            if skipped is not None:
+                await _noted(session, pipeline_id, "skipped", came, skipped)
             row.next_at = None if chosen is None else next_time(chosen, now, counted_from)
             session.add(row)
             await session.commit()

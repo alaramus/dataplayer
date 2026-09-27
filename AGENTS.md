@@ -57,7 +57,7 @@ legacy notes and stay unchanged.
 | A floating window, the forms in it, detaching a tab, a pair of catalogs | [windows.md](docs/architecture/windows.md) |
 | A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
-| A pipeline, its cards, links, run and schedule, what connections can give each other | [pipelines.md](docs/architecture/pipelines.md) |
+| A pipeline, its cards, links, run, schedule and history, what connections can give each other | [pipelines.md](docs/architecture/pipelines.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | The agent, its tools, model providers, sending data to a third party | [ai.md](docs/architecture/ai.md) |
@@ -256,6 +256,7 @@ files. IDs are stable because specs and commits refer to them.
 | D177 | [pipelines](docs/architecture/pipelines.md) |
 | D178 | [pipelines](docs/architecture/pipelines.md) |
 | D179 | [pipelines](docs/architecture/pipelines.md) |
+| D180 | [pipelines](docs/architecture/pipelines.md) |
 
 ## Working rules
 

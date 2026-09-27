@@ -1,4 +1,5 @@
-"""When a pipeline runs by itself (D179), kept beside its body.
+"""When a pipeline runs by itself (D179), kept beside its body, and the
+times it came and started nothing (D180).
 
 A schedule is not what a pipeline runs, so it is a row of its own: a change
 of it is not checked against the version the canvas saves with, and the loop
@@ -18,7 +19,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic import Field as PydanticField
-from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import JSON, Column, DateTime, Index
 from sqlmodel import Field, SQLModel
 
 from app.core.schemas import get_datetime_utc
@@ -26,6 +27,11 @@ from app.core.schemas import get_datetime_utc
 MIN_EVERY_MINUTES = 5
 MAX_EVERY_MINUTES = 7 * 24 * 60
 MAX_TIMES = 12
+# The skips and misses a pipeline keeps, newest first (D180).
+KEPT_NOTES = 100
+
+# Refused by Run when it came, or passed while the server was off.
+NoteKind = Literal["skipped", "missed"]
 
 TimeOfDay = Annotated[str, StringConstraints(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]
 # Monday is 0, as Python counts days.
@@ -79,11 +85,21 @@ class PipelineSchedule(SQLModel, table=True):
     next_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True, index=True)
     )
-    # The last time it came and nothing started, and why (D179).
-    note: str | None = Field(default=None, max_length=512)
-    note_at: datetime | None = Field(
-        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
-    )
+
+
+class ScheduleNote(SQLModel, table=True):
+    """A time the schedule came and nothing started, and why: a row of the
+    pipeline's history among its runs (D180)."""
+
+    __table_args__ = (Index("ix_schedulenote_pipeline_at", "pipeline_id", "at"),)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    pipeline_id: uuid.UUID = Field(foreign_key="pipeline.id", ondelete="CASCADE")
+    # A NoteKind; only the scheduler writes it.
+    kind: str = Field(max_length=16)
+    # The time that came.
+    at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    reason: str = Field(max_length=512)
 
 
 class SchedulePublic(BaseModel):
@@ -91,5 +107,3 @@ class SchedulePublic(BaseModel):
 
     settings: ScheduleSettings | None = None
     next_at: datetime | None = None
-    note: str | None = None
-    note_at: datetime | None = None

@@ -433,6 +433,9 @@ import type {
   pipelinesReadHintData,
   pipelinesReadHintErrors,
   pipelinesReadHintResponses,
+  pipelinesReadHistoryData,
+  pipelinesReadHistoryErrors,
+  pipelinesReadHistoryResponses,
   pipelinesReadLastRunData,
   pipelinesReadLastRunErrors,
   pipelinesReadLastRunResponses,
@@ -444,6 +447,9 @@ import type {
   pipelinesReadPipelineResponses,
   pipelinesReadPipelinesData,
   pipelinesReadPipelinesResponses,
+  pipelinesReadRunData,
+  pipelinesReadRunErrors,
+  pipelinesReadRunResponses,
   pipelinesReadScheduleData,
   pipelinesReadScheduleErrors,
   pipelinesReadScheduleResponses,
@@ -3776,6 +3782,9 @@ export class PipelinesService {
 
   /**
    * Delete Pipeline
+   *
+   * The pipeline, its schedule and its history (D180). A run still going
+   * ends as it would have, and stays in the footer's activity.
    */
   public static deletePipeline<ThrowOnError extends boolean = true>(
     options: Options<pipelinesDeletePipelineData, ThrowOnError>
@@ -3905,9 +3914,49 @@ export class PipelinesService {
   }
 
   /**
+   * Read History
+   *
+   * The pipeline's runs and its schedule's skips and misses, newest first.
+   */
+  public static readHistory<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadHistoryData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      pipelinesReadHistoryResponses,
+      pipelinesReadHistoryErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/history",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Run
+   *
+   * One run of the history, as the canvas shows it (D180).
+   */
+  public static readRun<ThrowOnError extends boolean = true>(
+    options: Options<pipelinesReadRunData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      pipelinesReadRunResponses,
+      pipelinesReadRunErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/pipelines/{pipeline_id}/runs/{job_id}",
+      ...options,
+    })
+  }
+
+  /**
    * Read Schedule
    *
-   * When the pipeline runs by itself, when next, and what last came of it.
+   * When the pipeline runs by itself, and when next.
    */
   public static readSchedule<ThrowOnError extends boolean = true>(
     options: Options<pipelinesReadScheduleData, ThrowOnError>

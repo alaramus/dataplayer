@@ -53,7 +53,7 @@ const TONES: Record<LinkRun["outcome"], GraphEdgeTone | undefined> = {
 /**
  * A link as its line: numbered by its place in a run, the number in the
  * caution colour where a circle was broken at it, and coloured by what it did
- * in the last run.
+ * in the run shown — the last, or one pressed in the history (D180).
  */
 export function linkEdge(link: Link, place?: LinkPlace, run?: LinkRun): GraphEdge {
   const edge: GraphEdge = {
@@ -231,21 +231,15 @@ function ago(at: string | null | undefined, now: number): string {
   return Number.isNaN(time) ? "" : ` ${ageLabel(now - time)} ago`
 }
 
-/** The last run in the head: "Running 2 of 5", "Last run 3m ago: All 5 links ran". */
-export function runSummary(run: PipelineRunPublic | null | undefined, now: number): string {
+/**
+ * A link's part in the run shown, as its panel says it: "Done 3m ago:
+ * orders.csv saved in reports". `past` when that is an older run than the last.
+ */
+export function runWords(
+  linkRun: LinkRun | undefined, run: PipelineRunPublic | null | undefined, now: number, past = false
+): string {
   if (run == null) return "Not run yet"
-  if (isRunning(run)) {
-    const at = run.links.findIndex((one) => one.outcome === "running")
-    return at < 0 ? "Starting" : `Running ${String(at + 1)} of ${String(run.links.length)}`
-  }
-  const said = run.message ? `: ${run.message}` : ""
-  return `Last run${ago(run.finished_at ?? run.started_at, now)}${said}`
-}
-
-/** A link's part in the last run, as its panel says it: "Done 3m ago: orders.csv saved in reports". */
-export function runWords(linkRun: LinkRun | undefined, run: PipelineRunPublic | null | undefined, now: number): string {
-  if (run == null) return "Not run yet"
-  if (linkRun === undefined) return "Drawn since the last run"
+  if (linkRun === undefined) return past ? "Drawn since this run" : "Drawn since the last run"
   const said = linkRun.message ? `: ${linkRun.message}` : ""
   switch (linkRun.outcome) {
     case "waiting": return "Waiting for the links before it"

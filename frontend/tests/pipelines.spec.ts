@@ -9,7 +9,7 @@ import { deleteConnector } from "./utils/workspace"
  * Pipelines (D175, D176, D177): connections dragged, or pressed, onto a
  * canvas become cards of what was ticked in them; rows are joined by links
  * that run as Paste does, the whole pipeline by one Run, link after link; the
- * pipeline is kept on the server.
+ * pipeline is kept on the server, and so are its runs (D180).
  */
 
 function cards(page: Page, name: string): Locator {
@@ -171,7 +171,6 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
   const result = panel.getByTestId("link-panel-result")
   await expect(result).toContainText("Done", { timeout: 20_000 })
   await expect(result).toContainText(`${csv} saved in reports`)
-  await expect(page.getByTestId("pipeline-last-run")).toContainText(`${csv} saved in reports`)
   const line = page.locator('[data-testid^="graph-edge-label-"]', { hasText: "Save as CSV" })
   await expect(line).toHaveText("1 · Save as CSV")
   await page.screenshot({ path: "test-results/pipelines-link.png" })
@@ -179,7 +178,6 @@ test("joins two rows by a link, runs the pipeline from its head, and hints the o
   // It stays, and runs again: the name is taken now, and the link says so.
   await page.getByTestId("pipeline-run").click()
   await expect(result).toContainText("Failed", { timeout: 20_000 })
-  await expect(page.getByTestId("pipeline-last-run")).toContainText("Stopped at 1 of 1, Save as CSV")
   await panel.getByTestId("link-panel-close").click()
   await expect(panel).toHaveCount(0)
 
@@ -255,20 +253,54 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await expect(labels).toHaveText(["1 · Save as CSV", "2 · Save as CSV"])
 
   // One Run, both links.
-  const last = page.getByTestId("pipeline-last-run")
   await page.getByTestId("pipeline-run").click()
-  await expect(last).toContainText("All 2 links ran", { timeout: 20_000 })
-  await expect(page.locator('[data-tone="success"]')).toHaveCount(2)
+  await expect(page.locator('[data-tone="success"]')).toHaveCount(2, { timeout: 20_000 })
 
   // Again: the first finds its name taken, and the second is not run.
   await page.getByTestId("pipeline-run").click()
-  await expect(last).toContainText("Stopped at 1 of 2, Save as CSV", { timeout: 20_000 })
-  await expect(last).toContainText("1 not run")
-  await expect(page.locator('[data-tone="error"]')).toHaveCount(1)
+  await expect(page.locator('[data-tone="error"]')).toHaveCount(1, { timeout: 20_000 })
   await expect(page.locator('[data-tone="muted"]')).toHaveCount(1)
   await labels.filter({ hasText: "2 · Save as CSV" }).click()
   await expect(panel.getByTestId("link-panel-result")).toHaveText("Not run: the run stopped before it")
   await page.screenshot({ path: "test-results/pipelines-run.png" })
+
+  // The history (D180): both runs, newest first, by hand, each with its
+  // sentence; the canvas shows the newest.
+  await page.getByTestId("pipeline-history").click()
+  const history = page.getByTestId("history-window")
+  const runs = history.getByTestId("history-run")
+  await expect(runs).toHaveCount(2)
+  await expect(runs.nth(0)).toContainText("Stopped at 1 of 2, Save as CSV")
+  await expect(runs.nth(0)).toContainText("1 not run")
+  await expect(runs.nth(0)).toContainText("by hand · took")
+  await expect(runs.nth(0)).toHaveAttribute("aria-pressed", "true")
+  await expect(runs.nth(1)).toContainText("All 2 links ran")
+  await page.screenshot({ path: "test-results/pipelines-history.png" })
+
+  // The older one pressed: the lines and the panel say what it did then.
+  await runs.nth(1).click()
+  await expect(runs.nth(1)).toHaveAttribute("aria-pressed", "true")
+  await page.locator('[data-testid^="window-close-dialog:history-window"]').click()
+  await expect(history).toHaveCount(0)
+  await expect(page.getByTestId("pipeline-shown-run")).toContainText("Showing the run of")
+  await expect(page.locator('[data-tone="success"]')).toHaveCount(2)
+  await expect(panel.getByTestId("link-panel-result")).toContainText("Done")
+  await page.screenshot({ path: "test-results/pipelines-history-shown.png" })
+
+  // And back: the last run's colours again.
+  await page.getByTestId("pipeline-shown-run-back").click()
+  await expect(page.getByTestId("pipeline-shown-run")).toHaveCount(0)
+  await expect(page.locator('[data-tone="error"]')).toHaveCount(1)
+  await expect(panel.getByTestId("link-panel-result")).toHaveText("Not run: the run stopped before it")
+
+  // Shown again, then Run: the canvas follows the run it starts.
+  await page.getByTestId("pipeline-history").click()
+  await runs.nth(1).click()
+  await page.locator('[data-testid^="window-close-dialog:history-window"]').click()
+  await expect(page.getByTestId("pipeline-shown-run")).toBeVisible()
+  await page.getByTestId("pipeline-run").click()
+  await expect(page.getByTestId("pipeline-shown-run")).toHaveCount(0)
+  await expect(page.locator('[data-tone="error"]')).toHaveCount(1, { timeout: 20_000 })
   await panel.getByTestId("link-panel-close").click()
 
   // The file the first run left at the top, read into a new table beside the
@@ -356,7 +388,7 @@ test("draws a chain before anything is made, runs it by one Run, and takes it ap
   await page.screenshot({ path: "test-results/pipelines-chain.png" })
 
   await page.getByTestId("pipeline-run").click()
-  await expect(page.getByTestId("pipeline-last-run")).toContainText("All 2 links ran", { timeout: 20_000 })
+  await expect(page.locator('[data-tone="success"]')).toHaveCount(2, { timeout: 20_000 })
   await page.locator('[data-testid^="graph-edge-label-"]', { hasText: "Copy files" }).click()
   await expect(panel.getByTestId("link-panel-made")).toHaveText(`Read ${csv} · Made ${csv}`)
 

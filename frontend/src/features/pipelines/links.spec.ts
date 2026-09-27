@@ -18,7 +18,6 @@ import {
   nodeIdOf,
   refusal,
   runProblem,
-  runSummary,
   runWords,
   sentence,
   usable,
@@ -117,7 +116,7 @@ describe("a link between two rows", () => {
     expect(keptLinks([saving], "files", [files.rows[0]!])).toEqual([])
   })
 
-  it("is said in words, and so is its last run", () => {
+  it("is said in words, and so is its part in a run", () => {
     const name = (end: Link["source"]) => `${end.card_id} · ${end.node_id ?? "top"}`
     expect(sentence(saving, name)).toBe("Save as CSV: sales · public.orders → files · reports")
     expect(listed([saving, saving], name)).toBe("sales · public.orders → files · reports; sales · public.orders → files · reports")
@@ -134,14 +133,12 @@ describe("a link between two rows", () => {
     expect(runWords(done, run, now)).toBe("Done 3m ago: orders.csv saved in reports")
     expect(runWords(run.links[2], run, now)).toBe("Not run: the run stopped before it")
     expect(runWords(undefined, run, now)).toBe("Drawn since the last run")
+    expect(runWords(undefined, run, now, true)).toBe("Drawn since this run")
     expect(runWords(undefined, null, now)).toBe("Not run yet")
-    expect(runSummary(run, now)).toBe("Last run 2m ago: Stopped at 2 of 3, Save as CSV: taken; 1 not run")
-    expect(runSummary(null, now)).toBe("Not run yet")
     const going: PipelineRunPublic = {
       ...run, state: "running", message: null, finished_at: null,
       links: [done, { link_id: "l2", outcome: "running" }, { link_id: "l3", outcome: "waiting" }],
     }
-    expect(runSummary(going, now)).toBe("Running 2 of 3")
     expect(runWords(going.links[1], going, now)).toBe("Running")
     expect(runWords(going.links[2], going, now)).toBe("Waiting for the links before it")
   })

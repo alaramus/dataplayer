@@ -31,6 +31,7 @@ import { WindowDialog } from "@/shared/windows"
 
 import {
   cardStateKey,
+  historyKey,
   lackingLinks,
   lastRunKey,
   linkOffersKey,
@@ -42,12 +43,15 @@ import {
   runPipeline,
   useDeletePipeline,
   useLastRun,
+  usePastRun,
   usePipeline,
   useSavePipeline,
   useSchedule,
 } from "./api"
 import type { LinkSide } from "./api"
 import CardPickerWindow from "./CardPickerWindow.vue"
+import { shownWords } from "./history"
+import HistoryWindow from "./HistoryWindow.vue"
 import LinkPanel from "./LinkPanel.vue"
 import { nextRunWords, scheduleWords } from "./schedule"
 import ScheduleWindow from "./ScheduleWindow.vue"
@@ -66,7 +70,6 @@ import {
   madeRows,
   refusal,
   runProblem,
-  runSummary,
   usable,
 } from "./links"
 import {
@@ -90,6 +93,8 @@ import type { CardConnection } from "./model"
  * Cards and links are held here as a draft and saved whole a moment after the
  * last change, with the version they were read at, as a dashboard is (D129).
  * The pipeline runs whole by what was saved, so Run saves first (D177).
+ * The lines say what the last run did, or an older one pressed in the
+ * history (D180); the head says only when the schedule comes next.
  */
 const props = defineProps<{
   pipelineId: string
@@ -121,9 +126,29 @@ const lastRun = useLastRun(() => props.pipelineId)
 const timetable = useSchedule(() => props.pipelineId)
 const scheduling = ref(false)
 const now = useNow()
-// When it runs by itself next, and what last came of a time that came (D179).
+// When it runs by itself next (D179); what came of the times before is the history's.
 const nextRun = computed(() =>
   timetable.data.value?.settings?.enabled ? nextRunWords(timetable.data.value.next_at, now.value) : null
+)
+const historyOpen = ref(false)
+// An older run pressed in the history, or none while the last is shown.
+const pastJobId = ref<string | null>(null)
+const pastRun = usePastRun(() => props.pipelineId, pastJobId)
+const shownRun = computed(() => (pastJobId.value === null ? lastRun.data.value : pastRun.data.value))
+
+function showRun(jobId: string) {
+  pastJobId.value = jobId === lastRun.data.value?.job_id ? null : jobId
+}
+
+watch(() => props.pipelineId, () => { pastJobId.value = null })
+// Gone from the history since it was pressed, say: the last run comes back.
+watch(
+  () => pastRun.isError.value,
+  (failed) => {
+    if (!failed || pastJobId.value === null) return
+    toast.info("That run could not be read, so the last run is shown")
+    pastJobId.value = null
+  }
 )
 
 const name = ref("")
@@ -246,7 +271,7 @@ const states = computed(() => {
 const order = computed(() => new Map((pipeline.data.value?.order ?? []).map((place) => [place.link_id, place])))
 // What each link makes, named by the server as its last save stood (D178).
 const results = computed(() => pipeline.data.value?.results ?? [])
-const linkRuns = computed(() => new Map((lastRun.data.value?.links ?? []).map((run) => [run.link_id, run])))
+const linkRuns = computed(() => new Map((shownRun.value?.links ?? []).map((run) => [run.link_id, run])))
 const edges = computed(() => [
   ...links.value.map((link) => linkEdge(link, order.value.get(link.id), linkRuns.value.get(link.id))),
   ...hintEdges(hints.value),
@@ -528,9 +553,8 @@ async function removeLink(link: Link) {
 }
 
 const runBlocked = computed(() => runProblem(links.value, lastRun.data.value))
-const lastRunFailed = computed(() => ["failed", "interrupted"].includes(lastRun.data.value?.state ?? ""))
 
-/** Every link, in order, as one job; the footer follows it from here. */
+/** Every link, in order, as one job; the lines and the footer follow it from here. */
 async function run() {
   if (starting.value || runBlocked.value !== null) return
   starting.value = true
@@ -539,6 +563,7 @@ async function run() {
     if (!(await save())) return
     const answer = await runPipeline(props.pipelineId)
     queryClient.setQueryData(lastRunKey(props.pipelineId), answer)
+    pastJobId.value = null
     startedInThisTab(answer.job_id)
   } catch (cause) {
     // A link lacking a choice is opened, so the choice is one press away.
@@ -555,6 +580,7 @@ async function run() {
 const stopListening = realtime().subscribe(JOBS_TOPIC, (payload) => {
   if (!isJobEvent(payload) || payload.kind !== "pipeline.run" || payload.subject_id !== props.pipelineId) return
   void queryClient.invalidateQueries({ queryKey: lastRunKey(props.pipelineId) })
+  void queryClient.invalidateQueries({ queryKey: historyKey(props.pipelineId) })
   // A run the schedule started moves its next time on (D179).
   if (payload.state === "queued" || payload.state === "running") {
     void queryClient.invalidateQueries({ queryKey: scheduleKey(props.pipelineId) })
@@ -602,7 +628,7 @@ function applyRename() {
 async function removePipeline() {
   const sure = await confirm({
     title: "Delete this pipeline?",
-    message: `${name.value} and its ${String(cards.value.length)} cards will be removed. Nothing in the connections changes.`,
+    message: `${name.value}, its ${String(cards.value.length)} cards and the history of its runs will be removed. Nothing in the connections changes.`,
     confirmLabel: "Delete",
     danger: true,
   })
@@ -636,16 +662,10 @@ defineExpose({ place })
         @update:model-value="emit('select', String($event))"
       />
       <span
-        v-if="lastRun.data.value"
-        class="pipeline-view__last-run"
-        :class="{ 'pipeline-view__last-run--failed': lastRunFailed }"
-        data-testid="pipeline-last-run"
-      >{{ runSummary(lastRun.data.value, now) }}<AppTooltip>{{ runSummary(lastRun.data.value, now) }}</AppTooltip></span>
-      <span
-        v-if="nextRun || timetable.data.value?.note"
+        v-if="nextRun"
         class="pipeline-view__next-run"
         data-testid="pipeline-next-run"
-      >{{ [nextRun ? `Next run: ${nextRun}` : "", timetable.data.value?.note ?? ""].filter(Boolean).join(" · ") }}</span>
+      >Next run: {{ nextRun }}</span>
       <template #actions>
         <span class="pipeline-view__run">
           <AppButton
@@ -665,6 +685,13 @@ defineExpose({ place })
           :active="timetable.data.value?.settings?.enabled === true"
           data-testid="pipeline-schedule"
           @click="scheduling = true"
+        />
+        <AppIconButton
+          :icon="appIcons.history"
+          tooltip="History: what each run did"
+          :active="historyOpen"
+          data-testid="pipeline-history"
+          @click="historyOpen = !historyOpen"
         />
         <AppIconButton
           :icon="appIcons.lightbulb"
@@ -722,6 +749,22 @@ defineExpose({ place })
         tone="warning"
       >
         What was kept of this pipeline could not be read, so it starts empty.
+      </AppBanner>
+      <AppBanner
+        v-if="pastJobId !== null && pastRun.data.value"
+        tone="info"
+        data-testid="pipeline-shown-run"
+      >
+        {{ shownWords(pastRun.data.value, now) }}
+        <template #action>
+          <AppButton
+            variant="quiet"
+            size="sm"
+            label="Back to the last run"
+            data-testid="pipeline-shown-run-back"
+            @click="pastJobId = null"
+          />
+        </template>
       </AppBanner>
       <div
         ref="canvasBox"
@@ -783,13 +826,23 @@ defineExpose({ place })
         :prepare="save"
         :place="order.get(selectedLink.id)"
         :link-run="linkRuns.get(selectedLink.id)"
-        :last-run="lastRun.data.value"
+        :run="shownRun"
+        :past="pastJobId !== null"
         @change="changeLink"
         @operate="operate"
         @remove="removeLink(selectedLink)"
         @close="selection = null"
       />
     </template>
+
+    <HistoryWindow
+      v-if="historyOpen"
+      :pipeline-id="pipelineId"
+      :pipeline-name="name"
+      :shown-job-id="pastJobId ?? lastRun.data.value?.job_id ?? null"
+      @show="showRun"
+      @close="historyOpen = false"
+    />
 
     <ScheduleWindow
       v-if="scheduling && !timetable.isPending.value"
@@ -849,18 +902,6 @@ defineExpose({ place })
 .pipeline-view__switcher {
   flex: 0 1 280px;
   min-width: 0;
-}
-.pipeline-view__last-run {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--dp-text-muted);
-  font-size: 12px;
-}
-.pipeline-view__last-run--failed {
-  color: var(--dp-tone-warning-text);
 }
 .pipeline-view__next-run {
   flex: 0 1 auto;

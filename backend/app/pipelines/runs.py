@@ -1,4 +1,5 @@
-"""A pipeline's run: started as one job, read back as its last (D177).
+"""A pipeline's run: started as one job, read back as its last (D177) or
+as one of its history (D180).
 
 The run is its job. The job keeps what each link was to run and what it
 did, so the last run is the pipeline's newest `pipeline.run` job and nothing
@@ -13,6 +14,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql.expression import SelectOfScalar
 
 from app.connectors.paste.models import PasteRun
 from app.connectors.paste.registry import kind_named
@@ -28,6 +30,9 @@ from app.realtime.topics import TopicSet
 from app.users.models import User
 
 KIND: JobKind = "pipeline.run"
+# The runs a pipeline keeps, newest first (D180). The history and the footer
+# read the same rows, so one removed here goes from both.
+KEPT_RUNS = 100
 
 # What a link lacks before it can run, by the window its kind opens; the other
 # workflows run with what they have.
@@ -40,7 +45,7 @@ _SPELLED = ("Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eigh
 
 
 class LinkRun(BaseModel):
-    """What one link did in the last run."""
+    """What one link did in a run."""
 
     link_id: uuid.UUID
     outcome: StepOutcome
@@ -52,7 +57,7 @@ class LinkRun(BaseModel):
 
 
 class PipelineRunPublic(BaseModel):
-    """The last run of a pipeline, as its job says now."""
+    """A run of a pipeline, as its job says now."""
 
     job_id: uuid.UUID
     state: JobState
@@ -179,6 +184,8 @@ async def start_run(
             429, detail={"message": f"{count} pipelines are running — wait for one to finish"}
         ) from None
     await runner.launch(job, topics)
+    await job_crud.forget_finished(session, kind=KIND, subject_id=pipeline.id, keep=KEPT_RUNS)
+    await session.commit()
     return _public(job, content)
 
 
@@ -226,18 +233,31 @@ def _public(job: Job, content: PipelineContent) -> PipelineRunPublic:
     )
 
 
+def runs_of(pipeline: Pipeline) -> SelectOfScalar[Job]:
+    """The pipeline's runs, newest first."""
+    return (
+        select(Job)
+        .where(Job.subject_id == pipeline.id)
+        .where(Job.owner_id == pipeline.owner_id)
+        .where(Job.kind == KIND)
+        .order_by(col(Job.created_at).desc(), col(Job.id).desc())
+    )
+
+
 async def last_run(
     session: AsyncSession, pipeline: Pipeline, content: PipelineContent
 ) -> LastRun:
     """The pipeline's newest run, the links still drawn on it only."""
-    job = (
-        await session.exec(
-            select(Job)
-            .where(Job.subject_id == pipeline.id)
-            .where(Job.owner_id == pipeline.owner_id)
-            .where(Job.kind == KIND)
-            .order_by(col(Job.created_at).desc())
-            .limit(1)
-        )
-    ).first()
+    job = (await session.exec(runs_of(pipeline).limit(1))).first()
     return LastRun(run=None if job is None else _public(job, content))
+
+
+async def run_of(
+    session: AsyncSession, pipeline: Pipeline, content: PipelineContent, job_id: uuid.UUID
+) -> PipelineRunPublic:
+    """One run of the pipeline, for the canvas as it is now (D180): the links
+    still drawn only, so one taken away since is not there to show."""
+    job = (await session.exec(runs_of(pipeline).where(Job.id == job_id))).first()
+    if job is None:
+        raise HTTPException(404, detail={"message": "No such run"})
+    return _public(job, content)

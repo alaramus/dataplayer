@@ -62,7 +62,7 @@ export function scheduleWords(settings: ScheduleSettings | null | undefined): st
   return `${daysWords(settings.days ?? [])} at ${joined([...(settings.times ?? [])].sort())}`
 }
 
-const TIME: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+export const TIME: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
 
 /** When it runs next, in this browser's clock: "today 03:00", "tomorrow 03:00", "Mon 09:00". */
 export function nextRunWords(nextAt: string | null | undefined, now: number): string | null {

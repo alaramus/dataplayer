@@ -39,7 +39,7 @@ from app.services.models import ManagedService  # noqa
 from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetting  # noqa
 from app.metrics.dashboards import Dashboard, DashboardGrant  # noqa
 from app.pipelines.models import Pipeline  # noqa
-from app.pipelines.schedule import PipelineSchedule  # noqa
+from app.pipelines.schedule import PipelineSchedule, ScheduleNote  # noqa
 from app.ai.models import (  # noqa
     AgentPreferences,
     AgentRun,

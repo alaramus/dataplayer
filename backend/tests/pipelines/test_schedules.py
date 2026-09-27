@@ -15,7 +15,7 @@ from app.jobs import crud as job_crud
 from app.jobs.models import Job
 from app.main import app
 from app.pipelines.record import RunRecord
-from app.pipelines.schedule import PipelineSchedule
+from app.pipelines.schedule import PipelineSchedule, ScheduleNote
 from app.pipelines.scheduler import Scheduler
 from app.users import crud as user_crud
 from tests.pipelines.canvas import BASE, Canvas, card, connector, link
@@ -50,6 +50,17 @@ async def _row(canvas: Canvas) -> PipelineSchedule:
         return row
 
 
+async def _notes(canvas: Canvas) -> list[tuple[str, datetime, str]]:
+    """What the schedule noted of the times that started nothing, oldest first."""
+    async with async_session_maker() as session:
+        found = await session.exec(
+            select(ScheduleNote)
+            .where(col(ScheduleNote.pipeline_id) == uuid.UUID(canvas.id))
+            .order_by(col(ScheduleNote.at))
+        )
+        return [(note.kind, note.at, note.reason) for note in found.all()]
+
+
 async def _runs(canvas: Canvas) -> list[Job]:
     async with async_session_maker() as session:
         found = await session.exec(select(Job).where(col(Job.subject_id) == uuid.UUID(canvas.id)))
@@ -72,7 +83,7 @@ async def test_a_schedule_is_set_read_and_switched_off_by_its_owner_only(
 ) -> None:
     canvas = await Canvas(client, normal_user_token_headers).make()
     before = await client.get(f"{BASE}/{canvas.id}/schedule", headers=normal_user_token_headers)
-    assert before.json() == {"settings": None, "next_at": None, "note": None, "note_at": None}
+    assert before.json() == {"settings": None, "next_at": None}
 
     started = datetime.now(UTC)
     answer = await _schedule(canvas, EVERY_FIVE)
@@ -111,7 +122,7 @@ async def test_a_schedule_that_comes_runs_the_pipeline_as_its_owner(
     assert runs[0].owner_id == user
     row = await _row(canvas)
     assert row.next_at == came + timedelta(minutes=5)
-    assert row.note is None
+    assert await _notes(canvas) == []
     # Not due again until then.
     assert await _scheduler(came + timedelta(minutes=1)).tick() == 0
 
@@ -134,9 +145,8 @@ async def test_a_time_that_comes_while_the_last_run_goes_is_skipped(
     await _scheduler(came + timedelta(seconds=5)).tick()
 
     assert [job.id for job in await _runs(canvas)] == [going.id]
-    row = await _row(canvas)
-    assert (row.note, row.note_at) == ("Skipped at 03:00: the previous run was still going", came)
-    assert row.next_at == came + timedelta(days=1)
+    assert await _notes(canvas) == [("skipped", came, "the previous run was still going")]
+    assert (await _row(canvas)).next_at == came + timedelta(days=1)
 
 
 async def test_a_pipeline_run_would_refuse_is_skipped_and_says_why(
@@ -150,8 +160,7 @@ async def test_a_pipeline_run_would_refuse_is_skipped_and_says_why(
     await _scheduler(came).tick()
 
     assert await _runs(canvas) == []
-    row = await _row(canvas)
-    assert row.note is not None and row.note.endswith(": draw a link first")
+    assert await _notes(canvas) == [("skipped", came, "draw a link first")]
 
 
 async def test_a_time_missed_while_the_server_was_off_is_not_caught_up(
@@ -165,8 +174,33 @@ async def test_a_time_missed_while_the_server_was_off_is_not_caught_up(
 
     assert await _scheduler(back).settle_missed() >= 1
 
-    row = await _row(canvas)
-    assert (row.note, row.note_at) == ("Missed at 03:00: the server was off", came)
-    assert row.next_at == came + timedelta(days=1)
+    assert await _notes(canvas) == [("missed", came, "the server was off")]
+    assert (await _row(canvas)).next_at == came + timedelta(days=1)
     assert await _scheduler(back).tick() == 0
     assert await _runs(canvas) == []
+
+
+async def test_a_schedule_keeps_its_last_hundred_skips_and_misses(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    canvas = await Canvas(client, normal_user_token_headers).make()
+    await _schedule(canvas, EVERY_FIVE)
+    came = (await _row(canvas)).next_at
+    assert came is not None
+    long_ago = came - timedelta(days=30)
+    async with async_session_maker() as session:
+        session.add_all(
+            ScheduleNote(
+                pipeline_id=uuid.UUID(canvas.id), kind="missed", at=long_ago + timedelta(minutes=index),
+                reason="the server was off",
+            )
+            for index in range(100)
+        )
+        await session.commit()
+
+    await _scheduler(came).tick()
+
+    notes = await _notes(canvas)
+    assert len(notes) == 100
+    assert notes[0][1] == long_ago + timedelta(minutes=1)
+    assert notes[-1] == ("skipped", came, "draw a link first")

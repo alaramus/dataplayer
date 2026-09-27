@@ -4,6 +4,7 @@ import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { PipelinesService } from "@/client"
+import { jobsKey } from "@/features/activity/api"
 import type {
   Card, LinkEnd, PipelinePublic, PipelineRunPublic, PipelineSave, PipelineSummary, ScheduleSettings,
 } from "@/client"
@@ -78,6 +79,8 @@ export function useDeletePipeline() {
       queryClient.setQueryData<PipelineSummary[]>(pipelinesKey, (list) =>
         (list ?? []).filter((one) => one.id !== id)
       )
+      // Its finished runs went with it, from the footer's activity too (D180).
+      void queryClient.invalidateQueries({ queryKey: jobsKey })
     },
   })
 }
@@ -111,12 +114,41 @@ export function useLastRun(pipelineId: MaybeRefOrGetter<string>) {
   })
 }
 
+/** The pipeline's runs and its schedule's skips and misses, newest first (D180). */
+export function historyKey(pipelineId: string) {
+  return ["pipeline-history", pipelineId] as const
+}
+
+export function useHistory(pipelineId: MaybeRefOrGetter<string>) {
+  return useQuery({
+    queryKey: computed(() => historyKey(toValue(pipelineId))),
+    queryFn: async () =>
+      (await PipelinesService.readHistory({ path: { pipeline_id: toValue(pipelineId) } })).data.rows,
+  })
+}
+
+/**
+ * An older run pressed in the history, or none while the last is shown. Only
+ * the last can still be going (D177), so what this reads has ended.
+ */
+export function usePastRun(pipelineId: MaybeRefOrGetter<string>, jobId: MaybeRefOrGetter<string | null>) {
+  return useQuery({
+    queryKey: computed(() => ["pipeline-past-run", toValue(pipelineId), toValue(jobId)] as const),
+    queryFn: async () =>
+      (await PipelinesService.readRun({
+        path: { pipeline_id: toValue(pipelineId), job_id: toValue(jobId) ?? "" },
+      })).data,
+    enabled: computed(() => toValue(jobId) !== null),
+    retry: false,
+  })
+}
+
 /** Every link of the pipeline as saved, one after another, as one job. */
 export async function runPipeline(pipelineId: string): Promise<PipelineRunPublic> {
   return (await PipelinesService.runPipeline({ path: { pipeline_id: pipelineId } })).data
 }
 
-/** The pipeline's schedule, when it comes next and what last came of it (D179). */
+/** The pipeline's schedule and when it comes next (D179). */
 export function scheduleKey(pipelineId: string) {
   return ["pipeline-schedule", pipelineId] as const
 }

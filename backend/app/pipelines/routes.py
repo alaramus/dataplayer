@@ -1,5 +1,5 @@
 """A person's pipelines: listed, made, saved whole, removed (D175), run
-(D177) and run by a schedule (D179).
+(D177), run by a schedule (D179) and looked back on (D180).
 
 Private in this step: every route answers only the owner, and anyone else is
 told there is no such pipeline, as a connection nobody shared is (D33).
@@ -19,9 +19,11 @@ from app.connectors import crud as connector_crud
 from app.connectors.paste.models import PasteOffers
 from app.core.db import SessionDep
 from app.core.schemas import Message
+from app.jobs import crud as job_crud
 from app.jobs.runner import JobRunnerDep
 from app.pipelines.check import card_state
 from app.pipelines.hint import Hint, HintRequest, hint
+from app.pipelines.history import PipelineHistory, history
 from app.pipelines.models import (
     MAX_PIPELINES,
     CardState,
@@ -38,7 +40,14 @@ from app.pipelines.models import (
 from app.pipelines.offers import Asking, LinkOffersRequest
 from app.pipelines.order import ordered
 from app.pipelines.results import Foresight
-from app.pipelines.runs import LastRun, PipelineRunPublic, last_run, start_run
+from app.pipelines.runs import (
+    KIND,
+    LastRun,
+    PipelineRunPublic,
+    last_run,
+    run_of,
+    start_run,
+)
 from app.pipelines.schedule import PipelineSchedule, SchedulePublic, ScheduleSettings
 from app.pipelines.scheduler import public as schedule_public
 from app.pipelines.scheduler import save as save_schedule
@@ -163,7 +172,10 @@ async def save_pipeline(
 async def delete_pipeline(
     session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID
 ) -> Any:
+    """The pipeline, its schedule and its history (D180). A run still going
+    ends as it would have, and stays in the footer's activity."""
     pipeline = await _owned(session, current_user, pipeline_id)
+    await job_crud.forget_finished(session, kind=KIND, subject_id=pipeline.id)
     await session.delete(pipeline)
     await session.commit()
     return Message(message=f"{pipeline.name} was removed")
@@ -198,6 +210,24 @@ async def read_last_run(
     return await last_run(session, pipeline, content)
 
 
+@router.get("/{pipeline_id}/history", response_model=PipelineHistory)
+async def read_history(
+    session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID
+) -> Any:
+    """The pipeline's runs and its schedule's skips and misses, newest first."""
+    pipeline = await _owned(session, current_user, pipeline_id)
+    return await history(session, pipeline)
+
+
+@router.get("/{pipeline_id}/runs/{job_id}", response_model=PipelineRunPublic)
+async def read_run(
+    session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID, job_id: uuid.UUID
+) -> Any:
+    """One run of the history, as the canvas shows it (D180)."""
+    pipeline, content = await _content(session, current_user, pipeline_id)
+    return await run_of(session, pipeline, content, job_id)
+
+
 @router.post("/{pipeline_id}/run", response_model=PipelineRunPublic)
 async def run_pipeline(
     session: SessionDep,
@@ -219,7 +249,7 @@ async def run_pipeline(
 async def read_schedule(
     session: SessionDep, current_user: CurrentUser, pipeline_id: uuid.UUID
 ) -> Any:
-    """When the pipeline runs by itself, when next, and what last came of it."""
+    """When the pipeline runs by itself, and when next."""
     pipeline = await _owned(session, current_user, pipeline_id)
     return schedule_public(await session.get(PipelineSchedule, pipeline.id))
 
