@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, ref, watch } from "vue"
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue"
 
 import type { AgentHost, AgentKey, AgentPublic, ConnectorReporting } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
@@ -46,8 +46,26 @@ import {
  * the hosts those agents report and what each is (D130), and the connections
  * they may see whose type reports about itself, switched on by their owners
  * (D128).
+ *
+ * Agents and connections are two views rather than one column: stacked, the
+ * Compose file a new agent is started with came up under every connection,
+ * below the fold, where nobody who did not know it was there would look.
  */
 const open = defineModel<boolean>({ required: true })
+
+const VIEWS = [
+  { value: "agents", label: "Agents" },
+  { value: "connections", label: "Connections" },
+] as const
+const view = ref<(typeof VIEWS)[number]["value"]>("agents")
+const viewTabs = useTemplateRef<HTMLElement>("viewTabs")
+
+/** A view starts at its top: the scroll of the other one means nothing here. */
+async function choose(next: (typeof VIEWS)[number]["value"]) {
+  view.value = next
+  await nextTick()
+  viewTabs.value?.scrollIntoView({ block: "nearest" })
+}
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -122,6 +140,7 @@ const now = ref(Date.now())
 
 watch(open, (isOpen) => {
   if (!isOpen) shown.value = null
+  else view.value = "agents"
   now.value = Date.now()
 })
 
@@ -143,9 +162,17 @@ const snippet = computed(() => {
   })
 })
 
-function show(answer: AgentKey) {
+const snippetBlock = useTemplateRef<HTMLElement>("snippetBlock")
+
+/**
+ * The key and how to start the agent, brought into view: it is the answer.
+ * Scrolled to by its last part, so the whole panel comes up with it.
+ */
+async function show(answer: AgentKey) {
   shown.value = answer
   hostname.value = ""
+  await nextTick()
+  snippetBlock.value?.scrollIntoView({ block: "nearest" })
 }
 
 async function register() {
@@ -233,113 +260,175 @@ async function copy(text: string, what: string) {
   >
     <AppSection gutter>
       <div
-        class="agents__register"
-        data-testid="agent-register-row"
+        ref="viewTabs"
+        class="agents__views"
+        role="tablist"
+        aria-label="What reports"
+        data-testid="agents-views"
       >
-        <span>Agent name</span>
-        <AppForm class="agents__register-field">
-          <AppInput
-            v-model="newName"
-            aria-label="Agent name"
-            compact
-            data-testid="agent-name"
-            @keydown.enter="register"
-          />
-        </AppForm>
         <AppButton
-          label="Register"
-          :icon="appIcons.add"
-          :loading="creating.isPending.value"
-          :disable="newName.trim() === ''"
-          data-testid="agent-register"
-          @click="register"
+          v-for="choice in VIEWS"
+          :key="choice.value"
+          :variant="choice.value === view ? 'primary' : 'quiet'"
+          role="tab"
+          :aria-selected="choice.value === view"
+          size="sm"
+          :label="choice.label"
+          :data-testid="`agents-view-${choice.value}`"
+          @click="choose(choice.value)"
         />
       </div>
-
-      <AppTable
-        :rows="rows"
-        :columns="columns"
-        row-key="id"
-        :loading="agents.isLoading.value"
-        empty-text="No agents yet"
-        compact
-        :paged="false"
-        data-testid="agents-table"
-      >
-        <template #body-cell-heard="cellProps">
-          <q-td :props="cellProps">
-            {{ lastHeardWording(cellProps.row.last_heard_at, now) }}
-          </q-td>
-        </template>
-        <template #body-cell-actions="cellProps">
-          <q-td :props="cellProps">
-            <AppIconButton
-              :icon="appIcons.key"
-              tooltip="Show the key and how to start the agent"
-              :data-testid="`agent-key-${cellProps.row.name}`"
-              @click="showKey(cellProps.row)"
-            />
-            <AppIconButton
-              :icon="appIcons.autorenew"
-              tooltip="Issue a new key"
-              @click="rotate(cellProps.row)"
-            />
-            <AppIconButton
-              :icon="appIcons.deleteSweep"
-              tooltip="Delete every sample it reported"
-              variant="danger-quiet"
-              @click="purge(cellProps.row)"
-            />
-            <AppIconButton
-              :icon="appIcons.delete"
-              tooltip="Remove this agent"
-              variant="danger-quiet"
-              @click="remove(cellProps.row)"
-            />
-          </q-td>
-        </template>
-      </AppTable>
     </AppSection>
 
-    <AppSection
-      divided
-      gutter
-    >
-      <span>Hosts</span>
-      <AppTable
-        :rows="hostRows"
-        :columns="hostColumns"
-        row-key="key"
-        :loading="hosts.isLoading.value"
-        empty-text="No agent has reported a host yet"
-        compact
-        :paged="false"
-        data-testid="hosts-table"
+    <!-- The key panel stands right under the agents it belongs to: it is what
+         Register and the key button answer with. -->
+    <template v-if="view === 'agents'">
+      <AppSection
+        divided
+        gutter
       >
-        <template #body-cell-host="cellProps">
-          <q-td :props="cellProps">
-            {{ cellProps.row.host }}
-            <AppTooltip>{{ hostDetailWording(cellProps.row) }}</AppTooltip>
-          </q-td>
-        </template>
-        <template #body-cell-up="cellProps">
-          <q-td :props="cellProps">
-            {{ upWording(cellProps.row, now) }}
-          </q-td>
-        </template>
-        <template #body-cell-heard="cellProps">
-          <q-td :props="cellProps">
-            {{ lastHeardWording(cellProps.row.last_seen, now) }}
-          </q-td>
-        </template>
-      </AppTable>
-    </AppSection>
+        <div
+          class="agents__register"
+          data-testid="agent-register-row"
+        >
+          <span>Agent name</span>
+          <AppForm class="agents__register-field">
+            <AppInput
+              v-model="newName"
+              aria-label="Agent name"
+              compact
+              data-testid="agent-name"
+              @keydown.enter="register"
+            />
+          </AppForm>
+          <AppButton
+            label="Register"
+            :icon="appIcons.add"
+            :loading="creating.isPending.value"
+            :disable="newName.trim() === ''"
+            data-testid="agent-register"
+            @click="register"
+          />
+        </div>
+
+        <AppTable
+          :rows="rows"
+          :columns="columns"
+          row-key="id"
+          :loading="agents.isLoading.value"
+          empty-text="No agents yet"
+          compact
+          :paged="false"
+          data-testid="agents-table"
+        >
+          <template #body-cell-heard="cellProps">
+            <q-td :props="cellProps">
+              {{ lastHeardWording(cellProps.row.last_heard_at, now) }}
+            </q-td>
+          </template>
+          <template #body-cell-actions="cellProps">
+            <q-td :props="cellProps">
+              <AppIconButton
+                :icon="appIcons.key"
+                tooltip="Show the key and how to start the agent"
+                :data-testid="`agent-key-${cellProps.row.name}`"
+                @click="showKey(cellProps.row)"
+              />
+              <AppIconButton
+                :icon="appIcons.autorenew"
+                tooltip="Issue a new key"
+                @click="rotate(cellProps.row)"
+              />
+              <AppIconButton
+                :icon="appIcons.deleteSweep"
+                tooltip="Delete every sample it reported"
+                variant="danger-quiet"
+                @click="purge(cellProps.row)"
+              />
+              <AppIconButton
+                :icon="appIcons.delete"
+                tooltip="Remove this agent"
+                variant="danger-quiet"
+                @click="remove(cellProps.row)"
+              />
+            </q-td>
+          </template>
+        </AppTable>
+      </AppSection>
+
+      <AppSection
+        v-if="shown"
+        divided
+        gutter
+        data-testid="agent-key-panel"
+      >
+        <div class="agents__key">
+          <span>Key of {{ shown.agent.name }}</span>
+          <code data-testid="agent-key">{{ shown.key }}</code>
+          <AppCopyButton
+            tooltip="Copy the key"
+            @click="copy(shown.key, 'The key')"
+          />
+        </div>
+        <AppForm layout="section">
+          <AppInput
+            v-model="hostname"
+            label="Host name it reports as"
+            hint="Empty: the name the host has"
+            compact
+          />
+        </AppForm>
+        <div class="agents__snippet">
+          <pre
+            ref="snippetBlock"
+            data-testid="agent-snippet"
+          >{{ snippet }}</pre>
+          <AppCopyButton
+            tooltip="Copy the Compose file"
+            @click="copy(snippet, 'The Compose file')"
+          />
+        </div>
+      </AppSection>
+
+      <AppSection
+        divided
+        gutter
+      >
+        <span>Hosts</span>
+        <AppTable
+          :rows="hostRows"
+          :columns="hostColumns"
+          row-key="key"
+          :loading="hosts.isLoading.value"
+          empty-text="No agent has reported a host yet"
+          compact
+          :paged="false"
+          data-testid="hosts-table"
+        >
+          <template #body-cell-host="cellProps">
+            <q-td :props="cellProps">
+              {{ cellProps.row.host }}
+              <AppTooltip>{{ hostDetailWording(cellProps.row) }}</AppTooltip>
+            </q-td>
+          </template>
+          <template #body-cell-up="cellProps">
+            <q-td :props="cellProps">
+              {{ upWording(cellProps.row, now) }}
+            </q-td>
+          </template>
+          <template #body-cell-heard="cellProps">
+            <q-td :props="cellProps">
+              {{ lastHeardWording(cellProps.row.last_seen, now) }}
+            </q-td>
+          </template>
+        </AppTable>
+      </AppSection>
+    </template>
 
     <AppSection
-      divided
+      v-else
       gutter
     >
-      <span>Connections</span>
       <AppTable
         :rows="reporting.data.value ?? []"
         :columns="connectionColumns"
@@ -405,37 +494,6 @@ async function copy(text: string, what: string) {
       </AppTable>
     </AppSection>
 
-    <AppSection
-      v-if="shown"
-      divided
-      gutter
-      data-testid="agent-key-panel"
-    >
-      <div class="agents__key">
-        <span>Key of {{ shown.agent.name }}</span>
-        <code data-testid="agent-key">{{ shown.key }}</code>
-        <AppCopyButton
-          tooltip="Copy the key"
-          @click="copy(shown.key, 'The key')"
-        />
-      </div>
-      <AppForm layout="section">
-        <AppInput
-          v-model="hostname"
-          label="Host name it reports as"
-          hint="Empty: the name the host has"
-          compact
-        />
-      </AppForm>
-      <div class="agents__snippet">
-        <pre data-testid="agent-snippet">{{ snippet }}</pre>
-        <AppCopyButton
-          tooltip="Copy the Compose file"
-          @click="copy(snippet, 'The Compose file')"
-        />
-      </div>
-    </AppSection>
-
     <template #actions>
       <AppButton
         variant="quiet"
@@ -449,6 +507,12 @@ async function copy(text: string, what: string) {
 <style scoped>
 .agents__slot {
   display: inline-flex;
+}
+
+.agents__views {
+  display: flex;
+  gap: var(--dp-space-1);
+  padding-top: var(--dp-space-2);
 }
 
 .agents__register,

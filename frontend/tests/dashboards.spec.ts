@@ -224,6 +224,9 @@ test("a connection's owner switches its reporting on and its layout is drawn fro
 
   await page.getByTestId("agents-open").click()
   const sources = page.getByTestId("agents-dialog")
+  // Agents come first; connections are the other view of the same window.
+  await expect(sources.getByTestId("reporting-table")).toHaveCount(0)
+  await sources.getByTestId("agents-view-connections").click()
   const row = sources.getByTestId("reporting-table").getByRole("row", { name: new RegExp(name) })
   await expect(row).toBeVisible()
   await row.getByTestId(`reporting-${name}`).click()

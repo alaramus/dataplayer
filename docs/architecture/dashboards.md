@@ -17,11 +17,12 @@ is a 12-column grid of charts and tiles; widgets are added by ticking series,
 moved by their header, resized by their corner, renamed in place and expanded to
 fill the grid, and the whole is saved a moment after the last change. The
 Dashboards rail head can become a name filter; filtering changes the rail list
-without changing the open dashboard. The Sources window registers an agent,
-shows its key and the Compose file that starts `dataplayer-monitor-agent` with
-it, and lists the hosts the person's agents
-report: the system, processors and memory, the agent's version, how long each
-has been up and when it was last heard.
+without changing the open dashboard. The Sources window opens on its Agents
+view, which registers an agent, shows its key and the Compose file that starts
+`dataplayer-monitor-agent` with it right under the agents, and lists the hosts
+the person's agents report: the system, processors and memory, the agent's
+version, how long each has been up and when it was last heard. Connections are
+its second view.
 
 Points an agent sends appear on open charts and tiles within a couple of
 seconds, without the dashboard re-reading anything. A host that sends its process
@@ -33,7 +34,7 @@ reports and placed under what the dashboard already holds. Any widget opens in a
 floating window, which stays when the screen is switched back to Data.
 
 A PostgreSQL or Redis connection reports about itself once its owner switches
-reporting on in the Sources window, choosing how often. Its series sit beside the
+reporting on in the Connections view of the Sources window, choosing how often. Its series sit beside the
 agents in the tree under the connection's own name, anybody the connection is
 shared with can draw them, and selecting it offers the layout its type declares:
 *PostgreSQL database* or *Redis server*. Counters of a connection are drawn as

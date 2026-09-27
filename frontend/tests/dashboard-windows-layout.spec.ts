@@ -174,6 +174,14 @@ for (const theme of ["light", "dark"] as const) {
     releaseKey()
     await expect(page.getByTestId("agent-key-panel")).toBeVisible()
     await expect(page.getByTestId("agent-snippet")).toContainText('DPM_KEY: "')
+    // How to start the agent comes up where it can be seen, not under a list
+    // of connections nobody scrolls past.
+    await expect(page.getByTestId("agent-snippet")).toBeInViewport()
+    await expect(dialog.getByTestId("reporting-table")).toHaveCount(0)
+    // The other view starts at its top, with the way back in sight.
+    await dialog.getByTestId("agents-view-connections").click()
+    await expect(dialog.getByTestId("agents-views")).toBeInViewport()
+    await dialog.getByTestId("agents-view-agents").click()
     expect(await frame.boundingBox()).toEqual(before)
 
     await expectNoHorizontalOverflow(dialog)
