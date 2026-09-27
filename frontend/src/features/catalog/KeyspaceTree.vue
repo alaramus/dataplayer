@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from "vue"
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue"
 
 import { useCatalogLoader } from "@/features/catalog/api"
 import { toTreeRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
@@ -35,6 +35,7 @@ const tree = useTemplateRef<{
   setExpanded: (key: string, open: boolean) => void
   isExpanded: (key: string) => boolean
 }>("tree")
+const root = useTemplateRef<HTMLElement>("root")
 
 const rows = ref<TreeRow[]>([])
 const expanded = ref<string[]>([])
@@ -61,25 +62,52 @@ async function load(refresh = false) {
   }
 }
 
+// The reading in progress, so `reveal` opens branches of the tree that is
+// about to be drawn rather than of the one it replaces.
+let reading: Promise<void> = Promise.resolve()
+
 watch(
   [() => props.connectorId, () => props.rootId],
-  () => void load(),
+  () => { reading = load() },
   { immediate: true }
 )
+
+async function childrenOf(id: string): Promise<TreeRow[]> {
+  return toTreeRows(toListNodes((await loadChildren(props.connectorId, id)).nodes))
+}
 
 /** What one branch holds, asked for when it is opened. */
 async function expand({ node, done, fail }: TreeLazyLoad) {
   const row = node as TreeRow
   try {
-    const children = toTreeRows(
-      toListNodes((await loadChildren(props.connectorId, row.node.id)).nodes)
-    )
+    const children = await childrenOf(row.node.id)
     rows.value = withChildren(rows.value, row.id, children)
     done(children)
   } catch (cause) {
     error.value = messageOf(cause, `Could not open ${row.node.label}`)
     fail()
   }
+}
+
+/**
+ * Open the branches on the way to a node, top first, and select it.
+ *
+ * The branches are the ones the source named in its path (D21). A branch's
+ * children are read here and put in place before it is marked open: marked
+ * open with nothing under it, a lazy branch asks for nothing and stays shut.
+ */
+async function reveal(branches: string[], nodeId: string) {
+  await reading
+  for (const id of branches) {
+    const row = rowAt(rows.value, id)
+    if (row === null) return
+    if (row.lazy === true) rows.value = withChildren(rows.value, id, await childrenOf(id))
+    if (!expanded.value.includes(id)) expanded.value = [...expanded.value, id]
+  }
+  if (rowAt(rows.value, nodeId) === null) return
+  selected.value = nodeId
+  await nextTick()
+  root.value?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" })
 }
 
 watch(selected, (id) => {
@@ -109,11 +137,19 @@ function onClick(row: TreeRow) {
 
 const empty = computed(() => !loading.value && rows.value.length === 0)
 
-defineExpose({ reload: () => load(true) })
+function reload(): Promise<void> {
+  reading = load(true)
+  return reading
+}
+
+defineExpose({ reload, reveal })
 </script>
 
 <template>
-  <div class="keyspace">
+  <div
+    ref="root"
+    class="keyspace"
+  >
     <AppBanner
       v-if="error"
       tone="error"

@@ -288,6 +288,11 @@ structure the names were given when they were chosen.
   one that asks for them; adding a key to the set of open branches marks it
   open and asks for nothing, and it stays shut with its arrow pointing the
   wrong way.
+- **Show in catalog opens a tree rather than walking it.** The grouping in the
+  node's path becomes the root, the folders in it are opened top first — each
+  one's children read by the tree before it is marked open — and the node is
+  selected. Walking the level into the folder, as a list does, left a level
+  with no groupings, and the tree rooted in nothing showed every database.
 - **A tree stops at the nodes.** Expanding a branch asks the catalog for its
   children; a leaf is opened in a tab, exactly as it is in a list. Showing the
   first rows of a key inside the tree made one branch mean two different

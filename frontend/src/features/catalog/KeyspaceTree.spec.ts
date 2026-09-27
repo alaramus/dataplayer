@@ -115,3 +115,28 @@ describe("clicking a row of the key space", () => {
     )
   })
 })
+
+describe("pointing the key space at a key", () => {
+  it("opens the folders on the way to a key it is told to show, and selects the key", async () => {
+    // Walking the catalog into the folder instead left the tree rooted in no
+    // database, and it drew every database at once.
+    Element.prototype.scrollIntoView = vi.fn()
+    const wrapper = mountTree()
+    await flushPromises()
+    vi.spyOn(ConnectorsService, "readCatalog").mockImplementation((async ({ query }: { query?: { node_id?: string | null } }) => ({
+      data: query?.node_id === "f0:cache:"
+        ? [{ ...FOLDER, id: "f0:cache:user:", name: "user:" }]
+        : [{ ...KEY, id: "k0:cache:user:1", name: "1" }],
+    })) as never)
+
+    await (wrapper.vm as unknown as { reveal: (branches: string[], id: string) => Promise<void> })
+      .reveal(["f0:cache:", "f0:cache:user:"], "k0:cache:user:1")
+    await flushPromises()
+
+    expect(
+      wrapper.get('[data-testid="keyspace-row-k0:cache:user:1"]').attributes("aria-selected")
+    ).toBe("true")
+    expect(wrapper.emitted("select")?.at(-1)?.[0]).toMatchObject({ id: "k0:cache:user:1" })
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
+  })
+})

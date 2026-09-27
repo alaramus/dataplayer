@@ -15,6 +15,7 @@ import { useFadingMark } from "@/features/catalog/fadingMark"
 import { frameworksOf, toggleFrameworkFilter } from "@/features/catalog/frameworks"
 import { rememberGroups, rememberedGroups } from "@/features/catalog/groupsMemory"
 import { isPathTrail, locationOf } from "@/features/catalog/location"
+import type { Location } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
 import {
@@ -222,7 +223,15 @@ const loadPath = useNodePathLoader()
  */
 async function reveal(nodeId: string, label: string) {
   try {
-    await level.showLocation(locationOf(await loadPath(props.connectorId, nodeId)))
+    const location = locationOf(await loadPath(props.connectorId, nodeId))
+    // Whether this is a tree is the type's to say, and a catalog opened by
+    // this very press may not have heard yet.
+    if (sourceType.value === undefined) await adapterTypes.suspense()
+    if (asTree.value) {
+      await revealInTree(location, nodeId)
+      return
+    }
+    await level.showLocation(location)
     await nextTick()
     showRevealed(nodeId)
   } catch (cause) {
@@ -242,6 +251,20 @@ async function reveal(nodeId: string, label: string) {
     }
     toast.error(messageOf(cause, "Could not find this node in the catalog"))
   }
+}
+
+/**
+ * A tree is not walked into a folder, as a list is: it is rooted in the one
+ * grouping that is on, and the folders on the way are branches it opens.
+ * Walked, the level had no groupings, and the tree was rooted in nothing —
+ * every database at once.
+ */
+async function revealInTree(location: Location, nodeId: string) {
+  const group = location.groups[0]
+  if (group !== undefined && treeRoot.value !== group) await level.setGroups([group])
+  await nextTick()
+  const branches = location.crumbs.flatMap((crumb) => (crumb.id === null ? [] : [crumb.id]))
+  await tree.value?.reveal(branches, nodeId)
 }
 
 /**
@@ -536,7 +559,7 @@ const treeLevelId = computed(() =>
 const treeChecked = computed(() =>
   picked.value !== null && !pickedIsPlace.value ? [picked.value] : []
 )
-const tree = ref<{ reload: () => Promise<void> } | null>(null)
+const tree = ref<InstanceType<typeof KeyspaceTree> | null>(null)
 
 /** Where this catalog stands and what is ticked, for a pair to read (D167). */
 const side = computed<CatalogSide>(() => asTree.value
