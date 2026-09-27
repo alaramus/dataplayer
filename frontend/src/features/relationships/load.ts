@@ -1,4 +1,5 @@
-import type { CatalogNode, DeclaredReferencePublic, ReferenceEndPublic, RelationModel } from "@/client"
+import type { DeclaredReferencePublic, ReferenceEndPublic, RelationModel } from "@/client"
+import type { CatalogNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
 import { GRAPH_LIMITS } from "@/shared/graph/model"
 import { MAX_RELATIONS } from "./model"

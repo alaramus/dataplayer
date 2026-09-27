@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
-import type { CatalogNode, ReferenceEndPublic, RelationModel } from "@/client"
+import type { ReferenceEndPublic, RelationModel } from "@/client"
+import type { CatalogNode } from "@/features/catalog/nodes"
 import { GRAPH_LIMITS } from "@/shared/graph/model"
 import { expandHolders, GraphLoadError, loadRelations, withDeclared } from "./load"
 
