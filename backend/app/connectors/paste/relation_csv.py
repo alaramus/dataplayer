@@ -95,6 +95,8 @@ class RelationCsv:
     destination_requires: Access = "write"
     changes_source = False
     makes = True
+    pipelines = True
+    outranks: tuple[PasteKindName, ...] = ()
 
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, SupportsExport) and isinstance(

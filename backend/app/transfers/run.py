@@ -137,6 +137,7 @@ async def planned(
         destination_label=destination_label,
         place_label=plan.place or destination_label,
         name=plan.name,
+        tables=plan.tables,
         items=plan.items,
         bytes_total=plan.bytes_total,
     )

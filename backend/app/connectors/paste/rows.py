@@ -81,6 +81,8 @@ class _Rows:
     can_replace = False
     source_requires: Access = "read"
     changes_source = False
+    pipelines = True
+    outranks: tuple[PasteKindName, ...] = ()
 
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, SupportsFetch)

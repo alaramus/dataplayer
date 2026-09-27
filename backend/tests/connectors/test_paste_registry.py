@@ -4,7 +4,8 @@ from pathlib import Path
 
 from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import ConnectionCheckResult, DataAdapter
-from app.connectors.paste.registry import KINDS, kind_named, open_kinds
+from app.connectors.paste.models import PasteOffer
+from app.connectors.paste.registry import KINDS, kind_named, open_kinds, outranked
 from app.core.access import Access
 from tests.utils.paste_sources import Database, Explorer, Table
 
@@ -78,6 +79,18 @@ def test_a_table_can_be_copied_but_never_cut(tmp_path: Path) -> None:
         "file_copy",
         "file_move",
     ]
+
+
+def test_a_table_copied_whole_stands_in_for_one_made_from_its_rows() -> None:
+    """Paste opens one window, the one that fits what was copied (D182)."""
+    whole = PasteOffer(kind="tables_copy", title="Copy tables", available=True)
+    rows = PasteOffer(kind="rows_new_relation", title="Create a table", available=True)
+    into = PasteOffer(kind="rows_into_relation", title="Add rows to a table", available=True)
+
+    assert outranked([whole, rows, into]) == [whole, into]
+    # One that cannot run stands in for nothing: a view is still made from rows.
+    refused = whole.model_copy(update={"available": False, "reason": "only tables"})
+    assert outranked([refused, rows]) == [refused, rows]
 
 
 def test_every_kind_is_reachable_by_its_name() -> None:

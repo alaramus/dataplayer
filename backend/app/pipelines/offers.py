@@ -112,7 +112,7 @@ class Asking:
         target_at = await self._end(target_end)
         answers: list[PasteOffer] = []
         for kind in KINDS:
-            if not kind.serves(source[0], target[0]):
+            if not kind.pipelines or not kind.serves(source[0], target[0]):
                 continue
             short = short_of(kind, source[1], target[1])
             if short is not None:

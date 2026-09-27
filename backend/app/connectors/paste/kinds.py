@@ -66,6 +66,20 @@ class PasteKind(Protocol):
         """Whether running it makes a node of its own at the destination."""
         ...
 
+    @property
+    def pipelines(self) -> bool:
+        """Whether a pipeline's link may be this kind (D174)."""
+        ...
+
+    @property
+    def outranks(self) -> tuple[PasteKindName, ...]:
+        """The kinds this one stands in for wherever it can run (D182).
+
+        Paste opens one window, the one that fits what was copied: a table
+        from a database is copied whole rather than made again from its rows.
+        """
+        ...
+
     def takes_from(self, source: DataAdapter) -> bool:
         """Whether this source has what the kind reads, whatever the nodes."""
         ...

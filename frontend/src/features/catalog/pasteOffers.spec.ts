@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { PasteOffer } from "@/client"
-import { firstStep, holdLines, offerPlace, pasteHint, usableOffers } from "./pasteOffers"
+import { firstStep, holdLines, offerPlace, pasteHint, pasteLines, usableOffers } from "./pasteOffers"
 import type { CrossPasteIntent } from "./pasteOffers"
 
 const copying: PasteOffer = { kind: "file_copy", title: "Copy files", available: true }
@@ -29,6 +29,14 @@ const adding: PasteOffer = {
 }
 
 describe("choosing what Paste runs", () => {
+  it("leaves adding rows to a line of its own, whatever the tick says", () => {
+    const refused = { ...adding, available: false, reason: "Tick the table the rows go into" }
+
+    expect(pasteLines([creating, adding])).toEqual({ paste: [creating], into: adding })
+    expect(pasteLines([creating, refused])).toEqual({ paste: [creating], into: refused })
+    expect(pasteLines([copying])).toEqual({ paste: [copying], into: null })
+  })
+
   it("runs an available offer, or one held back only by a taken name", () => {
     const taken = { ...copying, available: false, name_conflict: true }
     const refused = { ...adding, available: false, reason: "Tick the table the rows go into" }
@@ -41,9 +49,8 @@ describe("choosing what Paste runs", () => {
 
   it("says why Paste is off, in the order the reader can act on", () => {
     const refused = { ...copying, available: false, reason: "Copy files, not folders or links" }
-    const base = { places: 1, checking: false, failed: false }
+    const base = { checking: false, failed: false }
 
-    expect(pasteHint({ ...base, places: 2, offers: [copying] })).toBe("Choose one place to paste into")
     expect(pasteHint({ ...base, checking: true, offers: undefined })).toBe("Checking what can be pasted here")
     expect(pasteHint({ ...base, failed: true, offers: undefined })).toBe("Could not check this destination")
     expect(pasteHint({ ...base, offers: [refused] })).toBe("Copy files, not folders or links")

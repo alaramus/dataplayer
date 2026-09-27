@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from app.adapters.actions import Action, ActionOffers, ActionType
@@ -66,6 +67,7 @@ from app.adapters.postgres.session import (
 )
 from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.summary import PostgresSummaries
+from app.adapters.postgres.table_copy import DIALECT, PostgresTableCopy
 from app.adapters.postgres.table_design import PostgresTableDesign
 from app.adapters.postgres.timescale.actions import TIMESCALE_ACTION_TYPES
 from app.adapters.postgres.update import PostgresUpdate
@@ -102,6 +104,14 @@ from app.adapters.relation_changes import (
 from app.adapters.resources import Pooling
 from app.adapters.row_commands import RowCommand, RowCommandResult
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.table_design import (
     TableDesignOptions,
     TablePlan,
@@ -180,6 +190,31 @@ class PostgresAdapter:
         )
         self._backup = PostgresBackup(self._session, options)
         self._samples = PostgresSamples(self._session)
+        self._table_copy = PostgresTableCopy(self._session, self._relations)
+
+    table_copy_dialect = DIALECT
+
+    @property
+    def table_copy_database(self) -> str:
+        return self._table_copy.table_copy_database
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        """Each table as a copy of it is made (D182)."""
+        return await self._table_copy.describe_for_copy(node_ids)
+
+    async def free_table_names(self, place_node_id: str, wanted: list[str]) -> list[str]:
+        return await self._table_copy.free_table_names(place_node_id, wanted)
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        return await self._table_copy.plan_table_copy(request)
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        return self._table_copy.reading_tables()
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        await self._table_copy.carry_table_copy(request, rows_of, arrived)
 
     async def backup_availability(self) -> BackupAvailability:
         return await self._backup.backup_availability()

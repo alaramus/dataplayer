@@ -71,6 +71,18 @@ vi.mock("@/features/grid/ImportDialog.vue", () => ({
     template: "<div />",
   }),
 }))
+vi.mock("./CopyTablesDialog.vue", () => ({
+  default: defineComponent({
+    name: "CopyTablesDialog",
+    props: {
+      intent: { type: Object, default: null },
+      running: Boolean,
+      error: { type: String, default: "" },
+    },
+    emits: ["close", "run"],
+    template: "<div />",
+  }),
+}))
 vi.mock("@/shared/windows", () => ({
   // Like the real one, it says it was closed when it is taken away.
   WindowDialog: defineComponent({
@@ -402,6 +414,37 @@ describe("a paste from another connection", () => {
     })
     expect(toasts.success).toHaveBeenCalledWith("people created with 2 rows")
     expect(wrapper.emitted("close")).toHaveLength(1)
+  })
+
+  it("copies tables with the names and links their window chose", async () => {
+    pasteCall.mockResolvedValue({ data: { outcome: "started", job: { id: "job-9" } } })
+    const tables: PasteOffer = {
+      kind: "tables_copy",
+      title: "Copy tables",
+      available: true,
+      converts: true,
+      workflow: "copy-tables",
+    }
+    const wrapper = mount(CrossPaste, { props: { intent: intent(tables) } })
+    await flushPromises()
+    const window = wrapper.findComponent({ name: "CopyTablesDialog" })
+    expect(window.props("intent")).toMatchObject({ destinationNodeId: "incoming" })
+    expect(sent()).toEqual([])
+
+    const choice = { names: { "sales.orders": "orders_copy" }, rows: true, links: "drop", also: [] }
+    window.vm.$emit("run", { choice, place: "archive" })
+    await flushPromises()
+
+    // Into the schema chosen in the window, not the one the catalog stood in.
+    expect(sent()[0]).toMatchObject({
+      kind: "tables_copy",
+      conflict: "refuse",
+      destination_node_id: "archive",
+      tables: choice,
+    })
+    expect(wrapper.emitted("started")).toHaveLength(1)
+    expect(startedHere.value.has("job-9")).toBe(true)
+    toldInThisTab("job-9")
   })
 
   it("keeps the form open with the reason a value could not cross", async () => {

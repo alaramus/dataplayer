@@ -2,10 +2,11 @@
 import { computed, onMounted, ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { PasteColumn, PasteOffer } from "@/client"
+import type { PasteColumn, PasteOffer, TablesChoice } from "@/client"
 import { startedInThisTab } from "@/features/activity/transfers"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { forgetMoved } from "@/features/catalog/clipboard"
+import CopyTablesDialog from "@/features/catalog/CopyTablesDialog.vue"
 import { firstStep, offerPlace } from "@/features/catalog/pasteOffers"
 import type { CrossPasteIntent, PasteStep } from "@/features/catalog/pasteOffers"
 import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
@@ -20,7 +21,8 @@ import { WindowDialog } from "@/shared/windows"
  * Mounted when Paste is chosen and gone when it ends. Several usable offers
  * are listed first (D166). A plain copy runs at once and shows a window only
  * for a taken name (D162); a conversion first asks what it needs: a file
- * name (D165), or the columns of a new table or of the one ticked (D166).
+ * name (D165), the columns of a new table or of the one ticked (D166), or
+ * the names and links of tables copied whole (D182).
  */
 const props = defineProps<{ intent: CrossPasteIntent }>()
 
@@ -64,7 +66,9 @@ function choose(chosen: PasteOffer) {
 
 async function paste(
   conflict: "refuse" | "replace" | "rename",
-  columns?: PasteColumn[]
+  columns?: PasteColumn[],
+  tables?: TablesChoice,
+  place?: string
 ) {
   const chosen = offer.value
   if (pending.value || chosen === null) return
@@ -77,13 +81,14 @@ async function paste(
       body: {
         source_connector_id: intent.sourceConnectorId,
         source_node_ids: intent.sourceNodeIds,
-        destination_node_id: intent.destinationNodeId,
+        destination_node_id: place ?? intent.destinationNodeId,
         target_node_id: intent.targetNodeId,
         mode: intent.mode,
         kind: chosen.kind,
         conflict,
         ...(named ? { name: name.value.trim() } : {}),
         ...(columns ? { columns } : {}),
+        ...(tables ? { tables } : {}),
       },
     })).data
     if (answer.outcome === "started") {
@@ -153,6 +158,10 @@ function createTable(made: { name: string; columns: PasteColumn[] }) {
 
 function addRows(pairs: { columns: PasteColumn[] }) {
   void paste("refuse", pairs.columns)
+}
+
+function copyTables(copy: { choice: TablesChoice; place: string }) {
+  void paste("refuse", undefined, copy.choice, copy.place)
 }
 </script>
 
@@ -251,6 +260,14 @@ function addRows(pairs: { columns: PasteColumn[] }) {
     :error="failure"
     @update:model-value="closeFrom('into-relation')"
     @run="addRows"
+  />
+  <CopyTablesDialog
+    v-else-if="step === 'copy-tables' && offer"
+    :intent="intent"
+    :running="pending"
+    :error="failure"
+    @close="closeFrom('copy-tables')"
+    @run="copyTables"
   />
   <WindowDialog
     v-else-if="step === 'conflict' && offer"

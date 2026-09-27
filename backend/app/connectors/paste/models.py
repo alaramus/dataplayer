@@ -12,13 +12,21 @@ from app.adapters.fetch import FetchColumn
 MAX_CLIPBOARD_NODES = 1000
 
 PasteKindName = Literal[
-    "file_copy", "file_move", "relation_csv", "rows_new_relation", "rows_into_relation"
+    "file_copy",
+    "file_move",
+    "relation_csv",
+    "rows_new_relation",
+    "rows_into_relation",
+    "tables_copy",
 ]
 ClipboardMode = Literal["copy", "move"]
 Conflict = Literal["refuse", "replace", "rename"]
 # The window an offer opens before it runs, named for the client to pick one
 # by; `run` opens none.
-PasteWorkflow = Literal["run", "file-name", "new-relation", "into-relation"]
+PasteWorkflow = Literal["run", "file-name", "new-relation", "into-relation", "copy-tables"]
+# What becomes of links to tables that were not ticked (D182): the tables are
+# copied too, the links are not made, or they point at the originals.
+TableLinks = Literal["copy", "drop", "keep"]
 
 
 class PastePair(BaseModel):
@@ -47,6 +55,21 @@ class PasteColumn(BaseModel):
     type_code: str | None = None
 
 
+class TablesChoice(BaseModel):
+    """What the window of a copy of tables chose (D182)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # The new name of each table, by its node id at the source; a table
+    # absent here is given a free one.
+    names: dict[str, str] = Field(default_factory=dict)
+    rows: bool = True
+    # None: kept within one database, copied otherwise.
+    links: TableLinks | None = None
+    # Tables that point at the ticked ones, ticked in the window to join.
+    also: list[str] = Field(default_factory=list, max_length=MAX_CLIPBOARD_NODES)
+
+
 class PasteRun(PastePair):
     """One offer, run with the choices its window asked for."""
 
@@ -54,6 +77,7 @@ class PasteRun(PastePair):
     conflict: Conflict = "refuse"
     name: str | None = Field(default=None, min_length=1, max_length=255)
     columns: list[PasteColumn] | None = Field(default=None, max_length=100)
+    tables: TablesChoice | None = None
 
 
 class PasteOffer(BaseModel):

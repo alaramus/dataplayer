@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException
 from app.adapters.protocol import DataAdapter
 from app.adapters.resources import ResourcesDep
 from app.connectors.access import resolve_adapter
+from app.connectors.action_lookup import perform
 from app.connectors.paste.kinds import PasteKind, refused
 from app.connectors.paste.models import (
     Availability,
@@ -24,7 +25,8 @@ from app.connectors.paste.models import (
     PasteOffers,
     PastePair,
 )
-from app.connectors.paste.registry import KINDS, short_of
+from app.connectors.paste.registry import KINDS, outranked, short_of
+from app.connectors.paste.tables import TablesPreview, TablesPreviewRequest, preview
 from app.core.access import Access, at_least
 from app.core.db import SessionDep
 from app.users.deps import CurrentUser
@@ -52,12 +54,33 @@ async def paste_offers(
         session, connector_id, current_user, resources, requires="read"
     )
     return PasteOffers(
-        offers=[
-            await _offer(kind, source, source_access, destination, destination_access, pair)
-            for kind in KINDS
-            if kind.mode == pair.mode and kind.serves(source, destination)
-        ]
+        offers=outranked(
+            [
+                await _offer(kind, source, source_access, destination, destination_access, pair)
+                for kind in KINDS
+                if kind.mode == pair.mode and kind.serves(source, destination)
+            ]
+        )
     )
+
+
+@router.post("/{connector_id}/paste/tables", response_model=TablesPreview)
+async def paste_tables_preview(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: TablesPreviewRequest,
+) -> TablesPreview:
+    """What a copy of tables would be with these choices, planned and not run
+    (D182). Asked again at every change of a choice in its window."""
+    source, _ = await resolve_adapter(
+        session, request.source_connector_id, current_user, resources, requires="read"
+    )
+    destination, _ = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    return await perform(lambda: preview(source, destination, request))
 
 
 @router.post("/pair/offers", response_model=PasteOffers)

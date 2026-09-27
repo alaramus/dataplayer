@@ -61,6 +61,7 @@ vi.mock("@/shared/ui", () => ({
   AppIconButton: defineComponent({ template: "<button>Actions</button>" }),
   AppButton: defineComponent({ props: { label: { type: String, default: "" } }, template: "<button>{{ label }}</button>" }),
   AppMenu: defineComponent({ name: "AppMenu", props: { items: { type: Array, default: () => [] } }, emits: ["select"], template: "<div />" }),
+  AppToolbarRule: defineComponent({ template: "<span />" }),
   useToast: () => ({ error: vi.fn(), success: vi.fn() }),
 }))
 vi.mock("@/shared/windows", () => ({
@@ -132,9 +133,9 @@ const paste: ActionInfo = {
   },
 }
 
-function menu(levelActions: ActionInfo[] = [rename, load]) {
+function menu(levelActions: ActionInfo[] = [rename, load], groupActions: ActionInfo[] = [rename, paste]) {
   replies.set("null", levelActions)
-  replies.set('["schema"]', [rename, paste])
+  replies.set('["schema"]', groupActions)
   replies.set('["schema.table"]', [{ ...rename, applicable: false }])
   replies.set('["schema","other"]', [load])
   return mount(CatalogActions, {
@@ -238,6 +239,49 @@ describe("catalog action subjects", () => {
     holdNodes("connection", ["report.csv"], "copy")
     const wrapper = menu([rename, load, paste])
     expect(items(wrapper).find((one) => one.name === "paste")?.label).toBe("Paste")
+    wrapper.unmount()
+  })
+
+  it("pastes what was copied in this connection when the source has no Paste of its own", () => {
+    holdNodes("connection", ["public.people"], "copy")
+    answers.offers = [{ kind: "tables_copy", title: "Copy tables", available: true, workflow: "copy-tables" }]
+    // No Paste among the source's own actions.
+    const wrapper = menu([rename, load], [rename])
+
+    const item = items(wrapper).find((one) => one.name === "client:cross-paste")
+
+    expect(item?.disable).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("adds rows to the ticked table from a line of its own", async () => {
+    holdNodes("another", ["report.csv"], "copy", "report.csv")
+    const creating: PasteOffer = { kind: "rows_new_relation", title: "Create a table", available: true, workflow: "new-relation" }
+    const adding: PasteOffer = { kind: "rows_into_relation", title: "Add rows to a table", available: true, workflow: "into-relation" }
+    answers.offers = [creating, adding]
+    const wrapper = menu()
+    expect(items(wrapper).find((one) => one.name === "client:cross-paste")?.disable).toBe(false)
+    expect(items(wrapper).find((one) => one.name === "client:cross-paste-into")).toMatchObject({
+      label: "Add rows to a table",
+      disable: false,
+    })
+
+    wrapper.findComponent({ name: "AppMenu" }).vm.$emit("select", "client:cross-paste-into")
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: "CrossPaste" }).props("intent")).toMatchObject({ offers: [adding] })
+    wrapper.unmount()
+  })
+
+  it("says what the line for adding rows is waiting for", () => {
+    holdNodes("another", ["report.csv"], "copy")
+    answers.offers = [{ kind: "rows_into_relation", title: "Add rows to a table", available: false, reason: "Tick the table the rows go into", workflow: "into-relation" }]
+    const wrapper = menu()
+
+    expect(items(wrapper).find((one) => one.name === "client:cross-paste-into")).toMatchObject({
+      disable: true,
+      hint: "Tick the table the rows go into",
+    })
     wrapper.unmount()
   })
 

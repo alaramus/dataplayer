@@ -12,7 +12,13 @@ import uuid
 from datetime import datetime
 from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 from pydantic import Field as PydanticField
 from sqlalchemy import JSON, Column, DateTime
 from sqlmodel import Field, SQLModel
@@ -118,6 +124,13 @@ class Link(_Strict):
     conflict: Conflict = "refuse"
     name: str | None = PydanticField(default=None, min_length=1, max_length=255)
     columns: list[PasteColumn] | None = PydanticField(default=None, max_length=100)
+
+    @field_validator("kind")
+    @classmethod
+    def runs_in_a_pipeline(cls, kind: PasteKindName) -> PasteKindName:
+        if not kind_named(kind).pipelines:
+            raise ValueError(f"{kind_named(kind).title} is run from the catalog, not by a link")
+        return kind
 
 
 class PipelineContent(_Strict):

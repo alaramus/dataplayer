@@ -267,6 +267,46 @@ class Transaction:
         """
         await self._connection.cursor().executemany(sql, rows)
 
+    async def copy_in(self, sql: str, chunks: AsyncIterator[bytes]) -> None:
+        """`COPY … FROM STDIN`, fed as the chunks arrive (D182).
+
+        A source that fails is the failure to report. Raised inside the COPY it
+        would be replaced by this server's own "COPY was cancelled", so the COPY
+        ends with what arrived and the failure is raised after it; the
+        transaction rolls back all the same. A chunk is a whole row.
+        """
+        failure: AdapterError | None = None
+        async with self._connection.cursor().copy(sql) as copy:
+            try:
+                async for chunk in chunks:
+                    await copy.write(chunk)
+            except AdapterError as source_failure:
+                failure = source_failure
+        if failure is not None:
+            raise failure
+
+
+class Snapshot:
+    """Reads that all see one moment of the source (D182)."""
+
+    def __init__(self, connection: psycopg.AsyncConnection[Any]) -> None:
+        self._connection = connection
+
+    async def copy_out(self, sql: str) -> AsyncIterator[bytes]:
+        """`COPY … TO STDOUT`, a chunk at a time.
+
+        Its failures are the source's own, said here: the chunks are written
+        inside somebody else's transaction, which would otherwise take a
+        failure of this connection for one of its own.
+        """
+        try:
+            async with self._connection.cursor().copy(sql) as copy:
+                async for chunk in copy:
+                    yield bytes(chunk)
+        except psycopg.Error as exc:
+            error_kind, message = classify(exc, fallback_message="The rows could not be read")
+            raise AdapterError(error_kind, message) from None
+
 
 class PostgresSession:
     """How to talk to a PostgreSQL server.
@@ -326,6 +366,11 @@ class PostgresSession:
             user=options.user,
             application_name=APPLICATION_NAME,
         )
+
+    def database(self) -> str:
+        """Which database this reaches, whoever signs in to it (D182)."""
+        options = self._options
+        return f"{options.host}:{options.port}/{options.database}"
 
     def connection_string(self) -> str:
         """The same address as `conninfo`, as a URL and without the password.
@@ -494,6 +539,27 @@ class PostgresSession:
             raise AdapterError(error_kind, message) from None
         except Exception as exc:
             error_kind, message = classify(exc, fallback_message="Export failed")
+            raise AdapterError(error_kind, message) from None
+
+    @asynccontextmanager
+    async def snapshot(self) -> AsyncIterator[Snapshot]:
+        """One repeatable-read, read-only transaction for several reads (D182).
+
+        The rows of a child and of its parent read apart could each be right
+        and disagree with each other; read in one snapshot they cannot.
+        """
+        try:
+            async with self._connection() as connection:
+                async with connection.transaction():
+                    await connection.execute(
+                        "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                    )
+                    yield Snapshot(connection)
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except psycopg.Error as exc:
+            error_kind, message = classify(exc, fallback_message="The rows could not be read")
             raise AdapterError(error_kind, message) from None
 
     async def change(

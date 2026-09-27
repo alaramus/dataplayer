@@ -204,6 +204,9 @@ import type {
   connectorsPasteOffersErrors,
   connectorsPasteOffersResponses,
   connectorsPasteResponses,
+  connectorsPasteTablesPreviewData,
+  connectorsPasteTablesPreviewErrors,
+  connectorsPasteTablesPreviewResponses,
   connectorsPlanTableData,
   connectorsPlanTableErrors,
   connectorsPlanTableResponses,
@@ -2721,6 +2724,31 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/paste/offers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Paste Tables Preview
+   *
+   * What a copy of tables would be with these choices, planned and not run
+   * (D182). Asked again at every change of a choice in its window.
+   */
+  public static pasteTablesPreview<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPasteTablesPreviewData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPasteTablesPreviewResponses,
+      connectorsPasteTablesPreviewErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/paste/tables",
       ...options,
       headers: {
         "Content-Type": "application/json",

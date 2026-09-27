@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
 
@@ -59,6 +60,14 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.search import NodeSearchRequest, NodeSearchResult
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.table_design import (
     TableDesignOptions,
     TablePlan,
@@ -678,6 +687,59 @@ class SupportsConstraints(Protocol):
         self, request: DropConstraintRequest
     ) -> ConstraintDropped:
         """Drop one constraint of this relation, without an implicit cascade."""
+        ...
+
+
+@runtime_checkable
+class SupportsTableCopy(Protocol):
+    """Tables copied with their structure, at both ends of the copy (D182).
+
+    One capability for both ends: a copy is made from a description only a
+    source of the same dialect can read, so a source that can describe its
+    tables and not make them, or the other way round, would be half a copy.
+    """
+
+    @property
+    def table_copy_dialect(self) -> str:
+        """Whose words the description is in; both ends must share them."""
+        ...
+
+    @property
+    def table_copy_database(self) -> str:
+        """Which database this is: two ends that say the same share one, and
+        a link of the copy may point at an original there."""
+        ...
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        """Each table as a copy of it would be made, in the order asked.
+
+        A node that cannot be copied is described with its refusal. Raises
+        NodeNotFound for an id that names nothing and AdapterError for
+        source failures.
+        """
+        ...
+
+    async def free_table_names(self, place_node_id: str, wanted: list[str]) -> list[str]:
+        """Each name if nothing in the place holds it, or the nearest free
+        `…_copy` one; no two of the answers the same."""
+        ...
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        """The statements the copy would run, and its problems; runs nothing."""
+        ...
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        """The rows of any of this source's tables, in one snapshot."""
+        ...
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        """Plan the copy again and run it as one transaction.
+
+        Raises ValueError with a safe sentence for a plan with problems and
+        for anything the destination refuses, having changed nothing.
+        """
         ...
 
 

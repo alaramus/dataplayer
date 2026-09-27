@@ -582,6 +582,8 @@ class _Files:
     workflow: PasteWorkflow = "run"
     destination_requires: Access = "write"
     makes = True
+    pipelines = True
+    outranks: tuple[PasteKindName, ...] = ()
 
     def takes_from(self, source: DataAdapter) -> bool:
         return isinstance(source, TransfersFiles)

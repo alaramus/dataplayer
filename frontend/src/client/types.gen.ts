@@ -2599,6 +2599,103 @@ export type ConversationsPublic = {
 }
 
 /**
+ * CopiedRow
+ *
+ * One table of the copy, as the window lists it.
+ */
+export type CopiedRow = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Origin
+   */
+  origin: "ticked" | "linked" | "added"
+  /**
+   * Rows
+   */
+  rows?: number | null
+  /**
+   * Left Behind
+   */
+  left_behind: Array<string>
+}
+
+/**
+ * CopyLoad
+ *
+ * The rows of one table: which columns are read at one end and written at
+ * the other. A generated column takes none.
+ */
+export type CopyLoad = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Schema Name
+   */
+  schema_name: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+}
+
+/**
+ * CopyProblem
+ */
+export type CopyProblem = {
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Kind
+   */
+  kind?: "invalid" | "conflict"
+}
+
+/**
+ * CopyStatement
+ */
+export type CopyStatement = {
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Sql
+   */
+  sql: string
+  /**
+   * Stage
+   */
+  stage?: "before" | "after"
+}
+
+/**
  * CreateConstraintRequest
  */
 export type CreateConstraintRequest = {
@@ -5581,7 +5678,13 @@ export type Link = {
   /**
    * Kind
    */
-  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
+  kind:
+    | "file_copy"
+    | "file_move"
+    | "relation_csv"
+    | "rows_new_relation"
+    | "rows_into_relation"
+    | "tables_copy"
   /**
    * Title
    */
@@ -6418,6 +6521,22 @@ export type OperatorClassOption = {
 }
 
 /**
+ * OutsideLink
+ *
+ * A link from the copied tables to one that was not ticked.
+ */
+export type OutsideLink = {
+  /**
+   * Table
+   */
+  table: string
+  /**
+   * Target
+   */
+  target: string
+}
+
+/**
  * OwnKey
  *
  * No password: one of the requester's own SSH keys signs in (D154).
@@ -6596,7 +6715,13 @@ export type PasteOffer = {
   /**
    * Kind
    */
-  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
+  kind:
+    | "file_copy"
+    | "file_move"
+    | "relation_csv"
+    | "rows_new_relation"
+    | "rows_into_relation"
+    | "tables_copy"
   /**
    * Title
    */
@@ -6632,7 +6757,7 @@ export type PasteOffer = {
   /**
    * Workflow
    */
-  workflow?: "run" | "file-name" | "new-relation" | "into-relation"
+  workflow?: "run" | "file-name" | "new-relation" | "into-relation" | "copy-tables"
   /**
    * Makes
    */
@@ -6702,7 +6827,13 @@ export type PasteResult = {
   /**
    * Kind
    */
-  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
+  kind:
+    | "file_copy"
+    | "file_move"
+    | "relation_csv"
+    | "rows_new_relation"
+    | "rows_into_relation"
+    | "tables_copy"
   /**
    * Message
    */
@@ -6758,7 +6889,13 @@ export type PasteRun = {
   /**
    * Kind
    */
-  kind: "file_copy" | "file_move" | "relation_csv" | "rows_new_relation" | "rows_into_relation"
+  kind:
+    | "file_copy"
+    | "file_move"
+    | "relation_csv"
+    | "rows_new_relation"
+    | "rows_into_relation"
+    | "tables_copy"
   /**
    * Conflict
    */
@@ -6771,6 +6908,7 @@ export type PasteRun = {
    * Columns
    */
   columns?: Array<PasteColumn> | null
+  tables?: TablesChoice | null
 }
 
 /**
@@ -7019,6 +7157,30 @@ export type PlannedStatement = {
    * Sql
    */
   sql: string
+}
+
+/**
+ * PointingTable
+ *
+ * A table that points at a ticked one, which the window may add.
+ */
+export type PointingTable = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Points At
+   */
+  points_at: Array<string>
+  /**
+   * Chosen
+   */
+  chosen: boolean
 }
 
 /**
@@ -10825,6 +10987,111 @@ export type TableSubject = {
    * Node Id
    */
   node_id?: string | null
+}
+
+/**
+ * TablesChoice
+ *
+ * What the window of a copy of tables chose (D182).
+ */
+export type TablesChoice = {
+  /**
+   * Names
+   */
+  names?: {
+    [key: string]: string
+  }
+  /**
+   * Rows
+   */
+  rows?: boolean
+  /**
+   * Links
+   */
+  links?: "copy" | "drop" | "keep" | null
+  /**
+   * Also
+   */
+  also?: Array<string>
+}
+
+/**
+ * TablesPreview
+ *
+ * What the copy would be with these choices; nothing has run.
+ */
+export type TablesPreview = {
+  /**
+   * Tables
+   */
+  tables: Array<CopiedRow>
+  /**
+   * Links
+   */
+  links: "copy" | "drop" | "keep"
+  /**
+   * Keep Allowed
+   */
+  keep_allowed: boolean
+  /**
+   * Outside
+   */
+  outside: Array<OutsideLink>
+  /**
+   * Pointing
+   */
+  pointing: Array<PointingTable>
+  /**
+   * Rows
+   */
+  rows: boolean
+  /**
+   * Place
+   */
+  place: string
+  /**
+   * Statements
+   */
+  statements: Array<CopyStatement>
+  /**
+   * Loads
+   */
+  loads: Array<CopyLoad>
+  /**
+   * Problems
+   */
+  problems: Array<CopyProblem>
+  /**
+   * Warnings
+   */
+  warnings: Array<string>
+}
+
+/**
+ * TablesPreviewRequest
+ */
+export type TablesPreviewRequest = {
+  /**
+   * Source Connector Id
+   */
+  source_connector_id: string
+  /**
+   * Source Node Ids
+   */
+  source_node_ids: Array<string>
+  /**
+   * Mode
+   */
+  mode: "copy" | "move"
+  /**
+   * Destination Node Id
+   */
+  destination_node_id?: string | null
+  /**
+   * Target Node Id
+   */
+  target_node_id?: string | null
+  tables?: TablesChoice
 }
 
 /**
@@ -14729,6 +14996,38 @@ export type connectorsPasteOffersResponses = {
 
 export type connectorsPasteOffersResponse =
   connectorsPasteOffersResponses[keyof connectorsPasteOffersResponses]
+
+export type connectorsPasteTablesPreviewData = {
+  body: TablesPreviewRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/paste/tables"
+}
+
+export type connectorsPasteTablesPreviewErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPasteTablesPreviewError =
+  connectorsPasteTablesPreviewErrors[keyof connectorsPasteTablesPreviewErrors]
+
+export type connectorsPasteTablesPreviewResponses = {
+  /**
+   * Successful Response
+   */
+  200: TablesPreview
+}
+
+export type connectorsPasteTablesPreviewResponse =
+  connectorsPasteTablesPreviewResponses[keyof connectorsPasteTablesPreviewResponses]
 
 export type connectorsPairOffersData = {
   body: PairRequest

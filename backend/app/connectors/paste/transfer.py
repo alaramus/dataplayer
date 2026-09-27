@@ -22,6 +22,7 @@ from app.connectors.paste.models import (
     ClipboardMode,
     Conflict,
     PasteKindName,
+    TablesChoice,
 )
 
 # What a transfer reads and writes at a time, and so how late a Stop can be.
@@ -83,6 +84,8 @@ class TransferPlan(BaseModel):
     place: str
     # The file name asked for, when the kind writes one file of its own.
     name: str | None = None
+    # A copy of tables as its window chose it, every name decided (D182).
+    tables: TablesChoice | None = None
 
 
 class Transfer(BaseModel):
@@ -108,6 +111,8 @@ class Transfer(BaseModel):
     # for the top of it.
     place_label: str = Field(max_length=255)
     name: str | None = Field(default=None, max_length=255)
+    # What a copy of tables was planned with, so the job plans it again (D182).
+    tables: TablesChoice | None = None
     items: list[TransferItem] = Field(min_length=1, max_length=MAX_CLIPBOARD_NODES)
     # Unknown for a table, whose CSV is as long as it turns out to be.
     bytes_total: int | None = None

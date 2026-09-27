@@ -34,14 +34,32 @@ export function usableOffers(offers: PasteOffer[]): PasteOffer[] {
   return offers.filter((offer) => offer.available || offer.name_conflict === true)
 }
 
-/** Why Paste is off here, or nothing when it is on. */
+/**
+ * What the menu's Paste runs, and what it leaves to a line of its own.
+ *
+ * Adding rows goes into the table ticked here rather than into the place, so it
+ * is a command of its own that the tick turns on. Paste opens the one window
+ * that fits what was copied: the server has already let a better fit stand in
+ * for the rest (D182).
+ */
+export function pasteLines(offers: PasteOffer[]): { paste: PasteOffer[]; into: PasteOffer | null } {
+  return {
+    paste: offers.filter((offer) => offer.workflow !== "into-relation"),
+    into: offers.find((offer) => offer.workflow === "into-relation") ?? null,
+  }
+}
+
+/**
+ * Why Paste is off here, or nothing when it is on.
+ *
+ * How many places the catalog stands in is not asked here: a kind that needs
+ * one says so as its reason, and a copy of tables chooses its own (D182).
+ */
 export function pasteHint(state: {
-  places: number
   checking: boolean
   failed: boolean
   offers: PasteOffer[] | undefined
 }): string | undefined {
-  if (state.places !== 1) return "Choose one place to paste into"
   if (state.checking) return "Checking what can be pasted here"
   if (state.failed) return "Could not check this destination"
   const offers = state.offers ?? []
@@ -49,7 +67,13 @@ export function pasteHint(state: {
   return offers.find((offer) => offer.reason)?.reason ?? "Nothing here can take what was copied"
 }
 
-export type PasteStep = "run" | "conflict" | "file-name" | "new-relation" | "into-relation"
+export type PasteStep =
+  | "run"
+  | "conflict"
+  | "file-name"
+  | "new-relation"
+  | "into-relation"
+  | "copy-tables"
 
 /** Which window a chosen offer opens first; `run` opens none. */
 export function firstStep(offer: PasteOffer): PasteStep {

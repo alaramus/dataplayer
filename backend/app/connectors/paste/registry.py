@@ -6,12 +6,14 @@ from app.connectors.paste.kinds import PasteKind, refused
 from app.connectors.paste.models import PasteKindName, PasteOffer
 from app.connectors.paste.relation_csv import RelationCsv
 from app.connectors.paste.rows import RowsIntoRelation, RowsNewRelation
+from app.connectors.paste.tables import TablesCopy
 from app.core.access import Access, at_least
 
 KINDS: tuple[PasteKind, ...] = (
     FileCopy(),
     FileMove(),
     RelationCsv(),
+    TablesCopy(),
     RowsNewRelation(),
     RowsIntoRelation(),
 )
@@ -19,6 +21,15 @@ KINDS: tuple[PasteKind, ...] = (
 
 def kind_named(name: PasteKindName) -> PasteKind:
     return next(kind for kind in KINDS if kind.name == name)
+
+
+def outranked(offers: list[PasteOffer]) -> list[PasteOffer]:
+    """The offers left once each that can run has stood in for the ones it
+    outranks (D182): Paste opens the window that fits what was copied."""
+    replaced = {
+        name for offer in offers if offer.available for name in kind_named(offer.kind).outranks
+    }
+    return [offer for offer in offers if offer.kind not in replaced]
 
 
 def open_kinds(
@@ -35,7 +46,8 @@ def open_kinds(
     return [
         kind
         for kind in KINDS
-        if kind.serves(source, destination)
+        if kind.pipelines
+        and kind.serves(source, destination)
         and at_least(source_access, kind.source_requires)
         and at_least(destination_access, kind.destination_requires)
     ]

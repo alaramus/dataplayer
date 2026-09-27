@@ -1,12 +1,70 @@
 # Moving rows in and out of a relation
 
 Copying rows from one source into another, loading a file into a relation,
-streaming every matching row out, and pasting files or a table into another
-connection. Reading a relation and editing the rows in it are in
+streaming every matching row out, pasting files or a table into another
+connection, and copying tables with their structure. Reading a relation and editing the rows in it are in
 [relations.md](relations.md); the grid's own current-page download is in
 [../grid.md](../grid.md).
 
-Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168, D169, D171.
+Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168, D169, D171, D182.
+
+## D182. A table is copied with its structure, and its links are a choice
+
+Kind `tables_copy`, "Copy tables": from tables of one source into a schema of
+another or of the same one, both implementing `SupportsTableCopy` in one
+dialect — PostgreSQL today. A transfer job (D168): planned in the request,
+carried out in the background, stopped at once.
+
+- **The whole table.** Columns with their exact types, required values,
+  defaults, identity and serial columns, stored generated columns, collations
+  and comments; primary key, unique, check and exclusion constraints; the other
+  indexes; the table's comment and whether it is unlogged. The source reads it
+  with only `pg_catalog` on the search path, so every name outside it arrives
+  qualified. Triggers, row security, rules, inheritance, owner and grants stay
+  behind, named per table in the window. A partitioned table, a partition and
+  anything but an ordinary table are refused with the reason.
+- **Types.** Within one database the tables use the types they had. Elsewhere
+  an enum, domain or composite type the columns use, directly or through
+  another, is made again under its own schema when that is there and in the
+  place otherwise, and every text naming it is made to name the new one. A type
+  an extension brings installs that extension when the server offers it.
+  Anything else must already be there.
+- **The window asks five things** and plans again at every change, through
+  `POST /connectors/{destination}/paste/tables`: the schema the tables go
+  into, chosen there whatever the catalog had selected — it starts where the
+  catalog stood when that was one schema, then at `public`, then at the first;
+  the new names (`name_copy` where the name is taken), structure and rows or structure only, one choice
+  for every link to a table that was not ticked — copy those tables too, to the
+  end of the chain; drop the links; or keep them on the originals, offered only
+  where both ends are one database — and a tick for each table that points at
+  a ticked one. It shows every statement and each problem; nothing runs before
+  Copy. It opens once the first plan is there, or after 400 ms saying that it
+  is planning, so it never appears empty.
+- **One transaction at the destination.** Types and tables, then the rows
+  through `COPY`, then keys and indexes, then links, then sequences set past the
+  copied values. The rows of every table are read in one repeatable-read
+  snapshot of the source. Any failure, a Stop included, rolls everything back.
+- **Nothing reaches the destination that it did not plan.** The request and the
+  job carry the choices, never statements; the job describes the source and
+  plans again when it starts, and a set of tables that changed in between is
+  refused. A default, check or index body is catalog text, and each one must be
+  a single expression before it is composed; one that is not is left behind and
+  said to be.
+- **Paste opens it at once.** Where it can run it stands in for Create a
+  table (`outranks`, D164): a table made again from its rows loses its keys,
+  links and types. Add rows to a table keeps its own line in the menu.
+- **Not in pipelines.** A link keeps a name and columns, not a choice about
+  every link of every table (`PasteKind.pipelines`).
+
+Known deviations:
+
+- **Only within one dialect.** A second one would translate the source's
+  described parts, never SQL text.
+- **A default drawing from a sequence the column does not own** is kept within
+  one database, where the sequence is shared, and dropped with a warning
+  elsewhere.
+
+Spec: [Tables copied with their structure](../../decisions/2026-09-27-table-copy-design.md)
 
 ## D171. A Redis key, folder or table is saved as CSV, and several are one file each
 
@@ -170,9 +228,13 @@ are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
   (`foresee`): a pipeline's chain is drawn before anything along it exists
   ([D178](../pipelines.md)). What it made is told back: a row paste's
   `made_node_id`, a transfer item's `published_id`.
-- The catalog has one Paste. Several usable offers open a list first; a
-  conversion opens its window; a plain copy runs at once and opens D162's
-  conflict window on a taken name. The source catalog is refreshed when the
+- The catalog has one Paste, and it opens the window that fits what was
+  copied: a kind that can run stands in for the kinds it `outranks`, so a table
+  from a database opens Copy tables rather than Create a table (D182). Adding
+  rows into the one table ticked here is a line of its own, Add rows to a
+  table, off with its reason until a table is ticked. Several usable offers
+  still left open a list first; a conversion opens its window; a plain copy
+  runs at once and opens D162's conflict window on a taken name. The source catalog is refreshed when the
   offer changes the source, after success or a partial failure alike.
 - Copy and Cut are drawn for a source with its own Paste (D74) as before, and
   otherwise from the clipboard answer: a mode no kind serves for this source is
@@ -187,9 +249,10 @@ are five: `file_copy` (D161), `file_move` (D163), `relation_csv` (D165),
 
 Known deviations:
 
-- **Same-connection Paste stays source-owned.** A clipboard from the same
-  connection still goes through the source's own action (D74); a PostgreSQL
-  table copied within its own connection has no Paste at all.
+- **Same-connection Paste stays source-owned where the source has one.** A
+  clipboard from the same connection goes through the source's own action
+  (D74); a source without one is offered these kinds there too, which is how a
+  PostgreSQL table is pasted beside itself (D182).
 
 Spec: [Paste offers, and a table pasted into a folder as CSV](../../decisions/2026-09-25-paste-offers-and-table-csv-design.md)
 

@@ -19,7 +19,7 @@ import {
   heldFor,
   holdNodes,
 } from "@/features/catalog/clipboard"
-import { holdLines, pasteHint, usableOffers } from "@/features/catalog/pasteOffers"
+import { holdLines, pasteHint, pasteLines, usableOffers } from "@/features/catalog/pasteOffers"
 import type { CrossPasteIntent } from "@/features/catalog/pasteOffers"
 import type {
   ActionOutcome,
@@ -153,10 +153,22 @@ const commands = computed(() =>
  * and the source's own command is what puts it somewhere (D74).
  */
 const held = computed(() => heldFor(props.connectorId))
-/** A selection from another connection, pasted by the application (D161, D163). */
-const crossHeld = computed(() =>
-  clipboard.value?.connectorId !== props.connectorId ? clipboard.value : null
+/** Whether the source has a Paste of its own for what it lists (D74). */
+const canHold = computed(() =>
+  commands.value.some((command) => needsClipboard(command))
 )
+/**
+ * A selection the application pastes: from another connection (D161, D163),
+ * or from this one when the source has no Paste of its own — which is how a
+ * table gets a copy beside itself (D182). Not before the source's own actions
+ * have answered, while it is not yet known which of the two it is.
+ */
+const crossHeld = computed(() => {
+  const clipped = clipboard.value
+  if (clipped === null) return null
+  if (clipped.connectorId !== props.connectorId) return clipped
+  return level.data.value !== undefined && !canHold.value ? clipped : null
+})
 const crossPlace = computed(() =>
   props.places.length === 1 ? props.places[0] ?? null : null
 )
@@ -168,7 +180,9 @@ const crossOffers = useQuery({
   queryKey: computed(() => [
     "paste-offers", props.connectorId, crossPlace.value, crossTarget.value, crossHeld.value,
   ]),
-  enabled: computed(() => crossHeld.value !== null && props.places.length === 1),
+  // Asked wherever the catalog stands: a kind that needs one place says so,
+  // and a copy of tables chooses its schema in its window (D182).
+  enabled: computed(() => crossHeld.value !== null),
   retry: false,
   queryFn: async () => {
     const source = crossHeld.value
@@ -185,11 +199,8 @@ const crossOffers = useQuery({
     })).data.offers
   },
 })
-const crossUsable = computed(() => usableOffers(crossOffers.data.value ?? []))
-/** Whether the source has a Paste of its own for what it lists (D74). */
-const canHold = computed(() =>
-  commands.value.some((command) => needsClipboard(command))
-)
+const crossLines = computed(() => pasteLines(crossOffers.data.value ?? []))
+const crossUsable = computed(() => usableOffers(crossLines.value.paste))
 // Asked only of a source without a Paste of its own, and only once its own
 // actions have answered: until then it is not known which one this is.
 const holdOffer = useQuery({
@@ -287,11 +298,16 @@ const items = computed<MenuItem[]>(() => [
     label: "Paste",
     disable: crossUsable.value.length === 0,
     hint: pasteHint({
-      places: props.places.length,
       checking: crossOffers.isPending.value,
       failed: crossOffers.isError.value,
-      offers: crossOffers.data.value,
+      offers: crossOffers.data.value === undefined ? undefined : crossLines.value.paste,
     }),
+  }]),
+  ...(crossHeld.value === null || crossLines.value.into === null ? [] : [{
+    name: "client:cross-paste-into",
+    label: crossLines.value.into.title,
+    disable: !crossLines.value.into.available,
+    hint: crossLines.value.into.available ? undefined : crossLines.value.into.reason ?? undefined,
   }]),
   ...commands.value.filter((command) => crossHeld.value === null || !needsClipboard(command)).map((command) => {
     // An empty clipboard is the client's own reason and outranks the source's,
@@ -414,9 +430,12 @@ function closeForm(key: string) {
 
 async function pick(name: string) {
   if (prepareConnector.isPending.value) return
-  if (name === "client:cross-paste") {
+  if (name === "client:cross-paste" || name === "client:cross-paste-into") {
     const source = crossHeld.value
-    const offers = crossUsable.value
+    const into = crossLines.value.into
+    const offers = name === "client:cross-paste"
+      ? crossUsable.value
+      : into?.available === true ? [into] : []
     if (source === null || offers.length === 0 || crossPasting.value !== null) return
     pastings += 1
     crossPasting.value = {
