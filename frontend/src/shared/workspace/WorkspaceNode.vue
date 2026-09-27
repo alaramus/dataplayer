@@ -96,15 +96,26 @@ function styleFor(child: LayoutNode, share: Share) {
  * the gaps of the sections that are not drawn.
  */
 function stretchOf(index: number): number {
-  const found = element.value?.querySelector(`:scope > [data-section="${String(index)}"]`)
-  if (!(found instanceof HTMLElement)) return 0
+  const found = sectionAt(index)
+  if (found === null) return 0
   const box = found.getBoundingClientRect()
   const length =
     props.node.kind === "split" && props.node.direction === "row" ? box.width : box.height
+  return length - basisOf(index)
+}
+
+function sectionAt(index: number): HTMLElement | null {
+  const found = element.value?.querySelector(`:scope > [data-section="${String(index)}"]`)
+  return found instanceof HTMLElement ? found : null
+}
+
+function basisOf(index: number): number {
+  const found = sectionAt(index)
+  if (found === null) return 0
   // Computed rather than read back from the style: a `calc` of two variables
   // arrives here as the pixels it came to.
   const basis = Number.parseFloat(getComputedStyle(found).flexBasis)
-  return length - (Number.isFinite(basis) ? basis : 0)
+  return Number.isFinite(basis) ? basis : 0
 }
 
 /**
@@ -156,6 +167,16 @@ function minPxOf(index: number): number {
   return workspace.sectionMinWidthOf(child.accepts ?? null)
 }
 
+/**
+ * The minimum as the part of a section that stretches. A minimum is the width
+ * the card is drawn at, edges included — the rails of the other spaces are held
+ * to theirs that way — and counted as a stretch it came out a card's edges
+ * wider, which showed as a jump of the border on every switch of space.
+ */
+function minStretchOf(index: number): number {
+  return Math.max(0, minPxOf(index) - basisOf(index))
+}
+
 function onMove(beforeIndex: number, afterIndex: number, deltaPx: number) {
   if (props.node.kind !== "split") return
   const percent = percentPerPx([beforeIndex, afterIndex])
@@ -165,8 +186,8 @@ function onMove(beforeIndex: number, afterIndex: number, deltaPx: number) {
     beforeIndex,
     afterIndex,
     deltaPx * percent,
-    minPxOf(beforeIndex) * percent,
-    minPxOf(afterIndex) * percent
+    minStretchOf(beforeIndex) * percent,
+    minStretchOf(afterIndex) * percent
   )
 }
 
