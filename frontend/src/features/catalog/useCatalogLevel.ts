@@ -335,7 +335,14 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
       ...selectedGroups.value,
     ])
     for (const nodeId of branches) await forget(nodeId)
+    // The same level read again keeps what is ticked and still there. `show`
+    // lets every tick go, which is right for walking elsewhere and wrong here:
+    // the ticks an action failed on (`ticksAfter`) were meant to outlive the
+    // re-read that action asks for.
+    const ticked = [...checked.value]
     await show(currentId.value, groupsToKeep, true)
+    const present = new Set(rows.value.map((node) => node.id))
+    checked.value = ticked.filter((id) => present.has(id))
   }
 
   async function reload(nodeId: string | null) {

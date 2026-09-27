@@ -210,15 +210,17 @@ test("browses a personal directory and opens each implemented viewer", async ({ 
   await catalogAction(page, "download")
   const downloaded = await downloadStarted
   expect(downloaded.suggestedFilename()).toBe("logo.png")
+  // What was downloaded is let go: the next download starts from nothing.
+  await expect(catalogCheck(page, "logo.png")).not.toBeChecked()
 
   // A folder is archived even when it is the only selected node.
-  await catalogCheck(page, "logo.png").click()
   await catalogCheck(page, "reports").click()
   const folderStarted = page.waitForEvent("download")
   await catalogAction(page, "download")
   expect((await folderStarted).suggestedFilename()).toBe("reports.zip")
 
   // Several nodes become one archive through the same action.
+  await catalogCheck(page, "reports").click()
   await catalogCheck(page, "notes.txt").click()
   const severalStarted = page.waitForEvent("download")
   await catalogAction(page, "download")

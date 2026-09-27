@@ -361,6 +361,20 @@ describe("re-reading after a change", () => {
     })
   })
 
+  it("keeps the ticks on what is still there, and lets go of what is gone", async () => {
+    // What an action failed on stays ticked for another try, and the re-read
+    // that action asks for must not take the tick away again.
+    answers([table("a", "a"), table("b", "b")], [table("a", "a")])
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.checked.value = ["a", "b"]
+      await level.reload(null)
+
+      expect(level.checked.value).toEqual(["a"])
+    })
+  })
+
   it("stays where it is rather than going back to the root", async () => {
     answers(
       [directory("reports", "reports")],
