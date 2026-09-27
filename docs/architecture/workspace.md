@@ -394,6 +394,11 @@ Known deviation: a widget and a service's output lifted into tabs (D155) draw no
 row of commands, so they offer neither the reload their look declares nor a way
 into a window.
 
+Known deviation: the catalog's menu of actions stands after these commands and
+closes its row, where a menu of more usually is. Its groups — where the level
+is, this tab, a second catalog, the menu — are parted by the grid's line
+between two groups (`AppToolbarRule`).
+
 A small mark rides above the reload where there is anything to report: "Live"
 while the answer is the read, a clock once it is one that was kept (D105). It
 stands in room of its own beside the button, one width in both states, so the

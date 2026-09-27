@@ -46,6 +46,7 @@ import {
   AppInput,
   AppMenu,
   AppSelect,
+  AppToolbarRule,
   AppTooltip,
   useConfirm,
   useToast,
@@ -527,6 +528,11 @@ const canSearchContents = computed(
  */
 const asTree = computed(() => sourceType.value?.catalog_shape === "tree")
 
+/** Whether the line starts with where we are: a path or a choice of groupings. */
+const showsLocation = computed(
+  () => (showPath.value && !asTree.value) || groupOptions.value.length > 0
+)
+
 /** What the tree has selected, which is one node or none. */
 const picked = ref<ListNode | null>(null)
 const pickedIsPlace = computed(
@@ -867,91 +873,99 @@ async function afterAction(outcome: ActionOutcome) {
           @update:model-value="pickGroups"
         />
 
-        <!-- One menu, fed from wherever the selection lives: a level's ticks
-             or a tree's one selected node. What an action may do to them is
-             still the server's answer about those nodes. -->
-        <CatalogActions
-          v-if="asTree && !paired"
-          class="catalog-panel__menu"
-          :connector-id="connectorId"
-          :level-id="treeLevelId"
-          :level-label="picked?.label ?? groupLabel"
-          :places="[treeLevelId]"
-          :selected-groups="[]"
-          :groupings="[]"
-          :checked-ids="treeChecked.map((node) => node.id)"
-          :checked-nodes="treeChecked.map((node) => ({ label: node.label, kind: node.kind }))"
-          :place-label="picked && pickedIsPlace ? picked.label : groupLabel"
-          :checked-label="treeChecked[0]?.label ?? ''"
-          :describes-nodes="false"
-          :described-node="null"
-          :draws-nodes="drawsNodes"
-          :drawable-nodes="true"
-          :adapter-type="adapterType"
-          @done="afterAction"
-          @untick="untick"
-          @source-changed="changes.announce($event)"
-          @connector="workspace.createConnector"
-          @details="showDetails"
-          @relationships="showTreeRelationships"
-          @backups="showBackups"
-        />
-        <CatalogActions
-          v-else-if="!paired"
-          class="catalog-panel__menu"
-          :connector-id="connectorId"
-          :level-id="level.currentId.value"
-          :level-label="levelLabel"
-          :places="places"
-          :selected-groups="selectedGroupNodes"
-          :groupings="groupings"
-          :checked-ids="level.checked.value"
-          :checked-nodes="level.checkedNodes.value.map((node) => ({ label: node.label, kind: node.kind }))"
-          :place-label="placeLabel"
-          :checked-label="checkedLabel"
-          :describes-nodes="describesNodes"
-          :described-node="describedNode"
-          :draws-nodes="drawsNodes"
-          :drawable-nodes="drawableNodes"
-          :adapter-type="adapterType"
-          @done="afterAction"
-          @untick="untick"
-          @source-changed="changes.announce($event)"
-          @connector="workspace.createConnector"
-          @details="showDetails"
-          @relationships="showRelationships"
-          @backups="showBackups"
-        />
+        <!-- The commands in groups with a line between two, as the grid's are:
+             this tab, a second catalog beside it, and the menu of what can be
+             done last, where a row of commands usually keeps it. A group draws
+             the line on its left, so one that is not shown takes its line
+             away; the menu draws its own, as it may have nothing to offer. -->
+        <div class="catalog-panel__commands">
+          <AppToolbarRule v-if="showsLocation" />
+          <!-- The catalog is the way to a node and not a view of one, so it
+               offers no "show in catalog" of its own (D112). Its reload carries
+               how old this level is — the whole level, including the groupings
+               ticked into it — where the source keeps anything at all (D105). -->
+          <PanelCommands
+            :panel-id="panelId"
+            :freshness="!asTree && keepsAnswers ? level.freshness.value : undefined"
+            :cache-ttl-seconds="cacheWindow"
+          />
+          <template v-if="!floating">
+            <AppToolbarRule />
+            <AppButton
+              variant="quiet"
+              size="sm"
+              class="catalog-panel__duplicate"
+              aria-label="Duplicate catalog beside this one"
+              data-testid="catalog-duplicate"
+              @click="workspace.duplicateCatalog(panelId, level.currentId.value)"
+            >
+              <span class="catalog-panel__duplicate-label">×2</span>
+              <AppTooltip>Duplicate catalog beside this one</AppTooltip>
+            </AppButton>
+            <AppIconButton
+              v-if="workspace.pairCatalog"
+              :icon="appIcons.pair"
+              :tooltip="pairing.tooltip"
+              :disable="pairing.refused"
+              data-testid="catalog-pair"
+              @click="workspace.pairCatalog?.(panelId)"
+            />
+          </template>
 
-        <!-- The catalog is the way to a node and not a view of one, so it
-             offers no "show in catalog" of its own (D112). Its reload carries
-             how old this level is — the whole level, including the groupings
-             ticked into it — where the source keeps anything at all (D105). -->
-        <PanelCommands
-          :panel-id="panelId"
-          :freshness="!asTree && keepsAnswers ? level.freshness.value : undefined"
-          :cache-ttl-seconds="cacheWindow"
-        />
-        <AppButton
-          v-if="!floating"
-          variant="quiet"
-          size="sm"
-          class="catalog-panel__duplicate"
-          aria-label="Duplicate catalog beside this one"
-          data-testid="catalog-duplicate"
-          @click="workspace.duplicateCatalog(panelId, level.currentId.value)"
-        >
-          <span class="catalog-panel__duplicate-label">×2</span>
-          <AppTooltip>Duplicate catalog beside this one</AppTooltip>
-        </AppButton>
-        <AppIconButton
-          v-if="workspace.pairCatalog && !floating"
-          :icon="appIcons.pair"
-          :tooltip="pairing.tooltip"
-          :disable="pairing.refused"
-          data-testid="catalog-pair"
-          @click="workspace.pairCatalog?.(panelId)"
-        />
+          <!-- One menu, fed from wherever the selection lives: a level's ticks
+               or a tree's one selected node. What an action may do to them is
+               still the server's answer about those nodes. -->
+          <CatalogActions
+            v-if="asTree && !paired"
+            :connector-id="connectorId"
+            :level-id="treeLevelId"
+            :level-label="picked?.label ?? groupLabel"
+            :places="[treeLevelId]"
+            :selected-groups="[]"
+            :groupings="[]"
+            :checked-ids="treeChecked.map((node) => node.id)"
+            :checked-nodes="treeChecked.map((node) => ({ label: node.label, kind: node.kind }))"
+            :place-label="picked && pickedIsPlace ? picked.label : groupLabel"
+            :checked-label="treeChecked[0]?.label ?? ''"
+            :describes-nodes="false"
+            :described-node="null"
+            :draws-nodes="drawsNodes"
+            :drawable-nodes="true"
+            :adapter-type="adapterType"
+            @done="afterAction"
+            @untick="untick"
+            @source-changed="changes.announce($event)"
+            @connector="workspace.createConnector"
+            @details="showDetails"
+            @relationships="showTreeRelationships"
+            @backups="showBackups"
+          />
+          <CatalogActions
+            v-else-if="!paired"
+            :connector-id="connectorId"
+            :level-id="level.currentId.value"
+            :level-label="levelLabel"
+            :places="places"
+            :selected-groups="selectedGroupNodes"
+            :groupings="groupings"
+            :checked-ids="level.checked.value"
+            :checked-nodes="level.checkedNodes.value.map((node) => ({ label: node.label, kind: node.kind }))"
+            :place-label="placeLabel"
+            :checked-label="checkedLabel"
+            :describes-nodes="describesNodes"
+            :described-node="describedNode"
+            :draws-nodes="drawsNodes"
+            :drawable-nodes="drawableNodes"
+            :adapter-type="adapterType"
+            @done="afterAction"
+            @untick="untick"
+            @source-changed="changes.announce($event)"
+            @connector="workspace.createConnector"
+            @details="showDetails"
+            @relationships="showRelationships"
+            @backups="showBackups"
+          />
+        </div>
       </div>
 
       <!-- On a line of its own: a filter is something a user types into, and
@@ -1180,9 +1194,14 @@ async function afterAction(outcome: ActionOutcome) {
   flex: 1;
   min-width: 0;
 }
-/* The menu keeps to the end of the line whether or not there is a path to
-   push it there. */
-.catalog-panel__menu {
+/* The commands keep to the end of the line whether or not there is a path
+   to push them there. */
+.catalog-panel__commands {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: var(--dp-space-1);
+  flex: none;
   margin-left: auto;
 }
 .catalog-panel__duplicate { width: var(--dp-tab-strip-height); height: var(--dp-tab-strip-height); min-width: var(--dp-tab-strip-height); padding: 0; }

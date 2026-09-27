@@ -37,7 +37,7 @@ import { useAdapterTypes } from "@/features/connectors/api"
 import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
-import { AppIconButton, AppMenu, useToast } from "@/shared/ui"
+import { AppIconButton, AppMenu, AppToolbarRule, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 /**
@@ -46,7 +46,9 @@ import type { MenuItem } from "@/shared/ui"
  * the user happens to be, since standing in a folder is not choosing it.
  *
  * The client's own verbs are lines of the same menu, so a source with neither
- * actions nor described nodes shows nothing rather than an empty menu.
+ * actions nor described nodes shows nothing rather than an empty menu. It is
+ * the last of the catalog's commands and draws the line before it, which then
+ * goes with it.
  */
 const props = defineProps<{
   connectorId: string
@@ -489,17 +491,25 @@ async function pick(name: string) {
   <!-- Drawn while there is anything to offer, which is now either the source's
        actions or the client's own verbs: a source with no actions at all still
        describes its nodes. -->
-  <span v-if="items.length">
-    <AppIconButton
-      :icon="appIcons.moreVert"
-      tooltip="Actions"
-      data-testid="catalog-actions"
-      :loading="prepareConnector.isPending.value"
-    />
-    <AppMenu
-      :items="items"
-      @select="pick"
-    />
+  <span
+    v-if="items.length"
+    class="catalog-actions"
+  >
+    <AppToolbarRule />
+    <!-- A menu opens from its parent: a span of its own, so the line beside
+         the button is not a place to press. -->
+    <span>
+      <AppIconButton
+        :icon="appIcons.moreVert"
+        tooltip="Actions"
+        data-testid="catalog-actions"
+        :loading="prepareConnector.isPending.value"
+      />
+      <AppMenu
+        :items="items"
+        @select="pick"
+      />
+    </span>
 
     <!-- Not v-model: the dialog only ever gives the command back closed, and
          binding it would narrow the menu command to the plainer one it takes. -->
@@ -535,3 +545,12 @@ async function pick(name: string) {
     />
   </span>
 </template>
+
+<style scoped>
+/* As tall as the row it ends, so its line is as long as the others. */
+.catalog-actions {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+}
+</style>

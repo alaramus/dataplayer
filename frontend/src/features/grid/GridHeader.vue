@@ -3,7 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { Sort } from "@/client"
-import { AppCopyButton, AppIconButton } from "@/shared/ui"
+import { AppCopyButton, AppIconButton, AppToolbarRule } from "@/shared/ui"
 
 import FilterEditor from "./FilterEditor.vue"
 import ColumnManager from "./ColumnManager.vue"
@@ -59,11 +59,7 @@ const groups = TOOLBAR_GROUPS
         <!-- The line stands between two groups and belongs to neither, so the
              group on its right draws it rather than it having a place of its
              own to be forgotten in. -->
-        <span
-          v-if="index > 0"
-          class="grid-header__rule"
-          aria-hidden="true"
-        />
+        <AppToolbarRule v-if="index > 0" />
         <div class="grid-header__group-body">
           <span class="grid-header__label">{{ group.label }}</span>
           <div class="grid-header__row">
@@ -175,13 +171,6 @@ const groups = TOOLBAR_GROUPS
   flex-direction: column;
   gap: 1px;
   padding: 0 var(--dp-space-half);
-}
-
-.grid-header__rule {
-  flex: none;
-  width: 1px;
-  margin: var(--dp-space-1) var(--dp-space-2);
-  background: var(--dp-border);
 }
 
 .grid-header__label {

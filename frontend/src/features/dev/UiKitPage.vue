@@ -37,6 +37,7 @@ import {
   AppTaskbarItem,
   AppThemeToggle,
   AppToggle,
+  AppToolbarRule,
   AppTooltip,
   AppTree,
   appIcons,
@@ -302,6 +303,21 @@ function removeSavedEntry(name: string) {
                application when the theme is pressed. -->
           <AppThemeToggle />
           <AppFullscreenToggle />
+        </div>
+        <div class="row items-center ui-kit__row--spaced">
+          <AppIconButton
+            :icon="appIcons.refresh"
+            tooltip="Reload"
+          />
+          <AppIconButton
+            :icon="appIcons.window"
+            tooltip="Open in a window"
+          />
+          <AppToolbarRule />
+          <AppIconButton
+            :icon="appIcons.moreVert"
+            tooltip="Actions"
+          />
         </div>
       </AppSection>
     </AppCard>
