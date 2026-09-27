@@ -44,6 +44,7 @@ from app.ai.runner import AgentRunnerDep, RunRefused
 from app.connectors.content_tickets import content_disposition
 from app.core.db import SessionDep
 from app.core.schemas import Message
+from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -135,6 +136,7 @@ async def send_quick_chat_message(
     session: SessionDep,
     current_user: CurrentUser,
     runner: AgentRunnerDep,
+    topics: TopicsDep,
     chat_id: uuid.UUID,
     body: quick_chat.QuickChatSend,
 ) -> Any:
@@ -145,7 +147,7 @@ async def send_quick_chat_message(
         raise HTTPException(status_code=422, detail={"message": "That model is not in the list"})
     try:
         return await quick_chat.send(
-            session, chat, current_user.id, body, catalog(), runner.chat_models
+            session, chat, current_user.id, body, catalog(), runner.chat_models, topics
         )
     except ValueError as refused:
         raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused

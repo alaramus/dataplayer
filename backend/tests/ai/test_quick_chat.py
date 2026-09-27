@@ -2,9 +2,21 @@
 
 from httpx import AsyncClient
 from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from tests.ai.conftest import AI, KEY, MODEL_KEY, Script, Turn, ready_agent, text
+from app.ai.topic import NAME, QUICK_NAME, QuickAnswerDelta
+from app.main import app
+from tests.ai.conftest import (
+    AI,
+    KEY,
+    MODEL_KEY,
+    Script,
+    Turn,
+    ready_agent,
+    text,
+    user_id_of,
+)
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
@@ -45,6 +57,45 @@ async def test_quick_chat_stores_a_separate_conversation_without_tools(
         item["id"] for item in (await client.get(f"{AI}/conversations", headers=headers)).json()["data"]
     }
     assert (await client.get(f"{AI}/quick-chats", headers=headers)).json()[0]["id"] == chat_id
+
+
+async def test_the_socket_hears_a_quick_answer_as_it_is_written(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], script: Script
+) -> None:
+    headers = normal_user_token_headers
+    await ready_agent(client, headers)
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    owner = await user_id_of(client, headers)
+    heard: list[tuple[str, BaseModel]] = []
+
+    class _Listener:
+        user_id = owner
+
+        async def deliver(self, topic: str, payload: BaseModel) -> None:
+            heard.append((topic, payload))
+
+    listener = _Listener()
+    quick = app.state.topics.get(QUICK_NAME)
+    agent = app.state.topics.get(NAME)
+    await quick.subscribe(listener)
+    await agent.subscribe(listener)
+    try:
+        script.turns.append(Turn(pieces=[text("a"), text("b"), text("c")]))
+        sent = await client.post(
+            f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
+            json={"text": "Spell it", "model_key": MODEL_KEY},
+        )
+    finally:
+        await quick.unsubscribe(listener)
+        await agent.unsubscribe(listener)
+
+    assert sent.status_code == 200, sent.text
+    # Its own topic: a window listening for agent runs re-reads its list of
+    # conversations on every event it hears.
+    assert {topic for topic, _ in heard} == {QUICK_NAME}
+    deltas = [payload for _, payload in heard if isinstance(payload, QuickAnswerDelta)]
+    assert {str(delta.chat_id) for delta in deltas} == {chat_id}
+    assert "".join(delta.text for delta in deltas) == "abc"
 
 
 async def test_quick_chat_keeps_the_question_when_the_model_fails(

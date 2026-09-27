@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import { AiService } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { realtime } from "@/shared/realtime/client"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppSpinner, appIcons, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -60,6 +61,41 @@ watch(() => chat.data.value?.messages.length, async () => {
   await nextTick()
   if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight
 })
+
+/**
+ * The question being answered and the answer so far (D158).
+ *
+ * Drawn after the saved messages until the send returns the chat, which is the
+ * authority: a delta the socket missed is only a moment of text.
+ */
+const asked = ref<string | null>(null)
+const answer = ref("")
+// The question is committed before the model is called, so a chat read in the
+// meantime may already hold it.
+const askedShown = computed(() => {
+  const last = chat.data.value?.messages.at(-1)
+  return asked.value !== null && !(last?.role === "user" && last.content === asked.value)
+})
+const stopListening = realtime().subscribe("ai.quick", (payload) => {
+  if (asked.value === null || typeof payload !== "object" || payload === null) return
+  const delta = payload as { chat_id?: unknown; text?: unknown }
+  if (delta.chat_id === selected.value && typeof delta.text === "string") answer.value += delta.text
+})
+onBeforeUnmount(stopListening)
+watch(asked, async (question) => {
+  if (question === null) return
+  await nextTick()
+  if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight
+})
+// Follows the answer down while the reader is at the bottom, and leaves them
+// where they are once they have scrolled up to read.
+watch(answer, async () => {
+  const box = scroller.value
+  if (box === null) return
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 48
+  await nextTick()
+  if (atBottom) box.scrollTop = box.scrollHeight
+})
 watch(() => quickChatIntent.value?.id, async () => {
   const intent = quickChatIntent.value?.request
   if (!intent) return
@@ -83,6 +119,12 @@ async function send(value = draft.value) {
   if (!text || busy.value) return
   busy.value = true
   dictation.stop()
+  // Out of the composer as it goes into the transcript; put back below if the
+  // server cannot say it kept the question.
+  const typed = value === draft.value
+  if (typed) draft.value = ""
+  asked.value = text
+  answer.value = ""
   let created: string | null = null
   const beforeCount = chat.data.value?.id === selected.value ? chat.data.value.messages.length : 0
   try {
@@ -94,8 +136,8 @@ async function send(value = draft.value) {
     })).data
     cache.setQueryData(["ai", "quick-chat", id], result)
     await cache.invalidateQueries({ queryKey: quickChatsKey })
-    if (value === draft.value) draft.value = ""
   } catch (cause) {
+    let kept = false
     const id = created ?? selected.value
     if (id !== null) {
       try {
@@ -103,16 +145,21 @@ async function send(value = draft.value) {
         if (saved.messages.length > beforeCount && saved.messages.some((message) => message.role === "user" && message.content === text)) {
           cache.setQueryData(["ai", "quick-chat", id], saved)
           await cache.invalidateQueries({ queryKey: quickChatsKey })
-          if (value === draft.value) draft.value = ""
+          kept = true
         } else if (created !== null) {
           await AiService.deleteQuickChat({ path: { chat_id: id } })
           selected.value = null
         }
       } catch { /* Keep the draft and chat ID when the server cannot confirm what was saved. */ }
     }
+    if (!kept && typed && !draft.value) draft.value = value
     toast.error(messageOf(cause, "The model could not answer"))
   }
-  finally { busy.value = false }
+  finally {
+    busy.value = false
+    asked.value = null
+    answer.value = ""
+  }
 }
 
 function editorKeydown(event: KeyboardEvent) {
@@ -145,7 +192,7 @@ function editorKeydown(event: KeyboardEvent) {
           The chat could not be loaded.
         </AppBanner>
         <div
-          v-else-if="!chat.data.value?.messages.length"
+          v-else-if="!chat.data.value?.messages.length && asked === null"
           class="quick-chat__empty"
         >
           <q-icon
@@ -171,7 +218,25 @@ function editorKeydown(event: KeyboardEvent) {
             :text="message.content"
           />
         </article>
-        <AppSpinner v-if="busy" />
+        <article
+          v-if="askedShown"
+          class="quick-chat__message quick-chat__message--user"
+        >
+          <div class="quick-chat__question">
+            {{ asked }}
+          </div>
+        </article>
+        <article
+          v-if="asked !== null"
+          class="quick-chat__message quick-chat__message--assistant"
+          data-testid="quick-chat-answering"
+        >
+          <ChatMarkdown
+            v-if="answer"
+            :text="answer"
+          />
+          <AppSpinner v-else />
+        </article>
       </div>
       <div class="quick-chat__dock">
         <div class="quick-chat__composer">

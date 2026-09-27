@@ -1,4 +1,4 @@
-"""What a chat window hears while an answer is being written (D137).
+"""What a chat window hears while an answer is being written (D137, D158).
 
 The rows are the authority: a missed event costs nothing, because reading the
 conversation reaches the same state, and a page opened mid-answer reads the
@@ -15,6 +15,9 @@ from app.ai.models import AgentStepPublic, OpenIntent, RunStatus
 from app.realtime.topics import Subscriber, TopicSet, UnknownTopic, register
 
 NAME = "ai.runs"
+# Apart from the agent's: a window listening to `ai.runs` re-reads its list of
+# conversations on every event, and a quick answer is not one of them (D158).
+QUICK_NAME = "ai.quick"
 
 
 class RunChanged(BaseModel):
@@ -66,10 +69,19 @@ AgentEvent = (
 )
 
 
-class AgentTopic:
+class QuickAnswerDelta(BaseModel):
+    """What a quick chat's answer added since the last one (D158)."""
+
+    kind: Literal["answer"] = "answer"
+    chat_id: uuid.UUID
+    text: str
+
+
+class _PerUser:
     """Fan-out to the sockets of one user, like every topic here."""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str) -> None:
+        self._name = name
         self._subscribers: dict[uuid.UUID, set[Subscriber]] = {}
         self._lock = asyncio.Lock()
 
@@ -90,11 +102,27 @@ class AgentTopic:
         async with self._lock:
             self._subscribers.clear()
 
-    async def publish(self, user_id: uuid.UUID, event: AgentEvent) -> None:
+    async def _deliver(self, user_id: uuid.UUID, event: BaseModel) -> None:
         async with self._lock:
             watching = list(self._subscribers.get(user_id, ()))
         for subscriber in watching:
-            await subscriber.deliver(NAME, event)
+            await subscriber.deliver(self._name, event)
+
+
+class AgentTopic(_PerUser):
+    def __init__(self) -> None:
+        super().__init__(NAME)
+
+    async def publish(self, user_id: uuid.UUID, event: AgentEvent) -> None:
+        await self._deliver(user_id, event)
+
+
+class QuickChatTopic(_PerUser):
+    def __init__(self) -> None:
+        super().__init__(QUICK_NAME)
+
+    async def publish(self, user_id: uuid.UUID, event: QuickAnswerDelta) -> None:
+        await self._deliver(user_id, event)
 
 
 async def announce(topics: TopicSet, user_id: uuid.UUID, event: AgentEvent) -> None:
@@ -106,4 +134,16 @@ async def announce(topics: TopicSet, user_id: uuid.UUID, event: AgentEvent) -> N
         await topic.publish(user_id, event)
 
 
+async def announce_quick(
+    topics: TopicSet, user_id: uuid.UUID, event: QuickAnswerDelta
+) -> None:
+    try:
+        topic = topics.get(QUICK_NAME)
+    except UnknownTopic:
+        return
+    if isinstance(topic, QuickChatTopic):
+        await topic.publish(user_id, event)
+
+
 register(NAME, AgentTopic)
+register(QUICK_NAME, QuickChatTopic)

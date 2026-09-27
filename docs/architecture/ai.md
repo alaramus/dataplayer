@@ -465,7 +465,11 @@ independently of the AI space, so a later Data surface can call it with its
 own selection. Selection is capped at 8,000 characters.
 An empty quick chat is a local draft. Its first send creates the stored chat;
 the question is committed before the model call, so a model error leaves the
-question in history for a follow-up.
+question in history for a follow-up. The answer streams on the `ai.quick`
+topic as it is written, beside the agent's `ai.runs` rather than on it, whose
+listener re-reads the list of conversations on every event; the send still
+returns the saved chat, which is the authority, so a missed delta costs a
+moment of text and nothing else.
 
 Spec: [Quick chat and selected text](../decisions/2026-09-24-quick-chat.md)
 

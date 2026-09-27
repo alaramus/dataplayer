@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 import uuid
 from datetime import datetime
 
@@ -17,7 +18,10 @@ from app.ai.catalog import ModelCatalog
 from app.ai.content import opened, sealed
 from app.ai.models import MAX_TITLE_CHARS, Role
 from app.ai.providers import ChatModels
+from app.ai.runner import DELTA_INTERVAL_SECONDS, split_text
+from app.ai.topic import QuickAnswerDelta, announce_quick
 from app.core.schemas import get_datetime_utc
+from app.realtime.topics import TopicSet
 
 logger = logging.getLogger(__name__)
 HISTORY_LIMIT = 20
@@ -168,18 +172,6 @@ async def public(session: AsyncSession, chat: QuickConversation) -> QuickChatPub
     )
 
 
-def response_text(response: BaseMessage) -> str:
-    if isinstance(response.content, str):
-        return response.content
-    parts: list[str] = []
-    for block in response.content:
-        if isinstance(block, dict) and block.get("type") == "text":
-            value = block.get("text")
-            if isinstance(value, str):
-                parts.append(value)
-    return "\n".join(parts)
-
-
 async def send(
     session: AsyncSession,
     chat: QuickConversation,
@@ -187,6 +179,7 @@ async def send(
     body: QuickChatSend,
     catalog: ModelCatalog,
     chat_models: ChatModels,
+    topics: TopicSet,
 ) -> QuickChatPublic:
     model = catalog.find(body.model_key or chat.model_key)
     if model is None:
@@ -229,15 +222,31 @@ async def send(
         QuickMessage(conversation_id=chat.id, role="user", content=sealed(text)),
     ])
     await session.commit()
+    # Streamed to the window as it is written; what this returns is still the
+    # authority, so an event the socket missed costs nothing.
+    async def say(text: str) -> None:
+        await announce_quick(topics, owner_id, QuickAnswerDelta(chat_id=chat.id, text=text))
+
+    written: list[str] = []
+    unsent = ""
+    sent_at = time.monotonic()
     try:
         async with asyncio.timeout(120):
-            response = await chat_models.build(
+            async for chunk in chat_models.build(
                 model, key, max_output_tokens=min(model.max_output_tokens, 8192)
-            ).ainvoke(messages)
+            ).astream(messages):
+                said = split_text(chunk)[0]
+                written.append(said)
+                unsent += said
+                if unsent and time.monotonic() - sent_at >= DELTA_INTERVAL_SECONDS:
+                    await say(unsent)
+                    unsent, sent_at = "", time.monotonic()
+            if unsent:
+                await say(unsent)
     except Exception as error:  # noqa: BLE001  # Provider errors may contain private text
         logger.warning("Quick chat answer failed: %s", type(error).__name__)
         raise RuntimeError(chat_models.sentence(model, error)) from error
-    answer = response_text(response)[:ANSWER_LIMIT]
+    answer = "".join(written)[:ANSWER_LIMIT]
     if not answer.strip():
         raise RuntimeError("The model returned an empty answer")
     chat.updated_at = get_datetime_utc()
