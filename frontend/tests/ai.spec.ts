@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test"
 
+import { historyRows } from "./utils/ai"
 import { openNode, pickSchema } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
@@ -9,7 +10,8 @@ import { deleteConnector, openConnector } from "./utils/workspace"
 test("keeps unsent text when leaving and returning to the AI space", async ({ page }) => {
   await login(page)
   await page.getByTestId("space-ai").click()
-  const before = await page.locator('[data-testid^="ai-chat-row-"]').count()
+  const rows = await historyRows(page)
+  const before = await rows.count()
   await page.getByTestId("ai-new-chat").click()
   const input = page.getByTestId("ai-message-input")
   await expect(input).toBeVisible()
@@ -19,10 +21,10 @@ test("keeps unsent text when leaving and returning to the AI space", async ({ pa
   await page.getByTestId("space-ai").click()
 
   await expect(page.getByTestId("ai-message-input")).toHaveValue("A question I have not sent")
-  await expect(page.locator('[data-testid^="ai-chat-row-"]')).toHaveCount(before)
+  await expect(rows).toHaveCount(before)
   await page.getByTestId("space-data").click()
   await page.getByTestId("space-ai").click()
-  await expect(page.locator('[data-testid^="ai-chat-row-"]')).toHaveCount(before)
+  await expect(rows).toHaveCount(before)
 })
 
 test("attaches named workspace tabs without overflowing a narrow composer", async ({ page }) => {
@@ -90,7 +92,7 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-send")).toHaveAttribute("aria-label", "Send")
 
   const active = page.locator('[data-testid^="ai-chat-row-"][data-active="true"]')
-  const chatCount = await page.locator('[data-testid^="ai-chat-row-"]').count()
+  const chatCount = await (await historyRows(page)).count()
   await page.getByTestId("ai-new-chat").click()
   await expect(page.getByTestId("ai-new-chat")).toBeEnabled()
   await expect(active).toHaveCount(0)

@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test"
 
+import { historyRows } from "./utils/ai"
 import { login } from "./utils/login"
 
 test("opening and closing a quick chat leaves history unchanged", async ({ page }) => {
   await login(page)
   await page.getByTestId("space-ai").click()
-  const rows = page.locator('[data-testid^="ai-chat-row-"]')
+  const rows = await historyRows(page)
   const before = await rows.count()
   await page.getByTestId("quick-chat-rail").click()
   await expect(page.getByTestId("quick-chat-window")).toBeVisible()

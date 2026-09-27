@@ -105,6 +105,9 @@ function closeChatFilter() {
 }
 
 const conversations = computed(() => list.data.value?.data ?? [])
+// The history is one list merged from two queries. Drawn before both arrive,
+// it reorders when the second one lands, under a row about to be clicked.
+const historyLoading = computed(() => list.isPending.value || quickList.isPending.value)
 type HistoryChat = { kind: "agent"; chat: ConversationSummary } | { kind: "quick"; chat: QuickChatSummary }
 const byRecent = (a: HistoryChat, b: HistoryChat) =>
   Number(b.chat.pinned) - Number(a.chat.pinned) ||
@@ -424,74 +427,77 @@ onScopeDispose(stop)
         v-if="!collapsed"
         class="ai-window__history"
         aria-label="Chat history"
+        :aria-busy="historyLoading"
         data-testid="ai-history"
       >
-        <AppSpinner v-if="list.isPending.value || quickList.isPending.value" />
+        <AppSpinner v-if="historyLoading" />
         <AppEmptyState
           v-else-if="chatNameFilter.trim() && visibleGroups.length === 0"
           text="No matching chats or projects"
         />
-        <div
-          v-for="group in visibleGroups"
-          :key="group.id ?? 'loose'"
-          class="ai-window__group"
-          :data-testid="group.id ? `ai-project-${group.id}` : 'ai-loose-chats'"
-        >
+        <template v-else>
           <div
-            v-if="group.id !== null"
-            class="ai-window__project"
+            v-for="group in visibleGroups"
+            :key="group.id ?? 'loose'"
+            class="ai-window__group"
+            :data-testid="group.id ? `ai-project-${group.id}` : 'ai-loose-chats'"
           >
-            <button
-              type="button"
-              class="ai-window__project-name"
-              :aria-expanded="!projectIsClosed(group.id)"
-              :title="group.name"
-              :data-testid="`ai-project-toggle-${group.id}`"
-              @click="toggleProject(group.id)"
+            <div
+              v-if="group.id !== null"
+              class="ai-window__project"
             >
-              <q-icon
-                :name="projectIsClosed(group.id) ? 'chevron_right' : 'keyboard_arrow_down'"
-                size="16px"
+              <button
+                type="button"
+                class="ai-window__project-name"
+                :aria-expanded="!projectIsClosed(group.id)"
+                :title="group.name"
+                :data-testid="`ai-project-toggle-${group.id}`"
+                @click="toggleProject(group.id)"
+              >
+                <q-icon
+                  :name="projectIsClosed(group.id) ? 'chevron_right' : 'keyboard_arrow_down'"
+                  size="16px"
+                />
+                <span class="ai-window__project-title">{{ group.name }}</span>
+                <span class="ai-window__project-count">{{ group.chats.length }}</span>
+              </button>
+              <span class="ai-window__project-actions">
+                <AppIconButton
+                  :icon="appIcons.edit"
+                  tooltip="Rename project"
+                  compact
+                  :data-testid="`ai-project-rename-${group.id}`"
+                  @click="beginProjectRename(group.id, group.name)"
+                />
+                <AppIconButton
+                  :icon="appIcons.delete"
+                  tooltip="Delete project"
+                  variant="danger-quiet"
+                  compact
+                  :data-testid="`ai-project-delete-${group.id}`"
+                  @click="removeProject(group.id, group.name)"
+                />
+              </span>
+            </div>
+            <div
+              v-if="group.id === null || !projectIsClosed(group.id)"
+              :class="{ 'ai-window__project-chats': group.id !== null }"
+            >
+              <AiChatRow
+                v-for="entry in group.chats"
+                :key="`${entry.kind}-${entry.chat.id}`"
+                :chat="entry.chat"
+                :active="entry.kind === 'agent' && selected === entry.chat.id && !settingsShown"
+                :projects="projects"
+                @select="selectHistory(entry)"
+                @pin="pinHistory(entry, $event)"
+                @archive="archiveHistory(entry)"
+                @move="moveChat(entry, $event)"
+                @new-project="beginProjectFor(entry)"
               />
-              <span class="ai-window__project-title">{{ group.name }}</span>
-              <span class="ai-window__project-count">{{ group.chats.length }}</span>
-            </button>
-            <span class="ai-window__project-actions">
-              <AppIconButton
-                :icon="appIcons.edit"
-                tooltip="Rename project"
-                compact
-                :data-testid="`ai-project-rename-${group.id}`"
-                @click="beginProjectRename(group.id, group.name)"
-              />
-              <AppIconButton
-                :icon="appIcons.delete"
-                tooltip="Delete project"
-                variant="danger-quiet"
-                compact
-                :data-testid="`ai-project-delete-${group.id}`"
-                @click="removeProject(group.id, group.name)"
-              />
-            </span>
+            </div>
           </div>
-          <div
-            v-if="group.id === null || !projectIsClosed(group.id)"
-            :class="{ 'ai-window__project-chats': group.id !== null }"
-          >
-            <AiChatRow
-              v-for="entry in group.chats"
-              :key="`${entry.kind}-${entry.chat.id}`"
-              :chat="entry.chat"
-              :active="entry.kind === 'agent' && selected === entry.chat.id && !settingsShown"
-              :projects="projects"
-              @select="selectHistory(entry)"
-              @pin="pinHistory(entry, $event)"
-              @archive="archiveHistory(entry)"
-              @move="moveChat(entry, $event)"
-              @new-project="beginProjectFor(entry)"
-            />
-          </div>
-        </div>
+        </template>
       </div>
       <div class="ai-window__rail-foot">
         <AppButton
