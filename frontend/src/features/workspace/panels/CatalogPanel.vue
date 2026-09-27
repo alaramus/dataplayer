@@ -572,6 +572,11 @@ const paired = computed(() =>
   engine?.detached.value.some((entry) => entry.panelId === props.panelId && entry.group !== undefined) ?? false
 )
 
+/** What Pair says here, with whatever is waiting for a second catalog (D167). */
+const pairing = computed(() =>
+  workspace.pairCommandOf?.(props.panelId) ?? { tooltip: "Pair with another connection", refused: false }
+)
+
 /** Offered once there is something to look for, exactly as a filter is. */
 const canRunSearch = computed(() => canSearch.value && level.filter.value.trim() !== "")
 
@@ -885,7 +890,8 @@ async function afterAction(outcome: ActionOutcome) {
         <AppIconButton
           v-if="workspace.pairCatalog && !paired"
           :icon="appIcons.pair"
-          tooltip="Pair with another connection"
+          :tooltip="pairing.tooltip"
+          :disable="pairing.refused"
           data-testid="catalog-pair"
           @click="workspace.pairCatalog?.(panelId)"
         />

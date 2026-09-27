@@ -7,8 +7,8 @@ import type { WorkspaceApi } from "@/shared/workspace"
 
 import { catalogPanelId } from "./panels"
 import type { Panel } from "./panels"
-import { dropOnPair, pairIntact, swapped } from "./pairs"
-import type { Pair, PairCandidate } from "./pairs"
+import { dropOnPair, pairCommand, pairIntact, swapped } from "./pairs"
+import type { Pair, PairCandidate, PairCommand } from "./pairs"
 
 /**
  * The waiting pair and the open ones, over the workspace engine (D167).
@@ -33,7 +33,7 @@ export function usePairs(
       : null
   }
 
-  /** A catalog dropped on Pair, or its own Pair command pressed. */
+  /** A catalog's own Pair command pressed. */
   function offer(panelId: string) {
     const carried = candidateOf(panelId)
     if (carried === null) return
@@ -42,9 +42,12 @@ export function usePairs(
     else if (answer.kind === "complete") open(answer.left, answer.right)
   }
 
-  function drop(panelId: string) {
-    context.endDrag(null, null)
-    offer(panelId)
+  /** What that command says now, which follows whatever is waiting. */
+  function commandOf(panelId: string): PairCommand {
+    const candidate = candidateOf(panelId)
+    return candidate === null
+      ? { tooltip: "Pair with another connection", refused: true }
+      : pairCommand(waiting.value, candidate)
   }
 
   /** The second side chosen from a list rather than carried. */
@@ -116,7 +119,7 @@ export function usePairs(
     pairs: readonly(pairs),
     candidateOf,
     offer,
-    drop,
+    commandOf,
     pairWith,
     cancel,
     unpair,

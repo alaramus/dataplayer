@@ -7,7 +7,7 @@ import {
   dropOnPair,
   itemDetail,
   pairIntact,
-  pairTargetLabel,
+  pairCommand,
   pairTitle,
   pasteIntentFor,
   swapped,
@@ -18,7 +18,7 @@ const files = { panelId: "catalog:f", connectorId: "f", title: "Files" }
 const copyOfFiles = { panelId: "catalog:f:copy:1", connectorId: "f", title: "Files" }
 const database = { panelId: "catalog:d", connectorId: "d", title: "Postgres" }
 
-describe("dropping a catalog on Pair", () => {
+describe("offering a catalog to Pair", () => {
   it("waits for the second, and a repeated drop only waits again", () => {
     expect(dropOnPair(null, files)).toEqual({ kind: "hold" })
     expect(dropOnPair(files, files)).toEqual({ kind: "hold" })
@@ -31,14 +31,17 @@ describe("dropping a catalog on Pair", () => {
   it("refuses a second catalog of the waiting connection", () => {
     expect(dropOnPair(files, copyOfFiles)).toEqual({
       kind: "refuse",
-      reason: "Pick another connection",
+      reason: "a catalog of this connection is already waiting",
     })
   })
 
-  it("says what the drop would do", () => {
-    expect(pairTargetLabel(null, files)).toBe("Drop to pair with another connection")
-    expect(pairTargetLabel(files, database)).toBe("Drop to pair with Files")
-    expect(pairTargetLabel(files, copyOfFiles)).toBe("Pick another connection")
+  it("says on the command what pressing it would do, and refuses where it would", () => {
+    expect(pairCommand(null, files)).toEqual({ tooltip: "Pair with another connection", refused: false })
+    expect(pairCommand(files, database)).toEqual({ tooltip: "Pair with Files", refused: false })
+    expect(pairCommand(files, copyOfFiles)).toEqual({
+      tooltip: "Pair with another connection — a catalog of this connection is already waiting",
+      refused: true,
+    })
   })
 })
 

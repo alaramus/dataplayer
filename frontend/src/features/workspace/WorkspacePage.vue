@@ -33,7 +33,6 @@ import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import PipelinesSpace from "@/features/pipelines/PipelinesSpace.vue"
 import WorkspaceBottomPanel from "@/features/workspace/WorkspaceBottomPanel.vue"
 import WorkspaceToolRail from "@/features/workspace/WorkspaceToolRail.vue"
-import PairTarget from "@/features/workspace/PairTarget.vue"
 import PairWaiting from "@/features/workspace/PairWaiting.vue"
 import PairWindows from "@/features/workspace/PairWindows.vue"
 import { usePairs } from "@/features/workspace/usePairs"
@@ -98,7 +97,6 @@ import {
   makeLeaf,
   makeSplit,
   useWorkspace,
-  WorkspaceDetachTarget,
   WorkspaceRoot,
   WorkspaceTaskbar,
 } from "@/shared/workspace"
@@ -698,6 +696,7 @@ const actions: WorkspaceActions = {
   openCatalog,
   duplicateCatalog,
   pairCatalog: (panelId) => { pairs.offer(panelId) },
+  pairCommandOf: (panelId) => pairs.commandOf(panelId),
   revealInCatalog,
   revealTarget,
   takeReveal: (connectorId: string) => {
@@ -1012,16 +1011,6 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
         />
       </span>
       <PairWaiting :pairs="pairs" />
-    </template>
-    <template #header-overlay>
-      <WorkspaceDetachTarget :context="workspace.context">
-        <template #beside="{ panelId }">
-          <PairTarget
-            :pairs="pairs"
-            :panel-id="panelId"
-          />
-        </template>
-      </WorkspaceDetachTarget>
     </template>
     <template #status>
       <!-- The icon-only server at the very left edge, on the same axis as

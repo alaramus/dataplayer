@@ -16,7 +16,7 @@ import {
   rowsTabs,
 } from "./utils/workspace"
 
-test("detaches through the header, keeps the grid page and dark surface and returns the tab", async ({ page }) => {
+test("opens a tab in a window from its own commands, keeps the grid page and dark surface and returns it", async ({ page }) => {
   const name = `e2e-detached-${Date.now()}`
   await login(page)
   await chooseTheme(page, "dark")
@@ -34,32 +34,12 @@ test("detaches through the header, keeps the grid page and dark surface and retu
   await expect(page.getByTestId("grid-page-range")).not.toHaveText("Rows 0")
   const range = await page.getByTestId("grid-page-range").innerText()
   const tab = rowsTabs(page).first()
-  const preview = page.getByTestId("workspace-detach-target")
+  // In the tab's own group of the row, beside reload and Show in catalog
+  // (D93): carrying the tab to the header was a gesture nobody found.
+  const toWindow = page.getByTestId("grid-group-tab").getByTestId("panel-window")
+  await expect(toWindow).toHaveAttribute("aria-label", "Open in a window")
 
-  const carryToHeader = async () => {
-    const from = await tab.boundingBox()
-    if (from === null) throw new Error("The table tab has no rectangle")
-    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(from.x + from.width / 2, from.y - 12, { steps: 4 })
-    await expect(preview).toBeVisible()
-    const target = await preview.boundingBox()
-    if (target === null) throw new Error("The header drop target has no rectangle")
-    await page.mouse.move(target.x + 80, target.y + target.height / 2, { steps: 6 })
-    await expect(preview).toContainText("Drop here to open in a window")
-    await expect(preview).toHaveCSS("border-top-style", "solid")
-  }
-
-  await carryToHeader()
-  await page.keyboard.press("Escape")
-  await page.mouse.up()
-  await expect(preview).toHaveCount(0)
-  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("")
-  await expect(tab).toBeVisible()
-  await expect(page.getByRole("dialog", { name: "pg_class", exact: true })).toHaveCount(0)
-
-  await carryToHeader()
-  await page.mouse.up()
+  await toWindow.click()
   const floating = page.getByRole("dialog", { name: "pg_class", exact: true })
   await expect(floating).toBeVisible()
   await expect(tab).toHaveCount(0)
@@ -78,14 +58,22 @@ test("detaches through the header, keeps the grid page and dark surface and retu
     .getByRole("button", { name: "pg_class", exact: true })
     .click()
   await expect(floating.getByTestId("grid-page-range")).toHaveText(range)
-  await floating.getByRole("button", { name: "Return to panel", exact: true }).click()
+  // The frame's own way back.
+  await floating.getByTestId("dock-panel").click()
   await expect(floating).toHaveCount(0)
   await expect(tab).toBeVisible()
   await expect(page.getByTestId("grid-page-range")).toHaveText(range)
   await expect(page.getByTestId("row-grid")).toHaveCSS("background-color", surface)
 
-  await carryToHeader()
-  await page.mouse.up()
+  // And the same button of the row, which says the other way in a window.
+  await toWindow.click()
+  const back = floating.getByTestId("panel-window")
+  await expect(back).toHaveAttribute("aria-label", "Return to panel")
+  await back.click()
+  await expect(floating).toHaveCount(0)
+  await expect(tab).toBeVisible()
+
+  await toWindow.click()
   await expect(floating).toBeVisible()
   await page.reload()
   await expect(tab).toBeVisible()

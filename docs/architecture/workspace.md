@@ -373,11 +373,17 @@ not disabled — everywhere else: a chart is drawn from a page of rows, a diagra
 from several nodes at once, a console is written against a connection, and a
 captured result names no node of any source.
 
-Returning a detached panel is not one of them. It is about the frame rather than
-what the frame holds, so it stands in the window's own bar beside minimize,
-maximize and close. A window may declare commands of its own for exactly this;
-the window engine knows the icon, the words and what to call, and nothing about
-panels.
+Open in a window comes last (D93). It is about the frame rather than what the
+frame holds, and it stood nowhere at first: a tab carried to the header was the
+only way, and nobody found it. So it is a button of the row after all, and in
+the window the same button reads Return to panel. The window's own bar keeps its
+Return beside minimize, maximize and close; a window may declare commands of its
+own for exactly this, and the window engine knows the icon, the words and what
+to call, and nothing about panels.
+
+Known deviation: a widget and a service's output lifted into tabs (D155) draw no
+row of commands, so they offer neither the reload their look declares nor a way
+into a window.
 
 A small mark rides above the reload where there is anything to report: "Live"
 while the answer is the read, a clock once it is one that was kept (D105). It

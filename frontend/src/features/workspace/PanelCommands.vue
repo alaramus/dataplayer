@@ -13,7 +13,8 @@ import { workspaceActionsKey } from "./state"
 
 /**
  * What a panel offers about itself, at the end of its own row of commands
- * (D112): the way back to its node in the catalog, and re-reading.
+ * (D112): the way back to its node in the catalog, re-reading, and the way
+ * into a window of its own and back (D93).
  *
  * Draws nothing when mounted outside the workspace, which every panel's own
  * unit test does: there is no look to read there.
@@ -78,6 +79,39 @@ async function reload() {
   }
 }
 
+/** Where this panel is, if it is in a window rather than a column. */
+const floating = computed(() =>
+  workspace?.detached.value.find((entry) => entry.panelId === props.panelId)
+)
+
+/**
+ * One button for both ways, so it is in the same place whichever way it goes.
+ * A catalog in a pair returns with its partner, by closing the pair's window.
+ */
+const frame = computed(() => {
+  const here = floating.value
+  if (here?.group !== undefined) {
+    return {
+      icon: appIcons.tab,
+      tooltip: "Return to panel — closing the pair's window returns both catalogs",
+      enabled: false,
+    }
+  }
+  if (here !== undefined) return { icon: appIcons.tab, tooltip: "Return to panel", enabled: true }
+  const may = workspace?.canDetach(props.panelId) === true
+  return {
+    icon: appIcons.window,
+    tooltip: may ? "Open in a window" : "Open in a window — this tab stays in its column",
+    enabled: may,
+  }
+})
+
+function moveFrame() {
+  if (workspace === null || !frame.value.enabled) return
+  if (floating.value === undefined) workspace.detach(props.panelId)
+  else workspace.dock(props.panelId)
+}
+
 function showInCatalog() {
   const target = props.reveal
   if (target === undefined || actions === null) return
@@ -133,6 +167,14 @@ function showInCatalog() {
       aria-label="Show in catalog"
       data-testid="panel-reveal"
       @click="showInCatalog"
+    />
+    <AppIconButton
+      :icon="frame.icon"
+      :tooltip="frame.tooltip"
+      :disable="!frame.enabled"
+      data-testid="panel-window"
+      :data-floating="floating === undefined ? 'no' : 'yes'"
+      @click="moveFrame"
     />
   </span>
 </template>

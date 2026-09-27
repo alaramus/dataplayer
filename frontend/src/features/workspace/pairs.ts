@@ -24,7 +24,7 @@ export interface Pair {
 }
 
 /**
- * What dropping a catalog on Pair does now.
+ * What offering a catalog to Pair does now.
  *
  * `hold` makes it the waiting one — also when it replaces another waiting
  * catalog, or is dropped a second time; `complete` opens the pair; `refuse`
@@ -39,17 +39,24 @@ export type PairDrop =
 export function dropOnPair(waiting: PairCandidate | null, carried: PairCandidate): PairDrop {
   if (waiting === null || waiting.panelId === carried.panelId) return { kind: "hold" }
   if (waiting.connectorId === carried.connectorId) {
-    return { kind: "refuse", reason: "Pick another connection" }
+    return { kind: "refuse", reason: "a catalog of this connection is already waiting" }
   }
   return { kind: "complete", left: waiting, right: carried }
 }
 
-/** What the Pair target says to a catalog being carried over it. */
-export function pairTargetLabel(waiting: PairCandidate | null, carried: PairCandidate): string {
-  const drop = dropOnPair(waiting, carried)
-  if (drop.kind === "refuse") return drop.reason
-  if (drop.kind === "complete") return `Drop to pair with ${drop.left.title}`
-  return "Drop to pair with another connection"
+/** What a catalog's Pair command says, and whether it is refused. */
+export interface PairCommand {
+  tooltip: string
+  refused: boolean
+}
+
+export function pairCommand(waiting: PairCandidate | null, candidate: PairCandidate): PairCommand {
+  const drop = dropOnPair(waiting, candidate)
+  if (drop.kind === "refuse") {
+    return { tooltip: `Pair with another connection — ${drop.reason}`, refused: true }
+  }
+  if (drop.kind === "complete") return { tooltip: `Pair with ${drop.left.title}`, refused: false }
+  return { tooltip: "Pair with another connection", refused: false }
 }
 
 export function pairTitle(pair: Pair): string {

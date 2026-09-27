@@ -214,17 +214,7 @@ test("carries one selection into 3D, into a window and through a reload", async 
 
   // Detaching carries the live panel, so the scene is neither rebuilt nor
   // dropped: the same selection, drawing into the window's own rectangle.
-  const tab = page.locator('[data-testid^="workspace-tab-relationships:"]').first()
-  const preview = page.getByTestId("workspace-detach-target")
-  const from = await centre(tab)
-  await page.mouse.move(from.x, from.y)
-  await page.mouse.down()
-  await page.mouse.move(from.x, from.y - 24, { steps: 4 })
-  await expect(preview).toBeVisible()
-  const target = await preview.boundingBox()
-  if (target === null) throw new Error("the header drop target has no rectangle")
-  await page.mouse.move(target.x + 80, target.y + target.height / 2, { steps: 6 })
-  await page.mouse.up()
+  await page.getByTestId("relationship-panel").getByTestId("panel-window").click()
 
   const floating = page.getByRole("dialog", { name: `Relationships · ${name}` })
   await expect(floating).toBeVisible()

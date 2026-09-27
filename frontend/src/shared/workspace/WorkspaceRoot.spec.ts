@@ -13,7 +13,6 @@ import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { makeLeaf, makeSplit } from "./model"
 import { useWorkspace } from "./useWorkspace"
 import type { WorkspaceApi } from "./useWorkspace"
-import WorkspaceDetachTarget from "./WorkspaceDetachTarget.vue"
 import WorkspaceRoot from "./WorkspaceRoot.vue"
 
 const schema = z.object({ id: z.string(), title: z.string(), kind: z.string() })
@@ -81,7 +80,6 @@ async function fixture() {
       })
       api = { workspace, windows }
       return () => h("div", [
-        h("header", [h(WorkspaceDetachTarget, { context: workspace.context })]),
         h(WorkspaceRoot, { context: workspace.context, covered: covered.value }, {
           cover: () => h("div", { "data-testid": "cover" }, "Something else"),
         }),
@@ -228,14 +226,15 @@ describe("moving a live panel between the workspace and a window", () => {
   })
 
   it("cancels a drag outside the workspace on Escape and pointer cancellation", async () => {
-    const { workspace, body } = await fixture()
+    const { workspace } = await fixture()
     workspace.context.press("p2", 30, 60)
     window.dispatchEvent(new MouseEvent("pointermove", { clientX: 40, clientY: 10 }))
     await flushPromises()
-    expect(body.find('[data-testid="workspace-detach-target"]').exists()).toBe(true)
+    expect(workspace.context.dragging.value).toBe("p2")
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))
     await flushPromises()
-    expect(body.find('[data-testid="workspace-detach-target"]').exists()).toBe(false)
+    expect(workspace.context.dragging.value).toBeNull()
+    // Nothing is torn off by being carried: a window is a button now (D93).
     expect(workspace.context.detached.value).toEqual([])
     workspace.context.press("p2", 30, 60)
     window.dispatchEvent(new Event("pointercancel"))

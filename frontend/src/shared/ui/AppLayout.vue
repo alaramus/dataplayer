@@ -127,7 +127,6 @@ async function logout() {
           </AppButton>
         </span>
       </q-toolbar>
-      <slot name="header-overlay" />
     </q-header>
     <q-page-container class="app-layout__body">
       <q-page

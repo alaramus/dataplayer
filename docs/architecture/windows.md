@@ -137,11 +137,17 @@ Spec: [Minimizing and maximizing floating windows](../decisions/2026-09-04-windo
 
 ## D93. Detaching moves the live panel into an application window
 
-Dragging a closable tab onto the application header shows a window outline and a
-drop instruction; releasing there removes the tab from its section and opens it
-in the window manager. The fixed connections panel stays in the workspace.
-Pointer cancellation, Escape and leaving the browser cancel the gesture without
-moving the panel.
+**Open in a window** is the last button of a panel's own row of commands, after
+reload and Show in catalog (D112): pressing it removes the tab from its section
+and opens it in the window manager. In the window the same button reads
+**Return to panel**, so the way back is where the way out was. The fixed
+connections panel stays in the workspace, and its button is greyed with the
+reason rather than missing.
+
+Carrying a tab to the application header used to be the gesture, with a window
+outline to drop on. It was removed: nothing on screen said the header would take
+a tab, so the command was found only by somebody who already knew it. A tab
+carried out of every section now simply goes back.
 
 Panel instances belong to the workspace, with one `<KeepAlive>` per panel and a
 `<Teleport>` to the active section or window target, so moving between targets
@@ -216,22 +222,22 @@ Spec: [A window whose contents can live as a workspace tab](../decisions/2026-09
 
 ## D167. Two catalogs of two connections share a window with what goes between them
 
-A pair is D93's gesture with a second step. While a catalog tab is carried,
-the header offers **Pair** beside Open in a window. The first drop only
-remembers the catalog — a waiting pair in the header, with the connection's
-name, a list of the other connections and a cross — and the catalog stays
-where it was. The second catalog, dropped on Pair or chosen from that list,
-opens the pair window. A catalog's own **Pair** command does what the first
-or the second drop does, so no step needs a pointer. A catalog of the waiting
-connection is refused with "Pick another connection"; a new first drop
-replaces the waiting one; closing the waiting catalog forgets it.
+A pair is made in two steps, by a catalog's own **Pair** command. The first
+press only remembers the catalog — a waiting pair in the header, with the
+connection's name, a list of the other connections and a cross — and the
+catalog stays where it was. The second catalog's Pair, or a connection chosen
+from that list, opens the pair window. The button says what pressing it would
+do: pair with the waiting one, or wait. Another catalog of the waiting
+connection has its Pair greyed with the reason; a new first press from another
+connection replaces the waiting one; closing the waiting catalog forgets it.
+Carrying a catalog tab to a Pair target in the header was the first way and is
+gone with D93's header target.
 
 - **The engine knows a group, not a pair.** `detach(panelId, group)` tears a
   panel off into a group whose window the feature draws; the engine's own
   floating windows skip grouped panels, and docking and persistence treat them
   as any detached panel. `WorkspaceRoot` has a `windows` slot inside the panel
-  host, where the feature's windows register their panel targets, and
-  `WorkspaceDetachTarget` a `beside` slot for a second target in the header.
+  host, where the feature's windows register their panel targets.
 - **The window** holds the two catalog panels, alive, and swaps them from its
   bar. A paired catalog hides its actions menu and ×2: what is done in a pair
   is done from the pair's bar. Closing the window docks both where D93 would. A catalog that leaves by any

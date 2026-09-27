@@ -14,6 +14,8 @@ import type { Filter } from "@/features/grid/types"
 import type { RangeSeconds, RefreshSeconds, Widget } from "@/features/dashboards/dashboardModel"
 import type { DiagramNodeRef } from "@/features/relationships/model"
 
+import type { PairCommand } from "./pairs"
+
 /**
  * What one panel may ask the workspace to open.
  *
@@ -35,6 +37,8 @@ export interface WorkspaceActions {
    * waiting (D167). Absent where the page makes no pairs.
    */
   pairCatalog?: (panelId: string) => void
+  /** What that command says for this catalog now, and whether it is refused. */
+  pairCommandOf?: (panelId: string) => PairCommand
   /** Open a new connection with defaults prepared by a source action. */
   createConnector: (draft: ConnectorDraft) => void
   /**

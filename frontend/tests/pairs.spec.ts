@@ -14,22 +14,16 @@ function tabOf(page: Page, name: string) {
   return page.locator('[data-testid^="workspace-tab-catalog:"]', { hasText: name }).first()
 }
 
-/** Carry a tab to the header and drop it on Pair, as a person does. */
-async function dropOnPair(page: Page, tab: Locator) {
-  const from = await tab.boundingBox()
-  if (from === null) throw new Error("The catalog tab has no rectangle")
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(from.x + from.width / 2, from.y - 12, { steps: 4 })
-  const target = page.getByTestId("workspace-pair-target")
-  await expect(target).toBeVisible()
-  const box = await target.boundingBox()
-  if (box === null) throw new Error("The Pair target has no rectangle")
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 6 })
-  await page.mouse.up()
+/**
+ * Offer a catalog with its own Pair command, as a person does: its tab is
+ * brought forward and the button pressed. The header takes no carried tab.
+ */
+async function offerToPair(page: Page, tab: Locator) {
+  await tab.click()
+  await page.locator('[data-testid="catalog-pair"]:visible').click()
 }
 
-test("pairs two catalogs by dropping them on Pair, and pastes between them", async ({ page }) => {
+test("pairs two catalogs with their Pair command, and pastes between them", async ({ page }) => {
   const files = `e2e-pair-files-${Date.now()}`
   const database = `e2e-pair-db-${Date.now()}`
   const table = `paired_${Date.now()}`
@@ -40,14 +34,14 @@ test("pairs two catalogs by dropping them on Pair, and pastes between them", asy
   await openConnector(page, database)
   await showOnlySchema(page, "demo_lab")
 
-  // The first drop only waits: nothing opens, and the catalog stays.
-  await dropOnPair(page, tabOf(page, files))
+  // The first only waits: nothing opens, and the catalog stays.
+  await offerToPair(page, tabOf(page, files))
   await expect(page.getByTestId("pair-waiting")).toContainText(files)
   await expect(page.getByTestId("pair-window")).toHaveCount(0)
   await expect(tabOf(page, files)).toBeVisible()
 
   // The second opens the pair, both catalogs alive in it.
-  await dropOnPair(page, tabOf(page, database))
+  await offerToPair(page, tabOf(page, database))
   const pair = page.getByTestId("pair-window")
   await expect(pair).toBeVisible()
   await expect(page.getByTestId("pair-waiting")).toHaveCount(0)
@@ -141,16 +135,14 @@ test("a second catalog of the waiting connection is not taken", async ({ page })
   await page.getByTestId("catalog-duplicate").click()
 
   await page.getByTestId("catalog-pair").first().click()
-  const copies = page.locator('[data-testid^="workspace-tab-catalog:"]', { hasText: files })
-  const copy = copies.nth(1)
-  const from = await copy.boundingBox()
-  if (from === null) throw new Error("The copy has no tab")
-  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(from.x + from.width / 2, from.y - 12, { steps: 4 })
-  await expect(page.getByTestId("workspace-pair-target")).toContainText("Pick another connection")
-  await page.keyboard.press("Escape")
-  await page.mouse.up()
+  // The copy's own Pair is greyed rather than gone, and says why: a pair of
+  // one connection would have nothing to show between its sides.
+  await expect(page.getByTestId("catalog-pair").nth(1)).toBeDisabled()
+  await expect(
+    page.getByRole("button", {
+      name: "Pair with another connection — a catalog of this connection is already waiting",
+    })
+  ).toBeVisible()
 
   await expect(page.getByTestId("pair-window")).toHaveCount(0)
   await page.getByTestId("pair-waiting-cancel").click()

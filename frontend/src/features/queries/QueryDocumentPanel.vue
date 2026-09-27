@@ -68,6 +68,7 @@ import {
   needsRehearsal,
   rehearsalReport,
 } from "@/features/queries/structure"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useClosable } from "@/features/workspace/closable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
@@ -1012,6 +1013,7 @@ onBeforeUnmount(() => {
           data-testid="query-remember"
           @click="remember"
         />
+        <PanelCommands :panel-id="panelId" />
       </div>
     </div>
 
