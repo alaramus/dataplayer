@@ -24,11 +24,15 @@ Spec: [A map of what the connections can do to each other](../decisions/2026-09-
 
 `features/pipelines` over D97's 2D canvas, and `app.pipelines` behind it.
 
-- **"Pipelines" is a space of the rail's switch**, beside Data, Dashboards and
-  AI, covering the data workspace by D125's contract. On the left the
-  person's connections, which the header's button pushes aside to icons; on
-  the right the canvas of the pipeline chosen in the head's switcher, with
-  Fit, Rename, Delete and New beside it.
+- **"Pipelines" is a space of the rail's switch**, next after Data, then
+  Dashboards and AI, covering the data workspace by D125's contract. On the
+  left the person's connections, which the header's button pushes aside to
+  icons; on the right the canvas of the pipeline chosen in the head's
+  switcher, with Fit, Rename, Delete and New beside it. The list on the left
+  is drawn as Data draws its column of connections — the same head, its plus,
+  filter and reload, the filter shared, the same pushed-aside rail — so the
+  switch between the two spaces changes only the right-hand side. Their widths
+  stay their own.
 - **A connection dropped on the canvas, or pressed in the list,** opens a
   window of its catalog with ticks. Groupings are levels walked into there
   rather than D75's filter, so a schema is tickable as a place; the top of a

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from "vue"
+import { computed, ref, useTemplateRef, watch } from "vue"
 
 import type { ConnectorPublic } from "@/client"
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
 import ConnectorList from "@/features/connectors/ConnectorList.vue"
 import { useConnectors } from "@/features/connectors/api"
+import ConnectorsHead from "@/features/workspace/panels/ConnectorsHead.vue"
+import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
@@ -14,7 +16,6 @@ import {
   AppCardHead,
   AppEmptyState,
   AppIconButton,
-  AppInput,
   AppSpinner,
   appIcons,
   useToast,
@@ -71,24 +72,18 @@ async function createPipeline() {
 }
 
 const rows = computed(() => connectors.data.value?.data ?? [])
-const nameFilter = ref("")
-const filterOpen = ref(false)
-const filterField = ref<InstanceType<typeof AppInput> | null>(null)
+// The list of connections is the one Data shows, head, filter and all, so
+// switching between the two spaces leaves that card as it was.
 const shownRows = computed(() => {
-  const query = nameFilter.value.trim().toLocaleLowerCase()
+  const query = workspace.connectorNameFilter.value.trim().toLocaleLowerCase()
   return query ? rows.value.filter((one) => one.name.toLocaleLowerCase().includes(query)) : rows.value
 })
 
-async function openFilter() {
-  filterOpen.value = true
-  await nextTick()
-  ;(filterField.value?.$el as HTMLElement | undefined)?.querySelector("input")?.focus()
-}
-
-function closeFilter() {
-  nameFilter.value = ""
-  filterOpen.value = false
-}
+// The same re-read the column of connections registers. Here too, because a
+// session opened on this space has not drawn that column yet.
+useReloadable("connectors", async () => {
+  await connectors.refetch()
+})
 
 function place(connector: ConnectorPublic) {
   if (current.value === null) {
@@ -131,70 +126,48 @@ defineExpose({
       :style="{ flexBasis: `${String(shownWidth)}px` }"
       data-testid="pipelines-rail"
     >
-      <template v-if="narrow">
-        <!-- An empty head, as the pushed-aside rail of the dashboards keeps
-             its strip; the header button brings the names back. -->
-        <AppCardHead />
-        <div class="pipelines__icons">
-          <span
-            v-for="connector in rows"
-            :key="connector.id"
-            draggable="true"
-            @dragstart="startDrag($event, connector)"
-          >
-            <ConnectorIcon
-              :connector-id="connector.id"
-              :name="connector.name"
-              :adapter-type="connector.adapter_type"
-              :enabled="connector.enabled"
-              :tooltip="connector.name"
-              :testid="`pipelines-rail-${connector.name}`"
-              @click="place(connector)"
-            />
-          </span>
-        </div>
-      </template>
-      <template v-else>
-        <AppCardHead
-          v-if="filterOpen"
-          class="pipelines__filter-head"
-          @keydown.esc.stop="closeFilter"
-        >
-          <AppInput
-            ref="filterField"
-            v-model="nameFilter"
-            compact
-            placeholder="Filter connections"
-            aria-label="Filter connections by name"
-            autocomplete="off"
-            data-testid="pipelines-connection-filter"
+      <!-- The pushed-aside column of connections as Data draws it
+           (ConnectorRail): the plus alone in a head, scrolled with the icons
+           under it, so a scrollbar moves both alike and the switch between
+           the spaces moves nothing. The header button brings the names back. -->
+      <div
+        v-if="narrow"
+        class="pipelines__icons"
+      >
+        <AppCardHead class="pipelines__narrow-head">
+          <AppIconButton
+            :icon="appIcons.add"
+            tooltip="New connection"
+            data-testid="add-connector"
+            @click="workspace.editConnector(null)"
           />
-          <template #actions>
-            <AppIconButton
-              :icon="appIcons.close"
-              tooltip="Close the filter"
-              @click="closeFilter"
-            />
-          </template>
         </AppCardHead>
-        <AppCardHead
-          v-else
-          title="Connections"
+        <span
+          v-for="connector in rows"
+          :key="connector.id"
+          draggable="true"
+          @dragstart="startDrag($event, connector)"
         >
-          <template #actions>
-            <AppIconButton
-              :icon="appIcons.search"
-              tooltip="Filter connections by name"
-              data-testid="pipelines-connection-filter-open"
-              @click="openFilter"
-            />
-          </template>
+          <ConnectorIcon
+            :connector-id="connector.id"
+            :name="connector.name"
+            :adapter-type="connector.adapter_type"
+            :enabled="connector.enabled"
+            :tooltip="connector.name"
+            :testid="`pipelines-rail-${connector.name}`"
+            @click="place(connector)"
+          />
+        </span>
+      </div>
+      <template v-else>
+        <AppCardHead>
+          <ConnectorsHead class="pipelines__head" />
         </AppCardHead>
         <div class="pipelines__connections">
           <ConnectorList
             :rows="shownRows"
             :loading="connectors.isLoading.value"
-            :empty-text="nameFilter.trim() ? 'No matching connections' : undefined"
+            :empty-text="workspace.connectorNameFilter.value.trim() ? 'No matching connections' : undefined"
             :drag-type="CONNECTION_DRAG"
             @open="place"
             @edit="workspace.editConnector($event.id)"
@@ -277,9 +250,15 @@ defineExpose({
 .pipelines__main {
   flex: 1;
 }
-.pipelines__filter-head > :first-child {
+.pipelines__head {
   flex: 1;
   min-width: 0;
+}
+.pipelines__icons .pipelines__narrow-head {
+  align-self: stretch;
+  justify-content: center;
+  margin-bottom: var(--dp-space-1);
+  padding: 0;
 }
 .pipelines__connections {
   flex: 1;
@@ -288,11 +267,13 @@ defineExpose({
   padding-top: var(--dp-space-1);
 }
 .pipelines__icons {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow: auto;
-  padding-top: var(--dp-space-1);
+  padding-bottom: var(--dp-space-half);
 }
 .pipelines__center {
   flex: 1;

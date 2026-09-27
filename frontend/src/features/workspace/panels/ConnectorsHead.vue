@@ -14,6 +14,9 @@ import { AppIconButton, AppInput } from "@/shared/ui"
  * Pipelines — with re-reading the list at the end, where every panel keeps
  * what it offers about itself (D112). The rail of a collapsed column keeps
  * the commands without the name.
+ *
+ * Pipelines stands on the same list and draws this same head over it, filter
+ * included, so switching between the two spaces changes nothing on that card.
  */
 const workspace = useWorkspaceActions()
 const head = ref<HTMLElement | null>(null)

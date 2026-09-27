@@ -14,11 +14,13 @@ const space = useSpaceStore()
 /** Icon-only rendering for the side tool rails. */
 withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
 
+// Pipelines beside Data: both stand on the same list of connections, so the
+// switch between them keeps that card where it was.
 const choices: { value: Space; label: string; icon: string; tooltip: string }[] = [
   { value: "data", label: "Data", icon: appIcons.tableChart, tooltip: "Connections, catalogs and the work opened from them" },
+  { value: "pipelines", label: "Pipelines", icon: appIcons.accountTree, tooltip: "What your connections give each other, laid out and run" },
   { value: "dashboards", label: "Dashboards", icon: appIcons.dashboard, tooltip: "Metrics your agents report, drawn over time" },
   { value: "ai", label: "AI", icon: appIcons.robot2, tooltip: "Conversations with the application agent" },
-  { value: "pipelines", label: "Pipelines", icon: appIcons.accountTree, tooltip: "What your connections give each other, laid out and run" },
 ]
 </script>
 
