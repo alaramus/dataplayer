@@ -3,7 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { DashboardPublic } from "@/client"
-import { AppCardHead, AppIconButton } from "@/shared/ui"
+import { AppCardHead, AppIconButton, AppScrollArea } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
 import { railEntry } from "./railEntry"
@@ -56,74 +56,78 @@ const emit = defineEmits<{
     </AppCardHead>
 
     <!-- A line only between groups that both show something (railRules);
-         the head's own line is the one under the plus. -->
-    <div class="rail-narrow__body">
-      <div
-        v-for="dashboard in own"
-        :key="dashboard.id"
-        class="rail-narrow__slot"
-        :class="{
-          'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
-          'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
-          'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
-        }"
-        :style="panelColorStyle(dashboard.color)"
-      >
-        <AppIconButton
-          :icon="appIcons.dashboard"
-          :tooltip="dashboard.name"
-          :data-testid="`dashboard-narrow-${dashboard.name}`"
-          @click="emit('select', dashboard.id)"
+         the head's own line is the one under the plus. Scrolled under a bar
+         that takes no room, as the column of connections is (ConnectorRail). -->
+    <AppScrollArea>
+      <div class="rail-narrow__body">
+        <div
+          v-for="dashboard in own"
+          :key="dashboard.id"
+          class="rail-narrow__slot"
+          :class="{
+            'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
+            'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
+            'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
+          }"
+          :style="panelColorStyle(dashboard.color)"
+        >
+          <AppIconButton
+            :icon="appIcons.dashboard"
+            :tooltip="dashboard.name"
+            :data-testid="`dashboard-narrow-${dashboard.name}`"
+            @click="emit('select', dashboard.id)"
+          />
+        </div>
+        <q-separator
+          v-if="rules.beforeShared"
+          class="rail-narrow__rule"
+          data-testid="rail-narrow-rule"
         />
-      </div>
-      <q-separator
-        v-if="rules.beforeShared"
-        class="rail-narrow__rule"
-        data-testid="rail-narrow-rule"
-      />
-      <div
-        v-for="dashboard in shared"
-        :key="dashboard.id"
-        class="rail-narrow__slot"
-        :class="{
-          'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
-          'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
-          'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
-        }"
-        :style="panelColorStyle(dashboard.color)"
-      >
-        <AppIconButton
-          :icon="appIcons.group"
-          :tooltip="`${dashboard.name}, shared by ${dashboard.owner ?? 'somebody'}`"
-          :data-testid="`dashboard-narrow-${dashboard.name}`"
-          @click="emit('select', dashboard.id)"
-        />
-      </div>
+        <div
+          v-for="dashboard in shared"
+          :key="dashboard.id"
+          class="rail-narrow__slot"
+          :class="{
+            'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
+            'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
+            'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
+          }"
+          :style="panelColorStyle(dashboard.color)"
+        >
+          <AppIconButton
+            :icon="appIcons.group"
+            :tooltip="`${dashboard.name}, shared by ${dashboard.owner ?? 'somebody'}`"
+            :data-testid="`dashboard-narrow-${dashboard.name}`"
+            @click="emit('select', dashboard.id)"
+          />
+        </div>
 
-      <q-separator
-        v-if="rules.beforeSources"
-        class="rail-narrow__rule"
-        data-testid="rail-narrow-rule"
-      />
-      <AppIconButton
-        :icon="appIcons.sensors"
-        tooltip="Sources"
-        data-testid="agents-open"
-        @click="emit('sources')"
-      />
-      <AppIconButton
-        v-if="maySetUp"
-        :icon="appIcons.storage"
-        tooltip="The metrics store"
-        data-testid="store-open"
-        @click="emit('store')"
-      />
-    </div>
+        <q-separator
+          v-if="rules.beforeSources"
+          class="rail-narrow__rule"
+          data-testid="rail-narrow-rule"
+        />
+        <AppIconButton
+          :icon="appIcons.sensors"
+          tooltip="Sources"
+          data-testid="agents-open"
+          @click="emit('sources')"
+        />
+        <AppIconButton
+          v-if="maySetUp"
+          :icon="appIcons.storage"
+          tooltip="The metrics store"
+          data-testid="store-open"
+          @click="emit('store')"
+        />
+      </div>
+    </AppScrollArea>
   </div>
 </template>
 
 <style scoped>
 .rail-narrow {
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -139,10 +143,7 @@ const emit = defineEmits<{
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: 0;
   padding: var(--dp-space-1) 0 var(--dp-space-half);
-  overflow-x: hidden;
-  overflow-y: auto;
 }
 
 .rail-narrow__rule {

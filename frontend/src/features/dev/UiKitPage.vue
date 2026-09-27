@@ -28,6 +28,7 @@ import {
   AppRadioGroup,
   AppCheckbox,
   AppCopyButton,
+  AppScrollArea,
   AppSection,
   AppSelect,
   AppSpinner,
@@ -394,6 +395,18 @@ function removeSavedEntry(name: string) {
           :value="0.65"
           paused
         />
+      </AppSection>
+      <AppSection divided>
+        <div class="ui-kit__scroll">
+          <AppScrollArea>
+            <div
+              v-for="line in 20"
+              :key="line"
+            >
+              Row {{ line }}
+            </div>
+          </AppScrollArea>
+        </div>
       </AppSection>
     </AppCard>
 
@@ -782,6 +795,13 @@ function removeSavedEntry(name: string) {
 }
 .ui-kit__pad {
   padding: var(--dp-space-2);
+}
+/* A scroll area takes the height of what holds it. */
+.ui-kit__scroll {
+  display: flex;
+  flex-direction: column;
+  height: 120px;
+  width: 160px;
 }
 .ui-kit__note {
   color: var(--dp-text-muted);

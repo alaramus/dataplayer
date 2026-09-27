@@ -138,7 +138,11 @@ Consequences:
   closed nor carried, so the tab named the column and gave nothing to press.
   The rail of the collapsed column keeps the commands without the name, the
   plus over the icons of the list; pushing the column aside moves the plus
-  there, as the Dashboards rail does, and moves nothing in the list.
+  there, as the Dashboards rail does, and moves nothing in the list. Only the
+  icons scroll, under a bar drawn over them and shown on hover
+  (`AppScrollArea`): a native one took a third of the forty pixels, pushed the
+  icons off the plus's centre and scrolled the plus away with them. The rails
+  of Pipelines and Dashboards scroll the same way.
 - **A column with nothing worth that width leaves the screen instead.** The same
   answer picks which of two gestures a section head offers: something worth forty
   pixels narrows to them, nothing worth them goes whole to the bar at the foot of

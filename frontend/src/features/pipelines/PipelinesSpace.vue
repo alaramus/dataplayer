@@ -16,6 +16,7 @@ import {
   AppCardHead,
   AppEmptyState,
   AppIconButton,
+  AppScrollArea,
   AppSpinner,
   appIcons,
   useToast,
@@ -127,13 +128,10 @@ defineExpose({
       data-testid="pipelines-rail"
     >
       <!-- The pushed-aside column of connections as Data draws it
-           (ConnectorRail): the plus alone in a head, scrolled with the icons
-           under it, so a scrollbar moves both alike and the switch between
-           the spaces moves nothing. The header button brings the names back. -->
-      <div
-        v-if="narrow"
-        class="pipelines__icons"
-      >
+           (ConnectorRail), so the switch between the spaces moves nothing:
+           the plus alone in a head, and the icons under it scrolled under a
+           bar that takes no room. The header button brings the names back. -->
+      <template v-if="narrow">
         <AppCardHead class="pipelines__narrow-head">
           <AppIconButton
             :icon="appIcons.add"
@@ -142,23 +140,27 @@ defineExpose({
             @click="workspace.editConnector(null)"
           />
         </AppCardHead>
-        <span
-          v-for="connector in rows"
-          :key="connector.id"
-          draggable="true"
-          @dragstart="startDrag($event, connector)"
-        >
-          <ConnectorIcon
-            :connector-id="connector.id"
-            :name="connector.name"
-            :adapter-type="connector.adapter_type"
-            :enabled="connector.enabled"
-            :tooltip="connector.name"
-            :testid="`pipelines-rail-${connector.name}`"
-            @click="place(connector)"
-          />
-        </span>
-      </div>
+        <AppScrollArea>
+          <div class="pipelines__icons">
+            <span
+              v-for="connector in rows"
+              :key="connector.id"
+              draggable="true"
+              @dragstart="startDrag($event, connector)"
+            >
+              <ConnectorIcon
+                :connector-id="connector.id"
+                :name="connector.name"
+                :adapter-type="connector.adapter_type"
+                :enabled="connector.enabled"
+                :tooltip="connector.name"
+                :testid="`pipelines-rail-${connector.name}`"
+                @click="place(connector)"
+              />
+            </span>
+          </div>
+        </AppScrollArea>
+      </template>
       <template v-else>
         <AppCardHead>
           <ConnectorsHead class="pipelines__head" />
@@ -254,8 +256,7 @@ defineExpose({
   flex: 1;
   min-width: 0;
 }
-.pipelines__icons .pipelines__narrow-head {
-  align-self: stretch;
+.pipelines__rail .pipelines__narrow-head {
   justify-content: center;
   margin-bottom: var(--dp-space-1);
   padding: 0;
@@ -267,12 +268,9 @@ defineExpose({
   padding-top: var(--dp-space-1);
 }
 .pipelines__icons {
-  flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow: auto;
   padding-bottom: var(--dp-space-half);
 }
 .pipelines__center {

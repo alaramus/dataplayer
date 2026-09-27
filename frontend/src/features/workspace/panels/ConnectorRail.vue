@@ -5,7 +5,7 @@ import { computed } from "vue"
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
 import { useConnectors } from "@/features/connectors/api"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { AppCardHead, AppIconButton } from "@/shared/ui"
+import { AppCardHead, AppIconButton, AppScrollArea } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
 /**
@@ -41,31 +41,45 @@ const rows = computed(() => connectors.data.value?.data ?? [])
       />
     </AppCardHead>
 
-    <div
-      v-for="connector in rows"
-      :key="connector.id"
-      class="connector-rail__slot"
-      :class="{
-        'connector-rail__slot--open': workspace.openConnectorIds.value.has(connector.id),
-        'connector-rail__slot--selected': connector.id === workspace.activeConnectorId.value,
-      }"
-      :style="panelColorStyle(connector.tab_color)"
-    >
-      <ConnectorIcon
-        :connector-id="connector.id"
-        :name="connector.name"
-        :adapter-type="connector.adapter_type"
-        :enabled="connector.enabled"
-        :tooltip="connector.name"
-        :testid="`connector-rail-${connector.name}`"
-        @click="workspace.openCatalog(connector)"
-      />
-    </div>
+    <!-- Only the icons scroll, under a bar that takes no room: a native one
+         took a third of the forty pixels and scrolled the plus away too. -->
+    <AppScrollArea>
+      <div class="connector-rail__icons">
+        <div
+          v-for="connector in rows"
+          :key="connector.id"
+          class="connector-rail__slot"
+          :class="{
+            'connector-rail__slot--open': workspace.openConnectorIds.value.has(connector.id),
+            'connector-rail__slot--selected': connector.id === workspace.activeConnectorId.value,
+          }"
+          :style="panelColorStyle(connector.tab_color)"
+        >
+          <ConnectorIcon
+            :connector-id="connector.id"
+            :name="connector.name"
+            :adapter-type="connector.adapter_type"
+            :enabled="connector.enabled"
+            :tooltip="connector.name"
+            :testid="`connector-rail-${connector.name}`"
+            @click="workspace.openCatalog(connector)"
+          />
+        </div>
+      </div>
+    </AppScrollArea>
   </div>
 </template>
 
 <style scoped>
+/* The height of the column, so the icons scroll inside it and the head
+   stays. */
 .connector-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.connector-rail__icons {
   display: flex;
   flex-direction: column;
   align-items: center;
