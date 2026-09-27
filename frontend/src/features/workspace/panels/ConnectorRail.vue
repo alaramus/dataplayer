@@ -72,7 +72,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   padding-bottom: var(--dp-space-half);
 }
 /* Centred like the rails of the dashboards and the chats, so the plus sits
-   over the connector icons below it rather than the wide head's inset. */
+   over the connector icons below it, where the wide head keeps it too. */
 .connector-rail .connector-rail__head {
   align-self: stretch;
   justify-content: center;

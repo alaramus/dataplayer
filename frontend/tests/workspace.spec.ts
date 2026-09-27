@@ -836,9 +836,13 @@ test("pushing the column of sources aside takes away the name and nothing else",
     return found
   }
 
-  // Wide: the plus on the left, the icon of the source under it, the state dot
-  // on that icon, and the name beside it.
+  // Wide: the plus on the left, the column's name after it, the icon of the
+  // source under it, the state dot on that icon, and the name beside it.
   const plusWide = await box(page.getByTestId("add-connector"))
+  const titleWide = await box(
+    page.getByTestId("connectors-head").getByText("Connections", { exact: true })
+  )
+  expect(titleWide.x).toBeGreaterThan(plusWide.x + plusWide.width)
   const iconWide = await box(page.getByTestId(`connector-edit-${name}`))
   const dotWide = await box(page.getByTestId(`connector-state-${name}`))
   await expect(page.getByTestId(`connector-${name}`)).toContainText(name)
@@ -861,7 +865,7 @@ test("pushing the column of sources aside takes away the name and nothing else",
 
   // The same column: the plus stays in a head of the same height, so nothing
   // moves at all and only the name is gone. Two pixels of tolerance, because
-  // one layout centres in forty pixels and the other pads by eight.
+  // one layout centres in forty pixels and the other pads by four.
   expect(Math.abs(plusNarrow.x - plusWide.x)).toBeLessThan(3)
   expect(Math.abs(iconNarrow.x - iconWide.x)).toBeLessThan(3)
   expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(3)

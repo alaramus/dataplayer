@@ -12,6 +12,10 @@ import { AppIconButton, AppInput } from "@/shared/ui"
  * carried anywhere, so the tab only said "Connections". Making one on the
  * left, where the rail of a collapsed column keeps it, and re-reading the list
  * at the end, where every panel keeps what it offers about itself (D112).
+ *
+ * The name follows the commands rather than leading them: the rail has no
+ * room for it, and a name first would move the plus when the column is
+ * pushed aside.
  */
 const workspace = useWorkspaceActions()
 const head = ref<HTMLElement | null>(null)
@@ -56,7 +60,6 @@ function closeFilter() {
       />
     </template>
     <template v-else>
-      <span class="connectors-head__title">Connections</span>
       <AppIconButton
         :icon="appIcons.add"
         tooltip="New connection"
@@ -69,6 +72,7 @@ function closeFilter() {
         data-testid="connectors-filter-open"
         @click="openFilter"
       />
+      <span class="connectors-head__title">Connections</span>
       <span class="connectors-head__commands">
         <PanelCommands panel-id="connectors" />
       </span>
@@ -77,10 +81,14 @@ function closeFilter() {
 </template>
 
 <style scoped>
+/* The strip insets a head by --dp-space-2 and the list below insets its icons
+   by --dp-space-1. Back at the list's inset the plus stands over the icons, as
+   it does in the rail, so pushing the column aside does not move it. */
 .connectors-head {
   display: flex;
   align-items: center;
   gap: var(--dp-space-1);
+  margin-left: calc(var(--dp-space-1) - var(--dp-space-2));
 }
 .connectors-head__filter {
   flex: 1;

@@ -132,11 +132,13 @@ Consequences:
   a layout operation — and it leaves a panel the feature says has no cross.
 - **A panel alone in its column by design may take the head instead of a tab.**
   The engine asks the feature what a section holding only that panel shows in its
-  head; only the connections answer, with making one on the left and re-reading
-  the list at the end. Their column takes no other role and the panel can be
-  neither closed nor carried, so the tab named the column and gave nothing to
-  press. The rail of the collapsed column wears the same head, so pushing it aside
-  still moves nothing.
+  head; only the connections answer, with making one and filtering on the left,
+  the column's name after them and re-reading the list at the end. Their column
+  takes no other role and the panel can be neither closed nor carried, so the tab
+  named the column and gave nothing to press. The rail of the collapsed column
+  wears the same head without the name, so pushing it aside still moves nothing;
+  that is why the name follows the commands instead of leading them, and why at
+  either width the plus stands over the icons of the list.
 - **A column with nothing worth that width leaves the screen instead.** The same
   answer picks which of two gestures a section head offers: something worth forty
   pixels narrows to them, nothing worth them goes whole to the bar at the foot of
