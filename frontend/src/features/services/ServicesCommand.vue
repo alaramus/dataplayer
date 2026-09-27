@@ -50,7 +50,7 @@ withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
     <!-- Pressed while its tool is the one shown, as a space is in the
          switch beside it. -->
     <AppButton
-      :variant="shown ? 'secondary' : 'quiet'"
+      :variant="shown ? 'chosen' : 'quiet'"
       size="sm"
       :icon="command.icon"
       :label="command.label"

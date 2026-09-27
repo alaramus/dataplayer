@@ -140,6 +140,29 @@ test("the workspace meets the shell without an enclosing frame or inset", async 
   }
 })
 
+test("the space you are in is the one of its row that stands out, in both themes", async ({ page }) => {
+  // It was drawn as a secondary button, a grey that in the dark theme is
+  // dimmer than the quiet ones beside it: the space you were in stood out least.
+  await login(page)
+  const spaces = ["data", "dashboards", "ai", "pipelines"] as const
+  const ground = (id: string) =>
+    page.getByTestId(`space-${id}`).evaluate((element) => getComputedStyle(element).backgroundColor)
+  const unfilled = /rgba\(0, 0, 0, 0\)|transparent/
+
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme)
+    for (const here of ["dashboards", "data"] as const) {
+      await page.getByTestId(`space-${here}`).click()
+      await expect(page.getByTestId(`space-${here}`)).toHaveAttribute("aria-pressed", "true")
+      expect(await ground(here), `${here} in ${theme}`).not.toMatch(unfilled)
+      for (const other of spaces.filter((space) => space !== here)) {
+        expect(await ground(other), `${other} beside ${here} in ${theme}`).toMatch(unfilled)
+      }
+    }
+    await page.screenshot({ path: `test-results/space-switch-${theme}.png` })
+  }
+})
+
 test("rail and footer icons fill their existing button slots", async ({ page }) => {
   await login(page)
 

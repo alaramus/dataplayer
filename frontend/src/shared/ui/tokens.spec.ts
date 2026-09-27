@@ -39,6 +39,14 @@ describe("buttonLook", () => {
     expect(buttonLook("secondary").color).toBe("dp-action-secondary")
   })
 
+  it("fills the chosen one of a row, so it is the one that stands out", () => {
+    // Written as secondary it was a grey dimmer than the quiet buttons beside
+    // it in the dark theme: the space you were in stood out least.
+    expect(buttonLook("chosen").flat).toBe(false)
+    expect(buttonLook("chosen").color).toBe("dp-action-primary")
+    expect(buttonLook("chosen").textColor).toBe("dp-on-action-primary")
+  })
+
   // Cancel and Close must not compete with the action next to them.
   it("leaves the quiet variant without a colour", () => {
     expect(buttonLook("quiet").color).toBeUndefined()

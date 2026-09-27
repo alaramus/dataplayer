@@ -68,7 +68,7 @@ function pressed() {
        commands on the rails do. -->
   <span class="terminal-command">
     <AppButton
-      :variant="shown ? 'secondary' : 'quiet'"
+      :variant="shown ? 'chosen' : 'quiet'"
       size="sm"
       :icon="appIcons.terminal"
       :label="'Terminals'"

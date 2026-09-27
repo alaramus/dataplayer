@@ -46,7 +46,7 @@ import {
 import type { ButtonVariant, MenuItem, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
-const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "danger", "danger-quiet", "quiet"]
+const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "chosen", "danger", "danger-quiet", "quiet"]
 const iconFilter = ref("")
 const visibleIcons = computed(() => {
   const query = iconFilter.value.trim().toLowerCase()

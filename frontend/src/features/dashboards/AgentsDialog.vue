@@ -269,7 +269,7 @@ async function copy(text: string, what: string) {
         <AppButton
           v-for="choice in VIEWS"
           :key="choice.value"
-          :variant="choice.value === view ? 'primary' : 'quiet'"
+          :variant="choice.value === view ? 'chosen' : 'quiet'"
           role="tab"
           :aria-selected="choice.value === view"
           size="sm"

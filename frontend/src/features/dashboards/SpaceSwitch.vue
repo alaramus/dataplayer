@@ -34,7 +34,7 @@ const choices: { value: Space; label: string; icon: string; tooltip: string }[] 
       class="space-switch__slot"
     >
       <AppButton
-        :variant="space.current === choice.value ? 'secondary' : 'quiet'"
+        :variant="space.current === choice.value ? 'chosen' : 'quiet'"
         size="sm"
         :icon="choice.icon"
         :label="choice.label"

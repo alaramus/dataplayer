@@ -45,11 +45,16 @@ export const SCROLL_MAX_HEIGHT = "60vh"
 /**
  * What a button means, not how it looks.
  *
- * Five rather than four: an action bar lists destructive actions beside
- * ordinary ones, and turning those into solid red buttons would shout. So a
- * destructive action has both a prominent form and a restrained one.
+ * An action bar lists destructive actions beside ordinary ones, and turning
+ * those into solid red buttons would shout, so a destructive action has both
+ * a prominent form and a restrained one.
+ *
+ * `chosen` is the one picked among its neighbours — the space you are in, the
+ * view a window shows — or a toggle that is on. It used to be written as
+ * secondary, which in the dark theme is a grey dimmer than the quiet buttons
+ * beside it, so the one you were in was the one that stood out least.
  */
-export type ButtonVariant = "primary" | "secondary" | "danger" | "danger-quiet" | "quiet"
+export type ButtonVariant = "primary" | "secondary" | "chosen" | "danger" | "danger-quiet" | "quiet"
 
 export type ButtonLayout = "default" | "toolbar" | "navigation"
 
@@ -67,6 +72,9 @@ export interface ButtonLook {
 const BUTTON_LOOKS: Record<ButtonVariant, ButtonLook> = {
   primary: { color: "dp-action-primary", textColor: "dp-on-action-primary", unelevated: true, flat: false },
   secondary: { color: "dp-action-secondary", flat: true },
+  // Filled, like the main action, until the visual pass gives it a look of its
+  // own: it has to be the most visible of its row.
+  chosen: { color: "dp-action-primary", textColor: "dp-on-action-primary", unelevated: true, flat: false },
   danger: { color: "negative", unelevated: true, flat: false },
   "danger-quiet": { color: "dp-action-danger", flat: true },
   // Cancel and Close sit next to the action they cancel; a colour here would

@@ -223,6 +223,11 @@ Consequences:
   `danger-quiet`, icon buttons included, use `--dp-action-secondary` and
   `--dp-action-danger`, lighter in the dark theme than the filled `primary` and
   `danger`.
+- **The one you are in is `chosen`, not `secondary`.** The space you are in, the
+  view a window shows, a toggle that is on: written as `secondary`, it was a
+  grey dimmer than the quiet buttons beside it in the dark theme, so it stood
+  out least. `chosen` is filled like `primary` until the visual pass gives it a
+  look of its own.
 - **Shadows and paper are theme tokens too.** Activity sheets and notification
   cards use the soft shadow, PDF pages the strong one; PDF paper and selection
   colours are the same in both themes, because the document does not change
