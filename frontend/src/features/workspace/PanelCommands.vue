@@ -85,6 +85,13 @@ const floating = computed(() =>
 )
 
 /**
+ * A panel that never leaves the workspace — the column of connections — has
+ * no such button at all, as a panel of no node has no Show in catalog: a
+ * command that could never be used there is not one to learn the place of.
+ */
+const movable = computed(() => workspace?.lookOf(props.panelId).closable !== false)
+
+/**
  * One button for both ways, so it is in the same place whichever way it goes.
  * A catalog in a pair returns with its partner, by closing the pair's window.
  */
@@ -169,6 +176,7 @@ function showInCatalog() {
       @click="showInCatalog"
     />
     <AppIconButton
+      v-if="movable"
       :icon="frame.icon"
       :tooltip="frame.tooltip"
       :disable="!frame.enabled"

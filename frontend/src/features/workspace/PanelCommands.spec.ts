@@ -169,6 +169,12 @@ describe("the way into a window and back", () => {
     )
   })
 
+  it("offers none at all on a panel that never leaves the workspace", () => {
+    const wrapper = mountCommands({ look: { ...PLAIN, closable: false } })
+
+    expect(wrapper.find('[data-testid="panel-window"]').exists()).toBe(false)
+  })
+
   it("leaves a catalog in a pair to the pair's window", () => {
     const wrapper = mountCommands({
       context: {

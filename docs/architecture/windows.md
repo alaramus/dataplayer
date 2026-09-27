@@ -141,8 +141,9 @@ Spec: [Minimizing and maximizing floating windows](../decisions/2026-09-04-windo
 reload and Show in catalog (D112): pressing it removes the tab from its section
 and opens it in the window manager. In the window the same button reads
 **Return to panel**, so the way back is where the way out was. The fixed
-connections panel stays in the workspace, and its button is greyed with the
-reason rather than missing.
+connections panel stays in the workspace and draws no such button, as D112 draws
+no Show in catalog where there is no node; a tab that could leave but cannot
+right now has it greyed, with the reason.
 
 Carrying a tab to the application header used to be the gesture, with a window
 outline to drop on. It was removed: nothing on screen said the header would take
