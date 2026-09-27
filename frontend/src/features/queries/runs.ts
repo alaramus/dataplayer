@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
-import { computed, toValue } from "vue"
+import { computed, toValue, watch } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { QueriesService } from "@/client"
@@ -33,9 +33,8 @@ export type RunDeletion =
  * Running something, watching it, and reading what it captured.
  *
  * A run is server state like everything else (D6), with one difference worth
- * naming: it changes on its own. The socket says when, and this is the reading
- * — the route stays the authority and the poll below is the fallback for a
- * message that never arrives (D64).
+ * naming: it changes on its own, so the console polls the route, which is the
+ * authority (D64).
  */
 
 export const runKey = (runId: string) => ["queries", "runs", runId] as const
@@ -82,19 +81,35 @@ export function useStartRun() {
 /**
  * One run, re-read while it is still going.
  *
- * Polling as well as the socket: a message that is missed must not leave a
- * console waiting for ever, and the interval stops as soon as the run is over.
+ * The poll is the only way a finished run reaches the console: nothing here
+ * listens to the `queries.runs` topic. vue-query skips an interval tick while
+ * the page is hidden, which left a run that finished behind a background tab
+ * or a hidden pane on screen as pending, so this one polls in the background
+ * too. The interval stops as soon as the run is over.
  */
 export function useRun(runId: MaybeRefOrGetter<string | null>) {
   const id = computed(() => toValue(runId))
-  return useQuery({
+  const queryClient = useQueryClient()
+  const run = useQuery({
     queryKey: computed(() => runKey(id.value ?? "none")),
     queryFn: async () =>
       (await QueriesService.readRun({ path: { run_id: id.value as string } })).data,
     enabled: computed(() => id.value !== null),
     refetchInterval: (query) =>
       LIVE.has(query.state.data?.status ?? "") ? 1000 : false,
+    refetchIntervalInBackground: true,
   })
+  // The history shows each run's status and is not polled, so the end of one
+  // is told to it here. Compared by the run's own id: when the key moves to
+  // another run the data moves with it, and a live run followed by a finished
+  // one is not an end.
+  watch(run.data, async (now, before) => {
+    if (now === undefined || before === undefined || now.id !== before.id) return
+    if (LIVE.has(before.status) && !LIVE.has(now.status)) {
+      await queryClient.invalidateQueries({ queryKey: ["queries", "history"] })
+    }
+  })
+  return run
 }
 
 /**

@@ -306,6 +306,12 @@ values do not cross. Notices are length-bounded and stripped of control
 characters. Operational telemetry names ids, status, timings, rows and bytes,
 not query content.
 
+Known deviation:
+
+- **The console does not listen to `queries.runs`.** It polls a live run every
+  second, in a hidden page as well, so a finished run reaches it whatever
+  became of the socket; the announcement has no reader yet.
+
 Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 ## D65. The editor and its results are one workspace panel
