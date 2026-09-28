@@ -671,6 +671,44 @@ test("New opens the empty dashboard the person already has rather than making an
   await expect(page.getByTestId(`dashboard-${name}`)).toHaveCount(0)
 })
 
+test("the sources fold at the foot of the rail and open to half of it, and Sources is in its head", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const rail = page.getByTestId("dashboards-rail")
+  const toggle = page.getByTestId("dashboards-sources-toggle")
+  const lists = page.getByTestId("dashboards-lists")
+  const box = async (locator: typeof rail) => {
+    const found = await locator.boundingBox()
+    if (found === null) throw new Error("no box")
+    return found
+  }
+
+  // In the head now, beside the plus, not above the tree.
+  const head = await box(page.getByTestId("dashboard-new"))
+  expect(Math.abs((await box(page.getByTestId("agents-open"))).y - head.y)).toBeLessThan(2)
+
+  // Folded, the dashboards reach down to the line of the sources at the foot.
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await expect(page.getByTestId("dashboards-sources")).toHaveCount(0)
+  const railBox = await box(rail)
+  const folded = await box(toggle)
+  expect(Math.abs(folded.y + folded.height - (railBox.y + railBox.height))).toBeLessThan(3)
+  const listsBox = await box(lists)
+  expect(Math.abs(listsBox.y + listsBox.height - folded.y)).toBeLessThan(2)
+
+  // Open, the sources take the lower half, and stay open across a reload.
+  await toggle.click()
+  await expect(toggle).toHaveAttribute("aria-expanded", "true")
+  await expect(page.getByTestId("dashboards-sources")).toBeVisible()
+  expect(Math.abs((await box(toggle)).y - (railBox.y + railBox.height / 2))).toBeLessThan(railBox.height * 0.05)
+  await page.reload()
+  await expect(page.getByTestId("dashboards-sources-toggle")).toHaveAttribute("aria-expanded", "true")
+
+  await page.getByTestId("dashboards-sources-toggle").click()
+  await expect(page.getByTestId("dashboards-sources")).toHaveCount(0)
+})
+
 test("a superuser reads what the metrics store keeps, and is warned before removing it", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")

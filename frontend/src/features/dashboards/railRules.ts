@@ -7,7 +7,10 @@
 export interface RailRules {
   /** Between one's own dashboards and the ones shared with one. */
   beforeShared: boolean
-  /** Between the dashboards of either kind and the sources. */
+  /**
+   * Between the dashboards of either kind and the sources, in the narrow rail.
+   * The wide one always rules off its sources, folded at its foot.
+   */
   beforeSources: boolean
 }
 

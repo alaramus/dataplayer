@@ -17,7 +17,10 @@ is a 12-column grid of charts and tiles; widgets are added by ticking series,
 moved by their header, resized by their corner, renamed in place and expanded to
 fill the grid, and the whole is saved a moment after the last change. The
 Dashboards rail head can become a name filter; filtering changes the rail list
-without changing the open dashboard. The Sources window opens on its Agents
+without changing the open dashboard. The head also holds Sources and, for a
+superuser, the metrics store. The dashboards run to the foot of the rail, where
+the sources that report are folded under one line; opened, they take its lower
+half, and the rail remembers which. The Sources window opens on its Agents
 view, which registers an agent, shows its key and the Compose file that starts
 `dataplayer-monitor-agent` with it right under the agents, and lists the hosts
 the person's agents report: the system, processors and memory, the agent's

@@ -56,6 +56,26 @@ const creating = useCreateDashboard()
 const index = computed(() => indexCatalog(catalog.data.value))
 const sources = computed(() => catalogTree(catalog.data.value))
 const sourcesExpanded = ref<string[]>([])
+
+// The sources fold at the foot of the rail and open to half of it, so the
+// dashboards take the whole height until somebody asks for the sources.
+const SOURCES_OPEN_KEY = serverStorageKey("dataplayer-dashboard-sources-open")
+function storedSourcesOpen(): boolean {
+  try {
+    return localStorage.getItem(SOURCES_OPEN_KEY) === "true"
+  } catch {
+    return false
+  }
+}
+const sourcesOpen = ref(storedSourcesOpen())
+function toggleSources() {
+  sourcesOpen.value = !sourcesOpen.value
+  try {
+    localStorage.setItem(SOURCES_OPEN_KEY, String(sourcesOpen.value))
+  } catch {
+    // Remembering it is a courtesy.
+  }
+}
 const agentsOpen = ref(false)
 const storeOpen = ref(false)
 
@@ -272,46 +292,35 @@ defineExpose({
                 data-testid="dashboards-filter-open"
                 @click="openDashboardFilter"
               />
+              <AppIconButton
+                :icon="appIcons.sensors"
+                tooltip="Sources"
+                data-testid="agents-open"
+                @click="agentsOpen = true"
+              />
+              <AppIconButton
+                v-if="status.data.value?.may_set_up"
+                :icon="appIcons.storage"
+                tooltip="The metrics store"
+                data-testid="store-open"
+                @click="storeOpen = true"
+              />
             </template>
           </AppCardHead>
-          <!-- Absent rather than empty, or its padding stood as a gap under the
+          <!-- Down to the sources at the foot, and scrolled there. -->
+          <div
+            class="dashboards__lists"
+            data-testid="dashboards-lists"
+          >
+            <!-- Absent rather than empty, or its padding stood as a gap under the
                head. A line stands only between groups that both show
                something (railRules). -->
-          <div
-            v-if="shownDashboards.own.length > 0"
-            class="dashboards__list"
-          >
-            <AppButton
-              v-for="dashboard in shownDashboards.own"
-              :key="dashboard.id"
-              :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
-              :class="{
-                'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
-                'dashboards__entry--filled': railEntry(dashboard.color, dashboard.id === current?.id).filled,
-              }"
-              :style="panelColorStyle(dashboard.color)"
-              layout="navigation"
-              size="sm"
-              :icon="appIcons.dashboard"
-              :label="dashboard.name"
-              :data-testid="`dashboard-${dashboard.name}`"
-              @click="selectedId = dashboard.id"
-            />
-          </div>
-
-          <template v-if="shownDashboards.shared.length > 0">
             <div
-              class="dashboards__heading"
-              :class="{ 'dashboards__heading--divided': rules.beforeShared }"
-            >
-              <span>Shared with you</span>
-            </div>
-            <div
+              v-if="shownDashboards.own.length > 0"
               class="dashboards__list"
-              data-testid="dashboards-shared"
             >
               <AppButton
-                v-for="dashboard in shownDashboards.shared"
+                v-for="dashboard in shownDashboards.own"
                 :key="dashboard.id"
                 :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
                 :class="{
@@ -321,58 +330,89 @@ defineExpose({
                 :style="panelColorStyle(dashboard.color)"
                 layout="navigation"
                 size="sm"
-                :icon="appIcons.group"
+                :icon="appIcons.dashboard"
                 :label="dashboard.name"
                 :data-testid="`dashboard-${dashboard.name}`"
                 @click="selectedId = dashboard.id"
-              >
-                <AppTooltip>Shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
-              </AppButton>
+              />
             </div>
-          </template>
 
-          <AppEmptyState
-            v-if="dashboardNameFilter.trim() && shownDashboards.own.length === 0 && shownDashboards.shared.length === 0"
-            text="No matching dashboards"
-          />
+            <template v-if="shownDashboards.shared.length > 0">
+              <div
+                class="dashboards__heading"
+                :class="{ 'dashboards__heading--divided': rules.beforeShared }"
+              >
+                <span>Shared with you</span>
+              </div>
+              <div
+                class="dashboards__list"
+                data-testid="dashboards-shared"
+              >
+                <AppButton
+                  v-for="dashboard in shownDashboards.shared"
+                  :key="dashboard.id"
+                  :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
+                  :class="{
+                    'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
+                    'dashboards__entry--filled': railEntry(dashboard.color, dashboard.id === current?.id).filled,
+                  }"
+                  :style="panelColorStyle(dashboard.color)"
+                  layout="navigation"
+                  size="sm"
+                  :icon="appIcons.group"
+                  :label="dashboard.name"
+                  :data-testid="`dashboard-${dashboard.name}`"
+                  @click="selectedId = dashboard.id"
+                >
+                  <AppTooltip>Shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
+                </AppButton>
+              </div>
+            </template>
+
+            <AppEmptyState
+              v-if="dashboardNameFilter.trim() && shownDashboards.own.length === 0 && shownDashboards.shared.length === 0"
+              text="No matching dashboards"
+            />
+          </div>
 
           <div
-            class="dashboards__heading"
-            :class="{ 'dashboards__heading--divided': rules.beforeSources }"
+            class="dashboards__sources-fold"
+            :class="{ 'dashboards__sources-fold--open': sourcesOpen }"
           >
-            <span>Sources</span>
-            <span>
-              <AppIconButton
-                v-if="status.data.value?.may_set_up"
-                :icon="appIcons.storage"
-                tooltip="The metrics store"
-                data-testid="store-open"
-                @click="storeOpen = true"
-              />
-              <AppIconButton
-                :icon="appIcons.sensors"
-                tooltip="Sources"
-                data-testid="agents-open"
-                @click="agentsOpen = true"
-              />
-            </span>
-          </div>
-          <div class="dashboards__sources">
-            <AppEmptyState
-              v-if="sources.length === 0"
-              text="Nothing reports yet"
-            />
-            <AppTree
-              v-else
-              v-model:expanded="sourcesExpanded"
-              :nodes="sources"
-              :selected="null"
-              node-key="key"
+            <button
+              type="button"
+              class="dashboards__heading dashboards__heading--divided dashboards__sources-toggle"
+              :aria-expanded="sourcesOpen"
+              data-testid="dashboards-sources-toggle"
+              @click="toggleSources"
             >
-              <template #default-header="{ node }">
-                <span>{{ node.label }}</span>
-              </template>
-            </AppTree>
+              <span>Sources</span>
+              <q-icon
+                :name="sourcesOpen ? appIcons.keyboardArrowDown : appIcons.keyboardArrowUp"
+                size="20px"
+              />
+            </button>
+            <div
+              v-if="sourcesOpen"
+              class="dashboards__sources"
+              data-testid="dashboards-sources"
+            >
+              <AppEmptyState
+                v-if="sources.length === 0"
+                text="Nothing reports yet"
+              />
+              <AppTree
+                v-else
+                v-model:expanded="sourcesExpanded"
+                :nodes="sources"
+                :selected="null"
+                node-key="key"
+              >
+                <template #default-header="{ node }">
+                  <span>{{ node.label }}</span>
+                </template>
+              </AppTree>
+            </div>
           </div>
         </template>
       </AppCardFrame>
@@ -481,12 +521,46 @@ defineExpose({
   border-top: 1px solid var(--dp-border-faint);
 }
 
+.dashboards__lists {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .dashboards__list {
   display: flex;
   flex-direction: column;
   padding: 0 var(--dp-space-1) var(--dp-space-2);
-  max-height: 40%;
-  overflow-y: auto;
+}
+
+/* Folded, only its line at the foot; open, the lower half of the rail. */
+.dashboards__sources-fold {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboards__sources-fold--open {
+  flex: 0 0 50%;
+}
+
+.dashboards__sources-toggle {
+  flex: none;
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dashboards__sources-toggle:hover {
+  background: var(--dp-hover);
+}
+
+.dashboards__sources-toggle:focus-visible {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: calc(-1 * var(--dp-space-half));
 }
 
 .dashboards__sources {
