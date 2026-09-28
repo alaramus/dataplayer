@@ -112,11 +112,16 @@ const groups = computed(() =>
     <div class="adapter-panel__foot">
       <!-- Offered only where this server has a template for the type, and
            disabled with the server's own reason where it has one and cannot
-           use it: a button that would be refused is worse than no button. -->
+           use it: a button that would be refused is worse than no button.
+           What it runs, or why it cannot, is said on hover: written under
+           each button, it pushed the short lists out of the panel. The
+           tooltip hangs off the wrapper, because a disabled button takes no
+           pointer events. -->
       <div
         v-for="offer in offers"
         :key="offer.key"
         class="adapter-panel__start"
+        :data-testid="`start-service-offer-${offer.key}`"
       >
         <AppButton
           variant="secondary"
@@ -125,24 +130,13 @@ const groups = computed(() =>
           :data-testid="`start-service-${offer.key}`"
           @click="emit('start', offer)"
         />
-        <AppTooltip
-          v-if="offer.unavailable_reason"
-          :text="offer.unavailable_reason"
-        />
-        <span
-          v-if="offer.available"
-          class="adapter-panel__hint"
-        >
-          Runs {{ offer.image }} on this server and saves the connection
-          for you.
-        </span>
-        <span
-          v-else
-          class="adapter-panel__hint"
-          :data-testid="`start-service-reason-${offer.key}`"
-        >
-          {{ offer.unavailable_reason }}
-        </span>
+        <AppTooltip>
+          {{
+            offer.available
+              ? `Runs ${offer.image} on this server and saves the connection for you.`
+              : offer.unavailable_reason ?? "This server cannot start it"
+          }}
+        </AppTooltip>
       </div>
       <div class="adapter-panel__commands">
         <AppButton
@@ -186,11 +180,6 @@ const groups = computed(() =>
 .adapter-panel__start {
   display: flex;
   flex-direction: column;
-  gap: var(--dp-space-1);
-}
-.adapter-panel__hint {
-  font-size: 11px;
-  color: var(--dp-text-muted);
 }
 .adapter-panel--empty {
   justify-content: center;

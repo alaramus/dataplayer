@@ -200,3 +200,23 @@ test("opens the guide of a type, walks its links, and stays open beside the form
   await expect(page.getByTestId("connector-name")).toBeVisible()
   await expect(guide).toBeVisible()
 })
+
+test("says what a start runs on hover, and leaves the panel to its short lists", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("add-connector").click()
+  await page.getByTestId("adapter-postgres").click()
+  const panel = page.getByTestId("adapter-panel")
+  await expect(panel.getByTestId("adapter-can-change")).toBeVisible()
+
+  // What it runs, or why it cannot, is not written under the button.
+  const offer = panel.getByTestId("start-service-offer-postgres")
+  await expect(offer).toBeVisible()
+  await expect(panel).not.toContainText("saves the connection")
+  await offer.hover()
+  // Whether this server can start it or not, the tooltip says something:
+  // it once received its words as an attribute and showed an empty box.
+  await expect(page.getByRole("tooltip")).toHaveText(/Runs postgres|\S/)
+  await expect(page.getByRole("tooltip")).not.toBeEmpty()
+
+  await page.getByTestId("adapter-catalog").screenshot({ path: "test-results/adapter-catalog-tooltips.png" })
+})
