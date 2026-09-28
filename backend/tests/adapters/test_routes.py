@@ -157,3 +157,16 @@ async def test_a_source_says_how_long_it_keeps_its_own_answers(
     # Nothing rather than zeroes: a screen has to tell "kept for no time" from
     # "never cached at all", because only the first is something to change.
     assert types["file"]["cache_windows"] is None
+
+
+async def test_every_type_reads_its_short_lists_from_its_guide_page(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The catalog and the guide say one thing, so the lists come from the page (D183)."""
+    response = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+
+    for item in response.json():
+        assert item["guide"] == f"source-{item['name']}"
+        assert item["can_see"], item["name"]
+    postgres = next(item for item in response.json() if item["name"] == "postgres")
+    assert "Table data and columns" in postgres["can_change"]

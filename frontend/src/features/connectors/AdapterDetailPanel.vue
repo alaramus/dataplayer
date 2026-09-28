@@ -2,9 +2,10 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
-import type { AdapterTypeInfo, Capability, ServiceTemplateInfo } from "@/client"
+import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
-import { AppBadge, AppButton, AppEmptyState, AppTooltip } from "@/shared/ui"
+import { useOpenGuide } from "@/features/guide/windows"
+import { AppButton, AppEmptyState, AppTooltip } from "@/shared/ui"
 
 /**
  * What one source type is, beside the grid rather than over it.
@@ -35,25 +36,18 @@ const props = defineProps<{
 const emit = defineEmits<{ create: []; start: [template: ServiceTemplateInfo] }>()
 
 const offers = computed(() => props.templates ?? [])
+const openGuide = useOpenGuide()
 
 /**
- * The two things a capability can be a statement about.
- *
- * The server answers a group per capability; the wording of the heading is a
- * caption on this screen, so it lives here.
+ * The two short lists at the head of the type's page in the guide, as the
+ * server read them from it (D183). The driver's own capabilities are what a
+ * screen switches on; these are what a person reads before choosing.
  */
-const GROUPS = [
-  { id: "explore", title: "What you can see", icon: appIcons.visibility },
-  { id: "manage", title: "What you can change", icon: appIcons.edit },
-] as const
-
 const groups = computed(() =>
-  GROUPS.map((group) => ({
-    ...group,
-    items: (props.type?.capabilities ?? []).filter(
-      (capability: Capability) => capability.group === group.id
-    ),
-  })).filter((group) => group.items.length > 0)
+  [
+    { id: "see", title: "What you can see", icon: appIcons.visibility, items: props.type?.can_see ?? [] },
+    { id: "change", title: "What you can change", icon: appIcons.edit, items: props.type?.can_change ?? [] },
+  ].filter((group) => group.items.length > 0)
 )
 </script>
 
@@ -81,26 +75,28 @@ const groups = computed(() =>
         {{ type.description }}
       </p>
 
-      <div
+      <section
         v-for="group in groups"
         :key="group.id"
         class="adapter-panel__group"
+        :data-testid="`adapter-can-${group.id}`"
       >
-        <div class="adapter-panel__group-title">
+        <h3 class="adapter-panel__group-title">
           <q-icon
             :name="group.icon"
             size="14px"
           />
           <span>{{ group.title }}</span>
-        </div>
-        <div class="adapter-panel__chips">
-          <AppBadge
+        </h3>
+        <ul class="adapter-panel__list">
+          <li
             v-for="item in group.items"
-            :key="item.title"
-            :label="item.title"
-          />
-        </div>
-      </div>
+            :key="item"
+          >
+            {{ item }}
+          </li>
+        </ul>
+      </section>
 
       <!-- A source that only connects: it has nothing to browse and nothing
            to read, and saying so is more use than an empty panel. -->
@@ -148,11 +144,21 @@ const groups = computed(() =>
           {{ offer.unavailable_reason }}
         </span>
       </div>
-      <AppButton
-        label="Create connection"
-        data-testid="create-from-catalog"
-        @click="emit('create')"
-      />
+      <div class="adapter-panel__commands">
+        <AppButton
+          variant="secondary"
+          :icon="appIcons.menuBook"
+          label="Guide"
+          data-testid="adapter-guide"
+          @click="openGuide(type.guide)"
+        />
+        <AppButton
+          class="adapter-panel__create"
+          label="Create connection"
+          data-testid="create-from-catalog"
+          @click="emit('create')"
+        />
+      </div>
     </div>
   </div>
 
@@ -241,18 +247,28 @@ const groups = computed(() =>
   display: flex;
   align-items: center;
   gap: var(--dp-space-1);
+  margin: 0;
   font-size: 12px;
   font-weight: 600;
+  line-height: normal;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   opacity: 0.7;
 }
-/* The one place wrapping is wanted: a row of labels of unequal length. */
-.adapter-panel__chips {
+.adapter-panel__list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--dp-space-1);
-  min-width: 0;
+  margin: 0;
+  padding-left: var(--dp-space-4);
+  line-height: 1.4;
+}
+.adapter-panel__commands {
+  display: flex;
+  gap: var(--dp-space-2);
+}
+.adapter-panel__create {
+  flex: 1;
 }
 .adapter-panel__foot {
   flex: none;

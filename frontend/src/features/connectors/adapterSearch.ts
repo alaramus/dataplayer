@@ -4,10 +4,10 @@ import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
  * Finding a source type in the catalog. Plain functions, tested without
  * mounting anything.
  *
- * Lexical only, and what is matched comes from the server: a type gains
- * searchable words by gaining a capability, not by anyone remembering to write
- * one down. The old application shipped an embedding model to the browser to
- * search 84 hand-written descriptions.
+ * Lexical only, and what is matched comes from the server: the name, the
+ * description, and the short lists of the type's page in the guide (D183).
+ * The old application shipped an embedding model to the browser to search 84
+ * hand-written descriptions.
  */
 
 /** The sidebar row that filters nothing. Not a category, so not a Category. */
@@ -41,7 +41,10 @@ function rankOf(
   const body = [
     type.category_title,
     type.description,
-    ...type.capabilities.map((capability) => capability.title),
+    // What the panel says it can do, in the words the panel says it in: a
+    // match on a capability nobody is shown would be one nobody can explain.
+    ...type.can_see,
+    ...type.can_change,
     // What this server can start of this type is something it says about
     // itself too. TimescaleDB is a PostgreSQL here (D119), so somebody who
     // looks for it by name would otherwise be told that no source type

@@ -9,7 +9,7 @@ identity, an instance-level feature answer alongside D13, and typed relation
 specialisations. That file states what is implemented; this one does not keep a
 second copy of it.
 
-Decisions here: D1, D13, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
+Decisions here: D1, D13, D183, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
 
 ## D1. A source type is registered in code
 
@@ -32,8 +32,9 @@ capability list cannot drift from what the driver implements.
 - `capabilities_of` derives capabilities by `issubclass` against the capability
   protocols and from the titles of the action classes the driver declares.
   Nothing lists them by hand.
-- A capability carries a title to read and, where a screen has had to ask about
-  it, a `code` from a closed set to switch on. Codes are added when a question
+- A capability carries a title and, where a screen has had to ask about it, a
+  `code` from a closed set to switch on. The titles are not what the catalog
+  of types shows a person: that is the guide's short lists (D183). Codes are added when a question
   is asked rather than in advance; today there is one, `search`
   ([D76](catalog.md#d76-a-search-is-a-read-of-the-catalog-and-the-words-are-the-filters)).
 - `DeclaresActions` is a classmethod, not a `ClassVar`: a protocol holding data
@@ -53,12 +54,52 @@ Known deviations:
   `Delete`, and the root of a connector may not be deleted.
 - **A type's description is unchecked free text.** An empty string passes.
 - **The catalog search knows no morphology.** Substring matching over name,
-  category, description and capability titles, so "migrations" does not find
-  "migration" and a Russian word finds nothing.
+  category, description and the guide's short lists, so "migrations" does not
+  find "migration" and a Russian word finds nothing.
 - **Three categories, and three types.** Built for the registry D1
   anticipates.
 
 Spec: [The catalog of source types, and creating a connection](../../decisions/2026-08-23-adapter-catalog-design.md)
+
+## D183. A source type has a page in the user's guide, and the catalog reads its short lists from it
+
+The catalog of types showed the derived capabilities as chips: thirty-two for
+PostgreSQL, "Locate a node" and "Describe a relation" among them, and "Add
+columns", "Drop columns" and "Edit rows" where a person means one thing. A list
+of functions is what the driver can do; what a person choosing a source needs
+is what they will be able to see and change, in their words.
+
+- The user's guide is Markdown pages in `backend/app/guide/pages/`, about how
+  the application works for the person using it, not about the code. One page
+  per source type, `source-<type>.md`, and pages about the application,
+  `connections.md` first. The agent is meant to read the same pages later.
+- A source page opens with `## What you can see` and `## What you can change`.
+  Their top-level bullets, one line each, are `can_see` and `can_change` on
+  `GET /adapter-types`, read by the server from the page: the catalog and the
+  guide say one thing, written once.
+- `capabilities_of` stays as it was, for the codes screens switch on (D13).
+  The short lists are prose and nothing switches on them.
+- `GET /guide/` lists the pages and `GET /guide/{key}` answers one. A key is a
+  file's stem, looked up among the pages read at start and never joined onto a
+  path (D8).
+- **Guide** in the catalog's panel opens one guide window on the type's page.
+  Links between pages are `other-page.md` and turn the same window; a second
+  **Guide** turns it too. It is a floating window, so it stays while the
+  connection is filled in.
+- Tests hold that every registered type has a page with at least one thing to
+  see, that a short item fits one line of the panel, and that every link names
+  a page.
+
+Known deviations:
+
+- **The guide is written by hand.** A driver that stops doing something keeps
+  its bullet until somebody edits the page; the capability list beside it
+  cannot drift, and the guide can.
+- **Only connections and source types have pages.** The workspace, dashboards,
+  pipelines and the agent are not described yet.
+- **English only**, as every string in the interface is.
+
+Spec: [A user's guide, and the catalog's short lists](../../decisions/2026-09-28-user-guide-design.md)
 
 ## D2. Capabilities are optional protocols
 

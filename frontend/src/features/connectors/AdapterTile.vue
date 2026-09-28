@@ -49,13 +49,19 @@ const emit = defineEmits<{ pick: []; open: [] }>()
   border-radius: var(--dp-radius-control);
   cursor: pointer;
 }
-.adapter-tile:hover,
-.adapter-tile:focus-visible {
-  border-color: var(--dp-accent);
+/* Grey, as a chosen row is everywhere else in the application. */
+.adapter-tile:hover {
+  background: var(--dp-hover);
 }
-.adapter-tile--selected {
-  border-color: var(--dp-accent);
-  box-shadow: inset 0 0 0 1px var(--dp-accent);
+.adapter-tile:focus-visible {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: calc(-1 * var(--dp-space-half));
+}
+/* Pointed at, the chosen tile stays chosen: :hover alone outranks a class. */
+.adapter-tile--selected,
+.adapter-tile--selected:hover {
+  border-color: var(--dp-focus-border);
+  background: var(--dp-active);
 }
 .adapter-tile__head {
   display: flex;

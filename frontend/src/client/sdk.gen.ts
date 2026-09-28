@@ -321,6 +321,11 @@ import type {
   declaredReferencesUndeclareReferenceData,
   declaredReferencesUndeclareReferenceErrors,
   declaredReferencesUndeclareReferenceResponses,
+  guideReadGuidePageData,
+  guideReadGuidePageErrors,
+  guideReadGuidePageResponses,
+  guideReadGuidePagesData,
+  guideReadGuidePagesResponses,
   jobsCancelJobData,
   jobsCancelJobErrors,
   jobsCancelJobResponses,
@@ -3212,6 +3217,44 @@ export class AdaptersService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/adapter-types/",
+      ...options,
+    })
+  }
+}
+
+export class GuideService {
+  /**
+   * Read Guide Pages
+   *
+   * Every page of the user's guide, by key and title.
+   */
+  public static readGuidePages<ThrowOnError extends boolean = true>(
+    options?: Options<guideReadGuidePagesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<guideReadGuidePagesResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/guide/",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Guide Page
+   *
+   * One page of the user's guide, as Markdown.
+   */
+  public static readGuidePage<ThrowOnError extends boolean = true>(
+    options: Options<guideReadGuidePageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      guideReadGuidePageResponses,
+      guideReadGuidePageErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/guide/{key}",
       ...options,
     })
   }

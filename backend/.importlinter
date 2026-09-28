@@ -23,6 +23,7 @@ layers =
     app.terminals
     app.connectors
     app.adapters
+    app.guide
     app.realtime
     app.users
     app.core
@@ -37,6 +38,7 @@ forbidden_modules =
     app.users
     app.realtime
     app.adapters
+    app.guide
     app.connectors
     app.queries
     app.services

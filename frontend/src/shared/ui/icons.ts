@@ -87,6 +87,7 @@ export const appIcons = {
   list: "list",
   lockSshKey: "lock",
   manageSearch: "manage_search",
+  menuBook: "menu_book",
   mic: "mic",
   micNone: "mic_off",
   minimize: "minimize",

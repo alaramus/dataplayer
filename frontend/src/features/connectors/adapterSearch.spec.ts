@@ -13,6 +13,9 @@ function adapterType(overrides: Partial<AdapterTypeInfo> = {}): AdapterTypeInfo 
     category_title: "SQL Databases",
     description: "Relational database.",
     capabilities: [{ group: "explore", title: "Browse the catalog" }],
+    guide: "source-postgres",
+    can_see: ["Schemas, tables and views"],
+    can_change: ["Table data and columns"],
     cache_windows: { catalog: 30, fetch: 10 },
     options_schema: {},
     ...overrides,
@@ -30,6 +33,9 @@ const FILES = adapterType({
     { group: "explore", title: "Browse the catalog" },
     { group: "manage", title: "Upload files" },
   ],
+  guide: "source-file",
+  can_see: ["Folders and files"],
+  can_change: ["Files and folders: create, upload, rename, delete"],
 })
 
 const TYPES = [POSTGRES, FILES]
@@ -59,9 +65,13 @@ describe("searching the adapter catalog", () => {
   })
 
   it("finds a type by what it can do, not only by its name", () => {
-    // The whole reason capabilities are searched: nothing in "Files" says
+    // The whole reason the short lists are searched: nothing in "Files" says
     // upload, and a user who wants to upload does not know the type's name.
     expect(searchAdapters(TYPES, "upload")).toEqual([FILES])
+  })
+
+  it("does not find a type by a capability its panel does not show", () => {
+    expect(searchAdapters(TYPES, "browse the catalog")).toEqual([])
   })
 
   it("finds a type by its description", () => {

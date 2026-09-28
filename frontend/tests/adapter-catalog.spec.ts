@@ -1,13 +1,16 @@
 import { expect, test } from "@playwright/test"
+import type { Page } from "@playwright/test"
 
 import { login } from "./utils/login"
-import { connectorRow, deleteConnector } from "./utils/workspace"
+import { chooseTheme } from "./utils/theme"
+import { closeWindowDialog, connectorRow, deleteConnector } from "./utils/workspace"
 
 /**
  * The catalog is the screen a new user meets first, and most of what it says
- * cannot be proved by a unit test: the capabilities are computed on the
- * server, travel through the generated client and end up as chips. Captions
- * in the old catalog tree were computed, unit-tested and never rendered.
+ * cannot be proved by a unit test: the short lists are read on the server from
+ * the type's page of the guide (D183), travel through the generated client and
+ * end up in the panel. Captions in the old catalog tree were computed,
+ * unit-tested and never rendered.
  */
 
 test("shows what a source type can do before anything is filled in", async ({ page }) => {
@@ -28,17 +31,17 @@ test("shows what a source type can do before anything is filled in", async ({ pa
   await page.getByTestId("adapter-file").click()
   const panel = page.getByTestId("adapter-panel")
   await expect(panel).toContainText("Your personal storage")
-  await expect(panel).toContainText("Browse the catalog")
-  // Derived from the action classes the driver dispatches, so this chip and
-  // the menu in the catalog cannot disagree about what a file source offers.
-  await expect(panel).toContainText("Upload files")
-  await expect(panel).toContainText("Delete")
+  // Plain items a person reads, not the driver's list of functions.
+  await expect(panel.getByTestId("adapter-can-see").getByRole("listitem").first())
+    .toHaveText("Folders and files, and what each one is: its size, its dates, its format")
+  await expect(panel.getByTestId("adapter-can-change")).toContainText("Files in a text editor")
+  await expect(panel).not.toContainText("Browse the catalog")
 
-  // PostgreSQL implements no actions, and must therefore claim none: the
-  // whole point of deriving the list rather than writing it down.
+  // Editing a table is one item, not Add columns, Drop columns and Edit rows.
   await page.getByTestId("adapter-postgres").click()
-  await expect(panel).toContainText("Read rows")
-  await expect(panel).not.toContainText("Upload files")
+  await expect(panel.getByTestId("adapter-can-change")).toContainText("Table data and columns")
+  await expect(panel).not.toContainText("Drop columns")
+  await expect(panel).not.toContainText("Files in a text editor")
 })
 
 test("finds a type by what it can do, not only by its name", async ({ page }) => {
@@ -47,7 +50,7 @@ test("finds a type by what it can do, not only by its name", async ({ page }) =>
 
   await page.getByTestId("adapter-search").fill("upload")
 
-  // Nothing in "Files" says upload; the word comes from the capability.
+  // Nothing in the name "Files" says upload; the word is in its short list.
   await expect(page.getByTestId("adapter-file")).toBeVisible()
   await expect(page.getByTestId("adapter-postgres")).toHaveCount(0)
 
@@ -123,4 +126,77 @@ test("editing an existing connection opens its form directly", async ({ page }) 
 
   await page.getByRole("button", { name: "Cancel" }).click()
   await deleteConnector(page, name)
+})
+
+/** What a colour token comes to on this page, for comparing with a drawn one. */
+async function tokenColour(page: Page, token: string): Promise<string> {
+  return await page.evaluate((name) => {
+    const probe = document.createElement("span")
+    probe.style.background = `var(${name})`
+    document.body.append(probe)
+    const colour = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return colour
+  }, token)
+}
+
+test("marks the chosen type and category in grey, as every other list does", async ({ page }) => {
+  await login(page)
+
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme)
+    await page.getByTestId("add-connector").click()
+    await page.getByTestId("adapter-category-sql").click()
+    await page.getByTestId("adapter-postgres").click()
+
+    const grey = await tokenColour(page, "--dp-active")
+    const tile = page.getByTestId("adapter-postgres")
+    await expect(tile).toHaveCSS("background-color", grey)
+    await expect(tile).toHaveCSS("border-top-color", await tokenColour(page, "--dp-focus-border"))
+    await expect(tile).toHaveCSS("box-shadow", "none")
+    await expect(page.getByTestId("adapter-category-sql")).toHaveCSS("background-color", grey)
+    await page.getByTestId("adapter-catalog").screenshot({ path: `test-results/adapter-catalog-${theme}.png` })
+    await closeWindowDialog(page, "adapter-catalog")
+  }
+  await chooseTheme(page, "light")
+})
+
+test("opens the guide of a type, walks its links, and stays open beside the form", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("add-connector").click()
+  await page.getByTestId("adapter-postgres").click()
+  await page.getByTestId("adapter-guide").click()
+
+  const guide = page.getByTestId("guide-window")
+  const text = guide.getByTestId("guide-text")
+  await expect(text.getByRole("heading", { level: 1 })).toHaveText("PostgreSQL")
+  // The same words as the panel: one text in two places.
+  await expect(text).toContainText("Table data and columns")
+  await expect(text.getByRole("heading", { name: "Connecting" })).toBeVisible()
+  await expect(guide.getByTestId("guide-back")).toBeDisabled()
+  await page.screenshot({ path: "test-results/adapter-guide.png" })
+
+  // A link to another page turns the window to it, and Back returns.
+  await text.getByText("Connections", { exact: true }).first().click()
+  await expect(text.getByRole("heading", { level: 1 })).toHaveText("Connections")
+  await guide.getByTestId("guide-back").click()
+  await expect(text.getByRole("heading", { level: 1 })).toHaveText("PostgreSQL")
+
+  // Another type's Guide turns the open window rather than opening a second.
+  // The guide opened over the catalog, so the catalog is brought forward
+  // first, by the part of it still showing, as a person would.
+  const catalogBox = await page.getByTestId("adapter-catalog").boundingBox()
+  const guideBox = await page.getByTestId("window-guide").boundingBox()
+  if (catalogBox === null || guideBox === null) throw new Error("a window has no box")
+  await page.mouse.click(guideBox.x + guideBox.width + 16, catalogBox.y + 24)
+  await page.getByTestId("adapter-redis").click()
+  await page.getByTestId("adapter-guide").click()
+  await expect(page.getByTestId("guide-window")).toHaveCount(1)
+  await expect(text.getByRole("heading", { level: 1 })).toHaveText("Redis")
+
+  // Read while the connection is filled in: the catalog goes, the guide stays.
+  await page.getByTestId("create-from-catalog").click()
+  await expect(page.getByTestId("adapter-catalog")).toHaveCount(0)
+  await expect(page.getByTestId("connector-name")).toBeVisible()
+  await expect(guide).toBeVisible()
 })

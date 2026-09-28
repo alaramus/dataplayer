@@ -25,6 +25,7 @@ shows the name but acts on the id.
 ```
 backend/app/
 ├── adapters/            source types — see sources/README.md
+├── guide/               the user's guide as Markdown pages, and /guide — see D183
 ├── connectors/          user connections
 │   ├── models.py        Connector, ConnectorGrant + API schemas
 │   ├── crud.py          database access only, including access resolution

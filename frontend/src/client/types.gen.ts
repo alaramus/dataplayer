@@ -309,6 +309,18 @@ export type AdapterTypeInfo = {
    * Capabilities
    */
   capabilities: Array<Capability>
+  /**
+   * Guide
+   */
+  guide: string
+  /**
+   * Can See
+   */
+  can_see: Array<string>
+  /**
+   * Can Change
+   */
+  can_change: Array<string>
   cache_windows: SourceCacheWindows | null
   /**
    * Options Schema
@@ -4699,6 +4711,38 @@ export type GrantsPublic = {
    * Data
    */
   data: Array<GrantPublic>
+}
+
+/**
+ * GuidePage
+ */
+export type GuidePage = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Markdown
+   */
+  markdown: string
+}
+
+/**
+ * GuidePageInfo
+ */
+export type GuidePageInfo = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Title
+   */
+  title: string
 }
 
 /**
@@ -15436,6 +15480,56 @@ export type adaptersReadAdapterTypesResponses = {
 
 export type adaptersReadAdapterTypesResponse =
   adaptersReadAdapterTypesResponses[keyof adaptersReadAdapterTypesResponses]
+
+export type guideReadGuidePagesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/guide/"
+}
+
+export type guideReadGuidePagesResponses = {
+  /**
+   * Response Guide-Read Guide Pages
+   *
+   * Successful Response
+   */
+  200: Array<GuidePageInfo>
+}
+
+export type guideReadGuidePagesResponse =
+  guideReadGuidePagesResponses[keyof guideReadGuidePagesResponses]
+
+export type guideReadGuidePageData = {
+  body?: never
+  path: {
+    /**
+     * Key
+     */
+    key: string
+  }
+  query?: never
+  url: "/api/v1/guide/{key}"
+}
+
+export type guideReadGuidePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type guideReadGuidePageError = guideReadGuidePageErrors[keyof guideReadGuidePageErrors]
+
+export type guideReadGuidePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: GuidePage
+}
+
+export type guideReadGuidePageResponse =
+  guideReadGuidePageResponses[keyof guideReadGuidePageResponses]
 
 export type servicesReadServiceTemplatesData = {
   body?: never

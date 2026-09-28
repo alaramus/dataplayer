@@ -29,7 +29,7 @@ legacy notes and stay unchanged.
 
 | Area | Read first |
 | --- | --- |
-| A source type, a capability, a node kind, untrusted input | [sources/contract.md](docs/architecture/sources/contract.md) |
+| A source type, a capability, a node kind, untrusted input, the user's guide | [sources/contract.md](docs/architecture/sources/contract.md) |
 | What a catalog shows of a node, searching it, a key space | [sources/catalog.md](docs/architecture/sources/catalog.md) |
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
@@ -259,6 +259,7 @@ files. IDs are stable because specs and commits refer to them.
 | D180 | [pipelines](docs/architecture/pipelines.md) |
 | D181 | [notifications](docs/architecture/notifications.md) |
 | D182 | [sources/transfer](docs/architecture/sources/transfer.md) |
+| D183 | [sources/contract](docs/architecture/sources/contract.md) |
 
 ## Working rules
 

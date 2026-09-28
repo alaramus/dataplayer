@@ -10,6 +10,7 @@ from app.connectors.routes import router as connectors_router
 from app.connectors.ssh_key_routes import router as ssh_keys_router
 from app.connectors.table_routes import router as tables_router
 from app.core.config import settings
+from app.guide.routes import router as guide_router
 from app.jobs.routes import router as jobs_router
 from app.metrics import live as metrics_live
 from app.metrics.routes import router as metrics_router
@@ -39,6 +40,7 @@ api_router.include_router(paste_router)
 api_router.include_router(tables_router)
 api_router.include_router(ssh_keys_router)
 api_router.include_router(adapter_types_router)
+api_router.include_router(guide_router)
 api_router.include_router(services_router)
 api_router.include_router(backups_router)
 api_router.include_router(jobs_router)

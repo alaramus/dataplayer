@@ -217,8 +217,11 @@ function start(template: ServiceTemplateInfo) {
 .adapter-catalog__category:hover {
   background: var(--dp-hover);
 }
-.adapter-catalog__category--active {
-  background: var(--dp-selected);
+/* Grey, as a chosen row is everywhere else: the chat in the history, the
+   pressed button of a rail. */
+.adapter-catalog__category--active,
+.adapter-catalog__category--active:hover {
+  background: var(--dp-active);
   font-weight: 500;
 }
 .adapter-catalog__category-name {
