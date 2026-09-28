@@ -591,6 +591,48 @@ async def test_a_folder_holds_conversations_and_outlives_none_of_them(
     ] is None
 
 
+async def test_a_deleted_folder_can_take_its_chats_to_the_archive(
+    client: AsyncClient, headers: dict[str, str]
+) -> None:
+    """Agent and quick chats alike, and nothing outside the folder."""
+    inside = await new_conversation(client, headers)
+    outside = await new_conversation(client, headers)
+    quick = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    project_id = (
+        await client.post(f"{AI}/projects", headers=headers, json={"name": "Old work"})
+    ).json()["id"]
+    await client.patch(
+        f"{AI}/conversations/{inside}", headers=headers, json={"project_id": project_id}
+    )
+    await client.patch(
+        f"{AI}/quick-chats/{quick}", headers=headers, json={"project_id": project_id}
+    )
+
+    refused = await client.delete(
+        f"{AI}/projects/{project_id}", headers=headers, params={"chats": "drop"}
+    )
+    deleted = await client.delete(
+        f"{AI}/projects/{project_id}", headers=headers, params={"chats": "archive"}
+    )
+    archived = await client.get(
+        f"{AI}/conversations", headers=headers, params={"archived": "true"}
+    )
+    history = await client.get(f"{AI}/conversations", headers=headers)
+    quick_archived = await client.get(
+        f"{AI}/quick-chats", headers=headers, params={"archived": "true"}
+    )
+
+    assert refused.status_code == 422
+    assert deleted.status_code == 200
+    assert [(row["id"], row["project_id"]) for row in archived.json()["data"]] == [
+        (inside, None)
+    ]
+    assert [row["id"] for row in history.json()["data"]] == [outside]
+    assert [(row["id"], row["project_id"]) for row in quick_archived.json()] == [
+        (quick, None)
+    ]
+
+
 async def test_somebody_elses_folder_is_not_found(
     client: AsyncClient, headers: dict[str, str], db: AsyncSession
 ) -> None:

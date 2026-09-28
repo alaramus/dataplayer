@@ -18932,7 +18932,12 @@ export type aiDeleteProjectData = {
      */
     project_id: string
   }
-  query?: never
+  query?: {
+    /**
+     * Chats
+     */
+    chats?: "keep" | "archive"
+  }
   url: "/api/v1/ai/projects/{project_id}"
 }
 

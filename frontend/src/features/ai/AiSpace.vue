@@ -215,13 +215,29 @@ async function saveProject() {
   catch (cause) { toast.error(messageOf(cause, "The project could not be saved")) }
 }
 async function removeProject(id: string, name: string) {
+  const held = grouped.value.find((group) => group.id === id)?.chats.length ?? 0
+  const one = held === 1
+  let chats: "keep" | "archive" = "keep"
   if (!(await confirm({
     title: "Delete project?",
-    message: `“${name}” will be deleted. The chats in it are kept.`,
+    message: held === 0
+      ? `“${name}” will be deleted.`
+      : `“${name}” will be deleted. ${one ? "Where does its chat go?" : `Where do its ${String(held)} chats go?`}`,
     confirmLabel: "Delete",
     danger: true,
+    ...(held === 0 ? {} : {
+      choices: [
+        {
+          value: "keep",
+          label: `Move ${one ? "it" : "them"} to the chat list`,
+          description: `${one ? "It stays" : "They stay"} in the history, in no project`,
+        },
+        { value: "archive", label: `Archive ${one ? "it" : "them"}`, description: "Restored or deleted later in Settings" },
+      ],
+      onChoice: (value: string) => { chats = value === "archive" ? "archive" : "keep" },
+    }),
   }))) return
-  try { await deleteProject.mutateAsync(id) }
+  try { await deleteProject.mutateAsync({ id, chats }) }
   catch (cause) { toast.error(messageOf(cause, "The project could not be deleted")) }
 }
 async function moveChat(entry: HistoryChat, projectId: string | null) {

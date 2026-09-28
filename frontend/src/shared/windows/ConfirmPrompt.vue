@@ -4,6 +4,7 @@ import { ref } from "vue"
 import AppActions from "@/shared/ui/AppActions.vue"
 import AppButton from "@/shared/ui/AppButton.vue"
 import AppCheckbox from "@/shared/ui/AppCheckbox.vue"
+import AppRadioGroup from "@/shared/ui/AppRadioGroup.vue"
 import AppSection from "@/shared/ui/AppSection.vue"
 
 import type { ConfirmRequest } from "./presets"
@@ -15,12 +16,14 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
 const remember = ref(false)
 /** The second thing this press decides, when the question carries one. */
 const also = ref(props.request.alsoDefault ?? false)
+const choice = ref(props.request.choiceDefault ?? props.request.choices?.[0]?.value ?? "")
 
 function accept() {
   if (remember.value) props.request.onRemember?.()
   // Both answers, not only the ticked one: this box is part of what is being
   // agreed to rather than a request to stop asking.
   props.request.onAlso?.(also.value)
+  if (props.request.choices?.length) props.request.onChoice?.(choice.value)
   emit("answer", true)
 }
 </script>
@@ -33,6 +36,14 @@ function accept() {
     >
       {{ request.message }}
     </AppSection>
+    <AppRadioGroup
+      v-if="request.choices?.length"
+      v-model="choice"
+      :options="request.choices"
+      :aria-label="request.title"
+      class="confirm-prompt__choices"
+      data-testid="confirm-choice"
+    />
     <AppCheckbox
       v-if="request.alsoLabel"
       v-model="also"
@@ -76,6 +87,11 @@ function accept() {
    read as one paragraph is not a list. */
 .confirm-prompt__message {
   white-space: pre-line;
+}
+/* The answers stand under the question they answer, inset as its text is. */
+.confirm-prompt__choices {
+  flex: none;
+  padding: 0 var(--dp-space-3) var(--dp-space-2);
 }
 /* Under the question and above the buttons, where it reads as part of the
    answer rather than as another thing being asked. */

@@ -5444,6 +5444,9 @@ export class MetricsService {
 
   /**
    * Create Dashboard
+   *
+   * A new dashboard, unless the caller already owns an empty one: that one
+   * is given back instead, so pressing New again does not stack up empties.
    */
   public static createDashboard<ThrowOnError extends boolean = true>(
     options: Options<metricsCreateDashboardData, ThrowOnError>
@@ -5900,7 +5903,8 @@ export class AiService {
   /**
    * Delete Project
    *
-   * The folder only. Every conversation in it stays, out of any folder.
+   * The folder only. Every conversation in it stays, out of any folder:
+   * in the history, or in the archive when `chats` says so.
    */
   public static deleteProject<ThrowOnError extends boolean = true>(
     options: Options<aiDeleteProjectData, ThrowOnError>

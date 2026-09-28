@@ -35,6 +35,7 @@ from app.ai.models import (
     ConversationsPublic,
     ConversationSummary,
     ConversationUpdate,
+    ProjectChatsFate,
     ProviderKeyCheck,
     ProviderKeyTry,
     ProviderKeyWrite,
@@ -275,18 +276,23 @@ async def rename_project(
 
 @router.delete("/projects/{project_id}", response_model=Message)
 async def delete_project(
-    session: SessionDep, current_user: CurrentUser, project_id: uuid.UUID
+    session: SessionDep,
+    current_user: CurrentUser,
+    project_id: uuid.UUID,
+    chats: ProjectChatsFate = "keep",
 ) -> Any:
-    """The folder only. Every conversation in it stays, out of any folder."""
+    """The folder only. Every conversation in it stays, out of any folder:
+    in the history, or in the archive when `chats` says so."""
     project = await conversations.project_for_owner(session, project_id, current_user.id)
     if project is None:
         raise HTTPException(status_code=404, detail=NO_PROJECT)
+    archive = chats == "archive"
     await session.exec(
         update(quick_chat.QuickConversation)
         .where(col(quick_chat.QuickConversation.project_id) == project.id)
-        .values(project_id=None)
+        .values(project_id=None, **({"archived": True} if archive else {}))
     )
-    await conversations.delete_project(session, project)
+    await conversations.delete_project(session, project, archive=archive)
     return Message(message="Project deleted")
 
 

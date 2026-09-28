@@ -214,11 +214,11 @@ export function useDeleteAiProject() {
   const queryClient = useQueryClient()
   const invalidate = useConversationInvalidation()
   return useMutation({
-    mutationFn: async (id: string) => {
-      await AiService.deleteProject({ path: { project_id: id } })
+    mutationFn: async ({ id, chats }: { id: string; chats: "keep" | "archive" }) => {
+      await AiService.deleteProject({ path: { project_id: id }, query: { chats } })
       return id
     },
-    // The chats it held are still there and now belong to no folder.
+    // The chats it held are still there, in no folder: in the history or the archive.
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: aiProjectsKey })
       await invalidate()

@@ -313,12 +313,15 @@ async def rename_project(
     return project
 
 
-async def delete_project(session: AsyncSession, project: ChatProject) -> None:
-    """The folder goes; every conversation in it stays, out of any folder."""
+async def delete_project(
+    session: AsyncSession, project: ChatProject, *, archive: bool = False
+) -> None:
+    """The folder goes; every conversation in it stays, out of any folder, and
+    goes to the archive when asked to."""
     await session.exec(
         update(Conversation)
         .where(col(Conversation.project_id) == project.id)
-        .values(project_id=None)
+        .values(project_id=None, **({"archived": True} if archive else {}))
     )
     await session.delete(project)
     await session.commit()

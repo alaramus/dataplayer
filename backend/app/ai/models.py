@@ -364,6 +364,11 @@ class ChatProjectWrite(BaseModel):
     name: str = PydanticField(min_length=1, max_length=MAX_PROJECT_CHARS)
 
 
+# What becomes of the chats in a deleted project: kept in the history, out of
+# any folder, or archived. Asked each time, since neither loses anything.
+ProjectChatsFate = Literal["keep", "archive"]
+
+
 class ConversationsPublic(BaseModel):
     data: list[ConversationSummary]
     count: int

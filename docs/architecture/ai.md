@@ -134,7 +134,7 @@ POST   /api/v1/ai/keys/{provider}/check
 GET    /api/v1/ai/projects
 POST   /api/v1/ai/projects
 PATCH  /api/v1/ai/projects/{project_id}
-DELETE /api/v1/ai/projects/{project_id}
+DELETE /api/v1/ai/projects/{project_id}?chats=keep|archive
 GET    /api/v1/ai/conversations
 POST   /api/v1/ai/conversations
 DELETE /api/v1/ai/conversations/archived
@@ -366,7 +366,8 @@ line between the Pinned folder, the projects and the chats in no folder. New cha
 on a project's row opens a draft named after it, and the chat is made in that
 project when its first message is sent. A project carries no instructions and no connections of its own, because a folder that
 quietly changed how the agent answers would be a second place to look for that;
-deleting one keeps every conversation it held, out of any folder. Nothing is deleted from a row: the archive in the settings restores a
+deleting one asks where the conversations it held go — to the history, out of
+any folder, or to the archive — and loses none of them. Nothing is deleted from a row: the archive in the settings restores a
 conversation or deletes it, one at a time or all at once, which is the only
 place anything is deleted. A pin survives archiving, so a restored conversation
 comes back where it was. Content is encrypted at rest under `AI_CONTENT_KEY`.
