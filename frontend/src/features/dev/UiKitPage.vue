@@ -33,6 +33,7 @@ import {
   AppSelect,
   AppSpinner,
   AppTable,
+  AppTabs,
   AppTaskbar,
   AppTaskbarItem,
   AppThemeToggle,
@@ -107,6 +108,11 @@ const plain = ref("prefer")
 const several = ref<string[]>(["public"])
 const flag = ref(true)
 const rows = ref("page")
+const place = ref("favorites")
+const PLACES = [
+  { value: "favorites", label: "Favorites", icon: appIcons.star },
+  { value: "history", label: "History", icon: appIcons.history },
+]
 const PAIRS = ref([
   { source: "id", target: "id", include: true },
   { source: "display_name", target: "name", include: true },
@@ -304,6 +310,10 @@ function removeSavedEntry(name: string) {
           <AppThemeToggle />
           <AppFullscreenToggle />
         </div>
+        <AppTabs
+          v-model="place"
+          :options="PLACES"
+        />
         <div class="row items-center ui-kit__row--spaced">
           <AppIconButton
             :icon="appIcons.refresh"

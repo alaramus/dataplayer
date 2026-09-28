@@ -205,7 +205,7 @@ text — and the screen has to say so, because a list of runs and a list of
 documents are both lists of SQL and read alike. A run row names the document it
 was run from when that document still has a name, which is what makes it
 visibly an event of a document rather than another copy of one; the library
-  holds two named places — Queries and History. Successful, failed, cancelled,
+  holds two named places — Favorites and History. Successful, failed, cancelled,
   timed-out and interrupted runs are kept;
 requests rejected before execution are not. Rows are never retained. The
 default is the earlier of ninety days and one thousand runs per user, with
@@ -570,8 +570,9 @@ statements still require their specific confirmation. A source that only
 supports reads continues to reject writes independently of connector access.
 
 Deleting a remembered SQL document requires confirmation and deletes its body,
-layout and remembered parameters in that request. Queries and History remain
-separate views; History retains its own deletion and retention controls. The
+layout and remembered parameters in that request. Favorites and History remain
+separate views; History retains its own deletion and retention controls, and
+deleting one run asks first, as every delete does. The
 migration deletes documents already in Trash, removes the Trash column and
 write-unlock table, and keeps run history through its nullable document link.
 The editor keeps Remember in its toolbar as a disabled command after the query

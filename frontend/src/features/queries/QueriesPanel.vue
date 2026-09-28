@@ -24,6 +24,7 @@ import {
   AppInput,
   AppSelect,
   AppSpinner,
+  AppTabs,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -39,16 +40,15 @@ import {
 /**
  * The two places this panel holds, and what each of them answers.
  *
- * Queries are documents somebody is writing; History is what actually ran.
+ * Favorites are the documents somebody kept; History is what actually ran.
  * They read alike — both are lists of SQL — so each row says which kind of
  * thing it is: a document by its name and its connection, a run by what it
  * did, when, and which document it was run from.
  */
 const PLACES = [
-  { value: "queries", label: "Queries", icon: appIcons.description },
+  { value: "favorites", label: "Favorites", icon: appIcons.star },
   { value: "history", label: "History", icon: appIcons.history },
-] as const
-type Place = (typeof PLACES)[number]["value"]
+]
 
 const props = defineProps<{ panelId: string }>()
 
@@ -59,10 +59,7 @@ const connectors = useConnectors()
 
 const connectorId = ref<string | null>(null)
 const search = ref("")
-/**
- * Queries are remembered documents; History is what actually ran.
- */
-const showing = ref<Place>("queries")
+const showing = ref("favorites")
 
 const filters = computed(() => ({
   connectorId: connectorId.value,
@@ -203,6 +200,13 @@ async function openAsQuery(run: { id: string; connector_id: string | null }) {
 }
 
 async function forget(runId: string) {
+  const accepted = await confirm({
+    title: "Delete this run from your history?",
+    message: "What ran is not kept anywhere else afterwards.",
+    confirmLabel: "Delete",
+    danger: true,
+  })
+  if (!accepted) return
   try {
     await deleteRuns.mutateAsync({ kind: "selected", ids: [runId] })
   } catch (cause) {
@@ -272,33 +276,16 @@ async function deleteQuery(documentId: string) {
     </div>
 
     <!-- Saved documents and execution history answer different questions. -->
-    <div
+    <AppTabs
+      v-model="showing"
+      :options="PLACES"
       class="queries-panel__places"
-      role="tablist"
       data-testid="queries-places"
-    >
-      <button
-        v-for="place in PLACES"
-        :key="place.value"
-        type="button"
-        role="tab"
-        class="queries-panel__place"
-        :class="{ 'queries-panel__place--here': showing === place.value }"
-        :aria-selected="showing === place.value"
-        :data-testid="`queries-place-${place.value}`"
-        @click="showing = place.value"
-      >
-        <q-icon
-          :name="place.icon"
-          size="14px"
-        />
-        {{ place.label }}
-      </button>
-    </div>
+    />
 
     <AppInput
       v-model="search"
-      :placeholder="showing === 'history' ? 'Search what you ran' : 'Search queries'"
+      :placeholder="showing === 'history' ? 'Search what you ran' : 'Search favorites'"
       compact
       clearable
       class="queries-panel__search"
@@ -323,6 +310,7 @@ async function deleteQuery(documentId: string) {
           <AppIconButton
             :icon="appIcons.deleteSweep"
             tooltip="Delete all of your history"
+            variant="danger-quiet"
             data-testid="history-delete-all"
             @click="forgetEverything"
           />
@@ -355,6 +343,7 @@ async function deleteQuery(documentId: string) {
           <AppIconButton
             :icon="appIcons.delete"
             tooltip="Delete this run"
+            variant="danger-quiet"
             :data-testid="`history-delete-${run.id}`"
             @click="forget(run.id)"
           />
@@ -376,7 +365,7 @@ async function deleteQuery(documentId: string) {
       <AppSpinner v-else-if="documents.isPending.value" />
       <AppEmptyState
         v-else-if="rows.length === 0"
-        :text="search ? 'No query matches that' : 'No queries yet'"
+        :text="search ? 'No query matches that' : 'No favorites yet'"
         data-testid="queries-empty"
       />
       <template v-else>
@@ -444,34 +433,7 @@ async function deleteQuery(documentId: string) {
 }
 .queries-panel__places {
   flex: none;
-  display: flex;
-  gap: var(--dp-space-half);
-  padding: var(--dp-space-1) var(--dp-space-2) 0;
-}
-.queries-panel__place {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--dp-space-1);
-  padding: var(--dp-space-1) var(--dp-space-2);
-  border: none;
-  border-radius: var(--dp-radius-control);
-  background: none;
-  color: var(--dp-text-muted);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-.queries-panel__place:hover {
-  background: var(--dp-hover);
-}
-/* The one you are in, said by weight and ground rather than by a tick: three
-   of these sit in a column a fifth of the screen wide. */
-.queries-panel__place--here {
-  background: var(--dp-surface-raised);
-  color: var(--dp-text-strong);
-  font-weight: 600;
+  padding: var(--dp-space-1) var(--dp-space-2) var(--dp-space-2);
 }
 .queries-panel__search {
   flex: none;

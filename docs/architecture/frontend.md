@@ -99,6 +99,9 @@ accepted visual example and the rejected directions.
   form its label takes the label column and its marks are neutral, like a form
   checkbox's; without a label it spans the form and is named by `aria-label`.
   `q-radio` and `q-option-group` are forbidden outside the kit.
+- **Pages of one place are `AppTabs`**: buttons in a row, the one shown on the
+  grey `--dp-tab-current` ground. The connection window's pages and the queries
+  panel's Favorites and History are drawn by it.
 - **Actions carry the hierarchy, not the palette.** Primary is a neutral
   contrasting fill, secondary is neutral text, destructive keeps its semantic
   red, and a filled button has no decorative shadow. Chrome and default panel

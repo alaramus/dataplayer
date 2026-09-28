@@ -64,7 +64,7 @@ export async function chooseTabColor(page: Page, color: string) {
  * fields are on the page it leaves.
  */
 export async function openPermissions(page: Page) {
-  await page.getByTestId("connector-tab-permissions").click()
+  await page.getByTestId("connector-tabs-permissions").click()
 }
 
 /**
@@ -72,7 +72,7 @@ export async function openPermissions(page: Page) {
  * it: nobody's first question, so it has a page of its own (D105).
  */
 export async function openOptions(page: Page) {
-  await page.getByTestId("connector-tab-options").click()
+  await page.getByTestId("connector-tabs-options").click()
 }
 
 /** Set how far a console may go, in the window that is already open. */

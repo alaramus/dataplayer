@@ -50,6 +50,7 @@ import {
   AppForm,
   AppSelect,
   AppSpinner,
+  AppTabs,
   AppToggle,
   useConfirm,
   useToast,
@@ -678,23 +679,12 @@ async function parseTyped(text: string) {
 
         <!-- Always three pages at least: how to reach the connection, how it
              behaves once reached, and what may be done through it. -->
-        <div
+        <AppTabs
+          v-model="activePage"
+          :options="pages.map((page) => ({ value: page.id, label: page.label }))"
           class="connector-window__tabs"
           data-testid="connector-tabs"
-        >
-          <button
-            v-for="page in pages"
-            :key="page.id"
-            type="button"
-            class="connector-window__tab"
-            :class="{ 'connector-window__tab--active': page.id === activePage }"
-            :aria-pressed="page.id === activePage"
-            :data-testid="`connector-tab-${page.id}`"
-            @click="activePage = page.id"
-          >
-            {{ page.label }}
-          </button>
-        </div>
+        />
       </div>
 
       <div
@@ -1061,32 +1051,8 @@ async function parseTyped(text: string) {
   flex: none;
 }
 .connector-window__tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dp-space-1);
   padding-bottom: var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border);
-}
-.connector-window__tab {
-  border: none;
-  background: none;
-  padding: var(--dp-space-1) var(--dp-space-2);
-  cursor: pointer;
-  text-transform: capitalize;
-  border-radius: var(--dp-radius-control);
-  color: inherit;
-  font: inherit;
-}
-.connector-window__tab--active {
-  background: var(--dp-tab-current);
-  font-weight: 500;
-}
-.connector-window__tab:not(.connector-window__tab--active):hover {
-  background: var(--dp-hover);
-}
-.connector-window__tab:focus-visible {
-  outline: 2px solid var(--dp-focus-border);
-  outline-offset: var(--dp-space-half);
 }
 .connector-window__url {
   flex: none;

@@ -26,7 +26,7 @@ describe("the pages of a connection window", () => {
     // the page holds; a group the source named is shown under that name, in
     // the order it declared them.
     expect(windowPages([{ id: "general" }, { id: "tunnel" }]).map((page) => page.label))
-      .toEqual(["Connection", "tunnel", "Options", "Permissions"])
+      .toEqual(["Connection", "Tunnel", "Options", "Permissions"])
   })
 
   it("keeps its own pages distinct from a source's groups of the same names", () => {

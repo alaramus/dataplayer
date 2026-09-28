@@ -118,6 +118,7 @@ export const appIcons = {
   signOut: "logout",
   sort: "sort",
   sshKey: "key",
+  star: "star",
   stop: "stop",
   stopCircle: "stop_circle",
   storage: "storage",

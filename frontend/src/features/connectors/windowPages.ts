@@ -25,11 +25,11 @@ export const PERMISSIONS_PAGE = "permissions"
 export function windowPages(groups: readonly { id: string }[]): WindowPage[] {
   const pages: WindowPage[] = groups.map((group) => ({
     id: group.id,
-    // A source names its own groups and this only shows the name. The one
-    // exception is the group a field falls into when its model says nothing:
-    // that word is this application's, and "general" says nothing about what
-    // the page holds.
-    label: group.id === DEFAULT_GROUP ? "Connection" : group.id,
+    // A source names its own groups and this only shows the name, capitalised
+    // as a tab's first word. The one exception is the group a field falls into
+    // when its model says nothing: that word is this application's, and
+    // "general" says nothing about what the page holds.
+    label: group.id === DEFAULT_GROUP ? "Connection" : group.id.charAt(0).toUpperCase() + group.id.slice(1),
     owner: "source",
   }))
 

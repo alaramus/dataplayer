@@ -346,7 +346,7 @@ test("history keeps what ran, opens it again and can be deleted", async ({ page 
   await expect(page.getByTestId("run-statement-0")).toContainText("succeeded")
 
   // --- what ran is in history, by what was written in it -------------------
-  await page.getByTestId("queries-place-history").click()
+  await page.getByTestId("queries-places-history").click()
   await page.getByTestId("queries-search").fill(marker)
   const row = page.locator('[data-testid^="history-row-"]')
   await expect(row).toHaveCount(1)
@@ -357,7 +357,11 @@ test("history keeps what ran, opens it again and can be deleted", async ({ page 
   await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(2)
 
   // --- deleting a run leaves nothing behind --------------------------------
+  // Asked first, as every other delete is.
   await row.locator('[data-testid^="history-delete-"]').click()
+  await expect(page.getByTestId("confirm-message")).toContainText("not kept anywhere else")
+  await expect(row).toHaveCount(1)
+  await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId("history-empty")).toBeVisible()
 
   await deleteConnector(page, name)

@@ -159,14 +159,55 @@ describe("the library of queries", () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    await wrapper.get('[data-testid="queries-place-history"]').trigger("click")
+    await wrapper.get('[data-testid="queries-places-history"]').trigger("click")
     await flushPromises()
     expect(wrapper.find('[data-testid="queries-history-list"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="queries-place-trash"]').exists()).toBe(false)
-    await wrapper.get('[data-testid="queries-place-queries"]').trigger("click")
+    expect(wrapper.find('[data-testid="queries-places-trash"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="queries-places-favorites"]').trigger("click")
     await flushPromises()
     expect(wrapper.find('[data-testid="queries-history-list"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("No queries yet")
+    expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("No favorites yet")
+  })
+
+  it("deletes a run from history only once that is confirmed", async () => {
+    mockConnectors()
+    vi.spyOn(QueriesService, "listDocuments").mockResolvedValue({
+      data: { data: [], count: 0 },
+    } as never)
+    vi.spyOn(QueriesService, "listRuns").mockResolvedValue({
+      data: {
+        data: [{
+          id: "r1",
+          connector_id: "c1",
+          document_id: null,
+          status: "succeeded",
+          scope: "read",
+          statement_count: 1,
+          preview: "select 1",
+        }],
+        count: 1,
+      },
+    } as never)
+    const removed = vi.spyOn(QueriesService, "deleteRuns").mockResolvedValue({
+      data: { message: "Deleted" },
+    } as never)
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="queries-places-history"]').trigger("click")
+    await flushPromises()
+
+    await wrapper.get('[data-testid="history-delete-r1"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="confirm-cancel"]')?.click()
+    await flushPromises()
+    expect(removed).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="history-delete-r1"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="confirm-accept"]')?.click()
+    await flushPromises()
+    expect(removed).toHaveBeenCalledWith({ body: { kind: "selected", ids: ["r1"] } })
+    wrapper.unmount()
   })
 
   it("filters itself to the connection it was opened from", async () => {

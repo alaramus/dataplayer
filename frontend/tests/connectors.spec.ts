@@ -174,7 +174,7 @@ test("the window separates how to reach a connection from what may be done throu
   await page.getByRole("option", { name: "Read only", exact: true }).click()
   await transfer.click()
   await expect(transfer).toBeChecked()
-  await page.getByTestId("connector-tab-general").click()
+  await page.getByTestId("connector-tabs-general").click()
   await expect(page.getByTestId("field-host")).toBeVisible()
   await page.getByTestId("connector-name").fill(name)
   await fillConnectionFields(page, DATABASE.password)
