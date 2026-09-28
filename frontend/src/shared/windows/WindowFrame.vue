@@ -252,14 +252,16 @@ const resizeEdges: ResizeEdge[] = [
   flex-direction: column;
   min-height: 0;
   background: var(--dp-surface-raised);
-  border: 1px solid var(--dp-border-strong);
+  /* A panel's border, so a window reads as the same kind of card. The one in
+     front is told by its shadow: a bright border of its own looked thicker
+     than every panel's. */
+  border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-panel);
   box-shadow: 0 6px 24px var(--dp-shadow);
   overflow: hidden;
 }
 .app-window--front {
   box-shadow: 0 10px 40px var(--dp-shadow-strong);
-  border-color: var(--dp-focus-border);
 }
 .app-window--maximized {
   border-radius: 0;

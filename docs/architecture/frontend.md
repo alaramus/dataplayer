@@ -61,6 +61,8 @@ accepted visual example and the rejected directions.
   the control, and the field wrappers keep their value types, errors and
   accessible names. Schema-driven rows keep their source-declared grouping and
   stack on a narrow form.
+- **A window's border is a panel's**: 1px of `--dp-border`. The window in front
+  is marked by a deeper shadow, not by a brighter border.
 - **`layout="section"` is the standalone stack**, with shared padding and field
   spacing; the default embedded layout leaves both to its parent.
 - **A form window's size is chosen, not measured.** A window whose content
