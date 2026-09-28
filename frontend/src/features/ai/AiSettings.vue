@@ -174,7 +174,6 @@ async function removeAll() {
               <AppIconButton
                 :icon="appIcons.unarchive"
                 tooltip="Restore chat"
-                compact
                 :data-testid="`ai-restore-${entry.chat.id}`"
                 @click="restore(entry)"
               />
@@ -182,7 +181,6 @@ async function removeAll() {
                 :icon="appIcons.delete"
                 tooltip="Delete chat"
                 variant="danger-quiet"
-                compact
                 :data-testid="`ai-delete-${entry.chat.id}`"
                 @click="remove(entry)"
               />

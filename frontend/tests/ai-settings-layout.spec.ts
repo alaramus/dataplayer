@@ -26,6 +26,11 @@ for (const theme of ["light", "dark"] as const) {
     const archived = settings.locator('[data-testid^="ai-archived-"]')
     await expect(archived).toHaveCount(2)
     await expect(archived.nth(1)).toHaveCSS("border-top-width", "1px")
+    // A row of the archive has room for the ordinary buttons, not a cell's.
+    const ordinary = await page.getByTestId("ai-new-chat").first().boundingBox()
+    for (const button of ["ai-restore-layout-archived-1", "ai-delete-layout-archived-1"]) {
+      expect((await page.getByTestId(button).boundingBox())?.height).toBe(ordinary?.height)
+    }
     await page.screenshot({ path: `test-results/ai-settings-${theme}.png` })
     await page.setViewportSize({ width: 390, height: 720 })
     const railToggle = page.getByTestId("app-toggle-first-panel")
