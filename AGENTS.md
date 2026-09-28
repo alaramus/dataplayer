@@ -296,6 +296,10 @@ development, rebuilds fixtures and sample storage and draws the example
 declared references between the connections that are already there. A prestart failure prevents
 the backend from serving; inspect it with `docker compose logs prestart`.
 
+Demo connections for a full connections panel — the same PostgreSQL under
+several names, file storage, Redis and SSH — come from `bun run seed:connectors`,
+which reads `.env` and skips names that already exist.
+
 Backend checks, from `backend/`:
 
 ```bash
