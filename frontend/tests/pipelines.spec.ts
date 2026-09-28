@@ -364,8 +364,12 @@ test("draws a chain before anything is made, runs it by one Run, and takes it ap
   await page.getByTestId("space-pipelines").click()
   const first = page.getByTestId("pipeline-create-first")
   await expect(first.or(page.getByTestId("pipeline-new"))).toBeVisible()
+  const created = page.waitForResponse(
+    (response) => response.url().endsWith("/api/v1/pipelines") && response.request().method() === "POST"
+  )
   if (await first.isVisible()) await first.click()
   else await page.getByTestId("pipeline-new").click()
+  await created
   await expect(page.getByTestId("pipeline-view")).toBeVisible()
 
   const rail = page.getByTestId("pipelines-rail")
@@ -477,4 +481,54 @@ test("runs a pipeline by itself on a schedule, says when next, and is switched o
 
   await page.getByTestId("pipeline-delete").click()
   await page.getByTestId("confirm-accept").click()
+})
+
+test("keeps the head of the connections in place from Data to Pipelines, both at their narrowest", async ({ page }) => {
+  const name = `e2e-pipe-head-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+
+  async function narrowest(separator: Locator) {
+    const box = await separator.boundingBox()
+    if (box === null) throw new Error("the separator has no box")
+    const y = box.y + box.height / 2
+    await page.mouse.move(box.x + box.width / 2, y)
+    await page.mouse.down()
+    await page.mouse.move(20, y, { steps: 10 })
+    await page.mouse.up()
+  }
+  function places(card: Locator) {
+    return card.getByTestId("connectors-head").getByRole("button").evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const box = button.getBoundingClientRect()
+        return { x: box.x, y: box.y }
+      })
+    )
+  }
+
+  const data = page.getByTestId("workspace-leaf-sources")
+  await narrowest(page.getByTestId("workspace-separator").first())
+  const inData = await places(data)
+  const dataWidth = (await data.boundingBox())?.width ?? 0
+
+  await page.getByTestId("space-pipelines").click()
+  const rail = page.getByTestId("pipelines-rail")
+  await expect(rail).toBeVisible()
+  await narrowest(page.getByTestId("pipelines-space").getByTestId("workspace-separator"))
+  const inPipelines = await places(rail)
+
+  // The same card at the same width, and every button of its head where it
+  // was. The column in Data carried an empty box of commands, whose gap alone
+  // moved the three buttons two pixels to the left.
+  expect(Math.abs(((await rail.boundingBox())?.width ?? 0) - dataWidth)).toBeLessThan(0.5)
+  expect(inData).toHaveLength(3)
+  expect(inPipelines).toHaveLength(inData.length)
+  inData.forEach((place, index) => {
+    const other = inPipelines[index]
+    expect(Math.abs((other?.x ?? 0) - place.x)).toBeLessThan(0.5)
+    expect(Math.abs((other?.y ?? 0) - place.y)).toBeLessThan(0.5)
+  })
+
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, name)
 })

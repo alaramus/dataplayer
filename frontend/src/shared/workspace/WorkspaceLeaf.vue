@@ -224,6 +224,15 @@ const handle = computed<"collapse" | "aside" | "none">(() => {
   return workspace.sectionLookOf(props.leaf.accepts ?? null) === null ? "collapse" : "aside"
 })
 
+/**
+ * Whether the head has any command at all. An empty box still takes the
+ * strip's gap, and a head of the feature's own then stood two pixels narrower
+ * than the same head drawn in another space.
+ */
+const hasCommands = computed(
+  () => (!props.leaf.collapsed && head.value === null) || handle.value !== "none"
+)
+
 /** What the bar will call this section once it is on it. */
 const asideTitle = computed(
   () => workspace.sectionLookOf(props.leaf.accepts ?? null)?.title ?? "this section"
@@ -395,7 +404,10 @@ const overlayStyle = computed((): CSSProperties => {
            off while no other tab could close: a command that came with the
            second tab moved what stood beside it. A head of the feature's own
            has no tabs, and no such command. -->
-      <span class="workspace-leaf__commands">
+      <span
+        v-if="hasCommands"
+        class="workspace-leaf__commands"
+      >
         <AppIconButton
           v-if="!leaf.collapsed && head === null"
           :icon="appIcons.clearAll"
