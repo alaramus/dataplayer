@@ -67,6 +67,14 @@ provide(formLayoutKey, true)
   padding-top: 0;
   padding-bottom: 0;
 }
+/* Trap: Quasar insets an autofilled input by a pixel above and below, which
+   its own fixed-height control absorbs. This control grows with what is in
+   it, so a field stood two pixels taller while the browser offered or put in
+   a value, and the form below it moved under the pointer. */
+.app-form :deep(.app-form-field .q-field__native:-webkit-autofill),
+.app-form :deep(.app-form-field .q-field__input:-webkit-autofill) {
+  min-height: calc(var(--dp-form-control-height) - 2px);
+}
 .app-form :deep(.app-form-field .q-field__bottom) {
   padding: var(--dp-space-1) 0 0;
 }
