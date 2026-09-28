@@ -30,7 +30,9 @@ function addUnique(): void {
     data-testid="constraints-inspector"
   >
     <section>
-      <h3>Primary key</h3>
+      <h3 class="dp-overline">
+        Primary key
+      </h3>
       <div class="constraints__badges">
         <AppCheckbox
           v-for="column in draft.columns"
@@ -49,7 +51,9 @@ function addUnique(): void {
       data-testid="unique-inspector"
     >
       <div class="constraints__heading">
-        <h3>Unique constraint</h3>
+        <h3 class="dp-overline">
+          Unique constraint
+        </h3>
         <AppIconButton
           :icon="appIcons.deleteOutline"
           :tooltip="`Remove ${unique.name || 'unique constraint'}`"
@@ -108,7 +112,9 @@ function addUnique(): void {
       data-testid="check-inspector"
     >
       <div class="constraints__heading">
-        <h3>CHECK</h3>
+        <h3 class="dp-overline">
+          CHECK
+        </h3>
         <AppIconButton
           :icon="appIcons.deleteOutline"
           :tooltip="`Remove ${check.name || 'check'}`"
@@ -149,11 +155,6 @@ function addUnique(): void {
 }
 .constraints h3 {
   margin: 0 0 var(--dp-space-2);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .constraints__heading {
   display: flex;

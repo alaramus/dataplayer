@@ -1,0 +1,73 @@
+/*
+ * The roles text plays, and the resets that let the kit own them (D185).
+ *
+ * metrics.css says how big each size is; this file says which size a role
+ * is. A screen carries `dp-overline` or `dp-helper` rather than restating
+ * 11px, 600 and 0.04em on its own, which is how fifteen overlines came to be
+ * drawn four different ways.
+ */
+
+/* Trap: Quasar styles the bare tags as a document's headings — an h3 is 48px
+   on a 50px line, an h1 96px with its letters drawn together — and a heading
+   in the chrome that set only its own size kept the rest: DRAFTS in the
+   queries panel stood in a 50px line. A heading here is a tag for the reader;
+   its look is the class it carries. ProseBlock sets its own. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: normal;
+}
+
+/* Three weights: 400, 500 and 600 (D185). A browser's bold is 700, which on
+   a 13px line reads as a different face. */
+b,
+strong,
+th {
+  font-weight: 600;
+}
+
+/* The overline: a group's heading above its content, in capitals. Fifteen
+   screens drew their own in 10 to 12px and four letter spacings. */
+.dp-overline {
+  font-size: var(--dp-font-size-xs);
+  font-weight: 600;
+  line-height: var(--dp-line-height-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dp-text-muted);
+}
+
+/* Help beside a control: under it in a form, under an option in a choice. */
+.dp-helper {
+  font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
+  color: var(--dp-text-muted);
+}
+
+/* A count, a time, a caption beside a name. */
+.dp-meta {
+  font-size: var(--dp-font-size-xs);
+  line-height: var(--dp-line-height-sm);
+  color: var(--dp-text-muted);
+}
+
+/* The title of a section inside a panel or a page. */
+.dp-section-title {
+  font-size: var(--dp-font-size);
+  font-weight: 600;
+  line-height: var(--dp-line-height);
+}
+
+/* The title of a page: Preferences, Administration, Sign in. */
+.dp-page-title {
+  font-size: var(--dp-font-size-page);
+  font-weight: 500;
+  line-height: var(--dp-line-height-page);
+}

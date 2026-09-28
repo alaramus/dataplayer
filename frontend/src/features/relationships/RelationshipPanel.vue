@@ -197,7 +197,7 @@ function openStructure(id: string) {
 
 <style scoped>
 .relationship-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.relationship-panel__loading { display: flex; align-items: center; gap: var(--dp-space-3); padding: var(--dp-space-half) var(--dp-space-2); font-size: 12px; border-bottom: 1px solid var(--dp-border); }
+.relationship-panel__loading { display: flex; align-items: center; gap: var(--dp-space-3); padding: var(--dp-space-half) var(--dp-space-2); font-size: var(--dp-font-size-sm); border-bottom: 1px solid var(--dp-border); }
 .relationship-panel__loading > span { white-space: nowrap; }
 .relationship-panel__viewer { flex: 1; min-height: 0; }
 </style>

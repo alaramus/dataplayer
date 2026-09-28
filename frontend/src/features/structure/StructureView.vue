@@ -838,7 +838,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
 .structure-view__list {
   margin: 0;
   padding-left: var(--dp-space-4);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .structure-view__index {
   display: flex;
@@ -851,7 +851,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
   grid-template-columns: max-content 1fr;
   gap: var(--dp-space-1) var(--dp-space-4);
   margin: 0;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .structure-view__facts dt {
   color: var(--dp-text-muted);

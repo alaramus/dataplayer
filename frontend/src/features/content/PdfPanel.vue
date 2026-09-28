@@ -276,7 +276,7 @@ onBeforeUnmount(() => {
    this line in the colour of a disabled control. */
 .pdf-panel__details {
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .pdf-panel__commands {
   display: flex;

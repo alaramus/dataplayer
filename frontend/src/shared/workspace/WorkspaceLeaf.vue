@@ -349,7 +349,7 @@ const overlayStyle = computed((): CSSProperties => {
             >
               <q-icon
                 :name="workspace.lookOf(panelId).icon"
-                size="16px"
+                size="var(--dp-icon-sm)"
               />
               <AppTooltip>{{ workspace.lookOf(panelId).iconTooltip }}</AppTooltip>
             </span>
@@ -360,7 +360,7 @@ const overlayStyle = computed((): CSSProperties => {
             >
               <q-icon
                 :name="workspace.lookOf(panelId).icon"
-                size="16px"
+                size="var(--dp-icon-sm)"
               />
               <AppTooltip v-if="workspace.lookOf(panelId).iconTooltip">
                 {{ workspace.lookOf(panelId).iconTooltip }}
@@ -385,7 +385,7 @@ const overlayStyle = computed((): CSSProperties => {
             >
               <q-icon
                 name="close"
-                size="14px"
+                size="var(--dp-icon-sm)"
               />
             </span>
           </div>
@@ -575,16 +575,21 @@ const overlayStyle = computed((): CSSProperties => {
   display: flex;
   align-items: center;
   gap: var(--dp-space-1);
-  padding: var(--dp-space-1) var(--dp-space-2);
+  box-sizing: border-box;
+  height: var(--dp-tab-height);
+  padding: 0 var(--dp-space-2);
   border: none;
   border-radius: var(--dp-radius-control);
-  background: var(--dp-panel-background, var(--dp-panel-plain));
+  /* The tab being read is filled with the connection's colour and the others
+     carry the same colour said quietly (D185). Filled alike, the two tabs of
+     one connection differed by a 3px line in the colour of the panel under
+     them, and nobody could tell which one was showing. */
+  background: var(--dp-panel-quiet, var(--dp-panel-plain-quiet));
   /* A native button takes its colour from the browser, which is black, and
      `font: inherit` does not carry colour with it. Black on a dark panel is
      an invisible tab. */
-  color: var(--dp-panel-foreground, inherit);
+  color: var(--dp-text);
   font: inherit;
-  font-size: 12px;
   /* The same weight whether or not this is the tab being read: bold text is
      wider, so a weight that changed with the state moved every tab beside it
      at the moment one was pressed. What marks the active one is the line
@@ -596,11 +601,13 @@ const overlayStyle = computed((): CSSProperties => {
   user-select: none;
 }
 .workspace-leaf__tab--active {
+  background: var(--dp-panel-background, var(--dp-panel-plain));
+  color: var(--dp-panel-foreground, var(--dp-text));
   box-shadow: inset 0 -3px currentColor;
 }
 .workspace-leaf__tab:focus-visible,
 .workspace-leaf__close:focus-visible {
-  outline: 2px solid currentColor;
+  outline: 2px solid var(--dp-focus-border);
   outline-offset: 2px;
 }
 .workspace-leaf__icon {
@@ -630,7 +637,10 @@ const overlayStyle = computed((): CSSProperties => {
   text-overflow: ellipsis;
   min-width: 0;
   max-width: 96px;
-  color: var(--dp-panel-foreground, var(--dp-text-faint));
+  color: var(--dp-text-muted);
+}
+.workspace-leaf__tab--active .workspace-leaf__subtitle {
+  color: var(--dp-panel-foreground, var(--dp-text-muted));
 }
 /* The tabs take the room, so the handles sit at the end without a margin of
    their own - which two of them beside each other would fight over. */

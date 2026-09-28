@@ -42,8 +42,8 @@ defineProps<{ title?: string }>()
   border-bottom: 1px solid var(--dp-border);
   background: var(--dp-card-head);
   /* The body's colour, as the head of a column in the data workspace is
-     written: in --dp-text-strong, a group's heading, every space but Data
-     read a shade dimmer than the one it was switched from. */
+     written: in a dimmer one, every space but Data read a shade dimmer than
+     the one it was switched from. */
   color: inherit;
 }
 .app-card-head__title {

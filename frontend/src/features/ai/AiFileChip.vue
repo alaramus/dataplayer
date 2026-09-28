@@ -47,7 +47,7 @@ const emit = defineEmits<{ open: []; remove: [] }>()
       <q-icon
         v-else
         :name="kind === 'image' ? 'image' : 'description'"
-        size="20px"
+        size="var(--dp-icon-md)"
         class="ai-file-chip__icon"
       />
       <span class="ai-file-chip__text">
@@ -78,7 +78,7 @@ const emit = defineEmits<{ open: []; remove: [] }>()
   background: var(--dp-surface);
 }
 .ai-file-chip--problem {
-  border-color: var(--dp-callout-caution);
+  border-color: var(--dp-tone-warning-text);
 }
 .ai-file-chip__open {
   display: flex;
@@ -112,13 +112,13 @@ const emit = defineEmits<{ open: []; remove: [] }>()
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .ai-file-chip__size {
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .ai-file-chip--problem .ai-file-chip__size {
-  color: var(--dp-callout-caution);
+  color: var(--dp-tone-warning-text);
 }
 </style>

@@ -301,7 +301,7 @@ function removeSavedEntry(name: string) {
               </div>
             </AppPopup>
           </AppButton>
-          <span class="text-caption ui-kit__note">
+          <span class="dp-helper ui-kit__note">
             hover for tooltips
             <AppTooltip>A tooltip attaches to whatever contains it.</AppTooltip>
           </span>
@@ -707,7 +707,7 @@ function removeSavedEntry(name: string) {
         </div>
       </AppSection>
       <AppActions align="left">
-        <span class="text-caption ui-kit__note">
+        <span class="dp-helper ui-kit__note">
           A footer is AppActions; inside a dialog it is the actions slot.
         </span>
       </AppActions>
@@ -857,6 +857,6 @@ function removeSavedEntry(name: string) {
   height: var(--dp-form-control-height);
 }
 .ui-kit__icon-box > span {
-  font-size: 20px;
+  font-size: var(--dp-icon-md);
 }
 </style>

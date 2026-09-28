@@ -126,7 +126,7 @@ async function revoke(userId: string) {
   white-space: nowrap;
 }
 .grants__email {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 /* Wide enough for the longest wording in GRANT_OPTIONS, so the row does not

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, useAttrs, useId } from "vue"
+import { computed, inject, useAttrs, useId } from "vue"
 
 import { formLayoutKey } from "./formLayout"
 import { fieldLook } from "./tokens"
@@ -11,7 +11,7 @@ defineOptions({ inheritAttrs: false })
 const errorId = `${useId()}-error`
 const attrs = useAttrs()
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue: string
     label?: string
@@ -93,6 +93,12 @@ const emit = defineEmits<{
   blur: []
 }>()
 
+/**
+ * A field in a toolbar rather than a form: its name is the placeholder, not a
+ * label floated over the value, so it stands at the toolbar's height.
+ */
+const toolbar = computed(() => props.compact && !formLayout)
+
 // QInput reports string | number | null whatever its type is. A text field
 // deals in strings, so the caller is not made to widen its own state to match
 // a detail of the library. Numbers have their own component.
@@ -103,14 +109,14 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
-    :class="{ 'app-form-field': formLayout, 'app-input--monospace': monospace }"
+    :class="{ 'app-form-field': formLayout, 'app-input--monospace': monospace, 'app-input--compact': toolbar }"
     v-bind="{ ...attrs, ...fieldLook(formLayout, compact, Boolean(error)) }"
     :model-value="modelValue"
-    :label="formLayout ? undefined : label"
-    :aria-label="attrs['aria-label'] ?? (formLayout ? label : undefined)"
+    :label="formLayout || toolbar ? undefined : label"
+    :aria-label="attrs['aria-label'] ?? (formLayout || toolbar ? label : undefined)"
     :type="type"
     :hint="hint"
-    :placeholder="placeholder"
+    :placeholder="placeholder ?? (toolbar ? label : undefined)"
     :stack-label="persistentLabel || Boolean(placeholder)"
     :autogrow="grow"
     :disable="disable"
@@ -165,5 +171,16 @@ function report(value: string | number | null) {
 <style scoped>
 .app-input--monospace :deep(.q-field__native) {
   font-family: var(--dp-font-mono);
+}
+/* :where() keeps this under a card head's own clamp to its strip. */
+:where(.app-input--compact) :deep(.q-field__control),
+:where(.app-input--compact) :deep(.q-field__marginal) {
+  height: var(--dp-control-height);
+  min-height: var(--dp-control-height);
+}
+:where(.app-input--compact) :deep(.q-field__native) {
+  min-height: var(--dp-control-height);
+  padding-top: 0;
+  padding-bottom: 0;
 }
 </style>

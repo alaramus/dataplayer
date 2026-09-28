@@ -507,7 +507,7 @@ onScopeDispose(stop)
               >
                 <q-icon
                   :name="projectIsClosed(group.id) ? 'chevron_right' : 'keyboard_arrow_down'"
-                  size="16px"
+                  size="var(--dp-icon-sm)"
                 />
                 <span class="ai-window__project-title">{{ group.name }}</span>
                 <span
@@ -727,7 +727,7 @@ onScopeDispose(stop)
 .ai-window__project { display: flex; align-items: center; }
 .ai-window__project-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--dp-space-1); border: 0; padding: var(--dp-space-1); background: transparent; color: var(--dp-text-muted); font: inherit; font-weight: 600; cursor: pointer; }
 .ai-window__project-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ai-window__project-count { flex: none; color: var(--dp-text-faint); font-weight: 400; }
+.ai-window__project-count { flex: none; color: var(--dp-text-muted); font-weight: 400; }
 .ai-window__project-actions { display: none; flex: none; }
 .ai-window__project:hover .ai-window__project-actions, .ai-window__project:focus-within .ai-window__project-actions { display: flex; }
 /* The chats of a folder are stepped in under its name, which is the whole way

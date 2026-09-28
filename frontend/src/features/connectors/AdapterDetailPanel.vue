@@ -60,7 +60,7 @@ const groups = computed(() =>
     <div class="adapter-panel__head">
       <q-icon
         :name="adapterIcon(type.name)"
-        size="32px"
+        size="var(--dp-icon-xl)"
       />
       <div class="adapter-panel__title">
         <span class="adapter-panel__name">{{ type.title }}</span>
@@ -81,10 +81,10 @@ const groups = computed(() =>
         class="adapter-panel__group"
         :data-testid="`adapter-can-${group.id}`"
       >
-        <h3 class="adapter-panel__group-title">
+        <h3 class="adapter-panel__group-title dp-overline">
           <q-icon
             :name="group.icon"
-            size="14px"
+            size="var(--dp-icon-sm)"
           />
           <span>{{ group.title }}</span>
         </h3>
@@ -199,15 +199,15 @@ const groups = computed(() =>
   min-width: 0;
 }
 .adapter-panel__name {
-  font-size: 17px;
+  font-size: var(--dp-font-size-lg);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .adapter-panel__category {
-  font-size: 12px;
-  opacity: 0.6;
+  font-size: var(--dp-font-size-sm);
+  color: var(--dp-text-muted);
 }
 /* One scrollbar, on the right — never along the bottom. */
 .adapter-panel__body {
@@ -222,8 +222,6 @@ const groups = computed(() =>
 }
 .adapter-panel__description {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
 }
 .adapter-panel__group {
   display: flex;
@@ -236,12 +234,6 @@ const groups = computed(() =>
   align-items: center;
   gap: var(--dp-space-1);
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: normal;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  opacity: 0.7;
 }
 .adapter-panel__list {
   display: flex;

@@ -7,7 +7,7 @@ withDefaults(defineProps<{ text: string; icon?: string }>(), { icon: undefined }
     <q-icon
       v-if="icon"
       :name="icon"
-      size="20px"
+      size="var(--dp-icon-md)"
     />
     <span>{{ text }}</span>
   </div>

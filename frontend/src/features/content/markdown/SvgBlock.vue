@@ -81,9 +81,9 @@ function download() {
   margin: 0;
   padding: var(--dp-space-3);
   overflow-x: auto;
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   font-family: var(--dp-font-mono);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   white-space: pre-wrap;
   word-break: break-word;
 }

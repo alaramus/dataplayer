@@ -257,7 +257,8 @@ async function copy(entry: LogEntry) {
   overflow: auto;
   overscroll-behavior: contain;
   font-family: var(--dp-font-mono);
-  font-size: var(--dp-prose-code-font-size);
+  font-size: var(--dp-font-size-mono);
+  line-height: var(--dp-line-height-mono);
 }
 .logs-tool__entry--open {
   background: var(--dp-hover);

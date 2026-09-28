@@ -226,7 +226,7 @@ function run() {
       </AppPairs>
 
       <template v-if="preview !== null">
-        <div class="import__title">
+        <div class="import__title dp-overline">
           The first rows, as they would arrive
         </div>
         <AppTable
@@ -282,21 +282,15 @@ function run() {
    question this dialog asks and the answer depends on it. */
 .import__type {
   margin-left: var(--dp-space-2);
-  font-size: 11px;
-  color: var(--dp-text-faint);
-}
-
-/* The preview is headed the way the pairs are. */
-.import__title {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
 }
 
+/* The preview is headed the way the pairs are. */
+
+
 .import__more {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 </style>

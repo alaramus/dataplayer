@@ -200,18 +200,19 @@ test("the space you are in is the one of its row that stands out, in both themes
   }
 })
 
+// A control's icon is the medium size of D185: 20px in a 32px button.
 test("rail and footer icons fill their existing button slots", async ({ page }) => {
   await login(page)
 
   for (const zone of ["left-top", "left-bottom", "right-top"]) {
     const rail = page.getByTestId(`tool-rail-${zone}`)
     expect((await rail.boundingBox())!.width).toBe(36)
-    await expect(rail.locator(".q-btn .q-icon").first()).toHaveCSS("font-size", "24px")
+    await expect(rail.locator(".q-btn .q-icon").first()).toHaveCSS("font-size", "20px")
   }
 
   for (const id of ["server-switcher", "activity-indicator"]) {
     const button = page.getByTestId(id)
-    await expect(button.locator(".q-icon")).toHaveCSS("font-size", "24px")
+    await expect(button.locator(".q-icon")).toHaveCSS("font-size", "20px")
     expect((await button.boundingBox())!.height).toBe(32)
   }
 })

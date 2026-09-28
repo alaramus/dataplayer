@@ -232,7 +232,7 @@ async function revoke(userId: string) {
 }
 .dashboard-share__note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 

@@ -101,6 +101,6 @@ defineExpose({ setExpanded, isExpanded })
   border-radius: var(--dp-radius-control);
 }
 .app-tree :deep(.q-tree__node--selected .q-tree__node-header-content) {
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
 }
 </style>

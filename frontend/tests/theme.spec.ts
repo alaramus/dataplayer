@@ -250,7 +250,8 @@ test("a tab is legible in the dark theme", async ({ page }) => {
   await openConnector(page, name)
   const tab = catalogTab(page)
   await expect(tab).toBeVisible()
-  expect(await tab.evaluate((node) => getComputedStyle(node).color)).toBe("rgb(255, 255, 255)")
+  // The dark theme's text colour, --dp-text (D185).
+  expect(await tab.evaluate((node) => getComputedStyle(node).color)).toBe("rgba(255, 255, 255, 0.87)")
 
   await deleteConnector(page, name)
 })

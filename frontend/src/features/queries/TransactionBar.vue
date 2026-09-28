@@ -118,11 +118,11 @@ onBeforeUnmount(() => {
 }
 .transaction__countdown {
   flex: none;
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
 }
 .transaction__countdown[data-closing="true"] {
-  color: var(--dp-callout-caution);
+  color: var(--dp-tone-warning-text);
   font-weight: 600;
 }
 </style>

@@ -394,7 +394,7 @@ defineExpose({
               <span>Sources</span>
               <q-icon
                 :name="sourcesOpen ? appIcons.keyboardArrowDown : appIcons.keyboardArrowUp"
-                size="20px"
+                size="var(--dp-icon-md)"
               />
             </button>
             <div

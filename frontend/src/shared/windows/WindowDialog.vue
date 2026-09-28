@@ -142,7 +142,7 @@ onBeforeUnmount(() => {
   flex: none;
   padding: var(--dp-space-2) var(--dp-space-4) 0;
   color: var(--dp-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--dp-font-size-sm);
 }
 .window-dialog__content {
   min-height: 0;

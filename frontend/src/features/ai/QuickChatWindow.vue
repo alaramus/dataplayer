@@ -211,7 +211,7 @@ function editorKeydown(event: KeyboardEvent) {
         >
           <q-icon
             :name="appIcons.autoAwesome"
-            size="30px"
+            size="var(--dp-icon-xl)"
           />
           <span>What would you like to know?</span>
         </div>

@@ -25,7 +25,7 @@ const arrow = inject(pairsArrowKey, computed(() => "forward" as const))
     </div>
     <q-icon
       :name="arrow === 'back' ? 'arrow_back' : 'arrow_forward'"
-      size="16px"
+      size="var(--dp-icon-sm)"
       class="app-pairs-row__arrow"
       aria-hidden="true"
     />

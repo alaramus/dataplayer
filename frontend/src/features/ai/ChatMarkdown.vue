@@ -43,7 +43,7 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
 </template>
 
 <style scoped>
-.chat-markdown { min-width: 0; color: var(--dp-text-strong); font-size: var(--dp-prose-font-size); line-height: 1.65; }
+.chat-markdown { min-width: 0; color: var(--dp-text); font-size: var(--dp-prose-font-size); line-height: 1.65; }
 /* An answer starts and ends at its own edge, not a heading's margin away. */
 .chat-markdown__prose :deep(:first-child) { margin-top: 0; }
 .chat-markdown__prose :deep(:last-child) { margin-bottom: 0; }

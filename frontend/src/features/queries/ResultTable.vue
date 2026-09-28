@@ -377,17 +377,17 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
 .result-table__note {
   padding-inline: var(--dp-space-2);
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .result-table__stale,
 .result-table__truncated {
   align-self: center;
   padding-inline: var(--dp-space-2);
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   white-space: nowrap;
 }
 .result-table__stale {
-  color: var(--dp-callout-caution);
+  color: var(--dp-tone-warning-text);
 }
 </style>

@@ -352,7 +352,7 @@ function showReferenced(target: ReferencedRows) {
   background: none;
   color: var(--dp-text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   white-space: nowrap;
   text-overflow: ellipsis;
   cursor: pointer;
@@ -364,7 +364,7 @@ function showReferenced(target: ReferencedRows) {
    ground it keeps and a line under it. */
 .rows-panel__sheet--here {
   background: var(--dp-selected);
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   box-shadow: inset 0 -2px 0 var(--dp-link);
 }
 </style>

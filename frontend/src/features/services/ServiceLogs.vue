@@ -146,7 +146,7 @@ onBeforeUnmount(() => {
 .service-logs__text {
   margin: 0;
   font-family: var(--dp-font-mono);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   white-space: pre-wrap;
   word-break: break-word;
 }

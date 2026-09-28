@@ -98,6 +98,6 @@ function accept() {
 .confirm-prompt__remember {
   flex: none;
   padding: 0 var(--dp-space-3);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>

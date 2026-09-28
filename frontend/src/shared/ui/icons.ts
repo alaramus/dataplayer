@@ -48,6 +48,7 @@ export const appIcons = {
   doNotDisturbOn: "do_not_disturb_on",
   doneAll: "done_all",
   download: "download",
+  duplicate: "tab_duplicate",
   downloadForOffline: "download_for_offline",
   edit: "edit",
   enterFullscreen: "fullscreen",

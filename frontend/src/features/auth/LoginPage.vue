@@ -127,5 +127,5 @@ async function submit() {
 
 <style scoped>
 .login-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); }
-.login-server-url { font-size: 12px; color: var(--dp-text-muted); overflow-wrap: anywhere; }
+.login-server-url { font-size: var(--dp-font-size-sm); color: var(--dp-text-muted); overflow-wrap: anywhere; }
 </style>

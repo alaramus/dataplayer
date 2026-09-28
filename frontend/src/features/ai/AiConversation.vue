@@ -481,7 +481,7 @@ onBeforeUnmount(() => {
           >
             <q-icon
               :name="appIcons.autoAwesome"
-              size="32px"
+              size="var(--dp-icon-xl)"
             />
             <div
               v-if="examplesShown"
@@ -854,7 +854,7 @@ onBeforeUnmount(() => {
 .ai-outline__mark { display: grid; place-items: center; width: 20px; height: 12px; border: 0; padding: 0; background: transparent; cursor: pointer; }
 .ai-outline__mark::before { content: ""; width: 12px; height: 2px; border-radius: 1px; background: var(--dp-border-strong); transition: width 120ms ease, background-color 120ms ease; }
 .ai-outline__mark:hover::before { background: var(--dp-text-muted); }
-.ai-outline__mark--current::before { width: 16px; background: var(--dp-text-strong); }
+.ai-outline__mark--current::before { width: 16px; background: var(--dp-text); }
 .ai-conversation__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .ai-conversation__examples { max-width: 100%; display: flex; flex-direction: column; gap: var(--dp-space-2); }
 .ai-conversation__example { border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
@@ -874,8 +874,8 @@ onBeforeUnmount(() => {
 .ai-step__detail { grid-column: 1 / -1; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--dp-text-muted); }
 .ai-question { display: grid; gap: var(--dp-space-2); padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface); }
 .ai-question__choices { display: flex; flex-wrap: wrap; gap: var(--dp-space-2); }
-.ai-question__preview { display: grid; gap: var(--dp-space-1); padding: var(--dp-space-2) 0 0; font-size: 12px; color: var(--dp-text-muted); }
-.ai-question__preview-summary { color: var(--dp-text-strong); }
+.ai-question__preview { display: grid; gap: var(--dp-space-1); padding: var(--dp-space-2) 0 0; font-size: var(--dp-font-size-sm); color: var(--dp-text-muted); }
+.ai-question__preview-summary { color: var(--dp-text); }
 .ai-question__preview-line { white-space: pre-wrap; }
 .ai-conversation__dock { flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); }
 .ai-conversation__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); width: 100%; max-width: 960px; margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
@@ -890,7 +890,7 @@ onBeforeUnmount(() => {
 /* Wide enough for a model's name and no wider: the row it stands in belongs
    to the send button at its end. */
 .ai-conversation__model, .ai-conversation__policy { flex: 0 1 200px; min-width: 120px; }
-.ai-context-chip { display: inline-flex; align-items: center; max-width: 100%; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }
+.ai-context-chip { display: inline-flex; align-items: center; max-width: 100%; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text); }
 .ai-context-chip__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The box is one line until there is more to hold, and stops at eight of them
    rather than pushing the transcript off the card. A grown field scrolls; the

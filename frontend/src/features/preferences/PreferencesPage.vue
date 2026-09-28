@@ -182,7 +182,7 @@ async function chooseInterval(value: unknown) {
 }
 .preferences__summary {
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   line-height: 1.5;
 }
 /* Narrow: the control goes under the question it answers. */

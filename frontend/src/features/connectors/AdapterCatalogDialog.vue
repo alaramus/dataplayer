@@ -125,7 +125,7 @@ function start(template: ServiceTemplateInfo) {
         >
           <q-icon
             :name="row.id === ALL_CATEGORIES ? 'apps' : categoryIcon(row.id)"
-            size="18px"
+            size="var(--dp-icon-sm)"
           />
           <span class="adapter-catalog__category-name">{{ row.title }}</span>
           <span class="adapter-catalog__count">{{ row.count }}</span>
@@ -231,8 +231,8 @@ function start(template: ServiceTemplateInfo) {
   white-space: nowrap;
 }
 .adapter-catalog__count {
-  font-size: 12px;
-  opacity: 0.6;
+  font-size: var(--dp-font-size-sm);
+  color: var(--dp-text-muted);
 }
 .adapter-catalog__main {
   flex: 1;

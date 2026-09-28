@@ -84,7 +84,7 @@ function show(id: string) {
           >
             <q-icon
               :name="section.icon"
-              size="18px"
+              size="var(--dp-icon-sm)"
             />
             <span class="admin__section-text">
               <span class="admin__section-title">{{ section.title }}</span>
@@ -125,7 +125,7 @@ function show(id: string) {
   border: 0;
   border-radius: var(--dp-radius-control);
   background: transparent;
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -152,7 +152,7 @@ function show(id: string) {
 
 .admin__section-summary {
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 
 .admin__body {

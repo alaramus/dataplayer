@@ -250,7 +250,7 @@ watch(
 .content-panel__kind,
 .content-panel__dirty {
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .content-panel__editor {
   display: flex;

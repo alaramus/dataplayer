@@ -51,7 +51,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
         <q-icon
           :name="bannerLook(notice.tone).icon"
           :class="toneText(notice.tone)"
-          size="18px"
+          size="var(--dp-icon-sm)"
         />
         <p class="toasts__message">
           <strong
@@ -116,7 +116,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
   margin: 0;
   padding-top: 1px;
   overflow-wrap: anywhere;
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
 }
 
 .toasts__more {
@@ -125,7 +125,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
   border-radius: var(--dp-radius-control);
   background: var(--dp-surface-raised);
   border: 1px solid var(--dp-border);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
   pointer-events: auto;
 }

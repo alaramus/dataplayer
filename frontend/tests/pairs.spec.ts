@@ -49,7 +49,7 @@ test("pairs two catalogs with their Pair command, and pastes between them", asyn
   const right = page.getByTestId("pair-side-right")
   await expect(right.getByTestId("catalog-list")).toContainText("projects")
   // A catalog already in a pair is offered to no other, and leaves its own
-  // menu and ×2 to the window.
+  // menu and Duplicate to the window.
   await expect(pair.getByTestId("catalog-pair")).toHaveCount(0)
   await expect(pair.getByTestId("catalog-actions")).toHaveCount(0)
   await expect(pair.getByTestId("catalog-duplicate")).toHaveCount(0)

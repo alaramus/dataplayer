@@ -290,6 +290,6 @@ function finish(changed: TableChanged) {
 }
 .declare-table__found {
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>

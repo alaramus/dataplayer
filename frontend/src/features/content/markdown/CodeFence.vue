@@ -51,7 +51,7 @@ function mount() {
         EditorView.contentAttributes.of({ "aria-label": "Code block", spellcheck: "false" }),
         EditorView.theme({
           "&": {
-            color: "var(--dp-text-strong)",
+            color: "var(--dp-text)",
             backgroundColor: "transparent",
             fontSize: "var(--dp-prose-code-font-size)",
           },

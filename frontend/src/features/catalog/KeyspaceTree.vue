@@ -187,7 +187,7 @@ defineExpose({ reload, reveal })
         >
           <q-icon
             :name="(node as TreeRow).icon"
-            size="16px"
+            size="var(--dp-icon-sm)"
           />
           <span class="keyspace__label">{{ (node as TreeRow).label }}</span>
           <span
@@ -215,13 +215,13 @@ defineExpose({ reload, reveal })
   flex: 1;
 }
 .keyspace__label {
-  font-size: 13px;
+  font-size: var(--dp-font-size);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .keyspace__caption {
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;

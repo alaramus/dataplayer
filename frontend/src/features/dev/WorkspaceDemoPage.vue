@@ -36,7 +36,7 @@ const Placeholder = (id: string, title: string) => {
   const kept = placeholders.get(id)
   if (kept !== undefined) return kept
   const made = defineComponent({
-    setup: () => () => h("div", { style: "padding: 12px; font-size: 13px;" }, title),
+    setup: () => () => h("div", { style: "padding: var(--dp-space-3); font-size: var(--dp-font-size);" }, title),
   })
   placeholders.set(id, made)
   return made
@@ -45,7 +45,7 @@ const Placeholder = (id: string, title: string) => {
 /** What a column of this demo keeps on screen at forty pixels. */
 const Rail = defineComponent({
   setup: () => () =>
-    h("div", { style: "padding: 8px 0; text-align: center; font-size: 11px;" }, "A"),
+    h("div", { style: "padding: var(--dp-space-2) 0; text-align: center; font-size: var(--dp-font-size-xs);" }, "A"),
 })
 
 /** And what a column with nothing in it says instead. */
@@ -53,7 +53,7 @@ const Hint = defineComponent({
   setup: () => () =>
     h(
       "div",
-      { style: "padding: 12px; font-size: 13px; color: var(--dp-text-muted);" },
+      { style: "padding: var(--dp-space-3); font-size: var(--dp-font-size); color: var(--dp-text-muted);" },
       "Nothing is open here yet"
     ),
 })

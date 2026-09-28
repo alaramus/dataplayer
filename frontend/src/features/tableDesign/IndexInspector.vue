@@ -110,7 +110,9 @@ function include(columnId: string, checked: boolean): void {
       />
     </div>
     <div class="inspector__legend">
-      <h3>Index keys · in order</h3>
+      <h3 class="dp-overline">
+        Index keys · in order
+      </h3>
       <AppButton
         variant="quiet"
         :icon="appIcons.add"
@@ -164,7 +166,9 @@ function include(columnId: string, checked: boolean): void {
       label="Partial index · WHERE"
     />
     <template v-if="carries">
-      <h3>Included columns · INCLUDE</h3>
+      <h3 class="dp-overline">
+        Included columns · INCLUDE
+      </h3>
       <div class="inspector__badges">
         <AppCheckbox
           v-for="choice in carriable"
@@ -183,7 +187,9 @@ function include(columnId: string, checked: boolean): void {
         :key="key.id"
         class="inspector__advanced-key"
       >
-        <h3>Key {{ at + 1 }}</h3>
+        <h3 class="dp-overline">
+          Key {{ at + 1 }}
+        </h3>
         <div class="inspector__row">
           <AppSelect
             v-model="key.kind"
@@ -245,11 +251,6 @@ function include(columnId: string, checked: boolean): void {
 }
 .inspector h3 {
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 /* The column takes the room that is left; Order and Nulls keep a fixed width
    their choices ("Default") fit into, so the row never clips them. */

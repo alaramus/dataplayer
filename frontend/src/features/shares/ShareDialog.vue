@@ -312,7 +312,7 @@ async function forget(shareId: string) {
           v-if="otherLinks.length > 0"
           class="share__links"
         >
-          <h3 class="share__heading">
+          <h3 class="share__heading dp-overline">
             Other links to this connection
           </h3>
           <ul
@@ -371,20 +371,15 @@ async function forget(shareId: string) {
 }
 .share__heading {
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .share__note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 .share__error {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-content-error);
 }
 .share__add {
@@ -423,7 +418,7 @@ async function forget(shareId: string) {
   white-space: nowrap;
 }
 .share__email {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 </style>

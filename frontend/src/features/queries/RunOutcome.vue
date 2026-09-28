@@ -257,7 +257,7 @@ function duration(statement: StatementPublic): string {
 .run-outcome__status,
 .run-outcome__duration {
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .run-outcome__statement[data-status="failed"] .run-outcome__status,
 .run-outcome__statement[data-status="timed_out"] .run-outcome__status {
@@ -293,7 +293,7 @@ function duration(statement: StatementPublic): string {
 .run-outcome__message {
   margin: 0 0 var(--dp-space-2);
   font-family: var(--dp-font-mono);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .run-outcome__severity {
   color: var(--dp-text-muted);

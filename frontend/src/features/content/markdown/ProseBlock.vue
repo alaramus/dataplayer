@@ -32,13 +32,13 @@ defineProps<{ html: string }>()
   scroll-margin-top: 12px;
 }
 .prose-block :deep(h1) {
-  font-size: 24px;
+  font-size: var(--dp-prose-heading-1);
 }
 .prose-block :deep(h2) {
-  font-size: 20px;
+  font-size: var(--dp-prose-heading-2);
 }
 .prose-block :deep(h3) {
-  font-size: 18px;
+  font-size: var(--dp-prose-heading-3);
 }
 .prose-block :deep(p),
 .prose-block :deep(ul),

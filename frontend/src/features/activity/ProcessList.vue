@@ -117,7 +117,7 @@ defineEmits<{
 .processes__detail { padding: var(--dp-space-1) 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .processes__meta { justify-content: space-between; margin-top: var(--dp-space-1); }
 .processes__meta, .processes__controls > span {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 </style>

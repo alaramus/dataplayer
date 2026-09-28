@@ -4,12 +4,15 @@ import { IconSet, Notify, Quasar } from "quasar"
 import symbolsOutlined from "quasar/icon-set/material-symbols-outlined"
 import { createApp } from "vue"
 
+import "@fontsource-variable/inter/wght.css"
+import "@fontsource-variable/inter/wght-italic.css"
 import "@quasar/extras/material-symbols-outlined/material-symbols-outlined.css"
 import "quasar/src/css/index.sass"
 // After Quasar's own stylesheet: the colours the application draws itself
 // with, both themes of them.
 import "@/shared/ui/layers.css"
 import "@/shared/ui/metrics.css"
+import "@/shared/ui/typography.css"
 import "@/shared/ui/theme.css"
 
 import App from "@/App.vue"

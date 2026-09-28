@@ -924,7 +924,7 @@ defineExpose({ place })
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .pipeline-view__run {
   display: inline-flex;

@@ -36,10 +36,16 @@ test("a connector color follows its open tabs and can be reset after reload", as
   await openNode(page, "user")
   await expect(rowsTabs(page)).toHaveCount(2)
   const tabs = [catalogTab(page), rowsTabs(page).nth(0), rowsTabs(page).nth(1)]
-  for (const tab of tabs) {
+  // The tab being read in each column is filled with the colour, the one
+  // beside it carries the colour said quietly (D185): filled alike, the two
+  // could not be told apart.
+  const read = [catalogTab(page), rowsTabs(page).nth(1)]
+  const aside = rowsTabs(page).nth(0)
+  for (const tab of read) {
     await expect(tab).toHaveCSS("background-color", "rgb(36, 106, 188)")
     await expect(tab).toHaveCSS("color", "rgb(255, 255, 255)")
   }
+  await expect(aside).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
 
   // The tab being read and the one beside it are the same size and the same
   // weight: only the line under the active one says which is which, so
@@ -72,15 +78,16 @@ test("a connector color follows its open tabs and can be reset after reload", as
   await editConnector(page, name)
   await chooseTabColor(page, "#ffffff")
   // Draft choices do not recolor the workspace until Apply or OK.
-  for (const tab of tabs) await expect(tab).toHaveCSS("background-color", "rgb(36, 106, 188)")
+  for (const tab of read) await expect(tab).toHaveCSS("background-color", "rgb(36, 106, 188)")
   await page.getByTestId("apply-connector").click()
-  for (const tab of tabs) {
+  for (const tab of read) {
     await expect(tab).toHaveCSS("background-color", "rgb(255, 255, 255)")
     await expect(tab).toHaveCSS("color", "rgb(0, 0, 0)")
   }
+  await expect(aside).toHaveCSS("background-color", "rgba(255, 255, 255, 0.28)")
   await page.getByTestId("cancel-connector").click()
   await page.reload()
-  for (const tab of tabs) await expect(tab).toHaveCSS("background-color", "rgb(255, 255, 255)")
+  for (const tab of read) await expect(tab).toHaveCSS("background-color", "rgb(255, 255, 255)")
 
   await editConnector(page, name)
   await page.getByTestId("connector-tab-color").click()

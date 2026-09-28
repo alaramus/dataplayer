@@ -70,6 +70,6 @@ const SvgBlock = defineAsyncComponent(() => import("./SvgBlock.vue"))
 .rich-block__oversized {
   margin: var(--dp-space-3) 0;
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>

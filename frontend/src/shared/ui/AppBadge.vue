@@ -36,7 +36,7 @@ const fill = computed(() => toneFill(props.tone))
   right: 0;
   min-width: 16px;
   padding: 1px var(--dp-space-1);
-  font-size: 10px;
+  font-size: var(--dp-font-size-xs);
   line-height: 12px;
   justify-content: center;
 }

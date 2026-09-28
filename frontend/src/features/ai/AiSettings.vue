@@ -203,7 +203,7 @@ async function removeAll() {
 <style scoped>
 /* Under the card's head, which names it. */
 .ai-settings { flex: 1; min-height: 0; overflow: auto; }
-.ai-settings h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.ai-settings h3 { font-weight: 600; }
 .ai-settings__group { border-bottom: 1px solid var(--dp-border-faint); }
 .ai-settings__form { max-width: 640px; }
 .ai-settings__archive { display: flex; flex-direction: column; gap: var(--dp-space-3); max-width: 640px; padding: var(--dp-space-4); }

@@ -149,6 +149,6 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: var(--dp-space-3);
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>

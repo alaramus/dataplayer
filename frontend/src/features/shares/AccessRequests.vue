@@ -61,7 +61,7 @@ async function answer(requestId: string, access: Grant | null) {
     v-if="waiting.length > 0"
     class="asking"
   >
-    <h3 class="asking__heading">
+    <h3 class="asking__heading dp-overline">
       Waiting for an answer
     </h3>
     <ul
@@ -118,11 +118,6 @@ async function answer(requestId: string, access: Grant | null) {
 }
 .asking__heading {
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .asking__list {
   display: flex;
@@ -151,7 +146,7 @@ async function answer(requestId: string, access: Grant | null) {
   white-space: nowrap;
 }
 .asking__email {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 /* Wide enough for the longest wording in GRANT_OPTIONS, so the row does not

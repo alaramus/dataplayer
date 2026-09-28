@@ -196,7 +196,7 @@ async function logout() {
   overflow: clip;
 }
 
-/* The body's colour, as the rails between them are drawn: in --dp-text-strong
+/* The body's colour, as the rails between them are drawn: in a dimmer one
    the buttons at the head and the foot of the screen read a shade dimmer than
    the ones on the rails beside them. */
 .app-layout__header,
@@ -226,9 +226,8 @@ async function logout() {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  font-size: 14px;
+  font-size: var(--dp-font-size);
   font-weight: 500;
-  letter-spacing: 0.01em;
   /* No Quasar's own side padding: a page aligns its leading control with
      the rails below pixel for pixel. Clipping off too: a control pulled
      back over the toolbar padding would otherwise be cut at this box. */
@@ -245,7 +244,7 @@ async function logout() {
   min-width: 0;
   min-height: max(var(--dp-status-height), var(--dp-form-control-height));
   padding: 0 var(--dp-space-2);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 
 /* margin-left keeps it at the end on a screen with no taskbar to take the

@@ -359,7 +359,7 @@ defineExpose({ fit, zoom, focus })
             <span class="graph-node__badges"><q-icon
               v-if="row.icon"
               :name="row.icon"
-              size="14px"
+              size="var(--dp-icon-sm)"
             />{{ row.badges?.join(' ') }}</span>
             <span
               class="graph-node__name"
@@ -383,9 +383,9 @@ defineExpose({ fit, zoom, focus })
 .graph-2d__edges { position: absolute; overflow: visible; }
 .graph-2d__edge { fill: none; stroke: var(--dp-graph-edge); stroke-width: 1.6; vector-effect: non-scaling-stroke; pointer-events: none; }
 .graph-2d__edge--dashed { stroke-dasharray: 5 4; }
-.graph-2d__label { position: absolute; transform: translate(-50%, -50%); padding: 0 var(--dp-space-half); border-radius: var(--dp-radius-control); background: var(--dp-chrome-raised); color: var(--dp-text-muted); font-size: 11px; white-space: nowrap; cursor: pointer; }
-.graph-2d__label--active { color: var(--dp-text-strong); }
-.graph-2d__badge { font-weight: 600; color: var(--dp-text-strong); }
+.graph-2d__label { position: absolute; transform: translate(-50%, -50%); padding: 0 var(--dp-space-half); border-radius: var(--dp-radius-control); background: var(--dp-chrome-raised); color: var(--dp-text-muted); font-size: var(--dp-font-size-xs); white-space: nowrap; cursor: pointer; }
+.graph-2d__label--active { color: var(--dp-text); }
+.graph-2d__badge { font-weight: 600; color: var(--dp-text); }
 .graph-2d__badge--caution { color: var(--dp-tone-warning-text); cursor: help; }
 /* A row is dragged towards another, and selects no text on the way. */
 .graph-2d--linkable .graph-node__row { cursor: crosshair; user-select: none; }
@@ -412,17 +412,17 @@ defineExpose({ fit, zoom, focus })
 .graph-node--placeholder { border-style: dashed; }
 .graph-node__head { display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-1) var(--dp-space-1) var(--dp-space-1) var(--dp-space-3); border-top: 4px solid var(--node-accent); border-radius: var(--dp-radius-panel) var(--dp-radius-panel) 0 0; background: var(--dp-chrome); box-sizing: border-box; cursor: grab; }
 .graph-node__title { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-half); }
-.graph-node__title strong { font-size: 13px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.graph-node__title > span { color: var(--dp-text-muted); font-size: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.graph-node__title strong { font-size: var(--dp-font-size); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.graph-node__title > span { color: var(--dp-text-muted); font-size: var(--dp-font-size-xs); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .graph-node__actions { flex: none; display: flex; align-items: center; cursor: default; }
-.graph-node__row { display: flex; position: relative; align-items: center; gap: var(--dp-space-2); padding: 0 var(--dp-space-2); border-top: 1px solid var(--dp-border-faint); box-sizing: border-box; font-size: 11px; cursor: pointer; }
+.graph-node__row { display: flex; position: relative; align-items: center; gap: var(--dp-space-2); padding: 0 var(--dp-space-2); border-top: 1px solid var(--dp-border-faint); box-sizing: border-box; font-size: var(--dp-font-size-xs); cursor: pointer; }
 .graph-node__row:hover, .graph-node__row--selected, .graph-node__row--aimed { background: var(--dp-selected); }
-.graph-node__head:focus-visible, .graph-node__row:focus-visible { outline: 2px solid var(--dp-accent); }
-.graph-node__badges { flex: 0 0 34px; display: flex; align-items: center; color: var(--node-accent); font-size: 9px; font-weight: 600; }
+.graph-node__head:focus-visible, .graph-node__row:focus-visible { outline: 2px solid var(--dp-focus-border); }
+.graph-node__badges { flex: 0 0 34px; display: flex; align-items: center; color: var(--node-accent); font-size: var(--dp-font-size-xs); font-weight: 600; }
 .graph-node__row--muted .graph-node__name { color: var(--dp-text-muted); text-decoration: line-through; }
 .graph-node__row--made .graph-node__name { font-style: italic; }
 .graph-node__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.graph-node__type { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dp-text-muted); font-family: var(--dp-font-mono); font-size: 10px; }
+.graph-node__type { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dp-text-muted); font-family: var(--dp-font-mono); font-size: var(--dp-font-size-xs); }
 .graph-node__port { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--node-accent); top: calc(50% - 2.5px); }
 .graph-node__port--left { left: -3px; } .graph-node__port--right { right: -3px; }
 </style>

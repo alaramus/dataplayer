@@ -25,11 +25,11 @@ withDefaults(
     :style="accent === null ? undefined : { '--block-accent': accent }"
   >
     <figcaption class="block-chrome__head">
-      <span class="block-chrome__label">
+      <span class="block-chrome__label dp-overline">
         <q-icon
           v-if="icon"
           :name="icon"
-          size="16px"
+          size="var(--dp-icon-sm)"
         />
         {{ label }}
       </span>
@@ -68,10 +68,6 @@ withDefaults(
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  color: var(--dp-text-muted);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 .block-chrome--accented {
   border-color: color-mix(in srgb, var(--block-accent) 34%, var(--dp-border-faint));

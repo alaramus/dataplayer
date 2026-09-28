@@ -250,12 +250,13 @@ onMounted(() => {
         EditorView.theme({
           "&": {
             height: "100%",
-            color: "var(--dp-text-strong)",
+            color: "var(--dp-text)",
             backgroundColor: "var(--dp-surface)",
-            fontSize: "12px",
+            fontSize: "var(--dp-font-size-mono)",
           },
           ".cm-scroller": {
-            fontFamily: 'ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace',
+            fontFamily: "var(--dp-font-mono)",
+            lineHeight: "var(--dp-line-height-mono)",
           },
           ".cm-gutters": {
             color: "var(--dp-text-muted)",
@@ -303,7 +304,7 @@ onMounted(() => {
           // to the editor, so it stands on the ground the gutters do.
           "&.cm-editor .cm-panels": {
             backgroundColor: "var(--dp-chrome-raised)",
-            color: "var(--dp-text-strong)",
+            color: "var(--dp-text)",
           },
           "&.cm-editor .cm-panels-top": {
             borderBottom: "1px solid var(--dp-border)",
@@ -314,7 +315,7 @@ onMounted(() => {
           "&.cm-editor .cm-textfield": {
             backgroundColor: "var(--dp-surface)",
             border: "1px solid var(--dp-border-strong)",
-            color: "var(--dp-text-strong)",
+            color: "var(--dp-text)",
           },
           // A gradient, so a background colour alone would leave it showing.
           "&.cm-editor .cm-button": {
@@ -322,7 +323,7 @@ onMounted(() => {
             backgroundColor: "var(--dp-surface)",
             border: "1px solid var(--dp-border-strong)",
             borderRadius: "3px",
-            color: "var(--dp-text-strong)",
+            color: "var(--dp-text)",
           },
           "&.cm-editor .cm-button:hover, &.cm-editor .cm-button:active": {
             backgroundImage: "none",
@@ -338,7 +339,7 @@ onMounted(() => {
           "&.cm-editor .cm-tooltip": {
             border: "1px solid var(--dp-border-strong)",
             backgroundColor: "var(--dp-surface-raised)",
-            color: "var(--dp-text-strong)",
+            color: "var(--dp-text)",
           },
           // The row under the caret. The base theme puts white text on a
           // strong blue; the tint this application marks a selection with is
@@ -346,7 +347,7 @@ onMounted(() => {
           // or the highlighted word is the one that disappears.
           "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
             backgroundColor: "var(--dp-selected)",
-            color: "var(--dp-text-strong)",
+            color: "var(--dp-text)",
           },
           "&.cm-editor .cm-completionDetail": {
             color: "var(--dp-text-muted)",

@@ -117,10 +117,10 @@ const shortcuts: { keys: string; action: string }[] = []
   text-align: center;
 }
 .scene__title {
-  margin: 0;
-  font-size: 20px;
+  font-size: var(--dp-font-size-page);
   font-weight: 500;
-  color: var(--dp-text-strong);
+  line-height: var(--dp-line-height-page);
+  color: var(--dp-text);
 }
 .scene__text {
   margin: 0;
@@ -128,8 +128,9 @@ const shortcuts: { keys: string; action: string }[] = []
 }
 .scene__hint {
   margin: 0;
-  font-size: 12px;
-  color: var(--dp-text-faint);
+  font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
+  color: var(--dp-text-muted);
 }
 .scene__actions {
   margin-top: var(--dp-space-2);
@@ -139,7 +140,7 @@ const shortcuts: { keys: string; action: string }[] = []
   grid-template-columns: auto auto;
   gap: var(--dp-space-half) var(--dp-space-2);
   margin: var(--dp-space-2) 0 0;
-  font-size: 12px;
-  color: var(--dp-text-faint);
+  font-size: var(--dp-font-size-sm);
+  color: var(--dp-text-muted);
 }
 </style>

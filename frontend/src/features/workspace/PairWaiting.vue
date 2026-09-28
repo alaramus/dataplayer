@@ -38,7 +38,7 @@ function choose(connectorId: string) {
   >
     <q-icon
       :name="appIcons.pair"
-      size="18px"
+      size="var(--dp-icon-sm)"
     />
     <span class="pair-waiting__first">{{ pairs.waiting.value.title }}</span>
     <AppButton
@@ -74,6 +74,6 @@ function choose(connectorId: string) {
   font-size: var(--dp-font-size);
 }
 .pair-waiting__first {
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
 }
 </style>

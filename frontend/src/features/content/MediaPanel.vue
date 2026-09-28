@@ -147,7 +147,7 @@ useReloadable(() => props.panelId, reload)
    this line in the colour of a disabled control. */
 .media-panel__details {
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .media-panel__stage {
   display: grid;

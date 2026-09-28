@@ -11,9 +11,9 @@ import { tags } from "@lezer/highlight"
  */
 export const syntaxColours = HighlightStyle.define([
   { tag: [tags.keyword, tags.modifier, tags.controlKeyword], color: "var(--dp-code-keyword)" },
-  { tag: [tags.name, tags.deleted, tags.character, tags.propertyName], color: "var(--dp-text-strong)" },
+  { tag: [tags.name, tags.deleted, tags.character, tags.propertyName], color: "var(--dp-text)" },
   { tag: [tags.function(tags.variableName), tags.labelName], color: "var(--dp-code-function)" },
-  { tag: [tags.definition(tags.name), tags.separator], color: "var(--dp-text-strong)" },
+  { tag: [tags.definition(tags.name), tags.separator], color: "var(--dp-text)" },
   {
     tag: [tags.typeName, tags.className, tags.namespace, tags.changed, tags.annotation],
     color: "var(--dp-code-type)",

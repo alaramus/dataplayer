@@ -10,3 +10,31 @@ $positive  : #1e7e34
 $negative  : #c10015
 $info      : #31ccec
 $warning   : #f2c037
+
+// The type scale and the control geometry of metrics.css, said again in the
+// only language Quasar's own components read (D185). Left at Quasar's values,
+// every button and field was 14px on a 13px screen, a button 36px beside a
+// 32px field, and its corner 3px beside the field's 4px.
+$typography-font-family : "Inter Variable", "Segoe UI", system-ui, sans-serif
+$body-font-size         : 13px
+$body-line-height       : 20px
+
+// In em, not px: a compact icon button sets a smaller font on itself and its
+// icon and padding must shrink with it. At 13px these are a 20px icon and 6px
+// of padding, so a dense button is the 32px of --dp-control-height.
+$button-font-size       : 13px
+$button-line-height     : 1.5385em
+$button-padding         : 6px 16px
+$button-dense-padding   : .4615em
+$button-border-radius   : 4px
+
+$input-font-size              : 13px
+$field-label-font-size        : 13px
+$field-dense-label-font-size  : 13px
+$field-bottom-font-size       : 12px
+$field-dense-bottom-font-size : 12px
+// 16px lines: a two-line hint at Quasar's 1 had its lines touching.
+$field-bottom-line-height     : 1.3334
+
+$badge-font-size   : 11px
+$badge-line-height : 1.2728

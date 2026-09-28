@@ -113,6 +113,8 @@ function act(option: SelectOption) {
 // Quasar props that distinguish them are derived here rather than repeated at
 // every call site.
 const labelled = computed(() => props.options.some((option) => typeof option === "object"))
+/** A toolbar field says its name beside it, never floated over its value. */
+const inlineLabel = computed(() => props.compact && !formLayout)
 
 function labelOf(value: unknown): string {
   for (const option of props.options) {
@@ -167,8 +169,8 @@ const summary = computed(() => {
     :class="{ 'app-select--compact': compact, 'app-form-field': formLayout }"
     :model-value="modelValue"
     :options="options"
-    :label="label"
-    :aria-label="formLayout ? label : undefined"
+    :label="inlineLabel ? undefined : label"
+    :aria-label="formLayout || inlineLabel ? label : undefined"
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
@@ -185,10 +187,10 @@ const summary = computed(() => {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template
-      v-if="formLayout && label"
+      v-if="(formLayout || inlineLabel) && label"
       #before
     >
-      <span>{{ label }}</span>
+      <span :class="{ 'app-select__inline-label': inlineLabel }">{{ label }}</span>
     </template>
     <template
       v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon || option.tone))"
@@ -275,7 +277,7 @@ const summary = computed(() => {
           :name="single.stateIcon"
           class="app-select__state"
           :class="{ 'app-select__state--on': single.stateActive }"
-          size="16px"
+          size="var(--dp-icon-sm)"
         >
           <AppTooltip v-if="single.description">{{ single.description }}</AppTooltip>
         </q-icon>
@@ -310,7 +312,7 @@ const summary = computed(() => {
   min-width: 0;
 }
 .app-select__chosen--warning,
-.app-select__option--warning { color: var(--dp-callout-caution); }
+.app-select__option--warning { color: var(--dp-tone-warning-text); }
 .app-select__chosen-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -318,6 +320,25 @@ const summary = computed(() => {
 }
 .app-select__state { flex: none; color: var(--dp-text-muted); }
 .app-select__state--on { color: var(--dp-content-success); }
+/* A toolbar field is a control of the toolbar's height, and its name stands
+   beside it rather than floating over its value: a floated label and a value
+   need 40px, and "Per page" sat its 100 below the line of the range beside
+   it. :where() keeps this under a card head's own clamp to its strip. */
+:where(.app-select--compact) :deep(.q-field__control),
+:where(.app-select--compact) :deep(.q-field__marginal) {
+  height: var(--dp-control-height);
+  min-height: var(--dp-control-height);
+}
+:where(.app-select--compact) :deep(.q-field__native) {
+  min-height: var(--dp-control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.app-select__inline-label {
+  padding-right: var(--dp-space-2);
+  font-size: var(--dp-font-size);
+  color: var(--dp-text-muted);
+}
 .app-select--compact :deep(.q-field__native) {
   flex-wrap: nowrap;
   overflow: hidden;

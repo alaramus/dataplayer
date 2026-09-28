@@ -170,7 +170,7 @@ const countLabel = computed(() => {
         </span>
         <q-icon
           name="drive_folder_upload"
-          size="18px"
+          size="var(--dp-icon-sm)"
         />
         <span class="catalog-list__name">..</span>
       </div>
@@ -217,7 +217,7 @@ const countLabel = computed(() => {
           <q-icon
             class="catalog-list__icon"
             :name="node.icon"
-            size="18px"
+            size="var(--dp-icon-sm)"
           />
           <AppIconButton
             class="catalog-list__copy"
@@ -278,7 +278,7 @@ const countLabel = computed(() => {
   flex: none;
 }
 .catalog-list__count {
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
 }
 .catalog-list__location {
@@ -286,7 +286,7 @@ const countLabel = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
 }
 /* One level, one set of columns. The list is a grid so that what a row says
@@ -386,7 +386,7 @@ const countLabel = computed(() => {
   pointer-events: none;
 }
 .catalog-list__copy :deep(.q-icon) {
-  font-size: 15px;
+  font-size: var(--dp-icon-sm);
 }
 .catalog-list__row:hover .catalog-list__copy,
 .catalog-list__copy:focus-within {
@@ -410,7 +410,7 @@ const countLabel = computed(() => {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
   white-space: nowrap;
 }

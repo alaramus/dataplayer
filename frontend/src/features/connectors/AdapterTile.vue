@@ -29,7 +29,7 @@ const emit = defineEmits<{ pick: []; open: [] }>()
     <div class="adapter-tile__head">
       <q-icon
         :name="adapterIcon(type.name)"
-        size="24px"
+        size="var(--dp-icon-lg)"
       />
       <span class="adapter-tile__name">{{ type.title }}</span>
     </div>
@@ -78,8 +78,8 @@ const emit = defineEmits<{ pick: []; open: [] }>()
   font-weight: 500;
 }
 .adapter-tile__category {
-  font-size: 11px;
-  opacity: 0.6;
+  font-size: var(--dp-font-size-xs);
+  color: var(--dp-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

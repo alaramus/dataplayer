@@ -360,9 +360,9 @@ onBeforeUnmount(stopLayout)
 .graph-viewer__matches { position: absolute; top: 100%; left: 0; right: 0; z-index: var(--dp-layer-popover); background: var(--dp-surface-raised); border: 1px solid var(--dp-border-strong); display: flex; flex-direction: column; max-height: 300px; overflow-y: auto; padding: var(--dp-space-2); }
 .graph-viewer__body { display: flex; flex: 1; min-height: 0; }
 .graph-viewer__canvas { flex: 1; min-width: 0; overflow: hidden; }
-.graph-viewer__inspector { width: 270px; max-width: 40%; flex-shrink: 0; padding: var(--dp-space-2); border-left: 1px solid var(--dp-border); overflow: auto; font-size: 12px; overflow-wrap: anywhere; }
+.graph-viewer__inspector { width: 270px; max-width: 40%; flex-shrink: 0; padding: var(--dp-space-2); border-left: 1px solid var(--dp-border); overflow: auto; font-size: var(--dp-font-size-sm); overflow-wrap: anywhere; }
 .graph-viewer__inspector-head { display: flex; justify-content: space-between; align-items: start; gap: var(--dp-space-1); }
-.graph-viewer__inspector-head strong { font-size: 14px; }
+.graph-viewer__inspector-head strong { font-size: var(--dp-font-size); }
 .graph-viewer__inspector p, .graph-viewer__inspector small { color: var(--dp-text-muted); }
 .graph-viewer__inspector dt { color: var(--dp-text-muted); margin-top: var(--dp-space-2); }
 .graph-viewer__inspector dd { margin: var(--dp-space-half) 0; white-space: pre-wrap; }
@@ -370,7 +370,7 @@ onBeforeUnmount(stopLayout)
 .graph-viewer__field--selected { background: var(--dp-selected); }
 .graph-viewer__field small { padding: 0 var(--dp-space-2) var(--dp-space-1); }
 .graph-viewer__connections { display: flex; flex-direction: column; gap: var(--dp-space-1); margin-top: var(--dp-space-4); }
-.graph-viewer__loading { display: flex; gap: var(--dp-space-2); align-items: center; padding: var(--dp-space-half) var(--dp-space-2); font-size: 12px; }
+.graph-viewer__loading { display: flex; gap: var(--dp-space-2); align-items: center; padding: var(--dp-space-half) var(--dp-space-2); font-size: var(--dp-font-size-sm); }
 .graph-viewer__loading > span { white-space: nowrap; }
 .graph-viewer__empty { flex: 1; display: grid; place-content: center; color: var(--dp-text-muted); }
 </style>

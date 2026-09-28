@@ -26,7 +26,7 @@ provide(pairsArrowKey, computed(() => props.arrow))
     class="app-pairs"
     :class="{ 'app-pairs--extra': Boolean($slots.extra) }"
   >
-    <div class="app-pairs__legend">
+    <div class="app-pairs__legend dp-overline">
       <span><slot name="from" /></span>
       <span aria-hidden="true" />
       <span class="app-pairs__last">
@@ -66,11 +66,6 @@ provide(pairsArrowKey, computed(() => props.arrow))
 .app-pairs__legend {
   padding-bottom: var(--dp-space-1);
   border-bottom: 1px solid var(--dp-border-faint);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dp-text-muted);
 }
 .app-pairs__last {
   display: flex;

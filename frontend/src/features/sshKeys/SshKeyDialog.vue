@@ -192,7 +192,7 @@ async function save() {
 <style scoped>
 .ssh-key-dialog__where {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 </style>

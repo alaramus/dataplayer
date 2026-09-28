@@ -110,7 +110,8 @@ function choose(value: unknown) {
   min-width: 0;
 }
 .app-radio-group__description {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
   color: var(--dp-text-muted);
 }
 .app-radio-group--form {

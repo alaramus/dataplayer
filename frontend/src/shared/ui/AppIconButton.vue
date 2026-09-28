@@ -77,7 +77,7 @@ const spokenName = computed(() =>
       dense
       flat
       disable
-      :size="compact ? 'xs' : undefined"
+      :class="{ 'app-icon-button__compact': compact }"
       :color="active ? 'positive' : look.color"
       :icon="icon"
       :loading="loading"
@@ -90,7 +90,7 @@ const spokenName = computed(() =>
     v-bind="$attrs"
     dense
     flat
-    :size="compact ? 'xs' : undefined"
+    :class="{ 'app-icon-button__compact': compact }"
     :color="active ? 'positive' : look.color"
     :icon="icon"
     :loading="loading"
@@ -109,9 +109,19 @@ const spokenName = computed(() =>
   align-items: center;
   vertical-align: middle;
 }
+/* Sized by the kit's own numbers rather than Quasar's `xs`, which is a font
+   of 8px: its icon came out 13.7px and the button 18, off every step. */
+.app-icon-button__compact {
+  min-width: var(--dp-control-height-compact);
+  min-height: var(--dp-control-height-compact);
+  padding: var(--dp-space-half);
+}
+.app-icon-button__compact :deep(.q-icon) {
+  font-size: var(--dp-icon-sm);
+}
 /* It is what the keyboard lands on, so it has to say where the keyboard is. */
 .app-icon-button:focus-visible {
-  outline: 2px solid var(--dp-accent);
+  outline: 2px solid var(--dp-focus-border);
   outline-offset: 2px;
   border-radius: var(--dp-radius-control);
 }

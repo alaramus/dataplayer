@@ -7,17 +7,62 @@
  */
 
 :root {
-  --dp-font-ui: Inter, "Segoe UI", system-ui, sans-serif;
+  /* Shipped with the bundle (main.ts), so every system draws the same face:
+     named here without it, the stack fell through to Segoe UI on Windows and
+     to whatever else elsewhere, and widths tuned on one machine truncated on
+     the next. quasar-variables.sass repeats the stack for Quasar. */
+  --dp-font-ui: "Inter Variable", "Segoe UI", system-ui, sans-serif;
   /* Code, a value read character by character, a log. The terminal sets
      the same stack as a string, because xterm takes one. */
   --dp-font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  --dp-font-size: 13px;
+
+  /* The type scale (D185). A size is a role, and a line is fixed in pixels
+     so that a row of text lands on whole pixels whatever its size. */
+  --dp-font-size-xs: 11px; /* a count, a caption beside a name, an overline, a badge */
+  --dp-font-size-sm: 12px; /* help under a control, an error, a tooltip, a toast */
+  --dp-font-size: 13px; /* everything else in the chrome, controls included */
+  --dp-font-size-lg: 15px; /* the title of a panel that describes one thing */
+  --dp-font-size-page: 20px; /* the title of a page */
+  --dp-font-size-display: 24px; /* a number shown as the whole of a widget */
+  --dp-font-size-mono: 12px; /* the editor, a log, a value read character by character */
+  --dp-line-height-sm: 16px; /* for both small sizes, when they wrap */
+  --dp-line-height: 20px;
+  --dp-line-height-page: 28px;
+  --dp-line-height-mono: 18px;
   /* Text that is read rather than scanned: a Markdown document, the agent's
      answer and the question it answers. The chrome around it stays at the
      size above. */
   --dp-prose-font-size: 15px;
   --dp-prose-code-font-size: 14px;
-  --dp-form-control-height: 32px;
+  --dp-prose-heading-1: 24px;
+  --dp-prose-heading-2: 20px;
+  --dp-prose-heading-3: 18px;
+
+  /* Three icon sizes. Small is inside a line of text: a row, a tab, a menu,
+     a toast, a close mark. Medium is a control of its own: a toolbar, a rail,
+     a card's head, a window's bar. Large is a source's logo and an empty
+     panel. A 24px glyph on a 13px line stood almost twice its height. */
+  --dp-icon-sm: 16px;
+  --dp-icon-md: 20px;
+  --dp-icon-lg: 24px;
+  /* The one exception: the logo heading a panel about a single source, and
+     the mark of a conversation nothing has been said in yet. */
+  --dp-icon-xl: 32px;
+
+  /* One height for a control, field and button alike, and one for a control
+     inside a dense row: a 16px icon with 2px round it, so a row of the grid
+     keeps its height and three fit its 72px column of commands. */
+  --dp-control-height: 32px;
+  --dp-control-height-compact: 20px;
+  --dp-form-control-height: var(--dp-control-height);
+  /* Two densities of a list: dense for what is scanned in bulk (a catalog, a
+     grid, a log), ordinary for what is picked from (a menu, the connections,
+     the chats). */
+  --dp-row-height-dense: 24px;
+  --dp-row-height: 32px;
+  --dp-tab-height: 26px;
+  /* A page of settings is read down one column; its head keeps to it. */
+  --dp-page-max-width: 960px;
   --dp-form-label-width: 108px;
   --dp-operation-result-height: min(176px, 25vh);
 
@@ -54,4 +99,11 @@
 body {
   font-family: var(--dp-font-ui);
   font-size: var(--dp-font-size);
+  line-height: var(--dp-line-height);
+}
+
+/* Quasar gives a button a floor of 2.572em whatever its padding; at 13px that
+   is 33.4px, a pixel and a half taller than the field beside it. */
+.q-btn:not(.q-btn--dense):not(.q-btn--round) {
+  min-height: var(--dp-control-height);
 }

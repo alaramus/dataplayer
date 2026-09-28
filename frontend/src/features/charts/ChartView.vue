@@ -214,8 +214,8 @@ function chooseSuggestion(value: unknown): void {
 
 .chart-view__selection {
   margin: 0;
-  color: var(--dp-text-faint);
-  font-size: 12px;
+  color: var(--dp-text-muted);
+  font-size: var(--dp-font-size-sm);
 }
 
 @media (max-width: 720px) {

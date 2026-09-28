@@ -77,7 +77,7 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
         >
           <q-icon
             :name="item.icon"
-            size="18px"
+            size="var(--dp-icon-sm)"
           />
         </q-item-section>
         <q-item-section>

@@ -281,7 +281,7 @@ function remove(profile: ServerProfile) {
 .server-switcher__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
 .server-switcher__row { display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2) 0; border-bottom: 1px solid var(--dp-border); }
 .server-switcher__details { flex: 1; min-width: 0; }
-.server-switcher__url, .server-switcher__current { color: var(--dp-text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.server-switcher__url, .server-switcher__current { color: var(--dp-text-muted); font-size: var(--dp-font-size-sm); overflow-wrap: anywhere; }
 .server-switcher__strip { flex-basis: 100%; display: flex; flex-direction: column; gap: var(--dp-space-2); }
 .server-switcher__away, .server-switcher__panel { position: fixed; top: var(--dp-header-height); z-index: var(--dp-layer-sheet); }
 .server-switcher__away { left: 0; right: 0; }

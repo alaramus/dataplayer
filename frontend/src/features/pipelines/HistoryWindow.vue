@@ -133,7 +133,7 @@ const lines = computed(() => (history.data.value ?? []).map((row) => historyLine
 .history-window__detail {
   overflow: hidden;
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   white-space: nowrap;
   text-overflow: ellipsis;
 }

@@ -144,7 +144,7 @@ function showInCatalog() {
         <q-icon
           v-else
           name="schedule"
-          size="11px"
+          size="var(--dp-icon-sm)"
         />
         <AppTooltip>{{ freshnessSays }}</AppTooltip>
       </span>
@@ -186,7 +186,7 @@ function showInCatalog() {
   min-width: 24px;
   margin: var(--dp-space-half) 0 0 1px;
   color: var(--dp-text-muted);
-  font-size: 9px;
+  font-size: var(--dp-font-size-xs);
   line-height: 1;
   white-space: nowrap;
   /* A label, not a control: it presses to nothing and must not look otherwise. */

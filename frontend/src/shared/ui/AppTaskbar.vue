@@ -42,7 +42,7 @@ defineExpose({ row })
   max-height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   /* No bar of its own: it would be thicker than the line it sits in, and it
      takes that thickness out of the footer. What does not fit is reached by
      the wheel, the way the catalog's trail of crumbs is. */

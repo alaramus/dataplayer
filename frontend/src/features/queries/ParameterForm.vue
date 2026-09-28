@@ -96,7 +96,7 @@ function change(name: string, patch: Partial<ParameterEntry>) {
   flex: none;
   min-width: 120px;
   font-family: var(--dp-font-mono);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .parameters__value {
   flex: 0 1 260px;

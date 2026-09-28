@@ -116,7 +116,7 @@ async function remove(key: SshKeyPublic) {
     >
       <q-icon
         :name="appIcons.sshKey"
-        size="18px"
+        size="var(--dp-icon-sm)"
       />
       <div class="ssh-keys__facts">
         <span class="ssh-keys__name">{{ key.name }}</span>
@@ -202,7 +202,7 @@ async function remove(key: SshKeyPublic) {
 .ssh-keys__summary,
 .ssh-keys__line {
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   line-height: 1.5;
 }
 .ssh-keys__line {

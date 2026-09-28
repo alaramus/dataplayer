@@ -165,7 +165,7 @@ function settle(outcome: ActionOutcome | null) {
   overflow: auto;
 }
 .pair-bar__heading {
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   font-weight: 500;
 }
 .pair-bar__note,

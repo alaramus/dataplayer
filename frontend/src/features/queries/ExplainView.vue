@@ -146,7 +146,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: 1;
   overflow: hidden;
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -206,7 +206,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
 .explain__estimate {
   flex: none;
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .explain__details {
   flex: none;
@@ -217,12 +217,12 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
 }
 .explain__heading {
   margin: 0 0 var(--dp-space-2);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   font-weight: 600;
 }
 .explain__detail {
   margin: 0 0 var(--dp-space-2);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   word-break: break-word;
 }
 .explain__detail-name {
@@ -238,6 +238,6 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
 .explain__raw pre {
   margin: 0;
   font-family: var(--dp-font-mono);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>

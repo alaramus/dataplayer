@@ -798,7 +798,7 @@ async function parseTyped(text: string) {
             class="connector-window__grants"
           >
             <header class="connector-window__grants-head">
-              <h3 class="connector-window__heading-3">
+              <h3 class="connector-window__heading-3 dp-overline">
                 Who else may reach it
               </h3>
               <AppButton
@@ -986,7 +986,7 @@ async function parseTyped(text: string) {
 /* A statement about the window, not a field in it: quieter than the form and
    above it. */
 .connector-window__shared {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 .connector-window__permissions {
@@ -1017,11 +1017,6 @@ async function parseTyped(text: string) {
 }
 .connector-window__heading-3 {
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .connector-window__policy {
   display: flex;
@@ -1034,7 +1029,7 @@ async function parseTyped(text: string) {
 .connector-window__policy-note {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 .connector-window__body {

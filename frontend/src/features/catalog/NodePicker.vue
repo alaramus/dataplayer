@@ -192,7 +192,7 @@ const here = computed(() => {
   gap: var(--dp-space-2);
   min-height: var(--dp-form-control-height);
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .node-picker__nodes {
   display: flex;

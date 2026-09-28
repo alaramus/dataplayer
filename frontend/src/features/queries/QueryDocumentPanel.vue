@@ -1221,7 +1221,7 @@ onBeforeUnmount(() => {
 .query-panel__elapsed {
   overflow: hidden;
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1247,7 +1247,7 @@ onBeforeUnmount(() => {
 }
 .query-panel__state[data-state="conflict"],
 .query-panel__state[data-state="unsynchronised"] {
-  color: var(--dp-callout-caution);
+  color: var(--dp-tone-warning-text);
 }
 .query-panel__banner,
 .query-panel__parameters {
@@ -1297,6 +1297,6 @@ onBeforeUnmount(() => {
 .query-panel__nothing {
   padding: var(--dp-space-4);
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>

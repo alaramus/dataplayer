@@ -825,7 +825,7 @@ async function runDesign(value: {
 }
 
 .action-dialog__file-size {
-  opacity: 0.6;
+  color: var(--dp-text-muted);
   white-space: nowrap;
 }
 

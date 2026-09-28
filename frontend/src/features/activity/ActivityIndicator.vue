@@ -302,7 +302,7 @@ function refresh() { void jobs.refetch() }
 .activity-indicator-bar { display: flex; align-items: center; gap: var(--dp-space-1); min-width: 0; }
 /* The same 32px target as the rail buttons; the count hangs off its corner. */
 .activity-indicator { position: relative; min-width: 32px; min-height: 32px; }
-.activity-indicator .q-icon { font-size: 24px; }
+.activity-indicator .q-icon { font-size: var(--dp-icon-md); }
 .activity-indicator--error .q-icon { color: var(--dp-content-error); }
 .activity-indicator__running { position: relative; min-width: 110px; max-width: min(260px, 30vw); }
 .activity-indicator__step {
@@ -310,7 +310,7 @@ function refresh() { void jobs.refetch() }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 /* Overlaid: in flow it adds its height to the button and the footer grows (D113). */
 .activity-indicator__progress { position: absolute; left: 8px; right: 8px; bottom: 2px; width: auto; }

@@ -80,9 +80,9 @@ async function connect() {
     data-testid="store-setup"
   >
     <template v-if="stage.kind === 'offer'">
-      <div class="text-h6">
+      <h2 class="dp-page-title">
         Dashboards need a metrics store
-      </div>
+      </h2>
       <p class="store-setup__text">
         Samples are kept in a TimescaleDB of their own, set up once for everybody on
         this server. Nobody reads it as a connection.
@@ -110,18 +110,18 @@ async function connect() {
     </template>
 
     <template v-else-if="stage.kind === 'wait'">
-      <div class="text-h6">
+      <h2 class="dp-page-title">
         Dashboards are not set up yet
-      </div>
+      </h2>
       <p class="store-setup__text">
         An administrator of this server sets up the store dashboards keep their samples in.
       </p>
     </template>
 
     <template v-else-if="stage.kind === 'starting'">
-      <div class="text-h6">
+      <h2 class="dp-page-title">
         Starting the metrics store
-      </div>
+      </h2>
       <AppProgress
         :label="stage.step"
         :value="stage.progress"

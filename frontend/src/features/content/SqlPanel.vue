@@ -128,7 +128,7 @@ function showTable() {
 }
 .sql-panel__kind {
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .sql-panel__body {
   display: flex;

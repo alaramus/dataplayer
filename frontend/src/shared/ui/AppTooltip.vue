@@ -39,11 +39,11 @@ onDeactivated(() => {
 <style>
 .app-tooltip {
   background: var(--dp-surface-raised);
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
   padding: var(--dp-space-1) var(--dp-space-2);
   box-shadow: 0 2px 8px var(--dp-shadow-soft);
   max-width: 240px;

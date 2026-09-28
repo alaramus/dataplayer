@@ -175,7 +175,7 @@ const resizeEdges: ResizeEdge[] = [
       <q-icon
         v-if="window.look.icon"
         :name="window.look.icon"
-        size="18px"
+        size="var(--dp-icon-sm)"
       />
       <span class="app-window__title">{{ window.look.title }}</span>
       <!-- Wrapped so the drag handler above does not see the press. -->

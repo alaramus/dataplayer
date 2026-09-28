@@ -74,7 +74,7 @@ const groups = computed(() => [
     >
       <button
         type="button"
-        class="navigation__header"
+        class="navigation__header dp-overline"
         :data-testid="`section-${group.section}`"
         @click="emit('select', group.section, group.rows[0]?.id ?? '')"
       >
@@ -119,12 +119,7 @@ const groups = computed(() => [
   border: 0;
   padding: var(--dp-space-2) var(--dp-space-2) var(--dp-space-half);
   background: transparent;
-  color: var(--dp-text-muted);
   font: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   cursor: pointer;
 }
 .navigation__row {
@@ -156,7 +151,7 @@ const groups = computed(() => [
   text-decoration: underline wavy var(--dp-content-error);
 }
 .navigation button:focus-visible {
-  outline: 2px solid var(--dp-link);
+  outline: 2px solid var(--dp-focus-border);
   outline-offset: -2px;
 }
 @container table-designer (max-width: 850px) {

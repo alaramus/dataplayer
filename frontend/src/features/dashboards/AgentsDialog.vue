@@ -443,7 +443,7 @@ async function copy(text: string, what: string) {
           <q-td :props="cellProps">
             <q-icon
               :name="adapterIcon(cellProps.row.adapter_type)"
-              size="16px"
+              size="var(--dp-icon-sm)"
             />
             {{ cellProps.row.name }}
           </q-td>

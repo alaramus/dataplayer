@@ -161,11 +161,11 @@ function trust() {
   gap: var(--dp-space-2);
 }
 .server-key__label {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 .server-key__line {
-  font-size: 13px;
+  font-size: var(--dp-font-size);
   overflow-wrap: anywhere;
 }
 .server-key__presented {
@@ -174,11 +174,11 @@ function trust() {
   gap: var(--dp-space-1);
 }
 .server-key__hint {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 .server-key__error {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-content-error);
 }
 .server-key__buttons {

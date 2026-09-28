@@ -125,7 +125,7 @@ useReloadable(() => props.panelId, reload)
    this line in the colour of a disabled control. */
 .image-panel__details {
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .image-panel__commands {
   display: flex;

@@ -50,7 +50,7 @@ const failure = computed(() =>
     >Nothing reported in this range</span>
     <template v-else>
       <span
-        class="text-h5"
+        class="stat-widget__value"
         data-testid="stat-value"
       >{{ formatValue(reading.value, unit) }}</span>
       <span
@@ -76,6 +76,10 @@ const failure = computed(() =>
   text-align: center;
 }
 
+.stat-widget__value {
+  font-size: var(--dp-font-size-display);
+  line-height: var(--dp-line-height-page);
+}
 .stat-widget__note {
   color: var(--dp-text-muted);
 }

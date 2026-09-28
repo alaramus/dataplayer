@@ -285,7 +285,7 @@ async function deleteQuery(documentId: string) {
       />
       <template v-else>
         <div class="queries-tool__history-bar">
-          <span class="queries-tool__heading">What you have run</span>
+          <span class="queries-tool__heading dp-overline">What you have run</span>
           <AppIconButton
             :icon="appIcons.deleteSweep"
             tooltip="Delete all of your history"
@@ -357,7 +357,7 @@ async function deleteQuery(documentId: string) {
           :key="group.key"
           class="queries-tool__group"
         >
-          <h3 class="queries-tool__heading">
+          <h3 class="queries-tool__heading dp-overline">
             {{ group.title }}
           </h3>
           <div
@@ -430,11 +430,6 @@ async function deleteQuery(documentId: string) {
 }
 .queries-tool__heading {
   margin: var(--dp-space-2) var(--dp-space-2) var(--dp-space-half);
-  color: var(--dp-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .queries-tool__row {
   display: flex;
@@ -468,7 +463,7 @@ async function deleteQuery(documentId: string) {
 .queries-tool__meta {
   overflow: hidden;
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   white-space: nowrap;
   text-overflow: ellipsis;
 }

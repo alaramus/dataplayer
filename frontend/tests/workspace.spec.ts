@@ -73,7 +73,7 @@ test("opens a tab in a window from its own commands, keeps the grid page and dar
   await floating.getByTestId("dock-panel").click()
   await expect(floating).toHaveCount(0)
 
-  // A catalog in a window offers no ×2 and no Pair: there is no column to
+  // A catalog in a window offers no Duplicate and no Pair: there is no column to
   // open one beside, and the window is already the tearing off.
   const catalog = page.getByRole("dialog", { name, exact: true })
   await page.getByTestId("catalog-panel").getByTestId("panel-window").click()
@@ -422,7 +422,7 @@ test("a catalog copy opens beside its source and keeps an independent filter", a
   await page.getByTestId("catalog-node-reports").click()
   await expect(page.getByTestId("catalog-path")).toContainText("reports")
 
-  await expect(page.getByTestId("catalog-duplicate")).toHaveText("×2")
+  await expect(page.getByTestId("catalog-duplicate")).toHaveAccessibleName("Duplicate catalog beside this one")
   await page.getByTestId("catalog-duplicate").click()
   const catalogs = page.getByTestId("catalog-panel")
   await expect(catalogs).toHaveCount(2)

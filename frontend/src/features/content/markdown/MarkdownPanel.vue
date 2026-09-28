@@ -631,7 +631,7 @@ onBeforeUnmount(() => {
           aria-label="Table of contents"
           data-testid="markdown-contents"
         >
-          <div class="markdown-panel__outline-title">
+          <div class="markdown-panel__outline-title dp-overline">
             On this page
           </div>
           <AppButton
@@ -716,7 +716,7 @@ onBeforeUnmount(() => {
 .markdown-panel__search-position {
   min-width: 36px;
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   text-align: center;
 }
 .markdown-panel__remote {
@@ -725,7 +725,7 @@ onBeforeUnmount(() => {
   gap: var(--dp-space-3);
   padding: var(--dp-space-1) var(--dp-space-2);
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .markdown-panel__remote-note {
   min-width: 0;
@@ -743,10 +743,6 @@ onBeforeUnmount(() => {
 }
 .markdown-panel__outline-title {
   padding: 0 var(--dp-space-2) var(--dp-space-1);
-  color: var(--dp-text-muted);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 .markdown-panel__outline-entry {
   display: flex;
@@ -760,7 +756,7 @@ onBeforeUnmount(() => {
 }
 .markdown-panel__outline-entry--3 {
   padding-left: calc(2 * var(--dp-space-3));
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 .markdown-panel__outline-entry--active {
   color: var(--dp-link);
@@ -772,7 +768,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow: auto;
   padding: var(--dp-space-4) var(--dp-space-5);
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   font-size: var(--dp-prose-font-size);
   line-height: 1.65;
 }

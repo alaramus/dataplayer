@@ -19,9 +19,9 @@ const style = computed(() => panelStyle(props.size))
 <template>
   <q-card :style="{ width: style.width, maxWidth: style.maxWidth }">
     <AppSection v-if="title">
-      <div class="text-h6">
+      <h2 class="dp-page-title">
         {{ title }}
-      </div>
+      </h2>
     </AppSection>
     <slot />
   </q-card>

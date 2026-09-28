@@ -824,7 +824,7 @@ async function afterAction(outcome: ActionOutcome) {
             >
               <q-icon
                 name="chevron_right"
-                size="14px"
+                size="var(--dp-icon-sm)"
                 class="catalog-panel__chevron"
               />
               <span
@@ -899,17 +899,12 @@ async function afterAction(outcome: ActionOutcome) {
           />
           <template v-if="!floating">
             <AppToolbarRule />
-            <AppButton
-              variant="quiet"
-              size="sm"
-              class="catalog-panel__duplicate"
-              aria-label="Duplicate catalog beside this one"
+            <AppIconButton
+              :icon="appIcons.duplicate"
+              tooltip="Duplicate catalog beside this one"
               data-testid="catalog-duplicate"
               @click="workspace.duplicateCatalog(panelId, level.currentId.value)"
-            >
-              <span class="catalog-panel__duplicate-label">×2</span>
-              <AppTooltip>Duplicate catalog beside this one</AppTooltip>
-            </AppButton>
+            />
             <AppIconButton
               v-if="workspace.pairCatalog"
               :icon="appIcons.pair"
@@ -1079,7 +1074,7 @@ async function afterAction(outcome: ActionOutcome) {
     >
       <q-icon
         name="search"
-        size="14px"
+        size="var(--dp-icon-sm)"
       />
       <span class="catalog-panel__found-text">{{ foundText }}</span>
       <AppIconButton
@@ -1134,7 +1129,7 @@ async function afterAction(outcome: ActionOutcome) {
   align-items: center;
   gap: var(--dp-space-2);
   padding: var(--dp-space-half) var(--dp-space-1) var(--dp-space-half) var(--dp-space-2);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
   border-bottom: 1px solid var(--dp-border-faint);
   flex: none;
@@ -1193,7 +1188,7 @@ async function afterAction(outcome: ActionOutcome) {
   min-width: 0;
   border-radius: var(--dp-radius-pill);
   background: var(--dp-hover);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 /* Takes what the line has left, and gives it back rather than pushing the
    menu off the end: the choice of schemas is a list of names, and a long one
@@ -1223,8 +1218,6 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__commands .app-toolbar-rule {
   margin-inline: 0;
 }
-.catalog-panel__duplicate { width: var(--dp-tab-strip-height); height: var(--dp-tab-strip-height); min-width: var(--dp-tab-strip-height); padding: 0; }
-.catalog-panel__duplicate-label { font-size: 20px; font-weight: 500; line-height: 1; }
 .catalog-panel__trail {
   display: flex;
   align-items: center;
@@ -1263,7 +1256,7 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__crumb--last {
   cursor: default;
   font-weight: 500;
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
 }
 .catalog-panel__chevron {
   color: var(--dp-text-faint);

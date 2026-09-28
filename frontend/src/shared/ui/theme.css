@@ -97,6 +97,14 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   opacity: 0;
 }
 
+/* Where the keyboard is, said one way for every button (D185): a ring in the
+   focus colour just outside it. Four colours and three mechanisms had grown
+   up, and a white ring round a white-lettered tab showed nothing. */
+.q-btn:focus-visible {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: var(--dp-space-half);
+}
+
 /* The track shows the scroll surface itself: a native grey track made dark
    and raised panels look as though they had the same background. */
 * {
@@ -189,10 +197,14 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   --dp-separator: rgba(0, 0, 0, 0.12);
   --dp-separator-active: rgba(0, 0, 0, 0.28);
 
-  /* Text that is not the body text: a heading of a group, a caption, a
-     chevron between two steps of a path. */
-  --dp-text-strong: rgba(0, 0, 0, 0.7);
-  --dp-text-muted: rgba(0, 0, 0, 0.54);
+  /* Text in three strengths (D185). One colour for everything read — the
+     body, a field's value, a heading, a tooltip, code — where there had been
+     three: #000 for the body, .87 in a field and a .7 called "strong" that was
+     the weakest of them. Muted is secondary text and the floor for anything a
+     person has to read; faint is for marks that are not text — a chevron, a
+     rule, an idle dot — and fails as text at 2.4:1. */
+  --dp-text: rgba(0, 0, 0, 0.87);
+  --dp-text-muted: rgba(0, 0, 0, 0.6);
   --dp-text-faint: rgba(0, 0, 0, 0.35);
 
   /* Nothing has been said yet — the dot of a connection nobody checked. */
@@ -309,7 +321,7 @@ body.body--dark {
   --dp-separator: rgba(255, 255, 255, 0.16);
   --dp-separator-active: rgba(255, 255, 255, 0.38);
 
-  --dp-text-strong: rgba(255, 255, 255, 0.87);
+  --dp-text: rgba(255, 255, 255, 0.87);
   --dp-text-muted: rgba(255, 255, 255, 0.62);
   --dp-text-faint: rgba(255, 255, 255, 0.42);
 
@@ -349,4 +361,11 @@ body.body--dark {
   --dp-shadow-soft: rgba(0, 0, 0, 0.55);
   --dp-shadow: rgba(0, 0, 0, 0.65);
   --dp-shadow-strong: rgba(0, 0, 0, 0.8);
+}
+
+/* The body reads in --dp-text in both themes. Quasar paints the dark one
+   #fff with a class, hence the second selector. */
+body,
+body.body--dark {
+  color: var(--dp-text);
 }

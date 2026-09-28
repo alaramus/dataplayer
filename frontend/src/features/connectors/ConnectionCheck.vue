@@ -160,7 +160,7 @@ async function copy() {
 }
 .connection-check__line {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--dp-font-size);
   overflow-wrap: anywhere;
 }
 .connection-check__facts {
@@ -170,7 +170,7 @@ async function copy() {
   margin: var(--dp-space-2) 0 0;
   padding-top: var(--dp-space-2);
   border-top: 1px solid var(--dp-border);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .connection-check__facts dt {
   overflow-wrap: anywhere;

@@ -22,7 +22,7 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   >
     <q-icon
       :name="look.icon"
-      size="16px"
+      size="var(--dp-icon-sm)"
     />
     <span class="drag-ghost__title">{{ look.title }}</span>
     <span
@@ -51,7 +51,7 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   background: var(--dp-panel-background, var(--dp-surface-raised));
   color: var(--dp-panel-foreground, inherit);
   box-shadow: 0 4px 14px var(--dp-shadow);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   white-space: nowrap;
   opacity: 0.9;
 }
@@ -63,6 +63,6 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 96px;
-  color: var(--dp-panel-foreground, var(--dp-text-faint));
+  color: var(--dp-panel-foreground, var(--dp-text-muted));
 }
 </style>

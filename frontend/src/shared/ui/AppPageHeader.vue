@@ -4,9 +4,9 @@ defineProps<{ title: string }>()
 
 <template>
   <div class="row items-center justify-between q-mb-md">
-    <div class="text-h5">
+    <h1 class="dp-page-title">
       {{ title }}
-    </div>
+    </h1>
     <div class="row items-center q-gutter-sm">
       <slot name="actions" />
     </div>

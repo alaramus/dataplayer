@@ -55,7 +55,9 @@ async function copy() {
           v-for="field in content.fields"
           :key="field.key"
         >
-          <dt>{{ field.key }}</dt>
+          <dt class="dp-overline">
+            {{ field.key }}
+          </dt>
           <dd>{{ field.value }}</dd>
         </template>
       </dl>
@@ -78,11 +80,7 @@ async function copy() {
   gap: var(--dp-space-1) var(--dp-space-3);
   margin: 0;
 }
-.agent-block__fields dt {
-  color: var(--dp-text-muted);
-  font-size: 11px;
-  text-transform: uppercase;
-}
+
 .agent-block__fields dd {
   margin: 0;
   overflow-wrap: anywhere;
@@ -104,6 +102,6 @@ async function copy() {
   border-radius: var(--dp-radius-control);
   background: var(--dp-hover);
   font-family: var(--dp-font-mono);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>

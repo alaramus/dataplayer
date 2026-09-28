@@ -178,7 +178,7 @@ const groups = TOOLBAR_GROUPS
   font-size: var(--dp-font-size);
   font-weight: 600;
   line-height: 1.4;
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   white-space: nowrap;
   user-select: none;
 }

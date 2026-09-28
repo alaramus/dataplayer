@@ -162,7 +162,7 @@ function iconOf(row: CardRow): string {
         />
         <q-icon
           :name="TOP_ICON"
-          size="18px"
+          size="var(--dp-icon-sm)"
         />
         <span>The top of {{ connectionName }}</span>
       </label>
@@ -198,7 +198,7 @@ function iconOf(row: CardRow): string {
           >
             <q-icon
               :name="iconOf(row)"
-              size="16px"
+              size="var(--dp-icon-sm)"
             />
             <span class="card-picker__label">{{ row.label }}</span>
             <span class="card-picker__place">{{ whereOf(row) }}</span>
@@ -243,7 +243,7 @@ function iconOf(row: CardRow): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .card-picker__top {
   flex: none;
@@ -268,11 +268,11 @@ function iconOf(row: CardRow): string {
   padding-top: var(--dp-space-1);
 }
 .card-picker__count {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-text-muted);
 }
 .card-picker__refusal {
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
   color: var(--dp-tone-warning-text);
 }
 .card-picker__rows {
@@ -299,6 +299,6 @@ function iconOf(row: CardRow): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--dp-text-muted);
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
 }
 </style>

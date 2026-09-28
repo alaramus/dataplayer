@@ -301,7 +301,7 @@ const columnsWord = computed(() => {
 .link-panel__problem {
   margin: 0;
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 .link-panel__result--failed {
   color: var(--dp-tone-warning-text);

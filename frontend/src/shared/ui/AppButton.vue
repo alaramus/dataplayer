@@ -103,10 +103,6 @@ function nameIfCut(event: PointerEvent) {
 </template>
 
 <style scoped>
-.app-button:focus-visible {
-  outline: 2px solid var(--dp-focus-border);
-  outline-offset: var(--dp-space-half);
-}
 .app-button--toolbar :deep(.q-btn__content) {
   gap: var(--dp-space-1);
 }

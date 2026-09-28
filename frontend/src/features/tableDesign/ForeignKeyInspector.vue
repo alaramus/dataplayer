@@ -170,7 +170,9 @@ function chooseKey(value: string): void {
         <span>{{ foreign.targetColumns.join(" + ") || "Choose key" }}</span>
       </div>
     </div>
-    <h3>Column mapping</h3>
+    <h3 class="dp-overline">
+      Column mapping
+    </h3>
     <div
       v-for="(target, at) in foreign.targetColumns"
       :key="target"
@@ -243,11 +245,6 @@ function chooseKey(value: string): void {
 }
 .inspector h3 {
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dp-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 .inspector__row {
   display: grid;

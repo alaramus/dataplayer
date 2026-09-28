@@ -102,7 +102,7 @@ function follow(run: () => void) {
           class="sheet__section"
           data-testid="attention-section"
         >
-          <h3 class="sheet__heading">
+          <h3 class="sheet__heading dp-overline">
             <span>Needs you</span>
             <span
               v-if="attention.length > 0"
@@ -122,7 +122,7 @@ function follow(run: () => void) {
             <q-icon
               :name="bannerLook(item.tone).icon"
               :class="toneText(item.tone)"
-              size="18px"
+              size="var(--dp-icon-sm)"
             />
             <div class="sheet__text">
               <strong>{{ item.title }}</strong>
@@ -156,7 +156,7 @@ function follow(run: () => void) {
           class="sheet__section"
           data-testid="working-section"
         >
-          <h3 class="sheet__heading">
+          <h3 class="sheet__heading dp-overline">
             <span>Working</span>
             <span
               v-if="working() > 0"
@@ -187,7 +187,7 @@ function follow(run: () => void) {
           class="sheet__section"
           data-testid="recent-section"
         >
-          <h3 class="sheet__heading">
+          <h3 class="sheet__heading dp-overline">
             <span>Recent</span>
             <AppButton
               v-if="log.entries.value.length > 0"
@@ -210,7 +210,7 @@ function follow(run: () => void) {
             <q-icon
               :name="bannerLook(notice.tone).icon"
               :class="toneText(notice.tone)"
-              size="18px"
+              size="var(--dp-icon-sm)"
             />
             <div class="sheet__text">
               <strong v-if="notice.title">{{ notice.title }}</strong>
@@ -297,11 +297,6 @@ function follow(run: () => void) {
   align-items: center;
   gap: var(--dp-space-2);
   margin: 0 0 var(--dp-space-2);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--dp-text-muted);
 }
 
 .sheet__heading > span { flex: none; }
@@ -309,7 +304,7 @@ function follow(run: () => void) {
   padding: 0 var(--dp-space-2);
   border-radius: var(--dp-radius-pill);
   background: var(--dp-border);
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
   letter-spacing: 0;
 }
 
@@ -331,5 +326,5 @@ function follow(run: () => void) {
 .sheet__text strong + p { color: var(--dp-text-muted); }
 /* The steps behind an entry: one to a line, quieter than what it says. */
 .sheet__line { color: var(--dp-text-muted); }
-.sheet__when { font-size: 11px; color: var(--dp-text-faint); }
+.sheet__when { font-size: var(--dp-font-size-xs); color: var(--dp-text-muted); }
 </style>

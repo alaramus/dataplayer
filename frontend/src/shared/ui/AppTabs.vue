@@ -45,7 +45,7 @@ function optionTestId(option: TabOption): string | undefined {
       <q-icon
         v-if="option.icon"
         :name="option.icon"
-        size="16px"
+        size="var(--dp-icon-sm)"
       />
       {{ option.label }}
     </button>
@@ -63,7 +63,9 @@ function optionTestId(option: TabOption): string | undefined {
   display: inline-flex;
   align-items: center;
   gap: var(--dp-space-1);
-  padding: var(--dp-space-1) var(--dp-space-2);
+  box-sizing: border-box;
+  height: var(--dp-tab-height);
+  padding: 0 var(--dp-space-2);
   border: none;
   border-radius: var(--dp-radius-control);
   background: none;

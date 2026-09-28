@@ -243,13 +243,13 @@ async function putBack(filename: string) {
   flex: 1;
 }
 .backups__name {
-  font-size: 13px;
+  font-size: var(--dp-font-size);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .backups__when {
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
 }
 </style>

@@ -365,12 +365,13 @@ function measureFullText(text: string, monospace = false, bold = false): number 
         : document.createElement("canvas").getContext("2d")
     if (textContext !== null) {
       const style = getComputedStyle(document.body)
+      const mono = style.getPropertyValue("--dp-font-size-mono").trim()
       textFont = `${style.fontSize || "13px"} ${style.fontFamily || "sans-serif"}`
-      monospaceFont = `${style.fontSize || "13px"} monospace`
+      monospaceFont = `${mono || style.fontSize || "12px"} ${style.getPropertyValue("--dp-font-mono") || "monospace"}`
     }
   }
   if (textContext !== null) {
-    textContext.font = `${bold ? "bold " : ""}${monospace ? monospaceFont : textFont}`
+    textContext.font = `${bold ? "600 " : ""}${monospace ? monospaceFont : textFont}`
   }
   return (textContext?.measureText(text).width ?? text.length * 8) + 14
 }
@@ -1008,7 +1009,7 @@ defineExpose({
   --grid-header-actions-width: 64px;
   height: var(--dp-toolbar-height);
   background: var(--dp-surface);
-  color: var(--dp-text-strong);
+  color: var(--dp-text);
 }
 
 .data-grid__table th.data-grid__sortable {
@@ -1104,7 +1105,7 @@ defineExpose({
 .data-grid__sort-priority {
   min-width: 12px;
   color: var(--dp-text-muted);
-  font-size: 10px;
+  font-size: var(--dp-font-size-xs);
   text-align: center;
 }
 
@@ -1140,6 +1141,7 @@ defineExpose({
 
 .data-grid__monospace {
   font-family: var(--dp-font-mono);
+  font-size: var(--dp-font-size-mono);
 }
 
 .data-grid__pager {

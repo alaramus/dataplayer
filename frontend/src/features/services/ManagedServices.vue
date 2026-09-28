@@ -192,12 +192,12 @@ async function forget(service: ServicePublic) {
     >
       <AppSpinner
         v-if="isWorking(service.job)"
-        size="16px"
+        size="var(--dp-icon-sm)"
       />
       <q-icon
         v-else
         :name="service.state === 'failed' ? 'error' : 'dns'"
-        size="16px"
+        size="var(--dp-icon-sm)"
         :class="service.state === 'failed' ? 'starting__failed' : ''"
       />
       <div class="starting__what">
@@ -304,14 +304,14 @@ async function forget(service: ServicePublic) {
   flex: 1;
 }
 .starting__name {
-  font-size: 13px;
+  font-size: var(--dp-font-size);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .starting__facts,
 .starting__step {
-  font-size: 11px;
+  font-size: var(--dp-font-size-xs);
   color: var(--dp-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;

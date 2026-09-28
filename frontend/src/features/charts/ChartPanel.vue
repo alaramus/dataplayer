@@ -153,6 +153,6 @@ const pageLabel = computed(() => {
   padding: var(--dp-space-1) var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border);
   color: var(--dp-text-muted);
-  font-size: 12px;
+  font-size: var(--dp-font-size-sm);
 }
 </style>
