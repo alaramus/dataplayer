@@ -738,7 +738,6 @@ onBeforeUnmount(() => {
 .markdown-panel__outline {
   flex: 0 0 210px;
   overflow: auto;
-  overscroll-behavior: contain;
   padding: var(--dp-space-3) var(--dp-space-2);
   border-right: 1px solid var(--dp-border-faint);
 }
@@ -772,7 +771,6 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
   padding: var(--dp-space-4) var(--dp-space-5);
   color: var(--dp-text-strong);
   font-size: var(--dp-prose-font-size);

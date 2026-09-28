@@ -300,7 +300,6 @@ const countLabel = computed(() => {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
   scrollbar-gutter: stable;
   /* Reserve space for classic scrollbars before rows arrive, and keep the
      shared columns clear of overlay scrollbars, which have no gutter. */

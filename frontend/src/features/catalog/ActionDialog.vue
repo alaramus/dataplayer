@@ -809,7 +809,6 @@ async function runDesign(value: {
   list-style: none;
   max-height: 180px;
   overflow: auto;
-  overscroll-behavior: contain;
 }
 
 .action-dialog__file {
@@ -835,6 +834,5 @@ async function runDesign(value: {
   padding-left: var(--dp-space-5);
   max-height: 180px;
   overflow: auto;
-  overscroll-behavior: contain;
 }
 </style>

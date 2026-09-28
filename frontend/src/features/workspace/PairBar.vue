@@ -163,7 +163,6 @@ function settle(outcome: ActionOutcome | null) {
   border-top: 1px solid var(--dp-border);
   max-height: 40%;
   overflow: auto;
-  overscroll-behavior: contain;
 }
 .pair-bar__heading {
   color: var(--dp-text-strong);

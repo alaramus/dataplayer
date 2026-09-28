@@ -147,7 +147,6 @@ onBeforeUnmount(() => {
 .window-dialog__content {
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
 }
 .window-dialog__actions {
   flex: none;

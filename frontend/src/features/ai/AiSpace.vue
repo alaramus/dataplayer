@@ -723,7 +723,7 @@ onScopeDispose(stop)
 /* The collapsed rail takes the same forty pixels a collapsed workspace column
    or the dashboards rail does; the wide rail's padding would push past it. */
 .ai-window__rail--collapsed .ai-window__rail-foot { align-items: center; padding-right: 0; padding-left: 0; }
-.ai-window__history { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--dp-space-1); }
+.ai-window__history { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-1); }
 .ai-window__project { display: flex; align-items: center; }
 .ai-window__project-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--dp-space-1); border: 0; padding: var(--dp-space-1); background: transparent; color: var(--dp-text-muted); font: inherit; font-weight: 600; cursor: pointer; }
 .ai-window__project-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

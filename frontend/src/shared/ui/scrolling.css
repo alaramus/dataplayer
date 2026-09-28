@@ -1,7 +1,0 @@
-/* Quasar's own scrolling boxes end their scroll chain as every list of ours
-   does (scrolling.spec.ts says why): a menu, a select's options, and the
-   overlay scroll area of a narrow rail. */
-.q-menu,
-.q-scrollarea__container {
-  overscroll-behavior: contain;
-}

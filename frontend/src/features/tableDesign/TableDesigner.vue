@@ -668,7 +668,6 @@ function moveColumn(by: number): void {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 .designer__toolbar {
   display: flex;
@@ -697,7 +696,6 @@ function moveColumn(by: number): void {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
   background: var(--dp-chrome-raised);
   border-left: 1px solid var(--dp-border);
 }
@@ -734,7 +732,6 @@ function moveColumn(by: number): void {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
   padding: var(--dp-space-3);
 }
 @container table-designer (max-width: 850px) {
@@ -747,7 +744,6 @@ function moveColumn(by: number): void {
     grid-template-columns: 160px minmax(0, 1fr);
     grid-template-rows: max-content max-content;
     overflow: auto;
-    overscroll-behavior: contain;
   }
   .designer__editor,
   .designer__sql {

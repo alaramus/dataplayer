@@ -306,7 +306,7 @@ function editorKeydown(event: KeyboardEvent) {
 
 <style scoped>
 .quick-chat { height: 100%; min-height: 0; display: flex; flex-direction: column; }
-.quick-chat__messages { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--dp-space-5) var(--dp-space-4); }
+.quick-chat__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-5) var(--dp-space-4); }
 .quick-chat__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .quick-chat__message { max-width: 960px; margin: 0 auto var(--dp-space-4); }
 .quick-chat__message--user { display: flex; flex-direction: column; align-items: flex-end; }

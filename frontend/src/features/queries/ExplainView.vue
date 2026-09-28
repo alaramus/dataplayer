@@ -163,7 +163,6 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: 1;
   min-width: 0;
   overflow: auto;
-  overscroll-behavior: contain;
   padding: var(--dp-space-1) 0;
 }
 .explain__row {
@@ -213,7 +212,6 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: none;
   width: 280px;
   overflow: auto;
-  overscroll-behavior: contain;
   padding: var(--dp-space-2) var(--dp-space-2);
   border-inline-start: 1px solid var(--dp-border-faint);
 }
@@ -235,7 +233,6 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   flex: 1;
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
   padding: var(--dp-space-2) var(--dp-space-3);
 }
 .explain__raw pre {

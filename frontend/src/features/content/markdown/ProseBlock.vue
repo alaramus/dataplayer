@@ -63,14 +63,11 @@ defineProps<{ html: string }>()
   font-size: var(--dp-prose-code-font-size);
 }
 /* A table wider than the column scrolls inside itself rather than pushing
-   the column wider. Sideways only, and never its own end of the chain: kept
-   to itself, a wheel turned over a wide table would stop scrolling the text
-   around it (scrolling.spec.ts). */
+   the column wider. */
 .prose-block :deep(table) {
   display: block;
   max-width: 100%;
   overflow: auto;
-  overscroll-behavior: auto;
   border-collapse: collapse;
   margin: var(--dp-space-3) 0;
 }

@@ -1041,7 +1041,6 @@ async function parseTyped(text: string) {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;

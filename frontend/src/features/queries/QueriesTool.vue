@@ -421,7 +421,6 @@ async function deleteQuery(documentId: string) {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
 }
 .queries-tool__history-bar {
   display: flex;
