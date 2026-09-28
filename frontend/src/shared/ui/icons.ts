@@ -104,6 +104,7 @@ export const appIcons = {
   pushPin: "keep",
   refresh: "refresh",
   remove: "remove",
+  receiptLong: "receipt_long",
   replay: "replay",
   restartAlt: "restart_alt",
   restoreFromTrash: "restore_from_trash",

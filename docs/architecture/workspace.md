@@ -40,8 +40,8 @@ block is dragged elsewhere in its rail or onto another rail. Where each stands i
 kept per browser; a block the stored arrangement does not name takes its home, or
 its place beside the block it belongs with. The blocks are one registry,
 `toolBlocks.ts`: a new one is an entry there and nothing else. The Services,
-Terminals and Queries blocks switch tools in the panel at the foot of the screen
-(D143).
+Terminals, Queries and, for a superuser, Logs blocks switch tools in the panel at
+the foot of the screen (D143, D184).
 
 ```
 frontend/src/shared/workspace/

@@ -2,6 +2,7 @@ import type { Component } from "vue"
 
 import QuickChatCommand from "@/features/ai/QuickChatCommand.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
+import LogsCommand from "@/features/logs/LogsCommand.vue"
 import QueriesCommand from "@/features/queries/QueriesCommand.vue"
 import ServicesCommand from "@/features/services/ServicesCommand.vue"
 import TerminalCommand from "@/features/terminals/TerminalCommand.vue"
@@ -28,6 +29,11 @@ export interface ToolBlock extends BlockSeat {
   props: (rail: RailContext) => Record<string, unknown>
   /** Several buttons, framed as one group under the pointer. */
   framed?: boolean
+  /**
+   * Drawn for a superuser alone. Left out by the rail rather than rendering
+   * nothing, because an empty block still takes its padding (D184).
+   */
+  superuserOnly?: boolean
 }
 
 /**
@@ -58,6 +64,14 @@ export const TOOL_BLOCKS: readonly ToolBlock[] = [
     beside: "terminals",
     component: QueriesCommand,
     props: () => ({ iconOnly: true }),
+  },
+  {
+    id: "logs",
+    home: "left-bottom",
+    beside: "queries-library",
+    component: LogsCommand,
+    props: () => ({ iconOnly: true }),
+    superuserOnly: true,
   },
   { id: "groups-save", home: "right-top", component: TabGroupSave, props: (rail) => ({ groups: rail.groups }) },
   {

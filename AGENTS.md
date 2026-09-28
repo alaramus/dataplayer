@@ -50,7 +50,7 @@ legacy notes and stay unchanged.
 | Whether this server may start containers, and what that costs | [services-runtime.md](docs/architecture/services-runtime.md) |
 | Copying a database out, putting it back, a program run in a container | [backups.md](docs/architecture/backups.md) |
 | Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
-| Backend modules, routes, migrations, secrets, database | [backend.md](docs/architecture/backend.md) |
+| Backend modules, routes, migrations, secrets, database, the server's log | [backend.md](docs/architecture/backend.md) |
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, the bar and card at the foot | [workspace.md](docs/architecture/workspace.md) |
@@ -260,6 +260,7 @@ files. IDs are stable because specs and commits refer to them.
 | D181 | [notifications](docs/architecture/notifications.md) |
 | D182 | [sources/transfer](docs/architecture/sources/transfer.md) |
 | D183 | [sources/contract](docs/architecture/sources/contract.md) |
+| D184 | [backend](docs/architecture/backend.md) |
 
 ## Working rules
 

@@ -18,8 +18,10 @@ from app.ai.catalog import ModelCatalog
 from app.ai.content import opened, sealed
 from app.ai.models import MAX_TITLE_CHARS, Role
 from app.ai.providers import ChatModels
+from app.ai.providers.failures import UNKNOWN_FAILURE
 from app.ai.runner import DELTA_INTERVAL_SECONDS, split_text
 from app.ai.topic import QuickAnswerDelta, announce_quick
+from app.core.logs import record_failure, with_ref
 from app.core.schemas import get_datetime_utc
 from app.realtime.topics import TopicSet
 
@@ -239,6 +241,7 @@ async def send(
     loop = asyncio.get_running_loop()
     deadline = loop.time() + ANSWER_SECONDS
     failure: str | None = None
+    ref: str | None = None
     try:
         async with asyncio.timeout(QUIET_SECONDS) as limit:
             async for chunk in chat_models.build(
@@ -257,11 +260,19 @@ async def send(
         logger.warning("Quick chat answer stopped arriving")
         failure = TOO_QUIET
     except Exception as error:  # noqa: BLE001  # Provider errors may contain private text
-        logger.warning("Quick chat answer failed: %s", type(error).__name__)
         failure = chat_models.sentence(model, error)
+        if failure == UNKNOWN_FAILURE:
+            ref = record_failure(logger, "A quick chat answer failed", error, private=True)
+        else:
+            logger.warning("Quick chat answer failed: %s", type(error).__name__)
+
+    def refused(message: str) -> str:
+        # The ref closes the whole message rather than cutting it in two.
+        return message if ref is None else with_ref(message, ref)
+
     answer = "".join(written)[:ANSWER_LIMIT]
     if not answer.strip():
-        raise RuntimeError(failure or "The model returned an empty answer")
+        raise RuntimeError(refused(failure or "The model returned an empty answer"))
     # Kept even when the provider failed on the way: an answer that broke off
     # at its end is most of an answer, and it was already on the screen.
     chat.updated_at = get_datetime_utc()
@@ -271,5 +282,5 @@ async def send(
     ])
     await session.commit()
     if failure is not None:
-        raise RuntimeError(f"{failure}. The answer so far is kept.")
+        raise RuntimeError(refused(f"{failure}. The answer so far is kept."))
     return await public(session, chat)

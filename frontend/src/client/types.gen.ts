@@ -5874,6 +5874,62 @@ export type LiteralValue = {
 }
 
 /**
+ * LogEntry
+ */
+export type LogEntry = {
+  /**
+   * Time
+   */
+  time: string
+  /**
+   * Process
+   */
+  process: "backend" | "metrics"
+  /**
+   * Level
+   */
+  level: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL"
+  /**
+   * Logger
+   */
+  logger: string
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Ref
+   */
+  ref?: string | null
+  /**
+   * Request
+   */
+  request?: string | null
+  /**
+   * Exception
+   */
+  exception?: string | null
+}
+
+/**
+ * LogPage
+ */
+export type LogPage = {
+  /**
+   * Kept
+   */
+  kept: boolean
+  /**
+   * Entries
+   */
+  entries: Array<LogEntry>
+  /**
+   * More
+   */
+  more: boolean
+}
+
+/**
  * MarkdownContent
  *
  * The bounded source of a document that the browser renders itself.
@@ -12797,6 +12853,56 @@ export type utilsServerInfoResponses = {
 }
 
 export type utilsServerInfoResponse = utilsServerInfoResponses[keyof utilsServerInfoResponses]
+
+export type logsReadLogsData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Level
+     */
+    level?: "all" | "warning" | "error"
+    /**
+     * Process
+     */
+    process?: "all" | "backend" | "metrics"
+    /**
+     * Q
+     */
+    q?: string | null
+    /**
+     * Before
+     */
+    before?: string | null
+    /**
+     * After
+     */
+    after?: string | null
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/logs/"
+}
+
+export type logsReadLogsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type logsReadLogsError = logsReadLogsErrors[keyof logsReadLogsErrors]
+
+export type logsReadLogsResponses = {
+  /**
+   * Successful Response
+   */
+  200: LogPage
+}
+
+export type logsReadLogsResponse = logsReadLogsResponses[keyof logsReadLogsResponses]
 
 export type connectorsDownloadFinishedExportData = {
   body?: never

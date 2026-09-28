@@ -32,6 +32,7 @@ from redis.exceptions import (
 
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.redis.options import RedisOptions, RedisPassword
+from app.core.logs import record_failure, with_ref
 
 logger = logging.getLogger(__name__)
 
@@ -149,10 +150,19 @@ def _refused(kind: ErrorKind, message: str) -> ConnectionCheckResult:
 def _reduced(failure: RedisError) -> AdapterError:
     """The driver's failure as a kind and a sentence of this repository's.
 
-    Logged in full on the server, where the address it names is already known,
-    and never passed on.
+    Logged on the server, where the address it names is already known, and
+    never passed on: an expected one as a line, anything else whole, with the
+    ref the sentence carries (D184).
     """
-    logger.warning("Redis failed: %s", failure)
+    known = _known(failure)
+    if known is not None:
+        logger.warning("Redis failed: %s", failure)
+        return known
+    ref = record_failure(logger, "Redis: an unexpected failure", failure)
+    return AdapterError("unknown", with_ref("The Redis server could not do that", ref))
+
+
+def _known(failure: RedisError) -> AdapterError | None:
     if isinstance(failure, AuthenticationError):
         return AdapterError("auth", "This connection was refused by the server")
     if isinstance(failure, RedisTimeoutError):
@@ -161,7 +171,7 @@ def _reduced(failure: RedisError) -> AdapterError:
         return AdapterError("network", "Could not reach the Redis server")
     if isinstance(failure, ResponseError):
         return AdapterError("unknown", "The Redis server refused that command")
-    return AdapterError("unknown", "The Redis server could not do that")
+    return None
 
 
 def text(raw: Any) -> str:

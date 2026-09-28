@@ -29,6 +29,7 @@ from app.adapters.query import (
 )
 from app.core.config import settings
 from app.core.db import async_session_maker
+from app.core.logs import record_failure, with_ref
 from app.core.schemas import get_datetime_utc
 from app.queries.content import encrypted
 from app.queries.results import QueryResults
@@ -339,18 +340,20 @@ class QueryRunner:
                 await _publish(topics, owner_id, session, run_id, finished=finished)
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as failure:
             # Never a traceback into the caller and never SQL into the log: the
             # run is marked failed with a sentence, and the exception is logged
-            # by type through the standard handler.
-            logger.exception("A query run could not be completed")
+            # by type and place alone, with the ref the sentence carries (D184).
+            ref = record_failure(
+                logger, "A query run could not be completed", failure, private=True
+            )
             async with async_session_maker() as session:
                 await _mark(
                     session,
                     run_id,
                     status="failed",
                     finished=True,
-                    error="This run could not be completed",
+                    error=with_ref("This run could not be completed", ref),
                 )
         finally:
             # What the run did belongs to the transaction it ran in, and the

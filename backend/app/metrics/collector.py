@@ -16,6 +16,7 @@ from dataclasses import dataclass, fields
 from cryptography.exceptions import InvalidTag
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.core import logs
 from app.core.config import settings
 from app.core.db import async_session_maker, loop_factory
 from app.metrics import crud, keys, protocol
@@ -388,7 +389,7 @@ async def serve() -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logs.configure("metrics")
     asyncio.run(serve(), loop_factory=loop_factory)
 
 

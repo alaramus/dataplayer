@@ -21,6 +21,7 @@ from app.services.backup_routes import router as backups_router
 from app.services.routes import router as services_router
 from app.shares.routes import router as shares_router
 from app.source_operations.routes import router as source_operations_router
+from app.system.log_routes import router as logs_router
 from app.system.routes import router as utils_router
 from app.terminals.routes import router as terminals_router
 from app.transfers.routes import router as transfers_router
@@ -32,6 +33,7 @@ api_router = APIRouter()
 api_router.include_router(auth_router)
 api_router.include_router(users_router)
 api_router.include_router(utils_router)
+api_router.include_router(logs_router)
 # Importing the connectors router pulls in app.adapters, so drivers register
 # themselves when the application starts.
 api_router.include_router(connectors_router)

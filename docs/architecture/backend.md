@@ -4,7 +4,7 @@ How the application is divided, how it talks to the database, how secrets are
 handled, and what the API is. Read this before adding a module, a route or a
 migration.
 
-Decisions here: D3, D4, D5, D33, D34, D124.
+Decisions here: D3, D4, D5, D33, D34, D124, D184.
 
 ## What exists today
 
@@ -53,7 +53,8 @@ backend/app/
 │   ├── topic.py         run state on the socket
 │   ├── cleanup.py       the lifespan timer that empties Trash
 │   └── routes.py        the library, one document, Trash, runs, results
-├── system/              operational routes: readiness, cache health, test email
+├── system/              operational routes: readiness, cache health, test email,
+│                        the server's log (D184)
 ├── metrics/             agents, the metrics store, collection and history —
 │                        see dashboards.md
 ├── ai/                  the agent: models, keys, conversations, answers — see ai.md
@@ -66,6 +67,8 @@ backend/app/
 │   ├── schemas.py       Message, get_datetime_utc
 │   ├── email.py         sending and templating
 │   ├── config.py        settings
+│   ├── logs.py          where each process logs, masking, refs (D184)
+│   ├── failures.py      RecordFailures: the request named, a stray exception answered
 │   └── security.py      passwords and JWT
 ├── api/main.py          router aggregation only
 └── main.py              application assembly; the lifespan owns the store
@@ -372,3 +375,57 @@ Known deviation:
   notices. The test holds the files in this repository, not what somebody runs.
 
 Spec: [The backend runs as one process](../decisions/2026-09-13-one-backend-process-design.md)
+
+## D184. The server writes down what went wrong, whole, and a superuser reads it
+
+The log was standard output alone, gone with every rebuild of the container;
+the one `basicConfig` that set its level ran as a side effect of importing the
+mail module. Worse, a source failure the driver could not name became "Query
+failed" and nothing else: the exception was dropped with `from None` and
+written nowhere, so neither the person nor anybody else could learn why.
+
+- **One configuration per process**, `core.logs.configure`, called before the
+  application is built and by the metrics collector. Standard output keeps its
+  text; with `LOG_DIR` set, each process also writes `<process>.log` as JSON
+  lines, rotated by size (`LOG_FILE_MAX_BYTES`, `LOG_FILE_COUNT`). Compose puts
+  both processes' files on the `app-logs` volume, so a rebuild keeps them.
+  Uvicorn's own loggers are taken over, so requests and tracebacks reach the
+  file. The health check Docker asks every ten seconds, and the panel reading
+  the log every three while it follows it, are not written down.
+- **Nothing written carries a secret.** Both formats pass `redact`: a password
+  in an address, `password=`, `token=`, `ticket=`, `api_key=` in any spelling
+  and a bearer token are replaced by `***`.
+- **A failure nobody expected is written whole and answered with a ref.**
+  `record_failure` logs it at ERROR with its traceback and a six-character ref,
+  and the sentence the person sees ends in `· ref K7Q3PD`. That covers an
+  exception reaching `RecordFailures` (a 500 that now carries CORS headers and
+  a sentence), a driver failure `classify` and the Redis and SSH reducers
+  cannot name, a job that raised, a query run that broke and an agent or quick
+  chat answer no sentence explains. An expected failure — a refused password,
+  an unreachable host, a server refusing a command — is an answer about the
+  source and gets no ref.
+- **Private text stays out.** A query run and an agent's answer are logged by
+  type and frames only (`private=True`): the statement somebody ran and what a
+  provider echoed back of a conversation are theirs, not the operator's.
+- **Every entry names its request**, method and path without the query string,
+  through a context variable `RecordFailures` sets.
+- **The panel is a superuser's.** `GET /logs/` reads the files newest first
+  across rotation, filtered by level, process and words, at most 500 entries and
+  32 MB read per process per request; `before` pages back and `after` follows.
+  **Logs** stands on the rail beside Services, Terminals and Queries for a
+  superuser only (a block marked `superuserOnly`), and opens in the panel at the
+  foot of the screen (D143).
+
+Known deviations:
+
+- **The prestart container writes to standard output alone.** It runs once per
+  start and its failures stop the stack, where `docker compose logs prestart`
+  shows them.
+- **An access line is written at INFO whatever it answered.** The panel colours
+  a 4xx and a 5xx by their status instead of by their level.
+- **The reloading parent of `fastapi dev` is not configured.** It only watches
+  files; what it says stays on standard output.
+- **A ref is not stored with the entity it concerns.** It lives in the sentence
+  and in the log, so a log rotated away takes the detail with it.
+
+Spec: [The server's log](../decisions/2026-09-28-server-log-design.md)

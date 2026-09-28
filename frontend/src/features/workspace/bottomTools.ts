@@ -1,5 +1,6 @@
 import type { Component } from "vue"
 
+import LogsTool from "@/features/logs/LogsTool.vue"
 import QueriesTool from "@/features/queries/QueriesTool.vue"
 import ManagedServices from "@/features/services/ManagedServices.vue"
 import TerminalsHead from "@/features/terminals/TerminalsHead.vue"
@@ -23,4 +24,5 @@ export const BOTTOM_TOOLS: readonly BottomTool[] = [
   { id: "services", title: "Services", component: ManagedServices },
   { id: "terminals", title: "Terminals", component: TerminalsTool, head: TerminalsHead },
   { id: "queries", title: "Queries", component: QueriesTool },
+  { id: "logs", title: "Logs", component: LogsTool },
 ]

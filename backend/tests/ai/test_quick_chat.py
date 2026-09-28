@@ -1,6 +1,8 @@
+
 """Plain chat has its own history and never binds agent tools (D158)."""
 
 import asyncio
+import re
 
 import pytest
 from httpx import AsyncClient
@@ -137,7 +139,12 @@ async def test_quick_chat_keeps_what_was_written_when_the_model_fails_on_the_way
     )
 
     assert sent.status_code == 502
-    assert sent.json()["detail"]["message"] == "The model could not answer. The answer so far is kept."
+    # Nothing explains the failure, so the message ends in the ref of the log
+    # entry that says where it happened (D184).
+    assert re.fullmatch(
+        r"The model could not answer\. The answer so far is kept\. · ref [A-Z2-9]{6}",
+        sent.json()["detail"]["message"],
+    )
     saved = await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)
     assert [(message["role"], message["content"]) for message in saved.json()["messages"]] == [
         ("user", "A long question"), ("assistant", "Most of an answer"),

@@ -61,3 +61,18 @@ async def test_cache_health_reports_the_default_without_making_redis_required(
         "failures",
     }
     assert all(value >= 0 for value in measurements.values())
+
+
+async def test_the_log_is_a_superusers_to_read(
+    client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    normal_user_token_headers: dict[str, str],
+) -> None:
+    """D184: it names every request and every failure of the installation."""
+    url = f"{settings.API_V1_STR}/logs/"
+    refused = await client.get(url, headers=normal_user_token_headers)
+    allowed = await client.get(url, headers=superuser_token_headers)
+
+    assert refused.status_code == 403
+    assert allowed.status_code == 200
+    assert set(allowed.json()) == {"kept", "entries", "more"}

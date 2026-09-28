@@ -1,4 +1,5 @@
 import asyncio
+import re
 import uuid
 
 import pytest
@@ -134,7 +135,8 @@ async def test_a_failing_query_still_names_the_query(store: ResourceStore) -> No
         await session.query("SELECT * FROM table_that_is_not_there")
 
     assert caught.value.error_kind == "unknown"
-    assert caught.value.message == "Query failed"
+    # The sentence, and the ref of the log entry that says why (D184).
+    assert re.fullmatch(r"Query failed · ref [A-Z2-9]{6}", caught.value.message)
 
     await store.aclose()
 

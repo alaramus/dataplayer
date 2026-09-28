@@ -349,6 +349,9 @@ import type {
   loginResetPasswordResponses,
   loginTestTokenData,
   loginTestTokenResponses,
+  logsReadLogsData,
+  logsReadLogsErrors,
+  logsReadLogsResponses,
   metricsConnectStoreData,
   metricsConnectStoreErrors,
   metricsConnectStoreResponses,
@@ -1155,6 +1158,26 @@ export class UtilsService {
       url: "/api/v1/utils/server-info",
       ...options,
     })
+  }
+}
+
+export class LogsService {
+  /**
+   * Read Logs
+   *
+   * The newest entries of the server's log that match, newest first.
+   */
+  public static readLogs<ThrowOnError extends boolean = true>(
+    options?: Options<logsReadLogsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<logsReadLogsResponses, logsReadLogsErrors, ThrowOnError>(
+      {
+        responseType: "json",
+        security: [{ scheme: "bearer", type: "http" }],
+        url: "/api/v1/logs/",
+        ...options,
+      }
+    )
   }
 }
 

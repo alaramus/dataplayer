@@ -18,7 +18,9 @@ from app.ai.checkpoints import checkpointer
 from app.ai.providers import ProviderChatModels
 from app.ai.runner import AgentRunner, settle_interrupted
 from app.api.main import api_router
+from app.core import logs
 from app.core.config import settings
+from app.core.failures import RecordFailures
 from app.jobs.recovery import settle_stranded
 from app.jobs.runner import JobRunner
 from app.metrics.holder import StoreHolder
@@ -165,6 +167,10 @@ async def _close_the_rest(application: FastAPI) -> None:
     await application.state.resources.aclose()
 
 
+# Before the application exists: the server configured its own loggers when it
+# started, and this replaces them, so what they say reaches the file too (D184).
+logs.configure("backend")
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
@@ -172,6 +178,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Added first, so it runs inside CORS and its answer carries CORS headers: the
+# middleware added last is the outermost.
+app.add_middleware(RecordFailures)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_HOST],

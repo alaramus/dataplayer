@@ -36,6 +36,7 @@ from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.registry import AdapterContext
 from app.adapters.ssh import keys
 from app.adapters.ssh.options import SshKeyAuth, SshOptions, SshPassword
+from app.core.logs import record_failure, with_ref
 
 logger = logging.getLogger(__name__)
 
@@ -269,10 +270,20 @@ async def server_key(host: str, port: int) -> str:
 def reduced(failure: BaseException) -> AdapterError:
     """The library's failure as a kind and a sentence of this repository's.
 
-    Logged in full here, where the address it names is already known, and
-    never passed on: the library's words name hosts, users and paths.
+    Logged here, where the address it names is already known, and never
+    passed on: the library's words name hosts, users and paths. An expected
+    one is a line; anything else is written whole, with the ref the sentence
+    carries (D184).
     """
-    logger.warning("SSH failed: %r", failure)
+    known = _known(failure)
+    if known is not None:
+        logger.warning("SSH failed: %r", failure)
+        return known
+    ref = record_failure(logger, "SSH: an unexpected failure", failure)
+    return AdapterError("unknown", with_ref("The server could not do that", ref))
+
+
+def _known(failure: BaseException) -> AdapterError | None:
     if isinstance(failure, asyncssh.HostKeyNotVerifiable):
         return AdapterError(
             "config",
@@ -291,7 +302,7 @@ def reduced(failure: BaseException) -> AdapterError:
         return AdapterError("timeout", "The server did not answer in time")
     if isinstance(failure, asyncssh.DisconnectError | OSError):
         return AdapterError("network", "Could not reach the server")
-    return AdapterError("unknown", "The server could not do that")
+    return None
 
 
 def _closed(connection: asyncssh.SSHClientConnection | None) -> bool:

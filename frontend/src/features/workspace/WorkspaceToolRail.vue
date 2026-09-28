@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
+import { useCurrentUser } from "@/shared/auth/currentUser"
+
 import { TOOL_BLOCKS } from "./toolBlocks"
 import type { RailContext, ToolBlock } from "./toolBlocks"
 import type { ToolRailZone } from "./toolRails"
@@ -24,8 +26,13 @@ const props = defineProps<{
 
 const rails = useToolRails()
 const registry = new Map(TOOL_BLOCKS.map((block) => [block.id, block]))
+const me = useCurrentUser()
 const blocks = computed<ToolBlock[]>(() =>
-  rails.arrangement.value[props.zone].flatMap((id) => registry.get(id) ?? [])
+  rails.arrangement.value[props.zone].flatMap((id) => {
+    const block = registry.get(id)
+    if (block === undefined) return []
+    return block.superuserOnly === true && me.data.value?.is_superuser !== true ? [] : [block]
+  })
 )
 const context = computed<RailContext>(() => ({
   groups: props.groups,

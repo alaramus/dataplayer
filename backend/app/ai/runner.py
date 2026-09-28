@@ -37,6 +37,7 @@ from app.ai.model_routing import choose as choose_model
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
 from app.ai.providers import ChatModels
+from app.ai.providers.failures import UNKNOWN_FAILURE
 from app.ai.tools import (
     LIMIT_MESSAGE,
     ToolLimitReached,
@@ -56,6 +57,7 @@ from app.ai.topic import (
 )
 from app.core.config import settings
 from app.core.db import async_session_maker
+from app.core.logs import record_failure, with_ref
 from app.realtime.topics import TopicSet
 
 logger = logging.getLogger(__name__)
@@ -414,10 +416,15 @@ class AgentRunner:
                         current.uncancel()
                     status = "cancelled"
                 except Exception as failure:  # noqa: BLE001 - reduced to a sentence
-                    # By type only: a provider's text may carry the request.
-                    logger.warning("An answer failed: %s", type(failure).__name__)
+                    # By type and place only: a provider's text may carry the
+                    # request. A failure no sentence explains carries a ref.
                     status = "failed"
                     error = self.chat_models.sentence(model, failure)
+                    if error == UNKNOWN_FAILURE:
+                        ref = record_failure(logger, "An answer failed", failure, private=True)
+                        error = with_ref(error, ref)
+                    else:
+                        logger.warning("An answer failed: %s", type(failure).__name__)
                 answer = "".join(active.answer)
                 if status == "awaiting_answer":
                     await conversations.set_step_detail(

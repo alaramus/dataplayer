@@ -138,7 +138,9 @@ threadpool — and is now a lint error rather than a thing to remember.
 
 **Enforced:** tests that a secret is absent from the public model, absent from
 the stored column in plaintext, and absent from error text; a test that the
-encryption key must decode to exactly 32 bytes.
+encryption key must decode to exactly 32 bytes; tests that a password, a token
+and a download ticket are masked in both log formats, a traceback included
+(D184).
 
 ## Frontend
 

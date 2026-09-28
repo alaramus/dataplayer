@@ -19,6 +19,7 @@ from sqlmodel import col, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import async_session_maker
+from app.core.logs import record_failure, with_ref
 from app.jobs.models import TERMINAL, Job, JobKind, JobState
 from app.jobs.topic import JobEvent, announce
 from app.realtime.topics import TopicSet
@@ -249,10 +250,10 @@ class JobRunner:
             )
         except JobFailed as refusal:
             await self._finish_after_failure(job_id, "failed", str(refusal), topics)
-        except Exception:
-            logger.exception("Job %s (%s) failed", job_id, kind)
+        except Exception as failure:
+            ref = record_failure(logger, f"Job {job_id} ({kind}) failed", failure)
             await self._finish_after_failure(
-                job_id, "failed", "The job could not be completed", topics
+                job_id, "failed", with_ref("The job could not be completed", ref), topics
             )
         finally:
             async with self._lock:

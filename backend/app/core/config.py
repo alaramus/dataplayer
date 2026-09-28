@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # inside the directory of its owner.
     USER_STORAGE_ROOT: Path = Path("/data/users")
 
+    # Where each process keeps its log as a file of JSON lines, rotated by
+    # size, beside standard output. Unset keeps standard output alone (D184).
+    LOG_DIR: Path | None = None
+    LOG_FILE_MAX_BYTES: int = Field(default=10 * 1024 * 1024, ge=64 * 1024)
+    # Files per process, the one being written included.
+    LOG_FILE_COUNT: int = Field(default=5, ge=1, le=50)
+
     # Ceiling for one upload, counted as the bytes arrive: the length a client
     # declares is a claim, not a fact.
     MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024

@@ -1,6 +1,8 @@
+
 """Work the server owns: how it moves, what it says, and how it ends (D81)."""
 
 import asyncio
+import re
 import uuid
 from collections.abc import AsyncGenerator
 from typing import ClassVar
@@ -249,7 +251,9 @@ async def test_an_unexpected_failure_says_nothing_about_this_machine(
 
     settled = await _read(job.id)
     assert settled.state == "failed"
-    assert settled.message == "The job could not be completed"
+    # A sentence of this repository's, and the ref of the log entry that holds
+    # the rest (D184).
+    assert re.fullmatch(r"The job could not be completed · ref [A-Z2-9]{6}", settled.message or "")
     assert "docker.sock" not in (settled.message or "")
 
 

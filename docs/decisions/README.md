@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-28 | [The server's log](2026-09-28-server-log-design.md) | D184: each process writes JSON lines to rotated files on a volume, every secret masked; an unexpected failure is written whole with a ref the person's sentence carries; a superuser reads the log in the panel at the foot of the screen |
 | 2026-09-28 | [A user's guide, and the catalog's short lists](2026-09-28-user-guide-design.md) | D183: the user's guide is Markdown pages on the server, one per source type; the New connection panel shows the two short lists each page opens with, and Guide opens the page in a floating window |
 | 2026-09-27 | [Tables copied with their structure](2026-09-27-table-copy-design.md) | D182: a table is pasted whole — keys, indexes, checks, types and rows in one transaction — and what becomes of its links to other tables is one choice in its window |
 | 2026-09-27 | [One event, one entry](2026-09-27-one-event-one-entry-design.md) | D181: Working holds only what runs; a job's ending is one entry, in Recent when it did what was asked and in Needs you when it did not, with its steps; a card is that entry arriving — for a job seen running here, and for anything new in Needs you; endings of the last day are read again after a reload, and what was waved away stays away |

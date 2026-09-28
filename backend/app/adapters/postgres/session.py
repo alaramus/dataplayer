@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 import uuid
 from collections.abc import AsyncIterator, Mapping, Sequence
@@ -18,6 +19,9 @@ from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
+from app.core.logs import record_failure, with_ref
+
+logger = logging.getLogger(__name__)
 
 CHECK_TIMEOUT_SECONDS = 5.0
 
@@ -40,7 +44,9 @@ def classify(
 
     fallback_message covers everything that is not a connection problem. It is
     a parameter because "Connection failed" is misleading when the connection
-    was fine and the query was not.
+    was fine and the query was not. That sentence says nothing of why, so the
+    exception is written to the log in full — masked (D184) — and the sentence
+    carries the ref that finds it there.
     """
     # ConnectionTimeout subclasses OperationalError, so it is checked first.
     if isinstance(exc, TimeoutError | psycopg.errors.ConnectionTimeout):
@@ -52,7 +58,8 @@ def classify(
         if any(marker in text for marker in _CONFIG_MARKERS):
             return "config", "Database does not exist"
         return "network", "Could not reach the database server"
-    return "unknown", fallback_message
+    ref = record_failure(logger, f"PostgreSQL: {fallback_message}", exc)
+    return "unknown", with_ref(fallback_message, ref)
 
 
 def named_refusal(
