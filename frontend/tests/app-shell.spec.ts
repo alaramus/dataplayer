@@ -42,6 +42,20 @@ test("the head of a card in any space is written as the head of a column in Data
   }
 })
 
+test("the buttons at the head and the foot of the screen are drawn as the rails' are, in both themes", async ({ page }) => {
+  await login(page)
+  const colourOf = (testId: string) =>
+    page.getByTestId(testId).evaluate((element) => getComputedStyle(element).color)
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme)
+    await page.getByTestId("space-data").click()
+    const rail = await colourOf("command-terminals")
+    for (const button of ["app-toggle-first-panel", "fullscreen-toggle", "user-menu", "server-switcher", "activity-indicator"]) {
+      expect(await colourOf(button), button).toBe(rail)
+    }
+  }
+})
+
 test("administration and preferences keep the workspace fill shell and footer height", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await login(page)

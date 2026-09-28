@@ -196,10 +196,13 @@ async function logout() {
   overflow: clip;
 }
 
+/* The body's colour, as the rails between them are drawn: in --dp-text-strong
+   the buttons at the head and the foot of the screen read a shade dimmer than
+   the ones on the rails beside them. */
 .app-layout__header,
 .app-layout__footer {
   background: var(--dp-chrome-raised);
-  color: var(--dp-text-strong);
+  color: inherit;
   box-shadow: none;
 }
 
