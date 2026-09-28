@@ -139,3 +139,32 @@ test("More details asks about a selection once, and names the chat by it", async
   await page.request.delete(`${api}/quick-chats/${quickChatId ?? ""}`, { headers })
   await page.request.delete(`${api}/conversations/${conversationId}`, { headers })
 })
+
+test("a long chat title ends in an ellipsis rather than a letter cut through", async ({ page }) => {
+  await login(page)
+  const token = await page.evaluate(() => Object.entries(localStorage)
+    .find(([key]) => key.endsWith("access_token"))?.[1])
+  const server = await page.evaluate(() => JSON.parse(
+    sessionStorage.getItem("dataplayer:active-server:v1") ?? "null"
+  ) as { url: string })
+  const api = `${server.url}/api/v1/ai`
+  const headers = { Authorization: `Bearer ${token ?? ""}` }
+  const id = (await (await page.request.post(`${api}/quick-chats`, { headers })).json()).id as string
+  const title = "A title far longer than the history rail has room for, whatever its width"
+  await page.request.patch(`${api}/quick-chats/${id}`, { headers, data: { title } })
+
+  await page.getByTestId("space-ai").click()
+  const button = page.getByTestId(`ai-chat-${id}`)
+  await expect(button).toBeVisible()
+  // Whichever element holds the words is the one that must say it is cut:
+  // an ellipsis on a box around it never reaches them.
+  const holder = await button.evaluate((element, words) => {
+    const found = [...element.querySelectorAll("*")].find((one) =>
+      [...one.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent === words))
+    if (!(found instanceof HTMLElement)) return null
+    return { overflowing: found.scrollWidth > found.clientWidth, ellipsis: getComputedStyle(found).textOverflow }
+  }, title)
+  expect(holder).toEqual({ overflowing: true, ellipsis: "ellipsis" })
+
+  await page.request.delete(`${api}/quick-chats/${id}`, { headers })
+})
