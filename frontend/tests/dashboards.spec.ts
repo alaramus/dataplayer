@@ -6,6 +6,7 @@ import type { Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { toast } from "./utils/notices"
 import { COLLEAGUE_PASSWORD, colleagueEmail, createColleague, removeColleague, signInAs } from "./utils/people"
 import { openNode, pickSchema } from "./utils/catalog"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
@@ -70,6 +71,70 @@ async function report(run: AgentRun, time: number, kind: "metrics" | "processes"
   const kid = createHash("sha256").update(run.key).digest("hex").slice(0, 16)
   const signature = createHmac("sha256", run.key).update(body).digest("base64url")
   await sendDatagram(Buffer.concat([Buffer.from(`DPMA/1 ${kid} ${signature}\n`), body]))
+}
+
+interface MetricsApi {
+  base: string
+  headers: Record<string, string>
+}
+
+/** The metrics API, as the page is signed in to it. */
+async function metricsApi(page: Page): Promise<MetricsApi> {
+  const token = await page.evaluate(() => Object.entries(localStorage)
+    .find(([key]) => key.endsWith("access_token"))?.[1])
+  expect(token).toBeTruthy()
+  const server = await page.evaluate(() => JSON.parse(
+    sessionStorage.getItem("dataplayer:active-server:v1") ?? "null"
+  ) as { url: string })
+  return { base: `${server.url}/api/v1/metrics`, headers: { Authorization: `Bearer ${token ?? ""}` } }
+}
+
+interface ListedDashboard {
+  id: string
+  name: string
+  color: string | null
+  version: number
+  options: object
+}
+
+async function listedDashboards(page: Page, api: MetricsApi): Promise<ListedDashboard[]> {
+  const listed = await page.request.get(`${api.base}/dashboards`, { headers: api.headers })
+  expect(listed.ok(), await listed.text()).toBe(true)
+  return (await listed.json()) as ListedDashboard[]
+}
+
+/**
+ * Puts a process table on a dashboard past the screen, so it is no longer
+ * empty and New makes another (D129). A process table needs an agent, not a
+ * store with series in it. Returns the agent, for the test to remove.
+ */
+async function fillDashboard(page: Page, name: string): Promise<string> {
+  const api = await metricsApi(page)
+  const agent = await page.request.post(`${api.base}/agents`, { headers: api.headers, data: { name: `${name}-agent` } })
+  expect(agent.ok(), await agent.text()).toBe(true)
+  const agentId = ((await agent.json()) as { agent: { id: string } }).agent.id
+  const dashboard = (await listedDashboards(page, api)).find((one) => one.name === name)
+  expect(dashboard).toBeDefined()
+  if (dashboard === undefined) return agentId
+  const saved = await page.request.put(`${api.base}/dashboards/${dashboard.id}`, {
+    headers: api.headers,
+    data: {
+      name: dashboard.name,
+      color: dashboard.color,
+      version: dashboard.version,
+      options: dashboard.options,
+      widgets: [{
+        type: "processes",
+        id: randomUUID(),
+        title: "Processes",
+        layout: { x: 0, y: 0, w: 6, h: 6 },
+        agent_id: agentId,
+        host: "e2e-host",
+      }],
+    },
+  })
+  expect(saved.ok(), await saved.text()).toBe(true)
+  return agentId
 }
 
 /** CPU busy share, load and uptime: three charts' and a tile's worth. */
@@ -546,6 +611,7 @@ test("a dashboard takes a colour of its own, which the rail and its name carry, 
   await expect(page.getByTestId("dashboard-name")).toHaveCSS("color", "rgb(255, 255, 255)")
   // Open, the rail fills its entry with it, once the save has gone.
   await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", blue, { timeout: 5000 })
+  const agentId = await fillDashboard(page, coloured)
 
   await page.reload()
   await page.getByTestId(`dashboard-${coloured}`).click()
@@ -574,6 +640,30 @@ test("a dashboard takes a colour of its own, which the rail and its name carry, 
     await page.getByTestId("confirm-accept").click()
     await expect(page.getByTestId(`dashboard-${name}`)).toHaveCount(0)
   }
+  const api = await metricsApi(page)
+  await page.request.delete(`${api.base}/agents/${agentId}`, { headers: api.headers })
+})
+
+test("New opens the empty dashboard the person already has rather than making another", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const api = await metricsApi(page)
+
+  await page.getByTestId("dashboard-new").click()
+  await expect(page.getByTestId("dashboard-view")).toBeVisible()
+  const name = (await page.getByTestId("dashboard-name").innerText()).trim()
+  const before = (await listedDashboards(page, api)).length
+
+  await page.getByTestId("dashboard-new").click()
+
+  await expect(toast(page, `"${name}" is still empty`).first()).toBeVisible()
+  await expect(page.getByTestId("dashboard-name")).toHaveText(name)
+  expect((await listedDashboards(page, api)).length).toBe(before)
+
+  await page.getByRole("button", { name: "Delete this dashboard" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId(`dashboard-${name}`)).toHaveCount(0)
 })
 
 test("a superuser reads what the metrics store keeps, and is warned before removing it", async ({ page }) => {

@@ -562,6 +562,11 @@ async def read_dashboards(session: SessionDep, current_user: CurrentUser) -> Any
 async def create_dashboard(
     session: SessionDep, current_user: CurrentUser, body: DashboardCreate
 ) -> Any:
+    """A new dashboard, unless the caller already owns an empty one: that one
+    is given back instead, so pressing New again does not stack up empties."""
+    waiting = await crud.empty_dashboard_of(session, current_user.id)
+    if waiting is not None:
+        return dashboard_public(waiting)
     dashboard = Dashboard(
         owner_id=current_user.id,
         name=body.name,

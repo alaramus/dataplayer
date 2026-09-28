@@ -67,6 +67,34 @@ async def test_a_new_dashboard_is_empty_and_its_owner_s(
     assert foreign.status_code == 404
 
 
+async def test_a_new_dashboard_is_not_made_while_the_owner_has_an_empty_one(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    stranger_headers: dict[str, str],
+) -> None:
+    first = await _create(client, normal_user_token_headers, "First")
+
+    again = await _create(client, normal_user_token_headers, "Second")
+    theirs = await _create(client, stranger_headers, "Theirs")
+
+    assert again["id"] == first["id"]
+    assert again["name"] == "First"
+    assert theirs["id"] != first["id"]
+
+    # Written past the route: a widget needs a store to name a series.
+    async with async_session_maker() as session:
+        row = await session.get(Dashboard, uuid.UUID(first["id"]))
+        assert row is not None
+        row.content = {**row.content, "widgets": [_widget([1])]}
+        session.add(row)
+        await session.commit()
+    third = await _create(client, normal_user_token_headers, "Third")
+
+    assert third["id"] != first["id"]
+    listed = (await client.get(f"{BASE}/dashboards", headers=normal_user_token_headers)).json()
+    assert [one["name"] for one in listed] == ["First", "Third"]
+
+
 async def test_saving_replaces_the_whole_and_raises_the_version(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

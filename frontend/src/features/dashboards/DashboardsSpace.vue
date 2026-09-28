@@ -125,10 +125,16 @@ watch(current, (dashboard) => {
 })
 
 async function createDashboard() {
-  const count = (dashboards.data.value ?? []).length
+  const listed = dashboards.data.value ?? []
+  const count = listed.length
   try {
     const created = await creating.mutateAsync(count === 0 ? "My dashboard" : `Dashboard ${String(count + 1)}`)
     selectedId.value = created.id
+    // The server gives back an empty dashboard the person already has rather
+    // than making a second (D129).
+    if (listed.some((one) => one.id === created.id)) {
+      toast.info(`"${created.name}" is still empty. Add something to it before starting another dashboard.`)
+    }
   } catch (cause) {
     toast.error(messageOf(cause, "The dashboard could not be created"))
   }

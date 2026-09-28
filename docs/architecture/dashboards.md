@@ -414,6 +414,9 @@ names. Limits: 12 columns, 20 widgets, 200 series per history request, titles of
   layout is not compacted in two places. Layouts are declared per kind of source:
   agents have *Linux host*, and a connection's type declares its own through
   `SupportsMetrics`.
+- **One empty dashboard at a time.** Creating a dashboard while the caller owns
+  one without widgets returns that one instead; the screen opens it and says it
+  is still empty. A renamed or coloured dashboard is still empty.
 - **A dashboard may carry a colour**, `#RRGGBB` as a connection's tab colour is,
   chosen by whoever may change its name and saved with the rest. The rail washes a
   dashboard in it and fills the open one, wide and narrow, and the name at the head

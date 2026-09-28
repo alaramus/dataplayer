@@ -113,6 +113,15 @@ async def dashboards_of(session: AsyncSession, owner_id: uuid.UUID) -> list[Dash
     return list((await session.exec(statement)).all())
 
 
+async def empty_dashboard_of(session: AsyncSession, owner_id: uuid.UUID) -> Dashboard | None:
+    """The owner's first dashboard with no widget on it. Read from the stored
+    content, so one that no longer validates but holds widgets is not empty."""
+    return next(
+        (dashboard for dashboard in await dashboards_of(session, owner_id) if not dashboard.content.get("widgets")),
+        None,
+    )
+
+
 async def visible_dashboards(
     session: AsyncSession, user_id: uuid.UUID
 ) -> list[tuple[Dashboard, Access, User | None]]:
