@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, nextTick, ref, watch } from "vue"
+import { computed, nextTick, onActivated, onDeactivated, provide, readonly, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
@@ -30,6 +30,7 @@ import {
   useStoreStatus,
 } from "./api"
 import { catalogTree, indexCatalog } from "./catalog"
+import { dashboardsShownKey } from "./onScreen"
 import DashboardView from "./DashboardView.vue"
 import { takeDashboardIntent } from "./intent"
 import DashboardsRailNarrow from "./DashboardsRailNarrow.vue"
@@ -47,7 +48,11 @@ import StoreSetup from "./StoreSetup.vue"
 const toast = useToast()
 const status = useStoreStatus()
 useStoreJobEvents()
-useLivePoints()
+const shown = ref(true)
+onActivated(() => { shown.value = true })
+onDeactivated(() => { shown.value = false })
+provide(dashboardsShownKey, readonly(shown))
+useLivePoints(shown)
 
 const ready = computed(() => status.data.value?.state === "ready")
 const dashboards = useDashboards(ready)

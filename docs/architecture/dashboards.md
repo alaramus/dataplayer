@@ -96,7 +96,8 @@ frontend/src/
 ├── stores/space.ts               which space fills the screen
 ├── shared/workspace/WorkspaceRoot.vue
 │                                 `covered` and the `cover` slot: sections
-│                                 not drawn, panels parked alive
+│                                 not drawn, panels parked alive; the slot
+│                                 drawn uncovered too, for what it keeps alive
 └── features/dashboards/
     ├── api.ts                    vue-query for everything above
     ├── gridLayout.ts             grid arithmetic; pure
@@ -111,6 +112,7 @@ frontend/src/
     ├── sharing.ts                what a standing allows, a dashboard's link; pure
     ├── intent.ts                 a followed link waiting for the dashboards
     ├── livePoints.ts             socket points onto a history; pure
+    ├── onScreen.ts               whether the space is shown, for its queries
     ├── DashboardsSpace.vue       the card
     ├── StoreSetup.vue            before there is a store
     ├── DashboardView.vue, DashboardGrid.vue, WidgetFrame.vue
@@ -181,7 +183,8 @@ sources on the left, a 12-column grid of widgets on the right.
   transaction (D66) survive the switch.
 - A panel of the hidden space is not on screen for D67's pause rule.
 - Anything opened into the data workspace switches back to it first.
-- Floating windows and the taskbar belong to both spaces.
+- Floating windows and the taskbar belong to every space: a window a space
+  opened stays open while another space is shown.
 - The chosen space is remembered per browser.
 - Agents and adding widgets are floating windows (D14); a widget's own settings
   are edited on the widget.
@@ -191,7 +194,13 @@ column, which keeps the columns the user wants gone.
 
 The engine learns nothing about dashboards: `WorkspaceRoot` takes `covered` and
 draws a `cover` slot instead of the sections. Panels lose their targets, park and
-deactivate, which is what a grid's pause rule already reads as not on screen. The
+deactivate, which is what a grid's pause rule already reads as not on screen.
+The slot is drawn uncovered as well, told so, and the page keeps the covering
+spaces in a `<KeepAlive>` once shown: a window lives as long as the component
+that opened it, so a space unmounted on the way to another took its windows
+with it. A dashboard kept behind another space reads nothing — its widgets'
+queries stand still and the pushed points are not laid on — and catches up
+when it is shown again. The
 page switches back to Data on anything it opens, and on any change to the tree or
 the panel set while covered — a tab group restored from the header, a column
 brought back from the bar.

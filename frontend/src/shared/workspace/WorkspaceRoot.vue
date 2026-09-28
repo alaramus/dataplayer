@@ -69,13 +69,16 @@ onBeforeUnmount(() => {
     <WorkspacePanels :context="context">
       <!-- Covered, the sections are not drawn and every panel in them parks:
            kept alive and deactivated, so nothing is lost and nothing counts as
-           on screen. Floating windows stay (D125). -->
+           on screen. Floating windows stay (D125).
+           The cover slot is drawn uncovered as well and told so: what it holds
+           keeps itself alive across the way back to the sections, and with it
+           the windows it opened. Uncovered, it is to draw nothing. -->
       <slot
-        v-if="covered"
         name="cover"
+        :covered="covered"
       />
       <WorkspaceNode
-        v-else
+        v-if="!covered"
         :node="context.tree.value"
       />
       <WorkspaceFloatingWindows :context="context" />

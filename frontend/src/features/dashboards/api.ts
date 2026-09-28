@@ -18,6 +18,7 @@ import { realtime } from "@/shared/realtime/client"
 import { windowOf } from "./dashboardModel"
 import type { ProcessLimit, ProcessSort } from "./dashboardModel"
 import { isLivePoints, LIVE_TOPIC, mergeLive } from "./livePoints"
+import { useDashboardsShown } from "./onScreen"
 
 /**
  * Metrics are server state, so they live in vue-query (D6). The draft of the
@@ -158,6 +159,7 @@ export function useHistory(
   /** The dashboard the series are drawn on, which may be how they are readable (D129). */
   dashboardId: MaybeRefOrGetter<string | null> = null
 ) {
+  const shown = useDashboardsShown()
   return useQuery({
     queryKey: computed(() => [
       HISTORY_KEY,
@@ -181,7 +183,7 @@ export function useHistory(
         })
       ).data
     },
-    enabled: computed(() => toValue(seriesIds).length > 0),
+    enabled: computed(() => shown.value && toValue(seriesIds).length > 0),
     placeholderData: keepPreviousData,
     refetchInterval: computed(() => {
       const seconds = toValue(refreshSeconds)
@@ -195,10 +197,10 @@ export function useHistory(
  * long as the caller lives. Several callers are harmless: merging is
  * idempotent.
  */
-export function useLivePoints() {
+export function useLivePoints(active: MaybeRefOrGetter<boolean> = true) {
   const queryClient = useQueryClient()
   const stop = realtime().subscribe(LIVE_TOPIC, (payload) => {
-    if (!isLivePoints(payload)) return
+    if (!toValue(active) || !isLivePoints(payload)) return
     const now = Math.floor(Date.now() / 1000)
     for (const [key, answer] of queryClient.getQueriesData<HistoryAnswer>({ queryKey: [HISTORY_KEY] })) {
       if (answer === undefined) continue
@@ -218,6 +220,7 @@ export function useProcesses(
   refreshSeconds: MaybeRefOrGetter<number>,
   dashboardId: MaybeRefOrGetter<string | null> = null
 ) {
+  const shown = useDashboardsShown()
   return useQuery({
     queryKey: computed(() => [
       "metrics-processes", toValue(agentId), toValue(host), toValue(sort), toValue(limit), toValue(dashboardId),
@@ -235,6 +238,7 @@ export function useProcesses(
           signal,
         })
       ).data,
+    enabled: shown,
     placeholderData: keepPreviousData,
     // A table arrives at the agent's pace, so without an interval of the
     // dashboard's it is still read every half minute.

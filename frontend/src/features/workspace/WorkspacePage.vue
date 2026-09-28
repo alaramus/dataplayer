@@ -1044,20 +1044,24 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
             :covered="space.current !== 'data'"
           >
             <template #cover>
-              <DashboardsSpace
-                v-if="space.current === 'dashboards'"
-                ref="dashboards-cover"
-              />
-              <AiSpace
-                v-else-if="space.current === 'ai'"
-                ref="ai-cover"
-                :contexts="screenContexts(workspace.panels.value)"
-                @open="openFromAgent"
-              />
-              <PipelinesSpace
-                v-else-if="space.current === 'pipelines'"
-                ref="pipelines-cover"
-              />
+              <!-- Kept alive once shown: a window a space opened stays while
+                   another is shown (D125), and the space is as it was left. -->
+              <KeepAlive>
+                <DashboardsSpace
+                  v-if="space.current === 'dashboards'"
+                  ref="dashboards-cover"
+                />
+                <AiSpace
+                  v-else-if="space.current === 'ai'"
+                  ref="ai-cover"
+                  :contexts="screenContexts(workspace.panels.value)"
+                  @open="openFromAgent"
+                />
+                <PipelinesSpace
+                  v-else-if="space.current === 'pipelines'"
+                  ref="pipelines-cover"
+                />
+              </KeepAlive>
             </template>
             <template #windows>
               <PairWindows :pairs="pairs" />

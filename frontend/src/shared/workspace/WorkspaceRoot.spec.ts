@@ -1,8 +1,8 @@
 /* eslint-disable vue/one-component-per-file -- a page host and stand-ins for panel bodies, not components of the application. */
 import { DOMWrapper, flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
-import { defineComponent, h, inject, onBeforeUnmount, onDeactivated, provide, ref } from "vue"
-import type { Component } from "vue"
+import { defineComponent, h, inject, KeepAlive, onBeforeUnmount, onDeactivated, provide, ref } from "vue"
+import type { Component, VNode } from "vue"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 
@@ -24,7 +24,11 @@ afterEach(() => {
   localStorage.clear()
 })
 
-async function fixture() {
+/** What the cover slot draws, told whether the sections are covered. */
+type Cover = (props: { covered: boolean }) => VNode | null
+const plainCover: Cover = ({ covered }) => covered ? h("div", { "data-testid": "cover" }, "Something else") : null
+
+async function fixture(cover: Cover = plainCover) {
   const mounted = vi.fn()
   const disposed = vi.fn()
   const deactivated = vi.fn()
@@ -80,9 +84,7 @@ async function fixture() {
       })
       api = { workspace, windows }
       return () => h("div", [
-        h(WorkspaceRoot, { context: workspace.context, covered: covered.value }, {
-          cover: () => h("div", { "data-testid": "cover" }, "Something else"),
-        }),
+        h(WorkspaceRoot, { context: workspace.context, covered: covered.value }, { cover }),
         h(WindowHost, { context: windows.context }),
         h(WindowTaskbar, { context: windows.context }),
       ])
@@ -120,6 +122,39 @@ describe("moving a live panel between the workspace and a window", () => {
     const back = body.get('[data-testid="workspace-leaf-work"] input')
     expect(back.element).toBe(input.element)
     expect((back.element as HTMLInputElement).value).toBe("still here")
+  })
+
+  it("draws the cover uncovered too, so what it keeps alive outlives the way back", async () => {
+    // D125: a space keeps the windows it opened while the sections are shown,
+    // which it can only do if it is not unmounted on the way back to them.
+    const spaceDisposed = vi.fn()
+    const Space = defineComponent({
+      setup() {
+        const value = ref("")
+        onBeforeUnmount(spaceDisposed)
+        return () => h("input", {
+          "aria-label": "Space draft",
+          value: value.value,
+          onInput: (event: Event) => { value.value = (event.target as HTMLInputElement).value },
+        })
+      },
+    })
+    const { body, covered } = await fixture(({ covered: isCovered }) =>
+      h(KeepAlive, null, { default: () => (isCovered ? h(Space) : null) })
+    )
+    covered.value = true
+    await flushPromises()
+    await body.get('input[aria-label="Space draft"]').setValue("kept")
+
+    covered.value = false
+    await flushPromises()
+    expect(body.find('input[aria-label="Space draft"]').exists()).toBe(false)
+    expect(body.find('[data-testid="workspace-leaf-work"]').exists()).toBe(true)
+    expect(spaceDisposed).not.toHaveBeenCalled()
+
+    covered.value = true
+    await flushPromises()
+    expect((body.get('input[aria-label="Space draft"]').element as HTMLInputElement).value).toBe("kept")
   })
 
   it("restores a saved layout with common drafts alive and unrelated windows still open", async () => {

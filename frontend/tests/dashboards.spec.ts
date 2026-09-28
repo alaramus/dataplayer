@@ -568,6 +568,39 @@ test("a long dashboard name keeps to one line of the rail, and says itself whole
   await expect(entry).toHaveCount(0)
 })
 
+test("the dashboards' windows stay open while another space is shown", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const name = `e2e-windows-${String(Date.now())}`
+  await page.getByTestId("dashboard-new").click()
+  await page.getByRole("button", { name: "Rename this dashboard" }).click()
+  await page.getByTestId("dashboard-rename-input").fill(name)
+  await page.getByTestId("dashboard-rename-input").press("Enter")
+  await expect(page.getByTestId(`dashboard-${name}`)).toBeVisible()
+
+  await page.getByTestId("dashboard-add").click()
+  await page.getByTestId("dashboard-share").click()
+  await page.getByTestId("agents-open").click()
+  await page.getByTestId("store-open").click()
+  const windows = ["Add widgets", `Share — ${name}`, "Sources", "Metrics store"]
+    .map((title) => page.getByRole("dialog", { name: title }))
+  for (const window of windows) await expect(window).toBeVisible()
+
+  // Windows belong to every space (D125): the space that opened them is kept
+  // alive behind the others rather than taking its windows with it.
+  for (const space of ["space-ai", "space-data", "space-dashboards"]) {
+    await page.getByTestId(space).click()
+    for (const window of windows) await expect(window).toBeVisible()
+  }
+  await expect(page.getByTestId(`dashboard-${name}`)).toBeVisible()
+
+  await page.getByTestId(`dashboard-${name}`).click()
+  await page.getByRole("button", { name: "Delete this dashboard" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId(`dashboard-${name}`)).toHaveCount(0)
+})
+
 test("the rail is pushed aside to its icons and brought back by the header button or its gap, and stays as it was left", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await login(page)
