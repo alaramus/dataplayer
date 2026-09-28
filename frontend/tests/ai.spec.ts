@@ -282,9 +282,17 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId(`ai-pin-${id}`)).toBeHidden()
   await row.hover()
   await page.getByTestId(`ai-pin-${id}`).click()
-  await expect(page.locator('[data-testid^="ai-chat-row-"]').first()).toHaveAttribute(
-    "data-testid", `ai-chat-row-${id}`
-  )
+  // Among the pinned chats of its group, above the line under them. Not
+  // necessarily first on screen: folders come before the loose chats, and
+  // somebody may have pinned a chat of their own already.
+  const loose = page.getByTestId("ai-loose-chats")
+  await expect.poll(() => loose.evaluate((group, rowId) => {
+    const pinned = group.querySelector(`[data-testid="ai-chat-row-${rowId}"]`)
+    const rule = group.querySelector('[data-testid="ai-pinned-rule"]')
+    return pinned !== null && rule !== null
+      && (pinned.compareDocumentPosition(rule) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+  }, id)).toBe(true)
+  await expect(loose.getByTestId("ai-pinned-rule")).toHaveCount(1)
   // A project is a folder and nothing else: the chat moves into it, hides with
   // it, and outlives it.
   await page.getByTestId("ai-new-project").click()

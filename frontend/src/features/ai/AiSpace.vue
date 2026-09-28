@@ -40,6 +40,7 @@ import {
 } from "./api"
 import { freshProjectName } from "./projectName"
 import { hasAiDraft } from "./draft"
+import { pinnedRuleBefore } from "./pinnedRule"
 import { openQuickChat } from "./quickChatLauncher"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
@@ -481,18 +482,27 @@ onScopeDispose(stop)
               v-if="group.id === null || !projectIsClosed(group.id)"
               :class="{ 'ai-window__project-chats': group.id !== null }"
             >
-              <AiChatRow
-                v-for="entry in group.chats"
+              <template
+                v-for="(entry, index) in group.chats"
                 :key="`${entry.kind}-${entry.chat.id}`"
-                :chat="entry.chat"
-                :active="entry.kind === 'agent' && selected === entry.chat.id && !settingsShown"
-                :projects="projects"
-                @select="selectHistory(entry)"
-                @pin="pinHistory(entry, $event)"
-                @archive="archiveHistory(entry)"
-                @move="moveChat(entry, $event)"
-                @new-project="beginProjectFor(entry)"
-              />
+              >
+                <div
+                  v-if="pinnedRuleBefore(group.chats, index)"
+                  class="ai-window__pinned-rule"
+                  role="separator"
+                  data-testid="ai-pinned-rule"
+                />
+                <AiChatRow
+                  :chat="entry.chat"
+                  :active="entry.kind === 'agent' && selected === entry.chat.id && !settingsShown"
+                  :projects="projects"
+                  @select="selectHistory(entry)"
+                  @pin="pinHistory(entry, $event)"
+                  @archive="archiveHistory(entry)"
+                  @move="moveChat(entry, $event)"
+                  @new-project="beginProjectFor(entry)"
+                />
+              </template>
             </div>
           </div>
         </template>
@@ -642,6 +652,8 @@ onScopeDispose(stop)
 /* The chats of a folder are stepped in under its name, which is the whole way
    a reader sees what is in it. */
 .ai-window__project-chats { padding-left: var(--dp-space-3); }
+/* Between the pinned chats of a group and the rest of it. */
+.ai-window__pinned-rule { margin: var(--dp-space-1) var(--dp-space-2); border-top: 1px solid var(--dp-border); }
 .ai-window__main { flex: 1; }
 .ai-window__filter-head > :first-child { flex: 1; min-width: 0; }
 /* The field takes the heading's type, so renaming moves nothing; its height

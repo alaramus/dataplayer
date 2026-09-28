@@ -357,7 +357,7 @@ separator; the left card is remembered, collapsible and capped at 40% of the
 space. Collapsed, it keeps New chat alone in its head and Settings at its foot. Keys, Model, Confirmations and the archive live here, not on
 `/preferences`. Titles are written by the chosen model and renamed by pressing
 the name above the conversation. A row of the history is pinned, which keeps it
-above the rest, or archived, which takes it out of the history without losing
+above the rest of its group with a line under the pinned ones, or archived, which takes it out of the history without losing
 it, or moved into a project — a folder of conversations and nothing more,
 created, renamed, collapsed and deleted in the history itself. A project
 carries no instructions and no connections of its own, because a folder that
