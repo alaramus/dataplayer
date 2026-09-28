@@ -243,10 +243,14 @@ test("a host's ready-made layout shows its processes, takes live points and open
   await expect(async () => {
     await page.reload()
     await page.getByTestId("dashboard-add").click()
-    await expect(page.getByTestId("add-widgets-tree").getByText(host, { exact: true })).toBeVisible({ timeout: 2000 })
+    await expect(page.getByTestId("add-widgets-tree").getByText(agentName, { exact: true })).toBeVisible({ timeout: 2000 })
   }).toPass({ timeout: 30_000 })
 
-  await page.getByTestId("add-widgets-tree").getByText(host, { exact: true }).click()
+  // Every source starts shut, and its name opens it.
+  const hostRow = page.getByTestId("add-widgets-tree").getByText(host, { exact: true })
+  await expect(hostRow).toBeHidden()
+  await page.getByTestId("add-widgets-tree").getByText(agentName, { exact: true }).click()
+  await hostRow.click()
   await expect(page.getByTestId("add-widgets-presets")).toContainText("Linux host for")
   // A host that reports its CPU, uptime and processes fills four recipes:
   // per core, load, uptime and the process table.
@@ -404,6 +408,7 @@ test("an agent's datagrams describe its host and become a dashboard of widgets",
   await expect(async () => {
     await page.reload()
     await page.getByTestId("dashboard-add").click()
+    await page.getByTestId("add-widgets-tree").getByText(agentName, { exact: true }).click({ timeout: 2000 })
     await expect(page.getByTestId("add-widgets-tree").getByText(host, { exact: true })).toBeVisible({ timeout: 2000 })
   }).toPass({ timeout: 30_000 })
 
@@ -789,6 +794,7 @@ test("a dashboard shared with a colleague opens from its link, is edited once al
     await page.reload()
     await page.getByTestId(`dashboard-${dashboardName}`).click()
     await page.getByTestId("dashboard-add").click()
+    await page.getByTestId("add-widgets-tree").getByText(agentName, { exact: true }).click({ timeout: 2000 })
     await expect(page.getByTestId("add-widgets-tree").getByText(host, { exact: true })).toBeVisible({ timeout: 2000 })
   }).toPass({ timeout: 30_000 })
   await page.getByTestId("add-widgets-tree").getByText(host, { exact: true }).locator("xpath=../..").getByRole("checkbox").click()

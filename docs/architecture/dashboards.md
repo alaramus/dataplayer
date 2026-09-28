@@ -13,7 +13,8 @@ space (D141); Dashboards covers the workspace with its card. Before a store
 exists the card offers a superuser to start TimescaleDB or connect an existing
 one, and tells anybody else that an administrator sets it up. With a store it
 lists the person's dashboards and the sources their agents reported. A dashboard
-is a 12-column grid of charts and tiles; widgets are added by ticking series,
+is a 12-column grid of charts and tiles; widgets are added by ticking series in
+a tree of sources that opens shut, a branch opening as its name is pressed,
 moved by their header, resized by their corner, renamed in place and expanded to
 fill the grid, and the whole is saved a moment after the last change. The
 Dashboards rail head can become a name filter; filtering changes the rail list

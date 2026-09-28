@@ -42,33 +42,21 @@ const target = computed<PresetTarget | null>(() => {
   return connector === undefined ? null : { kind: "connector", connectorId, label: connector.name }
 })
 const presets = usePresets(target)
+// Every source starts shut; the one wanted is opened by its name.
 const expanded = ref<string[]>([])
 const nodes = computed(() => catalogTree(props.catalog))
-
-// Agents and hosts open, metrics shut: a host is where one starts looking.
-// Also for branches that arrive after the window opened — the catalog may
-// still be on its way — but never again for one somebody has since closed.
-const opened = new Set<string>()
-
-function openBranches() {
-  const fresh = nodes.value
-    .flatMap((agent) => [String(agent.key), ...(agent.children ?? []).map((host) => String(host.key))])
-    .filter((key) => !opened.has(key))
-  for (const key of fresh) opened.add(key)
-  if (fresh.length > 0) expanded.value = [...expanded.value, ...fresh]
-}
 
 watch(open, (isOpen) => {
   if (!isOpen) return
   ticked.value = []
   selected.value = null
   expanded.value = []
-  opened.clear()
-  openBranches()
 })
 
-watch(nodes, () => {
-  if (open.value) openBranches()
+// A name pressed opens its branch as well as selecting it, so a shut tree is
+// walked by the names and not only by the small arrows beside them.
+watch(selected, (key) => {
+  if (key !== null && !expanded.value.includes(key)) expanded.value = [...expanded.value, key]
 })
 
 const drafts = computed(() =>

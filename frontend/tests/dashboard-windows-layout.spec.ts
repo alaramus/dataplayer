@@ -102,8 +102,12 @@ for (const theme of ["light", "dark"] as const) {
     const before = await frame.boundingBox()
 
     releaseCatalog()
-    await expect(page.getByTestId("add-widgets-tree").getByText("web-01", { exact: true })).toBeVisible()
+    await expect(page.getByTestId("add-widgets-tree").getByText("watcher", { exact: true })).toBeVisible()
     expect(await frame.boundingBox()).toEqual(before)
+    // Shut until its name is pressed.
+    await expect(page.getByTestId("add-widgets-tree").getByText("web-01", { exact: true })).toBeHidden()
+    await page.getByTestId("add-widgets-tree").getByText("watcher", { exact: true }).click()
+    await expect(page.getByTestId("add-widgets-tree").getByText("web-01", { exact: true })).toBeVisible()
 
     await page.getByTestId("add-widgets-tree").getByText("web-01", { exact: true }).click()
     releasePresets()
