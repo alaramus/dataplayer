@@ -847,7 +847,7 @@ onBeforeUnmount(() => {
 .ai-conversation__body { flex: 1; min-height: 0; display: flex; }
 /* The messages hold the marks' coordinates: offsetTop is measured against this
    box, so it has to be the one they are positioned in. */
-.ai-conversation__messages { position: relative; flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-5) var(--dp-space-4); }
+.ai-conversation__messages { position: relative; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--dp-space-5) var(--dp-space-4); }
 .ai-conversation__messages > .ai-message, .ai-conversation__messages > .app-banner { max-width: 960px; margin-left: auto; margin-right: auto; }
 .ai-outline { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-1); padding: var(--dp-space-2) var(--dp-space-1); overflow: hidden; }
 /* The mark is two pixels of ink in a target a finger can hit. */

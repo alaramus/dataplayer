@@ -627,6 +627,7 @@ const overlayStyle = computed((): CSSProperties => {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 /* A box of fixed height, not a scroller: what stands and what moves inside a
    panel is the panel's own business — the engine has no notion of a panel

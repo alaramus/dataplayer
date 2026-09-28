@@ -85,6 +85,7 @@ withDefaults(
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 /* The same value as the table above, and that is the point: a sticky
    heading's whole job is to hide the rows sliding under it, so a heading that

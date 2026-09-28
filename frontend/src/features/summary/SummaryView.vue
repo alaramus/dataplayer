@@ -129,6 +129,7 @@ const errorText = computed(() =>
   flex-direction: column;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .summary-view__title {
   font-weight: 600;

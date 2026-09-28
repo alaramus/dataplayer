@@ -161,6 +161,10 @@ encryption key must decode to exactly 32 bytes.
   menu. Spacing and corners are `metrics.css`'s: the audit of 2026-09-19 found
   4, 5, 6, 7 and 10 pixels side by side for what was meant to be one step. A
   hairline — `1px` — is a border's width rather than a space.
+- **So is where a scroll ends.** Every box that scrolls declares its
+  `overscroll-behavior`: `contain` for a list, because Chrome hands a gesture
+  that first pushed a list against its edge to the page and keeps it there;
+  `auto` only where a sideways scroller must pass a turned wheel on.
 - `src/client` is generated from OpenAPI and never edited by hand. After
   changing routes or schemas, run `bash scripts/generate-client.sh`.
 - Pure logic is separated from components so it can be tested without mounting:
@@ -168,7 +172,7 @@ encryption key must decode to exactly 32 bytes.
 - Elements are found in tests the way a user finds them — by role, text or
   `data-testid` — not by CSS classes and not by snapshots.
 
-**Enforced:** four tests. Three read every `.vue` under `src` — where every
+**Enforced:** five tests. Three read every `.vue` under `src` — where every
 component style lives — and fail on a `z-index` that is not `var(--dp-layer-…)`
 (`layers.spec.ts`), on a spacing or corner written as pixels
 (`metrics.spec.ts`), and on a colour reached for past the theme
@@ -181,7 +185,12 @@ empty string for a `.css` file, so that one reads the three token files from the
 disk and is typed as Node rather than as the browser; what actually paints over
 what stays a browser question, answered by the Playwright scenario about a
 sticky heading. Each was verified by breaking it, the colour rule five times
-over — once for every way around it the test names.
+over — once for every way around it the test names. A fifth,
+`scrolling.spec.ts`, fails on a box in a `.vue` style that scrolls without
+saying where its scroll chain ends, verified by taking the declaration off the
+connections list; Quasar's own menus and scroll areas get theirs in
+`scrolling.css`. That Chrome then keeps a gesture for the list is not a unit
+test's to see: it was confirmed on a real touchpad.
 ESLint forbids `src/stores/**` importing the generated client or
 any feature, verified by introducing the import. ESLint also forbids, outside
 `src/shared/ui`, every `q-*` the kit replaces — in both spellings Vue accepts,

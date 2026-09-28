@@ -302,6 +302,6 @@ function remove(profile: ServerProfile) {
 .server-switcher__bar { display: flex; align-items: center; gap: var(--dp-space-2); padding: var(--dp-space-2) var(--dp-space-2) var(--dp-space-2) var(--dp-space-3); border-bottom: 1px solid var(--dp-border); background: var(--dp-card-head); }
 .server-switcher__bar > strong { flex: 1; }
 .server-switcher__intro { margin: 0; padding: var(--dp-space-3) var(--dp-space-3) 0; color: var(--dp-text-muted); }
-.server-switcher__body { flex: 1; min-height: 0; overflow: auto; }
+.server-switcher__body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .server-switcher__footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-2) var(--dp-space-3); border-top: 1px solid var(--dp-border); }
 </style>

@@ -280,6 +280,7 @@ function iconOf(row: CardRow): string {
   padding: 0;
   list-style: none;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .card-picker__row {
   display: flex;

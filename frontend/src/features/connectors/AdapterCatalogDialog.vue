@@ -203,6 +203,7 @@ function start(template: ServiceTemplateInfo) {
   width: clamp(150px, 22%, 220px);
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: 1px solid var(--dp-border);
 }
 .adapter-catalog__category {
@@ -244,6 +245,7 @@ function start(template: ServiceTemplateInfo) {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
   /* min(180px, 100%) so a viewport narrower than one tile still gets a single
      column that fits, rather than a track overflowing its container. */

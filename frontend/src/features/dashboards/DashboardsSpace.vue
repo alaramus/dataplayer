@@ -500,6 +500,7 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 /* A group inside the rail, under the card's own head. */
@@ -530,6 +531,7 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .dashboards__list {
@@ -572,6 +574,7 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 0 var(--dp-space-2) var(--dp-space-2);
 }
 

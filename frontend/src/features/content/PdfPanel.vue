@@ -291,6 +291,7 @@ onBeforeUnmount(() => {
   gap: var(--dp-space-3);
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: var(--dp-space-4);
   background: var(--dp-hover);
 }

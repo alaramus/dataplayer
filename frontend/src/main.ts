@@ -10,6 +10,7 @@ import "quasar/src/css/index.sass"
 // with, both themes of them.
 import "@/shared/ui/layers.css"
 import "@/shared/ui/metrics.css"
+import "@/shared/ui/scrolling.css"
 import "@/shared/ui/theme.css"
 
 import App from "@/App.vue"

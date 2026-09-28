@@ -820,6 +820,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
   height: 100%;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .structure-view__title {
   margin-bottom: var(--dp-space-2);

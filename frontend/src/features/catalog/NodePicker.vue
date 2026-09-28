@@ -203,5 +203,6 @@ const here = computed(() => {
   list-style: none;
   max-height: 180px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 </style>

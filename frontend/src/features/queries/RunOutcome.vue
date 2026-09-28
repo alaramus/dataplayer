@@ -226,6 +226,7 @@ function duration(statement: StatementPublic): string {
   flex: none;
   width: 180px;
   overflow: auto;
+  overscroll-behavior: contain;
   border-inline-end: 1px solid var(--dp-border-faint);
 }
 .run-outcome__statement {
@@ -288,6 +289,7 @@ function duration(statement: StatementPublic): string {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: var(--dp-space-2) var(--dp-space-3);
 }
 .run-outcome__message {

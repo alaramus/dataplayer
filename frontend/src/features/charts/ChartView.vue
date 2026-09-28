@@ -203,6 +203,7 @@ function chooseSuggestion(value: unknown): void {
   min-height: 0;
   padding: var(--dp-space-3) var(--dp-space-2);
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: 1px solid var(--dp-border);
 }
 
@@ -223,6 +224,7 @@ function chooseSuggestion(value: unknown): void {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(280px, 1fr);
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .chart-view__controls {

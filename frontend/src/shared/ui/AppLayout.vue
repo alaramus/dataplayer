@@ -302,6 +302,7 @@ async function logout() {
   margin-inline: calc(var(--dp-tab-strip-height) + var(--dp-space-1));
   padding: var(--dp-space-4);
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-panel);
   background: var(--dp-surface);

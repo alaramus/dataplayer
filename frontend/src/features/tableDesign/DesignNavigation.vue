@@ -107,6 +107,7 @@ const groups = computed(() => [
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--dp-space-2);
   background: var(--dp-chrome-raised);
   border-right: 1px solid var(--dp-border);

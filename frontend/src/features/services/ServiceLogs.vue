@@ -129,6 +129,7 @@ onBeforeUnmount(() => {
   flex: 1;
   box-sizing: border-box;
   overflow: auto;
+  overscroll-behavior: contain;
   background: var(--dp-surface-raised);
 }
 .service-logs__controls {

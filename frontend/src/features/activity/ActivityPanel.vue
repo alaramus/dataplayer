@@ -287,7 +287,7 @@ function follow(run: () => void) {
 
 .sheet__bar > strong { flex: 1; }
 
-.sheet__body { flex: 1; min-height: 0; overflow: auto; }
+.sheet__body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 
 .sheet__section { padding: var(--dp-space-2) var(--dp-space-3) var(--dp-space-3); }
 .sheet__section + .sheet__section { border-top: 1px solid var(--dp-border); }

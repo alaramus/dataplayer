@@ -243,6 +243,7 @@ function close() {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
 }

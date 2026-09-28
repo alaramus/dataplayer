@@ -916,6 +916,7 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   outline: none;
 }
 

@@ -62,6 +62,7 @@ const filteredRows = computed(() => {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding-top: var(--dp-space-1);
 }
 </style>
