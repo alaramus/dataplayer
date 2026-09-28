@@ -551,6 +551,8 @@ test("a long dashboard name keeps to one line of the rail, and says itself whole
   await expect(entry).toBeVisible()
   // Enter closes the window; it once reopened it through the pencil.
   await expect(page.getByRole("dialog", { name: "Rename dashboard" })).toHaveCount(0)
+  // The name alone, no icon beside it: icons are the narrow rail's.
+  await expect(entry).toHaveText(name)
 
   // Wrapped, the name went under its icon over two or three lines.
   const railBox = await page.getByTestId("dashboards-rail").boundingBox()

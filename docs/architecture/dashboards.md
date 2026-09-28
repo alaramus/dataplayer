@@ -203,7 +203,8 @@ Known deviations:
   two fifths of the space, so the dashboard stays the wider card; the header
   button narrows it to forty pixels of icons — New alone in its head, then the
   dashboards, Sources and the store — and the header button or a press on the gap
-  brings it back. Width and state are kept per browser, and a narrower window
+  brings it back. Wide, it lists the dashboards by name alone; the icons are
+  the narrow rail's. Width and state are kept per browser, and a narrower window
   narrows it. It cannot be put on the bar or moved to the other side.
 - **A widget in a window is a copy** taken when it was opened, with the range and
   interval of that moment. Moving or removing it on the dashboard does not reach

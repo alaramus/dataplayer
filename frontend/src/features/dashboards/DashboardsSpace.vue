@@ -312,7 +312,9 @@ defineExpose({
             class="dashboards__lists"
             data-testid="dashboards-lists"
           >
-            <!-- Absent rather than empty, or its padding stood as a gap under the
+            <!-- Names alone: the icons are the narrow rail's, where there is no
+               room for a name.
+               Absent rather than empty, or its padding stood as a gap under the
                head. A line stands only between groups that both show
                something (railRules). -->
             <div
@@ -330,7 +332,6 @@ defineExpose({
                 :style="panelColorStyle(dashboard.color)"
                 layout="navigation"
                 size="sm"
-                :icon="appIcons.dashboard"
                 :label="dashboard.name"
                 :data-testid="`dashboard-${dashboard.name}`"
                 @click="selectedId = dashboard.id"
@@ -359,7 +360,6 @@ defineExpose({
                   :style="panelColorStyle(dashboard.color)"
                   layout="navigation"
                   size="sm"
-                  :icon="appIcons.group"
                   :label="dashboard.name"
                   :data-testid="`dashboard-${dashboard.name}`"
                   @click="selectedId = dashboard.id"
