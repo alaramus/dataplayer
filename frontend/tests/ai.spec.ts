@@ -27,6 +27,43 @@ test("keeps unsent text when leaving and returning to the AI space", async ({ pa
   await expect(rows).toHaveCount(before)
 })
 
+test("starts a chat from an example question", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("space-ai").click()
+  await page.getByTestId("ai-new-chat").click()
+  const examples = page.getByTestId("ai-examples")
+  await expect(examples.getByRole("button")).toHaveCount(4)
+  // Somebody typing is asking their own question: the examples step aside.
+  const input = page.getByTestId("ai-message-input")
+  await input.fill("My own question")
+  await expect(examples).toHaveCount(0)
+  await input.fill("")
+  await expect(examples).toBeVisible()
+
+  // The answer is not the point, so the message is taken without a model.
+  const messages = /\/api\/v1\/ai\/conversations\/[^/]+\/messages$/
+  await page.route(messages, (route) => route.fulfill({
+    status: 202,
+    json: { conversation_id: /conversations\/([^/]+)\/messages/.exec(route.request().url())?.[1] },
+  }))
+  const sent = page.waitForRequest(messages)
+  await examples.getByRole("button", { name: "Show my connections" }).click()
+  expect((await sent).postData()).toContain("Show my connections")
+  const active = page.locator('[data-testid^="ai-chat-row-"][data-active="true"]')
+  await expect(active).toHaveCount(1)
+  await expect(input).toHaveValue("")
+
+  const id = ((await active.getAttribute("data-testid")) ?? "").replace("ai-chat-row-", "")
+  const token = await page.evaluate(() => Object.entries(localStorage)
+    .find(([key]) => key.endsWith("access_token"))?.[1])
+  const server = await page.evaluate(() => JSON.parse(
+    sessionStorage.getItem("dataplayer:active-server:v1") ?? "null"
+  ) as { url: string })
+  await page.request.delete(`${server.url}/api/v1/ai/conversations/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+})
+
 test("attaches named workspace tabs without overflowing a narrow composer", async ({ page }) => {
   const name = `e2e-ai-context-${Date.now()}`
   await login(page)

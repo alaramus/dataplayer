@@ -189,6 +189,26 @@ function openFile(address: string) {
   window.open(address, "_blank", "noopener")
 }
 
+/**
+ * What an empty chat offers to ask, each a thing the agent's tools can answer.
+ * Pressed, one is sent as it is written.
+ */
+const EXAMPLES = [
+  { icon: appIcons.storage, text: "Show my connections" },
+  { icon: appIcons.info, text: "What is DataPlayer, and what can you do here?" },
+  { icon: appIcons.tableView, text: "Which tables are in my databases?" },
+  { icon: appIcons.insertChart, text: "Draw a chart from one of my tables" },
+] as const
+/**
+ * Offered only while the composer is empty: somebody who has started typing is
+ * asking their own question, and a press would throw it away.
+ */
+const examplesShown = computed(() => draft.value.trim() === "" && pending.value.length === 0)
+function ask(text: string) {
+  draft.value = text
+  void submit()
+}
+
 const starting = ref(false)
 const canSend = computed(() =>
   (draft.value.trim().length > 0 || pending.value.length > 0)
@@ -463,7 +483,24 @@ onBeforeUnmount(() => {
               :name="appIcons.autoAwesome"
               size="32px"
             />
-            <span>What would you like to know?</span>
+            <div
+              v-if="examplesShown"
+              class="ai-conversation__examples"
+              data-testid="ai-examples"
+            >
+              <AppButton
+                v-for="example in EXAMPLES"
+                :key="example.text"
+                variant="quiet"
+                layout="navigation"
+                :icon="example.icon"
+                :label="example.text"
+                :disable="starting || send.isPending.value"
+                class="ai-conversation__example"
+                @click="ask(example.text)"
+              />
+            </div>
+            <span v-else>What would you like to know?</span>
           </div>
           <article
             v-for="message in conversation.data.value?.messages ?? []"
@@ -819,6 +856,8 @@ onBeforeUnmount(() => {
 .ai-outline__mark:hover::before { background: var(--dp-text-muted); }
 .ai-outline__mark--current::before { width: 16px; background: var(--dp-text-strong); }
 .ai-conversation__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
+.ai-conversation__examples { max-width: 100%; display: flex; flex-direction: column; gap: var(--dp-space-2); }
+.ai-conversation__example { border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .ai-message { margin: 0 0 var(--dp-space-4); }
 .ai-message--user { display: flex; flex-direction: column; align-items: flex-end; }
 .ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); font-size: var(--dp-prose-font-size); line-height: 1.65; white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
