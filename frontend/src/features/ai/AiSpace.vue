@@ -86,7 +86,9 @@ defineExpose({
   toggleFirstPanel: () => { collapsed.value = !collapsed.value },
   firstPanelCollapsed: computed(() => collapsed.value),
 })
+/** The chat the rename window is open for, as the dashboards' is (one gesture for both). */
 const renaming = ref<string | null>(null)
+const renameShown = ref(false)
 const titleDraft = ref("")
 const chatNameFilter = ref("")
 const chatFilterOpen = ref(false)
@@ -186,11 +188,14 @@ function beginProjectFor(entry: HistoryChat | null) {
   projectDraft.value = freshProjectName(projects.value.map((project) => project.name))
   projectDialogShown.value = true
 }
-/** The name in the field is selected as it gets focus, so typing replaces it. */
+/**
+ * A name in a field is selected as it gets focus, so typing replaces it: a
+ * name is replaced more often than edited.
+ */
 const projectField = ref<InstanceType<typeof AppInput> | null>(null)
-function selectProjectName() {
-  const input = (projectField.value?.$el as HTMLElement | undefined)?.querySelector("input")
-  input?.select()
+const renameField = ref<InstanceType<typeof AppInput> | null>(null)
+function selectAllIn(field: InstanceType<typeof AppInput> | null) {
+  ;(field?.$el as HTMLElement | undefined)?.querySelector("input")?.select()
 }
 function beginProjectRename(id: string, name: string) {
   renamingProject.value = id
@@ -309,14 +314,16 @@ function archiveHistory(entry: HistoryChat) {
   if (entry.kind === "agent") void archive(entry.chat.id)
   else void archiveQuick(entry.chat.id)
 }
-function beginRename(id: string, title: string) { renaming.value = id; titleDraft.value = title }
+function beginRename(id: string, title: string) {
+  renaming.value = id
+  titleDraft.value = title
+  renameShown.value = true
+}
 async function finishRename() {
   const id = renaming.value
   const title = titleDraft.value.trim()
-  if (id === null) return
-  // An emptied field is a cancelled rename, not a chat called nothing.
-  if (!title) { renaming.value = null; return }
-  try { await updateConversation.mutateAsync({ id, title }); renaming.value = null }
+  if (id === null || !title) return
+  try { await updateConversation.mutateAsync({ id, title }); renameShown.value = false }
   catch (cause) { toast.error(messageOf(cause, "The chat could not be renamed")) }
 }
 async function setPinned(id: string, pinned: boolean) {
@@ -591,33 +598,24 @@ onScopeDispose(stop)
         v-if="settingsShown"
         title="Settings"
       />
-      <!-- The open chat is named where the eye already is; pressing the name
-           is how a chat is renamed. -->
+      <!-- The open chat is named where the eye already is, and renamed from
+           the pencil beside the name, as a dashboard is. -->
       <AppCardHead
         v-else-if="selectedChat !== null"
         class="ai-window__head"
         data-testid="ai-chat-head"
       >
-        <AppInput
-          v-if="renaming === selectedChat.id"
-          v-model="titleDraft"
-          compact
-          aria-label="Chat title"
-          data-testid="ai-rename-input"
-          @keyup.enter="finishRename"
-          @keyup.escape="renaming = null"
-          @blur="finishRename"
-        />
-        <button
-          v-else
-          type="button"
+        <span
           class="ai-window__head-title"
-          :title="`Rename “${selectedChat.title}”`"
+          :title="selectedChat.title"
           data-testid="ai-chat-heading"
+        >{{ selectedChat.title }}</span>
+        <AppIconButton
+          :icon="appIcons.edit"
+          tooltip="Rename this chat"
+          data-testid="ai-chat-rename"
           @click="beginRename(selectedChat.id, selectedChat.title)"
-        >
-          {{ selectedChat.title }}
-        </button>
+        />
       </AppCardHead>
       <AppCardHead
         v-else-if="newDraftOpen"
@@ -646,6 +644,38 @@ onScopeDispose(stop)
       </div>
     </AppCardFrame>
     <WindowDialog
+      v-model="renameShown"
+      title="Rename chat"
+      size="sm"
+      sizing="content"
+      data-testid="ai-rename-dialog"
+    >
+      <AppForm layout="section">
+        <AppInput
+          ref="renameField"
+          v-model="titleDraft"
+          label="Name"
+          autofocus
+          data-testid="ai-rename-input"
+          @focus="selectAllIn(renameField)"
+          @keydown.enter="finishRename"
+        />
+      </AppForm>
+      <template #actions>
+        <AppButton
+          variant="quiet"
+          label="Cancel"
+          @click="renameShown = false"
+        />
+        <AppButton
+          label="Rename"
+          :disable="!titleDraft.trim()"
+          data-testid="ai-rename-save"
+          @click="finishRename"
+        />
+      </template>
+    </WindowDialog>
+    <WindowDialog
       v-model="projectDialogShown"
       :title="renamingProject === null ? 'New project' : 'Rename project'"
       size="sm"
@@ -659,7 +689,7 @@ onScopeDispose(stop)
           label="Name"
           autofocus
           data-testid="ai-project-name"
-          @focus="selectProjectName"
+          @focus="selectAllIn(projectField)"
           @keyup.enter="saveProject"
         />
       </AppForm>
@@ -706,11 +736,6 @@ onScopeDispose(stop)
 .ai-window__group-rule { margin: var(--dp-space-1) var(--dp-space-2); border-top: 1px solid var(--dp-border); }
 .ai-window__main { flex: 1; }
 .ai-window__filter-head > :first-child { flex: 1; min-width: 0; }
-/* The field takes the heading's type, so renaming moves nothing; its height
-   is the head's own (AppCardHead). */
-.ai-window__head :deep(.q-field) { font-size: inherit; }
-.ai-window__head :deep(.q-field__native) { font-weight: 500; }
-.ai-window__head > :first-child { flex: 1; min-width: 0; }
-.ai-window__head-title { max-width: 100%; overflow: hidden; border: 0; padding: 0; background: transparent; color: var(--dp-text-strong); font: inherit; font-weight: 500; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
+.ai-window__head-title { min-width: 0; overflow: hidden; color: var(--dp-text-strong); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .ai-window__welcome { flex: 1; display: grid; place-items: center; }
 </style>

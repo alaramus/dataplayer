@@ -136,19 +136,24 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByTestId("app-toggle-first-panel").click()
   await expect(page.getByTestId("ai-history")).toBeVisible()
 
-  // The open chat is named above the conversation, and pressing the name is how
-  // it is renamed. The strip keeps its height while it holds the field, or the
-  // whole conversation jumps down the moment somebody presses the name.
-  const head = page.getByTestId("ai-chat-head")
-  const closed = (await head.boundingBox())?.height
-  await page.getByTestId("ai-chat-heading").click()
+  // The open chat is named above the conversation and renamed from the pencil
+  // beside the name, in a window, as a dashboard is.
+  const heading = page.getByTestId("ai-chat-heading")
+  const pencil = page.getByTestId("ai-chat-rename")
+  expect((await pencil.boundingBox())!.x).toBeGreaterThan((await heading.boundingBox())!.x)
+  await pencil.click()
   const field = page.getByTestId("ai-rename-input")
-  await expect(field).toBeVisible()
-  expect((await head.boundingBox())?.height).toBe(closed)
+  await expect(page.getByRole("dialog", { name: "Rename chat" })).toBeVisible()
+  await expect(field).toBeFocused()
+  // The old title is selected, so typing replaces it.
+  await page.keyboard.type("Playwright agent chat")
+  await expect(field).toHaveValue("Playwright agent chat")
+  await field.fill("")
+  await expect(page.getByTestId("ai-rename-save")).toBeDisabled()
   await field.fill("Playwright agent chat")
   await field.press("Enter")
-  await expect(page.getByTestId("ai-chat-heading")).toHaveText("Playwright agent chat")
-  expect((await head.boundingBox())?.height).toBe(closed)
+  await expect(page.getByRole("dialog", { name: "Rename chat" })).toHaveCount(0)
+  await expect(heading).toHaveText("Playwright agent chat")
   await expect(active).toContainText("Playwright agent chat")
 
   await page.getByTestId("ai-filter-open").click()
