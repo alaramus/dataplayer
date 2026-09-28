@@ -8,6 +8,8 @@ transcript side is covered by the conversation tests.
 
 import httpx
 import openai
+from google.genai import errors as genai_errors
+from langchain_google_genai.chat_models import GoogleRateLimitError
 
 from app.ai.catalog import ModelInfo
 from app.ai.providers import ProviderChatModels
@@ -89,3 +91,38 @@ def test_openai_insufficient_quota_is_a_billing_sentence() -> None:
     assert sentence == SENTENCES["no_credits"]
     assert marker not in sentence
     assert models.sentence(_model(), RuntimeError("boom")) == UNKNOWN_FAILURE
+
+
+def _gemini_model() -> ModelInfo:
+    return ModelInfo(
+        provider="gemini",
+        id="gemini-test",
+        name="Gemini test",
+        context_window=8000,
+        max_output_tokens=1024,
+        reasoning=False,
+        image_input=False,
+    )
+
+
+def test_a_gemini_quota_wrapped_by_langchain_is_read_from_its_cause() -> None:
+    # What a free-tier key over its daily requests raises: LangChain's own
+    # error, with the SDK's 429 and its body as the cause.
+    body = {"error": {
+        "code": 429,
+        "status": "RESOURCE_EXHAUSTED",
+        "message": "You exceeded your current quota, please check your plan and billing details.",
+    }}
+    wrapped = GoogleRateLimitError("Error calling model 'gemini-test' (RESOURCE_EXHAUSTED)")
+    wrapped.__cause__ = genai_errors.ClientError(429, body)
+
+    assert ProviderChatModels().sentence(_gemini_model(), wrapped) == SENTENCES["no_credits"]
+
+
+def test_a_gemini_model_under_high_demand_is_said_to_be_overloaded() -> None:
+    body = {"error": {"code": 503, "status": "UNAVAILABLE", "message": "This model is currently experiencing high demand."}}
+
+    sentence = ProviderChatModels().sentence(_gemini_model(), genai_errors.ServerError(503, body))
+
+    assert sentence == SENTENCES["unavailable"]
+    assert "overloaded" in sentence

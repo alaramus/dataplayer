@@ -9,7 +9,9 @@ SENTENCES: dict[FailureKind, str] = {
     "no_credits": "The provider reported insufficient credits or quota — add funds, check the plan, or try another model",
     "rate_limited": "The provider is limiting requests; try again in a moment",
     "not_found": "The provider does not offer this model to this key",
-    "unavailable": "The provider could not be reached",
+    # A 5xx is an answer: the provider was reached and is down or overloaded
+    # ("high demand" from Gemini), which "could not be reached" misstated.
+    "unavailable": "The provider is unavailable or overloaded right now; try again in a moment",
 }
 
 UNKNOWN_FAILURE = "The model could not answer"

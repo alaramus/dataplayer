@@ -28,6 +28,12 @@ HISTORY_LIMIT = 20
 HISTORY_CHARS = 80_000
 MAX_QUICK_TEXT = 16_000
 ANSWER_LIMIT = 100_000
+# A model that stops writing for this long has stopped; one that keeps writing
+# is let go on up to the whole limit. A single limit on the whole answer cut
+# long answers off while they were still arriving.
+QUIET_SECONDS = 60.0
+ANSWER_SECONDS = 300.0
+TOO_QUIET = "The model stopped answering"
 PROMPT = (
     "You are a plain chat assistant in DataPlayer. Answer in the user's language "
     "using Markdown. You have no access to application data or tools. "
@@ -230,11 +236,15 @@ async def send(
     written: list[str] = []
     unsent = ""
     sent_at = time.monotonic()
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + ANSWER_SECONDS
+    failure: str | None = None
     try:
-        async with asyncio.timeout(120):
+        async with asyncio.timeout(QUIET_SECONDS) as limit:
             async for chunk in chat_models.build(
                 model, key, max_output_tokens=min(model.max_output_tokens, 8192)
             ).astream(messages):
+                limit.reschedule(min(loop.time() + QUIET_SECONDS, deadline))
                 said = split_text(chunk)[0]
                 written.append(said)
                 unsent += said
@@ -243,16 +253,23 @@ async def send(
                     unsent, sent_at = "", time.monotonic()
             if unsent:
                 await say(unsent)
+    except TimeoutError:
+        logger.warning("Quick chat answer stopped arriving")
+        failure = TOO_QUIET
     except Exception as error:  # noqa: BLE001  # Provider errors may contain private text
         logger.warning("Quick chat answer failed: %s", type(error).__name__)
-        raise RuntimeError(chat_models.sentence(model, error)) from error
+        failure = chat_models.sentence(model, error)
     answer = "".join(written)[:ANSWER_LIMIT]
     if not answer.strip():
-        raise RuntimeError("The model returned an empty answer")
+        raise RuntimeError(failure or "The model returned an empty answer")
+    # Kept even when the provider failed on the way: an answer that broke off
+    # at its end is most of an answer, and it was already on the screen.
     chat.updated_at = get_datetime_utc()
     session.add_all([
         chat,
         QuickMessage(conversation_id=chat.id, role="assistant", content=sealed(answer)),
     ])
     await session.commit()
+    if failure is not None:
+        raise RuntimeError(f"{failure}. The answer so far is kept.")
     return await public(session, chat)

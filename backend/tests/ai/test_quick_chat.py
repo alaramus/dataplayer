@@ -1,10 +1,14 @@
 """Plain chat has its own history and never binds agent tools (D158)."""
 
+import asyncio
+
+import pytest
 from httpx import AsyncClient
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.ai import quick_chat
 from app.ai.topic import NAME, QUICK_NAME, QuickAnswerDelta
 from app.main import app
 from tests.ai.conftest import (
@@ -117,6 +121,51 @@ async def test_quick_chat_keeps_the_question_when_the_model_fails(
     assert [(message["role"], message["content"]) for message in saved.json()["messages"]] == [
         ("user", "Keep this question"),
     ]
+
+
+async def test_quick_chat_keeps_what_was_written_when_the_model_fails_on_the_way(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], script: Script
+) -> None:
+    headers = normal_user_token_headers
+    await ready_agent(client, headers)
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    script.turns.append(Turn(pieces=[text("Most of "), text("an answer")], error=RuntimeError("provider unavailable")))
+
+    sent = await client.post(
+        f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
+        json={"text": "A long question", "model_key": MODEL_KEY},
+    )
+
+    assert sent.status_code == 502
+    assert sent.json()["detail"]["message"] == "The model could not answer. The answer so far is kept."
+    saved = await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)
+    assert [(message["role"], message["content"]) for message in saved.json()["messages"]] == [
+        ("user", "A long question"), ("assistant", "Most of an answer"),
+    ]
+
+
+async def test_quick_chat_gives_up_on_a_model_that_stops_writing(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    script: Script,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    headers = normal_user_token_headers
+    await ready_agent(client, headers)
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    monkeypatch.setattr(quick_chat, "QUIET_SECONDS", 0.2)
+    # Held after its first piece and never let go.
+    script.turns.append(Turn(pieces=[text("Begun"), text(" never finished")], gate=asyncio.Event()))
+
+    sent = await client.post(
+        f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
+        json={"text": "A question", "model_key": MODEL_KEY},
+    )
+
+    assert sent.status_code == 502
+    assert sent.json()["detail"]["message"] == "The model stopped answering. The answer so far is kept."
+    saved = await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)
+    assert saved.json()["messages"][-1]["content"] == "Begun"
 
 
 async def test_quick_chat_is_private_and_requires_a_model_key(

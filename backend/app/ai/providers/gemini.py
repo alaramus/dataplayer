@@ -24,10 +24,16 @@ class GeminiModels:
         )
 
     def failure(self, error: BaseException) -> FailureKind | None:
-        if isinstance(error, errors.APIError):
-            return from_parts(
-                getattr(error, "code", None),
-                getattr(error, "details", None),
-                getattr(error, "message", None),
-            )
+        # LangChain re-raises a 4xx as an error of its own that carries only a
+        # sentence; the SDK's error, with the status and the body, is its cause.
+        # Read at the surface, a spent free-tier quota said "could not answer".
+        seen: BaseException | None = error
+        while seen is not None:
+            if isinstance(seen, errors.APIError):
+                return from_parts(
+                    getattr(seen, "code", None),
+                    getattr(seen, "details", None),
+                    getattr(seen, "message", None),
+                )
+            seen = seen.__cause__
         return None
