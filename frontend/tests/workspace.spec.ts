@@ -176,8 +176,9 @@ test("leaves the room of a column on the bar to the cards after it", async ({ pa
   }
 
   // A percentage of the row is worth more pixels while a column is off the
-  // screen, which is why the drag is converted from the two sections the
-  // border is between and not from the row.
+  // screen, which is why the drag is converted from the section in front of
+  // the border and not from the row. Converted from the shares of both, the
+  // border ran half as far again as the pointer.
   await dragBy(-150)
   expect(Math.abs(((await card.boundingBox())?.width ?? 0) - (before - 150))).toBeLessThan(4)
 
@@ -186,6 +187,41 @@ test("leaves the room of a column on the bar to the cards after it", async ({ pa
   // pulled below: a card that would not get any narrower.
   await dragBy(-edge)
   expect((await card.boundingBox())?.width ?? 0).toBeLessThan(160)
+})
+
+test("keeps the border in front of a column on the bar under the pointer", async ({ page }) => {
+  await page.goto("/workspace-demo")
+  await page.getByTestId("reset-workspace").click()
+
+  // The data column goes to the bar from between the list and the notes, and
+  // its room goes whole to the notes: the list in front of the border borrows
+  // none of it.
+  await page.getByTestId("workspace-aside-main").click()
+  await expect(page.getByTestId("workspace-leaf-main")).toHaveCount(0)
+
+  const left = page.getByTestId("workspace-leaf-left")
+  const before = (await left.boundingBox())?.width ?? 0
+  const edge = (page.viewportSize()?.width ?? 0) - 20
+
+  async function dragBy(delta: number) {
+    const box = await page.getByTestId("workspace-separator").first().boundingBox()
+    if (box === null) throw new Error("the separator has no box")
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(Math.max(20, Math.min(x + delta, edge)), y, { steps: 10 })
+    await page.mouse.up()
+  }
+
+  // Converted from the sizes of both, a pixel was half of one here: the border
+  // lagged the pointer and the list stopped at half its minimum.
+  await dragBy(100)
+  expect(Math.abs(((await left.boundingBox())?.width ?? 0) - (before + 100))).toBeLessThan(4)
+
+  // The demo names no minimum of its own, so the list keeps MIN_PANEL_PX.
+  await dragBy(-edge)
+  expect(Math.abs(((await left.boundingBox())?.width ?? 0) - 120)).toBeLessThan(2)
 })
 
 test("opens a panel as a tab and closes it again", async ({ page }) => {

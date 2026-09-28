@@ -119,18 +119,19 @@ function basisOf(index: number): number {
 }
 
 /**
- * How much of this split one pixel of the screen is worth right now, read off
- * the two sections the border is between.
+ * How much of a size in this split one pixel of the screen is worth right now,
+ * read off the section in front of the border alone.
  *
- * Measured rather than computed from the whole split: sections that are off
- * the screen leave their room to the ones that stay, so the sizes of the
- * sections showing no longer add up to a hundred, and a percentage taken
- * against the whole would move the border at the wrong speed. These two are
- * enough, because resizing trades room between them and leaves every other
- * section where it is. Their shares and not their sizes: a share is what the
- * row divides its pixels by, and a size leaves out the room a hidden column
- * lent — with the catalog column empty, a pixel was read as half of one and
- * every minimum came out half as wide.
+ * Measured rather than computed from the whole split: sections off the screen
+ * lend their room to the ones that stay, so a percentage is worth a different
+ * number of pixels to different sections. The section in front of a border is
+ * the one where the answer is exact: whatever it borrows is in proportion to
+ * its size and never whole (shares.ts), so its width is its size times a factor
+ * that trading across this border does not change. Not both sections' sizes,
+ * which read a pixel as half of one while the empty catalog column between them
+ * lent its room whole to the one after; not their shares, which read it as one
+ * and a half while a column on the bar in front of both lent them its room —
+ * the border ran ahead of the pointer and a minimum came out that much wider.
  *
  * Deliberately not a computed: getBoundingClientRect is not reactive, so a
  * memoised value would keep answering with the size the sections had when
@@ -142,18 +143,15 @@ function basisOf(index: number): number {
  * border, and dragging it used to move a border further along the row instead.
  * Pressing it still brings the section back.
  */
-function percentPerPx(indexes: number[]): number {
+function percentPerPx(beforeIndex: number, afterIndex: number): number {
   if (props.node.kind !== "split") return 0
-  let shares = 0
-  let pixels = 0
-  for (const index of indexes) {
+  for (const index of [beforeIndex, afterIndex]) {
     const child = props.node.children[index]
     if (child === undefined) return 0
     if (child.kind === "leaf" && child.collapsed) return 0
-    shares += slots.value.find((slot) => slot.index === index)?.share.share ?? 0
-    pixels += stretchOf(index)
   }
-  return pixels > 0 ? shares / pixels : 0
+  const pixels = stretchOf(beforeIndex)
+  return pixels > 0 ? (props.node.sizes[beforeIndex] ?? 0) / pixels : 0
 }
 
 /**
@@ -179,7 +177,7 @@ function minStretchOf(index: number): number {
 
 function onMove(beforeIndex: number, afterIndex: number, deltaPx: number) {
   if (props.node.kind !== "split") return
-  const percent = percentPerPx([beforeIndex, afterIndex])
+  const percent = percentPerPx(beforeIndex, afterIndex)
   if (percent <= 0) return
   workspace.resize(
     props.node.id,
