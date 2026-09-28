@@ -465,7 +465,10 @@ onScopeDispose(stop)
                   size="16px"
                 />
                 <span class="ai-window__project-title">{{ group.name }}</span>
-                <span class="ai-window__project-count">{{ group.chats.length }}</span>
+                <span
+                  v-if="group.chats.length > 0"
+                  class="ai-window__project-count"
+                >({{ group.chats.length }})</span>
               </button>
               <span
                 v-if="group.kind === 'project'"

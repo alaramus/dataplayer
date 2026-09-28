@@ -306,11 +306,14 @@ test("opens, restores and manages the application agent space", async ({ page })
   const projectId = ((await toggle.getAttribute("data-testid")) ?? "").replace(
     "ai-project-toggle-", ""
   )
+  // A folder counts its chats in brackets, and an empty one counts nothing.
+  await expect(toggle).not.toContainText("(")
 
   await row.hover()
   await page.getByTestId(`ai-move-${id}`).click()
   await page.locator('[data-testid^="menu-item-"]').filter({ hasText: "Playwright project" }).click()
   await expect(page.getByTestId(`ai-project-${projectId}`).getByTestId(`ai-chat-row-${id}`)).toBeVisible()
+  await expect(toggle).toContainText("(1)")
   // Moved into a project it is no longer pinned, and cannot be pinned there.
   await expect(pinnedChats.getByTestId(`ai-chat-row-${id}`)).toHaveCount(0)
   await row.hover()
