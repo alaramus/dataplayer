@@ -419,3 +419,68 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByRole("dialog", { name: "Delete chat?" }).getByRole("button", { name: "Delete" }).click()
   await expect(archived).toHaveCount(0)
 })
+
+test("marks each chat in the history by what its agent is doing, in both themes", async ({ page }) => {
+  // The states come from the server's flags, so the list is answered here:
+  // a real run cannot be held failed, paused and working at once.
+  const chats = [
+    { title: "Quiet chat", state: "idle", flags: {} },
+    { title: "Working chat", state: "working", flags: { active: true } },
+    { title: "Waiting chat", state: "waiting", flags: { active: true, waiting: true } },
+    { title: "Failed chat", state: "failed", flags: { failed: true } },
+  ].map((chat, index) => ({ ...chat, id: `00000000-0000-4000-8000-00000000000${String(index + 1)}` }))
+  await page.route(/\/api\/v1\/ai\/conversations(\?[^/]*)?$/, (route) => {
+    const request = route.request()
+    if (request.method() !== "GET" || request.url().includes("archived=true")) return route.fallback()
+    return route.fulfill({
+      json: {
+        data: chats.map((chat) => ({
+          id: chat.id, title: chat.title, updated_at: new Date().toISOString(),
+          active: false, waiting: false, failed: false, pinned: false, archived: false,
+          project_id: null, ...chat.flags,
+        })),
+        count: chats.length,
+      },
+    })
+  })
+  await login(page)
+
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme)
+    await page.getByTestId("space-ai").click()
+    await historyRows(page)
+    const fill = (tone: string) => page.evaluate((name) => {
+      const probe = document.createElement("span")
+      probe.className = `dp-tone-fill-${name}`
+      document.body.append(probe)
+      const colour = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return colour
+    }, tone)
+    const look = (id: string) => page.getByTestId(`ai-chat-state-${id}`).evaluate((dot) => {
+      const style = getComputedStyle(dot)
+      return { border: style.borderTopWidth, background: style.backgroundColor, animation: style.animationName }
+    })
+    const [quiet, working, waiting, failed] = chats
+
+    // An empty ring, a pulsing grey dot, the warning's yellow and the error's red.
+    for (const chat of chats) {
+      await expect(page.getByTestId(`ai-chat-state-${chat.id}`)).toHaveAttribute("data-state", chat.state)
+    }
+    expect(await look(quiet?.id ?? "")).toMatchObject({ border: "1px", background: "rgba(0, 0, 0, 0)", animation: "none" })
+    expect((await look(working?.id ?? "")).animation).not.toBe("none")
+    expect((await look(waiting?.id ?? "")).background).toBe(await fill("warning"))
+    expect((await look(failed?.id ?? "")).background).toBe(await fill("error"))
+    // What the dot means is said on hover, under the name.
+    await expect(page.getByTestId(`ai-chat-${waiting?.id ?? ""}`))
+      .toHaveAttribute("title", "Waiting chat\nThe agent waits for your answer")
+    await expect(page.getByTestId(`ai-chat-${quiet?.id ?? ""}`)).toHaveAttribute("title", "Quiet chat")
+    await page.getByTestId("ai-history").screenshot({ path: `test-results/ai-chat-states-${theme}.png` })
+  }
+
+  // Nothing pulses for somebody who asked for less motion.
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  expect(await page.getByTestId(`ai-chat-state-${chats[1]?.id ?? ""}`)
+    .evaluate((dot) => getComputedStyle(dot).animationName)).toBe("none")
+  await chooseTheme(page, "light")
+})

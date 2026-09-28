@@ -75,16 +75,20 @@ def policy_of(value: str) -> ChangePolicy:
     return "ask"
 
 
-def summary_of(
-    conversation: Conversation, *, active: bool, waiting: bool
-) -> ConversationSummary:
-    """One row of the history: the one place a stored conversation becomes one."""
+def summary_of(conversation: Conversation, latest: str | None) -> ConversationSummary:
+    """One row of the history: the one place a stored conversation becomes one.
+
+    `latest` is the status of its newest run. The newest is enough: a
+    conversation has one active run at most, and a message is refused while it
+    has one, so no older run can still be working.
+    """
     return ConversationSummary(
         id=conversation.id,
         title=opened(conversation.title),
         updated_at=conversation.updated_at,
-        active=active,
-        waiting=waiting,
+        active=latest in ("running", "awaiting_answer"),
+        waiting=latest == "awaiting_answer",
+        failed=latest in ("failed", "interrupted"),
         pinned=conversation.pinned,
         archived=conversation.archived,
         model_key=conversation.model_key,
@@ -144,33 +148,28 @@ async def list_for_owner(
             .limit(limit)
         )
     ).all()
-    active = set(
-        (
-            await session.exec(
-                select(AgentRun.conversation_id).where(
-                    col(AgentRun.conversation_id).in_([row.id for row in rows]),
-                    col(AgentRun.status).in_(["running", "awaiting_answer"]),
-                )
-            )
-        ).all()
-    )
-    waiting = set(
-        (
-            await session.exec(
-                select(AgentRun.conversation_id).where(
-                    col(AgentRun.conversation_id).in_([row.id for row in rows]),
-                    col(AgentRun.status) == "awaiting_answer",
-                )
-            )
-        ).all()
-    )
+    latest = await latest_statuses(session, [row.id for row in rows])
     return ConversationsPublic(
-        data=[
-            summary_of(row, active=row.id in active, waiting=row.id in waiting)
-            for row in rows
-        ],
+        data=[summary_of(row, latest.get(row.id)) for row in rows],
         count=count,
     )
+
+
+async def latest_statuses(
+    session: AsyncSession, conversation_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """The status of each conversation's newest run; one without runs is absent."""
+    if not conversation_ids:
+        return {}
+    rows = (
+        await session.exec(
+            select(AgentRun.conversation_id, AgentRun.status)
+            .where(col(AgentRun.conversation_id).in_(conversation_ids))
+            .distinct(col(AgentRun.conversation_id))
+            .order_by(col(AgentRun.conversation_id), col(AgentRun.created_at).desc())
+        )
+    ).all()
+    return dict(rows)
 
 
 async def has_image_attachment(session: AsyncSession, conversation_id: uuid.UUID) -> bool:

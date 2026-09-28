@@ -2520,6 +2520,10 @@ export type ConversationSummary = {
    */
   waiting: boolean
   /**
+   * Failed
+   */
+  failed?: boolean
+  /**
    * Pinned
    */
   pinned?: boolean

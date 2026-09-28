@@ -338,6 +338,9 @@ class ConversationSummary(BaseModel):
     active: bool
     # A run is paused on a question or a confirmation: Needs you (D113, D136).
     waiting: bool
+    # The latest answer failed or was cut off by a restart. A state rather
+    # than news: the next message clears it.
+    failed: bool = False
     pinned: bool = False
     archived: bool = False
     # What this conversation names for itself, possibly as Jev's fallback.

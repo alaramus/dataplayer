@@ -358,7 +358,11 @@ which scrolls to it, and the one being read is drawn apart from the rest. The tw
 separator; the left card is remembered, collapsible and capped at 40% of the
 space. Collapsed, it keeps New chat alone in its head and Settings at its foot. Keys, Model, Confirmations and the archive live here, not on
 `/preferences`. Titles are written by the chosen model and renamed from the
-pencil beside the name above the conversation, in a window, as a dashboard is. A row of the history is pinned, which puts it
+pencil beside the name above the conversation, in a window, as a dashboard is.
+A dot before each name in the history is read off the chat's newest run: an
+empty ring, grey and pulsing while the agent works, yellow while it waits for
+an answer, red when the latest answer failed or was cut off by a restart, until
+the next message. A quick chat has no run of its own and keeps the ring. A row of the history is pinned, which puts it
 in the Pinned folder at the top, folded like a project; a pinned chat is never in
 a project — pinning takes it out of one, moving it into one unpins it, and the
 server refuses both at once. Or a row is archived, which takes it out of the history without losing

@@ -317,7 +317,7 @@ async def read_conversations(
 )
 async def create_conversation(session: SessionDep, current_user: CurrentUser) -> Any:
     conversation = await conversations.create(session, current_user.id)
-    return conversations.summary_of(conversation, active=False, waiting=False)
+    return conversations.summary_of(conversation, None)
 
 
 # Before the route addressed by id, which would otherwise answer 422 for this
@@ -418,12 +418,8 @@ async def update_conversation(
         project_id=place.project_id,
         move=place.move,
     )
-    current = await conversations.active_run(session, conversation_id)
-    return conversations.summary_of(
-        changed,
-        active=current is not None,
-        waiting=current is not None and current.status == "awaiting_answer",
-    )
+    latest = await conversations.latest_statuses(session, [conversation_id])
+    return conversations.summary_of(changed, latest.get(conversation_id))
 
 
 @router.delete("/conversations/{conversation_id}", response_model=Message)

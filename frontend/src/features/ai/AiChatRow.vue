@@ -3,8 +3,11 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { ChatProjectPublic, ConversationSummary, QuickChatSummary } from "@/client"
-import { AppButton, AppIconButton, AppMenu } from "@/shared/ui"
+import { AppButton, AppIconButton, AppMenu, toneFill } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
+
+import { CHAT_STATE_WORDS, chatStateOf } from "./chatState"
+import type { ChatState } from "./chatState"
 
 const props = defineProps<{
   chat: ConversationSummary | QuickChatSummary
@@ -36,6 +39,20 @@ const moves = computed<MenuItem[]>(() => [
   { name: NEW_PROJECT, label: "New project…", icon: appIcons.createNewFolder },
 ])
 
+const state = computed(() => chatStateOf(props.chat))
+// The name in full, as a cut one needs, and what the dot says under it.
+const hover = computed(() => {
+  const words = CHAT_STATE_WORDS[state.value]
+  return words === null ? props.chat.title : `${props.chat.title}
+${words}`
+})
+const LOOK: Record<ChatState, string> = {
+  idle: "ai-chat-row__state--idle",
+  working: "ai-chat-row__state--working",
+  waiting: toneFill("warning"),
+  failed: toneFill("error"),
+}
+
 function pick(name: string) {
   if (name === NEW_PROJECT) emit("newProject")
   else emit("move", name === NO_PROJECT ? null : name)
@@ -54,10 +71,20 @@ function pick(name: string) {
       layout="navigation"
       class="ai-chat-row__title"
       :label="chat.title"
-      :title="chat.title"
+      :title="hover"
       :data-testid="`ai-chat-${chat.id}`"
       @click="emit('select')"
-    />
+    >
+      <!-- In the button, so pressing the dot opens the chat too; its words
+           are the hover text, which is also the button's description. -->
+      <span
+        class="ai-chat-row__state"
+        :class="LOOK[state]"
+        :data-testid="`ai-chat-state-${chat.id}`"
+        :data-state="state"
+        aria-hidden="true"
+      />
+    </AppButton>
     <span class="ai-chat-row__actions">
       <!-- Not in a project: pinned chats are a folder of their own. -->
       <AppIconButton
@@ -100,6 +127,27 @@ function pick(name: string) {
 .ai-chat-row:has(:focus-visible),
 .ai-chat-row--menu { background: var(--dp-active); }
 .ai-chat-row > :first-child { flex: 1; min-width: 0; }
+/* QBtn puts its slot after the label; the dot stands before it. */
+.ai-chat-row__state {
+  order: -1;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--dp-space-2);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.ai-chat-row__state--idle { border: 1px solid var(--dp-text-muted); }
+.ai-chat-row__state--working {
+  background: var(--dp-text-muted);
+  animation: ai-chat-working 1.2s ease-in-out infinite;
+}
+@keyframes ai-chat-working {
+  50% { opacity: 0.35; transform: scale(0.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-chat-row__state--working { animation: none; }
+}
 /* Quasar's focus helper shades the title button separately from its row. */
 .ai-chat-row__title :deep(.q-focus-helper) { display: none; }
 .ai-chat-row__actions { display: none; flex: none; }

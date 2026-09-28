@@ -36,6 +36,9 @@ test("quick chat uses the same history and archive actions as agent chat", async
   await expect(row.getByTestId(`quick-chat-delete-${id}`)).toHaveCount(0)
   await row.hover()
   await row.getByTestId(`ai-pin-${id}`).click()
+  // Hovered before the list is read again, the row moved into the folder from
+  // under the pointer and its buttons went with it.
+  await expect(page.getByTestId("ai-pinned-chats").getByTestId(`ai-chat-row-${id}`)).toBeVisible()
   await row.hover()
   await row.getByTestId(`ai-archive-${id}`).click()
   await expect(page.getByTestId(`ai-chat-row-${id}`)).toHaveCount(0)

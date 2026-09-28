@@ -315,6 +315,12 @@ async def test_a_tool_question_pauses_and_the_answer_resumes_the_same_run(
         "connector_id": None,
         "preview": None,
     }
+    [row] = [
+        one
+        for one in (await client.get(f"{AI}/conversations", headers=headers)).json()["data"]
+        if one["id"] == conversation_id
+    ]
+    assert (row["active"], row["waiting"], row["failed"]) == (True, True, False)
     refused = await client.post(
         f"{AI}/runs/{run['id']}/answer", headers=headers, json={"answer": "Something else"}
     )
@@ -371,6 +377,29 @@ async def test_a_provider_failure_is_a_sentence_and_nothing_of_the_providers_tex
     assert finished["error"] == "The provider refused the key"
     assert finished["steps"][0]["status"] == "failed"
     assert KEY not in str(finished)
+
+
+async def test_the_history_says_a_chat_failed_until_its_next_answer(
+    client: AsyncClient, headers: dict[str, str], script: Script
+) -> None:
+    async def row() -> dict[str, Any]:
+        listed = (await client.get(f"{AI}/conversations", headers=headers)).json()["data"]
+        [found] = [one for one in listed if one["id"] == conversation_id]
+        return found
+
+    # Everything after the failure answers with the script's default.
+    script.turns.append(Turn(error=ProviderRefusedKey("401")))
+    conversation_id = await new_conversation(client, headers)
+    assert (await row())["failed"] is False
+
+    failing = await send(client, headers, conversation_id, "Hello")
+    await settled(client, headers, failing["id"])
+    failed = await row()
+    assert (failed["active"], failed["waiting"], failed["failed"]) == (False, False, True)
+
+    answered = await send(client, headers, conversation_id, "Hello")
+    await settled(client, headers, answered["id"])
+    assert (await row())["failed"] is False
 
 
 async def test_an_answer_that_runs_too_long_is_stopped(
