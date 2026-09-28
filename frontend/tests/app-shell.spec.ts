@@ -19,6 +19,29 @@ test("scroll tracks leave the surface under them visible in both themes", async 
   }
 })
 
+test("the head of a card in any space is written as the head of a column in Data, in both themes", async ({ page }) => {
+  await login(page)
+  const colourOf = (locator: ReturnType<typeof page.getByTestId>) =>
+    locator.first().evaluate((element) => getComputedStyle(element).color)
+  for (const theme of ["light", "dark"] as const) {
+    await chooseTheme(page, theme)
+    await page.getByTestId("space-data").click()
+    // The connections column's head is the workspace's strip there.
+    const column = await colourOf(page.getByTestId("connectors-head"))
+
+    await page.getByTestId("space-pipelines").click()
+    expect(await colourOf(page.getByTestId("connectors-head"))).toBe(column)
+    await page.getByTestId("space-ai").click()
+    expect(await colourOf(page.getByTestId("ai-rail").getByText("Chats", { exact: true }))).toBe(column)
+    expect(await colourOf(page.getByTestId("ai-new-chat"))).toBe(column)
+    await page.getByTestId("space-dashboards").click()
+    await expect(page.getByTestId("dashboards-rail").or(page.getByTestId("store-setup"))).toBeVisible()
+    if (await page.getByTestId("dashboards-rail").isVisible()) {
+      expect(await colourOf(page.getByTestId("dashboard-new"))).toBe(column)
+    }
+  }
+})
+
 test("administration and preferences keep the workspace fill shell and footer height", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await login(page)

@@ -41,7 +41,10 @@ defineProps<{ title?: string }>()
   box-sizing: border-box;
   border-bottom: 1px solid var(--dp-border);
   background: var(--dp-card-head);
-  color: var(--dp-text-strong);
+  /* The body's colour, as the head of a column in the data workspace is
+     written: in --dp-text-strong, a group's heading, every space but Data
+     read a shade dimmer than the one it was switched from. */
+  color: inherit;
 }
 .app-card-head__title {
   min-width: 0;

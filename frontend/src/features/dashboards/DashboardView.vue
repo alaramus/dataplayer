@@ -447,7 +447,6 @@ onBeforeUnmount(() => {
 }
 
 .dashboard-view__name {
-  color: var(--dp-text-strong);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -736,6 +736,6 @@ onScopeDispose(stop)
 .ai-window__group-rule { margin: var(--dp-space-1) var(--dp-space-2); border-top: 1px solid var(--dp-border); }
 .ai-window__main { flex: 1; }
 .ai-window__filter-head > :first-child { flex: 1; min-width: 0; }
-.ai-window__head-title { min-width: 0; overflow: hidden; color: var(--dp-text-strong); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.ai-window__head-title { min-width: 0; overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .ai-window__welcome { flex: 1; display: grid; place-items: center; }
 </style>

@@ -142,7 +142,6 @@ function onHeaderPointerDown(event: PointerEvent) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--dp-text-strong);
 }
 
 .widget-frame__title-input {
