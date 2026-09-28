@@ -40,7 +40,6 @@ import {
 } from "./api"
 import { freshProjectName } from "./projectName"
 import { hasAiDraft } from "./draft"
-import { pinnedRuleBefore } from "./pinnedRule"
 import { openQuickChat } from "./quickChatLauncher"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
@@ -111,8 +110,16 @@ const conversations = computed(() => list.data.value?.data ?? [])
 const historyLoading = computed(() => list.isPending.value || quickList.isPending.value)
 type HistoryChat = { kind: "agent"; chat: ConversationSummary } | { kind: "quick"; chat: QuickChatSummary }
 const byRecent = (a: HistoryChat, b: HistoryChat) =>
-  Number(b.chat.pinned) - Number(a.chat.pinned) ||
   (b.chat.updated_at ?? "").localeCompare(a.chat.updated_at ?? "")
+/** The pinned chats' folder, folded like a project's under this key. */
+const PINNED = "pinned"
+interface HistoryGroup {
+  kind: "pinned" | "project" | "loose"
+  /** What folds it: a project's id, `PINNED`, or null for the loose chats. */
+  id: string | null
+  name: string
+  chats: HistoryChat[]
+}
 const selectedChat = computed(() => conversations.value.find((chat) => chat.id === selected.value) ?? null)
 const projects = computed(() => projectList.data.value?.data ?? [])
 const closedProjects = ref(new Set<string>())
@@ -124,31 +131,31 @@ const renamingProject = ref<string | null>(null)
 const projectFor = ref<HistoryChat | null>(null)
 
 /**
- * The history as it is drawn: every folder in turn, then what is in no folder.
+ * The history as it is drawn: the pinned chats, every project in turn, then
+ * what is in no folder. A pinned chat is never in a project; the server holds
+ * that, so the two never claim one chat.
  *
- * A folder stays on screen while it is empty, or making one for a chat that is
- * not in it yet would make it disappear before it could be used.
+ * A project stays on screen while it is empty, or making one for a chat that
+ * is not in it yet would make it disappear before it could be used. The
+ * pinned folder goes with its last chat: nobody makes it.
  */
-const grouped = computed(() => {
-  const groups = projects.value.map((project) => ({
-    id: project.id as string | null,
-    name: project.name,
-    chats: [
-      ...conversations.value.filter((chat) => chat.project_id === project.id)
-        .map((chat): HistoryChat => ({ kind: "agent", chat })),
-      ...(quickList.data.value ?? []).filter((chat) => chat.project_id === project.id)
-        .map((chat): HistoryChat => ({ kind: "quick", chat })),
-    ].sort(byRecent),
-  }))
+const grouped = computed<HistoryGroup[]>(() => {
+  const chats = [
+    ...conversations.value.map((chat): HistoryChat => ({ kind: "agent", chat })),
+    ...(quickList.data.value ?? []).map((chat): HistoryChat => ({ kind: "quick", chat })),
+  ].sort(byRecent)
+  const pinned = chats.filter((entry) => entry.chat.pinned === true)
+  const unpinned = chats.filter((entry) => entry.chat.pinned !== true)
   return [
-    ...groups,
-    { id: null, name: "", chats: [
-      ...conversations.value.filter((chat) => !chat.project_id)
-        .map((chat): HistoryChat => ({ kind: "agent", chat })),
-      ...(quickList.data.value ?? []).filter((chat) => !chat.project_id)
-        .map((chat): HistoryChat => ({ kind: "quick", chat })),
-    ].sort(byRecent) },
-  ].filter((group) => group.id !== null || group.chats.length > 0)
+    ...(pinned.length > 0 ? [{ kind: "pinned" as const, id: PINNED, name: "Pinned", chats: pinned }] : []),
+    ...projects.value.map((project) => ({
+      kind: "project" as const,
+      id: project.id,
+      name: project.name,
+      chats: unpinned.filter((entry) => entry.chat.project_id === project.id),
+    })),
+    { kind: "loose" as const, id: null, name: "", chats: unpinned.filter((entry) => !entry.chat.project_id) },
+  ].filter((group) => group.kind === "project" || group.chats.length > 0)
 })
 const visibleGroups = computed(() => {
   const query = chatNameFilter.value.trim().toLocaleLowerCase()
@@ -439,7 +446,7 @@ onScopeDispose(stop)
             v-for="group in visibleGroups"
             :key="group.id ?? 'loose'"
             class="ai-window__group"
-            :data-testid="group.id ? `ai-project-${group.id}` : 'ai-loose-chats'"
+            :data-testid="group.kind === 'project' ? `ai-project-${group.id}` : `ai-${group.kind}-chats`"
           >
             <div
               v-if="group.id !== null"
@@ -450,7 +457,7 @@ onScopeDispose(stop)
                 class="ai-window__project-name"
                 :aria-expanded="!projectIsClosed(group.id)"
                 :title="group.name"
-                :data-testid="`ai-project-toggle-${group.id}`"
+                :data-testid="group.kind === 'project' ? `ai-project-toggle-${group.id}` : 'ai-pinned-toggle'"
                 @click="toggleProject(group.id)"
               >
                 <q-icon
@@ -460,7 +467,10 @@ onScopeDispose(stop)
                 <span class="ai-window__project-title">{{ group.name }}</span>
                 <span class="ai-window__project-count">{{ group.chats.length }}</span>
               </button>
-              <span class="ai-window__project-actions">
+              <span
+                v-if="group.kind === 'project'"
+                class="ai-window__project-actions"
+              >
                 <AppIconButton
                   :icon="appIcons.edit"
                   tooltip="Rename project"
@@ -482,27 +492,18 @@ onScopeDispose(stop)
               v-if="group.id === null || !projectIsClosed(group.id)"
               :class="{ 'ai-window__project-chats': group.id !== null }"
             >
-              <template
-                v-for="(entry, index) in group.chats"
+              <AiChatRow
+                v-for="entry in group.chats"
                 :key="`${entry.kind}-${entry.chat.id}`"
-              >
-                <div
-                  v-if="pinnedRuleBefore(group.chats, index)"
-                  class="ai-window__pinned-rule"
-                  role="separator"
-                  data-testid="ai-pinned-rule"
-                />
-                <AiChatRow
-                  :chat="entry.chat"
-                  :active="entry.kind === 'agent' && selected === entry.chat.id && !settingsShown"
-                  :projects="projects"
-                  @select="selectHistory(entry)"
-                  @pin="pinHistory(entry, $event)"
-                  @archive="archiveHistory(entry)"
-                  @move="moveChat(entry, $event)"
-                  @new-project="beginProjectFor(entry)"
-                />
-              </template>
+                :chat="entry.chat"
+                :active="entry.kind === 'agent' && selected === entry.chat.id && !settingsShown"
+                :projects="projects"
+                @select="selectHistory(entry)"
+                @pin="pinHistory(entry, $event)"
+                @archive="archiveHistory(entry)"
+                @move="moveChat(entry, $event)"
+                @new-project="beginProjectFor(entry)"
+              />
             </div>
           </div>
         </template>
@@ -652,8 +653,6 @@ onScopeDispose(stop)
 /* The chats of a folder are stepped in under its name, which is the whole way
    a reader sees what is in it. */
 .ai-window__project-chats { padding-left: var(--dp-space-3); }
-/* Between the pinned chats of a group and the rest of it. */
-.ai-window__pinned-rule { margin: var(--dp-space-1) var(--dp-space-2); border-top: 1px solid var(--dp-border); }
 .ai-window__main { flex: 1; }
 .ai-window__filter-head > :first-child { flex: 1; min-width: 0; }
 /* The field takes the heading's type, so renaming moves nothing; its height

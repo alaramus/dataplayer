@@ -104,16 +104,22 @@ async def update_quick_chat(
         project = await conversations.project_for_owner(session, body.project_id, current_user.id)
         if project is None:
             raise HTTPException(status_code=404, detail=NO_PROJECT)
+    try:
+        place = conversations.placement(
+            body.pinned, "project_id" in body.model_fields_set, body.project_id
+        )
+    except ValueError as refused:
+        raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused
     if body.title is not None:
         if not body.title.strip():
             raise HTTPException(status_code=422, detail={"message": "Write a chat title first"})
         chat.title = sealed(body.title.strip())
-    if body.pinned is not None:
-        chat.pinned = body.pinned
+    if place.pinned is not None:
+        chat.pinned = place.pinned
     if body.archived is not None:
         chat.archived = body.archived
-    if "project_id" in body.model_fields_set:
-        chat.project_id = body.project_id
+    if place.move:
+        chat.project_id = place.project_id
     session.add(chat)
     await session.commit()
     return quick_chat.summary(chat)
@@ -382,6 +388,10 @@ async def update_conversation(
         )
         if project is None:
             raise HTTPException(status_code=404, detail=NO_PROJECT)
+    try:
+        place = conversations.placement(body.pinned, move, body.project_id)
+    except ValueError as refused:
+        raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused
     title = body.title.strip() if body.title is not None else None
     if body.model_key is not None:
         await preferences.remember_model(
@@ -391,7 +401,7 @@ async def update_conversation(
         session,
         conversation,
         title=title,
-        pinned=body.pinned,
+        pinned=place.pinned,
         archived=body.archived,
         model_key=body.model_key,
         auto_provider=body.auto_provider,
@@ -399,8 +409,8 @@ async def update_conversation(
             "auto_provider" in body.model_fields_set or body.model_key is not None
         ),
         change_policy=body.change_policy,
-        project_id=body.project_id,
-        move=move,
+        project_id=place.project_id,
+        move=place.move,
     )
     current = await conversations.active_run(session, conversation_id)
     return conversations.summary_of(

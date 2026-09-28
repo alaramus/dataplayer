@@ -59,7 +59,9 @@ function pick(name: string) {
       @click="emit('select')"
     />
     <span class="ai-chat-row__actions">
+      <!-- Not in a project: pinned chats are a folder of their own. -->
       <AppIconButton
+        v-if="!chat.project_id"
         :icon="appIcons.pushPin"
         :tooltip="chat.pinned ? 'Unpin chat' : 'Pin chat'"
         :active="chat.pinned"

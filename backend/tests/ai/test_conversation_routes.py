@@ -632,6 +632,26 @@ async def test_a_pinned_conversation_stands_above_a_newer_one(
     assert [row["id"] for row in listed["data"]] == [older, newer]
 
 
+async def test_a_pinned_conversation_is_never_in_a_project(
+    client: AsyncClient, headers: dict[str, str]
+) -> None:
+    chat = await new_conversation(client, headers)
+    project = (await client.post(f"{AI}/projects", headers=headers, json={"name": "Research"})).json()["id"]
+    url = f"{AI}/conversations/{chat}"
+
+    filed = await client.patch(url, headers=headers, json={"project_id": project})
+    pinned = await client.patch(url, headers=headers, json={"pinned": True})
+    assert (pinned.json()["pinned"], pinned.json()["project_id"]) == (True, None)
+
+    moved = await client.patch(url, headers=headers, json={"project_id": project})
+    assert (moved.json()["pinned"], moved.json()["project_id"]) == (False, project)
+
+    both = await client.patch(url, headers=headers, json={"pinned": True, "project_id": project})
+    assert filed.status_code == 200
+    assert both.status_code == 422
+    assert both.json()["detail"]["message"] == "A pinned chat cannot be in a project"
+
+
 async def test_an_archived_conversation_leaves_the_history_and_comes_back(
     client: AsyncClient, headers: dict[str, str]
 ) -> None:

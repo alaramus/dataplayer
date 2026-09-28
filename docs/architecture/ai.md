@@ -356,8 +356,10 @@ which scrolls to it, and the one being read is drawn apart from the rest. The tw
 separator; the left card is remembered, collapsible and capped at 40% of the
 space. Collapsed, it keeps New chat alone in its head and Settings at its foot. Keys, Model, Confirmations and the archive live here, not on
 `/preferences`. Titles are written by the chosen model and renamed by pressing
-the name above the conversation. A row of the history is pinned, which keeps it
-above the rest of its group with a line under the pinned ones, or archived, which takes it out of the history without losing
+the name above the conversation. A row of the history is pinned, which puts it
+in the Pinned folder at the top, folded like a project; a pinned chat is never in
+a project — pinning takes it out of one, moving it into one unpins it, and the
+server refuses both at once. Or a row is archived, which takes it out of the history without losing
 it, or moved into a project — a folder of conversations and nothing more,
 created, renamed, collapsed and deleted in the history itself. A project
 carries no instructions and no connections of its own, because a folder that

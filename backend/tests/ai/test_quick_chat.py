@@ -201,12 +201,18 @@ async def test_quick_chat_history_uses_the_same_pin_project_and_archive_actions(
 
     changed = await client.patch(
         f"{AI}/quick-chats/{chat_id}", headers=headers,
-        json={"pinned": True, "project_id": project_id, "title": "Notes"},
+        json={"project_id": project_id, "title": "Notes"},
     )
     assert changed.status_code == 200, changed.text
     assert (changed.json()["title"], changed.json()["pinned"], changed.json()["project_id"]) == (
-        "Notes", True, project_id,
+        "Notes", False, project_id,
     )
+    # Pinned chats are a folder of their own: pinning takes it out of the project.
+    pinned = await client.patch(f"{AI}/quick-chats/{chat_id}", headers=headers, json={"pinned": True})
+    assert (pinned.json()["pinned"], pinned.json()["project_id"]) == (True, None)
+    assert (await client.patch(
+        f"{AI}/quick-chats/{chat_id}", headers=headers, json={"pinned": True, "project_id": project_id},
+    )).status_code == 422
     assert (await client.patch(
         f"{AI}/quick-chats/{chat_id}", headers=stranger, json={"archived": True}
     )).status_code == 404

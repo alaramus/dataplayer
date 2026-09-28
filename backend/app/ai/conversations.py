@@ -8,6 +8,7 @@ connections and jobs follow (D33, D81).
 import json
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import cast
 
@@ -184,6 +185,29 @@ async def has_image_attachment(session: AsyncSession, conversation_id: uuid.UUID
         .limit(1)
     )
     return found.first() is not None
+
+
+@dataclass(frozen=True)
+class Placement:
+    pinned: bool | None
+    move: bool
+    project_id: uuid.UUID | None
+
+
+def placement(pinned: bool | None, move: bool, project_id: uuid.UUID | None) -> Placement:
+    """Where a chat of either kind stands after a change.
+
+    Pinned chats are a folder of their own, never inside a project: pinning
+    takes a chat out of its project, and moving one into a project unpins it.
+    Asking for both at once is refused rather than one quietly winning.
+    """
+    if pinned and move and project_id is not None:
+        raise ValueError("A pinned chat cannot be in a project")
+    if pinned:
+        return Placement(pinned=True, move=True, project_id=None)
+    if move and project_id is not None:
+        return Placement(pinned=False, move=True, project_id=project_id)
+    return Placement(pinned=pinned, move=move, project_id=project_id)
 
 
 async def change(

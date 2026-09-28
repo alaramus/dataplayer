@@ -282,17 +282,15 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId(`ai-pin-${id}`)).toBeHidden()
   await row.hover()
   await page.getByTestId(`ai-pin-${id}`).click()
-  // Among the pinned chats of its group, above the line under them. Not
-  // necessarily first on screen: folders come before the loose chats, and
-  // somebody may have pinned a chat of their own already.
-  const loose = page.getByTestId("ai-loose-chats")
-  await expect.poll(() => loose.evaluate((group, rowId) => {
-    const pinned = group.querySelector(`[data-testid="ai-chat-row-${rowId}"]`)
-    const rule = group.querySelector('[data-testid="ai-pinned-rule"]')
-    return pinned !== null && rule !== null
-      && (pinned.compareDocumentPosition(rule) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
-  }, id)).toBe(true)
-  await expect(loose.getByTestId("ai-pinned-rule")).toHaveCount(1)
+  // Into the Pinned folder at the top, which folds as a project does.
+  const pinnedChats = page.getByTestId("ai-pinned-chats")
+  await expect(pinnedChats.getByTestId(`ai-chat-row-${id}`)).toBeVisible()
+  await expect(page.locator('[data-testid="ai-pinned-chats"], [data-testid^="ai-project-"], [data-testid="ai-loose-chats"]').first())
+    .toHaveAttribute("data-testid", "ai-pinned-chats")
+  await page.getByTestId("ai-pinned-toggle").click()
+  await expect(row).toHaveCount(0)
+  await page.getByTestId("ai-pinned-toggle").click()
+  await expect(row).toBeVisible()
   // A project is a folder and nothing else: the chat moves into it, hides with
   // it, and outlives it.
   await page.getByTestId("ai-new-project").click()
@@ -313,6 +311,10 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByTestId(`ai-move-${id}`).click()
   await page.locator('[data-testid^="menu-item-"]').filter({ hasText: "Playwright project" }).click()
   await expect(page.getByTestId(`ai-project-${projectId}`).getByTestId(`ai-chat-row-${id}`)).toBeVisible()
+  // Moved into a project it is no longer pinned, and cannot be pinned there.
+  await expect(pinnedChats.getByTestId(`ai-chat-row-${id}`)).toHaveCount(0)
+  await row.hover()
+  await expect(page.getByTestId(`ai-pin-${id}`)).toHaveCount(0)
 
   await toggle.click()
   await expect(row).toHaveCount(0)
