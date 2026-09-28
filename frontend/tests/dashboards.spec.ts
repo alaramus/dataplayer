@@ -533,6 +533,34 @@ test("the rail is dragged wider and narrower by the gap beside it, never past tw
   expect(await widthOf()).toBe(chosen)
 })
 
+test("a long dashboard name keeps to one line of the rail, and says itself whole on hover", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const name = `e2e-long-name-${String(Date.now())}-${"x".repeat(60)}`
+  await page.getByTestId("dashboard-new").click()
+  await page.getByRole("button", { name: "Rename this dashboard" }).click()
+  await page.getByTestId("dashboard-rename-input").fill(name)
+  await page.getByTestId("dashboard-rename-input").press("Enter")
+  const entry = page.getByTestId(`dashboard-${name}`)
+  await expect(entry).toBeVisible()
+  // Enter closes the window; it once reopened it through the pencil.
+  await expect(page.getByRole("dialog", { name: "Rename dashboard" })).toHaveCount(0)
+
+  // Wrapped, the name went under its icon over two or three lines.
+  const railBox = await page.getByTestId("dashboards-rail").boundingBox()
+  const entryBox = await entry.boundingBox()
+  expect(entryBox!.height).toBeLessThan(40)
+  expect(entryBox!.x + entryBox!.width).toBeLessThanOrEqual(railBox!.x + railBox!.width)
+  await entry.hover()
+  await expect(entry).toHaveAttribute("title", name)
+
+  await entry.click()
+  await page.getByRole("button", { name: "Delete this dashboard" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(entry).toHaveCount(0)
+})
+
 test("the rail is pushed aside to its icons and brought back by the header button or its gap, and stays as it was left", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await login(page)

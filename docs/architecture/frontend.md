@@ -216,8 +216,9 @@ Consequences:
   middle tone between the outer chrome and the card's working surface; neutral
   tabs keep a distinct fill on that tone.
 - **Button layout belongs to the kit.** `toolbar` keeps an icon and label on one
-  line, `navigation` aligns an entry to the left, and `AppTree` owns the full-row
-  selection mark. Screens size fields through their own classes on kit
+  line, `navigation` aligns an entry to the left and keeps it to one line — a
+  long name ends in an ellipsis and is given whole on hover — and `AppTree`
+  owns the full-row selection mark. Screens size fields through their own classes on kit
   components, never by selecting Quasar internals.
 - **Button icon names live in `shared/ui/icons.ts`.** A screen chooses a named
   action from `appIcons`; its ligatures use Material Symbols Outlined, including

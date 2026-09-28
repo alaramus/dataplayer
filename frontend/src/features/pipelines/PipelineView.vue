@@ -879,11 +879,14 @@ defineExpose({ place })
       sizing="content"
     >
       <AppForm layout="section">
+        <!-- Trap: closed on keydown, the window hands focus back to the
+             pencil that opened it, and the same Enter presses that and
+             opens it again. Prevented, the Enter ends here. -->
         <AppInput
           v-model="renameDraft"
           label="Name"
           data-testid="pipeline-rename-input"
-          @keydown.enter="applyRename"
+          @keydown.enter.prevent="applyRename"
         />
       </AppForm>
       <template #actions>

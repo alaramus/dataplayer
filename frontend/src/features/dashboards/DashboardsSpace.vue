@@ -364,7 +364,7 @@ defineExpose({
                   :data-testid="`dashboard-${dashboard.name}`"
                   @click="selectedId = dashboard.id"
                 >
-                  <AppTooltip>Shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
+                  <AppTooltip>{{ dashboard.name }}, shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
                 </AppButton>
               </div>
             </template>

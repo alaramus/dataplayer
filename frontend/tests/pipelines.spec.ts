@@ -45,8 +45,10 @@ test("lays connections out as cards of what was ticked in them, and keeps them",
   await page.getByTestId("pipeline-rename").click()
   await page.getByTestId("pipeline-rename-input").fill(name)
   const renamed = saved(page)
-  await page.getByTestId("pipeline-rename-apply").click()
+  // Enter closes the window; it once reopened it through the pencil.
+  await page.getByTestId("pipeline-rename-input").press("Enter")
   await renamed
+  await expect(page.getByRole("dialog", { name: "Rename pipeline" })).toHaveCount(0)
   await expect(page.getByTestId("pipeline-view")).toContainText(name)
 
   // Dragged from the list and dropped: its catalog, with ticks.

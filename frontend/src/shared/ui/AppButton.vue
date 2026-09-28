@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, useAttrs, useSlots } from "vue"
 
 import { buttonLayout, buttonLook } from "./tokens"
 import type { ButtonLayout, ButtonVariant } from "./tokens"
@@ -8,7 +8,10 @@ const props = withDefaults(
   defineProps<{
     /** What the button means. The look follows from it. */
     variant?: ButtonVariant
-    /** Toolbar commands stay on one line; navigation entries start at the left. */
+    /**
+     * Toolbar commands stay on one line; navigation entries start at the left
+     * and keep to one line too, a long name ending in an ellipsis.
+     */
     layout?: ButtonLayout
     label?: string
     /**
@@ -54,6 +57,22 @@ const contentLayout = computed(() => buttonLayout(props.layout))
 const shownLabel = computed(() => (props.iconOnly ? undefined : props.label))
 /** Only where the label is not drawn: a visible one names the button already. */
 const spokenLabel = computed(() => (props.iconOnly ? props.label : undefined))
+
+const attrs = useAttrs()
+const slots = useSlots()
+/**
+ * A navigation entry cut short by its ellipsis says the whole name on hover,
+ * and only then: a title on every entry repeats what is already on screen.
+ * Left alone where the caller gave a title or a tooltip of its own.
+ */
+function nameIfCut(event: PointerEvent) {
+  if (props.layout !== "navigation" || !shownLabel.value || attrs.title !== undefined || slots.default) return
+  const button = event.currentTarget
+  if (!(button instanceof HTMLElement)) return
+  const label = button.querySelector(".q-btn__content > .block")
+  if (label instanceof HTMLElement && label.scrollWidth > label.clientWidth) button.title = shownLabel.value
+  else button.removeAttribute("title")
+}
 </script>
 
 <template>
@@ -65,7 +84,7 @@ const spokenLabel = computed(() => (props.iconOnly ? props.label : undefined))
     :aria-label="spokenLabel"
     :align="contentLayout.align"
     :no-wrap="contentLayout.noWrap"
-    :class="{ 'app-button--toolbar': layout === 'toolbar' }"
+    :class="{ 'app-button--toolbar': layout === 'toolbar', 'app-button--navigation': layout === 'navigation' }"
     :color="look.color"
     :text-color="look.textColor"
     :unelevated="look.unelevated"
@@ -77,6 +96,7 @@ const spokenLabel = computed(() => (props.iconOnly ? props.label : undefined))
     :loading="loading"
     :disable="disable"
     :type="type"
+    @pointerenter="nameIfCut"
   >
     <slot />
   </q-btn>
@@ -89,5 +109,21 @@ const spokenLabel = computed(() => (props.iconOnly ? props.label : undefined))
 }
 .app-button--toolbar :deep(.q-btn__content) {
   gap: var(--dp-space-1);
+}
+/* A long name wrapped under its own icon and doubled the entry's height; a
+   list reads down one line per entry.
+   Trap: QBtn holds the label in a `.block` of its own (display: block
+   !important), and an ellipsis on the content never reaches it — the name is
+   cut through a letter instead. So the label carries the ellipsis. */
+.app-button--navigation {
+  max-width: 100%;
+}
+.app-button--navigation :deep(.q-btn__content) {
+  min-width: 0;
+}
+.app-button--navigation :deep(.q-btn__content > .block) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

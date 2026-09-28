@@ -100,14 +100,6 @@ function pick(name: string) {
 .ai-chat-row:has(:focus-visible),
 .ai-chat-row--menu { background: var(--dp-active); }
 .ai-chat-row > :first-child { flex: 1; min-width: 0; }
-/* A generated title is a sentence; the row gets one line of it, the rest is
-   on the button's tooltip. */
-.ai-chat-row__title :deep(.q-btn__content) { display: block; min-width: 0; overflow: hidden; text-align: left; white-space: nowrap; }
-/* Trap: QBtn puts the label in a `.block` of its own (display: block
-   !important), and an ellipsis on the content never reaches a block child.
-   The title was cut through a letter instead, and a sliver of one showed as a
-   coloured dot beside the buttons. So the label carries the ellipsis. */
-.ai-chat-row__title :deep(.q-btn__content > .block) { overflow: hidden; text-overflow: ellipsis; }
 /* Quasar's focus helper shades the title button separately from its row. */
 .ai-chat-row__title :deep(.q-focus-helper) { display: none; }
 .ai-chat-row__actions { display: none; flex: none; }

@@ -58,8 +58,9 @@ export type ButtonVariant = "primary" | "secondary" | "chosen" | "danger" | "dan
 
 export type ButtonLayout = "default" | "toolbar" | "navigation"
 
+/** A toolbar command and an entry of a list both keep to one line. */
 export function buttonLayout(layout: ButtonLayout): { align: "left" | "center"; noWrap: boolean } {
-  return { align: layout === "navigation" ? "left" : "center", noWrap: layout === "toolbar" }
+  return { align: layout === "navigation" ? "left" : "center", noWrap: layout !== "default" }
 }
 
 export interface ButtonLook {

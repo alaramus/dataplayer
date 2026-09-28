@@ -658,7 +658,7 @@ onScopeDispose(stop)
           autofocus
           data-testid="ai-rename-input"
           @focus="selectAllIn(renameField)"
-          @keydown.enter="finishRename"
+          @keydown.enter.prevent="finishRename"
         />
       </AppForm>
       <template #actions>

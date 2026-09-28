@@ -76,6 +76,50 @@ describe("AppButton", () => {
     expect(after.get("button").text()).toBe("Nextchevron_right")
   })
 
+  // A long dashboard name wrapped under its icon and doubled its entry.
+  it("keeps a navigation entry to one line", () => {
+    const wrapper = mount(AppButton, {
+      global: { plugins: [Quasar] },
+      props: { label: "A dashboard", layout: "navigation" },
+    })
+
+    expect(wrapper.get(".q-btn__content").classes()).toContain("no-wrap")
+  })
+
+  it("says the whole name of a cut entry on hover, and only of a cut one", async () => {
+    const wrapper = mount(AppButton, {
+      global: { plugins: [Quasar] },
+      props: { label: "e2e-dashboard-1790575958210", layout: "navigation" },
+    })
+    const label = wrapper.get(".q-btn__content > .block").element
+    const widths = (scroll: number, client: number) => {
+      Object.defineProperty(label, "scrollWidth", { configurable: true, value: scroll })
+      Object.defineProperty(label, "clientWidth", { configurable: true, value: client })
+    }
+
+    widths(200, 120)
+    await wrapper.get("button").trigger("pointerenter")
+    expect(wrapper.get("button").attributes("title")).toBe("e2e-dashboard-1790575958210")
+
+    widths(120, 120)
+    await wrapper.get("button").trigger("pointerenter")
+    expect(wrapper.get("button").attributes("title")).toBeUndefined()
+  })
+
+  it("leaves a title the caller gave alone", async () => {
+    const wrapper = mount(AppButton, {
+      global: { plugins: [Quasar] },
+      props: { label: "A chat", layout: "navigation" },
+      attrs: { title: "A chat, whole" },
+    })
+    const label = wrapper.get(".q-btn__content > .block").element
+    Object.defineProperty(label, "scrollWidth", { configurable: true, value: 10 })
+    Object.defineProperty(label, "clientWidth", { configurable: true, value: 10 })
+
+    await wrapper.get("button").trigger("pointerenter")
+    expect(wrapper.get("button").attributes("title")).toBe("A chat, whole")
+  })
+
   // No test that a screen cannot pass color="purple": attributes fall through
   // by design, so nothing stops it. That compromise is recorded in the spec.
 })
