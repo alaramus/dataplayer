@@ -241,13 +241,19 @@ const summary = computed(() => {
       </q-item>
     </template>
     <!-- One line for several choices, where the field stands in a toolbar.
-         See `summary` above. -->
+         See `summary` above.
+         Trap: a key on the root of either #selected. Without one, a slot that
+         appears after the options load patches the <span> QSelect drew
+         before it, and Vue sets this component's scope attribute only on a
+         new element: the styles below then miss it, the gap by the key
+         included, on some openings and not others. -->
     <template
       v-if="compact && multiple"
       #selected
     >
       <span
         v-if="summary !== undefined"
+        key="summary"
         class="app-select__summary"
       >
         {{ summary }}
@@ -259,6 +265,7 @@ const summary = computed(() => {
       #selected
     >
       <span
+        key="chosen"
         class="app-select__chosen"
         :class="{ 'app-select__chosen--warning': single.tone === 'warning' }"
       >

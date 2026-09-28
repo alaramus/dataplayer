@@ -159,6 +159,19 @@ describe("AppSelect", () => {
     expect(unset.get(".app-select__state").classes()).not.toContain("app-select__state--on")
   })
 
+  it("styles the state it draws when the options arrive after the field", async () => {
+    // The field drew its own <span> first; patched in place, the chosen name
+    // lost this component's scope attribute and with it the gap by the key.
+    const wrapper = mountSelect({ modelValue: "claude", options: [] })
+    await wrapper.setProps({
+      options: [{ label: "Claude", value: "claude", stateIcon: "key", stateActive: true }],
+    })
+
+    const scope = Object.keys(wrapper.attributes()).find((name) => name.startsWith("data-v-"))
+    expect(scope).toBeDefined()
+    expect(wrapper.get(".app-select__chosen").attributes()).toHaveProperty(scope ?? "")
+  })
+
   // The click never reaches the field's own handler, so without an explicit
   // close the popup stays open over whatever the action shows.
   it("closes the popup when an option action takes over", async () => {
