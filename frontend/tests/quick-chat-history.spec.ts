@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { historyRows } from "./utils/ai"
 import { login } from "./utils/login"
+import { toast } from "./utils/notices"
 
 test("opening and closing a quick chat leaves history unchanged", async ({ page }) => {
   await login(page)
@@ -81,17 +82,28 @@ test("More details asks about a selection once, and names the chat by it", async
   // And an answer without a provider: what matters is what is asked.
   let asked: string | null = null
   let quickChatId: string | null = null
+  let answered: object | null = null
   await page.route(/\/api\/v1\/ai\/quick-chats\/[^/]+\/messages$/, async (route) => {
     asked = (route.request().postDataJSON() as { text: string }).text
     quickChatId = route.request().url().split("/").at(-2) ?? null
-    await route.fulfill({ json: {
+    answered = {
       id: quickChatId, title: selection, model_key: null, updated_at: null,
       pinned: false, archived: false, project_id: null,
       messages: [
         { id: "u1", role: "user", content: asked, created_at: null },
         { id: "a1", role: "assistant", content: "An answer.", created_at: null },
       ],
-    } })
+    }
+    await route.fulfill({ json: answered })
+  })
+  // Read again after the send, it is the same answer.
+  await page.route(/\/api\/v1\/ai\/quick-chats\/[^/?]+$/, async (route) => {
+    const id = route.request().url().split("/").at(-1)
+    if (route.request().method() === "GET" && answered !== null && id === quickChatId) {
+      await route.fulfill({ json: answered })
+    } else {
+      await route.continue()
+    }
   })
 
   await page.getByTestId("space-ai").click()
@@ -114,6 +126,15 @@ test("More details asks about a selection once, and names the chat by it", async
     const chats = await (await page.request.get(`${api}/quick-chats`, { headers })).json() as { id: string; title: string }[]
     return chats.find((chat) => chat.id === quickChatId)?.title
   }).toBe(selection)
+
+  // Copy and read aloud under each message, as in the agent's chat.
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+  const answer = page.getByTestId("quick-chat-messages").locator("article").filter({ hasText: "An answer." })
+  await answer.hover()
+  await expect(answer.getByTestId("ai-message-listen")).toBeVisible()
+  await answer.getByTestId("ai-message-copy").click()
+  await expect(toast(page, "Answer copied")).toBeVisible()
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("An answer.")
 
   await page.request.delete(`${api}/quick-chats/${quickChatId ?? ""}`, { headers })
   await page.request.delete(`${api}/conversations/${conversationId}`, { headers })

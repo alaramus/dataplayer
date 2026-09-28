@@ -8,6 +8,7 @@ import { realtime } from "@/shared/realtime/client"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppSpinner, appIcons, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
+import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { quickChatsKey, useAiSettings } from "./api"
@@ -230,6 +231,11 @@ function editorKeydown(event: KeyboardEvent) {
             v-else
             :text="message.content"
           />
+          <AiMessageActions
+            class="quick-chat__actions"
+            :text="message.content"
+            :role="message.role"
+          />
         </article>
         <article
           v-if="askedShown"
@@ -303,7 +309,11 @@ function editorKeydown(event: KeyboardEvent) {
 .quick-chat__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-5) var(--dp-space-4); }
 .quick-chat__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .quick-chat__message { max-width: 960px; margin: 0 auto var(--dp-space-4); }
-.quick-chat__message--user { display: flex; justify-content: flex-end; }
+.quick-chat__message--user { display: flex; flex-direction: column; align-items: flex-end; }
+/* Shown under the message the pointer is on, as in the agent's chat. */
+.quick-chat__actions { margin-top: var(--dp-space-1); opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.quick-chat__message:hover .quick-chat__actions, .quick-chat__message:focus-within .quick-chat__actions { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .quick-chat__actions { opacity: 1; pointer-events: auto; } }
 .quick-chat__question { max-width: 78%; font-size: var(--dp-prose-font-size); line-height: 1.65; white-space: pre-wrap; padding: var(--dp-space-2) var(--dp-space-3); background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .quick-chat__dock { flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); }
 .quick-chat__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); max-width: 960px; margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }

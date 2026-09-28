@@ -16,7 +16,6 @@ import type { AttachmentKind } from "./attachments"
 import { useDictation } from "./dictation"
 import { useAiDraft } from "./draft"
 import { markAt, outlineMarks } from "./outline"
-import { plainSpeechText } from "./streaming"
 import { runDuration } from "./runDuration"
 import {
   useAiConversation,
@@ -33,6 +32,7 @@ import {
 import AiContextDialog from "./AiContextDialog.vue"
 import AiFileChip from "./AiFileChip.vue"
 import AiMessageFiles from "./AiMessageFiles.vue"
+import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
 import { autoModelValue, fallbackModel } from "./modelOptions"
 import { openQuickChat, quoteSelection } from "./quickChatLauncher"
@@ -116,11 +116,6 @@ function explainSelection() {
 }
 const expandedSteps = ref(new Set<string>())
 const expandedReasoning = ref(new Set<string>())
-let speech: SpeechSynthesisUtterance | null = null
-// Which message is being read aloud, so its button becomes the stop. The
-// engine reports the end on the utterance; a fresh read of the same text
-// restarts it, so the message content is enough of a key.
-const speaking = ref<string | null>(null)
 
 const runs = computed(() => new Map((conversation.data.value?.runs ?? []).map((run) => [run.id, run])))
 const activeRun = computed(() => (conversation.data.value?.runs ?? []).find((run) => ["running", "awaiting_answer"].includes(run.status)) ?? null)
@@ -405,25 +400,6 @@ function dictate() {
   }
   dictation.toggle()
 }
-async function copy(text: string, what: string) {
-  try { await navigator.clipboard.writeText(text); toast.success(`${what} copied`) }
-  catch { toast.error(`The ${what.toLowerCase()} could not be copied`) }
-}
-function stopSpeaking() {
-  window.speechSynthesis.cancel()
-  speaking.value = null
-}
-function listen(text: string) {
-  if (speaking.value === text) { stopSpeaking(); return }
-  window.speechSynthesis.cancel()
-  const plain = plainSpeechText(text)
-  if (!plain) return
-  speech = new SpeechSynthesisUtterance(plain)
-  speech.onend = () => { if (speaking.value === text) speaking.value = null }
-  speech.onerror = () => { if (speaking.value === text) speaking.value = null }
-  speaking.value = text
-  window.speechSynthesis.speak(speech)
-}
 
 watch(() => conversation.data.value, async () => {
   await nextTick()
@@ -431,7 +407,6 @@ watch(() => conversation.data.value, async () => {
   trackOutline()
 }, { deep: true })
 onBeforeUnmount(() => {
-  if (speech) window.speechSynthesis.cancel()
   dictation.stop()
   for (const one of pending.value) URL.revokeObjectURL(one.address)
 })
@@ -561,23 +536,11 @@ onBeforeUnmount(() => {
             >
               {{ errorOf(message) }}
             </AppBanner>
-            <div
+            <AiMessageActions
               class="ai-message__actions"
-            >
-              <AppIconButton
-                :icon="appIcons.copy"
-                :tooltip="message.role === 'user' ? 'Copy message' : 'Copy answer'"
-                @click="copy(message.content, message.role === 'user' ? 'Message' : 'Answer')"
-              />
-              <AppIconButton
-                :icon="speaking === message.content ? appIcons.stopCircle : appIcons.volumeUp"
-                :tooltip="speaking === message.content
-                  ? 'Stop reading aloud'
-                  : message.role === 'user' ? 'Listen to message' : 'Listen to answer'"
-                :active="speaking === message.content"
-                @click="listen(message.content)"
-              />
-            </div>
+              :text="message.content"
+              :role="message.role"
+            />
           </article>
           <article
             v-if="activeRun"

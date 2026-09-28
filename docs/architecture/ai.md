@@ -109,6 +109,7 @@ frontend/src/features/ai/
 ├── AiConversation.vue  transcript, steps, the confirmation card, Stop, copy, listen, the context chips and the composer's own model
 ├── AiContextDialog.vue the open tabs a message may carry
 ├── AiFileChip.vue      one file of a message, before and after it is sent
+├── AiMessageActions.vue copy and read aloud under a message, in either chat
 ├── AiMessageFiles.vue  the files a sent message carried, read with the person's token
 ├── AiSettings.vue      provider keys, model, confirmations and the archive
 ├── ChatMarkdown.vue    the D50 renderer in streaming mode
@@ -118,6 +119,7 @@ frontend/src/features/ai/
 ├── context.ts          which open panels a chip may name, and the open intent
 ├── dictation.ts        the browser's recogniser behind the composer's microphone
 ├── outline.ts          the questions of a conversation, and which one is being read
+├── readAloud.ts        the one voice of the browser, shared by both chats
 ├── streaming.ts        open-fence protection and speech text
 └── state.ts            selected-chat restoration and a chat requested from outside; the shared space store remembers AI
 ```
@@ -342,7 +344,9 @@ untouched draft leaves no history entry.
 The transcript has a centered reading width. Agent steps use the same text size
 as answers, with a quieter color; the composer sits on a raised surface below
 the transcript. Copy and speech controls under a message appear on hover or
-keyboard focus, and remain visible on touch screens. Unsent text is kept in
+keyboard focus, and remain visible on touch screens; the quick chat has the same
+two under its messages. Reading one message aloud stops any other, in either
+chat. Unsent text is kept in
 memory per conversation while this browser page is open, including when the
 person switches application spaces or opens another chat. Sending clears it
 after the server accepts the message.
