@@ -78,6 +78,15 @@ describe("searching the adapter catalog", () => {
     expect(searchAdapters(TYPES, "relational")).toEqual([POSTGRES])
   })
 
+  it("searches a type with no short lists rather than failing on it", () => {
+    // A stub or an older answer may carry no `can_see` or `can_change`: the
+    // search is over names and descriptions then, and a query matching
+    // nothing still matches nothing instead of throwing.
+    const bare = { ...POSTGRES, can_see: undefined, can_change: undefined } as unknown as AdapterTypeInfo
+    expect(searchAdapters([bare], "relational")).toEqual([bare])
+    expect(searchAdapters([bare], "kafka")).toEqual([])
+  })
+
   it("finds a type by its category", () => {
     expect(searchAdapters(TYPES, "storage")).toEqual([FILES])
   })

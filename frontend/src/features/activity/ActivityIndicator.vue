@@ -132,9 +132,16 @@ const attention = useAttention(
   serverJobs,
   (job) => {
     const subject = subjectOf(job.kind, job.subject_id)
+    const row = rowOf(job)
+    const message = job.message ?? ""
+    // Where the row of the working section used to say them: an ended job
+    // has left that section, and this is the one entry it has (D181). The
+    // measure leads, as it does in the row — a source operation counts the
+    // targets that have an outcome, and anything else has no measure.
+    const lead = row.measurement !== "" && row.measurement !== message ? [row.measurement] : []
     return {
       label: `${jobTitle(job)}${subject ? ` · ${subject}` : ""}`,
-      lines: linesBeyond(rowOf(job).detail, job.message ?? ""),
+      lines: [...lead, ...linesBeyond(row.detail, message)],
     }
   },
   dismissed

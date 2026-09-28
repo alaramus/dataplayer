@@ -221,12 +221,13 @@ test("pastes a CSV into a database as a new table, then adds its rows to that ta
   await page.getByTestId("grid-create-table-run").click()
   await expect(catalogRow(page, table)).toBeVisible()
 
-  // With that table ticked there are two answers, and the list asks which.
+  // With that table ticked, adding rows is a line of its own: it goes into
+  // the ticked table rather than into the place, so there is no list asking
+  // which (D166, D182).
   const box = catalogCheck(page, table)
   if (!(await box.isChecked())) await box.click()
-  await catalogAction(page, "client:cross-paste")
-  await expect(page.getByTestId("cross-paste-offer-rows_new_relation")).toBeVisible()
-  await page.getByTestId("cross-paste-offer-rows_into_relation").click()
+  await catalogAction(page, "client:cross-paste-into")
+  await expect(page.getByTestId("grid-import-dialog")).toBeVisible()
   // Same names are paired to start with, so the rows can go straight in.
   await page.getByTestId("grid-import-run").click()
   await expect(page.getByTestId("grid-import-dialog")).toHaveCount(0)

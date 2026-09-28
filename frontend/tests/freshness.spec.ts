@@ -90,6 +90,11 @@ test("a connection is told how long to keep its answers", async ({ page }) => {
   await page.getByRole("option", { name: "Never keep answers", exact: true }).click()
   await page.getByTestId("save-connector").click()
 
+  // The window closes on the save's answer, not on the click: reopening
+  // while it is still open clicks the old window's tab, which the answer
+  // then closes under the click.
+  await expect(page.locator('[data-testid^="window-close-connector"]')).toHaveCount(0)
+
   // Saved and read back: the window is on the connection, not on the form.
   await editConnector(page, name)
   await openOptions(page)

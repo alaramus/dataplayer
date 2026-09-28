@@ -859,19 +859,27 @@ async function afterAction(outcome: ActionOutcome) {
              saying its own name, and the word above it is both a repetition
              and a second line in a bar that has one — Quasar floats a label
              out of the field exactly when the field is filled. -->
-        <AppSelect
+        <!-- The id is on a plain wrapper rather than on the field: Quasar
+             forwards it onto the field's own input, which for several choices
+             in a toolbar is an empty native element the summary replaces — out
+             of sight and out of clicking reach. -->
+        <div
           v-if="groupOptions.length"
           class="catalog-panel__groups"
-          :model-value="oneGroupOnly ? treeRoot : level.selectedGroups.value"
-          :options="groupOptions"
-          :label="level.selectedGroups.value.length ? undefined : groupsLabel"
-          :aria-label="groupsLabel"
-          :summary-noun="groupsLabel"
-          :multiple="!oneGroupOnly"
-          compact
           data-testid="catalog-groups"
-          @update:model-value="pickGroups"
-        />
+        >
+          <AppSelect
+            class="catalog-panel__groups-field"
+            :model-value="oneGroupOnly ? treeRoot : level.selectedGroups.value"
+            :options="groupOptions"
+            :label="level.selectedGroups.value.length ? undefined : groupsLabel"
+            :aria-label="groupsLabel"
+            :summary-noun="groupsLabel"
+            :multiple="!oneGroupOnly"
+            compact
+            @update:model-value="pickGroups"
+          />
+        </div>
 
         <!-- The commands in groups with a line between two, as the grid's are:
              this tab, a second catalog beside it, and the menu of what can be
@@ -1194,6 +1202,11 @@ async function afterAction(outcome: ActionOutcome) {
   flex: 1;
   min-width: 0;
 }
+/* The field fills its wrapper, whose test id the scenarios click: the click
+   lands on the visible field and opens its menu. */
+.catalog-panel__groups-field {
+  width: 100%;
+}
 /* The commands keep to the end of the line whether or not there is a path
    to push them there. */
 .catalog-panel__commands {
@@ -1203,6 +1216,12 @@ async function afterAction(outcome: ActionOutcome) {
   gap: var(--dp-space-1);
   flex: none;
   margin-left: auto;
+}
+/* The row already gaps its children, so the line stands on that gap rather
+   than keeping margins of its own: two lines with margins cost the choice of
+   schemas its room in a narrow column. */
+.catalog-panel__commands .app-toolbar-rule {
+  margin-inline: 0;
 }
 .catalog-panel__duplicate { width: var(--dp-tab-strip-height); height: var(--dp-tab-strip-height); min-width: var(--dp-tab-strip-height); padding: 0; }
 .catalog-panel__duplicate-label { font-size: 20px; font-weight: 500; line-height: 1; }

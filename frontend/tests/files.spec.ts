@@ -84,6 +84,10 @@ test("copies the path of the level it is standing on", async ({ page, context })
   await up.focus()
   await up.hover()
   await expect(copy).toBeHidden()
+  // The trail scrolls by design, and hovering scrolls the crumb into view:
+  // measure from where it rests once seen, so what is compared is the copy
+  // button taking its reserved place rather than the trail settling.
+  await crumb.scrollIntoViewIfNeeded()
   const beforeHover = await crumb.boundingBox()
   expect(beforeHover).not.toBeNull()
 

@@ -43,8 +43,8 @@ function rankOf(
     type.description,
     // What the panel says it can do, in the words the panel says it in: a
     // match on a capability nobody is shown would be one nobody can explain.
-    ...type.can_see,
-    ...type.can_change,
+    ...(type.can_see ?? []),
+    ...(type.can_change ?? []),
     // What this server can start of this type is something it says about
     // itself too. TimescaleDB is a PostgreSQL here (D119), so somebody who
     // looks for it by name would otherwise be told that no source type
