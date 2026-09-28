@@ -2,10 +2,10 @@ import type { Component } from "vue"
 
 import QuickChatCommand from "@/features/ai/QuickChatCommand.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
+import QueriesCommand from "@/features/queries/QueriesCommand.vue"
 import ServicesCommand from "@/features/services/ServicesCommand.vue"
 import TerminalCommand from "@/features/terminals/TerminalCommand.vue"
 
-import CommandBar from "./CommandBar.vue"
 import TabGroupList from "./TabGroupList.vue"
 import TabGroupSave from "./TabGroupSave.vue"
 import type { BlockSeat } from "./toolRails"
@@ -40,14 +40,23 @@ export interface ToolBlock extends BlockSeat {
  */
 export const TOOL_BLOCKS: readonly ToolBlock[] = [
   { id: "spaces", home: "left-top", framed: true, component: SpaceSwitch, props: () => ({ iconOnly: true }) },
-  { id: "queries", home: "left-top", component: CommandBar, props: () => ({ iconOnly: true }) },
-  { id: "quick-chat", home: "left-top", beside: "queries", component: QuickChatCommand, props: () => ({}) },
+  { id: "quick-chat", home: "left-top", beside: "spaces", component: QuickChatCommand, props: () => ({}) },
   { id: "services", home: "left-bottom", component: ServicesCommand, props: () => ({ iconOnly: true }) },
   {
     id: "terminals",
     home: "left-bottom",
     beside: "services",
     component: TerminalCommand,
+    props: () => ({ iconOnly: true }),
+  },
+  // Not "queries": that id stood on the top rail, and an arrangement stored
+  // then would keep it there. The library moved beside the tools it now
+  // shares the panel at the foot with (D143).
+  {
+    id: "queries-library",
+    home: "left-bottom",
+    beside: "terminals",
+    component: QueriesCommand,
     props: () => ({ iconOnly: true }),
   },
   { id: "groups-save", home: "right-top", component: TabGroupSave, props: (rail) => ({ groups: rail.groups }) },

@@ -197,7 +197,7 @@ function onRailDrop(event: DragEvent) {
   border-right: none;
   gap: var(--dp-space-half);
 }
-.tool-rail__content :deep(.command-bar),
+.tool-rail__content :deep(.queries-command),
 .tool-rail__content :deep(.services-command) {
   justify-content: center;
 }

@@ -1049,7 +1049,6 @@ test("the bar at the foot offers what hangs off nothing else", async ({ page }) 
   await createPostgresConnector(page, sql)
   await createFileConnector(page, files)
 
-  const bar = page.getByTestId("command-bar")
   const queries = page.getByTestId("command-queries")
 
   // Nothing is being read, and the library is a person's own: it opens all
@@ -1057,25 +1056,27 @@ test("the bar at the foot offers what hangs off nothing else", async ({ page }) 
   await expect(queries).toBeEnabled()
   await expect(page.getByTestId("command-backups")).toHaveCount(0)
 
-  // A source that runs queries offers the commands. The bar does not repeat
-  // which connection they are about — the column and the tab both say it —
-  // and each tooltip names it (D69).
+  // A source that runs queries: the tooltip names it (D69).
   await openConnector(page, sql)
-  await expect(bar).not.toContainText(sql)
   await expect(queries).toBeEnabled()
   await queries.hover()
   await expect(page.getByText(`Queries written against ${sql}`)).toBeVisible()
 
-  // And a source that does not run queries keeps the bar's shape: the library
-  // stays reachable whatever is open.
+  // And whatever else is open, the library stays reachable.
   await openConnector(page, files)
-  await expect(bar).not.toContainText(files)
   await expect(queries).toBeEnabled()
 
-  // Pressed from the connection, the library opens filtered to it.
+  // Pressed from the connection, the library opens in the panel at the foot,
+  // beside Services and Terminals, filtered to it; pressed again, it hides
+  // (D143).
   await openConnector(page, sql)
   await queries.click()
+  await expect(page.getByTestId("bottom-panel")).toHaveAttribute("aria-label", "Queries")
+  await expect(queries).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByTestId("queries-connector")).toContainText(sql)
+  await expect(page.locator('[data-testid^="workspace-tab-queries"]')).toHaveCount(0)
+  await queries.click()
+  await expect(page.getByTestId("bottom-panel")).toHaveCount(0)
 
   for (const name of [sql, files]) {
     await deleteConnector(page, name)

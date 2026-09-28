@@ -32,6 +32,17 @@ describe("saved tab group data", () => {
     expect(parseGroups(null)).toEqual([])
   })
 
+  it("still reads a group saved with the query library open as a tab", () => {
+    // The library moved to the panel at the foot (D143); a group that held
+    // its tab loses the tab rather than every group being refused.
+    const { tree, panels } = groupFixture(false)
+    tree.children[1] = makeLeaf("navigate", ["queries"], { accepts: "navigate", pinned: true })
+    const old = serializeWorkspace(tree, [...panels, { id: "queries", kind: "queries" } as never])
+
+    expect(validGroupSnapshot(old)).toBe(true)
+    expect(parseGroups(serializeGroups([{ id: "one", name: "Old", snapshot: old }]))).toHaveLength(1)
+  })
+
   it("rejects unknown versions, malformed layouts and duplicate identities", () => {
     const group = { id: "one", name: "Queries", snapshot: groupFixture().snapshot }
     expect(parseGroups("broken")).toBeNull()
@@ -43,8 +54,8 @@ describe("saved tab group data", () => {
 
   it("requires the fixed panel and pinned roles, and checks what each section accepts", () => {
     const { tree, panels } = groupFixture()
-    expect(validGroupSnapshot(serializeWorkspace(makeLeaf("work", ["queries"], { accepts: "work" }), [panels[1]!]))).toBe(false)
-    tree.children[2] = makeLeaf("work", ["queries"], { accepts: "navigate", pinned: true })
+    expect(validGroupSnapshot(serializeWorkspace(makeLeaf("work", ["catalog:shop"], { accepts: "work" }), [panels[1]!]))).toBe(false)
+    tree.children[2] = makeLeaf("work", ["catalog:shop"], { accepts: "navigate", pinned: true })
     expect(validGroupSnapshot(serializeWorkspace(tree, panels))).toBe(false)
   })
 

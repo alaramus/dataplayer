@@ -44,13 +44,11 @@ function contextLabel(panel: Exclude<Panel, { kind: "connectors" | "widget" | "s
  * Tabs whose content never reaches the model, so offering them invites the
  * model to pretend it saw them. An attached tab travels as one line of
  * identities — label, kind, connection, node — never its content, and no
- * tool reads the query library, a console's SQL or a captured result: the
- * `queries` tab names nothing at all, while `query` and `result` name at
- * most a connection the catalog already names better. A widget copy and a
+ * tool reads a console's SQL or a captured result: `query` and `result` name
+ * at most a connection the catalog already names better. A widget copy and a
  * service log have no kind the backend accepts (D133), so they stay off too.
  */
 const UNATTACHABLE: ReadonlySet<ScreenContext["kind"]> = new Set([
-  "queries",
   "query",
   "result",
 ])

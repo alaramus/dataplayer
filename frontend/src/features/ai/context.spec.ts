@@ -25,11 +25,10 @@ describe("AI screen context", () => {
         title: null,
         connectorName: "Shop",
       },
-      { id: "queries", kind: "queries" },
       { id: "result:xyz", kind: "result", connectorId: "one", resultId: "xyz", title: "Q1" },
     ]
 
-    // A console's SQL, the query library and a captured result never reach
+    // A console's SQL and a captured result never reach
     // the model — no tool reads them — so offering them would invite the
     // model to pretend it saw them.
     expect(screenContexts(panels)).toEqual([

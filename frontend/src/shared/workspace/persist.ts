@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { ZodType } from "zod"
 
 import type { LayoutNode, PanelId } from "./model"
-import { leavesOf } from "./tree"
+import { leavesOf, removePanel } from "./tree"
 
 /**
  * A stored layout is untrusted input, like anything else that comes from
@@ -53,9 +53,17 @@ export function serializeWorkspace<P>(tree: LayoutNode, panels: P[]): string {
   return JSON.stringify({ version: WORKSPACE_VERSION, tree, panels })
 }
 
+/**
+ * Whether a stored panel is of a kind the application no longer has. Such a
+ * panel is dropped with its place in the tree rather than refusing the whole
+ * layout: the application said it went away, so it is not damage.
+ */
+export type RetiredPanel = (panel: unknown) => boolean
+
 export function parseWorkspace<P extends { id: string }>(
   raw: string | null,
-  panelSchema: ZodType<P>
+  panelSchema: ZodType<P>,
+  retired?: RetiredPanel
 ): { tree: LayoutNode; panels: P[] } | null {
   if (raw === null) return null
 
@@ -70,13 +78,26 @@ export function parseWorkspace<P extends { id: string }>(
     .object({
       version: z.literal(WORKSPACE_VERSION),
       tree: nodeSchema,
-      panels: z.array(panelSchema),
+      panels: z.array(z.unknown()),
     })
     .safeParse(parsed)
   if (!envelope.success) return null
+  if (!sizesMatchChildren(envelope.data.tree)) return null
 
-  const { tree, panels } = envelope.data
-  if (!sizesMatchChildren(tree)) return null
+  let tree: LayoutNode | null = envelope.data.tree
+  const kept: unknown[] = []
+  for (const panel of envelope.data.panels) {
+    const id = typeof panel === "object" && panel !== null ? (panel as { id?: unknown }).id : undefined
+    if (retired?.(panel) === true && typeof id === "string") {
+      tree = removePanel(tree, id)
+      if (tree === null) return null
+    } else {
+      kept.push(panel)
+    }
+  }
+  const checked = z.array(panelSchema).safeParse(kept)
+  if (!checked.success) return null
+  const panels = checked.data
 
   const known = new Set<PanelId>(panels.map((panel) => panel.id))
   if (known.size !== panels.length) return null

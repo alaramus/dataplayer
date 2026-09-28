@@ -47,8 +47,8 @@ import {
   lookOf,
   openConnectorIds,
   panelComponents,
+  isRetiredPanel,
   panelSchema,
-  QUERIES_PANEL_ID,
   queryDraftPanelId,
   sectionLook,
   queryPanelId,
@@ -120,6 +120,7 @@ const connectorColors = computed(() => new Map(
 const workspace = useWorkspace<Panel>({
   storageKey: serverStorageKey("dataplayer-workspace"),
   panelSchema,
+  retired: isRetiredPanel,
   defaults: () => ({
     tree: makeSplit(
       "root",
@@ -305,7 +306,6 @@ const revealTarget = ref<RevealTarget | null>(null)
 const followTarget = ref<FollowTarget | null>(null)
 const documentTarget = ref<DocumentTarget | null>(null)
 const sharedTarget = ref<SharedTarget | null>(null)
-const queriesTarget = ref<string | null>(null)
 const toast = useToast()
 const queryClient = useQueryClient()
 
@@ -853,20 +853,6 @@ const actions: WorkspaceActions = {
       kind: "summary",
       ...request,
     })
-  },
-  openQueries: (connectorId: string | null) => {
-    // Set before opening, so a panel mounted by this very call can take it,
-    // while one that was already open observes the same piece of state. The
-    // reason is the one `revealTarget` has: a call does not survive a panel
-    // that is not mounted yet.
-    queriesTarget.value = connectorId
-    openPanel({ id: QUERIES_PANEL_ID, kind: "queries" })
-  },
-  queriesTarget,
-  takeQueriesTarget: () => {
-    const target = queriesTarget.value
-    queriesTarget.value = null
-    return target
   },
   openQueryDocument: (request: OpenQueryDocumentRequest) => {
     openPanel({

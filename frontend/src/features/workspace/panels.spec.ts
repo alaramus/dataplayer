@@ -10,12 +10,12 @@ import {
   contentPanelId,
   emptyOf,
   headOf,
+  isRetiredPanel,
   kindOf,
   lookOf,
   openConnectorIds,
   panelSchema,
   PANEL_ROLES,
-  QUERIES_PANEL_ID,
   queryDraftPanelId,
   queryPanelId,
   resultPanelId,
@@ -37,7 +37,6 @@ const KINDS: PanelKind[] = [
   "structure",
   "summary",
   "chart",
-  "queries",
   "query",
   "result",
   "relationships",
@@ -119,7 +118,6 @@ const samples: Record<PanelKind, Panel> = {
     request: { node_id: "public.orders", limit: 100, offset: 0, filters: [], sort: [] },
     columns: ["created_at", "total"],
   },
-  queries: { id: QUERIES_PANEL_ID, kind: "queries" },
   result: {
     id: resultPanelId("r1"),
     kind: "result",
@@ -162,7 +160,7 @@ describe("the panel registry", () => {
     const panel = samples[kind]
     const colors = new Map<string, string | null>([["c1", "#246abc"]])
     const belongsToConnector =
-      kind !== "connectors" && kind !== "queries" && kind !== "widget" && kind !== "service-logs"
+      kind !== "connectors" && kind !== "widget" && kind !== "service-logs"
     expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#246abc" : null)
     colors.set("c1", "#ffffff")
     expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#ffffff" : null)
@@ -269,7 +267,6 @@ describe("the panel registry", () => {
     "content",
     "structure",
     "chart",
-    "queries",
     "query",
     "result",
     "relationships",
@@ -408,7 +405,6 @@ describe("the panel registry", () => {
     "content",
     "structure",
     "chart",
-    "queries",
     "query",
     "result",
     "widget",
@@ -431,12 +427,19 @@ describe("the panel registry", () => {
     expect(headOf(samples.connectors)).toBe(headOf(samples.connectors))
   })
 
-  it.each(["catalog", "rows", "queries", "query"] as PanelKind[])(
+  it.each(["catalog", "rows", "query"] as PanelKind[])(
     "keeps the tab of %s, which shares its column",
     (kind) => {
       expect(headOf(samples[kind])).toBeNull()
     }
   )
+
+  it("takes the query library for a retired kind, and nothing else", () => {
+    // It moved to the panel at the foot (D143); a stored layout drops its tab.
+    expect(isRetiredPanel({ id: "queries", kind: "queries" })).toBe(true)
+    for (const kind of KINDS) expect(isRetiredPanel(samples[kind])).toBe(false)
+    expect(isRetiredPanel(null)).toBe(false)
+  })
 
   it("names the connections that have a catalog open", () => {
     // The list shows two states now: open, and the one being looked at. See P7.

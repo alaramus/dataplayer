@@ -12,7 +12,6 @@ import SqlPanelView from "@/features/content/SqlPanel.vue"
 import { REPRESENTATION_ICONS } from "@/features/catalog/nodes"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { widgetSchema } from "@/features/dashboards/dashboardModel"
-import QueriesPanelView from "@/features/queries/QueriesPanel.vue"
 import QueryDocumentPanelView from "@/features/queries/QueryDocumentPanel.vue"
 import QueryResultPanelView from "@/features/queries/ResultPanel.vue"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
@@ -185,9 +184,6 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // button says the source's words rather than this screen's.
     sourceTitle: z.string().min(1).optional(),
   }),
-  // The library of query documents. No parameters: which connection it lists
-  // is a filter inside it, so there is one of these however many are open.
-  z.object({ id: z.string(), kind: z.literal("queries") }),
   z.object({
     id: z.string(),
     kind: z.literal("query"),
@@ -257,6 +253,17 @@ export type Panel = z.infer<typeof panelSchema>
 export type PanelKind = Panel["kind"]
 
 /**
+ * Kinds a stored layout may still hold that are panels no longer: the query
+ * library moved to the panel at the foot of the screen (D143). A layout or tab
+ * group saved with one open drops that tab rather than being refused whole.
+ */
+const RETIRED_KINDS: ReadonlySet<unknown> = new Set(["queries"])
+
+export function isRetiredPanel(panel: unknown): boolean {
+  return typeof panel === "object" && panel !== null && RETIRED_KINDS.has((panel as { kind?: unknown }).kind)
+}
+
+/**
  * An ordinary panel is identified by what it shows. Catalog copies opt into
  * separate identities so each can keep a different location.
  *
@@ -282,7 +289,6 @@ export const summaryPanelId = (connectorId: string, nodeId: string) =>
 export const recordPanelId = (connectorId: string, nodeId: string) =>
   `record:${connectorId}:${nodeId}`
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
-export const QUERIES_PANEL_ID = "queries"
 export const queryPanelId = (documentId: string) => `query:${documentId}`
 /** A console nobody has asked to keep is named by the draft it holds. */
 export const queryDraftPanelId = (draftId: string) => `query:draft:${draftId}`
@@ -363,7 +369,6 @@ export function roleOf(panel: Panel): PanelRole {
     case "connectors":
       return "sources"
     case "catalog":
-    case "queries":
       return "navigate"
     case "rows":
     case "content":
@@ -544,12 +549,6 @@ function baseLookOf(panel: Panel): PanelLook {
         icon: appIcons.insertChart,
         iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read this chart page",
-      }
-    case "queries":
-      return {
-        title: "Queries",
-        icon: appIcons.manageSearch,
-        reloadTooltip: "Re-read your queries",
       }
     case "query":
       // A document with no name says so on its tab rather than showing an
@@ -773,8 +772,6 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
           columns: panel.columns,
         })
       )
-    case "queries":
-      return bind(key, () => h(QueriesPanelView, { panelId: panel.id }))
     case "result":
       return bind(key, () =>
         h(QueryResultPanelView, {

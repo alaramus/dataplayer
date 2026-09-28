@@ -179,10 +179,15 @@ test("the dashboards cover the workspace, which is still where it was on the way
   await page.getByTestId("space-data").click()
   await expect(page.getByTestId("grid-page-range")).toBeVisible()
 
-  // Opening something from the dashboards' side brings the data back.
+  // Opening something from the dashboards' side brings the data back: the
+  // query library stands under every space, and a console opened from it
+  // belongs to Data (D143).
   await page.getByTestId("space-dashboards").click()
   await page.getByTestId("command-queries").click()
+  await expect(page.getByTestId("dashboards-space")).toBeVisible()
+  await page.getByTestId("new-query").click()
   await expect(page.getByTestId("dashboards-space")).toHaveCount(0)
+  await page.getByTestId("command-queries").click()
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

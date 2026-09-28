@@ -5,26 +5,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService, QueriesService } from "@/client"
 import type { QueryDocumentSummary } from "@/client"
-import { ref } from "vue"
 
 import { workspaceActionsKey } from "@/features/workspace/state"
 import { withWindowHost } from "@/shared/testing/windows"
 import { AppIconButton } from "@/shared/ui"
 
-import QueriesPanel from "./QueriesPanel.vue"
+import { useQueriesLibrary } from "./library"
+import QueriesTool from "./QueriesTool.vue"
 
-// The panel takes the connection it was opened from the way every panel takes
-// a target: a ref it watches, and one call that spends it.
-const queriesTarget = ref<string | null>(null)
 const workspace = {
   openQueryDocument: vi.fn(),
-  queriesTarget,
-  takeQueriesTarget: () => {
-    const taken = queriesTarget.value
-    queriesTarget.value = null
-    return taken
-  },
 }
+const library = useQueriesLibrary()
 
 function summary(overrides: Partial<QueryDocumentSummary> = {}): QueryDocumentSummary {
   return {
@@ -60,7 +52,7 @@ function mountPanel() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
-  return mount(withWindowHost(QueriesPanel, { panelId: "queries" }), {
+  return mount(withWindowHost(QueriesTool, {}), {
     global: {
       plugins: [
         [Quasar, { plugins: { Dialog, Notify } }],
@@ -79,7 +71,9 @@ beforeEach(() => {
     data: { data: [], count: 0 },
   } as never)
   workspace.openQueryDocument.mockReset()
-  queriesTarget.value = null
+  // Module state, kept while the panel is hidden: each test starts afresh.
+  library.connectorId.value = null
+  library.place.value = "favorites"
 })
 
 describe("the library of queries", () => {
@@ -211,14 +205,14 @@ describe("the library of queries", () => {
   })
 
   it("filters itself to the connection it was opened from", async () => {
-    // Opened by the command in the bar at the foot of the screen, which
-    // belongs to the connection being read (D69). The panel is a singleton,
-    // so the connection arrives as a piece of state rather than as a prop.
+    // Aimed by the button on the rail, which belongs to the connection being
+    // read (D69); nothing open leaves the filter as it was.
     mockConnectors()
     const list = vi.spyOn(QueriesService, "listDocuments").mockResolvedValue({
       data: { data: [], count: 0 },
     } as never)
-    queriesTarget.value = "c1"
+    library.aim("c1")
+    library.aim(null)
     mountPanel()
     await flushPromises()
 

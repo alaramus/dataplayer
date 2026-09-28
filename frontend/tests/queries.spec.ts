@@ -173,6 +173,9 @@ test("keeps the editor and results visible when the query panel is narrowed", as
   await createPostgresConnector(page, name)
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
+  // Hidden, so the last gap on screen is the one beside the console's column
+  // rather than the one above the panel at the foot.
+  await page.getByTestId("bottom-panel-hide").click()
 
   const frame = page.getByTestId("query-frame")
   const editorPane = page.getByTestId("query-editor-pane")

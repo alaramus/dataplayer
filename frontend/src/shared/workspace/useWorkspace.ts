@@ -13,6 +13,7 @@ import type { DropAdmission } from "./dropZone"
 import { MIN_PANEL_PX, nextId, PRESS_THRESHOLD_PX } from "./model"
 import type { LayoutNode, NodeId, PanelId } from "./model"
 import { parseWorkspace, serializeWorkspace } from "./persist"
+import type { RetiredPanel } from "./persist"
 import { leafForKind } from "./placement"
 import {
   activatePanel,
@@ -32,6 +33,8 @@ export type { PanelLook, WorkspaceContext }
 export interface WorkspaceOptions<P extends { id: string }> {
   storageKey: string
   panelSchema: ZodType<P>
+  /** A stored panel of a kind that is gone, to drop rather than refuse the layout. */
+  retired?: RetiredPanel
   defaults: () => { tree: LayoutNode; panels: P[] }
   kindOf: (panel: P) => string
   look: (panel: P) => PanelLook
@@ -128,7 +131,7 @@ export type RestoreOutcome = "restored" | "cancelled" | "changed" | "invalid"
 export function useWorkspace<P extends { id: string }>(
   options: WorkspaceOptions<P>
 ): WorkspaceApi<P> {
-  const restored = parseWorkspace(localStorage.getItem(options.storageKey), options.panelSchema)
+  const restored = parseWorkspace(localStorage.getItem(options.storageKey), options.panelSchema, options.retired)
   const start = restored ?? options.defaults()
 
   // ref() rewrites a union into its own unwrapped shape, so the type is
@@ -491,7 +494,7 @@ export function useWorkspace<P extends { id: string }>(
   }
 
   async function restore(raw: string): Promise<RestoreOutcome> {
-    const saved = parseWorkspace(raw, options.panelSchema)
+    const saved = parseWorkspace(raw, options.panelSchema, options.retired)
     if (saved === null) return "invalid"
     const incoming = new Map(saved.panels.map((panel) => [panel.id, panel]))
     if (leavesOf(saved.tree).some((leaf) => leaf.panels.some((id) => {

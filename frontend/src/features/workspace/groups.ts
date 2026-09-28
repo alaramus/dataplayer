@@ -5,7 +5,7 @@ import type { Space } from "@/stores/space"
 import { parseWorkspace } from "@/shared/workspace/persist"
 import { leavesOf } from "@/shared/workspace/tree"
 
-import { panelSchema, roleOf } from "./panels"
+import { isRetiredPanel, panelSchema, roleOf } from "./panels"
 
 const groupSchema = z.object({
   id: z.string().min(1),
@@ -29,7 +29,7 @@ export const groupsKey = (userId: string) => serverStorageKey(`dataplayer-tab-gr
 export const groupWarningKey = (userId: string) => serverStorageKey(`dataplayer-tab-groups:skip-warning:${userId}`)
 
 export function validGroupSnapshot(raw: string): boolean {
-  const saved = parseWorkspace(raw, panelSchema)
+  const saved = parseWorkspace(raw, panelSchema, isRetiredPanel)
   if (saved === null) return false
   const panels = new Map(saved.panels.map((panel) => [panel.id, panel]))
   if (panels.get("connectors")?.kind !== "connectors") return false

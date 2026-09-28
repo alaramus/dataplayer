@@ -110,16 +110,6 @@ export interface WorkspaceActions {
    * not a window, because it is a read that can fail and be re-read.
    */
   openSummary: (request: OpenSummaryRequest) => void
-  /**
-   * The library of query documents. One panel however many connections are
-   * open, because a query belongs to a person rather than to a source (D65);
-   * the connection it was opened from arrives as a filter, null for all.
-   */
-  openQueries: (connectorId: string | null) => void
-  /** The connection the library has just been asked to filter to, or nothing. */
-  queriesTarget: Readonly<Ref<string | null>>
-  /** Take that filter, once, the way every other panel target is taken. */
-  takeQueriesTarget: () => string | null
   /** Open one console, or bring the tab already showing it forward. */
   openQueryDocument: (request: OpenQueryDocumentRequest) => void
   /** Open a console on a connection without putting anything in the library. */

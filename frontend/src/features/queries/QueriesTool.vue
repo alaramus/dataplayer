@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, ref, watch } from "vue"
+import { computed, ref } from "vue"
 
 import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import {
@@ -13,8 +13,6 @@ import {
   useRunHistory,
   useRunText,
 } from "@/features/queries/runs"
-import PanelCommands from "@/features/workspace/PanelCommands.vue"
-import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
 import {
@@ -25,16 +23,21 @@ import {
   AppSelect,
   AppSpinner,
   AppTabs,
+  AppToolbarRule,
   useConfirm,
   useToast,
 } from "@/shared/ui"
 
+import { useQueriesLibrary } from "./library"
+import type { LibraryPlace } from "./library"
+
 /**
- * The library of query documents (D65).
+ * The library of query documents (D65), a tool of the panel at the foot of
+ * the screen (D143).
  *
- * Queries are navigation of their own rather than nodes invented inside a
- * source catalog: they belong to a person, not to a database, and one of them
- * may outlive the connection it was written against.
+ * Not a node of any catalog: a query belongs to a person, not to a database,
+ * and one of them may outlive the connection it was written against. The
+ * panel is wide and low, so what chooses what is listed is one row.
  */
 
 /**
@@ -45,21 +48,22 @@ import {
  * thing it is: a document by its name and its connection, a run by what it
  * did, when, and which document it was run from.
  */
-const PLACES = [
+const PLACES: { value: LibraryPlace; label: string; icon: string }[] = [
   { value: "favorites", label: "Favorites", icon: appIcons.star },
   { value: "history", label: "History", icon: appIcons.history },
 ]
-
-const props = defineProps<{ panelId: string }>()
 
 const workspace = useWorkspaceActions()
 const toast = useToast()
 const confirm = useConfirm()
 const connectors = useConnectors()
 
-const connectorId = ref<string | null>(null)
+const { place: showing, connectorId } = useQueriesLibrary()
 const search = ref("")
-const showing = ref("favorites")
+
+function show(value: string) {
+  if (value === "favorites" || value === "history") showing.value = value
+}
 
 const filters = computed(() => ({
   connectorId: connectorId.value,
@@ -73,28 +77,6 @@ const history = useRunHistory(
 const runText = useRunText()
 const deleteRuns = useDeleteRuns()
 const deleteDocument = useDeleteQueryDocument()
-
-useReloadable(() => props.panelId, async () => {
-  await documents.refetch()
-  await history.refetch()
-})
-
-/**
- * The connection this panel was opened from, taken once.
- *
- * Watched rather than received as a prop: there is one library panel however
- * often it is opened, and the workspace binds a panel's props when the panel
- * is first drawn — so a panel already open would never see a second arrival.
- * The same arrangement every other panel target uses (D69).
- */
-watch(
-  workspace.queriesTarget,
-  () => {
-    const taken = workspace.takeQueriesTarget()
-    if (taken !== null) connectorId.value = taken
-  },
-  { immediate: true }
-)
 
 const connectorOptions = computed(() => [
   { label: "All connections", value: "" },
@@ -250,8 +232,16 @@ async function deleteQuery(documentId: string) {
 </script>
 
 <template>
-  <div class="queries-panel">
-    <div class="queries-panel__bar">
+  <div class="queries-tool">
+    <div class="queries-tool__bar">
+      <!-- Saved documents and execution history answer different questions. -->
+      <AppTabs
+        :model-value="showing"
+        :options="PLACES"
+        data-testid="queries-places"
+        @update:model-value="show"
+      />
+      <AppToolbarRule />
       <AppIconButton
         :icon="appIcons.add"
         :tooltip="
@@ -268,34 +258,23 @@ async function deleteQuery(documentId: string) {
         :options="connectorOptions"
         :loading="connectors.isLoading.value"
         compact
-        class="queries-panel__connector"
+        class="queries-tool__connector"
         data-testid="queries-connector"
         @update:model-value="pickConnector"
       />
-      <PanelCommands :panel-id="panelId" />
+      <AppInput
+        v-model="search"
+        :placeholder="showing === 'history' ? 'Search what you ran' : 'Search favorites'"
+        compact
+        clearable
+        class="queries-tool__search"
+        data-testid="queries-search"
+      />
     </div>
-
-    <!-- Saved documents and execution history answer different questions. -->
-    <AppTabs
-      v-model="showing"
-      :options="PLACES"
-      class="queries-panel__places"
-      data-testid="queries-places"
-    />
-
-    <AppInput
-      v-model="search"
-      :placeholder="showing === 'history' ? 'Search what you ran' : 'Search favorites'"
-      compact
-      clearable
-      class="queries-panel__search"
-      data-testid="queries-search"
-    />
-    <q-separator class="queries-panel__rule" />
 
     <div
       v-if="showing === 'history'"
-      class="queries-panel__body"
+      class="queries-tool__body"
       data-testid="queries-history-list"
     >
       <AppSpinner v-if="history.isPending.value" />
@@ -305,8 +284,8 @@ async function deleteQuery(documentId: string) {
         data-testid="history-empty"
       />
       <template v-else>
-        <div class="queries-panel__history-bar">
-          <span class="queries-panel__heading">What you have run</span>
+        <div class="queries-tool__history-bar">
+          <span class="queries-tool__heading">What you have run</span>
           <AppIconButton
             :icon="appIcons.deleteSweep"
             tooltip="Delete all of your history"
@@ -318,17 +297,17 @@ async function deleteQuery(documentId: string) {
         <div
           v-for="run in runs"
           :key="run.id"
-          class="queries-panel__row"
+          class="queries-tool__row"
           :data-testid="`history-row-${run.id}`"
         >
           <button
             type="button"
-            class="queries-panel__open"
+            class="queries-tool__open"
             :data-testid="`history-restore-${run.id}`"
             @click="openAsQuery(run)"
           >
-            <span class="queries-panel__title">{{ run.preview || "(empty)" }}</span>
-            <span class="queries-panel__meta">
+            <span class="queries-tool__title">{{ run.preview || "(empty)" }}</span>
+            <span class="queries-tool__meta">
               {{ run.status }} · {{ when(run.created_at) }}
               <template v-if="run.duration_ms !== null">
                 · {{ run.duration_ms }} ms
@@ -353,7 +332,7 @@ async function deleteQuery(documentId: string) {
 
     <div
       v-else
-      class="queries-panel__body"
+      class="queries-tool__body"
     >
       <AppBanner
         v-if="error"
@@ -376,25 +355,25 @@ async function deleteQuery(documentId: string) {
           ]"
           v-show="group.rows.length > 0"
           :key="group.key"
-          class="queries-panel__group"
+          class="queries-tool__group"
         >
-          <h3 class="queries-panel__heading">
+          <h3 class="queries-tool__heading">
             {{ group.title }}
           </h3>
           <div
             v-for="row in group.rows"
             :key="row.id"
-            class="queries-panel__row"
+            class="queries-tool__row"
             :data-testid="`query-row-${row.id}`"
           >
             <button
               type="button"
-              class="queries-panel__open"
+              class="queries-tool__open"
               :data-testid="`open-query-${row.id}`"
               @click="openDocument(row)"
             >
-              <span class="queries-panel__title">{{ row.title ?? "Untitled query" }}</span>
-              <span class="queries-panel__meta">
+              <span class="queries-tool__title">{{ row.title ?? "Untitled query" }}</span>
+              <span class="queries-tool__meta">
                 {{ row.connector_label ?? "Connection unavailable" }}
                 <template v-if="row.preview"> · {{ row.preview }}</template>
               </span>
@@ -414,48 +393,42 @@ async function deleteQuery(documentId: string) {
 </template>
 
 <style scoped>
-.queries-panel {
+.queries-tool {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
 }
-.queries-panel__bar {
+/* One row: the panel is wide and low, and every row above the list is taken
+   from the few the list has. */
+.queries-tool__bar {
   flex: none;
   display: flex;
   align-items: center;
-  gap: var(--dp-space-1);
-  padding: var(--dp-space-half) var(--dp-space-1) 0;
+  gap: var(--dp-space-2);
+  padding-bottom: var(--dp-space-2);
+  border-bottom: 1px solid var(--dp-border);
 }
-.queries-panel__connector {
-  flex: 1;
+.queries-tool__connector {
+  flex: 0 1 240px;
   min-width: 0;
 }
-.queries-panel__places {
-  flex: none;
-  padding: var(--dp-space-1) var(--dp-space-2) var(--dp-space-2);
+.queries-tool__search {
+  flex: 0 1 320px;
+  min-width: 0;
 }
-.queries-panel__search {
-  flex: none;
-  padding: 0 var(--dp-space-2);
-}
-.queries-panel__rule {
-  flex: none;
-  margin: var(--dp-space-1) var(--dp-space-2);
-}
-.queries-panel__body {
+.queries-tool__body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0 var(--dp-space-1) var(--dp-space-2);
 }
-.queries-panel__history-bar {
+.queries-tool__history-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-inline-end: var(--dp-space-1);
 }
-.queries-panel__heading {
+.queries-tool__heading {
   margin: var(--dp-space-2) var(--dp-space-2) var(--dp-space-half);
   color: var(--dp-text-muted);
   font-size: 11px;
@@ -463,17 +436,17 @@ async function deleteQuery(documentId: string) {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-.queries-panel__row {
+.queries-tool__row {
   display: flex;
   align-items: center;
   gap: var(--dp-space-half);
   padding-inline-end: var(--dp-space-half);
   border-radius: var(--dp-radius-control);
 }
-.queries-panel__row:hover {
+.queries-tool__row:hover {
   background: var(--dp-hover);
 }
-.queries-panel__open {
+.queries-tool__open {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -487,12 +460,12 @@ async function deleteQuery(documentId: string) {
   text-align: start;
   cursor: pointer;
 }
-.queries-panel__title {
+.queries-tool__title {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.queries-panel__meta {
+.queries-tool__meta {
   overflow: hidden;
   color: var(--dp-text-muted);
   font-size: 11px;

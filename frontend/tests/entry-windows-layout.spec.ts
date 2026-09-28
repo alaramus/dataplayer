@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test"
 import type { Page, Route } from "@playwright/test"
 
+import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { deleteConnector, openConnector } from "./utils/workspace"
 
 /**
  * The entry windows keep their frame while what they ask for arrives or the
@@ -134,7 +136,10 @@ for (const theme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: theme })
     await login(page)
     await expect(page.getByTestId("save-tab-group")).toBeDisabled()
-    await page.getByTestId("command-queries").click()
+    // Something open to save: a catalog, which is a tab of Data.
+    const name = `e2e-group-name-${Date.now()}`
+    await createFileConnector(page, name)
+    await openConnector(page, name)
     await page.getByTestId("save-tab-group").click()
     const dialog = page.getByTestId("tab-group-name-dialog")
     const frame = page.getByRole("dialog").filter({ has: dialog })
@@ -153,5 +158,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByTestId("confirm-tab-group-name")).toBeInViewport()
     await frame.screenshot({ path: `test-results/entry-tab-group-name-${theme}-narrow.png` })
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click()
+    await page.setViewportSize({ width: 1500, height: 850 })
+    await deleteConnector(page, name)
   })
 }

@@ -3,9 +3,9 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { openNode, pickSchema } from "./utils/catalog"
-import { createPostgresConnector } from "./utils/connectors"
+import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { deleteConnector, openConnector } from "./utils/workspace"
+import { catalogTab, deleteConnector, openConnector } from "./utils/workspace"
 
 /**
  * Light and dark, and where each of them comes from.
@@ -242,11 +242,15 @@ test("a tab is legible in the dark theme", async ({ page }) => {
 
   // A native <button> takes its colour from the browser, which is black, and
   // `font: inherit` does not carry colour with it — so the tab strip went
-  // black on near-black while every unit test stayed green. The library of
-  // queries, because it belongs to no connection and so has no colour of its
-  // own; the connections have a head rather than a tab.
-  await page.getByTestId("command-queries").click()
-  const tab = page.getByTestId("workspace-tab-queries")
+  // black on near-black while every unit test stayed green. A catalog of a
+  // connection nobody gave a colour; the connections have a head rather than
+  // a tab.
+  const name = `e2e-dark-tab-${Date.now()}`
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+  const tab = catalogTab(page)
   await expect(tab).toBeVisible()
   expect(await tab.evaluate((node) => getComputedStyle(node).color)).toBe("rgb(255, 255, 255)")
+
+  await deleteConnector(page, name)
 })

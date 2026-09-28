@@ -108,6 +108,26 @@ describe("a stored workspace", () => {
     expect(parseWorkspace(raw, panelSchema)).toBeNull()
   })
 
+  it("drops a panel of a retired kind with its place, and keeps the rest", () => {
+    const retired = (panel: unknown) => (panel as { kind?: unknown }).kind === "gone"
+    const pinned = makeSplit(
+      "root",
+      "row",
+      [makeLeaf("a", ["p1"]), makeLeaf("b", ["old", "p2"], { accepts: "b", pinned: true })],
+      [40, 60]
+    )
+    const raw = serializeWorkspace(pinned, [...panels, { id: "old", kind: "gone" }])
+
+    const restored = parseWorkspace(raw, panelSchema, retired)
+
+    expect(restored?.panels).toEqual(panels)
+    expect(restored?.tree).toEqual(
+      makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"], { accepts: "b", pinned: true })], [40, 60])
+    )
+    // Without the word that it is retired, it is damage as before.
+    expect(parseWorkspace(raw, panelSchema)).toBeNull()
+  })
+
   it("is refused when a section names a panel that was not stored", () => {
     const raw = JSON.stringify({ version: WORKSPACE_VERSION, tree, panels: [panels[0]] })
     expect(parseWorkspace(raw, panelSchema)).toBeNull()

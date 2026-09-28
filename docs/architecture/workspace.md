@@ -39,8 +39,9 @@ library, services, saving and opening tab groups — as icon-only blocks, and a
 block is dragged elsewhere in its rail or onto another rail. Where each stands is
 kept per browser; a block the stored arrangement does not name takes its home, or
 its place beside the block it belongs with. The blocks are one registry,
-`toolBlocks.ts`: a new one is an entry there and nothing else. The Services block
-switches a tool in the panel at the foot of the screen (D143).
+`toolBlocks.ts`: a new one is an entry there and nothing else. The Services,
+Terminals and Queries blocks switch tools in the panel at the foot of the screen
+(D143).
 
 ```
 frontend/src/shared/workspace/
@@ -308,18 +309,16 @@ Consequences:
   that declares the capability and greyed out with the server's reason when the
   machine cannot run a dump (D87). It is not in this bar, which holds what belongs
   to the person and to the server.
-- **One button in that row is not a connection's.** The library of queries belongs
-  to a person and outlives the connections in it (D65), so it is never greyed out
-  with the rest: what it says changes — which connection it would open against, or
-  simply what it holds — and pressing it always opens. It sits with them because
-  that is where a person looks for it.
+- **The library of queries is not a connection's.** It belongs to a person and
+  outlives the connections in it (D65), so it is never greyed out: what it says
+  changes — which connection it would open against, or simply what it holds —
+  and pressing it always opens.
 - **"Not asked yet" is not "no".** Three states rather than two, because half a
   second of "this source does not run queries" about a PostgreSQL connection is a
   worse answer than saying nothing.
-- **The library opens filtered to the connection it was opened from.** The filter
-  travels as state the panel takes, the way `revealTarget` and `followTarget` do:
-  there is one library panel however often it is opened, and a panel's props are
-  bound when it is first drawn.
+- **The library opens filtered to the connection it was opened from**, when that
+  connection runs queries. The filter and the chosen place are module state
+  (`features/queries/library.ts`), kept while the panel at the foot is hidden.
 - **What is about the machine stands at the other end of the bar.** The services
   this server runs belong to the person rather than to whatever is open, so their
   button sits apart from the connection's commands. It opens them in the panel at
@@ -428,10 +427,10 @@ Spec: [The commands of a panel belong to the panel](../decisions/2026-09-05-pane
 ## D143. What is watched beside the work opens in a card at the foot of the screen
 
 Some tools are watched while working rather than worked in: what the server runs,
-and terminals ([D149](terminals.md)). A window covers the work and has to be
-moved off it, and a column is a role panels are dragged to. So, as in an IDE, they
-open in one card along the foot of the screen, between the rails and under
-whichever space is shown.
+terminals ([D149](terminals.md)) and the library of queries. A window covers the
+work and has to be moved off it, and a column is a role panels are dragged to. So,
+as in an IDE, they open in one card along the foot of the screen, between the
+rails and under whichever space is shown.
 
 Consequences:
 
@@ -444,5 +443,13 @@ Consequences:
   browser with the open tool. The columns keep 160 px whatever was stored.
 - **The tools are one registry**, `bottomTools.ts`; the state is `bottomPanel.ts`,
   pure, and `useBottomPanel`, shared by the button and the card.
+- **The query library is a tool here, not a tab.** It used to be a panel in the
+  navigation column. A stored layout or tab group that still holds that tab drops
+  it (`isRetiredPanel`) rather than being refused whole. Its rail block has a new
+  id, `queries-library`, so an arrangement stored with it on the top rail does not
+  keep it there. The panel is wide and low, so its places, the new-query button,
+  the connection and the search share one row above the list.
+- **What a tool opens goes to Data.** A console opened from the library shows the
+  Data space, as anything opened from another space does.
 
 Spec: [The panel at the foot of the workspace](../decisions/2026-09-18-bottom-panel-design.md)
