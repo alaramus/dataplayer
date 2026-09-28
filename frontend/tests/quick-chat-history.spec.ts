@@ -54,3 +54,67 @@ test("quick chat uses the same history and archive actions as agent chat", async
   await page.getByRole("dialog", { name: "Delete chat?" }).getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId(`ai-archived-${id}`)).toHaveCount(0)
 })
+
+test("More details asks about a selection once, and names the chat by it", async ({ page }) => {
+  await login(page)
+  const token = await page.evaluate(() => Object.entries(localStorage)
+    .find(([key]) => key.endsWith("access_token"))?.[1])
+  const server = await page.evaluate(() => JSON.parse(
+    sessionStorage.getItem("dataplayer:active-server:v1") ?? "null"
+  ) as { url: string })
+  const api = `${server.url}/api/v1/ai`
+  const headers = { Authorization: `Bearer ${token ?? ""}` }
+  const created = await page.request.post(`${api}/conversations`, { headers })
+  expect(created.ok(), await created.text()).toBe(true)
+  const conversationId = (await created.json()).id as string
+  const selection = "MVCC (Multi-Version Concurrency Control)"
+
+  // A message to select, without a model having written it.
+  await page.route(`**/api/v1/ai/conversations/${conversationId}`, async (route) => {
+    if (route.request().method() !== "GET") return route.continue()
+    const real = await (await route.fetch()).json()
+    await route.fulfill({ json: {
+      ...real,
+      messages: [{ id: "m1", role: "user", content: selection, attachments: [], run_id: null, created_at: null }],
+    } })
+  })
+  // And an answer without a provider: what matters is what is asked.
+  let asked: string | null = null
+  let quickChatId: string | null = null
+  await page.route(/\/api\/v1\/ai\/quick-chats\/[^/]+\/messages$/, async (route) => {
+    asked = (route.request().postDataJSON() as { text: string }).text
+    quickChatId = route.request().url().split("/").at(-2) ?? null
+    await route.fulfill({ json: {
+      id: quickChatId, title: selection, model_key: null, updated_at: null,
+      pinned: false, archived: false, project_id: null,
+      messages: [
+        { id: "u1", role: "user", content: asked, created_at: null },
+        { id: "a1", role: "assistant", content: "An answer.", created_at: null },
+      ],
+    } })
+  })
+
+  await page.getByTestId("space-ai").click()
+  await page.getByTestId(`ai-chat-${conversationId}`).click()
+  const message = page.getByTestId("ai-messages").getByText(selection, { exact: true })
+  // Exactly the words, as a drag across them selects them; a triple click
+  // takes the paragraph break after them too.
+  await message.evaluate((element) => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    const chosen = window.getSelection()
+    chosen?.removeAllRanges()
+    chosen?.addRange(range)
+  })
+  await message.dispatchEvent("pointerup")
+  await page.getByTestId("ai-selection-menu").getByRole("button", { name: "More details" }).click()
+
+  await expect.poll(() => asked).toBe(`Explain in more detail:\n\n> ${selection}`)
+  await expect.poll(async () => {
+    const chats = await (await page.request.get(`${api}/quick-chats`, { headers })).json() as { id: string; title: string }[]
+    return chats.find((chat) => chat.id === quickChatId)?.title
+  }).toBe(selection)
+
+  await page.request.delete(`${api}/quick-chats/${quickChatId ?? ""}`, { headers })
+  await page.request.delete(`${api}/conversations/${conversationId}`, { headers })
+})

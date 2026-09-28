@@ -460,7 +460,9 @@ catalog as the agent. The model cannot read application data through this path.
 Selecting text in an agent message offers Add to chat and More details. Add to
 chat quotes the selection in that agent conversation's unsent draft. More
 details creates a quick conversation and immediately sends an explanation
-request containing the selected text. The window opener accepts an intent,
+request: the ask, then the selection quoted once. The conversation is named by
+the selection, set by the window, rather than by the first line of the
+question, which would otherwise have to repeat it. The window opener accepts an intent,
 independently of the AI space, so a later Data surface can call it with its
 own selection. Selection is capped at 8,000 characters.
 An empty quick chat is a local draft. Its first send creates the stored chat;

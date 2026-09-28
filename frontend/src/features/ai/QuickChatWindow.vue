@@ -12,7 +12,7 @@ import AiModelSelect from "./AiModelSelect.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { quickChatsKey, useAiSettings } from "./api"
 import { useDictation } from "./dictation"
-import { deletedQuickChat, explainRequest, quickChatIntent } from "./quickChatLauncher"
+import { deletedQuickChat, explainRequest, explainTitle, quickChatIntent } from "./quickChatLauncher"
 
 const toast = useToast()
 const cache = useQueryClient()
@@ -110,11 +110,24 @@ watch(() => quickChatIntent.value?.id, async () => {
   draft.value = ""
   if (intent.kind === "explain") {
     draft.value = explainRequest(intent.text)
-    await send()
+    await send(draft.value, explainTitle(intent.text))
   }
 })
 
-async function send(value = draft.value) {
+/** A new chat, named when the caller knows better than its first line. */
+async function createChat(title: string | null): Promise<string> {
+  const id = (await AiService.createQuickChat()).data.id
+  if (title !== null) {
+    try {
+      await AiService.updateQuickChat({ path: { chat_id: id }, body: { title } })
+    } catch {
+      // Unnamed, the server names it by the first line of the question.
+    }
+  }
+  return id
+}
+
+async function send(value = draft.value, title: string | null = null) {
   const text = value.trim()
   if (!text || busy.value) return
   busy.value = true
@@ -128,7 +141,7 @@ async function send(value = draft.value) {
   let created: string | null = null
   const beforeCount = chat.data.value?.id === selected.value ? chat.data.value.messages.length : 0
   try {
-    const id = selected.value ?? (await AiService.createQuickChat()).data.id
+    const id = selected.value ?? (await createChat(title))
     if (selected.value === null) created = id
     selected.value = id
     const result = (await AiService.sendQuickChatMessage({
