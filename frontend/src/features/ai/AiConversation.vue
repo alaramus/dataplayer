@@ -37,7 +37,12 @@ import AiModelSelect from "./AiModelSelect.vue"
 import { autoModelValue, fallbackModel } from "./modelOptions"
 import { openQuickChat, quoteSelection } from "./quickChatLauncher"
 
-const props = defineProps<{ conversationId: string | null; contexts: ScreenContext[] }>()
+const props = defineProps<{
+  conversationId: string | null
+  contexts: ScreenContext[]
+  /** The project a new chat is made in; ignored once the chat exists. */
+  projectId?: string | null
+}>()
 const emit = defineEmits<{ started: [id: string] }>()
 const createdId = ref<string | null>(null)
 const currentId = computed(() => props.conversationId ?? createdId.value)
@@ -328,6 +333,7 @@ async function submit() {
       await updateConversation.mutateAsync({
         id,
         change_policy: pendingPolicy.value,
+        ...(props.projectId ? { project_id: props.projectId } : {}),
         ...(pendingModelKey.value ? { model_key: pendingModelKey.value, auto_provider: pendingAutoProvider.value } : {}),
       })
     }

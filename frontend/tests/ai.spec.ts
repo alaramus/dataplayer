@@ -317,11 +317,29 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-loose-chats").getByRole("separator")).toHaveCount(looseGroups)
   for (const rule of await rules.all()) await expect(rule).toBeVisible()
 
+  // A chat begun from a project's row is made in it. The answer is not the
+  // point, so the message is taken without a model being asked.
+  await toggle.click()
+  await toggle.hover()
+  await page.getByTestId(`ai-project-new-chat-${projectId}`).click()
+  await expect(page.getByTestId("ai-draft-head")).toContainText("New chat in “Playwright project”")
+  await page.route(/\/api\/v1\/ai\/conversations\/[^/]+\/messages$/, (route) => route.fulfill({
+    status: 202,
+    json: { conversation_id: /conversations\/([^/]+)\/messages/.exec(route.request().url())?.[1] },
+  }))
+  await page.getByTestId("ai-message-input").fill("Made in a project")
+  await page.getByTestId("ai-send").click()
+  const projectChats = page.getByTestId(`ai-project-${projectId}`).locator('[data-testid^="ai-chat-row-"]')
+  await expect(projectChats).toHaveCount(1)
+  await expect(projectChats).toHaveAttribute("data-active", "true")
+  await page.unroute(/\/api\/v1\/ai\/conversations\/[^/]+\/messages$/)
+  await expect(toggle).toContainText("(1)")
+
   await row.hover()
   await page.getByTestId(`ai-move-${id}`).click()
   await page.locator('[data-testid^="menu-item-"]').filter({ hasText: "Playwright project" }).click()
   await expect(page.getByTestId(`ai-project-${projectId}`).getByTestId(`ai-chat-row-${id}`)).toBeVisible()
-  await expect(toggle).toContainText("(1)")
+  await expect(toggle).toContainText("(2)")
   // Moved into a project it is no longer pinned, and cannot be pinned there.
   await expect(pinnedChats.getByTestId(`ai-chat-row-${id}`)).toHaveCount(0)
   await row.hover()

@@ -255,11 +255,26 @@ watch(requestedAiConversation, (id) => {
 // again puts back the chat that was open, which is still the selected one.
 function toggleSettings() { settingsShown.value = !settingsShown.value }
 
+/** The project the open draft will be made in, while it still exists. */
+const draftProjectId = ref<string | null>(null)
+const draftProject = computed(() => projects.value.find((project) => project.id === draftProjectId.value) ?? null)
 function makeConversation() {
+  draftProjectId.value = null
   if (newDraftOpen.value) return
   newDraftOpen.value = true
   selected.value = null
   settingsShown.value = false
+}
+/** A draft made from a project's row, opened so the chat is seen landing in it. */
+function makeConversationIn(projectId: string) {
+  makeConversation()
+  draftProjectId.value = projectId
+  for (const target of [closedProjects, filterClosedProjects]) {
+    if (!target.value.has(projectId)) continue
+    const next = new Set(target.value)
+    next.delete(projectId)
+    target.value = next
+  }
 }
 function select(id: string) { newDraftOpen.value = false; selected.value = id; settingsShown.value = false }
 function startedConversation(id: string) {
@@ -482,6 +497,13 @@ onScopeDispose(stop)
                 class="ai-window__project-actions"
               >
                 <AppIconButton
+                  :icon="appIcons.add"
+                  tooltip="New chat in this project"
+                  compact
+                  :data-testid="`ai-project-new-chat-${group.id}`"
+                  @click="makeConversationIn(group.id)"
+                />
+                <AppIconButton
                   :icon="appIcons.edit"
                   tooltip="Rename project"
                   compact
@@ -583,7 +605,8 @@ onScopeDispose(stop)
       </AppCardHead>
       <AppCardHead
         v-else-if="newDraftOpen"
-        title="New chat"
+        :title="draftProject === null ? 'New chat' : `New chat in “${draftProject.name}”`"
+        data-testid="ai-draft-head"
       />
       <AppCardHead v-else />
       <AiSettings v-if="settingsShown" />
@@ -592,6 +615,7 @@ onScopeDispose(stop)
         :key="selected ?? 'new-agent-chat'"
         :conversation-id="selected"
         :contexts="contexts"
+        :project-id="draftProject?.id ?? null"
         @started="startedConversation"
       />
       <div

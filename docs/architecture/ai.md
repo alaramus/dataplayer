@@ -362,8 +362,9 @@ a project — pinning takes it out of one, moving it into one unpins it, and the
 server refuses both at once. Or a row is archived, which takes it out of the history without losing
 it, or moved into a project — a folder of conversations and nothing more,
 created, renamed, collapsed and deleted in the history itself, which draws a
-line between the Pinned folder, the projects and the chats in no folder. A project
-carries no instructions and no connections of its own, because a folder that
+line between the Pinned folder, the projects and the chats in no folder. New chat
+on a project's row opens a draft named after it, and the chat is made in that
+project when its first message is sent. A project carries no instructions and no connections of its own, because a folder that
 quietly changed how the agent answers would be a second place to look for that;
 deleting one keeps every conversation it held, out of any folder. Nothing is deleted from a row: the archive in the settings restores a
 conversation or deletes it, one at a time or all at once, which is the only
