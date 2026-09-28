@@ -308,6 +308,14 @@ test("opens, restores and manages the application agent space", async ({ page })
   )
   // A folder counts its chats in brackets, and an empty one counts nothing.
   await expect(toggle).not.toContainText("(")
+  // A line under the pinned folder and one under the last project, none
+  // between two projects and none above the first group.
+  const rules = page.getByTestId("ai-history").getByRole("separator")
+  const looseGroups = await page.getByTestId("ai-loose-chats").count()
+  await expect(rules).toHaveCount(1 + looseGroups)
+  await expect(pinnedChats.getByRole("separator")).toHaveCount(0)
+  await expect(page.getByTestId("ai-loose-chats").getByRole("separator")).toHaveCount(looseGroups)
+  for (const rule of await rules.all()) await expect(rule).toBeVisible()
 
   await row.hover()
   await page.getByTestId(`ai-move-${id}`).click()

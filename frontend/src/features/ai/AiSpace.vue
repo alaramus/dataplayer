@@ -443,11 +443,18 @@ onScopeDispose(stop)
         />
         <template v-else>
           <div
-            v-for="group in visibleGroups"
+            v-for="(group, index) in visibleGroups"
             :key="group.id ?? 'loose'"
             class="ai-window__group"
             :data-testid="group.kind === 'project' ? `ai-project-${group.id}` : `ai-${group.kind}-chats`"
           >
+            <!-- A line where the pinned folder, the projects and the loose
+                 chats meet, not between one project and the next. -->
+            <div
+              v-if="index > 0 && visibleGroups[index - 1]?.kind !== group.kind"
+              class="ai-window__group-rule"
+              role="separator"
+            />
             <div
               v-if="group.id !== null"
               class="ai-window__project"
@@ -656,6 +663,7 @@ onScopeDispose(stop)
 /* The chats of a folder are stepped in under its name, which is the whole way
    a reader sees what is in it. */
 .ai-window__project-chats { padding-left: var(--dp-space-3); }
+.ai-window__group-rule { margin: var(--dp-space-1) var(--dp-space-2); border-top: 1px solid var(--dp-border); }
 .ai-window__main { flex: 1; }
 .ai-window__filter-head > :first-child { flex: 1; min-width: 0; }
 /* The field takes the heading's type, so renaming moves nothing; its height
