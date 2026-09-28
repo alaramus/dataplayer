@@ -25,6 +25,7 @@ export const appIcons = {
   check: "check",
   chevronLeft: "chevron_left",
   chevronRight: "chevron_right",
+  clearAll: "clear_all",
   close: "close",
   closeFullscreen: "close_fullscreen",
   code: "code",

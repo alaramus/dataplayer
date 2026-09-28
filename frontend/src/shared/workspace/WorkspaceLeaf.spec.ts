@@ -361,6 +361,8 @@ describe("a section", () => {
     expect(wrapper.findAll(".head")).toHaveLength(1)
     expect(wrapper.find('[data-testid="workspace-tab-p1"]').exists()).toBe(false)
     expect(wrapper.findAll(".stub")).toHaveLength(1)
+    // No tabs, so nothing for Close the other tabs to be about.
+    expect(wrapper.find('[data-testid="workspace-close-others-a"]').exists()).toBe(false)
   })
 
   it("keeps the tabs while the section holds more than that panel", () => {
@@ -404,15 +406,16 @@ describe("a section", () => {
     expect(seen).toEqual(["a"])
   })
 
-  it("offers no such command when there is nothing else to close", () => {
+  // Always there, so what stands beside it does not move with the second tab.
+  it("turns the command off when there is nothing else to close", () => {
     const wrapper = mount(LeafWithPanels, {
       props: { leaf: makeLeaf("a", ["p1"]), collapsible: true },
       global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
     })
-    expect(wrapper.find('[data-testid="workspace-close-others-a"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="workspace-close-others-a"]').attributes("disabled")).toBeDefined()
   })
 
-  it("offers no such command when the other tab has no cross of its own", () => {
+  it("turns the command off when the other tab has no cross of its own", () => {
     const wrapper = mountLeaf(
       contextFor({
         lookOf: (panelId) => ({
@@ -422,7 +425,7 @@ describe("a section", () => {
         }),
       })
     )
-    expect(wrapper.find('[data-testid="workspace-close-others-a"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="workspace-close-others-a"]').attributes("disabled")).toBeDefined()
   })
 
   it("offers no cross on a panel the feature says cannot be closed", () => {

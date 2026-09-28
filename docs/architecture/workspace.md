@@ -191,6 +191,11 @@ Consequences:
   twenty. Walking is not choosing: Enter and Space open the tab walked to, because
   a panel reads its relation when it is shown and arrowing past four of them would
   ask the server for all four.
+- **The commands at the end of a strip are the kit's head buttons**, the size and
+  look of the panel at the foot of the screen's, putting a column aside with the
+  same mark as its Hide. Close the other tabs stands over every strip of tabs,
+  off while no other tab could close, so nothing beside it moves when a second
+  tab opens; a head of the feature's own has no tabs and no such command.
 - **The cross asks the panel before it takes it away.** Closing is a request, not
   a command: the engine calls the same kind of registered answer as re-reading,
   and a panel with nothing to say is closed at once. Only a person's gesture asks

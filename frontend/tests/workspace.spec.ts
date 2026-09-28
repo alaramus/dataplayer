@@ -9,6 +9,7 @@ import { openNode, pickSchema, pinColumn } from "./utils/catalog"
 import {
   catalogTab,
   closeWindowDialog,
+  connectionsHead,
   deleteConnector,
   editConnector,
   connectorRow,
@@ -976,17 +977,22 @@ test("clears a strip of tabs down to the one being looked at", async ({ page }) 
   await openNode(page, "pg_namespace")
   await expect(rowsTabs(page)).toHaveCount(2)
 
+  // The command is a head button like any other, the size of the ones over
+  // the connections.
   const closeOthers = page.getByTestId("workspace-close-others-work")
-  const idleBackground = await closeOthers.evaluate((button) => getComputedStyle(button).backgroundColor)
-  await closeOthers.hover()
-  await expect(closeOthers).not.toHaveCSS("background-color", idleBackground)
+  // Not over the connections, whose head has no tabs to close.
+  await expect(page.getByTestId("workspace-close-others-sources")).toHaveCount(0)
+  const headButton = await connectionsHead(page).getByRole("button").first().boundingBox()
+  const closeBox = await closeOthers.boundingBox()
+  expect([closeBox?.width, closeBox?.height]).toEqual([headButton?.width, headButton?.height])
   await closeOthers.click()
 
   // The one that was showing is the one that stays: the rest go the way a
   // cross would have sent them, one at a time.
   await expect(rowsTabs(page)).toHaveCount(1)
   await expect(rowsTabs(page)).toContainText("pg_namespace")
-  await expect(page.getByTestId("workspace-close-others-work")).toHaveCount(0)
+  // Still there, off: nothing else to close, and nothing beside it moved.
+  await expect(page.getByTestId("workspace-close-others-work")).toBeDisabled()
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
@@ -1036,9 +1042,9 @@ test("every column goes away and comes back, and none of them scrolls the page",
     const leaf = page.getByTestId(`workspace-leaf-${id}`)
     const wide = (await leaf.boundingBox())?.width ?? 0
     const aside = page.getByTestId(`workspace-aside-${id}`)
-    const idleBackground = await aside.evaluate((button) => getComputedStyle(button).backgroundColor)
-    await aside.hover()
-    await expect(aside).not.toHaveCSS("background-color", idleBackground)
+    const headButton = await connectionsHead(page).getByRole("button").first().boundingBox()
+    const asideBox = await aside.boundingBox()
+    expect([asideBox?.width, asideBox?.height]).toEqual([headButton?.width, headButton?.height])
     await aside.click()
 
     const onTheBar = page.getByTestId("workspace-taskbar").getByTestId(`workspace-aside-${id}`)

@@ -2,7 +2,9 @@
 import { computed, inject, ref } from "vue"
 import type { CSSProperties } from "vue"
 
+import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import AppTooltip from "@/shared/ui/AppTooltip.vue"
+import { appIcons } from "@/shared/ui/icons"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
 import { workspaceKey } from "./context"
@@ -268,7 +270,7 @@ const overlayStyle = computed((): CSSProperties => {
       v-if="!leaf.collapsed || handle !== 'none'"
       ref="stripElement"
       class="workspace-leaf__strip"
-      :class="{ 'workspace-leaf__strip--head': head !== null }"
+      :class="{ 'workspace-leaf__strip--head': head !== null, 'workspace-leaf__strip--collapsed': leaf.collapsed }"
     >
       <component
         :is="head"
@@ -387,51 +389,39 @@ const overlayStyle = computed((): CSSProperties => {
         />
       </div>
 
-      <button
-        v-if="!leaf.collapsed && closableOthers > 0"
-        type="button"
-        class="workspace-leaf__collapse"
-        :data-testid="`workspace-close-others-${leaf.id}`"
-        aria-label="Close the other tabs"
-        @click="workspace.closeOthers(leaf.id)"
-      >
-        <q-icon
-          name="clear_all"
-          size="16px"
+      <!-- The head's commands are the kit's, in the size and look of the panel
+           at the foot of the screen, whose Hide is the gesture of putting a
+           column aside. Close the other tabs is always there over tabs, and
+           off while no other tab could close: a command that came with the
+           second tab moved what stood beside it. A head of the feature's own
+           has no tabs, and no such command. -->
+      <span class="workspace-leaf__commands">
+        <AppIconButton
+          v-if="!leaf.collapsed && head === null"
+          :icon="appIcons.clearAll"
+          tooltip="Close the other tabs"
+          :disable="closableOthers === 0"
+          :data-testid="`workspace-close-others-${leaf.id}`"
+          @click="workspace.closeOthers(leaf.id)"
         />
-        <AppTooltip>Close the other tabs</AppTooltip>
-      </button>
 
-      <button
-        v-if="handle === 'collapse'"
-        type="button"
-        class="workspace-leaf__collapse"
-        :data-testid="`workspace-collapse-${leaf.id}`"
-        :aria-label="collapsedTitle"
-        @click="workspace.toggleCollapse(leaf.id)"
-      >
-        <q-icon
-          :name="leaf.collapsed ? 'chevron_right' : 'chevron_left'"
-          size="16px"
+        <AppIconButton
+          v-if="handle === 'collapse'"
+          :icon="leaf.collapsed ? appIcons.chevronRight : appIcons.chevronLeft"
+          :tooltip="collapsedTitle"
+          :data-testid="`workspace-collapse-${leaf.id}`"
+          @click="workspace.toggleCollapse(leaf.id)"
         />
-        <AppTooltip>{{ collapsedTitle }}</AppTooltip>
-      </button>
 
-      <!-- Off the screen and onto the bar, the gesture a window has. -->
-      <button
-        v-else-if="handle === 'aside'"
-        type="button"
-        class="workspace-leaf__collapse"
-        :data-testid="`workspace-aside-${leaf.id}`"
-        :aria-label="`Put ${asideTitle} aside`"
-        @click="workspace.putAside(leaf.id)"
-      >
-        <q-icon
-          name="minimize"
-          size="16px"
+        <!-- Off the screen and onto the bar, the gesture a window has. -->
+        <AppIconButton
+          v-else-if="handle === 'aside'"
+          :icon="appIcons.remove"
+          :tooltip="`Put ${asideTitle} aside`"
+          :data-testid="`workspace-aside-${leaf.id}`"
+          @click="workspace.putAside(leaf.id)"
         />
-        <AppTooltip>Put {{ asideTitle }} aside</AppTooltip>
-      </button>
+      </span>
     </div>
 
     <!-- Collapsed, and the feature had something for that width. -->
@@ -517,6 +507,28 @@ const overlayStyle = computed((): CSSProperties => {
 .workspace-leaf__head {
   flex: 1;
   min-width: 0;
+}
+/* The room above the line and no more, as in AppCardHead: a dense button is
+   32px, and grown around one with the padding a tab has, this head stood
+   lower than the one in the column beside it. So the commands give the
+   strip's padding back and overhang it instead. */
+.workspace-leaf__commands {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-1);
+  height: calc(var(--dp-tab-strip-height) - 1px);
+  margin: calc(-1 * var(--dp-space-half)) 0;
+}
+.workspace-leaf__strip--head .workspace-leaf__commands {
+  margin: 0;
+}
+/* A collapsed column is forty pixels, and its handle is a whole button: the
+   strip's side padding would push it past the edge. */
+.workspace-leaf__strip--collapsed {
+  justify-content: center;
+  padding-right: 0;
+  padding-left: 0;
 }
 /* Tabs wrap onto a second line rather than running off the end of the strip:
    a tab that cannot be seen cannot be reached, and a section is only ever as
@@ -610,20 +622,6 @@ const overlayStyle = computed((): CSSProperties => {
 }
 /* The tabs take the room, so the handles sit at the end without a margin of
    their own - which two of them beside each other would fight over. */
-.workspace-leaf__collapse {
-  border: none;
-  border-radius: var(--dp-radius-control);
-  background: transparent;
-  /* The icon inside draws itself in currentColor - see the tab above. */
-  color: inherit;
-  cursor: pointer;
-  padding: var(--dp-space-half);
-  flex: none;
-}
-.workspace-leaf__collapse:hover,
-.workspace-leaf__collapse:focus-visible {
-  background: var(--dp-hover);
-}
 .workspace-leaf__rail {
   flex: 1;
   min-height: 0;
