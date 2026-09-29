@@ -777,17 +777,12 @@ async function parseTyped(text: string) {
           <div class="connector-window__policy">
             <AppToggle
               v-model="thirdPartyTransfer"
-              class="connector-window__policy-switch"
               label="Allow sending data to third parties"
               data-testid="connector-third-party"
               :disable="readOnly"
             />
-            <span class="connector-window__policy-note dp-helper">
-              {{
-                thirdPartyTransfer
-                  ? "Data read through this connection may be sent to outside services, such as an AI model provider."
-                  : "Data read through this connection is never sent to outside services."
-              }}
+            <span class="dp-helper">
+              Data read through this connection may be sent to outside services, such as an AI model provider.
             </span>
           </div>
 
@@ -1007,11 +1002,6 @@ async function parseTyped(text: string) {
   flex-direction: column;
   gap: var(--dp-space-4);
 }
-/* A duration is a short word in a wide window; stretched across it the field
-   reads as a place to type a sentence. */
-.connector-window__cache {
-  max-width: 320px;
-}
 .connector-window__grants {
   display: flex;
   flex-direction: column;
@@ -1030,19 +1020,6 @@ async function parseTyped(text: string) {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-1);
-}
-/* The switch and what it means stand in the column of controls, as a form's
-   checkbox does (D131): from the window's edge they left the grid the select
-   above them keeps. */
-.connector-window__policy-switch,
-.connector-window__policy-note {
-  margin-left: var(--dp-form-label-width);
-}
-@container app-form (max-width: 480px) {
-  .connector-window__policy-switch,
-  .connector-window__policy-note {
-    margin-left: 0;
-  }
 }
 .connector-window__body {
   flex: 1;
