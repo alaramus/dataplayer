@@ -159,8 +159,13 @@ export function fieldLook(form: boolean, compact = false, error = false) {
   }
 }
 
+/**
+ * A tick box is marked one way everywhere (D186): the theme-aware neutral,
+ * in or out of a form. Left to Quasar, a box outside a form came out in its
+ * brand blue next to a form's neutral one.
+ */
 export function checkboxLook(form: boolean, dense: boolean) {
-  return { dense: form || dense, color: form ? "dp-control-selected" : undefined }
+  return { dense: form || dense, color: "dp-control-selected" }
 }
 
 /** Switches keep the same neutral selected colour in forms and panels. */

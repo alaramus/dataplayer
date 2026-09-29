@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { bannerLook, buttonLook, panelStyle } from "./tokens"
+import { bannerLook, buttonLook, checkboxLook, panelStyle } from "./tokens"
 
 describe("panelStyle", () => {
   it("gives every size a width and a viewport ceiling", () => {
@@ -77,5 +77,22 @@ describe("bannerLook", () => {
     for (const tone of ["error", "success", "warning", "info"] as const) {
       expect(bannerLook(tone).classes).toMatch(/^dp-tone-/)
     }
+  })
+})
+
+describe("checkboxLook", () => {
+  // One look in or out of a form (D186): a box outside one used to come out
+  // in Quasar's brand blue next to a form's neutral one.
+  it("marks a tick box with the neutral colour everywhere", () => {
+    for (const form of [false, true]) {
+      expect(checkboxLook(form, false).color).toBe("dp-control-selected")
+      expect(checkboxLook(form, true).color).toBe("dp-control-selected")
+    }
+  })
+
+  it("stays dense in a form or when asked", () => {
+    expect(checkboxLook(false, false).dense).toBe(false)
+    expect(checkboxLook(false, true).dense).toBe(true)
+    expect(checkboxLook(true, false).dense).toBe(true)
   })
 })
