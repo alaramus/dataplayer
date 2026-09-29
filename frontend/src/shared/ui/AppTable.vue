@@ -82,11 +82,14 @@ withDefaults(
    that is `--dp-surface` that made three colours out of one column: the panel,
    the card on it, and the sticky heading on that. A table filling a panel is
    not a card; it takes the surface it was put on. */
+.app-table,
+.app-table--sticky {
+  background: var(--dp-surface);
+}
 .app-table--sticky {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--dp-surface);
 }
 .app-table--sticky :deep(.q-table__middle) {
   flex: 1;
@@ -96,10 +99,12 @@ withDefaults(
 /* The same value as the table above, and that is the point: a sticky
    heading's whole job is to hide the rows sliding under it, so a heading that
    is not exactly the colour of its own table is a stripe across it. */
+.app-table :deep(thead tr th) {
+  background: var(--dp-surface);
+}
 .app-table--sticky :deep(thead tr th) {
   position: sticky;
   top: 0;
   z-index: var(--dp-layer-sticky);
-  background: var(--dp-surface);
 }
 </style>
