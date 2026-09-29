@@ -385,6 +385,147 @@ body.body--dark {
   --dp-shadow-strong: rgba(0, 0, 0, 0.8);
 }
 
+/*
+ * The dark-blue ground, chosen in Preferences beside light and dark. An
+ * override of the dark theme rather than a theme of its own: everything
+ * unlisted here — text, borders, washes, accents — is already legible on a
+ * dark ground and stays as it is. `stores/theme.ts` is the only writer of
+ * the marker.
+ */
+body.body--dark[data-dp-theme="dark-blue"] {
+  --dp-surface: #0a1542;
+  --dp-surface-raised: #101f5a;
+  --dp-chrome: #0c1b50;
+  --dp-chrome-raised: #0d1f61;
+  --dp-field-surface: #0a1542;
+  --dp-field-border: #2c448f;
+  --dp-tab-current: #1a3180;
+  --dp-panel-plain: #1e3a8a;
+  --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
+  --dp-tone-info-wash: #13295f;
+}
+
+/*
+ * The warm paper ground from rich-md-viewer (`data-style="paper"` there),
+ * chosen in Preferences beside the other dark grounds. Canvas, surfaces and
+ * text are carried over; the accent family follows the bronze accent so
+ * links, selections and drop targets stay in the same warmth.
+ * `stores/theme.ts` is the only writer of the marker.
+ */
+body.body--dark[data-dp-theme="paper"] {
+  --dp-surface: #211c17;
+  --dp-surface-raised: #2b241d;
+  --dp-chrome: #2b241d;
+  --dp-chrome-raised: #17130f;
+  --dp-field-surface: #2b241d;
+  --dp-field-border: #4d4136;
+  --dp-tab-current: #3a2f24;
+  --dp-panel-plain: #3a2f24;
+  --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
+
+  --dp-border-faint: rgba(255, 235, 210, 0.1);
+  --dp-border: rgba(255, 235, 210, 0.16);
+  --dp-border-strong: rgba(255, 235, 210, 0.28);
+
+  --dp-separator: rgba(255, 235, 210, 0.16);
+  --dp-separator-active: rgba(255, 235, 210, 0.38);
+
+  --dp-text: #eee6dc;
+  --dp-text-muted: #b9aa9a;
+  --dp-text-faint: rgba(238, 230, 220, 0.4);
+
+  --dp-accent: #d7a477;
+  --dp-link: rgba(231, 191, 152, 0.95);
+  --dp-selected: rgba(215, 164, 119, 0.18);
+  --dp-selected-quiet: rgba(215, 164, 119, 0.08);
+  --dp-text-selection: rgba(215, 164, 119, 0.4);
+  --dp-tone-info-wash: #2b241d;
+
+  --dp-dropzone: rgba(215, 164, 119, 0.26);
+  --dp-dropzone-border: rgba(215, 164, 119, 0.7);
+}
+
+/*
+ * The deep-navy ground from rich-md-viewer (`data-style="midnight"` there),
+ * chosen in Preferences beside the other dark grounds. Canvas, surfaces and
+ * text are carried over; the accent family follows the ice-blue accent so
+ * links, selections and drop targets stay in the same cold range.
+ * `stores/theme.ts` is the only writer of the marker.
+ */
+body.body--dark[data-dp-theme="midnight"] {
+  --dp-surface: #0c1929;
+  --dp-surface-raised: #13243a;
+  --dp-chrome: #13243a;
+  --dp-chrome-raised: #07111f;
+  --dp-field-surface: #13243a;
+  --dp-field-border: #2a4560;
+  --dp-tab-current: #1d3859;
+  --dp-panel-plain: #1d3859;
+  --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
+
+  --dp-border-faint: rgba(150, 200, 255, 0.1);
+  --dp-border: rgba(150, 200, 255, 0.16);
+  --dp-border-strong: rgba(150, 200, 255, 0.28);
+
+  --dp-separator: rgba(150, 200, 255, 0.16);
+  --dp-separator-active: rgba(150, 200, 255, 0.38);
+
+  --dp-text: #e7f1ff;
+  --dp-text-muted: #9bb0ca;
+  --dp-text-faint: rgba(231, 241, 255, 0.4);
+
+  --dp-accent: #7cc7ff;
+  --dp-link: rgba(169, 220, 255, 0.95);
+  --dp-selected: rgba(124, 199, 255, 0.18);
+  --dp-selected-quiet: rgba(124, 199, 255, 0.08);
+  --dp-text-selection: rgba(124, 199, 255, 0.4);
+  --dp-tone-info-wash: #13243a;
+
+  --dp-dropzone: rgba(124, 199, 255, 0.26);
+  --dp-dropzone-border: rgba(124, 199, 255, 0.7);
+}
+
+/*
+ * The dark-purple ground from rich-md-viewer (`data-style="vice-city"`
+ * there), chosen in Preferences beside the other dark grounds. Dark-purple
+ * canvas and surfaces, a neon-pink accent through links, selections and drop
+ * targets, and the cyan bright for painted text selection, as in the
+ * viewer's own selection colour. `stores/theme.ts` is the only writer of
+ * the marker.
+ */
+body.body--dark[data-dp-theme="dark-purple"] {
+  --dp-surface: #1a102d;
+  --dp-surface-raised: #281642;
+  --dp-chrome: #281642;
+  --dp-chrome-raised: #100921;
+  --dp-field-surface: #281642;
+  --dp-field-border: #4a2f63;
+  --dp-tab-current: #3a2158;
+  --dp-panel-plain: #3a2158;
+  --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
+
+  --dp-border-faint: rgba(255, 112, 194, 0.12);
+  --dp-border: rgba(255, 112, 194, 0.18);
+  --dp-border-strong: rgba(255, 112, 194, 0.3);
+
+  --dp-separator: rgba(255, 112, 194, 0.18);
+  --dp-separator-active: rgba(255, 112, 194, 0.38);
+
+  --dp-text: #fff0fa;
+  --dp-text-muted: #d4aed0;
+  --dp-text-faint: rgba(255, 240, 250, 0.4);
+
+  --dp-accent: #ff4faa;
+  --dp-link: rgba(255, 79, 170, 0.95);
+  --dp-selected: rgba(255, 79, 170, 0.18);
+  --dp-selected-quiet: rgba(255, 79, 170, 0.08);
+  --dp-text-selection: rgba(50, 228, 233, 0.35);
+  --dp-tone-info-wash: #281642;
+
+  --dp-dropzone: rgba(255, 79, 170, 0.26);
+  --dp-dropzone-border: rgba(255, 79, 170, 0.7);
+}
+
 /* The body reads in --dp-text in both themes. Quasar paints the dark one
    #fff with a class, hence the second selector. */
 body,

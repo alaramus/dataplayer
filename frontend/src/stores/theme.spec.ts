@@ -31,6 +31,7 @@ describe("theme store", () => {
   beforeEach(() => {
     localStorage.clear()
     document.body.className = ""
+    document.body.removeAttribute("data-dp-theme")
     setActivePinia(createPinia())
   })
 
@@ -126,5 +127,52 @@ describe("theme store", () => {
     vi.stubGlobal("matchMedia", undefined)
 
     expect(useThemeStore().dark).toBe(false)
+  })
+
+  it.each(["dark-blue", "paper", "midnight", "dark-purple"] as const)(
+    "reads %s as a dark theme with its own ground",
+    (mode) => {
+      systemSays(false)
+      localStorage.setItem(THEME_KEY, mode)
+
+      const theme = useThemeStore()
+
+      expect(theme.mode).toBe(mode)
+      expect(theme.dark).toBe(true)
+      expect(theme.variant).toBe(mode)
+    }
+  )
+
+  it("marks a named ground beside the dark class, and clears the mark after it", () => {
+    systemSays(false)
+    const theme = useThemeStore()
+
+    theme.set("dark-blue")
+    expect(document.body.classList.contains("body--dark")).toBe(true)
+    expect(document.body.dataset.dpTheme).toBe("dark-blue")
+
+    theme.set("dark")
+    expect(document.body.classList.contains("body--dark")).toBe(true)
+    expect(document.body.dataset.dpTheme).toBeUndefined()
+
+    // Dark to a named ground turns over without `dark` changing at all.
+    theme.set("paper")
+    expect(document.body.classList.contains("body--dark")).toBe(true)
+    expect(document.body.dataset.dpTheme).toBe("paper")
+
+    theme.set("paper")
+    theme.set("system")
+    expect(document.body.dataset.dpTheme).toBeUndefined()
+  })
+
+  it("leaves a named ground for light when toggled", () => {
+    systemSays(false)
+    const theme = useThemeStore()
+    theme.set("paper")
+
+    theme.toggle()
+
+    expect(theme.mode).toBe("light")
+    expect(document.body.dataset.dpTheme).toBeUndefined()
   })
 })
