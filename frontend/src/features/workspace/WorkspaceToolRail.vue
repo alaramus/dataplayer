@@ -175,12 +175,10 @@ function onRailDrop(event: DragEvent) {
   margin-top: calc(-1 * var(--dp-space-half));
 }
 /* The grouping frame lives only on blocks of several buttons: a lone
-   button is framed by the button itself. */
+   button is framed by the button itself. It draws no hover fill: hovering
+   the group used to wash it grey, which read as a selection. */
 .tool-rail__block--framed {
   border-radius: var(--dp-radius-panel);
-}
-.tool-rail__block--framed:hover {
-  background: var(--dp-panel-plain-quiet);
 }
 .tool-rail__block--over {
   border-top-color: var(--dp-action-secondary);
