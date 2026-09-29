@@ -6,6 +6,7 @@ import type { Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { requireE2EService } from "./utils/services"
 import { toast } from "./utils/notices"
 import { COLLEAGUE_PASSWORD, colleagueEmail, createColleague, removeColleague, signInAs } from "./utils/people"
 import { openNode, pickSchema } from "./utils/catalog"
@@ -195,6 +196,10 @@ test("the dashboards cover the workspace, which is still where it was on the way
 })
 
 test("a superuser starts the metrics store from the dashboards", async ({ page }) => {
+  test.skip(
+    process.env.E2E_ALLOW_TIMESCALE_START !== "1",
+    "This scenario starts TimescaleDB; set E2E_ALLOW_TIMESCALE_START=1 to opt in"
+  )
   // Once per stack: a store that is there already is the ordinary case.
   test.setTimeout(240_000)
   await login(page)
@@ -211,6 +216,7 @@ test("a host's ready-made layout shows its processes, takes live points and open
   test.setTimeout(90_000)
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  await requireE2EService("metrics")
   const stamp = Date.now()
   const agentName = `e2e-agent-${stamp}`
   const host = `e2e-host-${stamp}`
@@ -294,6 +300,7 @@ test("a connection's owner switches its reporting on and its layout is drawn fro
   const name = `e2e-reporting-${stamp}`
   const dashboardName = `e2e-dashboard-${stamp}`
   await login(page)
+  await requireE2EService("metrics")
   await createPostgresConnector(page, name)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
 
@@ -342,6 +349,7 @@ test("a connection's owner switches its reporting on and its layout is drawn fro
 test("an agent's datagrams describe its host and become a dashboard of widgets", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  await requireE2EService("metrics")
   const agentName = `e2e-agent-${Date.now()}`
   const host = `e2e-host-${Date.now()}`
 
@@ -449,6 +457,7 @@ test("a host whose agent keeps starting again needs its owner", async ({ page })
   test.setTimeout(90_000)
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  await requireE2EService("metrics")
   const stamp = Date.now()
   const agentName = `e2e-restarting-${stamp}`
   const host = `e2e-crashing-${stamp}`
@@ -706,11 +715,11 @@ test("a dashboard takes a colour of its own, which the rail and its name carry, 
 
   // Another open, the coloured one is washed in its colour instead.
   await create(plain)
-  await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
+  await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", "rgba(36, 106, 188, 0.5)")
   await expect(page.getByTestId("dashboard-name")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
 
   await page.getByTestId("app-toggle-first-panel").click()
-  await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
+  await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", "rgba(36, 106, 188, 0.5)")
   await page.getByTestId(`dashboard-narrow-${coloured}`).click()
   await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", blue)
   await page.getByTestId("app-toggle-first-panel").click()
@@ -831,6 +840,7 @@ test("a dashboard shared with a colleague opens from its link, is edited once al
   test.setTimeout(150_000)
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  await requireE2EService("metrics")
   const stamp = Date.now()
   const email = colleagueEmail()
   const agentName = `e2e-shared-agent-${stamp}`

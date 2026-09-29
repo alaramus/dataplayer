@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test"
 import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
 import { createFileConnector, fillSshServer } from "./utils/connectors"
 import { login } from "./utils/login"
+import { requireE2EService } from "./utils/services"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
 /**
@@ -75,6 +76,7 @@ test("a key is imported from its file, read here rather than uploaded", async ({
 test("an SSH server is trusted by its key before anything is sent, and then browsed", async ({
   page,
 }) => {
+  await requireE2EService("ssh")
   const name = `e2e-ssh-${Date.now()}`
   await login(page)
   await fillSshServer(page, name)

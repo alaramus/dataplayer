@@ -162,13 +162,15 @@ test("an administrator is not offered a way to delete their own account", async 
 
   // The table pages client-side, and accounts left by earlier runs can push
   // the superuser's row off the first page — walk forward until it is shown.
-  const ownDelete = page.getByTestId(`delete-user-${firstSuperuser}`)
+  const ownRow = page.getByRole("row").filter({ hasText: firstSuperuser })
   const next = page.getByRole("button", { name: "Next page" })
-  while ((await ownDelete.count()) === 0 && (await next.isEnabled())) {
+  await expect(page.getByTestId("users-table").getByRole("row").nth(1)).toBeVisible()
+  while ((await ownRow.count()) === 0) {
+    await expect(next).toBeEnabled()
     await next.click()
     await expect(page.getByRole("button", { name: "Previous page" })).toBeEnabled()
   }
 
   // The server refuses it; the button says so before it is pressed.
-  await expect(ownDelete).toBeDisabled()
+  await expect(ownRow.getByRole("button", { name: "You cannot delete your own account" })).toBeDisabled()
 })

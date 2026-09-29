@@ -9,11 +9,16 @@ import {
 } from "./utils/connectors"
 import { login } from "./utils/login"
 import { REDIS, redisCommands } from "./utils/redis"
+import { requireE2EService } from "./utils/services"
 import { deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
 
 // A folder of Redis hashes declared a table (D170), and a Redis key saved as
 // CSV through Paste (D171). The keys are written straight into the scenarios'
 // own database of the development Redis, and taken out again at the end.
+
+test.beforeEach(async () => {
+  await requireE2EService("redis")
+})
 
 /** The text of a cell without the controls that live in it. */
 function cellValue(page: Page, testId: string) {

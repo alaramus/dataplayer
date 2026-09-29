@@ -29,7 +29,7 @@
   color: var(--dp-focus-border) !important;
 }
 .text-dp-control-selected {
-  color: var(--dp-accent) !important;
+  color: var(--dp-text-muted) !important;
 }
 .text-dp-action-secondary {
   color: var(--dp-action-secondary) !important;

@@ -208,10 +208,12 @@ pure-logic split rests on review.
   catalog tree were computed, unit-tested and never rendered, because QTree has
   no `caption` prop. Anything user-visible is confirmed in the browser or by a
   Playwright scenario.
-- **A test without its server is skipped, not errored.** A server other than the
-  application database is reached through the address `tests/utils/services.py`
-  gives, which skips the test when nothing answers; CI runs with
-  `--require-services`, where the same absence stops the run.
+- **A test without its optional server is skipped, not errored.** Backend tests
+  use `tests/utils/services.py`; Playwright scenarios use
+  `frontend/tests/utils/services.ts` for Redis, SSH and the metrics collector.
+  CI runs the backend suite with `--require-services`, where a missing server
+  stops the run. The Playwright scenario that provisions a managed TimescaleDB
+  store is opt-in through `E2E_ALLOW_TIMESCALE_START=1`.
 
 **Enforced:** `uv run pytest tests/ -q`, `bun run test:unit`,
 `bunx playwright test`. `tests/test_services.py` fails when a test reads an

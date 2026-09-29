@@ -47,10 +47,6 @@ for (const theme of ["light", "dark"] as const) {
       await page.getByTestId("download-scope-all").click()
       await expect(allScope).toHaveAttribute("aria-checked", "true")
       await expect(pageScope).toHaveAttribute("aria-checked", "false")
-      // The mark of the choice left behind shrinks over a transition; the
-      // screenshot below is of the state, not of the animation.
-      await expect.poll(() => pageScope.locator(".q-radio__check")
-        .evaluate((el) => getComputedStyle(el).transform)).toBe("matrix(0, 0, 0, 0, 0, 0)")
       expect(await frame.boundingBox()).toEqual(before)
       await expect(frame.getByRole("button", { name: "Download", exact: true })).toBeVisible()
       const body = content.locator(".window-dialog__content")

@@ -339,6 +339,12 @@ bun run build
 bunx playwright test
 ```
 
+E2E scenarios that use the optional Redis, SSH and metrics services skip when
+their service is unavailable. Start them with `docker compose up -d redis`,
+`docker compose up -d sshd` and `docker compose up -d metrics` respectively.
+The scenario that provisions the Timescale metrics store skips by default; set
+`E2E_ALLOW_TIMESCALE_START=1` in the environment to opt in.
+
 Repository checks:
 
 ```bash

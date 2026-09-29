@@ -14,6 +14,7 @@ import {
   createSshConnector,
 } from "./utils/connectors"
 import { login } from "./utils/login"
+import { requireE2EService } from "./utils/services"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
 // Paste of a clipboard held in another connection (D164). The file source's
@@ -114,6 +115,7 @@ test("saves several tables as one CSV file each, and asks once about taken names
 })
 
 test("copies a file to an SSH server and moves it back", async ({ page }) => {
+  await requireE2EService("ssh")
   const files = `e2e-cross-files-${Date.now()}`
   const server = `e2e-cross-ssh-${Date.now()}`
   const folder = `e2e-cross-${Date.now()}`
@@ -251,6 +253,7 @@ test("pastes a CSV into a database as a new table, then adds its rows to that ta
 })
 
 test("carries a folder whole to an SSH server and moves it back", async ({ page }) => {
+  await requireE2EService("ssh")
   const files = `e2e-folder-files-${Date.now()}`
   const server = `e2e-folder-ssh-${Date.now()}`
   const folder = `e2e-folder-${Date.now()}`

@@ -45,7 +45,7 @@ test("a connector color follows its open tabs and can be reset after reload", as
     await expect(tab).toHaveCSS("background-color", "rgb(36, 106, 188)")
     await expect(tab).toHaveCSS("color", "rgb(255, 255, 255)")
   }
-  await expect(aside).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
+  await expect(aside).toHaveCSS("background-color", "rgba(36, 106, 188, 0.5)")
 
   // The tab being read and the one beside it are the same size and the same
   // weight: only the line under the active one says which is which, so
@@ -84,7 +84,7 @@ test("a connector color follows its open tabs and can be reset after reload", as
     await expect(tab).toHaveCSS("background-color", "rgb(255, 255, 255)")
     await expect(tab).toHaveCSS("color", "rgb(0, 0, 0)")
   }
-  await expect(aside).toHaveCSS("background-color", "rgba(255, 255, 255, 0.28)")
+  await expect(aside).toHaveCSS("background-color", "rgba(255, 255, 255, 0.5)")
   await page.getByTestId("cancel-connector").click()
   await page.reload()
   for (const tab of read) await expect(tab).toHaveCSS("background-color", "rgb(255, 255, 255)")

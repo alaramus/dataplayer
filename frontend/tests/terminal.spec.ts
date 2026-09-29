@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { createSshConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { requireE2EService } from "./utils/services"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
 /**
@@ -12,6 +13,7 @@ import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
  * typed.
  */
 test("the Terminals button opens a shell on the connection being worked in", async ({ page }) => {
+  await requireE2EService("ssh")
   const name = `e2e-terminal-${Date.now()}`
   await login(page)
   await createSshConnector(page, name)
