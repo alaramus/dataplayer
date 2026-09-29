@@ -1,18 +1,17 @@
 /**
  * Fill the connections panel with demo data: the same PostgreSQL under
- * several names, two file storages, two Redis databases and two SSH servers.
+ * several names and two file storages.
  *
  * Usage, from the repository root:
  *
  *   bun scripts/seed-connectors.ts
  *   bun run seed:connectors
  *
- * Settings come from the environment, falling back to `.env` and then to the
- * development defaults the E2E scenarios use: the API needs
- * `FIRST_SUPERUSER` and `FIRST_SUPERUSER_PASSWORD`, PostgreSQL is
- * `PG_URL` or `POSTGRES_SERVER/PORT/DB/USER/PASSWORD` as the backend
- * container sees it. Nothing is overwritten: a name that already exists is
- * skipped, so the script is safe to run again.
+ * Settings come from the environment, falling back to `.env`: the API needs
+ * `FIRST_SUPERUSER` and `FIRST_SUPERUSER_PASSWORD`, PostgreSQL is `PG_URL` or
+ * `POSTGRES_SERVER/PORT/DB/USER/PASSWORD`, and Redis uses
+ * `DATA_CACHE_REDIS_URL`. Nothing is overwritten: a name that already exists
+ * is skipped, so the script is safe to run again.
  */
 
 import fs from "node:fs";
@@ -64,6 +63,28 @@ function postgresOptions() {
   };
 }
 
+function redisCacheOptions() {
+  const address = get("DATA_CACHE_REDIS_URL");
+  if (!address) throw new Error("Set DATA_CACHE_REDIS_URL to connect the cache Redis");
+  const url = new URL(address);
+  if (url.protocol !== "redis:") {
+    throw new Error("The Redis connector supports redis:// only; TLS rediss:// cache URLs are not supported yet");
+  }
+  if (!url.hostname) throw new Error("DATA_CACHE_REDIS_URL must include a Redis host");
+  const pathDatabase = url.pathname.replace(/^\//, "");
+  const database = pathDatabase ? Number(pathDatabase) : Number(url.searchParams.get("db") ?? 0);
+  if (!Number.isInteger(database) || database < 0 || database > 15) {
+    throw new Error("The Redis connector database must be between 0 and 15");
+  }
+  const password = decodeURIComponent(url.password);
+  return {
+    host: url.hostname,
+    port: Number(url.port || 6379),
+    database,
+    ...(password ? { auth_method: "password", password } : { auth_method: "no_auth" }),
+  };
+}
+
 async function api(pathname: string, token: string | null, init: RequestInit = {}) {
   const response = await fetch(`${API}${pathname}`, {
     ...init,
@@ -99,17 +120,6 @@ async function main() {
     ((listed.body as { data?: Array<{ name: string }> }).data ?? []).map((connector) => connector.name),
   );
 
-  // Pin the SSH server key once, the way the connection form does (D145).
-  const keyReport = await api("/api/v1/connectors/server-key", token, {
-    method: "POST",
-    body: JSON.stringify({ adapter_type: "ssh", options: { host: "sshd", port: 2222 }, fetch: true }),
-  });
-  const presented = (keyReport.body as { presented?: { public_key?: string } | null })?.presented;
-  if (keyReport.status !== 200 || !presented?.public_key) {
-    throw new Error(`Could not fetch the SSH server key: ${keyReport.status} ${JSON.stringify(keyReport.body)}`);
-  }
-  const sshPassword = { auth_method: "password", host: "sshd", port: 2222, username: "dataplayer", password: "dataplayer", host_key: presented.public_key };
-
   const pgNames = [
     "pg-main", "pg-analytics", "pg-warehouse", "pg-logs", "pg-archive",
     "pg-staging", "pg-reporting", "pg-timescale", "pg-backup", "pg-lab",
@@ -120,16 +130,7 @@ async function main() {
     })),
     { name: "files-personal", adapter_type: "file", options: {} },
     { name: "files-shared", adapter_type: "file", options: {} },
-    {
-      name: "redis-main", adapter_type: "redis",
-      options: { auth_method: "no_auth", host: get("REDIS_HOST", "redis"), port: Number(get("REDIS_PORT", "6379")), database: 0 },
-    },
-    {
-      name: "redis-queue", adapter_type: "redis",
-      options: { auth_method: "no_auth", host: get("REDIS_HOST", "redis"), port: Number(get("REDIS_PORT", "6379")), database: 1 },
-    },
-    { name: "ssh-dev", adapter_type: "ssh", options: { ...sshPassword } },
-    { name: "ssh-files", adapter_type: "ssh", options: { ...sshPassword, path: "/" } },
+    { name: "redis-cache", adapter_type: "redis", options: redisCacheOptions() },
   ];
 
   let created = 0;
