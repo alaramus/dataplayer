@@ -49,12 +49,18 @@ export const SCROLL_MAX_HEIGHT = "60vh"
  * those into solid red buttons would shout, so a destructive action has both
  * a prominent form and a restrained one.
  *
- * `chosen` is the one picked among its neighbours — the space you are in, the
- * view a window shows — or a toggle that is on. It used to be written as
- * secondary, which in the dark theme is a grey dimmer than the quiet buttons
- * beside it, so the one you were in was the one that stood out least.
+ * `chosen` is the space you are in, on a rail of the chrome: a mark that has
+ * to be found at a glance among icons on the chrome's own grey. It used to be
+ * written as secondary, which in the dark theme is a grey dimmer than the
+ * quiet buttons beside it, so the one you were in was the one that stood out
+ * least.
+ *
+ * `current` is the view a panel or a window shows among its neighbours — a
+ * dialect, a plan's view, 2D or 3D — or a toggle that is on. It is drawn the
+ * way a current tab is (D186): filled like the main action, it was read as the
+ * thing to press rather than the thing being shown.
  */
-export type ButtonVariant = "primary" | "secondary" | "chosen" | "danger" | "danger-quiet" | "quiet"
+export type ButtonVariant = "primary" | "secondary" | "chosen" | "current" | "danger" | "danger-quiet" | "quiet"
 
 /**
  * `inline` is a value in a table that opens its own editor: it reads as the
@@ -78,9 +84,8 @@ export interface ButtonLook {
 const BUTTON_LOOKS: Record<ButtonVariant, ButtonLook> = {
   primary: { color: "dp-action-primary", textColor: "dp-on-action-primary", unelevated: true, flat: false },
   secondary: { color: "dp-action-secondary", flat: true },
-  // Filled, like the main action, until the visual pass gives it a look of its
-  // own: it has to be the most visible of its row.
   chosen: { color: "dp-action-primary", textColor: "dp-on-action-primary", unelevated: true, flat: false },
+  current: { color: "dp-tab-current", textColor: "dp-action-secondary", unelevated: true, flat: false },
   danger: { color: "negative", unelevated: true, flat: false },
   "danger-quiet": { color: "dp-action-danger", flat: true },
   // Cancel and Close sit next to the action they cancel; a colour here would
@@ -96,23 +101,32 @@ export function buttonLook(variant: ButtonVariant): ButtonLook {
 export type Tone = "error" | "success" | "warning" | "info"
 
 export interface BannerLook {
+  /** The ground and the text. */
   classes: string
   icon: string
+  /** The icon says the tone even where the text does not. */
+  iconClasses: string
 }
 
 // The classes are theme.css's, and turn over with the theme; Quasar's own
-// colour classes are one colour for both.
-const BANNER_LOOKS: Record<Tone, BannerLook> = {
-  error: { classes: "dp-tone-fill-error", icon: "error" },
-  success: { classes: "dp-tone-fill-success", icon: "check_circle" },
-  // A warning is read, not obeyed, so it stays light rather than filled.
-  warning: { classes: "dp-tone-wash-warning", icon: "warning" },
-  info: { classes: "dp-tone-wash-info", icon: "info" },
+// colour classes are one colour for both. Every tone is a wash under the
+// body's text (D187): a filled red ground left no colour for anything placed
+// on it, and a transaction's countdown and its Roll back stood on it at 1.6:1.
+const BANNER_ICONS: Record<Tone, string> = {
+  error: "error",
+  success: "check_circle",
+  warning: "warning",
+  info: "info",
 }
 
+/**
+ * In a form the banner has no ground: the form is its ground, and its icon
+ * carries the tone. An error keeps its words red, as a field's error does.
+ */
 export function bannerLook(tone: Tone, form = false): BannerLook {
-  const look = BANNER_LOOKS[tone]
-  return form ? { ...look, classes: toneText(tone) } : look
+  const icon = BANNER_ICONS[tone]
+  if (!form) return { classes: toneWash(tone), icon, iconClasses: toneText(tone) }
+  return { classes: tone === "error" ? toneText(tone) : "", icon, iconClasses: toneText(tone) }
 }
 
 /** A tone as a filled ground: a badge, a status dot. */
@@ -120,15 +134,24 @@ export function toneFill(tone: Tone): string {
   return `dp-tone-fill-${tone}`
 }
 
+/** A tone as a light ground under the body's text: a banner, a badge in a row. */
+export function toneWash(tone: Tone): string {
+  return `dp-tone-wash-${tone}`
+}
+
 /** A tone as the colour of a mark on the page: an icon, a word. */
 export function toneText(tone: Tone): string {
   return `dp-tone-text-${tone}`
 }
 
-/** Form fields have a permanent external label; toolbar fields stay borderless. */
+/**
+ * Form fields have a permanent external label; toolbar fields stay borderless.
+ * Both are marked by the one focus colour: left to Quasar, a field outside a
+ * form was underlined in its brand blue.
+ */
 export function fieldLook(form: boolean, compact = false, error = false) {
   return {
-    color: form ? "dp-field-focus" : undefined,
+    color: "dp-field-focus",
     dense: form || compact,
     outlined: form,
     borderless: !form && compact,

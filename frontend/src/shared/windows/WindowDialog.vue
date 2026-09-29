@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineComponent, getCurrentInstance, h, onBeforeUnmount, useAttrs, useSlots, watch } from "vue"
+import { computed, defineComponent, getCurrentInstance, h, onBeforeUnmount, ref, useAttrs, useSlots, watch } from "vue"
 
 import AppActions from "@/shared/ui/AppActions.vue"
 
@@ -60,6 +60,14 @@ const sizes = {
   xl: { width: 1120, height: 680 },
 } as const
 
+/**
+ * Whether the content has been scrolled under the subtitle. A line then
+ * separates them, as the footer's does below: without it the row cut by the
+ * top edge stood directly under the subtitle's words and read as drawn over
+ * them (D187).
+ */
+const scrolled = ref(false)
+
 const component = defineComponent({
   name: `WindowDialogContent-${instance?.uid ?? 0}`,
   setup: () => () =>
@@ -68,9 +76,22 @@ const component = defineComponent({
       { ...attrs, class: ["window-dialog", attrs.class, { "window-dialog--stable": props.sizing === "stable" }] },
       [
         props.subtitle
-          ? h("div", { class: "window-dialog__subtitle" }, props.subtitle)
+          ? h(
+              "div",
+              { class: ["window-dialog__subtitle", { "window-dialog__subtitle--over": scrolled.value }] },
+              props.subtitle
+            )
           : null,
-        h("div", { class: "window-dialog__content" }, slots.default?.()),
+        h(
+          "div",
+          {
+            class: "window-dialog__content",
+            onScroll: (event: Event) => {
+              if (event.target instanceof HTMLElement) scrolled.value = event.target.scrollTop > 0
+            },
+          },
+          slots.default?.()
+        ),
         slots.actions
           ? h(AppActions, { class: "window-dialog__actions" }, { default: slots.actions })
           : null,
@@ -140,10 +161,14 @@ onBeforeUnmount(() => {
 }
 .window-dialog__subtitle {
   flex: none;
-  padding: var(--dp-space-2) var(--dp-space-4) 0;
+  padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-1);
+  border-bottom: 1px solid transparent;
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-sm);
   line-height: var(--dp-line-height-sm);
+}
+.window-dialog__subtitle--over {
+  border-bottom-color: var(--dp-border);
 }
 .window-dialog__content {
   min-height: 0;

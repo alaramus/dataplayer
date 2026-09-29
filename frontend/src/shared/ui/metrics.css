@@ -55,6 +55,9 @@
   --dp-control-height: 32px;
   --dp-control-height-compact: 20px;
   --dp-form-control-height: var(--dp-control-height);
+  /* The height a toolbar field takes: a control's, unless what holds it is
+     a strip of its own (a card head sets its strip less its line). */
+  --dp-field-height: var(--dp-control-height);
   /* Two densities of a list: dense for what is scanned in bulk (a catalog, a
      grid, a log), ordinary for what is picked from (a menu, the connections,
      the chats). */
@@ -63,7 +66,10 @@
   --dp-tab-height: 26px;
   /* A page of settings is read down one column; its head keeps to it. */
   --dp-page-max-width: 960px;
-  --dp-form-label-width: 108px;
+  /* Room for a label of three words at 13px beside its padding: at 108px
+     "New literal value" and "Link to this dashboard" broke onto a second
+     line that stood above the middle of the field (D187). */
+  --dp-form-label-width: 152px;
   --dp-operation-result-height: min(176px, 25vh);
 
   /* The one step below the grid: the gap between two chips, the padding of a

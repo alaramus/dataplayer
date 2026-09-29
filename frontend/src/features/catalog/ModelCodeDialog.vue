@@ -144,7 +144,7 @@ function close() {
         <AppButton
           v-for="choice in choices"
           :key="choice.value"
-          :variant="choice.value === dialect ? 'chosen' : 'quiet'"
+          :variant="choice.value === dialect ? 'current' : 'quiet'"
           role="tab"
           :aria-selected="choice.value === dialect"
           size="sm"

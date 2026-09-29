@@ -37,6 +37,10 @@
 .text-dp-action-danger {
   color: var(--dp-action-danger) !important;
 }
+/* The ground of a current tab, for a button that is the view being shown. */
+.bg-dp-tab-current {
+  background: var(--dp-tab-current) !important;
+}
 
 /*
  * What a message is — an error, a success, a warning, a note — in the three
@@ -76,7 +80,15 @@
   background: var(--q-primary) !important;
   color: var(--dp-on-fill) !important;
 }
-/* A warning is read, not obeyed, so it stays light rather than filled. */
+/* A banner of every tone is a wash under the body's text (D187). */
+.dp-tone-wash-error {
+  background: var(--dp-tone-error-wash) !important;
+  color: var(--dp-on-wash) !important;
+}
+.dp-tone-wash-success {
+  background: var(--dp-tone-success-wash) !important;
+  color: var(--dp-on-wash) !important;
+}
 .dp-tone-wash-warning {
   background: var(--dp-tone-warning-wash) !important;
   color: var(--dp-on-wash) !important;
@@ -212,6 +224,8 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
 
   /* Nothing has been said yet — the dot of a connection nobody checked. */
   --dp-idle: rgba(0, 0, 0, 0.2);
+  /* The ground of a filled button that cannot be pressed yet. */
+  --dp-disabled-fill: rgba(0, 0, 0, 0.08);
 
   /* Chosen: the row whose catalog is showing, the tile that is picked. And
      the same thing said quietly: a connection with a catalog open somewhere,
@@ -247,6 +261,8 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   --dp-tone-warning-text: #9a5b00;
   --dp-tone-warning-wash: #fff3e0;
   --dp-tone-info-wash: #e3f2fd;
+  --dp-tone-error-wash: #fdecea;
+  --dp-tone-success-wash: #e8f5e9;
   --dp-on-wash: rgba(0, 0, 0, 0.87);
 
   /* Ordered series colours. A chart asks for the next series, not for a
@@ -329,6 +345,7 @@ body.body--dark {
   --dp-text-faint: rgba(255, 255, 255, 0.42);
 
   --dp-idle: rgba(255, 255, 255, 0.3);
+  --dp-disabled-fill: rgba(255, 255, 255, 0.1);
 
   /* A lighter blue: #1976d2 on #121212 is a stain rather than a highlight. */
   --dp-selected: rgba(100, 181, 246, 0.18);
@@ -348,6 +365,8 @@ body.body--dark {
   --dp-tone-warning-text: #ffb74d;
   --dp-tone-warning-wash: #3a2c17;
   --dp-tone-info-wash: #15283b;
+  --dp-tone-error-wash: #3b1c1c;
+  --dp-tone-success-wash: #1b3320;
   --dp-on-wash: rgba(255, 255, 255, 0.87);
 
   --dp-chart-1: #64b5f6;
@@ -388,6 +407,37 @@ body.body--dark {
   box-shadow:
     0 0 0 1px var(--dp-border),
     0 2px 8px var(--dp-shadow-soft);
+}
+
+/* A table's cells read in --dp-text as well (D187). Quasar paints a table's
+   card #000, and everything it draws dark #fff (`.q-dark`): the one block of
+   text on the screen a shade harder than every word beside it. */
+.q-table__card,
+body.body--dark .q-dark {
+  color: var(--dp-text);
+}
+
+/* The line under a field (D187). Quasar sets the messages in it at a line of
+   1 over the bottom's own line, so a hint that wrapped stood its lines
+   touching; and it colours them .54, and .7 on the dark theme, beside a
+   muted text that is .6 and .62. An error keeps Quasar's red. */
+.q-field .q-field__messages {
+  line-height: var(--dp-line-height-sm);
+}
+.q-field:not(.q-field--error) .q-field__bottom {
+  color: var(--dp-text-muted);
+}
+
+/* An action that cannot be taken yet (D187). Quasar dims a filled button to
+   .6, which left the main action a mid grey under white letters: a button of
+   another colour rather than one that is off. It is drawn on the quiet ground
+   of an unfilled control, in the colour of marks that are not read. */
+.q-btn.disabled.bg-dp-action-primary,
+.q-btn.disabled.bg-negative,
+.q-btn.disabled.bg-dp-tab-current {
+  opacity: 1 !important;
+  background: var(--dp-disabled-fill) !important;
+  color: var(--dp-text-faint) !important;
 }
 
 /* A field's value reads in --dp-text too (D185). Quasar writes it #fff on the

@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-29 | [The second UI audit and its corrections](2026-09-29-ui-audit-2-design.md) | D187: what Quasar draws on its own is on the scale too — banners and in-row badges washed, Quasar's table and dark text and a field's hint in the theme's colours, compact fields at --dp-field-height, a disabled filled button drawn off, `current` for the view being shown, code in the application's monospace, a 152px label column, dense toggles |
 | 2026-09-28 | [The UI audit and its corrections](2026-09-28-ui-audit-design.md) | D185, D186: one scale of type, lines, weights, control heights, icon sizes and text colours in metrics.css, said again to Quasar in quasar-variables.sass; roles as classes; Inter shipped; the tab being read filled and the rest quiet; the main action last, current apart from selected, destructive commands neutral until hovered, one card and one popover |
 | 2026-09-28 | [The server's log](2026-09-28-server-log-design.md) | D184: each process writes JSON lines to rotated files on a volume, every secret masked; an unexpected failure is written whole with a ref the person's sentence carries; a superuser reads the log in the panel at the foot of the screen |
 | 2026-09-28 | [A user's guide, and the catalog's short lists](2026-09-28-user-guide-design.md) | D183: the user's guide is Markdown pages on the server, one per source type; the New connection panel shows the two short lists each page opens with, and Guide opens the page in a floating window |

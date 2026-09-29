@@ -58,5 +58,5 @@ export { useToast } from "./useToast"
 export { panelColorStyle } from "./panelColor"
 export type { Toast } from "./useToast"
 
-export { bannerLook, buttonLook, panelStyle, SCROLL_MAX_HEIGHT, toneFill, toneText } from "./tokens"
+export { bannerLook, buttonLook, panelStyle, SCROLL_MAX_HEIGHT, toneFill, toneText, toneWash } from "./tokens"
 export type { BannerLook, ButtonLook, ButtonVariant, PanelSize, PanelStyle, Tone } from "./tokens"

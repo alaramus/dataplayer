@@ -106,7 +106,7 @@ onBeforeUnmount(stopLayout)
       <AppButton
         label="2D"
         size="sm"
-        :variant="view.mode === '2d' ? 'chosen' : 'quiet'"
+        :variant="view.mode === '2d' ? 'current' : 'quiet'"
         :aria-pressed="view.mode === '2d'"
         data-testid="graph-mode-2d"
         @click="patch({ mode: '2d' })"
@@ -114,7 +114,7 @@ onBeforeUnmount(stopLayout)
       <AppButton
         label="3D"
         size="sm"
-        :variant="view.mode === '3d' ? 'chosen' : 'quiet'"
+        :variant="view.mode === '3d' ? 'current' : 'quiet'"
         :aria-pressed="view.mode === '3d'"
         data-testid="graph-mode-3d"
         @click="patch({ mode: '3d' })"

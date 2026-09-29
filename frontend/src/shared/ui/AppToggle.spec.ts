@@ -17,4 +17,11 @@ describe("AppToggle", () => {
     const outside = mount(AppToggle, { global: { plugins: [Quasar] }, props: { modelValue: true } })
     expect(outside.getComponent(QToggle).props("color")).toBe("dp-control-selected")
   })
+
+  // The full toggle keeps 12px of hit area left of its track and stands 40px
+  // tall; dense, its track starts where the label above it starts (D187).
+  it("is dense, so its track lines up with the text above it", () => {
+    const toggle = mount(AppToggle, { global: { plugins: [Quasar] }, props: { modelValue: false } })
+    expect(toggle.getComponent(QToggle).props("dense")).toBe(true)
+  })
 })

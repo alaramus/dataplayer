@@ -90,12 +90,7 @@ function closeFilter() {
 .connectors-head__filter {
   flex: 1;
   min-width: 0;
-}
-.connectors-head__filter :deep(.q-field__control),
-.connectors-head__filter :deep(.q-field__marginal),
-.connectors-head__filter :deep(.q-field__native) {
-  height: calc(var(--dp-tab-strip-height) - 1px);
-  min-height: calc(var(--dp-tab-strip-height) - 1px);
+  --dp-field-height: calc(var(--dp-tab-strip-height) - 1px);
 }
 /* Takes the room left, so the commands stand at the right-hand end. */
 .connectors-head__title {

@@ -49,7 +49,7 @@ import {
 import type { ButtonVariant, MenuItem, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
-const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "chosen", "danger", "danger-quiet", "quiet"]
+const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "chosen", "current", "danger", "danger-quiet", "quiet"]
 const iconFilter = ref("")
 const visibleIcons = computed(() => {
   const query = iconFilter.value.trim().toLowerCase()
@@ -449,6 +449,8 @@ function removeSavedEntry(name: string) {
           <AppInput
             v-model="text"
             label="Host"
+            hint="The name or address the server answers on. A hint long enough to wrap keeps the line of the one above it."
+            data-testid="kit-hinted-field"
           />
           <AppNumberInput
             v-model="broken"

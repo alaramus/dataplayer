@@ -33,6 +33,17 @@ th {
   font-weight: 600;
 }
 
+/* Code in the chrome is the application's monospace (D187). A bare <code> or
+   <pre> otherwise takes the browser's own, Courier New on Windows, and seven
+   windows showed a type name or a key in it beside the editor's face. */
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--dp-font-mono);
+  font-size: var(--dp-font-size-mono);
+}
+
 /* The overline: a group's heading above its content, in capitals. Fifteen
    screens drew their own in 10 to 12px and four letter spacings. */
 .dp-overline {

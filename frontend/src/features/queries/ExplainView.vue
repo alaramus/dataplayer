@@ -35,7 +35,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
       <AppButton
         v-for="view in ['tree', 'table', 'raw'] as const"
         :key="view"
-        :variant="showing === view ? 'chosen' : 'quiet'"
+        :variant="showing === view ? 'current' : 'quiet'"
         size="sm"
         :label="view === 'raw' ? 'Raw plan' : view === 'tree' ? 'Tree' : 'Table'"
         :data-testid="`explain-${view}`"

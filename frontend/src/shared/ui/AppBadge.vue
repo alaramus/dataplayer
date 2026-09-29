@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import { toneFill } from "./tokens"
+import { toneFill, toneWash } from "./tokens"
 import type { Tone } from "./tokens"
 
 const props = withDefaults(
@@ -18,7 +18,13 @@ const props = withDefaults(
   { tone: "info", corner: false }
 )
 
-const fill = computed(() => toneFill(props.tone))
+/**
+ * A count on a button's corner asks to be seen, so it is filled. A badge in
+ * the flow of a row — PK, FK, Administrator, connected — is a word about the
+ * row and is washed (D187): filled, a column of keys stood as the loudest
+ * thing on the screen.
+ */
+const fill = computed(() => (props.corner ? toneFill(props.tone) : toneWash(props.tone)))
 </script>
 
 <template>

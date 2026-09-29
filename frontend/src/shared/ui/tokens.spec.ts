@@ -47,6 +47,14 @@ describe("buttonLook", () => {
     expect(buttonLook("chosen").textColor).toBe("dp-on-action-primary")
   })
 
+  // The view being shown is drawn the way a current tab is, not like the main
+  // action beside it: "Tree" read the same as "Run" (D187).
+  it("draws the current view on the ground of a current tab", () => {
+    expect(buttonLook("current").color).toBe("dp-tab-current")
+    expect(buttonLook("current").textColor).toBe("dp-action-secondary")
+    expect(buttonLook("current").color).not.toBe(buttonLook("primary").color)
+  })
+
   // Cancel and Close must not compete with the action next to them.
   it("leaves the quiet variant without a colour", () => {
     expect(buttonLook("quiet").color).toBeUndefined()

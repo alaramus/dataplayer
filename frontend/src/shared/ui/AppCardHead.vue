@@ -62,7 +62,11 @@ defineProps<{ title?: string }>()
 }
 /* Trap: a dense Quasar field's control is 40px, taller than the head, and it
    spilt over the line under it. A field here takes the room inside the head,
-   which is its height less that line. */
+   which is its height less that line; a toolbar field of the kit reads it
+   from --dp-field-height. */
+.app-card-head {
+  --dp-field-height: calc(var(--dp-tab-strip-height) - 1px);
+}
 .app-card-head :deep(.q-field__control),
 .app-card-head :deep(.q-field__marginal) {
   height: calc(var(--dp-tab-strip-height) - 1px);

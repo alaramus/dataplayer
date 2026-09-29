@@ -932,7 +932,7 @@ onBeforeUnmount(() => {
       <div class="query-panel__actions">
         <AppButton
           v-if="canUseTransaction || transactionId !== null"
-          :variant="manualTransaction ? 'chosen' : 'quiet'"
+          :variant="manualTransaction ? 'current' : 'quiet'"
           layout="toolbar"
           size="sm"
           :label="manualTransaction ? 'Manual: On' : 'Manual: Off'"

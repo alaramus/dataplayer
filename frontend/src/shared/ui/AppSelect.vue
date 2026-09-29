@@ -329,14 +329,16 @@ const summary = computed(() => {
 /* A toolbar field is a control of the toolbar's height, and its name stands
    beside it rather than floating over its value: a floated label and a value
    need 40px, and "Per page" sat its 100 below the line of the range beside
-   it. :where() keeps this under a card head's own clamp to its strip. */
-:where(.app-select--compact) :deep(.q-field__control),
-:where(.app-select--compact) :deep(.q-field__marginal) {
-  height: var(--dp-control-height);
-  min-height: var(--dp-control-height);
+   it. The height is whatever holds it says (--dp-field-height). Trap: a
+   select is "auto-height" to Quasar, which keeps its control 40px tall three
+   classes deep; under :where() this counted none of them and lost. */
+.app-select--compact.q-field--dense :deep(.q-field__control),
+.app-select--compact.q-field--dense :deep(.q-field__marginal) {
+  height: var(--dp-field-height);
+  min-height: var(--dp-field-height);
 }
-:where(.app-select--compact) :deep(.q-field__native) {
-  min-height: var(--dp-control-height);
+.app-select--compact.q-field--dense :deep(.q-field__native) {
+  min-height: var(--dp-field-height);
   padding-top: 0;
   padding-bottom: 0;
 }

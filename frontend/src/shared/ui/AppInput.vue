@@ -172,14 +172,18 @@ function report(value: string | number | null) {
 .app-input--monospace :deep(.q-field__native) {
   font-family: var(--dp-font-mono);
 }
-/* :where() keeps this under a card head's own clamp to its strip. */
-:where(.app-input--compact) :deep(.q-field__control),
-:where(.app-input--compact) :deep(.q-field__marginal) {
-  height: var(--dp-control-height);
-  min-height: var(--dp-control-height);
+/* A toolbar field is a control of the toolbar's height, whatever holds it
+   says that height is (--dp-field-height: a card head's strip). Trap: Quasar
+   sets a dense field's control at 40px three classes deep, and the :where()
+   this used to sit under counted none of them — every compact field in the
+   application stood 40px beside its 32px buttons. */
+.app-input--compact.q-field--dense :deep(.q-field__control),
+.app-input--compact.q-field--dense :deep(.q-field__marginal) {
+  height: var(--dp-field-height);
+  min-height: var(--dp-field-height);
 }
-:where(.app-input--compact) :deep(.q-field__native) {
-  min-height: var(--dp-control-height);
+.app-input--compact.q-field--dense :deep(.q-field__native) {
+  min-height: var(--dp-field-height);
   padding-top: 0;
   padding-bottom: 0;
 }

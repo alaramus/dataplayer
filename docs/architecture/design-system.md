@@ -6,7 +6,7 @@ weight, an icon size or a text colour of its own. How screens are built and
 what the kit is, is in [frontend.md](frontend.md); the neutral window forms
 are D131 there.
 
-Decisions here: D185, D186.
+Decisions here: D185, D186, D187.
 
 ```
 frontend/src/
@@ -116,3 +116,34 @@ Known deviations:
   less on the dark theme's ground than on the light one's.
 
 Spec: [The UI audit and its corrections](../decisions/2026-09-28-ui-audit-design.md)
+
+## D187. What Quasar draws on its own is on the scale too
+
+D185 told Quasar the scale through its variables; some of what it draws takes
+none of them. Each of these is now said once, in the kit or in `theme.css`.
+
+- **Every banner is a wash**: a light ground of the tone under the body's
+  text, the icon in the tone's colour, 13px, a 20px icon. In a form it has no
+  ground; the icon carries the tone and an error keeps its words red.
+- **A badge in a row is washed**; a count on a button's corner stays filled.
+- **Quasar's own text colours are the theme's**: a table's cells and anything
+  Quasar paints dark read `--dp-text`; the line under a field is
+  `--dp-text-muted` on a 16px line, an error still red.
+- **A compact field is `--dp-field-height` tall** — a control's 32px unless
+  what holds it sets less, as a card head does for its strip.
+- **A disabled filled button is drawn off**: `--dp-disabled-fill` under
+  `--dp-text-faint`, at full opacity.
+- **`current` is the view being shown** (a dialect, a plan's view, 2D or 3D,
+  a toggle that is on), drawn as a current tab; **`chosen`** stays filled for
+  the space you are in on a rail, where a tab's grey would vanish on the
+  chrome's.
+- **Code in the chrome is the application's monospace**, at the mono size.
+- **The label column of a form is 152px**; **a toggle is dense**, its track
+  under the label above it; **a window's subtitle** draws a line under itself
+  once the content is scrolled.
+
+Enforced by `tests/kit-scale.spec.ts`, which reads what the browser paints on
+the kit's showcase in both themes; it failed against the kit before the
+change.
+
+Spec: [The second UI audit and its corrections](../decisions/2026-09-29-ui-audit-2-design.md)
