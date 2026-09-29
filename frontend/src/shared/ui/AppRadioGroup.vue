@@ -104,6 +104,54 @@ function choose(value: unknown) {
 .app-radio-group__option {
   align-items: flex-start;
 }
+/* Drawn as AppCheckbox draws its box: the size of an icon in a line of text,
+   a hairline edge, and the edge darkening under the pointer in place of
+   Quasar's halo. Quasar draws the ring as a filled path two units thick, so
+   here the edge is a border and that path is left out. */
+.app-radio-group__option :deep(.q-radio__inner) {
+  width: var(--dp-icon-sm);
+  min-width: var(--dp-icon-sm);
+  height: var(--dp-icon-sm);
+  /* Centred on the name's 20px line rather than hung from its top. */
+  margin-top: var(--dp-space-half);
+  color: var(--dp-text-muted);
+}
+.app-radio-group__option :deep(.q-radio__inner--truthy) {
+  color: var(--dp-accent);
+}
+.app-radio-group__option:not(.disabled):hover :deep(.q-radio__inner) {
+  color: var(--dp-text);
+}
+.app-radio-group__option:not(.disabled):hover :deep(.q-radio__inner--truthy) {
+  color: var(--dp-accent);
+}
+.app-radio-group__option :deep(.q-radio__bg) {
+  top: 1px;
+  left: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.app-radio-group__option :deep(.q-radio__bg path) {
+  display: none;
+}
+/* Keep the chosen state visible without Quasar's thick, filled SVG ring. */
+.app-radio-group__option :deep(.q-radio__inner--truthy .q-radio__bg) {
+  background: radial-gradient(circle, currentColor 0 3px, transparent 3.5px);
+}
+/* As long as Quasar's own selector, or it wins (AppCheckbox has the trap). */
+body.desktop .app-radio-group__option:not(.disabled) :deep(.q-radio__inner)::before {
+  content: none;
+}
+.app-radio-group__option:focus-visible :deep(.q-radio__bg) {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: var(--dp-space-half);
+}
+.app-radio-group__option :deep(.q-radio__label) {
+  padding-left: var(--dp-space-2);
+}
 .app-radio-group__text {
   display: flex;
   flex-direction: column;
