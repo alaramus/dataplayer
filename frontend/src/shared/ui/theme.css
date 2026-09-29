@@ -389,3 +389,12 @@ body.body--dark {
     0 0 0 1px var(--dp-border),
     0 2px 8px var(--dp-shadow-soft);
 }
+
+/* A field's value reads in --dp-text too (D185). Quasar writes it #fff on the
+   dark theme, a shade brighter than every other word on the screen. */
+.q-field .q-field__native,
+.q-field .q-field__input,
+.q-field .q-field__prefix,
+.q-field .q-field__suffix {
+  color: var(--dp-text);
+}

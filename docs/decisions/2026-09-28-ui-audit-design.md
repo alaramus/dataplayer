@@ -104,7 +104,22 @@ the reason the rule gives — every command keeps the place it was given.
 ## What was checked
 
 The audit's measurements were taken again after the change: buttons and fields
-13px, 32px high, corners 4px; icons 20px in controls and 16px in rows; no
-heading with a line past its role; the face measured as Inter. The unit suite,
-the type check, lint, the build and the Playwright scenarios that measure
-layouts were run.
+13px and 32px high, corners 4px, icons 20px in controls and 16px in rows, no
+heading with a line past its role, the face measured as Inter, text contrast
+at 4.5:1 or better in both themes. The unit suite, the type check, lint, the
+build, the documentation check and the whole Playwright suite (334 passed, one
+skipped, on a stack that cannot start services) were run. Nine scenarios had
+encoded the old look — a 24px icon, a toolbar-sized column command, every tab
+of a connection filled alike, the open dashboard written in blue, the chosen
+category in `--dp-active`, a red bin at rest, a pure white tab label, the
+"×2" of the catalog — and were changed to the new rules, each naming the
+decision it now follows. One more read a dashboard's name before New had
+answered and passed only while the dashboard on screen was an empty one; it
+now waits for the answer.
+
+Two faults the change exposed were fixed rather than tested around. A hairline
+drawn as a border on menus made an empty popup measure 2px, so Quasar placed
+the result of a connection check before it had arrived; the hairline is a ring
+of shadow. And a check slower than about 50ms had never been placed at all —
+Quasar gives up measuring after five tries — so `AppPopup` now places itself
+again whenever its content changes size.

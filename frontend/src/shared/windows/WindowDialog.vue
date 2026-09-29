@@ -143,6 +143,7 @@ onBeforeUnmount(() => {
   padding: var(--dp-space-2) var(--dp-space-4) 0;
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
 }
 .window-dialog__content {
   min-height: 0;
