@@ -31,6 +31,7 @@ legacy notes and stay unchanged.
 | --- | --- |
 | A source type, a capability, a node kind, untrusted input, the user's guide | [sources/contract.md](docs/architecture/sources/contract.md) |
 | What a catalog shows of a node, searching it, a key space | [sources/catalog.md](docs/architecture/sources/catalog.md) |
+| The search field in the header, what is indexed and how it stays current, embeddings | [search.md](docs/architecture/search.md) |
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
@@ -265,6 +266,13 @@ files. IDs are stable because specs and commits refer to them.
 | D185 | [design-system](docs/architecture/design-system.md) |
 | D186 | [design-system](docs/architecture/design-system.md) |
 | D187 | [design-system](docs/architecture/design-system.md) |
+| D188 | [search](docs/architecture/search.md) |
+| D189 | [search](docs/architecture/search.md) |
+| D190 | [search](docs/architecture/search.md) |
+| D191 | [search](docs/architecture/search.md) |
+| D192 | [search](docs/architecture/search.md) |
+| D193 | [search](docs/architecture/search.md) |
+| D194 | [search](docs/architecture/search.md) |
 
 ## Working rules
 
