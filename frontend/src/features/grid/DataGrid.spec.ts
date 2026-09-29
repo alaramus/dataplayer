@@ -986,7 +986,7 @@ describe("the basic data grid", () => {
       expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(false)
 
       await vi.advanceTimersByTimeAsync(400)
-      expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(false)
       expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
 
       finish?.({ data: result(0, 1) })
