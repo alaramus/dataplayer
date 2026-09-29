@@ -13,13 +13,26 @@ export const THEME_KEY = "dataplayer-theme"
  * The one place that names Quasar's Dark plugin. It puts `body--dark` on the
  * document and `shared/ui/theme.css` hangs every colour of ours off the same
  * class, so the kit and the screens turn over on one event rather than two.
- * A named ground (dark-blue, paper) is a dark theme with its own palette:
- * `body--dark` stays on and a `data-dp-theme` marker selects it.
+ * A named ground is a theme with its own palette: `body--dark` stays on
+ * for the dark ones, while paper-light carries the marker without it, and
+ * a `data-dp-theme` marker selects the palette either way.
  */
-export type ThemeMode = "light" | "dark" | "dark-blue" | "paper" | "midnight" | "dark-purple" | "system"
+export type ThemeMode =
+  | "light"
+  | "dark"
+  | "dark-blue"
+  | "paper"
+  | "midnight"
+  | "dark-purple"
+  | "paper-light"
+  | "system"
 
-/** A dark theme with its own palette, or nothing for the two plain ones. */
-export type ThemeVariant = "dark-blue" | "paper" | "midnight" | "dark-purple" | null
+/**
+ * A theme with its own palette, or nothing for the two plain ones. The
+ * marker rides beside Quasar's dark class, on or off: paper-light is a
+ * light theme carrying it without `body--dark`.
+ */
+export type ThemeVariant = "dark-blue" | "paper" | "midnight" | "dark-purple" | "paper-light" | null
 
 const QUERY = "(prefers-color-scheme: dark)"
 
@@ -35,6 +48,7 @@ function chosen(): ThemeMode {
     found === "paper" ||
     found === "midnight" ||
     found === "dark-purple" ||
+    found === "paper-light" ||
     found === "light"
     ? found
     : "system"
@@ -43,12 +57,17 @@ function chosen(): ThemeMode {
 export const useThemeStore = defineStore("theme", () => {
   const mode = ref<ThemeMode>(chosen())
   const systemDark = ref(systemPrefersDark())
-  const dark = computed(() => (mode.value === "system" ? systemDark.value : mode.value !== "light"))
+  const dark = computed(() =>
+    mode.value === "system"
+      ? systemDark.value
+      : mode.value !== "light" && mode.value !== "paper-light"
+  )
   const variant = computed<ThemeVariant>(() =>
     mode.value === "dark-blue" ||
     mode.value === "paper" ||
     mode.value === "midnight" ||
-    mode.value === "dark-purple"
+    mode.value === "dark-purple" ||
+    mode.value === "paper-light"
       ? mode.value
       : null
   )

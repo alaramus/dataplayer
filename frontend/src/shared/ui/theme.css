@@ -526,6 +526,50 @@ body.body--dark[data-dp-theme="dark-purple"] {
   --dp-dropzone-border: rgba(255, 79, 170, 0.7);
 }
 
+/*
+ * The light paper ground from rich-md-viewer (`data-style="paper"` in the
+ * light scheme there), chosen in Preferences beside the rest. Warm canvas,
+ * surfaces and text carried over; the accent family follows the bronze
+ * accent. An override of the light theme rather than a theme of its own:
+ * everything unlisted stays as it is. `stores/theme.ts` is the only writer
+ * of the marker.
+ */
+body:not(.body--dark)[data-dp-theme="paper-light"] {
+  --dp-surface: #fffdf7;
+  --dp-surface-raised: #f7f1e4;
+  --dp-chrome: #eee7da;
+  --dp-chrome-raised: #f3efe6;
+  --dp-field-surface: #fffdf7;
+  --dp-field-border: #d3c4ab;
+  --dp-tab-current: #e7dcc6;
+  --dp-panel-plain: #e7dcc6;
+  --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
+
+  --dp-border-faint: rgba(65, 50, 35, 0.1);
+  --dp-border: rgba(65, 50, 35, 0.16);
+  --dp-border-strong: rgba(101, 80, 53, 0.35);
+
+  --dp-hover: rgba(101, 80, 53, 0.06);
+  --dp-active: rgba(101, 80, 53, 0.09);
+
+  --dp-separator: rgba(65, 50, 35, 0.16);
+  --dp-separator-active: rgba(65, 50, 35, 0.3);
+
+  --dp-text: #28231d;
+  --dp-text-muted: #6e655a;
+  --dp-text-faint: rgba(40, 35, 29, 0.38);
+
+  --dp-accent: #96613d;
+  --dp-link: rgba(150, 97, 61, 0.9);
+  --dp-selected: rgba(150, 97, 61, 0.12);
+  --dp-selected-quiet: rgba(150, 97, 61, 0.06);
+  --dp-text-selection: rgba(150, 97, 61, 0.25);
+  --dp-tone-info-wash: #f1e7d3;
+
+  --dp-dropzone: rgba(150, 97, 61, 0.18);
+  --dp-dropzone-border: rgba(150, 97, 61, 0.6);
+}
+
 /* The body reads in --dp-text in both themes. Quasar paints the dark one
    #fff with a class, hence the second selector. */
 body,

@@ -46,7 +46,7 @@ test("takes the theme from the system until somebody chooses", async ({ page }) 
 })
 
 /** Choose a theme where it is chosen: Preferences, next to the account. */
-async function choose(page: Page, theme: "Light" | "Dark" | "Dark blue" | "Paper" | "Midnight" | "Dark purple" | "System") {
+async function choose(page: Page, theme: "Light" | "Dark" | "Dark blue" | "Paper" | "Midnight" | "Dark purple" | "Paper light" | "System") {
   await page.getByTestId("user-menu").click()
   await page.getByTestId("menu-item-preferences").click()
   await page.waitForURL("/preferences")

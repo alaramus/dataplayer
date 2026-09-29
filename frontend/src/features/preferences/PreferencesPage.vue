@@ -47,6 +47,7 @@ const themes: SelectOption[] = [
   { label: "Paper", value: "paper", description: "Warm dark paper with a bronze accent" },
   { label: "Midnight", value: "midnight", description: "Deep-navy dark with an ice-blue accent" },
   { label: "Dark purple", value: "dark-purple", description: "Dark purple neon with pink and cyan accents" },
+  { label: "Paper light", value: "paper-light", description: "Warm light paper with a bronze accent" },
   { label: "System", value: "system", description: "Follows the operating system, as it changes" },
 ]
 
@@ -100,9 +101,9 @@ async function chooseInterval(value: unknown) {
           <div class="preferences__what">
             <span class="preferences__title">Appearance</span>
             <span class="preferences__summary">
-              Light, dark, dark-blue, paper, midnight or dark-purple theme for
-              the whole application, or the one the operating system is using.
-              Kept in this browser.
+              Light, dark, dark-blue, paper, midnight, dark-purple or paper
+              light theme for the whole application, or the one the operating
+              system is using. Kept in this browser.
             </span>
           </div>
           <AppForm

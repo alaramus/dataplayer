@@ -165,6 +165,21 @@ describe("theme store", () => {
     expect(document.body.dataset.dpTheme).toBeUndefined()
   })
 
+  it("reads paper-light as a light theme carrying its own ground", () => {
+    systemSays(true)
+    localStorage.setItem(THEME_KEY, "paper-light")
+
+    const theme = useThemeStore()
+
+    expect(theme.mode).toBe("paper-light")
+    expect(theme.dark).toBe(false)
+    expect(theme.variant).toBe("paper-light")
+
+    theme.apply()
+    expect(document.body.classList.contains("body--dark")).toBe(false)
+    expect(document.body.dataset.dpTheme).toBe("paper-light")
+  })
+
   it("leaves a named ground for light when toggled", () => {
     systemSays(false)
     const theme = useThemeStore()
