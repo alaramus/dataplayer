@@ -440,14 +440,14 @@ test("the source writes the first query, completes the next and formats both", a
   await deleteConnector(page, name)
 })
 
-test("keeps the row of commands still while the connection is being read", async ({
+test("frees the row once the connection is read", async ({
   page,
 }) => {
   const name = `e2e-query-bar-${Date.now()}`
   await login(page)
-  // Narrow enough that the row has no room to spare, which is where a note
-  // taking its own width was paid for by the buttons rather than by the text.
-  await page.setViewportSize({ width: 1024, height: 720 })
+  // Wide enough that the row fits its commands once the note is gone, which
+  // is where a reserved note kept pushing them into a sideways scroll.
+  await page.setViewportSize({ width: 1440, height: 720 })
   await createPostgresConnector(page, name)
   await openConnector(page, name)
   await pickSchema(page, "demo_lab")
@@ -469,19 +469,23 @@ test("keeps the row of commands still while the connection is being read", async
   await expect(page.getByTestId("query-format")).toBeVisible()
   await expect(page.getByTestId("query-knowledge")).toBeVisible()
   const waiting = await page.getByTestId("query-bar").boundingBox()
-  const runWaiting = await page.getByTestId("query-run").boundingBox()
+  const waitingOverflow = await page
+    .getByTestId("query-bar")
+    .evaluate((bar) => bar.scrollWidth - bar.clientWidth)
 
-  await expect(page.getByTestId("query-knowledge")).toBeHidden()
+  // An empty note takes no room: once the read is done nothing in the middle
+  // of the row may keep the commands pushed into a sideways scroll.
+  await expect(page.getByTestId("query-knowledge")).toHaveCount(0)
   const read = await page.getByTestId("query-bar").boundingBox()
-  const runRead = await page.getByTestId("query-run").boundingBox()
+  await expect(page.getByTestId("query-run")).toBeVisible()
 
-  // The row keeps its height, which is what somebody watching it sees. What
-  // says why is the button: the note gave way instead of being paid for out of
-  // the commands, which used to slide and then wrap their labels onto a second
-  // line for as long as the first read lasted.
+  // The row keeps its height, and giving up the note frees its width instead
+  // of keeping the commands pushed aside.
   expect(waiting?.height).toBe(read?.height)
-  expect(runWaiting?.x).toBe(runRead?.x)
-  expect(runWaiting?.width).toBe(runRead?.width)
+  const readOverflow = await page
+    .getByTestId("query-bar")
+    .evaluate((bar) => bar.scrollWidth - bar.clientWidth)
+  expect(readOverflow).toBeLessThanOrEqual(waitingOverflow - 100)
 
   await deleteConnector(page, name)
 })

@@ -909,7 +909,7 @@ onBeforeUnmount(() => {
         <template v-if="searchPath.length > 0"> · {{ searchPath.join(", ") }}</template>
       </span>
       <span
-        :style="{ visibility: knowledge ? 'visible' : 'hidden' }"
+        v-if="knowledge"
         class="query-panel__knowledge"
         data-testid="query-knowledge"
       >{{ knowledge }}</span>
@@ -1234,11 +1234,12 @@ onBeforeUnmount(() => {
   flex: 0 1 auto;
   min-width: 0;
 }
-/* Reserve its width after the read finishes so the commands stay in place. */
+/* Takes only the width its text needs and none when empty, so the row fits
+   without scrolling once the read is done. */
 .query-panel__knowledge {
   flex: 0 0 auto;
-  width: 180px;
   min-width: 0;
+  max-width: 180px;
 }
 /* Outside the group of commands, and so does not carry them along as the
    count of digits in it changes. */
