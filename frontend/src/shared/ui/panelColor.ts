@@ -27,6 +27,6 @@ export function panelColorStyle(color: string | null | undefined): CSSProperties
     "--dp-panel-foreground": blackContrast >= whiteContrast ? "#000000" : "#ffffff",
     // Translucent rather than mixed with a surface: what it is laid over is
     // the panel's own background, and the wash has to work on either theme.
-    "--dp-panel-quiet": `rgba(${String(red)}, ${String(green)}, ${String(blue)}, 0.28)`,
+    "--dp-panel-quiet": `rgba(${String(red)}, ${String(green)}, ${String(blue)}, 0.5)`,
   }
 }
