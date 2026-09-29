@@ -54,12 +54,13 @@ describe("AppRadioGroup", () => {
     expect(mountGroup(true).get('[role="radiogroup"]').classes()).toContain("app-radio-group--form")
   })
 
-  it("marks a choice neutrally in a form and keeps Quasar's defaults outside one", () => {
+  // One look in or out of a form, like a tick box (D186).
+  it("marks a choice neutrally in a form and outside one", () => {
     const inForm = mountGroup(true).getComponent(QRadio)
     expect(inForm.props("dense")).toBe(true)
     expect(inForm.props("color")).toBe("dp-control-selected")
     const outside = mountGroup(false).getComponent(QRadio)
     expect(outside.props("dense")).toBe(false)
-    expect(outside.props("color")).toBeUndefined()
+    expect(outside.props("color")).toBe("dp-control-selected")
   })
 })

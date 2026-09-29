@@ -25,11 +25,13 @@ describe("form checkbox", () => {
     expect(disabled.emitted("update:modelValue")).toBeUndefined()
   })
 
-  it("retains the existing defaults outside forms", () => {
+  // One look in or out of a form (D186): outside one the box used to come out
+  // in Quasar's brand blue next to a form's neutral one.
+  it("keeps the default density but marks neutrally outside forms", () => {
     const wrapper = mount(AppCheckbox, {
       global: { plugins: [Quasar] }, props: { modelValue: true },
     })
     expect(wrapper.getComponent(QCheckbox).props("dense")).toBe(false)
-    expect(wrapper.getComponent(QCheckbox).props("color")).toBeUndefined()
+    expect(wrapper.getComponent(QCheckbox).props("color")).toBe("dp-control-selected")
   })
 })
