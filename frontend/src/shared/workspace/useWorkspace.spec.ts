@@ -631,6 +631,18 @@ describe("a workspace", () => {
     expect(workspace.context.focusedLeaf.value).toBe(leaves[1]?.id)
   })
 
+  it("keeps the source on the tab the copy was taken from", () => {
+    // The copy joins the source strip on its way beside it and becomes its
+    // active tab; moving it out used to fall back to the first tab.
+    const workspace = buildDragging()
+    workspace.context.activate("p3")
+    workspace.open({ id: "copy", kind: "rows" }, { beside: "p3" })
+
+    const source = leavesOf(workspace.context.tree.value).find((leaf) => leaf.panels.includes("p2"))
+    expect(source?.panels).toEqual(["p2", "p3"])
+    expect(source?.activePanel).toBe("p3")
+  })
+
   it("leaves panels of other kinds where they are when replacing", () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "catalog" }, { replace: true })

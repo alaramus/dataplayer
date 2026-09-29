@@ -221,6 +221,10 @@ export function useWorkspace<P extends { id: string }>(
         const newLeafId = nextId("leaf")
         tree.value = movePanel(tree.value, panel.id, source.id, "right", newLeafId)
         focusedLeaf.value = newLeafId
+        // The copy joined the source strip on its way beside it and became its
+        // active tab; moving it out falls back to the first tab. Put back the
+        // tab it was copied from, so the source stays where it was read.
+        tree.value = activatePanel(tree.value, beside)
       }
     }
   }
