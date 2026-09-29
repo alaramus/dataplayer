@@ -4,6 +4,8 @@
  * without a browser; the tools are in `bottomTools`, the state and its
  * storage in `useBottomPanel`.
  */
+import { RAIL_MIN_PX } from "@/shared/workspace"
+
 export interface BottomPanelState {
   /** The tool shown, or null while the panel is hidden. */
   open: string | null
@@ -11,7 +13,8 @@ export interface BottomPanelState {
 }
 
 export const BOTTOM_PANEL_DEFAULT_HEIGHT = 260
-export const BOTTOM_PANEL_MIN_HEIGHT = 120
+/** No shorter than a data column goes narrow: the same floor, on the other axis. */
+export const BOTTOM_PANEL_MIN_HEIGHT = RAIL_MIN_PX
 
 export function defaultBottomPanel(): BottomPanelState {
   return { open: null, height: BOTTOM_PANEL_DEFAULT_HEIGHT }

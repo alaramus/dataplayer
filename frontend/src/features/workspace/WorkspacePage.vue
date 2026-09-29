@@ -142,9 +142,10 @@ const workspace = useWorkspace<Panel>({
   collapsed: collapsedOf,
   head: headOf,
   sectionLook,
-  // Connections is dragged no narrower than the Dashboards and AI rails, so the
-  // three heads keep their names at the same width.
-  sectionMinWidth: (accepts) => (accepts === "sources" ? RAIL_MIN_PX : null),
+  // The three columns of Data go no narrower than the Dashboards and AI rails,
+  // so their heads keep their names at the same width.
+  sectionMinWidth: (accepts) =>
+    accepts === "sources" || accepts === "navigate" || accepts === "work" ? RAIL_MIN_PX : null,
   // The header button collapses the first column; its strip keeps no chevron
   // of its own.
   hideFirstCollapse: true,
