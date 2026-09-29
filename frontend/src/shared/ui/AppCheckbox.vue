@@ -39,19 +39,50 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 </template>
 
 <style scoped>
-/* Trap: Quasar grows the halo behind a tick box with scale3d(), and a 3D
-   transform gives every box a compositor layer of its own, hovered or not. A
-   catalog level of two hundred rows was two hundred layers, and every frame of
-   the workspace spent a hundred milliseconds and more arranging them. The same
-   halo scaled in 2D is painted with the page. Quasar's three selectors, each
-   outweighed by the scope's attribute. */
+/* Drawn the way the kit draws its other marks: the size of an icon in a line
+   of text, a hairline edge and the control corner. Quasar's box was 18px with
+   a 2px edge, twice the weight of the 16px icons beside it. Each selector
+   outweighs Quasar's own by the scope's attribute. */
+.q-checkbox :deep(.q-checkbox__inner) {
+  width: var(--dp-icon-sm);
+  min-width: var(--dp-icon-sm);
+  height: var(--dp-icon-sm);
+  color: var(--dp-text-muted);
+}
+.q-checkbox:not(.disabled):hover :deep(.q-checkbox__inner) {
+  color: var(--dp-text);
+}
+.q-checkbox :deep(.q-checkbox__bg) {
+  inset: 1px;
+  width: auto;
+  height: auto;
+  border-width: 1px;
+  border-radius: var(--dp-radius-control);
+}
+.q-checkbox :deep(.q-checkbox__svg) {
+  color: var(--dp-on-action-primary);
+}
+/* Trap: Quasar grows a round halo behind the box with scale3d(), and a 3D
+   transform gives every box a compositor layer of its own, hovered or not; a
+   catalog level of two hundred rows spent a hundred milliseconds a frame
+   arranging them. The edge darkening under the pointer replaces the halo, so
+   it is not drawn at all — by a selector as long as Quasar's, which a shorter
+   one silently lost to. */
 body.desktop .q-checkbox:not(.disabled) :deep(.q-checkbox__inner)::before {
-  transform: scale(0);
+  content: none;
 }
-body.desktop .q-checkbox:not(.disabled):is(:focus, :hover) :deep(.q-checkbox__inner)::before {
-  transform: scale(1);
+/* The halo was also the only mark of focus; this is the ring every button
+   carries (theme.css). */
+.q-checkbox:focus-visible :deep(.q-checkbox__bg) {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: var(--dp-space-half);
 }
-body.desktop .q-checkbox--dense:not(.disabled):is(:focus, :hover) :deep(.q-checkbox__inner)::before {
-  transform: scale(1.4);
+.q-checkbox :deep(.q-checkbox__label) {
+  padding-left: var(--dp-space-2);
+}
+/* Undense, Quasar's box stood in a 40px square for its halo; now it stands
+   as tall as the buttons beside it. */
+.q-checkbox:not(.q-checkbox--dense) {
+  min-height: var(--dp-control-height);
 }
 </style>

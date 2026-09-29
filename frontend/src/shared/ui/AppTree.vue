@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { QTree, QTreeProps } from "quasar"
-import { useTemplateRef } from "vue"
+import { computed, useTemplateRef } from "vue"
+
+import AppCheckbox from "./AppCheckbox.vue"
+import { leafKeys, tickStates, withTicks } from "./treeTicks"
+import type { TickNode, TickState } from "./treeTicks"
 
 /**
  * The catalog tree.
@@ -21,7 +25,7 @@ export type TreeNodes = QTreeProps["nodes"]
  */
 export type TreeLazyLoad = Parameters<NonNullable<QTreeProps["onLazyLoad"]>>[0]
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   nodes: TreeNodes
   nodeKey: string
   expanded: string[]
@@ -30,6 +34,9 @@ withDefaults(defineProps<{
    * Tick boxes, and which leaves are ticked. A tick on a branch ticks every
    * leaf under it; what comes back is always leaves, so a caller never has to
    * walk the tree to learn what a branch meant.
+   *
+   * The boxes are the kit's AppCheckbox rather than the tree's own, so Quasar
+   * is told there is no ticking and the rule lives in treeTicks.ts.
    */
   ticked?: string[]
   tickable?: boolean
@@ -43,7 +50,7 @@ withDefaults(defineProps<{
   keepSelection?: boolean
 }>(), { ticked: () => [], tickable: false, keepSelection: false })
 
-defineEmits<{
+const emit = defineEmits<{
   "update:expanded": [value: string[]]
   "update:selected": [value: string | null]
   "update:ticked": [value: string[]]
@@ -51,6 +58,22 @@ defineEmits<{
 }>()
 
 const tree = useTemplateRef<QTree>("tree")
+
+const ticks = computed(() =>
+  props.tickable ? tickStates(props.nodes, props.nodeKey, props.ticked) : new Map<string, TickState>()
+)
+
+function boxOf(node: TickNode): TickState | undefined {
+  return ticks.value.get(String(node[props.nodeKey]))
+}
+
+function nameOf(node: TickNode): string {
+  return typeof node.label === "string" ? node.label : String(node[props.nodeKey])
+}
+
+function tick(node: TickNode, on: boolean) {
+  emit("update:ticked", withTicks(props.ticked, leafKeys(node, props.nodeKey), on))
+}
 
 /**
  * Open or close one branch, through the tree's own method.
@@ -79,23 +102,37 @@ defineExpose({ setExpanded, isExpanded })
     :expanded="expanded"
     :selected="selected"
     :no-selection-unset="keepSelection"
-    :ticked="ticked"
-    :tick-strategy="tickable ? 'leaf' : 'none'"
+    tick-strategy="none"
     @update:expanded="$emit('update:expanded', [...$event])"
     @update:selected="$emit('update:selected', $event)"
-    @update:ticked="$emit('update:ticked', [...$event])"
     @lazy-load="$emit('lazyLoad', $event)"
   >
     <template #default-header="scope">
+      <!-- Pressing the box ticks without selecting the row: the checkbox
+           keeps its click from the header, as the tree's own box did. -->
+      <AppCheckbox
+        v-if="boxOf(scope.node) !== undefined"
+        class="app-tree__tick"
+        :model-value="boxOf(scope.node) === true"
+        :indeterminate="boxOf(scope.node) === null"
+        dense
+        :aria-label="`Tick ${nameOf(scope.node)}`"
+        @update:model-value="tick(scope.node, $event)"
+      />
       <slot
         name="default-header"
         v-bind="scope"
-      />
+      >
+        {{ nameOf(scope.node) }}
+      </slot>
     </template>
   </q-tree>
 </template>
 
 <style scoped>
+.app-tree__tick {
+  margin-right: var(--dp-space-1);
+}
 .app-tree :deep(.q-tree__node--selected) {
   background: var(--dp-selected);
   border-radius: var(--dp-radius-control);
