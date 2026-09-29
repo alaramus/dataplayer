@@ -530,6 +530,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 :label="String(cellProps.row.type)"
                 variant="quiet"
                 size="sm"
+                layout="inline"
                 :data-testid="`structure-type-${cellProps.row.name}`"
                 @click="openType(String(cellProps.row.name), String(cellProps.row.type))"
               >
@@ -555,6 +556,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 :label="cellProps.row.nullable ? 'yes' : 'no'"
                 variant="quiet"
                 size="sm"
+                layout="inline"
                 :data-testid="`structure-nullability-${cellProps.row.name}`"
                 @click="openNullability(String(cellProps.row.name), cellProps.row.nullable)"
               >

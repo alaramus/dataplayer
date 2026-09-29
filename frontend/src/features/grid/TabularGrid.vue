@@ -385,7 +385,7 @@ function fittedColumnWidth(source: TabularColumn, index: number): number {
     (text) => measureFullText(text, monospace),
     { min: 72, max: 480 }
   )
-  const headerWidth = measureFullText(source.label, false, true) + (source.sortable ? 96 : 64)
+  const headerWidth = measureFullText(source.label, false, true) + (source.sortable ? 80 : 56)
   return Math.min(480, Math.ceil(Math.max(contentWidth, headerWidth)))
 }
 
@@ -718,6 +718,7 @@ defineExpose({
               :data-testid="`grid-column-${header.column.id}`"
               :class="{
                 'data-grid__sortable': columnIsSortable(header.column.id),
+                'data-grid__sorted': sortIndex(header.column.id) >= 0,
                 'data-grid__pinned': header.column.getIsPinned() === 'start',
               }"
               :style="columnStyle(header.column)"
@@ -743,6 +744,7 @@ defineExpose({
                   :tooltip="`Sort by ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
                   :data-direction="sortDirection(header.column.id)"
                   :data-testid="`grid-sort-direction-${header.column.id}`"
+                  compact
                   @click.stop="sortColumn(header.column.id, $event)"
                 />
                 <AppIconButton
@@ -753,12 +755,14 @@ defineExpose({
                   :aria-pressed="header.column.getIsPinned() === 'start'"
                   :tooltip="pinTooltip(header.column)"
                   :data-testid="`grid-pin-${header.column.id}`"
+                  compact
                   @click.stop="togglePin(header.column)"
                 />
                 <AppIconButton
                   :icon="appIcons.visibilityOff"
                   :tooltip="`Hide ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
                   :data-testid="`grid-hide-${header.column.id}`"
+                  compact
                   @click.stop="hideColumn(header.column)"
                 />
               </span>
@@ -1005,15 +1009,21 @@ defineExpose({
   z-index: var(--dp-layer-sticky-heading);
 }
 
+/* The commands of a column are compact and quiet until the pointer is over its
+   head (D185). Three 32px buttons with 24px icons took 96px of every head, and
+   a column of 145px showed "na…" for "name". */
 .data-grid__table th {
-  --grid-header-actions-width: 64px;
+  --grid-header-actions-width: 48px;
   height: var(--dp-toolbar-height);
   background: var(--dp-surface);
   color: var(--dp-text);
 }
 
 .data-grid__table th.data-grid__sortable {
-  --grid-header-actions-width: 96px;
+  --grid-header-actions-width: 68px;
+}
+.data-grid__table th.data-grid__sortable.data-grid__sorted {
+  --grid-header-actions-width: 80px;
 }
 
 .data-grid__pinned {
@@ -1098,6 +1108,16 @@ defineExpose({
   overflow: hidden;
 }
 
+.data-grid__column-actions :deep(.q-btn) {
+  color: var(--dp-text-faint);
+}
+.data-grid__table th:is(:hover, :focus-within) .data-grid__column-actions :deep(.q-btn),
+.data-grid__column-actions :deep(.q-btn[data-direction="asc"]),
+.data-grid__column-actions :deep(.q-btn[data-direction="desc"]) {
+  color: var(--dp-text-muted);
+}
+
+.data-grid__column-actions :deep(.q-btn.data-grid__pin--active),
 .data-grid__pin--active {
   color: var(--dp-link);
 }
@@ -1147,7 +1167,7 @@ defineExpose({
 .data-grid__pager {
   display: flex;
   flex: none;
-  min-height: 40px;
+  min-height: var(--dp-toolbar-height);
   align-items: center;
   justify-content: flex-end;
   gap: var(--dp-space-1);
@@ -1155,8 +1175,9 @@ defineExpose({
 }
 /* The far end of the same row: what is about the whole page reads from the
    left, and the pager keeps the right where it has always been. */
+/* Its name stands beside the value now (D185), and needs room of its own. */
 .data-grid__page-size {
-  width: 84px;
+  width: 140px;
   flex: none;
 }
 

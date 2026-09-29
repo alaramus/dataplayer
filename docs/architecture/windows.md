@@ -50,11 +50,12 @@ any knowledge about panels.
 Inside, the layout follows a database tool: the name on top, host and port on
 one line because the options model says they are one address, and the
 server-composed connection string pinned above Test Connection and
-OK / Cancel / Apply. A new connection opens named after its type and addressed
-to localhost. A stored secret shows as `<hidden>`, empties the moment the field
-is entered and comes back if it is left untyped-in. A connection check shows
-its result in a small popup anchored above Test Connection, leaving the form's
-layout intact. Clicking outside or pressing Escape dismisses it.
+Cancel / Apply / OK — the main action last, as in every window (D186). A new
+connection opens named after its type and addressed to localhost. A stored
+secret shows as `<hidden>`, empties the moment the field is entered and comes
+back if it is left untyped-in. A connection check shows its result in a small
+popup anchored above Test Connection, leaving the form's layout intact.
+Clicking outside or pressing Escape dismisses it.
 
 Three things the old application's window engine got wrong are inverted here: a
 z-index counter that only ever grew is now a position in a list; geometry

@@ -140,6 +140,9 @@ async function tokenColour(page: Page, token: string): Promise<string> {
   }, token)
 }
 
+// The category shown is the current page of the list, on the tab ground as
+// every list's current entry is (D186); the tile picked is a choice, washed
+// and outlined.
 test("marks the chosen type and category in grey, as every other list does", async ({ page }) => {
   await login(page)
 
@@ -154,7 +157,9 @@ test("marks the chosen type and category in grey, as every other list does", asy
     await expect(tile).toHaveCSS("background-color", grey)
     await expect(tile).toHaveCSS("border-top-color", await tokenColour(page, "--dp-focus-border"))
     await expect(tile).toHaveCSS("box-shadow", "none")
-    await expect(page.getByTestId("adapter-category-sql")).toHaveCSS("background-color", grey)
+    await expect(page.getByTestId("adapter-category-sql")).toHaveCSS(
+      "background-color", await tokenColour(page, "--dp-tab-current")
+    )
     await page.getByTestId("adapter-catalog").screenshot({ path: `test-results/adapter-catalog-${theme}.png` })
     await closeWindowDialog(page, "adapter-catalog")
   }

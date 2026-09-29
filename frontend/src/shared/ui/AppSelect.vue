@@ -166,11 +166,11 @@ const summary = computed(() => {
   <q-select
     ref="field"
     class="app-select"
-    :class="{ 'app-select--compact': compact, 'app-form-field': formLayout }"
+    :class="{ 'app-select--compact': compact, 'app-select--inline': inlineLabel, 'app-form-field': formLayout }"
     :model-value="modelValue"
     :options="options"
-    :label="inlineLabel ? undefined : label"
-    :aria-label="formLayout || inlineLabel ? label : undefined"
+    :label="label"
+    :aria-label="formLayout ? label : undefined"
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
@@ -190,7 +190,13 @@ const summary = computed(() => {
       v-if="(formLayout || inlineLabel) && label"
       #before
     >
-      <span :class="{ 'app-select__inline-label': inlineLabel }">{{ label }}</span>
+      <!-- Hidden from a reader beside a toolbar field: its name is Quasar's
+           own label, kept out of sight, and saying it twice named the field
+           "Column Column". -->
+      <span
+        :class="{ 'app-select__inline-label': inlineLabel }"
+        :aria-hidden="inlineLabel ? 'true' : undefined"
+      >{{ label }}</span>
     </template>
     <template
       v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon || option.tone))"
@@ -331,6 +337,19 @@ const summary = computed(() => {
 }
 :where(.app-select--compact) :deep(.q-field__native) {
   min-height: var(--dp-control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* Quasar's label stays for the field's name and is kept out of sight, as a
+   form's is (AppForm); the name shown is the one beside the field. */
+.app-select--inline :deep(.q-field__label) {
+  display: none;
+}
+/* Trap: a field with a label is "labelled" to Quasar, which drops its value
+   by the height of the floated label (three classes deep); the value then
+   stood 6px under the name beside it. Two classes and the scope outweigh it. */
+.app-select.app-select--inline :deep(.q-field__control-container),
+.app-select.app-select--inline :deep(.q-field__native) {
   padding-top: 0;
   padding-bottom: 0;
 }

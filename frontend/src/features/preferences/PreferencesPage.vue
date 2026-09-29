@@ -66,7 +66,7 @@ async function chooseInterval(value: unknown) {
 <template>
   <AppLayout fill>
     <div
-      class="app-layout__surface"
+      class="app-layout__surface preferences-page"
       data-testid="preferences-page-surface"
     >
       <AppPageHeader title="Preferences">
@@ -147,6 +147,12 @@ async function chooseInterval(value: unknown) {
 </template>
 
 <style scoped>
+/* One column of reading, head included: the head ran the width of the screen
+   while the settings under it stopped at 900px, and "Back to workspace" stood
+   half a screen away from anything it belonged to. */
+.preferences-page > * {
+  max-width: var(--dp-page-max-width);
+}
 .preferences__waiting {
   display: flex;
   justify-content: center;
@@ -156,7 +162,6 @@ async function chooseInterval(value: unknown) {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-1);
-  max-width: 900px;
 }
 /* The question on the left and its answer on the right, so a page of them
    reads down one column of controls rather than as a stack of forms. */
@@ -183,7 +188,7 @@ async function chooseInterval(value: unknown) {
 .preferences__summary {
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-sm);
-  line-height: 1.5;
+  line-height: var(--dp-line-height-sm);
 }
 /* Narrow: the control goes under the question it answers. */
 @media (max-width: 700px) {

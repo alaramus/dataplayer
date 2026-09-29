@@ -72,7 +72,8 @@ for (const theme of ["light", "dark"] as const) {
     await expect(row).toContainText("running")
     await expect(row.getByTestId(`logs-service-${SERVICE.id}`)).toBeVisible()
     await expect(row.getByTestId(`credentials-service-${SERVICE.id}`)).toBeVisible()
-    await expect(row.getByTestId(`remove-service-${SERVICE.id}`)).toHaveClass(/text-dp-action-danger/)
+    // Neutral at rest and red under the pointer (D186).
+    await expect(row.getByTestId(`remove-service-${SERVICE.id}`)).toHaveClass(/app-icon-button--danger/)
     const rowChrome = await row.evaluate((el) => ({
       background: getComputedStyle(el).backgroundColor,
       radius: getComputedStyle(el).borderRadius,

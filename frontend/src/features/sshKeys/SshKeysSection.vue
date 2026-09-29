@@ -177,9 +177,11 @@ async function remove(key: SshKeyPublic) {
   padding: var(--dp-space-4) 0;
   border-bottom: 1px solid var(--dp-border);
 }
+/* The column of controls is Preferences' own, 260px, and the buttons start
+   where its fields start. */
 .ssh-keys__head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 260px;
   gap: var(--dp-space-5);
   align-items: start;
   padding-bottom: var(--dp-space-4);
@@ -203,7 +205,7 @@ async function remove(key: SshKeyPublic) {
 .ssh-keys__line {
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-sm);
-  line-height: 1.5;
+  line-height: var(--dp-line-height-sm);
 }
 .ssh-keys__line {
   overflow: hidden;

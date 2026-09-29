@@ -17,7 +17,15 @@ const style = computed(() => panelStyle(props.size))
 </script>
 
 <template>
-  <q-card :style="{ width: style.width, maxWidth: style.maxWidth }">
+  <!-- The one look of a card (frontend.md): a border and the panel corner,
+       no shadow. Quasar's raised card was a second kind beside every
+       AppCardFrame of the workspace. -->
+  <q-card
+    flat
+    bordered
+    class="app-card"
+    :style="{ width: style.width, maxWidth: style.maxWidth }"
+  >
     <AppSection v-if="title">
       <h2 class="dp-page-title">
         {{ title }}
@@ -26,3 +34,11 @@ const style = computed(() => panelStyle(props.size))
     <slot />
   </q-card>
 </template>
+
+<style scoped>
+.app-card {
+  border-color: var(--dp-border);
+  border-radius: var(--dp-radius-panel);
+  background: var(--dp-surface);
+}
+</style>

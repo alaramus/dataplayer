@@ -8,7 +8,7 @@ import { useActiveServerCheck } from "@/features/servers/api"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { safeLocalPath } from "@/shared/servers/profiles"
 import { useServersStore } from "@/stores/servers"
-import { AppActions, AppBanner, AppButton, AppCard, AppForm, AppInput } from "@/shared/ui"
+import { AppBanner, AppButton, AppCard, AppForm, AppInput } from "@/shared/ui"
 
 const router = useRouter()
 const route = useRoute()
@@ -62,9 +62,11 @@ async function submit() {
     >
       <q-form @submit.prevent="submit">
         <AppForm layout="section">
-          <ServerSwitcher />
-          <div class="login-server-url">
-            {{ servers.active.url }}
+          <div class="login-server">
+            <ServerSwitcher />
+            <div class="login-server-url">
+              {{ servers.active.url }}
+            </div>
           </div>
           <div
             v-if="serverStatus.isPending.value"
@@ -109,23 +111,26 @@ async function submit() {
           >
             Could not sign in. Check the email and password.
           </AppBanner>
-        </AppForm>
-        <AppActions align="left">
+          <!-- In the form's own column, so its edges are the fields' edges:
+               in the card's actions it stood 8px past them on each side. -->
           <AppButton
             type="submit"
             label="Sign in"
-            class="full-width"
             data-testid="login-submit"
             :loading="login.isPending.value"
             :disable="!serverStatus.isSuccess.value"
           />
-        </AppActions>
+        </AppForm>
       </q-form>
     </AppCard>
   </div>
 </template>
 
 <style scoped>
-.login-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); }
+/* The ground of the application's chrome, as behind every other card. */
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); background: var(--dp-chrome-raised); }
+/* Content-sized and at the start of the column, not stretched across it with
+   its icon and name floating in the middle. */
+.login-server { display: flex; flex-direction: column; align-items: flex-start; gap: var(--dp-space-1); }
 .login-server-url { font-size: var(--dp-font-size-sm); color: var(--dp-text-muted); overflow-wrap: anywhere; }
 </style>

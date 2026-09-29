@@ -263,6 +263,7 @@ files. IDs are stable because specs and commits refer to them.
 | D183 | [sources/contract](docs/architecture/sources/contract.md) |
 | D184 | [backend](docs/architecture/backend.md) |
 | D185 | [design-system](docs/architecture/design-system.md) |
+| D186 | [design-system](docs/architecture/design-system.md) |
 
 ## Working rules
 

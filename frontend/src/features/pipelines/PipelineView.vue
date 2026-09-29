@@ -804,12 +804,14 @@ defineExpose({ place })
               :icon="appIcons.settings"
               tooltip="Choose what this card holds"
               :data-testid="`pipeline-card-settings-${node.label}`"
+              compact
               @click="edit(node.id)"
             />
             <AppIconButton
               :icon="appIcons.close"
               tooltip="Take this card off the pipeline"
               :data-testid="`pipeline-card-remove-${node.label}`"
+              compact
               @click="remove(node.id)"
             />
           </template>

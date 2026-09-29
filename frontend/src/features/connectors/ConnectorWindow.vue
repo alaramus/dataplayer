@@ -147,6 +147,15 @@ const POLICY_OPTIONS: { label: string; value: ExecutionPolicy }[] = [
   { label: "Writing allowed", value: "allow_writes" },
 ]
 
+/** What the chosen policy means, said under the choice as its help. */
+const policyNote = computed(() =>
+  executionPolicy.value === "read_only"
+    ? "Consoles on this connection can only read."
+    : executionPolicy.value === "allow_writes"
+      ? "Consoles on this connection can write."
+      : "Each write asks for confirmation before it runs."
+)
+
 function choosePolicy(value: unknown) {
   if (POLICY_OPTIONS.some((option) => option.value === value)) {
     executionPolicy.value = value as ExecutionPolicy
@@ -748,24 +757,18 @@ async function parseTyped(text: string) {
             v-if="!readOnly"
             class="connector-window__policy"
           >
+            <!-- A label the label column holds (D131), and what the choice
+                 means under it as every form's help is, not beside it in a
+                 size and a place of its own. -->
             <AppSelect
               :model-value="executionPolicy"
               :options="POLICY_OPTIONS"
-              label="Statements from a console"
-              compact
+              label="Consoles"
+              :hint="policyNote"
               class="connector-window__policy-select"
               data-testid="connector-policy"
               @update:model-value="choosePolicy"
             />
-            <span class="connector-window__policy-note">
-              {{
-                executionPolicy === "read_only"
-                  ? "Consoles on this connection can only read."
-                  : executionPolicy === "allow_writes"
-                    ? "Consoles on this connection can write."
-                    : "Each write asks for confirmation before it runs."
-              }}
-            </span>
           </div>
 
           <!-- Shown to a grantee too, unlike the policy above: whether what
@@ -774,11 +777,12 @@ async function parseTyped(text: string) {
           <div class="connector-window__policy">
             <AppToggle
               v-model="thirdPartyTransfer"
+              class="connector-window__policy-switch"
               label="Allow sending data to third parties"
               data-testid="connector-third-party"
               :disable="readOnly"
             />
-            <span class="connector-window__policy-note">
+            <span class="connector-window__policy-note dp-helper">
               {{
                 thirdPartyTransfer
                   ? "Data read through this connection may be sent to outside services, such as an AI model provider."
@@ -907,38 +911,42 @@ async function parseTyped(text: string) {
             @click="remove"
           />
           <span class="connector-window__spacer" />
-          <AppButton
-            v-if="!readOnly"
-            label="OK"
-            data-testid="save-connector"
-            :disable="!typeName"
-            :loading="saving"
-            @click="ok"
-          />
-          <AppButton
-            v-if="!isEdit"
-            variant="quiet"
-            label="Back"
-            data-testid="back-to-catalog"
-            @click="emit('back')"
-          />
-          <AppButton
-            variant="quiet"
-            label="Cancel"
-            data-testid="cancel-connector"
-            @click="emit('close')"
-          />
-          <!-- Saves and stays: the reason several of these windows are open at
-             once is to keep working in them. -->
-          <AppButton
-            v-if="!readOnly"
-            variant="secondary"
-            label="Apply"
-            data-testid="apply-connector"
-            :disable="!typeName"
-            :loading="saving"
-            @click="apply"
-          />
+          <!-- One group, so a narrow window wraps it whole rather than parting
+               OK from Cancel; the main action last, as in every window (D186). -->
+          <span class="connector-window__end">
+            <AppButton
+              v-if="!isEdit"
+              variant="quiet"
+              label="Back"
+              data-testid="back-to-catalog"
+              @click="emit('back')"
+            />
+            <AppButton
+              variant="quiet"
+              label="Cancel"
+              data-testid="cancel-connector"
+              @click="emit('close')"
+            />
+            <!-- Saves and stays: the reason several of these windows are open at
+               once is to keep working in them. -->
+            <AppButton
+              v-if="!readOnly"
+              variant="secondary"
+              label="Apply"
+              data-testid="apply-connector"
+              :disable="!typeName"
+              :loading="saving"
+              @click="apply"
+            />
+            <AppButton
+              v-if="!readOnly"
+              label="OK"
+              data-testid="save-connector"
+              :disable="!typeName"
+              :loading="saving"
+              @click="ok"
+            />
+          </span>
         </footer>
       </div>
 
@@ -1020,17 +1028,21 @@ async function parseTyped(text: string) {
 }
 .connector-window__policy {
   display: flex;
-  align-items: center;
-  gap: var(--dp-space-2);
+  flex-direction: column;
+  gap: var(--dp-space-1);
 }
-.connector-window__policy-select {
-  flex: 0 1 240px;
-}
+/* The switch and what it means stand in the column of controls, as a form's
+   checkbox does (D131): from the window's edge they left the grid the select
+   above them keeps. */
+.connector-window__policy-switch,
 .connector-window__policy-note {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--dp-font-size-sm);
-  color: var(--dp-text-muted);
+  margin-left: var(--dp-form-label-width);
+}
+@container app-form (max-width: 480px) {
+  .connector-window__policy-switch,
+  .connector-window__policy-note {
+    margin-left: 0;
+  }
 }
 .connector-window__body {
   flex: 1;
@@ -1068,6 +1080,11 @@ async function parseTyped(text: string) {
   gap: var(--dp-space-2);
   padding: var(--dp-space-2) var(--dp-space-4);
   border-top: 1px solid var(--dp-border);
+}
+.connector-window__end {
+  display: flex;
+  gap: var(--dp-space-2);
+  margin-left: auto;
 }
 .connector-window__check-anchor {
   display: inline-flex;

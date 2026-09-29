@@ -116,6 +116,7 @@ function remove(profile: ServerProfile) {
   <AppButton
     variant="quiet"
     size="sm"
+    layout="toolbar"
     :icon="appIcons.vpnLock"
     class="server-switcher"
     aria-label="Choose server"
@@ -258,16 +259,16 @@ function remove(profile: ServerProfile) {
               @click="checkForm"
             />
             <AppButton
-              :label="savingActiveAddress ? 'Save and connect' : 'Save server'"
-              :loading="busy"
-              data-testid="server-save"
-              @click="save"
-            />
-            <AppButton
               label="Cancel"
               variant="quiet"
               :disable="busy"
               @click="editing = false; error = ''; notice = ''"
+            />
+            <AppButton
+              :label="savingActiveAddress ? 'Save and connect' : 'Save server'"
+              :loading="busy"
+              data-testid="server-save"
+              @click="save"
             />
           </template>
         </footer>

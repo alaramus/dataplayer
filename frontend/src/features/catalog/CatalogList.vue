@@ -268,6 +268,7 @@ const countLabel = computed(() => {
   flex-direction: column;
   min-height: 0;
   height: 100%;
+  container: catalog-list / inline-size;
 }
 .catalog-list__head {
   display: flex;
@@ -320,7 +321,10 @@ const countLabel = computed(() => {
   grid-template-columns: subgrid;
   align-items: center;
   gap: var(--dp-space-2);
-  padding: 1px var(--dp-space-2);
+  /* A dense row (D185): the 20px line and 2px round it. */
+  min-height: var(--dp-row-height-dense);
+  box-sizing: border-box;
+  padding: var(--dp-space-half) var(--dp-space-2);
   cursor: pointer;
   /* Every row carries the outline, transparent, so that taking the mark off
      fades rather than blinks: a colour cannot be transitioned out of a rule
@@ -405,9 +409,14 @@ const countLabel = computed(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Trap: an item aligned to one end of its grid track is as wide as its text,
+   not as its track, and "~0 rows" spilled left over "public" in a narrow
+   catalog. The cap keeps each inside its own column, where the ellipsis can
+   work. */
 .catalog-list__group,
 .catalog-list__caption {
   min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: var(--dp-font-size-xs);
@@ -424,6 +433,18 @@ const countLabel = computed(() => {
 }
 .catalog-list__caption {
   justify-self: end;
+}
+/* A narrow catalog gives up the asides before the names: the schema first,
+   which the head of the catalog already says, then the count. */
+@container catalog-list (max-width: 300px) {
+  .catalog-list__group {
+    display: none;
+  }
+}
+@container catalog-list (max-width: 220px) {
+  .catalog-list__caption {
+    display: none;
+  }
 }
 /* A row whose caption is a sentence rather than a measurement.
    Only a report has one — it is the line the source wrote about what its

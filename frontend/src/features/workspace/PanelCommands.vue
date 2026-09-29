@@ -172,9 +172,11 @@ function showInCatalog() {
 .panel-commands {
   display: contents;
 }
+/* The mark stands beside the arrow, on its middle line: set as a superscript
+   at 9px it read as a footnote to the button rather than as its state. */
 .panel-commands__reload {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   flex: none;
 }
 .panel-commands__freshness {
@@ -184,15 +186,15 @@ function showInCatalog() {
   gap: var(--dp-space-half);
   /* One width in both states, so the row does not move. */
   min-width: 24px;
-  margin: var(--dp-space-half) 0 0 1px;
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-xs);
-  line-height: 1;
+  line-height: var(--dp-line-height-sm);
   white-space: nowrap;
   /* A label, not a control: it presses to nothing and must not look otherwise. */
   cursor: default;
 }
+/* The accent at full strength: the translucent link blue was 3.9:1. */
 .panel-commands__freshness--live {
-  color: var(--dp-link);
+  color: var(--dp-accent);
 }
 </style>

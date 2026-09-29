@@ -142,10 +142,13 @@ test("keeps rows compact and follows a column drag before release", async ({ pag
   const toolbarButton = (await page.getByTestId("grid-sort").boundingBox())!
   const header = (await page.getByTestId("grid-column-name").boundingBox())!
   expect(header.height).toBeGreaterThan((await cell.boundingBox())!.height)
-  for (const id of ["grid-select-page", "grid-sort-direction-name", "grid-pin-name", "grid-hide-name"]) {
+  // The page's selector is a command of the toolbar's size; a column's own
+  // commands are compact, so its name keeps the room of its head (D185).
+  const sizes = { "grid-select-page": toolbarButton.height, "grid-sort-direction-name": 20, "grid-pin-name": 20, "grid-hide-name": 20 }
+  for (const [id, size] of Object.entries(sizes)) {
     const button = (await page.getByTestId(id).boundingBox())!
-    expect(button.height).toBeCloseTo(toolbarButton.height, 0)
-    expect(button.width).toBeCloseTo(toolbarButton.width, 0)
+    expect(button.height).toBeCloseTo(size, 0)
+    expect(button.width).toBeCloseTo(size, 0)
     expect(button.y).toBeGreaterThanOrEqual(header.y)
     expect(button.y + button.height).toBeLessThanOrEqual(header.y + header.height)
   }

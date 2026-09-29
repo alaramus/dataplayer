@@ -6,7 +6,7 @@ weight, an icon size or a text colour of its own. How screens are built and
 what the kit is, is in [frontend.md](frontend.md); the neutral window forms
 are D131 there.
 
-Decisions here: D185.
+Decisions here: D185, D186.
 
 ```
 frontend/src/
@@ -69,5 +69,50 @@ Known deviations:
 
 - **The terminal is 13px.** xterm takes a number, and a terminal is read as a
   screen of cells rather than as code in the chrome.
+
+Spec: [The UI audit and its corrections](../decisions/2026-09-28-ui-audit-design.md)
+
+## D186. A state and a pattern are drawn one way
+
+The audit found each of them drawn several ways, a little differently in each
+place; each is now one rule, and the kit holds it where it can.
+
+- **The main action is last** in every footer, after Cancel and any secondary
+  action: `Cancel / Apply / OK`, `Cancel / Save to my files / Download`. The
+  right-hand group is one element, so a narrow window wraps it whole instead
+  of parting OK from Cancel.
+- **Current is not selected.** What is being shown — a tab, a section of a
+  page, the chat on screen, the category of a list, an open dashboard with no
+  colour — stands on `--dp-tab-current` at 500. What is ticked for an action
+  is washed in `--dp-selected`. A connection's own colour marks its own
+  things: the tab being read is filled with it and the others carry its quiet
+  half, as its row in the list does.
+- **Flat actions are neutral text.** Secondary and quiet are one colour; their
+  difference is where they stand, not a shade of grey too small to read.
+- **A destructive command in a toolbar or a row is neutral** and turns red
+  under the pointer or the keyboard (`AppIconButton` with `danger-quiet`). It
+  is red where it is decided: a menu line, a confirmation, a form's Delete.
+- **One card, one popover.** `AppCard` is the workspace's bordered card with
+  the panel corner and no shadow, on the chrome's ground. Menus, select lists
+  and tooltips are one floating surface: raised ground, a hairline, the soft
+  shadow, the control corner.
+- **A value that edits itself reads as the value** — `AppButton` with
+  `layout="inline"`: the cell's weight, its text in line with the cells that
+  are not buttons.
+- **What does not fit gives way in order.** A row of commands that scrolls
+  shows a shadow at the edge it continues past; a narrow catalog drops the
+  schema chip, then the count, before it cuts a name; a narrow catalog head
+  keeps the choice of schemas and drops the two commands that open a second
+  catalog.
+- **The lower half of a rail keeps its buttons at its foot**, beside the bar
+  at the bottom of the screen.
+
+Known deviations:
+
+- **A question keeps Minimize and Maximize.** Every window offers them
+  ([windows.md](windows.md)), a confirmation included: nothing is modal, and
+  a question can be put aside to look at what it is about.
+- **The window in front is marked by its shadow only** (D131), which reads
+  less on the dark theme's ground than on the light one's.
 
 Spec: [The UI audit and its corrections](../decisions/2026-09-28-ui-audit-design.md)

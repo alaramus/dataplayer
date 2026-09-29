@@ -113,10 +113,10 @@ accepted visual example and the rejected directions.
   links and status colours keep their meaning. Compact fields use neutral borders
   and focus, errors keeping the error colour, and connection tabs use a quiet
   filled current state with a visible keyboard focus outline.
-- **A connection check result is a neutral strip** between the connection string
-  and the footer, separated by quiet lines. It never overlays fields and never
-  changes the window rectangle; long details scroll within the shared
-  operation-result height, and copy, dismiss and recovery stay available.
+- **A connection check result opens in a popup over Test Connection**
+  ([windows.md](windows.md)), so the form never moves and the window rectangle
+  never changes; long details scroll within the shared operation-result
+  height, and copy, dismiss and recovery stay available.
 
 Known deviations:
 

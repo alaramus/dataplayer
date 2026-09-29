@@ -581,7 +581,7 @@ const overlayStyle = computed((): CSSProperties => {
   border: none;
   border-radius: var(--dp-radius-control);
   /* The tab being read is filled with the connection's colour and the others
-     carry the same colour said quietly (D185). Filled alike, the two tabs of
+     carry the same colour said quietly (D186). Filled alike, the two tabs of
      one connection differed by a 3px line in the colour of the panel under
      them, and nobody could tell which one was showing. */
   background: var(--dp-panel-quiet, var(--dp-panel-plain-quiet));
@@ -592,11 +592,15 @@ const overlayStyle = computed((): CSSProperties => {
   font: inherit;
   /* The same weight whether or not this is the tab being read: bold text is
      wider, so a weight that changed with the state moved every tab beside it
-     at the moment one was pressed. What marks the active one is the line
-     under it, which costs no room. */
+     at the moment one was pressed. What marks the active one is its fill and
+     the line under it, which cost no room. */
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  /* In a column narrower than the tab, the name gives way before the tab
+     spills over the handles at the end of the strip. */
+  min-width: 0;
+  max-width: 100%;
   /* A tab drag must not select text and turn the next drag into a native one. */
   user-select: none;
 }
@@ -626,6 +630,7 @@ const overlayStyle = computed((): CSSProperties => {
   background: var(--dp-hover);
 }
 .workspace-leaf__title {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 160px;

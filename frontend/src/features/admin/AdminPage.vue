@@ -135,8 +135,9 @@ function show(id: string) {
   background: var(--dp-hover);
 }
 
+/* The section shown is the current page of a list, marked as a tab is (D186). */
 .admin__section--current {
-  background: var(--dp-selected);
+  background: var(--dp-tab-current);
 }
 
 .admin__section-text {

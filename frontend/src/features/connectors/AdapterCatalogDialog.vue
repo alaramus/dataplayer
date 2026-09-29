@@ -220,7 +220,7 @@ function start(template: ServiceTemplateInfo) {
    pressed button of a rail. */
 .adapter-catalog__category--active,
 .adapter-catalog__category--active:hover {
-  background: var(--dp-active);
+  background: var(--dp-tab-current);
   font-weight: 500;
 }
 .adapter-catalog__category-name {

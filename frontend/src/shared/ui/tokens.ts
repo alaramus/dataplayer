@@ -56,11 +56,16 @@ export const SCROLL_MAX_HEIGHT = "60vh"
  */
 export type ButtonVariant = "primary" | "secondary" | "chosen" | "danger" | "danger-quiet" | "quiet"
 
-export type ButtonLayout = "default" | "toolbar" | "navigation"
+/**
+ * `inline` is a value in a table that opens its own editor: it reads as the
+ * value, at the weight of the cells beside it, and the pointer finds the
+ * button under it.
+ */
+export type ButtonLayout = "default" | "toolbar" | "navigation" | "inline"
 
 /** A toolbar command and an entry of a list both keep to one line. */
 export function buttonLayout(layout: ButtonLayout): { align: "left" | "center"; noWrap: boolean } {
-  return { align: layout === "navigation" ? "left" : "center", noWrap: layout !== "default" }
+  return { align: layout === "navigation" || layout === "inline" ? "left" : "center", noWrap: layout !== "default" }
 }
 
 export interface ButtonLook {

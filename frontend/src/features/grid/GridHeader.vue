@@ -152,12 +152,25 @@ const groups = TOOLBAR_GROUPS
 
 /* Scrolls sideways rather than wrapping or folding anything away: every
    command keeps the place it was given, and a narrow panel reaches the far
-   ones by scrolling to them. */
+   ones by scrolling to them.
+
+   A shadow stands at an edge while there is more beyond it: cut off with no
+   sign, the last group looked broken rather than out of view. The covers
+   scroll with the content and hide each shadow when its end is reached; the
+   shadows stay with the box. */
 .grid-header__bar {
   display: flex;
   align-items: stretch;
   overflow-x: auto;
   padding: var(--dp-space-1);
+  background:
+    linear-gradient(to right, var(--dp-surface) 30%, transparent) left / var(--dp-space-5) 100%,
+    linear-gradient(to left, var(--dp-surface) 30%, transparent) right / var(--dp-space-5) 100%,
+    radial-gradient(farthest-side at 0 50%, var(--dp-shadow-soft), transparent) left / var(--dp-space-3) 100%,
+    radial-gradient(farthest-side at 100% 50%, var(--dp-shadow-soft), transparent) right / var(--dp-space-3) 100%;
+  background-color: var(--dp-surface);
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
 }
 
 .grid-header__group {

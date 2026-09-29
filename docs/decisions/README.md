@@ -17,7 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
-| 2026-09-28 | [The UI audit and its corrections](2026-09-28-ui-audit-design.md) | D185: one scale of type, lines, weights, control heights, icon sizes and text colours in metrics.css, said again to Quasar in quasar-variables.sass; roles as classes; Inter shipped; the tab being read filled and the rest quiet |
+| 2026-09-28 | [The UI audit and its corrections](2026-09-28-ui-audit-design.md) | D185, D186: one scale of type, lines, weights, control heights, icon sizes and text colours in metrics.css, said again to Quasar in quasar-variables.sass; roles as classes; Inter shipped; the tab being read filled and the rest quiet; the main action last, current apart from selected, destructive commands neutral until hovered, one card and one popover |
 | 2026-09-28 | [The server's log](2026-09-28-server-log-design.md) | D184: each process writes JSON lines to rotated files on a volume, every secret masked; an unexpected failure is written whole with a ref the person's sentence carries; a superuser reads the log in the panel at the foot of the screen |
 | 2026-09-28 | [A user's guide, and the catalog's short lists](2026-09-28-user-guide-design.md) | D183: the user's guide is Markdown pages on the server, one per source type; the New connection panel shows the two short lists each page opens with, and Guide opens the page in a floating window |
 | 2026-09-27 | [Tables copied with their structure](2026-09-27-table-copy-design.md) | D182: a table is pasted whole — keys, indexes, checks, types and rows in one transaction — and what becomes of its links to other tables is one choice in its window |

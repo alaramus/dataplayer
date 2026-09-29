@@ -311,6 +311,8 @@ function follow(run: () => void) {
 /* The count belongs beside the name of the section; the commands go to the
    far end together, so the first of them is what takes up the slack. */
 .sheet__heading > button:first-of-type { margin-left: auto; }
+/* A command in a heading is a command, not part of the overline's grey. */
+.sheet__heading > .q-btn { color: var(--dp-text); letter-spacing: normal; text-transform: none; }
 
 .sheet__item {
   display: flex;

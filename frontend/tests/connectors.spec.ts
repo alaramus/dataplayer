@@ -37,7 +37,7 @@ test("a connector color follows its open tabs and can be reset after reload", as
   await expect(rowsTabs(page)).toHaveCount(2)
   const tabs = [catalogTab(page), rowsTabs(page).nth(0), rowsTabs(page).nth(1)]
   // The tab being read in each column is filled with the colour, the one
-  // beside it carries the colour said quietly (D185): filled alike, the two
+  // beside it carries the colour said quietly (D186): filled alike, the two
   // could not be told apart.
   const read = [catalogTab(page), rowsTabs(page).nth(1)]
   const aside = rowsTabs(page).nth(0)

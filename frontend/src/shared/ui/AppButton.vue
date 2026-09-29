@@ -84,7 +84,11 @@ function nameIfCut(event: PointerEvent) {
     :aria-label="spokenLabel"
     :align="contentLayout.align"
     :no-wrap="contentLayout.noWrap"
-    :class="{ 'app-button--toolbar': layout === 'toolbar', 'app-button--navigation': layout === 'navigation' }"
+    :class="{
+      'app-button--toolbar': layout === 'toolbar',
+      'app-button--navigation': layout === 'navigation',
+      'app-button--inline': layout === 'inline',
+    }"
     :color="look.color"
     :text-color="look.textColor"
     :unelevated="look.unelevated"
@@ -106,13 +110,26 @@ function nameIfCut(event: PointerEvent) {
 .app-button--toolbar :deep(.q-btn__content) {
   gap: var(--dp-space-1);
 }
+/* A value that is also its editor: the cell's weight, and its text in line
+   with the text of the cells that are not buttons (D186). As a 500-weight
+   button "character varying(255)" outweighed the column name beside it. */
+.app-button--inline {
+  min-height: var(--dp-row-height-dense);
+  padding-block: 0;
+  padding-inline: var(--dp-space-1);
+  margin-inline: calc(-1 * var(--dp-space-1));
+  font-weight: 400;
+}
 /* A long name wrapped under its own icon and doubled the entry's height; a
    list reads down one line per entry.
    Trap: QBtn holds the label in a `.block` of its own (display: block
    !important), and an ellipsis on the content never reaches it — the name is
    cut through a letter instead. So the label carries the ellipsis. */
+/* An entry of a list reads at the list's weight; the current one says so
+   with the tab ground and 500 (D186), not every entry with a button's 500. */
 .app-button--navigation {
   max-width: 100%;
+  font-weight: 400;
 }
 .app-button--navigation :deep(.q-btn__content) {
   min-width: 0;

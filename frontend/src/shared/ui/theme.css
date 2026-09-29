@@ -121,7 +121,10 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   --dp-scrollbar-thumb: rgba(0, 0, 0, 0.38);
   --dp-action-primary: #343434;
   --dp-on-action-primary: #fff;
-  --dp-action-secondary: #454545;
+  /* The text colour: a secondary action is neutral text, as a quiet one is.
+     At #454545 beside a quiet #000 the two differed by a shade too small to
+     read as a rank and large enough to read as a mistake. */
+  --dp-action-secondary: rgba(0, 0, 0, 0.87);
   --dp-field-surface: #fff;
   --dp-field-border: #cecece;
   --dp-tab-current: #e4e4e4;
@@ -268,7 +271,7 @@ body.body--dark {
   --dp-scrollbar-thumb: rgba(255, 255, 255, 0.46);
   --dp-action-primary: #d4d4d4;
   --dp-on-action-primary: #191919;
-  --dp-action-secondary: #d4d4d4;
+  --dp-action-secondary: rgba(255, 255, 255, 0.87);
   --dp-field-surface: #191919;
   --dp-field-border: #484848;
   --dp-tab-current: #303030;
@@ -368,4 +371,21 @@ body.body--dark {
 body,
 body.body--dark {
   color: var(--dp-text);
+}
+
+/* Everything that floats from a control — a menu, a select's list, a
+   tooltip — is one kind of surface (D186): the raised ground, a hairline and
+   the soft shadow. Quasar's menus were white, borderless and shadowed its
+   own way, beside tooltips drawn the kit's way. Windows are the other kind
+   and keep their panel corner and deeper shadow. */
+/* Trap: the hairline is a ring of shadow, not a border. Quasar places a menu
+   again while it measures no height, and a menu opened before its content
+   arrives — the result of a connection check — measured the 2px of a border,
+   was placed at once and then grew down over the button it belongs above. */
+.q-menu {
+  border-radius: var(--dp-radius-control);
+  background: var(--dp-surface-raised);
+  box-shadow:
+    0 0 0 1px var(--dp-border),
+    0 2px 8px var(--dp-shadow-soft);
 }

@@ -37,6 +37,7 @@ withDefaults(
   <q-table
     flat
     bordered
+    class="app-table"
     :class="sticky ? 'app-table--sticky' : undefined"
     :rows="rows"
     :columns="columns"
@@ -66,6 +67,12 @@ withDefaults(
 </template>
 
 <style scoped>
+/* A table's heading is a heading of the scale (D185): 600, in the small size
+   Quasar already gives it; Quasar's own 500 was the one table in the
+   application whose headings were not. */
+.app-table :deep(thead th) {
+  font-weight: 600;
+}
 /* The rows scroll, the header does not. Quasar builds the table out of nested
    elements, so the height has to be handed down to the one that scrolls.
 

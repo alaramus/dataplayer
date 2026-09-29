@@ -29,6 +29,13 @@ const props = withDefaults(
 )
 
 const look = computed(() => buttonLook(props.variant))
+/**
+ * A destructive command in a toolbar or a row is drawn like its neighbours and
+ * turns red under the pointer or the keyboard (D186): red at rest on every row
+ * of a list, it was the loudest thing on the screen. Its danger is said again
+ * where it is confirmed.
+ */
+const quietColor = computed(() => (props.variant === "danger-quiet" ? undefined : look.value.color))
 
 // The wrapper below would otherwise take data-testid and aria-label off the
 // button they name.
@@ -77,8 +84,8 @@ const spokenName = computed(() =>
       dense
       flat
       disable
-      :class="{ 'app-icon-button__compact': compact }"
-      :color="active ? 'positive' : look.color"
+      :class="{ 'app-icon-button__compact': compact, 'app-icon-button--danger': variant === 'danger-quiet' }"
+      :color="active ? 'positive' : quietColor"
       :icon="icon"
       :loading="loading"
     />
@@ -90,8 +97,8 @@ const spokenName = computed(() =>
     v-bind="$attrs"
     dense
     flat
-    :class="{ 'app-icon-button__compact': compact }"
-    :color="active ? 'positive' : look.color"
+    :class="{ 'app-icon-button__compact': compact, 'app-icon-button--danger': variant === 'danger-quiet' }"
+    :color="active ? 'positive' : quietColor"
     :icon="icon"
     :loading="loading"
   >
@@ -118,6 +125,10 @@ const spokenName = computed(() =>
 }
 .app-icon-button__compact :deep(.q-icon) {
   font-size: var(--dp-icon-sm);
+}
+.app-icon-button--danger:hover,
+.app-icon-button--danger:focus-visible {
+  color: var(--dp-action-danger);
 }
 /* It is what the keyboard lands on, so it has to say where the keyboard is. */
 .app-icon-button:focus-visible {

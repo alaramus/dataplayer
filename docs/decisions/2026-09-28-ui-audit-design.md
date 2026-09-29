@@ -1,6 +1,6 @@
 # The UI audit and its corrections
 
-Date: 2026-09-28. Decision: D185.
+Date: 2026-09-28. Decisions: D185, D186.
 
 ## The problem
 
@@ -73,6 +73,33 @@ connection's colour and the others carry the colour's quiet half, the one
 `panelColor.ts` already mixes for the connections list. Filled alike, the two
 tabs of one connection differed by a 3px line in the colour of the panel
 under them.
+
+## D186. A state and a pattern are drawn one way
+
+Beside the scale, the audit found the same state drawn several ways: the main
+action first in one window's footer and last in the next; six ways to show the
+current item of a list — a connection's colour, a 3px line, grey, dark, blue
+and a blue text; secondary and quiet buttons a shade apart; a red bin on every
+row of some lists and a neutral one in others; two kinds of card; menus and
+tooltips drawn by two systems; an editable type in a table heavier than the
+column name beside it; a command row cut at its edge with no sign of more; a
+chip and a count drawn over each other in a narrow catalog.
+
+Each is one rule now (the architecture file lists them). Two readings were
+weighed and set aside:
+
+- **Removing Minimize and Maximize from questions.** Every window has them by
+  design, and a question put aside to look at what it asks about is the reason
+  nothing is modal. The audit's point was noise; the answer is smaller window
+  controls, which D185 gives.
+- **A brighter border for the window in front in the dark theme.** D131 marks
+  the front window by its shadow and names a brighter border as the rejected
+  alternative; the audit's weaker separation on dark is recorded as a known
+  deviation rather than reversed here.
+
+The grid's row of commands keeps the rule that nothing folds away: it scrolls,
+and now says so with a shadow at the edge. An overflow menu was rejected for
+the reason the rule gives — every command keeps the place it was given.
 
 ## What was checked
 

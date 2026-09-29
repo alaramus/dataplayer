@@ -65,7 +65,7 @@ const emit = defineEmits<{
           :key="dashboard.id"
           class="rail-narrow__slot"
           :class="{
-            'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
+            'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).current,
             'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
             'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
           }"
@@ -88,7 +88,7 @@ const emit = defineEmits<{
           :key="dashboard.id"
           class="rail-narrow__slot"
           :class="{
-            'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
+            'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).current,
             'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
             'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
           }"
@@ -158,14 +158,10 @@ const emit = defineEmits<{
   border-radius: var(--dp-radius-control);
 }
 
-/* The blue the wide rail writes the open dashboard in: the icon is what is
-   left of that entry, so it carries the mark. A plain fill, as the column of
-   connections draws, is the colour of the card itself in the dark theme. */
+/* The open dashboard without a colour, on the current tab's ground as in the
+   wide rail (railEntry.ts). */
 .rail-narrow__slot--selected {
-  color: var(--dp-action-secondary);
-}
-.rail-narrow__slot--selected :deep(.q-btn) {
-  color: var(--dp-action-secondary);
+  background: var(--dp-tab-current);
 }
 
 /* A dashboard's own colour, as in the wide rail (railEntry.ts). */

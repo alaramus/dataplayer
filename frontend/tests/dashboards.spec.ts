@@ -613,8 +613,19 @@ test("the rail is pushed aside to its icons and brought back by the header butto
   await page.getByTestId("dashboard-rename-input").fill(dashboardName)
   await page.getByTestId("dashboard-rename-input").press("Enter")
   await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
-  const colorOf = (testId: string) => page.getByTestId(testId).evaluate((element) => getComputedStyle(element).color)
-  const openColor = await colorOf(`dashboard-${dashboardName}`)
+  // The open one stands on the ground of the current tab, as the current
+  // entry of every list does (D186).
+  const current = await page.evaluate(() => {
+    const probe = document.createElement("span")
+    probe.style.background = "var(--dp-tab-current)"
+    document.body.append(probe)
+    const colour = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return colour
+  })
+  const groundOf = (testId: string) =>
+    page.getByTestId(testId).evaluate((element) => getComputedStyle(element).backgroundColor)
+  expect(await groundOf(`dashboard-${dashboardName}`)).toBe(current)
 
   await page.getByTestId("app-toggle-first-panel").click()
   await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
@@ -635,10 +646,12 @@ test("the rail is pushed aside to its icons and brought back by the header butto
   }
   expect(await bottomOf("dashboards-rail-head")).toBe(await bottomOf("dashboard-head"))
   // What the wide rail offers is still there, as icons, and the open
-  // dashboard is marked in the same blue.
+  // dashboard is marked on the same ground.
   await expect(page.getByTestId(`dashboard-narrow-${dashboardName}`)).toBeVisible()
-  expect(await colorOf(`dashboard-narrow-${dashboardName}`)).toBe(openColor)
-  expect(await colorOf("agents-open")).not.toBe(openColor)
+  await expect(page.getByTestId(`dashboard-narrow-${dashboardName}`).locator("xpath=..")).toHaveCSS(
+    "background-color", current
+  )
+  expect(await groundOf("agents-open")).not.toBe(current)
   await expect(page.getByTestId("agents-open")).toBeVisible()
   await page.reload()
   await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
@@ -701,11 +714,20 @@ test("a dashboard takes a colour of its own, which the rail and its name carry, 
   await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", blue)
   await page.getByTestId("app-toggle-first-panel").click()
 
-  // Reset, it is an ordinary dashboard again.
+  // Reset, it is an ordinary dashboard again: open, it stands on the ground
+  // of the current tab rather than in a colour (D186).
   await page.getByTestId("dashboard-color").click()
   await picker.getByRole("button", { name: "Reset color", exact: true }).click()
   await expect(page.getByTestId("dashboard-name")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
-  await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", "rgba(0, 0, 0, 0)", { timeout: 5000 })
+  const current = await page.evaluate(() => {
+    const probe = document.createElement("span")
+    probe.style.background = "var(--dp-tab-current)"
+    document.body.append(probe)
+    const colour = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return colour
+  })
+  await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", current, { timeout: 5000 })
 
   for (const name of [coloured, plain]) {
     await page.getByTestId(`dashboard-${name}`).click()
@@ -723,7 +745,13 @@ test("New opens the empty dashboard the person already has rather than making an
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
   const api = await metricsApi(page)
 
+  // Whichever dashboard was on screen stays there until New has had its
+  // answer; the name read before that is the old one's.
+  const answered = page
+    .waitForResponse((response) => response.url().includes("/dashboards") && response.request().method() === "POST", { timeout: 5000 })
+    .catch(() => null)
   await page.getByTestId("dashboard-new").click()
+  await answered
   await expect(page.getByTestId("dashboard-view")).toBeVisible()
   const name = (await page.getByTestId("dashboard-name").innerText()).trim()
   const before = (await listedDashboards(page, api)).length

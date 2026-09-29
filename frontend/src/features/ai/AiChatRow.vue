@@ -122,10 +122,12 @@ function pick(name: string) {
 
 <style scoped>
 .ai-chat-row { display: flex; align-items: center; border-radius: var(--dp-radius-control); }
-.ai-chat-row--active,
 .ai-chat-row:hover,
 .ai-chat-row:has(:focus-visible),
-.ai-chat-row--menu { background: var(--dp-active); }
+.ai-chat-row--menu { background: var(--dp-hover); }
+/* The chat on screen is the current page of the list, marked as a tab is (D186). */
+.ai-chat-row--active { background: var(--dp-tab-current); }
+.ai-chat-row--active > .ai-chat-row__title { font-weight: 500; }
 .ai-chat-row > :first-child { flex: 1; min-width: 0; }
 /* QBtn puts its slot after the label; the dot stands before it. */
 .ai-chat-row__state {

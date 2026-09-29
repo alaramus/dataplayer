@@ -249,5 +249,5 @@ useAccessRequestEvents({
 </template>
 
 <style scoped>
-.share-landing-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); }
+.share-landing-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); background: var(--dp-chrome-raised); }
 </style>

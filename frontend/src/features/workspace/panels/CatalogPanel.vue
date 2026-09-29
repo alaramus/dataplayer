@@ -898,8 +898,9 @@ async function afterAction(outcome: ActionOutcome) {
             :cache-ttl-seconds="cacheWindow"
           />
           <template v-if="!floating">
-            <AppToolbarRule />
+            <AppToolbarRule class="catalog-panel__beside" />
             <AppIconButton
+              class="catalog-panel__beside"
               :icon="appIcons.duplicate"
               tooltip="Duplicate catalog beside this one"
               data-testid="catalog-duplicate"
@@ -907,6 +908,7 @@ async function afterAction(outcome: ActionOutcome) {
             />
             <AppIconButton
               v-if="workspace.pairCatalog"
+              class="catalog-panel__beside"
               :icon="appIcons.pair"
               :tooltip="pairing.tooltip"
               :disable="pairing.refused"
@@ -1178,7 +1180,8 @@ async function afterAction(outcome: ActionOutcome) {
   display: flex;
   align-items: center;
   gap: var(--dp-space-1);
-  height: 40px;
+  height: var(--dp-toolbar-height);
+  container: catalog-bar / inline-size;
 }
 .catalog-panel__crumbs {
   display: flex;
@@ -1196,6 +1199,18 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__groups {
   flex: 1;
   min-width: 0;
+}
+/* A narrow column keeps the choice of schemas readable and gives up the two
+   commands that open another catalog beside this one, which a narrow column
+   has no room for anyway: at 230px the choice had shrunk to its arrow. The
+   column is 326px at 1280 pixels of screen, and keeps both there. */
+@container catalog-bar (max-width: 260px) {
+  .catalog-panel__groups {
+    min-width: 96px;
+  }
+  .catalog-panel__beside {
+    display: none;
+  }
 }
 /* The field fills its wrapper, whose test id the scenarios click: the click
    lands on the visible field and opens its menu. */

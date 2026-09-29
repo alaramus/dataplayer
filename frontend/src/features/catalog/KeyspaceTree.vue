@@ -162,7 +162,7 @@ defineExpose({ reload, reveal })
     <AppEmptyState
       v-else-if="empty"
       icon="vpn_key"
-      text="Nothing here yet."
+      text="Nothing here yet"
     />
     <AppTree
       v-else

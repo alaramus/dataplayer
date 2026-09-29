@@ -331,6 +331,7 @@ defineExpose({
                 :key="dashboard.id"
                 :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
                 :class="{
+                  'dashboards__entry--current': railEntry(dashboard.color, dashboard.id === current?.id).current,
                   'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
                   'dashboards__entry--filled': railEntry(dashboard.color, dashboard.id === current?.id).filled,
                 }"
@@ -359,6 +360,7 @@ defineExpose({
                   :key="dashboard.id"
                   :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
                   :class="{
+                    'dashboards__entry--current': railEntry(dashboard.color, dashboard.id === current?.id).current,
                     'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
                     'dashboards__entry--filled': railEntry(dashboard.color, dashboard.id === current?.id).filled,
                   }"
@@ -510,6 +512,12 @@ defineExpose({
   min-height: var(--dp-tab-strip-height);
   padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   color: var(--dp-text-muted);
+}
+
+/* The open one, when it has no colour of its own (railEntry.ts). */
+.dashboards__entry--current {
+  background: var(--dp-tab-current);
+  font-weight: 500;
 }
 
 /* A dashboard's own colour, as a connection's row carries it (railEntry.ts). */

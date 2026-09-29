@@ -84,6 +84,7 @@ function onRailDrop(event: DragEvent) {
     :class="{
       'tool-rail--empty': blocks.length === 0,
       'tool-rail--tail': overIndex === blocks.length,
+      'tool-rail--bottom': zone.endsWith('bottom'),
     }"
     :data-testid="`tool-rail-${zone}`"
     :aria-label="ZONE_TITLES[zone]"
@@ -138,6 +139,12 @@ function onRailDrop(event: DragEvent) {
   padding: 0 var(--dp-space-half) var(--dp-space-1);
   overflow: visible;
   background: transparent;
+}
+/* The lower half keeps its buttons at its foot, by the bar at the bottom of
+   the screen: started at the top of the half, they hung in the middle of the
+   rail, tied to nothing. The empty room above them is still its drop target. */
+.tool-rail--bottom {
+  justify-content: flex-end;
 }
 /* An emptied rail keeps the width of a filled one (32px buttons plus the
    edge padding), so it stays a drop target instead of collapsing. */

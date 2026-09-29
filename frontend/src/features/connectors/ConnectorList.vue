@@ -118,6 +118,9 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
   /* The same four pixels the strip centres its icons at, so that a row keeps
      its icon in place when the column is pushed aside. */
   padding: 1px var(--dp-space-2) 1px var(--dp-space-1);
+  /* An ordinary row of a list one picks from (D185). */
+  min-height: var(--dp-row-height);
+  box-sizing: border-box;
   cursor: pointer;
 }
 /* Over the fill rather than instead of it: a hover rule is a class and a
