@@ -22,9 +22,11 @@ cp .env.example .env
 cp frontend/.env.example frontend/.env
 ```
 
-Fill in both files: at minimum `SECRET_KEY`, `CONNECTOR_SECRET_KEY`,
-`POSTGRES_PASSWORD` and `FIRST_SUPERUSER_PASSWORD`. Generate the encryption key
-with:
+Fill in both files: at minimum `SECRET_KEY`, `CONNECTOR_SECRET_KEY`, `QUERY_CONTENT_KEY`,
+`AI_CONTENT_KEY`, `POSTGRES_PASSWORD`, `FIRST_SUPERUSER_PASSWORD`, `DATA_CACHE_REDIS_PASSWORD` and
+`DATA_CACHE_SECRET_KEY`
+
+Generate the encryption key with:
 
 ```bash
 python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
