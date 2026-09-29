@@ -513,6 +513,7 @@ onBeforeUnmount(() => {
             size="sm"
             :icon="appIcons.toc"
             :label="`Contents (${String(headings.length)})`"
+            layout="toolbar"
             data-testid="markdown-toggle-contents"
             @click="outlineOpen = !outlineOpen"
           />
@@ -557,6 +558,7 @@ onBeforeUnmount(() => {
             size="sm"
             :icon="appIcons.download"
             label="Export"
+            layout="toolbar"
             :loading="exporting"
             data-testid="markdown-export"
           >
@@ -570,6 +572,7 @@ onBeforeUnmount(() => {
             size="sm"
             :icon="appIcons.code"
             :label="sourceTitle ?? 'View as text'"
+            layout="toolbar"
             data-testid="markdown-view-source"
             @click="showSource"
           />
@@ -695,7 +698,11 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
 }
+/* Its commands keep to one line each (D187); a narrow panel puts the second
+   half of the head on a line of its own rather than squeezing the search to
+   nothing between them. */
 .markdown-panel__head {
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--dp-space-2);
   min-height: var(--dp-toolbar-height);
@@ -711,7 +718,11 @@ onBeforeUnmount(() => {
 }
 .markdown-panel__search {
   width: min(220px, 30vw);
+  min-width: 120px;
   margin-left: var(--dp-space-1);
+}
+.markdown-panel__actions {
+  margin-left: auto;
 }
 .markdown-panel__search-position {
   min-width: 36px;
@@ -758,9 +769,12 @@ onBeforeUnmount(() => {
   padding-left: calc(2 * var(--dp-space-3));
   font-size: var(--dp-font-size-xs);
 }
+/* The section on screen, drawn as a current tab is (D186): in blue it read
+   as a link among links. */
 .markdown-panel__outline-entry--active {
-  color: var(--dp-link);
-  font-weight: 600;
+  background: var(--dp-tab-current);
+  color: var(--dp-text);
+  font-weight: 500;
 }
 .markdown-panel__document {
   flex: 1;

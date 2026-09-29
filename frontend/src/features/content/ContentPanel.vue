@@ -57,9 +57,14 @@ const canSave = computed(() => writable.value && loadedVersion.value !== null &&
 const error = computed(() =>
   editor.isError.value ? messageOf(editor.error.value, "Could not open this file") : ""
 )
-const kindLabel = computed(() =>
-  props.representation === "jsonl" ? "JSON lines" : props.representation.toUpperCase()
-)
+/* Said the way a media panel says "PNG · 68 B": a format's name, in capitals
+   only where it is an acronym. "TEXT" above an editor read as the one
+   overline among the panels' meta lines. */
+const kindLabel = computed(() => {
+  if (props.representation === "jsonl") return "JSON lines"
+  if (props.representation === "text") return "Plain text"
+  return props.representation.toUpperCase()
+})
 
 function hydrate(value: EditorContent) {
   draft.value = value.text

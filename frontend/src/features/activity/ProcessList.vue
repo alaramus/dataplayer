@@ -92,7 +92,7 @@ defineEmits<{
       </div>
     </article>
     <AppButton
-      v-if="more"
+      v-if="more && rows.length > 0"
       variant="quiet"
       size="sm"
       label="Load more"

@@ -138,8 +138,11 @@ function settle(outcome: ActionOutcome | null) {
         />
       </template>
       <template v-else>
-        <span class="pair-bar__detail pair-bar__detail--off">{{ entry.offer.title }}</span>
-        <span class="pair-bar__reason">{{ entry.detail }}</span>
+        <!-- The command that is off, then why, in a smaller hand after a
+             dash: in one colour and size they read as one sentence. -->
+        <span class="pair-bar__detail pair-bar__detail--off">{{ entry.offer.title }}
+          <span class="pair-bar__reason">— {{ entry.detail }}</span>
+        </span>
       </template>
     </div>
     <CrossPaste
@@ -171,6 +174,9 @@ function settle(outcome: ActionOutcome | null) {
 .pair-bar__note,
 .pair-bar__reason {
   color: var(--dp-text-muted);
+}
+.pair-bar__reason {
+  font-size: var(--dp-font-size-sm);
 }
 .pair-bar__item {
   display: flex;

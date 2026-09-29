@@ -53,12 +53,13 @@ function promoteSelected() {
 const messages = computed(() => [
   ...(props.run.error === null || props.run.error === undefined
     ? []
-    : [{ ordinal: -1, severity: "RUN", message: props.run.error }]),
+    : [{ ordinal: -1, severity: "RUN", message: props.run.error, failed: true }]),
   ...statements.value.flatMap((statement) => [
     ...(statement.notices ?? []).map((notice) => ({
       ordinal: statement.ordinal,
       severity: notice.severity,
       message: notice.message,
+      failed: false,
     })),
     ...(statement.diagnostic === null || statement.diagnostic === undefined
       ? []
@@ -69,6 +70,7 @@ const messages = computed(() => [
             message: statement.diagnostic.hint
               ? `${statement.diagnostic.message} — ${statement.diagnostic.hint}`
               : statement.diagnostic.message,
+            failed: true,
           },
         ]),
   ]),
@@ -118,7 +120,7 @@ function duration(statement: StatementPublic): string {
         type="button"
         class="run-outcome__statement"
         :class="{
-          'run-outcome__statement--chosen': statement.ordinal === chosen,
+          'run-outcome__statement--chosen': statement.ordinal === chosen && !showMessages,
         }"
         :data-status="statement.status"
         :data-testid="`run-statement-${statement.ordinal}`"
@@ -154,6 +156,7 @@ function duration(statement: StatementPublic): string {
           v-for="(message, index) in messages"
           :key="index"
           class="run-outcome__message"
+          :class="{ 'run-outcome__message--failed': message.failed }"
         >
           <span class="run-outcome__severity">{{ message.severity }}</span>
           {{ message.message }}
@@ -234,7 +237,6 @@ function duration(statement: StatementPublic): string {
   width: 100%;
   padding: var(--dp-space-1) var(--dp-space-2);
   border: none;
-  border-inline-start: 2px solid transparent;
   background: none;
   color: inherit;
   font: inherit;
@@ -244,9 +246,13 @@ function duration(statement: StatementPublic): string {
 .run-outcome__statement:hover {
   background: var(--dp-hover);
 }
-.run-outcome__statement--chosen {
-  border-inline-start-color: var(--dp-link);
-  background: var(--dp-selected-quiet);
+/* What the pane beside is showing: one item at a time, drawn as a current
+   tab is (D186) rather than with a blue line — the statement and Messages
+   both carried it once. */
+.run-outcome__statement--chosen,
+.run-outcome__statement--chosen:hover {
+  background: var(--dp-tab-current);
+  font-weight: 500;
 }
 .run-outcome__label {
   flex: 1;
@@ -298,5 +304,10 @@ function duration(statement: StatementPublic): string {
 .run-outcome__severity {
   color: var(--dp-text-muted);
   margin-inline-end: var(--dp-space-2);
+}
+/* A failure among notices says so by its colour, as the run list beside it
+   does: in the muted grey of a notice, "MISSING_OBJECT" read as one (D187). */
+.run-outcome__message--failed .run-outcome__severity {
+  color: var(--dp-content-error);
 }
 </style>

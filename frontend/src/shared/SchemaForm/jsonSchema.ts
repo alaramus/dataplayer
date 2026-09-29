@@ -321,21 +321,35 @@ function zodForField(field: FieldSpec): z.ZodType {
       return z.string()
     case "select":
       return z.enum(
-        (field.choices ?? []).map((choice) => choice.value) as [string, ...string[]]
+        (field.choices ?? []).map((choice) => choice.value) as [string, ...string[]],
+        { error: `Choose ${field.label}` }
       )
     case "boolean":
       return z.boolean()
     case "number": {
-      let schema = z.number()
-      if (field.minimum !== undefined) schema = schema.min(field.minimum)
-      if (field.maximum !== undefined) schema = schema.max(field.maximum)
+      let schema = z.number({ error: `${field.label} is a number` })
+      if (field.minimum !== undefined) {
+        schema = schema.min(field.minimum, `${field.label} is at least ${String(field.minimum)}`)
+      }
+      if (field.maximum !== undefined) {
+        schema = schema.max(field.maximum, `${field.label} is at most ${String(field.maximum)}`)
+      }
       return schema
     }
     default: {
       let schema = z.string()
-      // A required string field must not validate when empty.
+      // A required string field must not validate when empty. Its message is
+      // a sentence about the field: zod's own is written for a developer,
+      // "Too small: expected string to have >=1 characters" (D187).
       const minLength = field.minLength ?? (field.required ? 1 : 0)
-      if (minLength > 0) schema = schema.min(minLength)
+      if (minLength > 0) {
+        schema = schema.min(
+          minLength,
+          minLength === 1
+            ? `${field.label} is required`
+            : `${field.label} takes at least ${String(minLength)} characters`
+        )
+      }
       return schema
     }
   }

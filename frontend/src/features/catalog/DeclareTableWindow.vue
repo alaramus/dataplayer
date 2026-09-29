@@ -240,15 +240,15 @@ function finish(changed: TableChanged) {
           @click="add"
         />
       </div>
-      <p
+    </AppForm>
+    <template #actions>
+      <!-- Why Save is off, at the foot beside it (D187), where Add widgets
+           says what it is waiting for: under the fields it read as help. -->
+      <span
         v-if="problem"
         class="declare-table__problem"
         data-testid="declare-table-problem"
-      >
-        {{ problem }}
-      </p>
-    </AppForm>
-    <template #actions>
+      >{{ problem }}</span>
       <AppButton
         v-if="draft?.declared"
         variant="danger"
@@ -285,7 +285,8 @@ function finish(changed: TableChanged) {
   flex: 1;
 }
 .declare-table__problem {
-  margin: 0;
+  margin-right: auto;
+  padding-left: var(--dp-space-2);
   color: var(--dp-text-muted);
 }
 .declare-table__found {

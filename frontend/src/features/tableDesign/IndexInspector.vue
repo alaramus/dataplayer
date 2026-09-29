@@ -180,7 +180,7 @@ function include(columnId: string, checked: boolean): void {
         />
       </div>
     </template>
-    <details class="inspector__advanced">
+    <details class="inspector__advanced dp-disclosure">
       <summary>Expression &amp; operator class</summary>
       <div
         v-for="(key, at) in index.keys"
@@ -279,8 +279,6 @@ function include(columnId: string, checked: boolean): void {
   padding-top: var(--dp-space-2);
 }
 .inspector__advanced summary {
-  cursor: pointer;
-  color: var(--dp-text-muted);
 }
 .inspector__advanced-key {
   display: grid;

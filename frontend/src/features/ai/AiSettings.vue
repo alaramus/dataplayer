@@ -132,6 +132,7 @@ async function removeAll() {
             @update:model-value="setAllowAll"
           />
           <AppButton
+            class="ai-settings__jev"
             variant="quiet"
             :label="jevKeySet ? 'Manage Jev API key' : 'Set Jev API key'"
             data-testid="ai-jev-key"
@@ -206,6 +207,9 @@ async function removeAll() {
 .ai-settings h3 { font-weight: 600; }
 .ai-settings__group { border-bottom: 1px solid var(--dp-border-faint); }
 .ai-settings__form { max-width: 640px; }
+/* A command under a toggle starts where the toggle does; stretched across
+   the form, its label stood alone in the middle. */
+.ai-settings__jev { align-self: flex-start; }
 .ai-settings__archive { display: flex; flex-direction: column; gap: var(--dp-space-3); max-width: 640px; padding: var(--dp-space-4); }
 .ai-settings__archived-list { display: flex; flex-direction: column; }
 .ai-settings__delete-all { align-self: flex-start; }

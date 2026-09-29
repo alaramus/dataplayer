@@ -141,6 +141,22 @@ none of them. Each of these is now said once, in the kit or in `theme.css`.
 - **The label column of a form is 152px**; **a toggle is dense**, its track
   under the label above it; **a window's subtitle** draws a line under itself
   once the content is scrolled.
+- **Screens follow suit.** A value the source refused is said under its field,
+  as any field's error is, not in a banner above the form; a validation message
+  is a sentence about the field, never the validator's own. A part of a form
+  folded away is `dp-disclosure` — a chevron that turns. A row of commands that
+  scrolls wears `dp-scroll-edges`. What a panel shows among its neighbours — a
+  run, an operation of a plan, a sheet, a section of a document, a pipeline's
+  run — stands on the current tab's ground (D186), and a reason something is
+  off is told beside it: a menu's to the right of the menu, a pair's after a
+  dash in the smaller size.
+
+- **Monitors only.** The application is drawn for a monitor, 1024px being the
+  narrowest workspace it is laid out for; there is no telephone's mode. A
+  window still fits a small browser window, which is a window's rule (D132).
+- **Charts speak the scale**: ECharts' axes and legends at the caption size in
+  the application's face, their series in `--dp-chart-*`. **A question's
+  window carries no icon**; an icon names the kind of thing a window holds.
 
 Enforced by `tests/kit-scale.spec.ts`, which reads what the browser paints on
 the kit's showcase in both themes; it failed against the kit before the

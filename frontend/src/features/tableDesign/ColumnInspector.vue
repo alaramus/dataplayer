@@ -191,7 +191,7 @@ function changeDefault(value: string): void {
     </div>
     <details
       v-if="takes.length || type?.array_supported"
-      class="inspector__advanced"
+      class="inspector__advanced dp-disclosure"
     >
       <summary>Type parameters &amp; array</summary>
       <div class="inspector__row">
@@ -243,8 +243,6 @@ function changeDefault(value: string): void {
   padding-top: var(--dp-space-2);
 }
 .inspector__advanced summary {
-  cursor: pointer;
-  color: var(--dp-text-muted);
   margin-bottom: var(--dp-space-2);
 }
 @container table-designer (max-width: 560px) {

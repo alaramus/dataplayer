@@ -50,6 +50,14 @@ defineProps<{ html: string }>()
 .prose-block :deep(ol) {
   padding-left: var(--dp-space-5);
 }
+/* A task's tick box is its marker: with the list's bullet as well, every
+   task started with two. */
+.prose-block :deep(.task-list-item) {
+  list-style: none;
+}
+.prose-block :deep(.task-list-item-checkbox) {
+  margin: 0 var(--dp-space-1) 0 calc(-1 * var(--dp-space-5) + var(--dp-space-1));
+}
 .prose-block :deep(blockquote) {
   padding: var(--dp-space-half) var(--dp-space-3);
   border-left: 3px solid var(--dp-border-faint);

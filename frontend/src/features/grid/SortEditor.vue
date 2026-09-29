@@ -89,6 +89,10 @@ function remove(index: number) {
       />
     </div>
 
+    <span
+      v-if="sort.length === 0"
+      class="sort-editor__empty"
+    >No sort: rows come in the source's order</span>
     <div class="sort-editor__add">
       <AppSelect
         v-model="selectedColumn"
@@ -140,7 +144,8 @@ function remove(index: number) {
   border-radius: var(--dp-radius-control);
 }
 
-.sort-editor__priority {
+.sort-editor__priority,
+.sort-editor__empty {
   color: var(--dp-text-muted);
 }
 

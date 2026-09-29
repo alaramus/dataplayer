@@ -239,7 +239,6 @@ const errorText = computed(() =>
               <span
                 class="record-view__text"
                 :class="{
-                  'record-view__null': cellProps.row.absent,
                   'record-view__monospace': cellProps.row.monospace,
                 }"
                 :title="cellProps.row.text"
@@ -402,10 +401,6 @@ const errorText = computed(() =>
   align-items: center;
   gap: var(--dp-space-half);
   flex: none;
-}
-.record-view__null {
-  color: var(--dp-text-muted);
-  font-style: italic;
 }
 .record-view__monospace {
   font-family: var(--dp-font-mono);

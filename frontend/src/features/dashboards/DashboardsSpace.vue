@@ -440,6 +440,7 @@ defineExpose({
           :dashboard="current"
           :catalog="catalog.data.value"
           :index="index"
+          :busy="creating.isPending.value"
           @agents="agentsOpen = true"
           @deleted="afterDelete"
         />

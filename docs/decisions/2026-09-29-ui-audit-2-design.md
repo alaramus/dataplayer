@@ -77,6 +77,45 @@ dense**: its track starts where the label above it starts and the row is a
 line, not 40px. **A window's subtitle** keeps 4px below its words and draws a
 line under them once the content is scrolled.
 
+## The screens
+
+The kit's rules are only as good as the screens that spend them; the second
+half of the correction went through the screens the audit had flagged.
+
+- **Structure** held its row commands outside its panel at 1440: the table of
+  columns was 726px in 662. The column of commands is held at the right edge
+  while the rest scrolls under it, and a default — which can be a whole
+  expression — is cut at 200px with the whole of it on hover.
+- **Five ways of drawing "current"** that D186 had not reached are the current
+  tab's ground: the run list beside a result (a blue line, which the statement
+  and Messages carried at once), the operation a plan's details describe (in
+  the cost bars' own blue), a workbook's sheet, the section of a document on
+  screen (blue text) and the run a pipeline's canvas shows.
+- **An error is said where it is about.** The value a cell editor could not
+  store is the field's error, not a banner over the form; the reason Declare
+  as table cannot be saved stands beside Save. A connection's form no longer
+  prints zod's "Too small: expected string to have >=1 characters".
+- **A reason something is off** is told beside a menu rather than over its
+  next line, and in a pair of catalogs after a dash, smaller than the command.
+- **Folded parts** of the table designer turn a chevron (`dp-disclosure`);
+  **the query's command row** shows where it scrolls on, as the grid's does,
+  from one class.
+- **The column manager** is an even grid of columns with the header's pin, not
+  a wrapped row of boxes each saying "Pin left"; sorting says what no sort
+  means; the chart's choices are a form with their names above them.
+- **Smaller things**: a catalog says "Reading…" rather than "0 items" while it
+  reads, a grid the same rather than "Rows 0"; a search result's size keeps its
+  column; a narrow connections head gives its title up whole; a restore is
+  decided in its confirmation rather than in red on every row; a diagram opens
+  readable and Fit still shows it whole; a new window is lifted back rather
+  than opened with its foot off screen; a record's null is the grid's; the window's minimize is the
+  workspace's centred dash.
+
+Left as they are, by earlier decisions: a stable window keeps its size when
+its content changes (D132), so the viewer of a short value and a form with one
+field open at their preferred size; the connection window and questions keep
+their size controls (windows.md).
+
 ## What was checked
 
 `tests/kit-scale.spec.ts` reads, on the kit's showcase in both themes, what the
@@ -84,3 +123,5 @@ browser paints: the banner's size, spacing and icon; a table cell's colour; a
 hint's line and colour; every compact field at 32px; a disabled main action's
 ground and opacity; a toggle's track against its row; the face of `<code>`.
 It was run against the kit as it stood before the change and failed there.
+The unit suite, the type check, lint, the build, the documentation check and
+the whole Playwright suite were run after each half.

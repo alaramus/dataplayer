@@ -3,7 +3,6 @@ import { ref, watch } from "vue"
 
 import type { FetchColumn } from "@/client"
 import {
-  AppBanner,
   AppButton,
   AppCheckbox,
   AppForm,
@@ -52,21 +51,10 @@ function save() {
     data-testid="grid-cell-editor"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <!-- What the source refused is said under the value it refused, as any
+         field's error is, rather than in a banner above the whole form; and
+         NULL, the alternative to a value, follows the value (D187). -->
     <AppForm layout="section">
-      <AppBanner
-        v-if="error"
-        tone="error"
-        data-testid="grid-edit-error"
-      >
-        {{ error }}
-      </AppBanner>
-      <AppCheckbox
-        v-if="column.nullable === true"
-        :model-value="isNull"
-        label="Set SQL NULL"
-        data-testid="grid-edit-null"
-        @update:model-value="isNull = $event"
-      />
       <AppSelect
         v-if="column.type.category === 'boolean'"
         :model-value="draft"
@@ -75,6 +63,7 @@ function save() {
           { label: 'False', value: 'false' },
         ]"
         label="Value"
+        :error="error"
         :disable="isNull || saving"
         data-testid="grid-edit-value"
         @update:model-value="draft = String($event)"
@@ -84,9 +73,17 @@ function save() {
         :model-value="draft"
         label="Value"
         :hint="`${column.type.sql} — ${inputHint(column.type)}`"
+        :error="error"
         :disable="isNull || saving"
         data-testid="grid-edit-value"
         @update:model-value="draft = $event"
+      />
+      <AppCheckbox
+        v-if="column.nullable === true"
+        :model-value="isNull"
+        label="Set SQL NULL"
+        data-testid="grid-edit-null"
+        @update:model-value="isNull = $event"
       />
     </AppForm>
     <template #actions>

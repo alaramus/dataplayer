@@ -44,7 +44,8 @@ for (const theme of ["light", "dark"] as const) {
         json: { detail: "This value cannot be stored in the selected column" },
       }))
       await page.getByTestId("grid-edit-save").click()
-      await expect(page.getByTestId("grid-edit-error")).toContainText("cannot be stored")
+      // Said under the value it is about, as any field's error is (D187).
+      await expect(editor.getByRole("alert")).toContainText("cannot be stored")
       await expect(page.getByTestId("grid-edit-save")).toBeEnabled()
       expect(await editor.boundingBox()).toEqual(editorRect)
       await value.focus()

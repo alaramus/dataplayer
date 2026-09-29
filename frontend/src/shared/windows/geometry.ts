@@ -108,8 +108,21 @@ export function place(size: Size, previous: Rect | null, viewport: Size): Rect {
 
   const restart =
     next.x + GRAB_MARGIN > viewport.width || next.y + GRAB_MARGIN > viewport.height
+  const at = restart ? start : next
 
-  return clamp({ ...(restart ? start : next), width, height }, viewport)
+  // A step that would put its foot or its far side off screen lifts it back
+  // rather than starting over: a Guide opened from a window cascaded its foot
+  // off a 720px screen, out of reach of its own resize handle, and starting a
+  // tall window over in the middle laid it exactly on the one before (D187).
+  return clamp(
+    {
+      x: Math.min(at.x, Math.max(0, viewport.width - width)),
+      y: Math.min(at.y, Math.max(0, viewport.height - height)),
+      width,
+      height,
+    },
+    viewport
+  )
 }
 
 /**

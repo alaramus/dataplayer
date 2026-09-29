@@ -4,7 +4,7 @@ import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { FetchColumn } from "@/client"
-import { isReadableNode, roleOf } from "@/features/catalog/nodes"
+import { iconOf, isReadableNode, roleOf } from "@/features/catalog/nodes"
 import type { CatalogNode, PickedNode } from "@/features/catalog/nodes"
 import { useConnectors } from "@/features/connectors/api"
 import { messageOf } from "@/shared/api/errors"
@@ -132,6 +132,7 @@ const here = computed(() => {
     :model-value="sourceId"
     :options="sources"
     :label="props.label ?? 'Source'"
+    :hint="sourceId === '' ? 'The connection the rows come from' : undefined"
     :loading="connectors.isFetching.value"
     :data-testid="`${props.testid}-source`"
     @update:model-value="sourceId = String($event)"
@@ -164,6 +165,7 @@ const here = computed(() => {
       >
         <AppButton
           :label="node.name"
+          :icon="iconOf(node)"
           variant="quiet"
           layout="navigation"
           size="sm"
@@ -194,14 +196,19 @@ const here = computed(() => {
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-sm);
 }
+/* A row of the catalog, with its icon and the width of the list, so the
+   pointer finds the whole line rather than only its word (D187). */
 .node-picker__nodes {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   margin: 0;
   padding: 0;
   list-style: none;
   max-height: 180px;
   overflow: auto;
+}
+.node-picker__nodes :deep(.q-btn .q-icon) {
+  font-size: var(--dp-icon-sm);
 }
 </style>

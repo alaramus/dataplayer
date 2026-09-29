@@ -289,9 +289,11 @@ const columnsWord = computed(() => {
   align-items: center;
   gap: var(--dp-space-2);
 }
+/* Room for the name beside a field and a value after it: at 240px "If the
+   name is taken" left its choice two words and an ellipsis. */
 .link-panel__field {
-  flex: 0 1 240px;
-  min-width: 160px;
+  flex: 0 1 340px;
+  min-width: 200px;
 }
 .link-panel__columns {
   color: var(--dp-text-muted);

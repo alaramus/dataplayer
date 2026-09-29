@@ -239,7 +239,7 @@ export function roleOf(node: CatalogNode): NodeRole {
   return node.representations.length > 0 ? "leaf" : "container"
 }
 
-function iconOf(node: CatalogNode): string {
+export function iconOf(node: CatalogNode): string {
   if (node.kind === "report") {
     return node.has_children ? REPORT_SECTION_ICON : ICONS.report
   }

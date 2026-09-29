@@ -40,68 +40,95 @@ function togglePin(columnName: string) {
     data-testid="grid-column-manager"
     @keyup.esc="emit('close')"
   >
-    <div
-      v-for="(column, index) in orderedColumns"
-      :key="column.id"
-      class="column-manager__item"
-    >
-      <AppCheckbox
-        :model-value="layout.columnVisibility[column.id] !== false"
-        :label="column.label"
-        dense
-        :data-testid="`grid-column-visible-${column.id}`"
-        @update:model-value="setVisible(column.id, $event)"
-      />
-      <AppIconButton
-        :icon="appIcons.arrowUpward"
-        :tooltip="`Move ${column.label} up`"
-        :disable="index === 0"
-        :data-testid="`grid-column-up-${column.id}`"
-        @click="emit('update:layout', moveColumn(layout, column.id, -1))"
-      />
-      <AppIconButton
-        :icon="appIcons.arrowDownward"
-        :tooltip="`Move ${column.label} down`"
-        :disable="index === orderedColumns.length - 1"
-        :data-testid="`grid-column-down-${column.id}`"
-        @click="emit('update:layout', moveColumn(layout, column.id, 1))"
-      />
+    <!-- One column of the grid a cell: every cell the same width, so the
+         checkboxes stand under each other instead of a wrapped row of boxes
+         of every length, and pinning is the header's own pin (D187). -->
+    <div class="column-manager__items">
+      <div
+        v-for="(column, index) in orderedColumns"
+        :key="column.id"
+        class="column-manager__item"
+      >
+        <AppCheckbox
+          class="column-manager__visible"
+          :model-value="layout.columnVisibility[column.id] !== false"
+          :label="column.label"
+          dense
+          :data-testid="`grid-column-visible-${column.id}`"
+          @update:model-value="setVisible(column.id, $event)"
+        />
+        <AppIconButton
+          :icon="appIcons.arrowUpward"
+          :tooltip="`Move ${column.label} up`"
+          :disable="index === 0"
+          compact
+          :data-testid="`grid-column-up-${column.id}`"
+          @click="emit('update:layout', moveColumn(layout, column.id, -1))"
+        />
+        <AppIconButton
+          :icon="appIcons.arrowDownward"
+          :tooltip="`Move ${column.label} down`"
+          :disable="index === orderedColumns.length - 1"
+          compact
+          :data-testid="`grid-column-down-${column.id}`"
+          @click="emit('update:layout', moveColumn(layout, column.id, 1))"
+        />
+        <AppIconButton
+          :icon="appIcons.pushPin"
+          :active="layout.pinnedLeft.includes(column.id)"
+          :aria-pressed="layout.pinnedLeft.includes(column.id)"
+          :tooltip="layout.pinnedLeft.includes(column.id) ? `Unpin ${column.label}` : `Pin ${column.label} to the left`"
+          compact
+          :data-testid="`grid-pin-${column.id}`"
+          @click="togglePin(column.id)"
+        />
+      </div>
+    </div>
+    <div class="column-manager__foot">
       <AppButton
-        :label="layout.pinnedLeft.includes(column.id) ? 'Unpin' : 'Pin left'"
+        label="Reset layout"
         variant="quiet"
         size="sm"
-        :data-testid="`grid-pin-${column.id}`"
-        @click="togglePin(column.id)"
+        data-testid="grid-columns-reset"
+        @click="emit('update:layout', defaultColumnLayout(columns))"
       />
     </div>
-    <AppButton
-      label="Reset layout"
-      variant="quiet"
-      size="sm"
-      data-testid="grid-columns-reset"
-      @click="emit('update:layout', defaultColumnLayout(columns))"
-    />
   </div>
 </template>
 
 <style scoped>
-.column-manager,
-.column-manager__item {
-  display: flex;
-  align-items: center;
-  gap: var(--dp-space-2);
-}
-
 .column-manager {
-  flex-wrap: wrap;
-  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-1);
   padding: var(--dp-space-1) var(--dp-space-2);
   border-top: 1px solid var(--dp-border-faint);
 }
-
+.column-manager__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 var(--dp-space-3);
+  max-height: calc(6 * var(--dp-row-height));
+  overflow: auto;
+}
 .column-manager__item {
-  padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius-control);
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-half);
+  min-width: 0;
+  min-height: var(--dp-row-height-dense);
+}
+.column-manager__visible {
+  flex: 1;
+  min-width: 0;
+}
+.column-manager__visible :deep(.q-checkbox__label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.column-manager__foot {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

@@ -290,6 +290,7 @@ function selectPageSize(value: unknown) {
   }
 }
 const range = computed(() => {
+  if (props.loading && props.rows.length === 0) return "Reading…"
   if (props.rows.length === 0) return "Rows 0"
   return `Rows ${offset.value + 1}–${offset.value + props.rows.length}`
 })

@@ -59,6 +59,12 @@ const props = defineProps<{
   dashboard: DashboardPublic
   catalog: MetricsCatalog | undefined
   index: Map<number, SeriesEntry>
+  /**
+   * Another dashboard is being made and is about to replace this one. Its
+   * commands wait: Rename pressed in that moment opened a window on this
+   * dashboard, which went with it when the new one took its place.
+   */
+  busy?: boolean
 }>()
 
 const emit = defineEmits<{ agents: []; deleted: [] }>()
@@ -294,18 +300,21 @@ onBeforeUnmount(() => {
         v-if="editable"
         :icon="appIcons.edit"
         tooltip="Rename this dashboard"
+        :disable="busy"
         @click="startRename"
       />
       <AppColorPicker
         v-if="editable"
         :model-value="color"
         label="Dashboard color"
+        :disable="busy"
         data-testid="dashboard-color"
         @update:model-value="chooseColor"
       />
       <AppIconButton
         :icon="appIcons.share"
         tooltip="Share this dashboard"
+        :disable="busy"
         data-testid="dashboard-share"
         @click="shareOpen = true"
       />
@@ -314,6 +323,7 @@ onBeforeUnmount(() => {
         :icon="appIcons.delete"
         tooltip="Delete this dashboard"
         variant="danger-quiet"
+        :disable="busy"
         @click="removeDashboard"
       />
       <span class="dashboard-view__spacer" />

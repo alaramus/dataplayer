@@ -277,7 +277,9 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
     data-testid="cross-paste-conflict"
     @update:model-value="closeFrom('conflict')"
   >
-    <p>{{ failure }}. Choose what to do with the pasted {{ intent.sourceNodeIds.length > 1 ? "files" : "file" }}.</p>
+    <p class="cross-paste__message">
+      {{ failure }}. Choose what to do with the pasted {{ intent.sourceNodeIds.length > 1 ? "files" : "file" }}.
+    </p>
     <template #actions>
       <AppButton
         variant="quiet"
@@ -309,5 +311,11 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-2);
+  padding: var(--dp-space-4);
+}
+/* A window's text keeps a window's margin: it stood against the frame. */
+.cross-paste__message {
+  margin: 0;
+  padding: var(--dp-space-4);
 }
 </style>

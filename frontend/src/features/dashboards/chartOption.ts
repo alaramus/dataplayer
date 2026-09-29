@@ -22,6 +22,9 @@ export interface ChartColours {
   palette: string[]
   text: string
   grid: string
+  /** The caption size of the scale, in pixels, read off --dp-font-size-xs. */
+  size: number
+  font: string
 }
 
 export function sharedUnit(series: readonly ChartSeries[]): string | null {
@@ -53,9 +56,13 @@ export function timeseriesOption(series: readonly ChartSeries[], colours: ChartC
     animation: false,
     backgroundColor: "transparent",
     color: colours.palette,
+    // ECharts' own 12px axis and 13px legend, beside an 11px caption scale
+    // and a 13px chrome: the widget's words in the scale's caption size and
+    // face (D187).
+    textStyle: { fontFamily: colours.font, fontSize: colours.size },
     grid: { left: 8, right: 12, top: series.length > 1 ? 28 : 12, bottom: 8, containLabel: true },
     legend: series.length > 1
-      ? { type: "scroll", top: 0, textStyle: { color: colours.text } }
+      ? { type: "scroll", top: 0, textStyle: { color: colours.text, fontSize: colours.size } }
       : { show: false },
     tooltip: {
       trigger: "axis",
@@ -63,7 +70,7 @@ export function timeseriesOption(series: readonly ChartSeries[], colours: ChartC
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: colours.text, hideOverlap: true },
+      axisLabel: { color: colours.text, fontSize: colours.size, hideOverlap: true },
       axisLine: { lineStyle: { color: colours.grid } },
       splitLine: { show: false },
     },
@@ -72,6 +79,7 @@ export function timeseriesOption(series: readonly ChartSeries[], colours: ChartC
       scale: true,
       axisLabel: {
         color: colours.text,
+        fontSize: colours.size,
         formatter: (value: number) => formatValue(value, unit ?? ""),
       },
       splitLine: { lineStyle: { color: colours.grid } },

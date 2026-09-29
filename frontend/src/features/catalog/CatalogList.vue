@@ -108,6 +108,9 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
  * in brackets has to be the number the menu above would act on.
  */
 const countLabel = computed(() => {
+  // Before the level is read there is nothing to count, and "0 items" beside
+  // the spinner said the level was empty.
+  if (props.loading) return "Reading…"
   const total = `${String(props.items.length)} ${props.items.length === 1 ? "item" : "items"}`
   if (props.checked.length === 0) return total
   return `${total} (${String(props.checked.length)} selected)`
@@ -425,19 +428,28 @@ const countLabel = computed(() => {
 }
 /* Names of things, so their left edges line up; measurements, so their right
    edges do. */
+/* Each aside keeps its own column whether or not the row before it has the
+   other ones: a search result with a folder put its size a column to the
+   right of the size of a row without one. */
 .catalog-list__group {
+  grid-column: 4;
   justify-self: start;
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
   padding: 0 var(--dp-space-1);
 }
 .catalog-list__caption {
+  grid-column: 6;
   justify-self: end;
+}
+.catalog-list__location {
+  grid-column: 5;
 }
 /* A narrow catalog gives up the asides before the names: the schema first,
    which the head of the catalog already says, then the count. */
 @container catalog-list (max-width: 300px) {
-  .catalog-list__group {
+  .catalog-list__group,
+  .catalog-list__row--sentence .catalog-list__caption {
     display: none;
   }
 }

@@ -1,5 +1,3 @@
-import { appIcons } from "@/shared/ui/icons"
-
 import { h } from "vue"
 import type { Component } from "vue"
 
@@ -58,7 +56,11 @@ export function questionWindowPreset(
 ): OpenWindow {
   return {
     id,
-    look: { title, icon: appIcons.helpOutline },
+    // No icon: a window's icon names the kind of thing it holds — a
+    // connection, a pair, a widget, the guide — and a question holds none.
+    // The question mark and the warning sign stood beside a title that was
+    // itself the question (D187).
+    look: { title },
     size: { width: 420, height: 200 },
     minSize: { width: 320, height: 160 },
     // A question holds nothing a press could lose.
@@ -67,16 +69,13 @@ export function questionWindowPreset(
   }
 }
 
-/** Destructive questions share one recognisable icon and compact geometry. */
+/** Destructive questions are questions; their red button says the rest. */
 export function deleteWindowPreset(
   id: string,
   title: string,
   component: Component
 ): OpenWindow {
-  return {
-    ...questionWindowPreset(id, title, component),
-    look: { title, icon: appIcons.warningAmber },
-  }
+  return questionWindowPreset(id, title, component)
 }
 
 let confirmations = 0

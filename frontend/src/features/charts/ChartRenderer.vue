@@ -37,11 +37,21 @@ function palette(element: HTMLElement): string[] {
     .filter((colour) => colour.length > 0)
 }
 
+/** The scale's caption size and face, for every word the chart draws (D187). */
+function textStyle(element: HTMLElement): { fontFamily: string; fontSize: number } {
+  const style = getComputedStyle(element)
+  return {
+    fontFamily: style.getPropertyValue("--dp-font-ui").trim(),
+    fontSize: Number.parseFloat(style.getPropertyValue("--dp-font-size-xs")) || 11,
+  }
+}
+
 function optionFor(element: HTMLElement, option: EChartsOption): EChartsOption {
   return {
     ...option,
     backgroundColor: "transparent",
     color: palette(element),
+    textStyle: textStyle(element),
   }
 }
 

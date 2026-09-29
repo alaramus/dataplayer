@@ -69,8 +69,8 @@ const props = withDefaults(
     multiple?: boolean
     /**
      * What several of these are called, for the line that says how many are
-     * chosen: "4 schemas selected". Without it the count stands alone, which
-     * is all a field can honestly say about values it does not name.
+     * chosen: "4 schemas". Without it the count stands alone as "4 selected",
+     * which is all a field can honestly say about values it does not name.
      */
     summaryNoun?: string
     /**
@@ -158,7 +158,7 @@ const summary = computed(() => {
   if (rest.length === 0) return first
   const noun = props.summaryNoun?.trim().toLowerCase()
   const count = String(chosen.value.length)
-  return noun ? `${count} ${noun} selected` : `${count} selected`
+  return noun ? `${count} ${noun}` : `${count} selected`
 })
 </script>
 

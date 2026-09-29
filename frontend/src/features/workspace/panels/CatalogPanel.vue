@@ -1030,7 +1030,8 @@ async function afterAction(outcome: ActionOutcome) {
               v-for="framework in frameworks"
               :key="framework.id"
               :label="framework.title"
-              :variant="level.filter.value === framework.table_filter ? 'primary' : 'secondary'"
+              :variant="level.filter.value === framework.table_filter ? 'current' : 'quiet'"
+              class="catalog-panel__framework"
               :aria-pressed="level.filter.value === framework.table_filter"
               :data-testid="`catalog-framework-${framework.id}`"
               size="sm"
@@ -1169,6 +1170,16 @@ async function afterAction(outcome: ActionOutcome) {
   align-items: center;
   gap: var(--dp-space-1);
 }
+/* A chip, as a schema beside a row is: the filter it turns on is a fact about
+   the list, and a button of the chrome's size stood as the loudest thing in
+   the head (D187). */
+.catalog-panel__framework {
+  min-height: var(--dp-control-height-compact);
+  padding: 0 var(--dp-space-1);
+  border: 1px solid var(--dp-border);
+  font-size: var(--dp-font-size-xs);
+  font-weight: 400;
+}
 /* One line of one height, whatever the source puts in it.
    A button and the menu are 32px, a field is 40, and a source with no
    groupings puts neither — so the height is stated here rather than left to
@@ -1210,6 +1221,14 @@ async function afterAction(outcome: ActionOutcome) {
   }
   .catalog-panel__beside {
     display: none;
+  }
+}
+/* Narrower still — the catalog at 1024 pixels of screen — the choice gives up
+   width before the menu is pushed past the edge: at 96px it put ⋮ outside
+   the column (D187). */
+@container catalog-bar (max-width: 240px) {
+  .catalog-panel__groups {
+    min-width: 64px;
   }
 }
 /* The field fills its wrapper, whose test id the scenarios click: the click

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue"
 
 import type { FetchColumn } from "@/client"
-import { AppButton, AppEmptyState, AppSelect } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppForm, AppSelect } from "@/shared/ui"
 
 import ChartRenderer from "./ChartRenderer.vue"
 import { isValidChartSpec, numericMeasureNames, suggestCharts } from "./model"
@@ -136,35 +136,41 @@ function chooseSuggestion(value: unknown): void {
     class="chart-view"
   >
     <aside class="chart-view__controls">
-      <AppSelect
-        :model-value="selectedSuggestion"
-        :options="suggestionOptions"
-        label="Suggested view"
-        data-testid="chart-suggestion"
-        @update:model-value="chooseSuggestion"
-      />
-      <AppSelect
-        :model-value="spec.type"
-        :options="chartTypes"
-        label="Chart type"
-        data-testid="chart-type"
-        @update:model-value="setType"
-      />
-      <AppSelect
-        :model-value="dimensionField(spec)"
-        :options="dimensionOptions"
-        :label="spec.type === 'pie' ? 'Label' : 'X axis'"
-        data-testid="chart-dimension"
-        @update:model-value="setDimension"
-      />
-      <AppSelect
-        :model-value="measureField(spec)"
-        :options="measureOptions"
-        :label="spec.type === 'pie' ? 'Value' : 'Y axis'"
-        data-testid="chart-measure"
-        @update:model-value="setMeasure"
-      />
+      <!-- A form, so each choice names itself outside its field (D185): as
+           Quasar's floating labels they stood over their values 56px tall.
+           The column is narrow, so the form stacks each name above. -->
+      <AppForm class="chart-view__form">
+        <AppSelect
+          :model-value="selectedSuggestion"
+          :options="suggestionOptions"
+          label="Suggested view"
+          data-testid="chart-suggestion"
+          @update:model-value="chooseSuggestion"
+        />
+        <AppSelect
+          :model-value="spec.type"
+          :options="chartTypes"
+          label="Chart type"
+          data-testid="chart-type"
+          @update:model-value="setType"
+        />
+        <AppSelect
+          :model-value="dimensionField(spec)"
+          :options="dimensionOptions"
+          :label="spec.type === 'pie' ? 'Label' : 'X axis'"
+          data-testid="chart-dimension"
+          @update:model-value="setDimension"
+        />
+        <AppSelect
+          :model-value="measureField(spec)"
+          :options="measureOptions"
+          :label="spec.type === 'pie' ? 'Value' : 'Y axis'"
+          data-testid="chart-measure"
+          @update:model-value="setMeasure"
+        />
+      </AppForm>
       <AppButton
+        class="chart-view__best-fit"
         label="Best fit"
         variant="secondary"
         size="sm"
@@ -206,6 +212,18 @@ function chooseSuggestion(value: unknown): void {
   border-right: 1px solid var(--dp-border);
 }
 
+/* A command under the choices starts where they do; stretched across the
+   column its label stood alone in the middle. */
+.chart-view__best-fit {
+  align-self: flex-start;
+}
+
+.chart-view__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+}
+
 .chart-view__chart {
   min-width: 0;
   min-height: 0;
@@ -226,10 +244,13 @@ function chooseSuggestion(value: unknown): void {
   }
 
   .chart-view__controls {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(140px, 1fr));
     border-right: 0;
     border-bottom: 1px solid var(--dp-border);
+  }
+
+  .chart-view__form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
 }
 </style>

@@ -102,4 +102,12 @@ function change(name: string, patch: Partial<ParameterEntry>) {
   flex: 0 1 260px;
   min-width: 0;
 }
+/* Underlined, as the catalog's filter is: borderless, the value read as a
+   placeholder word beside the name rather than a place to type (D187). */
+.parameters__value :deep(.q-field__control) {
+  box-shadow: inset 0 -1px 0 var(--dp-border-strong);
+}
+.parameters__value:focus-within :deep(.q-field__control) {
+  box-shadow: inset 0 -2px 0 var(--dp-focus-border);
+}
 </style>

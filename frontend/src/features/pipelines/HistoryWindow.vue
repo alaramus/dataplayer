@@ -71,7 +71,12 @@ const lines = computed(() => (history.data.value ?? []).map((row) => historyLine
             <span
               class="history-window__said"
               :class="`history-window__said--${line.tone}`"
-            >{{ line.said }}</span>
+            ><q-icon
+              v-if="line.tone === 'caution'"
+              class="history-window__caution"
+              :name="appIcons.warningAmber"
+              size="var(--dp-icon-sm)"
+            />{{ line.said }}</span>
             <span class="history-window__detail">{{ line.detail }}</span>
           </button>
           <div
@@ -82,7 +87,12 @@ const lines = computed(() => (history.data.value ?? []).map((row) => historyLine
             <span
               class="history-window__said"
               :class="`history-window__said--${line.tone}`"
-            >{{ line.said }}</span>
+            ><q-icon
+              v-if="line.tone === 'caution'"
+              class="history-window__caution"
+              :name="appIcons.warningAmber"
+              size="var(--dp-icon-sm)"
+            />{{ line.said }}</span>
             <span class="history-window__detail">{{ line.detail }}</span>
           </div>
         </template>
@@ -115,16 +125,20 @@ const lines = computed(() => (history.data.value ?? []).map((row) => historyLine
 .history-window__row--run:hover {
   background: var(--dp-hover);
 }
+/* The run shown on the canvas, drawn as a current tab is (D186). */
 .history-window__row--shown,
 .history-window__row--shown:hover {
-  background: var(--dp-selected);
+  background: var(--dp-tab-current);
 }
 .history-window__said {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.history-window__said--caution {
+/* A run that stopped short says so with its icon; the sentence stays the
+   list's text, a whole line of amber being louder than what it reports. */
+.history-window__caution {
+  margin-inline-end: var(--dp-space-1);
   color: var(--dp-tone-warning-text);
 }
 .history-window__said--muted {

@@ -91,9 +91,19 @@ const COLUMNS = [
   { name: "name", label: "Column", field: "name", align: "left" as const },
   { name: "type", label: "Type", field: "type", align: "left" as const },
   { name: "nullable", label: "Null", field: "nullable", align: "left" as const },
-  { name: "default", label: "Default", field: "default", align: "left" as const },
+  // A default can be a whole expression; it is cut in its own column rather
+  // than pushing the commands of every row past the panel's edge.
+  {
+    name: "default", label: "Default", field: "default", align: "left" as const,
+    classes: "structure-view__default", headerClasses: "structure-view__default",
+  },
   { name: "keys", label: "Keys", field: "keys", align: "left" as const },
-  { name: "actions", label: "", field: "actions", align: "right" as const },
+  // Held at the right edge while the columns scroll under it: at 1440 the
+  // table was wider than its panel and Drop stood outside it (D187).
+  {
+    name: "actions", label: "", field: "actions", align: "right" as const,
+    classes: "structure-view__actions", headerClasses: "structure-view__actions",
+  },
 ]
 
 const rows = computed(() =>
@@ -564,6 +574,11 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               </AppButton>
             </q-td>
           </template>
+          <template #body-cell-default="cellProps">
+            <q-td :props="cellProps">
+              <span :title="cellProps.value || undefined">{{ cellProps.value }}</span>
+            </q-td>
+          </template>
           <template #body-cell-keys="cellProps">
             <q-td :props="cellProps">
               <span
@@ -587,6 +602,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                   : `Change default for ${cellProps.row.name}`"
                 :disable="!supportsColumn('default') || cellProps.row.generated"
                 :data-testid="`structure-default-${cellProps.row.name}`"
+                compact
                 @click="openDefault(String(cellProps.row.name), cellProps.row.currentDefault)"
               />
               <AppIconButton
@@ -594,6 +610,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 :tooltip="changeTooltip('rename', `Rename column ${cellProps.row.name}`)"
                 :disable="!supportsColumn('rename')"
                 :data-testid="`structure-rename-${cellProps.row.name}`"
+                compact
                 @click="openRename(String(cellProps.row.name))"
               />
               <AppIconButton
@@ -603,6 +620,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 :disable="!supportsColumn('drop')"
                 :loading="dropping === cellProps.row.name"
                 :data-testid="`structure-drop-${cellProps.row.name}`"
+                compact
                 @click="drop(String(cellProps.row.name))"
               />
             </q-td>
@@ -840,7 +858,25 @@ async function changeDefault(action: "set" | "drop", value?: string) {
 .structure-view__list {
   margin: 0;
   padding-left: var(--dp-space-4);
-  font-size: var(--dp-font-size-sm);
+}
+/* The table fills the panel rather than standing on it as a card, so the
+   column held at the edge has a ground to hide the scrolled cells under. */
+.structure-view :deep(.app-table) {
+  background: var(--dp-surface);
+}
+.structure-view :deep(.structure-view__default) {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.structure-view :deep(.structure-view__actions) {
+  position: sticky;
+  right: 0;
+  z-index: var(--dp-layer-sticky);
+  background: var(--dp-surface);
+  box-shadow: -1px 0 0 var(--dp-border-faint);
+  white-space: nowrap;
 }
 .structure-view__index {
   display: flex;

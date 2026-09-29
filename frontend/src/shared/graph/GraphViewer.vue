@@ -16,7 +16,7 @@ const selection = ref<GraphSelection>(null)
 const search = ref("")
 const loading = ref(false)
 const layoutError = ref("")
-const surface = ref<{ fit: () => void; zoom: (factor: number) => void; focus: (id: string) => void }>()
+const surface = ref<{ fit: (whole?: boolean) => void; zoom: (factor: number) => void; focus: (id: string) => void }>()
 const problem = computed(() => graphProblem(props.graph))
 const graph = computed(() => groupGraph(props.graph, view.value.groupId))
 const ready = computed(() => props.graph.nodes.every((node) => Object.hasOwn(view.value.positions2, node.id) && Object.hasOwn(view.value.positions3, node.id)))
@@ -128,7 +128,7 @@ onBeforeUnmount(stopLayout)
         tooltip="Fit graph"
         data-testid="graph-fit"
         :disable="!ready"
-        @click="surface?.fit()"
+        @click="surface?.fit(true)"
       />
       <AppIconButton
         :icon="appIcons.add"

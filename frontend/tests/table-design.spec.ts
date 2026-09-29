@@ -55,7 +55,8 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   expect(navigation).not.toBeNull()
   expect(inspector).not.toBeNull()
   expect(preview).not.toBeNull()
-  expect(navigation!.width).toBeCloseTo(175, 0)
+  // 208px: at 175 "Storage & partitioning" broke onto a second line (D187).
+  expect(navigation!.width).toBeCloseTo(208, 0)
   expect(navigation!.x + navigation!.width).toBeCloseTo(inspector!.x, 0)
   expect(inspector!.x + inspector!.width).toBeCloseTo(preview!.x, 0)
   await expect(frame.getByText("Create table", { exact: true })).toHaveCount(1)

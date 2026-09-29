@@ -11,6 +11,18 @@ const DELAY_MS = 250
  */
 const tip = useTemplateRef<{ hide: () => void }>("tip")
 
+withDefaults(
+  defineProps<{
+    /**
+     * Beside its anchor rather than below it: a menu's line says why it is
+     * off to the right of the menu, where it covers none of the other lines
+     * — below, the reason for Paste lay over New schema (D187).
+     */
+    beside?: boolean
+  }>(),
+  { beside: false }
+)
+
 /**
  * A tab that is switched away from takes its tooltips with it.
  *
@@ -31,6 +43,9 @@ onDeactivated(() => {
     ref="tip"
     :delay="DELAY_MS"
     class="app-tooltip"
+    :anchor="beside ? 'center right' : undefined"
+    :self="beside ? 'center left' : undefined"
+    :offset="beside ? [20, 0] : undefined"
   >
     <slot />
   </q-tooltip>

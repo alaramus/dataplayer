@@ -44,6 +44,33 @@ samp {
   font-size: var(--dp-font-size-mono);
 }
 
+/* A part of a form folded away (D187). Quasar makes a summary a block, which
+   drops the browser's own triangle, and "Type parameters & array" stood as
+   one more muted line that did not look as though it opened. The chevron is
+   the icon font's, turned when the part is open. */
+.dp-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-1);
+  color: var(--dp-text);
+  cursor: pointer;
+  list-style: none;
+}
+.dp-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.dp-disclosure > summary::before {
+  content: "chevron_right";
+  font-family: "Material Symbols Outlined";
+  font-size: var(--dp-icon-sm);
+  line-height: 1;
+  color: var(--dp-text-muted);
+  transition: transform 0.15s;
+}
+.dp-disclosure[open] > summary::before {
+  transform: rotate(90deg);
+}
+
 /* The overline: a group's heading above its content, in capitals. Fifteen
    screens drew their own in 10 to 12px and four letter spacings. */
 .dp-overline {

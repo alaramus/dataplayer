@@ -83,7 +83,7 @@ function addUnique(): void {
           @update:model-value="membership(unique.columnIds, column.id, $event)"
         />
       </div>
-      <details class="constraints__advanced">
+      <details class="constraints__advanced dp-disclosure">
         <summary>Deferrability</summary>
         <AppCheckbox
           v-model="unique.deferrable"
@@ -136,7 +136,7 @@ function addUnique(): void {
         />
       </div>
     </section>
-    <details class="constraints__advanced">
+    <details class="constraints__advanced dp-disclosure">
       <summary>Primary key · column order</summary>
       <AppSelect
         v-model="draft.primaryKey"

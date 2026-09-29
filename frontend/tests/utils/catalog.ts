@@ -60,7 +60,7 @@ export async function hideSchema(page: Page, schema: string) {
  * Which groupings the level is showing.
  *
  * Read off the field's own value rather than off what it draws: a toolbar is
- * one line, so what is drawn is "3 schemas selected" while the names stay in
+ * one line, so what is drawn is "3 schemas" while the names stay in
  * the value the field carries for anything that asks — which is also what a
  * screen reader is told.
  *

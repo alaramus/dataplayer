@@ -890,7 +890,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="query-panel">
     <div
-      class="query-panel__bar"
+      class="query-panel__bar dp-scroll-edges"
       data-testid="query-bar"
     >
       <AppInput

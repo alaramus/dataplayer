@@ -360,11 +360,11 @@ function showReferenced(target: ReferencedRows) {
 .rows-panel__sheet:hover:not(.rows-panel__sheet--here) {
   background: var(--dp-hover);
 }
-/* The one being read, marked the way the tab strip above marks a tab: a
-   ground it keeps and a line under it. */
+/* The one being read, marked the way a current tab is (D186): the tab
+   ground and 500, not the blue of a ticked row and a line under it. */
 .rows-panel__sheet--here {
-  background: var(--dp-selected);
+  background: var(--dp-tab-current);
   color: var(--dp-text);
-  box-shadow: inset 0 -2px 0 var(--dp-link);
+  font-weight: 500;
 }
 </style>

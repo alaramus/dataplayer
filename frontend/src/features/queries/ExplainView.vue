@@ -173,7 +173,6 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
   width: 100%;
   padding: var(--dp-space-1) var(--dp-space-2);
   border: none;
-  border-inline-start: 2px solid transparent;
   background: none;
   color: inherit;
   font: inherit;
@@ -183,9 +182,12 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
 .explain__row:hover {
   background: var(--dp-hover);
 }
-.explain__row--chosen {
-  border-inline-start-color: var(--dp-link);
-  background: var(--dp-selected-quiet);
+/* The operation the details beside describe, on the current ground (D186):
+   in the cost bars' own blue it was a bar like the others. */
+.explain__row--chosen,
+.explain__row--chosen:hover {
+  background: var(--dp-tab-current);
+  font-weight: 500;
 }
 /* How much of the plan's estimated cost this operation carries, behind the
    row rather than as another column to read. */

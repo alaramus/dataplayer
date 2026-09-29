@@ -47,6 +47,9 @@ function showReferenced(target: ReferencedRows) {
 <template>
   <div class="record-panel">
     <div class="record-panel__bar">
+      <!-- What the panel is about, where every other panel's head says it:
+           the commands alone stood at the right of an empty line. -->
+      <span class="record-panel__title">{{ title }}</span>
       <PanelCommands
         :panel-id="panelId"
         :reveal="{ connectorId, nodeId, label: title }"
@@ -79,8 +82,16 @@ function showReferenced(target: ReferencedRows) {
 .record-panel__bar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   flex: none;
   gap: var(--dp-space-half);
+}
+.record-panel__title {
+  flex: 1;
+  min-width: 0;
+  padding-left: var(--dp-space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
 }
 </style>

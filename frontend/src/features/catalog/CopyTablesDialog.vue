@@ -29,6 +29,7 @@ import {
   AppRadioGroup,
   AppSelect,
   AppSpinner,
+  appIcons,
 } from "@/shared/ui"
 import type { RadioOption } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -390,6 +391,7 @@ function copy() {
           variant="quiet"
           size="sm"
           :label="sqlShown ? 'Hide the SQL' : 'Show the SQL'"
+          :icon="sqlShown ? appIcons.keyboardArrowUp : appIcons.keyboardArrowDown"
           data-testid="copy-tables-sql-toggle"
           @click="sqlShown = !sqlShown"
         />

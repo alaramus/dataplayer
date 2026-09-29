@@ -32,7 +32,8 @@ test("opens a tab in a window from its own commands, keeps the grid page and dar
   const firstPage = await page.getByTestId("grid-page-range").innerText()
   await page.getByTestId("grid-next").click()
   await expect(page.getByTestId("grid-page-range")).not.toHaveText(firstPage)
-  await expect(page.getByTestId("grid-page-range")).not.toHaveText("Rows 0")
+  // A page that is still being read says "Reading…", which is not a range.
+  await expect(page.getByTestId("grid-page-range")).toHaveText(/^Rows [1-9]/)
   const range = await page.getByTestId("grid-page-range").innerText()
   const tab = rowsTabs(page).first()
   // In the tab's own group of the row, beside reload and Show in catalog

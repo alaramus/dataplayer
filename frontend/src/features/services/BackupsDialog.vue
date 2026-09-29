@@ -185,7 +185,7 @@ async function putBack(filename: string) {
             </span>
           </div>
           <AppButton
-            variant="danger-quiet"
+            variant="secondary"
             label="Restore"
             :disable="working || !available"
             :data-testid="`restore-${file.filename}`"

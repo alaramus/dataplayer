@@ -373,7 +373,7 @@ async function copy(text: string, what: string) {
         <AppForm layout="section">
           <AppInput
             v-model="hostname"
-            label="Host name it reports as"
+            label="Reported host name"
             hint="Empty: the name the host has"
             compact
           />

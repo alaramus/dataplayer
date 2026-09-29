@@ -86,7 +86,7 @@ describe("AppSelect", () => {
 
     // Not "public +2": naming one of them makes it look chosen in a way the
     // others are not, and which one leads is the order they were ticked in.
-    expect(wrapper.get(".app-select__summary").text()).toBe("3 schemas selected")
+    expect(wrapper.get(".app-select__summary").text()).toBe("3 schemas")
   })
 
   it("counts without a noun where the caller has not given one", () => {

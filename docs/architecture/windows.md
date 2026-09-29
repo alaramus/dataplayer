@@ -82,6 +82,9 @@ Consequences:
   longer existed.
 - **A new window opens in the middle of the screen.** At a corner it lands on
   the column it was opened from and covers the control that opens the next one.
+  The next one steps down and right from the last and is lifted back when the
+  step would put its foot or its far side off screen (D187): measured by its
+  grab strip only, a 680px Guide cascaded its foot out of reach.
 - **The server says how the form is laid out.** `layout()` on a field names its
   tab and the row it shares. Left to the screen, the rule that a host and a port
   are one address would be inferred from a port being a number, in a component

@@ -94,65 +94,69 @@ function add() {
     sizing="stable"
     data-testid="add-widgets"
   >
-    <AppEmptyState
-      v-if="nodes.length === 0 || nodes.every((source) => (source.children ?? []).length === 0)"
-      icon="sensors_off"
-      text="Nothing has reported anything yet. Register an agent, or switch a connection's reporting on, in Sources."
-    />
-    <div
-      v-else
-      class="add-widgets__presets"
-      data-testid="add-widgets-presets"
-    >
-      <span
-        v-if="target === null"
-        class="add-widgets__hint"
-      >Select a host or a connection to see its ready-made layouts, or tick what to draw.</span>
-      <AppSpinner v-else-if="presets.isPending.value" />
-      <span
-        v-else-if="presets.isError.value"
-        class="add-widgets__hint"
-      >{{ messageOf(presets.error.value, "The layouts could not be read") }}</span>
-      <template v-else>
-        <div
-          v-for="preset in presets.data.value ?? []"
-          :key="preset.key"
-          class="add-widgets__preset"
-        >
-          <div class="add-widgets__preset-text">
-            <span>{{ preset.name }} for {{ target.label }}</span>
-            <span class="add-widgets__hint">{{ preset.description }} {{ preset.widgets.length }} of {{ preset.total }} widgets.</span>
-          </div>
-          <AppButton
-            variant="secondary"
-            size="sm"
-            :icon="appIcons.dashboardCustomize"
-            label="Add layout"
-            :disable="preset.widgets.length === 0 || room === 0"
-            :data-testid="`add-preset-${preset.key}`"
-            @click="addPreset(preset.widgets)"
-          />
-        </div>
-      </template>
-    </div>
-    <AppTree
-      v-if="nodes.length > 0"
-      v-model:expanded="expanded"
-      v-model:ticked="ticked"
-      v-model:selected="selected"
-      :nodes="nodes"
-      node-key="key"
-      tickable
-      data-testid="add-widgets-tree"
-    >
-      <template #default-header="{ node }">
-        <span>{{ node.label }}</span>
+    <!-- A list rather than a form, so it brings the window's margin itself:
+         its first line stood against the frame. -->
+    <div class="add-widgets">
+      <AppEmptyState
+        v-if="nodes.length === 0 || nodes.every((source) => (source.children ?? []).length === 0)"
+        icon="sensors_off"
+        text="Nothing has reported anything yet. Register an agent, or switch a connection's reporting on, in Sources."
+      />
+      <div
+        v-else
+        class="add-widgets__presets"
+        data-testid="add-widgets-presets"
+      >
         <span
-          v-if="node.caption"
-          class="add-widgets__unit"
-        >{{ node.caption }}</span>
-      </template>
-    </AppTree>
+          v-if="target === null"
+          class="add-widgets__hint"
+        >Select a host or a connection to see its ready-made layouts, or tick what to draw.</span>
+        <AppSpinner v-else-if="presets.isPending.value" />
+        <span
+          v-else-if="presets.isError.value"
+          class="add-widgets__hint"
+        >{{ messageOf(presets.error.value, "The layouts could not be read") }}</span>
+        <template v-else>
+          <div
+            v-for="preset in presets.data.value ?? []"
+            :key="preset.key"
+            class="add-widgets__preset"
+          >
+            <div class="add-widgets__preset-text">
+              <span>{{ preset.name }} for {{ target.label }}</span>
+              <span class="add-widgets__hint">{{ preset.description }} {{ preset.widgets.length }} of {{ preset.total }} widgets.</span>
+            </div>
+            <AppButton
+              variant="secondary"
+              size="sm"
+              :icon="appIcons.dashboardCustomize"
+              label="Add layout"
+              :disable="preset.widgets.length === 0 || room === 0"
+              :data-testid="`add-preset-${preset.key}`"
+              @click="addPreset(preset.widgets)"
+            />
+          </div>
+        </template>
+      </div>
+      <AppTree
+        v-if="nodes.length > 0"
+        v-model:expanded="expanded"
+        v-model:ticked="ticked"
+        v-model:selected="selected"
+        :nodes="nodes"
+        node-key="key"
+        tickable
+        data-testid="add-widgets-tree"
+      >
+        <template #default-header="{ node }">
+          <span>{{ node.label }}</span>
+          <span
+            v-if="node.caption"
+            class="add-widgets__unit"
+          >{{ node.caption }}</span>
+        </template>
+      </AppTree>
+    </div>
 
     <template #actions>
       <span class="add-widgets__summary">{{ summary }}</span>
@@ -178,6 +182,9 @@ function add() {
 </template>
 
 <style scoped>
+.add-widgets {
+  padding: var(--dp-space-2) var(--dp-space-4);
+}
 .add-widgets__presets {
   display: flex;
   flex-direction: column;
@@ -210,6 +217,7 @@ function add() {
 
 .add-widgets__summary {
   margin-right: auto;
+  padding-left: var(--dp-space-2);
   color: var(--dp-text-muted);
 }
 </style>

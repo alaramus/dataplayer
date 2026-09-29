@@ -94,6 +94,7 @@ const groups = computed(() => [
       >
         <q-icon
           :name="group.icon"
+          size="var(--dp-icon-sm)"
           aria-hidden="true"
         />
         <span>{{ row.label }}</span>
@@ -111,6 +112,8 @@ const groups = computed(() => [
   background: var(--dp-chrome-raised);
   border-right: 1px solid var(--dp-border);
 }
+/* Trap: `font: inherit` here undid the overline it carries — the headings
+   stood at the body's 13px and 400 in capitals, an overline of their own. */
 .navigation__header {
   display: flex;
   justify-content: space-between;
@@ -119,7 +122,7 @@ const groups = computed(() => [
   border: 0;
   padding: var(--dp-space-2) var(--dp-space-2) var(--dp-space-half);
   background: transparent;
-  font: inherit;
+  font-family: inherit;
   cursor: pointer;
 }
 .navigation__row {
@@ -127,7 +130,8 @@ const groups = computed(() => [
   align-items: center;
   gap: var(--dp-space-2);
   width: 100%;
-  padding: var(--dp-space-2) var(--dp-space-2);
+  min-height: var(--dp-row-height);
+  padding: var(--dp-space-1) var(--dp-space-2);
   border: 0;
   border-radius: var(--dp-radius-control);
   background: transparent;
@@ -144,8 +148,9 @@ const groups = computed(() => [
   background: var(--dp-hover);
 }
 .navigation__row[aria-current="true"] {
-  background: var(--dp-active);
+  background: var(--dp-tab-current);
   color: inherit;
+  font-weight: 500;
 }
 .navigation__row--wrong {
   text-decoration: underline wavy var(--dp-content-error);

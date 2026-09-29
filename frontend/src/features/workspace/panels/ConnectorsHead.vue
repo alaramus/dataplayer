@@ -86,11 +86,19 @@ function closeFilter() {
   display: flex;
   align-items: center;
   gap: var(--dp-space-1);
+  container: connectors-head / inline-size;
 }
 .connectors-head__filter {
   flex: 1;
   min-width: 0;
   --dp-field-height: calc(var(--dp-tab-strip-height) - 1px);
+}
+/* Too narrow for the whole word, the title goes rather than be cut to
+   "Connect…" or "C..": the column says what it is by its rows. */
+@container connectors-head (max-width: 200px) {
+  .connectors-head__title {
+    visibility: hidden;
+  }
 }
 /* Takes the room left, so the commands stand at the right-hand end. */
 .connectors-head__title {

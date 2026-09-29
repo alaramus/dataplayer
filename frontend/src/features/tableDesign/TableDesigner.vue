@@ -569,7 +569,10 @@ function moveColumn(by: number): void {
             </div>
             <div :class="{ 'designer__sql--stale': stale }">
               <DesignSql :sql="selectedSql" />
-              <details v-if="previewStatements.length">
+              <details
+                v-if="previewStatements.length"
+                class="dp-disclosure"
+              >
                 <summary>Full creation script</summary>
                 <DesignSql :sql="script" />
               </details>
@@ -658,7 +661,7 @@ function moveColumn(by: number): void {
 .designer__body {
   flex: 1;
   display: grid;
-  grid-template-columns: 175px minmax(0, 1fr) minmax(250px, 0.78fr);
+  grid-template-columns: 208px minmax(0, 1fr) minmax(250px, 0.78fr);
   grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
@@ -712,8 +715,6 @@ function moveColumn(by: number): void {
 }
 .designer__sql summary {
   padding: var(--dp-space-2) var(--dp-space-3);
-  cursor: pointer;
-  color: var(--dp-text-muted);
 }
 .designer__problems {
   padding: var(--dp-space-2) var(--dp-space-3);

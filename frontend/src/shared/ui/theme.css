@@ -409,6 +409,22 @@ body.body--dark {
     0 2px 8px var(--dp-shadow-soft);
 }
 
+/* A row of commands that scrolls sideways shows a shadow at an edge while
+   there is more beyond it (D186): cut off with no sign, the last command
+   looked broken rather than out of view. The covers scroll with the content
+   and hide each shadow when its end is reached; the shadows stay with the
+   box. Drawn on the surface a panel's rows stand on. */
+.dp-scroll-edges {
+  background:
+    linear-gradient(to right, var(--dp-surface) 30%, transparent) left / var(--dp-space-5) 100%,
+    linear-gradient(to left, var(--dp-surface) 30%, transparent) right / var(--dp-space-5) 100%,
+    radial-gradient(farthest-side at 0 50%, var(--dp-shadow-soft), transparent) left / var(--dp-space-3) 100%,
+    radial-gradient(farthest-side at 100% 50%, var(--dp-shadow-soft), transparent) right / var(--dp-space-3) 100%;
+  background-color: var(--dp-surface);
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
+}
+
 /* A table's cells read in --dp-text as well (D187). Quasar paints a table's
    card #000, and everything it draws dark #fff (`.q-dark`): the one block of
    text on the screen a shade harder than every word beside it. */

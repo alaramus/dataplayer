@@ -45,6 +45,19 @@ describe("placing a new window", () => {
     expect(rect.y + GRAB_MARGIN).toBeLessThanOrEqual(VIEWPORT.height)
   })
 
+  // A Guide of 680px opened from a window cascaded its foot off a 720px
+  // screen, out of reach of its own resize handle (D187).
+  it("lifts the next one rather than put its foot off screen", () => {
+    const tall = { width: 720, height: 680 }
+    const viewport = { width: 1280, height: 720 }
+    const first = place(tall, null, viewport)
+    const rect = place(tall, first, viewport)
+
+    expect(rect.y + rect.height).toBeLessThanOrEqual(viewport.height)
+    // Lifted, not started over: laid exactly on the first, the second hid it.
+    expect(rect).not.toEqual(first)
+  })
+
   it("shrinks a window that cannot fit the viewport", () => {
     const rect = place({ width: 900, height: 900 }, null, { width: 400, height: 300 })
 

@@ -83,7 +83,10 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
         <q-item-section>
           <span class="app-menu__label">
             {{ item.label }}
-            <AppTooltip v-if="item.hint">{{ item.hint }}</AppTooltip>
+            <AppTooltip
+              v-if="item.hint"
+              beside
+            >{{ item.hint }}</AppTooltip>
           </span>
         </q-item-section>
         <q-item-section
@@ -122,4 +125,7 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
    inside takes the pointer back, which is enough for a hover and not enough
    for a click — the item's own handler refuses a disabled line anyway. */
 .app-menu__label { pointer-events: auto; }
+/* The whole width of the line, so a reason told beside it starts past the
+   menu's edge rather than after the last letter of the label. */
+.app-menu__label { display: block; }
 </style>

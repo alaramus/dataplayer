@@ -27,6 +27,8 @@ function colours(element: HTMLElement) {
     palette: [1, 2, 3, 4, 5].map((index) => token(`--dp-chart-${String(index)}`)).filter(Boolean),
     text: token("--dp-text-muted"),
     grid: token("--dp-border-faint"),
+    size: Number.parseFloat(token("--dp-font-size-xs")) || 11,
+    font: token("--dp-font-ui"),
   }
 }
 

@@ -80,16 +80,20 @@ onBeforeUnmount(() => {
         :data-closing="closing"
         data-testid="transaction-countdown"
       >Rolls back in {{ countdown }}</span>
+      <!-- A failed transaction can only be rolled back, so Commit is not
+           offered at all and Roll back is the one action (D187): a disabled
+           Commit beside it read as the thing to press. -->
       <AppButton
+        v-if="!state.broken"
         variant="primary"
         size="sm"
         label="Commit"
-        :disable="busy || state.broken"
+        :disable="busy"
         data-testid="transaction-commit"
         @click="emit('commit')"
       />
       <AppButton
-        variant="secondary"
+        :variant="state.broken ? 'primary' : 'secondary'"
         size="sm"
         label="Roll back"
         :disable="busy"

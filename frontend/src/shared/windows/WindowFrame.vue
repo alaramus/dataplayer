@@ -198,8 +198,11 @@ const resizeEdges: ResizeEdge[] = [
           :data-testid="action.testid"
           @click="action.run()"
         />
+        <!-- The dash a workspace section is put aside with, drawn on the line
+             of its neighbours: Material's "minimize" sits on the baseline,
+             under the square and the cross beside it (D187). -->
         <AppIconButton
-          :icon="appIcons.minimize"
+          :icon="appIcons.remove"
           tooltip="Minimize"
           aria-label="Minimize"
           :data-testid="`window-minimize-${window.id}`"
