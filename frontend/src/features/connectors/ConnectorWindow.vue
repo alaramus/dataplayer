@@ -52,6 +52,7 @@ import {
   AppSpinner,
   AppTabs,
   AppToggle,
+  AppTooltip,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -677,13 +678,17 @@ async function parseTyped(text: string) {
           <!-- Only for a connection that exists: there is nothing to switch
                off before it is saved, and the row would ask a question about
                a thing that is not there yet. -->
-          <AppToggle
-            v-if="saved"
-            v-model="enabled"
-            label="In use"
-            data-testid="connector-enabled"
-            :disable="readOnly"
-          />
+          <span v-if="saved" class="connector-window__enabled">
+            <AppToggle
+              v-model="enabled"
+              label="In use"
+              data-testid="connector-enabled"
+              :disable="readOnly"
+            />
+            <AppTooltip>
+              Switch off to keep this connection saved but unavailable for data access. Automatic health checks also stop.
+            </AppTooltip>
+          </span>
         </div>
 
         <!-- Always three pages at least: how to reach the connection, how it
@@ -985,6 +990,9 @@ async function parseTyped(text: string) {
    name box that changed width with the label beside it would jump. */
 .connector-window__name {
   flex: 1;
+}
+.connector-window__enabled {
+  display: inline-flex;
 }
 /* A statement about the window, not a field in it: quieter than the form and
    above it. */

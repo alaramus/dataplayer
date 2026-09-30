@@ -146,6 +146,16 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("explains what switching a connection off does", async ({ page }) => {
+  await login(page)
+  await editConnector(page, "pg-lab")
+  await page.getByTestId("connector-enabled").hover()
+  await expect(page.getByRole("tooltip")).toHaveText(
+    "Switch off to keep this connection saved but unavailable for data access. Automatic health checks also stop."
+  )
+  await page.getByRole("button", { name: "Cancel" }).click()
+})
+
 test("the window separates how to reach a connection from what may be done through it", async ({
   page,
 }) => {
