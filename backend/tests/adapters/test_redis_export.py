@@ -5,13 +5,12 @@ from collections.abc import AsyncGenerator
 import pytest
 import redis.asyncio as redis
 
-from app.adapters.declared_tables import DeclaredTable
 from app.adapters.export import EXPORT_BATCH_SIZE, ExportRequest
 from app.adapters.fetch import ScalarFilter, Sort
 from app.adapters.protocol import NodeNotFound
 from app.adapters.redis import export as redis_export
 from app.adapters.redis.adapter import RedisAdapter
-from app.adapters.redis.keyspace import database_id, folder_id, key_id, table_id
+from app.adapters.redis.keyspace import database_id, folder_id, key_id
 from tests.utils.keyspace import chosen_database, empty_keyspace, redis_options
 
 DB = chosen_database()
@@ -166,58 +165,9 @@ async def test_a_folder_is_its_list_of_keys_up_to_the_catalogs_ceiling(
         await _batches(adapter, folder_id(DB, "user:"), ["key"])
 
 
-async def test_a_table_is_scanned_without_a_ceiling() -> None:
-    count = EXPORT_BATCH_SIZE + 20
-    client = await _client()
-    try:
-        for n in range(count):
-            await client.hset(f"user:{n}", mapping={"name": f"n{n}"})
-        await client.set("user:count", str(count))
-    finally:
-        await client.aclose()
-    table = DeclaredTable.model_validate(
-        {"place_id": folder_id(DB, "user:"), "name": "users", "columns": [{"name": "name"}]}
-    )
-    adapter = RedisAdapter(redis_options(), [table])
-
-    rows = _all(await _batches(adapter, table_id(DB, "user:"), ["key", "name"]))
-
-    assert len(rows) == count
-    assert sorted(rows)[0] == ["0", "n0"]
-    assert ["count", None] not in rows
-
-
-async def test_a_table_filtered_to_one_key_exports_that_row() -> None:
-    client = await _client()
-    try:
-        await client.hset("user:1", mapping={"name": "Ada"})
-        await client.hset("user:2", mapping={"name": "Grace"})
-    finally:
-        await client.aclose()
-    table = DeclaredTable.model_validate(
-        {"place_id": folder_id(DB, "user:"), "name": "users", "columns": [{"name": "name"}]}
-    )
-    adapter = RedisAdapter(redis_options(), [table])
-
-    def by_key(value: str, column: str = "key") -> ExportRequest:
-        return ExportRequest(
-            node_id=table_id(DB, "user:"),
-            columns=["key", "name"],
-            filters=[ScalarFilter(column=column, op="eq", value=value)],
-        )
-
-    one = [batch.rows async for batch in adapter.export_rows(by_key("2"))]
-    none = [batch.rows async for batch in adapter.export_rows(by_key("9"))]
-
-    assert one == [[["2", "Grace"]]]
-    assert none == []
-    with pytest.raises(ValueError, match="filtered only by key"):
-        [batch async for batch in adapter.export_rows(by_key("Ada", "name"))]
-
-
 async def test_what_is_not_there_is_not_exported() -> None:
     adapter = RedisAdapter(redis_options())
 
-    for missing in (key_id(DB, "gone"), table_id(DB, "user:"), folder_id(DB, "user")):
+    for missing in (key_id(DB, "gone"), folder_id(DB, "user")):
         with pytest.raises(NodeNotFound):
             await _batches(adapter, missing, ["key"])

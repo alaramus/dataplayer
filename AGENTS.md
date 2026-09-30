@@ -273,6 +273,7 @@ files. IDs are stable because specs and commits refer to them.
 | D192 | [search](docs/architecture/search.md) |
 | D193 | [search](docs/architecture/search.md) |
 | D194 | [search](docs/architecture/search.md) |
+| D195 | [sources/declared](docs/architecture/sources/declared.md) |
 
 ## Working rules
 
@@ -326,6 +327,8 @@ The suite needs the database; every other server belongs to the tests of one
 piece, and a test whose server does not answer is skipped with the command that
 starts it. `pytest --require-services` stops the run instead, as CI does. Redis
 is `docker compose up -d redis` — not `redis-cache`, which publishes no port.
+The scenario that provisions the Timescale
+`docker compose -f backend/compatibility/timescale/compose.yml up -d v2_30_pg18`
 See [backend.md](docs/architecture/backend.md#tests-and-the-servers-they-need).
 
 Frontend checks, from `frontend/`:

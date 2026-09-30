@@ -622,24 +622,6 @@ describe("the client's own lines of the menu", () => {
     ])
   })
 
-  it("draws Describe as table after Cut, for a source that can have one (D170)", () => {
-    const items = clientMenu({
-      ...everything,
-      table: { enabled: false, reason: "Select a folder to describe as a table" },
-      backups: { enabled: true },
-    })
-    const table = items.find((item) => item.label === "Describe as table")
-
-    expect(items.map((item) => item.label)).toEqual([
-      "Details", "Relationships", "Copy", "Cut", "Describe as table", "Backups",
-    ])
-    expect(table?.name).toBe("client:describe-table")
-    expect(table?.disable).toBe(true)
-    expect(table?.hint).toBe("Select a folder to describe as a table")
-    expect(clientCommandOf("client:describe-table")).toBe("describe-table")
-    expect(clientMenu(everything).map((item) => item.label)).not.toContain("Describe as table")
-  })
-
   it("leaves out copying a source out that cannot be copied out", () => {
     // A file source declares no `backup` capability, and a line that can never
     // work is worse than no line.

@@ -182,6 +182,7 @@ def test_capabilities_are_read_off_the_protocols_the_driver_satisfies() -> None:
     titles = [c.title for c in registry.capabilities_of(registry.get("fake"))]
 
     assert titles[:3] == ["Browse the catalog", "Locate a node", "Read rows"]
+    assert "Declared references" in titles
     assert "Export all matching rows" in titles
 
 

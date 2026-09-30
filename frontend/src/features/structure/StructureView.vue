@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref, toRef } from "vue"
 
+import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import {
   useAddColumn,
   useColumnDefault,
@@ -45,6 +46,17 @@ import RenameColumnDialog from "./RenameColumnDialog.vue"
 const props = defineProps<{ connectorId: string; nodeId: string }>()
 const connectorId = toRef(props, "connectorId")
 const nodeId = toRef(props, "nodeId")
+const connectors = useConnectors()
+const adapterTypes = useAdapterTypes()
+const supportsDeclaredReferences = computed(() => {
+  const connector = connectors.data.value?.data.find(
+    (one) => one.id === props.connectorId
+  )
+  const source = adapterTypes.data.value?.find(
+    (one) => one.name === connector?.adapter_type
+  )
+  return source?.capabilities.some((one) => one.code === "declared_references") === true
+})
 const query = useRelationModel(connectorId, nodeId)
 const errorKind = computed(() => errorKindOf(query.error.value))
 const addColumn = useAddColumn(connectorId, nodeId)
@@ -751,6 +763,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       </AppSection>
 
       <DeclaredReferencesSection
+        v-if="supportsDeclaredReferences"
         :connector-id="connectorId"
         :node-id="nodeId"
         :node-label="query.data.value.name"

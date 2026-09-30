@@ -1,133 +1,57 @@
-# Declared references and tables
+# Declared references
 
-A reference the person drew, as opposed to one the source declares. D36 covers
-the second: a foreign key, read from the source, followed within one connection.
-This file covers a line somebody draws by hand between two columns that no
-source knows are related — including columns in two different connections and
-in two different kinds of source — and a table somebody declares over keys a
-source keeps without structure (D170), whose key such a line can join (D172).
-
-Neither source is changed. The line is a row in the application's database,
-and the table is kept with its connection.
+A reference a person draws, as opposed to a foreign key the source declares
+(D36). The application keeps the line; neither source is changed. A reference
+can join columns in different connections and source types when both adapters
+support node paths and equality lookup.
 
 Read [relations.md](relations.md) first for what a reference is and how one is
-followed; nothing here replaces that path, it adds a second issuer to it.
+followed. Redis has no declared-table overlay and cannot be an endpoint of a
+declared reference; its CSV and clipboard support remains (D195).
 
-Decisions here: D106, D107, D108, D170, D172, D173.
+Decisions here: D106, D107, D108, D170, D172, D173, D195.
 
-## D173. A declared table is edited as its rows
+## D195. Redis keeps CSV and clipboard transfers, without table overlays or declared references
 
-The grid's editing contract (D25, D26), answered by the folder's hashes in
-`redis/table_update.py`; the adapter hands a table's edits there and a key's to
-`update.py`.
+The Redis source remains a keyspace grouped by the colons in key names (D91).
+The table overlay introduced by D170 and Redis's participation in declared
+references introduced by D172 are withdrawn. D173's table editing path is
+withdrawn with them.
 
-- **A cell is one field of one hash.** A value writes the field; an empty one
-  removes it, which is how the table shows a field a hash lacks. `key` is not
-  editable: it is where the row lives. A field the table does not declare is
-  neither shown nor written.
-- **A new row is a new hash**, `prefix` + `key`: the key is required, must lie
-  directly in the folder and must be free, and at least one field must have a
-  value. **A deleted row is a deleted key**, all of the selection or none.
-- **Values are checked against the declared type** — number, true or false,
-  ISO 8601 — and are at most 64 KB. A batch names every cell it refuses and
-  writes nothing.
-- **What was read is what is changed.** A row handle carries the key and a
-  fingerprint of the declared fields as shown, a lacking field marked apart
-  from any value; a hash changed since, of another type or gone is a
-  conflict. Only the fields that changed are written, in one transaction for
-  the whole batch.
-- **Emptying the last field a hash holds is refused**, since Redis would
-  delete the key: that is a delete, which has its own command.
-- **Many new rows** — a paste, D43's import, D166's "Add rows to a table" from
-  any source — are all checked and their keys found free before one is
-  written, in one transaction.
+- **No declared-table API or storage.** Redis folders remain folders; there is
+  no table offer, proposal, declaration, special catalog node or table grid.
+- **No Redis endpoints for declared references.** The general D106–D108
+  feature remains available to adapters that implement row lookup and node
+  paths. The structure section is gated by `declared_references`; Redis does
+  not implement node paths.
+- **Copy, Paste and Redis CSV remain.** Keys, folders and databases keep the
+  relation model needed to name their CSV columns, the D44 whole-node export,
+  and the existing copy-to-CSV paste flow (D171). This relation model does
+  not enable the Relationships graph UI.
+- **The Relationships graph has a separate capability.** A source offers it
+  only when it supports both relation models and node paths. Redis has no
+  node-path capability and cannot be a declared-reference endpoint.
 
-Known deviations:
+Spec: [Removing Redis table overlays and declared references](../../decisions/2026-09-29-redis-removal-design.md)
 
-- **Checked, then written.** Redis has no compare-and-set for a hash: a change
-  made between the check and the write is lost, and a key created in that
-  moment by somebody else gains the new fields.
-- **The declared type binds writes only.** A value already held that does not
-  read as its column's type is shown as it is.
+## D173. Redis table editing was withdrawn
+
+Redis no longer has declared tables to edit. This decision is retained here as
+design history; D195 withdraws its implementation.
 
 Spec: [Editing a table declared over Redis](../../decisions/2026-09-26-redis-table-editing-design.md)
 
-## D172. A Redis table's `key` can be an end of a declared reference
+## D172. Redis tables were withdrawn as declared-reference endpoints
 
-D107 lets a column be an end only when its source can look a value up in it.
-A declared table (D170) can, for `key` alone.
-
-- **`key` admits equality, and nothing else of Redis does.** Looking a key up
-  reads one hash: `42` on the table over `user:` is `user:42`. A declared
-  field has no index, and finding a value in one would read every hash of the
-  folder on every click. D106's window lists only columns that admit equality,
-  so a Redis table offers `key` there with no change to the window.
-- **A key filter reads that key and nothing more**: its type and declared
-  fields in one pipeline. A hash directly in the folder is the one row; no
-  such key, another type, or a name that lies in a folder below — `42:x` — is
-  no row. No scan, no ceiling, no notice.
-- **The value is the key's name within the folder, as text, exactly.**
-- **Only `key` equal to a value.** Any other filter, and any sort, is refused
-  on a Redis table's page and in its export; the whole download filtered to a
-  key is that key's row.
-- Following and drawing are D106–D108's own: from the far side the Redis
-  table opens filtered to the key, and the arrow on a `key` cell leads back.
-
-Known deviations:
-
-- **Text meets text exactly.** `42` finds `user:42`, but a key `042`, or a
-  far value written `42.0`, finds nothing.
+Redis no longer has declared tables or participates in declared references.
+The general reference contract in D106–D108 remains for supported sources.
 
 Spec: [References to and from a Redis table, by its key](../../decisions/2026-09-26-redis-references-design.md)
 
-## D170. A folder of Redis hashes can be declared a table
+## D170. The Redis table overlay was withdrawn
 
-A person can say of a Redis folder: its keys are hashes, and these fields are
-the columns. Redis has no word for that, so the application keeps it, and the
-driver shows it.
-
-- **Kept with the connection**, in the connector row's `declared_tables`, never
-  in Redis: everybody who reads the connection sees it, and it goes with the
-  connection. It reaches the driver through `AdapterContext.declared_tables`;
-  a driver without `SupportsDeclaredTables` ignores it.
-- **Declaring, changing and removing need `structure`**, the level that changes
-  a table's structure elsewhere; asking whether the command applies needs
-  `read`. One table per folder; a second declaration over the same folder
-  replaces the first. Removing forgets the description and touches no key.
-- **The driver answers three things** about a node: where a table over it would
-  stand (`table_place`: a folder, or the table already over one; anything else
-  is refused "Select a folder to describe as a table"), a proposal read off the
-  folder, and the declaration it would keep, refusing a column called `key`.
-- **The proposal** is the fields of the first hundred hashes directly in the
-  folder, by name, each read with one bounded `HSCAN`; a type is guessed from
-  every sampled value — number, boolean, date and time, else text. A declared
-  table proposes its own columns first, ticked, and what else the sample holds
-  unticked.
-- **In the catalog** a `TableNode` with id `t<db>:<prefix>` stands right after
-  its folder, named as declared, saying `over user:` where a table's row count
-  would be. The folder stays as it was.
-- **Opened, it is a grid** of one row per hash directly in the folder, in key
-  order: `key` — the name within the folder — then the declared fields, a
-  missing one empty. A key of another type is not a row, and
-  `FetchResult.notice` says how many were left out. At most 100,000 keys under
-  the folder are read, the first by name of those scanned, and the notice says
-  when there were more. Nothing is sortable, `key` equal to a value is the
-  one filter (D172), and the rows are edited as hashes (D173).
-- **Every Redis node reads as a relation** (`SupportsRelationModel`): a key its
-  type's columns (kind `key`), a folder or a database the listing's four
-  (`key_listing`), a declared table `key` and its fields (`declared_table`).
-  The columns of each are said once, in `redis/shapes.py`, for the grid, the
-  model and the export alike. **Every node has a path** (`SupportsNodePath`):
-  database, folders, then the node, a folder derived from its name rather than
-  scanned for.
-
-Known deviations:
-
-- **Each page scans the folder again**, up to its ceiling, and asks every key's
-  type: the rows are paged over hashes the scan found, and nothing keeps the
-  list between pages but the read cache.
-- **A hash's field named `key` cannot be a column**: the first column has that
-  name.
+Redis folders are no longer described as tables. D171's CSV support for raw
+keys, folders and databases remains in [transfer.md](transfer.md).
 
 Spec: [Tables declared over Redis, and Redis saved as CSV](../../decisions/2026-09-25-redis-tables-design.md)
 
@@ -225,16 +149,10 @@ backend/app/connectors/
 ├── declared.py         the row, its two ends, the names this module issues,
 │                       reading an end against its source, the references of
 │                       one node, and following one
-├── declared_routes.py  GET / POST /declared-references, DELETE one
-├── tables.py           the declared tables a connector row keeps (D170)
-└── table_routes.py     /connectors/{id}/tables: offer, proposal, PUT, DELETE
+└── declared_routes.py  GET / POST /declared-references, DELETE one
 
 backend/app/adapters/
-├── declared_tables.py  a declaration, a proposal, `SupportsDeclaredTables`'s
-│                       answers
-├── redis/tables.py     where one stands, the sample, the rows of a table;
-│                       `model.py` and `export.py` beside it read every node
-└── redis/table_update.py  a table's rows edited, added and deleted (D173)
+└── redis/model.py      relation columns used to export raw Redis nodes as CSV
 
 frontend/src/features/declared/
 ├── api.ts              the list, and what drawing or removing one invalidates
@@ -242,9 +160,6 @@ frontend/src/features/declared/
 ├── DeclareReferenceDialog.vue        one window, both ends
 └── DeclaredReferencesSection.vue     the list, beside constraints and indexes
 
-frontend/src/features/catalog/
-├── declaredTable.ts         the window's decisions: draft, added field, why not
-└── DeclareTableWindow.vue   "Describe as table", from the catalog's menu
 ```
 
 The catalog walk both this and D43 need is `frontend/src/features/catalog/NodePicker.vue`.

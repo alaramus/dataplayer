@@ -7,7 +7,6 @@ import type { ConnectorDraft } from "@/client"
 import { appIcons } from "@/shared/ui/icons"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import CrossPaste from "@/features/catalog/CrossPaste.vue"
-import DeclareTableWindow from "@/features/catalog/DeclareTableWindow.vue"
 import {
   clientCommandOf,
   clientMenu,
@@ -33,7 +32,6 @@ import {
   usePrepareConnectorAction,
 } from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
-import { useAdapterTypes } from "@/features/connectors/api"
 import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
@@ -226,50 +224,6 @@ const holds = computed(() =>
 const backups = useBackupSupport(() => props.adapterType)
 
 /**
- * The node "Describe as table" is about: the one ticked, or the level itself —
- * a folder picked in a tree — when nothing is (D170).
- */
-const tableSubject = computed<string | null>(() => {
-  if (props.checkedIds.length === 1) return props.checkedIds[0] ?? null
-  return props.checkedIds.length === 0 ? props.levelId : null
-})
-const tableSubjectLabel = computed(() =>
-  props.checkedIds.length === 1 ? props.checkedLabel : props.levelLabel
-)
-const adapterTypes = useAdapterTypes()
-/** Only a source that says so can have a table declared over it. */
-const declaresTables = computed(() =>
-  (adapterTypes.data.value ?? []).some(
-    (type) =>
-      type.name === props.adapterType &&
-      type.capabilities.some((capability) => capability.code === "declared_tables")
-  )
-)
-const tableOffer = useQuery({
-  queryKey: computed(() => ["table-offer", props.connectorId, tableSubject.value]),
-  enabled: declaresTables,
-  retry: false,
-  queryFn: async () => (await ConnectorsService.tableOffer({
-    path: { connector_id: props.connectorId },
-    body: { node_id: tableSubject.value },
-  })).data,
-})
-const tableLine = computed(() => {
-  if (!declaresTables.value) return undefined
-  const answer = tableOffer.data.value
-  if (answer === undefined) {
-    return { enabled: false, reason: tableOffer.isError.value
-      ? "Could not check this selection"
-      : "Checking this selection" }
-  }
-  return answer.available
-    ? { enabled: true }
-    : { enabled: false, ...(answer.reason ? { reason: answer.reason } : {}) }
-})
-/** The declaration window, with the node it was opened on. */
-const declaring = ref<{ nodeId: string; label: string } | null>(null)
-
-/**
  * One menu, two vocabularies: what the client can do, then what the source can.
  *
  * The client's come first because they are the same wherever one stands, while
@@ -283,7 +237,6 @@ const items = computed<MenuItem[]>(() => [
     diagrams: props.drawsNodes,
     diagrammable: props.drawableNodes,
     ...holds.value,
-    ...(tableLine.value ? { table: tableLine.value } : {}),
     ...(backups.value.offered
       ? {
           backups: {
@@ -340,13 +293,6 @@ function run(command: ClientCommand) {
   // And copying the connection out is about no node in it at all.
   if (command === "backups") {
     if (backups.value.enabled) emit("backups")
-    return
-  }
-  if (command === "describe-table") {
-    const nodeId = tableSubject.value
-    if (nodeId !== null && tableLine.value?.enabled === true) {
-      declaring.value = { nodeId, label: tableSubjectLabel.value }
-    }
     return
   }
   if (props.checkedIds.length === 0) return
@@ -552,15 +498,6 @@ async function pick(name: string) {
       @started="emit('untick')"
       @source-changed="emit('sourceChanged', $event)"
       @close="crossPasting = null"
-    />
-    <DeclareTableWindow
-      v-if="declaring"
-      :key="declaring.nodeId"
-      :connector-id="connectorId"
-      :node-id="declaring.nodeId"
-      :node-label="declaring.label"
-      @done="emit('done', $event)"
-      @close="declaring = null"
     />
   </span>
 </template>

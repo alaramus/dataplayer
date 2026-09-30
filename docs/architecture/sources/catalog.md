@@ -210,8 +210,7 @@ structure the names were given when they were chosen.
   table on a key. The namespace above it is a `directory`, because a container
   of nodes with nothing else to say about itself is what a namespace is.
 - **Every id carries its database, and a letter says which kind it is**:
-  `d3`, `f3:cache:`, `k3:cache:user`, and `t3:cache:` for a table declared
-  over a folder (D170). The database, because a key of the same
+  `d3`, `f3:cache:` and `k3:cache:user`. The database, because a key of the same
   name in two of them would otherwise be the same string; the letter, because
   a key may itself be called `user:`, and without it a listing of that key and
   a listing of the folder above it would be the same request. Ids are read

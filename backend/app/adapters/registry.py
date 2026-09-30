@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from app.adapters.actions import DeclaresActions
 from app.adapters.cache import SourceCacheWindows, SupportsReadCache
 from app.adapters.credentials import KeyAccess
-from app.adapters.declared_tables import DeclaredTable
 from app.adapters.features import FEATURE_TITLES
 from app.adapters.metrics import SupportsMetrics
 from app.adapters.options import OptionsSchema
@@ -22,7 +21,6 @@ from app.adapters.protocol import (
     SupportsContent,
     SupportsContentEdit,
     SupportsCreateRelation,
-    SupportsDeclaredTables,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -62,9 +60,6 @@ class AdapterContext:
     # Absent where nothing could sign in with a key, and a driver that needs
     # one then refuses rather than guessing.
     keys: KeyAccess | None = None
-    # The tables people declared over this connection (D170), for a driver
-    # that shows them; every other driver ignores them.
-    declared_tables: tuple[DeclaredTable, ...] = ()
 
 
 Factory = Callable[[Any, AdapterContext], DataAdapter]
@@ -117,7 +112,8 @@ CapabilityCode = Literal[
     "backup",
     "metrics",
     "terminal",
-    "declared_tables",
+    "declared_references",
+    "relationship_graph",
 ]
 
 
@@ -242,6 +238,14 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="manage", title="Edit content"))
     if issubclass(driver, SupportsFetch):
         found.append(Capability(group="explore", title="Read rows"))
+        if issubclass(driver, SupportsNodePath):
+            found.append(
+                Capability(
+                    group="explore",
+                    title="Declared references",
+                    code="declared_references",
+                )
+            )
     if issubclass(driver, SupportsExport):
         found.append(Capability(group="explore", title="Export all matching rows"))
     if issubclass(driver, SupportsRelationModel):
@@ -252,6 +256,14 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
                 code="relation_model",
             )
         )
+        if issubclass(driver, SupportsNodePath):
+            found.append(
+                Capability(
+                    group="explore",
+                    title="Draw relationships",
+                    code="relationship_graph",
+                )
+            )
     if issubclass(driver, SupportsReferences):
         found.append(Capability(group="explore", title="Follow references"))
     if issubclass(driver, SupportsArrivingReferences):
@@ -272,14 +284,6 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
                 group="manage",
                 title="Create a relation from rows",
                 code="create_relation",
-            )
-        )
-    if issubclass(driver, SupportsDeclaredTables):
-        found.append(
-            Capability(
-                group="manage",
-                title="Describe keys as a table",
-                code="declared_tables",
             )
         )
     if issubclass(driver, SupportsMetrics):

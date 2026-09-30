@@ -144,12 +144,7 @@ function showRelationships() {
   workspace.openRelationships({ connectorId: props.connectorId, connectorName: props.title, adapterType: props.adapterType, nodes: diagramSelection.value })
 }
 
-/**
- * A tree ticks nothing, so its diagram is of the tables where it stands: the
- * picked folder, or the root. A table is the one node of a key space a
- * declared reference can end in (D172); its keys and folders would be cards
- * nothing joins.
- */
+/** A tree has no relation-level picker, so draw its table nodes directly. */
 async function showTreeRelationships() {
   try {
     const tables = toListNodes((await loadChildren(props.connectorId, treeLevelId.value)).nodes)
@@ -159,7 +154,9 @@ async function showTreeRelationships() {
       return
     }
     workspace.openRelationships({
-      connectorId: props.connectorId, connectorName: props.title, adapterType: props.adapterType,
+      connectorId: props.connectorId,
+      connectorName: props.title,
+      adapterType: props.adapterType,
       nodes: tables.slice(0, MAX_RELATIONS).map(({ id, label }) => ({ id, label })),
     })
   } catch (cause) {
@@ -504,7 +501,7 @@ const canSearch = computed(
  * there disabled with the rest of them (D97).
  */
 const drawsNodes = computed(
-  () => sourceType.value?.capabilities.some((one) => one.code === "relation_model") === true
+  () => sourceType.value?.capabilities.some((one) => one.code === "relationship_graph") === true
 )
 
 /**

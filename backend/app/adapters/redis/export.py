@@ -3,13 +3,12 @@
 What is written is what the grid shows, with the command each type has for
 reading itself a piece at a time: `HSCAN` and `SSCAN` for a hash and a set,
 index ranges for a list and a sorted set, `XRANGE` from the last id for a
-stream, and a table's folder scanned with the declared fields read for each
-batch of keys. Nothing is read whole except a string, which is one value.
+stream. Nothing is read whole except a string, which is one value.
 
 The order is the source's. A list, a sorted set and a stream keep theirs; a
-hash, a set and a table come as Redis scans them, which may give an element
-twice or miss one while they change — the grid sorts for the eye, and sorting
-a million fields would mean holding them all.
+hash and a set come as Redis scans them, which may give an element twice or
+miss one while they change — the grid sorts for the eye, and sorting a million
+fields would mean holding them all.
 """
 
 from collections.abc import AsyncIterator
@@ -25,7 +24,6 @@ from app.adapters.redis.keyspace import (
     is_direct,
     is_folder_prefix,
     is_key,
-    is_table,
     key_ref,
     pattern_under,
     place_ref,
@@ -36,9 +34,7 @@ from app.adapters.redis.shapes import (
     LISTING,
     Shape,
     stream_fields,
-    table_shape,
 )
-from app.adapters.redis.tables import RedisTables, key_asked
 
 type Rows = AsyncIterator[list[list[str | None]]]
 
@@ -46,12 +42,9 @@ TOO_MANY_KEYS = "This folder holds more keys than can be listed"
 
 
 class RedisExport:
-    def __init__(
-        self, session: RedisSession, keyspace: RedisKeyspace, tables: RedisTables
-    ) -> None:
+    def __init__(self, session: RedisSession, keyspace: RedisKeyspace) -> None:
         self._session = session
         self._keyspace = keyspace
-        self._tables = tables
 
     async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
         shape, rows = await self._reader(request)
@@ -72,19 +65,9 @@ class RedisExport:
     async def _reader(self, request: ExportRequest) -> tuple[Shape, Rows]:
         """The node's columns and its rows, checked before anything is read.
 
-        A table filtered to one key is that key's row (D172); nothing else
-        takes a filter or a sort.
+        Redis does not take a filter or a sort.
         """
         node_id = request.node_id
-        if is_table(node_id):
-            _, table = self._tables.declared(node_id)
-            key = key_asked(request.filters, request.sort)
-            rows = (
-                self._tables.scanned(node_id)
-                if key is None
-                else self._tables.one(node_id, key)
-            )
-            return table_shape(table), rows
         if request.filters or request.sort:
             raise ValueError("Redis rows cannot be filtered or sorted")
         if is_key(node_id):

@@ -89,30 +89,12 @@ Select a folder or a key in the tree and open the actions menu:
 - **Delete** removes a key, after asking;
 - **Set expiry** gives a key a time to live, and **Remove expiry** takes it off.
 
-## A folder as a table
-
-Many applications keep records as hashes in one folder: `user:1`, `user:2`, each
-with the same fields. **Describe as table**, in the actions menu of such a
-folder, turns it into a table.
-
-- It proposes the fields found in the first hundred hashes, with a type guessed
-  for each. Tick the ones that become columns.
-- The table stands in the tree right after its folder. Opened, it has one row per
-  hash: `key`, the name within the folder, then the fields you chose.
-- Its rows are edited like any table: a cell is one field of one hash, and
-  clearing a cell removes that field.
-- It is kept with the connection, so everybody who reads the connection sees it.
-  Removing it forgets the description and touches no key.
-- Its `key` column can be one end of a reference you draw to another
-  connection's table, so a row leads to the matching rows there.
-
-Describing, changing and removing a table needs **Change structure** access.
-
 ## Copying out
 
-**Copy** a key, a folder or a table in the catalog and **Paste** it into a folder
-of a file or SSH connection: each becomes a CSV file. Several ticked are copied
-together, one file each.
+**Copy** a key, a folder or a database in the catalog and **Paste** it into a
+folder of a file or SSH connection: each becomes a CSV file. Several ticked
+are copied together, one file each. You can also export all rows of a key,
+folder or database as CSV.
 
 ## Metrics
 

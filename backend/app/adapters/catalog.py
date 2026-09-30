@@ -59,9 +59,6 @@ class TableNode(BaseNode):
     size_bytes: int | None = None
     is_system: bool = False
     specialization: TimescaleHypertable | None = None
-    # The folder a person declared this table over, for one the source does
-    # not have (D170). Said in place of a count nobody made.
-    declared_over: str | None = None
 
 
 class ViewNode(BaseNode):

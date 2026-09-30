@@ -66,20 +66,19 @@ Known deviations:
 
 Spec: [Tables copied with their structure](../../decisions/2026-09-27-table-copy-design.md)
 
-## D171. A Redis key, folder or table is saved as CSV, and several are one file each
+## D171. A Redis key, folder or database is saved as CSV, and several are one file each
 
-`relation_csv` (D165) takes any source with a relation model and a D44 export,
-and Redis now has both (D170).
+`relation_csv` (D165) takes any source with a relation model and a D44 export.
+Redis keeps both for its keys, folders and databases (D195).
 
 - **Redis implements D44** with the command each type reads itself in pieces
-  by: `HSCAN` and `SSCAN`, index ranges for a list and a sorted set, `XRANGE`
-  from the id after the last for a stream, and for a declared table `SCAN` over
-  its folder with each batch's types and declared fields read in one pipeline.
-  A string is read whole, being one value. The order is the source's. No
-  filter or sort is taken; the grid offers neither.
+  by: `HSCAN` and `SSCAN`, index ranges for a list and a sorted set, and
+  `XRANGE` from the id after the last for a stream. A string is read whole,
+  being one value. The order is the source's. No filter or sort is taken; the
+  grid offers neither.
 - **A folder or a database** is its listing, refused "This folder holds more
   keys than can be listed" beyond the catalog's 5,000 names rather than saved
-  short. A table has no ceiling in a CSV: it is scanned, not listed.
+  short.
 - **The file is named from the relation model** by the downloads' safe name
   (D49's): `session:42:token` becomes `session-42-token.csv`.
 - **Several ticked are one transfer and one file each**, named after each, at
@@ -92,11 +91,11 @@ and Redis now has both (D170).
   them together, and crossing it stops the transfer, leaving the rest not
   attempted. This holds for PostgreSQL tables too.
 - **The grid's "export all rows" follows**: D44's capability is the source's,
-  so a Redis key, folder or table gains the whole download.
+  so a Redis key, folder or database gains the whole download.
 
 Known deviations:
 
-- **A hash, a set or a table changing while it is saved** may give an element
+- **A hash or a set changing while it is saved** may give an element
   twice or miss one: that is `SCAN`'s promise, and the alternative is reading
   it whole.
 - **A string is read whole**, up to Redis's 512 MB.
@@ -291,7 +290,7 @@ Spec: [Rows pasted into another connection](../../decisions/2026-09-25-paste-row
 
 Kind `relation_csv`: from a source implementing `SupportsExport` and
 `SupportsRelationModel` — a PostgreSQL table or view, a Redis key, folder or
-declared table (D171) — into a folder of an explorer connection. Copy only;
+database (D171) — into a folder of an explorer connection. Copy only;
 nothing offers a Cut of it.
 
 - One file per relation; several ticked are one transfer (D171). Columns come

@@ -5,7 +5,13 @@ from pydantic import SecretStr, ValidationError
 
 from app.adapters import options as adapter_options
 from app.adapters import registry
-from app.adapters.protocol import DataAdapter, SupportsCatalog, SupportsFetch
+from app.adapters.protocol import (
+    DataAdapter,
+    SupportsCatalog,
+    SupportsFetch,
+    SupportsNodePath,
+    SupportsRelationModel,
+)
 from app.adapters.redis.adapter import RedisAdapter
 from app.adapters.redis.options import RedisNoAuth, RedisPassword
 
@@ -38,6 +44,8 @@ def test_what_it_can_do_is_read_off_the_driver() -> None:
     assert isinstance(adapter, DataAdapter)
     assert isinstance(adapter, SupportsCatalog)
     assert isinstance(adapter, SupportsFetch)
+    assert isinstance(adapter, SupportsRelationModel)
+    assert not isinstance(adapter, SupportsNodePath)
 
     titles = [
         item.title for item in registry.capabilities_of(registry.get("redis"))
@@ -60,14 +68,16 @@ def test_what_it_can_do_is_read_off_the_driver() -> None:
         "Remove expiry",
     } <= set(titles)
     assert {"Edit rows", "Insert rows", "Delete rows"} <= set(titles)
-    # What it holds reads as relations, and a folder of hashes can be declared
-    # one (D170); it is still not a source with statements or references.
+    # CSV uses a relation model for column names, without making Redis a graph
+    # source or a source of declared references.
     assert {
         "Describe a relation",
-        "Locate a node",
         "Export all matching rows",
-        "Describe keys as a table",
     } <= set(titles)
+    assert "Draw relationships" not in titles
+    assert "Declared references" not in titles
+    assert "Locate a node" not in titles
+    assert "Describe keys as a table" not in titles
     assert "Follow references" not in titles
 
 

@@ -4,7 +4,7 @@ One row per pipeline: a name, its cards as one JSON body read and written
 whole, and a version raised by every save, as a dashboard keeps its layout.
 
 Revision ID: d8e3f6b0a452
-Revises: c7d2e5a9f341
+Revises: b6e20d84a971
 """
 
 from alembic import op
@@ -13,7 +13,7 @@ import sqlmodel.sql.sqltypes
 
 
 revision = "d8e3f6b0a452"
-down_revision = "c7d2e5a9f341"
+down_revision = "b6e20d84a971"
 branch_labels = None
 depends_on = None
 

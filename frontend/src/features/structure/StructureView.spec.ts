@@ -3,8 +3,13 @@ import { flushPromises, mount } from "@vue/test-utils"
 import { Dialog, Notify, Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { ConnectorsService, DeclaredReferencesService } from "@/client"
+import {
+  AdaptersService,
+  ConnectorsService,
+  DeclaredReferencesService,
+} from "@/client"
 import type { RelationModel } from "@/client"
+import DeclaredReferencesSection from "@/features/declared/DeclaredReferencesSection.vue"
 import { AppInput, AppSelect, AppTooltip } from "@/shared/ui"
 import { withWindowHost } from "@/shared/testing/windows"
 
@@ -89,6 +94,20 @@ function mountView() {
 beforeEach(() => {
   vi.restoreAllMocks()
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
+  vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
+    data: {
+      data: [{ id: "connector-1", adapter_type: "postgres" }],
+      count: 1,
+    },
+  } as never)
+  vi.spyOn(AdaptersService, "readAdapterTypes").mockResolvedValue({
+    data: [
+      {
+        name: "postgres",
+        capabilities: [{ code: "declared_references" }],
+      },
+    ],
+  } as never)
   vi.spyOn(ConnectorsService, "readRelationModel").mockResolvedValue({ data: MODEL } as never)
   // The constraint dialog asks the source where this relation lives and what
   // else lives there; without these it would reach for the network.
@@ -108,7 +127,36 @@ beforeEach(() => {
   } as never)
 })
 
-describe("an action the source refuses", () => {
+describe("structure capabilities and refusals", () => {
+  it("shows declared references when the source has the capability", async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.findComponent(DeclaredReferencesSection).exists()).toBe(true)
+  })
+
+  it("does not offer declared references for Redis", async () => {
+    vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
+      data: {
+        data: [{ id: "connector-1", adapter_type: "redis" }],
+        count: 1,
+      },
+    } as never)
+    vi.spyOn(AdaptersService, "readAdapterTypes").mockResolvedValue({
+      data: [
+        {
+          name: "redis",
+          capabilities: [{ code: "relation_model" }],
+        },
+      ],
+    } as never)
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.findComponent(DeclaredReferencesSection).exists()).toBe(false)
+  })
+
   it("renders read-only type and nullability as ordinary text with an explanation", async () => {
     vi.spyOn(ConnectorsService, "readRelationModel").mockResolvedValue({
       data: {

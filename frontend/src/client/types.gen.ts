@@ -1278,7 +1278,8 @@ export type Capability = {
     | "backup"
     | "metrics"
     | "terminal"
-    | "declared_tables"
+    | "declared_references"
+    | "relationship_graph"
     | null
 }
 
@@ -3041,40 +3042,6 @@ export type DatasetNode = {
 }
 
 /**
- * DeclareTableRequest
- *
- * A declaration as a person writes it, on the node they chose.
- */
-export type DeclareTableRequest = {
-  /**
-   * Name
-   */
-  name: string
-  /**
-   * Columns
-   */
-  columns: Array<DeclaredColumn>
-  /**
-   * Node Id
-   */
-  node_id: string
-}
-
-/**
- * DeclaredColumn
- */
-export type DeclaredColumn = {
-  /**
-   * Name
-   */
-  name: string
-  /**
-   * Type
-   */
-  type?: "text" | "number" | "boolean" | "datetime"
-}
-
-/**
  * DeclaredReferenceCreate
  *
  * The two ends, in no significant order.
@@ -4366,10 +4333,6 @@ export type FetchResult = {
    * Row Commands
    */
   row_commands?: Array<RowCommand>
-  /**
-   * Notice
-   */
-  notice?: string | null
 }
 
 /**
@@ -7538,28 +7501,6 @@ export type ProcessesWidget = {
 }
 
 /**
- * ProposedColumn
- */
-export type ProposedColumn = {
-  /**
-   * Name
-   */
-  name: string
-  /**
-   * Type
-   */
-  type: "text" | "number" | "boolean" | "datetime"
-  /**
-   * Ticked
-   */
-  ticked: boolean
-  /**
-   * Found In
-   */
-  found_in: number
-}
-
-/**
  * ProviderKeyCheck
  */
 export type ProviderKeyCheck = {
@@ -8414,7 +8355,6 @@ export type RelationContents = {
     | "dataset"
     | "key"
     | "key_listing"
-    | "declared_table"
   /**
    * Specialization
    */
@@ -8567,7 +8507,6 @@ export type RelationModel = {
     | "dataset"
     | "key"
     | "key_listing"
-    | "declared_table"
   /**
    * Specialization
    */
@@ -10798,22 +10737,6 @@ export type StoredGeneration = {
 }
 
 /**
- * TableChanged
- *
- * What a declaration changed, for the catalog to re-read.
- */
-export type TableChanged = {
-  /**
-   * Message
-   */
-  message: string
-  /**
-   * Reload Node Ids
-   */
-  reload_node_ids: Array<string | null>
-}
-
-/**
  * TableDefinition
  *
  * Everything about a table that does not exist yet.
@@ -10978,30 +10901,6 @@ export type TableNode = {
    */
   is_system?: boolean
   specialization?: TimescaleHypertable | null
-  /**
-   * Declared Over
-   */
-  declared_over?: string | null
-}
-
-/**
- * TableOffer
- *
- * Whether "Describe as table" can be used on this node, and why not.
- */
-export type TableOffer = {
-  /**
-   * Available
-   */
-  available: boolean
-  /**
-   * Reason
-   */
-  reason?: string | null
-  /**
-   * Declared
-   */
-  declared?: boolean
 }
 
 /**
@@ -11049,48 +10948,6 @@ export type TablePlanRequest = {
    * Revision
    */
   revision?: number
-}
-
-/**
- * TableProposal
- *
- * What the declaration window starts from.
- */
-export type TableProposal = {
-  /**
-   * Node Id
-   */
-  node_id: string
-  /**
-   * Name
-   */
-  name: string
-  /**
-   * Columns
-   */
-  columns: Array<ProposedColumn>
-  /**
-   * Sampled
-   */
-  sampled: number
-  /**
-   * Declared
-   */
-  declared: boolean
-  /**
-   * Reserved
-   */
-  reserved?: Array<string>
-}
-
-/**
- * TableSubject
- */
-export type TableSubject = {
-  /**
-   * Node Id
-   */
-  node_id?: string | null
 }
 
 /**
@@ -15240,138 +15097,6 @@ export type connectorsClipboardOfferResponses = {
 
 export type connectorsClipboardOfferResponse =
   connectorsClipboardOfferResponses[keyof connectorsClipboardOfferResponses]
-
-export type connectorsTableOfferData = {
-  body: TableSubject
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/tables/offer"
-}
-
-export type connectorsTableOfferErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsTableOfferError = connectorsTableOfferErrors[keyof connectorsTableOfferErrors]
-
-export type connectorsTableOfferResponses = {
-  /**
-   * Successful Response
-   */
-  200: TableOffer
-}
-
-export type connectorsTableOfferResponse =
-  connectorsTableOfferResponses[keyof connectorsTableOfferResponses]
-
-export type connectorsTableProposalData = {
-  body: TableSubject
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/tables/proposal"
-}
-
-export type connectorsTableProposalErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsTableProposalError =
-  connectorsTableProposalErrors[keyof connectorsTableProposalErrors]
-
-export type connectorsTableProposalResponses = {
-  /**
-   * Successful Response
-   */
-  200: TableProposal
-}
-
-export type connectorsTableProposalResponse =
-  connectorsTableProposalResponses[keyof connectorsTableProposalResponses]
-
-export type connectorsRemoveTableData = {
-  body?: never
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query: {
-    /**
-     * Node Id
-     */
-    node_id: string
-  }
-  url: "/api/v1/connectors/{connector_id}/tables"
-}
-
-export type connectorsRemoveTableErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsRemoveTableError =
-  connectorsRemoveTableErrors[keyof connectorsRemoveTableErrors]
-
-export type connectorsRemoveTableResponses = {
-  /**
-   * Successful Response
-   */
-  200: TableChanged
-}
-
-export type connectorsRemoveTableResponse =
-  connectorsRemoveTableResponses[keyof connectorsRemoveTableResponses]
-
-export type connectorsDeclareTableData = {
-  body: DeclareTableRequest
-  path: {
-    /**
-     * Connector Id
-     */
-    connector_id: string
-  }
-  query?: never
-  url: "/api/v1/connectors/{connector_id}/tables"
-}
-
-export type connectorsDeclareTableErrors = {
-  /**
-   * Validation Error
-   */
-  422: HTTPValidationError
-}
-
-export type connectorsDeclareTableError =
-  connectorsDeclareTableErrors[keyof connectorsDeclareTableErrors]
-
-export type connectorsDeclareTableResponses = {
-  /**
-   * Successful Response
-   */
-  200: TableChanged
-}
-
-export type connectorsDeclareTableResponse =
-  connectorsDeclareTableResponses[keyof connectorsDeclareTableResponses]
 
 export type sshKeysReadSshKeysData = {
   body?: never

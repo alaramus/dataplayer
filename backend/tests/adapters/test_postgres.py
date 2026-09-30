@@ -143,6 +143,8 @@ def test_describing_a_relation_is_published_as_a_code() -> None:
     }
 
     assert "relation_model" in codes
+    assert "declared_references" in codes
+    assert "relationship_graph" in codes
 
 
 def test_a_postgres_source_reports_runtime_features() -> None:

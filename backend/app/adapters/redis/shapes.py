@@ -1,14 +1,13 @@
 """What each Redis node looks like as rows, said once.
 
 The grid's page, the relation model and the export all read these columns, so
-a key of each type, a folder's listing and a declared table have one list of
-them here rather than three that could drift (D170, D171).
+a key of each type and a folder's listing have one list rather than three that
+could drift (D171).
 """
 
 from collections.abc import Mapping
 from typing import Any
 
-from app.adapters.declared_tables import DeclaredTable, DeclaredType
 from app.adapters.fetch import FetchColumn
 from app.adapters.redis.session import text
 from app.adapters.relation import Column, ColumnType, TypeCategory
@@ -32,42 +31,6 @@ LISTING: Shape = (
     ("ttl", "seconds", "number"),
     ("size", "count", "number"),
 )
-
-# The first column of a declared table: the key's name within its folder.
-KEY_COLUMN = "key"
-
-DECLARED_TYPES: dict[DeclaredType, tuple[str, TypeCategory]] = {
-    "text": ("text", "string"),
-    "number": ("number", "number"),
-    "boolean": ("boolean", "boolean"),
-    "datetime": ("date and time", "datetime"),
-}
-
-
-def table_shape(table: DeclaredTable) -> Shape:
-    return (
-        (KEY_COLUMN, "key", "string"),
-        *(
-            (column.name, *DECLARED_TYPES[column.type])
-            for column in table.columns
-        ),
-    )
-
-
-def table_columns(table: DeclaredTable) -> list[FetchColumn]:
-    """A declared table's page columns: `key` alone admits equality.
-
-    Looking a key up reads one hash; a declared field has no index, and
-    finding a value in one would read every hash of the folder (D172).
-    """
-    columns = fetch_columns(table_shape(table))
-    return [
-        column.model_copy(update={"filter_operators": ["eq"]})
-        if column.name == KEY_COLUMN
-        else column
-        for column in columns
-    ]
-
 
 def fetch_columns(shape: Shape) -> list[FetchColumn]:
     """The columns of a page, saying they can be neither sorted nor filtered.

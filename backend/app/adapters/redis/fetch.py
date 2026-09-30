@@ -4,8 +4,7 @@ Three things can be read. A key is read as what it holds, and what that looks
 like depends on its type: a hash is fields and values, a list is positions and
 values, a sorted set is members and scores. A folder is read as the keys under
 it — name, type, expiry and size — which is the listing a person wants when
-they are looking for a key rather than at one. A table somebody declared over
-a folder is read as one row per hash in it (D170), in `tables.py`.
+they are looking for a key rather than at one.
 
 Neither sorts and neither filters. Redis has no index over values and no
 ordering except the one a list or a sorted set carries in itself, so the
@@ -26,14 +25,12 @@ from app.adapters.redis.keyspace import (
     KeyRef,
     RedisKeyspace,
     is_key,
-    is_table,
     key_of,
     key_ref,
     place_of,
 )
 from app.adapters.redis.session import RedisSession, resolved, text
 from app.adapters.redis.shapes import KEY_SHAPES, LISTING, fetch_columns, stream_fields
-from app.adapters.redis.tables import RedisTables
 from app.adapters.redis.update import (
     NO_DELETE,
     NO_INSERT,
@@ -53,18 +50,13 @@ def _columns_of(data_type: str) -> list[FetchColumn]:
 class RedisFetch:
     """One page of whatever a node holds."""
 
-    def __init__(
-        self, session: RedisSession, keyspace: RedisKeyspace, tables: RedisTables
-    ) -> None:
+    def __init__(self, session: RedisSession, keyspace: RedisKeyspace) -> None:
         self._session = session
         self._keyspace = keyspace
-        self._tables = tables
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         if is_key(request.node_id):
             return await self._one_key(request)
-        if is_table(request.node_id):
-            return await self._tables.fetch(request)
         return await self._keys_under(request)
 
     # --- a folder, read as the keys under it -------------------------------

@@ -1469,15 +1469,6 @@ defineExpose({
     </template>
 
     <template #before-grid>
-      <!-- What the source says about the page as a whole: keys a declared
-           table left out, a folder read only in part (D170). -->
-      <AppBanner
-        v-if="!rowsQuery.isError.value && result?.notice"
-        tone="info"
-        data-testid="grid-notice"
-      >
-        {{ result.notice }}
-      </AppBanner>
       <AppBanner
         v-if="!rowsQuery.isError.value && insertError"
         tone="error"

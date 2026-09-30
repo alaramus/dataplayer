@@ -1,7 +1,7 @@
 """Tables pasted into a folder become CSV files, one each (D165, D168, D171).
 
 A table is anything its source describes and exports whole: a PostgreSQL
-relation, a Redis key, folder or declared table. One is saved under the name
+relation, a Redis key, folder or database. One is saved under the name
 its window asks for; several go straight to Save, each named after itself.
 """
 
