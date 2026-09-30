@@ -268,8 +268,8 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   --dp-chart-5: #c62828;
 
   /* Where a dragged tab would land. */
-  --dp-dropzone: rgba(25, 118, 210, 0.18);
-  --dp-dropzone-border: rgba(25, 118, 210, 0.6);
+  --dp-dropzone: rgba(25, 118, 210, 0.28);
+  --dp-dropzone-border: rgba(25, 118, 210, 0.9);
 
   /* Depth. Soft for a popover, plain for a window, strong for the front one. */
   --dp-shadow-soft: rgba(0, 0, 0, 0.18);
