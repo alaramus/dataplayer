@@ -57,6 +57,12 @@ screen. A count on a button's corner asks to be seen and stays filled.
 `.q-dark` take `--dp-text`; the bottom of a field takes `--dp-text-muted` and
 its messages the 16px line; an error keeps Quasar's red.
 
+**Every scrolling surface shares one thumb.** Native overflow uses a transparent
+track and a thin, theme-coloured thumb; WebKit draws it at `--dp-scrollbar-size`,
+and `AppScrollArea` uses that size and the same theme tokens for its overlay
+bar. Each surface keeps its native scrolling behavior, which matters to grids,
+editors and terminal controls.
+
 **A compact field reads its height from `--dp-field-height`**, the control's
 32px unless what holds it says otherwise: a card head sets its strip less its
 line. The rule is written three classes deep so it outweighs Quasar's, and the

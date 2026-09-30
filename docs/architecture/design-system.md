@@ -13,7 +13,7 @@ frontend/src/
 ├── quasar-variables.sass     the scale said again for Quasar's own components
 ├── main.ts                   ships Inter with the bundle
 └── shared/ui/
-    ├── metrics.css           sizes: type, lines, icons, controls, rows, spacing, corners
+    ├── metrics.css           sizes: type, lines, icons, controls, scrollbars, rows, spacing, corners
     ├── typography.css        roles: overline, helper, meta, section and page titles; tag resets
     ├── theme.css             colours, the text colours and the focus ring among them
     └── typography.spec.ts    fails on a size or a weight spent past the scale
@@ -129,6 +129,11 @@ none of them. Each of these is now said once, in the kit or in `theme.css`.
 - **Quasar's own text colours are the theme's**: a table's cells and anything
   Quasar paints dark read `--dp-text`; the line under a field is
   `--dp-text-muted` on a 16px line, an error still red.
+- **Every scrolling surface shares one thumb.** Native overflow uses a
+  transparent track and a thin, theme-coloured scrollbar; WebKit draws it at
+  `--dp-scrollbar-size`, and `AppScrollArea` uses that size and the same thumb
+  and hover tokens for its overlay bar. The browser keeps each surface's native
+  scrolling behavior, including grids and editors.
 - **A compact field is `--dp-field-height` tall** — a control's 32px unless
   what holds it sets less, as a card head does for its strip.
 - **A disabled filled button is drawn off**: `--dp-disabled-fill` under

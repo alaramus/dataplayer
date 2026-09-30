@@ -24,15 +24,15 @@
   min-height: 0;
 }
 /* Quasar hides the bar with an !important opacity of none, so these apply only
-   while it is shown. */
+   while it is shown. Native overflow areas use the same theme thumb. */
 .app-scroll-area :deep(.q-scrollarea__thumb) {
-  width: 4px;
+  width: var(--dp-scrollbar-size);
   right: 1px;
   border-radius: var(--dp-radius-control);
-  background: var(--dp-text-muted);
-  opacity: 0.5;
+  background: var(--dp-scrollbar-thumb);
+  opacity: 1;
 }
 .app-scroll-area :deep(.q-scrollarea__thumb:hover) {
-  opacity: 0.8;
+  background: var(--dp-scrollbar-thumb-hover);
 }
 </style>

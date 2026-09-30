@@ -4,7 +4,7 @@ import { login } from "./utils/login"
 import { openAdmin } from "./utils/people"
 import { chooseTheme } from "./utils/theme"
 
-test("scroll tracks leave the surface under them visible in both themes", async ({ page }) => {
+test("scrollbars share the AppScrollArea thumb and transparent track in both themes", async ({ page }) => {
   await login(page)
   for (const theme of ["light", "dark"] as const) {
     await chooseTheme(page, theme)
@@ -12,9 +12,27 @@ test("scroll tracks leave the surface under them visible in both themes", async 
     await page.getByTestId("ai-new-chat").click()
     await expect(page.getByTestId("ai-messages")).toBeVisible()
 
+    const tokenColor = await page.evaluate(() => {
+      const probe = document.createElement("div")
+      probe.style.background = "var(--dp-scrollbar-thumb)"
+      document.body.append(probe)
+      const color = getComputedStyle(probe).backgroundColor
+      probe.remove()
+      return color
+    })
+    const scrollbarSize = await page.locator("body").evaluate((element) =>
+      getComputedStyle(element).getPropertyValue("--dp-scrollbar-size").trim()
+    )
+
     for (const scroller of [page.getByTestId("ai-history"), page.getByTestId("ai-messages")]) {
-      const scrollbarColor = await scroller.evaluate((element) => getComputedStyle(element).scrollbarColor)
-      expect(scrollbarColor).toMatch(/transparent|rgba\(0, 0, 0, 0\)/)
+      const styles = await scroller.evaluate((element) => ({
+        scrollbarWidth: getComputedStyle(element, "::-webkit-scrollbar").width,
+        trackColor: getComputedStyle(element, "::-webkit-scrollbar-track").backgroundColor,
+        thumbColor: getComputedStyle(element, "::-webkit-scrollbar-thumb").backgroundColor,
+      }))
+      expect(styles.scrollbarWidth).toBe(scrollbarSize)
+      expect(styles.trackColor).toMatch(/rgba\(0, 0, 0, 0\)|transparent/)
+      expect(styles.thumbColor).toBe(tokenColor)
     }
   }
 })

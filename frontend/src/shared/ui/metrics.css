@@ -54,6 +54,7 @@
      keeps its height and three fit its 72px column of commands. */
   --dp-control-height: 32px;
   --dp-control-height-compact: 20px;
+  --dp-scrollbar-size: 4px;
   --dp-form-control-height: var(--dp-control-height);
   /* The height a toolbar field takes: a control's, unless what holds it is
      a strip of its own (a card head sets its strip less its line). */

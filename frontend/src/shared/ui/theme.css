@@ -132,20 +132,41 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   outline-offset: var(--dp-space-half);
 }
 
-/* The track shows the scroll surface itself: a native grey track made dark
-   and raised panels look as though they had the same background. */
+/* Every native scroll surface shares the thumb used by AppScrollArea (D187).
+   A transparent track lets the surface under it show through. */
 * {
   scrollbar-color: var(--dp-scrollbar-thumb) transparent;
+  scrollbar-width: thin;
+}
+@supports selector(::-webkit-scrollbar) {
+  * {
+    /* Standard values suppress WebKit pseudo styling, so leave them at auto
+       here. Firefox keeps the thin width and theme colors above. */
+    scrollbar-color: auto;
+    scrollbar-width: auto;
+  }
+}
+@supports not selector(::-webkit-scrollbar) {
+  *:hover {
+    scrollbar-color: var(--dp-scrollbar-thumb-hover) transparent;
+  }
+}
+*::-webkit-scrollbar {
+  width: var(--dp-scrollbar-size);
+  height: var(--dp-scrollbar-size);
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
   background: var(--dp-scrollbar-thumb);
+  border-radius: var(--dp-radius-control);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--dp-scrollbar-thumb-hover);
 }
 
 :root {
-  --dp-scrollbar-thumb: rgba(0, 0, 0, 0.38);
   --dp-action-primary: #343434;
   --dp-on-action-primary: #fff;
   /* The text colour: a secondary action is neutral text, as a quiet one is.
@@ -293,7 +314,6 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
 }
 
 body.body--dark {
-  --dp-scrollbar-thumb: rgba(255, 255, 255, 0.46);
   --dp-action-primary: #d4d4d4;
   --dp-on-action-primary: #191919;
   --dp-action-secondary: rgba(255, 255, 255, 0.87);
@@ -577,6 +597,13 @@ body:not(.body--dark)[data-dp-theme="paper-light"] {
 
   --dp-dropzone: rgba(150, 97, 61, 0.18);
   --dp-dropzone-border: rgba(150, 97, 61, 0.6);
+}
+
+/* Resolve from the active palette on the body, after its text colours have
+   been selected, so every theme gives native and app scroll areas one thumb. */
+body {
+  --dp-scrollbar-thumb: color-mix(in srgb, var(--dp-text-muted) 50%, transparent);
+  --dp-scrollbar-thumb-hover: color-mix(in srgb, var(--dp-text-muted) 80%, transparent);
 }
 
 /* The body reads in --dp-text in both themes. Quasar paints the dark one
