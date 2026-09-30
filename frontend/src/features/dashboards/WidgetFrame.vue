@@ -131,7 +131,6 @@ function onHeaderPointerDown(event: PointerEvent) {
 }
 
 .widget-frame__header {
-  cursor: grab;
   user-select: none;
   touch-action: none;
 }

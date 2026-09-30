@@ -380,8 +380,8 @@ defineExpose({ fit, zoom, focus })
 </template>
 
 <style scoped>
-.graph-2d { position: relative; flex: 1; width: 100%; height: 100%; min-height: 220px; overflow: hidden; touch-action: none; cursor: grab; background: var(--dp-chrome-raised); }
-.graph-2d--dragging { cursor: grabbing; user-select: none; }
+.graph-2d { position: relative; flex: 1; width: 100%; height: 100%; min-height: 220px; overflow: hidden; touch-action: none; background: var(--dp-chrome-raised); }
+.graph-2d--dragging { user-select: none; }
 .graph-2d__world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .graph-2d__edges { position: absolute; overflow: visible; }
 .graph-2d__edge { fill: none; stroke: var(--dp-graph-edge); stroke-width: 1.6; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -413,7 +413,7 @@ defineExpose({ fit, zoom, focus })
 .graph-node { position: absolute; border: 1px solid var(--dp-border-strong); border-radius: var(--dp-radius-panel); background: var(--dp-surface); box-shadow: 0 3px 12px var(--dp-border-faint); box-sizing: border-box; }
 .graph-node--selected { outline: 2px solid var(--dp-accent); }
 .graph-node--placeholder { border-style: dashed; }
-.graph-node__head { display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-1) var(--dp-space-1) var(--dp-space-1) var(--dp-space-3); border-top: 4px solid var(--node-accent); border-radius: var(--dp-radius-panel) var(--dp-radius-panel) 0 0; background: var(--dp-chrome); box-sizing: border-box; cursor: grab; }
+.graph-node__head { display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-1) var(--dp-space-1) var(--dp-space-1) var(--dp-space-3); border-top: 4px solid var(--node-accent); border-radius: var(--dp-radius-panel) var(--dp-radius-panel) 0 0; background: var(--dp-chrome); box-sizing: border-box; }
 .graph-node__title { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-half); }
 .graph-node__title strong { font-size: var(--dp-font-size); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .graph-node__title > span { color: var(--dp-text-muted); font-size: var(--dp-font-size-xs); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

@@ -187,10 +187,6 @@ function onRailDrop(event: DragEvent) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: grab;
-}
-.tool-rail__content:active {
-  cursor: grabbing;
 }
 /* Roomier buttons than the footer bars they came from: a rail button is a
    bigger target than a bar button, and the cramped dense ones read as broken. */

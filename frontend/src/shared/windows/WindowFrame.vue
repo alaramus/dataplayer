@@ -164,7 +164,6 @@ const resizeEdges: ResizeEdge[] = [
     <header
       class="app-window__bar"
       :style="panelColorStyle(window.look.color)"
-      :class="{ 'app-window__bar--dragging': dragging }"
       :data-testid="`window-bar-${window.id}`"
       @pointerdown="startDrag"
       @pointermove="onDrag"
@@ -289,13 +288,9 @@ const resizeEdges: ResizeEdge[] = [
   padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   background: var(--dp-panel-background, var(--dp-chrome));
   color: var(--dp-panel-foreground, inherit);
-  cursor: grab;
   /* Otherwise a drag selects the title text instead of moving the window. */
   user-select: none;
   touch-action: none;
-}
-.app-window__bar--dragging {
-  cursor: grabbing;
 }
 .app-window__title {
   flex: 1;
