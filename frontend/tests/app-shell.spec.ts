@@ -251,6 +251,13 @@ test("a tooltip over the bar at the foot of the screen draws no scrollbar at a z
     await expect(tip).toHaveCSS("font-size", "12px")
     await expect(tip).toHaveCSS("border-top-style", "solid")
     await expect(tip).toHaveCSS("overflow-y", "hidden")
+    // The position engine caps a flipped tooltip at its measured integer
+    // height, which at a fractional zoom stands a pixel short of the text and
+    // cut the descenders off. The tooltip must fit its own text.
+    expect(await tip.evaluate((el) => el.scrollHeight - el.clientHeight)).toBe(0)
+    // And at the rounded measured width it wrapped one-liners ("The server's"
+    // / "log"). The kit's own cap must stand, not the engine's pixel value.
+    expect(await tip.evaluate((el) => getComputedStyle(el).maxWidth)).toBe("240px")
     await page.mouse.move(600, 300)
     await expect(tip).toBeHidden()
   }

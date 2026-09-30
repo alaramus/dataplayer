@@ -70,12 +70,25 @@ onDeactivated(() => {
 }
 
 /* Trap: a tooltip that does not fit below its anchor — every one over the bar
-   at the foot of the screen — is flipped above it by Quasar and capped at the
-   height it measured, which is rounded. At a browser zoom that is not a whole
-   number the text is a fraction of a pixel taller than that, and Quasar's own
-   `overflow-y: auto` drew a scrollbar beside it. A tooltip is never scrolled:
-   the pointer cannot reach it. Two classes, to outweigh Quasar's one. */
+   at the foot of the screen — is flipped above it by Quasar, whose
+   position-engine caps it at the height it measured. That measurement is an
+   integer (`offsetHeight`), so at a browser zoom that is not a whole number
+   the text is a fraction of a pixel taller than the cap: Quasar's own
+   `overflow-y: auto` drew a scrollbar beside it, and hiding the overflow
+   instead cut the descenders off ("http://", "The server's log"). A tooltip
+   is never scrolled — the pointer cannot reach it (`no-pointer-events`) — so
+   the pixel cap is traded for the viewport one the engine started from:
+   small text always fits, and a tall tooltip still stays on screen. Two
+   classes, to outweigh Quasar's one; `!important`, to outweigh the engine's
+   inline pixel value. The same engine also narrows `max-width` to the rounded
+   measured width when it nudges the tooltip to stay on screen (a rail icon
+   at the very edge of the window): a fraction short of the true one-line
+   width, it wrapped the text instead — "The server's" / "log",
+   "http://localhost:800" / "0". The kit's own 240px cap is restored, so a
+   short tooltip is one line again; long text still wraps by design. */
 .q-tooltip.app-tooltip {
   overflow: hidden;
+  max-width: 240px !important;
+  max-height: 65vh !important;
 }
 </style>
