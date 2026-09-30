@@ -32,7 +32,10 @@ describe("SchemaFields", () => {
   it("renders one control per field", () => {
     const wrapper = mountFields()
 
-    expect(wrapper.findAll("[data-testid^='field-']")).toHaveLength(4)
+    const fields = wrapper
+      .findAll("[data-testid^='field-']")
+      .filter((control) => !control.attributes("data-testid")?.endsWith("-visibility"))
+    expect(fields).toHaveLength(4)
   })
 
   // Quasar forwards undeclared attributes onto the <input> itself rather than
@@ -41,6 +44,30 @@ describe("SchemaFields", () => {
     const wrapper = mountFields()
 
     const input = wrapper.find("[data-testid='field-password']")
+    expect(input.attributes("type")).toBe("password")
+    expect(wrapper.find("[data-testid='field-password-visibility']").exists()).toBe(true)
+    expect(wrapper.find("[role='button'][aria-disabled='true']").exists()).toBe(true)
+  })
+
+  it("lets the user show and hide an entered secret", async () => {
+    const wrapper = mountFields()
+    const input = wrapper.get("[data-testid='field-password']")
+    await input.setValue("correct-horse")
+    const update = wrapper.emitted("update:modelValue")!.at(-1)![0] as Record<string, unknown>
+    expect(update.password).toBe("correct-horse")
+    await wrapper.setProps({ modelValue: update })
+
+    const visibility = wrapper.get("[data-testid='field-password-visibility']")
+    expect(input.attributes("type")).toBe("password")
+    expect(visibility.attributes("aria-label")).toBe("Show password")
+
+    await visibility.trigger("click")
+    expect(input.attributes("type")).toBe("text")
+    expect(wrapper.get("[data-testid='field-password-visibility']").attributes("aria-label")).toBe(
+      "Hide password"
+    )
+
+    await wrapper.get("[data-testid='field-password-visibility']").trigger("click")
     expect(input.attributes("type")).toBe("password")
   })
 

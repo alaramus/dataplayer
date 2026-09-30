@@ -2,10 +2,12 @@
 import { computed, inject, ref, watch } from "vue"
 import { formLayoutKey } from "@/shared/ui/formLayout"
 
+import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import AppInput from "@/shared/ui/AppInput.vue"
 import AppNumberInput from "@/shared/ui/AppNumberInput.vue"
 import AppSelect from "@/shared/ui/AppSelect.vue"
 import AppToggle from "@/shared/ui/AppToggle.vue"
+import { appIcons } from "@/shared/ui/icons"
 
 import { autofillOf, fieldRows } from "./jsonSchema"
 import type { FieldSpec } from "./jsonSchema"
@@ -52,6 +54,11 @@ const slots = defineSlots<{
 }>()
 
 function update(name: string, value: unknown) {
+  if (value === "" && visiblePasswords.value.has(name)) {
+    const next = new Set(visiblePasswords.value)
+    next.delete(name)
+    visiblePasswords.value = next
+  }
   emit("update:modelValue", { ...props.modelValue, [name]: value })
 }
 
@@ -77,7 +84,9 @@ function numberValue(name: string): number | null {
  * stand-in is plain text however the field is normally drawn.
  */
 function inputType(field: FieldSpec): "text" | "password" | "textarea" {
-  if (field.kind === "password") return isHidden(field) ? "text" : "password"
+  if (field.kind === "password") {
+    return isHidden(field) || visiblePasswords.value.has(field.name) ? "text" : "password"
+  }
   return field.kind === "multiline" ? "textarea" : "text"
 }
 
@@ -93,6 +102,7 @@ function inputType(field: FieldSpec): "text" | "password" | "textarea" {
 const HIDDEN = "<hidden>"
 
 const touched = ref<Set<string>>(new Set())
+const visiblePasswords = ref<Set<string>>(new Set())
 
 function isHidden(field: FieldSpec): boolean {
   return (
@@ -121,11 +131,19 @@ function restore(name: string) {
   touched.value = remaining
 }
 
+function togglePassword(name: string) {
+  const next = new Set(visiblePasswords.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  visiblePasswords.value = next
+}
+
 // A different connection in the same window is a different set of secrets.
 watch(
-  () => props.fields,
+  () => [props.fields, props.secretsAreStored],
   () => {
     touched.value = new Set()
+    visiblePasswords.value = new Set()
   }
 )
 </script>
@@ -215,7 +233,22 @@ watch(
           @focus="field.kind === 'password' ? reveal(field.name) : undefined"
           @blur="field.kind === 'password' ? restore(field.name) : undefined"
           @update:model-value="update(field.name, $event)"
-        />
+        >
+          <template
+            v-if="field.kind === 'password'"
+            #after
+          >
+            <AppIconButton
+              :icon="
+                visiblePasswords.has(field.name) ? appIcons.visibilityOff : appIcons.visibility
+              "
+              :tooltip="visiblePasswords.has(field.name) ? 'Hide password' : 'Show password'"
+              :disable="disable || textValue(field.name) === '' || isHidden(field)"
+              :data-testid="`field-${field.name}-visibility`"
+              @click="togglePassword(field.name)"
+            />
+          </template>
+        </AppInput>
       </template>
     </div>
   </div>
