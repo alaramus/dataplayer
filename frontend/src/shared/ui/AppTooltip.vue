@@ -52,7 +52,10 @@ onDeactivated(() => {
 </template>
 
 <style>
-.app-tooltip {
+/* Quasar's production stylesheet is linked after component CSS. Matching its
+   tooltip class gives the kit's values enough specificity to survive that
+   order, as they already do when Vite injects component CSS in development. */
+.q-tooltip.app-tooltip {
   background: var(--dp-surface-raised);
   color: var(--dp-text);
   border: 1px solid var(--dp-border);

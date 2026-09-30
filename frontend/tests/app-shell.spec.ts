@@ -228,6 +228,8 @@ test("a tooltip over the bar at the foot of the screen draws no scrollbar at a z
     await page.getByTestId("space-data").hover()
     const tip = page.locator(".app-tooltip")
     await expect(tip).toContainText("Connections, catalogs")
+    await expect(tip).toHaveCSS("font-size", "12px")
+    await expect(tip).toHaveCSS("border-top-style", "solid")
     await expect(tip).toHaveCSS("overflow-y", "hidden")
     await page.mouse.move(600, 300)
     await expect(tip).toBeHidden()
