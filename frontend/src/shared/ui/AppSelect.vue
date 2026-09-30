@@ -347,11 +347,15 @@ const summary = computed(() => {
 .app-select--inline :deep(.q-field__label) {
   display: none;
 }
-/* Trap: a field with a label is "labelled" to Quasar, which drops its value
-   by the height of the floated label (three classes deep); the value then
-   stood 6px under the name beside it. Two classes and the scope outweigh it. */
-.app-select.app-select--inline :deep(.q-field__control-container),
-.app-select.app-select--inline :deep(.q-field__native) {
+/* Quasar adds a top inset for dense, labelled, auto-height selects. Match
+   those state classes so this reset still wins when production CSS is loaded
+   after the component stylesheet. */
+.app-select.app-select--inline.q-field--auto-height.q-field--labeled :deep(.q-field__control-container) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.app-select.app-select--inline.q-field--auto-height.q-field--labeled :deep(.q-field__native) {
+  min-height: var(--dp-field-height);
   padding-top: 0;
   padding-bottom: 0;
 }

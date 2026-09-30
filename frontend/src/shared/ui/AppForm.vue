@@ -57,12 +57,23 @@ provide(formLayoutKey, true)
 .app-form :deep(.app-form-field .q-field__control-container) {
   padding-top: 0;
 }
+/* Quasar's dense, labelled QSelect has an equally specific top inset in its
+   production stylesheet, which is loaded after this component's CSS. Keep its
+   control aligned with AppInput in both development and built bundles. */
+.app-form :deep(.app-form-field.q-field--auto-height.q-field--labeled .q-field__control-container) {
+  padding-top: 0;
+}
 /* QSelect derives the combobox name from its label prop, not $attrs. */
 .app-form :deep(.app-form-field .q-field__label) {
   display: none;
 }
 .app-form :deep(.app-form-field .q-field__native),
 .app-form :deep(.app-form-field .q-field__input) {
+  min-height: var(--dp-form-control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.app-form :deep(.app-form-field.q-field--auto-height.q-field--labeled .q-field__native) {
   min-height: var(--dp-form-control-height);
   padding-top: 0;
   padding-bottom: 0;

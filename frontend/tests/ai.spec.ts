@@ -15,6 +15,7 @@ test("keeps unsent text when leaving and returning to the AI space", async ({ pa
   await page.getByTestId("ai-new-chat").click()
   const input = page.getByTestId("ai-message-input")
   await expect(input).toBeVisible()
+  await expect(page.getByTestId("ai-chat-model").locator(".q-field__control")).toHaveCSS("height", "32px")
   await input.fill("A question I have not sent")
 
   await page.getByTestId("space-data").click()

@@ -35,6 +35,12 @@ test("a form that has only its defaults is already addressed", async ({ page }) 
   await login(page)
   await pickAdapterType(page, "postgres")
 
+  const control = (testId: string) =>
+    page.locator(".q-field").filter({ has: page.getByTestId(testId) }).first().locator(".q-field__control")
+  const authentication = await control("field-auth_method").boundingBox()
+  const host = await control("field-host").boundingBox()
+  expect(authentication?.height, "the select and text field should share a control height").toBe(host?.height)
+
   await expect(page.getByTestId("connector-url")).toHaveValue("postgresql://localhost:5432")
 
   // And it grows a part at a time, rather than appearing only once every
