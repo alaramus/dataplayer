@@ -64,9 +64,24 @@
 .dp-tone-text-info {
   color: var(--dp-accent) !important;
 }
-.dp-tone-fill-error {
+.dp-tone-fill-error,
+.dp-window-close:hover,
+.dp-window-close:focus-visible {
   background: var(--q-negative) !important;
   color: var(--dp-on-fill) !important;
+}
+.dp-window-close:hover,
+.dp-window-close:focus-visible {
+  border-radius: 0;
+  box-shadow: var(--dp-space-1) 0 0 0 var(--q-negative) !important;
+}
+.dp-window-close:hover::before,
+.dp-window-close:focus-visible::before {
+  opacity: 0 !important;
+}
+.dp-window-close:hover > .q-focus-helper,
+.dp-window-close:focus-visible > .q-focus-helper {
+  opacity: 0 !important;
 }
 .dp-tone-fill-success {
   background: var(--q-positive) !important;

@@ -215,8 +215,10 @@ const resizeEdges: ResizeEdge[] = [
           @click="emit('toggleMaximize')"
         />
         <AppIconButton
+          class="dp-window-close"
           :icon="appIcons.close"
           tooltip="Close"
+          variant="danger-quiet"
           aria-label="Close window"
           :data-testid="`window-close-${window.id}`"
           @click="emit('close')"
