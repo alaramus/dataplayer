@@ -678,7 +678,10 @@ async function parseTyped(text: string) {
           <!-- Only for a connection that exists: there is nothing to switch
                off before it is saved, and the row would ask a question about
                a thing that is not there yet. -->
-          <span v-if="saved" class="connector-window__enabled">
+          <span
+            v-if="saved"
+            class="connector-window__enabled"
+          >
             <AppToggle
               v-model="enabled"
               label="In use"
