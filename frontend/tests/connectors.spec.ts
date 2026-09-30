@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 import type { Locator } from "@playwright/test"
 
-import { chooseTabColor, DATABASE, openPermissions, pickAdapterType } from "./utils/connectors"
+import { chooseTabColor, createPostgresConnector, DATABASE, openPermissions, pickAdapterType } from "./utils/connectors"
 import { openNode } from "./utils/catalog"
 import { login } from "./utils/login"
 import { catalogTab, connectorRow, deleteConnector, editConnector, openConnector, rowsTabs } from "./utils/workspace"
@@ -147,13 +147,18 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
 })
 
 test("explains what switching a connection off does", async ({ page }) => {
+  const name = `e2e-enabled-${Date.now()}`
   await login(page)
-  await editConnector(page, "pg-lab")
+  // A connector of its own: the scenario must not lean on the seeded demo
+  // connections, which a backend test run wipes from the database.
+  await createPostgresConnector(page, name)
+  await editConnector(page, name)
   await page.getByTestId("connector-enabled").hover()
   await expect(page.getByRole("tooltip")).toHaveText(
     "Switch off to keep this connection saved but unavailable for data access. Automatic health checks also stop."
   )
   await page.getByRole("button", { name: "Cancel" }).click()
+  await deleteConnector(page, name)
 })
 
 test("the window separates how to reach a connection from what may be done through it", async ({
