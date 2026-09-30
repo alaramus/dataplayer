@@ -437,6 +437,9 @@ chosen, then reversed in favour of changing the list with a release.
   of the space, holds New chat, the conversation history by last activity, and
   Settings at its foot. The ordinary workspace separator moves it. Settings
   open in the right card in place of the conversation, and the list stays.
+- **An empty history opens the composer.** Entering AI with no active agent
+  conversations opens an unsaved local draft in the right card. It enters
+  history only after its first message is sent.
 - **Settings**: Keys (per provider), Model, and Confirmations with "Allow all
   changes in every chat". The agent's settings live here, not on `/preferences`.
 - **A title is automatic and can be renamed.** The first line of the first

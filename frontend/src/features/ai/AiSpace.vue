@@ -259,7 +259,14 @@ watch(conversations, (rows) => {
   // Trap: the list is empty while it loads; falling back to the first row then drops the
   // remembered selection and erases it from storage, so restore after reload lands on
   // whatever row the server lists first.
-  if (list.isPending.value) return
+  if (list.isPending.value || list.data.value === undefined) return
+  // A person with no agent conversations should land on the composer, not on a
+  // welcome button that asks them to open the composer separately.
+  if (rows.length === 0) {
+    newDraftOpen.value = true
+    selected.value = null
+    return
+  }
   selected.value = rows[0]?.id ?? null
 }, { immediate: true })
 watch(selected, (id) => rememberAiConversation(id))

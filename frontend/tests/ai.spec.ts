@@ -7,6 +7,27 @@ import { login } from "./utils/login"
 import { chooseTheme } from "./utils/theme"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
+test("opens the composer automatically when the agent history is empty", async ({ page }) => {
+  await page.route("**/api/v1/ai/conversations", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ json: { data: [], count: 0 } })
+    } else {
+      await route.fallback()
+    }
+  })
+  await page.route("**/api/v1/ai/quick-chats", async (route) => {
+    if (route.request().method() === "GET") await route.fulfill({ json: [] })
+    else await route.fallback()
+  })
+
+  await login(page)
+  await page.getByTestId("space-ai").click()
+
+  await expect(page.getByTestId("ai-history")).toHaveAttribute("aria-busy", "false")
+  await expect(page.getByTestId("ai-message-input")).toBeVisible()
+  await expect(page.getByTestId("ai-draft-head")).toContainText("New chat")
+})
+
 test("keeps unsent text when leaving and returning to the AI space", async ({ page }) => {
   await login(page)
   await page.getByTestId("space-ai").click()
@@ -75,8 +96,8 @@ test("attaches named workspace tabs without overflowing a narrow composer", asyn
   await openNode(page, "pg_class")
 
   await page.getByTestId("space-ai").click()
-  // The composer exists once a chat is open; on an empty history the space is
-  // a welcome screen, so the chat is made here rather than presumed.
+  // Open a draft explicitly so this scenario does not depend on which chat is
+  // selected from the existing history.
   await page.getByTestId("ai-new-chat").click()
   await expect(page.getByTestId("ai-new-chat")).toBeEnabled()
   await page.getByTestId("ai-attach").click()

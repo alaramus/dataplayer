@@ -340,7 +340,8 @@ Dashboards. Left column: New chat, history, Settings; settings replace the
 conversation on the right. Its head can become a name filter for chats and
 projects without changing the open conversation. New chat opens a local draft;
 the conversation enters history when its first message is sent. Closing an
-untouched draft leaves no history entry. An empty chat offers a few
+untouched draft leaves no history entry. When the active agent history is empty,
+entering the AI space opens that draft directly. An empty chat offers a few
 questions the agent's tools can answer, and pressing one sends it; they step
 aside once somebody types or attaches a file.
 The transcript has a centered reading width. Agent steps use the same text size
