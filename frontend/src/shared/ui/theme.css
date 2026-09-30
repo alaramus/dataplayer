@@ -158,6 +158,9 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
 *::-webkit-scrollbar-track {
   background: transparent;
 }
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
 *::-webkit-scrollbar-thumb {
   background: var(--dp-scrollbar-thumb);
   border-radius: var(--dp-radius-control);

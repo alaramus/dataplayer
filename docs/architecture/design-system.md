@@ -130,10 +130,10 @@ none of them. Each of these is now said once, in the kit or in `theme.css`.
   Quasar paints dark read `--dp-text`; the line under a field is
   `--dp-text-muted` on a 16px line, an error still red.
 - **Every scrolling surface shares one thumb.** Native overflow uses a
-  transparent track and a thin, theme-coloured scrollbar; WebKit draws it at
-  `--dp-scrollbar-size`, and `AppScrollArea` uses that size and the same thumb
-  and hover tokens for its overlay bar. The browser keeps each surface's native
-  scrolling behavior, including grids and editors.
+  transparent track and corner with a thin, theme-coloured scrollbar; WebKit
+  draws it at `--dp-scrollbar-size`, and `AppScrollArea` uses that size and the
+  same thumb and hover tokens for its overlay bar. The browser keeps each
+  surface's native scrolling behavior, including grids and editors.
 - **A compact field is `--dp-field-height` tall** — a control's 32px unless
   what holds it sets less, as a card head does for its strip.
 - **A disabled filled button is drawn off**: `--dp-disabled-fill` under

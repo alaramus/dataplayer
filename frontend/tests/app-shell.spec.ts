@@ -28,10 +28,12 @@ test("scrollbars share the AppScrollArea thumb and transparent track in both the
       const styles = await scroller.evaluate((element) => ({
         scrollbarWidth: getComputedStyle(element, "::-webkit-scrollbar").width,
         trackColor: getComputedStyle(element, "::-webkit-scrollbar-track").backgroundColor,
+        cornerColor: getComputedStyle(element, "::-webkit-scrollbar-corner").backgroundColor,
         thumbColor: getComputedStyle(element, "::-webkit-scrollbar-thumb").backgroundColor,
       }))
       expect(styles.scrollbarWidth).toBe(scrollbarSize)
       expect(styles.trackColor).toMatch(/rgba\(0, 0, 0, 0\)|transparent/)
+      expect(styles.cornerColor).toMatch(/rgba\(0, 0, 0, 0\)|transparent/)
       expect(styles.thumbColor).toBe(tokenColor)
     }
   }
