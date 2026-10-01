@@ -262,12 +262,18 @@ const resizeEdges: ResizeEdge[] = [
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-panel);
   box-shadow: 0 6px 24px var(--dp-shadow);
-  overflow: hidden;
+  /* The frame itself clips nothing: the resize handles below hang outside
+     it, where clipping would cut them off. The bar and the body round their
+     own outer corners instead, so content still meets a round frame. */
 }
 .app-window--front {
   box-shadow: 0 10px 40px var(--dp-shadow-strong);
 }
 .app-window--maximized {
+  border-radius: 0;
+}
+.app-window--maximized .app-window__bar,
+.app-window--maximized .app-window__body {
   border-radius: 0;
 }
 .app-window--maximized .app-window__bar {
@@ -293,6 +299,12 @@ const resizeEdges: ResizeEdge[] = [
   /* Otherwise a drag selects the title text instead of moving the window. */
   user-select: none;
   touch-action: none;
+  border-radius: var(--dp-radius-panel) var(--dp-radius-panel) 0 0;
+  /* The close control's hover block is square and reaches the bar's edge by
+     its own shadow: the bar's round corner trims it, as the frame's did
+     before the resize handles moved outside it. Tooltips hang off teleported
+     content and are not clipped by this. */
+  overflow: hidden;
 }
 .app-window__title {
   flex: 1;
@@ -307,29 +319,34 @@ const resizeEdges: ResizeEdge[] = [
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border-radius: 0 0 var(--dp-radius-panel) var(--dp-radius-panel);
 }
 .app-window__resize {
   position: absolute;
   touch-action: none;
 }
+/* The grab zone hangs outside the frame, the way an operating system's
+   does: nothing inside the window resizes, so a scrollbar at the content's
+   edge keeps the press. */
 .app-window__resize--top,
 .app-window__resize--bottom {
-  left: 8px;
-  right: 8px;
-  height: 7px;
+  left: 0;
+  right: 0;
+  height: 8px;
   cursor: ns-resize;
 }
-.app-window__resize--top { top: -1px; }
-.app-window__resize--bottom { bottom: -1px; }
+.app-window__resize--top { top: -8px; }
+.app-window__resize--bottom { bottom: -8px; }
 .app-window__resize--left,
 .app-window__resize--right {
-  top: 8px;
-  bottom: 8px;
-  width: 7px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
   cursor: ew-resize;
 }
-.app-window__resize--left { left: -1px; }
-.app-window__resize--right { right: -1px; }
+.app-window__resize--left { left: -8px; }
+.app-window__resize--right { right: -8px; }
 .app-window__resize--top-left,
 .app-window__resize--top-right,
 .app-window__resize--bottom-left,
@@ -337,8 +354,8 @@ const resizeEdges: ResizeEdge[] = [
   width: 12px;
   height: 12px;
 }
-.app-window__resize--top-left { top: -1px; left: -1px; cursor: nwse-resize; }
-.app-window__resize--top-right { top: -1px; right: -1px; cursor: nesw-resize; }
-.app-window__resize--bottom-left { bottom: -1px; left: -1px; cursor: nesw-resize; }
-.app-window__resize--bottom-right { bottom: -1px; right: -1px; cursor: nwse-resize; }
+.app-window__resize--top-left { top: -12px; left: -12px; cursor: nwse-resize; }
+.app-window__resize--top-right { top: -12px; right: -12px; cursor: nesw-resize; }
+.app-window__resize--bottom-left { bottom: -12px; left: -12px; cursor: nesw-resize; }
+.app-window__resize--bottom-right { bottom: -12px; right: -12px; cursor: nwse-resize; }
 </style>

@@ -189,7 +189,9 @@ persisted across sessions.
 
 A content-sized window opens at a content-measured height and follows content
 that appears or disappears inside it, bounded by the viewport, and can be
-resized from every edge and corner. Repeated questions use presets in
+resized from every edge and corner. The resize handles hang outside the
+frame rather than over its edge, so a scrollbar at the content's edge
+keeps the press. Repeated questions use presets in
 `shared/windows` rather than restating deletion and question geometry in each
 feature.
 
