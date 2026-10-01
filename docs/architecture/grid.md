@@ -25,9 +25,8 @@ The tabular surface paints its own `--dp-surface` background, matching sticky
 headings, row selectors and pinned columns. Moving it into a floating window
 does not expose the window's raised background through ordinary cells.
 
-Data rows use one text line with compact vertical padding; a row action replaces
-its number under the pointer or when its buttons hold the keyboard, and does
-not add another line. The column header uses the
+Data rows use one text line with compact vertical padding; a row action sits
+beside its number and does not add another line. The column header uses the
 shared toolbar height and the same button size as the command bar above it.
 Columns without a saved width fit the current page's values and header,
 within 72–480 pixels; double-clicking the resize handle fits them again. The

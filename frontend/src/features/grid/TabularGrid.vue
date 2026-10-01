@@ -1000,27 +1000,16 @@ defineExpose({
 .data-grid__row-extra {
   visibility: hidden;
   position: absolute;
-  inset: 0;
-  display: flex;
+  inset-inline-end: 4px;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--dp-space-half);
-  background: var(--dp-surface);
 }
 
-.data-grid__table tr:hover .data-grid__row-extra:has(> *),
-.data-grid__table tr:focus-within .data-grid__row-extra:has(> *) {
+.data-grid__table tr:hover .data-grid__row-extra,
+.data-grid__table tr:focus-within .data-grid__row-extra {
   visibility: visible;
-}
-
-/* The number gives way to the actions: both in 72px they overlap,
-   and the digit under the buttons is unreadable either way. Rows
-   without actions keep their number — an empty extra changes nothing.
-   The focused number itself stays visible: hiding it under the keyboard
-   would take the focus outline with it. */
-.data-grid__table tr:hover .data-grid__selector:has(.data-grid__row-extra > *) .data-grid__row-selector:not(:focus-visible),
-.data-grid__table tr:has(.data-grid__row-extra:focus-within) .data-grid__selector:has(.data-grid__row-extra > *) .data-grid__row-selector {
-  visibility: hidden;
 }
 
 .data-grid__selector {
