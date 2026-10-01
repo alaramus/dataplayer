@@ -570,14 +570,17 @@ body.body--dark[data-dp-theme="dark-purple"] {
  * of the marker.
  */
 body:not(.body--dark)[data-dp-theme="paper-light"] {
-  --dp-surface: #fffdf7;
+  --dp-surface: #fdf8ec;
   --dp-surface-raised: #f7f1e4;
-  --dp-chrome: #eee7da;
+  --dp-chrome: #f0e6cf;
   --dp-chrome-raised: #f3efe6;
-  --dp-field-surface: #fffdf7;
+  /* Written again rather than inherited: card-head is computed where it is
+     declared, so without this the strip keeps :root's light grey. */
+  --dp-card-head: var(--dp-chrome);
+  --dp-field-surface: #fdf8ec;
   --dp-field-border: #d3c4ab;
-  --dp-tab-current: #e7dcc6;
-  --dp-panel-plain: #e7dcc6;
+  --dp-tab-current: #e9dcc0;
+  --dp-panel-plain: #e9dcc0;
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 80%, var(--dp-surface));
 
   --dp-border-faint: rgba(65, 50, 35, 0.1);

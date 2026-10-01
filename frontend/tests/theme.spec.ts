@@ -259,6 +259,22 @@ test("a tab is legible in the dark theme", async ({ page }) => {
   await deleteConnector(page, name)
 })
 
+test("paper light panels are warm paper, not white", async ({ page }) => {
+  // The panels stand on a cream canvas: near-white they read as office
+  // paper rather than as the viewer's warm ground. Painted, not merely
+  // re-declared: a variable nothing reads changes nothing.
+  await login(page)
+  await choose(page, "Paper light")
+  await backToWorkspace(page)
+  expect(await panelColour(page)).toBe("rgb(253, 248, 236)")
+  const head = await page
+    .locator('[data-testid^="workspace-leaf-"]')
+    .first()
+    .locator(".workspace-leaf__strip")
+    .evaluate((node) => getComputedStyle(node).backgroundColor)
+  expect(head).toBe("rgb(240, 230, 207)")
+})
+
 test("a window's bar stands out from its frame in every dark ground", async ({ page }) => {
   // The viewer-carried grounds once had chrome equal to the raised ground,
   // so a window's bar vanished into its frame. Only the cascade can say
