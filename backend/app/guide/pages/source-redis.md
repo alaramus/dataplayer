@@ -19,7 +19,7 @@ or clear their expiry. How connections work in general is on the
 - Keys of all six types: create, replace, delete
 - A key's expiry: set it or remove it
 - Tables described over folders of hashes
-- Keys and tables saved as CSV files
+- Keys saved as CSV files
 
 ## Connecting
 
