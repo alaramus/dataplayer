@@ -258,3 +258,34 @@ test("a tab is legible in the dark theme", async ({ page }) => {
 
   await deleteConnector(page, name)
 })
+
+test("a window's bar stands out from its frame in every dark ground", async ({ page }) => {
+  // The viewer-carried grounds once had chrome equal to the raised ground,
+  // so a window's bar vanished into its frame. Only the cascade can say
+  // whether they differ, so it is asked where the cascade is real.
+  await login(page)
+
+  for (const theme of ["Dark", "Dark blue", "Paper", "Midnight", "Dark purple"] as const) {
+    await choose(page, theme)
+    await backToWorkspace(page)
+
+    await page.getByTestId("quick-chat-rail").click()
+    const chat = page.getByTestId("quick-chat-window")
+    await expect(chat).toBeVisible()
+    const colours = await chat.evaluate((node) => {
+      const frame = node.closest('[role="dialog"]')
+      if (!(frame instanceof HTMLElement)) throw new Error("quick chat is not in a window")
+      const bar = frame.querySelector<HTMLElement>(".app-window__bar")
+      if (bar === null) throw new Error("the window has no bar")
+      return {
+        frame: getComputedStyle(frame).backgroundColor,
+        bar: getComputedStyle(bar).backgroundColor,
+      }
+    })
+    expect(colours.bar, theme).not.toBe(colours.frame)
+
+    const frame = page.locator('[role="dialog"]', { has: chat })
+    await frame.getByRole("button", { name: "Close window" }).click()
+    await expect(chat).toHaveCount(0)
+  }
+})

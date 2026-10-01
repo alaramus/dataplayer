@@ -447,7 +447,8 @@ body.body--dark[data-dp-theme="dark-blue"] {
 body.body--dark[data-dp-theme="paper"] {
   --dp-surface: #211c17;
   --dp-surface-raised: #2b241d;
-  --dp-chrome: #2b241d;
+  /* Chrome on raised: distinct, or a window's bar vanishes into its frame. */
+  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 82%, var(--dp-text));
   --dp-chrome-raised: #17130f;
   --dp-field-surface: #2b241d;
   --dp-field-border: #4d4136;
@@ -487,7 +488,8 @@ body.body--dark[data-dp-theme="paper"] {
 body.body--dark[data-dp-theme="midnight"] {
   --dp-surface: #0c1929;
   --dp-surface-raised: #13243a;
-  --dp-chrome: #13243a;
+  /* Chrome on raised: distinct, or a window's bar vanishes into its frame. */
+  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 82%, var(--dp-text));
   --dp-chrome-raised: #07111f;
   --dp-field-surface: #13243a;
   --dp-field-border: #2a4560;
@@ -528,7 +530,8 @@ body.body--dark[data-dp-theme="midnight"] {
 body.body--dark[data-dp-theme="dark-purple"] {
   --dp-surface: #1a102d;
   --dp-surface-raised: #281642;
-  --dp-chrome: #281642;
+  /* Chrome on raised: distinct, or a window's bar vanishes into its frame. */
+  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 82%, var(--dp-text));
   --dp-chrome-raised: #100921;
   --dp-field-surface: #281642;
   --dp-field-border: #4a2f63;
