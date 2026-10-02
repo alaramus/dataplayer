@@ -22,8 +22,8 @@ one, while empty, says what to do next and offers the button that does it.
 
 The workspace sits inside one inset frame between a compact application toolbar
 and a status line. Its panels spend the same surface, border, tab height,
-spacing and radius tokens, and separators keep a wide pointer target around a
-one-pixel line, so the chrome reads as one tool rather than a row of unrelated
+spacing and radius tokens, and separators keep a pointer target wider than
+what is drawn, so the chrome reads as one tool rather than a row of unrelated
 cards. The tokens are the stable part; the final polish is not settled.
 
 A tab is carried the way a browser carries one: it leaves its strip and follows
@@ -161,7 +161,9 @@ Consequences:
   of them the space that is also the handle that resizes them. One frame around
   the lot with hairlines inside it made three columns read as one table. The gap
   is the width of the inset the workspace already sits in, so the distance between
-  the cards and the distance around them are one number.
+  the cards and the distance around them are one number. The handle reaches a
+  hair past the gap, over the border and the first pixel inside either card, so
+  the target is wider than the gap without the gap looking any wider.
 - **A tab that is not showing is kept, not destroyed.** Switching away and back is
   no reason to re-read a catalog or lose the page a grid was on, so the workspace
   keeps each panel in its own `<KeepAlive>` and moves its rendered contents

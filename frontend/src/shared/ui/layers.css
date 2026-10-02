@@ -29,13 +29,19 @@
      both, or the name of the pinned column is painted over by its own rows. */
   --dp-layer-sticky-corner: 3;
 
+  /* The gap that resizes two cards, whose target reaches a hair into the edge
+     of each (WorkspaceSeparator): over whatever a card keeps at its edge, a
+     sticky heading included, and under what covers a whole panel — a tab is
+     dropped on the card it is carried over, not on the gap beside it. */
+  --dp-layer-handle: 4;
+
   /* Drawn over a whole panel: where a dragged tab would land, and the film
      over a grid that is being re-read. Above a sticky heading, because it
      covers the panel and a heading is part of it. */
-  --dp-layer-overlay: 4;
+  --dp-layer-overlay: 5;
 
   /* A panel anchored to a control it belongs to, over the form around it. */
-  --dp-layer-popover: 5;
+  --dp-layer-popover: 6;
 
   /* A floating window: over the application's own chrome and over any grid
      inside it, under the menus and dialogs that open from the window itself.

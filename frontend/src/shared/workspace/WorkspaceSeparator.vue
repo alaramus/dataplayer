@@ -55,12 +55,28 @@ function onPointerUp(event: PointerEvent) {
    than at rest: the cursor already says the gap can be dragged, and a line
    down it would be the frame the cards were made to replace. */
 .workspace-separator {
+  position: relative;
+  z-index: var(--dp-layer-handle);
   flex: 0 0 var(--dp-workspace-inset);
+}
+/* The target reaches past the gap over the border and the first pixel inside
+   either card: the gap alone was a target the pointer often missed. No
+   further, because a scrollbar stands against the border and would lose more
+   than its outer pixel. */
+.workspace-separator::before {
+  content: "";
+  position: absolute;
 }
 .workspace-separator--row {
   cursor: col-resize;
 }
+.workspace-separator--row::before {
+  inset: 0 calc(-1 * var(--dp-space-half));
+}
 .workspace-separator--column {
   cursor: row-resize;
+}
+.workspace-separator--column::before {
+  inset: calc(-1 * var(--dp-space-half)) 0;
 }
 </style>

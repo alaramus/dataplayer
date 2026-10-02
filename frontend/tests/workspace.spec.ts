@@ -129,6 +129,42 @@ test("resizes, collapses and remembers the layout", async ({ page }) => {
   expect((await alpha.boundingBox())?.width ?? 0).toBeGreaterThan(50)
 })
 
+test("a border is caught a hair inside either card, and drawn no wider", async ({ page }) => {
+  await page.goto("/workspace-demo")
+  await page.getByTestId("reset-workspace").click()
+
+  const alpha = page.getByTestId("workspace-leaf-left")
+  const before = (await alpha.boundingBox())?.width ?? 0
+  const gap = await page.getByTestId("workspace-separator").first().boundingBox()
+  if (gap === null) throw new Error("the separator has no box")
+  const inset = await page.evaluate(() =>
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dp-workspace-inset"))
+  )
+  expect(gap.width).toBeCloseTo(inset, 1)
+
+  // The pointer finds the gap over the border and the first pixel of the card
+  // on either side, and the card itself a pixel further in.
+  const y = gap.y + gap.height / 2
+  const onGap = (x: number) =>
+    page.evaluate(
+      (point) =>
+        (document.elementFromPoint(point.x, point.y)?.closest('[data-testid="workspace-separator"]') ??
+          null) !== null,
+      { x, y }
+    )
+  expect(await onGap(gap.x - 1.5)).toBe(true)
+  expect(await onGap(gap.x + gap.width + 1.5)).toBe(true)
+  expect(await onGap(gap.x - 3)).toBe(false)
+  expect(await onGap(gap.x + gap.width + 3)).toBe(false)
+
+  // And a drag started there moves the border.
+  await page.mouse.move(gap.x - 1.5, y)
+  await page.mouse.down()
+  await page.mouse.move(gap.x - 1.5 + 80, y, { steps: 8 })
+  await page.mouse.up()
+  expect((await alpha.boundingBox())?.width ?? 0).toBeGreaterThan(before + 50)
+})
+
 test("leaves the room of a column on the bar to the cards after it", async ({ page }) => {
   await page.goto("/workspace-demo")
   await page.getByTestId("reset-workspace").click()
