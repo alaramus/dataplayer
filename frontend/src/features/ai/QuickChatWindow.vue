@@ -198,105 +198,107 @@ function editorKeydown(event: KeyboardEvent) {
         class="quick-chat__messages"
         data-testid="quick-chat-messages"
       >
-        <AppSpinner v-if="chat.isPending.value && selected" />
-        <AppBanner
-          v-else-if="chat.isError.value"
-          tone="error"
-        >
-          The chat could not be loaded.
-        </AppBanner>
-        <div
-          v-else-if="!chat.data.value?.messages.length && asked === null"
-          class="quick-chat__empty"
-        >
-          <q-icon
-            :name="appIcons.autoAwesome"
-            size="var(--dp-icon-xl)"
-          />
-          <span>What would you like to know?</span>
-        </div>
-        <article
-          v-for="message in chat.data.value?.messages ?? []"
-          :key="message.id"
-          class="quick-chat__message"
-          :class="`quick-chat__message--${message.role}`"
-        >
-          <div
-            v-if="message.role === 'user'"
-            class="quick-chat__question"
+        <div class="quick-chat__transcript">
+          <AppSpinner v-if="chat.isPending.value && selected" />
+          <AppBanner
+            v-else-if="chat.isError.value"
+            tone="error"
           >
-            {{ message.content }}
+            The chat could not be loaded.
+          </AppBanner>
+          <div
+            v-else-if="!chat.data.value?.messages.length && asked === null"
+            class="quick-chat__empty"
+          >
+            <q-icon
+              :name="appIcons.autoAwesome"
+              size="var(--dp-icon-xl)"
+            />
+            <span>What would you like to know?</span>
           </div>
-          <ChatMarkdown
-            v-else
-            :text="message.content"
-          />
-          <AiMessageActions
-            class="quick-chat__actions"
-            :text="message.content"
-            :role="message.role"
-          />
-        </article>
-        <article
-          v-if="askedShown"
-          class="quick-chat__message quick-chat__message--user"
-        >
-          <div class="quick-chat__question">
-            {{ asked }}
-          </div>
-        </article>
-        <article
-          v-if="asked !== null"
-          class="quick-chat__message quick-chat__message--assistant"
-          data-testid="quick-chat-answering"
-        >
-          <ChatMarkdown
-            v-if="answer"
-            :text="answer"
-          />
-          <AppSpinner v-else />
-        </article>
-      </div>
-      <div class="quick-chat__dock">
-        <div class="quick-chat__composer">
-          <AppInput
-            v-model="draft"
-            type="textarea"
-            grow
-            compact
-            placeholder="Message the model"
-            aria-label="Quick chat message"
-            data-testid="quick-chat-input"
-            :disable="busy"
-            @keydown="editorKeydown"
-          />
-          <div class="quick-chat__tools">
-            <AiModelSelect
-              v-model="modelKey"
-              class="quick-chat__model"
+          <article
+            v-for="message in chat.data.value?.messages ?? []"
+            :key="message.id"
+            class="quick-chat__message"
+            :class="`quick-chat__message--${message.role}`"
+          >
+            <div
+              v-if="message.role === 'user'"
+              class="quick-chat__question"
+            >
+              {{ message.content }}
+            </div>
+            <ChatMarkdown
+              v-else
+              :text="message.content"
+            />
+            <AiMessageActions
+              class="quick-chat__actions"
+              :text="message.content"
+              :role="message.role"
+            />
+          </article>
+          <article
+            v-if="askedShown"
+            class="quick-chat__message quick-chat__message--user"
+          >
+            <div class="quick-chat__question">
+              {{ asked }}
+            </div>
+          </article>
+          <article
+            v-if="asked !== null"
+            class="quick-chat__message quick-chat__message--assistant"
+            data-testid="quick-chat-answering"
+          >
+            <ChatMarkdown
+              v-if="answer"
+              :text="answer"
+            />
+            <AppSpinner v-else />
+          </article>
+        </div>
+        <div class="quick-chat__dock">
+          <div class="quick-chat__composer">
+            <AppInput
+              v-model="draft"
+              type="textarea"
+              grow
               compact
-              :allow-auto="false"
+              placeholder="Message the model"
+              aria-label="Quick chat message"
+              data-testid="quick-chat-input"
               :disable="busy"
+              @keydown="editorKeydown"
             />
-            <AppIconButton
-              :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
-              :active="dictation.listening.value"
-              :tooltip="!dictation.supported
-                ? 'This browser cannot listen'
-                : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
-              :disable="!dictation.supported || busy"
-              data-testid="quick-chat-dictate"
-              @click="dictate"
-            />
-            <span class="quick-chat__gap" />
-            <AppButton
-              :icon="appIcons.send"
-              label="Send"
-              icon-only
-              :disable="busy || !draft.trim()"
-              data-testid="quick-chat-send"
-              @click="send()"
-            />
+            <div class="quick-chat__tools">
+              <AiModelSelect
+                v-model="modelKey"
+                class="quick-chat__model"
+                compact
+                :allow-auto="false"
+                :disable="busy"
+              />
+              <AppIconButton
+                :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
+                :active="dictation.listening.value"
+                :tooltip="!dictation.supported
+                  ? 'This browser cannot listen'
+                  : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+                :disable="!dictation.supported || busy"
+                data-testid="quick-chat-dictate"
+                @click="dictate"
+              />
+              <span class="quick-chat__gap" />
+              <AppButton
+                :icon="appIcons.send"
+                label="Send"
+                icon-only
+                :disable="busy || !draft.trim()"
+                data-testid="quick-chat-send"
+                @click="send()"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -306,8 +308,11 @@ function editorKeydown(event: KeyboardEvent) {
 
 <style scoped>
 .quick-chat { height: 100%; min-height: 0; display: flex; flex-direction: column; }
-.quick-chat__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-5) var(--dp-space-4); }
-.quick-chat__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
+/* Laid out as the agent's chat is (AiConversation): the transcript scrolls the
+   whole height of the window and passes under the composer. */
+.quick-chat__messages { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.quick-chat__transcript { flex: 1 0 auto; padding: var(--dp-space-5) var(--dp-space-4) 0; isolation: isolate; }
+.quick-chat__empty { min-height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .quick-chat__message { max-width: 960px; margin: 0 auto var(--dp-space-4); }
 .quick-chat__message--user { display: flex; flex-direction: column; align-items: flex-end; }
 /* Shown under the message the pointer is on, as in the agent's chat. */
@@ -315,7 +320,7 @@ function editorKeydown(event: KeyboardEvent) {
 .quick-chat__message:hover .quick-chat__actions, .quick-chat__message:focus-within .quick-chat__actions { opacity: 1; pointer-events: auto; }
 @media (hover: none) { .quick-chat__actions { opacity: 1; pointer-events: auto; } }
 .quick-chat__question { max-width: 78%; font-size: var(--dp-prose-font-size); line-height: 1.65; white-space: pre-wrap; padding: var(--dp-space-2) var(--dp-space-3); background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
-.quick-chat__dock { flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); }
+.quick-chat__dock { position: sticky; bottom: 0; flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); background: linear-gradient(transparent, var(--dp-surface-raised) var(--dp-space-2)); }
 .quick-chat__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); max-width: 960px; margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .quick-chat__tools { display: flex; align-items: center; gap: var(--dp-space-2); }
 .quick-chat__model { flex: 0 1 200px; min-width: 120px; }

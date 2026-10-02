@@ -11,6 +11,9 @@ test("opening and closing a quick chat leaves history unchanged", async ({ page 
   const before = await rows.count()
   await page.getByTestId("quick-chat-rail").click()
   await expect(page.getByTestId("quick-chat-window")).toBeVisible()
+  // Laid out as the agent's chat is: the composer stands inside the scroller,
+  // which the transcript passes under.
+  await expect(page.getByTestId("quick-chat-messages").getByTestId("quick-chat-input")).toBeVisible()
   await page.getByRole("button", { name: "Close window" }).click()
   await expect(rows).toHaveCount(before)
 })

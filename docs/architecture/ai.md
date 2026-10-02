@@ -345,10 +345,12 @@ entering the AI space opens that draft directly. An empty chat offers a few
 questions the agent's tools can answer, and pressing one sends it; they step
 aside once somebody types or attaches a file.
 The transcript has a centered reading width. Agent steps use the same text size
-as answers, with a quieter color; the composer sits on a raised surface below
-the transcript. Copy and speech controls under a message appear on hover or
-keyboard focus, and remain visible on touch screens; the quick chat has the same
-two under its messages. Reading one message aloud stops any other, in either
+as answers, with a quieter color; the composer sits on a raised surface at the
+foot of the card, and the transcript scrolls the card's whole height and passes
+under it, stopping its last message above it; the quick chat is laid out the
+same way. Copy and speech controls under a message appear on hover or keyboard
+focus, and remain visible on touch screens; the quick chat has the same two
+under its messages. Reading one message aloud stops any other, in either
 chat. Unsent text is kept in
 memory per conversation while this browser page is open, including when the
 person switches application spaces or opens another chat. Sending clears it

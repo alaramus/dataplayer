@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import type { Locator } from "@playwright/test"
 
 import { historyRows } from "./utils/ai"
 import { openNode, pickSchema } from "./utils/catalog"
@@ -26,6 +27,64 @@ test("opens the composer automatically when the agent history is empty", async (
   await expect(page.getByTestId("ai-history")).toHaveAttribute("aria-busy", "false")
   await expect(page.getByTestId("ai-message-input")).toBeVisible()
   await expect(page.getByTestId("ai-draft-head")).toContainText("New chat")
+})
+
+test("the transcript runs under the composer to the foot of the card, however short the card", async ({ page }) => {
+  // Nothing running, so the panel at the foot is the same whatever the
+  // development server has left behind.
+  await page.route(/\/api\/v1\/services\/(\?.*)?$/, (route) => route.request().method() === "GET"
+    ? route.fulfill({ json: [] })
+    : route.fallback())
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await login(page)
+  await page.getByTestId("space-ai").click()
+  await page.getByTestId("ai-new-chat").click()
+
+  const card = page.getByTestId("ai-conversation-card")
+  const messages = page.getByTestId("ai-messages")
+  const composer = page.getByTestId("ai-composer")
+  const examples = page.getByTestId("ai-examples")
+  await expect(examples).toBeVisible()
+  const boxOf = async (locator: Locator) => {
+    const box = await locator.boundingBox()
+    if (box === null) throw new Error("the element has no box")
+    return box
+  }
+  const footOf = (box: { y: number; height: number }) => box.y + box.height
+
+  // The scroller reaches the foot of the card, its border aside, and the
+  // composer stands inside it.
+  expect(footOf(await boxOf(card)) - footOf(await boxOf(messages))).toBeLessThanOrEqual(1.5)
+  expect(footOf(await boxOf(composer))).toBeLessThan(footOf(await boxOf(messages)))
+
+  // The panel at the foot dragged up as far as it goes leaves the chat a card
+  // shorter than its examples.
+  await page.getByTestId("command-services").click()
+  await expect(page.getByTestId("bottom-panel")).toBeVisible()
+  const gap = await boxOf(page.getByTestId("workspace-separator").last())
+  await page.mouse.move(gap.x + gap.width / 2, gap.y + gap.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(gap.x + gap.width / 2, 4, { steps: 10 })
+  await page.mouse.up()
+  expect(await messages.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+
+  // Nothing in the transcript is painted over the composer, which is what an
+  // example did when the card was this short.
+  const box = await boxOf(composer)
+  for (const y of [box.y + box.height / 4, box.y + box.height / 2]) {
+    const onComposer = await page.evaluate(
+      (point) =>
+        (document.elementFromPoint(point.x, point.y)?.closest('[data-testid="ai-composer"]') ??
+          null) !== null,
+      { x: box.x + box.width / 2, y }
+    )
+    expect(onComposer).toBe(true)
+  }
+
+  // Scrolled to the end, the last example stops above the composer.
+  await messages.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  const last = await boxOf(examples.getByRole("button").last())
+  expect(footOf(last)).toBeLessThanOrEqual((await boxOf(composer)).y)
 })
 
 test("keeps unsent text when leaving and returning to the AI space", async ({ page }) => {

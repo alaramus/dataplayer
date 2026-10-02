@@ -472,212 +472,347 @@ onBeforeUnmount(() => {
           class="ai-conversation__messages"
           data-testid="ai-messages"
           @scroll="onMessagesScroll"
-          @pointerup="selectedMessageText"
-          @keyup="selectedMessageText"
         >
           <div
-            v-if="!conversation.data.value?.messages.length && !activeRun"
-            class="ai-conversation__empty"
+            class="ai-conversation__transcript"
+            @pointerup="selectedMessageText"
+            @keyup="selectedMessageText"
           >
-            <q-icon
-              :name="appIcons.autoAwesome"
-              size="var(--dp-icon-xl)"
-            />
             <div
-              v-if="examplesShown"
-              class="ai-conversation__examples"
-              data-testid="ai-examples"
+              v-if="!conversation.data.value?.messages.length && !activeRun"
+              class="ai-conversation__empty"
             >
-              <AppButton
-                v-for="example in EXAMPLES"
-                :key="example.text"
-                variant="quiet"
-                layout="navigation"
-                :icon="example.icon"
-                :label="example.text"
-                :disable="starting || send.isPending.value"
-                class="ai-conversation__example"
-                @click="ask(example.text)"
+              <q-icon
+                :name="appIcons.autoAwesome"
+                size="var(--dp-icon-xl)"
               />
-            </div>
-            <span v-else>What would you like to know?</span>
-          </div>
-          <article
-            v-for="message in conversation.data.value?.messages ?? []"
-            :key="message.id"
-            class="ai-message"
-            :class="`ai-message--${message.role}`"
-            :data-message="message.id"
-          >
-            <div
-              v-if="message.role === 'assistant' && runFor(message)"
-              class="ai-steps"
-            >
-              <button
-                type="button"
-                class="ai-steps__summary"
-                :aria-expanded="expandedSteps.has(runFor(message)!.id)"
-                @click="toggle(expandedSteps, runFor(message)!.id)"
-              >
-                <q-icon :name="expandedSteps.has(runFor(message)!.id) ? 'keyboard_arrow_down' : 'chevron_right'" />
-                {{ stepSummary(runFor(message)!) }}
-              </button>
               <div
-                v-if="expandedSteps.has(runFor(message)!.id)"
-                class="ai-steps__list"
+                v-if="examplesShown"
+                class="ai-conversation__examples"
+                data-testid="ai-examples"
               >
-                <div
-                  v-for="step in runFor(message)!.steps ?? []"
-                  :key="step.ordinal"
-                  class="ai-step"
-                >
-                  <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                  <button
-                    v-if="step.kind === 'thinking' && step.detail"
-                    type="button"
-                    class="ai-step__reasoning"
-                    @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)"
-                  >
-                    Thinking
-                  </button>
-                  <div
-                    v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)"
-                    class="ai-step__detail"
-                  >
-                    {{ step.detail }}
-                  </div>
-                  <div
-                    v-for="(substep, index) in step.substeps ?? []"
-                    :key="`${String(index)}:${substep}`"
-                    class="ai-step__detail"
-                  >
-                    {{ substep }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <AiMessageFiles
-              v-if="message.role === 'user' && message.attachments?.length"
-              :conversation-id="currentId ?? ''"
-              :files="message.attachments"
-            />
-            <div
-              v-if="message.role === 'user' && message.content"
-              class="ai-message__user"
-            >
-              {{ message.content }}
-            </div>
-            <ChatMarkdown
-              v-else-if="message.role !== 'user'"
-              :text="message.content"
-            />
-            <AppBanner
-              v-if="message.role === 'assistant' && errorOf(message)"
-              tone="warning"
-              class="ai-message__error"
-              data-testid="ai-message-error"
-            >
-              {{ errorOf(message) }}
-            </AppBanner>
-            <AiMessageActions
-              class="ai-message__actions"
-              :text="message.content"
-              :role="message.role"
-            />
-          </article>
-          <article
-            v-if="activeRun"
-            class="ai-message ai-message--assistant"
-            data-testid="ai-streaming-answer"
-          >
-            <div class="ai-steps">
-              <button
-                type="button"
-                class="ai-steps__summary"
-                :aria-expanded="expandedSteps.has(activeRun.id)"
-                @click="toggle(expandedSteps, activeRun.id)"
-              >
-                <q-icon :name="expandedSteps.has(activeRun.id) ? 'keyboard_arrow_down' : 'chevron_right'" />{{ stepSummary(activeRun) }}
-              </button>
-              <div
-                v-if="expandedSteps.has(activeRun.id)"
-                class="ai-steps__list"
-              >
-                <div
-                  v-for="step in activeRun.steps ?? []"
-                  :key="step.ordinal"
-                  class="ai-step"
-                >
-                  <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                  <button
-                    v-if="step.kind === 'thinking' && step.detail"
-                    type="button"
-                    class="ai-step__reasoning"
-                    @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)"
-                  >
-                    Thinking
-                  </button>
-                  <div
-                    v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)"
-                    class="ai-step__detail"
-                  >
-                    {{ step.detail }}
-                  </div>
-                  <div
-                    v-for="(substep, index) in step.substeps ?? []"
-                    :key="`${String(index)}:${substep}`"
-                    class="ai-step__detail"
-                  >
-                    {{ substep }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <ChatMarkdown
-              v-if="activeRun.partial_answer"
-              :text="activeRun.partial_answer"
-            />
-            <div
-              v-if="activeRun.question"
-              class="ai-question"
-              data-testid="ai-question"
-            >
-              <div>{{ activeRun.question.question }}</div>
-              <div
-                v-if="activeRun.question.kind === 'confirm_change' && activeRun.question.preview"
-                class="ai-question__preview"
-                data-testid="ai-question-preview"
-              >
-                <div class="ai-question__preview-summary">
-                  {{ activeRun.question.preview.summary }}
-                </div>
-                <div
-                  v-for="(line, index) in activeRun.question.preview.lines ?? []"
-                  :key="`${String(index)}:${line}`"
-                  class="ai-question__preview-line"
-                >
-                  {{ line }}
-                </div>
-              </div>
-              <div class="ai-question__choices">
                 <AppButton
-                  v-for="choice in activeRun.question.choices"
-                  :key="choice"
-                  :label="choice"
-                  :disable="answer.isPending.value"
-                  @click="answerQuestion(choice)"
+                  v-for="example in EXAMPLES"
+                  :key="example.text"
+                  variant="quiet"
+                  layout="navigation"
+                  :icon="example.icon"
+                  :label="example.text"
+                  :disable="starting || send.isPending.value"
+                  class="ai-conversation__example"
+                  @click="ask(example.text)"
+                />
+              </div>
+              <span v-else>What would you like to know?</span>
+            </div>
+            <article
+              v-for="message in conversation.data.value?.messages ?? []"
+              :key="message.id"
+              class="ai-message"
+              :class="`ai-message--${message.role}`"
+              :data-message="message.id"
+            >
+              <div
+                v-if="message.role === 'assistant' && runFor(message)"
+                class="ai-steps"
+              >
+                <button
+                  type="button"
+                  class="ai-steps__summary"
+                  :aria-expanded="expandedSteps.has(runFor(message)!.id)"
+                  @click="toggle(expandedSteps, runFor(message)!.id)"
+                >
+                  <q-icon :name="expandedSteps.has(runFor(message)!.id) ? 'keyboard_arrow_down' : 'chevron_right'" />
+                  {{ stepSummary(runFor(message)!) }}
+                </button>
+                <div
+                  v-if="expandedSteps.has(runFor(message)!.id)"
+                  class="ai-steps__list"
+                >
+                  <div
+                    v-for="step in runFor(message)!.steps ?? []"
+                    :key="step.ordinal"
+                    class="ai-step"
+                  >
+                    <span>{{ step.title }}</span><span>{{ step.status }}</span>
+                    <button
+                      v-if="step.kind === 'thinking' && step.detail"
+                      type="button"
+                      class="ai-step__reasoning"
+                      @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)"
+                    >
+                      Thinking
+                    </button>
+                    <div
+                      v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)"
+                      class="ai-step__detail"
+                    >
+                      {{ step.detail }}
+                    </div>
+                    <div
+                      v-for="(substep, index) in step.substeps ?? []"
+                      :key="`${String(index)}:${substep}`"
+                      class="ai-step__detail"
+                    >
+                      {{ substep }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <AiMessageFiles
+                v-if="message.role === 'user' && message.attachments?.length"
+                :conversation-id="currentId ?? ''"
+                :files="message.attachments"
+              />
+              <div
+                v-if="message.role === 'user' && message.content"
+                class="ai-message__user"
+              >
+                {{ message.content }}
+              </div>
+              <ChatMarkdown
+                v-else-if="message.role !== 'user'"
+                :text="message.content"
+              />
+              <AppBanner
+                v-if="message.role === 'assistant' && errorOf(message)"
+                tone="warning"
+                class="ai-message__error"
+                data-testid="ai-message-error"
+              >
+                {{ errorOf(message) }}
+              </AppBanner>
+              <AiMessageActions
+                class="ai-message__actions"
+                :text="message.content"
+                :role="message.role"
+              />
+            </article>
+            <article
+              v-if="activeRun"
+              class="ai-message ai-message--assistant"
+              data-testid="ai-streaming-answer"
+            >
+              <div class="ai-steps">
+                <button
+                  type="button"
+                  class="ai-steps__summary"
+                  :aria-expanded="expandedSteps.has(activeRun.id)"
+                  @click="toggle(expandedSteps, activeRun.id)"
+                >
+                  <q-icon :name="expandedSteps.has(activeRun.id) ? 'keyboard_arrow_down' : 'chevron_right'" />{{ stepSummary(activeRun) }}
+                </button>
+                <div
+                  v-if="expandedSteps.has(activeRun.id)"
+                  class="ai-steps__list"
+                >
+                  <div
+                    v-for="step in activeRun.steps ?? []"
+                    :key="step.ordinal"
+                    class="ai-step"
+                  >
+                    <span>{{ step.title }}</span><span>{{ step.status }}</span>
+                    <button
+                      v-if="step.kind === 'thinking' && step.detail"
+                      type="button"
+                      class="ai-step__reasoning"
+                      @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)"
+                    >
+                      Thinking
+                    </button>
+                    <div
+                      v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)"
+                      class="ai-step__detail"
+                    >
+                      {{ step.detail }}
+                    </div>
+                    <div
+                      v-for="(substep, index) in step.substeps ?? []"
+                      :key="`${String(index)}:${substep}`"
+                      class="ai-step__detail"
+                    >
+                      {{ substep }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <ChatMarkdown
+                v-if="activeRun.partial_answer"
+                :text="activeRun.partial_answer"
+              />
+              <div
+                v-if="activeRun.question"
+                class="ai-question"
+                data-testid="ai-question"
+              >
+                <div>{{ activeRun.question.question }}</div>
+                <div
+                  v-if="activeRun.question.kind === 'confirm_change' && activeRun.question.preview"
+                  class="ai-question__preview"
+                  data-testid="ai-question-preview"
+                >
+                  <div class="ai-question__preview-summary">
+                    {{ activeRun.question.preview.summary }}
+                  </div>
+                  <div
+                    v-for="(line, index) in activeRun.question.preview.lines ?? []"
+                    :key="`${String(index)}:${line}`"
+                    class="ai-question__preview-line"
+                  >
+                    {{ line }}
+                  </div>
+                </div>
+                <div class="ai-question__choices">
+                  <AppButton
+                    v-for="choice in activeRun.question.choices"
+                    :key="choice"
+                    :label="choice"
+                    :disable="answer.isPending.value"
+                    @click="answerQuestion(choice)"
+                  />
+                </div>
+              </div>
+            </article>
+            <AppBanner
+              v-for="run in unrepresentedRuns"
+              :key="run.id"
+              :tone="run.status === 'cancelled' ? 'info' : 'warning'"
+              data-testid="ai-run-ended"
+            >
+              {{ run.error || (run.status === "cancelled" ? "The answer was stopped." : `The answer was ${run.status}.`) }}
+            </AppBanner>
+          </div>
+          <div class="ai-conversation__dock">
+            <div
+              ref="composer"
+              class="ai-conversation__composer"
+              data-testid="ai-composer"
+            >
+              <div
+                v-if="selectedContexts.length"
+                class="ai-conversation__contexts"
+                aria-label="Tabs attached to the next message"
+              >
+                <span
+                  v-for="context in selectedContexts"
+                  :key="context.panel_id"
+                  class="ai-context-chip"
+                >
+                  <span class="ai-context-chip__label">{{ context.label }}</span>
+                  <AppIconButton
+                    :icon="appIcons.close"
+                    :tooltip="`Remove ${context.label}`"
+                    compact
+                    @click="selectedContextIds = selectedContextIds.filter((id) => id !== context.panel_id)"
+                  />
+                </span>
+              </div>
+              <div
+                v-if="pending.length"
+                class="ai-conversation__contexts"
+                aria-label="Files attached to the next message"
+              >
+                <AiFileChip
+                  v-for="one in pending"
+                  :key="one.id"
+                  :name="one.file.name"
+                  :size="one.file.size"
+                  :kind="one.kind"
+                  :thumbnail="one.address"
+                  :problem="one.kind === 'image' ? imageProblem : ''"
+                  removable
+                  @open="openFile(one.address)"
+                  @remove="removeFile(one.id)"
+                />
+              </div>
+              <AppInput
+                v-model="draft"
+                type="textarea"
+                grow
+                compact
+                placeholder="Message the agent"
+                aria-label="Message the agent"
+                data-testid="ai-message-input"
+                :disable="activeRun !== null"
+                @keydown="onEditorKeydown"
+              />
+              <!-- What the next message is sent with, under the message itself. -->
+              <div class="ai-conversation__tools">
+                <!-- The menu hangs off the span: the button alone would give it no
+                     element to open from while it is disabled. -->
+                <span>
+                  <AppIconButton
+                    :icon="appIcons.add"
+                    tooltip="Attach tabs or files"
+                    data-testid="ai-attach"
+                    :disable="activeRun !== null"
+                  />
+                  <AppMenu
+                    v-if="activeRun === null"
+                    :items="attachItems"
+                    @select="chooseAttachment"
+                  />
+                </span>
+                <input
+                  ref="picker"
+                  type="file"
+                  multiple
+                  class="ai-conversation__picker"
+                  :accept="rules ? acceptFor(rules, readsImages) : undefined"
+                  data-testid="ai-file-input"
+                  @change="pickFiles"
+                >
+                <AppSelect
+                  class="ai-conversation__policy"
+                  compact
+                  :model-value="shownPolicy"
+                  :options="policyOptions"
+                  :disable="activeRun !== null"
+                  label="Changes"
+                  data-testid="ai-chat-policy"
+                  @update:model-value="choosePolicy"
+                />
+                <AiModelSelect
+                  class="ai-conversation__model"
+                  compact
+                  :model-value="chatModel"
+                  :disable="activeRun !== null"
+                  data-testid="ai-chat-model"
+                  @update:model-value="chooseModel"
+                />
+                <AppIconButton
+                  :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
+                  :active="dictation.listening.value"
+                  :tooltip="!dictation.supported
+                    ? 'This browser cannot listen'
+                    : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+                  :disable="!dictation.supported || activeRun !== null"
+                  data-testid="ai-dictate"
+                  @click="dictate"
+                />
+                <span class="ai-conversation__gap" />
+                <AppButton
+                  v-if="activeRun"
+                  variant="danger-quiet"
+                  :icon="appIcons.stop"
+                  label="Stop"
+                  :loading="cancel.isPending.value"
+                  data-testid="ai-stop"
+                  @click="stop"
+                />
+                <AppButton
+                  v-else
+                  :icon="appIcons.send"
+                  label="Send"
+                  icon-only
+                  class="ai-conversation__send"
+                  :disable="!canSend"
+                  data-testid="ai-send"
+                  @click="submit"
                 />
               </div>
             </div>
-          </article>
-          <AppBanner
-            v-for="run in unrepresentedRuns"
-            :key="run.id"
-            :tone="run.status === 'cancelled' ? 'info' : 'warning'"
-            data-testid="ai-run-ended"
-          >
-            {{ run.error || (run.status === "cancelled" ? "The answer was stopped." : `The answer was ${run.status}.`) }}
-          </AppBanner>
+          </div>
         </div>
       </div>
       <div
@@ -700,137 +835,6 @@ onBeforeUnmount(() => {
           @click="explainSelection"
         />
       </div>
-      <div class="ai-conversation__dock">
-        <div
-          ref="composer"
-          class="ai-conversation__composer"
-          data-testid="ai-composer"
-        >
-          <div
-            v-if="selectedContexts.length"
-            class="ai-conversation__contexts"
-            aria-label="Tabs attached to the next message"
-          >
-            <span
-              v-for="context in selectedContexts"
-              :key="context.panel_id"
-              class="ai-context-chip"
-            >
-              <span class="ai-context-chip__label">{{ context.label }}</span>
-              <AppIconButton
-                :icon="appIcons.close"
-                :tooltip="`Remove ${context.label}`"
-                compact
-                @click="selectedContextIds = selectedContextIds.filter((id) => id !== context.panel_id)"
-              />
-            </span>
-          </div>
-          <div
-            v-if="pending.length"
-            class="ai-conversation__contexts"
-            aria-label="Files attached to the next message"
-          >
-            <AiFileChip
-              v-for="one in pending"
-              :key="one.id"
-              :name="one.file.name"
-              :size="one.file.size"
-              :kind="one.kind"
-              :thumbnail="one.address"
-              :problem="one.kind === 'image' ? imageProblem : ''"
-              removable
-              @open="openFile(one.address)"
-              @remove="removeFile(one.id)"
-            />
-          </div>
-          <AppInput
-            v-model="draft"
-            type="textarea"
-            grow
-            compact
-            placeholder="Message the agent"
-            aria-label="Message the agent"
-            data-testid="ai-message-input"
-            :disable="activeRun !== null"
-            @keydown="onEditorKeydown"
-          />
-          <!-- What the next message is sent with, under the message itself. -->
-          <div class="ai-conversation__tools">
-            <!-- The menu hangs off the span: the button alone would give it no
-                 element to open from while it is disabled. -->
-            <span>
-              <AppIconButton
-                :icon="appIcons.add"
-                tooltip="Attach tabs or files"
-                data-testid="ai-attach"
-                :disable="activeRun !== null"
-              />
-              <AppMenu
-                v-if="activeRun === null"
-                :items="attachItems"
-                @select="chooseAttachment"
-              />
-            </span>
-            <input
-              ref="picker"
-              type="file"
-              multiple
-              class="ai-conversation__picker"
-              :accept="rules ? acceptFor(rules, readsImages) : undefined"
-              data-testid="ai-file-input"
-              @change="pickFiles"
-            >
-            <AppSelect
-              class="ai-conversation__policy"
-              compact
-              :model-value="shownPolicy"
-              :options="policyOptions"
-              :disable="activeRun !== null"
-              label="Changes"
-              data-testid="ai-chat-policy"
-              @update:model-value="choosePolicy"
-            />
-            <AiModelSelect
-              class="ai-conversation__model"
-              compact
-              :model-value="chatModel"
-              :disable="activeRun !== null"
-              data-testid="ai-chat-model"
-              @update:model-value="chooseModel"
-            />
-            <AppIconButton
-              :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
-              :active="dictation.listening.value"
-              :tooltip="!dictation.supported
-                ? 'This browser cannot listen'
-                : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
-              :disable="!dictation.supported || activeRun !== null"
-              data-testid="ai-dictate"
-              @click="dictate"
-            />
-            <span class="ai-conversation__gap" />
-            <AppButton
-              v-if="activeRun"
-              variant="danger-quiet"
-              :icon="appIcons.stop"
-              label="Stop"
-              :loading="cancel.isPending.value"
-              data-testid="ai-stop"
-              @click="stop"
-            />
-            <AppButton
-              v-else
-              :icon="appIcons.send"
-              label="Send"
-              icon-only
-              class="ai-conversation__send"
-              :disable="!canSend"
-              data-testid="ai-send"
-              @click="submit"
-            />
-          </div>
-        </div>
-      </div>
       <AiContextDialog
         v-model="contextDialogShown"
         :contexts="contexts"
@@ -846,16 +850,24 @@ onBeforeUnmount(() => {
 .ai-selection-menu { position: fixed; z-index: var(--dp-layer-popover); display: flex; gap: var(--dp-space-1); padding: var(--dp-space-1); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .ai-conversation__body { flex: 1; min-height: 0; display: flex; }
 /* The messages hold the marks' coordinates: offsetTop is measured against this
-   box, so it has to be the one they are positioned in. */
-.ai-conversation__messages { position: relative; flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-5) var(--dp-space-4); }
-.ai-conversation__messages > .ai-message, .ai-conversation__messages > .app-banner { max-width: 960px; margin-left: auto; margin-right: auto; }
+   box, so it has to be the one they are positioned in. It holds the composer
+   too and runs to the foot of the card, so the transcript scrolls the whole
+   height and passes under the composer instead of stopping above it. */
+.ai-conversation__messages { position: relative; flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+/* Grown to the room above the composer, so an empty chat is centred there.
+   A stacking context of its own, so nothing raised inside an answer is
+   painted over the composer it passes under. */
+.ai-conversation__transcript { flex: 1 0 auto; padding: var(--dp-space-5) var(--dp-space-4) 0; isolation: isolate; }
+.ai-conversation__transcript > .ai-message, .ai-conversation__transcript > .app-banner { max-width: 960px; margin-left: auto; margin-right: auto; }
 .ai-outline { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-1); padding: var(--dp-space-2) var(--dp-space-1); overflow: hidden; }
 /* The mark is two pixels of ink in a target a finger can hit. */
 .ai-outline__mark { display: grid; place-items: center; width: 20px; height: 12px; border: 0; padding: 0; background: transparent; cursor: pointer; }
 .ai-outline__mark::before { content: ""; width: 12px; height: 2px; border-radius: 1px; background: var(--dp-border-strong); transition: width 120ms ease, background-color 120ms ease; }
 .ai-outline__mark:hover::before { background: var(--dp-text-muted); }
 .ai-outline__mark--current::before { width: 16px; background: var(--dp-text); }
-.ai-conversation__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
+/* A floor and not a height: in a card shorter than the examples a height
+   cut their top off where no scroll could reach it. */
+.ai-conversation__empty { min-height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .ai-conversation__examples { max-width: 100%; display: flex; flex-direction: column; gap: var(--dp-space-2); }
 .ai-conversation__example { border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .ai-message { margin: 0 0 var(--dp-space-4); }
@@ -877,7 +889,11 @@ onBeforeUnmount(() => {
 .ai-question__preview { display: grid; gap: var(--dp-space-1); padding: var(--dp-space-2) 0 0; font-size: var(--dp-font-size-sm); color: var(--dp-text-muted); }
 .ai-question__preview-summary { color: var(--dp-text); }
 .ai-question__preview-line { white-space: pre-wrap; }
-.ai-conversation__dock { flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); }
+/* Held at the foot of the scroller while the transcript moves under it, and
+   left where it lies at the end of it, so the last message stops above the
+   composer. The card's ground fills in round the composer, so text passing
+   under it does not show in the gaps. */
+.ai-conversation__dock { position: sticky; bottom: 0; flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); background: linear-gradient(transparent, var(--dp-surface) var(--dp-space-2)); }
 .ai-conversation__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); width: 100%; max-width: 960px; margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .ai-conversation__contexts { display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-conversation__picker { display: none; }
