@@ -35,4 +35,10 @@
 .app-scroll-area :deep(.q-scrollarea__thumb:hover) {
   background: var(--dp-scrollbar-thumb-hover);
 }
+/* Quasar gives the bar and its thumb a grab hand; a native scrollbar, which
+   is every other one in the application, keeps the arrow. */
+.app-scroll-area :deep(.q-scrollarea__bar),
+.app-scroll-area :deep(.q-scrollarea__thumb) {
+  cursor: default;
+}
 </style>

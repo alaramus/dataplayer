@@ -87,3 +87,14 @@ for (const theme of ["light", "dark"] as const) {
     expect(face.startsWith("ui-monospace")).toBe(true)
   })
 }
+
+test("the bar of a scroll area keeps the arrow a native scrollbar has", async ({ page }) => {
+  await openShowcase(page, "light")
+  const area = page.locator(".app-scroll-area").first()
+  await area.hover()
+  // Quasar's grab hand stood over this bar and over no other in the
+  // application: the rail of a pushed-aside column showed it.
+  for (const part of [".q-scrollarea__bar--v", ".q-scrollarea__thumb--v"]) {
+    await expect(area.locator(part)).toHaveCSS("cursor", "default")
+  }
+})
