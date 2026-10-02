@@ -115,10 +115,13 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
   align-items: center;
   gap: var(--dp-space-2);
   width: 100%;
-  /* The same four pixels the strip centres its icons at, so that a row keeps
-     its icon in place when the column is pushed aside. */
-  padding: 1px var(--dp-space-2) 1px var(--dp-space-1);
-  /* An ordinary row of a list one picks from (D185). */
+  /* A pushed-aside column centres the icon in its forty pixels less a hairline
+     either side, which is three pixels in from the edge of the card: the row
+     starts its icon there too, so collapsing moves no icon sideways. */
+  padding: 0 var(--dp-space-2) 0 calc(var(--dp-space-1) - 1px);
+  /* An ordinary row of a list one picks from (D185): the icon's height and
+     no more. A pixel above and below it made every row two pixels taller than
+     the same icon in the pushed-aside column. */
   min-height: var(--dp-row-height);
   box-sizing: border-box;
   cursor: pointer;

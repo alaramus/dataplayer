@@ -878,13 +878,41 @@ test("tables stack as tabs in the right column and survive a reload", async ({ p
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+/** Where every icon of a column of connections stands, by connection name. */
+async function iconsAt(scope: Page | Locator, prefix: string) {
+  const found = await scope.locator(`[data-testid^="${prefix}"]`).evaluateAll((nodes, cut) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect()
+      return { name: (node.getAttribute("data-testid") ?? "").slice(cut), x: box.x, y: box.y }
+    }), prefix.length)
+  return new Map(found.map((icon) => [icon.name, icon]))
+}
+
+/**
+ * Every icon stands where it stood, not merely one: a pushed-aside column two
+ * pixels shorter per row than the list put the thirteenth icon twenty-five
+ * pixels above its place, and one icon in an empty database is the first row,
+ * which never moved.
+ */
+function expectSamePlaces(wide: Map<string, { x: number; y: number }>, narrow: typeof wide) {
+  expect(wide.size).toBeGreaterThan(1)
+  expect([...narrow.keys()].sort()).toEqual([...wide.keys()].sort())
+  for (const [name, at] of wide) {
+    const now = narrow.get(name)
+    expect(Math.abs((now?.x ?? Infinity) - at.x), `${name} sideways`).toBeLessThan(0.5)
+    expect(Math.abs((now?.y ?? Infinity) - at.y), `${name} up or down`).toBeLessThan(0.5)
+  }
+}
+
 test("pushing the column of sources aside takes away the name and nothing else", async ({
   page,
 }) => {
   const name = `e2e-rail-same-${Date.now()}`
+  const second = `${name}-files`
   await login(page)
   await freshLayout(page)
   await createPostgresConnector(page, name)
+  await createFileConnector(page, second)
 
   const box = async (locator: ReturnType<typeof page.getByTestId>) => {
     const found = await locator.boundingBox()
@@ -903,6 +931,7 @@ test("pushing the column of sources aside takes away the name and nothing else",
   const iconWide = await box(page.getByTestId(`connector-edit-${name}`))
   const dotWide = await box(page.getByTestId(`connector-state-${name}`))
   await expect(page.getByTestId(`connector-${name}`)).toContainText(name)
+  const iconsWide = await iconsAt(page, "connector-edit-")
 
   // The dot sits on the icon rather than at the end of the row.
   expect(dotWide.x).toBeGreaterThan(iconWide.x)
@@ -922,20 +951,28 @@ test("pushing the column of sources aside takes away the name and nothing else",
 
   // The same column: the list does not move and only the names are gone. The
   // plus stays in a head of the same height and comes to stand over the
-  // icons, as the Dashboards rail's does. Two pixels of tolerance, because
-  // one layout centres in forty pixels and the other pads by four.
-  expect(Math.abs(iconNarrow.x - iconWide.x)).toBeLessThan(3)
-  expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(3)
-  expect(Math.abs(plusNarrow.y - plusWide.y)).toBeLessThan(3)
-  expect(Math.abs((plusNarrow.x + plusNarrow.width / 2) - (iconNarrow.x + iconNarrow.width / 2))).toBeLessThan(3)
-  expect(
-    Math.abs((iconNarrow.y - plusNarrow.y) - (iconWide.y - plusWide.y))
-  ).toBeLessThan(3)
-  expect(
-    Math.abs((dotNarrow.y - iconNarrow.y) - (dotWide.y - iconWide.y))
-  ).toBeLessThan(3)
+  // icons, as the Dashboards rail's does.
+  expectSamePlaces(iconsWide, await iconsAt(page, "connector-rail-"))
+  expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(0.5)
+  expect(Math.abs(dotNarrow.y - dotWide.y)).toBeLessThan(0.5)
+  expect(Math.abs(plusNarrow.y - plusWide.y)).toBeLessThan(0.5)
+  expect(Math.abs((plusNarrow.x + plusNarrow.width / 2) - (iconNarrow.x + iconNarrow.width / 2))).toBeLessThan(1)
 
+  // Pipelines draws the same column of its own, and pushes it aside the same.
   await page.getByTestId("app-toggle-first-panel").click()
+  await expect(page.getByTestId("connector-list")).toBeVisible()
+  await page.getByTestId("space-pipelines").click()
+  const rail = page.getByTestId("pipelines-rail")
+  await expect(rail.getByTestId("connector-list")).toBeVisible()
+  const pipelinesWide = await iconsAt(rail, "connector-edit-")
+  await page.getByTestId("app-toggle-first-panel").click()
+  await expect(rail.getByTestId("connector-list")).toHaveCount(0)
+  expectSamePlaces(pipelinesWide, await iconsAt(rail, "pipelines-rail-"))
+  await page.getByTestId("app-toggle-first-panel").click()
+  await expect(rail.getByTestId("connector-list")).toBeVisible()
+  await page.getByTestId("space-data").click()
+
+  await deleteConnector(page, second)
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })

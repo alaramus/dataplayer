@@ -59,12 +59,16 @@ const explained = computed(
 </template>
 
 <style scoped>
+/* A row of its own height wherever it stands, in the list and alone in a
+   pushed-aside column: one rhythm for both, so collapsing moves no icon up or
+   down. Left to the button, the column stood a fraction shorter per row. */
 .connector-icon {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
+  min-height: var(--dp-row-height);
 }
 /* On the icon rather than beside it: at the width of a pushed-aside column
    there is no room for a second column, and the wide list shows the same thing
