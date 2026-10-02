@@ -413,6 +413,14 @@ test("the connections head becomes a name filter and restores its commands", asy
   await filter.fill("no connection has this name")
   await expect(page.getByTestId("connector-list")).toHaveCount(0)
   await expect(page.getByTestId("connectors-panel")).toContainText("No matching connections")
+  // Inset from the edge of the card rather than pressed against it.
+  const panel = await page.getByTestId("connectors-panel").boundingBox()
+  const empty = await page
+    .getByTestId("connectors-panel")
+    .getByText("No matching connections", { exact: true })
+    .boundingBox()
+  if (panel === null || empty === null) throw new Error("the list or its text has no box")
+  expect(empty.x - panel.x).toBeGreaterThanOrEqual(8)
 
   await filter.press("Escape")
   await expect(page.getByTestId("connectors-name-filter")).toHaveCount(0)

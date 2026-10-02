@@ -56,6 +56,7 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
 
   <AppEmptyState
     v-else-if="rows.length === 0"
+    class="connector-list__empty"
     :text="emptyText ?? 'No connections yet'"
   />
 
@@ -109,6 +110,11 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
 .connector-list {
   display: flex;
   flex-direction: column;
+}
+/* Inset as the empty level of a catalog is (CatalogList): the card's edge is
+   no margin for a line of text. */
+.connector-list__empty {
+  padding: var(--dp-space-1) var(--dp-space-2);
 }
 .connector-list__row {
   display: flex;
