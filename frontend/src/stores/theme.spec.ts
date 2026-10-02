@@ -1,7 +1,9 @@
 import { createPinia, setActivePinia } from "pinia"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import { THEME_KEY, useThemeStore } from "./theme"
+import page from "../../index.html?raw"
+
+import { THEME_KEY, THEMES, useThemeStore } from "./theme"
 
 /**
  * What the browser would answer, and a way to change its mind the way the
@@ -180,7 +182,7 @@ describe("theme store", () => {
     expect(document.body.dataset.dpTheme).toBe("paper-light")
   })
 
-  it("leaves a named ground for light when toggled", () => {
+  it("leaves a named ground for light when no light theme was chosen", () => {
     systemSays(false)
     const theme = useThemeStore()
     theme.set("paper")
@@ -189,5 +191,48 @@ describe("theme store", () => {
 
     expect(theme.mode).toBe("light")
     expect(document.body.dataset.dpTheme).toBeUndefined()
+  })
+
+  it("toggles between the last light and the last dark theme chosen", () => {
+    systemSays(false)
+    const theme = useThemeStore()
+    theme.set("paper-light")
+    theme.set("midnight")
+    expect(theme.opposite.label).toBe("Paper light")
+
+    theme.toggle()
+    expect(theme.mode).toBe("paper-light")
+    expect(theme.opposite.label).toBe("Midnight")
+
+    theme.toggle()
+    expect(theme.mode).toBe("midnight")
+    expect(document.body.dataset.dpTheme).toBe("midnight")
+  })
+
+  it("forgets a remembered theme of the wrong polarity", () => {
+    systemSays(false)
+    localStorage.setItem("dataplayer-theme-dark", "paper-light")
+    const theme = useThemeStore()
+    theme.set("light")
+
+    theme.toggle()
+
+    expect(theme.mode).toBe("dark")
+  })
+
+  it.each(THEMES.map((theme) => [theme.value, theme.dark] as const))(
+    "is put on the page before the first paint: %s, dark %s",
+    (value, dark) => {
+      // index.html repeats the polarities, because it runs before the bundle.
+      const list = page.match(new RegExp(`var ${dark ? "dark" : "light"} = \\[([^\\]]*)\\]`))?.[1] ?? ""
+      expect(list).toContain(`"${value}"`)
+    }
+  )
+
+  it("names no theme before the first paint that the store does not know", () => {
+    const named = [...page.matchAll(/var (?:dark|light) = \[([^\]]*)\]/g)].flatMap((match) =>
+      [...(match[1] ?? "").matchAll(/"([a-z-]+)"/g)].map((id) => id[1])
+    )
+    expect(named.sort()).toEqual(THEMES.map((theme) => theme.value).sort())
   })
 })

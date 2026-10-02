@@ -135,6 +135,7 @@ defineExpose({ setExpanded, isExpanded })
 }
 .app-tree :deep(.q-tree__node--selected) {
   background: var(--dp-selected);
+  box-shadow: var(--dp-selected-edge);
   border-radius: var(--dp-radius-control);
 }
 .app-tree :deep(.q-tree__node--selected .q-tree__node-header-content) {

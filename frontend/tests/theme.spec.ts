@@ -46,7 +46,7 @@ test("takes the theme from the system until somebody chooses", async ({ page }) 
 })
 
 /** Choose a theme where it is chosen: Preferences, next to the account. */
-async function choose(page: Page, theme: "Light" | "Dark" | "Dark blue" | "Paper" | "Midnight" | "Dark purple" | "Paper light" | "System") {
+async function choose(page: Page, theme: "Light" | "Dark" | "Dark blue" | "Paper dark" | "Midnight" | "Dark purple" | "Paper light" | "System") {
   await page.getByTestId("user-menu").click()
   await page.getByTestId("menu-item-preferences").click()
   await page.waitForURL("/preferences")
@@ -281,7 +281,7 @@ test("a window's bar stands out from its frame in every dark ground", async ({ p
   // whether they differ, so it is asked where the cascade is real.
   await login(page)
 
-  for (const theme of ["Dark", "Dark blue", "Paper", "Midnight", "Dark purple"] as const) {
+  for (const theme of ["Dark", "Dark blue", "Paper dark", "Midnight", "Dark purple"] as const) {
     await choose(page, theme)
     await backToWorkspace(page)
 

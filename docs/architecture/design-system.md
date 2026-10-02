@@ -2,11 +2,11 @@
 
 What a size of text, a height, an icon and a colour of text are worth, and
 which one a role spends. Read this before giving anything on screen a size, a
-weight, an icon size or a text colour of its own. How screens are built and
+weight, an icon size or a text colour of its own, or before changing a theme. How screens are built and
 what the kit is, is in [frontend.md](frontend.md); the neutral window forms
 are D131 there.
 
-Decisions here: D185, D186, D187.
+Decisions here: D185, D186, D187, D196.
 
 ```
 frontend/src/
@@ -16,6 +16,7 @@ frontend/src/
     ├── metrics.css           sizes: type, lines, icons, controls, scrollbars, rows, spacing, corners
     ├── typography.css        roles: overline, helper, meta, section and page titles; tag resets
     ├── theme.css             colours, the text colours and the focus ring among them
+    ├── contrast.spec.ts      fails on a theme below a contrast floor (D196)
     └── typography.spec.ts    fails on a size or a weight spent past the scale
 ```
 
@@ -83,8 +84,9 @@ place; each is now one rule, and the kit holds it where it can.
   of parting OK from Cancel.
 - **Current is not selected.** What is being shown — a tab, a section of a
   page, the chat on screen, the category of a list, an open dashboard with no
-  colour — stands on `--dp-tab-current` at 500. What is ticked for an action
-  is washed in `--dp-selected`. A connection's own colour marks its own
+  colour — stands on `--dp-tab-current` at 500, a tab with a line in its
+  text's colour under it. What is ticked for an action is washed in
+  `--dp-selected` and edged with `--dp-selected-edge` (D196). A connection's own colour marks its own
   things: the tab being read is filled with it and the others carry its quiet
   half, as its row in the list does.
 - **Flat actions are neutral text.** Secondary and quiet are one colour; their
@@ -168,3 +170,42 @@ the kit's showcase in both themes; it failed against the kit before the
 change.
 
 Spec: [The second UI audit and its corrections](../decisions/2026-09-29-ui-audit-2-design.md)
+
+## D196. Every theme is measured, and holds the same order
+
+The audit of 2026-10-02 read the seven palettes as one system. Light and Dark
+held; the named themes, partial overrides checked by eye, did not: a link at
+3.9:1, tab captions at 4.2:1, a field's error at 2.9:1 on every dark ground,
+field borders under 2:1 everywhere, info drawn in a bronze or a pink beside
+the warning or the error it was meant to differ from, and three themes whose
+frame sat below the surface and whose card head was the brightest thing on
+the screen.
+
+- **Floors, not taste.** Text and secondary text 4.5:1 on every ground a card
+  is built of; a link, the accent and a note 4.5:1 on the surface, a window
+  and a head; the focus ring, a field's border, a faint mark and a drop
+  target 3:1. A chosen row 1.1:1 from a hovered one, a banner 1.08:1 from the
+  page.
+- **One order of grounds.** From the surface towards the middle: the frame,
+  the card's head, and the tabs on it beyond the head; a window's bar beyond
+  its frame. The window bar is `--dp-chrome` and the head `--dp-card-head`,
+  so neither is bought with the other.
+- **Info is a tone, not the accent.** `--dp-info` is its own token, at least
+  60° of hue from the warning and the error; a theme's accent is its
+  character and may be any colour.
+- **A named theme declares its character.** Its grounds, its accent family and
+  its note are written in its own rule; text, borders and the other tones may
+  come from the theme beneath it.
+- **A chosen row has an edge.** `--dp-selected-edge`, the accent along its
+  leading side, beside the wash: a wash alone was 1.04:1 from a hover.
+- **Quasar follows.** Its negative is `--dp-danger-fill`, and inside a field in
+  error the error text; its dark grounds are the theme's.
+- **The theme is on the page before the first paint**, set by `index.html`
+  from the same choice the store reads; the toggle returns to the last light
+  or dark theme chosen.
+
+Enforced by `contrast.spec.ts`, which resolves each theme from `theme.css` as
+the browser does, and by `theme.spec.ts` for the themes `index.html` knows.
+Each assertion was broken once and failed.
+
+Spec: [The theme audit and its corrections](../decisions/2026-10-02-theme-audit-design.md)

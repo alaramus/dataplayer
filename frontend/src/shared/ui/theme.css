@@ -14,8 +14,11 @@
  * document — so the kit's components and the colours above go over together,
  * on one event. `stores/theme.ts` is the only caller of that plugin.
  *
- * Quasar's own dark palette is the ground these sit on: #121212 for a page
- * and #1d1d1d for what is raised off it.
+ * Quasar's own dark grounds and its negative are pointed at these on the
+ * body, so what Quasar draws by itself turns over with the rest.
+ *
+ * Every theme meets the contrast floors `contrast.spec.ts` reads off this
+ * file (D196); a value is changed here and measured there.
  */
 
 /* Quasar resolves custom button colours through text-<name> classes. */
@@ -50,7 +53,8 @@
  * paints its own ground.
  *
  * A filled tone is Quasar's brand colour, set once in quasar-variables.sass
- * and read here as `--q-*`, under text at 4.5:1 or better.
+ * and read here as `--q-*`, under text at 4.5:1 or better — except an error,
+ * whose fill is the theme's --dp-danger-fill.
  */
 .dp-tone-text-error {
   color: var(--dp-content-error) !important;
@@ -62,18 +66,18 @@
   color: var(--dp-tone-warning-text) !important;
 }
 .dp-tone-text-info {
-  color: var(--dp-accent) !important;
+  color: var(--dp-info) !important;
 }
 .dp-tone-fill-error,
 .dp-window-close:hover,
 .dp-window-close:focus-visible {
-  background: var(--q-negative) !important;
+  background: var(--dp-danger-fill) !important;
   color: var(--dp-on-fill) !important;
 }
 .dp-window-close:hover,
 .dp-window-close:focus-visible {
   border-radius: 0;
-  box-shadow: var(--dp-space-1) 0 0 0 var(--q-negative) !important;
+  box-shadow: var(--dp-space-1) 0 0 0 var(--dp-danger-fill) !important;
 }
 .dp-window-close:hover::before,
 .dp-window-close:focus-visible::before {
@@ -177,9 +181,14 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
      read as a rank and large enough to read as a mistake. */
   --dp-action-secondary: rgba(0, 0, 0, 0.87);
   --dp-field-surface: #fff;
-  --dp-field-border: #cecece;
+  /* 3:1 against the field in every theme: the border is all that says where
+     a field is, and the #cecece it was stood at 1.6:1. */
+  --dp-field-border: #8f8f8f;
   --dp-tab-current: #e4e4e4;
   --dp-action-danger: #c10015;
+  /* The ground of a destructive button and an error badge. Quasar's own
+     negative is pointed at it on the body, so its components follow too. */
+  --dp-danger-fill: #c10015;
   --dp-graph-edge: #73869e;
   /* A line of a second kind: a reference a person drew rather than one the
      source declares. */
@@ -250,10 +259,10 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
      three: #000 for the body, .87 in a field and a .7 called "strong" that was
      the weakest of them. Muted is secondary text and the floor for anything a
      person has to read; faint is for marks that are not text — a chevron, a
-     rule, an idle dot — and fails as text at 2.4:1. */
+     rule, an idle dot — at 3:1, the floor for a mark, and short of text. */
   --dp-text: rgba(0, 0, 0, 0.87);
   --dp-text-muted: rgba(0, 0, 0, 0.6);
-  --dp-text-faint: rgba(0, 0, 0, 0.35);
+  --dp-text-faint: rgba(0, 0, 0, 0.45);
 
   /* Nothing has been said yet — the dot of a connection nobody checked. */
   --dp-idle: rgba(0, 0, 0, 0.2);
@@ -262,10 +271,13 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
 
   /* Chosen: the row whose catalog is showing, the tile that is picked. And
      the same thing said quietly: a connection with a catalog open somewhere,
-     which is not the one being looked at. */
-  --dp-selected: rgba(25, 118, 210, 0.1);
+     which is not the one being looked at. A chosen row also carries
+     --dp-selected-edge, declared on the body below: a wash alone was
+     1.04:1 against the hover beside it. */
+  --dp-selected: rgba(25, 118, 210, 0.16);
   --dp-selected-quiet: rgba(25, 118, 210, 0.05);
-  --dp-link: rgba(25, 118, 210, 0.9);
+  /* Opaque: the .9 it had laid over white came out at 3.9:1. */
+  --dp-link: #1565c0;
   --dp-focus-border: #696969;
 
   /* Text a person has selected with the pointer. Its own token rather than
@@ -284,11 +296,16 @@ body.desktop .q-focusable:focus:not(:focus-visible):not(:hover) > .q-focus-helpe
   --dp-content-error: #c62828;
   --dp-content-success: #2e7d32;
   /* The application's own highlight: a chosen tile, the active tab of a form,
-     a selected node. */
-  --dp-accent: #1976d2;
+     a selected node. #1976d2 was 4.4:1 on a window's ground. */
+  --dp-accent: #1565c0;
   /* The tones (the classes at the top). Every value is written again for the
      dark theme below, because a token that named another would carry the
-     light theme's value into the dark one. */
+     light theme's value into the dark one.
+
+     Info is a tone of its own rather than the accent (D196): a theme's accent
+     is its character, and a bronze or pink one made a note read as a warning
+     or an error. */
+  --dp-info: #1565c0;
   --dp-on-fill: #fff;
   --dp-on-warning-fill: rgba(0, 0, 0, 0.87);
   --dp-tone-warning-text: #9a5b00;
@@ -321,9 +338,12 @@ body.body--dark {
   --dp-on-action-primary: #191919;
   --dp-action-secondary: rgba(255, 255, 255, 0.87);
   --dp-field-surface: #191919;
-  --dp-field-border: #484848;
+  --dp-field-border: #6b6b6b;
   --dp-tab-current: #303030;
   --dp-action-danger: #ef9a9a;
+  /* Lighter, as every other tone here is: #c10015 on #121212 was a stain
+     rather than a button. White on it is 5:1. */
+  --dp-danger-fill: #d32f2f;
   /* What the browser draws itself beyond our scrollbar colours: the
      checkboxes in the editor's search bar, an autofilled field. Without this
      they are drawn by the light scheme, because a scheme is not inherited
@@ -392,6 +412,7 @@ body.body--dark {
   --dp-content-error: #ef9a9a;
   --dp-content-success: #a5d6a7;
   --dp-accent: #64b5f6;
+  --dp-info: #64b5f6;
   --dp-on-fill: #fff;
   --dp-on-warning-fill: rgba(0, 0, 0, 0.87);
   --dp-tone-warning-text: #ffb74d;
@@ -418,42 +439,63 @@ body.body--dark {
 }
 
 /*
- * The dark-blue ground, chosen in Preferences beside light and dark. An
- * override of the dark theme rather than a theme of its own: everything
- * unlisted here — text, borders, washes, accents — is already legible on a
- * dark ground and stays as it is. `stores/theme.ts` is the only writer of
- * the marker.
+ * The named themes, chosen in Preferences beside light and dark.
+ * `stores/theme.ts` is the only writer of the marker. Each declares its
+ * grounds, its accent family and its info tone (D196); text, borders and the
+ * other tones may come from the theme underneath it, because those are drawn
+ * to read on any ground of their polarity.
+ *
+ * The grounds keep the dark theme's ladder in every dark one: the card's
+ * working surface is the darkest, a window one step up, the card's head
+ * between the surface and the frame, the frame above both, and the tabs on
+ * the head above it. The viewer palettes three of these came from put the
+ * canvas — here the frame — below the surface, and their head above the tabs
+ * on it; `contrast.spec.ts` holds the order.
+ *
+ * The window bar is --dp-chrome and the card's head --dp-card-head. One token
+ * for both had to choose between a bar that vanished into its window and a
+ * head brighter than anything on the screen.
  */
+
+/* Saturated navy with a cyan accent. An accent of the ground's own blue was
+   blue on blue, and the same ice blue as Midnight's. */
 body.body--dark[data-dp-theme="dark-blue"] {
   --dp-surface: #0a1542;
   --dp-surface-raised: #101f5a;
-  --dp-chrome: #0c1b50;
-  --dp-chrome-raised: #0d1f61;
+  --dp-chrome: #253268;
+  --dp-chrome-raised: #1e2866;
+  --dp-card-head: #0d1e59;
   --dp-field-surface: #0a1542;
-  --dp-field-border: #2c448f;
-  --dp-tab-current: #1a3180;
+  --dp-field-border: #5570bd;
+  --dp-tab-current: #203484;
   --dp-panel-plain: #1e3a8a;
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 80%, var(--dp-surface));
+
+  --dp-accent: #4dd0e1;
+  --dp-link: #80deea;
+  --dp-selected: rgba(77, 208, 225, 0.2);
+  --dp-selected-quiet: rgba(77, 208, 225, 0.08);
+  --dp-text-selection: rgba(77, 208, 225, 0.35);
+  --dp-info: #64b5f6;
   --dp-tone-info-wash: #13295f;
+
+  --dp-dropzone: rgba(77, 208, 225, 0.26);
+  --dp-dropzone-border: rgba(77, 208, 225, 0.7);
 }
 
-/*
- * The warm paper ground from rich-md-viewer (`data-style="paper"` there),
- * chosen in Preferences beside the other dark grounds. Canvas, surfaces and
- * text are carried over; the accent family follows the bronze accent so
- * links, selections and drop targets stay in the same warmth.
- * `stores/theme.ts` is the only writer of the marker.
- */
+/* Warm dark paper from rich-md-viewer (`data-style="paper"` there), with its
+   bronze accent carried through links, selections and drop targets. Labelled
+   Paper dark: beside Paper light, plain Paper read as the light one. */
 body.body--dark[data-dp-theme="paper"] {
   --dp-surface: #211c17;
   --dp-surface-raised: #2b241d;
-  /* Chrome on raised: distinct, or a window's bar vanishes into its frame. */
-  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 82%, var(--dp-text));
-  --dp-chrome-raised: #17130f;
+  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 90%, var(--dp-text));
+  --dp-chrome-raised: #383129;
+  --dp-card-head: #2d261f;
   --dp-field-surface: #2b241d;
-  --dp-field-border: #4d4136;
-  --dp-tab-current: #3a2f24;
-  --dp-panel-plain: #3a2f24;
+  --dp-field-border: #806f5e;
+  --dp-tab-current: #483d32;
+  --dp-panel-plain: #483d32;
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 80%, var(--dp-surface));
 
   --dp-border-faint: rgba(255, 235, 210, 0.1);
@@ -467,34 +509,37 @@ body.body--dark[data-dp-theme="paper"] {
   --dp-text-muted: #b9aa9a;
   --dp-text-faint: rgba(238, 230, 220, 0.4);
 
+  /* Warm, as everything else here is; the neutral greys read as a part
+     nobody had painted. */
+  --dp-action-primary: #e6dccf;
+  --dp-focus-border: #bcab98;
+
   --dp-accent: #d7a477;
   --dp-link: rgba(231, 191, 152, 0.95);
   --dp-selected: rgba(215, 164, 119, 0.18);
   --dp-selected-quiet: rgba(215, 164, 119, 0.08);
   --dp-text-selection: rgba(215, 164, 119, 0.4);
-  --dp-tone-info-wash: #2b241d;
+  --dp-info: #64b5f6;
+  --dp-tone-info-wash: #1f2d38;
 
   --dp-dropzone: rgba(215, 164, 119, 0.26);
   --dp-dropzone-border: rgba(215, 164, 119, 0.7);
 }
 
-/*
- * The deep-navy ground from rich-md-viewer (`data-style="midnight"` there),
- * chosen in Preferences beside the other dark grounds. Canvas, surfaces and
- * text are carried over; the accent family follows the ice-blue accent so
- * links, selections and drop targets stay in the same cold range.
- * `stores/theme.ts` is the only writer of the marker.
- */
+/* The dimmest theme: a near-black navy from rich-md-viewer
+   (`data-style="midnight"` there) with an ice-blue accent. Its ground sits
+   below the dark theme's and its text a step down, so it gives off less light
+   than Dark rather than more, at 13.6:1. */
 body.body--dark[data-dp-theme="midnight"] {
-  --dp-surface: #0c1929;
-  --dp-surface-raised: #13243a;
-  /* Chrome on raised: distinct, or a window's bar vanishes into its frame. */
-  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 82%, var(--dp-text));
-  --dp-chrome-raised: #07111f;
-  --dp-field-surface: #13243a;
-  --dp-field-border: #2a4560;
-  --dp-tab-current: #1d3859;
-  --dp-panel-plain: #1d3859;
+  --dp-surface: #020d1c;
+  --dp-surface-raised: #0b1726;
+  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 90%, var(--dp-text));
+  --dp-chrome-raised: #17273d;
+  --dp-card-head: #111f31;
+  --dp-field-surface: #0b1726;
+  --dp-field-border: #4f6f91;
+  --dp-tab-current: #173150;
+  --dp-panel-plain: #1f3857;
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 80%, var(--dp-surface));
 
   --dp-border-faint: rgba(150, 200, 255, 0.1);
@@ -504,71 +549,67 @@ body.body--dark[data-dp-theme="midnight"] {
   --dp-separator: rgba(150, 200, 255, 0.16);
   --dp-separator-active: rgba(150, 200, 255, 0.38);
 
-  --dp-text: #e7f1ff;
-  --dp-text-muted: #9bb0ca;
-  --dp-text-faint: rgba(231, 241, 255, 0.4);
+  --dp-text: #cdd9e8;
+  --dp-text-muted: #8ea2bb;
+  --dp-text-faint: rgba(205, 217, 232, 0.42);
 
   --dp-accent: #7cc7ff;
   --dp-link: rgba(169, 220, 255, 0.95);
   --dp-selected: rgba(124, 199, 255, 0.18);
   --dp-selected-quiet: rgba(124, 199, 255, 0.08);
   --dp-text-selection: rgba(124, 199, 255, 0.4);
-  --dp-tone-info-wash: #13243a;
+  --dp-info: #7cc7ff;
+  --dp-tone-info-wash: #16304d;
 
   --dp-dropzone: rgba(124, 199, 255, 0.26);
   --dp-dropzone-border: rgba(124, 199, 255, 0.7);
 }
 
-/*
- * The dark-purple ground from rich-md-viewer (`data-style="vice-city"`
- * there), chosen in Preferences beside the other dark grounds. Dark-purple
- * canvas and surfaces, a neon-pink accent through links, selections and drop
- * targets, and the cyan bright for painted text selection, as in the
- * viewer's own selection colour. `stores/theme.ts` is the only writer of
- * the marker.
- */
+/* Dark purple neon from rich-md-viewer (`data-style="vice-city"` there): a
+   neon-pink accent through links, selections and drop targets, and the cyan
+   bright for painted text selection, as in the viewer's own. The lines are
+   lavender rather than pink, so the pink still means something to press. */
 body.body--dark[data-dp-theme="dark-purple"] {
   --dp-surface: #1a102d;
   --dp-surface-raised: #281642;
-  /* Chrome on raised: distinct, or a window's bar vanishes into its frame. */
-  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 82%, var(--dp-text));
-  --dp-chrome-raised: #100921;
+  --dp-chrome: color-mix(in srgb, var(--dp-surface-raised) 90%, var(--dp-text));
+  --dp-chrome-raised: #322249;
+  --dp-card-head: #27183e;
   --dp-field-surface: #281642;
-  --dp-field-border: #4a2f63;
-  --dp-tab-current: #3a2158;
-  --dp-panel-plain: #3a2158;
+  --dp-field-border: #8260a0;
+  --dp-tab-current: #452a62;
+  --dp-panel-plain: #452a62;
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 80%, var(--dp-surface));
 
-  --dp-border-faint: rgba(255, 112, 194, 0.12);
-  --dp-border: rgba(255, 112, 194, 0.18);
-  --dp-border-strong: rgba(255, 112, 194, 0.3);
+  --dp-border-faint: rgba(200, 170, 230, 0.1);
+  --dp-border: rgba(200, 170, 230, 0.16);
+  --dp-border-strong: rgba(200, 170, 230, 0.28);
 
-  --dp-separator: rgba(255, 112, 194, 0.18);
-  --dp-separator-active: rgba(255, 112, 194, 0.38);
+  --dp-separator: rgba(200, 170, 230, 0.16);
+  --dp-separator-active: rgba(200, 170, 230, 0.36);
 
-  --dp-text: #fff0fa;
+  --dp-text: #f3e6f0;
   --dp-text-muted: #d4aed0;
-  --dp-text-faint: rgba(255, 240, 250, 0.4);
+  --dp-text-faint: rgba(243, 230, 240, 0.4);
 
   --dp-accent: #ff4faa;
   --dp-link: rgba(255, 79, 170, 0.95);
   --dp-selected: rgba(255, 79, 170, 0.18);
   --dp-selected-quiet: rgba(255, 79, 170, 0.08);
   --dp-text-selection: rgba(50, 228, 233, 0.35);
-  --dp-tone-info-wash: #281642;
+  /* Blue, not the pink accent: a pink note beside a pink error said the
+     opposite of what it meant. */
+  --dp-info: #64b5f6;
+  --dp-tone-info-wash: #182a4a;
 
   --dp-dropzone: rgba(255, 79, 170, 0.26);
   --dp-dropzone-border: rgba(255, 79, 170, 0.7);
 }
 
-/*
- * The light paper ground from rich-md-viewer (`data-style="paper"` in the
- * light scheme there), chosen in Preferences beside the rest. Warm canvas,
- * surfaces and text carried over; the accent family follows the bronze
- * accent. An override of the light theme rather than a theme of its own:
- * everything unlisted stays as it is. `stores/theme.ts` is the only writer
- * of the marker.
- */
+/* Warm light paper from rich-md-viewer (`data-style="paper"` in the light
+   scheme there), with its bronze accent. An override of the light theme: what
+   is unlisted stays as it is, and the tones the light theme drew for white
+   are drawn again for cream, where they had faded into the page. */
 body:not(.body--dark)[data-dp-theme="paper-light"] {
   --dp-surface: #fdf8ec;
   --dp-surface-raised: #f7f1e4;
@@ -578,9 +619,11 @@ body:not(.body--dark)[data-dp-theme="paper-light"] {
      declared, so without this the strip keeps :root's light grey. */
   --dp-card-head: var(--dp-chrome);
   --dp-field-surface: #fdf8ec;
-  --dp-field-border: #d3c4ab;
+  --dp-field-border: #968468;
   --dp-tab-current: #e9dcc0;
-  --dp-panel-plain: #e9dcc0;
+  /* A step deeper than the current tab's ground: at the same value the
+     quiet tabs stood at 1.04:1 on the strip, a fill nobody could see. */
+  --dp-panel-plain: #e4d5b6;
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 80%, var(--dp-surface));
 
   --dp-border-faint: rgba(65, 50, 35, 0.1);
@@ -594,18 +637,22 @@ body:not(.body--dark)[data-dp-theme="paper-light"] {
   --dp-separator-active: rgba(65, 50, 35, 0.3);
 
   --dp-text: #28231d;
-  --dp-text-muted: #6e655a;
-  --dp-text-faint: rgba(40, 35, 29, 0.38);
+  --dp-text-muted: #615849;
+  --dp-text-faint: rgba(40, 35, 29, 0.5);
 
-  --dp-accent: #96613d;
-  --dp-link: rgba(150, 97, 61, 0.9);
-  --dp-selected: rgba(150, 97, 61, 0.12);
-  --dp-selected-quiet: rgba(150, 97, 61, 0.06);
+  --dp-accent: #87542f;
+  --dp-link: #87542f;
+  --dp-selected: rgba(150, 97, 61, 0.18);
+  --dp-selected-quiet: rgba(150, 97, 61, 0.07);
   --dp-text-selection: rgba(150, 97, 61, 0.25);
-  --dp-tone-info-wash: #f1e7d3;
+  --dp-info: #2f6497;
+  --dp-tone-info-wash: #dfe7f1;
+  --dp-tone-warning-wash: #f8e2bc;
+  --dp-tone-error-wash: #f7d9d2;
+  --dp-tone-success-wash: #dcebd3;
 
   --dp-dropzone: rgba(150, 97, 61, 0.18);
-  --dp-dropzone-border: rgba(150, 97, 61, 0.6);
+  --dp-dropzone-border: rgba(150, 97, 61, 0.85);
 }
 
 /* Resolve from the active palette on the body, after its text colours have
@@ -613,6 +660,17 @@ body:not(.body--dark)[data-dp-theme="paper-light"] {
 body {
   --dp-scrollbar-thumb: color-mix(in srgb, var(--dp-text-muted) 50%, transparent);
   --dp-scrollbar-thumb-hover: color-mix(in srgb, var(--dp-text-muted) 80%, transparent);
+  /* The edge a chosen row carries beside its wash, in the theme's accent
+     (D196): a shadow and not a border, so the row keeps its width. */
+  --dp-selected-edge: inset 2px 0 0 var(--dp-accent);
+
+  /* Quasar's own palette, pointed at the theme's. Its negative fills a
+     destructive button and an error badge; its dark grounds paint what it
+     draws dark by itself — a colour picker, the page before the layout — and
+     stayed #1d1d1d and #121212 under every named ground. */
+  --q-negative: var(--dp-danger-fill);
+  --q-dark: var(--dp-surface-raised);
+  --q-dark-page: var(--dp-chrome-raised);
 }
 
 /* The body reads in --dp-text in both themes. Quasar paints the dark one
@@ -666,12 +724,18 @@ body.body--dark .q-dark {
 /* The line under a field (D187). Quasar sets the messages in it at a line of
    1 over the bottom's own line, so a hint that wrapped stood its lines
    touching; and it colours them .54, and .7 on the dark theme, beside a
-   muted text that is .6 and .62. An error keeps Quasar's red. */
+   muted text that is .6 and .62. An error is the theme's error text. */
 .q-field .q-field__messages {
   line-height: var(--dp-line-height-sm);
 }
 .q-field:not(.q-field--error) .q-field__bottom {
   color: var(--dp-text-muted);
+}
+/* Quasar writes a field's error — the message, the outline, the icon — in
+   its negative, which is a fill: on a dark ground the message stood at
+   2.9:1. Inside a field in error, negative is the error text instead. */
+.q-field--error {
+  --q-negative: var(--dp-content-error);
 }
 
 /* An action that cannot be taken yet (D187). Quasar dims a filled button to

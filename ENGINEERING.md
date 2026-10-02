@@ -163,6 +163,9 @@ and a download ticket are masked in both log formats, a traceback included
   menu. Spacing and corners are `metrics.css`'s: the audit of 2026-09-19 found
   4, 5, 6, 7 and 10 pixels side by side for what was meant to be one step. A
   hairline — `1px` — is a border's width rather than a space.
+- **A theme is legible by measurement, not by eye.** Every theme meets WCAG
+  2.2's floors and stacks its grounds in one order (D196); a palette that was
+  looked at and found fine had a link at 3.9:1.
 - `src/client` is generated from OpenAPI and never edited by hand. After
   changing routes or schemas, run `bash scripts/generate-client.sh`.
 - Pure logic is separated from components so it can be tested without mounting:
@@ -170,7 +173,7 @@ and a download ticket are masked in both log formats, a traceback included
 - Elements are found in tests the way a user finds them — by role, text or
   `data-testid` — not by CSS classes and not by snapshots.
 
-**Enforced:** four tests. Three read every `.vue` under `src` — where every
+**Enforced:** five tests. Three read every `.vue` under `src` — where every
 component style lives — and fail on a `z-index` that is not `var(--dp-layer-…)`
 (`layers.spec.ts`), on a spacing or corner written as pixels
 (`metrics.spec.ts`), and on a colour reached for past the theme
@@ -182,8 +185,12 @@ read what a value looks like rather than whether it exists. Vite hands a test an
 empty string for a `.css` file, so that one reads the three token files from the
 disk and is typed as Node rather than as the browser; what actually paints over
 what stays a browser question, answered by the Playwright scenario about a
-sticky heading. Each was verified by breaking it, the colour rule five times
-over — once for every way around it the test names.
+sticky heading. The fifth, `contrast.spec.ts`, reads `theme.css` the same way,
+resolves every theme as the browser cascades it and fails on a pair below its
+contrast floor, a ground out of order, a note in the hue of a warning or an
+error, or a named theme leaving its accent to the theme beneath. Each was
+verified by breaking it, the colour rule five times over — once for every way
+around it the test names — and the contrast rule eight times.
 ESLint forbids `src/stores/**` importing the generated client or
 any feature, verified by introducing the import. ESLint also forbids, outside
 `src/shared/ui`, every `q-*` the kit replaces — in both spellings Vue accepts,
