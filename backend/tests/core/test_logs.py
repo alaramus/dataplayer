@@ -138,6 +138,34 @@ def test_the_health_check_and_the_panel_reading_the_log_are_not_written_down() -
     assert skip.filter(access("/api/v1/services/7/logs"))
 
 
+def test_an_access_line_keeps_the_path_and_drops_the_words_after_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The words of a search travel in a query string, and are never kept (D63)."""
+    monkeypatch.setattr(settings, "LOG_DIR", tmp_path)
+    printed = io.StringIO()
+    monkeypatch.setattr("sys.stdout", printed)
+    try:
+        logs.configure("backend")
+        logging.getLogger("uvicorn.access").info(
+            '%s - "%s %s HTTP/%s" %d',
+            "127.0.0.1:1",
+            "GET",
+            "/api/v1/queries/documents?search=zebrafinch&limit=5",
+            "1.1",
+            200,
+        )
+    finally:
+        monkeypatch.setattr(settings, "LOG_DIR", None)
+        logs.configure("backend")
+
+    written = (tmp_path / "backend.log").read_text(encoding="utf-8")
+    assert "/api/v1/queries/documents" in written
+    assert "zebrafinch" not in written
+    assert "zebrafinch" not in printed.getvalue()
+    assert "GET /api/v1/queries/documents HTTP/1.1" in printed.getvalue()
+
+
 def test_a_process_writes_its_own_file_of_json_lines(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

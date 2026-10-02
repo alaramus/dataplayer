@@ -188,9 +188,10 @@ the text still matches and otherwise opens the executed snapshot for compare or
 restore.
 
 Searching the library obeys the same rule as searching history: titles are
-plaintext, bodies are not, so a search decrypts a bounded number of the user's
-newest documents in memory and builds no index. The search text is neither
-stored nor logged. A list of documents carries the first line of each, built
+plaintext, bodies are not, so a search decrypts the user's newest 500
+documents in memory, on a worker thread rather than the event loop, and builds
+no index. The search text is neither stored nor logged — the access line drops
+the query string it travels in (D184). A list of documents carries the first line of each, built
 per response for the same reason — most documents are drafts nobody has named.
 
 Documents, executed SQL and remembered non-secret parameter values are
@@ -210,8 +211,9 @@ visibly an event of a document rather than another copy of one; the library
 requests rejected before execution are not. Rows are never retained. The
 default is the earlier of ninety days and one thousand runs per user, with
 7/30/90-day and no-retention choices and deletion of one, selected, older or
-all entries. A bounded search decrypts at most those retained runs in server
-memory and builds no plaintext token index. Secret values are absent; ordinary
+all entries. A search decrypts the newest 500 of those retained runs — of up
+to 1,000 — in server memory, on a worker thread, and builds no plaintext token
+index. Secret values are absent; ordinary
 values are present only when the document explicitly remembers them.
 
 Saved favourites are unnecessary: a useful query is one somebody remembered.

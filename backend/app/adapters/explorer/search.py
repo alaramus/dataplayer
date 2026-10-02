@@ -115,6 +115,10 @@ class ExplorerSearch:
                 # of the tree is still an answer, and this one is left out the
                 # way the listing leaves out what it cannot describe.
                 continue
+            except AdapterError as failure:
+                # The source itself failed — a dropped connection, a key whose
+                # passphrase is not held. What was found is still an answer.
+                return _broken(matches, failure)
             for entry in entries:
                 scanned += 1
                 if scanned > MAX_SCANNED:
@@ -133,14 +137,20 @@ class ExplorerSearch:
                             f"More than {_megabytes(limits.total_bytes)} MB "
                             "was read; the search stopped there",
                         )
-                    looked = self._look_inside(entry, needle)
-                    if looked is _UNREADABLE:
+                    try:
+                        looked = self._look_inside(entry, needle)
+                    except AdapterError as failure:
+                        return _broken(matches, failure)
+                    # What was read, not the size of what was passed: a file
+                    # skipped as too large or binary costs nothing, and counting
+                    # its size stopped a search early with a notice saying it
+                    # had been read.
+                    read_bytes += looked.read_bytes
+                    if looked.unreadable:
                         unread += 1
-                    elif looked is not None:
+                    elif looked.line is not None:
                         matched = True
-                        excerpt = looked
-                    if not entry.is_directory:
-                        read_bytes += entry.size_bytes
+                        excerpt = looked.line
                 else:
                     matched = needle in entry.name.casefold()
 
@@ -191,7 +201,7 @@ class ExplorerSearch:
             )
         return NodeSearchResult(matches=matches, complete=True)
 
-    def _look_inside(self, entry: Entry, needle: str) -> str | None:
+    def _look_inside(self, entry: Entry, needle: str) -> _Looked:
         """The line these words are on in this file, or nothing, or unreadable.
 
         A line at a time, so a file is never held whole, and case-insensitively,
@@ -200,26 +210,41 @@ class ExplorerSearch:
         follow one either.
         """
         if entry.is_directory or entry.is_link:
-            return None
+            return _Looked()
         if entry.size_bytes > self._storage.search_limits.file_bytes:
-            return _UNREADABLE
+            return _Looked(unreadable=True)
         try:
             with self._storage.open(entry.place) as raw:
-                if bytes_look_binary(raw.read(SNIFF_BYTES)):
-                    return _UNREADABLE
+                sniffed = raw.read(SNIFF_BYTES)
+                if bytes_look_binary(sniffed):
+                    return _Looked(unreadable=True, read_bytes=len(sniffed))
                 raw.seek(0)
                 text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
-                for line in text:
-                    if needle in line.casefold():
-                        return line.strip()[:MAX_EXCERPT_CHARACTERS]
+                try:
+                    for line in text:
+                        if needle in line.casefold():
+                            return _Looked(
+                                line=line.strip()[:MAX_EXCERPT_CHARACTERS],
+                                read_bytes=raw.tell(),
+                            )
+                    return _Looked(read_bytes=raw.tell())
+                finally:
+                    # Detached so that only the `with` closes the file: the
+                    # wrapper would close it a second time.
+                    text.detach()
         except OSError:
-            return _UNREADABLE
-        return None
+            return _Looked(unreadable=True)
 
 
-# Told apart from "no match here": a file nobody could read is worth counting,
-# and a file that simply does not hold the words is not.
-_UNREADABLE = "\x00unreadable"
+@dataclass(frozen=True)
+class _Looked:
+    """What looking inside one file found, and what it cost."""
+
+    line: str | None = None
+    # Told apart from "no match here": a file nobody could read is worth
+    # counting, and a file that simply does not hold the words is not.
+    unreadable: bool = False
+    read_bytes: int = 0
 
 
 def _walkable(entry: Entry) -> bool:
@@ -239,3 +264,12 @@ def _megabytes(size: int) -> int:
 
 def _stopped(matches: list[NodeMatch], notice: str) -> NodeSearchResult:
     return NodeSearchResult(matches=matches, complete=False, notice=notice)
+
+
+def _broken(matches: list[NodeMatch], failure: AdapterError) -> NodeSearchResult:
+    return NodeSearchResult(
+        matches=matches,
+        complete=False,
+        notice=failure.message,
+        error_kind=failure.error_kind,
+    )

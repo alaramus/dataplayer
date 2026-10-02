@@ -385,13 +385,14 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     if (query === "") return
     searching.value = true
     try {
-      found.value = foundNodes(
-        query,
-        await searchNodes(connectorId.value, currentId.value, query, scope)
-      )
+      const result = await searchNodes(connectorId.value, currentId.value, query, scope)
+      found.value = foundNodes(query, result)
       checked.value = []
-      error.value = ""
-      errorKind.value = null
+      // A source that failed part way still answered: what it found stays,
+      // and the failure is said where a failed listing says it, so a locked
+      // key offers its passphrase (D147).
+      error.value = result.error_kind == null ? "" : result.notice ?? ""
+      errorKind.value = result.error_kind ?? null
     } catch (cause) {
       error.value = messageOf(cause, "Could not search this connection")
       errorKind.value = errorKindOf(cause)

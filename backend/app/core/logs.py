@@ -149,6 +149,27 @@ class SkipRoutineReads(logging.Filter):
         return not any(f" {path}" in line for path in ROUTINE_PATHS)
 
 
+class DropQueryStrings(logging.Filter):
+    """An access line names the path and never what follows the `?`.
+
+    The words of a search travel there, and they are neither stored nor logged
+    (D63); so does a download ticket. The request context already leaves
+    the query string out, and this is the same rule for uvicorn's own line.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.name != "uvicorn.access":
+            return True
+        # uvicorn's arguments: client, method, path with its query, version,
+        # status. Anything else is left as it came.
+        arguments = record.args
+        if isinstance(arguments, tuple) and len(arguments) >= 3:
+            path = arguments[2]
+            if isinstance(path, str) and "?" in path:
+                record.args = (*arguments[:2], path.partition("?")[0], *arguments[3:])
+        return True
+
+
 def configure(process: ProcessName) -> None:
     """Send every logger, the server's own included, through the two handlers."""
     handlers: dict[str, dict[str, Any]] = {
@@ -156,7 +177,7 @@ def configure(process: ProcessName) -> None:
             "class": "logging.StreamHandler",
             "stream": "ext://sys.stdout",
             "formatter": "text",
-            "filters": ["routine"],
+            "filters": ["routine", "query"],
         },
     }
     if settings.LOG_DIR is not None:
@@ -168,12 +189,15 @@ def configure(process: ProcessName) -> None:
             "backupCount": settings.LOG_FILE_COUNT - 1,
             "encoding": "utf-8",
             "formatter": "json",
-            "filters": ["routine"],
+            "filters": ["routine", "query"],
         }
     logging.config.dictConfig({
         "version": 1,
         "disable_existing_loggers": False,
-        "filters": {"routine": {"()": SkipRoutineReads}},
+        "filters": {
+            "routine": {"()": SkipRoutineReads},
+            "query": {"()": DropQueryStrings},
+        },
         "formatters": {
             "text": {"()": RedactedText, "fmt": "%(asctime)s %(levelname)s %(name)s %(message)s"},
             "json": {"()": JsonLines, "process": process},

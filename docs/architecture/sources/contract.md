@@ -35,7 +35,8 @@ capability list cannot drift from what the driver implements.
 - A capability carries a title and, where a screen has had to ask about it, a
   `code` from a closed set to switch on. The titles are not what the catalog
   of types shows a person: that is the guide's short lists (D183). Codes are added when a question
-  is asked rather than in advance; today there is one, `search`
+  is asked rather than in advance; today there are nine, listed once as
+  `CapabilityCode`, `search` and `content_search` among them
   ([D76](catalog.md#d76-a-search-is-a-read-of-the-catalog-and-the-words-are-the-filters)).
 - `DeclaresActions` is a classmethod, not a `ClassVar`: a protocol holding data
   cannot be used with `issubclass`, and reaching for the attribute with

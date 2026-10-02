@@ -665,7 +665,17 @@ async function runSearch(event?: MouseEvent | KeyboardEvent) {
   const scope: SearchScope =
     event?.shiftKey === true && canSearchContents.value ? "contents" : "names"
   if (scope === "contents" && !(await agreedToRead())) return
+  lastScope = scope
   await level.search(scope)
+}
+
+// What the shown results were asked as, so unlocking a key part way through a
+// search asks it again rather than reloading the folder under it (D147).
+let lastScope: SearchScope = "names"
+
+async function afterUnlock() {
+  if (level.found.value === null) await reloadHere()
+  else await level.search(lastScope)
 }
 
 /**
@@ -1054,13 +1064,14 @@ async function afterAction(outcome: ActionOutcome) {
     </div>
 
     <!-- A level is not a query, so unlocking the key reads it again from
-         here rather than with the queries that failed (D147). -->
+         here rather than with the queries that failed — or, while results
+         are shown, searches again (D147). -->
     <SourceErrorBanner
       v-if="level.error.value"
       :connector-id="connectorId"
       :error-kind="level.errorKind.value"
       data-testid="catalog-error"
-      @unlocked="reloadHere"
+      @unlocked="afterUnlock"
     >
       {{ level.error.value }}
     </SourceErrorBanner>

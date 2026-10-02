@@ -8,6 +8,7 @@ import asyncio
 import uuid
 from typing import Any
 
+import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -484,6 +485,33 @@ async def test_history_lists_what_was_run_and_can_be_searched(
     assert listed.json()["count"] == 2
     assert found.json()["count"] == 1
     assert "invoices-marker" in found.json()["data"][0]["preview"]
+
+
+async def test_history_search_decrypts_off_the_event_loop(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    await _run(client, headers, connector_id, "select 'ledger-marker'")
+    on_loop: list[bool] = []
+    original = history.text_of
+
+    def watched(run: ExecutionRun) -> str:
+        try:
+            asyncio.get_running_loop()
+            on_loop.append(True)
+        except RuntimeError:
+            on_loop.append(False)
+        return original(run)
+
+    monkeypatch.setattr(history, "text_of", watched)
+
+    found = await client.get(
+        f"{BASE}/runs", headers=headers, params={"search": "ledger-marker"}
+    )
+
+    assert found.json()["count"] == 1
+    assert on_loop and not any(on_loop)
 
 
 async def test_history_is_one_person_s_own(

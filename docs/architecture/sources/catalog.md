@@ -149,13 +149,21 @@ for a name somebody remembers in a place they do not.
   already the row.
 - **Reading is bounded on top of the walk's bounds.** A file over 8 MB is
   skipped, one that looks binary is skipped, and the whole search stops after
-  256 MB read however many files that took. Skipped files are counted and said:
-  "no matches" must not stand for "a picture and a dump were never opened".
+  256 MB read however many files that took. Only bytes read count: a file
+  skipped costs nothing, or one large dump would stop the search with a notice
+  saying it had been read. Skipped files are counted and said: "no matches"
+  must not stand for "a picture and a dump were never opened".
+- **A source failing part way keeps what was found.** A dropped connection or
+  a key whose passphrase is not held ends the walk with the matches so far,
+  `complete: false`, the reduced sentence as the notice and its `error_kind`,
+  so a locked key is offered its passphrase ([D147](ssh.md)) and searching
+  again after it runs the search rather than reloading the folder.
 
 Known deviations:
 
-- **Only the file source searches.** PostgreSQL answers 501 to both routes;
-  relation names across schemas are one `ILIKE` away and are a later slice.
+- **Only a tree of files searches**: the file source and SSH, through the
+  explorer ([D150](explorer.md)). PostgreSQL and Redis answer 501 to both
+  routes.
 - **Nothing inside a container is found.** A workbook's sheets and an archive's
   entries are nodes ([D51](content.md), [D53](content.md)), and the walk does
   not open files.

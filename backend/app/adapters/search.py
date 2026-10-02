@@ -13,6 +13,7 @@ takes.
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.catalog import CatalogNode
+from app.adapters.errors import ErrorKind
 
 # What a search may be asked for at most, and what it costs when nothing says.
 # Named here and used by both the model and the route that fills it, so a
@@ -74,3 +75,7 @@ class NodeSearchResult(BaseModel):
     complete: bool = True
     # Why it stopped, in the source's own words. Absent when it did not.
     notice: str | None = None
+    # Set when the source failed part way: what was found before is still the
+    # answer, and the kind is what lets a screen offer the way on — `locked`
+    # asks for the key's passphrase (D147).
+    error_kind: ErrorKind | None = None

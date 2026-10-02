@@ -4,9 +4,9 @@ import pytest
 
 from app.adapters.explorer import search as search_module
 from app.adapters.explorer.search import ExplorerSearch
-from app.adapters.explorer.storage import LOCAL_SEARCH, SearchLimits
+from app.adapters.explorer.storage import LOCAL_SEARCH, Entry, Place, SearchLimits
 from app.adapters.file.storage import LocalStorage
-from app.adapters.protocol import AdapterError, NodeNotFound
+from app.adapters.protocol import AdapterError, ErrorKind, NodeNotFound
 from app.adapters.search import (
     DEFAULT_MATCHES,
     MAX_EXCERPT_CHARACTERS,
@@ -283,6 +283,60 @@ async def test_a_search_that_read_too_much_stops_rather_than_running_on(written:
 
     assert found.complete is False
     assert found.notice is not None
+
+
+async def test_a_skipped_file_costs_nothing_of_what_a_search_may_read(tmp_path: Path) -> None:
+    """The budget counts bytes read, not the sizes of files walked past.
+
+    The small file is a level down, so the walk passes the large one first.
+    """
+    (tmp_path / "large.log").write_text("x" * 400 + "\ntimeout\n", encoding="utf-8")
+    (tmp_path / "below").mkdir()
+    (tmp_path / "below" / "small.log").write_text("upstream timeout\n", encoding="utf-8")
+    storage = LocalStorage(tmp_path)
+    storage.search_limits = SearchLimits(file_bytes=100, total_bytes=200)
+    search = ExplorerSearch(storage)
+
+    found = await _look_inside(search, "timeout")
+
+    assert [match.node.name for match in found.matches] == ["small.log"]
+    assert found.complete is True
+
+
+class _BreaksBelow(LocalStorage):
+    """A storage whose source fails when one folder is listed."""
+
+    def __init__(self, root: Path, broken: str, kind: ErrorKind = "network") -> None:
+        super().__init__(root)
+        self._broken = broken
+        self._kind: ErrorKind = kind
+
+    def entries(self, place: Place) -> list[Entry]:
+        if place.name == self._broken:
+            raise AdapterError(self._kind, "The server closed the connection")
+        return super().entries(place)
+
+
+async def test_a_source_failing_part_way_keeps_what_was_found(root: Path) -> None:
+    search = ExplorerSearch(_BreaksBelow(root, "reports"))
+
+    found = await _find(search, "notes")
+
+    # Found at the top before the walk reached the folder that failed.
+    assert [match.node.name for match in found.matches] == ["notes.txt"]
+    assert found.complete is False
+    assert found.notice == "The server closed the connection"
+    assert found.error_kind == "network"
+
+
+async def test_a_locked_key_part_way_says_locked(written: Path) -> None:
+    """The kind travels, so the catalog offers the owner the passphrase (D147)."""
+    search = ExplorerSearch(_BreaksBelow(written, "archive", kind="locked"))
+
+    found = await _look_inside(search, "timeout")
+
+    assert found.complete is False
+    assert found.error_kind == "locked"
 
 
 async def test_reading_inside_starts_where_it_was_asked_to(written: Path) -> None:

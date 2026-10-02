@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
+from anyio import to_thread
 from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
 from sqlalchemy.sql.elements import ColumnElement
@@ -313,10 +314,14 @@ async def list_for(
         rows = (await session.exec(ordered.offset(skip).limit(limit))).all()
         return list(rows), count
 
-    lowered = search.casefold()
     candidates = (
         await session.exec(ordered.limit(settings.QUERY_HISTORY_SEARCH_MAX))
     ).all()
-    found = [run for run in candidates if lowered in text_of(run).casefold()]
+    # Decrypted on a worker thread: five hundred texts are too many for the loop.
+    found = await to_thread.run_sync(_matching, list(candidates), search.casefold())
     return found[skip : skip + limit], len(found)
+
+
+def _matching(runs: Sequence[ExecutionRun], lowered: str) -> list[ExecutionRun]:
+    return [run for run in runs if lowered in text_of(run).casefold()]
 

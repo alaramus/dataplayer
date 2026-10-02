@@ -411,7 +411,9 @@ written nowhere, so neither the person nor anybody else could learn why.
   type and frames only (`private=True`): the statement somebody ran and what a
   provider echoed back of a conversation are theirs, not the operator's.
 - **Every entry names its request**, method and path without the query string,
-  through a context variable `RecordFailures` sets.
+  through a context variable `RecordFailures` sets. Uvicorn's own access line
+  drops it too: the words of a search travel there (D63), and so does a
+  download ticket.
 - **The panel is a superuser's.** `GET /logs/` reads the files newest first
   across rotation, filtered by level, process and words, at most 500 entries and
   32 MB read per process per request; `before` pages back and `after` follows.

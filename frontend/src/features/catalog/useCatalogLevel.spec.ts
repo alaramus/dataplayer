@@ -612,6 +612,31 @@ describe("searching from a level", () => {
     })
   })
 
+  it("keeps what was found before the source failed, and says why it stopped", async () => {
+    answers([directory("reports", "reports")])
+    vi.spyOn(ConnectorsService, "searchCatalog").mockResolvedValue({
+      data: {
+        matches: [found("notes.txt", "")],
+        complete: false,
+        notice: "The key needs its passphrase",
+        error_kind: "locked",
+      },
+    } as never)
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "notes"
+      await level.search()
+
+      expect(level.items.value.map((node) => node.label)).toEqual(["notes.txt"])
+      // Said once, where a failed listing says it: the banner that offers the
+      // passphrase (D147), not the search's own notice.
+      expect(level.error.value).toBe("The key needs its passphrase")
+      expect(level.errorKind.value).toBe("locked")
+      expect(level.found.value?.notice).toBeNull()
+    })
+  })
+
   it("ticks what a search found, so the menu acts on it", async () => {
     answers([directory("reports", "reports")])
     searched(found("notes.txt", "reports"))

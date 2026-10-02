@@ -139,6 +139,22 @@ async def test_a_search_inside_files_reads_only_small_ones(adapter: SshAdapter) 
     assert found.notice is not None and "1 MB" in found.notice
 
 
+async def test_a_file_too_large_to_read_does_not_spend_the_search(adapter: SshAdapter) -> None:
+    """Skipped, it costs nothing: its 40 MB once stopped the search at 32.
+
+    The small file is a level down, so the walk — breadth first — passes the
+    large one before it whatever order the server lists them in.
+    """
+    await _upload(adapter, "dump.log", b"x" * (40 * 1024 * 1024))
+    await adapter.action("create_folder").perform(None, {"name": "notes"})
+    await _upload(adapter, "today.log", b"upstream timeout\n", into="notes")
+
+    found = await adapter.search_contents(NodeSearchRequest(query="timeout"))
+
+    assert [match.node.name for match in found.matches] == ["today.log"]
+    assert found.complete is True
+
+
 async def test_a_file_is_copied_and_moved_on_the_server(adapter: SshAdapter) -> None:
     await _upload(adapter, "notes.txt", b"one\n")
     await adapter.action("create_folder").perform(None, {"name": "kept"})

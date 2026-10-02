@@ -7,6 +7,7 @@ into text is `content.py`, and nothing here logs either form.
 import uuid
 from collections.abc import Sequence
 
+from anyio import to_thread
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -116,8 +117,15 @@ async def list_for(
     candidates = (
         await session.exec(ordered.limit(settings.QUERY_SEARCH_MAX_DOCUMENTS))
     ).all()
-    found = [document for document in candidates if matches(document, search)]
+    # Up to five hundred bodies of up to a mebibyte each: decrypted on a worker
+    # thread, never on the loop every other request is waiting on.
+    found = await to_thread.run_sync(matching, list(candidates), search)
     return found[skip : skip + limit], len(found)
+
+
+def matching(documents: Sequence[QueryDocument], needle: str) -> list[QueryDocument]:
+    """The documents whose title or body holds the needle. Blocking: decrypts."""
+    return [document for document in documents if matches(document, needle)]
 
 
 async def delete(session: AsyncSession, *, document: QueryDocument) -> None:

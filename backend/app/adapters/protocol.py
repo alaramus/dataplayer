@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -33,6 +33,9 @@ from app.adapters.content import (
     EditorContentRequest,
     UpdateContentRequest,
 )
+
+# Re-exported: every driver names the kind through this module.
+from app.adapters.errors import ErrorKind as ErrorKind
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -79,11 +82,6 @@ from app.adapters.update import (
     UpdateCellsRequest,
     UpdateCellsResult,
 )
-
-# `locked` is not a refusal by the source: the key a connection signs in with
-# asks for a passphrase nobody has given it lately, and giving it is the way
-# on (D147). A kind of its own so a screen can offer exactly that.
-ErrorKind = Literal["auth", "network", "timeout", "config", "locked", "unknown"]
 
 
 class AdapterError(Exception):

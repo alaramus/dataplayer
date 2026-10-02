@@ -4,6 +4,7 @@ A file connection stands in for a source throughout: nothing in this slice
 reaches one, because there is no execution yet (D63).
 """
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -12,6 +13,8 @@ from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.queries import crud
+from app.queries.models import QueryDocument
 from app.users import crud as user_crud
 from app.users.models import User
 from tests.utils.user import authentication_token_from_email
@@ -392,6 +395,33 @@ async def test_search_reads_titles_and_bodies_and_nobody_else_s(
     listed = response.json()
     assert {row["id"] for row in listed["data"]} == {by_body["id"], by_title["id"]}
     assert listed["count"] == 2
+
+
+async def test_search_decrypts_bodies_off_the_event_loop(
+    client: AsyncClient, db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Five hundred bodies a request are worker-thread work, never the loop's."""
+    email = random_email()
+    headers = await authentication_token_from_email(client=client, email=email, db=db)
+    connector_id = await _connector(client, headers)
+    await _document(client, headers, connector_id, body="select * from invoices")
+    on_loop: list[bool] = []
+    original = crud.body_of
+
+    def watched(document: QueryDocument) -> str:
+        try:
+            asyncio.get_running_loop()
+            on_loop.append(True)
+        except RuntimeError:
+            on_loop.append(False)
+        return original(document)
+
+    monkeypatch.setattr(crud, "body_of", watched)
+
+    response = await client.get(BASE, headers=headers, params={"search": "invoices"})
+
+    assert response.status_code == 200
+    assert on_loop and not any(on_loop)
 
 
 async def test_deleting_a_document_removes_it_without_a_trash_stage(

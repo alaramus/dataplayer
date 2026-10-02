@@ -6328,6 +6328,10 @@ export type NodeSearchResult = {
    * Notice
    */
   notice?: string | null
+  /**
+   * Error Kind
+   */
+  error_kind?: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
 }
 
 /**

@@ -40,7 +40,8 @@ export function foundNodes(query: string, result: NodeSearchResult): FoundNodes 
     query,
     rows,
     complete: result.complete !== false,
-    notice: result.notice ?? null,
+    // A failure's sentence is the error banner's to say, once.
+    notice: result.error_kind == null ? result.notice ?? null : null,
   }
 }
 
