@@ -891,16 +891,18 @@ async function iconsAt(scope: Page | Locator, prefix: string) {
 /**
  * Every icon stands where it stood, not merely one: a pushed-aside column two
  * pixels shorter per row than the list put the thirteenth icon twenty-five
- * pixels above its place, and one icon in an empty database is the first row,
- * which never moved.
+ * pixels above its place. A drift that builds up row by row needs rows to show
+ * in, so the scenario brings two connections rather than the one an empty
+ * database would leave it. A quarter of a pixel, because a column stepping at
+ * the button's 31.97 rather than the row's 32 is off by 0.39 at the thirteenth.
  */
 function expectSamePlaces(wide: Map<string, { x: number; y: number }>, narrow: typeof wide) {
   expect(wide.size).toBeGreaterThan(1)
   expect([...narrow.keys()].sort()).toEqual([...wide.keys()].sort())
   for (const [name, at] of wide) {
     const now = narrow.get(name)
-    expect(Math.abs((now?.x ?? Infinity) - at.x), `${name} sideways`).toBeLessThan(0.5)
-    expect(Math.abs((now?.y ?? Infinity) - at.y), `${name} up or down`).toBeLessThan(0.5)
+    expect(Math.abs((now?.x ?? Infinity) - at.x), `${name} sideways`).toBeLessThan(0.25)
+    expect(Math.abs((now?.y ?? Infinity) - at.y), `${name} up or down`).toBeLessThan(0.25)
   }
 }
 

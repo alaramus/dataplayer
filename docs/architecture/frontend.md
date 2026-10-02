@@ -501,10 +501,12 @@ Known deviations:
 - **Every row mounts its copy button.** The list is not virtualised, so five
   thousand tables mount five thousand buttons and tooltips; virtualising is the
   answer when the list gets it.
-- **The two states of the connections column agree by arithmetic.** The wide head
-  pads four pixels because that centres a 32-pixel button in a 40-pixel strip,
-  and both leave four under the head; a scenario measures both and fails when
-  they drift.
+- **The two states of the connections column agree by arithmetic.** A wide row
+  starts its icon three pixels in from the card's edge because the strip centres
+  the same 32-pixel button in the 38 pixels inside its 40, a row is that
+  button's height (D185) wherever it stands, and both leave four under the head;
+  a scenario compares every icon in Data and in Pipelines and fails when one
+  drifts.
 - **A row of the connections list carries four marks**: the icon, the name, the
   state dot and the open highlight. With several catalogs open the column gets
   busy, and nobody has measured it.
