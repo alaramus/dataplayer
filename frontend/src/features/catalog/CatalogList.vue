@@ -346,15 +346,16 @@ const countLabel = computed(() => {
   background: var(--dp-hover);
 }
 /* Where the keyboard is. The row already carries an outline for the reveal
-   mark, so focus colours that one - at once rather than fading in, because a
-   place is not an announcement (U06). */
+   mark, so focus colours that one, in the one focus colour (D185) - at once
+   rather than fading in, because a place is not an announcement (U06). */
 .catalog-list__row:focus-visible {
-  outline-color: var(--dp-accent);
+  outline-color: var(--dp-focus-border);
   border-radius: var(--dp-radius-control);
   transition: none;
 }
 .catalog-list__row--checked {
   background: var(--dp-selected);
+  box-shadow: var(--dp-selected-edge);
 }
 /* An outline and not a fill: a fill is what a tick already means here, and
    "an action will be done to this" and "here it is" are not the same thing.

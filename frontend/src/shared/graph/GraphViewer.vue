@@ -367,7 +367,7 @@ onBeforeUnmount(stopLayout)
 .graph-viewer__inspector dt { color: var(--dp-text-muted); margin-top: var(--dp-space-2); }
 .graph-viewer__inspector dd { margin: var(--dp-space-half) 0; white-space: pre-wrap; }
 .graph-viewer__field { display: flex; flex-direction: column; align-items: start; border-bottom: 1px solid var(--dp-border-faint); padding: var(--dp-space-half) 0; }
-.graph-viewer__field--selected { background: var(--dp-selected); }
+.graph-viewer__field--selected { background: var(--dp-selected); box-shadow: var(--dp-selected-edge); }
 .graph-viewer__field small { padding: 0 var(--dp-space-2) var(--dp-space-1); }
 .graph-viewer__connections { display: flex; flex-direction: column; gap: var(--dp-space-1); margin-top: var(--dp-space-4); }
 .graph-viewer__loading { display: flex; gap: var(--dp-space-2); align-items: center; padding: var(--dp-space-half) var(--dp-space-2); font-size: var(--dp-font-size-sm); }

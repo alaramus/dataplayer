@@ -52,7 +52,7 @@ legacy notes and stay unchanged.
 | Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
 | Backend modules, routes, migrations, secrets, database, the server's log | [backend.md](docs/architecture/backend.md) |
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
-| A size of text, a weight, a height, an icon size, a text colour | [design-system.md](docs/architecture/design-system.md) |
+| A size of text, a weight, a height, an icon size, a text colour, a theme | [design-system.md](docs/architecture/design-system.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, the bar and card at the foot | [workspace.md](docs/architecture/workspace.md) |
 | A floating window, the forms in it, detaching a tab, a pair of catalogs | [windows.md](docs/architecture/windows.md) |
@@ -266,6 +266,7 @@ files. IDs are stable because specs and commits refer to them.
 | D186 | [design-system](docs/architecture/design-system.md) |
 | D187 | [design-system](docs/architecture/design-system.md) |
 | D195 | [sources/declared](docs/architecture/sources/declared.md) |
+| D196 | [design-system](docs/architecture/design-system.md) |
 
 ## Working rules
 

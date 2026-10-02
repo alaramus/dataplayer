@@ -74,8 +74,12 @@ function optionTestId(option: TabOption): string | undefined {
   cursor: pointer;
 }
 
+/* The line under it is the workspace tab's: on a light head the ground alone
+   stood at 1.1:1, and a line in the text's colour says "current" in every
+   theme without a grey picked for each. */
 .app-tabs__tab--current {
   background: var(--dp-tab-current);
+  box-shadow: inset 0 -3px currentColor;
   font-weight: 500;
 }
 

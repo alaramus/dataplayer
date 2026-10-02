@@ -299,14 +299,15 @@ Known deviations:
   passing `color="purple"` to the Quasar component underneath; only review does.
 - **`AppTree` wraps `q-tree`.** Its node and lazy-load types are read off
   Quasar's props, so replacing the tree would change what a screen passes it.
-- **The theme is chosen once per browser.** Light, Dark, Dark blue, Paper,
-  Midnight, Dark purple, Paper light or System; System is what nothing
-  stored means and follows the operating system as it changes. The named
-  ones carry their own grounds, selected by a marker beside the dark class;
-  Paper light carries it without the dark class. The choice does not follow
-  a user elsewhere.
-- **The dark palette was picked by eye**, against Quasar's dark colours; nothing
-  measures contrast against WCAG.
+- **The theme is chosen once per browser.** Light, Paper light, Dark, Paper
+  dark, Midnight, Dark blue, Dark purple or System, listed once in
+  `stores/theme.ts`; System is what nothing stored means and follows the
+  operating system between Light and Dark as it changes. The named ones carry
+  their own grounds, selected by a marker beside the dark class; Paper light
+  carries it without the dark class. The choice does not follow a user
+  elsewhere.
+- **Every theme is measured** against contrast floors and one order of
+  grounds by `contrast.spec.ts` (D196).
 
 Spec: [The shared UI kit](../decisions/2026-08-22-shared-ui-kit-design.md)
 

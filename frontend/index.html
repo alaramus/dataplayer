@@ -7,6 +7,27 @@
     <title>DataPlayer</title>
   </head>
   <body>
+    <script>
+      // The theme before the first paint (D196): the bundle that applies it
+      // arrives later, and until then a dark choice opened on a white page.
+      // The ids and polarities repeat THEMES in src/stores/theme.ts, which
+      // theme.spec.ts holds them to; stores/theme.ts takes over on mount.
+      try {
+        var stored = localStorage.getItem("dataplayer-theme")
+        var dark = ["dark", "paper", "midnight", "dark-blue", "dark-purple"]
+        var light = ["light", "paper-light"]
+        var known = dark.indexOf(stored) >= 0 || light.indexOf(stored) >= 0
+        var isDark = known
+          ? dark.indexOf(stored) >= 0
+          : window.matchMedia("(prefers-color-scheme: dark)").matches
+        if (isDark) document.body.classList.add("body--dark")
+        if (known && stored !== "light" && stored !== "dark") {
+          document.body.setAttribute("data-dp-theme", stored)
+        }
+      } catch (error) {
+        // No storage or no matchMedia: the store decides once it runs.
+      }
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

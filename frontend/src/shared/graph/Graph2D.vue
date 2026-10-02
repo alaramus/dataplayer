@@ -393,13 +393,14 @@ defineExpose({ fit, zoom, focus })
 /* A row is dragged towards another, and selects no text on the way. */
 .graph-2d--linkable .graph-node__row { cursor: crosshair; user-select: none; }
 .graph-2d__arrow { fill: var(--dp-graph-edge); }
-.graph-2d__arrow--active, .graph-2d__arrow--info { fill: var(--dp-accent); }
+.graph-2d__arrow--active { fill: var(--dp-accent); }
+.graph-2d__arrow--info { fill: var(--dp-info); }
 .graph-2d__arrow--success { fill: var(--dp-content-success); }
 .graph-2d__arrow--error { fill: var(--dp-content-error); }
 .graph-2d__arrow--secondary { fill: var(--dp-graph-edge-secondary); }
 .graph-2d__edge--active .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
 /* After the selection's rule: a selected line keeps its result's colour. */
-.graph-2d__tone--info .graph-2d__edge { stroke: var(--dp-accent); stroke-width: 2.8; }
+.graph-2d__tone--info .graph-2d__edge { stroke: var(--dp-info); stroke-width: 2.8; }
 .graph-2d__tone--success .graph-2d__edge { stroke: var(--dp-content-success); }
 .graph-2d__tone--error .graph-2d__edge { stroke: var(--dp-content-error); }
 .graph-2d__tone--muted { opacity: 0.45; }
@@ -420,6 +421,8 @@ defineExpose({ fit, zoom, focus })
 .graph-node__actions { flex: none; display: flex; align-items: center; cursor: default; }
 .graph-node__row { display: flex; position: relative; align-items: center; gap: var(--dp-space-2); padding: 0 var(--dp-space-2); border-top: 1px solid var(--dp-border-faint); box-sizing: border-box; font-size: var(--dp-font-size-xs); cursor: pointer; }
 .graph-node__row:hover, .graph-node__row--selected, .graph-node__row--aimed { background: var(--dp-selected); }
+/* Hover shares the wash here, so the edge is what says which row is chosen. */
+.graph-node__row--selected { box-shadow: var(--dp-selected-edge); }
 .graph-node__head:focus-visible, .graph-node__row:focus-visible { outline: 2px solid var(--dp-focus-border); }
 .graph-node__badges { flex: 0 0 34px; display: flex; align-items: center; color: var(--node-accent); font-size: var(--dp-font-size-xs); font-weight: 600; }
 .graph-node__row--muted .graph-node__name { color: var(--dp-text-muted); text-decoration: line-through; }

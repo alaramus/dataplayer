@@ -17,7 +17,7 @@ import {
   useToast,
 } from "@/shared/ui"
 import type { SelectOption } from "@/shared/ui"
-import { useThemeStore } from "@/stores/theme"
+import { THEMES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
 /**
@@ -41,14 +41,10 @@ const save = useUpdatePreferences()
 // in this browser rather than on the server (D6), so it is not saved above.
 const theme = useThemeStore()
 const themes: SelectOption[] = [
-  { label: "Light", value: "light" },
-  { label: "Dark", value: "dark" },
-  { label: "Dark blue", value: "dark-blue", description: "Dark theme on a deep blue ground" },
-  { label: "Paper", value: "paper", description: "Warm dark paper with a bronze accent" },
-  { label: "Midnight", value: "midnight", description: "Deep-navy dark with an ice-blue accent" },
-  { label: "Dark purple", value: "dark-purple", description: "Dark purple neon with pink and cyan accents" },
-  { label: "Paper light", value: "paper-light", description: "Warm light paper with a bronze accent" },
-  { label: "System", value: "system", description: "Follows the operating system, as it changes" },
+  ...THEMES.map(({ label, value, ...theme }) =>
+    "description" in theme ? { label, value, description: theme.description } : { label, value }
+  ),
+  { label: "System", value: "system", description: "Light or Dark, as the operating system changes" },
 ]
 
 const intervals = checkIntervalOptions()
@@ -101,9 +97,9 @@ async function chooseInterval(value: unknown) {
           <div class="preferences__what">
             <span class="preferences__title">Appearance</span>
             <span class="preferences__summary">
-              Light, dark, dark-blue, paper, midnight, dark-purple or paper
-              light theme for the whole application, or the one the operating
-              system is using. Kept in this browser.
+              A light or dark theme for the whole application, or Light and
+              Dark as the operating system switches between them. Kept in
+              this browser.
             </span>
           </div>
           <AppForm
