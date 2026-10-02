@@ -62,6 +62,7 @@ legacy notes and stay unchanged.
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | The agent, its tools, model providers, sending data to a third party | [ai.md](docs/architecture/ai.md) |
+| One search over everything, its providers, the field in the header | [search.md](docs/architecture/search.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
 What is already done is recorded by the spec
@@ -267,6 +268,15 @@ files. IDs are stable because specs and commits refer to them.
 | D187 | [design-system](docs/architecture/design-system.md) |
 | D195 | [sources/declared](docs/architecture/sources/declared.md) |
 | D196 | [design-system](docs/architecture/design-system.md) |
+| D197 | [search](docs/architecture/search.md) |
+| D198 | [search](docs/architecture/search.md) |
+| D199 | [search](docs/architecture/search.md) |
+| D200 | [search](docs/architecture/search.md) |
+| D201 | [search](docs/architecture/search.md) |
+| D202 | [search](docs/architecture/search.md) |
+| D203 | [search](docs/architecture/search.md) |
+| D204 | [search](docs/architecture/search.md) |
+| D205 | [search](docs/architecture/search.md) |
 
 ## Working rules
 

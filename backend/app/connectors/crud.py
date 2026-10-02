@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -113,12 +113,39 @@ async def list_for(
     and the owner's address are both a join away, and asking again per
     connection would grow with the list.
     """
-    visible = _visible_to(user.id)
     count = (
-        await session.exec(select(func.count()).select_from(Connector).where(visible))
+        await session.exec(
+            select(func.count()).select_from(Connector).where(_visible_to(user.id))
+        )
     ).one()
-
     statement = (
+        _with_standing(user)
+        .order_by(col(Connector.created_at).desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return _standings(user, (await session.exec(statement)).all()), count
+
+
+async def visible_with_standing(
+    session: AsyncSession, *, user: User, limit: int
+) -> list[tuple[Connector, Access, str | None]]:
+    """Every connection the user may see, with their standing, by name, bounded.
+
+    What the search resolves before it asks anything (D199): one query, so a
+    connection the person has no standing on is never asked, counted or named.
+    """
+    statement = (
+        _with_standing(user)
+        .order_by(col(Connector.name), col(Connector.id))
+        .limit(limit)
+    )
+    return _standings(user, (await session.exec(statement)).all())
+
+
+def _with_standing(user: User) -> Any:
+    """The visible connections joined to the caller's grant and the owner's address."""
+    return (
         select(Connector, ConnectorGrant.access, User.email)
         .join(
             ConnectorGrant,
@@ -127,12 +154,13 @@ async def list_for(
             isouter=True,
         )
         .join(User, onclause=col(User.id) == Connector.owner_id)
-        .where(visible)
-        .order_by(col(Connector.created_at).desc())
-        .offset(skip)
-        .limit(limit)
+        .where(_visible_to(user.id))
     )
-    rows = (await session.exec(statement)).all()
+
+
+def _standings(
+    user: User, rows: Sequence[Any]
+) -> list[tuple[Connector, Access, str | None]]:
     listed: list[tuple[Connector, Access, str | None]] = []
     for connector, granted, owner_email in rows:
         if connector.owner_id == user.id:
@@ -141,7 +169,7 @@ async def list_for(
             # Not the caller's own, so the row is in the answer only because
             # the outer join found a grant naming them.
             listed.append((connector, _granted(granted), owner_email))
-    return listed, count
+    return listed
 
 
 async def visible_of(session: AsyncSession, *, user_id: uuid.UUID) -> list[Connector]:

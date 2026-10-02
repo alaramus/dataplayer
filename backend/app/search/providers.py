@@ -1,0 +1,144 @@
+"""What the search asks: one provider per kind of thing the application keeps (D197).
+
+A provider answers words with hits for its cells. It lives with its feature and
+is handed to the engine when the application is assembled, the way the job
+runner is handed its handlers (D81): the engine imports no feature. Those for
+what sits below the engine — connection rows, SSH keys, the guide, the source
+types — live in this package.
+
+A provider applies its feature's own access rule inside its own query (D199);
+the engine passes the person and never filters afterwards, which would lose
+results and leak counts.
+"""
+
+import uuid
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from typing import Any, Protocol, runtime_checkable
+
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.adapters.search import (
+    SearchBounds,
+    class_of_name,
+    class_rank,
+    holds_every_word,
+)
+from app.core.access import Access
+from app.search.excerpts import segments
+from app.search.models import (
+    ConnectionsPlace,
+    Cost,
+    Hit,
+    Match,
+    MatchedField,
+    ObjectsPlace,
+    SearchField,
+    SearchMode,
+)
+from app.users.models import User
+
+
+@dataclass(frozen=True)
+class VisibleConnection:
+    """A connection the person may see, read once per answer (D199)."""
+
+    id: uuid.UUID
+    name: str
+    adapter_type: str
+    enabled: bool
+    access: Access
+    owner_id: uuid.UUID
+    # Whose it is, when it is not the person's: the address the grant names.
+    owner_email: str | None
+    # The non-secret options, for the host and database a row is found by.
+    config: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class Asked:
+    """What one cell asks of a provider."""
+
+    user: User
+    typed: str
+    words: tuple[str, ...]
+    field: SearchField
+    mode: SearchMode
+    limit: int
+    bounds: SearchBounds
+    # The application cells of one answer share it and run one after another:
+    # they are instant, and a session is not shared between tasks.
+    session: AsyncSession
+    visible: Sequence[VisibleConnection] = ()
+
+
+@dataclass(frozen=True)
+class Found:
+    """What a provider answers for one cell."""
+
+    hits: list[Hit] = field(default_factory=list)
+    # False when it stopped before looking everywhere it was asked to.
+    complete: bool = True
+    notice: str | None = None
+    # Whether asking this cell alone, with its full limit, would find more.
+    more: bool = False
+
+
+@dataclass(frozen=True)
+class ProviderCell:
+    field: SearchField
+    cost: Cost
+
+
+@runtime_checkable
+class ApplicationProvider(Protocol):
+    """One kind of application object, found by asking the application."""
+
+    @property
+    def place(self) -> ConnectionsPlace | ObjectsPlace: ...
+
+    @property
+    def title(self) -> str:
+        """The heading of its group, in the words a person reads."""
+        ...
+
+    def cells(self) -> Sequence[ProviderCell]:
+        """Its cells and what each costs, stated without asking anybody."""
+        ...
+
+    async def search(self, asked: Asked) -> Found: ...
+
+
+def name_match(words: Sequence[str], name: str) -> Match | None:
+    """A match on the name, classed by the one rule (D202), or none."""
+    found = class_of_name(words, name)
+    if found is None:
+        return None
+    return Match(field="name", match_class=found, excerpt=segments(name, words))
+
+
+def text_match(words: Sequence[str], where: MatchedField, text: str) -> Match | None:
+    """A match in something other than the name: class `text` (D202)."""
+    if not holds_every_word(words, text):
+        return None
+    return Match(field=where, match_class="text", excerpt=segments(text, words))
+
+
+def best_of(*matches: Match | None) -> Match | None:
+    """The best of several ways one thing matched, by class; the first on a tie."""
+    present = [one for one in matches if one is not None]
+    if not present:
+        return None
+    return min(present, key=lambda one: class_rank(one.match_class))
+
+
+def ordered(hits: list[Hit], limit: int, *, ranked: bool = False) -> Found:
+    """A cell's hits in the order a group shows them, and whether more were left.
+
+    Class first, then the provider's own rank where it has one — the order the
+    hits arrive in, `ranked` — and otherwise the name (D202).
+    """
+    if not ranked:
+        hits.sort(key=lambda hit: hit.title.casefold())
+    hits.sort(key=lambda hit: class_rank(hit.match.match_class))
+    return Found(hits=hits[:limit], complete=True, more=len(hits) > limit)

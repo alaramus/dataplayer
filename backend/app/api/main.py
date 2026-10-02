@@ -16,6 +16,7 @@ from app.metrics.routes import router as metrics_router
 from app.pipelines.routes import router as pipelines_router
 from app.queries.routes import router as queries_router
 from app.realtime.routes import router as realtime_router
+from app.search.routes import router as search_router
 from app.services.backup_routes import router as backups_router
 from app.services.routes import router as services_router
 from app.shares.routes import router as shares_router
@@ -51,6 +52,7 @@ api_router.include_router(shares_router)
 api_router.include_router(queries_router)
 api_router.include_router(metrics_router)
 api_router.include_router(agent_router)
+api_router.include_router(search_router)
 api_router.include_router(realtime_router)
 api_router.include_router(terminals_router)
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
+import type { AdapterTypeInfo } from "@/client"
 
-import { ALL_CATEGORIES, categoryCounts, searchAdapters } from "./adapterSearch"
+import { ALL_CATEGORIES, categoryCounts, inFoundOrder } from "./adapterSearch"
 
 function adapterType(overrides: Partial<AdapterTypeInfo> = {}): AdapterTypeInfo {
   return {
@@ -40,79 +40,9 @@ const FILES = adapterType({
 
 const TYPES = [POSTGRES, FILES]
 
-const TIMESCALE_TEMPLATE: ServiceTemplateInfo = {
-  key: "timescaledb",
-  title: "TimescaleDB",
-  description: "A PostgreSQL server with TimescaleDB already installed in its database.",
-  image: "timescale/timescaledb:2.30.0-pg18",
-  container_port: 5432,
-  adapter_type: "postgres",
-  adapter_title: "PostgreSQL",
-  generated: ["password"],
-  choosable: ["user", "password", "database"],
-  optional_password: false,
-  offers_sample_data: true,
-  available: true,
-}
-
-describe("searching the adapter catalog", () => {
-  it("returns everything for an empty query", () => {
-    expect(searchAdapters(TYPES, "")).toEqual(TYPES)
-  })
-
-  it("ignores surrounding whitespace and case", () => {
-    expect(searchAdapters(TYPES, "  POSTGRE  ")).toEqual([POSTGRES])
-  })
-
-  it("finds a type by what it can do, not only by its name", () => {
-    // The whole reason the short lists are searched: nothing in "Files" says
-    // upload, and a user who wants to upload does not know the type's name.
-    expect(searchAdapters(TYPES, "upload")).toEqual([FILES])
-  })
-
-  it("does not find a type by a capability its panel does not show", () => {
-    expect(searchAdapters(TYPES, "browse the catalog")).toEqual([])
-  })
-
-  it("finds a type by its description", () => {
-    expect(searchAdapters(TYPES, "relational")).toEqual([POSTGRES])
-  })
-
-  it("searches a type with no short lists rather than failing on it", () => {
-    // A stub or an older answer may carry no `can_see` or `can_change`: the
-    // search is over names and descriptions then, and a query matching
-    // nothing still matches nothing instead of throwing.
-    const bare = { ...POSTGRES, can_see: undefined, can_change: undefined } as unknown as AdapterTypeInfo
-    expect(searchAdapters([bare], "relational")).toEqual([bare])
-    expect(searchAdapters([bare], "kafka")).toEqual([])
-  })
-
-  it("finds a type by its category", () => {
-    expect(searchAdapters(TYPES, "storage")).toEqual([FILES])
-  })
-
-  it("ranks a match in the title above one in the description", () => {
-    const named = adapterType({ name: "duck", title: "Relational Duck" })
-    // POSTGRES carries "Relational" in its description only.
-    expect(searchAdapters([POSTGRES, named], "relational")).toEqual([named, POSTGRES])
-  })
-
-  it("answers with nothing when nothing matches", () => {
-    expect(searchAdapters(TYPES, "kafka")).toEqual([])
-  })
-
-  it("finds a type by what this server can start of it", () => {
-    // TimescaleDB is a PostgreSQL to everything here (D119), so the only way
-    // to start one is from PostgreSQL's own panel - and a search that did not
-    // know the name would send somebody looking for it away from the one
-    // place it is offered.
-    expect(searchAdapters(TYPES, "timescale", [TIMESCALE_TEMPLATE])).toEqual([POSTGRES])
-  })
-
-  it("does not offer a type a template of another kind names", () => {
-    expect(
-      searchAdapters(TYPES, "timescale", [{ ...TIMESCALE_TEMPLATE, adapter_type: "file" }])
-    ).toEqual([FILES])
+describe("the order the search found types in", () => {
+  it("keeps the search's order and drops a name the catalog does not hold", () => {
+    expect(inFoundOrder(TYPES, ["file", "kafka", "postgres"])).toEqual([FILES, POSTGRES])
   })
 })
 

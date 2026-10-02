@@ -218,3 +218,10 @@ NodeKind = Literal[
     "database",
     "key",
 ]
+
+
+# How a node may be opened from somewhere other than its catalog: the catalog
+# pointing at it, what it prefers to be read as, its rows, its structure, or
+# what it is. One closed set for everybody who opens a node from elsewhere —
+# the agent and the search — so the workspace understands one list (D197).
+NodeView = Literal["catalog", "preferred", "rows", "structure", "summary"]

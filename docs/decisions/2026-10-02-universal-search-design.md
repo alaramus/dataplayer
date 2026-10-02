@@ -1,12 +1,13 @@
 # Universal search: live first, indexed later
 
-Date: 2026-10-02. Decisions: D197 through D205, proposed. Their architecture
-home will be a new `docs/architecture/search.md`, written by the first slice
-that builds them; until then they live here only and are not in the AGENTS.md
-table. They amend D76, D91 and D134 where they say so.
+Date: 2026-10-02. Decisions: D197 through D205. Their architecture home is
+[search.md](../architecture/search.md), written by S1. They amend D76, D91 and
+D134 where they say so.
 
-Status: proposed on 2026-10-02 in discussion with the user. Not agreed, nothing
-built. The user's notes of the same day are the input: one search over
+Status: agreed on 2026-10-02, when the user asked for it to be built as
+written; that answers the open questions below with the defaults this spec
+states. Built slice by slice; what each slice ran is under
+[Validation](#validation). The user's notes of the same day are the input: one search over
 everything the application holds and reaches, live first, indexing added later
 as a way to make it faster and wider where live is not enough. Where this spec
 reorders those notes it says so in [What changed from the first notes](#what-changed-from-the-first-notes).
@@ -1037,5 +1038,17 @@ dashboard is ever in its results.
 
 ## Validation
 
-Nothing is built. Each slice records here the checks it ran and their results,
-and S4 records its timings.
+Each slice records here the checks it ran and their results, and S4 records its
+timings.
+
+- **S0.** `pytest` over the log, file-search, catalog-search, library and
+  history routes and a marker test across every search route: green. The SSH
+  test of a 40 MB file beside a small match was red on the old byte count and
+  green on the new one. `ruff`, `mypy`, `lint-imports`, `check-docs`;
+  `vitest` for the catalog level, `type-check`, `lint`: clean.
+- **S1.** `pytest tests/search` (57: the word table, excerpts, the planner, the
+  route's acceptance cases, a provider that never answers, a newer request
+  ending the older) and the connector, agent and guide tests the refactors
+  touched: green. `ruff`, `mypy`, `lint-imports`, `check-docs`; `vitest` for the
+  stream reader and the type catalog, `type-check`, `lint`: clean. The type
+  catalog's E2E runs with S2's, against a rebuilt backend.

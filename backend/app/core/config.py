@@ -89,6 +89,19 @@ class Settings(BaseSettings):
     # How often the server looks for pipelines whose schedule has come (D179).
     SCHEDULE_TICK_SECONDS: int = 30
 
+    # What one answer of the search may spend (D200). While typing, one
+    # deadline for everything; on Enter, each cheap cell, each costly cell and
+    # all of them together.
+    SEARCH_TYPING_SECONDS: float = Field(default=0.4, gt=0, le=2)
+    SEARCH_CHEAP_SECONDS: float = Field(default=2.0, gt=0, le=10)
+    SEARCH_COSTLY_SECONDS: float = Field(default=10.0, gt=0, le=30)
+    SEARCH_TOTAL_SECONDS: float = Field(default=20.0, gt=0, le=60)
+    # Connections one answer asks at most, and at once.
+    SEARCH_MAX_CONNECTIONS: int = Field(default=20, ge=1, le=100)
+    SEARCH_PARALLEL_CONNECTIONS: int = Field(default=4, ge=1, le=16)
+    # Worker threads the search may hold, apart from every other route's.
+    SEARCH_THREADS: int = Field(default=4, ge=1, le=16)
+
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times
     # POOL_MAX_SIZE connections to one database.

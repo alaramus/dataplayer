@@ -19,6 +19,7 @@ from pydantic import Field as PydanticField
 from sqlalchemy import Column, DateTime, Index, LargeBinary
 from sqlmodel import Field, SQLModel
 
+from app.adapters.catalog import NodeView
 from app.adapters.content import NodeRepresentation
 from app.ai.catalog import ChatProvider, Provider
 from app.core.schemas import get_datetime_utc
@@ -436,7 +437,7 @@ class OpenIntent(BaseModel):
     adapter_type: str
     node_id: str | None = None
     title: str | None = None
-    view: Literal["catalog", "preferred", "rows", "structure", "summary"] = "preferred"
+    view: NodeView = "preferred"
     describable: bool = False
     representations: list[NodeRepresentation] = PydanticField(default_factory=list)
 

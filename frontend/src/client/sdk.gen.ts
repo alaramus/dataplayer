@@ -547,6 +547,9 @@ import type {
   queriesUpdateDocumentData,
   queriesUpdateDocumentErrors,
   queriesUpdateDocumentResponses,
+  searchSearchData,
+  searchSearchErrors,
+  searchSearchResponses,
   servicesDeleteServiceData,
   servicesDeleteServiceErrors,
   servicesDeleteServiceResponses,
@@ -6127,6 +6130,34 @@ export class AiService {
       url: "/api/v1/ai/runs/{run_id}/cancel",
       ...options,
     })
+  }
+}
+
+export class SearchService {
+  /**
+   * Search
+   *
+   * Search everything this person may see, as a stream of lines.
+   *
+   * First the plan, then one line per cell as it finishes — its outcome and
+   * its hits — then the best matches, then a closing line. One cell failing,
+   * late or skipped never fails the answer; it says what happened to it.
+   */
+  public static search<ThrowOnError extends boolean = true>(
+    options: Options<searchSearchData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<searchSearchResponses, searchSearchErrors, ThrowOnError>(
+      {
+        responseType: "json",
+        security: [{ scheme: "bearer", type: "http" }],
+        url: "/api/v1/search",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      }
+    )
   }
 }
 

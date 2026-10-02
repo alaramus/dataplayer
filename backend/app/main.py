@@ -32,11 +32,16 @@ from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
 from app.queries.sessions import QuerySessions
 from app.realtime import topics
+from app.search.connections import ConnectionRows
+from app.search.engine import SearchEngine, SearchLimits
+from app.search.guide import GuidePages
+from app.search.source_types import SourceTypes
 from app.services.backups import handlers as backup_handlers
 from app.services.docker import DockerEngine
 from app.services.engine import SWITCHED_OFF_MESSAGE, NoEngine, ServiceEngine
 from app.services.jobs import handlers as service_handlers
 from app.services.restore_files import remove_stranded_snapshots
+from app.services.search import startable
 from app.source_operations.handler import handlers as source_operation_handlers
 from app.source_operations.recovery import settle_interrupted_operations
 from app.transfers.handler import RunTransfer
@@ -114,6 +119,17 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         **pipeline_handlers(application.state.data_cache, application.state.resources, transfers),
         **metrics_handlers(engine),
     })
+    # One search over everything a person may see, asking a provider per kind
+    # of thing the application keeps; a feature hands its own in here, and the
+    # engine imports none of them (D197).
+    application.state.search_engine = SearchEngine(
+        [
+            ConnectionRows(),
+            GuidePages(),
+            SourceTypes(startable),
+        ],
+        SearchLimits.from_settings(),
+    )
     # The web process reads the metrics store and never writes points (D127).
     application.state.metrics_stores = StoreHolder()
     # What the last stop left mid-flight is ended before anything new starts.

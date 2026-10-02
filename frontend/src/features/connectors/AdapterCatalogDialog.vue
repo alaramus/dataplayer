@@ -4,10 +4,11 @@ import { computed, ref, watch } from "vue"
 import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
 import AdapterDetailPanel from "@/features/connectors/AdapterDetailPanel.vue"
 import AdapterTile from "@/features/connectors/AdapterTile.vue"
-import { ALL_CATEGORIES, categoryCounts, searchAdapters } from "@/features/connectors/adapterSearch"
+import { ALL_CATEGORIES, categoryCounts, inFoundOrder } from "@/features/connectors/adapterSearch"
 import { categoryIcon } from "@/features/connectors/adapters"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { useServiceTemplates } from "@/features/services/api"
+import { useProviderHits } from "@/features/search/useProviderHits"
 import { AppButton, AppEmptyState, AppInput, AppSpinner, appIcons } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -38,17 +39,24 @@ const selectedName = ref<string | null>(null)
 const types = computed(() => adapterTypes.data.value ?? [])
 const categories = computed(() => categoryCounts(types.value))
 
-const searching = computed(() => query.value.trim() !== "")
-
 /**
- * Searching is not filtering: a query is asked of every type there is.
+ * Searching is not filtering: a query is asked of every type there is, by the
+ * search's own provider (D197), which also knows the services that start one.
  *
  * A search narrowed to the selected category would answer "nothing found" for
  * a type that is plainly there, which is the one answer a search must never
- * give wrongly.
+ * give wrongly. Until the first answer is in, the grid stays as it was.
  */
+const { hits } = useProviderHits(query, "source_types")
+const searching = computed(() => hits.value !== null)
+
 const visible = computed<AdapterTypeInfo[]>(() => {
-  if (searching.value) return searchAdapters(types.value, query.value, startable.value)
+  if (hits.value !== null) {
+    return inFoundOrder(
+      types.value,
+      hits.value.flatMap((hit) => (hit.target.kind === "object" ? [hit.target.object_id] : []))
+    )
+  }
   if (category.value === ALL_CATEGORIES) return types.value
   return types.value.filter((type) => type.category === category.value)
 })

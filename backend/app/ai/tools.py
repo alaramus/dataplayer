@@ -6,7 +6,7 @@ import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import HTTPException
 from langchain.agents.middleware import ModelRequest, ModelResponse, wrap_model_call
@@ -24,6 +24,7 @@ from app.adapters.actions import (
     TakesParams,
 )
 from app.adapters.cache import DataCache
+from app.adapters.catalog import NodeView
 from app.adapters.fetch import FetchRequest
 from app.adapters.protocol import (
     AdapterError,
@@ -606,7 +607,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
         connector_id: str,
         node_id: str | None = None,
         title: str | None = None,
-        view: Literal["catalog", "preferred", "rows", "structure", "summary"] = "preferred",
+        view: NodeView = "preferred",
     ) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
             resolved = await runtime.connector(session, user, uuid.UUID(connector_id))

@@ -717,6 +717,22 @@ export type AgentUpdate = {
 }
 
 /**
+ * Ancestor
+ *
+ * One level above a found node, as its source states it.
+ */
+export type Ancestor = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
  * ArchiveContents
  *
  * An archive as its central directory declares it, inflating nothing.
@@ -1059,6 +1075,22 @@ export type BackupRequest = {
 }
 
 /**
+ * BestLine
+ *
+ * The best name matches of the cheap cells, once, never reordered (D202).
+ */
+export type BestLine = {
+  /**
+   * Type
+   */
+  type: "best"
+  /**
+   * Hits
+   */
+  hits: Array<Hit>
+}
+
+/**
  * Body_ai-send_message
  */
 export type Body_ai_send_message = {
@@ -1171,6 +1203,30 @@ export type BooleanGroup = {
         kind: "cast"
       } & Cast)
   >
+}
+
+/**
+ * BrowserPlace
+ *
+ * An open tab or a saved tab group: only the browser knows them (S9).
+ */
+export type BrowserPlace = {
+  /**
+   * Object Type
+   */
+  object_type: "tab" | "tab_group"
+  /**
+   * Object Id
+   */
+  object_id: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Detail
+   */
+  detail?: string | null
 }
 
 /**
@@ -1429,6 +1485,31 @@ export type Cast = {
 }
 
 /**
+ * Cell
+ *
+ * A place and a field: what a way is chosen for and an outcome reported.
+ */
+export type Cell = {
+  /**
+   * Place
+   */
+  place:
+    | ({
+        kind: "connections"
+      } & ConnectionsPlace_Output)
+    | ({
+        kind: "connection"
+      } & ConnectionPlace_Output)
+    | ({
+        kind: "objects"
+      } & ObjectsPlace_Output)
+  /**
+   * Field
+   */
+  field: "names" | "contents" | "columns"
+}
+
+/**
  * CellEdit
  */
 export type CellEdit = {
@@ -1440,6 +1521,27 @@ export type CellEdit = {
    * Value
    */
   value: string | null
+}
+
+/**
+ * CellLine
+ *
+ * One cell, finished: its outcome and what it found.
+ */
+export type CellLine = {
+  /**
+   * Type
+   */
+  type: "cell"
+  /**
+   * Key
+   */
+  key: string
+  outcome: Outcome
+  /**
+   * Hits
+   */
+  hits: Array<Hit>
 }
 
 /**
@@ -2088,6 +2190,46 @@ export type ConnectionDescription = {
 }
 
 /**
+ * ConnectionPlace
+ *
+ * One connection, or a level of one: what is inside it.
+ */
+export type ConnectionPlace_Input = {
+  /**
+   * Kind
+   */
+  kind?: "connection"
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+}
+
+/**
+ * ConnectionPlace
+ *
+ * One connection, or a level of one: what is inside it.
+ */
+export type ConnectionPlace_Output = {
+  /**
+   * Kind
+   */
+  kind: "connection"
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Node Id
+   */
+  node_id: string | null
+}
+
+/**
  * ConnectionStringRequest
  */
 export type ConnectionStringRequest = {
@@ -2099,6 +2241,44 @@ export type ConnectionStringRequest = {
    * Url
    */
   url: string
+}
+
+/**
+ * ConnectionTarget
+ */
+export type ConnectionTarget = {
+  /**
+   * Kind
+   */
+  kind: "connection"
+  /**
+   * Connector Id
+   */
+  connector_id: string
+}
+
+/**
+ * ConnectionsPlace
+ *
+ * The connections themselves, as rows: found by name, type and host.
+ */
+export type ConnectionsPlace_Input = {
+  /**
+   * Kind
+   */
+  kind?: "connections"
+}
+
+/**
+ * ConnectionsPlace
+ *
+ * The connections themselves, as rows: found by name, type and host.
+ */
+export type ConnectionsPlace_Output = {
+  /**
+   * Kind
+   */
+  kind: "connections"
 }
 
 /**
@@ -3823,6 +4003,28 @@ export type EditorLayout = {
 }
 
 /**
+ * EndLine
+ */
+export type EndLine = {
+  /**
+   * Type
+   */
+  type: "end"
+  /**
+   * Nothing Found
+   */
+  nothing_found: boolean
+  /**
+   * Asked
+   */
+  asked: number
+  /**
+   * Superseded
+   */
+  superseded: boolean
+}
+
+/**
  * EntryContents
  *
  * One member of an archive, which has no bytes of its own on disk.
@@ -4132,6 +4334,30 @@ export type ExpressionDefault = {
     | ({
         kind: "cast"
       } & Cast)
+}
+
+/**
+ * Facts
+ *
+ * What the Search tab filters and sorts by, where the place knows it.
+ */
+export type Facts = {
+  /**
+   * Kind
+   */
+  kind: string
+  /**
+   * Changed At
+   */
+  changed_at: string | null
+  /**
+   * Owner
+   */
+  owner: string | null
+  /**
+   * Switched Off
+   */
+  switched_off: boolean
 }
 
 /**
@@ -4677,6 +4903,26 @@ export type GrantsPublic = {
 }
 
 /**
+ * Group
+ *
+ * Where a cell's hits are drawn. Ordered by `rank`, which is fixed (D202).
+ */
+export type Group = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Rank
+   */
+  rank: number
+}
+
+/**
  * GuidePage
  */
 export type GuidePage = {
@@ -4852,6 +5098,73 @@ export type HistoryRun = {
    * Scheduled
    */
   scheduled: boolean
+}
+
+/**
+ * Hit
+ */
+export type Hit = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Target
+   */
+  target:
+    | ({
+        kind: "connection"
+      } & ConnectionTarget)
+    | ({
+        kind: "node"
+      } & NodeTarget)
+    | ({
+        kind: "object"
+      } & ObjectTarget)
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Detail
+   */
+  detail: string | null
+  facts: Facts
+  match: Match
+  /**
+   * Access
+   */
+  access: "read" | "write" | "structure" | "own" | null
+  /**
+   * Open
+   */
+  open:
+    | "catalog"
+    | "preferred"
+    | "rows"
+    | "structure"
+    | "summary"
+    | "connection"
+    | "saved_query"
+    | "pipeline"
+    | "dashboard"
+    | "conversation"
+    | "quick_chat"
+    | "project"
+    | "service"
+    | "ssh_key"
+    | "guide_page"
+    | "source_type"
+    | "tab"
+    | "tab_group"
+  /**
+   * Via
+   */
+  via: "live" | "kept" | "none"
+  /**
+   * As Of
+   */
+  as_of: string | null
 }
 
 /**
@@ -5920,6 +6233,28 @@ export type MarkdownContent = {
 }
 
 /**
+ * Match
+ */
+export type Match = {
+  /**
+   * Field
+   */
+  field: "name" | "details" | "body" | "contents" | "columns"
+  /**
+   * Match Class
+   */
+  match_class: "exact" | "prefix" | "word" | "substring" | "text" | "meaning"
+  /**
+   * Line
+   */
+  line: number | null
+  /**
+   * Excerpt
+   */
+  excerpt: Array<Segment>
+}
+
+/**
  * Membership
  *
  * One value against a bounded list of literals, and nothing else.
@@ -6448,6 +6783,85 @@ export type NodeSummary = {
 }
 
 /**
+ * NodeTarget
+ *
+ * A node, as a pointer: enough to open it, never the thing itself (D198).
+ */
+export type NodeTarget = {
+  /**
+   * Kind
+   */
+  kind: "node"
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Parent Id
+   */
+  parent_id: string | null
+  /**
+   * Location
+   */
+  location: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Node Kind
+   */
+  node_kind: string
+  /**
+   * Sub Key
+   */
+  sub_key: string | null
+  /**
+   * Ancestors
+   */
+  ancestors: Array<Ancestor> | null
+  /**
+   * Node
+   */
+  node:
+    | ({
+        kind: "schema"
+      } & SchemaNode)
+    | ({
+        kind: "table"
+      } & TableNode)
+    | ({
+        kind: "view"
+      } & ViewNode)
+    | ({
+        kind: "directory"
+      } & DirectoryNode)
+    | ({
+        kind: "file"
+      } & FileNode)
+    | ({
+        kind: "dataset"
+      } & DatasetNode)
+    | ({
+        kind: "entry"
+      } & EntryNode)
+    | ({
+        kind: "report"
+      } & ReportNode)
+    | ({
+        kind: "database"
+      } & DatabaseNode)
+    | ({
+        kind: "key"
+      } & KeyNode)
+    | null
+}
+
+/**
  * NullFilter
  */
 export type NullFilter = {
@@ -6560,6 +6974,86 @@ export type NullabilityChanged = {
 }
 
 /**
+ * ObjectTarget
+ */
+export type ObjectTarget = {
+  /**
+   * Kind
+   */
+  kind: "object"
+  /**
+   * Object Type
+   */
+  object_type:
+    | "saved_query"
+    | "pipeline"
+    | "dashboard"
+    | "conversation"
+    | "quick_chat"
+    | "project"
+    | "service"
+    | "ssh_key"
+    | "guide_page"
+    | "source_type"
+    | "tab"
+    | "tab_group"
+  /**
+   * Object Id
+   */
+  object_id: string
+}
+
+/**
+ * ObjectsPlace
+ *
+ * One kind of thing the application keeps.
+ */
+export type ObjectsPlace_Input = {
+  /**
+   * Kind
+   */
+  kind?: "objects"
+  /**
+   * Provider
+   */
+  provider:
+    | "saved_queries"
+    | "pipelines"
+    | "dashboards"
+    | "conversations"
+    | "services"
+    | "ssh_keys"
+    | "guide"
+    | "source_types"
+    | "open_tabs"
+}
+
+/**
+ * ObjectsPlace
+ *
+ * One kind of thing the application keeps.
+ */
+export type ObjectsPlace_Output = {
+  /**
+   * Kind
+   */
+  kind: "objects"
+  /**
+   * Provider
+   */
+  provider:
+    | "saved_queries"
+    | "pipelines"
+    | "dashboards"
+    | "conversations"
+    | "services"
+    | "ssh_keys"
+    | "guide"
+    | "source_types"
+    | "open_tabs"
+}
+
+/**
  * OperatorClassOption
  *
  * One operator class, for one access method and one type.
@@ -6589,6 +7083,65 @@ export type OperatorClassOption = {
    * Default
    */
   default?: boolean
+}
+
+/**
+ * Outcome
+ *
+ * What happened to one cell in this answer (D201).
+ */
+export type Outcome = {
+  /**
+   * Way
+   */
+  way: "live" | "kept" | "none"
+  /**
+   * Status
+   */
+  status: "complete" | "stopped" | "late" | "failed" | "skipped"
+  /**
+   * Reason
+   */
+  reason:
+    | "switched_off"
+    | "cannot_search"
+    | "unreachable"
+    | "too_costly"
+    | "not_in_context"
+    | "not_asked"
+    | null
+  /**
+   * Notice
+   */
+  notice: string | null
+  /**
+   * Error Kind
+   */
+  error_kind: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
+  /**
+   * Message
+   */
+  message: string | null
+  /**
+   * More
+   */
+  more: boolean
+  /**
+   * As Of
+   */
+  as_of: string | null
+  /**
+   * Deadline Seconds
+   */
+  deadline_seconds: number | null
+  /**
+   * Since
+   */
+  since: string | null
+  /**
+   * Owned
+   */
+  owned: boolean
 }
 
 /**
@@ -7185,6 +7738,26 @@ export type PipelineSummary = {
 }
 
 /**
+ * PlanLine
+ *
+ * First: every cell of this answer, so a screen can say what is pending.
+ */
+export type PlanLine = {
+  /**
+   * Type
+   */
+  type: "plan"
+  /**
+   * Mode
+   */
+  mode: "typing" | "search"
+  /**
+   * Cells
+   */
+  cells: Array<PlannedCell>
+}
+
+/**
  * PlanProblem
  *
  * Why a definition cannot become a table, next to what is wrong.
@@ -7210,6 +7783,30 @@ export type PlanProblem = {
    * Kind
    */
   kind?: "invalid" | "conflict"
+}
+
+/**
+ * PlannedCell
+ */
+export type PlannedCell = {
+  /**
+   * Key
+   */
+  key: string
+  cell: Cell
+  group: Group
+  /**
+   * Cost
+   */
+  cost: "instant" | "cheap" | "costly" | "job"
+  /**
+   * Way
+   */
+  way: "live" | "kept" | "none"
+  /**
+   * Connector Id
+   */
+  connector_id: string | null
 }
 
 /**
@@ -8054,6 +8651,47 @@ export type QuickChatUpdate = {
    * Project Id
    */
   project_id?: string | null
+}
+
+/**
+ * RecentTarget
+ *
+ * Something the person last opened from the search, as the browser kept it.
+ */
+export type RecentTarget = {
+  /**
+   * Kind
+   */
+  kind: "connection" | "node" | "object"
+  /**
+   * Connector Id
+   */
+  connector_id?: string | null
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+  /**
+   * Object Type
+   */
+  object_type?:
+    | "saved_query"
+    | "pipeline"
+    | "dashboard"
+    | "conversation"
+    | "quick_chat"
+    | "project"
+    | "service"
+    | "ssh_key"
+    | "guide_page"
+    | "source_type"
+    | "tab"
+    | "tab_group"
+    | null
+  /**
+   * Object Id
+   */
+  object_id?: string | null
 }
 
 /**
@@ -9645,6 +10283,76 @@ export type ScreenContext = {
  * JSON's validator a list where it expects the string it was sent.
  */
 export type ScreenContexts = Array<ScreenContext>
+
+/**
+ * SearchRequest
+ *
+ * What a person typed, where they are, and what this answer may spend.
+ */
+export type SearchRequest = {
+  /**
+   * Words
+   */
+  words: string
+  /**
+   * Mode
+   */
+  mode: "typing" | "search"
+  /**
+   * Lane
+   */
+  lane?: "field" | "tab" | "follow" | "types"
+  /**
+   * Context
+   */
+  context?: Array<string>
+  /**
+   * Only
+   */
+  only?: Array<
+    | ({
+        kind: "connections"
+      } & ConnectionsPlace_Input)
+    | ({
+        kind: "connection"
+      } & ConnectionPlace_Input)
+    | ({
+        kind: "objects"
+      } & ObjectsPlace_Input)
+  > | null
+  /**
+   * Insist
+   */
+  insist?: boolean
+  /**
+   * Recent
+   */
+  recent?: Array<RecentTarget>
+  /**
+   * Browser
+   */
+  browser?: Array<BrowserPlace>
+}
+
+/**
+ * Segment
+ *
+ * A run of text, marked when it is what matched.
+ *
+ * Text rather than offsets: a Python offset counts code points and a
+ * JavaScript one UTF-16 units, so an offset would mark the wrong letters
+ * after an emoji (D198).
+ */
+export type Segment = {
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Hit
+   */
+  hit: boolean
+}
 
 /**
  * SeriesHistory
@@ -19241,6 +19949,29 @@ export type aiCancelRunResponses = {
 }
 
 export type aiCancelRunResponse = aiCancelRunResponses[keyof aiCancelRunResponses]
+
+export type searchSearchData = {
+  body: SearchRequest
+  path?: never
+  query?: never
+  url: "/api/v1/search"
+}
+
+export type searchSearchErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchSearchError = searchSearchErrors[keyof searchSearchErrors]
+
+export type searchSearchResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
 
 export type privateCreateUserData = {
   body: PrivateUserCreate
