@@ -1,4 +1,4 @@
-"""What a deployment has to supply, and whether the pipeline supplies it.
+"""What a deployment has to supply, and whether the pipelines supply it.
 
 Settings name `../.env`, so a run started from `backend/` reads whatever the
 developer keeps there and fills the gaps CI will not fill. Three pipelines have
@@ -8,8 +8,10 @@ last of them on `QUERY_CONTENT_KEY`.
 The rehearsal in `docs/architecture/backend.md` catches this and needs Docker,
 Linux and a clean checkout, which is why nobody runs it. This does the same
 thing in a second, in the suite that is run anyway: a setting with no default
-is a setting somebody must declare, and there are exactly two places that
-declare them.
+is a setting somebody must declare, and there are exactly three places that
+declare them — the example environment and the backend job of each pipeline
+(`.gitlab-ci.yml` and `.github/workflows/ci.yml`, which are kept equivalent
+so the same branch stays green in both forges).
 """
 
 import re
@@ -32,13 +34,26 @@ def _required() -> set[str]:
 
 
 def _declared_in_pipeline() -> set[str]:
-    """The variables the backend job of the pipeline sets."""
+    """The variables the backend job of the GitLab pipeline sets."""
     text = (REPOSITORY / ".gitlab-ci.yml").read_text(encoding="utf-8")
     block = text.split("\nbackend:", 1)[1].split("\n  cache:", 1)[0]
     block = block.split("variables:", 1)[1]
     return {
         match.group(1)
         for match in re.finditer(r"^\s{4}([A-Z_][A-Z0-9_]*):", block, re.MULTILINE)
+    }
+
+
+def _declared_in_github_workflow() -> set[str]:
+    """The variables the backend job of the GitHub workflow sets."""
+    text = (REPOSITORY / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    block = text.split("\n  backend:", 1)[1].split("\n  frontend:", 1)[0]
+    # The job-level `env:` sits at 4 spaces; the services above carry their
+    # own `env:` blocks at 8, so the split is anchored to the line start.
+    block = block.split("\n    env:", 1)[1].split("\n    steps:", 1)[0]
+    return {
+        match.group(1)
+        for match in re.finditer(r"^\s+([A-Z_][A-Z0-9_]*):", block, re.MULTILINE)
     }
 
 
@@ -52,13 +67,23 @@ def _declared_in_example() -> set[str]:
     }
 
 
-def test_the_pipeline_declares_every_setting_that_has_no_default() -> None:
+def test_the_gitlab_pipeline_declares_every_setting_that_has_no_default() -> None:
     missing = _required() - _declared_in_pipeline()
 
     assert not missing, (
         f"{', '.join(sorted(missing))} has no default and is not set by the "
         "backend job in .gitlab-ci.yml; the pipeline will fail before it runs "
         "a single check"
+    )
+
+
+def test_the_github_workflow_declares_every_setting_that_has_no_default() -> None:
+    missing = _required() - _declared_in_github_workflow()
+
+    assert not missing, (
+        f"{', '.join(sorted(missing))} has no default and is not set by the "
+        "backend job in .github/workflows/ci.yml; the workflow will fail "
+        "before it runs a single check"
     )
 
 
