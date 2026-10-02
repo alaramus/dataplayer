@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { sharesOf } from "./shares"
+import { sharesOf, tradeShares } from "./shares"
 
 const sharesIn = (sizes: number[], hidden: boolean[]) =>
   sharesOf(sizes, hidden).map((one) => one.share)
@@ -70,5 +70,71 @@ describe("the sections a section stands in for", () => {
 
   it("are one for every section off the screen", () => {
     expect(gapsIn([20, 28, 52], [true, true, false])).toEqual([0, 0, 2])
+  })
+})
+
+describe("a border dragged between two sections on the screen", () => {
+  const drawn = (sizes: number[], hidden: boolean[]) => sharesIn(sizes, hidden)
+
+  it("moves what one side loses to the other while every section is on screen", () => {
+    const sizes = tradeShares([20, 28, 52], [false, false, false], 1, 2, 10, 5, 5)
+    expect(sizes).not.toBeNull()
+    expect(sizes?.[0]).toBeCloseTo(20)
+    expect(sizes?.[1]).toBeCloseTo(38)
+    expect(sizes?.[2]).toBeCloseTo(42)
+  })
+
+  it("lets the card after a column on the bar narrow past that column's room", () => {
+    // The catalog beside the work card goes to the bar and the work card takes
+    // its 40 whole. Traded in sizes the work card stopped at 40 more than its
+    // minimum, and the catalog in front of it could not be widened.
+    const hidden = [false, false, true, false]
+    const sizes = tradeShares([15, 25, 40, 20], hidden, 1, 3, 50, 5, 5)
+    expect(sizes).not.toBeNull()
+    const shares = drawn(sizes ?? [], hidden)
+    expect(shares[1]).toBeCloseTo(75)
+    expect(shares[3]).toBeCloseTo(10)
+  })
+
+  it("brings the column on the bar back as the same part of the room it left", () => {
+    // It took two thirds of the work card's room; the card halves and so does
+    // it, rather than coming back at a width the card no longer has.
+    const sizes = tradeShares([15, 25, 40, 20], [false, false, true, false], 1, 3, 30, 5, 5)
+    expect(sizes?.[2]).toBeCloseTo(20)
+    expect(sizes?.[3]).toBeCloseTo(10)
+    expect(sizes?.reduce((sum, size) => sum + size, 0)).toBeCloseTo(100)
+  })
+
+  it("keeps every other section on the screen where it was", () => {
+    const hidden = [false, true, false, false]
+    const before = drawn([10, 40, 30, 20], hidden)
+    const after = drawn(tradeShares([10, 40, 30, 20], hidden, 0, 2, 6, 5, 5) ?? [], hidden)
+    expect(after[0]).toBeCloseTo((before[0] ?? 0) + 6)
+    expect(after[2]).toBeCloseTo((before[2] ?? 0) - 6)
+    expect(after[3]).toBeCloseTo(before[3] ?? 0)
+  })
+
+  it("moves the room a section before took whole along with it", () => {
+    const hidden = [false, false, true]
+    const sizes = tradeShares([20, 28, 52], hidden, 0, 1, -10, 5, 5)
+    const shares = drawn(sizes ?? [], hidden)
+    expect(shares[0]).toBeCloseTo(10)
+    expect(shares[1]).toBeCloseTo(90)
+  })
+
+  it("stops each side at its own minimum, measured as drawn", () => {
+    const hidden = [false, false, true, false]
+    const widened = drawn(tradeShares([15, 25, 40, 20], hidden, 1, 3, 100, 5, 8) ?? [], hidden)
+    expect(widened[3]).toBeCloseTo(8)
+    const narrowed = drawn(tradeShares([15, 25, 40, 20], hidden, 1, 3, -100, 5, 8) ?? [], hidden)
+    expect(narrowed[1]).toBeCloseTo(5)
+  })
+
+  it("does not move a border that is already at the minimum", () => {
+    expect(tradeShares([10, 90], [false, false], 0, 1, -5, 10, 10)).toEqual([10, 90])
+  })
+
+  it("answers nothing for a section the split does not have", () => {
+    expect(tradeShares([10, 90], [false, false], 5, 1, -5, 10, 10)).toBeNull()
   })
 })

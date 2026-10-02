@@ -444,8 +444,10 @@ export function useWorkspace<P extends { id: string }>(
     bringBack: (leafId) => {
       tree.value = setMinimized(tree.value, leafId, false)
     },
-    resize: (splitId, beforeIndex, afterIndex, delta, minPercent, minAfterPercent) => {
-      tree.value = resizeSplit(tree.value, splitId, beforeIndex, afterIndex, delta, minPercent, minAfterPercent)
+    resize: (splitId, beforeIndex, afterIndex, delta, minPercent, minAfterPercent, hidden) => {
+      tree.value = resizeSplit(
+        tree.value, splitId, beforeIndex, afterIndex, delta, minPercent, minAfterPercent, hidden
+      )
     },
     press: (panelId, x, y) => {
       pressed = { panelId, x, y }
