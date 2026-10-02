@@ -127,14 +127,19 @@ export interface WorkspaceContext {
   putAside: (leafId: NodeId) => void
   /** Bring one back, into the column it was in. */
   bringBack: (leafId: NodeId) => void
-  /** `minAfterPercent` defaults to `minPercent`, the limit of the side before. */
+  /**
+   * `minAfterPercent` defaults to `minPercent`, the limit of the side before.
+   * With `hidden`, the sections of the split that are off the screen, the
+   * delta and limits are shares of the row as drawn (`resizeSplit`).
+   */
   resize: (
     splitId: NodeId,
     beforeIndex: number,
     afterIndex: number,
     delta: number,
     minPercent: number,
-    minAfterPercent?: number
+    minAfterPercent?: number,
+    hidden?: boolean[]
   ) => void
   /** A tab was pressed. Not yet a drag: see `pointerMoved`. */
   press: (panelId: PanelId, x: number, y: number) => void

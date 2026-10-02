@@ -94,15 +94,19 @@ Consequences:
   the edge of an empty section. Where a drop is refused, nothing is highlighted.
 - **An empty column is not rendered.** A pinned section with no panels and no
   empty view leaves the row. Its `sizes` entry stays in the tree, so its width
-  returns exactly as the user left it. Its share goes to the sections after it,
-  in proportion to their current widths — forward, so the narrow connections list
-  keeps its width when the catalog beside it goes; in proportion rather than
-  whole to the next column, because same-direction splits are flattened into one
-  and that column would then be a single work card holding room freed by somebody
-  else, which could never be dragged narrower. The fixed pixels it frees, its gap
-  and the two edges of its card, go to the first section after it as a fixed part
-  of that section's width, so what is left to divide is the same either way and
-  the columns in front do not move. `pinned` holds a role, not a section: a column
+  returns as the user left it. Its share goes to the sections after it, in
+  proportion to their current widths — forward, so the narrow connections list
+  keeps its width when the catalog beside it goes; in proportion, so each of
+  them is drawn a fixed multiple of its size. A border is dragged in what the
+  screen shows, not in sizes: traded in sizes, a work card holding room freed by
+  somebody else could never be dragged narrower than that room, nor the catalog
+  in front of it widened. A border dragged across a column off the screen keeps
+  that column the same part of the room it lent, so the card that took the room
+  narrows to its own minimum, and the column comes back as that part of the card
+  rather than at its old width. The fixed pixels it frees, its gap and the two
+  edges of its card, go to the first section after it as a fixed part of that
+  section's width, so what is left to divide is the same either way and the
+  columns in front do not move. `pinned` holds a role, not a section: a column
   left empty while the section split off it holds the work goes too. Column heads
   are one height whatever they hold, or the line under two columns reads as a
   broken layout rather than an empty one. Only the right-hand column has an empty
@@ -238,10 +242,9 @@ Known deviations:
 - **A hidden column is still in the tree**, showing in localStorage and in a
   layout test although it is not on the screen. That is what brings its width
   back, but "what I see" and "what is written" differ here.
-- **A column off the screen with nothing after it leaves its room whole** to the
-  one section before it, which then cannot be dragged narrower than that room. Out
-  of reach in practice — it takes dragging the last border nearly across the
-  screen — but it is the defect the rule above exists to avoid.
+- **A column brought back after its room was squeezed comes back as narrow as
+  that part of it**, below its minimum if the card it lent to is near its own.
+  The engine knows the minimums only while a border is dragged.
 - **The connection named on a data tab is written when it is opened.** Rename the
   connection and the tab lags until it is opened again, as a catalog tab's title
   already did.

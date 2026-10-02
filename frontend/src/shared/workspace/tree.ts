@@ -10,6 +10,7 @@
 
 import type { LayoutNode, LeafNode, NodeId, PanelId, Path, DropZone } from "./model"
 import { makeSplit, makeLeaf } from "./model"
+import { tradeShares } from "./shares"
 
 export function nodeAt(root: LayoutNode, path: Path): LayoutNode | null {
   let node: LayoutNode = root
@@ -274,7 +275,9 @@ export function setMinimized(root: LayoutNode, leafId: NodeId, minimized: boolea
  *
  * Two indices rather than one and its successor: a section with nothing to
  * show is off the screen, so the two the user sees either side of a border are
- * not neighbours in the tree, and everything between them keeps its width.
+ * not neighbours in the tree. `hidden` says which those are, and then the
+ * delta and both limits are shares of the row as it is drawn (`tradeShares`);
+ * a section on screen between the two keeps its width.
  *
  * Sizes are percentages and the limit is pixels, so the caller converts — this
  * function knows nothing about the screen. Each side has its own limit, the
@@ -287,24 +290,18 @@ export function resizeSplit(
   afterIndex: number,
   delta: number,
   minPercent: number,
-  minAfterPercent: number = minPercent
+  minAfterPercent: number = minPercent,
+  hidden: boolean[] = []
 ): LayoutNode {
   const path = pathOfNode(root, splitId)
   if (path === null) return root
   const split = nodeAt(root, path)
   if (split === null || split.kind !== "split") return root
 
-  const before = split.sizes[beforeIndex]
-  const after = split.sizes[afterIndex]
-  if (before === undefined || after === undefined) return root
-
-  const room = before + after
-  const clamped = Math.min(Math.max(before + delta, minPercent), room - minAfterPercent)
-  if (!Number.isFinite(clamped) || clamped <= 0) return root
-
-  const sizes = [...split.sizes]
-  sizes[beforeIndex] = clamped
-  sizes[afterIndex] = room - clamped
+  const sizes = tradeShares(
+    split.sizes, hidden, beforeIndex, afterIndex, delta, minPercent, minAfterPercent
+  )
+  if (sizes === null) return root
 
   const replaced = replaceAt(root, path, { ...split, sizes })
   // Normalised like every other operation. Resizing cannot on its own leave a

@@ -224,6 +224,13 @@ test("keeps the border in front of a column on the bar under the pointer", async
   // The demo names no minimum of its own, so the list keeps MIN_PANEL_PX.
   await dragBy(-edge)
   expect(Math.abs(((await left.boundingBox())?.width ?? 0) - 120)).toBeLessThan(2)
+
+  // The other way the border crosses the column on the bar: the notes draw its
+  // room as well as their own, and traded in sizes that room was a floor they
+  // stopped at however far the border went.
+  await dragBy(edge)
+  const notes = page.getByTestId("workspace-leaf-notes")
+  expect(Math.abs(((await notes.boundingBox())?.width ?? 0) - 120)).toBeLessThan(2)
 })
 
 test("opens a panel as a tab and closes it again", async ({ page }) => {

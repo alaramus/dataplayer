@@ -38,6 +38,14 @@ function isHidden(child: LayoutNode): boolean {
   )
 }
 
+const hidden = computed(() =>
+  props.node.kind === "split" ? props.node.children.map((child) => isHidden(child)) : []
+)
+
+const shares = computed(() =>
+  props.node.kind === "split" ? sharesOf(props.node.sizes, hidden.value) : []
+)
+
 /**
  * What is drawn, in order: the children that are on screen, the share each
  * takes now, and which of them carries a border in front of it.
@@ -48,14 +56,11 @@ function isHidden(child: LayoutNode): boolean {
 const slots = computed(() => {
   if (props.node.kind !== "split") return []
   const children = props.node.children
-  const shares = sharesOf(
-    props.node.sizes,
-    children.map((child) => isHidden(child))
-  )
   let previous: number | null = null
   return children.flatMap((child, index) => {
-    if (isHidden(child)) return []
-    const slot = { child, index, share: shares[index] ?? { share: 0, gaps: 0 }, after: previous }
+    if (hidden.value[index] === true) return []
+    const share = shares.value[index] ?? { share: 0, gaps: 0 }
+    const slot = { child, index, share, after: previous }
     previous = index
     return [slot]
   })
@@ -119,19 +124,13 @@ function basisOf(index: number): number {
 }
 
 /**
- * How much of a size in this split one pixel of the screen is worth right now,
- * read off the section in front of the border alone.
+ * How much of a share in this split one pixel of the screen is worth right
+ * now, read off the section in front of the border.
  *
- * Measured rather than computed from the whole split: sections off the screen
- * lend their room to the ones that stay, so a percentage is worth a different
- * number of pixels to different sections. The section in front of a border is
- * the one where the answer is exact: whatever it borrows is in proportion to
- * its size and never whole (shares.ts), so its width is its size times a factor
- * that trading across this border does not change. Not both sections' sizes,
- * which read a pixel as half of one while the empty catalog column between them
- * lent its room whole to the one after; not their shares, which read it as one
- * and a half while a column on the bar in front of both lent them its room —
- * the border ran ahead of the pointer and a minimum came out that much wider.
+ * A share and not a size: sections off the screen lend their room to the ones
+ * that stay, so a size is worth a different number of pixels to different
+ * sections, while every section that stretches is drawn at its share of the
+ * same room. The tree converts back (`resizeSplit`), given which are hidden.
  *
  * Deliberately not a computed: getBoundingClientRect is not reactive, so a
  * memoised value would keep answering with the size the sections had when
@@ -151,7 +150,7 @@ function percentPerPx(beforeIndex: number, afterIndex: number): number {
     if (child.kind === "leaf" && child.collapsed) return 0
   }
   const pixels = stretchOf(beforeIndex)
-  return pixels > 0 ? (props.node.sizes[beforeIndex] ?? 0) / pixels : 0
+  return pixels > 0 ? (shares.value[beforeIndex]?.share ?? 0) / pixels : 0
 }
 
 /**
@@ -185,7 +184,8 @@ function onMove(beforeIndex: number, afterIndex: number, deltaPx: number) {
     afterIndex,
     deltaPx * percent,
     minStretchOf(beforeIndex) * percent,
-    minStretchOf(afterIndex) * percent
+    minStretchOf(afterIndex) * percent,
+    hidden.value
   )
 }
 

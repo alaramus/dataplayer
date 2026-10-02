@@ -323,10 +323,8 @@ describe("resizing", () => {
   })
 
   it("leaves alone a section standing between the two being moved", () => {
-    // The border a user drags is between the two sections they can see, and
-    // with a column off the screen those two are not neighbours in the tree.
-    // Spending the hidden column's width here would lose the one it will come
-    // back at. See P4.
+    // The border a user drags is between the two sections they can see; the
+    // tree is not told the one between is off the screen, so it is on it.
     const columns = makeSplit(
       "root",
       "row",
@@ -337,6 +335,22 @@ describe("resizing", () => {
     expect(next.sizes[0]).toBeCloseTo(30)
     expect(next.sizes[1]).toBeCloseTo(28)
     expect(next.sizes[2]).toBeCloseTo(42)
+  })
+
+  it("trades what is drawn across a section off the screen", () => {
+    // b is on the bar and c draws b's room as well as its own. Traded in
+    // sizes, c stopped b's 28 above its minimum. See shares.ts.
+    const columns = makeSplit(
+      "root",
+      "row",
+      [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"]), makeLeaf("c", ["p3"])],
+      [20, 28, 52]
+    )
+    const next = resizeSplit(columns, "root", 0, 2, 70, 5, 5, [false, true, false]) as SplitNode
+    expect(next.sizes[0]).toBeCloseTo(90)
+    const [, hidden = 0, after = 0] = next.sizes
+    expect(hidden + after).toBeCloseTo(10)
+    expect(hidden / after).toBeCloseTo(28 / 52)
   })
 })
 
