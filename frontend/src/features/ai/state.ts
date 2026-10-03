@@ -29,3 +29,10 @@ export function requestAiConversation(id: string): void { requestedAiConversatio
 /** A project the search found, to be unfolded and brought into view in the history. */
 export const requestedAiProject = ref<string | null>(null)
 export function requestAiProject(id: string): void { requestedAiProject.value = id }
+
+/**
+ * Words the search hands to a new chat, put in its composer unsent (S10).
+ * Honoured and cleared by the space, like the requests above.
+ */
+export const requestedAiDraft = ref<string | null>(null)
+export function askTheAgent(words: string): void { requestedAiDraft.value = words }

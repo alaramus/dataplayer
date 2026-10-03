@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { effectScope } from "vue"
 
-import { hasAiDraft, useAiDraft } from "./draft"
+import { hasAiDraft, setAiDraft, useAiDraft } from "./draft"
 
 describe("unsent agent text", () => {
   it("survives reopening the same chat without mixing chats", () => {
@@ -23,5 +23,14 @@ describe("unsent agent text", () => {
     draft.value = ""
     expect(hasAiDraft("draft-test-sent")).toBe(false)
     expect(useAiDraft("draft-test-sent").value).toBe("")
+  })
+})
+
+describe("words handed to a composer before it mounts", () => {
+  it("are what the composer finds, and an empty text clears them", () => {
+    setAiDraft("draft-test-handed", "find the orders table")
+    expect(useAiDraft("draft-test-handed").value).toBe("find the orders table")
+    setAiDraft("draft-test-handed", "")
+    expect(hasAiDraft("draft-test-handed")).toBe(false)
   })
 })

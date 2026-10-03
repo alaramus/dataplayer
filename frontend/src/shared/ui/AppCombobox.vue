@@ -32,6 +32,8 @@ const props = withDefaults(
     chip?: string | null
     /** The last row, which asks for everything rather than one row. */
     submitLabel?: string
+    /** Rows drawn after the last one and kept in sight with it; each is picked. */
+    trailing?: readonly SelectOption[]
     /** How tall the rows may grow before they scroll; the last row and the status stay below them. */
     maxHeight?: string
   }>(),
@@ -40,6 +42,7 @@ const props = withDefaults(
     status: "",
     chip: null,
     submitLabel: undefined,
+    trailing: () => [],
     maxHeight: "min(420px, 55vh)",
   }
 )
@@ -127,21 +130,22 @@ const sections = computed<Section[]>(() => {
   return found
 })
 
-/** The last row, kept in sight under the others however far they scroll. */
-const closing = computed<Row | null>(() =>
-  props.submitLabel === undefined
-    ? null
-    : {
+/** The last rows, kept in sight under the others however far they scroll. */
+const closing = computed<Row[]>(() => [
+  ...(props.submitLabel === undefined
+    ? []
+    : [{
         option: { label: props.submitLabel, value: `${listId}-submit`, icon: appIcons.search },
         id: `${listId}-submit`,
         submits: true,
-      }
-)
+      }]),
+  ...props.trailing.map((option) => ({ option, id: idOf(option.value), submits: false })),
+])
 
 /** The rows an arrow can stand on, in the order they are drawn. */
 const rows = computed(() => [
   ...sections.value.flatMap((section) => section.rows).filter((row) => !row.option.disable),
-  ...(closing.value === null ? [] : [closing.value]),
+  ...closing.value,
 ])
 
 /** Which row is active, by id so that a list drawn again keeps or loses it honestly. */
@@ -347,22 +351,24 @@ defineExpose({
           </div>
         </div>
         <div
-          v-if="closing"
+          v-if="closing.length > 0"
           role="group"
           class="app-combobox__closing"
         >
           <AppOption
-            :id="closing.id"
+            v-for="row in closing"
+            :id="row.id"
+            :key="row.id"
             role="option"
-            :aria-selected="closing.id === activeId ? 'true' : 'false'"
-            :option="closing.option"
-            :class="{ 'app-combobox__row--active': closing.id === activeId }"
+            :aria-selected="row.id === activeId ? 'true' : 'false'"
+            :option="row.option"
+            :class="{ 'app-combobox__row--active': row.id === activeId }"
             clickable
             manual-focus
-            :focused="closing.id === activeId"
+            :focused="row.id === activeId"
             :tabindex="-1"
             dense
-            @click="take(closing)"
+            @click="take(row)"
           />
         </div>
       </div>

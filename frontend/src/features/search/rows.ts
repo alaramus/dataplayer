@@ -59,6 +59,14 @@ export function hitOption(hit: Hit): SelectOption {
 /** The value of the row that offers a scope (D205). */
 export const SCOPE_VALUE = "scope:"
 
+/** The value of the last row: the words handed to a new chat (S10). */
+export const ASK_VALUE = "ask:"
+
+/** The popup's last row: the words put into a new chat's composer, unsent. */
+export function askOption(words: string): SelectOption {
+  return { label: "Ask the agent", description: words, value: ASK_VALUE, icon: appIcons.robot2 }
+}
+
 /** How many rows a group shows in the field; the server sends no more (D200). */
 export const ROWS_IN_FIELD = 5
 

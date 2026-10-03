@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest"
 import { EMPTY_ANSWER, reduceAnswer } from "./answer"
 import { appIcons } from "@/shared/ui/icons"
 
-import { fieldOptions, hitOption, recentOptions, ROWS_IN_FIELD, SHOW_IN_CATALOG } from "./rows"
+import {
+  ASK_VALUE,
+  askOption,
+  fieldOptions,
+  hitOption,
+  recentOptions,
+  ROWS_IN_FIELD,
+  SHOW_IN_CATALOG,
+} from "./rows"
 import type { SearchLine } from "./stream"
 import { CONNECTIONS, GUIDE, hit, outcome, plannedCell } from "./testing"
 
@@ -78,5 +86,15 @@ describe("the rows of the field", () => {
       "orders",
       "users",
     ])
+  })
+})
+
+describe("the row that asks the agent", () => {
+  it("carries the words, and is told apart from every hit by its value", () => {
+    const row = askOption("where are the orders")
+    expect(row.label).toBe("Ask the agent")
+    expect(row.description).toBe("where are the orders")
+    expect(row.value).toBe(ASK_VALUE)
+    expect(row.icon).toBe(appIcons.robot2)
   })
 })

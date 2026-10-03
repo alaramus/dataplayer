@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue"
 
 import type { Hit } from "@/client"
+import { askTheAgent } from "@/features/ai/state"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import type { SearchScope } from "@/features/workspace/state"
 import { AppCombobox, appIcons } from "@/shared/ui"
@@ -13,7 +14,7 @@ import { EMPTY_ANSWER, nothingFound, pendingOf } from "./answer"
 import { contextOf, placeOf } from "./context"
 import { useHitActions, useRecentlyOpened } from "./openers"
 import { nothingFoundSentence, stillSearching, typingNote } from "./outcomes"
-import { fieldOptions, recentOptions, SCOPE_VALUE } from "./rows"
+import { ASK_VALUE, askOption, fieldOptions, recentOptions, SCOPE_VALUE } from "./rows"
 import { useFieldAnswer } from "./useAnswer"
 import { MIN_CHARACTERS } from "./words"
 
@@ -85,6 +86,9 @@ const options = computed<SelectOption[]>(() => [
     : [...recentOptions(recent.entries), ...(typed.value === "" ? fieldOptions(shown.value) : [])]),
 ])
 
+/** The popup's last row, under Show all results: the words handed to a new chat (S10). */
+const askRow = computed<SelectOption[]>(() => (asking.value ? [askOption(typed.value)] : []))
+
 const status = computed(() => {
   if (!asking.value) return ""
   if (field.error.value !== null) return field.error.value
@@ -150,6 +154,13 @@ function pick(value: string | number) {
   const key = String(value)
   if (key === SCOPE_VALUE) {
     takeScope()
+    return
+  }
+  if (key === ASK_VALUE) {
+    const asked = typed.value
+    close()
+    askTheAgent(asked)
+    space.show("ai")
     return
   }
   if (key.startsWith("recent:")) {
@@ -223,6 +234,7 @@ defineExpose({ show })
         :status="status"
         :chip="scope ? scope.label : null"
         :submit-label="asking ? 'Show all results' : undefined"
+        :trailing="askRow"
         data-testid="search-combobox"
         @pick="pick"
         @action="act"

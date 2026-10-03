@@ -39,9 +39,15 @@ import {
   useUpdateQuickChat,
 } from "./api"
 import { freshProjectName } from "./projectName"
-import { hasAiDraft } from "./draft"
+import { hasAiDraft, setAiDraft } from "./draft"
 import { openQuickChat } from "./quickChatLauncher"
-import { rememberAiConversation, rememberedAiConversation, requestedAiConversation, requestedAiProject } from "./state"
+import {
+  rememberAiConversation,
+  rememberedAiConversation,
+  requestedAiConversation,
+  requestedAiDraft,
+  requestedAiProject,
+} from "./state"
 import type { AiOpenIntent } from "./context"
 
 defineProps<{ contexts: import("@/client").ScreenContext[] }>()
@@ -332,6 +338,19 @@ function makeConversationIn(projectId: string) {
     target.value = next
   }
 }
+/**
+ * Counts the times the search handed words to a new chat: the composer reads
+ * its draft when it mounts, so one already open is mounted again to take them.
+ */
+const draftGeneration = ref(0)
+watch(requestedAiDraft, (words) => {
+  if (words === null) return
+  requestedAiDraft.value = null
+  setAiDraft(serverStorageKey("new-agent-chat"), words)
+  makeConversation()
+  settingsShown.value = false
+  draftGeneration.value += 1
+}, { immediate: true })
 function select(id: string) { newDraftOpen.value = false; selected.value = id; settingsShown.value = false }
 function startedConversation(id: string) {
   newDraftOpen.value = false
@@ -661,7 +680,7 @@ onScopeDispose(stop)
       <AiSettings v-if="settingsShown" />
       <AiConversation
         v-else-if="selected || newDraftOpen"
-        :key="selected ?? 'new-agent-chat'"
+        :key="selected ?? `new-agent-chat-${draftGeneration}`"
         :conversation-id="selected"
         :contexts="contexts"
         :project-id="draftProject?.id ?? null"

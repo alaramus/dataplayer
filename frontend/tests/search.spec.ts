@@ -813,6 +813,37 @@ test("a conversation opens from the field before the AI space has ever been show
   }
 })
 
+test("Ask the agent, the last row, puts the words into a new chat's composer, unsent", async ({ page }) => {
+  await login(page)
+  await page.getByTestId("space-data").click()
+  const sent: string[] = []
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /\/ai\/conversations/.test(request.url())) sent.push(request.url())
+  })
+  const words = `where is the orders table ${String(Date.now())}`
+
+  await openSearch(page)
+  await searchField(page).fill(words)
+  const last = searchList(page).getByRole("option").last()
+  await expect(last).toContainText("Ask the agent")
+  await expect(last).toContainText(words)
+  await last.click()
+
+  await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByTestId("ai-draft-head")).toBeVisible()
+  await expect(page.getByTestId("ai-message-input")).toHaveValue(words)
+  expect(sent).toEqual([])
+
+  // Asked again while that new chat is open, the new words take its place.
+  await page.getByTestId("ai-message-input").fill("")
+  await openSearch(page)
+  await searchField(page).fill(`${words} again`)
+  await searchList(page).getByRole("option").last().click()
+  await expect(page.getByTestId("ai-message-input")).toHaveValue(`${words} again`)
+  await page.getByTestId("ai-message-input").fill("")
+  expect(sent).toEqual([])
+})
+
 test("Show in catalog keeps a catalog's contents search on screen", async ({ page }) => {
   await login(page)
   // Read inside files without the warning in front of it: the warning is

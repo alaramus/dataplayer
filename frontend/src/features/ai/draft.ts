@@ -16,3 +16,9 @@ export function useAiDraft(conversationId: string): Ref<string> {
   }, { flush: "sync" })
   return draft
 }
+
+/** Text put in a composer before it is mounted: the search's words (S10). */
+export function setAiDraft(conversationId: string, text: string): void {
+  if (text) drafts.set(conversationId, text)
+  else drafts.delete(conversationId)
+}
