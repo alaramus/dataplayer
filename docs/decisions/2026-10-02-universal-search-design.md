@@ -1078,5 +1078,8 @@ timings.
   request, `type-check`, `lint`: clean; `tests/search.spec.ts` 24 passed, with
   a scenario where what was opened comes back first and a deleted connection is
   no longer named.
-- **Not built:** S7 (contents as a job), S10 (the agent), and the browser's
-  half of S9 — the field sends no open tabs.
+- **S9 (browser).** `vitest` for the places sent and the requests carrying
+  them, `type-check`, `lint`: clean; `tests/search.spec.ts` and
+  `tests/tab-groups.spec.ts` 25 passed against the running backend, an open
+  tab found by its title and a saved group restored after its warning.
+- **Not built:** S7 (contents as a job) and S10 (the agent).

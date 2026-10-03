@@ -27,6 +27,7 @@ import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import { useCatalogSide } from "@/features/workspace/catalogSides"
+import { browserPlacesOf } from "@/features/search/browser"
 import { focusedCatalog } from "@/features/search/context"
 import SearchField from "@/features/search/SearchField.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
@@ -1097,6 +1098,7 @@ const actions: WorkspaceActions = {
   },
   openTab,
   openTabGroup,
+  browserPlaces: () => browserPlacesOf(workspace.panels.value, tabGroups.value?.groups.value ?? []),
 }
 provide(workspaceActionsKey, actions)
 

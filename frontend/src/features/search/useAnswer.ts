@@ -1,8 +1,9 @@
 import { getCurrentScope, onScopeDispose, ref, shallowRef, watch } from "vue"
 import type { Ref, ShallowRef } from "vue"
 
-import type { RecentTarget, SearchRequest } from "@/client"
+import type { BrowserPlace, RecentTarget, SearchRequest } from "@/client"
 
+import { hintsOf } from "./context"
 import { EMPTY_ANSWER, pendingOf, reduceAnswer, reduceFollow, settleFollow, stopPending } from "./answer"
 import type { AnswerState } from "./answer"
 import { askSearch, SearchRefused } from "./stream"
@@ -29,6 +30,8 @@ export interface FieldContext {
   only: SearchRequest["only"]
   /** What was opened from the search lately, newest first (S6). */
   recent?: RecentTarget[]
+  /** The open tabs and saved tab groups (S9). */
+  browser?: BrowserPlace[]
 }
 
 /**
@@ -101,8 +104,8 @@ export function useFieldAnswer(
   }
 
   function requestOf(typed: string): SearchRequest | null {
-    const { context, only, recent = [] } = around()
-    const hint = recent.length > 0 ? { recent } : {}
+    const { context, only, recent = [], browser = [] } = around()
+    const hint = hintsOf(recent, browser)
     if (typed === "") {
       return recent.length === 0 ? null : { words: "", mode: "typing", lane: "field", context, ...hint }
     }

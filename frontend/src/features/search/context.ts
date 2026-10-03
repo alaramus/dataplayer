@@ -1,4 +1,4 @@
-import type { SearchRequest } from "@/client"
+import type { BrowserPlace, RecentTarget, SearchRequest } from "@/client"
 import type { Panel } from "@/features/workspace/panels"
 import type { SearchScope } from "@/features/workspace/state"
 import { leavesOf } from "@/shared/workspace"
@@ -46,4 +46,16 @@ export function focusedCatalog(
   if (leaf === undefined || leaf.activePanel === null) return null
   const shown = panels.find((panel) => panel.id === leaf.activePanel)
   return shown?.kind === "catalog" ? shown : null
+}
+
+/**
+ * What only the browser knows, sent with a request as hints: what was opened
+ * from the search lately (S6) and the open tabs and saved groups (S9). An empty
+ * list is left out.
+ */
+export function hintsOf(
+  recent: RecentTarget[],
+  browser: BrowserPlace[]
+): Pick<SearchRequest, "recent" | "browser"> {
+  return { ...(recent.length > 0 ? { recent } : {}), ...(browser.length > 0 ? { browser } : {}) }
 }

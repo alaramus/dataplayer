@@ -305,12 +305,15 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   sent as `recent` with every request and emptied on sign-out. An empty field
   shows the recent searches, then what the server still names of those
   targets.
+- **What the browser tells**: every request, the empty field's included, sends
+  as `browser` each open tab and window — the title on its tab, its connection
+  or else its kind as the detail, the Search tab and the Connections column
+  left out — then each saved tab group by name, at most 200
+  (`features/search/browser.ts`). A tab opens by its panel id, a group after
+  D94's warning.
 
 Known deviations:
 
-- **Open tabs are not sent yet.** The server answers them (S9) and the open
-  actions exist, but the field sends no `browser` places, so a tab opened from
-  the search is kept and never named again.
 - **Nothing is searched inside files from the tab** (S7), and the agent has no
   search tool (S10).
 - **A conversation outside the first 100 of the AI list** is replaced by the

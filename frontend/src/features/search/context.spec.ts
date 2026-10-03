@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { Panel } from "@/features/workspace/panels"
 import { makeLeaf, makeSplit } from "@/shared/workspace/model"
 
-import { contextOf, focusedCatalog, MAX_CONTEXT, placeOf } from "./context"
+import { contextOf, focusedCatalog, hintsOf, MAX_CONTEXT, placeOf } from "./context"
 
 const catalog = (connectorId: string): Panel => ({
   id: `catalog:${connectorId}`,
@@ -63,5 +63,19 @@ describe("the catalog a scope is offered for", () => {
       connector_id: "c1",
       node_id: "public",
     })
+  })
+})
+
+describe("the hints a request carries", () => {
+  const OPENED = [{ kind: "connection" as const, connector_id: "c1" }]
+  const TABS = [{ object_type: "tab" as const, object_id: "p1", title: "orders" }]
+
+  it("carries what was opened and the open tabs", () => {
+    expect(hintsOf(OPENED, TABS)).toEqual({ recent: OPENED, browser: TABS })
+  })
+
+  it("leaves an empty list out", () => {
+    expect(hintsOf([], [])).toEqual({})
+    expect(hintsOf([], TABS)).toEqual({ browser: TABS })
   })
 })

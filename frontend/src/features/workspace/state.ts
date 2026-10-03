@@ -2,6 +2,7 @@ import { inject } from "vue"
 import type { InjectionKey, Ref } from "vue"
 
 import type {
+  BrowserPlace,
   ConnectorDraft,
   ConnectorPublic,
   FetchRequest,
@@ -180,6 +181,8 @@ export interface WorkspaceActions {
   openTab: (panelId: string) => void
   /** A saved tab group, restored after D94's warning. */
   openTabGroup: (groupId: string) => void
+  /** The open tabs and saved tab groups, as the search is told of them (S9). */
+  browserPlaces: () => BrowserPlace[]
 }
 
 /** The views a node opens in, as the agent's and the search's intents name them. */

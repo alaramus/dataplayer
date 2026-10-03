@@ -888,7 +888,7 @@ test("Show in catalog keeps a catalog's contents search on screen", async ({ pag
   await deleteConnector(page, name)
 })
 
-test("an open tab is brought forward, and a saved tab group restored after its warning", async ({ page }) => {
+test("an open tab is found by its title and brought forward, and a saved tab group restored after its warning", async ({ page }) => {
   await login(page)
   const name = await fileConnection(page, "e2e-search-tabs")
   await openConnector(page, name)
@@ -898,13 +898,17 @@ test("an open tab is brought forward, and a saved tab group restored after its w
   const notes = tabs.filter({ hasText: "notes.txt" })
   const sample = tabs.filter({ hasText: "sample.csv" })
   await expect(sample).toHaveClass(/--active/)
-  // A tab is found by its panel, which is what the browser sends it as (S9).
-  const panelId = ((await notes.getAttribute("data-testid")) ?? "").replace("workspace-tab-", "")
 
-  await answerSearch(page, answerOf(objectsCell("open_tabs", "Open tabs"), [objectHit("tab", panelId, "notes.txt")]))
+  // The browser names its tabs with every request, and the server finds one
+  // by the title on it (S9).
+  const typed = page.waitForRequest((request) => request.url().endsWith("/api/v1/search") && request.postDataJSON()?.words === "notes")
   await openSearch(page)
   await searchField(page).fill("notes")
-  await searchOption(page, /notes\.txt/).click()
+  const sent = (await typed).postDataJSON() as { browser?: { object_type: string; title: string; detail?: string }[] }
+  const place = sent.browser?.find((one) => one.title === "notes.txt")
+  expect(place).toMatchObject({ object_type: "tab", detail: name })
+  // The tab, not the file of the same name: that row offers its catalog.
+  await searchList(page).getByRole("option", { name: `notes.txt ${name}`, exact: true }).click()
   await expect(notes).toHaveClass(/--active/)
 
   // A group saved with both tabs, and the warning asked for again.
@@ -912,33 +916,22 @@ test("an open tab is brought forward, and a saved tab group restored after its w
   await page.getByTestId("save-tab-group").click()
   await page.getByTestId("tab-group-name").fill(group)
   await page.getByTestId("confirm-tab-group-name").click()
-  const groupId = await page.evaluate((wanted) => {
-    let id = ""
-    for (const [key, value] of Object.entries(localStorage)) {
-      if (key.includes("dataplayer-tab-groups:skip-warning:")) {
-        localStorage.removeItem(key)
-      } else if (key.includes("dataplayer-tab-groups:")) {
-        const saved = JSON.parse(value) as { groups: { id: string; name: string }[] }
-        id = saved.groups.find((one) => one.name === wanted)?.id ?? id
-      }
+  await page.evaluate(() => {
+    for (const key of Object.keys(localStorage)) {
+      if (key.includes("dataplayer-tab-groups:skip-warning:")) localStorage.removeItem(key)
     }
-    return id
-  }, group)
-  expect(groupId).not.toBe("")
+  })
   await sample.locator('[data-testid^="workspace-close-"]').click()
   await expect(sample).toHaveCount(0)
 
-  await page.unrouteAll({ behavior: "ignoreErrors" })
-  await answerSearch(page, answerOf(objectsCell("open_tabs", "Open tabs"), [objectHit("tab_group", groupId, group)]))
   await openSearch(page)
-  await searchField(page).fill("e2e search group")
-  await searchOption(page, new RegExp(group)).click()
+  await searchField(page).fill(group)
+  await searchList(page).getByRole("option", { name: `${group} Tab group`, exact: true }).click()
   const warning = page.getByRole("dialog", { name: "Replace current tabs?", exact: true })
   await expect(warning).toBeVisible()
   await warning.getByTestId("confirm-accept").click()
   await expect(sample).toHaveCount(1)
 
-  await page.unrouteAll({ behavior: "ignoreErrors" })
   await deleteConnector(page, name)
 })
 

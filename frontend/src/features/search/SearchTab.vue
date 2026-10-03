@@ -19,7 +19,7 @@ import type { SelectOption } from "@/shared/ui"
 import { useRecentSearchesStore } from "@/stores/recentSearches"
 
 import { foundSavedQueryText, nothingFound, pendingOf } from "./answer"
-import { contextOf, placeOf } from "./context"
+import { contextOf, hintsOf, placeOf } from "./context"
 import { useHitActions, useRecentlyOpened } from "./openers"
 import { followOf, nothingFoundSentence, stillSearching } from "./outcomes"
 import type { Gesture } from "./outcomes"
@@ -62,10 +62,12 @@ function context(): string[] {
   return contextOf(actions.activeConnectorId.value, actions.openConnectorIds.value)
 }
 
-/** Where the person is, and what they opened lately: recency orders the best matches (S6). */
-function around(): Pick<SearchRequest, "context" | "recent"> {
-  const recent = opened()
-  return { context: context(), ...(recent.length > 0 ? { recent } : {}) }
+/**
+ * Where the person is, what they opened lately — recency orders the best
+ * matches (S6) — and the tabs and groups only the browser knows (S9).
+ */
+function around(): Pick<SearchRequest, "context" | "recent" | "browser"> {
+  return { context: context(), ...hintsOf(opened(), actions.browserPlaces()) }
 }
 
 function search() {

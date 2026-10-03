@@ -156,6 +156,24 @@ describe("the field's answer", () => {
     expect(answer.drawn.value?.cells[0]?.hits.map((one) => one.title)).toEqual(["orders"])
   })
 
+  const TABS = [
+    { object_type: "tab" as const, object_id: "rows:c1:orders", title: "orders", detail: "Shop" },
+    { object_type: "tab_group" as const, object_id: "g1", title: "Morning" },
+  ]
+
+  it("sends the open tabs and saved groups with the words and with an empty field", async () => {
+    const { ask, asked } = scripted((request) => (request.words === "" ? RECENT_ANSWER : [PLAN]))
+    const { words, answer } = field(ask, () => ({ context: [], only: null, recent: OPENED, browser: TABS }))
+    answer.refresh()
+    vi.advanceTimersByTime(0)
+    await flushPromises()
+    words.value = "orders"
+    await nextTick()
+    vi.advanceTimersByTime(150)
+    await flushPromises()
+    expect(asked.map((one) => one.request.browser)).toEqual([TABS, TABS])
+  })
+
   it("empty with nothing opened yet, asks nothing", async () => {
     const { ask, asked } = scripted(RECENT_ANSWER)
     const { answer } = field(ask, () => ({ context: ["c1"], only: null, recent: [] }))

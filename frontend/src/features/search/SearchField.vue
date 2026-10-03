@@ -53,6 +53,7 @@ const field = useFieldAnswer(words, () => ({
   context: contextOf(actions.activeConnectorId.value, actions.openConnectorIds.value),
   only: scope.value === null ? undefined : [placeOf(scope.value)],
   recent: opened(),
+  browser: actions.browserPlaces(),
 }))
 
 const typed = computed(() => words.value.trim())
