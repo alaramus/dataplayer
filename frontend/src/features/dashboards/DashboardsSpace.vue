@@ -390,8 +390,9 @@ defineExpose({
             </template>
 
             <AppEmptyState
-              v-if="dashboardNameFilter.trim() && shownDashboards.own.length === 0 && shownDashboards.shared.length === 0"
-              text="No matching dashboards"
+              class="dashboards__empty"
+              v-if="!dashboards.isPending.value && shownDashboards.own.length === 0 && shownDashboards.shared.length === 0"
+              :text="dashboardNameFilter.trim() ? 'No matching dashboards' : 'No dashboards yet'"
             />
           </div>
 
@@ -558,6 +559,11 @@ defineExpose({
   display: flex;
   flex-direction: column;
   padding: 0 var(--dp-space-1) var(--dp-space-2);
+}
+
+/* The eight pixels the Data list leaves round its empty line. */
+.dashboards__empty {
+  padding: var(--dp-space-2);
 }
 
 /* Folded, only its line at the foot; open, the lower half of the rail. */
