@@ -19,11 +19,13 @@ import type { SelectOption } from "@/shared/ui"
 import { useRecentSearchesStore } from "@/stores/recentSearches"
 
 import { foundSavedQueryText, nothingFound, pendingOf } from "./answer"
+import { contentsChoices, contentsWordsOf } from "./contents"
 import { contextOf, hintsOf, placeOf } from "./context"
 import { useHitActions, useRecentlyOpened } from "./openers"
 import { followOf, nothingFoundSentence, stillSearching } from "./outcomes"
 import type { Gesture } from "./outcomes"
 import { hitOption } from "./rows"
+import SearchContents from "./SearchContents.vue"
 import SearchOutcome from "./SearchOutcome.vue"
 import { CHANGED_OPTIONS, filterChoices, foundCount, NO_FILTERS, tabGroups } from "./tab"
 import type { ChangedWithin, SaidCell, TabFilters } from "./tab"
@@ -50,6 +52,8 @@ const scope = ref<SearchScope | null>(null)
 /** The words the answer on screen was asked for: the field may have moved on since. */
 const asked = ref("")
 const filters = ref<TabFilters>({ ...NO_FILTERS })
+/** The search inside files whose matches are shown (S7). */
+const contentsJob = ref<string | null>(null)
 
 const tab = useTabAnswer(undefined, (state, searched) => {
   // Words that found a saved query's text are not kept (D205).
@@ -73,6 +77,7 @@ function around(): Pick<SearchRequest, "context" | "recent" | "browser"> {
 function search() {
   const typed = words.value.trim()
   if (typed.length < MIN_CHARACTERS) return
+  if (typed !== asked.value) contentsJob.value = null
   asked.value = typed
   filters.value = { ...NO_FILTERS }
   const request: SearchRequest = {
@@ -93,9 +98,12 @@ watch(
     if (target === null) return
     const taken = actions.takeSearch()
     if (taken === null) return
-    words.value = taken.words
+    const job = taken.contentsJob ?? null
+    words.value = job === null ? taken.words : (contentsWordsOf(job) ?? taken.words)
     scope.value = taken.scope
     search()
+    // After the search, which lets go of a job asked for other words.
+    contentsJob.value = job
   },
   { immediate: true }
 )
@@ -140,6 +148,7 @@ const choices = computed(() => filterChoices(answer.value))
 const pending = computed(() => pendingOf(answer.value).length)
 const nothing = computed(() => nothingFound(answer.value))
 const hasAnswer = computed(() => answer.value.mode !== null)
+const insideChoices = computed(() => contentsChoices(answer.value))
 
 const summary = computed(() => {
   if (tab.error.value !== null) return tab.error.value
@@ -256,6 +265,12 @@ function setChanged(value: unknown) {
     </p>
 
     <AppScrollArea class="search-tab__body">
+      <SearchContents
+        v-model:job-id="contentsJob"
+        :panel-id="panelId"
+        :choices="insideChoices"
+        :words="asked"
+      />
       <AppEmptyState
         v-if="nothing && answer.end"
         :icon="appIcons.search"

@@ -4,9 +4,14 @@ import { computed, onBeforeUnmount, ref, watch } from "vue"
 
 import type { JobPublic } from "@/client"
 import { connectorsKey, useConnectors } from "@/features/connectors/api"
+import {
+  CONTENTS_KIND, contentsExpired, contentsWordsOf, NO_LONGER_HELD,
+} from "@/features/search/contents"
 import { backupsKey, servicesKey, useCancelJob, useServices } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
+import type { SearchTarget } from "@/features/workspace/state"
 import { notices } from "@/shared/notifications"
+import type { NoticeAction } from "@/shared/notifications"
 import { isActive, useOperations } from "@/shared/operations"
 import { AppBadge, AppButton, AppProgress, AppTooltip, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
@@ -15,7 +20,7 @@ import ActivityPanel from "./ActivityPanel.vue"
 import { jobsKey, useJobs } from "./api"
 import { createDismissedJobs } from "./dismissed"
 import {
-  arrivals, endedEntry, endings, isRecent, jobOfEnding, linesBeyond, toldOnScreen,
+  arrivals, endedEntry, endingId, endings, isRecent, jobOfEnding, linesBeyond, toldOnScreen,
 } from "./endings"
 import { pipelineWriting } from "./pipelineRuns"
 import { foreground, jobTitle, localRow, serverRow } from "./presentation"
@@ -39,6 +44,8 @@ const emit = defineEmits<{
   /** Show the connection's permissions page, where a request is answered. */
   answerAccess: [connectorId: string]
   openConnection: [connectorId: string]
+  /** The Search tab: a search inside files shown, or asked again (S7). */
+  openSearch: [target: SearchTarget]
 }>()
 
 const jobs = useJobs()
@@ -171,8 +178,51 @@ watch(serverJobs, (listed) => {
 function recordEnding(job: JobPublic, card: boolean) {
   if (dismissed.ids.value.has(job.id)) return
   const entry = endedEntry(job, rowOf(job))
-  if (entry !== null) log.record(entry.notice, { id: entry.id, at: entry.at, card })
+  if (entry === null) return
+  const inside = insideFiles(job, Date.now())
+  const notice = inside === null ? entry.notice : { ...entry.notice, ...inside }
+  log.record(notice, { id: entry.id, at: entry.at, card })
 }
+
+/**
+ * A search inside files in Recent (S7): its matches shown while the server
+ * holds them, and once it has let them go, said so with "Search again" —
+ * with its words while this tab still knows them.
+ */
+function insideFiles(job: JobPublic, now: number): { lines: string[]; action: NoticeAction } | null {
+  if (job.kind !== CONTENTS_KIND) return null
+  const lines = linesBeyond(rowOf(job).detail, job.message ?? "")
+  const words = contentsWordsOf(job.id) ?? ""
+  if (contentsExpired(job, now)) {
+    return {
+      lines: [...lines, NO_LONGER_HELD],
+      action: { label: "Search again", run: () => { emit("openSearch", { words, scope: null }) } },
+    }
+  }
+  return {
+    lines,
+    action: {
+      label: "Show results",
+      run: () => { emit("openSearch", { words, scope: null, contentsJob: job.id }) },
+    },
+  }
+}
+
+// Which endings already say their matches are gone, and a clock that finds
+// the next one: nothing tells this tab when the server lets them go.
+const expiredSaid = new Set<string>()
+const minute = ref(Date.now())
+const ticking = setInterval(() => { minute.value = Date.now() }, 30_000)
+onBeforeUnmount(() => { clearInterval(ticking) })
+watch([serverJobs, minute], ([listed, now]) => {
+  for (const job of listed) {
+    if (job.kind !== CONTENTS_KIND || expiredSaid.has(job.id) || !contentsExpired(job, now)) continue
+    const inside = insideFiles(job, now)
+    if (inside === null) continue
+    expiredSaid.add(job.id)
+    log.revise(endingId(job.id), inside)
+  }
+})
 
 // An ending waved away in Recent stays away after the next poll and reload.
 watch(log.forgotten, (ids) => {

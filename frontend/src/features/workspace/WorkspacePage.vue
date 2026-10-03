@@ -1208,6 +1208,7 @@ onBeforeUnmount(unregisterSearch)
         <ActivityIndicator
           @answer-access="answerRequestsFor"
           @open-connection="editConnector"
+          @open-search="openSearch($event, { float: space.current !== 'data' })"
         />
       </span>
     </template>

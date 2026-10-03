@@ -244,6 +244,8 @@ export interface SearchScope {
 export interface SearchTarget {
   words: string
   scope: SearchScope | null
+  /** A search inside files whose matches the tab shows (S7). */
+  contentsJob?: string | null
 }
 
 /** A node to point at, in a catalog already chosen. */

@@ -7,6 +7,7 @@ import ToastHost from "@/shared/notifications/ToastHost.vue"
 import { resetNotices } from "@/shared/notifications/notices"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { closeRealtime } from "@/shared/realtime/client"
+import { forgetContentsWords } from "@/shared/search/contentsWords"
 import { forgetOpened } from "@/shared/search/opened"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
@@ -83,6 +84,7 @@ async function logout() {
   // And what they looked for and opened is theirs (D205).
   recentSearches.clear()
   forgetOpened(signedOut)
+  forgetContentsWords()
   // The cache is cleared on sign-out: otherwise the previous user's data stays
   // visible to the next one.
   queryClient.clear()

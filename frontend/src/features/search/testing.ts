@@ -23,6 +23,7 @@ export function plannedCell(
     cost: "instant",
     way: "live",
     connector_id: place.kind === "connection" ? place.connector_id : null,
+    contents: false,
     ...over,
   }
 }

@@ -33,8 +33,15 @@ export const SHOW_IN_CATALOG = "Show in catalog"
  * row carries Show in catalog as its own action.
  */
 export function hitOption(hit: Hit): SelectOption {
-  const runs: TextRun[] = hit.match.excerpt.map((segment) => ({ text: segment.text, hit: segment.hit }))
   const byName = hit.match.field === "name"
+  // A line found inside a file says which line it is (S7).
+  const line: TextRun[] = !byName && hit.match.line !== null
+    ? [{ text: `Line ${String(hit.match.line)}: `, hit: false }]
+    : []
+  const runs: TextRun[] = [
+    ...line,
+    ...hit.match.excerpt.map((segment) => ({ text: segment.text, hit: segment.hit })),
+  ]
   return {
     label: hit.title,
     value: hit.key,

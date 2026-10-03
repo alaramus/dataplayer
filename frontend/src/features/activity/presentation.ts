@@ -1,6 +1,7 @@
 import type { JobPublic } from "@/client"
 import { formatSize } from "@/features/catalog/nodes"
 import { isWorking, progressOf } from "@/features/services/jobs"
+import { contentsCounts, contentsMeasure } from "@/features/search/contents"
 import { isActive } from "@/shared/operations"
 import type { Operation } from "@/shared/operations"
 import type { Tone } from "@/shared/ui"
@@ -44,6 +45,7 @@ export const JOB_LABELS: Record<JobPublic["kind"], string> = {
   "metrics.store.create": "Start metrics store",
   "paste.transfer": "Transfer",
   "pipeline.run": "Pipeline run",
+  "search.contents": "Search inside files",
 }
 
 /**
@@ -97,6 +99,8 @@ export function serverRow(job: JobPublic, subject: string | undefined): ProcessR
   if (transfer !== null) return transferRow(job, transfer)
   const run = pipelineRunOf(job)
   if (run !== null) return pipelineRow(job, run)
+  const counts = contentsCounts(job)
+  if (counts !== null) return contentsRow(job, contentsMeasure(counts))
   const active = isWorking(job)
   const operation = sourceOperationOf(job)
   const settled = operation === null ? 0 : settledCount(operation)
@@ -163,6 +167,26 @@ function pipelineRow(job: JobPublic, run: PipelineRunRecord): ProcessRow {
     createdAt: Date.parse(job.created_at),
     canPause: false, canResume: false, canStop: active,
     controlsHint: active ? "Stops the link running now; the links after it are not run." : "",
+  }
+}
+
+/**
+ * A search inside files (S7): counted by connections and matches, never named
+ * by its words, which the row does not hold. Stop keeps what it found.
+ */
+function contentsRow(job: JobPublic, measurement: string): ProcessRow {
+  const active = isWorking(job)
+  return {
+    id: job.id, source: "server",
+    label: JOB_LABELS[job.kind],
+    detail: progressOf(job),
+    status: STATUS[job.state], tone: toneOf(job.state),
+    active, paused: false,
+    progress: job.state === "succeeded" ? 1 : null,
+    measurement,
+    createdAt: Date.parse(job.created_at),
+    canPause: false, canResume: false, canStop: active,
+    controlsHint: active ? "Stops the search; what it found so far is kept." : "",
   }
 }
 

@@ -120,6 +120,16 @@ export function createNotices() {
     return id
   }
 
+  /**
+   * Change what a recorded message says, where it stands: a search whose
+   * matches the server has let go says so in its own entry (S7). Nothing
+   * recorded under the id, nothing changed.
+   */
+  function revise(id: string, change: Partial<Pick<Notice, "message" | "lines" | "action">>) {
+    if (!entries.value.some((entry) => entry.id === id)) return
+    entries.value = entries.value.map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
+  }
+
   /** A card whose record is kept elsewhere; see `Announcement`. */
   function announce(card: Announcement) {
     const next = new Map(announced.value)
@@ -183,7 +193,7 @@ export function createNotices() {
 
   return {
     entries, cards, hidden, unseen, open, doNotDisturb, forgotten,
-    record, announce, dismiss, forget, forgetAll, clear, markSeen, setOpen,
+    record, revise, announce, dismiss, forget, forgetAll, clear, markSeen, setOpen,
     setDoNotDisturb: (value: boolean) => { doNotDisturb.value = value },
   }
 }

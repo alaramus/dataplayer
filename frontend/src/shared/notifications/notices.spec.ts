@@ -26,6 +26,20 @@ describe("what the application has said", () => {
     expect(log.entries.value.map((entry) => entry.message)).toEqual(["Row inserted"])
   })
 
+  it("revises what a recorded entry says, where it stands, and nothing unrecorded", () => {
+    const log = createNotices()
+    log.record(news("Searched"), { id: "job:1", card: false })
+    log.record(news("Copied"), { card: false })
+
+    log.revise("job:1", { lines: ["Its matches are no longer held"] })
+    log.revise("job:2", { message: "never" })
+
+    expect(log.entries.value.map((entry) => [entry.message, entry.lines])).toEqual([
+      ["Copied", undefined],
+      ["Searched", ["Its matches are no longer held"]],
+    ])
+  })
+
   it("fades an error card later, but keeps its message in Activity", () => {
     const log = createNotices()
 
