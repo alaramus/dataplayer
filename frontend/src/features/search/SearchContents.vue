@@ -38,12 +38,15 @@ const choosing = ref(false)
 const picked = ref<ReadonlySet<string>>(new Set())
 const starting = ref(false)
 
+// Nothing is ticked for the person: reading every file of every connection
+// they have is the expensive mistake one press must not make. A tick stays
+// while its connection is still offered.
 watch(
   () => props.choices.map((one) => one.connectorId).join(","),
   () => {
-    picked.value = new Set(props.choices.map((one) => one.connectorId))
-  },
-  { immediate: true }
+    const offered = new Set(props.choices.map((one) => one.connectorId))
+    picked.value = new Set([...picked.value].filter((one) => offered.has(one)))
+  }
 )
 
 function pick(connectorId: string, on: boolean) {
@@ -180,6 +183,7 @@ const offered = computed(() => props.choices.length > 0 && props.words !== "")
         :key="one.connectorId"
         dense
         :label="one.name"
+        data-testid="search-contents-choice"
         :model-value="picked.has(one.connectorId)"
         @update:model-value="pick(one.connectorId, $event)"
       />

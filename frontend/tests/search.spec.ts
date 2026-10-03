@@ -1047,3 +1047,63 @@ test("what was opened from the search comes back first in the empty field, and g
 
   await deleteConnector(page, first)
 })
+
+test("a word inside a file is found by a job from the Search tab, kept in Recent, and its expiry said", async ({ page }) => {
+  await login(page)
+  // The warning is asked once and remembered: start from a browser never told.
+  await page.evaluate(() => localStorage.removeItem("dataplayer-content-search-ask"))
+  const name = await fileConnection(page, "e2e-search-inside")
+
+  // q3.csv, in the sample storage, holds the word on one of its lines.
+  await searchInTab(page, "quarter")
+  const inside = searchTab(page).getByTestId("search-contents")
+  await inside.getByTestId("search-contents-offer").click()
+  await inside.getByTestId("search-contents-choice").filter({ hasText: name }).click()
+  await inside.getByTestId("search-contents-start").click()
+  await expect(page.getByTestId("confirm-message")).toContainText("opened and read")
+  await page.getByTestId("confirm-remember").click()
+  await page.getByTestId("confirm-accept").click()
+
+  const hit = inside.getByTestId("search-contents-hit").filter({ hasText: "q3.csv" })
+  await expect(hit).toBeVisible({ timeout: 20_000 })
+  await expect(hit).toContainText(/Line \d+: /)
+  await expect(inside.getByTestId("search-contents-summary")).toContainText("inside files")
+
+  // The job is told of in Recent, and the words are in none of the jobs.
+  await page.getByTestId("activity-indicator").click()
+  await expect(page.getByTestId("recent-section")).toContainText("Search inside files")
+  await expect(page.getByTestId("recent-section").getByRole("button", { name: "Show results" }).first()).toBeVisible()
+  await page.keyboard.press("Escape")
+  const { base, headers } = await signedApi(page)
+  const jobs = await page.request.get(`${base}/jobs/`, { headers })
+  expect(jobs.ok()).toBe(true)
+  expect(await jobs.text()).toContain("search.contents")
+  expect(await jobs.text()).not.toContain("quarter")
+
+  // Opening the hit opens the file, the tab staying in sight.
+  await hit.click()
+  await expect(page.locator('[data-testid^="workspace-tab-"]', { hasText: "q3.csv" }).first()).toBeVisible()
+  await expect(searchTab(page)).toBeVisible()
+
+  // A second search inside asks nothing again: the answer was remembered.
+  await page.route("**/api/v1/search/contents/*", (route) =>
+    route.request().method() === "GET"
+      ? route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ job_id: "gone", held: false, finished: true, words: null, places: [], hits: [] }),
+        })
+      : route.fallback()
+  )
+  // The connection chosen last time is still ticked.
+  await inside.getByTestId("search-contents-again").click()
+  await inside.getByTestId("search-contents-start").click()
+  await expect(page.getByTestId("confirm-message")).toHaveCount(0)
+  // Once the server has let the matches go, the tab says so and offers again.
+  await expect(inside.getByTestId("search-contents-summary")).toHaveText("These matches are no longer held")
+  await expect(inside.getByTestId("search-contents-again")).toBeVisible()
+
+  await page.unrouteAll({ behavior: "ignoreErrors" })
+  await page.getByRole("button", { name: "Close Search", exact: true }).click()
+  await deleteConnector(page, name)
+})
