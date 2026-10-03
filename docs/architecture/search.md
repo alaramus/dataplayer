@@ -115,8 +115,14 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 - **Names kept as copies are not searched**: a share's labels, a pipeline
   card's, a declared reference's. A service is found by its connection's name
   as it is now.
-- **The agent asks nothing by default**: a provider is offered to it by a
-  decision of its own (S10).
+- **The agent asks nothing by default** (S10): every provider states
+  `offered_to_agent`, and only connection rows, the guide and source types say
+  yes — never the query library, conversations, pipelines, dashboards (one
+  lent to the person included), services, SSH keys, open tabs or what was
+  opened lately. For the agent the engine sees only connections that allow
+  transfer (D135), asks live only those in the request's context — the
+  attached tabs' and the ones the model names — and claims no lane. The tool
+  is D134's `search`.
 
 Known deviation:
 
@@ -301,8 +307,11 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 - **`AppCombobox`**, on `AppPopup` with `no-focus`, `no-refocus`,
   `no-parent-event`, `fit`: focus stays in the input, `aria-activedescendant`,
   no row active until an arrow, Enter opens the active row or the Search tab,
-  "Show all results" last, a polite status line, the first Escape closes the
-  list and keeps the words, the next returns focus.
+  "Show all results" and then "Ask the agent" last (`trailing`), a polite
+  status line, the first Escape closes the list and keeps the words, the next
+  returns focus. Ask the agent opens the AI space on a new chat with the words
+  in its composer, unsent (S10); it does not repeat them, so a row found by
+  its name is told by them alone.
 - **A scope**: opened while a catalog has focus, the first row offers "Search
   in ‹connection›" from the level the catalog stands on (a tree's grouping);
   the right arrow takes it, Backspace removes it.
@@ -342,9 +351,8 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   (`features/search/browser.ts`). A tab opens by its panel id, a group after
   D94's warning.
 
-Known deviations:
+Known deviation:
 
-- **The agent has no search tool** (S10).
 - **A conversation outside the first 100 of the AI list** is replaced by the
   newest once the list loads.
 

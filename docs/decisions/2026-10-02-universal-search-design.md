@@ -1092,4 +1092,17 @@ timings.
   (the terminal's Ctrl+K scenario failed once in the full run and passed
   alone), with a scenario that finds a word inside a file from the tab, sees
   it in Recent and its expiry said.
-- **Not built:** S10 (the agent).
+- **S10.** `pytest tests/ai tests/search`: 263 passed — the agent finds
+  pg_class in the two connections it names, a third without transfer named in
+  a refusal and nowhere else in the result; an attached tab's connection asked
+  unnamed; nothing inside asked otherwise; a search withheld once transfer is
+  switched off; the engine offering the agent only connection rows that allow
+  transfer, the guide and source types, never the person's saved queries,
+  conversations, pipelines, services, keys or a dashboard lent to them (red
+  with the offer and the transfer filter taken out). `ruff`, `mypy`,
+  `lint-imports`, `check-docs`; `vitest` for the row and the handed draft,
+  `type-check`, `lint`: clean. `tests/search.spec.ts` and `tests/ai.spec.ts`
+  33 against a rebuilt backend: 32 passed, Mod+K's scenario failed in the full
+  run and passed alone and after the AI scenarios; Ask the agent puts the
+  words into a new chat's composer and sends nothing.
+- **Not built:** nothing of phase 1 is left.

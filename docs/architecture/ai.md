@@ -22,7 +22,7 @@ people as well (D133). What goes into the file is written by in-place editing
 (D48).
 
 The agent answers in the AI application space, reading through the tools of
-D134: `list_connections`, `browse_catalog`, `describe_node`, `read_rows`,
+D134: `list_connections`, `search`, `browse_catalog`, `describe_node`, `read_rows`,
 `run_query`, `list_actions`, `run_action`, `open_in_workspace` and `ask_user`.
 Every tool call goes through the connection access funnel as the person who
 owns the conversation, and the transfer flag is checked before every call: a
@@ -202,6 +202,15 @@ of its own (D93) instead of calling Data forward, so the chat stays in front;
 a tab already open in a column is lifted into the window, and docking it from
 Data puts it back where it was. Only a panel that cannot float opens in
 Data.
+
+`search` (S10, `app/ai/search_tool.py`) asks the one search (D197) as the
+agent: only the providers that say `offered_to_agent` (D199), and only
+connections whose owner allows transfer, so a closed one is not even matched by
+name. It looks inside only the connections of the tabs attached to the message
+being answered and those the model names, at most eight; a named one that does
+not allow transfer comes back as D135's refusal and nothing else of it. At most
+50 hits, each with the ids the other tools take. The result lists its
+connections and is withheld like any other once one stops allowing transfer.
 
 Rejected: a hand-written tool per operation found by vector search, and an MCP
 process between the agent and the backend.
