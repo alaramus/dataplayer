@@ -56,6 +56,7 @@ class _Described:
 class SourceTypes:
     place = ObjectsPlace(provider="source_types")
     title = "Source types"
+    offered_to_agent = True
     recalls: frozenset[ObjectType] = frozenset({"source_type"})
 
     def __init__(self, startable: Callable[[], Sequence[Startable]]) -> None:

@@ -62,6 +62,9 @@ class VisibleConnection:
     # Encrypted as stored, from the same row: what a connection is asked with
     # (D199). Decrypted only for a connection that is asked.
     secrets: bytes = field(default=b"", repr=False)
+    # Its owner lets what is in it go to a third party (D135). Off unless the
+    # row says so, so a connection built without it is never offered.
+    allows_transfer: bool = False
 
 
 @dataclass(frozen=True)
@@ -129,6 +132,12 @@ class ApplicationProvider(Protocol):
     @property
     def title(self) -> str:
         """The heading of its group, in the words a person reads."""
+        ...
+
+    @property
+    def offered_to_agent(self) -> bool:
+        """Whether the agent's `search` tool asks it (D199). Stated by every
+        provider, so nothing new is offered by default."""
         ...
 
     def cells(self) -> Sequence[ProviderCell]:

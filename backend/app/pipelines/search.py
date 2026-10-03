@@ -35,6 +35,7 @@ from app.search.providers import (
 class PipelineNames:
     place = ObjectsPlace(provider="pipelines")
     title = "Pipelines"
+    offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"pipeline"})
 
     def cells(self) -> tuple[ProviderCell, ...]:

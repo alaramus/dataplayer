@@ -37,6 +37,7 @@ class RecentlyOpened:
 
     place = ObjectsPlace(provider="recent")
     title = "Recently opened"
+    offered_to_agent = False
 
     def __init__(self, providers: Sequence[ApplicationProvider]) -> None:
         # The engine's own list rather than a copy, so a provider handed in

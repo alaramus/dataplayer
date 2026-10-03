@@ -51,6 +51,8 @@ from app.ai.models import (
     OpenIntent,
     StepStatus,
 )
+from app.ai.search_tool import MAX_HITS as MAX_SEARCH_HITS
+from app.ai.search_tool import search_for_agent
 from app.ai.topic import StepChanged
 from app.connectors import access, crud
 from app.connectors.action_lookup import (
@@ -67,6 +69,8 @@ from app.core.schemas import get_datetime_utc
 from app.queries.execution import RunRefused as QueryRefused
 from app.queries.execution import admit, limits
 from app.queries.write_access import NEEDED
+from app.search.engine import SearchEngine
+from app.search.models import MAX_CONTEXT
 from app.users.models import User
 
 MAX_ROWS = 20
@@ -113,6 +117,10 @@ class ToolRuntime:
     opened: Callable[[uuid.UUID, OpenIntent], Awaitable[None]]
     calls: int = 0
     resume_ordinal: int | None = None
+    # The one search (S10), and the connections of the tabs attached to the
+    # message being answered: what `search` asks without being told to.
+    search_engine: SearchEngine | None = None
+    attached: tuple[uuid.UUID, ...] = ()
     _ordinal_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _current_ordinal: ContextVar[int | None] = field(
         default_factory=lambda: ContextVar("ai_tool_ordinal", default=None)
@@ -428,10 +436,14 @@ async def change_preview(
 
 
 def transfer_refusal(connector: Connector, held: str) -> dict[str, Any]:
+    return refusal_of(connector.id, connector.name, held)
+
+
+def refusal_of(connector_id: uuid.UUID, name: str, held: str) -> dict[str, Any]:
     return {
         "error": TRANSFER_MARKER,
-        "connector_id": str(connector.id),
-        "connector": connector.name,
+        "connector_id": str(connector_id),
+        "connector": name,
         "message": (
             "Allow third-party transfer on this connection to let the agent read it."
             if held == "own"
@@ -459,26 +471,33 @@ def bounded_json(value: Any) -> str:
     }, ensure_ascii=False)
 
 
-def connector_id_from_result(content: object) -> uuid.UUID | None:
-    """Find the connection whose data one of our tool results carries, if any.
+def connector_ids_from_result(content: object) -> frozenset[uuid.UUID]:
+    """The connections whose data one of our tool results carries.
 
-    A refusal names the connection but holds nothing of it, and it must reach
-    the model as it is: withheld, the agent could not even say why it stopped.
+    One for a tool that reads one connection, `connector_ids` for a search
+    over several. A refusal names the connection but holds nothing of it, and
+    it must reach the model as it is: withheld, the agent could not even say
+    why it stopped.
     """
     if not isinstance(content, str):
-        return None
+        return frozenset()
     try:
         value = json.loads(content)
     except (json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(value, dict) or not isinstance(value.get("connector_id"), str):
-        return None
-    if value.get("error") == TRANSFER_MARKER:
-        return None
-    try:
-        return uuid.UUID(value["connector_id"])
-    except ValueError:
-        return None
+        return frozenset()
+    if not isinstance(value, dict) or value.get("error") == TRANSFER_MARKER:
+        return frozenset()
+    named = value.get("connector_ids")
+    texts = [value.get("connector_id"), *(named if isinstance(named, list) else [])]
+    found: set[uuid.UUID] = set()
+    for text in texts:
+        if not isinstance(text, str):
+            continue
+        try:
+            found.add(uuid.UUID(text))
+        except ValueError:
+            continue
+    return frozenset(found)
 
 
 def transfer_policy(runtime: ToolRuntime) -> Any:
@@ -502,8 +521,7 @@ def transfer_policy(runtime: ToolRuntime) -> Any:
         messages = [
             message.model_copy(update={"content": WITHHELD_RESULT})
             if isinstance(message, ToolMessage)
-            and (connector_id := connector_id_from_result(message.content)) is not None
-            and connector_id not in allowed
+            and not connector_ids_from_result(message.content) <= allowed
             else message
             for message in request.messages
         ]
@@ -775,6 +793,21 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             }
         return await runtime.invoke(f'Listing actions for "{node_id or connector_id}"', read)
 
+    async def search(words: str, connector_ids: list[str] | None = None) -> str:
+        async def find(session: AsyncSession, user: User) -> Any:
+            if runtime.search_engine is None:
+                return {"error": "Search is not available"}
+            return await search_for_agent(
+                runtime.search_engine,
+                session,
+                user,
+                words=words,
+                named=[uuid.UUID(one) for one in connector_ids or []],
+                attached=runtime.attached,
+                refusal=refusal_of,
+            )
+        return await runtime.invoke(f'Searching for "{words.strip()[:80]}"', find)
+
     async def ask_user(question: str, choices: list[str]) -> str:
         async def prepare(_session: AsyncSession, _user: User) -> Any:
             return {
@@ -787,6 +820,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
 
     definitions: list[tuple[Callable[..., Awaitable[str]], str, str]] = [
         (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),
+        (search, "search", f"Find tables, files, keys and other nodes by name, plus connections, guide pages and source types. Searches inside the connections of attached tabs and those named in connector_ids (at most {MAX_CONTEXT}); at most {MAX_SEARCH_HITS} hits."),
         (browse_catalog, "browse_catalog", f"List one level of a connection catalog, at most {MAX_NODES} nodes from offset. Use opaque ids exactly as returned."),
         (describe_node, "describe_node", "Describe a node's columns, constraints, indexes and summary where supported."),
         (read_rows, "read_rows", f"Read at most {MAX_ROWS} rows from one opaque node id."),

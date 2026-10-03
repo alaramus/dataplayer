@@ -50,6 +50,7 @@ def _headings(markdown: str) -> str:
 class GuidePages:
     place = ObjectsPlace(provider="guide")
     title = "Guide"
+    offered_to_agent = True
     recalls: frozenset[ObjectType] = frozenset({"guide_page"})
 
     def cells(self) -> tuple[ProviderCell, ...]:

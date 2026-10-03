@@ -34,6 +34,8 @@ _KIND_WORDS = {"tab": "Open tab", "tab_group": "Tab group"}
 class OpenTabs:
     place = ObjectsPlace(provider="open_tabs")
     title = "Open tabs"
+    # The browser's tabs: the agent sees a tab only when it is attached (D133).
+    offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"tab", "tab_group"})
 
     def cells(self) -> tuple[ProviderCell, ...]:

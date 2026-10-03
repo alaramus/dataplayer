@@ -57,6 +57,8 @@ class _Sealed:
 class ChatTitles:
     place = ObjectsPlace(provider="conversations")
     title = "Conversations"
+    # Never to the agent (D133).
+    offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"conversation", "quick_chat", "project"})
 
     def cells(self) -> tuple[ProviderCell, ...]:

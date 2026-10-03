@@ -105,6 +105,8 @@ class _Turns:
 class SavedQueries:
     place = ObjectsPlace(provider="saved_queries")
     title = "Favorites"
+    # The query library never travels (D133).
+    offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"saved_query"})
 
     def __init__(self) -> None:

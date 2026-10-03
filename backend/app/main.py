@@ -186,6 +186,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             catalog=catalog(),
             resources=application.state.resources,
             data_cache=application.state.data_cache,
+            search_engine=application.state.search_engine,
         )
         # Run history retention is timer driven and belongs to the application;
         # nothing else outlives a request.

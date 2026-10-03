@@ -38,6 +38,7 @@ MAX_KEYS = 1000
 class SshKeys:
     place = ObjectsPlace(provider="ssh_keys")
     title = "SSH keys"
+    offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"ssh_key"})
 
     def cells(self) -> tuple[ProviderCell, ...]:

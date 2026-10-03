@@ -25,6 +25,7 @@ from collections.abc import (
 )
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing import Literal
 
 from anyio import CapacityLimiter
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -90,6 +91,10 @@ BEST_MATCHES = 3
 
 # How much less time an answer accepts to share a task already in flight.
 JOIN_SLACK_SECONDS = 0.25
+
+
+# Who an answer is for. The agent is offered less (D199, S10).
+Audience = Literal["person", "agent"]
 
 
 class ScopeNotFound(Exception):
@@ -250,14 +255,25 @@ class SearchEngine:
                 self._providers.insert(at, replaced)
 
     async def prepare(
-        self, session: AsyncSession, user: User, request: SearchRequest
+        self,
+        session: AsyncSession,
+        user: User,
+        request: SearchRequest,
+        *,
+        audience: Audience = "person",
     ) -> Answer:
         """Decide everything that can be decided before anything is asked.
 
         Raises ScopeNotFound for a place the person cannot see, before the
         first line is written: once a stream has begun, its status is spent.
+
+        For the agent (S10) only the providers offered to it are asked, only
+        connections whose owner allows transfer are seen at all (D135), and
+        only those in `request.context` are asked what they hold.
         """
         visible = await connections.visible(session, user)
+        if audience == "agent":
+            visible = [connection for connection in visible if connection.allows_transfer]
         by_id = {connection.id: connection for connection in visible}
         only = request.only
         for place in only or []:
@@ -267,10 +283,14 @@ class SearchEngine:
         asking: list[ApplicationProvider] = (
             self._providers if request.words else [self._recent]
         )
+        inside_of = visible
+        if audience == "agent":
+            asking = [provider for provider in asking if provider.offered_to_agent]
+            inside_of = [one for one in visible if one.id in request.context]
         inside = (
             None
             if self.inside is None or not request.words
-            else self.inside.prepare(user, request, visible)
+            else self.inside.prepare(user, request, inside_of)
         )
         candidates = [
             candidate
@@ -302,6 +322,9 @@ class SearchEngine:
             visible=visible,
             providers=providers,
             rows=ROWS_ALONE if alone else ROWS_TYPING if request.mode == "typing" else ROWS_SEARCH,
+            # The agent's answers neither end the person's nor each other's:
+            # two chats may search at once.
+            claims=audience == "person",
         )
 
     def claim(self, answer: Answer) -> None:
@@ -368,8 +391,10 @@ class Answer:
         visible: list[VisibleConnection],
         providers: Mapping[str, Searches],
         rows: int,
+        claims: bool = True,
     ) -> None:
         self.engine = engine
+        self._claims = claims
         self.user = user
         self.request = request
         self.planned = planned
@@ -400,13 +425,15 @@ class Answer:
         return self._over
 
     async def lines(self) -> AsyncIterator[SearchLine]:
-        self.engine.claim(self)
+        if self._claims:
+            self.engine.claim(self)
         try:
             async for line in self._lines():
                 yield line
         finally:
             self._stop()
-            self.engine.release(self)
+            if self._claims:
+                self.engine.release(self)
 
     async def _lines(self) -> AsyncIterator[SearchLine]:
         yield PlanLine(mode=self.request.mode, cells=[one.cell for one in self.planned])

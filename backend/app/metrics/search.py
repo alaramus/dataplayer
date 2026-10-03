@@ -38,6 +38,8 @@ MAX_DASHBOARDS = 1000
 class DashboardNames:
     place = ObjectsPlace(provider="dashboards")
     title = "Dashboards"
+    # One shared with the person is somebody else's (D199).
+    offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"dashboard"})
 
     def cells(self) -> tuple[ProviderCell, ...]:

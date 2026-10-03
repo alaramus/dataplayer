@@ -53,6 +53,7 @@ async def visible(session: AsyncSession, user: User) -> list[VisibleConnection]:
             owner_email=owner_email,
             config=dict(connector.config or {}),
             secrets=connector.secrets,
+            allows_transfer=connector.allow_third_party_transfer,
         )
         for connector, access, owner_email in rows
     ]
@@ -79,6 +80,8 @@ class ConnectionRows:
 
     place = ConnectionsPlace()
     title = "Connections"
+    # Under D135: the engine hands the agent only connections that allow transfer.
+    offered_to_agent = True
 
     def cells(self) -> tuple[ProviderCell, ...]:
         return (ProviderCell(field="names", cost="instant"),)

@@ -52,6 +52,7 @@ def startable() -> list[Startable]:
 class ServiceNames:
     place = ObjectsPlace(provider="services")
     title = "Services"
+    offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"service"})
 
     def cells(self) -> tuple[ProviderCell, ...]:

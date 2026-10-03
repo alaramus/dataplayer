@@ -15,12 +15,16 @@ from app.ai.content import sealed
 from app.ai.quick_chat import QuickConversation
 from app.core.config import settings
 from app.core.db import async_session_maker
+from app.main import app
 from app.metrics.dashboards import Dashboard
 from app.pipelines.models import Pipeline
 from app.queries import crud as queries
 from app.queries.models import EditorLayout
+from app.search.engine import SearchEngine
+from app.search.models import CellLine, ConnectionsPlace, ObjectsPlace, SearchRequest
 from app.services.models import ManagedService
 from app.users.models import User
+from tests.utils.database import working_postgres_options
 from tests.utils.search import Person, connection, hits, person, search
 
 API = settings.API_V1_STR
@@ -154,3 +158,60 @@ async def test_what_was_opened_is_named_again_for_its_owner_and_nobody_else(
         assert hit["title"]
     for headers in (stranger.headers, superuser_token_headers):
         assert hits(await search(client, headers, "", recent=recent)) == []
+
+
+async def test_the_agent_is_offered_connections_that_allow_transfer_the_guide_and_types(
+    client: AsyncClient,
+    db: AsyncSession,
+    made: list[uuid.UUID],
+) -> None:
+    owner = await person(client, db)
+    lender = await person(client, db)
+    made.extend([owner.id, lender.id])
+    marker = f"wombat{uuid.uuid4().hex[:8]}"
+    await _one_of_each(client, owner, marker)
+    opened = await client.post(
+        f"{API}/connectors/",
+        headers=owner.headers,
+        json={
+            "name": f"Open {marker}",
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+            "allow_third_party_transfer": True,
+        },
+    )
+    assert opened.status_code == 200, opened.text
+    shared = await client.post(
+        f"{API}/metrics/dashboards", headers=lender.headers, json={"name": f"Lent {marker}"}
+    )
+    assert shared.status_code == 200, shared.text
+    granted = await client.put(
+        f"{API}/metrics/dashboards/{shared.json()['id']}/grants",
+        headers=lender.headers,
+        json={"user_id": str(owner.id), "access": "read"},
+    )
+    assert granted.status_code == 200, granted.text
+    # The person finds the dashboard lent to them; the agent must not.
+    assert any(
+        hit["target"].get("object_id") == shared.json()["id"]
+        for hit in hits(await search(client, owner.headers, marker))
+    )
+
+    engine = app.state.search_engine
+    assert isinstance(engine, SearchEngine)
+    async with async_session_maker() as session:
+        user = await session.get(User, owner.id)
+        assert user is not None
+        answer = await engine.prepare(
+            session, user, SearchRequest(words=marker, mode="search"), audience="agent"
+        )
+        lines = [line async for line in answer.lines()]
+
+    places = {one.cell.cell.place.model_dump_json() for one in answer.planned}
+    assert places == {
+        ConnectionsPlace().model_dump_json(),
+        ObjectsPlace(provider="guide").model_dump_json(),
+        ObjectsPlace(provider="source_types").model_dump_json(),
+    }
+    found = [hit for line in lines if isinstance(line, CellLine) for hit in line.hits]
+    assert [hit.title for hit in found] == [f"Open {marker}"]

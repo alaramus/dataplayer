@@ -10,7 +10,7 @@ from app.ai.tools import (
     ToolLimitReached,
     ToolRuntime,
     bounded_json,
-    connector_id_from_result,
+    connector_ids_from_result,
     transfer_refusal,
 )
 from app.connectors.models import Connector
@@ -46,9 +46,14 @@ def test_transfer_refusal_tells_owner_and_grantee_differently() -> None:
 def test_a_connector_result_can_be_identified_before_reuse() -> None:
     connector_id = uuid.uuid4()
 
-    assert connector_id_from_result(json.dumps({"connector_id": str(connector_id)})) == connector_id
-    assert connector_id_from_result(json.dumps({"connections": []})) is None
-    assert connector_id_from_result("not json") is None
+    other = uuid.uuid4()
+
+    assert connector_ids_from_result(json.dumps({"connector_id": str(connector_id)})) == {connector_id}
+    assert connector_ids_from_result(
+        json.dumps({"connector_ids": [str(connector_id), str(other)], "hits": []})
+    ) == {connector_id, other}
+    assert connector_ids_from_result(json.dumps({"connections": []})) == set()
+    assert connector_ids_from_result("not json") == set()
 
 
 def test_a_refusal_names_a_connection_but_is_never_withheld() -> None:
@@ -64,7 +69,7 @@ def test_a_refusal_names_a_connection_but_is_never_withheld() -> None:
     refusal = transfer_refusal(connector, "read")
 
     assert refusal["connector_id"] == str(connector.id)
-    assert connector_id_from_result(json.dumps(refusal)) is None
+    assert connector_ids_from_result(json.dumps(refusal)) == set()
 
 
 async def test_the_fifty_first_tool_call_is_refused_before_work_starts() -> None:

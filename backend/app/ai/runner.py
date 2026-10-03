@@ -59,6 +59,7 @@ from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
 from app.realtime.topics import TopicSet
+from app.search.engine import SearchEngine
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,7 @@ class AgentRunner:
         catalog: ModelCatalog,
         resources: ResourceStore,
         data_cache: DataCache,
+        search_engine: SearchEngine | None = None,
     ) -> None:
         self.chat_models = chat_models
         self._checkpointer = checkpointer
@@ -137,6 +139,7 @@ class AgentRunner:
         self._catalog = catalog
         self._resources = resources
         self._data_cache = data_cache
+        self._search_engine = search_engine
         self._active: dict[uuid.UUID, _Active] = {}
         self._lock = asyncio.Lock()
 
@@ -398,6 +401,11 @@ class AgentRunner:
                             )
                         ),
                         answer=active.answer, reasoning=reasoning, tokens=tokens,
+                        attached=tuple(
+                            dict.fromkeys(
+                                one.connector_id for one in contexts if one.connector_id is not None
+                            )
+                        ),
                     )
                 except RunPaused:
                     status = "awaiting_answer"
@@ -470,6 +478,7 @@ class AgentRunner:
         answer: list[str],
         reasoning: list[str],
         tokens: list[int],
+        attached: tuple[uuid.UUID, ...] = (),
     ) -> None:
         chat = self.chat_models.build(
             model,
@@ -484,6 +493,8 @@ class AgentRunner:
             conversation_id=conversation_id,
             resources=self._resources,
             data_cache=self._data_cache,
+            search_engine=self._search_engine,
+            attached=attached,
             say=self._say,
             opened=lambda user_id, intent: self._say(
                 user_id,
