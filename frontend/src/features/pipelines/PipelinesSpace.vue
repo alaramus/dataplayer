@@ -25,6 +25,7 @@ import { WorkspaceSeparator } from "@/shared/workspace"
 import { useSideRail } from "@/shared/workspace/useSideRail"
 
 import { useCreatePipeline, usePipelines } from "./api"
+import { pipelineIntent, takePipelineIntent } from "./intent"
 import { CONNECTION_DRAG, newPipelineName } from "./model"
 import PipelineView from "./PipelineView.vue"
 
@@ -62,6 +63,31 @@ watch(current, (pipeline) => {
     // Remembering which one was open is a courtesy.
   }
 })
+
+/** Said once the list is there: a pipeline is its owner's alone, so gone is the one reason. */
+function sayIfMissing(asked: string) {
+  const said = (list: readonly { id: string }[] | undefined) => {
+    if (list === undefined) return false
+    if (!list.some((one) => one.id === asked)) toast.error("That pipeline no longer exists")
+    return true
+  }
+  if (said(pipelines.data.value)) return
+  const stop = watch(() => pipelines.data.value, (list) => {
+    if (said(list)) stop()
+  })
+}
+
+// A pipeline found by the search opens over the one last open.
+watch(
+  pipelineIntent,
+  (asked) => {
+    if (asked === null) return
+    takePipelineIntent()
+    selectedId.value = asked
+    sayIfMissing(asked)
+  },
+  { immediate: true }
+)
 
 async function createPipeline() {
   try {

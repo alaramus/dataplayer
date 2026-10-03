@@ -69,10 +69,13 @@ watch(
 </script>
 
 <template>
+  <!-- Every key is the shell's (D148): the application's shortcuts let it
+       alone, and Ctrl+K is readline's kill-line here. -->
   <div
     ref="host"
     class="terminal-view"
     data-testid="terminal-screen"
+    data-owns-keys
   />
 </template>
 

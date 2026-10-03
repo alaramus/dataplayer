@@ -11,10 +11,40 @@ import type { QMenuProps } from "quasar"
  * lands here is custom markup the kit cannot name, which is why it arrives
  * in a slot.
  */
-withDefaults(defineProps<{ anchor?: QMenuProps["anchor"]; self?: QMenuProps["self"] }>(), {
-  anchor: "bottom left",
-  self: "top left",
-})
+withDefaults(
+  defineProps<{
+    anchor?: QMenuProps["anchor"]
+    self?: QMenuProps["self"]
+    /**
+     * Opened without taking the focus. For a list under a field that is still
+     * being typed into: a menu that took the focus on opening took the next
+     * key with it.
+     */
+    noFocus?: boolean
+    /** Closed without handing the focus back to whatever had it before. */
+    noRefocus?: boolean
+    /**
+     * Opened and closed by its model alone. Without it a press on what it is
+     * anchored to toggles it, and a press in a field would close the list of
+     * that field.
+     */
+    noParentEvent?: boolean
+    /** At least as wide as what it is anchored to. */
+    fit?: boolean
+    maxHeight?: string
+    maxWidth?: string
+  }>(),
+  {
+    anchor: "bottom left",
+    self: "top left",
+    noFocus: false,
+    noRefocus: false,
+    noParentEvent: false,
+    fit: false,
+    maxHeight: undefined,
+    maxWidth: undefined,
+  }
+)
 
 const open = defineModel<boolean>({ default: false })
 
@@ -52,6 +82,12 @@ onBeforeUnmount(stop)
     v-model="open"
     :anchor="anchor"
     :self="self"
+    :no-focus="noFocus"
+    :no-refocus="noRefocus"
+    :no-parent-event="noParentEvent"
+    :fit="fit"
+    :max-height="maxHeight"
+    :max-width="maxWidth"
     @before-show="follow"
     @show="follow"
     @hide="stop"

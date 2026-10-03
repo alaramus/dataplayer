@@ -27,7 +27,7 @@ export interface AiOpenIntent {
   representations: NodeRepresentation[]
 }
 
-function contextLabel(panel: Exclude<Panel, { kind: "connectors" | "widget" | "service-logs" }>): string {
+function contextLabel(panel: Exclude<Panel, { kind: "connectors" | "widget" | "service-logs" | "search" }>): string {
   const look = lookOf(panel)
   const connectorName = "connectorName" in panel
     ? panel.connectorName
@@ -56,7 +56,13 @@ const UNATTACHABLE: ReadonlySet<ScreenContext["kind"]> = new Set([
 /** Open workspace tabs which can be explicitly attached to one message. */
 export function screenContexts(panels: readonly Panel[]): ScreenContext[] {
   return panels.flatMap((panel) => {
-    if (panel.kind === "connectors" || panel.kind === "widget" || panel.kind === "service-logs") {
+    // The Search tab names nothing of its own: what it found is opened from it.
+    if (
+      panel.kind === "connectors" ||
+      panel.kind === "widget" ||
+      panel.kind === "service-logs" ||
+      panel.kind === "search"
+    ) {
       return []
     }
     if (UNATTACHABLE.has(panel.kind)) return []

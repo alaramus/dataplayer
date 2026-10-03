@@ -6,10 +6,16 @@ import { fieldLook } from "./tokens"
 
 import type { QSelect } from "quasar"
 
+import AppOption from "./AppOption.vue"
 import AppTooltip from "./AppTooltip.vue"
-import AppIconButton from "./AppIconButton.vue"
 
 const formLayout = inject(formLayoutKey, false)
+
+/** A run of text, marked when it is what a search matched. */
+export interface TextRun {
+  text: string
+  hit: boolean
+}
 
 export interface SelectOption {
   label: string
@@ -39,6 +45,17 @@ export interface SelectOption {
    * the field while it is the one chosen.
    */
   tone?: "warning"
+  /**
+   * The label and the second line as runs, the matched ones marked: what a
+   * search found, drawn as text. Each must spell what it stands in for.
+   */
+  labelRuns?: readonly TextRun[]
+  descriptionRuns?: readonly TextRun[]
+  /**
+   * A suggestion the right arrow takes from the end of a combobox's words, as
+   * an autocomplete is taken. Nothing to a select.
+   */
+  offer?: boolean
 }
 
 const props = withDefaults(
@@ -202,51 +219,11 @@ const summary = computed(() => {
       v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon || option.tone))"
       #option="scope"
     >
-      <q-item
-        v-if="scope.opt.group"
+      <AppOption
         v-bind="scope.itemProps"
-      >
-        <q-item-section>
-          <q-item-label header>
-            {{ scope.opt.label }}
-          </q-item-label>
-        </q-item-section>
-      </q-item>
-      <q-item
-        v-else
-        v-bind="scope.itemProps"
-        :class="{ 'app-select__option--warning': scope.opt.tone === 'warning' }"
-      >
-        <q-item-section
-          v-if="scope.opt.icon"
-          avatar
-        >
-          <q-icon
-            :name="scope.opt.icon"
-            :color="scope.opt.actionActive ? 'positive' : undefined"
-          />
-        </q-item-section>
-        <q-item-section>
-          <q-item-label>{{ scope.opt.label }}</q-item-label>
-          <q-item-label
-            v-if="scope.opt.description"
-            caption
-          >
-            {{ scope.opt.description }}
-          </q-item-label>
-        </q-item-section>
-        <q-item-section
-          v-if="scope.opt.actionIcon && scope.opt.actionLabel"
-          side
-        >
-          <AppIconButton
-            :icon="scope.opt.actionIcon"
-            :tooltip="scope.opt.actionLabel"
-            :active="scope.opt.actionActive"
-            @click.stop.prevent="act(scope.opt)"
-          />
-        </q-item-section>
-      </q-item>
+        :option="scope.opt"
+        @action="act"
+      />
     </template>
     <!-- One line for several choices, where the field stands in a toolbar.
          See `summary` above.
@@ -317,8 +294,7 @@ const summary = computed(() => {
   gap: var(--dp-space-1);
   min-width: 0;
 }
-.app-select__chosen--warning,
-.app-select__option--warning { color: var(--dp-tone-warning-text); }
+.app-select__chosen--warning { color: var(--dp-tone-warning-text); }
 .app-select__chosen-label {
   overflow: hidden;
   text-overflow: ellipsis;

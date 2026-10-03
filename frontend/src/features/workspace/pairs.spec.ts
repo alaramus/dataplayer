@@ -66,6 +66,7 @@ describe("an item of the bar", () => {
     placeLabel: "reports",
     ticked: ["reports/q3.csv"],
     tickedLabel: "q3.csv",
+    searchFrom: "reports",
   }
   const right: CatalogSide = {
     connectorId: "d",
@@ -73,6 +74,7 @@ describe("an item of the bar", () => {
     placeLabel: "demo_lab",
     ticked: ["demo_lab.orders"],
     tickedLabel: "orders",
+    searchFrom: null,
   }
   const creating: PasteOffer = {
     kind: "rows_new_relation",

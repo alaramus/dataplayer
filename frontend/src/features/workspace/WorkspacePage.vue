@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, nextTick, onMounted, provide, ref, useTemplateRef, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, useTemplateRef, watch } from "vue"
 import type { ShallowRef } from "vue"
 
+import { ConnectorsService } from "@/client"
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
@@ -25,6 +26,9 @@ import { PERMISSIONS_PAGE } from "@/features/connectors/windowPages"
 import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
+import { useCatalogSide } from "@/features/workspace/catalogSides"
+import { focusedCatalog } from "@/features/search/context"
+import SearchField from "@/features/search/SearchField.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
@@ -56,6 +60,7 @@ import {
   roleOf,
   recordPanelId,
   rowsPanelId,
+  SEARCH_PANEL_ID,
   serviceLogsPanelId,
   structurePanelId,
   summaryPanelId,
@@ -64,7 +69,7 @@ import {
 import type { Panel } from "@/features/workspace/panels"
 import { createCloseRegistry, provideCloseRegistry } from "@/features/workspace/closable"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
-import { workspaceActionsKey } from "@/features/workspace/state"
+import { openIntentWith, workspaceActionsKey } from "@/features/workspace/state"
 import type {
   DocumentTarget,
   FollowReferenceCommand,
@@ -80,17 +85,23 @@ import type {
   OpenStructureRequest,
   OpenSummaryRequest,
   OpenWidgetTabRequest,
+  OpenHow,
+  OpenIntent,
+  RevealRequest,
   RevealTarget,
+  SearchScope,
+  SearchTarget,
   SharedTarget,
   WorkspaceActions,
 } from "@/features/workspace/state"
-import { messageOf } from "@/shared/api/errors"
+import { messageOf, statusOf } from "@/shared/api/errors"
+import { keysOf, onMac, registerShortcut } from "@/shared/keys/shortcuts"
 import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { useSpaceStore } from "@/stores/space"
 import type { Space } from "@/stores/space"
-import { AppIconButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
+import { AppFieldButton, AppIconButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import {
   leavesOf,
@@ -208,23 +219,34 @@ function toggleFirstPanel() {
 }
 
 /**
- * What the agent opens while another space is shown floats over that space in
- * a window of its own (D93, D141) instead of calling Data forward: the chat
- * stays in front, and the window can be docked from Data later. Set only for
- * the length of one `openFromAgent` call, which opens synchronously.
+ * Where what is being opened goes, when it is opened from elsewhere: what the
+ * agent or the search opens while another space is shown floats over that
+ * space in a window of its own (D93, D141, D205) instead of calling Data
+ * forward, and what the Search tab opens goes beside it. Set only for the
+ * length of one `openWith` call, which opens synchronously.
  */
-let agentFloats = false
+let routing: OpenHow | null = null
 // Set while a panel is lifted into a window: opening it and lifting it out
 // changes the layout, and that change must not call Data forward (below).
 let lifting = false
 
 function openPanel(panel: Panel) {
-  if (agentFloats) {
+  if (routing?.float === true) {
     floatPanel(panel)
     return
   }
   space.show("data")
-  workspace.open(panel)
+  workspace.open(panel, routing?.beside === undefined ? {} : { beside: routing.beside })
+}
+
+function openWith(how: OpenHow, open: () => void) {
+  const before = routing
+  routing = how
+  try {
+    open()
+  } finally {
+    routing = before
+  }
 }
 
 /**
@@ -488,24 +510,51 @@ async function startService(payload: {
   }
 }
 
+/**
+ * A connection by id. The browser holds the first page of the list — a
+ * hundred — so one past it, found by the search or named by the agent, is
+ * asked of the server, whose answer is the same 404 for gone and for not
+ * this person's (D33).
+ */
+async function connectorOf(connectorId: string): Promise<ConnectorPublic | null> {
+  const listed = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
+  if (listed !== undefined) return listed
+  try {
+    return (await ConnectorsService.readConnector({ path: { connector_id: connectorId } })).data
+  } catch (cause) {
+    if (statusOf(cause) === 404) return null
+    throw cause
+  }
+}
+
+/**
+ * Said when a connection asked for is not there any more — from the activity
+ * sheet, whose copy of what is waiting was read before somebody deleted its
+ * subject, or from a search answered a moment ago. Silence is what a dead
+ * button looks like, so it says what happened and re-reads the two lists that
+ * were wrong.
+ */
+function connectionGone() {
+  toast.info("That connection is no longer here")
+  void queryClient.invalidateQueries({ queryKey: connectorsKey })
+  void queryClient.invalidateQueries({ queryKey: waitingKey })
+}
+
 function editConnector(connectorId: string | null, startOn?: string) {
   // A new connection starts at the catalog, an existing one at its window.
   if (connectorId === null) {
     catalogOpen.value = true
     return
   }
-  const found = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
-  if (found) {
-    openConnectorWindow(found, null, startOn)
-    return
-  }
-  // Asked for a connection that is not there any more — from the activity
-  // sheet, whose copy of what is waiting was read before somebody deleted its
-  // subject. Silence is what a dead button looks like, so it says what
-  // happened and re-reads the two lists that were wrong.
-  toast.info("That connection is no longer here")
-  void queryClient.invalidateQueries({ queryKey: connectorsKey })
-  void queryClient.invalidateQueries({ queryKey: waitingKey })
+  void (async () => {
+    try {
+      const found = await connectorOf(connectorId)
+      if (found === null) connectionGone()
+      else openConnectorWindow(found, null, startOn)
+    } catch (cause) {
+      toast.error(messageOf(cause, "Could not read that connection"))
+    }
+  })()
 }
 
 function openCatalog(connector: ConnectorPublic) {
@@ -528,16 +577,36 @@ function openCatalog(connector: ConnectorPublic) {
   })
 }
 
-function duplicateCatalog(panelId: string, startAt: string | null) {
+function duplicateCatalog(panelId: string, startAt: string | null, reveal?: RevealRequest) {
   const original = workspace.panels.value.find((panel) => panel.id === panelId)
   if (original?.kind !== "catalog") return
-  space.show("data")
+  // The connection's own catalog too busy to move asks another one already
+  // open before making a third, which judges for itself by the same rule. Only
+  // from the connection's own: two busy copies would hand it to each other.
+  if (reveal !== undefined && panelId === catalogPanelId(original.connectorId)) {
+    const other = [...workspace.panels.value].reverse().find(
+      (panel) => panel.kind === "catalog" && panel.connectorId === original.connectorId && panel.id !== panelId
+    )
+    if (other !== undefined) {
+      revealTarget.value = { ...reveal, connectorId: original.connectorId, panelId: other.id }
+      // Over another space it floats, as what the search opens there does.
+      if (space.current === "data") workspace.context.activate(other.id)
+      else floatPanel(other)
+      return
+    }
+  }
   const copyId = `${catalogPanelId(original.connectorId)}:copy:${crypto.randomUUID()}`
-  workspace.open({
-    ...original,
-    id: copyId,
-    startAt: startAt ?? undefined,
-  }, { beside: panelId })
+  const copy = { ...original, id: copyId, startAt: startAt ?? undefined }
+  // Left before the copy exists, which takes it as it mounts.
+  if (reveal !== undefined) revealTarget.value = { ...reveal, connectorId: original.connectorId, panelId: copyId }
+  // A catalog in a window has no column to stand beside: its copy floats too,
+  // as one made while another space is shown does.
+  if (space.current !== "data" || workspace.context.detached.value.some((one) => one.panelId === panelId)) {
+    floatPanel(copy)
+    return
+  }
+  space.show("data")
+  workspace.open(copy, { beside: panelId })
 
   // Splitting the catalog's old share in half would make both folders too
   // narrow to use. Give the pair room from the work column when they are all
@@ -570,11 +639,86 @@ function duplicateCatalog(panelId: string, startAt: string | null) {
  * refusal has to be the same one as anywhere else.
  */
 function revealInCatalog(connectorId: string, nodeId: string, label: string) {
-  const connector = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
-  if (connector === undefined) return
+  void (async () => {
+    try {
+      const connector = await connectorOf(connectorId)
+      if (connector === null) connectionGone()
+      else revealIn(connector, { nodeId, label })
+    } catch (cause) {
+      toast.error(messageOf(cause, "Could not read that connection"))
+    }
+  })()
+}
+
+/**
+ * The connection's own catalog, told where to point. Whether it can move there
+ * without wiping a search, a filter or ticks is the catalog's to judge: only it
+ * knows what it holds (D205).
+ */
+function revealIn(connector: ConnectorPublic, request: RevealRequest) {
   openCatalog(connector)
   if (!connector.enabled) return
-  revealTarget.value = { connectorId, nodeId, label }
+  revealTarget.value = { ...request, connectorId: connector.id, panelId: catalogPanelId(connector.id) }
+}
+
+/**
+ * Open what the agent or the search points at (D205): the connection is
+ * looked up first, past the list's first page if it has to be, and what it
+ * opens lands where `how` says.
+ */
+async function openIntent(intent: OpenIntent, how: OpenHow) {
+  let connector: ConnectorPublic | null
+  try {
+    connector = await connectorOf(intent.connectorId)
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not read that connection"))
+    return
+  }
+  if (connector === null) {
+    connectionGone()
+    return
+  }
+  const found = connector
+  openWith(how, () => {
+    openIntentWith({ ...actions, reveal: revealIn }, found, intent)
+  })
+}
+
+/**
+ * The Search tab, asked to search (D205). The words are left where the tab
+ * picks them up, as every `…Target` here is: the tab may not be mounted yet.
+ */
+const searchTarget = ref<SearchTarget | null>(null)
+
+function openSearch(target: SearchTarget, how: OpenHow) {
+  searchTarget.value = target
+  openWith(how, () => {
+    openPanel({ id: SEARCH_PANEL_ID, kind: "search" })
+  })
+}
+
+/**
+ * A tab the search found among those open (S9): brought forward where it is.
+ * A window floats over every space; a tab in a column is in Data.
+ */
+function openTab(panelId: string) {
+  if (!workspace.panels.value.some((one) => one.id === panelId)) {
+    toast.info("That tab is no longer open")
+    return
+  }
+  if (!workspace.context.detached.value.some((one) => one.panelId === panelId)) space.show("data")
+  workspace.context.activate(panelId)
+}
+
+/** A saved tab group the search found, restored as its own list restores it (D94). */
+function openTabGroup(groupId: string) {
+  const library = tabGroups.value
+  const group = library?.groups.value.find((one) => one.id === groupId)
+  if (library == null || group === undefined) {
+    toast.info("That tab group is no longer saved")
+    return
+  }
+  void library.open(group)
 }
 
 /**
@@ -589,6 +733,7 @@ function openShared(request: OpenSharedRequest) {
   if (request.connector.enabled) {
     revealTarget.value = {
       connectorId: request.connector.id,
+      panelId: catalogPanelId(request.connector.id),
       nodeId: request.nodeId,
       label: request.title,
     }
@@ -702,9 +847,9 @@ const actions: WorkspaceActions = {
   pairCommandOf: (panelId) => pairs.commandOf(panelId),
   revealInCatalog,
   revealTarget,
-  takeReveal: (connectorId: string) => {
+  takeReveal: (connectorId: string, panelId: string) => {
     const target = revealTarget.value
-    if (target === null || target.connectorId !== connectorId) return null
+    if (target === null || target.connectorId !== connectorId || target.panelId !== panelId) return null
     revealTarget.value = null
     return target
   },
@@ -939,6 +1084,19 @@ const actions: WorkspaceActions = {
   createConnector: (draft: ConnectorDraft) => {
     openConnectorWindow(null, draft.adapter_type, undefined, draft)
   },
+  newConnection: pickAdapterType,
+  connectorOf,
+  openIntent,
+  openWith,
+  openSearch,
+  searchTarget,
+  takeSearch: () => {
+    const target = searchTarget.value
+    searchTarget.value = null
+    return target
+  },
+  openTab,
+  openTabGroup,
 }
 provide(workspaceActionsKey, actions)
 
@@ -950,39 +1108,59 @@ provide(workspaceActionsKey, actions)
  * the chat rather than in Data.
  */
 function openFromAgent(intent: AiOpenIntent) {
-  const connector = (connectors.data.value?.data ?? []).find(
-    (candidate) => candidate.id === intent.connector_id
+  void openIntent(
+    {
+      connectorId: intent.connector_id,
+      nodeId: intent.node_id,
+      view: intent.view,
+      title: intent.title,
+      describable: intent.describable,
+      representations: intent.representations,
+    },
+    { float: space.current !== "data" }
   )
-  if (connector === undefined) {
-    toast.info("That connection is no longer available")
-    return
-  }
-  agentFloats = space.current !== "data"
-  try {
-    openIntent(connector, intent)
-  } finally {
-    agentFloats = false
-  }
 }
 
-function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
-  if (intent.node_id == null || intent.view === "catalog") {
-    openCatalog(connector)
-    return
-  }
-  const node = {
-    connectorId: connector.id,
-    nodeId: intent.node_id,
-    title: intent.title ?? intent.node_id,
-    connectorName: connector.name,
-    adapterType: connector.adapter_type,
-  }
-  const described = { ...node, describable: intent.describable, representations: intent.representations }
-  if (intent.view === "structure") actions.openStructure(node)
-  else if (intent.view === "summary") actions.openSummary(node)
-  else if (intent.view === "preferred" && intent.representations.length > 0) actions.openRepresentation(described)
-  else actions.openRows(described)
+/**
+ * The search, opened over everything (D205): from the header and by Mod+K,
+ * the application's first shortcut. A catalog that has the focus when it is
+ * opened is offered as its scope, standing where the catalog stands.
+ */
+const searchOpen = ref(false)
+const searchField = useTemplateRef<InstanceType<typeof SearchField>>("search-field")
+const searchOffer = ref<SearchScope | null>(null)
+const catalogInFocus = computed(() =>
+  focusedCatalog(
+    workspace.panels.value,
+    workspace.context.tree.value,
+    workspace.context.focusedLeaf.value,
+    workspace.context.focusedDetached.value
+  )
+)
+const sideInFocus = useCatalogSide(() => catalogInFocus.value?.id ?? "")
+
+function openSearchField() {
+  const catalog = catalogInFocus.value
+  searchOffer.value = catalog === null
+    ? null
+    : {
+        connectorId: catalog.connectorId,
+        label: catalog.title,
+        nodeId: sideInFocus.value?.searchFrom ?? null,
+      }
+  if (searchOpen.value) searchField.value?.show()
+  else searchOpen.value = true
 }
+
+const searchKeys = keysOf("k", onMac())
+const searchKeyshortcuts = onMac() ? "Meta+K" : "Control+K"
+const unregisterSearch = registerShortcut({
+  id: "search",
+  key: "k",
+  action: "Search everything",
+  run: openSearchField,
+})
+onBeforeUnmount(unregisterSearch)
 </script>
 
 <template>
@@ -1000,6 +1178,16 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
         />
       </span>
       <PairWaiting :pairs="pairs" />
+    </template>
+    <template #header-center>
+      <AppFieldButton
+        label="Search"
+        :icon="appIcons.search"
+        :keys="searchKeys"
+        :keyshortcuts="searchKeyshortcuts"
+        data-testid="search-button"
+        @click="openSearchField"
+      />
     </template>
     <template #status>
       <!-- The icon-only server at the very left edge, on the same axis as
@@ -1103,6 +1291,12 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
     <ServiceCredentialsDialog
       v-model:service="revealing"
       reveal
+    />
+
+    <SearchField
+      ref="search-field"
+      v-model:open="searchOpen"
+      :offer="searchOffer"
     />
   </AppLayout>
 </template>

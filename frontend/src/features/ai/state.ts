@@ -16,10 +16,16 @@ export function rememberedAiConversation(storage: Storage = localStorage): strin
 }
 
 /**
- * A chat somebody outside the space — the Needs-you sheet — wants open (D113).
+ * A chat somebody outside the space — the Needs-you sheet, the search — wants
+ * open (D113, D205).
  *
  * A module-level ref rather than a prop chain: the sheet and the space meet
- * only here, and the space clears the request once it has honoured it.
+ * only here, and the space clears the request once it has honoured it. Set
+ * before the space has ever been shown, it is waiting there when it mounts.
  */
 export const requestedAiConversation = ref<string | null>(null)
 export function requestAiConversation(id: string): void { requestedAiConversation.value = id }
+
+/** A project the search found, to be unfolded and brought into view in the history. */
+export const requestedAiProject = ref<string | null>(null)
+export function requestAiProject(id: string): void { requestedAiProject.value = id }

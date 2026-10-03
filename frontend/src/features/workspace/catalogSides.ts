@@ -1,6 +1,7 @@
 /**
  * Where each open catalog stands and what is ticked in it, for whatever reads
- * two catalogs at once (D167).
+ * a catalog from outside it: a pair of two (D167), a search scoped to one
+ * (D205).
  *
  * Published by the catalog panel itself rather than read out of it: the pair
  * window holds the two panels and is not their parent, and the state lives in
@@ -19,6 +20,11 @@ export interface CatalogSide {
   placeLabel: string
   ticked: string[]
   tickedLabel: string
+  /**
+   * Where the catalog's own search starts, and so a search scoped to it
+   * (D205): the level it stands on, or the grouping a tree is rooted in.
+   */
+  searchFrom: string | null
 }
 
 const sides = reactive(new Map<string, CatalogSide>())

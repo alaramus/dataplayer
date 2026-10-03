@@ -10,7 +10,9 @@ import {
   AppCardFrame,
   AppCardHead,
   AppColorPicker,
+  AppCombobox,
   AppEmptyState,
+  AppFieldButton,
   AppFileInput,
   AppForm,
   AppFormControl,
@@ -20,6 +22,7 @@ import {
   AppLayout,
   AppMenu,
   AppNumberInput,
+  AppOption,
   AppPageHeader,
   AppPairs,
   AppPairsRow,
@@ -46,7 +49,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
-import type { ButtonVariant, MenuItem, Tone } from "@/shared/ui"
+import type { ButtonVariant, MenuItem, SelectOption, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "chosen", "current", "danger", "danger-quiet", "quiet"]
@@ -123,6 +126,48 @@ const ROW_SCOPES = [
   { label: "All matching rows", value: "all", description: "2 active filters · streamed rather than held in memory" },
   { label: "Selected rows", value: "selected", description: "Tick rows in the grid first", disable: true },
 ]
+const OPTION_ROWS: SelectOption[] = [
+  { label: "Tables", value: "heading", group: true },
+  {
+    label: "orders_2024",
+    value: "orders",
+    icon: appIcons.tableChart,
+    labelRuns: [{ text: "orders", hit: true }, { text: "_2024", hit: false }],
+    description: "public · local pg",
+    actionIcon: appIcons.myLocation,
+    actionLabel: "Show in catalog",
+  },
+  {
+    label: "notes.md",
+    value: "notes",
+    icon: appIcons.notes,
+    descriptionRuns: [
+      { text: "… the ", hit: false },
+      { text: "orders", hit: true },
+      { text: " of last week", hit: false },
+    ],
+  },
+]
+const comboWords = ref("")
+const comboOpen = ref(false)
+const comboChip = ref<string | null>(null)
+const comboOptions = computed<SelectOption[]>(() => [
+  ...(comboChip.value === null
+    ? [{ label: "Search in local pg", value: "scope", icon: appIcons.search, offer: true }]
+    : []),
+  ...OPTION_ROWS,
+])
+const comboStatus = computed(() => (comboWords.value.trim() === "" ? "" : "Searched 3 places"))
+
+function pickCombo(value: string | number) {
+  if (value === "scope") {
+    comboChip.value = "in local pg"
+    return
+  }
+  comboOpen.value = false
+  toast.info(`Opened ${String(value)}`)
+}
+
 const file = ref<File | null>(null)
 const files = ref<File[]>([])
 const loading = ref(false)
@@ -616,6 +661,55 @@ function removeSavedEntry(name: string) {
           compact
           :options="['public', 'sales', 'pg_catalog']"
         />
+        <!-- The field of the search (D205): the list opens under the words
+             without taking the focus, the arrows walk it, Enter with no row
+             active submits, Escape closes the list and a second one leaves. -->
+        <AppCombobox
+          v-model="comboWords"
+          v-model:open="comboOpen"
+          class="ui-kit__combobox"
+          label="Search the kit"
+          placeholder="Search"
+          :options="comboOptions"
+          :status="comboStatus"
+          :chip="comboChip"
+          submit-label="Show all results"
+          data-testid="kit-combobox"
+          @pick="pickCombo"
+          @action="toast.info(`Showed ${String($event)} in its catalog`)"
+          @submit="toast.info(`Everything for “${comboWords}”`)"
+          @remove-chip="comboChip = null"
+        />
+        <!-- What opens that field from a header: drawn as the field with its
+             keys, and an icon alone once its room is narrower than the field.
+             The second is given too little room on purpose. -->
+        <div class="row items-center ui-kit__row">
+          <AppFieldButton
+            label="Search"
+            :icon="appIcons.search"
+            keys="Ctrl K"
+            keyshortcuts="Control+K"
+            class="ui-kit__field-button"
+            @click="toast.info('The search would open')"
+          />
+          <div class="ui-kit__narrow">
+            <AppFieldButton
+              label="Search"
+              :icon="appIcons.search"
+              keys="Ctrl K"
+              @click="toast.info('The search would open')"
+            />
+          </div>
+        </div>
+        <!-- One row of a list of choices, as AppSelect and AppCombobox draw
+             it: the words that matched marked, never as HTML. -->
+        <div class="ui-kit__options">
+          <AppOption
+            v-for="option in OPTION_ROWS"
+            :key="String(option.value)"
+            :option="option"
+          />
+        </div>
         <AppToggle
           v-model="flag"
           label="Recursive"
@@ -823,6 +917,21 @@ function removeSavedEntry(name: string) {
 }
 .ui-kit__pad {
   padding: var(--dp-space-2);
+}
+.ui-kit__combobox {
+  max-width: 420px;
+}
+.ui-kit__field-button {
+  max-width: 320px;
+}
+.ui-kit__narrow {
+  display: flex;
+  width: 120px;
+}
+.ui-kit__options {
+  max-width: 420px;
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-control);
 }
 /* A scroll area takes the height of what holds it. */
 .ui-kit__scroll {

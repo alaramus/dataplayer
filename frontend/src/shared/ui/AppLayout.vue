@@ -10,6 +10,7 @@ import { closeRealtime } from "@/shared/realtime/client"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
 import { useAuthStore } from "@/stores/auth"
+import { useRecentSearchesStore } from "@/stores/recentSearches"
 
 import AppButton from "./AppButton.vue"
 import AppFullscreenToggle from "./AppFullscreenToggle.vue"
@@ -21,6 +22,7 @@ import { appIcons } from "./icons"
 defineProps<{ fill?: boolean }>()
 
 const auth = useAuthStore()
+const recentSearches = useRecentSearchesStore()
 const me = useCurrentUser()
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -76,6 +78,8 @@ async function logout() {
   closeRealtime()
   // What was said was said to whoever was here before.
   resetNotices()
+  // And what they looked for is theirs (D205).
+  recentSearches.clear()
   // The cache is cleared on sign-out: otherwise the previous user's data stays
   // visible to the next one.
   queryClient.clear()
@@ -99,10 +103,22 @@ async function logout() {
              toggle and the user menu on the right. Workspace commands live on
              the side tool rails, and the theme switch in the user
              preferences. -->
-        <q-toolbar-title class="app-layout__title">
+        <q-toolbar-title
+          class="app-layout__title"
+          :class="{ 'app-layout__title--beside': $slots['header-center'] }"
+        >
           <slot name="header-start" />
         </q-toolbar-title>
-        <q-space />
+        <!-- The room between the two ends, whatever the page puts in it: on
+             the workspace, the search. It takes what the start leaves, so
+             what is in it measures that room rather than the window. -->
+        <div
+          v-if="$slots['header-center']"
+          class="app-layout__center"
+        >
+          <slot name="header-center" />
+        </div>
+        <q-space v-else />
         <AppFullscreenToggle />
         <!-- On the axis of the right rail buttons below: a 36 px box pulled
              back over the toolbar padding, the button centred in it. -->
@@ -233,6 +249,24 @@ async function logout() {
      back over the toolbar padding would otherwise be cut at this box. */
   padding: 0;
   overflow: visible;
+}
+
+/* With something in the middle, the start keeps only what it holds and gives
+   way first: the middle takes the rest and measures it. */
+.app-layout__title--beside {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Never narrower than one control with its margins: below that the start
+   gives way instead, and what is in the middle is never drawn over. */
+.app-layout__center {
+  flex: 1 1 0;
+  min-width: calc(var(--dp-control-height) + 2 * var(--dp-space-2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--dp-space-2);
 }
 
 /* The status bar starts and ends set off the edges the way the user menu is

@@ -8,6 +8,7 @@ import type { SearchScope } from "@/features/catalog/api"
 import type { Crumb, Location } from "@/features/catalog/location"
 import { groupsOf, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
+import { standsAt } from "@/features/catalog/reveal"
 import { foundNodes } from "@/features/catalog/search"
 import type { FoundNodes } from "@/features/catalog/search"
 import { sourceFeaturesKey } from "@/features/connectors/features"
@@ -308,11 +309,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    * of ids for equality — nothing here reads what an id is made of.
    */
   async function showLocation(location: Location) {
-    const sameLevel = currentId.value === location.parentId
-    const sameGroups = location.groups.every((id) =>
-      selectedGroups.value.includes(id)
-    )
-    if (sameLevel && sameGroups) return
+    if (standsAt({ currentId: currentId.value, selectedGroups: selectedGroups.value }, location)) return
 
     path.value = [{ id: null, label: rootLabel.value }, ...location.crumbs]
     await show(location.parentId, location.groups)

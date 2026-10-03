@@ -247,6 +247,10 @@ export const panelSchema = z.discriminatedUnion("kind", [
     serviceId: z.string(),
     serviceName: z.string(),
   }),
+  // The Search tab (D205). Nothing but its id: the words are handed to it when
+  // it is opened and never written into a layout or a tab group, so a tab
+  // restored from either comes back empty.
+  z.object({ id: z.string(), kind: z.literal("search") }),
 ])
 
 export type Panel = z.infer<typeof panelSchema>
@@ -301,6 +305,8 @@ export const resultPanelId = (resultId: string) => `result:${resultId}`
 export const widgetPanelId = (dashboardId: string, widgetId: string, uid: string) =>
   `widget-tab:${dashboardId}:${widgetId}:${uid}`
 export const serviceLogsPanelId = (serviceId: string) => `service-logs:${serviceId}`
+/** One Search tab: searching again brings it forward with the new words. */
+export const SEARCH_PANEL_ID = "search"
 
 /**
  * The whole Markdown stack — parser, sanitiser, KaTeX — is loaded only when a
@@ -332,6 +338,10 @@ const ServiceLogsPanelView = defineAsyncComponent(
  */
 const PdfPanelView = defineAsyncComponent(
   () => import("@/features/content/PdfPanel.vue")
+)
+
+const SearchTabView = defineAsyncComponent(
+  () => import("@/features/search/SearchTab.vue")
 )
 
 export function kindOf(panel: Panel): PanelKind {
@@ -368,7 +378,10 @@ export function roleOf(panel: Panel): PanelRole {
   switch (panel.kind) {
     case "connectors":
       return "sources"
+    // The Search tab beside the catalogs: what is opened from it goes to the
+    // work column, and the list it was opened from stays in sight (D205).
     case "catalog":
+    case "search":
       return "navigate"
     case "rows":
     case "content":
@@ -583,6 +596,12 @@ function baseLookOf(panel: Panel): PanelLook {
         icon: appIcons.notes,
         reloadTooltip: "Re-read what it printed",
       }
+    case "search":
+      return {
+        title: "Search",
+        icon: appIcons.search,
+        reloadTooltip: "Search again",
+      }
   }
 }
 
@@ -794,5 +813,7 @@ function componentFor(panel: Panel, key: string, bind: Bind): Component {
       return bind(key, () => h(WidgetPanelView, { panelId: panel.id, panel }))
     case "service-logs":
       return bind(key, () => h(ServiceLogsPanelView, { panelId: panel.id, panel }))
+    case "search":
+      return bind(key, () => h(SearchTabView, { panelId: panel.id }))
   }
 }

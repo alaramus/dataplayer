@@ -41,7 +41,7 @@ import {
 import { freshProjectName } from "./projectName"
 import { hasAiDraft } from "./draft"
 import { openQuickChat } from "./quickChatLauncher"
-import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
+import { rememberAiConversation, rememberedAiConversation, requestedAiConversation, requestedAiProject } from "./state"
 import type { AiOpenIntent } from "./context"
 
 defineProps<{ contexts: import("@/client").ScreenContext[] }>()
@@ -270,14 +270,42 @@ watch(conversations, (rows) => {
   selected.value = rows[0]?.id ?? null
 }, { immediate: true })
 watch(selected, (id) => rememberAiConversation(id))
-// A Needs-you row names its chat; opening the sheet's space is not enough (D113).
+// A Needs-you row or a search hit names its chat; opening the space is not
+// enough (D113). Immediate, because the request may be what mounts the space.
 watch(requestedAiConversation, (id) => {
   if (id === null) return
   newDraftOpen.value = false
   selected.value = id
   settingsShown.value = false
   requestedAiConversation.value = null
-})
+}, { immediate: true })
+// A project the search found, once the projects are known: its folder
+// unfolded, the filter that might hide it put away, and the folder brought
+// into view once the history is drawn.
+const projectInView = ref<string | null>(null)
+watch([requestedAiProject, () => projectList.data.value], ([id, listed]) => {
+  if (id === null || listed === undefined) return
+  requestedAiProject.value = null
+  if (!listed.data.some((project) => project.id === id)) {
+    toast.info("That project no longer exists")
+    return
+  }
+  collapsed.value = false
+  closeChatFilter()
+  if (closedProjects.value.has(id)) {
+    const next = new Set(closedProjects.value)
+    next.delete(id)
+    closedProjects.value = next
+  }
+  projectInView.value = id
+}, { immediate: true })
+watch([projectInView, historyLoading], ([id, loading]) => {
+  if (id === null || loading) return
+  const folder = spaceElement.value?.querySelector(`[data-testid="ai-project-${CSS.escape(id)}"]`)
+  if (folder == null) return
+  projectInView.value = null
+  folder.scrollIntoView({ block: "nearest" })
+}, { flush: "post", immediate: true })
 
 // Settings cover the conversation rather than replacing it: pressing the entry
 // again puts back the chat that was open, which is still the selected one.

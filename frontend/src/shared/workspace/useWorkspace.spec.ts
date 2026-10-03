@@ -631,6 +631,27 @@ describe("a workspace", () => {
     expect(workspace.context.focusedLeaf.value).toBe(leaves[1]?.id)
   })
 
+  it("moves a panel already open in the source's strip beside it rather than over it", () => {
+    // The Search tab shares its strip with a catalog; opening that catalog
+    // from the tab must leave the tab in sight (D205).
+    const workspace = build()
+    workspace.open({ id: "search", kind: "catalog" })
+    workspace.context.activate("search")
+    workspace.open({ id: "p1", kind: "catalog" }, { beside: "search" })
+
+    const leaves = leavesOf(workspace.context.tree.value)
+    expect(leaves.map((leaf) => leaf.panels)).toEqual([["search"], ["p1"], ["p2"]])
+    expect(leaves[0]?.activePanel).toBe("search")
+  })
+
+  it("only brings forward a panel open elsewhere, whatever it is asked to stand beside", () => {
+    const workspace = build()
+    workspace.open({ id: "search", kind: "catalog" }, { beside: "p1" })
+    const before = leavesOf(workspace.context.tree.value).map((leaf) => leaf.panels)
+    workspace.open({ id: "p2", kind: "rows" }, { beside: "search" })
+    expect(leavesOf(workspace.context.tree.value).map((leaf) => leaf.panels)).toEqual(before)
+  })
+
   it("keeps the source on the tab the copy was taken from", () => {
     // The copy joins the source strip on its way beside it and becomes its
     // active tab; moving it out used to fall back to the first tab.

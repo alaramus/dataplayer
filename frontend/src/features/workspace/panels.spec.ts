@@ -22,6 +22,7 @@ import {
   roleOf,
   recordPanelId,
   rowsPanelId,
+  SEARCH_PANEL_ID,
   serviceLogsPanelId,
   structurePanelId,
   summaryPanelId,
@@ -42,6 +43,7 @@ const KINDS: PanelKind[] = [
   "relationships",
   "widget",
   "service-logs",
+  "search",
 ]
 
 const samples: Record<PanelKind, Panel> = {
@@ -153,6 +155,7 @@ const samples: Record<PanelKind, Panel> = {
     serviceId: "svc-1",
     serviceName: "warehouse",
   },
+  search: { id: SEARCH_PANEL_ID, kind: "search" },
 }
 
 describe("the panel registry", () => {
@@ -160,7 +163,7 @@ describe("the panel registry", () => {
     const panel = samples[kind]
     const colors = new Map<string, string | null>([["c1", "#246abc"]])
     const belongsToConnector =
-      kind !== "connectors" && kind !== "widget" && kind !== "service-logs"
+      kind !== "connectors" && kind !== "widget" && kind !== "service-logs" && kind !== "search"
     expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#246abc" : null)
     colors.set("c1", "#ffffff")
     expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#ffffff" : null)
@@ -272,6 +275,7 @@ describe("the panel registry", () => {
     "relationships",
     "widget",
     "service-logs",
+    "search",
   ] as PanelKind[])(
     "lets %s be closed",
     (kind) => {
@@ -281,6 +285,16 @@ describe("the panel registry", () => {
 
   it.each(KINDS)("accepts a stored %s panel", (kind) => {
     expect(panelSchema.safeParse(samples[kind]).success).toBe(true)
+  })
+
+  it("keeps no words in a stored Search tab, so one restored comes back empty (D205)", () => {
+    const parsed = panelSchema.safeParse({ ...samples.search, words: "orders" })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).toEqual({ id: SEARCH_PANEL_ID, kind: "search" })
+  })
+
+  it("puts the Search tab beside the catalogs, so what it opens leaves it in sight", () => {
+    expect(roleOf(samples.search)).toBe(roleOf(samples.catalog))
   })
 
   it("refuses a panel of a kind it does not know", () => {

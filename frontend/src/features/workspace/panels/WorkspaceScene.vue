@@ -5,6 +5,7 @@ import { computed } from "vue"
 import { useConnectors } from "@/features/connectors/api"
 import { sceneStage } from "@/features/workspace/scene"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { shortcutList } from "@/shared/keys/shortcuts"
 import { AppButton } from "@/shared/ui"
 
 /**
@@ -27,13 +28,11 @@ const stage = computed(() =>
 )
 
 /**
- * The keys that do the same thing, if there are any.
- *
- * The application has no global shortcut yet, so this is empty and nothing is
- * drawn: an empty frame promising keys that do not exist is worse than no
- * frame. Keys are their own sub-project; the layout is ready for them.
+ * The keys that work here, read off the registry rather than written out: a
+ * key drawn in this frame is one somebody registered, and an empty registry
+ * draws no frame at all.
  */
-const shortcuts: { keys: string; action: string }[] = []
+const shortcuts = shortcutList
 </script>
 
 <template>
@@ -87,6 +86,7 @@ const shortcuts: { keys: string; action: string }[] = []
       <dl
         v-if="shortcuts.length > 0"
         class="scene__keys"
+        data-testid="scene-keys"
       >
         <template
           v-for="shortcut in shortcuts"

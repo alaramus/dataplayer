@@ -11,7 +11,7 @@ import type { DetachedPanel } from "./detached"
 import { admittedZone } from "./dropZone"
 import type { DropAdmission } from "./dropZone"
 import { MIN_PANEL_PX, nextId, PRESS_THRESHOLD_PX } from "./model"
-import type { LayoutNode, NodeId, PanelId } from "./model"
+import type { LayoutNode, LeafNode, NodeId, PanelId } from "./model"
 import { parseWorkspace, serializeWorkspace } from "./persist"
 import type { RetiredPanel } from "./persist"
 import { leafForKind } from "./placement"
@@ -192,9 +192,26 @@ export function useWorkspace<P extends { id: string }>(
     { deep: true }
   )
 
+  /** Move a panel into a section of its own immediately right of `source`'s. */
+  function placeBeside(panelId: PanelId, source: LeafNode, beside: PanelId) {
+    const newLeafId = nextId("leaf")
+    tree.value = movePanel(tree.value, panelId, source.id, "right", newLeafId)
+    focusedLeaf.value = newLeafId
+    // The panel became the strip's active tab on its way in; moving it out
+    // falls back to the first tab. Put back the one it was opened from, so
+    // the source stays where it was read.
+    tree.value = activatePanel(tree.value, beside)
+  }
+
   function open(panel: P, { replace = false, beside }: OpenOptions = {}) {
     if (panelOf(panel.id) !== undefined) {
-      activate(panel.id)
+      // Brought forward in the strip of the panel it was asked to stand
+      // beside, it would hide that panel: it moves out beside it instead.
+      const shared = beside === undefined || beside === panel.id
+        ? undefined
+        : leavesOf(tree.value).find((leaf) => leaf.panels.includes(beside) && leaf.panels.includes(panel.id))
+      if (shared !== undefined && beside !== undefined) placeBeside(panel.id, shared, beside)
+      else activate(panel.id)
       return
     }
     if (replace) {
@@ -218,13 +235,7 @@ export function useWorkspace<P extends { id: string }>(
     if (beside !== undefined) {
       const source = leavesOf(tree.value).find((leaf) => leaf.panels.includes(beside))
       if (source !== undefined && options.kindOf(panel) === source.accepts) {
-        const newLeafId = nextId("leaf")
-        tree.value = movePanel(tree.value, panel.id, source.id, "right", newLeafId)
-        focusedLeaf.value = newLeafId
-        // The copy joined the source strip on its way beside it and became its
-        // active tab; moving it out falls back to the first tab. Put back the
-        // tab it was copied from, so the source stays where it was read.
-        tree.value = activatePanel(tree.value, beside)
+        placeBeside(panel.id, source, beside)
       }
     }
   }

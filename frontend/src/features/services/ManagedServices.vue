@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { computed, ref } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
 
 import type { ServicePublic } from "@/client"
+import { useFadingMark } from "@/features/catalog/fadingMark"
+import { pointedService, takePointedService } from "@/features/services/pointed"
 import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
 import ServiceLogsDialog from "@/features/services/ServiceLogsDialog.vue"
 import {
@@ -47,6 +49,28 @@ const reading = ref<ServicePublic | null>(null)
 const revealing = ref<{ id: string; name: string } | null>(null)
 
 const rows = computed(() => services.data.value ?? [])
+
+/**
+ * The service the search found (D205): scrolled to and marked for a moment,
+ * as a catalog marks a row it was asked to show. Waits for the list, and says
+ * so when the service is not on it.
+ */
+const { value: pointed, show: point } = useFadingMark<string>(3000)
+watch(
+  [pointedService, () => services.data.value],
+  async ([id, listed]) => {
+    if (id === null || listed === undefined) return
+    takePointedService()
+    if (!listed.some((row) => row.id === id)) {
+      toast.info("That service is no longer here")
+      return
+    }
+    point(id)
+    await nextTick()
+    document.querySelector(`[data-service-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest" })
+  },
+  { immediate: true }
+)
 
 /**
  * What a service is doing, in the server's words.
@@ -188,6 +212,9 @@ async function forget(service: ServicePublic) {
       v-for="service in rows"
       :key="service.id"
       class="starting__row"
+      :class="{ 'starting__row--pointed': service.id === pointed }"
+      :data-service-id="service.id"
+      :aria-current="service.id === pointed ? 'true' : undefined"
       :data-testid="`managed-service-${service.id}`"
     >
       <AppSpinner
@@ -296,6 +323,9 @@ async function forget(service: ServicePublic) {
 }
 .starting__row + .starting__row {
   border-top: 1px solid var(--dp-border-faint);
+}
+.starting__row--pointed {
+  background: var(--dp-selected-quiet);
 }
 .starting__what {
   display: flex;

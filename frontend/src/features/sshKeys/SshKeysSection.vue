@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
+import { useRoute } from "vue-router"
 
 import type { SshKeyPublic } from "@/client"
 import SshKeyDialog from "@/features/sshKeys/SshKeyDialog.vue"
@@ -34,6 +35,19 @@ const toast = useToast()
 const confirm = useConfirm()
 
 const making = ref<"generate" | "import" | null>(null)
+
+/** The key the search opened Preferences on (D205): scrolled to and marked. */
+const route = useRoute()
+const pointed = computed(() => (typeof route.query.key === "string" ? route.query.key : null))
+watch(
+  [pointed, () => keys.data.value],
+  async ([id]) => {
+    if (id === null) return
+    await nextTick()
+    document.querySelector(`[data-key-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "center" })
+  },
+  { immediate: true }
+)
 const unlocking = ref<SshKeyPublic | null>(null)
 
 function usedBy(key: SshKeyPublic): string {
@@ -112,6 +126,9 @@ async function remove(key: SshKeyPublic) {
       v-for="key in keys.data.value ?? []"
       :key="key.id"
       class="ssh-keys__row"
+      :class="{ 'ssh-keys__row--pointed': key.id === pointed }"
+      :data-key-id="key.id"
+      :aria-current="key.id === pointed ? 'true' : undefined"
       :data-testid="`ssh-key-${key.name}`"
     >
       <q-icon
@@ -221,6 +238,9 @@ async function remove(key: SshKeyPublic) {
   align-items: center;
   gap: var(--dp-space-2);
   padding: var(--dp-space-2) 0;
+}
+.ssh-keys__row--pointed {
+  background: var(--dp-selected-quiet);
 }
 .ssh-keys__row + .ssh-keys__row {
   border-top: 1px solid var(--dp-border-faint);

@@ -31,7 +31,12 @@ export interface WorkspaceActions {
   /** Every connection that has a catalog open somewhere. */
   openConnectorIds: Readonly<Ref<ReadonlySet<string>>>
   openCatalog: (connector: ConnectorPublic) => void
-  duplicateCatalog: (panelId: string, startAt: string | null) => void
+  /**
+   * Another catalog of the same connection beside this one, at `startAt`.
+   * With `reveal`, the copy points at that node once it stands there: what a
+   * catalog too busy to be moved asks for instead of being wiped (D205).
+   */
+  duplicateCatalog: (panelId: string, startAt: string | null, reveal?: RevealRequest) => void
   /**
    * Offer this catalog to a pair: it waits for a second, or completes the one
    * waiting (D167). Absent where the page makes no pairs.
@@ -59,7 +64,7 @@ export interface WorkspaceActions {
    * Taken rather than read: a target left behind would point again at the next
    * thing that made the panel re-render. Every `take…` below does the same.
    */
-  takeReveal: (connectorId: string) => RevealTarget | null
+  takeReveal: (connectorId: string, panelId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
   /**
    * Show another table in a tab already showing one — the sheets of a workbook
@@ -147,11 +152,99 @@ export interface WorkspaceActions {
    * would go with it — which is exactly when the catalog needs to open one.
    */
   editConnector: (connectorId: string | null) => void
+  /** New connection, standing on one source type: the catalog's choice made already. */
+  newConnection: (adapterType: string) => void
+  /**
+   * A connection by id: out of the browser's list, or asked of the server when
+   * it is not on the list's first page. Null when it is gone or not the
+   * person's to see.
+   */
+  connectorOf: (connectorId: string) => Promise<ConnectorPublic | null>
+  /**
+   * A connection or a node of one, opened from somewhere that only holds a
+   * pointer to it — the agent, the search — through the same ways the catalog
+   * opens it (D205). Says so when the connection is gone.
+   */
+  openIntent: (intent: OpenIntent, how: OpenHow) => Promise<void>
+  /** Whatever `open` opens on this tick, opened the way `how` says. */
+  openWith: (how: OpenHow, open: () => void) => void
+  /**
+   * The Search tab, asked to search (D205). One tab: opening it again brings
+   * it forward with the new words.
+   */
+  openSearch: (target: SearchTarget, how: OpenHow) => void
+  /** What the Search tab has just been asked to search, or nothing. */
+  searchTarget: Readonly<Ref<SearchTarget | null>>
+  takeSearch: () => SearchTarget | null
+  /** An open tab or window, brought forward: what the search found it as. */
+  openTab: (panelId: string) => void
+  /** A saved tab group, restored after D94's warning. */
+  openTabGroup: (groupId: string) => void
 }
 
-/** One node of one connection, to be pointed at once its catalog is showing. */
-export interface RevealTarget {
+/** The views a node opens in, as the agent's and the search's intents name them. */
+export type NodeView = "catalog" | "preferred" | "rows" | "structure" | "summary"
+
+/** A connection, or a node of one, named by a pointer to it. */
+export interface OpenIntent {
   connectorId: string
+  /** Absent for the connection itself, whose catalog opens. */
+  nodeId?: string | null
+  view: NodeView
+  title?: string | null
+  describable: boolean
+  representations: NodeRepresentation[]
+  /** The node whose children are this one's sibling tables, when it has one. */
+  containerId?: string
+  /** Where the node lives, as the pointer states it, for a catalog to be shown at. */
+  ancestors?: readonly NodeAncestor[]
+}
+
+/**
+ * One level above a node, as its source named it when the node was found: how
+ * a catalog finds a node whose source has no node path — a Redis key (D205).
+ */
+export interface NodeAncestor {
+  id: string
+  label: string
+}
+
+/** Where something opened from elsewhere goes. */
+export interface OpenHow {
+  /**
+   * Over the space being shown, in a window, rather than bringing Data
+   * forward: what the agent and the search open while another space is shown
+   * floats (D205).
+   */
+  float: boolean
+  /**
+   * A panel to keep in sight. A panel of its column opens in a section beside
+   * it rather than as a tab over it: what the Search tab opens leaves the tab
+   * on screen, as a catalog's does.
+   */
+  beside?: string
+}
+
+/** Where a search is limited to: one connection, from one level of it (D205). */
+export interface SearchScope {
+  connectorId: string
+  /** What the connection is called, for the chip that shows the scope. */
+  label: string
+  /** The level the catalog stood on; null for the top of the connection. */
+  nodeId: string | null
+}
+
+/**
+ * What the Search tab is asked to search. Handed over once and never stored:
+ * the tab keeps no words in the saved layout or a tab group (D205).
+ */
+export interface SearchTarget {
+  words: string
+  scope: SearchScope | null
+}
+
+/** A node to point at, in a catalog already chosen. */
+export interface RevealRequest {
   nodeId: string
   /**
    * What the node is called: the id is the source's own string and is never
@@ -159,6 +252,18 @@ export interface RevealTarget {
    * nowhere else, and "it is gone" is worth saying with the name in it.
    */
   label: string
+  /** Where it lives, for a source that cannot say so itself (D205). */
+  ancestors?: readonly NodeAncestor[]
+}
+
+/** One node of one connection, to be pointed at once its catalog is showing. */
+export interface RevealTarget extends RevealRequest {
+  connectorId: string
+  /**
+   * The catalog meant: the connection's own, or the copy opened for it. Two
+   * catalogs of one connection would otherwise race for the target.
+   */
+  panelId: string
 }
 
 /**
@@ -321,4 +426,50 @@ export function useWorkspaceActions(): WorkspaceActions {
   const actions = inject(workspaceActionsKey)
   if (actions === undefined) throw new Error("A panel used outside the workspace page")
   return actions
+}
+
+/** What an intent is opened through, its connection already in hand. */
+export interface IntentOpeners
+  extends Pick<WorkspaceActions, "openCatalog" | "openStructure" | "openSummary" | "openRepresentation" | "openRows"> {
+  reveal: (connector: ConnectorPublic, request: RevealRequest) => void
+}
+
+/**
+ * Turn an intent into a panel, through the actions that open each view, so
+ * the tab is the one the person would have got from the catalog by hand.
+ *
+ * Synchronous on purpose: the caller has resolved the connection already, and
+ * `openWith` holds where the panel lands only for the tick it is opened in.
+ */
+export function openIntentWith(actions: IntentOpeners, connector: ConnectorPublic, intent: OpenIntent): void {
+  if (intent.nodeId == null) {
+    actions.openCatalog(connector)
+    return
+  }
+  const title = intent.title ?? intent.nodeId
+  if (intent.view === "catalog") {
+    actions.reveal(connector, {
+      nodeId: intent.nodeId,
+      label: title,
+      ...(intent.ancestors === undefined ? {} : { ancestors: intent.ancestors }),
+    })
+    return
+  }
+  const node = {
+    connectorId: connector.id,
+    nodeId: intent.nodeId,
+    title,
+    connectorName: connector.name,
+    adapterType: connector.adapter_type,
+  }
+  const described = {
+    ...node,
+    describable: intent.describable,
+    representations: intent.representations,
+    ...(intent.containerId === undefined ? {} : { containerId: intent.containerId }),
+  }
+  if (intent.view === "structure") actions.openStructure(node)
+  else if (intent.view === "summary") actions.openSummary(node)
+  else if (intent.view === "preferred" && intent.representations.length > 0) actions.openRepresentation(described)
+  else actions.openRows(described)
 }

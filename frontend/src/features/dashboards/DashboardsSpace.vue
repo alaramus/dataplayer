@@ -32,7 +32,7 @@ import {
 import { catalogTree, indexCatalog } from "./catalog"
 import { dashboardsShownKey } from "./onScreen"
 import DashboardView from "./DashboardView.vue"
-import { takeDashboardIntent } from "./intent"
+import { dashboardIntent, takeDashboardIntent } from "./intent"
 import DashboardsRailNarrow from "./DashboardsRailNarrow.vue"
 import { railEntry } from "./railEntry"
 import { railRules } from "./railRules"
@@ -94,9 +94,7 @@ function storedSelection(): string | null {
   }
 }
 
-// A link followed here names the dashboard to open, over the one last open.
-const asked = takeDashboardIntent()
-const selectedId = ref<string | null>(asked ?? storedSelection())
+const selectedId = ref<string | null>(storedSelection())
 const current = computed(() => {
   const list = dashboards.data.value ?? []
   return list.find((one) => one.id === selectedId.value) ?? list[0] ?? null
@@ -125,21 +123,36 @@ function closeDashboardFilter() {
   dashboardFilterOpen.value = false
 }
 
-// Said once, when the list first arrives: the same words for a dashboard that
-// is gone and one nobody shared, as the server gives (D33).
-if (asked !== null) {
-  const stop = watch(
-    () => dashboards.data.value,
-    (list) => {
-      if (list === undefined) return
-      if (!list.some((one) => one.id === asked)) {
-        toast.error("That dashboard does not exist, or it has not been shared with you")
-      }
-      stop()
-    },
-    { immediate: true }
-  )
+/**
+ * Said once the list is there: the same words for a dashboard that is gone and
+ * one nobody shared, as the server gives (D33).
+ */
+function sayIfMissing(asked: string) {
+  const said = (list: readonly { id: string }[] | undefined) => {
+    if (list === undefined) return false
+    if (!list.some((one) => one.id === asked)) {
+      toast.error("That dashboard does not exist, or it has not been shared with you")
+    }
+    return true
+  }
+  if (said(dashboards.data.value)) return
+  const stop = watch(() => dashboards.data.value, (list) => {
+    if (said(list)) stop()
+  })
 }
+
+// A link followed here, or a dashboard found by the search, opens over the one
+// last open.
+watch(
+  dashboardIntent,
+  (asked) => {
+    if (asked === null) return
+    takeDashboardIntent()
+    selectedId.value = asked
+    sayIfMissing(asked)
+  },
+  { immediate: true }
+)
 
 watch(current, (dashboard) => {
   try {

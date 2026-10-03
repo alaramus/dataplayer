@@ -57,6 +57,12 @@
      open from inside it. */
   --dp-layer-sheet: 5000;
 
+  /* The search, opened over everything at the top of the window (D205): a
+     floating window may cover the header, and a field under it would take
+     what is typed blind. Over the sheet too, and under Quasar's menus, where
+     the list of what was found opens. */
+  --dp-layer-search: 5500;
+
   /* A message that has just been said: above everything, ours and Quasar's
      alike, which is where Quasar's own notifications were drawn. Most of the
      application's messages are raised from inside a floating window — a

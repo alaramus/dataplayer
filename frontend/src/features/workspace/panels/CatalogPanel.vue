@@ -16,6 +16,8 @@ import { frameworksOf, toggleFrameworkFilter } from "@/features/catalog/framewor
 import { rememberGroups, rememberedGroups } from "@/features/catalog/groupsMemory"
 import { isPathTrail, locationOf } from "@/features/catalog/location"
 import type { Location } from "@/features/catalog/location"
+import { locationFromAncestors, revealPlan } from "@/features/catalog/reveal"
+import type { CatalogHolding } from "@/features/catalog/reveal"
 import { searchSummary } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
 import {
@@ -35,6 +37,7 @@ import { workspaceKey } from "@/shared/workspace"
 import type { CatalogSide } from "@/features/workspace/catalogSides"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import type { RevealTarget } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import { useCurrentUser } from "@/shared/auth/currentUser"
@@ -236,35 +239,48 @@ const loadPath = useNodePathLoader()
 const loadChildren = useCatalogLoader()
 
 /**
- * Stand where the node lives, then point at it.
+ * Stand where the node lives, then point at it — unless standing there would
+ * wipe what this catalog holds, when another catalog does it instead (D205).
  *
  * The path is asked for every time rather than only when the node is out of
  * sight: one road through the code, and the answer is cached. The mark is set
  * a tick later, because putting the trail in place is itself a change of
  * level, and a change of level is what takes a mark off.
  */
-async function reveal(nodeId: string, label: string) {
+async function reveal(target: RevealTarget) {
+  const { nodeId, label } = target
   try {
-    const location = locationOf(await loadPath(props.connectorId, nodeId))
     // Whether this is a tree is the type's to say, and a catalog opened by
     // this very press may not have heard yet.
     if (sourceType.value === undefined) await adapterTypes.suspense()
+    const location = await whereIs(target)
+    if (location === null) {
+      // The source cannot walk back up and the pointer names no way down.
+      // That is a fact about it rather than an event, so nothing is said: the
+      // node is marked if it happens to be on the level already, which is all
+      // this could do before D21.
+      showRevealed(nodeId)
+      return
+    }
     if (asTree.value) {
       await revealInTree(location, nodeId)
       return
     }
-    await level.showLocation(location)
+    const plan = revealPlan(holding(), location, nodeId)
+    if (plan === "elsewhere") {
+      workspace.duplicateCatalog(props.panelId, location.parentId, {
+        nodeId,
+        label,
+        ...(target.ancestors === undefined ? {} : { ancestors: target.ancestors }),
+      })
+      return
+    }
+    if (plan === "leave-search") leaveSearchFor(nodeId)
+    else if (plan === "walk") await level.showLocation(location)
     await nextTick()
     showRevealed(nodeId)
   } catch (cause) {
     const status = statusOf(cause)
-    if (status === 501) {
-      // The source cannot walk back up. That is a fact about it rather than
-      // an event, so nothing is said: the node is marked if it happens to be
-      // on the level already, which is all this could do before D21.
-      showRevealed(nodeId)
-      return
-    }
     if (status === 404) {
       // A tab outlives the table it shows. Worth a word: without one the
       // press looks like it did nothing.
@@ -273,6 +289,44 @@ async function reveal(nodeId: string, label: string) {
     }
     toast.error(messageOf(cause, "Could not find this node in the catalog"))
   }
+}
+
+/**
+ * Where the node lives, as its source says, or — for a tree whose source has
+ * no node path, a Redis key — as the hit that found it said. Null when nobody
+ * can say.
+ */
+async function whereIs(target: RevealTarget): Promise<Location | null> {
+  try {
+    return locationOf(await loadPath(props.connectorId, target.nodeId))
+  } catch (cause) {
+    if (statusOf(cause) !== 501) throw cause
+    // A tree stands at the top of its connection, so the groupings it offers
+    // are the ones an ancestor can be.
+    if (target.ancestors === undefined || !asTree.value) return null
+    return locationFromAncestors(target.ancestors, level.groups.value.map((group) => group.id))
+  }
+}
+
+function holding(): CatalogHolding {
+  return {
+    currentId: level.currentId.value,
+    selectedGroups: level.selectedGroups.value,
+    searched: level.found.value !== null,
+    filter: level.filter.value,
+    ticked: level.checked.value.length,
+    shown: level.items.value.map((node) => node.id),
+  }
+}
+
+/**
+ * Back from search results to the level they were searched from. The words
+ * stay a filter, as Back leaves them, unless they would hide the very row
+ * being pointed at: then they were the search's and go with it.
+ */
+function leaveSearchFor(nodeId: string) {
+  level.clearSearch()
+  if (!level.items.value.some((node) => node.id === nodeId)) level.filter.value = ""
 }
 
 /**
@@ -334,8 +388,8 @@ void queue(async () => {
 watch(
   workspace.revealTarget,
   () => {
-    const target = workspace.takeReveal(props.connectorId)
-    if (target !== null) void queue(() => reveal(target.nodeId, target.label))
+    const target = workspace.takeReveal(props.connectorId, props.panelId)
+    if (target !== null) void queue(() => reveal(target))
   },
   { immediate: true }
 )
@@ -596,6 +650,7 @@ const side = computed<CatalogSide>(() => asTree.value
       placeLabel: picked.value && pickedIsPlace.value ? picked.value.label : groupLabel.value,
       ticked: treeChecked.value.map((node) => node.id),
       tickedLabel: treeChecked.value[0]?.label ?? "",
+      searchFrom: treeRoot.value,
     }
   : {
       connectorId: props.connectorId,
@@ -603,6 +658,7 @@ const side = computed<CatalogSide>(() => asTree.value
       placeLabel: placeLabel.value,
       ticked: [...level.checked.value],
       tickedLabel: checkedLabel.value,
+      searchFrom: level.currentId.value,
     })
 watch(side, (value) => publishSide(props.panelId, value), { immediate: true })
 onBeforeUnmount(() => publishSide(props.panelId, null))

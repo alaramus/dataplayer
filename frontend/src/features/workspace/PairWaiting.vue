@@ -2,7 +2,7 @@
 import { computed } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
-import { AppButton, AppIconButton, AppMenu, appIcons } from "@/shared/ui"
+import { AppButton, AppIconButton, AppMenu, AppTooltip, appIcons } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 import type { PairsApi } from "./usePairs"
@@ -40,7 +40,10 @@ function choose(connectorId: string) {
       :name="appIcons.pair"
       size="var(--dp-icon-sm)"
     />
-    <span class="pair-waiting__first">{{ pairs.waiting.value.title }}</span>
+    <span class="pair-waiting__first">
+      {{ pairs.waiting.value.title }}
+      <AppTooltip>{{ pairs.waiting.value.title }}</AppTooltip>
+    </span>
     <AppButton
       variant="secondary"
       size="sm"
@@ -62,8 +65,12 @@ function choose(connectorId: string) {
 </template>
 
 <style scoped>
+/* It gives way to the search beside it in the header (D205): the name is cut
+   with an ellipsis, and the commands after it keep their size. */
 .pair-waiting {
   display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: center;
   gap: var(--dp-space-2);
   margin-left: var(--dp-space-3);
@@ -74,6 +81,13 @@ function choose(connectorId: string) {
   font-size: var(--dp-font-size);
 }
 .pair-waiting__first {
+  min-width: 0;
+  overflow: hidden;
   color: var(--dp-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pair-waiting > :not(.pair-waiting__first) {
+  flex: none;
 }
 </style>
