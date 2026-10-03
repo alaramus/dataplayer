@@ -2012,9 +2012,12 @@ export class ConnectorsService {
    * Find nodes by name below one level of the catalog.
    *
    * A read of the catalog and nothing more: what comes back are the same nodes
-   * the listing gives, each with the place it was found in (D76). The query is
-   * matched as a substring and never compiled, and every bound the walk has
-   * belongs to the source.
+   * the listing gives, each with the place it was found in (D76). Every word
+   * must be in a name and nothing is compiled (D202); the walk's ceilings are
+   * the source's, its clock is a costly cell's in the search, and it stops when
+   * the caller has gone (D200). A tree offers no search of its own (D91), so a
+   * source without a node path answers 501 here even when the field finds its
+   * keys.
    */
   public static searchCatalog<ThrowOnError extends boolean = true>(
     options: Options<connectorsSearchCatalogData, ThrowOnError>
@@ -2038,7 +2041,9 @@ export class ConnectorsService {
    *
    * A separate route from the one above because it is a separate promise: this
    * one opens files, and a source that lists names without being able to read
-   * them answers 501 here and is never offered the gesture (D76).
+   * them answers 501 here and is never offered the gesture (D76). Bounded by
+   * what it may read rather than by a clock: it is the gesture whose price was
+   * stated before it started.
    */
   public static searchCatalogContents<ThrowOnError extends boolean = true>(
     options: Options<connectorsSearchCatalogContentsData, ThrowOnError>

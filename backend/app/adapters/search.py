@@ -4,12 +4,13 @@ A search is a read of the catalog rather than a query: what comes back is
 `CatalogNode`s, the same ones a listing gives, so everything that draws a row,
 opens a node or acts on one works unchanged (D76).
 
-The text a person types is matched, never compiled: it is a case-insensitive
-substring of a name, and there is no pattern language for a client to reach
-into. That is D2c's rule about queries, said for the one input this capability
-takes.
+The text a person types is matched, never compiled: it is split into words,
+and every word must occur in a name, case-folded, in any order (D202). There is
+no pattern language for a client to reach into. That is D2c's rule about
+queries, said for the one input this capability takes.
 """
 
+import heapq
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -95,6 +96,47 @@ def class_rank(match_class: MatchClass) -> int:
     return CLASS_ORDER.index(match_class)
 
 
+class Kept[T]:
+    """The best-classed `limit` of what a walk meets, the earlier first in a class.
+
+    A walk that stops at its ceiling must not drop the exact match for twenty
+    substring ones met before it (D202), so it keeps walking within its other
+    ceilings and keeps the best it has seen here. `dropped` says that more
+    matched than were kept: the answer is then not complete.
+    """
+
+    def __init__(self, limit: int) -> None:
+        self._limit = limit
+        self._count = 0
+        # The worst kept is on top: the highest class rank, then the latest met.
+        self._heap: list[tuple[int, int, T]] = []
+        self.dropped = False
+
+    def __len__(self) -> int:
+        return len(self._heap)
+
+    def wants(self, match_class: MatchClass) -> bool:
+        """Whether a match of this class would be kept; asked before building it."""
+        if len(self._heap) < self._limit:
+            return True
+        self.dropped = True
+        return class_rank(match_class) < -self._heap[0][0]
+
+    def add(self, match_class: MatchClass, item: T) -> None:
+        self._count += 1
+        heapq.heappush(self._heap, (-class_rank(match_class), -self._count, item))
+        if len(self._heap) > self._limit:
+            heapq.heappop(self._heap)
+            self.dropped = True
+
+    def settled(self, best: MatchClass) -> bool:
+        """Whether nothing met later could be kept: full, and of the best class."""
+        return len(self._heap) >= self._limit and -self._heap[0][0] <= class_rank(best)
+
+    def items(self) -> list[T]:
+        return [item for _, _, item in sorted(self._heap, key=lambda one: (-one[0], -one[1]))]
+
+
 def _never() -> bool:
     return False
 
@@ -108,6 +150,9 @@ class SearchBounds:
     is something a client sends. A walk asks `over()` between entries and stops
     with what it has; work on a worker thread runs under `limiter`, so searches
     cannot take the threads every other route uses.
+
+    A source asked without bounds keeps only its own: the ceilings it states,
+    and a clock only where it has one of its own.
     """
 
     # A `time.monotonic()` reading.
@@ -127,6 +172,11 @@ class SearchBounds:
         return cls(deadline=time.monotonic() + seconds)
 
 
+def out_of_time(looked_at: int, what: str) -> str:
+    """The notice of a search its clock stopped: the fourth bound, said (D76)."""
+    return f"Time ran out after {looked_at:,} {what} were looked at; there may be more"
+
+
 # What a search may be asked for at most, and what it costs when nothing says.
 # Named here and used by both the model and the route that fills it, so a
 # ceiling is one number rather than two that agree today.
@@ -142,6 +192,23 @@ MAX_QUERY_LENGTH = 200
 # to recognise the hit.
 MAX_EXCERPT_CHARACTERS = 200
 
+# What a cell of the search matches in its place (D200). A source is asked for
+# names, for the columns of its relations, or — as a job — for contents.
+SearchedField = Literal["names", "contents", "columns"]
+
+# What asking a source costs, as the source type states it of itself (D200).
+# `instant` belongs to the application's own rows and `job` to the engine.
+SourceCost = Literal["cheap", "costly"]
+
+
+@dataclass(frozen=True)
+class LastSearch:
+    """What the search remembers of a connection's last search by name."""
+
+    # How much there was to look at: entries walked, keys the server holds.
+    # What a type that is cheap only while small states its cost from.
+    extent: int
+
 
 class NodeSearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -150,6 +217,15 @@ class NodeSearchRequest(BaseModel):
     node_id: str | None = None
     query: str = Field(min_length=1, max_length=MAX_QUERY_LENGTH)
     limit: int = Field(default=DEFAULT_MATCHES, ge=1, le=MAX_MATCHES)
+
+
+class Ancestor(BaseModel):
+    """One level above a found node, as its source states it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    name: str
 
 
 class NodeMatch(BaseModel):
@@ -167,10 +243,17 @@ class NodeMatch(BaseModel):
     node: CatalogNode
     parent_id: str | None = None
     location: str = ""
-    # The line the words were found on, for a search that looked inside. A name
-    # search leaves it empty: what matched is the name, and it is already the
-    # row. Bounded by the source, because a log line can be a megabyte long.
+    # The line the words were found on, for a search that looked inside, or
+    # the column or comment a relation was found by. A name search leaves it
+    # empty: what matched is the name, and it is already the row. Bounded by
+    # the source, because a log line can be a megabyte long.
     excerpt: str | None = None
+    # The levels above it from the root, for a source with no node path to ask
+    # for them: a Redis key is shown in its tree from these (D205).
+    ancestors: list[Ancestor] | None = None
+    # What the words were matched against, where the node's own name is only
+    # its last part: a Redis key's whole name, which its tree cuts at colons.
+    full_name: str | None = None
 
 
 class NodeSearchResult(BaseModel):
@@ -191,3 +274,6 @@ class NodeSearchResult(BaseModel):
     # answer, and the kind is what lets a screen offer the way on — `locked`
     # asks for the key's passphrase (D147).
     error_kind: ErrorKind | None = None
+    # How much there was to look at, where the source knows: what the search
+    # remembers to state the next one's cost (`LastSearch`).
+    extent: int | None = None

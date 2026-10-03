@@ -25,6 +25,16 @@ logger = logging.getLogger(__name__)
 
 CHECK_TIMEOUT_SECONDS = 5.0
 
+
+class LockNotGranted(Exception):
+    """A lock a bounded query asked for was not granted within its wait."""
+
+
+def _milliseconds(seconds: float) -> str:
+    # Zero would mean no limit at all.
+    return f"{max(1, int(seconds * 1000))}ms"
+
+
 # How this application introduces itself to the server it connects to.
 APPLICATION_NAME = "dataplayer"
 
@@ -415,7 +425,8 @@ class PostgresSession:
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[psycopg.AsyncConnection[Any]]:
         """A connection to work on: from the pool when there is one."""
-        if self._pooling is None:
+        pool = None if self._pooling is None else await pool_for(self._pooling, self.conninfo())
+        if pool is None:
             connection = await asyncio.wait_for(
                 psycopg.AsyncConnection.connect(self.conninfo()),
                 CHECK_TIMEOUT_SECONDS,
@@ -424,7 +435,6 @@ class PostgresSession:
                 yield connection
             return
 
-        pool = await pool_for(self._pooling, self.conninfo())
         async with pool.connection() as connection:
             yield connection
 
@@ -479,6 +489,58 @@ class PostgresSession:
             named = named_refusal(exc, refusals)
             if named is not None:
                 raise ValueError(named) from None
+            error_kind, message = classify(exc, fallback_message="Query failed")
+            raise AdapterError(error_kind, message) from None
+
+    async def bounded_query(
+        self,
+        statement: sql.SQL | sql.Composed,
+        params: Sequence[object] | Mapping[str, object],
+        *,
+        seconds: float,
+        lock_seconds: float | None = None,
+    ) -> list[dict[str, Any]]:
+        """A read-only query the server itself stops after `seconds` (D200).
+
+        The time an answer has left rather than the inspection's five seconds.
+        A query whose task is cancelled is cancelled on the server too: psycopg
+        sends the cancel before it lets the task go, so nobody's search keeps
+        a backend busy after its answer is gone.
+
+        Raises LockNotGranted when `lock_seconds` is given and a lock the query
+        needs was not granted within it.
+        """
+        try:
+            async with self._connection() as connection:
+                async with connection.transaction():
+                    await connection.execute("SET TRANSACTION READ ONLY")
+                    await connection.execute(
+                        "SELECT set_config('statement_timeout', %s, true)",
+                        (_milliseconds(seconds),),
+                    )
+                    if lock_seconds is not None:
+                        await connection.execute(
+                            "SELECT set_config('lock_timeout', %s, true)",
+                            (_milliseconds(lock_seconds),),
+                        )
+                    cursor = await connection.cursor(row_factory=dict_row).execute(
+                        statement, params
+                    )
+                    return await cursor.fetchall()
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except e.LockNotAvailable:
+            if lock_seconds is not None:
+                raise LockNotGranted() from None
+            # Not `classify`, which takes any operational error for a server
+            # out of reach: this one answered, and holds a lock for somebody.
+            raise AdapterError(
+                "unknown", "Something the query reads is locked by somebody else"
+            ) from None
+        except e.QueryCanceled:
+            raise AdapterError("timeout", "The server did not answer in time") from None
+        except Exception as exc:
             error_kind, message = classify(exc, fallback_message="Query failed")
             raise AdapterError(error_kind, message) from None
 

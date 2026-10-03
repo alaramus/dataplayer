@@ -36,6 +36,7 @@ from app.adapters.redis.metrics import RedisMetrics
 from app.adapters.redis.model import RedisModel
 from app.adapters.redis.options import RedisOptions
 from app.adapters.redis.samples import RedisSamples
+from app.adapters.redis.search import RedisSearch
 from app.adapters.redis.session import RedisSession
 from app.adapters.redis.update import RedisUpdate
 from app.adapters.redis.url import (
@@ -45,6 +46,14 @@ from app.adapters.redis.url import (
 )
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.search import (
+    LastSearch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -57,6 +66,7 @@ from app.adapters.update import (
     UpdateCellsRequest,
     UpdateCellsResult,
 )
+from app.core.config import settings
 from app.core.schemas import get_datetime_utc
 
 
@@ -71,6 +81,7 @@ class RedisAdapter:
         self._options = options
         self._session = RedisSession(options)
         self._keyspace = RedisKeyspace(self._session)
+        self._search = RedisSearch(self._session, self._keyspace)
         self._fetch = RedisFetch(self._session, self._keyspace)
         self._model = RedisModel(self._keyspace)
         self._export = RedisExport(self._session, self._keyspace)
@@ -156,6 +167,25 @@ class RedisAdapter:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._keyspace.list_children(node_id)
+
+    # --- found from the search field, never from the tree (D91) -------------
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Cheap while the key space is small, which only a first search tells.
+
+        A scan's cost is the keys it looks at, whatever matches, so a server is
+        costly until a search has said how many it holds, and above the count
+        a scan does not get through while somebody types (D200).
+        """
+        if field != "names" or last is None:
+            return "costly"
+        return "cheap" if last.extent <= settings.SEARCH_CHEAP_KEYS else "costly"
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)

@@ -59,6 +59,7 @@ from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.relation_context import PostgresRelationContext
 from app.adapters.postgres.row_commands import PostgresRowCommands
 from app.adapters.postgres.samples import PostgresSamples
+from app.adapters.postgres.search import PostgresSearch
 from app.adapters.postgres.session import (
     PostgresSession,
     compose_url,
@@ -103,6 +104,14 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.resources import Pooling
 from app.adapters.row_commands import RowCommand, RowCommandResult
+from app.adapters.search import (
+    LastSearch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.table_copy import (
     Arrived,
@@ -168,6 +177,7 @@ class PostgresAdapter:
             self._session, self._features
         )
         self._catalog = PostgresCatalog(self._session, self._relation_context)
+        self._search = PostgresSearch(self._session, self._relation_context)
         self._actions = PostgresActions(self._session, self._catalog)
         self._fetch = PostgresFetch(self._session, self._relation_context)
         self._export = PostgresExport(self._session, self._fetch)
@@ -366,6 +376,21 @@ class PostgresAdapter:
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         return await self._catalog.path_to(node_id)
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    async def search_columns(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_columns(request, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are one query of the catalog; columns read every column (D200)."""
+        return "cheap" if field == "names" else "costly"
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)

@@ -12,7 +12,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.adapters.catalog import CatalogNode, NodeView
 from app.adapters.errors import ErrorKind
-from app.adapters.search import MAX_QUERY_LENGTH, MAX_WORDS, MatchClass, words_of
+from app.adapters.search import (
+    MAX_QUERY_LENGTH,
+    MAX_WORDS,
+    Ancestor,
+    MatchClass,
+    SearchedField,
+    words_of,
+)
 from app.core.access import Access
 
 # Typing asks what is cheap and near; Search — Enter, or the Search tab — asks
@@ -20,8 +27,9 @@ from app.core.access import Access
 # job (S7).
 SearchMode = Literal["typing", "search"]
 
-# What a cell matches in its place, a closed set.
-SearchField = Literal["names", "contents", "columns"]
+# What a cell matches in its place, a closed set: the one a source is asked
+# for, so the two cannot drift apart.
+SearchField = SearchedField
 
 # How a cell is answered: asked now, read from what was kept, or not at all.
 Way = Literal["live", "kept", "none"]
@@ -215,13 +223,6 @@ class Segment(_Strict):
 
     text: str
     hit: bool = False
-
-
-class Ancestor(_Strict):
-    """One level above a found node, as its source states it."""
-
-    node_id: str
-    name: str
 
 
 class ConnectionTarget(_Strict):

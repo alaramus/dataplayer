@@ -100,7 +100,7 @@ class PostgresCatalog:
         return await self._relation_context.cascade_reason(schema, relation)
 
     async def _list_schemas(self) -> list[CatalogNode]:
-        return [self._schema_of(row) for row in await self._schema_rows(None)]
+        return [schema_of(row) for row in await self._schema_rows(None)]
 
     async def _schema_rows(self, name: str | None) -> list[dict[str, Any]]:
         # Table names are catalog metadata. Grouping them with their schema
@@ -125,18 +125,6 @@ class PostgresCatalog:
             (name, name),
         )
 
-    @staticmethod
-    def _schema_of(row: Mapping[str, Any]) -> SchemaNode:
-        system = is_system_schema(row["name"])
-        return SchemaNode(
-            id=row["name"],
-            name=row["name"],
-            has_children=True,
-            is_system=system,
-            representations=[],
-            frameworks=[] if system else detect_frameworks(row["tables"] or []),
-        )
-
     async def _list_relations(self, schema: str) -> list[CatalogNode]:
         rows = await self._session.query(
             """
@@ -155,7 +143,7 @@ class PostgresCatalog:
             raise AdapterError("config", f'Schema "{schema}" does not exist')
 
         context = await self._relation_context.schema(schema)
-        return [_relation_of(schema, row["name"], row, context) for row in rows]
+        return [relation_of(schema, row["name"], row, context) for row in rows]
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         """Every node from the root down to node_id, the node itself last.
@@ -195,7 +183,7 @@ class PostgresCatalog:
         rows = await self._schema_rows(schema)
         if not rows:
             raise NodeNotFound(node_id)
-        return self._schema_of(rows[0])
+        return schema_of(rows[0])
 
     async def _relation_node(
         self, schema: str, relation: str, node_id: str
@@ -222,7 +210,7 @@ class PostgresCatalog:
 
         row = rows[0]
         context = await self._relation_context.schema(schema, relation)
-        return _relation_of(schema, relation, row, context)
+        return relation_of(schema, relation, row, context)
 
     async def _schema_exists(self, schema: str) -> bool:
         rows = await self._session.query(
@@ -267,7 +255,24 @@ def report_node(report: SystemReport) -> ReportNode:
     )
 
 
-def _relation_of(
+def schema_of(row: Mapping[str, Any]) -> SchemaNode:
+    """One schema as a node, from a row that names it and lists its tables.
+
+    Shared by the listing, `path_to` and the search, for the reason
+    `relation_of` is.
+    """
+    system = is_system_schema(row["name"])
+    return SchemaNode(
+        id=row["name"],
+        name=row["name"],
+        has_children=True,
+        is_system=system,
+        representations=[],
+        frameworks=[] if system else detect_frameworks(row["tables"] or []),
+    )
+
+
+def relation_of(
     schema: str,
     name: str,
     row: Mapping[str, Any],
@@ -275,8 +280,9 @@ def _relation_of(
 ) -> CatalogNode:
     """One relation as a node, from a row that names its kind and its size.
 
-    Shared by the listing and by `path_to` so a table cannot be described one
-    way when walked into and another way when pointed at.
+    Shared by the listing, by `path_to` and by the search, so a table cannot
+    be described one way when walked into and another way when pointed at or
+    found.
     """
     is_system = is_system_schema(schema) or name in context.internal_relations
     representations = [TABLE_REPRESENTATION]

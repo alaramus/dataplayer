@@ -67,12 +67,21 @@ def key_for(connector_id: uuid.UUID, conninfo: str) -> str:
     return f"postgres:{connector_id}:{fingerprint}"
 
 
-async def pool_for(pooling: Pooling, conninfo: str) -> PooledConnections:
+async def pool_for(pooling: Pooling, conninfo: str) -> PooledConnections | None:
+    """The connector's pool, or None where the store makes none to keep.
+
+    A pool made for one search across many connections would be closed with
+    it, and would hide a refused password behind its wait for a connection.
+    Such a search uses the pool somebody already has, or connects on its own,
+    as the metrics collector does (D127).
+    """
+    key = key_for(pooling.connector_id, conninfo)
+    if not pooling.store.keeps:
+        return await pooling.store.existing(key, PooledConnections)
+
     async def create() -> PooledConnections:
         pool = PooledConnections(conninfo)
         await pool.open()
         return pool
 
-    return await pooling.store.get_or_create(
-        key_for(pooling.connector_id, conninfo), PooledConnections, create
-    )
+    return await pooling.store.get_or_create(key, PooledConnections, create)

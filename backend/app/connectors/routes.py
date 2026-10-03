@@ -1,6 +1,10 @@
+import asyncio
 import json
+import threading
+import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from typing import Annotated, Any, cast
 
 from anyio import to_thread
@@ -141,7 +145,7 @@ from app.adapters.references import (
     ReferencedRows,
     ReferenceTarget,
 )
-from app.adapters.registry import AdapterType
+from app.adapters.registry import AdapterType, searches_its_catalog
 from app.adapters.relation import RelationModel, without_structure_changes
 from app.adapters.relation_changes import (
     NewRelationOptions,
@@ -159,6 +163,7 @@ from app.adapters.search import (
     MAX_QUERY_LENGTH,
     NodeSearchRequest,
     NodeSearchResult,
+    SearchBounds,
 )
 from app.adapters.summary import NodeSummary
 from app.adapters.table_design import (
@@ -2175,11 +2180,36 @@ async def read_relation_model(
         ) from exc
 
 
+@asynccontextmanager
+async def _until_gone(request: Request) -> AsyncIterator[Callable[[], bool]]:
+    """A stop check that turns true once the caller has gone or the route ends.
+
+    A client going away does not cancel the handler, and a walk on a worker
+    thread cannot be cancelled anyway: it is asked to stop between entries.
+    Only for a route that reads no body: what it receives after the empty one
+    a GET carries is the disconnect.
+    """
+    gone = threading.Event()
+
+    async def watch() -> None:
+        while (await request.receive())["type"] != "http.disconnect":
+            pass
+        gone.set()
+
+    watcher = asyncio.create_task(watch())
+    try:
+        yield gone.is_set
+    finally:
+        gone.set()
+        watcher.cancel()
+
+
 @router.get("/{connector_id}/catalog/search", response_model=NodeSearchResult)
 async def search_catalog(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    request: Request,
     connector_id: uuid.UUID,
     # Bounded by the route as well as by the model, from the same numbers: a
     # query string is validated before a handler runs, and that is where a
@@ -2191,14 +2221,19 @@ async def search_catalog(
     """Find nodes by name below one level of the catalog.
 
     A read of the catalog and nothing more: what comes back are the same nodes
-    the listing gives, each with the place it was found in (D76). The query is
-    matched as a substring and never compiled, and every bound the walk has
-    belongs to the source.
+    the listing gives, each with the place it was found in (D76). Every word
+    must be in a name and nothing is compiled (D202); the walk's ceilings are
+    the source's, its clock is a costly cell's in the search, and it stops when
+    the caller has gone (D200). A tree offers no search of its own (D91), so a
+    source without a node path answers 501 here even when the field finds its
+    keys.
     """
     adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
-    if not isinstance(adapter, SupportsNodeSearch):
+    if not isinstance(adapter, SupportsNodeSearch) or not searches_its_catalog(
+        type(adapter)
+    ):
         raise HTTPException(
             status_code=501,
             detail={
@@ -2207,9 +2242,14 @@ async def search_catalog(
             },
         )
     try:
-        return await adapter.search_nodes(
-            NodeSearchRequest(node_id=node_id, query=query, limit=limit)
-        )
+        async with _until_gone(request) as gone:
+            return await adapter.search_nodes(
+                NodeSearchRequest(node_id=node_id, query=query, limit=limit),
+                SearchBounds(
+                    deadline=time.monotonic() + settings.SEARCH_COSTLY_SECONDS,
+                    stopped=gone,
+                ),
+            )
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:
@@ -2246,7 +2286,9 @@ async def search_catalog_contents(
 
     A separate route from the one above because it is a separate promise: this
     one opens files, and a source that lists names without being able to read
-    them answers 501 here and is never offered the gesture (D76).
+    them answers 501 here and is never offered the gesture (D76). Bounded by
+    what it may read rather than by a clock: it is the gesture whose price was
+    stated before it started.
     """
     adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"

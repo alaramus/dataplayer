@@ -63,7 +63,14 @@ from app.adapters.relation_changes import (
     CreateRelationResult,
     NewRelationOptions,
 )
-from app.adapters.search import NodeSearchRequest, NodeSearchResult
+from app.adapters.search import (
+    LastSearch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -93,6 +100,10 @@ class Explorer:
     explorer_action_types: ClassVar[tuple[ExplorerActionType, ...]] = (
         EXPLORER_ACTION_TYPES
     )
+    # What walking its tree by name costs. A remote storage lists a folder per
+    # round trip, so a walk there is many of them; one on this server's disk
+    # says it is cheap.
+    name_search_cost: ClassVar[SourceCost] = "costly"
 
     def __init__(self, storage: Storage) -> None:
         self._storage = storage
@@ -131,11 +142,20 @@ class Explorer:
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         return await self._catalog.path_to(node_id)
 
-    async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
-        return await self._search.search_nodes(request)
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
 
-    async def search_contents(self, request: NodeSearchRequest) -> NodeSearchResult:
-        return await self._search.search_contents(request)
+    async def search_contents(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_contents(request, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """A walk by name of the storage this source brings (D200)."""
+        return cls.name_search_cost if field == "names" else "costly"
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)

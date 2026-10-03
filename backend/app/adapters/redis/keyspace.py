@@ -37,6 +37,7 @@ from app.adapters.catalog import (
 from app.adapters.content import NodeRepresentation
 from app.adapters.protocol import NodeNotFound
 from app.adapters.redis.session import RedisSession, resolved, text
+from app.adapters.search import Ancestor
 
 # How keys are conventionally named, and therefore how they are grouped. Not
 # configurable: a source type whose tree shape is an option is a source type
@@ -227,6 +228,21 @@ def key_of(node_id: str | None) -> KeyRef:
         raise NodeNotFound(node_id or "") from None
 
 
+def ancestors_of(database: int, name: str) -> list[Ancestor]:
+    """The levels above a key, from the root, as the listing names them.
+
+    Worked out from the name by the listing's own rule, so a key found without
+    walking to it is shown in the folders its tree would have put it in: the
+    database, then every folder its name lies in.
+    """
+    found = [Ancestor(node_id=database_id(database), name=f"db{database}")]
+    above = ""
+    for prefix in folders_above(name):
+        found.append(Ancestor(node_id=folder_id(database, prefix), name=prefix[len(above) :]))
+        above = prefix
+    return found
+
+
 def is_key(node_id: str | None) -> bool:
     return _KEY_ID.match(node_id or "") is not None
 
@@ -293,7 +309,7 @@ class RedisKeyspace:
         """
         async with self._session.connection() as client:
             count = await self._database_count(client)
-            filled = await self._key_counts(client)
+            filled = await self.key_counts(client)
         opens_on = self._session.database
         return [
             DatabaseNode(
@@ -319,7 +335,7 @@ class RedisKeyspace:
         number = written.get("databases", "")
         return int(number) if number.isdigit() else DEFAULT_DATABASES
 
-    async def _key_counts(self, client: Any) -> dict[int, int]:
+    async def key_counts(self, client: Any) -> dict[int, int]:
         """How many keys each database holds, as the server's own summary.
 
         `INFO keyspace` names only the databases that hold anything, so a

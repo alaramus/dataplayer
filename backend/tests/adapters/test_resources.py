@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from app.adapters.resources import ResourceStore
+from app.adapters.resources import BorrowingStore, ResourceStore
 
 
 class Thing:
@@ -114,6 +114,43 @@ async def test_closing_the_store_closes_everything_it_holds() -> None:
     assert first.closed is True
     assert second.closed is True
     assert await resources.size() == 0
+
+
+async def test_a_borrowing_store_lends_what_is_there_and_never_closes_it() -> None:
+    """A fan-out across connections reuses an open pool and leaves it open (D200)."""
+    shared = store()
+    theirs = await shared.get_or_create("a", Thing, lambda: _make("theirs"))
+    borrowing = BorrowingStore(shared)
+
+    lent = await borrowing.get_or_create("a", Thing, lambda: _make("mine"))
+    await borrowing.aclose()
+
+    assert lent is theirs
+    assert theirs.closed is False
+
+
+async def test_what_a_borrowing_store_makes_stays_out_of_the_shared_one() -> None:
+    """Made in the shared store, it could push out a pool somebody's grid uses."""
+    shared = store(max_entries=1)
+    theirs = await shared.get_or_create("a", Thing, lambda: _make("theirs"))
+    borrowing = BorrowingStore(shared)
+
+    mine = await borrowing.get_or_create("b", Thing, lambda: _make("mine"))
+    await borrowing.aclose()
+
+    assert mine.closed is True
+    assert theirs.closed is False
+    assert await shared.size() == 1
+    assert await shared.existing("b", Thing) is None
+
+
+async def test_a_borrowing_store_with_nothing_to_borrow_from_makes_its_own() -> None:
+    borrowing = BorrowingStore(None)
+
+    mine = await borrowing.get_or_create("a", Thing, lambda: _make("mine"))
+    await borrowing.aclose()
+
+    assert mine.closed is True
 
 
 async def _make(name: str) -> Thing:

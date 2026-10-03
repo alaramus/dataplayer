@@ -18,6 +18,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.adapters.errors import UNANSWERED
 from app.adapters.protocol import ConnectionCheckResult, DataAdapter
 from app.adapters.registry import UnknownAdapterType
 from app.adapters.registry import get as get_adapter
@@ -73,6 +74,11 @@ class _Watch:
 
     subscribers: set[Subscriber] = field(default_factory=set)
     known: dict[uuid.UUID, ConnectorHealth] = field(default_factory=dict)
+    # Since when each connection has not been reached, until a check reaches
+    # it again: what the search skips and says so of (D200). A server that
+    # refused the password or a key that is locked was reached, and the search
+    # asks it so the failure is said as what it is (D201).
+    down_since: dict[uuid.UUID, datetime] = field(default_factory=dict)
     task: asyncio.Task[None] | None = None
     stopping: asyncio.Task[None] | None = None
 
@@ -159,9 +165,22 @@ class HealthTopic:
             if watch is None:
                 return
             watch.known[health.connector_id] = health
+            if health.result.error_kind in UNANSWERED:
+                watch.down_since.setdefault(health.connector_id, health.checked_at)
+            else:
+                watch.down_since.pop(health.connector_id, None)
             subscribers = list(watch.subscribers)
         for subscriber in subscribers:
             await self._deliver(subscriber, health)
+
+    def unreachable(self, user_id: uuid.UUID) -> dict[uuid.UUID, datetime]:
+        """The connections this person's monitor last could not reach, and since when.
+
+        Only while somebody watches: with no socket open nothing is probed, and
+        nothing here claims a connection is down.
+        """
+        watch = self._watches.get(user_id)
+        return {} if watch is None else dict(watch.down_since)
 
     async def record(self, user_id: uuid.UUID, health: ConnectorHealth) -> None:
         """Take in a result the monitor did not produce.
@@ -219,6 +238,7 @@ class HealthTopic:
             watch = self._watches.get(user_id)
             if watch is not None:
                 watch.known.pop(connector_id, None)
+                watch.down_since.pop(connector_id, None)
 
     async def _probe_all(
         self,
@@ -311,6 +331,17 @@ async def announce_check(
             connector_id=connector_id, result=result, checked_at=get_datetime_utc()
         ),
     )
+
+
+def unreachable_of(topics: TopicSet, user_id: uuid.UUID) -> dict[uuid.UUID, datetime]:
+    """What `HealthTopic.unreachable` says, for a caller that holds the topics."""
+    try:
+        topic = topics.get(NAME)
+    except UnknownTopic:
+        return {}
+    if not isinstance(topic, HealthTopic):
+        return {}
+    return topic.unreachable(user_id)
 
 
 register(NAME, HealthTopic)

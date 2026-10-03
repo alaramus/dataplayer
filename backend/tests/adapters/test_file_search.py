@@ -1,18 +1,33 @@
+import time
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 from app.adapters.explorer import search as search_module
 from app.adapters.explorer.search import ExplorerSearch
-from app.adapters.explorer.storage import LOCAL_SEARCH, Entry, Place, SearchLimits
+from app.adapters.explorer.storage import (
+    LOCAL_SEARCH,
+    ROOT,
+    Entry,
+    Place,
+    SearchLimits,
+    Storage,
+)
+from app.adapters.file.adapter import FileAdapter
 from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import AdapterError, ErrorKind, NodeNotFound
 from app.adapters.search import (
     DEFAULT_MATCHES,
     MAX_EXCERPT_CHARACTERS,
+    LastSearch,
+    MatchClass,
     NodeSearchRequest,
     NodeSearchResult,
+    SearchBounds,
 )
+from app.adapters.ssh.adapter import SshAdapter
+from tests.utils.word_cases import CASES
 
 
 @pytest.fixture
@@ -45,15 +60,17 @@ async def _find(
     )
 
 
-async def test_a_name_is_matched_anywhere_below_the_level(
+async def test_a_name_is_matched_anywhere_below_the_level_the_best_first(
     search: ExplorerSearch,
 ) -> None:
+    """By class, then by nearness: two names that begin with the word, then
+    one where it only begins a word (D202)."""
     found = await _find(search, "notes")
 
     assert [match.node.name for match in found.matches] == [
         "notes.txt",
-        "q3-notes.md",
         "NOTES.rst",
+        "q3-notes.md",
     ]
     assert found.complete is True
     assert found.notice is None
@@ -99,7 +116,7 @@ async def test_a_match_at_the_top_has_no_place_to_name(search: ExplorerSearch) -
 async def test_a_search_starts_where_it_was_asked_to(search: ExplorerSearch) -> None:
     found = await _find(search, "notes", node_id="reports")
 
-    assert [match.node.name for match in found.matches] == ["q3-notes.md", "NOTES.rst"]
+    assert [match.node.name for match in found.matches] == ["NOTES.rst", "q3-notes.md"]
 
 
 async def test_a_found_node_is_the_node_the_listing_would_have_shown(
@@ -145,6 +162,88 @@ async def test_a_tree_deeper_than_the_ceiling_is_not_walked(
     assert [match.node.name for match in found.matches] == ["notes.txt", "q3-notes.md"]
     assert found.complete is False
     assert found.notice is not None
+
+
+async def test_an_exact_name_is_not_lost_behind_a_hundred_that_hold_the_word(
+    tmp_path: Path,
+) -> None:
+    """The walk keeps the best classes it has met within its ceilings (D202)."""
+    for index in range(150):
+        (tmp_path / f"reorders-{index:03}.txt").write_text("x\n", encoding="utf-8")
+    (tmp_path / "far" / "below").mkdir(parents=True)
+    (tmp_path / "far" / "below" / "orders").write_text("x\n", encoding="utf-8")
+
+    found = await _find(ExplorerSearch(LocalStorage(tmp_path)), "orders", limit=100)
+
+    assert found.matches[0].node.name == "orders"
+    assert found.matches[0].parent_id == "far/below"
+    assert len(found.matches) == 100
+    # More matched than were kept, and the answer says so.
+    assert found.complete is False
+    assert found.notice is not None
+
+
+async def test_a_walk_out_of_time_stops_and_says_so(search: ExplorerSearch) -> None:
+    """Time is the fourth bound, and its notice is the source's own (D76)."""
+    found = await search.search_nodes(
+        NodeSearchRequest(query="notes"), SearchBounds(deadline=time.monotonic() - 1)
+    )
+
+    assert found.matches == []
+    assert found.complete is False
+    assert found.notice is not None and found.notice.startswith("Time ran out")
+
+
+async def test_a_walk_stops_when_its_answer_is_gone(search: ExplorerSearch) -> None:
+    """Checked between entries, so a newer keystroke ends the older walk."""
+    asked: list[bool] = []
+
+    def stopped() -> bool:
+        asked.append(True)
+        return len(asked) > 1
+
+    found = await search.search_nodes(
+        NodeSearchRequest(query="notes"),
+        SearchBounds(deadline=time.monotonic() + 60, stopped=stopped),
+    )
+
+    assert len(asked) == 2
+    assert found.complete is False
+
+
+class _Named:
+    """A folder holding exactly one name, whatever this machine's disk allows.
+
+    Two names of the table differ only by case and two hold a colon, which a
+    Windows disk refuses; a server holds them, so the walk is asked about them
+    here rather than on the disk.
+    """
+
+    search_limits = LOCAL_SEARCH
+
+    def __init__(self, name: str) -> None:
+        self._name = name
+
+    def place(self, node_id: str | None) -> Place:
+        return ROOT
+
+    def entry(self, place: Place) -> Entry:
+        return Entry(place=ROOT, is_directory=True, size_bytes=0, modified_at=None)
+
+    def entries(self, place: Place) -> list[Entry]:
+        found = Place(key="found", name=self._name)
+        return [Entry(place=found, is_directory=False, size_bytes=1, modified_at=None)]
+
+
+@pytest.mark.parametrize(("typed", "name", "expected"), CASES)
+async def test_the_walk_agrees_with_the_word_table(
+    typed: str, name: str, expected: MatchClass | None
+) -> None:
+    search = ExplorerSearch(cast(Storage, _Named(name)))
+
+    found = await _find(search, typed)
+
+    assert [match.node.name for match in found.matches] == ([name] if expected else [])
 
 
 async def test_a_search_needs_something_to_look_for(search: ExplorerSearch) -> None:
@@ -217,9 +316,8 @@ async def test_the_words_are_found_inside_a_file_that_is_not_named_for_them(
     assert [match.node.name for match in found.matches] == ["q4.csv"]
     # The name search finds nothing at all, which is the whole point of the
     # second gesture.
-    assert await _find(search, "timeout") == NodeSearchResult(
-        matches=[], complete=True, notice=None
-    )
+    by_name = await _find(search, "timeout")
+    assert (by_name.matches, by_name.complete, by_name.notice) == ([], True, None)
 
 
 async def test_a_match_carries_the_line_it_was_found_on(written: Path) -> None:
@@ -373,3 +471,10 @@ async def test_a_link_is_listed_where_it_matches_and_never_walked_into(
     # Walked into, the same three names would arrive again through the alias.
     assert names.count("notes.txt") == 1
     assert found.complete is True
+
+
+def test_a_walk_by_name_is_cheap_on_this_server_and_costly_over_ssh() -> None:
+    """Stated without asking anybody, so a dead server cannot hold a plan (D200)."""
+    assert FileAdapter.search_cost("names", None) == "cheap"
+    assert SshAdapter.search_cost("names", LastSearch(extent=10)) == "costly"
+    assert FileAdapter.search_cost("contents", None) == "costly"

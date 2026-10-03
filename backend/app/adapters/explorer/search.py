@@ -2,12 +2,16 @@
 
 Breadth first, so what is near is found first and a search that stops at a
 ceiling stops at the far end rather than in a random branch. The walk is
-bounded three ways — how many matches are wanted, how many entries may be
-looked at and how deep it may go — and says which of them stopped it (D76).
+bounded four ways — how many matches are kept, how many entries may be looked
+at, how deep it may go, and the clock its caller gives it — and says which of
+them stopped it (D76).
 
 A search by name opens nothing: a name is compared, a directory is listed, and
 the nodes that come back are built by the catalog's own builder, so a row found
-by a search is the row the listing would have shown.
+by a search is the row the listing would have shown. Every word must be in the
+name (D202), and when more names match than are wanted the walk goes on within
+its other ceilings and keeps the best-classed ones: an exact name met late is
+not lost behind a hundred names that merely hold the word.
 
 A search by content opens everything it is allowed to. That is the expensive
 half and it is a separate capability for that reason — the client asks for it
@@ -20,7 +24,7 @@ import io
 from collections import deque
 from dataclasses import dataclass
 
-from anyio import to_thread
+from anyio import CapacityLimiter, to_thread
 
 from app.adapters.explorer.binary import SNIFF_BYTES, bytes_look_binary
 from app.adapters.explorer.catalog import node_of
@@ -28,9 +32,16 @@ from app.adapters.explorer.storage import Entry, Place, Storage, node_id_of
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     MAX_EXCERPT_CHARACTERS,
+    Kept,
+    MatchClass,
     NodeMatch,
     NodeSearchRequest,
     NodeSearchResult,
+    SearchBounds,
+    class_of_name,
+    holds_every_word,
+    out_of_time,
+    words_of,
 )
 
 # How many entries one search may look at. A personal directory is not a
@@ -63,15 +74,23 @@ class ExplorerSearch:
     def __init__(self, storage: Storage) -> None:
         self._storage = storage
 
-    async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
-        return await to_thread.run_sync(self._search, request)
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await to_thread.run_sync(
+            self._search, request, bounds, False, limiter=_limiter(bounds)
+        )
 
-    async def search_contents(self, request: NodeSearchRequest) -> NodeSearchResult:
+    async def search_contents(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
         """The same walk, deciding by what is in a file rather than its name."""
-        return await to_thread.run_sync(self._search, request, True)
+        return await to_thread.run_sync(
+            self._search, request, bounds, True, limiter=_limiter(bounds)
+        )
 
     def _search(
-        self, request: NodeSearchRequest, inside: bool = False
+        self, request: NodeSearchRequest, bounds: SearchBounds | None, inside: bool
     ) -> NodeSearchResult:
         # Containment is judged before anything is listed, as it is for every
         # other read of this source (D8).
@@ -88,8 +107,8 @@ class ExplorerSearch:
         if not found.is_directory:
             raise ValueError("A search starts in a folder")
 
-        needle = request.query.strip().casefold()
-        if needle == "":
+        words = words_of(request.query)
+        if not words:
             raise ValueError("A search needs something to look for")
 
         # A match carries the folder it sits in twice over: the opaque id the
@@ -97,7 +116,10 @@ class ExplorerSearch:
         # words it. The root is the empty string — it has no name of its own,
         # and what the catalog draws there is the name of the connection.
         limits = self._storage.search_limits
-        matches: list[NodeMatch] = []
+        # Inside a file every match is of one class, so the first ones met are
+        # the best and a full set is settled at once.
+        best: MatchClass = "text" if inside else "exact"
+        kept: Kept[NodeMatch] = Kept(request.limit)
         scanned = 0
         read_bytes = 0
         deepest = False
@@ -105,6 +127,17 @@ class ExplorerSearch:
         queue: deque[_Level] = deque(
             [_Level(place=start, node_id=request.node_id or None, depth=0)]
         )
+
+        def answer(complete: bool = True, notice: str | None = None) -> NodeSearchResult:
+            if kept.dropped and complete:
+                complete = False
+                notice = notice or (
+                    f"More than {request.limit} matched; the best {request.limit} "
+                    "are shown"
+                )
+            return NodeSearchResult(
+                matches=kept.items(), complete=complete, notice=notice, extent=scanned
+            )
 
         while queue:
             level = queue.popleft()
@@ -118,29 +151,31 @@ class ExplorerSearch:
             except AdapterError as failure:
                 # The source itself failed — a dropped connection, a key whose
                 # passphrase is not held. What was found is still an answer.
-                return _broken(matches, failure)
+                return _broken(kept.items(), failure, scanned)
             for entry in entries:
+                if bounds is not None and bounds.over():
+                    return answer(False, out_of_time(scanned, "entries"))
                 scanned += 1
                 if scanned > MAX_SCANNED:
-                    return _stopped(
-                        matches,
+                    return answer(
+                        False,
                         f"More than {MAX_SCANNED:,} entries were looked "
                         "at; the search stopped there",
                     )
 
+                match_class: MatchClass | None = None
                 excerpt: str | None = None
-                matched = False
                 if inside:
                     if read_bytes > limits.total_bytes:
-                        return _stopped(
-                            matches,
+                        return answer(
+                            False,
                             f"More than {_megabytes(limits.total_bytes)} MB "
                             "was read; the search stopped there",
                         )
                     try:
-                        looked = self._look_inside(entry, needle)
+                        looked = self._look_inside(entry, words)
                     except AdapterError as failure:
-                        return _broken(matches, failure)
+                        return _broken(kept.items(), failure, scanned)
                     # What was read, not the size of what was passed: a file
                     # skipped as too large or binary costs nothing, and counting
                     # its size stopped a search early with a notice saying it
@@ -149,23 +184,24 @@ class ExplorerSearch:
                     if looked.unreadable:
                         unread += 1
                     elif looked.line is not None:
-                        matched = True
+                        match_class = "text"
                         excerpt = looked.line
                 else:
-                    matched = needle in entry.name.casefold()
+                    match_class = class_of_name(words, entry.name)
 
-                if matched:
-                    matches.append(
+                if match_class is not None and kept.wants(match_class):
+                    kept.add(
+                        match_class,
                         NodeMatch(
                             node=node_of(self._storage, entry),
                             parent_id=level.node_id,
                             location=level.node_id or "",
                             excerpt=excerpt,
-                        )
+                        ),
                     )
-                    if len(matches) == request.limit:
-                        return _stopped(
-                            matches,
+                    if kept.settled(best):
+                        return answer(
+                            False,
                             f"The first {request.limit} matches; there may be more",
                         )
 
@@ -183,26 +219,23 @@ class ExplorerSearch:
                 )
 
         if deepest:
-            return _stopped(
-                matches,
+            return answer(
+                False,
                 f"Folders deeper than {MAX_DEPTH} levels were not looked at",
             )
         if unread:
             # Complete about what it read, and honest about what it did not: a
             # picture and a database dump were not searched, and saying so is
             # what stops "no matches" from meaning "not in this folder".
-            return NodeSearchResult(
-                matches=matches,
-                complete=True,
-                notice=(
-                    f"{unread} files were not read: they are binary or larger "
-                    f"than {_megabytes(limits.file_bytes)} MB"
-                ),
+            return answer(
+                True,
+                f"{unread} files were not read: they are binary or larger "
+                f"than {_megabytes(limits.file_bytes)} MB",
             )
-        return NodeSearchResult(matches=matches, complete=True)
+        return answer()
 
-    def _look_inside(self, entry: Entry, needle: str) -> _Looked:
-        """The line these words are on in this file, or nothing, or unreadable.
+    def _look_inside(self, entry: Entry, words: tuple[str, ...]) -> _Looked:
+        """The line these words are all on in this file, or nothing, or unreadable.
 
         A line at a time, so a file is never held whole, and case-insensitively,
         which is what the name search does and therefore what somebody typing
@@ -222,7 +255,7 @@ class ExplorerSearch:
                 text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
                 try:
                     for line in text:
-                        if needle in line.casefold():
+                        if holds_every_word(words, line):
                             return _Looked(
                                 line=line.strip()[:MAX_EXCERPT_CHARACTERS],
                                 read_bytes=raw.tell(),
@@ -247,6 +280,10 @@ class _Looked:
     read_bytes: int = 0
 
 
+def _limiter(bounds: SearchBounds | None) -> CapacityLimiter | None:
+    return None if bounds is None else bounds.limiter
+
+
 def _walkable(entry: Entry) -> bool:
     """Whether the walk goes into this entry.
 
@@ -262,14 +299,13 @@ def _megabytes(size: int) -> int:
     return size // (1024 * 1024)
 
 
-def _stopped(matches: list[NodeMatch], notice: str) -> NodeSearchResult:
-    return NodeSearchResult(matches=matches, complete=False, notice=notice)
-
-
-def _broken(matches: list[NodeMatch], failure: AdapterError) -> NodeSearchResult:
+def _broken(
+    matches: list[NodeMatch], failure: AdapterError, scanned: int
+) -> NodeSearchResult:
     return NodeSearchResult(
         matches=matches,
         complete=False,
         notice=failure.message,
         error_kind=failure.error_kind,
+        extent=scanned,
     )

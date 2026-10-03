@@ -1,6 +1,7 @@
 import base64
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from functools import partial
 from pathlib import Path
 
 from anyio import to_thread
@@ -18,6 +19,7 @@ from app.ai.checkpoints import checkpointer
 from app.ai.providers import ProviderChatModels
 from app.ai.runner import AgentRunner, settle_interrupted
 from app.api.main import api_router
+from app.connectors.health import unreachable_of
 from app.core import logs
 from app.core.config import settings
 from app.core.failures import RecordFailures
@@ -35,6 +37,7 @@ from app.realtime import topics
 from app.search.connections import ConnectionRows
 from app.search.engine import SearchEngine, SearchLimits
 from app.search.guide import GuidePages
+from app.search.nodes import ConnectionSearch
 from app.search.source_types import SourceTypes
 from app.services.backups import handlers as backup_handlers
 from app.services.docker import DockerEngine
@@ -121,7 +124,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     })
     # One search over everything a person may see, asking a provider per kind
     # of thing the application keeps; a feature hands its own in here, and the
-    # engine imports none of them (D197).
+    # engine imports none of them (D197). The connections themselves are asked
+    # through the pools already open, and skipped while the person's health
+    # monitor sees them down (D200).
     application.state.search_engine = SearchEngine(
         [
             ConnectionRows(),
@@ -129,6 +134,10 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             SourceTypes(startable),
         ],
         SearchLimits.from_settings(),
+        inside=ConnectionSearch(
+            resources=application.state.resources,
+            unreachable=partial(unreachable_of, application.state.topics),
+        ),
     )
     # The web process reads the metrics store and never writes points (D127).
     application.state.metrics_stores = StoreHolder()

@@ -14,7 +14,14 @@ import asyncio
 import logging
 import time
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, Sequence
+from collections.abc import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterator,
+    Mapping,
+    Sequence,
+)
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
@@ -45,10 +52,12 @@ from app.search.models import (
     PlanLine,
     RecentTarget,
     SearchLine,
+    SearchMode,
     SearchRequest,
     cell_key,
 )
 from app.search.models import Cell as SearchCell
+from app.search.nodes import ConnectionSearch
 from app.search.plan import (
     CONNECTIONS_RANK,
     PROVIDER_RANKS,
@@ -56,7 +65,13 @@ from app.search.plan import (
     Planned,
     plan,
 )
-from app.search.providers import ApplicationProvider, Asked, Found, VisibleConnection
+from app.search.providers import (
+    ApplicationProvider,
+    Asked,
+    Found,
+    Searches,
+    VisibleConnection,
+)
 from app.users.models import User
 
 logger = logging.getLogger(__name__)
@@ -105,14 +120,30 @@ class SearchLimits:
 @dataclass
 class _Shared:
     task: asyncio.Task[Found]
+    # What its starter asked it for; the bounds it runs under are those.
+    mode: SearchMode
+    deadline: float
     waiters: int = 0
+
+    def joinable(self, mode: SearchMode, deadline: float) -> bool:
+        # A task told to stop is not done until its cancellation has run, and
+        # an answer that joined it then would end with it.
+        return (
+            not self.task.done()
+            and not self.task.cancelling()
+            and self.mode == mode
+            and self.deadline >= deadline
+        )
 
 
 class _Inflight:
     """Identical cells asked by one person while one is running share one task.
 
-    Never between people (D200). The task is cancelled when the last answer
-    waiting for it goes, so a query nobody waits for does not run on.
+    Never between people (D200), and only a task asked in the same mode with
+    no less time, since its bounds are its starter's: an answer that comes
+    later has a later deadline, so it gets a task of its own and waits its
+    turn rather than inherit less time. The task is cancelled when the last
+    answer waiting for it goes, so a query nobody waits for does not run on.
     """
 
     def __init__(self) -> None:
@@ -122,11 +153,18 @@ class _Inflight:
         self,
         key: tuple[object, ...],
         start: Callable[[], Awaitable[Found]],
-        seconds: float,
+        *,
+        mode: SearchMode,
+        deadline: float,
     ) -> Found:
+        """The cell's answer, or TimeoutError at `deadline`.
+
+        Raises TimeoutError as well when the shared task ended cancelled by
+        nobody waiting here: to this answer the cell did not answer.
+        """
         shared = self._shared.get(key)
-        if shared is None or shared.task.done():
-            shared = _Shared(task=asyncio.ensure_future(start()))
+        if shared is None or not shared.joinable(mode, deadline):
+            shared = _Shared(task=asyncio.ensure_future(start()), mode=mode, deadline=deadline)
             self._shared[key] = shared
             entry = shared
 
@@ -137,8 +175,13 @@ class _Inflight:
             shared.task.add_done_callback(forget)
         shared.waiters += 1
         try:
-            async with asyncio.timeout(seconds):
+            async with asyncio.timeout(max(0.0, deadline - time.monotonic())):
                 return await asyncio.shield(shared.task)
+        except asyncio.CancelledError:
+            current = asyncio.current_task()
+            if current is None or current.cancelling():
+                raise
+            raise TimeoutError from None
         finally:
             shared.waiters -= 1
             if shared.waiters == 0 and not shared.task.done():
@@ -149,10 +192,16 @@ class SearchEngine:
     """The search's one engine, built once by the application."""
 
     def __init__(
-        self, providers: Sequence[ApplicationProvider], limits: SearchLimits
+        self,
+        providers: Sequence[ApplicationProvider],
+        limits: SearchLimits,
+        *,
+        inside: ConnectionSearch | None = None,
     ) -> None:
         self._providers: list[ApplicationProvider] = list(providers)
         self.limits = limits
+        # What is inside the connections, asked per answer (S4).
+        self.inside = inside
         self.limiter = CapacityLimiter(limits.threads)
         self.inflight = _Inflight()
         self._answers: dict[tuple[uuid.UUID, Lane], Answer] = {}
@@ -180,16 +229,26 @@ class SearchEngine:
         for place in only or []:
             if isinstance(place, ConnectionPlace) and place.connector_id not in by_id:
                 raise ScopeNotFound()
+        inside = None if self.inside is None else self.inside.prepare(user, request, visible)
         candidates = [
             candidate
-            for provider in self._providers
-            for candidate in _candidates_of(provider)
+            for candidate in [
+                *(one for provider in self._providers for one in _candidates_of(provider)),
+                *(inside.candidates if inside is not None else ()),
+            ]
             if only is None or any(_same_place(candidate.cell, wanted) for wanted in only)
         ]
+        providers: dict[str, Searches] = {
+            provider.place.model_dump_json(): provider for provider in self._providers
+        }
+        if inside is not None:
+            providers.update(inside.providers)
         planned = plan(
             candidates,
             mode=request.mode,
-            insist=request.insist,
+            # Only places a person named: insisting on everything would ask
+            # every connection they hold, past the ceiling and the backoff.
+            insist=request.insist and only is not None,
             max_connections=self.limits.max_connections,
         )
         alone = only is not None and len(only) == 1
@@ -199,7 +258,7 @@ class SearchEngine:
             request=request,
             planned=planned,
             visible=visible,
-            providers={provider.place.model_dump_json(): provider for provider in self._providers},
+            providers=providers,
             rows=ROWS_ALONE if alone else ROWS_TYPING if request.mode == "typing" else ROWS_SEARCH,
         )
 
@@ -265,7 +324,7 @@ class Answer:
         request: SearchRequest,
         planned: list[Planned],
         visible: list[VisibleConnection],
-        providers: dict[str, ApplicationProvider],
+        providers: Mapping[str, Searches],
         rows: int,
     ) -> None:
         self.engine = engine
@@ -280,6 +339,11 @@ class Answer:
         self._tasks: list[asyncio.Task[None]] = []
         self._over = False
         self._started = time.monotonic()
+        # At most this many connections asked at once, a connection's cells
+        # one after another (D200). Taken before a cell's clock starts, so a
+        # costly cell queued behind slow ones keeps its own seconds.
+        self._slots = asyncio.Semaphore(engine.limits.parallel_connections)
+        self._connections: dict[uuid.UUID, asyncio.Lock] = {}
 
     def supersede(self) -> None:
         self._stop()
@@ -416,7 +480,13 @@ class Answer:
         for one in alone:
             self._tasks.append(asyncio.create_task(self._alone(one)))
 
-    def _asked(self, planned: Planned, session: AsyncSession) -> Asked:
+    def _asked(
+        self,
+        planned: Planned,
+        session: AsyncSession,
+        deadline: float,
+        stopped: Callable[[], bool] | None = None,
+    ) -> Asked:
         return Asked(
             user=self.user,
             typed=self.request.words,
@@ -425,22 +495,22 @@ class Answer:
             mode=self.request.mode,
             limit=self._rows,
             bounds=SearchBounds(
-                deadline=self._deadline(planned),
-                stopped=self._stopped,
+                deadline=deadline,
+                stopped=self._stopped if stopped is None else stopped,
                 limiter=self.engine.limiter,
             ),
             session=session,
             visible=self.visible,
         )
 
-    def _provider(self, planned: Planned) -> ApplicationProvider:
+    def _provider(self, planned: Planned) -> Searches:
         return self._providers[planned.cell.cell.place.model_dump_json()]
 
     async def _application(self, cells: list[Planned]) -> None:
         """The instant application cells, one after another in one session."""
         async with async_session_maker() as session:
             for planned in cells:
-                asked = self._asked(planned, session)
+                asked = self._asked(planned, session, self._deadline(planned))
                 left = asked.bounds.left()
                 if left <= 0:
                     self._finish(planned, self._late(planned))
@@ -461,16 +531,37 @@ class Answer:
                 self._finish(planned, _outcome_of(found), found.hits)
 
     async def _alone(self, planned: Planned) -> None:
+        connector_id = planned.cell.connector_id
+        if connector_id is None:
+            await self._shared(planned)
+            return
+        turn = self._connections.setdefault(connector_id, asyncio.Lock())
+        async with turn, self._slots:
+            await self._shared(planned)
+
+    async def _shared(self, planned: Planned) -> None:
         """A cell in a task and a session of its own, shared with an identical one."""
+        # One reading of the clock for the cell and for the provider, so a
+        # provider at its deadline knows the engine has given up on it too.
+        deadline = self._deadline(planned)
 
         async def start() -> Found:
+            # The task's own stop, not this answer's: an answer that joined it
+            # still waits when the one that started it has gone.
+            task = asyncio.current_task()
+
+            def stopped() -> bool:
+                return task is not None and task.cancelling() > 0
+
             async with async_session_maker() as session:
-                return await self._provider(planned).search(self._asked(planned, session))
+                asked = self._asked(planned, session, deadline, stopped)
+                return await self._provider(planned).search(asked)
 
         key = (self.user.id, cell_key(planned.cell.cell), self._words, self._rows)
-        seconds = max(0.0, self._deadline(planned) - time.monotonic())
         try:
-            found = await self.engine.inflight.run(key, start, seconds)
+            found = await self.engine.inflight.run(
+                key, start, mode=self.request.mode, deadline=deadline
+            )
         except TimeoutError:
             self._finish(planned, self._late(planned))
             return
@@ -494,6 +585,16 @@ class Answer:
 
 
 def _outcome_of(found: Found) -> Outcome:
+    if found.skipped is not None:
+        return Outcome(way="none", status="skipped", reason=found.skipped, since=found.since)
+    if found.error_kind is not None:
+        return Outcome(
+            way="live",
+            status="failed",
+            error_kind=found.error_kind,
+            message=found.message,
+            owned=found.owned,
+        )
     return Outcome(
         way="live",
         status="complete" if found.complete else "stopped",

@@ -55,7 +55,14 @@ from app.adapters.relation_changes import (
     CreateRelationResult,
     NewRelationOptions,
 )
-from app.adapters.search import NodeSearchRequest, NodeSearchResult
+from app.adapters.search import (
+    LastSearch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.table_copy import (
     Arrived,
@@ -425,8 +432,54 @@ class SearchesContents(Protocol):
     and the client never offers the gesture.
     """
 
-    async def search_contents(self, request: NodeSearchRequest) -> NodeSearchResult:
+    async def search_contents(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
         """Find nodes whose contents hold the words, bounded the same ways.
+
+        Every word on one line, case-folded. Raises what `search_nodes`
+        raises, for the same reasons.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsNodeSearch(Protocol):
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        """Find nodes by name below one level, bounded, the best classes first.
+
+        Separate from `SupportsCatalog` because walking a whole subtree is a
+        different promise from listing one level: a source whose ids are
+        handles from someone else's API can list and cannot search.
+
+        Every word of the query in the name, case-folded, in any order (D202).
+        A source that meets more matches than the limit keeps the best-classed
+        ones and says it is not complete; `bounds` adds a clock and a stop to
+        its own ceilings, checked between entries, and a search the clock
+        stopped says so in its notice. Without bounds a source keeps only its own.
+
+        Raises NodeNotFound for a level that is gone, ValueError for a node
+        this source may not reach, for one that is not a level and for a query
+        it cannot use, and AdapterError for source failures.
+        """
+        ...
+
+
+@runtime_checkable
+class SearchesColumns(Protocol):
+    """A source whose relations are found by their columns and comments (S8).
+
+    Its own promise, so only a source that can answer it is given the cell: a
+    tree of files has no columns to look through without opening every file.
+    """
+
+    async def search_columns(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        """Relations a column name, a column's comment or their own comment holds
+        the words in; the matched text is each match's excerpt.
 
         Raises what `search_nodes` raises, for the same reasons.
         """
@@ -434,19 +487,15 @@ class SearchesContents(Protocol):
 
 
 @runtime_checkable
-class SupportsNodeSearch(Protocol):
-    async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
-        """Find nodes by name below one level, bounded, breadth first.
+class StatesSearchCost(Protocol):
+    """What a search of this type costs, stated without asking anybody (D200).
 
-        Separate from `SupportsCatalog` because walking a whole subtree is a
-        different promise from listing one level: a source whose ids are
-        handles from someone else's API can list and cannot search.
+    A classmethod: the search plans before it asks, and a dead server must not
+    hold the plan. A type that does not state it is costly.
+    """
 
-        Raises NodeNotFound for a level that is gone, ValueError for a node
-        this source may not reach, for one that is not a level and for a query
-        it cannot use, and AdapterError for source failures.
-        """
-        ...
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost: ...
 
 
 @runtime_checkable

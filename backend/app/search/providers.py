@@ -14,10 +14,12 @@ results and leak counts.
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.errors import ErrorKind
 from app.adapters.search import (
     SearchBounds,
     class_of_name,
@@ -35,6 +37,7 @@ from app.search.models import (
     ObjectsPlace,
     SearchField,
     SearchMode,
+    SkipReason,
 )
 from app.users.models import User
 
@@ -53,6 +56,9 @@ class VisibleConnection:
     owner_email: str | None
     # The non-secret options, for the host and database a row is found by.
     config: dict[str, Any]
+    # Encrypted as stored, from the same row: what a connection is asked with
+    # (D199). Decrypted only for a connection that is asked.
+    secrets: bytes = field(default=b"", repr=False)
 
 
 @dataclass(frozen=True)
@@ -82,12 +88,28 @@ class Found:
     notice: str | None = None
     # Whether asking this cell alone, with its full limit, would find more.
     more: bool = False
+    # A source that failed, reduced to a kind and a safe sentence; what it
+    # found before is still in `hits` (D201).
+    error_kind: ErrorKind | None = None
+    message: str | None = None
+    # The person owns what failed, so a locked key may be unlocked by them.
+    owned: bool = False
+    # Not asked after all, though planned: what was learnt of the place while
+    # the answer ran, such as its server not answering a cell before this one.
+    skipped: SkipReason | None = None
+    since: datetime | None = None
 
 
 @dataclass(frozen=True)
 class ProviderCell:
     field: SearchField
     cost: Cost
+
+
+class Searches(Protocol):
+    """What the engine asks of any provider once its cells are planned."""
+
+    async def search(self, asked: Asked) -> Found: ...
 
 
 @runtime_checkable

@@ -45,6 +45,7 @@ async def visible(session: AsyncSession, user: User) -> list[VisibleConnection]:
             owner_id=connector.owner_id,
             owner_email=owner_email,
             config=dict(connector.config or {}),
+            secrets=connector.secrets,
         )
         for connector, access, owner_email in rows
     ]

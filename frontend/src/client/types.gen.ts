@@ -6591,6 +6591,14 @@ export type NodeMatch = {
    * Excerpt
    */
   excerpt?: string | null
+  /**
+   * Ancestors
+   */
+  ancestors?: Array<Ancestor> | null
+  /**
+   * Full Name
+   */
+  full_name?: string | null
 }
 
 /**
@@ -6667,6 +6675,10 @@ export type NodeSearchResult = {
    * Error Kind
    */
   error_kind?: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
+  /**
+   * Extent
+   */
+  extent?: number | null
 }
 
 /**

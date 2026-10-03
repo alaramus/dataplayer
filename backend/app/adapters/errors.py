@@ -10,3 +10,8 @@ from typing import Literal
 # asks for a passphrase nobody has given it lately, and giving it is the way
 # on (D147). A kind of its own so a screen can offer exactly that.
 ErrorKind = Literal["auth", "network", "timeout", "config", "locked", "unknown"]
+
+# The kinds that say the server was not reached. Any other failure is an
+# answer: a refused password or a locked key is fixed by its owner, and a
+# server that gave it is not down.
+UNANSWERED: frozenset[ErrorKind | None] = frozenset({"network", "timeout"})

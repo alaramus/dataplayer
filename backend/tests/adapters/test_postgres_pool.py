@@ -9,7 +9,7 @@ from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.postgres.pool import PooledConnections, key_for
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError
-from app.adapters.resources import Pooling, ResourceStore
+from app.adapters.resources import BorrowingStore, Pooling, ResourceStore
 from tests.utils.database import working_postgres_options
 
 
@@ -61,6 +61,24 @@ async def test_the_same_connector_keeps_one_pool(store: ResourceStore) -> None:
     await _pid(PostgresSession(_options(), _pooling(store, connector_id)))
     await _pid(PostgresSession(_options(), _pooling(store, connector_id)))
 
+    assert await store.size() == 1
+
+    await store.aclose()
+
+
+async def test_a_borrowing_store_lends_a_pool_and_makes_none(store: ResourceStore) -> None:
+    """A search across connections uses a pool somebody has, or a connection of
+    its own: a pool made for it would be closed with it (D127, D200)."""
+    pooled = uuid.uuid4()
+    lent = await _pid(PostgresSession(_options(), _pooling(store, pooled)))
+    borrowing = BorrowingStore(store)
+
+    again = await _pid(PostgresSession(_options(), _pooling(borrowing, pooled)))
+    own = PostgresSession(_options(), _pooling(borrowing))
+
+    assert again == lent
+    assert await _pid(own) != await _pid(own)
+    assert await borrowing.size() == 0
     assert await store.size() == 1
 
     await store.aclose()

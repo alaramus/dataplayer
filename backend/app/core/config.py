@@ -101,6 +101,9 @@ class Settings(BaseSettings):
     SEARCH_PARALLEL_CONNECTIONS: int = Field(default=4, ge=1, le=16)
     # Worker threads the search may hold, apart from every other route's.
     SEARCH_THREADS: int = Field(default=4, ge=1, le=16)
+    # Keys a Redis server may hold and still be searched while somebody types:
+    # a scan looks at every key whatever matches.
+    SEARCH_CHEAP_KEYS: int = Field(default=20_000, ge=0, le=1_000_000)
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

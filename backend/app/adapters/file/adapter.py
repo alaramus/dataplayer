@@ -2,11 +2,13 @@
 local disk (D150)."""
 
 from pathlib import Path, PurePosixPath
+from typing import ClassVar
 
 from app.adapters.explorer.explorer import Explorer
 from app.adapters.file.options import FileOptions
 from app.adapters.file.storage import LocalStorage
 from app.adapters.registry import AdapterContext, register
+from app.adapters.search import SourceCost
 
 
 class FileAdapter(Explorer):
@@ -15,6 +17,8 @@ class FileAdapter(Explorer):
     The root is composed here and nowhere else: the home directory decided by
     the server, plus the folder the user chose inside it.
     """
+
+    name_search_cost: ClassVar[SourceCost] = "cheap"
 
     def __init__(self, options: FileOptions, context: AdapterContext) -> None:
         root = context.home_dir.joinpath(*PurePosixPath(options.below_home).parts)
