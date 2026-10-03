@@ -8,8 +8,10 @@ import uuid
 from collections.abc import Sequence
 
 from anyio import to_thread
+from sqlalchemy import ColumnElement
 from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.sql.expression import SelectOfScalar
 
 from app.core.config import settings
 from app.core.schemas import get_datetime_utc
@@ -96,31 +98,53 @@ async def list_for(
     QUERY_SEARCH_MAX_DOCUMENTS are read and filtered here. The bound is the
     reason this is not a way to decrypt everything at once.
     """
+    condition = _of(owner, connector_id)
+    if not search:
+        count = await _count(session, condition)
+        page = (await session.exec(_newest_first(condition).offset(skip).limit(limit))).all()
+        return list(page), count
+
+    candidates, _ = await newest(session, owner=owner, connector_id=connector_id)
+    # Up to five hundred bodies of up to a mebibyte each: decrypted on a worker
+    # thread, never on the loop every other request is waiting on.
+    found = await to_thread.run_sync(matching, candidates, search)
+    return found[skip : skip + limit], len(found)
+
+
+async def newest(
+    session: AsyncSession, *, owner: User, connector_id: uuid.UUID | None = None
+) -> tuple[list[QueryDocument], bool]:
+    """The documents a search may decrypt, and whether older ones were left out.
+
+    The newest QUERY_SEARCH_MAX_DOCUMENTS: the one bound on searching bodies,
+    shared by the library and the search (D63, D204).
+    """
+    bound = settings.QUERY_SEARCH_MAX_DOCUMENTS
+    condition = _of(owner, connector_id)
+    rows = list((await session.exec(_newest_first(condition).limit(bound))).all())
+    left_out = len(rows) == bound and await _count(session, condition) > bound
+    return rows, left_out
+
+
+def _of(owner: User, connector_id: uuid.UUID | None) -> ColumnElement[bool]:
     condition = col(QueryDocument.owner_id) == owner.id
     if connector_id is not None:
         condition = condition & (col(QueryDocument.connector_id) == connector_id)
+    return condition
 
-    ordered = (
+
+def _newest_first(condition: ColumnElement[bool]) -> SelectOfScalar[QueryDocument]:
+    return (
         select(QueryDocument)
         .where(condition)
         .order_by(col(QueryDocument.updated_at).desc(), col(QueryDocument.id))
     )
-    if not search:
-        count = (
-            await session.exec(
-                select(func.count()).select_from(QueryDocument).where(condition)
-            )
-        ).one()
-        page = (await session.exec(ordered.offset(skip).limit(limit))).all()
-        return list(page), count
 
-    candidates = (
-        await session.exec(ordered.limit(settings.QUERY_SEARCH_MAX_DOCUMENTS))
-    ).all()
-    # Up to five hundred bodies of up to a mebibyte each: decrypted on a worker
-    # thread, never on the loop every other request is waiting on.
-    found = await to_thread.run_sync(matching, list(candidates), search)
-    return found[skip : skip + limit], len(found)
+
+async def _count(session: AsyncSession, condition: ColumnElement[bool]) -> int:
+    return (
+        await session.exec(select(func.count()).select_from(QueryDocument).where(condition))
+    ).one()
 
 
 def matching(documents: Sequence[QueryDocument], needle: str) -> list[QueryDocument]:

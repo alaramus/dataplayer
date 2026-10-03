@@ -20,6 +20,7 @@ from app.core.access import Access
 from app.core.schemas import get_datetime_utc
 from app.metrics.models import ProcessLimit
 from app.metrics.store import ProcessSort
+from app.users.models import User
 
 GRID_COLUMNS = 12
 MAX_WIDGETS = 20
@@ -206,6 +207,11 @@ class DashboardPublic(DashboardContent):
     access: Access = "own"
     # Who shared it, when it is not the caller's own.
     owner: str | None = None
+
+
+def owner_named(owner: User) -> str:
+    """Who shared a dashboard, as the person it is shared with reads it."""
+    return owner.full_name or owner.email
 
 
 def public(dashboard: Dashboard, access: Access = "own", owner: str | None = None) -> DashboardPublic:

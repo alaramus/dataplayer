@@ -11,7 +11,14 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.registry import UnknownAdapterType
 from app.adapters.registry import get as adapter_type_of
 from app.connectors import crud
-from app.search.models import ConnectionsPlace, ConnectionTarget, Facts, Hit, target_key
+from app.search.models import (
+    ConnectionsPlace,
+    ConnectionTarget,
+    Facts,
+    Hit,
+    Match,
+    target_key,
+)
 from app.search.providers import (
     Asked,
     Found,
@@ -87,31 +94,34 @@ class ConnectionRows:
             ) or text_match(asked.words, "details", f"{connection.name} · {details}")
             if match is None:
                 continue
-            target = ConnectionTarget(connector_id=connection.id)
-            hits.append(
-                Hit(
-                    key=target_key(target),
-                    target=target,
-                    title=connection.name,
-                    detail=" · ".join(
-                        part
-                        for part in (
-                            kind,
-                            None if connection.enabled else "Switched off",
-                            connection.owner_email,
-                        )
-                        if part
-                    ),
-                    facts=Facts(
-                        kind=connection.adapter_type,
-                        owner=connection.owner_email,
-                        switched_off=not connection.enabled,
-                    ),
-                    match=match,
-                    access=connection.access,
-                    # A switched-off connection is not a source: it opens on
-                    # its window, where it can be switched back on (D20).
-                    open="catalog" if connection.enabled else "connection",
-                )
-            )
+            hits.append(connection_hit(connection, match))
         return ordered(hits, asked.limit)
+
+
+def connection_hit(connection: VisibleConnection, match: Match) -> Hit:
+    """A connection the person may see, as a hit, however it was found."""
+    target = ConnectionTarget(connector_id=connection.id)
+    return Hit(
+        key=target_key(target),
+        target=target,
+        title=connection.name,
+        detail=" · ".join(
+            part
+            for part in (
+                type_title(connection.adapter_type),
+                None if connection.enabled else "Switched off",
+                connection.owner_email,
+            )
+            if part
+        ),
+        facts=Facts(
+            kind=connection.adapter_type,
+            owner=connection.owner_email,
+            switched_off=not connection.enabled,
+        ),
+        match=match,
+        access=connection.access,
+        # A switched-off connection is not a source: it opens on its window,
+        # where it can be switched back on (D20).
+        open="catalog" if connection.enabled else "connection",
+    )

@@ -7038,6 +7038,7 @@ export type ObjectsPlace_Input = {
     | "guide"
     | "source_types"
     | "open_tabs"
+    | "recent"
 }
 
 /**
@@ -7063,6 +7064,7 @@ export type ObjectsPlace_Output = {
     | "guide"
     | "source_types"
     | "open_tabs"
+    | "recent"
 }
 
 /**
@@ -8669,6 +8671,9 @@ export type QuickChatUpdate = {
  * RecentTarget
  *
  * Something the person last opened from the search, as the browser kept it.
+ *
+ * A hint, never a grant: the server names it again only through the same
+ * visibility the search itself uses (D199).
  */
 export type RecentTarget = {
   /**
@@ -8683,6 +8688,14 @@ export type RecentTarget = {
    * Node Id
    */
   node_id?: string | null
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Node Kind
+   */
+  node_kind?: string | null
   /**
    * Object Type
    */

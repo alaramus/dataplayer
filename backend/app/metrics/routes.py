@@ -27,6 +27,7 @@ from app.metrics.dashboards import (
     DashboardPublic,
     DashboardSave,
     hosts_of,
+    owner_named,
     series_of,
 )
 from app.metrics.dashboards import public as dashboard_public
@@ -553,7 +554,7 @@ async def read_history(
 async def read_dashboards(session: SessionDep, current_user: CurrentUser) -> Any:
     """The caller's own dashboards, then those shared with them."""
     return [
-        dashboard_public(dashboard, held, None if owner is None else _display(owner))
+        dashboard_public(dashboard, held, None if owner is None else owner_named(owner))
         for dashboard, held, owner in await crud.visible_dashboards(session, current_user.id)
     ]
 
@@ -750,11 +751,7 @@ async def _dashboard(
 
 async def _public_dashboard(session: AsyncSession, dashboard: Dashboard, held: Access) -> DashboardPublic:
     owner = None if held == "own" else await session.get(User, dashboard.owner_id)
-    return dashboard_public(dashboard, held, None if owner is None else _display(owner))
-
-
-def _display(user: User) -> str:
-    return user.full_name or user.email
+    return dashboard_public(dashboard, held, None if owner is None else owner_named(owner))
 
 
 async def _store(session: AsyncSession, holder: StoreHolder) -> MetricsStore:

@@ -1,10 +1,11 @@
 """Application-database access for metrics, and nothing else."""
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlmodel import col, select
+from sqlmodel import col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.connectors.models import Connector
@@ -142,6 +143,47 @@ async def visible_dashboards(
         for dashboard, grant, owner in (await session.exec(statement)).all()
     ]
     return own + shared
+
+
+async def dashboards_seen_by(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    *,
+    limit: int,
+    ids: Sequence[uuid.UUID] | None = None,
+) -> list[tuple[Dashboard, Access, User | None]]:
+    """What `visible_dashboards` lists, in one bounded query, newest first.
+
+    The rule is D129's inside the query: the user's own and those granted to
+    them, so the search never filters afterwards (D199).
+    """
+    statement = (
+        select(Dashboard, DashboardGrant, User)
+        .join(
+            DashboardGrant,
+            onclause=(col(DashboardGrant.dashboard_id) == col(Dashboard.id))
+            & (col(DashboardGrant.user_id) == user_id),
+            isouter=True,
+        )
+        .join(User, onclause=col(User.id) == col(Dashboard.owner_id))
+        .where(
+            or_(col(Dashboard.owner_id) == user_id, col(DashboardGrant.user_id).is_not(None))
+        )
+    )
+    if ids is not None:
+        statement = statement.where(col(Dashboard.id).in_(ids))
+    rows = await session.exec(
+        statement.order_by(col(Dashboard.updated_at).desc()).limit(limit)
+    )
+    found: list[tuple[Dashboard, Access, User | None]] = []
+    for dashboard, grant, owner in rows.all():
+        if dashboard.owner_id == user_id:
+            found.append((dashboard, "own", None))
+        else:
+            # Not the caller's own, so the row is here only because the outer
+            # join found a grant naming them.
+            found.append((dashboard, grant.access, owner))
+    return found
 
 
 async def dashboard_standing(

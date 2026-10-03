@@ -14,7 +14,15 @@ from anyio import to_thread
 
 from app.adapters import registry
 from app.guide import reader as guide
-from app.search.models import Facts, Hit, ObjectsPlace, ObjectTarget, target_key
+from app.search.models import (
+    Facts,
+    Hit,
+    Match,
+    ObjectsPlace,
+    ObjectTarget,
+    ObjectType,
+    target_key,
+)
 from app.search.providers import (
     Asked,
     Found,
@@ -22,6 +30,7 @@ from app.search.providers import (
     best_of,
     name_match,
     ordered,
+    recalled,
     text_match,
 )
 
@@ -47,6 +56,7 @@ class _Described:
 class SourceTypes:
     place = ObjectsPlace(provider="source_types")
     title = "Source types"
+    recalls: frozenset[ObjectType] = frozenset({"source_type"})
 
     def __init__(self, startable: Callable[[], Sequence[Startable]]) -> None:
         self._startable = startable
@@ -67,19 +77,15 @@ class SourceTypes:
             )
             if match is None:
                 continue
-            target = ObjectTarget(object_type="source_type", object_id=one.name)
-            hits.append(
-                Hit(
-                    key=target_key(target),
-                    target=target,
-                    title=one.title,
-                    detail=one.category,
-                    facts=Facts(kind=one.name),
-                    match=match,
-                    open="source_type",
-                )
-            )
+            hits.append(_hit(one, match))
         return ordered(hits, asked.limit)
+
+    async def recall(
+        self, asked: Asked, object_type: ObjectType, ids: Sequence[str]
+    ) -> list[Hit]:
+        described = await to_thread.run_sync(self._described, limiter=asked.bounds.limiter)
+        wanted = set(ids)
+        return [_hit(one, recalled(one.title)) for one in described if one.name in wanted]
 
     def _described(self) -> list[_Described]:
         startable = list(self._startable())
@@ -106,3 +112,16 @@ class SourceTypes:
                 )
             )
         return found
+
+
+def _hit(one: _Described, match: Match) -> Hit:
+    target = ObjectTarget(object_type="source_type", object_id=one.name)
+    return Hit(
+        key=target_key(target),
+        target=target,
+        title=one.title,
+        detail=one.category,
+        facts=Facts(kind=one.name),
+        match=match,
+        open="source_type",
+    )

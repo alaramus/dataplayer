@@ -6,9 +6,16 @@ cell, never a field here that an earlier answer lacked (D203).
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.adapters.catalog import CatalogNode, NodeView
 from app.adapters.errors import ErrorKind
@@ -55,6 +62,7 @@ ProviderKey = Literal[
     "guide",
     "source_types",
     "open_tabs",
+    "recent",
 ]
 
 # What a found application object is. Closed, so an intent nothing opens
@@ -92,6 +100,20 @@ MIN_WORD_CHARACTERS = 2
 MAX_CONTEXT = 8
 MAX_RECENT = 50
 MAX_BROWSER_PLACES = 200
+# A node id is the source's own string; a file's is its path.
+MAX_NODE_ID = 4096
+MAX_OBJECT_ID = 500
+MAX_NODE_KIND = 64
+# A Redis key is a name too, and may be long.
+MAX_NODE_NAME = 1000
+
+
+def _cut(limit: int) -> BeforeValidator:
+    """Text the browser shows, cut to `limit` rather than refused: one long
+    name must not refuse the whole search it travels in."""
+    return BeforeValidator(
+        lambda value: value[:limit] if isinstance(value, str) else value
+    )
 
 
 class _Strict(BaseModel):
@@ -157,22 +179,32 @@ def cell_key(cell: Cell) -> str:
 
 
 class RecentTarget(_Strict):
-    """Something the person last opened from the search, as the browser kept it."""
+    """Something the person last opened from the search, as the browser kept it.
+
+    A hint, never a grant: the server names it again only through the same
+    visibility the search itself uses (D199).
+    """
 
     kind: Literal["connection", "node", "object"]
     connector_id: uuid.UUID | None = None
-    node_id: str | None = None
+    node_id: str | None = Field(default=None, max_length=MAX_NODE_ID)
+    # A node's name and kind as they were when it was opened: the server
+    # cannot have them without asking the node's source.
+    name: Annotated[str | None, _cut(MAX_NODE_NAME)] = None
+    node_kind: str | None = Field(default=None, max_length=MAX_NODE_KIND)
     object_type: ObjectType | None = None
-    object_id: str | None = None
+    object_id: str | None = Field(default=None, max_length=MAX_OBJECT_ID)
 
 
 class BrowserPlace(_Strict):
     """An open tab or a saved tab group: only the browser knows them (S9)."""
 
     object_type: Literal["tab", "tab_group"]
-    object_id: str = Field(max_length=500)
-    title: str = Field(max_length=MAX_QUERY_LENGTH)
-    detail: str | None = Field(default=None, max_length=MAX_QUERY_LENGTH)
+    object_id: str = Field(max_length=MAX_OBJECT_ID)
+    # A panel's title is its node's name, and its detail a connection and a
+    # location in it.
+    title: Annotated[str, _cut(MAX_NODE_NAME)]
+    detail: Annotated[str | None, _cut(MAX_NODE_ID)] = None
 
 
 class SearchRequest(_Strict):
@@ -187,8 +219,9 @@ class SearchRequest(_Strict):
     # again", "Search only this connection"), or the type catalog asking its
     # one provider.
     only: list[Place] | None = Field(default=None, max_length=MAX_CONTEXT)
-    # Ask the places named in `only` whatever their health, backoff or cost
-    # says: "Search anyway", "Search these too".
+    # Ask the places named in `only` whatever their health, backoff or the
+    # ceiling on connections says: "Search anyway", "Search these too". Never
+    # past what the mode may spend: typing asks nothing costly (D200, D204).
     insist: bool = False
     # What was opened from the search lately, newest first (S6).
     recent: list[RecentTarget] = Field(default_factory=list, max_length=MAX_RECENT)
@@ -201,13 +234,24 @@ class SearchRequest(_Strict):
     @classmethod
     def _words(cls, value: str) -> str:
         stripped = value.strip()
-        if len(stripped) < MIN_WORD_CHARACTERS:
+        # Nothing at all is an empty search, which `_something_asked` admits
+        # only with what was opened lately.
+        if stripped and len(stripped) < MIN_WORD_CHARACTERS:
             raise ValueError(
                 f"A search needs at least {MIN_WORD_CHARACTERS} characters"
             )
         if len(words_of(stripped)) > MAX_WORDS:
             raise ValueError(f"A search takes at most {MAX_WORDS} words")
         return stripped
+
+    @model_validator(mode="after")
+    def _something_asked(self) -> Self:
+        """An empty search lists what was opened lately, and nothing else (S6)."""
+        if not self.words and not self.recent:
+            raise ValueError(
+                f"A search needs at least {MIN_WORD_CHARACTERS} characters"
+            )
+        return self
 
 
 # --- a hit -------------------------------------------------------------------
@@ -267,6 +311,36 @@ def target_key(target: ConnectionTarget | NodeTarget | ObjectTarget) -> str:
     if isinstance(target, NodeTarget):
         return f"node:{target.connector_id}:{target.node_id}:{target.sub_key or ''}"
     return f"object:{target.object_type}:{target.object_id}"
+
+
+def recent_target(
+    recent: RecentTarget,
+) -> ConnectionTarget | NodeTarget | ObjectTarget | None:
+    """What the browser kept, as the target it was found as; None when not whole.
+
+    One way from a kept target to a key, so recency orders by `target_key`
+    exactly as the hits are keyed (D202).
+    """
+    if recent.kind == "connection" and recent.connector_id is not None:
+        return ConnectionTarget(connector_id=recent.connector_id)
+    if (
+        recent.kind == "node"
+        and recent.connector_id is not None
+        and recent.node_id is not None
+    ):
+        return NodeTarget(
+            connector_id=recent.connector_id,
+            node_id=recent.node_id,
+            name=recent.name or recent.node_id,
+            node_kind=recent.node_kind or "node",
+        )
+    if (
+        recent.kind == "object"
+        and recent.object_type is not None
+        and recent.object_id is not None
+    ):
+        return ObjectTarget(object_type=recent.object_type, object_id=recent.object_id)
+    return None
 
 
 class Facts(_Strict):

@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from collections.abc import Callable
 
 import pytest
 
@@ -21,7 +22,7 @@ class _Counted:
         self.entered = asyncio.Event()
         self.tasks: list[asyncio.Task[object]] = []
 
-    async def __call__(self) -> Found:
+    async def __call__(self, stopped: Callable[[], bool]) -> Found:
         self.started += 1
         task = asyncio.current_task()
         assert task is not None

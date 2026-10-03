@@ -29,12 +29,15 @@ from app.adapters.search import (
 from app.core.access import Access
 from app.search.excerpts import segments
 from app.search.models import (
+    BrowserPlace,
     ConnectionsPlace,
     Cost,
     Hit,
     Match,
     MatchedField,
     ObjectsPlace,
+    ObjectType,
+    RecentTarget,
     SearchField,
     SearchMode,
     SkipReason,
@@ -76,6 +79,10 @@ class Asked:
     # they are instant, and a session is not shared between tasks.
     session: AsyncSession
     visible: Sequence[VisibleConnection] = ()
+    # What was opened from the search lately, newest first (S6).
+    recent: Sequence[RecentTarget] = ()
+    # Open tabs and saved tab groups, which only the browser knows (S9).
+    browser: Sequence[BrowserPlace] = ()
 
 
 @dataclass(frozen=True)
@@ -129,6 +136,45 @@ class ApplicationProvider(Protocol):
         ...
 
     async def search(self, asked: Asked) -> Found: ...
+
+
+@runtime_checkable
+class Recalls(Protocol):
+    """A provider that names its objects again by id, for an empty search (S6).
+
+    The ids come from the browser, so a provider answers only those its own
+    rule lets the person see, in its own query (D199), and drops the rest
+    without a word.
+    """
+
+    @property
+    def recalls(self) -> frozenset[ObjectType]:
+        """The object types it answers for."""
+        ...
+
+    async def recall(
+        self, asked: Asked, object_type: ObjectType, ids: Sequence[str]
+    ) -> list[Hit]: ...
+
+
+def recalled(title: str) -> Match:
+    """What a thing named again matched: nothing was typed, so nothing is marked.
+
+    Every one of no words is in the name, which is the weakest class a name
+    has, so a thing named again is never a best match.
+    """
+    return Match(field="name", match_class="substring", excerpt=segments(title, ()))
+
+
+def uuids_of(ids: Sequence[str]) -> list[uuid.UUID]:
+    """The ids that are ids at all; the browser kept them, and may be wrong."""
+    found: list[uuid.UUID] = []
+    for one in ids:
+        try:
+            found.append(uuid.UUID(one))
+        except ValueError:
+            continue
+    return found
 
 
 def name_match(words: Sequence[str], name: str) -> Match | None:

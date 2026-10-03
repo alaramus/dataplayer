@@ -86,6 +86,14 @@ def _connection_ids(lines: list[dict[str, Any]]) -> set[str]:
     }
 
 
+def _settled(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """An answer with its cells in key order: a cell is sent as it finishes,
+    and no two answers need finish theirs in the same order (D201)."""
+    return [line for line in lines if line["type"] != "cell"] + sorted(
+        (line for line in lines if line["type"] == "cell"), key=lambda line: line["key"]
+    )
+
+
 async def test_a_connection_is_found_by_its_name_its_type_and_its_host(
     client: AsyncClient, db: AsyncSession
 ) -> None:
@@ -182,7 +190,7 @@ async def test_another_person_s_connection_named_by_the_browser_is_an_unknown_id
         },
     )
 
-    assert hinted == unhinted
+    assert _settled(hinted) == _settled(unhinted)
     assert scoped.status_code == nowhere.status_code == 404
     assert scoped.json() == nowhere.json()
 

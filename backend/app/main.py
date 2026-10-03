@@ -18,6 +18,7 @@ from app.ai.catalog import catalog
 from app.ai.checkpoints import checkpointer
 from app.ai.providers import ProviderChatModels
 from app.ai.runner import AgentRunner, settle_interrupted
+from app.ai.search import ChatTitles
 from app.api.main import api_router
 from app.connectors.health import unreachable_of
 from app.core import logs
@@ -27,24 +28,29 @@ from app.jobs.recovery import settle_stranded
 from app.jobs.runner import JobRunner
 from app.metrics.holder import StoreHolder
 from app.metrics.jobs import handlers as metrics_handlers
+from app.metrics.search import DashboardNames
 from app.pipelines.handler import handlers as pipeline_handlers
 from app.pipelines.scheduler import scheduling
+from app.pipelines.search import PipelineNames
 from app.queries.cleanup import sweeping
 from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
+from app.queries.search import SavedQueries
 from app.queries.sessions import QuerySessions
 from app.realtime import topics
 from app.search.connections import ConnectionRows
 from app.search.engine import SearchEngine, SearchLimits
 from app.search.guide import GuidePages
 from app.search.nodes import ConnectionSearch
+from app.search.open_tabs import OpenTabs
 from app.search.source_types import SourceTypes
+from app.search.ssh_keys import SshKeys
 from app.services.backups import handlers as backup_handlers
 from app.services.docker import DockerEngine
 from app.services.engine import SWITCHED_OFF_MESSAGE, NoEngine, ServiceEngine
 from app.services.jobs import handlers as service_handlers
 from app.services.restore_files import remove_stranded_snapshots
-from app.services.search import startable
+from app.services.search import ServiceNames, startable
 from app.source_operations.handler import handlers as source_operation_handlers
 from app.source_operations.recovery import settle_interrupted_operations
 from app.transfers.handler import RunTransfer
@@ -129,7 +135,14 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # monitor sees them down (D200).
     application.state.search_engine = SearchEngine(
         [
+            OpenTabs(),
             ConnectionRows(),
+            SavedQueries(),
+            PipelineNames(),
+            DashboardNames(),
+            ChatTitles(),
+            ServiceNames(),
+            SshKeys(),
             GuidePages(),
             SourceTypes(startable),
         ],

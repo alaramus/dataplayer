@@ -23,12 +23,15 @@ from app.search.models import (
 
 # The fixed order of the groups (D202). Connections, then one group per
 # connection in the order they are asked, then the application's own kinds.
-# Open tabs stand first from S9.
+# Open tabs stand first from S9. What was opened lately is the whole of an
+# empty search and is never planned beside the others (S6).
 OPEN_TABS_RANK = 0
+RECENT_RANK = 5
 CONNECTIONS_RANK = 10
 CONNECTION_GROUPS_RANK = 1000
 PROVIDER_RANKS: dict[ProviderKey, int] = {
     "open_tabs": OPEN_TABS_RANK,
+    "recent": RECENT_RANK,
     "saved_queries": 100_000,
     "pipelines": 100_100,
     "dashboards": 100_200,
@@ -78,7 +81,8 @@ def plan(
     context only; Search asks instant, cheap and costly, but no more than
     `max_connections` connections, in the order given, the rest `not asked`.
     A job is never planned: contents are looked inside on request (S7).
-    `insist` is a person naming these places and saying ask them anyway.
+    `insist` is a person naming these places and saying ask them anyway,
+    whatever their health or the ceiling; what the mode spends still holds.
     """
     planned: list[Planned] = []
     asked_connections: list[uuid.UUID] = []
@@ -123,10 +127,10 @@ def plan(
 def _reason(candidate: Candidate, *, mode: SearchMode, insist: bool) -> SkipReason | None:
     if candidate.blocked in ("switched_off", "cannot_search"):
         return candidate.blocked
-    if insist:
-        return None
-    if candidate.blocked is not None:
+    if candidate.blocked is not None and not insist:
         return candidate.blocked
+    # Insisting names a place, not a mode: a keystroke never decrypts a
+    # library or walks a remote tree, whatever the request says (D200, D204).
     if mode == "typing":
         if candidate.cost == "costly":
             return "too_costly"

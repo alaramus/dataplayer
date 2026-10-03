@@ -121,10 +121,15 @@ class QuickChatSend(BaseModel):
     model_key: str | None = PydanticField(default=None, max_length=160)
 
 
+def shown_title(title: str) -> str:
+    """The title a quick chat is listed and found by: an older untitled one was
+    stored as "New quick chat"."""
+    return "New chat" if title == "New quick chat" else title
+
+
 def summary(chat: QuickConversation) -> QuickChatSummary:
-    title = opened(chat.title)
     return QuickChatSummary(
-        id=chat.id, title="New chat" if title == "New quick chat" else title,
+        id=chat.id, title=shown_title(opened(chat.title)),
         model_key=chat.model_key,
         updated_at=chat.updated_at, pinned=chat.pinned, archived=chat.archived,
         project_id=chat.project_id,

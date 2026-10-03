@@ -1,12 +1,13 @@
 """Database access for managed services, and nothing else."""
 
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.connectors.models import Connector
 from app.services.models import ManagedService, ServicePurpose
 from app.services.plan import Placement, container_name, volume_name
 from app.services.templates import ServiceTemplate
@@ -89,6 +90,40 @@ async def list_for_owner(
         .order_by(col(ManagedService.created_at).desc())
     )
     return list((await session.exec(statement)).all())
+
+
+async def named_for_owner(
+    session: AsyncSession,
+    owner_id: uuid.UUID,
+    *,
+    limit: int,
+    ids: Sequence[uuid.UUID] | None = None,
+) -> list[tuple[ManagedService, str]]:
+    """This owner's services, newest first, each with the name it goes by now.
+
+    That is its connection's name; the name kept when it was asked for only
+    while it has no connection, since a kept name goes stale with the first
+    rename (D199).
+    """
+    statement = (
+        select(ManagedService, Connector.name)
+        .join(
+            Connector,
+            onclause=col(Connector.id) == col(ManagedService.connector_id),
+            isouter=True,
+        )
+        .where(ManagedService.owner_id == owner_id)
+        .where(_A_CONNECTION)
+    )
+    if ids is not None:
+        statement = statement.where(col(ManagedService.id).in_(ids))
+    rows = await session.exec(
+        statement.order_by(col(ManagedService.created_at).desc()).limit(limit)
+    )
+    return [
+        (service, service.connector_name if current is None else current)
+        for service, current in rows.all()
+    ]
 
 
 async def set_state(

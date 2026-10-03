@@ -110,5 +110,18 @@ def test_insisting_never_asks_a_connection_that_is_off() -> None:
     assert _reasons([_connection(0, blocked="switched_off")], insist=True) == ["switched_off"]
 
 
+def test_insisting_while_typing_still_asks_nothing_costly() -> None:
+    down = _connection(0, in_context=True, blocked="unreachable")
+    far = _connection(1)
+    large = _connection(2, "costly", in_context=True)
+
+    assert _reasons([_object("costly"), down, far, large], "typing", insist=True) == [
+        None,
+        "not_in_context",
+        "too_costly",
+        "too_costly",
+    ]
+
+
 def test_a_job_is_never_planned() -> None:
     assert plan([_object("job")], mode="search", insist=False, max_connections=20) == []

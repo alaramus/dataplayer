@@ -1,11 +1,20 @@
 """The user's guide, found by a page's title, its headings and its text (D183)."""
 
 import re
+from collections.abc import Sequence
 
 from anyio import to_thread
 
 from app.guide import reader
-from app.search.models import Facts, Hit, ObjectsPlace, ObjectTarget, target_key
+from app.search.models import (
+    Facts,
+    Hit,
+    Match,
+    ObjectsPlace,
+    ObjectTarget,
+    ObjectType,
+    target_key,
+)
 from app.search.providers import (
     Asked,
     Found,
@@ -13,6 +22,7 @@ from app.search.providers import (
     best_of,
     name_match,
     ordered,
+    recalled,
     text_match,
 )
 
@@ -40,6 +50,7 @@ def _headings(markdown: str) -> str:
 class GuidePages:
     place = ObjectsPlace(provider="guide")
     title = "Guide"
+    recalls: frozenset[ObjectType] = frozenset({"guide_page"})
 
     def cells(self) -> tuple[ProviderCell, ...]:
         return (ProviderCell(field="names", cost="instant"),)
@@ -56,16 +67,28 @@ class GuidePages:
             )
             if match is None:
                 continue
-            target = ObjectTarget(object_type="guide_page", object_id=page.key)
-            hits.append(
-                Hit(
-                    key=target_key(target),
-                    target=target,
-                    title=page.title,
-                    detail="Guide",
-                    facts=Facts(kind="guide_page"),
-                    match=match,
-                    open="guide_page",
-                )
-            )
+            hits.append(_hit(page.key, page.title, match))
         return ordered(hits, asked.limit)
+
+    async def recall(
+        self, asked: Asked, object_type: ObjectType, ids: Sequence[str]
+    ) -> list[Hit]:
+        pages = await to_thread.run_sync(reader.pages, limiter=asked.bounds.limiter)
+        return [
+            _hit(key, pages[key].title, recalled(pages[key].title))
+            for key in ids
+            if key in pages
+        ]
+
+
+def _hit(key: str, title: str, match: Match) -> Hit:
+    target = ObjectTarget(object_type="guide_page", object_id=key)
+    return Hit(
+        key=target_key(target),
+        target=target,
+        title=title,
+        detail="Guide",
+        facts=Facts(kind="guide_page"),
+        match=match,
+        open="guide_page",
+    )

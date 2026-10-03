@@ -12,6 +12,7 @@ does not cross a process (D124).
 
 import asyncio
 import logging
+import threading
 import time
 import uuid
 from collections.abc import (
@@ -55,6 +56,8 @@ from app.search.models import (
     SearchMode,
     SearchRequest,
     cell_key,
+    recent_target,
+    target_key,
 )
 from app.search.models import Cell as SearchCell
 from app.search.nodes import ConnectionSearch
@@ -72,6 +75,7 @@ from app.search.providers import (
     Searches,
     VisibleConnection,
 )
+from app.search.recent import RecentlyOpened
 from app.users.models import User
 
 logger = logging.getLogger(__name__)
@@ -83,6 +87,9 @@ ROWS_SEARCH = 50
 ROWS_ALONE = MAX_MATCHES
 
 BEST_MATCHES = 3
+
+# How much less time an answer accepts to share a task already in flight.
+JOIN_SLACK_SECONDS = 0.25
 
 
 class ScopeNotFound(Exception):
@@ -123,16 +130,22 @@ class _Shared:
     # What its starter asked it for; the bounds it runs under are those.
     mode: SearchMode
     deadline: float
+    # Set when the last answer waiting for it went. An event, as work on a
+    # worker thread reads it and outlives the cancellation of its task.
+    abandoned: threading.Event
     waiters: int = 0
 
     def joinable(self, mode: SearchMode, deadline: float) -> bool:
         # A task told to stop is not done until its cancellation has run, and
-        # an answer that joined it then would end with it.
+        # an answer that joined it then would end with it. An answer asked a
+        # moment later has a deadline a moment later: within the slack it
+        # joins, or two lanes asking at once would never share a task.
         return (
             not self.task.done()
             and not self.task.cancelling()
+            and not self.abandoned.is_set()
             and self.mode == mode
-            and self.deadline >= deadline
+            and self.deadline >= deadline - JOIN_SLACK_SECONDS
         )
 
 
@@ -152,19 +165,28 @@ class _Inflight:
     async def run(
         self,
         key: tuple[object, ...],
-        start: Callable[[], Awaitable[Found]],
+        start: Callable[[Callable[[], bool]], Awaitable[Found]],
         *,
         mode: SearchMode,
         deadline: float,
     ) -> Found:
         """The cell's answer, or TimeoutError at `deadline`.
 
-        Raises TimeoutError as well when the shared task ended cancelled by
-        nobody waiting here: to this answer the cell did not answer.
+        `start` is handed the shared task's own stop check, not the check of
+        the answer that started it: that answer may go while another still
+        waits. Raises TimeoutError as well when the shared task ended
+        cancelled by nobody waiting here: to this answer the cell did not
+        answer.
         """
         shared = self._shared.get(key)
         if shared is None or not shared.joinable(mode, deadline):
-            shared = _Shared(task=asyncio.ensure_future(start()), mode=mode, deadline=deadline)
+            abandoned = threading.Event()
+            shared = _Shared(
+                task=asyncio.ensure_future(start(abandoned.is_set)),
+                mode=mode,
+                deadline=deadline,
+                abandoned=abandoned,
+            )
             self._shared[key] = shared
             entry = shared
 
@@ -185,6 +207,7 @@ class _Inflight:
         finally:
             shared.waiters -= 1
             if shared.waiters == 0 and not shared.task.done():
+                shared.abandoned.set()
                 shared.task.cancel()
 
 
@@ -199,6 +222,9 @@ class SearchEngine:
         inside: ConnectionSearch | None = None,
     ) -> None:
         self._providers: list[ApplicationProvider] = list(providers)
+        # An empty search asks this alone, and it asks the providers above
+        # to name their own objects again (S6).
+        self._recent = RecentlyOpened(self._providers)
         self.limits = limits
         # What is inside the connections, asked per answer (S4).
         self.inside = inside
@@ -208,12 +234,20 @@ class SearchEngine:
 
     @contextmanager
     def providing(self, provider: ApplicationProvider) -> Iterator[None]:
-        """One more provider for as long as this lasts. For tests."""
+        """This provider in place of the one asking its place, for as long as
+        this lasts. For tests."""
+        at = next(
+            (index for index, one in enumerate(self._providers) if one.place == provider.place),
+            None,
+        )
+        replaced = None if at is None else self._providers.pop(at)
         self._providers.append(provider)
         try:
             yield
         finally:
             self._providers.remove(provider)
+            if at is not None and replaced is not None:
+                self._providers.insert(at, replaced)
 
     async def prepare(
         self, session: AsyncSession, user: User, request: SearchRequest
@@ -229,17 +263,25 @@ class SearchEngine:
         for place in only or []:
             if isinstance(place, ConnectionPlace) and place.connector_id not in by_id:
                 raise ScopeNotFound()
-        inside = None if self.inside is None else self.inside.prepare(user, request, visible)
+        # An empty search asks what was opened lately, and nothing else (S6).
+        asking: list[ApplicationProvider] = (
+            self._providers if request.words else [self._recent]
+        )
+        inside = (
+            None
+            if self.inside is None or not request.words
+            else self.inside.prepare(user, request, visible)
+        )
         candidates = [
             candidate
             for candidate in [
-                *(one for provider in self._providers for one in _candidates_of(provider)),
+                *(one for provider in asking for one in _candidates_of(provider)),
                 *(inside.candidates if inside is not None else ()),
             ]
             if only is None or any(_same_place(candidate.cell, wanted) for wanted in only)
         ]
         providers: dict[str, Searches] = {
-            provider.place.model_dump_json(): provider for provider in self._providers
+            provider.place.model_dump_json(): provider for provider in asking
         }
         if inside is not None:
             providers.update(inside.providers)
@@ -430,9 +472,11 @@ class Answer:
 
     def _best(self, found: list[tuple[int, Hit]]) -> list[Hit]:
         """Up to three exact or prefix hits: by class, recency, then group (D202)."""
-        recency = {
-            _recent_key(one): index for index, one in enumerate(self.request.recent)
-        }
+        recency: dict[str, int] = {}
+        for index, one in enumerate(self.request.recent):
+            key = _recent_key(one)
+            if key is not None:
+                recency.setdefault(key, index)
         ranked = sorted(
             found,
             key=lambda pair: (
@@ -501,6 +545,8 @@ class Answer:
             ),
             session=session,
             visible=self.visible,
+            recent=self.request.recent,
+            browser=self.request.browser,
         )
 
     def _provider(self, planned: Planned) -> Searches:
@@ -545,16 +591,11 @@ class Answer:
         # provider at its deadline knows the engine has given up on it too.
         deadline = self._deadline(planned)
 
-        async def start() -> Found:
-            # The task's own stop, not this answer's: an answer that joined it
-            # still waits when the one that started it has gone.
-            task = asyncio.current_task()
-
-            def stopped() -> bool:
-                return task is not None and task.cancelling() > 0
-
+        async def start(abandoned: Callable[[], bool]) -> Found:
+            # The shared task's own stop, not this answer's: an answer that
+            # joined it still waits when the one that started it has gone.
             async with async_session_maker() as session:
-                asked = self._asked(planned, session, deadline, stopped)
+                asked = self._asked(planned, session, deadline, abandoned)
                 return await self._provider(planned).search(asked)
 
         key = (self.user.id, cell_key(planned.cell.cell), self._words, self._rows)
@@ -603,9 +644,6 @@ def _outcome_of(found: Found) -> Outcome:
     )
 
 
-def _recent_key(recent: RecentTarget) -> str:
-    if recent.kind == "connection":
-        return f"connection:{recent.connector_id}"
-    if recent.kind == "node":
-        return f"node:{recent.connector_id}:{recent.node_id}:"
-    return f"object:{recent.object_type}:{recent.object_id}"
+def _recent_key(recent: RecentTarget) -> str | None:
+    target = recent_target(recent)
+    return None if target is None else target_key(target)
