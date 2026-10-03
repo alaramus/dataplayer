@@ -23,16 +23,26 @@
   align-self: stretch;
   min-height: 0;
 }
+/* A column scrolls one way. Quasar positions the content absolutely with only
+   a minimum width, so a nowrap line widened it past the area, nothing inside
+   could cut itself with an ellipsis, and a horizontal bar appeared. */
+.app-scroll-area :deep(.q-scrollarea__content) {
+  width: 100%;
+}
+.app-scroll-area :deep(.q-scrollarea__bar--h),
+.app-scroll-area :deep(.q-scrollarea__thumb--h) {
+  display: none;
+}
 /* Quasar hides the bar with an !important opacity of none, so these apply only
    while it is shown. Native overflow areas use the same theme thumb. */
-.app-scroll-area :deep(.q-scrollarea__thumb) {
+.app-scroll-area :deep(.q-scrollarea__thumb--v) {
   width: var(--dp-scrollbar-size);
   right: 1px;
   border-radius: var(--dp-radius-control);
   background: var(--dp-scrollbar-thumb);
   opacity: 1;
 }
-.app-scroll-area :deep(.q-scrollarea__thumb:hover) {
+.app-scroll-area :deep(.q-scrollarea__thumb--v:hover) {
   background: var(--dp-scrollbar-thumb-hover);
 }
 /* Quasar gives the bar and its thumb a grab hand; a native scrollbar, which

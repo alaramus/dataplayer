@@ -463,6 +463,48 @@ test("every place not searched says why, with its gesture, and a gesture asks th
   expect((await searchesAsked(page))[2]).toMatchObject({ lane: "follow", only: [down.cell.place], insist: true })
 })
 
+test("long excerpts are cut inside the Search tab, and a node's Show in catalog stays in sight", async ({ page }) => {
+  const long = "What you can see · What you can change · The catalog · Reading rows · ".repeat(12)
+  const byText = (hit: ReturnType<typeof guideHit>) => ({
+    ...hit,
+    match: { field: "text", match_class: "substring", line: null, excerpt: [{ text: `…${long}`, hit: false }, { text: "conn", hit: true }, { text: long, hit: false }] },
+  })
+  const node = {
+    ...guideHit("wide", `wide_${"table_".repeat(40)}`),
+    key: `node:${UUID}:public.wide:`,
+    target: { kind: "node", connector_id: UUID, node_id: "public.wide", parent_id: "public", location: "public", name: "wide", node_kind: "table", sub_key: null, ancestors: null, node: null },
+    facts: { kind: "table", changed_at: null, owner: null, switched_off: false },
+    open: "rows",
+  }
+  const lines: ScriptedLine[] = [
+    { after: 0, line: { type: "plan", mode: "search", cells: [SLOW_CELL, GUIDE_CELL, TYPES_CELL] } },
+    { after: 0, line: { type: "cell", key: SLOW_CELL.key, outcome: outcome(), hits: [node] } },
+    { after: 0, line: { type: "cell", key: GUIDE_CELL.key, outcome: outcome(), hits: [byText(guideHit("g", "PostgreSQL"))] } },
+    { after: 0, line: { type: "cell", key: TYPES_CELL.key, outcome: outcome(), hits: [byText(guideHit("t", "Files"))] } },
+    { after: 0, line: { type: "best", hits: [] } },
+    { after: 0, line: { type: "end", nothing_found: false, asked: 3, superseded: false } },
+  ]
+  await scriptSearch(page, lines)
+  await login(page)
+  await searchInTab(page, "conn")
+
+  const tab = searchTab(page)
+  await expect(tab.getByTestId("search-hit")).toHaveCount(3)
+  await expect(tab.locator("mark").first()).toBeVisible()
+  // Nothing scrolls sideways: not the list, not a row.
+  const widths = await tab.evaluate((root) =>
+    [root, ...root.querySelectorAll(".q-scrollarea__container, [data-testid='search-hit']")].map((one) => one.scrollWidth - one.clientWidth)
+  )
+  for (const over of widths) expect(over).toBeLessThanOrEqual(0)
+  const box = await tab.boundingBox()
+  const button = await tab.getByTestId(`search-group-connection:${UUID}`).getByRole("button", { name: "Show in catalog", exact: true }).boundingBox()
+  expect(box).not.toBeNull()
+  expect(button).not.toBeNull()
+  if (box === null || button === null) return
+  expect(button.x).toBeGreaterThanOrEqual(box.x)
+  expect(button.x + button.width).toBeLessThanOrEqual(box.x + box.width)
+})
+
 test("Nothing found is said only when every place asked looked everywhere", async ({ page }) => {
   const lines: ScriptedLine[] = [
     { after: 0, line: { type: "plan", mode: "search", cells: [GUIDE_CELL, TYPES_CELL] } },
