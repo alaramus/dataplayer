@@ -69,6 +69,15 @@ describe("AppSelect", () => {
     )
   })
 
+  it("names a toolbar field beside it, or for a reader alone when its label is hidden", () => {
+    const shown = mountSelect({ options: LABELLED, compact: true, label: "Kind" })
+    expect(shown.find(".app-select__inline-label").text()).toBe("Kind")
+
+    const hidden = mountSelect({ options: LABELLED, compact: true, label: "Kind", labelHidden: true })
+    expect(hidden.find(".app-select__inline-label").exists()).toBe(false)
+    expect(hidden.get('[role="combobox"]').attributes("aria-label")).toBe("Kind")
+  })
+
   it("shows the label of the selected labelled option", () => {
     expect(mountSelect({ modelValue: "file", options: LABELLED }).text()).toContain("Files")
   })

@@ -67,11 +67,22 @@ function measure() {
   })
 }
 
+/**
+ * The keys handed to the window, which is not a place Tab lands on.
+ *
+ * Trap: a browser draws a focus ring on a script's focus when the focus it
+ * moves from was drawn with one, and a text field always is. A window opened
+ * from the search's field was ringed whole until a press inside it.
+ */
+function holdKeys() {
+  frame.value?.focus({ preventScroll: true, focusVisible: false })
+}
+
 onMounted(async () => {
   await nextTick()
   // A form may already have focused one of its fields while mounting.
   if (props.front && !props.window.minimized && !frame.value?.contains(document.activeElement)) {
-    frame.value?.focus({ preventScroll: true })
+    holdKeys()
   }
   window.requestAnimationFrame(measure)
   if (typeof ResizeObserver !== "undefined" && body.value !== null) {
@@ -88,7 +99,7 @@ watch(
   async (minimized) => {
     if (minimized) return
     await nextTick()
-    frame.value?.focus({ preventScroll: true })
+    holdKeys()
     measure()
   }
 )

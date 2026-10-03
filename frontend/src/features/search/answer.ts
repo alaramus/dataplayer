@@ -200,6 +200,16 @@ export function groupsOf(state: AnswerState, leaveOut: ReadonlySet<string> = new
   return ordered
 }
 
+/** The answer without these hits: rows taken out of the list before it is asked again. */
+export function withoutHits(state: AnswerState, keys: ReadonlySet<string>): AnswerState {
+  if (keys.size === 0) return state
+  return {
+    ...state,
+    best: state.best === null ? null : state.best.filter((hit) => !keys.has(hit.key)),
+    cells: state.cells.map((cell) => ({ ...cell, hits: cell.hits.filter((hit) => !keys.has(hit.key)) })),
+  }
+}
+
 /** Every hit of the answer, once. */
 export function hitsOf(state: AnswerState): Hit[] {
   return groupsOf(state).flatMap((group) => group.hits)

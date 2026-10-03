@@ -17,7 +17,9 @@ import { appIcons } from "./icons"
  * The rows are AppSelect's options, drawn by the same AppOption: a heading
  * starts a group, and a row has its icon, its second line and the action of
  * its own — pressed, or Ctrl+Enter (⌘Enter) on the active row, as a found file
- * is revealed where it lives rather than opened.
+ * is revealed where it lives rather than opened. A row with a `removeLabel`
+ * is taken out by its cross or by Delete while it is active, and a heading
+ * with one clears its group; the list stays open and nothing is picked.
  */
 const props = withDefaults(
   defineProps<{
@@ -55,6 +57,8 @@ const emit = defineEmits<{
   pick: [value: string | number]
   /** A row's own action: its button, or Ctrl+Enter (⌘Enter) on it. */
   action: [value: string | number]
+  /** A row's cross or Delete on it, or a heading's Clear: the value to drop. */
+  remove: [value: string | number]
   /** Enter with no row active, or the last row. */
   submit: []
   /** Backspace before the first word, with a chip there to take away. */
@@ -99,14 +103,25 @@ function idOf(value: string | number): string {
 /**
  * The list is as wide as the field, never wider: a menu takes the width of
  * its widest row, and one long path stretched it to the edge of the window.
+ *
+ * Trap: the observer answers after the first frame is painted. A field
+ * mounted open — the search, opened again with its words — drew its list
+ * that frame at the width of its widest row. So the field is measured as it
+ * mounts, and the list waits for that.
  */
 const width = ref<string | undefined>(undefined)
+const measured = ref(false)
 let observer: ResizeObserver | null = null
+function widthOf(pixels: number) {
+  if (pixels > 0) width.value = `${String(Math.round(pixels))}px`
+}
 onMounted(() => {
+  if (root.value !== null) widthOf(root.value.getBoundingClientRect().width)
+  measured.value = true
   if (root.value === null || typeof ResizeObserver === "undefined") return
   observer = new ResizeObserver((entries) => {
     const box = entries[0]?.borderBoxSize[0]
-    if (box !== undefined) width.value = `${String(Math.round(box.inlineSize))}px`
+    if (box !== undefined) widthOf(box.inlineSize)
   })
   observer.observe(root.value)
 })
@@ -152,14 +167,18 @@ const rows = computed(() => [
 const activeId = ref<string | null>(null)
 const activeRow = computed(() => rows.value.find((row) => row.id === activeId.value) ?? null)
 
+/** Where the active row stood when Delete took it: the arrows stay there. */
+let removedAt: number | null = null
+
 watch(rows, (now) => {
   if (activeId.value !== null && !now.some((row) => row.id === activeId.value)) {
-    activeId.value = null
+    activeId.value = removedAt === null ? null : (now[Math.min(removedAt, now.length - 1)]?.id ?? null)
   }
+  removedAt = null
 })
 
 const shown = computed(
-  () => open.value && (rows.value.length > 0 || props.status !== "")
+  () => measured.value && open.value && (rows.value.length > 0 || props.status !== "")
 )
 
 function move(step: 1 | -1) {
@@ -178,6 +197,12 @@ function move(step: 1 | -1) {
 function take(row: Row) {
   if (row.submits) emit("submit")
   else emit("pick", row.option.value)
+}
+
+/** The active row dropped, and the arrows left on the row that takes its place. */
+function removeActive(row: Row) {
+  removedAt = rows.value.findIndex((one) => one.id === row.id)
+  emit("remove", row.option.value)
 }
 
 function caretAt(position: "start" | "end"): boolean {
@@ -239,6 +264,14 @@ function onKeydown(event: KeyboardEvent) {
       event.preventDefault()
       emit("remove-chip")
       return
+    case "Delete": {
+      // Only a row the arrows stand on: otherwise it deletes a character.
+      const row = shown.value ? activeRow.value : null
+      if (row?.option.removeLabel === undefined) return
+      event.preventDefault()
+      removeActive(row)
+      return
+    }
   }
 }
 
@@ -329,6 +362,7 @@ defineExpose({
               :id="section.headingId"
               role="presentation"
               :option="section.heading"
+              @remove="emit('remove', $event.value)"
             />
             <AppOption
               v-for="row in section.rows"
@@ -347,6 +381,7 @@ defineExpose({
               dense
               @click="take(row)"
               @action="emit('action', row.option.value)"
+              @remove="emit('remove', $event.value)"
             />
           </div>
         </div>

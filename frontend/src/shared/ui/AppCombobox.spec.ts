@@ -237,6 +237,45 @@ describe("AppCombobox", () => {
     expect(wrapper.emitted("pick")).toEqual([["g1"]])
   })
 
+  it("drops a row by its cross or by Delete on it, the row not taken and the list kept", async () => {
+    const options: SelectOption[] = [
+      { label: "Recent searches", value: "group:recent", group: true, removeLabel: "Clear recent searches" },
+      { label: "orders", value: "recent:orders", removeLabel: "Remove from recent searches" },
+      { label: "users", value: "recent:users", removeLabel: "Remove from recent searches" },
+    ]
+    const { wrapper, input, open } = await mountBox({ options })
+    await type(input, "o")
+    document.querySelector<HTMLElement>('[role="option"] button[aria-label="Remove from recent searches"]')?.click()
+    await flushPromises()
+    expect(wrapper.emitted("remove")).toEqual([["recent:orders"]])
+
+    await press(input, "ArrowDown")
+    await press(input, "Delete")
+    expect(wrapper.emitted("remove")).toEqual([["recent:orders"], ["recent:orders"]])
+    // Gone from the list, the arrows stand on the row that took its place.
+    await wrapper.setProps({ options: options.filter((option) => option.value !== "recent:orders") })
+    await flushPromises()
+    expect(activeOption(input)?.textContent).toContain("users")
+
+    document.querySelector<HTMLElement>('button[aria-label="Clear recent searches"]')?.click()
+    await flushPromises()
+    expect(wrapper.emitted("remove")?.at(-1)).toEqual(["group:recent"])
+    expect(wrapper.emitted("pick")).toBeUndefined()
+    expect(open.value).toBe(true)
+  })
+
+  it("deletes a character with Delete while no row is active", async () => {
+    const { wrapper, input } = await mountBox({
+      options: [{ label: "orders", value: "recent:orders", removeLabel: "Remove from recent searches" }],
+    })
+    await type(input, "o")
+    const event = new KeyboardEvent("keydown", { key: "Delete", cancelable: true })
+    input.element.dispatchEvent(event)
+    await flushPromises()
+    expect(event.defaultPrevented).toBe(false)
+    expect(wrapper.emitted("remove")).toBeUndefined()
+  })
+
   it("marks the words that matched as text, never as markup", async () => {
     const { input } = await mountBox({
       options: [{ label: "<b>x</b>", value: "x", labelRuns: [{ text: "<b>", hit: true }, { text: "x</b>", hit: false }] }],

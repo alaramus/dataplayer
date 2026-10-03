@@ -5,6 +5,7 @@ import { serverStorageKey } from "@/shared/servers/context"
 
 import {
   forgetOpened,
+  forgetOpenedHit,
   openedTarget,
   parseOpened,
   readOpened,
@@ -82,6 +83,13 @@ describe("what was opened from the search", () => {
     forgetOpened("u1")
     expect(readOpened("u1")).toEqual([])
     expect(readOpened("u2").map((one) => one.object_id)).toEqual(["other"])
+  })
+
+  it("takes one target out by its hit, whatever the hit's own key adds", () => {
+    rememberOpened("u1", nodeHit())
+    rememberOpened("u1", objectHit("start"))
+    forgetOpenedHit("u1", { ...nodeHit(), key: "node:c1:public.orders:sub" })
+    expect(readOpened("u1").map((one) => one.kind)).toEqual(["object"])
   })
 
   it("keeps nothing for nobody", () => {

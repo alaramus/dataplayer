@@ -69,7 +69,7 @@ test("Mod+K opens the search from inside the SQL editor and over a maximized win
   const name = await fileConnection(page, "e2e-search-keys")
 
   // The scene lists the key, read off the registry.
-  await expect(page.getByTestId("scene-keys")).toContainText("Ctrl K")
+  await expect(page.getByTestId("scene-keys")).toContainText("Ctrl + K")
   await expect(page.getByTestId("scene-keys")).toContainText("Search everything")
 
   // From the SQL editor: the browser's own Ctrl+K is not taken, nor CodeMirror's.
@@ -137,7 +137,7 @@ test("on a Mac the search is ⌘K, and Ctrl+K in the SQL editor deletes to the e
   await expect(page.locator(".cm-content")).toHaveText("select 1")
   await expect(overlay(page)).toHaveCount(0)
 
-  await expect(searchButton(page)).toContainText("⌘K")
+  await expect(searchButton(page)).toContainText("⌘ + K")
   await page.keyboard.press("Meta+k")
   await expect(searchField(page)).toBeFocused()
   await page.keyboard.press("Escape")
@@ -487,6 +487,11 @@ test("the Search tab opens from Enter, stays in sight as its hits open, and come
   const hit = tab.getByTestId("search-hit").filter({ hasText: name })
   await expect(hit).toBeVisible()
   await expect(tab.getByTestId("search-filter-group")).toBeVisible()
+  // The filters' choices say what they are; their names are for a reader.
+  for (const name of ["Group", "Connection", "Kind", "Changed"]) {
+    await expect(tab.getByRole("combobox", { name, exact: true })).toBeVisible()
+  }
+  await expect(tab.getByText("Connection", { exact: true }).filter({ visible: true })).toHaveCount(0)
   await hit.click()
   await expect(page.locator(`[data-testid^="workspace-tab-catalog:"]`, { hasText: name })).toBeVisible()
   await expect(tab).toBeVisible()
@@ -1137,4 +1142,131 @@ test("a word inside a file is found by a job from the Search tab, kept in Recent
   await page.unrouteAll({ behavior: "ignoreErrors" })
   await page.getByRole("button", { name: "Close Search", exact: true }).click()
   await deleteConnector(page, name)
+})
+
+/** The connection window a source type opened, as the frame that holds it. */
+function connectionFrame(page: Page): Locator {
+  return page.locator('[role="dialog"][data-testid^="window-"]').filter({ has: page.getByTestId("connector-name") })
+}
+
+/** Whether the frame itself holds the focus, and whether it is drawn with a ring. */
+async function frameFocus(frame: Locator): Promise<{ focused: boolean; ringed: boolean; outline: string }> {
+  return frame.evaluate((element) => ({
+    focused: element === document.activeElement,
+    ringed: element.matches(":focus-visible"),
+    outline: getComputedStyle(element).outlineStyle,
+  }))
+}
+
+test("a window opened from the search is not ringed whole, by a press or by the keys", async ({ page }) => {
+  await login(page)
+  const postgres = () =>
+    searchList(page).getByRole("group", { name: "Source types" }).getByRole("option", { name: /PostgreSQL/ })
+
+  await openSearch(page)
+  await searchField(page).fill("TimescaleDB")
+  await postgres().click()
+  await expect(connectionFrame(page)).toBeVisible()
+  expect(await frameFocus(connectionFrame(page))).toEqual({ focused: true, ringed: false, outline: "none" })
+  await closeConnectionWindows(page)
+
+  await openSearch(page)
+  await searchField(page).fill("TimescaleDB")
+  const id = await postgres().getAttribute("id")
+  for (let step = 0; step < 20 && (await searchField(page).getAttribute("aria-activedescendant")) !== id; step += 1) {
+    await page.keyboard.press("ArrowDown")
+  }
+  await expect(searchField(page)).toHaveAttribute("aria-activedescendant", id ?? "")
+  await page.keyboard.press("Enter")
+  await expect(connectionFrame(page)).toBeVisible()
+  expect(await frameFocus(connectionFrame(page))).toEqual({ focused: true, ringed: false, outline: "none" })
+  await closeConnectionWindows(page)
+})
+
+test("the search opened again with its words draws its list at the field's width from the first frame", async ({ page }) => {
+  await login(page)
+  await openSearch(page)
+  await searchField(page).fill("connect")
+  await expect(searchList(page)).toBeVisible()
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await expect(overlay(page)).toHaveCount(0)
+
+  // Every frame from the press on: the widest the list was ever painted.
+  await page.evaluate(() => {
+    const widths: number[] = []
+    Object.assign(window, { __listWidths: widths })
+    const sample = () => {
+      const list = document.querySelector('[role="listbox"][aria-label="Search everything"]')
+      const menu = list?.closest(".q-menu")
+      if (menu instanceof HTMLElement) widths.push(menu.getBoundingClientRect().width)
+      if (widths.length < 30) requestAnimationFrame(sample)
+    }
+    requestAnimationFrame(sample)
+  })
+  await page.keyboard.press("Control+k")
+  await expect(searchField(page)).toHaveValue("connect")
+  await expect(searchList(page)).toBeVisible()
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __listWidths: number[] }).__listWidths.length)).toBeGreaterThanOrEqual(30)
+  const widths = await page.evaluate(() => (window as unknown as { __listWidths: number[] }).__listWidths)
+  const field = await overlay(page).boundingBox()
+  expect(field).not.toBeNull()
+  expect(Math.max(...widths)).toBeLessThanOrEqual((field?.width ?? 0) + 1)
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+})
+
+test("recent searches and what was opened lately are taken out of the empty field, the list kept open", async ({ page }) => {
+  await login(page)
+  const stamp = String(Date.now())
+  const words = [`e2e-forget-a-${stamp}`, `e2e-forget-b-${stamp}`, `e2e-forget-c-${stamp}`]
+  // Each kept once its search has ended.
+  for (const one of words) {
+    await searchInTab(page, one)
+    await expect(searchTab(page).getByTestId("search-nothing")).toBeVisible({ timeout: 20_000 })
+  }
+
+  // A guide page opened from the search is what was opened lately.
+  await openSearch(page)
+  await searchField(page).fill("connections")
+  const guide = searchList(page).getByRole("group", { name: "Guide" }).getByRole("option").first()
+  await guide.click()
+  await expect(page.locator('[data-testid^="window-guide"]').first()).toBeVisible()
+
+  await openSearch(page)
+  await searchField(page).fill("")
+  const recent = searchList(page).getByRole("group", { name: "Recent searches" })
+  const opened = searchList(page).getByRole("group", { name: "Recently opened" })
+  await expect(recent.getByRole("option")).toHaveCount(3)
+  await expect(opened.getByRole("option")).not.toHaveCount(0)
+
+  // Its cross: the row goes, nothing is opened and the field keeps the focus.
+  await searchOption(page, words[2] ?? "").getByRole("button", { name: "Remove from recent searches" }).click()
+  await expect(searchOption(page, words[2] ?? "")).toHaveCount(0)
+  await expect(searchField(page)).toBeFocused()
+  await expect(searchField(page)).toHaveValue("")
+
+  // Delete on the active row, and the arrows stay on the row in its place.
+  await page.keyboard.press("ArrowDown")
+  await expect(searchOption(page, words[1] ?? "")).toHaveAttribute("aria-selected", "true")
+  await page.keyboard.press("Delete")
+  await expect(searchOption(page, words[1] ?? "")).toHaveCount(0)
+  await expect(searchOption(page, words[0] ?? "")).toHaveAttribute("aria-selected", "true")
+
+  // Clear, for each group.
+  await searchList(page).getByRole("button", { name: "Clear recently opened" }).click()
+  await expect(opened).toHaveCount(0)
+  await expect(searchList(page)).toBeVisible()
+  await searchList(page).getByRole("button", { name: "Clear recent searches" }).click()
+  await expect(recent).toHaveCount(0)
+  await expect(searchField(page)).toBeFocused()
+
+  // Kept out once the search is opened again.
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+  await openSearch(page)
+  await searchField(page).fill("")
+  await expect(searchList(page).getByRole("group")).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
 })

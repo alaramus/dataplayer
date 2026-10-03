@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import AppButton from "./AppButton.vue"
 import AppIconButton from "./AppIconButton.vue"
 import type { SelectOption, TextRun } from "./AppSelect.vue"
+import { appIcons } from "./icons"
 
 /**
  * One row of a list of choices: a heading, or a choice with its icon, its
@@ -13,7 +15,11 @@ import type { SelectOption, TextRun } from "./AppSelect.vue"
  */
 defineProps<{ option: SelectOption }>()
 
-const emit = defineEmits<{ action: [option: SelectOption] }>()
+const emit = defineEmits<{
+  action: [option: SelectOption]
+  /** Its cross, or a heading's Clear: taken out of the list, not chosen. */
+  remove: [option: SelectOption]
+}>()
 
 /** Text as it came, the matched runs marked. Never HTML (D50). */
 function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly TextRun[] {
@@ -27,6 +33,22 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
       <q-item-label header>
         {{ option.label }}
       </q-item-label>
+    </q-item-section>
+    <!-- Trap: QBtn hands the focus to a helper of its own on mouseup unless
+         the press was refused before it saw it, and the list stays open over
+         a field that has to keep the focus. -->
+    <q-item-section
+      v-if="option.removeLabel"
+      side
+      @mousedown.capture.prevent
+    >
+      <AppButton
+        variant="quiet"
+        size="sm"
+        label="Clear"
+        :aria-label="option.removeLabel"
+        @click.stop.prevent="emit('remove', option)"
+      />
     </q-item-section>
   </q-item>
   <q-item
@@ -78,6 +100,17 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
         :tooltip="option.actionLabel"
         :active="option.actionActive"
         @click.stop.prevent="emit('action', option)"
+      />
+    </q-item-section>
+    <q-item-section
+      v-if="option.removeLabel"
+      side
+      @mousedown.capture.prevent
+    >
+      <AppIconButton
+        :icon="appIcons.close"
+        :tooltip="option.removeLabel"
+        @click.stop.prevent="emit('remove', option)"
       />
     </q-item-section>
   </q-item>

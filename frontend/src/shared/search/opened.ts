@@ -149,7 +149,23 @@ export function rememberOpened(userId: string | null | undefined, hit: Hit): voi
   }
 }
 
-/** Emptied on sign-out, as the recent searches are (D205). */
+/** One target taken out of the list by the person (D205). */
+export function forgetOpenedHit(userId: string | null | undefined, hit: Hit): void {
+  if (!userId) return
+  const target = openedTarget(hit)
+  if (target === null) return
+  const key = openedKey(target)
+  try {
+    localStorage.setItem(
+      storageKey(userId),
+      JSON.stringify(readOpened(userId).filter((one) => openedKey(one) !== key))
+    )
+  } catch {
+    // Nothing was kept.
+  }
+}
+
+/** Emptied on sign-out, as the recent searches are, and by Clear (D205). */
 export function forgetOpened(userId: string | null | undefined): void {
   if (!userId) return
   try {

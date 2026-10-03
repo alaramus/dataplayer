@@ -14,6 +14,7 @@ import {
   settleFollow,
   STOPPED_BEFORE_ANSWER,
   stopPending,
+  withoutHits,
 } from "./answer"
 import type { AnswerState } from "./answer"
 import { saidOf } from "./outcomes"
@@ -34,6 +35,20 @@ const PLAN: SearchLine = {
 function play(lines: SearchLine[], start: AnswerState = EMPTY_ANSWER): AnswerState {
   return lines.reduce(reduceAnswer, start)
 }
+
+describe("an answer with rows taken out", () => {
+  it("leaves them out of the best matches and of every cell, and is itself with none", () => {
+    const state = play([
+      PLAN,
+      { type: "cell", key: "connections/names", outcome: outcome(), hits: [hit("a"), hit("b")] },
+      { type: "best", hits: [hit("a")] },
+    ])
+    expect(withoutHits(state, new Set())).toBe(state)
+    const left = withoutHits(state, new Set(["a"]))
+    expect(left.best).toEqual([])
+    expect(left.cells.flatMap((cell) => cell.hits.map((one) => one.key))).toEqual(["b"])
+  })
+})
 
 describe("an answer, line by line", () => {
   it("knows every cell and every group from the plan, all of them pending", () => {

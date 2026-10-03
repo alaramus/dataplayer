@@ -226,6 +226,7 @@ function setChanged(value: unknown) {
         :model-value="filters.group ?? ALL"
         :options="groupOptions"
         compact
+        label-hidden
         label="Group"
         data-testid="search-filter-group"
         @update:model-value="setFilter('group', $event)"
@@ -234,6 +235,7 @@ function setChanged(value: unknown) {
         :model-value="filters.connection ?? ALL"
         :options="connectionOptions"
         compact
+        label-hidden
         label="Connection"
         data-testid="search-filter-connection"
         @update:model-value="setFilter('connection', $event)"
@@ -242,6 +244,7 @@ function setChanged(value: unknown) {
         :model-value="filters.kind ?? ALL"
         :options="kindOptions"
         compact
+        label-hidden
         label="Kind"
         data-testid="search-filter-kind"
         @update:model-value="setFilter('kind', $event)"
@@ -250,6 +253,7 @@ function setChanged(value: unknown) {
         :model-value="filters.changed"
         :options="CHANGED_OPTIONS"
         compact
+        label-hidden
         label="Changed"
         data-testid="search-filter-changed"
         @update:model-value="setChanged($event)"

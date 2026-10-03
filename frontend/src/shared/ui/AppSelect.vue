@@ -56,6 +56,12 @@ export interface SelectOption {
    * an autocomplete is taken. Nothing to a select.
    */
   offer?: boolean
+  /**
+   * What taking this row out of the list is called, "Remove from recent
+   * searches": a cross on the row, and Delete on a combobox's active row. On a
+   * heading it is "Clear" for the whole group. Nothing to a select.
+   */
+  removeLabel?: string
 }
 
 const props = withDefaults(
@@ -98,6 +104,11 @@ const props = withDefaults(
      * until corrected, including in a compact toolbar.
      */
     compact?: boolean
+    /**
+     * A toolbar field whose choices say what it is, "Every connection": the
+     * label names it for a reader and is not drawn beside it.
+     */
+    labelHidden?: boolean
   }>(),
   {
     label: undefined,
@@ -108,6 +119,7 @@ const props = withDefaults(
     disable: false,
     multiple: false,
     compact: false,
+    labelHidden: false,
   }
 )
 
@@ -204,7 +216,7 @@ const summary = computed(() => {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template
-      v-if="(formLayout || inlineLabel) && label"
+      v-if="(formLayout || (inlineLabel && !labelHidden)) && label"
       #before
     >
       <!-- Hidden from a reader beside a toolbar field: its name is Quasar's

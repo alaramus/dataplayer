@@ -151,12 +151,30 @@ const OPTION_ROWS: SelectOption[] = [
 const comboWords = ref("")
 const comboOpen = ref(false)
 const comboChip = ref<string | null>(null)
+/** Rows the person may take out: a cross each, Delete on the active one, Clear on the heading. */
+const comboRecent = ref(["orders", "users"])
 const comboOptions = computed<SelectOption[]>(() => [
   ...(comboChip.value === null
     ? [{ label: "Search in local pg", value: "scope", icon: appIcons.search, offer: true }]
     : []),
+  ...(comboRecent.value.length === 0
+    ? []
+    : [
+        { label: "Recent searches", value: "recent", group: true, removeLabel: "Clear recent searches" },
+        ...comboRecent.value.map((words) => ({
+          label: words,
+          value: `recent:${words}`,
+          icon: appIcons.history,
+          removeLabel: "Remove from recent searches",
+        })),
+      ]),
   ...OPTION_ROWS,
 ])
+
+function removeCombo(value: string | number) {
+  const key = String(value)
+  comboRecent.value = key === "recent" ? [] : comboRecent.value.filter((words) => `recent:${words}` !== key)
+}
 const comboStatus = computed(() => (comboWords.value.trim() === "" ? "" : "Searched 3 places"))
 
 function pickCombo(value: string | number) {
@@ -661,6 +679,14 @@ function removeSavedEntry(name: string) {
           compact
           :options="['public', 'sales', 'pg_catalog']"
         />
+        <!-- A filter whose choices say what it is: named for a reader only. -->
+        <AppSelect
+          v-model="plain"
+          label="SSL mode"
+          label-hidden
+          compact
+          :options="['disable', 'prefer', 'require']"
+        />
         <!-- The field of the search (D205): the list opens under the words
              without taking the focus, the arrows walk it, Enter with no row
              active submits, Escape closes the list and a second one leaves. -->
@@ -679,6 +705,7 @@ function removeSavedEntry(name: string) {
           @action="toast.info(`Showed ${String($event)} in its catalog`)"
           @submit="toast.info(`Everything for “${comboWords}”`)"
           @remove-chip="comboChip = null"
+          @remove="removeCombo"
         />
         <!-- What opens that field from a header: drawn as the field with its
              keys, and an icon alone once its room is narrower than the field.
@@ -687,7 +714,7 @@ function removeSavedEntry(name: string) {
           <AppFieldButton
             label="Search"
             :icon="appIcons.search"
-            keys="Ctrl K"
+            keys="Ctrl + K"
             keyshortcuts="Control+K"
             class="ui-kit__field-button"
             @click="toast.info('The search would open')"
@@ -696,7 +723,7 @@ function removeSavedEntry(name: string) {
             <AppFieldButton
               label="Search"
               :icon="appIcons.search"
-              keys="Ctrl K"
+              keys="Ctrl + K"
               @click="toast.info('The search would open')"
             />
           </div>

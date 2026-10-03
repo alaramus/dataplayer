@@ -15,7 +15,7 @@ import AppIconButton from "./AppIconButton.vue"
 const props = defineProps<{
   label: string
   icon: string
-  /** The keys as a person reads them: "Ctrl K", "⌘K". */
+  /** The keys as a person reads them: "Ctrl + K", "⌘ + K". */
   keys?: string
   /** The same keys for a reader, as `aria-keyshortcuts` spells them. */
   keyshortcuts?: string

@@ -96,7 +96,7 @@ import type {
   WorkspaceActions,
 } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { keysOf, onMac, registerShortcut } from "@/shared/keys/shortcuts"
+import { keysOf, keyshortcutsOf, onMac, registerShortcut } from "@/shared/keys/shortcuts"
 import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
@@ -1155,7 +1155,7 @@ function openSearchField() {
 }
 
 const searchKeys = keysOf("k", onMac())
-const searchKeyshortcuts = onMac() ? "Meta+K" : "Control+K"
+const searchKeyshortcuts = keyshortcutsOf("k", onMac())
 const unregisterSearch = registerShortcut({
   id: "search",
   key: "k",

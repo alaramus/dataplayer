@@ -71,6 +71,16 @@ export const ASK_OPTION: SelectOption = { label: "Ask the agent", value: ASK_VAL
 /** How many rows a group shows in the field; the server sends no more (D200). */
 export const ROWS_IN_FIELD = 5
 
+/** The group an empty search answers with: what was opened lately (S6). */
+export const RECENTLY_OPENED_GROUP = "objects:recent"
+
+/** The heading values the field clears a group by (D205). */
+export const RECENT_SEARCHES_HEADING = "group:recent"
+export const RECENTLY_OPENED_HEADING = `group:${RECENTLY_OPENED_GROUP}`
+
+/** The value of a recent search's row. */
+export const RECENT_PREFIX = "recent:"
+
 /**
  * The rows of the field: the best matches first, then each group in its
  * fixed place with what it found, the best not repeated below (D202).
@@ -85,8 +95,19 @@ export function fieldOptions(state: AnswerState): SelectOption[] {
   }
   for (const group of groupsOf(state, new Set(best.map((hit) => hit.key)))) {
     if (group.hits.length === 0) continue
-    options.push({ label: group.title, value: `group:${group.key}`, group: true })
-    options.push(...group.hits.slice(0, ROWS_IN_FIELD).map(hitOption))
+    // What was opened lately is the person's own list, and each row leaves it.
+    const opened = group.key === RECENTLY_OPENED_GROUP
+    options.push({
+      label: group.title,
+      value: `group:${group.key}`,
+      group: true,
+      ...(opened ? { removeLabel: "Clear recently opened" } : {}),
+    })
+    options.push(
+      ...group.hits.slice(0, ROWS_IN_FIELD).map((hit) =>
+        opened ? { ...hitOption(hit), removeLabel: "Remove from recently opened" } : hitOption(hit)
+      )
+    )
   }
   return options
 }
@@ -95,7 +116,12 @@ export function fieldOptions(state: AnswerState): SelectOption[] {
 export function recentOptions(entries: readonly string[]): SelectOption[] {
   if (entries.length === 0) return []
   return [
-    { label: "Recent searches", value: "group:recent", group: true },
-    ...entries.map((words) => ({ label: words, value: `recent:${words}`, icon: appIcons.history })),
+    { label: "Recent searches", value: RECENT_SEARCHES_HEADING, group: true, removeLabel: "Clear recent searches" },
+    ...entries.map((words) => ({
+      label: words,
+      value: `${RECENT_PREFIX}${words}`,
+      icon: appIcons.history,
+      removeLabel: "Remove from recent searches",
+    })),
   ]
 }

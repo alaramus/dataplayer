@@ -66,9 +66,14 @@ export function mayTake(where: Where): boolean {
   return !where.ownsKeys && !where.dialogOpen
 }
 
-/** How a shortcut is written for this platform: "Ctrl K", "⌘K". */
+/** How a shortcut is written for a person on this platform: "Ctrl + K", "⌘ + K". */
 export function keysOf(letter: string, mac: boolean): string {
-  return mac ? `⌘${letter.toUpperCase()}` : `Ctrl ${letter.toUpperCase()}`
+  return `${mac ? "⌘" : "Ctrl"} + ${letter.toUpperCase()}`
+}
+
+/** The same keys as `aria-keyshortcuts` spells them: "Control+K", "Meta+K". */
+export function keyshortcutsOf(letter: string, mac: boolean): string {
+  return `${mac ? "Meta" : "Control"}+${letter.toUpperCase()}`
 }
 
 /**

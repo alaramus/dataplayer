@@ -11,7 +11,7 @@ import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import type { OpenHow } from "@/features/workspace/state"
 import { useCurrentUser } from "@/shared/auth/currentUser"
-import { readOpened, rememberOpened } from "@/shared/search/opened"
+import { forgetOpened, forgetOpenedHit, readOpened, rememberOpened } from "@/shared/search/opened"
 import { useToast } from "@/shared/ui"
 import { useSpaceStore } from "@/stores/space"
 
@@ -123,4 +123,13 @@ export function useHitActions(besidePanel?: () => string | null): HitActions {
 export function useRecentlyOpened(): () => RecentTarget[] {
   const me = useCurrentUser()
   return () => readOpened(me.data.value?.id)
+}
+
+/** Taking what was opened lately out of the list: one row, or all of them (D205). */
+export function useForgetOpened(): { one: (hit: Hit) => void; all: () => void } {
+  const me = useCurrentUser()
+  return {
+    one: (hit) => forgetOpenedHit(me.data.value?.id, hit),
+    all: () => forgetOpened(me.data.value?.id),
+  }
 }

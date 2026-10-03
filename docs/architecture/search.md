@@ -304,6 +304,7 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   capture-phase listener, matched by key or by code so any layout works, never
   inside an element marked `data-owns-keys` (a terminal, D148) or while an
   `[aria-modal="true"]` is open. The empty scene lists registered shortcuts.
+  A person reads them as "Ctrl + K" or "⌘ + K", spelled once by `keysOf`.
 - **`AppCombobox`**, on `AppPopup` with `no-focus`, `no-refocus`,
   `no-parent-event`, `fit`: focus stays in the input, `aria-activedescendant`,
   no row active until an arrow, Enter opens the active row or the Search tab,
@@ -343,7 +344,9 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   only, in local storage per person and server (`shared/search/opened.ts`),
   sent as `recent` with every request and emptied on sign-out. An empty field
   shows the recent searches, then what the server still names of those
-  targets.
+  targets. Each row of either group is taken out by its cross or by Delete
+  on the active row, and each group by Clear on its heading; the list stays
+  open, nothing is opened, the focus stays in the field.
 - **What the browser tells**: every request, the empty field's included, sends
   as `browser` each open tab and window — the title on its tab, its connection
   or else its kind as the detail, the Search tab and the Connections column

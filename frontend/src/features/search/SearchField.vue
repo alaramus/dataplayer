@@ -10,11 +10,21 @@ import type { SelectOption } from "@/shared/ui"
 import { useRecentSearchesStore } from "@/stores/recentSearches"
 import { useSpaceStore } from "@/stores/space"
 
-import { EMPTY_ANSWER, nothingFound, pendingOf } from "./answer"
+import { EMPTY_ANSWER, nothingFound, pendingOf, withoutHits } from "./answer"
 import { contextOf, placeOf } from "./context"
-import { useHitActions, useRecentlyOpened } from "./openers"
+import { useForgetOpened, useHitActions, useRecentlyOpened } from "./openers"
 import { nothingFoundSentence, stillSearching, typingNote } from "./outcomes"
-import { ASK_OPTION, ASK_VALUE, fieldOptions, recentOptions, SCOPE_VALUE } from "./rows"
+import {
+  ASK_OPTION,
+  ASK_VALUE,
+  fieldOptions,
+  RECENT_PREFIX,
+  RECENT_SEARCHES_HEADING,
+  RECENTLY_OPENED_GROUP,
+  RECENTLY_OPENED_HEADING,
+  recentOptions,
+  SCOPE_VALUE,
+} from "./rows"
 import { useFieldAnswer } from "./useAnswer"
 import { MIN_CHARACTERS } from "./words"
 
@@ -40,6 +50,7 @@ const recent = useRecentSearchesStore()
 const space = useSpaceStore()
 const hits = useHitActions()
 const opened = useRecentlyOpened()
+const forgetOpened = useForgetOpened()
 
 const words = ref("")
 const listOpen = ref(false)
@@ -60,8 +71,17 @@ const field = useFieldAnswer(words, () => ({
 const typed = computed(() => words.value.trim())
 const asking = computed(() => typed.value.length >= MIN_CHARACTERS)
 
+/**
+ * Rows of what was opened lately that the person took out, hidden until the
+ * empty field is answered again without them.
+ */
+const removed = ref<ReadonlySet<string>>(new Set())
+watch(field.drawn, () => {
+  removed.value = new Set()
+})
+
 /** The answer the list is drawn from, kept whole between two keys. */
-const shown = computed(() => field.drawn.value ?? EMPTY_ANSWER)
+const shown = computed(() => withoutHits(field.drawn.value ?? EMPTY_ANSWER, removed.value))
 
 /** Each hit by the value of its row. */
 const hitsByKey = computed(() => {
@@ -163,8 +183,8 @@ function pick(value: string | number) {
     space.show("ai")
     return
   }
-  if (key.startsWith("recent:")) {
-    words.value = key.slice("recent:".length)
+  if (key.startsWith(RECENT_PREFIX)) {
+    words.value = key.slice(RECENT_PREFIX.length)
     return
   }
   const hit = hitsByKey.value.get(key)
@@ -179,6 +199,30 @@ function act(value: string | number) {
   if (hit === undefined) return
   close()
   void hits.showInCatalog(hit)
+}
+
+/** A row's cross or Delete, or a heading's Clear: out of the list, the list kept open. */
+function remove(value: string | number) {
+  const key = String(value)
+  if (key === RECENT_SEARCHES_HEADING) {
+    recent.clear()
+    return
+  }
+  if (key.startsWith(RECENT_PREFIX)) {
+    recent.forget(key.slice(RECENT_PREFIX.length))
+    return
+  }
+  if (key === RECENTLY_OPENED_HEADING) {
+    const group = shown.value.cells.filter((cell) => cell.planned.group.key === RECENTLY_OPENED_GROUP)
+    removed.value = new Set([...removed.value, ...group.flatMap((cell) => cell.hits.map((hit) => hit.key))])
+    forgetOpened.all()
+  } else {
+    const hit = hitsByKey.value.get(key)
+    if (hit === undefined) return
+    removed.value = new Set([...removed.value, key])
+    forgetOpened.one(hit)
+  }
+  field.refresh()
 }
 
 /** Enter with no row chosen: everything, in the Search tab. */
@@ -238,6 +282,7 @@ defineExpose({ show })
         data-testid="search-combobox"
         @pick="pick"
         @action="act"
+        @remove="remove"
         @submit="submit"
         @remove-chip="removeScope"
         @leave="leave"

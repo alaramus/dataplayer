@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   isModKey,
   keysOf,
+  keyshortcutsOf,
   mayTake,
   onMac,
   OWNS_KEYS,
@@ -60,8 +61,10 @@ describe("Mod+K", () => {
   })
 
   it("is written as the platform writes it", () => {
-    expect(keysOf("k", false)).toBe("Ctrl K")
-    expect(keysOf("k", true)).toBe("⌘K")
+    expect(keysOf("k", false)).toBe("Ctrl + K")
+    expect(keysOf("k", true)).toBe("⌘ + K")
+    expect(keyshortcutsOf("k", false)).toBe("Control+K")
+    expect(keyshortcutsOf("k", true)).toBe("Meta+K")
   })
 
   it("tells a Mac by its platform", () => {
@@ -89,7 +92,7 @@ describe("the registry", () => {
   it("lists what is registered, and stops listing it once it goes", () => {
     const run = vi.fn()
     const unregister = registerShortcut({ id: "search", key: "k", action: "Search everything", run })
-    expect(shortcutList.value).toEqual([{ keys: "Ctrl K", action: "Search everything" }])
+    expect(shortcutList.value).toEqual([{ keys: "Ctrl + K", action: "Search everything" }])
     unregister()
     expect(shortcutList.value).toEqual([])
   })

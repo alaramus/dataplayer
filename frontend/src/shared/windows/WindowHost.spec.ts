@@ -37,6 +37,8 @@ describe("the window frame and footer manager", () => {
       },
     })
     const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    // Taken by the frame without a ring, whatever had the focus before it.
+    const focusing = vi.spyOn(HTMLElement.prototype, "focus")
     try {
       const opener = wrapper.get("button")
       opener.element.focus()
@@ -44,9 +46,11 @@ describe("the window frame and footer manager", () => {
       await flushPromises()
       const frame = document.body.querySelector<HTMLElement>('[data-testid="window-draft"]')!
       expect(document.activeElement).toBe(focusField ? frame.querySelector("input") : frame)
+      if (!focusField) expect(focusing).toHaveBeenCalledWith({ preventScroll: true, focusVisible: false })
       expect(frame.getAttribute("aria-label")).toBe("New connection")
       expect(frame.getAttribute("aria-modal")).not.toBe("true")
     } finally {
+      focusing.mockRestore()
       wrapper.unmount()
     }
   })

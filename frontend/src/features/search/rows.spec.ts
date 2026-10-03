@@ -15,6 +15,8 @@ import {
 import type { SearchLine } from "./stream"
 import { CONNECTIONS, GUIDE, hit, outcome, plannedCell } from "./testing"
 
+const RECENT = { key: "objects:recent", title: "Recently opened", rank: 0 }
+
 const PLAN: SearchLine = {
   type: "plan",
   mode: "typing",
@@ -85,6 +87,28 @@ describe("the rows of the field", () => {
       "Recent searches",
       "orders",
       "users",
+    ])
+  })
+
+  it("lets each recent search and the whole group be taken out", () => {
+    expect(recentOptions(["orders"]).map((option) => option.removeLabel)).toEqual([
+      "Clear recent searches",
+      "Remove from recent searches",
+    ])
+  })
+
+  it("lets what was opened lately be taken out, and no other group", () => {
+    const state = [
+      { type: "plan", mode: "typing", cells: [plannedCell("objects:recent/names", RECENT), plannedCell("objects:guide/names", GUIDE)] },
+      { type: "cell", key: "objects:recent/names", outcome: outcome(), hits: [hit("a")] },
+      { type: "cell", key: "objects:guide/names", outcome: outcome(), hits: [hit("b")] },
+      { type: "best", hits: [] },
+    ].reduce((answer, line) => reduceAnswer(answer, line as SearchLine), EMPTY_ANSWER)
+    expect(fieldOptions(state).map((option) => [option.label, option.removeLabel])).toEqual([
+      ["Recently opened", "Clear recently opened"],
+      ["a", "Remove from recently opened"],
+      [GUIDE.title, undefined],
+      ["b", undefined],
     ])
   })
 })
