@@ -117,6 +117,67 @@ describe("the field's answer", () => {
     expect(asked[0]?.request).toEqual({ words: "orders", mode: "typing", lane: "field", context: ["c1", "c2"], only })
   })
 
+  const OPENED = [
+    { kind: "node" as const, connector_id: "c1", node_id: "public.orders", name: "orders", node_kind: "table" },
+    { kind: "connection" as const, connector_id: "c2" },
+  ]
+  const RECENT_PLAN: SearchLine = {
+    type: "plan",
+    mode: "typing",
+    cells: [plannedCell("objects:recent/names", { key: "objects:recent", title: "Recently opened", rank: 0 })],
+  }
+  const RECENT_ANSWER: SearchLine[] = [
+    RECENT_PLAN,
+    { type: "cell", key: "objects:recent/names", outcome: outcome(), hits: [hit("orders")] },
+    { type: "best", hits: [] },
+    { type: "end", nothing_found: false, asked: 1, superseded: false },
+  ]
+
+  it("sends what was opened lately with the words, as a hint", async () => {
+    const { ask, asked } = scripted([PLAN])
+    const { words } = field(ask, () => ({ context: ["c1"], only: null, recent: OPENED }))
+    words.value = "orders"
+    await nextTick()
+    vi.advanceTimersByTime(150)
+    await flushPromises()
+    expect(asked[0]?.request).toEqual({ words: "orders", mode: "typing", lane: "field", context: ["c1"], recent: OPENED })
+  })
+
+  it("empty, asks with no words what was opened lately, and never with a scope", async () => {
+    const { ask, asked } = scripted(RECENT_ANSWER)
+    const only = [{ kind: "connection" as const, connector_id: "c1", node_id: null }]
+    const { answer } = field(ask, () => ({ context: ["c1"], only, recent: OPENED }))
+    answer.refresh()
+    vi.advanceTimersByTime(0)
+    await flushPromises()
+    expect(asked.map((one) => one.request)).toEqual([
+      { words: "", mode: "typing", lane: "field", context: ["c1"], recent: OPENED },
+    ])
+    expect(answer.drawn.value?.cells[0]?.hits.map((one) => one.title)).toEqual(["orders"])
+  })
+
+  it("empty with nothing opened yet, asks nothing", async () => {
+    const { ask, asked } = scripted(RECENT_ANSWER)
+    const { answer } = field(ask, () => ({ context: ["c1"], only: null, recent: [] }))
+    answer.refresh()
+    vi.advanceTimersByTime(0)
+    await flushPromises()
+    expect(asked).toHaveLength(0)
+    expect(answer.drawn.value).toBeNull()
+  })
+
+  it("does not draw what was opened lately as the answer to words typed after it", async () => {
+    const { ask } = scripted((request) => (request.words === "" ? RECENT_ANSWER : [PLAN]))
+    const { words, answer } = field(ask, () => ({ context: [], only: null, recent: OPENED }))
+    answer.refresh()
+    vi.advanceTimersByTime(0)
+    await flushPromises()
+    expect(answer.drawn.value).not.toBeNull()
+    words.value = "or"
+    await nextTick()
+    expect(answer.drawn.value).toBeNull()
+  })
+
   it("stops asking when its owner goes", async () => {
     const { ask, asked } = scripted([PLAN])
     const { words, scope } = field(ask)

@@ -1,6 +1,6 @@
 import { useRouter } from "vue-router"
 
-import type { Hit } from "@/client"
+import type { Hit, RecentTarget } from "@/client"
 import { openQuickChat } from "@/features/ai/quickChatLauncher"
 import { requestAiConversation, requestAiProject } from "@/features/ai/state"
 import { setDashboardIntent } from "@/features/dashboards/intent"
@@ -10,6 +10,8 @@ import { pointAtService } from "@/features/services/pointed"
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import type { OpenHow } from "@/features/workspace/state"
+import { useCurrentUser } from "@/shared/auth/currentUser"
+import { readOpened, rememberOpened } from "@/shared/search/opened"
 import { useToast } from "@/shared/ui"
 import { useSpaceStore } from "@/stores/space"
 
@@ -96,12 +98,29 @@ export interface HitActions {
 export function useHitActions(besidePanel?: () => string | null): HitActions {
   const openers = useHitOpeners()
   const space = useSpaceStore()
+  const me = useCurrentUser()
   function how(): OpenHow {
     const beside = besidePanel?.() ?? null
     return { float: space.current !== "data", ...(beside === null ? {} : { beside }) }
   }
-  return {
-    open: (hit) => openHit(hit, openers, how()),
-    showInCatalog: (hit) => showInCatalog(hit, openers, how()),
+  // Kept before it opens: an opener that fails still leaves it findable (S6).
+  function opened(hit: Hit) {
+    rememberOpened(me.data.value?.id, hit)
   }
+  return {
+    open: (hit) => {
+      opened(hit)
+      return openHit(hit, openers, how())
+    },
+    showInCatalog: (hit) => {
+      opened(hit)
+      return showInCatalog(hit, openers, how())
+    },
+  }
+}
+
+/** What was opened from the search lately, sent with every request as a hint (S6). */
+export function useRecentlyOpened(): () => RecentTarget[] {
+  const me = useCurrentUser()
+  return () => readOpened(me.data.value?.id)
 }

@@ -299,13 +299,18 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   node; one on that level behind search results leaves them first. A Redis key
   is opened down the hit's `ancestors`.
 - **What the browser keeps**: the last ten searches in session storage, per
-  server, never words that found a saved query's body, emptied on sign-out.
+  server, never words that found a saved query's body, emptied on sign-out;
+  and the last 50 targets opened from the field or the tab (S6), the target
+  only, in local storage per person and server (`shared/search/opened.ts`),
+  sent as `recent` with every request and emptied on sign-out. An empty field
+  shows the recent searches, then what the server still names of those
+  targets.
 
 Known deviations:
 
-- **Recently opened and open tabs are not sent yet.** The server answers both
-  (S6, S9) and the open actions exist, but the field keeps no list of what was
-  opened and sends no `recent` and no `browser` places.
+- **Open tabs are not sent yet.** The server answers them (S9) and the open
+  actions exist, but the field sends no `browser` places, so a tab opened from
+  the search is kept and never named again.
 - **Nothing is searched inside files from the tab** (S7), and the agent has no
   search tool (S10).
 - **A conversation outside the first 100 of the AI list** is replaced by the

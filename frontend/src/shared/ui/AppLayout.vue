@@ -7,6 +7,7 @@ import ToastHost from "@/shared/notifications/ToastHost.vue"
 import { resetNotices } from "@/shared/notifications/notices"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { closeRealtime } from "@/shared/realtime/client"
+import { forgetOpened } from "@/shared/search/opened"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
 import { useAuthStore } from "@/stores/auth"
@@ -74,12 +75,14 @@ onBeforeUnmount(() => {
 })
 
 async function logout() {
+  const signedOut = me.data.value?.id
   auth.clear()
   closeRealtime()
   // What was said was said to whoever was here before.
   resetNotices()
-  // And what they looked for is theirs (D205).
+  // And what they looked for and opened is theirs (D205).
   recentSearches.clear()
+  forgetOpened(signedOut)
   // The cache is cleared on sign-out: otherwise the previous user's data stays
   // visible to the next one.
   queryClient.clear()

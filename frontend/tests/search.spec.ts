@@ -1015,3 +1015,42 @@ test("a Redis key found is shown in its tree, down the folders its hit names", a
     await redisCommands([["DEL", key]])
   }
 })
+
+test("what was opened from the search comes back first in the empty field, and goes with its connection", async ({ page }) => {
+  await login(page)
+  const first = await fileConnection(page, "e2e-search-opened-a")
+  const second = await fileConnection(page, "e2e-search-opened-b")
+
+  for (const name of [first, second]) {
+    await openSearch(page)
+    await searchField(page).fill(name)
+    await searchOption(page, new RegExp(name)).click()
+    await expect(page.locator(`[data-testid^="workspace-tab-catalog:"]`, { hasText: name })).toBeVisible()
+  }
+
+  // Typed words carry what was opened, newest first, as a hint.
+  const typed = page.waitForRequest((request) => request.url().endsWith("/api/v1/search") && request.postDataJSON()?.words === "e2e")
+  await openSearch(page)
+  await searchField(page).fill("e2e")
+  const hint = (await typed).postDataJSON() as { recent?: { kind: string }[] }
+  expect(hint.recent?.slice(0, 2).map((one) => one.kind)).toEqual(["connection", "connection"])
+
+  // Emptied, the field asks with no words and lists them, the last opened first.
+  await searchField(page).fill("")
+  const opened = searchList(page).getByRole("group", { name: "Recently opened" }).getByRole("option")
+  await expect(opened.nth(0)).toContainText(second)
+  await expect(opened.nth(1)).toContainText(first)
+  await opened.nth(1).click()
+  await expect(page.locator(`[data-testid^="workspace-tab-catalog:"]`, { hasText: first })).toBeVisible()
+
+  // Opened again, it is first; a connection gone is no longer named.
+  await deleteConnector(page, second)
+  await openSearch(page)
+  await searchField(page).fill("")
+  await expect(opened.nth(0)).toContainText(first)
+  await expect(searchList(page).getByRole("option", { name: new RegExp(second) })).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("Escape")
+
+  await deleteConnector(page, first)
+})

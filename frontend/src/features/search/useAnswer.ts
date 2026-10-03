@@ -1,7 +1,7 @@
 import { getCurrentScope, onScopeDispose, ref, shallowRef, watch } from "vue"
 import type { Ref, ShallowRef } from "vue"
 
-import type { SearchRequest } from "@/client"
+import type { RecentTarget, SearchRequest } from "@/client"
 
 import { EMPTY_ANSWER, pendingOf, reduceAnswer, reduceFollow, settleFollow, stopPending } from "./answer"
 import type { AnswerState } from "./answer"
@@ -27,6 +27,8 @@ function stopWithOwner(stop: () => void) {
 export interface FieldContext {
   context: string[]
   only: SearchRequest["only"]
+  /** What was opened from the search lately, newest first (S6). */
+  recent?: RecentTarget[]
 }
 
 /**
@@ -37,6 +39,10 @@ export interface FieldContext {
  * and so on the server. `drawn` is the last answer whose best matches are in:
  * the field draws whole answers, so a list does not empty between two keys
  * nor jump when the best matches arrive.
+ *
+ * An empty field asks with no words and what was opened lately, which the
+ * server answers with those of them the person may still see (S6). A scope
+ * is not sent with it: it narrows names, and an empty search names none.
  */
 export function useFieldAnswer(
   words: Ref<string>,
@@ -55,6 +61,9 @@ export function useFieldAnswer(
   const error = ref<string | null>(null)
   let controller: AbortController | null = null
   let timer: ReturnType<typeof setTimeout> | null = null
+  // Whether `drawn` answers an empty field: what was opened lately is never
+  // drawn as the answer to words, nor the other way round.
+  let drawnEmpty = false
 
   function cancel() {
     controller?.abort()
@@ -63,20 +72,25 @@ export function useFieldAnswer(
     timer = null
   }
 
-  async function run(typed: string) {
+  function forget() {
+    live.value = EMPTY_ANSWER
+    drawn.value = null
+    error.value = null
+  }
+
+  async function run(typed: string, request: SearchRequest) {
     const own = new AbortController()
     controller = own
-    const { context, only } = around()
     let state = EMPTY_ANSWER
     try {
-      for await (const line of ask(
-        { words: typed, mode: "typing", lane: "field", context, ...(only ? { only } : {}) },
-        own.signal
-      )) {
+      for await (const line of ask(request, own.signal)) {
         if (own.signal.aborted) return
         state = reduceAnswer(state, line)
         live.value = state
-        if (state.best !== null || line.type === "end") drawn.value = state
+        if (state.best !== null || line.type === "end") {
+          drawn.value = state
+          drawnEmpty = typed === ""
+        }
       }
       error.value = null
     } catch (cause) {
@@ -86,19 +100,29 @@ export function useFieldAnswer(
     }
   }
 
+  function requestOf(typed: string): SearchRequest | null {
+    const { context, only, recent = [] } = around()
+    const hint = recent.length > 0 ? { recent } : {}
+    if (typed === "") {
+      return recent.length === 0 ? null : { words: "", mode: "typing", lane: "field", context, ...hint }
+    }
+    if (typed.length < MIN_CHARACTERS) return null
+    return { words: typed, mode: "typing", lane: "field", context, ...(only ? { only } : {}), ...hint }
+  }
+
   function schedule(delay: number) {
     cancel()
     const typed = words.value.trim()
-    if (typed.length < MIN_CHARACTERS) {
-      live.value = EMPTY_ANSWER
-      drawn.value = null
-      error.value = null
+    const request = requestOf(typed)
+    if (request === null) {
+      forget()
       return
     }
+    if (drawnEmpty !== (typed === "")) forget()
     timer = setTimeout(() => {
       timer = null
-      void run(typed)
-    }, delay)
+      void run(typed, request)
+    }, typed === "" ? 0 : delay)
   }
 
   watch(words, () => schedule(DEBOUNCE_MS))

@@ -1074,5 +1074,9 @@ timings.
   loaded panel first imported them and reloaded the page mid-test. They are now
   pre-bundled at start (`optimizeDeps.include` in `vite.config.ts`), and the
   four pass against the restarted server.
+- **S6 (browser).** `vitest` for the kept targets and the empty field's
+  request, `type-check`, `lint`: clean; `tests/search.spec.ts` 24 passed, with
+  a scenario where what was opened comes back first and a deleted connection is
+  no longer named.
 - **Not built:** S7 (contents as a job), S10 (the agent), and the browser's
-  halves of S6 and S9 — the field sends neither what was opened nor open tabs.
+  half of S9 — the field sends no open tabs.

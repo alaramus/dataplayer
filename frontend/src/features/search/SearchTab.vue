@@ -20,7 +20,7 @@ import { useRecentSearchesStore } from "@/stores/recentSearches"
 
 import { foundSavedQueryText, nothingFound, pendingOf } from "./answer"
 import { contextOf, placeOf } from "./context"
-import { useHitActions } from "./openers"
+import { useHitActions, useRecentlyOpened } from "./openers"
 import { followOf, nothingFoundSentence, stillSearching } from "./outcomes"
 import type { Gesture } from "./outcomes"
 import { hitOption } from "./rows"
@@ -43,6 +43,7 @@ const props = defineProps<{ panelId: string }>()
 const actions = useWorkspaceActions()
 const recent = useRecentSearchesStore()
 const hitActions = useHitActions(() => props.panelId)
+const opened = useRecentlyOpened()
 
 const words = ref("")
 const scope = ref<SearchScope | null>(null)
@@ -61,6 +62,12 @@ function context(): string[] {
   return contextOf(actions.activeConnectorId.value, actions.openConnectorIds.value)
 }
 
+/** Where the person is, and what they opened lately: recency orders the best matches (S6). */
+function around(): Pick<SearchRequest, "context" | "recent"> {
+  const recent = opened()
+  return { context: context(), ...(recent.length > 0 ? { recent } : {}) }
+}
+
 function search() {
   const typed = words.value.trim()
   if (typed.length < MIN_CHARACTERS) return
@@ -70,7 +77,7 @@ function search() {
     words: typed,
     mode: "search",
     lane: "tab",
-    context: context(),
+    ...around(),
     ...(scope.value === null ? {} : { only: [placeOf(scope.value)] }),
   }
   void tab.search(request)
@@ -118,7 +125,7 @@ function take(one: SaidCell) {
   // Unlocked where it was said: the place is asked again.
   const request = followOf(gesture.kind === "unlock" ? TRY_AGAIN : gesture, asked.value, one.cell.planned, answer.value.cells)
   if (request === null || (request.only?.length ?? 0) === 0) return
-  void tab.follow({ ...request, context: context() })
+  void tab.follow({ ...request, ...around() })
 }
 
 const now = ref(Date.now())

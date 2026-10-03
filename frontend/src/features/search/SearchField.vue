@@ -11,7 +11,7 @@ import { useSpaceStore } from "@/stores/space"
 
 import { EMPTY_ANSWER, nothingFound, pendingOf } from "./answer"
 import { contextOf, placeOf } from "./context"
-import { useHitActions } from "./openers"
+import { useHitActions, useRecentlyOpened } from "./openers"
 import { nothingFoundSentence, stillSearching, typingNote } from "./outcomes"
 import { fieldOptions, recentOptions, SCOPE_VALUE } from "./rows"
 import { useFieldAnswer } from "./useAnswer"
@@ -38,6 +38,7 @@ const actions = useWorkspaceActions()
 const recent = useRecentSearchesStore()
 const space = useSpaceStore()
 const hits = useHitActions()
+const opened = useRecentlyOpened()
 
 const words = ref("")
 const listOpen = ref(false)
@@ -51,6 +52,7 @@ let returnTo: HTMLElement | null = null
 const field = useFieldAnswer(words, () => ({
   context: contextOf(actions.activeConnectorId.value, actions.openConnectorIds.value),
   only: scope.value === null ? undefined : [placeOf(scope.value)],
+  recent: opened(),
 }))
 
 const typed = computed(() => words.value.trim())
@@ -77,7 +79,9 @@ const offerRow = computed<SelectOption[]>(() =>
 
 const options = computed<SelectOption[]>(() => [
   ...offerRow.value,
-  ...(asking.value ? fieldOptions(shown.value) : recentOptions(recent.entries)),
+  ...(asking.value
+    ? fieldOptions(shown.value)
+    : [...recentOptions(recent.entries), ...(typed.value === "" ? fieldOptions(shown.value) : [])]),
 ])
 
 const status = computed(() => {
@@ -100,7 +104,8 @@ function show() {
   if (active instanceof HTMLElement && !root.value?.contains(active)) returnTo = active
   scope.value = null
   listOpen.value = true
-  if (asking.value) field.refresh()
+  // Empty, it asks what was opened lately, which may have grown since.
+  field.refresh()
   void nextTick(() => {
     box.value?.focus()
     box.value?.select()
