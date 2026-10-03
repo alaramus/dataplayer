@@ -5,12 +5,18 @@ answer is JSON Lines — one line per cell as it finishes — so a screen draws
 what is found while the rest is still being asked.
 """
 
+import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.core.db import SessionDep
+from app.jobs.models import JobPublic
+from app.jobs.runner import JobRunnerDep
+from app.realtime.topics import TopicsDep
+from app.search import contents
+from app.search.contents import ContentsAnswer, ContentsMemory, ContentsRequest
 from app.search.engine import Answer, ScopeNotFound, SearchEngine
 from app.search.models import SearchLine, SearchRequest
 from app.users.deps import CurrentUser
@@ -49,3 +55,53 @@ async def search(
     """
     async for line in answer.lines():
         yield line
+
+
+def _memory(request: Request) -> ContentsMemory:
+    memory: ContentsMemory = request.app.state.contents_memory
+    return memory
+
+
+ContentsMemoryDep = Annotated[ContentsMemory, Depends(_memory)]
+
+
+@router.post("/contents", response_model=JobPublic)
+async def search_contents(
+    body: ContentsRequest,
+    session: SessionDep,
+    current_user: CurrentUser,
+    memory: ContentsMemoryDep,
+    runner: JobRunnerDep,
+    topics: TopicsDep,
+) -> JobPublic:
+    """Look for words inside the files of chosen connections, as a job (S7).
+
+    The words and what is found are held in memory for a while and never
+    written to the job; one at a time per person. A connection the person has
+    no standing on is answered as an unknown one.
+    """
+    try:
+        return await contents.start(
+            session, current_user, body, memory=memory, runner=runner, topics=topics
+        )
+    except contents.PlaceNotFound:
+        raise HTTPException(status_code=404, detail="Connector not found") from None
+    except contents.ContentsBusy:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "A search inside files is already running — stop it or wait for it"},
+        ) from None
+
+
+@router.get("/contents/{job_id}", response_model=ContentsAnswer)
+async def read_search_contents(
+    job_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+    memory: ContentsMemoryDep,
+) -> ContentsAnswer:
+    """What a search inside files found, while it is held; 404 unless it is the caller's."""
+    found = await contents.answer(session, current_user, job_id, memory)
+    if found is None:
+        raise HTTPException(status_code=404, detail={"message": "No such job"})
+    return found

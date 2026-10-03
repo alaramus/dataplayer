@@ -547,6 +547,12 @@ import type {
   queriesUpdateDocumentData,
   queriesUpdateDocumentErrors,
   queriesUpdateDocumentResponses,
+  searchReadSearchContentsData,
+  searchReadSearchContentsErrors,
+  searchReadSearchContentsResponses,
+  searchSearchContentsData,
+  searchSearchContentsErrors,
+  searchSearchContentsResponses,
   searchSearchData,
   searchSearchErrors,
   searchSearchResponses,
@@ -6163,6 +6169,54 @@ export class SearchService {
         },
       }
     )
+  }
+
+  /**
+   * Search Contents
+   *
+   * Look for words inside the files of chosen connections, as a job (S7).
+   *
+   * The words and what is found are held in memory for a while and never
+   * written to the job; one at a time per person. A connection the person has
+   * no standing on is answered as an unknown one.
+   */
+  public static searchContents<ThrowOnError extends boolean = true>(
+    options: Options<searchSearchContentsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      searchSearchContentsResponses,
+      searchSearchContentsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/contents",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Search Contents
+   *
+   * What a search inside files found, while it is held; 404 unless it is the caller's.
+   */
+  public static readSearchContents<ThrowOnError extends boolean = true>(
+    options: Options<searchReadSearchContentsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      searchReadSearchContentsResponses,
+      searchReadSearchContentsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/contents/{job_id}",
+      ...options,
+    })
   }
 }
 

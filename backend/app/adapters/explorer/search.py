@@ -165,6 +165,7 @@ class ExplorerSearch:
 
                 match_class: MatchClass | None = None
                 excerpt: str | None = None
+                line_number: int | None = None
                 if inside:
                     if read_bytes > limits.total_bytes:
                         return answer(
@@ -186,6 +187,7 @@ class ExplorerSearch:
                     elif looked.line is not None:
                         match_class = "text"
                         excerpt = looked.line
+                        line_number = looked.line_number
                 else:
                     match_class = class_of_name(words, entry.name)
 
@@ -197,6 +199,7 @@ class ExplorerSearch:
                             parent_id=level.node_id,
                             location=level.node_id or "",
                             excerpt=excerpt,
+                            line=line_number,
                         ),
                     )
                     if kept.settled(best):
@@ -254,10 +257,11 @@ class ExplorerSearch:
                 raw.seek(0)
                 text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
                 try:
-                    for line in text:
+                    for number, line in enumerate(text, start=1):
                         if holds_every_word(words, line):
                             return _Looked(
                                 line=line.strip()[:MAX_EXCERPT_CHARACTERS],
+                                line_number=number,
                                 read_bytes=raw.tell(),
                             )
                     return _Looked(read_bytes=raw.tell())
@@ -274,6 +278,7 @@ class _Looked:
     """What looking inside one file found, and what it cost."""
 
     line: str | None = None
+    line_number: int | None = None
     # Told apart from "no match here": a file nobody could read is worth
     # counting, and a file that simply does not hold the words is not.
     unreadable: bool = False

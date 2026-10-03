@@ -104,6 +104,11 @@ class Settings(BaseSettings):
     # Keys a Redis server may hold and still be searched while somebody types:
     # a scan looks at every key whatever matches.
     SEARCH_CHEAP_KEYS: int = Field(default=20_000, ge=0, le=1_000_000)
+    # A search inside files, as a job (S7): how long it may run over every
+    # connection chosen, and how long its words and matches are held in
+    # memory once it ends.
+    SEARCH_CONTENTS_SECONDS: float = Field(default=600.0, gt=0, le=3600)
+    SEARCH_CONTENTS_HELD_SECONDS: float = Field(default=1800.0, gt=0, le=7200)
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

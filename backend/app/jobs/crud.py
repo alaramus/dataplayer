@@ -180,6 +180,25 @@ async def forget_finished(
     return len(stale)
 
 
+async def forget_finished_of_owner(
+    session: AsyncSession, *, kind: JobKind, owner_id: uuid.UUID, keep: int
+) -> list[uuid.UUID]:
+    """Remove the owner's ended jobs of this kind but the newest `keep`; their
+    ids. The caller commits. One still going is never removed."""
+    about = (col(Job.owner_id) == owner_id, col(Job.kind) == kind)
+    newest = (
+        select(Job.id).where(*about).order_by(col(Job.created_at).desc(), col(Job.id).desc()).limit(keep)
+    )
+    stale = list((await session.exec(
+        select(Job.id).where(
+            *about, col(Job.state).in_(TERMINAL), col(Job.id).not_in(newest.scalar_subquery())
+        )
+    )).all())
+    if stale:
+        await session.exec(delete(Job).where(col(Job.id).in_(stale)))
+    return stale
+
+
 async def get_for_owner(
     session: AsyncSession, job_id: uuid.UUID, owner_id: uuid.UUID
 ) -> Job | None:

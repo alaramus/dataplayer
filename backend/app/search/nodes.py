@@ -364,7 +364,7 @@ class ConnectionSearch:
         store = BorrowingStore(self._resources)
         try:
             try:
-                adapter = _adapter(connection, store)
+                adapter = adapter_of(connection, store)
             except Exception:
                 # Never the text: a validation error quotes the options it
                 # refused, and a password may be among them.
@@ -462,7 +462,7 @@ def _fields(connection: VisibleConnection) -> list[tuple[SearchedField, bool]]:
     return fields
 
 
-def _adapter(connection: VisibleConnection, store: BorrowingStore) -> DataAdapter:
+def adapter_of(connection: VisibleConnection, store: BorrowingStore) -> DataAdapter:
     """The connection's source, built from the row the visibility query read.
 
     The funnel's rule without its round trip (D199): the owner's context, and
@@ -548,6 +548,12 @@ def _hit(connection: VisibleConnection, match: NodeMatch, asked: Asked) -> Hit |
         found = name_match(asked.words, match.full_name or node.name)
     if found is None:
         return None
+    return node_hit(connection, match, found)
+
+
+def node_hit(connection: VisibleConnection, match: NodeMatch, found: Match) -> Hit:
+    """A node a source found, as a hit of its connection: by name or inside it."""
+    node = match.node
     target = NodeTarget(
         connector_id=connection.id,
         node_id=node.id,

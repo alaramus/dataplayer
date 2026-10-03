@@ -2579,6 +2579,101 @@ export type ContentUpdated = {
 }
 
 /**
+ * ContentsAnswer
+ *
+ * What a search inside files found, while it is held (S7).
+ */
+export type ContentsAnswer = {
+  /**
+   * Job Id
+   */
+  job_id: string
+  /**
+   * Held
+   */
+  held: boolean
+  /**
+   * Finished
+   */
+  finished: boolean
+  /**
+   * Words
+   */
+  words?: string | null
+  /**
+   * Places
+   */
+  places?: Array<ContentsPlace>
+  /**
+   * Hits
+   */
+  hits?: Array<Hit>
+}
+
+/**
+ * ContentsPlace
+ *
+ * One chosen connection, and what became of looking inside it.
+ */
+export type ContentsPlace = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Status
+   */
+  status?: "waiting" | "complete" | "stopped" | "failed" | "skipped"
+  /**
+   * Reason
+   */
+  reason?:
+    | "switched_off"
+    | "cannot_search"
+    | "unreachable"
+    | "too_costly"
+    | "not_in_context"
+    | "not_asked"
+    | null
+  /**
+   * Notice
+   */
+  notice?: string | null
+  /**
+   * Error Kind
+   */
+  error_kind?: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
+  /**
+   * Message
+   */
+  message?: string | null
+  /**
+   * Found
+   */
+  found?: number
+}
+
+/**
+ * ContentsRequest
+ *
+ * What to look for, and in which of the person's connections.
+ */
+export type ContentsRequest = {
+  /**
+   * Words
+   */
+  words: string
+  /**
+   * Connector Ids
+   */
+  connector_ids: Array<string>
+}
+
+/**
  * ContinuousAggregateFacts
  */
 export type ContinuousAggregateFacts = {
@@ -5661,6 +5756,7 @@ export type JobPublic = {
     | "metrics.store.create"
     | "paste.transfer"
     | "pipeline.run"
+    | "search.contents"
   /**
    * Subject Id
    */
@@ -6591,6 +6687,10 @@ export type NodeMatch = {
    * Excerpt
    */
   excerpt?: string | null
+  /**
+   * Line
+   */
+  line?: number | null
   /**
    * Ancestors
    */
@@ -19997,6 +20097,64 @@ export type searchSearchResponses = {
    */
   200: unknown
 }
+
+export type searchSearchContentsData = {
+  body: ContentsRequest
+  path?: never
+  query?: never
+  url: "/api/v1/search/contents"
+}
+
+export type searchSearchContentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchSearchContentsError = searchSearchContentsErrors[keyof searchSearchContentsErrors]
+
+export type searchSearchContentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobPublic
+}
+
+export type searchSearchContentsResponse =
+  searchSearchContentsResponses[keyof searchSearchContentsResponses]
+
+export type searchReadSearchContentsData = {
+  body?: never
+  path: {
+    /**
+     * Job Id
+     */
+    job_id: string
+  }
+  query?: never
+  url: "/api/v1/search/contents/{job_id}"
+}
+
+export type searchReadSearchContentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchReadSearchContentsError =
+  searchReadSearchContentsErrors[keyof searchReadSearchContentsErrors]
+
+export type searchReadSearchContentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentsAnswer
+}
+
+export type searchReadSearchContentsResponse =
+  searchReadSearchContentsResponses[keyof searchReadSearchContentsResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

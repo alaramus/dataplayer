@@ -248,6 +248,8 @@ class NodeMatch(BaseModel):
     # empty: what matched is the name, and it is already the row. Bounded by
     # the source, because a log line can be a megabyte long.
     excerpt: str | None = None
+    # Which line of the file that was, counted from 1, for a search inside.
+    line: int | None = None
     # The levels above it from the root, for a source with no node path to ask
     # for them: a Redis key is shown in its tree from these (D205).
     ancestors: list[Ancestor] | None = None

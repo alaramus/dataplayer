@@ -39,6 +39,8 @@ from app.queries.search import SavedQueries
 from app.queries.sessions import QuerySessions
 from app.realtime import topics
 from app.search.connections import ConnectionRows
+from app.search.contents import ContentsMemory
+from app.search.contents import handlers as contents_handlers
 from app.search.engine import SearchEngine, SearchLimits
 from app.search.guide import GuidePages
 from app.search.nodes import ConnectionSearch
@@ -120,6 +122,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     )
     application.state.service_engine = engine
     transfers = RunTransfer(application.state.data_cache, application.state.resources)
+    # A search inside files holds its words and matches here, never in its
+    # job's row, and forgets them a while after it ends (S7, D124).
+    application.state.contents_memory = ContentsMemory(settings.SEARCH_CONTENTS_HELD_SECONDS)
     application.state.job_runner = JobRunner({
         **service_handlers(engine),
         **backup_handlers(engine),
@@ -127,6 +132,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         **transfer_handlers(transfers),
         **pipeline_handlers(application.state.data_cache, application.state.resources, transfers),
         **metrics_handlers(engine),
+        **contents_handlers(application.state.contents_memory, application.state.resources),
     })
     # One search over everything a person may see, asking a provider per kind
     # of thing the application keeps; a feature hands its own in here, and the
