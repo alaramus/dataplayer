@@ -391,6 +391,13 @@ not disabled — everywhere else: a chart is drawn from a page of rows, a diagra
 from several nodes at once, a console is written against a connection, and a
 captured result names no node of any source.
 
+Show in catalog never takes a catalog away from what it holds. One holding a
+search, a filter or ticks is not moved: another catalog of the connection shows
+the node, one already open or a copy at the node's level. One on the node's
+level behind search results leaves them before it marks the row (D205). The
+rule is one function, `revealPlan` in `src/features/catalog/reveal.ts`, for every
+caller — a panel's button, a link, a shared link, a search hit.
+
 Open in a window comes last (D93). It is about the frame rather than what the
 frame holds, and it stood nowhere at first: a tab carried to the header was the
 only way, and nobody found it. So it is a button of the row after all, drawn

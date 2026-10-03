@@ -101,10 +101,31 @@ for a name somebody remembers in a place they do not.
   questions, and no second field to fill in. While results are shown the list
   is not a level: it says so, offers the way back, and every row on it behaves
   as it would at home.
-- **The text is matched, never compiled.** A case-insensitive substring of a
-  name, and no pattern language at all — [D2c](contract.md#d2c-a-query-is-never-built-from-client-strings)'s
-  rule stated for the one input this capability takes. A `*` is a character in
-  a name.
+- **The text is matched, never compiled.** The search's one word rule
+  ([D202](../search.md#d202-groups-in-a-fixed-order-and-one-rule-for-how-well-a-name-matched)):
+  every word of what was typed occurs in the name, case-folded, in any order,
+  so `2024 orders` finds `orders_2024.csv`. No pattern language at all —
+  [D2c](contract.md#d2c-a-query-is-never-built-from-client-strings)'s rule
+  stated for the one input this capability takes. A `*` or `%` is a character.
+- **The best matches are kept.** A source that meets more matches than asked
+  for keeps the best-classed ones and says it stopped: the explorer keeps
+  walking within its other ceilings, PostgreSQL ranks exact and prefix names
+  before its `LIMIT`, Redis keeps the best while it scans. An exact name is
+  never lost behind a hundred substring matches.
+- **Bounds are an argument of their own.** `search_nodes` and `search_contents`
+  take `SearchBounds` — a deadline, a stop check and the search's thread
+  limiter — beside the request; none means the source's own limits only. Time
+  is a fourth bound, said in the notice. The catalog's name search runs under
+  `SEARCH_COSTLY_SECONDS` and stops when its caller has gone; the contents
+  search is bounded by bytes read.
+- **Which sources search their catalog.** The file source, SSH (through the
+  explorer, [D150](explorer.md)) and PostgreSQL (schemas, relations, report
+  titles: one bounded query of `pg_class` with words bound, never built in).
+  The `search` code is granted only to a type with both node search and node
+  paths, so Redis, which searches from the field only, answers 501 here (D91).
+- **A match may carry more than its node**: `ancestors`, the path from the root
+  for a source without node paths, and `full_name` when the node's name is only
+  its last part; a result carries `extent`, how much there was to look at.
 - **A match says where it was found, twice over**: `parent_id`, the source's own
   opaque id, which is what a client sends back to stand there; and `location`,
   the same place as the source words it, because a client that composed one
@@ -161,9 +182,8 @@ for a name somebody remembers in a place they do not.
 
 Known deviations:
 
-- **Only a tree of files searches**: the file source and SSH, through the
-  explorer ([D150](explorer.md)). PostgreSQL and Redis answer 501 to both
-  routes.
+- **PostgreSQL folds with `lower()`**, not Python's case folding: see D202's
+  deviation.
 - **Nothing inside a container is found.** A workbook's sheets and an archive's
   entries are nodes ([D51](content.md), [D53](content.md)), and the walk does
   not open files.
@@ -230,6 +250,13 @@ structure the names were given when they were chosen.
   a listing stops at a ceiling: a key space of ten million names has no useful
   tree, and a page that tried to draw one would fail slowly rather than
   quickly.
+- **A key space is searched from the search field, and the tree has no search
+  of its own** ([D200](../search.md#d200-a-cell-states-its-cost-and-a-mode-spends-only-what-it-may)).
+  A `SCAN` bounded by keys looked at (200,000) and by time, never by matches;
+  names case-folded and matched in the process, never turned into `MATCH`
+  classes; empty databases skipped by `INFO`. Each match carries its ancestors
+  as the listing names them, so a found key is shown in its tree without node
+  paths — which would hand Redis what D195 withdrew.
 - **What a key holds is read as rows, and the shape follows the type.** A hash
   is fields and values, a list is positions and values, a sorted set is members
   and scores. One table per type rather than a chain of branches, so a type

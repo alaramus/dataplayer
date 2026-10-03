@@ -352,6 +352,7 @@ what goes wrong the moment there is a second one:
 | Topics and health monitors | D18, D19 | probing is multiplied; a socket hears only what its own process found out or was told |
 | Startup sweeps | D64, D81, D123 | a worker its supervisor restarts ends the live runs and jobs of the others as `interrupted`, marks their source-operation targets unknown and deletes the snapshot a running restore reads |
 | Pools and the memory cache | D10, D31 | connections to a source multiply; entries and invalidation are not shared |
+| Search answers in flight, shared cells, the search's backoff | D200 | a newer answer does not end an older one in another process; identical cells are asked twice; a dead server is asked again from each process |
 
 The first two rows fail at random, by whichever process a request happens to
 reach, and development — one process — never shows them. One process is

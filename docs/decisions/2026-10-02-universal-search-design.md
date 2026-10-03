@@ -1052,3 +1052,27 @@ timings.
   touched: green. `ruff`, `mypy`, `lint-imports`, `check-docs`; `vitest` for the
   stream reader and the type catalog, `type-check`, `lint`: clean. The type
   catalog's E2E runs with S2's, against a rebuilt backend.
+- **S4, S8.** Search, adapter, route and health tests: 307 passed, 1 skipped;
+  the full backend suite 3,763 passed, 11 skipped. Each review fix was red
+  before it. Timings on the development data (median of 5): PostgreSQL names
+  17–47 ms on a connection of its own, 3–6 ms through an open pool; columns
+  3–8 ms; local files 3 ms for 32 entries, 20–23 ms for 1,020, 420–500 ms for
+  20,200; SSH 57 ms for 19 entries signing in, 385–511 ms for 2,040; Redis
+  19–28 ms for 1,000 keys, 160 ms for 20,000, 660–760 ms for 100,000. They
+  keep the 0.4 s typing deadline for PostgreSQL and small local trees, make SSH
+  costly, and set `SEARCH_CHEAP_KEYS` at 20,000.
+- **S5, S6, S9 (backend).** `pytest tests/search tests/pipelines tests/metrics
+  tests/queries tests/services tests/ai`: 742 passed; each review fix red
+  before it.
+- **After merging S4–S9.** `pytest tests/search` and every provider, adapter
+  and route search test: 350 passed, 1 skipped. Coalescing was reconciled: an
+  answer joins a task in flight within 0.25 s of its deadline.
+- **S2, S3 and the open intents.** `vitest` 2,362 passed, `type-check`,
+  `lint`: clean. The full E2E suite, run by the user: 362 passed, 4 failed
+  (Markdown's diagram, a PDF twice, the 3D graph). All four passed on a rerun:
+  the dev server had found Mermaid, pdf.js and three.js only when a lazily
+  loaded panel first imported them and reloaded the page mid-test. They are now
+  pre-bundled at start (`optimizeDeps.include` in `vite.config.ts`), and the
+  four pass against the restarted server.
+- **Not built:** S7 (contents as a job), S10 (the agent), and the browser's
+  halves of S6 and S9 — the field sends neither what was opened nor open tabs.

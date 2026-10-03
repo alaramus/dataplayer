@@ -8,18 +8,29 @@ Decisions here: D197, D198, D199, D200, D201, D202, D203, D204, D205.
 
 ```
 backend/app/
-├── adapters/search.py     the word rule and its classes, SearchBounds,
-│                          the catalog search's models (D76)
+├── adapters/search.py     the word rule and its classes, SearchBounds, the
+│                          capability's models (D76), StatesSearchCost,
+│                          SearchesColumns
+├── adapters/postgres/search.py, adapters/redis/search.py, explorer/search.py
 └── search/
     ├── models.py          the request, places and cells, hits, outcomes, lines
     ├── plan.py            which cells an answer asks, and why not the others
     ├── providers.py       the provider protocol, Asked, Found, match helpers
     ├── engine.py          lanes, deadlines, coalescing, the stream
+    ├── nodes.py           connection cells: candidates, asking, backoff
     ├── excerpts.py        text cut into segments, the words marked
     ├── connections.py     the visible connections, and the rows provider
-    ├── guide.py           guide pages
-    ├── source_types.py    source types and the services that start them
+    ├── recent.py          an empty search: what was opened lately
+    ├── open_tabs.py       tabs and tab groups the browser sends
+    ├── guide.py, source_types.py, ssh_keys.py
     └── routes.py          POST /search
+features: pipelines/, metrics/, queries/, ai/, services/ — search.py each
+
+frontend/src/
+├── shared/keys/shortcuts.ts      the shortcut registry (Mod+K)
+├── shared/ui/AppCombobox.vue     the kit combobox; AppOption draws its rows
+└── features/search/              stream reader, answer reducer, outcome
+                                  sentences, intents, the field and the tab
 ```
 
 ```
@@ -31,31 +42,23 @@ POST /api/v1/search        the words in the body; JSON Lines back
 - **A provider answers words with hits for its cells.** Application providers
   are one per kind of application object. A feature's provider lives with the
   feature and is handed to the engine in `app/main.py`, the way the job runner
-  gets its handlers (D81); the engine imports no feature. Providers for what
-  sits below the engine — connection rows, SSH keys, the guide, source types —
-  live in `app/search/`. The service templates a source type is also found by
-  are handed in by `app.services`.
-- **Connection providers** are built by the engine, one per connection the
-  person can read, from the connection's `SupportsNodeSearch`. Nothing in the
-  engine is written per source type.
+  gets its handlers (D81); the engine imports no feature. Connection rows, SSH
+  keys, the guide and source types live in `app/search/`. The service
+  templates a source type is also found by are handed in by `app.services`.
+- **Connection providers** are built per answer, one per visible connection,
+  from the connection's `SupportsNodeSearch` and, for a `columns` cell, its
+  `SearchesColumns`. Nothing in the engine is written per source type.
 - **The engine plans, asks, bounds and merges.** `app.search` sits between
   `app.transfers` and `app.jobs` in the import layers, and is listed in every
   SDK-containment contract and in `redis-cache-is-not-coordination`.
-- **One route**, `POST /api/v1/search`.
 - **Catalog search is not replaced.** The catalog's button keeps its route;
-  both ask the same capability under the same word rule (D202).
-- `NodeView`, the views a node opens in, is in `app.adapters.catalog`; the
-  agent's `OpenIntent` and the search's hits both use it.
+  both ask the same capability under the same word rule (D76, D202).
+- `NodeView` is in `app.adapters.catalog`; the agent's `OpenIntent` and the
+  search's hits both use it.
 
 Rejected: a `DataSource` abstraction beside connections (D1 and D2 already
-describe sources). The browser calling one route per provider: it would put the
-plan, the budget and the access rule in the browser.
-
-Known deviations:
-
-- **Connections are found as rows, not searched inside** (S4).
-- **Only connection rows, the guide and source types are providers** (S5 adds
-  the rest).
+describe sources). The browser calling one route per provider: the plan, the
+budget and the access rule would live in the browser.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
@@ -63,30 +66,25 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 A `Hit` carries:
 
-- **`target`**, discriminated by kind: `connection` (an id); `node` (connector,
-  node id, `parent_id`, `location`, name, kind, an always-empty `sub_key`, the
-  optional `ancestors` and the optional `CatalogNode` live fills); `object` (a
-  closed `ObjectType` and its id). A chunk of a document is never a target.
-- **`key`**, one string per target, so a thing found twice in one answer is one
-  hit. The engine keeps the first; the better class arrives first in this phase.
-- **`title`** and **`detail`**: the second line names the source type of a
-  connection, that it is switched off, and its owner when it is not the
-  person's.
-- **`facts`**: the kind, when the thing last changed, its owner, whether it is
-  switched off — what the Search tab filters by.
+- **`target`**, discriminated: `connection`; `node` (connector, node id,
+  `parent_id`, `location`, name, kind, an always-empty `sub_key`, `ancestors`
+  for a source without a node path, and the `CatalogNode` live fills);
+  `object` (a closed `ObjectType` and its id). A chunk is never a target.
+- **`key`**, one per target, so a thing found twice in one answer is one hit.
+  The engine keeps the first; in this phase the better class arrives first.
+- **`title`** and **`detail`**: a node's detail names its connection and
+  location; a connection's names its type, that it is switched off, and its
+  owner when it is not the person's; a shared dashboard names its owner. A
+  quick chat is titled as its history shows it.
+- **`facts`**: kind, when it last changed, owner, switched off.
 - **`match`**: the field (`name`, `details`, `body`, `contents`, `columns`), its
-  class (D202), an optional line, and the excerpt.
-- **The excerpt is segments**, each marked as a hit or not, at most 200
-  characters. No HTML and no offsets cross the API (D50): a Python offset
-  counts code points and a JavaScript one UTF-16 units. Folding can change a
-  string's length (`ß` → `ss`), so positions are mapped back one character at
-  a time.
+  class (D202), an optional line, and the excerpt as segments of at most 200
+  characters, each marked as a hit or not. No HTML and no offsets cross the API
+  (D50); folding can change a string's length (`ß` → `ss`), so positions are
+  mapped back one character at a time.
 - **`access`**, the person's level where the thing has one. It decides nothing.
 - **`open`**, from a closed set: a `NodeView`, `connection` (its window), or an
   object type.
-
-A node found later from what is kept may lack its `CatalogNode` and still be
-the same hit. Contents are never copied into an answer.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
@@ -94,22 +92,34 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 - **Connections are filtered by the one visibility predicate** inside the query
   that lists them (`crud.visible_with_standing`, owner or grant, bounded to
-  1,000). A connection without standing is never asked, counted or named.
-- **Ids from the browser are intersected with that set.** A context hint naming
-  one without standing is dropped silently; a place in `only` naming one answers
-  404 exactly as an unknown id does, before the stream begins. A route that
-  streams cannot change its status after the first line, so the refusal is a
-  dependency of the route, not its body.
-- **`read` is enough.** A grantee's search runs under the owner's credentials,
-  as every grantee's read does (D33).
+  1,000; it also loads the encrypted secrets, decrypted only for a connection
+  that is asked). Nothing without standing is asked, counted or named.
+- **Ids from the browser are intersected with that set.** A context hint
+  naming one without standing is dropped; a place in `only` naming one answers
+  404 exactly as an unknown id does, from a dependency of the route, before the
+  stream begins.
+- **A grantee's search runs under the owner's credentials** (D33). A grantee's
+  `locked` failure reads "Locked by its owner", never the source's sentence,
+  which names the owner's key.
 - **A switched-off connection is found by name and never asked** (D20).
-- **An application provider applies its feature's rule in its own query**; the
-  engine passes the person and never filters afterwards.
-- **No superuser mode** (D34). The server log is not a provider.
+- **Each application provider applies its feature's rule in its own query**:
+  owner only for pipelines, saved queries, conversations, services and keys;
+  owner plus grants for dashboards (D129). No superuser mode (D34).
+- **An empty search names a recent target only if the person still may**: a
+  connection still visible, a node only while its connection is visible and on,
+  an object only through the provider that owns its type (`Recalls`).
 - **Names kept as copies are not searched**: a share's labels, a pipeline
-  card's, a declared reference's.
+  card's, a declared reference's. A service is found by its connection's name
+  as it is now.
 - **The agent asks nothing by default**: a provider is offered to it by a
   decision of its own (S10).
+
+Known deviation:
+
+- **A recently opened node is named from the browser's copy** of its name and
+  kind: reading it again from its source would make an empty search no longer
+  instant. A node renamed since keeps its old name there; opening a dropped one
+  answers D21's 404.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
@@ -117,89 +127,112 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 | Cost | What | Examples |
 | --- | --- | --- |
-| `instant` | a bounded query of the application database, or memory | connection rows, the guide, source types |
-| `cheap` | one bounded request to a connection's metadata | PostgreSQL names, a small Redis database, a local tree |
-| `costly` | many round trips or a large bounded read | a tree over SSH, a large Redis database, saved-query bodies |
+| `instant` | a bounded query of the application database, or memory | connection rows, the guide, source types, titles of pipelines, dashboards, saved queries, chats, services, keys |
+| `cheap` | one bounded request to a connection's metadata | PostgreSQL names, local file names, Redis with a known small key count |
+| `costly` | many round trips or a large bounded read | names over SSH, a large or unmeasured Redis, PostgreSQL columns, saved-query bodies |
 | `job` | minutes | the contents of files |
 
-- **The cost belongs to the cell** and is stated without asking anybody, so a
-  dead server cannot hold the plan.
+- **The cost belongs to the cell**, stated without asking anybody. A source
+  type states its own through `StatesSearchCost` from the field and what the
+  engine remembers of its last search; without it a cell is costly. Redis is
+  costly until a search has measured the key count (every database `INFO`
+  lists), then cheap while it is at most `SEARCH_CHEAP_KEYS` (20,000).
 - **Typing** (150 ms after the last key, two characters at least): `instant`
-  cells everywhere, `cheap` cells of the connections in context only — the
-  connections whose panels are open, current first, at most eight. One deadline,
-  `SEARCH_TYPING_SECONDS` (0.4).
-- **Search** (Enter, the Search tab): `instant`, `cheap` and `costly`, in one
-  streamed answer. Cheap cells have `SEARCH_CHEAP_SECONDS` (2), costly ones
-  `SEARCH_COSTLY_SECONDS` (10) each and `SEARCH_TOTAL_SECONDS` (20) in all. At
-  most `SEARCH_MAX_CONNECTIONS` (20) connections are asked, in context first;
-  the rest are `not asked`.
-- **A job** is never planned; contents are looked inside on request.
-- **One answer in flight per person and lane.** A newer one cancels the older's
-  tasks. The lanes are the field, the Search tab, a gesture in the tab and the
-  type catalog, so typing in the field never ends a search the tab is running.
-- **Identical cells asked by one person share one task**, cancelled when the
-  last answer waiting for it goes. Nothing is shared between people.
-- **Application cells share one session and run one after another**: they are
-  instant. A cell of its own cost runs in a task and a session of its own.
-- **Worker-thread work runs under one limiter** (`SEARCH_THREADS`, 4).
-  `SearchBounds` — a deadline, a stop check, the limiter — is an argument of its
-  own, never a field of a request model.
-- **Rows**: 5 a group while typing, 50 a cell in Search, D76's 500 for a cell
-  asked alone. **Words**: 2 to 200 characters, at most 8 words.
-- **Nothing is cached.** A typed query rarely repeats, and a cache would have to
-  refuse answers cut by time.
-- **The words are neither stored nor logged.** They travel in a POST body, a
-  failed provider is logged as private (D184), and a test types a marker word
-  and finds it in no log line.
+  cells everywhere, `cheap` cells of the connections in context only (open
+  catalogs, current first, at most eight). One deadline, `SEARCH_TYPING_SECONDS`
+  (0.4).
+- **Search** (Enter, the Search tab): `instant`, `cheap` and `costly`. Cheap
+  cells have `SEARCH_CHEAP_SECONDS` (2), costly ones `SEARCH_COSTLY_SECONDS`
+  (10) each from when they are asked and `SEARCH_TOTAL_SECONDS` (20) in all. At
+  most `SEARCH_MAX_CONNECTIONS` (20) connections are asked — in context, then
+  recently opened, then by name — the rest `not asked`.
+- **`insist`** asks the places named in `only` whatever their health, backoff
+  or the ceiling say. It never overrides the mode: typing still skips costly
+  cells.
+- **One answer in flight per person and lane.** A newer one cancels the
+  older's tasks. The lanes are the field, the Search tab, a gesture in the tab
+  and the type catalog, so typing never ends a search the tab is running.
+- **Identical cells in flight share one task** when asked in the same mode
+  with a deadline at most 0.25 s later than the running task's, and nobody has
+  asked it to stop; a later answer gets a task of its own rather than inherit
+  less time. The task's own stop check reaches its worker thread, and it is
+  cancelled when its last waiter goes. Nothing is shared between people.
+- **Connections**: `SEARCH_PARALLEL_CONNECTIONS` (4) asked at once per answer,
+  one connection's cells one after another, and one search at a time per
+  person and connection across lanes. A connection already pooled is searched
+  through its pool, borrowed and never closed; any other through a connection
+  of its own (D127's way), so a fan-out never pushes another person's pool out.
+  PostgreSQL runs under a statement timeout of the time left. A source's own
+  deadline is a little before the cell's, so a walk stopped by time hands over
+  what it found.
+- **Dead servers are not asked again and again.** A connection the person's
+  health monitor (D19) last could not reach — network or timeout; a refused
+  password or a locked key is an answer — is `unreachable` with `since`. One
+  that missed (network or timeout, or late on Enter with at least half its
+  time) is backed off per person in memory, doubling like D19's; a miss during
+  an answer leaves that connection's later cells in it unasked.
+- **Worker threads**: `SEARCH_THREADS` (4) under one limiter. Costly work hands
+  its token back between 50 ms slices; the limiter is first in first out, so
+  instant cells run between two slices of a saved-query body walk.
+- **Rows**: 5 a group while typing, 50 a cell in Search, 500 for a cell asked
+  alone. **Words**: 2 to 200 characters, at most 8. Text the browser sends (a
+  tab's title, a recent node's name) is cut, not refused.
+- **Nothing is cached, and the words are neither stored nor logged.** They
+  travel in a POST body; a failed provider is logged as private (D184).
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 ## D201. An answer is a stream of cells, and says what happened to each
 
 - **JSON Lines over the POST**: a `plan` line listing every cell with its group,
-  cost and way; one `cell` line per cell as it finishes, with its outcome and
-  hits; one `best` line; one `end` line. FastAPI streams a generator route as
-  `application/jsonl` and states the item type in OpenAPI, so the client's line
-  types are generated.
+  cost and way; one `cell` line per cell as it finishes; one `best` line; one
+  `end` line. FastAPI streams a generator route as `application/jsonl` and states
+  the item type in OpenAPI, so the client's line types are generated.
 - **An outcome per cell**: `way`, `as_of`, and `status` — `complete`, `stopped`
-  (a ceiling, with the source's notice), `late` (with the deadline it was given),
-  `failed` (a kind and a safe sentence; `locked` stays its own kind, and
-  `owned` says whether the person may unlock it), or `skipped` with a reason:
-  switched off, cannot search, unreachable (with `since`), too costly for this
-  mode, not in context while typing, not asked. `more` says whether asking the
-  cell alone would find more.
+  (a ceiling, with the source's notice), `late` (with its deadline), `failed` (a
+  kind and a safe sentence; `locked` stays its own kind and `owned` says who may
+  unlock it), or `skipped`: switched off, cannot search, unreachable (with
+  `since`), too costly for this mode, not in context while typing, not asked.
+  `more` says whether asking the cell alone would find more.
 - **One cell's failure never fails the answer.** An unexpected exception is
   logged privately with a ref, and the sentence carries it.
-- **"Nothing found"** is `end.nothing_found`: true only when every cell asked
-  was `complete`. `end.asked` counts them.
-- **Not paged.** The first N of each cell and its `more`; "More in this
-  connection" asks that cell alone.
-- **Groups have fixed places.** The plan line names every group before anything
-  is found, so a screen reserves a group's place and a late cell fills it
-  without reordering what is drawn.
+- **"Nothing found"** only when `end.nothing_found`: every cell asked was
+  complete. **Not paged**: "More in this connection" asks the cell alone.
+- **Groups have fixed places.** The plan line names every group first, so a
+  screen keeps a pending group's place and a late cell fills it.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 ## D202. Groups in a fixed order, and one rule for how well a name matched
 
-- **Groups, in order:** Connections; one group per connection, in context
+- **Groups:** Open tabs; Connections; one group per connection, in context
   first; Favorites; Pipelines; Dashboards; Conversations; Services; SSH keys;
-  Guide; Source types. Open tabs first from S9. `Group.rank` carries the order.
+  Guide; Source types. `Group.rank` carries the order.
 - **One word rule**, in `app.adapters.search`: words split on white space,
-  case-folded; every word must occur in the name, in any order; nothing is
-  compiled, a `*` or `%` is a character.
-- **Classes, best first:** `exact` (the name is the words), `prefix` (it begins
-  with the first word), `word` (every word begins a word of the name, `_ - . / :`
-  and white space separating), `substring`, `text` (found in a detail, a body or
-  contents, not the name), `meaning` (reserved).
+  case-folded; every word occurs in the name, in any order; nothing is
+  compiled. Catalog search uses it too (D76).
+- **Classes, best first:** `exact`, `prefix` (begins with the first word),
+  `word` (every word begins a word; `_ - . / :` and white space separate),
+  `substring`, `text` (a detail, a body, contents or columns), `meaning`
+  (reserved). A source that meets more matches than its limit keeps the
+  best-classed ones and says it stopped.
 - **One table of cases**, `tests/utils/word_cases.py`, is read by the tests of
-  every implementation.
-- **Inside a group:** class, then the provider's own rank, then the name.
-- **Best matches:** up to three `exact` or `prefix` hits from the instant and
-  cheap cells, by class, then recency, then group; sent once, when those cells
-  are in. The field draws them above the groups and not again below.
-- **No score is compared across places**, and no model reads the intent of a
-  query.
+  the application providers, the explorer, PostgreSQL and Redis.
+- **Inside a group:** class, the provider's own rank, the name. **Best
+  matches:** up to three `exact` or `prefix` hits from instant and cheap cells,
+  by class, recency, group; the field draws them first and not again below.
+- **No score is compared across places**, and no model reads a query's intent.
+
+Known deviations:
+
+- **PostgreSQL folds in SQL**, as `lower(x::text COLLATE "default")`, each word
+  bound as the rule folds it and as typed. `lower()` does not fold `ß` to `ss`,
+  so `strasse` does not find `straße`; under a C or POSIX default collation a
+  non-ASCII letter is found only in the case typed; a word start is recognised
+  after a plain space only. The engine re-classes every hit by the rule.
+- **Saved-query titles are classed in the process**, the owner's newest 1,000
+  titled documents read in one query, the cell `stopped` when there are more —
+  not matched in SQL as D204 first said, for the same folding reason.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
@@ -215,38 +248,67 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 ## D204. Encrypted application content is searched by bounded decryption, never kept
 
-- Saved-query titles are plaintext and matched in SQL, `instant`. Bodies are
-  matched only in Search mode, through the library's bounded decryption — the
-  newest 500 — on a worker thread under the search's limiter, a `costly` cell.
+- Saved-query titles are plaintext, an instant cell (see D202's deviation).
+- Bodies are matched only in Search mode, through the library's own bound — the
+  newest `QUERY_SEARCH_MAX_DOCUMENTS` — decrypted in 50 ms slices on a worker
+  thread under the search's limiter, one walk per person at a time, checking
+  for a stop between documents, a costly cell. A hit keeps the title, the line
+  and one excerpt, never the body.
 - Query history is not a provider.
-- Conversation, quick-chat and project titles are matched by decrypting the
-  newest 500 of each on a worker thread, `instant`. Messages are not searched
-  (D141).
-- Nothing encrypted is kept by any phase.
-
-Known deviation:
-
-- **Not built yet** (S5).
+- Conversation, quick-chat and project titles: the newest 500 of each
+  decrypted on a worker thread, instant. Messages are not searched (D141).
+- Nothing encrypted is kept by any phase. Words that found a body are not kept
+  among the browser's recent searches.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 ## D205. One search, opened from the header or by Ctrl+K, and hits open through the workspace's own intents
 
-- **Where:** a `header-center` slot in `AppLayout`, holding a compact button on
-  the workspace; Mod+K (Ctrl+K, ⌘K on a Mac) opens the same search over
-  everything, at the top of the window. Not in a terminal (D148), not while a
-  dialog is open.
-- **The popup** is a kit combobox over a grouped list; Enter opens the Search
-  tab, a `navigate` panel holding the whole answer.
-- **Opening** goes through one client registry of intents; `openIntent` moves
-  into `WorkspaceActions` so the agent and the search open a node in one place.
-- **Show in catalog** is `revealInCatalog`, with a busy catalog duplicated
-  rather than wiped.
-- **What the browser keeps:** the last ten searches in session storage, never
-  words that found a saved query's body, cleared on sign-out.
+- **Where.** `AppLayout` has a `header-center` slot; only the workspace fills
+  it, with a button drawn as a field with its keys, collapsing to an icon below
+  160 px of measured room so a waiting pair (D167, its title cut) never covers
+  it. The search opens at the top of the window on `--dp-layer-search`, above
+  floating windows and the activity sheet, below Quasar's menus where its list
+  opens.
+- **Mod+K** (Ctrl+K; ⌘K on a Mac, where Ctrl+K stays CodeMirror's kill-line)
+  through `shared/keys/shortcuts.ts`, the application's shortcut registry: one
+  capture-phase listener, matched by key or by code so any layout works, never
+  inside an element marked `data-owns-keys` (a terminal, D148) or while an
+  `[aria-modal="true"]` is open. The empty scene lists registered shortcuts.
+- **`AppCombobox`**, on `AppPopup` with `no-focus`, `no-refocus`,
+  `no-parent-event`, `fit`: focus stays in the input, `aria-activedescendant`,
+  no row active until an arrow, Enter opens the active row or the Search tab,
+  "Show all results" last, a polite status line, the first Escape closes the
+  list and keeps the words, the next returns focus.
+- **A scope**: opened while a catalog has focus, the first row offers "Search
+  in ‹connection›" from the level the catalog stands on (a tree's grouping);
+  the right arrow takes it, Backspace removes it.
+- **The Search tab**, panel kind `search`, role `navigate`, stores nothing but
+  its id, so a restored layout or tab group (D94) brings it back empty. It holds
+  the whole answer in the plan's order, filters by group, connection, kind and
+  time changed, and draws every outcome with its gesture on lane `follow`.
+  Enter while another space is shown opens it in a window over that space.
+- **Opening** goes through one registry typed over every `OpenIntent`
+  (`features/search/intents.ts`), and `WorkspaceActions.openIntent` serves the
+  agent and the search alike: floated over a covered space, a connection
+  outside the browser's first page read from the server. A space is told which
+  object it is asked for before it is shown, so a dashboard, a pipeline, a
+  conversation or a project opens whether or not its space was shown before.
+- **Show in catalog** (D112) on every node hit: a catalog holding a search, a
+  filter or ticks is not moved, another catalog of the connection shows the
+  node; one on that level behind search results leaves them first. A Redis key
+  is opened down the hit's `ancestors`.
+- **What the browser keeps**: the last ten searches in session storage, per
+  server, never words that found a saved query's body, emptied on sign-out.
 
-Known deviation:
+Known deviations:
 
-- **Not built yet** (S2, S3).
+- **Recently opened and open tabs are not sent yet.** The server answers both
+  (S6, S9) and the open actions exist, but the field keeps no list of what was
+  opened and sends no `recent` and no `browser` places.
+- **Nothing is searched inside files from the tab** (S7), and the agent has no
+  search tool (S10).
+- **A conversation outside the first 100 of the AI list** is replaced by the
+  newest once the list loads.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)

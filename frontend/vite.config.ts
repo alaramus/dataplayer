@@ -27,6 +27,22 @@ export default defineConfig({
     vue({ template: { transformAssetUrls } }),
     quasar({ sassVariables: "src/quasar-variables.sass" }),
   ],
+  // Libraries reached only through a lazily loaded panel are found by the dev
+  // server when that panel is first opened; it then bundles them and reloads
+  // the page, which drops whatever was on screen — a PDF, a diagram, the 3D
+  // graph. Bundled at start instead, so a fresh dev server never reloads.
+  optimizeDeps: {
+    include: [
+      "mermaid",
+      "pdfjs-dist",
+      "three",
+      "three/addons/controls/OrbitControls.js",
+      "echarts/core",
+      "echarts/charts",
+      "echarts/components",
+      "echarts/renderers",
+    ],
+  },
   server: {
     port: 5173,
     allowedHosts: true,
