@@ -15,7 +15,9 @@ names backup and restore as the second. The third is a source operation
 (D123, `app/source_operations/`): a reviewed action over a fixed set of source
 targets, whose typed payload in `parameters` holds each target's outcome. The
 fourth is a transfer between connections (D168, `app/transfers/`), the same
-arrangement for files and bytes, and the one kind bounded per person.
+arrangement for files and bytes, and the one kind bounded per person. The
+sixth is a search inside files (`search.contents`, [S7](search.md#d200-a-cell-states-its-cost-and-a-mode-spends-only-what-it-may)),
+whose words and matches are held in memory and never in its row.
 
 ```
 backend/app/jobs/
@@ -97,12 +99,15 @@ Known deviations:
   restarted by its supervisor would end its neighbours' live jobs. Work left
   `queued` by a process that died before starting it is settled as
   `interrupted`, never picked up.
-- **Only transfers and pipeline runs are bounded per person.**
-  `admit_within` refuses one over `TRANSFER_MAX_ACTIVE` (D168) or
-  `PIPELINE_MAX_ACTIVE` (D177); other kinds have no such limit yet.
-- **Only pipeline runs are ever removed.** `forget_finished` keeps a
-  pipeline's newest hundred and takes the rest with the pipeline (D180),
-  never one still going; every other kind's rows stay.
+- **Only transfers, pipeline runs and searches inside files are bounded per
+  person.** `admit_within` refuses one over `TRANSFER_MAX_ACTIVE` (D168),
+  `PIPELINE_MAX_ACTIVE` (D177) or a second search inside files (S7); other
+  kinds have no such limit yet.
+- **Only pipeline runs and searches inside files are ever removed.**
+  `forget_finished` keeps a pipeline's newest hundred and takes the rest with
+  the pipeline (D180); `forget_finished_of_owner` keeps a person's newest 20
+  searches inside files (S7). Never one still going; every other kind's rows
+  stay.
 - **Jobs are not fanned out through infrastructure Redis.** The database row
   remains the authority and the accepting process performs it. D104 requires
   measured need and a separate durable delivery contract before that changes.

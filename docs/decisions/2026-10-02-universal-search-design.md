@@ -1082,4 +1082,14 @@ timings.
   them, `type-check`, `lint`: clean; `tests/search.spec.ts` and
   `tests/tab-groups.spec.ts` 25 passed against the running backend, an open
   tab found by its title and a saved group restored after its warning.
-- **Not built:** S7 (contents as a job) and S10 (the agent).
+- **S7.** `pytest tests/search tests/jobs` with the file-search, SSH-storage
+  and search-words tests: 226 passed, 1 skipped — a marker word found inside a
+  local file and over SSH with its line, absent from the row, `GET /jobs` and
+  the log; Stop keeping what was found; one at a time; an interrupted job's
+  matches gone; pruning to 20. `ruff`, `mypy`, `lint-imports`, `check-docs`;
+  `vitest` for the choices, counts, expiry and the line drawn, `type-check`,
+  `lint`: clean. `tests/search.spec.ts` 25 passed against a rebuilt backend
+  (the terminal's Ctrl+K scenario failed once in the full run and passed
+  alone), with a scenario that finds a word inside a file from the tab, sees
+  it in Recent and its expiry said.
+- **Not built:** S10 (the agent).

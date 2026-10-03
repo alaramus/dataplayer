@@ -18,6 +18,7 @@ backend/app/
     ├── providers.py       the provider protocol, Asked, Found, match helpers
     ├── engine.py          lanes, deadlines, coalescing, the stream
     ├── nodes.py           connection cells: candidates, asking, backoff
+    ├── contents.py        inside files, as a job: its memory and handler (S7)
     ├── excerpts.py        text cut into segments, the words marked
     ├── connections.py     the visible connections, and the rows provider
     ├── recent.py          an empty search: what was opened lately
@@ -30,11 +31,14 @@ frontend/src/
 ├── shared/keys/shortcuts.ts      the shortcut registry (Mod+K)
 ├── shared/ui/AppCombobox.vue     the kit combobox; AppOption draws its rows
 └── features/search/              stream reader, answer reducer, outcome
-                                  sentences, intents, the field and the tab
+                                  sentences, intents, the field and the tab,
+                                  SearchContents.vue (inside files, S7)
 ```
 
 ```
-POST /api/v1/search        the words in the body; JSON Lines back
+POST /api/v1/search                  the words in the body; JSON Lines back
+POST /api/v1/search/contents         inside files: starts a job (S7)
+GET  /api/v1/search/contents/{job}   what it found, while it is held
 ```
 
 ## D197. The search is one engine asking providers, and a source is not a provider
@@ -179,6 +183,25 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   tab's title, a recent node's name) is cut, not refused.
 - **Nothing is cached, and the words are neither stored nor logged.** They
   travel in a POST body; a failed provider is logged as private (D184).
+- **Contents are a job (S7)**, `search.contents`, never a cell: started from
+  the Search tab over the connections of the answer whose type has
+  `SearchesContents` (the plan marks them `contents`), ticked by the person,
+  behind D76's warning and its remembered answer. One at a time per person
+  (`admit_within`, 409); the connections one after another, each under D76's
+  and D152's own bounds and at most 100 matches, all of them under
+  `SEARCH_CONTENTS_SECONDS` (600) and 500 matches, on the search's own thread
+  limiter. Each connection is resolved again when the job runs, with the
+  owner's credentials and a borrowing store. Stop sets the walk's stop check
+  and keeps what it found.
+- **Its words, places and matches live in process memory**, keyed by job id,
+  for `SEARCH_CONTENTS_HELD_SECONDS` (1,800) after it ends (D124), and never in
+  the row: `parameters` carries counts and how long they are held, the step
+  and message never quote the words, and an unexpected failure is logged as
+  private. `GET /search/contents/{job}` answers 404 unless the caller owns the
+  job, drops what came from a connection the caller can no longer read or
+  that is switched off, and says `held: false` once they are gone — expired,
+  or a restart, which ends the job `interrupted` (D81). A person's finished
+  searches are pruned to the newest 20 when a new one starts.
 
 Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
@@ -288,6 +311,13 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   the whole answer in the plan's order, filters by group, connection, kind and
   time changed, and draws every outcome with its gesture on lane `follow`.
   Enter while another space is shown opens it in a window over that space.
+  "Search inside files" (S7) offers the answer's connections that can be
+  read inside, none ticked; its matches are rows like any node hit, a line
+  with its number, read every second until the job ends. Its progress is the
+  footer's (D95); its entry in Recent offers "Show results" while they are
+  held, then says "Its matches are no longer held" with "Search again" — with
+  the words while this browser tab still holds them in memory
+  (`shared/search/contentsWords.ts`, emptied on sign-out).
 - **Opening** goes through one registry typed over every `OpenIntent`
   (`features/search/intents.ts`), and `WorkspaceActions.openIntent` serves the
   agent and the search alike: floated over a covered space, a connection
@@ -314,8 +344,7 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 Known deviations:
 
-- **Nothing is searched inside files from the tab** (S7), and the agent has no
-  search tool (S10).
+- **The agent has no search tool** (S10).
 - **A conversation outside the first 100 of the AI list** is replaced by the
   newest once the list loads.
 
