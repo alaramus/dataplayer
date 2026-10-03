@@ -14,7 +14,7 @@ import { EMPTY_ANSWER, nothingFound, pendingOf } from "./answer"
 import { contextOf, placeOf } from "./context"
 import { useHitActions, useRecentlyOpened } from "./openers"
 import { nothingFoundSentence, stillSearching, typingNote } from "./outcomes"
-import { ASK_VALUE, askOption, fieldOptions, recentOptions, SCOPE_VALUE } from "./rows"
+import { ASK_OPTION, ASK_VALUE, fieldOptions, recentOptions, SCOPE_VALUE } from "./rows"
 import { useFieldAnswer } from "./useAnswer"
 import { MIN_CHARACTERS } from "./words"
 
@@ -87,7 +87,7 @@ const options = computed<SelectOption[]>(() => [
 ])
 
 /** The popup's last row, under Show all results: the words handed to a new chat (S10). */
-const askRow = computed<SelectOption[]>(() => (asking.value ? [askOption(typed.value)] : []))
+const askRow = computed<SelectOption[]>(() => (asking.value ? [ASK_OPTION] : []))
 
 const status = computed(() => {
   if (!asking.value) return ""

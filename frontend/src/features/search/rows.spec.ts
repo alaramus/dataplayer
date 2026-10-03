@@ -5,7 +5,7 @@ import { appIcons } from "@/shared/ui/icons"
 
 import {
   ASK_VALUE,
-  askOption,
+  ASK_OPTION,
   fieldOptions,
   hitOption,
   recentOptions,
@@ -90,11 +90,10 @@ describe("the rows of the field", () => {
 })
 
 describe("the row that asks the agent", () => {
-  it("carries the words, and is told apart from every hit by its value", () => {
-    const row = askOption("where are the orders")
-    expect(row.label).toBe("Ask the agent")
-    expect(row.description).toBe("where are the orders")
-    expect(row.value).toBe(ASK_VALUE)
-    expect(row.icon).toBe(appIcons.robot2)
+  it("is told apart from every hit by its value, and does not repeat the words", () => {
+    expect(ASK_OPTION.label).toBe("Ask the agent")
+    expect(ASK_OPTION.value).toBe(ASK_VALUE)
+    expect(ASK_OPTION.description).toBeUndefined()
+    expect(ASK_OPTION.icon).toBe(appIcons.robot2)
   })
 })

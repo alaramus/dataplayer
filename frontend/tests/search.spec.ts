@@ -184,8 +184,9 @@ test("the list is a combobox a reader can walk, and Enter opens the row walked t
   expect(await field.getAttribute("aria-activedescendant")).toBeNull()
   // A polite region says what was searched, and it is not inside the list.
   await expect(page.getByTestId("search-field").getByRole("status")).toHaveCount(1)
-  // The last row asks for everything.
-  await expect(searchList(page).getByRole("option").last()).toHaveText(/Show all results/)
+  // The row before the last asks for everything; the last asks the agent (S10).
+  await expect(searchList(page).getByRole("option").nth(-2)).toHaveText(/Show all results/)
+  await expect(searchList(page).getByRole("option").last()).toHaveText(/Ask the agent/)
 
   await page.keyboard.press("ArrowDown")
   const active = await field.getAttribute("aria-activedescendant")
@@ -826,7 +827,6 @@ test("Ask the agent, the last row, puts the words into a new chat's composer, un
   await searchField(page).fill(words)
   const last = searchList(page).getByRole("option").last()
   await expect(last).toContainText("Ask the agent")
-  await expect(last).toContainText(words)
   await last.click()
 
   await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")
