@@ -375,3 +375,18 @@ def test_held_matches_expire_a_while_after_the_job_ends() -> None:
     assert running is not None
     assert just_ended is not None
     assert memory.get(job_id) is None
+
+
+async def test_the_plan_says_which_connections_can_be_searched_inside(
+    client: AsyncClient, person: dict[str, str]
+) -> None:
+    files = await _files(client, person)
+    response = await client.post(
+        f"{API}/search", headers=person, json={"words": "anything", "mode": "search", "context": [files]}
+    )
+    [plan] = [line for line in map(json.loads, response.text.splitlines()) if line["type"] == "plan"]
+
+    mine = [cell for cell in plan["cells"] if cell["connector_id"] == files]
+    others = [cell for cell in plan["cells"] if cell["connector_id"] is None]
+    assert mine and all(cell["contents"] for cell in mine)
+    assert others and not any(cell["contents"] for cell in others)

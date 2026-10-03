@@ -27,8 +27,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.errors import ErrorKind
 from app.adapters.protocol import AdapterError, NodeNotFound, SearchesContents
-from app.adapters.registry import UnknownAdapterType
-from app.adapters.registry import get as adapter_type_of
 from app.adapters.resources import BorrowingStore, ResourceStore
 from app.adapters.search import (
     DEFAULT_MATCHES,
@@ -50,7 +48,7 @@ from app.realtime.topics import TopicSet
 from app.search import connections
 from app.search.excerpts import segments
 from app.search.models import MIN_WORD_CHARACTERS, Hit, Match, NodeTarget, SkipReason
-from app.search.nodes import adapter_of, node_hit
+from app.search.nodes import adapter_of, node_hit, searches_contents
 from app.search.providers import VisibleConnection
 from app.users.models import User
 
@@ -95,6 +93,8 @@ class ContentsRequest(BaseModel):
 class ContentsPlace(BaseModel):
     """One chosen connection, and what became of looking inside it."""
 
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     connector_id: uuid.UUID
     name: str
     status: PlaceStatus = "waiting"
@@ -108,6 +108,8 @@ class ContentsPlace(BaseModel):
 
 class ContentsAnswer(BaseModel):
     """What a search inside files found, while it is held (S7)."""
+
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
     job_id: uuid.UUID
     # False once the matches have expired or the server has restarted.
@@ -205,14 +207,6 @@ def _plural(count: int, one: str, many: str) -> str:
     return f"{count:,} {one if count == 1 else many}"
 
 
-def _searchable(connection: VisibleConnection) -> bool:
-    try:
-        driver = adapter_type_of(connection.adapter_type).adapter_class
-    except UnknownAdapterType:
-        return False
-    return issubclass(driver, SearchesContents)
-
-
 def _failed(kind: ErrorKind, message: str) -> NodeSearchResult:
     return NodeSearchResult(complete=False, notice=message, error_kind=kind)
 
@@ -274,7 +268,7 @@ class SearchContents:
                 place.status, place.message = "failed", "No longer yours to read"
             elif not connection.enabled:
                 place.status, place.reason = "skipped", "switched_off"
-            elif not _searchable(connection):
+            elif not searches_contents(connection):
                 place.status, place.reason = "skipped", "cannot_search"
             elif room <= 0 or time.monotonic() >= deadline:
                 place.status, place.reason = "skipped", "not_asked"

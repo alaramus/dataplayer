@@ -426,6 +426,8 @@ class PlannedCell(_Strict):
     way: Way
     # The connection a cell asks, for the screen's gestures.
     connector_id: uuid.UUID | None = None
+    # Its connection can also be searched inside its files, as a job (S7).
+    contents: bool = False
 
 
 class PlanLine(_Strict):

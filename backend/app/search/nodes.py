@@ -37,6 +37,7 @@ from app.adapters.protocol import (
     DataAdapter,
     NodeNotFound,
     SearchesColumns,
+    SearchesContents,
     StatesSearchCost,
     SupportsNodeSearch,
 )
@@ -251,6 +252,7 @@ class ConnectionSearch:
                         since=since,
                         owned=connection.access == "own",
                         order=position,
+                        contents=searches_contents(connection),
                     )
                 )
             providers[place.model_dump_json()] = ConnectionProvider(
@@ -445,6 +447,12 @@ def _driver(connection: VisibleConnection) -> type[DataAdapter] | None:
         return adapter_type_of(connection.adapter_type).adapter_class
     except UnknownAdapterType:
         return None
+
+
+def searches_contents(connection: VisibleConnection) -> bool:
+    """Whether its type can look inside its files (S7)."""
+    driver = _driver(connection)
+    return driver is not None and issubclass(driver, SearchesContents)
 
 
 def _fields(connection: VisibleConnection) -> list[tuple[SearchedField, bool]]:

@@ -2599,15 +2599,15 @@ export type ContentsAnswer = {
   /**
    * Words
    */
-  words?: string | null
+  words: string | null
   /**
    * Places
    */
-  places?: Array<ContentsPlace>
+  places: Array<ContentsPlace>
   /**
    * Hits
    */
-  hits?: Array<Hit>
+  hits: Array<Hit>
 }
 
 /**
@@ -2627,11 +2627,11 @@ export type ContentsPlace = {
   /**
    * Status
    */
-  status?: "waiting" | "complete" | "stopped" | "failed" | "skipped"
+  status: "waiting" | "complete" | "stopped" | "failed" | "skipped"
   /**
    * Reason
    */
-  reason?:
+  reason:
     | "switched_off"
     | "cannot_search"
     | "unreachable"
@@ -2642,19 +2642,19 @@ export type ContentsPlace = {
   /**
    * Notice
    */
-  notice?: string | null
+  notice: string | null
   /**
    * Error Kind
    */
-  error_kind?: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
+  error_kind: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
   /**
    * Message
    */
-  message?: string | null
+  message: string | null
   /**
    * Found
    */
-  found?: number
+  found: number
 }
 
 /**
@@ -7921,6 +7921,10 @@ export type PlannedCell = {
    * Connector Id
    */
   connector_id: string | null
+  /**
+   * Contents
+   */
+  contents: boolean
 }
 
 /**

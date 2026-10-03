@@ -59,6 +59,8 @@ class Candidate:
     owned: bool = False
     # Where a connection stands in the order connections are asked in.
     order: int = 0
+    # The connection can be searched inside its files as well (S7).
+    contents: bool = False
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,7 @@ def plan(
                     cost=candidate.cost,
                     way="none" if reason is not None else "live",
                     connector_id=candidate.connector_id,
+                    contents=candidate.contents,
                 ),
                 skipped=None
                 if reason is None
