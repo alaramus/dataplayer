@@ -4,7 +4,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import { AiService } from "@/client"
 import type { AgentRunPublic, ConversationMessagePublic, ConversationUpdate, ScreenContext } from "@/client"
-import { AppBanner, AppButton, AppIconButton, AppInput, AppMenu, AppSelect, AppSpinner, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppIconButton, AppInput, AppMenu, AppSelect, AppSpinner, AppTooltip, useToast } from "@/shared/ui"
 import type { MenuItem, SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
@@ -461,11 +461,14 @@ onBeforeUnmount(() => {
             type="button"
             class="ai-outline__mark"
             :class="{ 'ai-outline__mark--current': mark.id === currentMark }"
-            :title="mark.label"
             :aria-label="mark.label"
             :data-testid="`ai-outline-${mark.id}`"
             @click="goToMark(mark.id)"
-          />
+          >
+            <AppTooltip beside>
+              {{ mark.label }}
+            </AppTooltip>
+          </button>
         </nav>
         <div
           ref="scroller"

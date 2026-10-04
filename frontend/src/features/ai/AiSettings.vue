@@ -4,7 +4,7 @@ import { computed, ref } from "vue"
 
 import type { ConversationSummary, QuickChatSummary } from "@/client"
 
-import { AppBanner, AppButton, AppEmptyState, AppForm, AppIconButton, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppEmptyState, AppForm, AppIconButton, AppSpinner, AppToggle, AppTooltip, useConfirm, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import AiModelSelect from "./AiModelSelect.vue"
@@ -168,10 +168,10 @@ async function removeAll() {
               class="ai-archived"
               :data-testid="`ai-archived-${entry.chat.id}`"
             >
-              <span
-                class="ai-archived__title"
-                :title="entry.chat.title"
-              >{{ entry.chat.title }}</span>
+              <span class="ai-archived__title">
+                {{ entry.chat.title }}
+                <AppTooltip>{{ entry.chat.title }}</AppTooltip>
+              </span>
               <AppIconButton
                 :icon="appIcons.unarchive"
                 tooltip="Restore chat"

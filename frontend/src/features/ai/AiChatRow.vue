@@ -3,7 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { ChatProjectPublic, ConversationSummary, QuickChatSummary } from "@/client"
-import { AppButton, AppIconButton, AppMenu, toneFill } from "@/shared/ui"
+import { AppButton, AppIconButton, AppMenu, AppTooltip, toneFill } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 import { CHAT_STATE_WORDS, chatStateOf } from "./chatState"
@@ -41,11 +41,7 @@ const moves = computed<MenuItem[]>(() => [
 
 const state = computed(() => chatStateOf(props.chat))
 // The name in full, as a cut one needs, and what the dot says under it.
-const hover = computed(() => {
-  const words = CHAT_STATE_WORDS[state.value]
-  return words === null ? props.chat.title : `${props.chat.title}
-${words}`
-})
+const stateWords = computed(() => CHAT_STATE_WORDS[state.value])
 const LOOK: Record<ChatState, string> = {
   idle: "ai-chat-row__state--idle",
   working: "ai-chat-row__state--working",
@@ -71,12 +67,12 @@ function pick(name: string) {
       layout="navigation"
       class="ai-chat-row__title"
       :label="chat.title"
-      :title="hover"
+      :aria-description="stateWords ?? undefined"
       :data-testid="`ai-chat-${chat.id}`"
       @click="emit('select')"
     >
       <!-- In the button, so pressing the dot opens the chat too; its words
-           are the hover text, which is also the button's description. -->
+           are the hover text, and the button's description. -->
       <span
         class="ai-chat-row__state"
         :class="LOOK[state]"
@@ -84,6 +80,12 @@ function pick(name: string) {
         :data-state="state"
         aria-hidden="true"
       />
+      <AppTooltip>
+        <div>{{ chat.title }}</div>
+        <div v-if="stateWords">
+          {{ stateWords }}
+        </div>
+      </AppTooltip>
     </AppButton>
     <span class="ai-chat-row__actions">
       <!-- Not in a project: pinned chats are a folder of their own. -->

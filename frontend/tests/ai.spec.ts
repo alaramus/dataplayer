@@ -552,10 +552,15 @@ test("marks each chat in the history by what its agent is doing, in both themes"
     expect((await look(working?.id ?? "")).animation).not.toBe("none")
     expect((await look(waiting?.id ?? "")).background).toBe(await fill("warning"))
     expect((await look(failed?.id ?? "")).background).toBe(await fill("error"))
-    // What the dot means is said on hover, under the name.
+    // What the dot means is said on hover, under the name, and to a screen reader.
     await expect(page.getByTestId(`ai-chat-${waiting?.id ?? ""}`))
-      .toHaveAttribute("title", "Waiting chat\nThe agent waits for your answer")
-    await expect(page.getByTestId(`ai-chat-${quiet?.id ?? ""}`)).toHaveAttribute("title", "Quiet chat")
+      .toHaveAttribute("aria-description", "The agent waits for your answer")
+    await page.getByTestId(`ai-chat-${waiting?.id ?? ""}`).hover()
+    await expect(page.locator(".app-tooltip")).toHaveText(/Waiting chat\s*The agent waits for your answer/)
+    await page.getByTestId(`ai-chat-${quiet?.id ?? ""}`).hover()
+    await expect(page.locator(".app-tooltip")).toHaveText("Quiet chat")
+    await page.mouse.move(0, 0)
+    await expect(page.locator(".app-tooltip")).toHaveCount(0)
     await page.getByTestId("ai-history").screenshot({ path: `test-results/ai-chat-states-${theme}.png` })
   }
 
