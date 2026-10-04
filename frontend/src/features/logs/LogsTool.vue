@@ -240,7 +240,7 @@ async function copy(entry: LogEntry) {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  padding-bottom: var(--dp-space-2);
+  padding: 0 var(--dp-space-2) var(--dp-space-2) 0;
   border-bottom: 1px solid var(--dp-border);
 }
 .logs-tool__choice {
@@ -255,6 +255,7 @@ async function copy(entry: LogEntry) {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  padding-right: var(--dp-space-2);
   overscroll-behavior: contain;
   font-family: var(--dp-font-mono);
   font-size: var(--dp-font-size-mono);

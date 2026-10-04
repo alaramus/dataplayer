@@ -89,7 +89,7 @@ useReloadable(() => props.panelId, reload)
         This browser could not play the file. Its container is what the source
         verified; the codecs inside it are the player's own business.
       </AppBanner>
-      <div class="media-panel__stage">
+      <div class="media-panel__stage dp-panel-scroll">
         <video
           v-if="representation === 'video'"
           :src="streamUrl"

@@ -313,6 +313,7 @@ async function forget(service: ServicePublic) {
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding-right: var(--dp-space-2);
   min-height: 120px;
 }
 .starting__row {

@@ -1276,8 +1276,17 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
 }
+/* Clipped a padding's width outside its box rather than at it, so the rows
+   below can reach the card's edge. */
 .query-panel__results {
-  overflow: hidden;
+  overflow: clip;
+  overflow-clip-margin: var(--dp-space-1);
+}
+/* The result's rows reach the card's edge, as a table tab's do; see
+   .dp-panel-scroll. Reached into because the grid keeps its pager in the same
+   box. */
+.query-panel__results :deep(.data-grid__scroll) {
+  margin-right: calc(-1 * var(--dp-space-1));
 }
 .query-panel__code {
   flex: 1;

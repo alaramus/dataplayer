@@ -406,7 +406,7 @@ async function deleteQuery(documentId: string) {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  padding-bottom: var(--dp-space-2);
+  padding: 0 var(--dp-space-2) var(--dp-space-2) 0;
   border-bottom: 1px solid var(--dp-border);
 }
 .queries-tool__connector {
@@ -421,6 +421,7 @@ async function deleteQuery(documentId: string) {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  padding-right: var(--dp-space-2);
 }
 .queries-tool__history-bar {
   display: flex;

@@ -248,7 +248,7 @@ onBeforeUnmount(() => {
     <div
       v-show="!error"
       ref="stage"
-      class="pdf-panel__stage"
+      class="pdf-panel__stage dp-panel-scroll"
       data-testid="pdf-stage"
     />
   </div>

@@ -71,10 +71,13 @@ function resize(deltaPx: number) {
   flex: none;
   max-height: calc(100% - 160px);
 }
+/* No padding on the right: a tool's scrollbar runs down the card's edge, as
+   every other card's does, and each tool keeps its own content off that edge
+   inside its scroller. */
 .bottom-panel__body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--dp-space-2);
+  padding: var(--dp-space-2) 0 var(--dp-space-2) var(--dp-space-2);
 }
 </style>

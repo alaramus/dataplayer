@@ -46,7 +46,7 @@ function openRelated(view: RelatedView) {
     </div>
     <SummaryView
       ref="view"
-      class="summary-panel__view"
+      class="summary-panel__view dp-panel-scroll"
       :connector-id="connectorId"
       :node-id="nodeId"
       @open-related="openRelated"

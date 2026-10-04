@@ -86,4 +86,22 @@ watch(
   overflow: hidden;
   background: var(--dp-surface);
 }
+/* xterm 6 draws its own scrollbar out of elements, VS Code's, so the native
+   one every other surface shares (D187) never reaches it. Its width and
+   position are inline styles, hence the !important; its colours cannot go
+   through the xterm theme, which does not parse the color-mix() the tokens
+   are made of. */
+.terminal-view :deep(.xterm-scrollable-element > .scrollbar.vertical) {
+  width: var(--dp-scrollbar-size) !important;
+}
+.terminal-view :deep(.xterm-scrollable-element > .scrollbar.vertical > .slider) {
+  left: 0 !important;
+  width: 100% !important;
+  border-radius: var(--dp-radius-control);
+  background: var(--dp-scrollbar-thumb) !important;
+}
+.terminal-view :deep(.xterm-scrollable-element > .scrollbar.vertical > .slider:hover),
+.terminal-view :deep(.xterm-scrollable-element > .scrollbar.vertical > .slider.active) {
+  background: var(--dp-scrollbar-thumb-hover) !important;
+}
 </style>

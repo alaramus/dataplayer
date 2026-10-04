@@ -268,7 +268,7 @@ function setChanged(value: unknown) {
       {{ summary }}
     </p>
 
-    <AppScrollArea class="search-tab__body">
+    <AppScrollArea class="search-tab__body dp-panel-scroll">
       <SearchContents
         v-model:job-id="contentsJob"
         :panel-id="panelId"

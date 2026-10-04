@@ -333,6 +333,11 @@ function showReferenced(target: ReferencedRows) {
   min-height: 0;
   padding: var(--dp-space-1);
 }
+/* The grid's scroller is the kit's .dp-panel-scroll, reached into because
+   the grid keeps its commands and pager in the same box. */
+.rows-panel :deep(.data-grid__scroll) {
+  margin-right: calc(-1 * var(--dp-space-1));
+}
 /* Where a spreadsheet puts them: along the foot, beside the paging controls
    rather than above the columns, which belong to the sheet being read. */
 .rows-panel__sheets {

@@ -657,7 +657,7 @@ onBeforeUnmount(() => {
 
         <article
           ref="article"
-          class="markdown-panel__document"
+          class="markdown-panel__document dp-panel-scroll"
           data-testid="markdown-document"
           @click="onDocumentClick"
           @scroll.passive="updateActiveHeading"

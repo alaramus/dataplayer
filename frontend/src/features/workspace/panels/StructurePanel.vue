@@ -34,7 +34,7 @@ useReloadable(() => props.panelId, async () => {
     </div>
     <StructureView
       ref="view"
-      class="structure-panel__view"
+      class="structure-panel__view dp-panel-scroll"
       :connector-id="connectorId"
       :node-id="nodeId"
     />

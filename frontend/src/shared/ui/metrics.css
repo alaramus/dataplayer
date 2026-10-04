@@ -114,3 +114,11 @@ body {
 .q-btn:not(.q-btn--dense):not(.q-btn--round) {
   min-height: var(--dp-control-height);
 }
+
+/* The part of a workspace tab that scrolls reaches back over the tab's own
+   padding on the right (--dp-space-1 on every tab), so its scrollbar runs
+   down the card's edge as everywhere else; the commands above it and the
+   pager below stay inside the padding. */
+.dp-panel-scroll {
+  margin-right: calc(-1 * var(--dp-space-1));
+}

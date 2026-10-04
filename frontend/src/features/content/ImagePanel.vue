@@ -90,7 +90,7 @@ useReloadable(() => props.panelId, reload)
     </AppBanner>
     <div
       v-else
-      class="image-panel__stage"
+      class="image-panel__stage dp-panel-scroll"
     >
       <img
         :src="previewUrl"
