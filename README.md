@@ -35,7 +35,7 @@ python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).deco
 Then start the stack and the dev server:
 
 ```bash
-docker compose up -d db backend metrics
+docker compose up -d --build backend metrics
 cd frontend && bun install && bun run dev
 ```
 
