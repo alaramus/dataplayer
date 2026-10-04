@@ -1,4 +1,5 @@
 import { defineComponent, effectScope } from "vue"
+import type { EffectScope } from "vue"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { first } from "@/shared/testing/collections"
@@ -8,13 +9,29 @@ import type { OpenWindow, WindowsApi } from "./useWindows"
 
 const Blank = defineComponent({ render: () => null })
 
+// useWindows listens to the viewport and lets go when its scope ends; called
+// bare, it has no scope and Vue warns that the listener is never removed.
+const scopes: EffectScope[] = []
+
+function scopedWindows(): WindowsApi {
+  const scope = effectScope()
+  scopes.push(scope)
+  const windows = scope.run(useWindows)
+  if (!windows) throw new Error("the scope did not run")
+  return windows
+}
+
+afterEach(() => {
+  for (const scope of scopes.splice(0)) scope.stop()
+})
+
 function windowOf(id: string, title = id): OpenWindow {
   return { id, look: { title }, size: { width: 400, height: 300 }, component: Blank }
 }
 
 describe("opening windows", () => {
   it("shows one window per id", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
 
     windows.open(windowOf("a"))
     windows.open(windowOf("b"))
@@ -25,7 +42,7 @@ describe("opening windows", () => {
   it("brings the existing one forward rather than opening a second", () => {
     // Two windows of one connection are two unsaved edits of one row, and
     // whichever is saved second silently wins.
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
     windows.open(windowOf("b"))
 
@@ -36,7 +53,7 @@ describe("opening windows", () => {
   })
 
   it("does not put a new window exactly on top of the last", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
     windows.open(windowOf("b"))
 
@@ -45,7 +62,7 @@ describe("opening windows", () => {
   })
 
   it("closes only the window asked for", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
     windows.open(windowOf("b"))
 
@@ -58,7 +75,7 @@ describe("opening windows", () => {
 
 describe("a window whose subject changes while it is open", () => {
   it("says the new heading without being reopened", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("dialog:create"))
     const before = first(windows.context.windows.value).key
 
@@ -72,7 +89,7 @@ describe("a window whose subject changes while it is open", () => {
   })
 
   it("ignores a window that is not open", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
 
     windows.retitle("gone", { title: "nothing" })
@@ -83,7 +100,7 @@ describe("a window whose subject changes while it is open", () => {
 
 describe("a window whose id changes", () => {
   it("answers to the new id and no longer to the old", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("connector:new:1"))
 
     windows.rename("connector:new:1", "connector:7", { title: "prod" })
@@ -97,7 +114,7 @@ describe("a window whose id changes", () => {
     // The bug this pins: the host keyed its list by id, so saving a draft
     // destroyed the window and built a fresh one — the form reset itself and
     // the close that followed the save reached an instance that was gone.
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("connector:new:1"))
     const before = first(windows.context.windows.value).key
 
@@ -107,7 +124,7 @@ describe("a window whose id changes", () => {
   })
 
   it("keeps its place in the stack", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
     windows.open(windowOf("connector:new:1"))
     windows.context.focus("a")
@@ -121,7 +138,7 @@ describe("a window whose id changes", () => {
   })
 
   it("can then be closed by the id it now has", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("connector:new:1"))
     windows.rename("connector:new:1", "connector:7", { title: "prod" })
 
@@ -131,7 +148,7 @@ describe("a window whose id changes", () => {
   })
 
   it("gives every window a key of its own", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
     windows.open(windowOf("b"))
 
@@ -142,7 +159,7 @@ describe("a window whose id changes", () => {
 
 describe("moving a window", () => {
   it("cannot be dragged out of reach", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
 
     windows.context.move("a", { x: 99999, y: 99999 })
@@ -153,7 +170,7 @@ describe("moving a window", () => {
   })
 
   it("stores a user resize", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
 
     windows.context.resize("a", "bottom-right", { x: 900, y: 700 })
@@ -166,7 +183,7 @@ describe("moving a window", () => {
 
 describe("content-sized windows", () => {
   it("keeps following content that changes after the first measurement", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
 
     windows.context.fit("a", { width: 400, height: 220 })
@@ -176,7 +193,7 @@ describe("content-sized windows", () => {
   })
 
   it("stops automatic fitting after the user resizes the window", () => {
-    const windows = useWindows()
+    const windows = scopedWindows()
     windows.open(windowOf("a"))
     windows.context.resize("a", "bottom-right", { x: 700, y: 600 })
     const chosen = first(windows.context.windows.value).rect.height

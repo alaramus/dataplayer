@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils"
 import { QBtn, Quasar } from "quasar"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import AppIconButton from "./AppIconButton.vue"
 
@@ -88,7 +88,12 @@ describe("AppIconButton", () => {
   })
 
   it("requires a tooltip, because an icon names nothing on its own", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
     // @ts-expect-error tooltip is not optional
     mount(AppIconButton, { global: { plugins: [Quasar] }, props: { icon: "delete" } })
+
+    expect(warn.mock.calls.map((call) => String(call[0]))).toContainEqual(
+      expect.stringContaining('Missing required prop: "tooltip"'),
+    )
   })
 })

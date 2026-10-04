@@ -102,8 +102,7 @@ describe("the filter band", () => {
     value.vm.$emit("update:modelValue", "active")
     await wrapper.vm.$nextTick()
 
-    value.vm.$emit("keyup", new KeyboardEvent("keyup", { key: "Enter" }))
-    await wrapper.vm.$nextTick()
+    await value.get("input").trigger("keyup", { key: "Enter" })
 
     expect(first(wrapper.emitted("apply") ?? [])[0]).toEqual([
       { column: "status", op: "in", values: ["active"] },
