@@ -176,11 +176,16 @@ function report(value: string | number | null) {
    says that height is (--dp-field-height: a card head's strip). Trap: Quasar
    sets a dense field's control at 40px three classes deep, and the :where()
    this used to sit under counted none of them — every compact field in the
-   application stood 40px beside its 32px buttons. */
+   application stood 40px beside its 32px buttons. A textarea keeps the floor
+   and not the height: held at one line, a pasted paragraph ran out of the
+   field and over whatever stood below it. */
 .app-input--compact.q-field--dense :deep(.q-field__control),
 .app-input--compact.q-field--dense :deep(.q-field__marginal) {
   height: var(--dp-field-height);
   min-height: var(--dp-field-height);
+}
+.app-input--compact.q-field--dense.q-textarea :deep(.q-field__control) {
+  height: auto;
 }
 .app-input--compact.q-field--dense :deep(.q-field__native) {
   min-height: var(--dp-field-height);
