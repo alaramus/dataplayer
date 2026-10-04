@@ -21,7 +21,7 @@ export function browserZone(): string {
 
 /** A schedule never set: off, and every night at 03:00 once it is switched on. */
 export function firstSettings(zone: string): ScheduleSettings {
-  return { enabled: false, kind: "times", every_minutes: 60, times: ["03:00"], days: [...EVERY_DAY], time_zone: zone }
+  return { enabled: true, kind: "times", every_minutes: 60, times: ["03:00"], days: [...EVERY_DAY], time_zone: zone }
 }
 
 /** An interval as the form shows it: the largest unit it is a whole number of. */

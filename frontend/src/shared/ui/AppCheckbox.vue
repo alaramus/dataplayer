@@ -20,8 +20,9 @@ withDefaults(
     /** Some but not all: shown as a dash rather than a tick or an empty box. */
     indeterminate?: boolean
     dense?: boolean
+    disable?: boolean
   }>(),
-  { label: undefined, indeterminate: false, dense: false }
+  { label: undefined, indeterminate: false, dense: false, disable: false }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
@@ -34,6 +35,7 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
     :model-value="indeterminate ? null : modelValue"
     :toggle-indeterminate="false"
     :label="label"
+    :disable="disable"
     @update:model-value="emit('update:modelValue', $event === true)"
   />
 </template>

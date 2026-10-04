@@ -448,9 +448,11 @@ test("runs a pipeline by itself on a schedule, says when next, and is switched o
   const kept = () => page.waitForResponse(
     (response) => response.url().endsWith("/schedule") && response.request().method() === "PUT"
   )
+  // A schedule nobody has set opens switched on: opening it is asking for one.
   await page.getByTestId("pipeline-schedule").click()
-  await window.getByTestId("schedule-enabled").click()
+  await expect(window.getByTestId("schedule-enabled")).toHaveAttribute("aria-checked", "true")
   await expect(window.getByTestId("schedule-time-0")).toHaveValue("03:00")
+  await expect(window.getByTestId("schedule-time-0")).toBeEnabled()
   await page.screenshot({ path: "test-results/pipelines-schedule-window.png" })
   let saved = kept()
   await window.getByTestId("schedule-save").click()
@@ -468,15 +470,21 @@ test("runs a pipeline by itself on a schedule, says when next, and is switched o
   await saved
   await expect(next).toContainText(/Next run: (today|tomorrow) \d\d:\d\d/)
 
-  // Off: nothing runs by itself, and the choice is kept for next time.
+  // Off: nothing runs by itself, the choice is kept for next time and cannot
+  // be changed until it is switched back on.
   await page.getByTestId("pipeline-schedule").click()
   await window.getByTestId("schedule-enabled").click()
+  await expect(window.getByTestId("schedule-every")).toBeDisabled()
+  await expect(window.getByRole("radio", { name: "At times of the day" })).toHaveAttribute("aria-disabled", "true")
   saved = kept()
   await window.getByTestId("schedule-save").click()
   await saved
   await expect(next).toHaveCount(0)
   await page.getByTestId("pipeline-schedule").click()
+  await expect(window.getByTestId("schedule-enabled")).toHaveAttribute("aria-checked", "false")
   await expect(window.getByTestId("schedule-every")).toHaveValue("1")
+  await window.getByTestId("schedule-enabled").click()
+  await expect(window.getByTestId("schedule-every")).toBeEnabled()
   await window.getByRole("button", { name: "Cancel" }).click()
 
   await page.getByTestId("pipeline-delete").click()

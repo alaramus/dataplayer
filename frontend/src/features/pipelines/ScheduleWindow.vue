@@ -51,6 +51,10 @@ const KINDS = [
   { label: "Every so long", value: "interval", description: "Counted from when it is saved" },
   { label: "At times of the day", value: "times", description: "On the days ticked below" },
 ]
+// Kept while switched off, so switching back on finds them, but out of reach:
+// a time set under a switched-off schedule looked like a schedule.
+const off = computed(() => !enabled.value)
+const kinds = computed(() => KINDS.map((one) => ({ ...one, disable: off.value })))
 const UNITS = [
   { label: "minutes", value: "minutes" },
   { label: "hours", value: "hours" },
@@ -111,7 +115,7 @@ async function save() {
       />
       <AppRadioGroup
         v-model="kind"
-        :options="KINDS"
+        :options="kinds"
         label="When"
         data-testid="schedule-kind"
       />
@@ -119,12 +123,14 @@ async function save() {
         <AppNumberInput
           v-model="count"
           label="Every"
+          :disable="off"
           data-testid="schedule-every"
         />
         <AppSelect
           v-model="unit"
           :options="UNITS"
           label="Of"
+          :disable="off"
           data-testid="schedule-unit"
         />
       </template>
@@ -137,6 +143,7 @@ async function save() {
           :model-value="time"
           type="time"
           :label="index === 0 ? 'At' : 'And at'"
+          :disable="off"
           :data-testid="`schedule-time-${index}`"
           @update:model-value="setTime(index, $event)"
         >
@@ -147,6 +154,7 @@ async function save() {
             <AppIconButton
               :icon="appIcons.close"
               tooltip="Remove this time"
+              :disable="off"
               :data-testid="`schedule-time-remove-${index}`"
               @click="times = times.filter((_, at) => at !== index)"
             />
@@ -158,7 +166,7 @@ async function save() {
             size="sm"
             :icon="appIcons.add"
             label="Add a time"
-            :disable="times.length >= MAX_TIMES"
+            :disable="off || times.length >= MAX_TIMES"
             data-testid="schedule-add-time"
             @click="times = [...times, '12:00']"
           />
@@ -172,6 +180,7 @@ async function save() {
               class="schedule-window__day"
               :label="day"
               dense
+              :disable="off"
               :data-testid="`schedule-day-${index}`"
               @update:model-value="toggleDay(index, $event)"
             />
