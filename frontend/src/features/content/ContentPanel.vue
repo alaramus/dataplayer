@@ -220,7 +220,8 @@ watch(
       </AppBanner>
       <CodeEditor
         v-model="draft"
-        class="content-panel__editor-control"
+        class="content-panel__editor-control dp-panel-scroll"
+        bare
         :filename="editor.data.value.filename"
         :language-hint="editor.data.value.language_hint"
         :validation="editor.data.value.validation"
@@ -262,7 +263,7 @@ watch(
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: var(--dp-space-2);
+  padding: var(--dp-space-2) 0 0;
 }
 .content-panel__notice {
   flex: none;

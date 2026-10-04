@@ -98,7 +98,8 @@ function showTable() {
         :filename="`${title}.sql`"
         language-hint="sql"
         readonly
-        class="sql-panel__editor"
+        bare
+        class="sql-panel__editor dp-panel-scroll"
         data-testid="sql-editor"
       />
     </div>
@@ -135,7 +136,7 @@ function showTable() {
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: var(--dp-space-2);
+  padding: var(--dp-space-2) 0 0;
 }
 .sql-panel__notice {
   flex: none;

@@ -1132,7 +1132,8 @@ onBeforeUnmount(() => {
           :wrap="draft.wrap"
           :suggestions="offered"
           :marks="editorMarks"
-          class="query-panel__code"
+          bare
+          class="query-panel__code dp-panel-scroll"
           @update:model-value="draft.body = $event"
           @update:selection="selection = $event"
           @run="runHere"

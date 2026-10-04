@@ -34,6 +34,8 @@ const props = withDefaults(
      */
     suggestions?: { label: string; detail: string }[]
     marks?: { from: number; to: number; severity: "warning" | "error"; message: string }[]
+    /** No frame of its own: the editor is the whole of a tab, not a field in it. */
+    bare?: boolean
   }>(),
   {
     languageHint: null,
@@ -42,6 +44,7 @@ const props = withDefaults(
     wrap: false,
     suggestions: () => [],
     marks: () => [],
+    bare: false,
   }
 )
 
@@ -408,7 +411,10 @@ watch([() => props.filename, () => props.languageHint], () => void loadLanguage(
 </script>
 
 <template>
-  <div class="code-editor">
+  <div
+    class="code-editor"
+    :class="{ 'code-editor--bare': bare }"
+  >
     <div
       ref="host"
       class="code-editor__surface"
@@ -424,6 +430,10 @@ watch([() => props.filename, () => props.languageHint], () => void loadLanguage(
   overflow: hidden;
   border: 1px solid var(--dp-border-faint);
   border-radius: var(--dp-radius-control);
+}
+.code-editor--bare {
+  border: 0;
+  border-radius: 0;
 }
 .code-editor__surface {
   height: 100%;
