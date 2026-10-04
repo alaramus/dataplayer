@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import { useRouter } from "vue-router"
 
+import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
 import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
 import { checkIntervalOptions } from "@/features/preferences/checks"
 import type { CheckInterval } from "@/features/preferences/checks"
@@ -46,6 +47,10 @@ const themes: SelectOption[] = [
   ),
   { label: "System", value: "system", description: "Light or Dark, as the operating system changes" },
 ]
+
+// The welcome tour, on demand: finished or skipped long ago, it opens here
+// again from its first clip rather than from the theme choice above.
+const tourOpen = ref(false)
 
 const intervals = checkIntervalOptions()
 // Whatever the server says it is, and nothing while it has not said: a
@@ -118,6 +123,26 @@ async function chooseInterval(value: unknown) {
         </section>
         <section class="preferences__row">
           <div class="preferences__what">
+            <span class="preferences__title">Welcome tour</span>
+            <span class="preferences__summary">
+              The six short clips from the first visit — creating a
+              connection, tabs, tables, pipelines, dashboards and the AI
+              agent. Opens here again whenever it is wanted.
+            </span>
+          </div>
+          <AppForm
+            class="preferences__control-form"
+            layout="section"
+          >
+            <AppButton
+              label="Replay tour"
+              data-testid="preference-replay-tour"
+              @click="tourOpen = true"
+            />
+          </AppForm>
+        </section>
+        <section class="preferences__row">
+          <div class="preferences__what">
             <span class="preferences__title">Check that connections are reachable</span>
             <span class="preferences__summary">
               Every connection is probed on this schedule while a workspace is open, and
@@ -144,6 +169,10 @@ async function chooseInterval(value: unknown) {
              because a person holds several keys and each has its own commands. -->
         <SshKeysSection />
       </div>
+      <OnboardingDialog
+        v-model="tourOpen"
+        start-phase="tour"
+      />
     </div>
   </AppLayout>
 </template>

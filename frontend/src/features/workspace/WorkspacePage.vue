@@ -30,6 +30,8 @@ import { offeredScope } from "@/features/search/context"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import { searchFromOf } from "@/features/workspace/catalogSides"
 import SearchField from "@/features/search/SearchField.vue"
+import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
+import { markVisited, shouldShowOnboarding } from "@/features/onboarding/onboarding"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
@@ -757,6 +759,16 @@ function openShared(request: OpenSharedRequest) {
   }
 }
 
+/**
+ * First-visit welcome. The visit is recorded on entry; the tour opens until
+ * it was finished or skipped, then never again.
+ */
+const onboardingOpen = ref(false)
+onMounted(() => {
+  markVisited()
+  if (shouldShowOnboarding()) onboardingOpen.value = true
+})
+
 // A link the landing screen has already resolved. Taken once, on the way in:
 // the workspace is where tabs live, and the landing screen has none.
 onMounted(() => {
@@ -1276,6 +1288,8 @@ onBeforeUnmount(unregisterSearch)
         />
       </div>
     </div>
+
+    <OnboardingDialog v-model="onboardingOpen" />
 
     <AdapterCatalogDialog
       v-model="catalogOpen"
