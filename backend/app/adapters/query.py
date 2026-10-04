@@ -13,23 +13,29 @@ them without knowing which source produced them.
 from collections.abc import AsyncIterator
 from typing import Literal, Protocol, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.adapters.relation import ColumnType
 
 # The closed class of one prepared statement. "unknown" is a refusal rather
 # than a write-shaped guess: a statement whose class cannot be established is
-# not run (D62).
+# not run (D62). "maintenance" is the source looking after its own storage —
+# statistics, dead rows, indexes — and runs outside a transaction (D206).
 StatementClass = Literal[
     "read",
     "explain",
     "dml",
     "ddl",
+    "maintenance",
     "transaction",
     "session",
     "copy",
     "unknown",
 ]
+
+# The classes that change the source, and so need write access, the owner's
+# confirmation policy and a run that is not a read (D160, D206).
+CHANGING: frozenset[StatementClass] = frozenset({"dml", "ddl", "maintenance"})
 
 # What a run may be asked to do, and who ends the transaction.
 #
@@ -133,6 +139,14 @@ class PreparedStatement(BaseModel):
     parameters: list[str] = Field(default_factory=list)
     # What the statement names, for messages and for saying what a run touched.
     targets: list[str] = Field(default_factory=list)
+
+    # Sent rather than left to a client to work out from the class: which
+    # classes change a source is the server's list, and a second copy of it in
+    # the editor is how a new class runs as a read.
+    @computed_field  # type: ignore[prop-decorator]  # pydantic's documented form; mypy rejects a decorated property
+    @property
+    def changes(self) -> bool:
+        return self.kind in CHANGING
 
 
 class PreparedScript(BaseModel):

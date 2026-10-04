@@ -151,6 +151,7 @@ connection: psycopg.AsyncConnection[Any],
 *,
 search_path: list[str],
 statement_timeout_seconds: int,
+local: bool = True,
 ) -> None:
     """Set the timeout and the schema context this run is to see.
 
@@ -158,10 +159,14 @@ statement_timeout_seconds: int,
     statement, and then composed as an identifier rather than pasted in: a
     context is client-influenced text, and D2c does not stop applying
     because the statement beside it was written by a user.
+
+    For the transaction, unless there is none: then for the session, and
+    whoever set it resets it before the connection goes back to the pool.
     """
+    scope = sql.SQL("SET LOCAL" if local else "SET")
     await connection.execute(
-        sql.SQL("SET LOCAL statement_timeout = {}").format(
-            sql.Literal(statement_timeout_seconds * 1000)
+        sql.SQL("{} statement_timeout = {}").format(
+            scope, sql.Literal(statement_timeout_seconds * 1000)
         )
     )
     wanted = [name for name in search_path if name]
@@ -179,8 +184,8 @@ statement_timeout_seconds: int,
             f"This connection has no schema called {missing[0]}",
         )
     await connection.execute(
-        sql.SQL("SET LOCAL search_path TO {}").format(
-            sql.SQL(", ").join(sql.Identifier(name) for name in wanted)
+        sql.SQL("{} search_path TO {}").format(
+            scope, sql.SQL(", ").join(sql.Identifier(name) for name in wanted)
         )
     )
 
@@ -194,7 +199,7 @@ statement_timeout_seconds: int,
 # arrives already carrying the sentence that refuses it.
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml", "ddl"}),
+    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance"}),
     "manual": frozenset({"read", "dml", "ddl"}),
 }
 
@@ -542,6 +547,10 @@ class PostgresExecution(_Statements):
         script = prepare(self._request.text)
         started = time.monotonic()
         reading = self._request.mode == "read"
+        if not reading and [one.kind for one in script.statements] == ["maintenance"]:
+            async for event in self._outside_transaction(script, started):
+                yield event
+            return
         try:
             async with self._session.acquire() as connection:
                 self._connection = connection
@@ -570,6 +579,52 @@ class PostgresExecution(_Statements):
                     await connection.set_read_only(None)
         except _RollBack:
             return
+        except PoolTimeout:
+            raise AdapterError("timeout", "No connection was free for this query") from None
+        except AdapterError:
+            raise
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="The query could not be run")
+            raise AdapterError(error_kind, message) from None
+
+    async def _outside_transaction(
+        self, script: PreparedScript, started: float
+    ) -> AsyncIterator[QueryEvent]:
+        """One maintenance command, kept by the server as it finishes.
+
+        VACUUM, CLUSTER and a concurrent REINDEX refuse to run inside a
+        transaction block, so this runs with none; the run's admission made
+        sure nothing else shares it (D206). The pool keeps a connection's
+        session as it was left, so what was set is reset before it goes back.
+        """
+        limits = self._request.limits
+        try:
+            async with self._session.acquire() as connection:
+                self._connection = connection
+                _prepare_connection(connection, self._note)
+                await connection.set_autocommit(True)
+                try:
+                    await set_read_context(
+                        connection,
+                        search_path=self._request.search_path,
+                        statement_timeout_seconds=limits.statement_timeout_seconds,
+                        local=False,
+                    )
+                    async for event in self._statements(
+                        connection, script, started, limits
+                    ):
+                        yield event
+                finally:
+                    self._connection = None
+                    connection.remove_notice_handler(self._note)
+                    try:
+                        await connection.execute("RESET statement_timeout")
+                        await connection.execute("RESET search_path")
+                        await connection.set_autocommit(False)
+                    except psycopg.Error:
+                        # A connection that cannot be put back as it was is
+                        # not put back: the pool discards a closed one.
+                        await connection.close()
         except PoolTimeout:
             raise AdapterError("timeout", "No connection was free for this query") from None
         except AdapterError:

@@ -1,6 +1,6 @@
 """Connector policy and grants for user-authored SQL changes (D160)."""
 
-from app.adapters.query import ExecutionMode, StatementClass
+from app.adapters.query import CHANGING, ExecutionMode, StatementClass
 from app.connectors.models import Connector
 from app.core.access import Access, at_least
 
@@ -9,6 +9,8 @@ NEEDED: dict[StatementClass, Access] = {
     "explain": "read",
     "dml": "write",
     "ddl": "structure",
+    # It changes how the source stores what is there, not what is there (D206).
+    "maintenance": "write",
 }
 
 
@@ -32,7 +34,7 @@ def admit_write(
     risky: bool,
 ) -> None:
     """Check a write against the owner policy, grant and current confirmation."""
-    writing = [kind for kind in kinds if kind in ("dml", "ddl")]
+    writing = [kind for kind in kinds if kind in CHANGING]
     if not writing:
         return
     if mode == "read":

@@ -42,6 +42,7 @@ function script(
       end: statement.end ?? ordinal * 10 + 8,
       text: "select 1",
       kind: statement.kind as PreparedScript["statements"][number]["kind"],
+      changes: ["dml", "ddl", "maintenance"].includes(statement.kind),
       parameters: statement.parameters ?? [],
       targets: statement.targets ?? [],
     })),

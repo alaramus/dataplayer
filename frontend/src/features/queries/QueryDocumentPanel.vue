@@ -537,7 +537,7 @@ async function go(target: RunTarget | null) {
     return
   }
   const statements = selectedScript.statements
-  const mutating = statements.some((one) => one.kind === "dml" || one.kind === "ddl")
+  const mutating = statements.some((one) => one.changes)
   const risky = mutating && (statements.length > 1 || statements.some((one) => one.kind === "ddl" || one.risk === "high"))
   const supportsWrites = profile.data.value?.statement_modes.includes("auto_commit") ?? true
   const policyConfirm = mutating && supportsWrites && (connection.value?.execution_policy ?? "confirm_writes") === "confirm_writes"

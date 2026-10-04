@@ -8055,7 +8055,16 @@ export type PreparedStatement = {
   /**
    * Kind
    */
-  kind: "read" | "explain" | "dml" | "ddl" | "transaction" | "session" | "copy" | "unknown"
+  kind:
+    | "read"
+    | "explain"
+    | "dml"
+    | "ddl"
+    | "maintenance"
+    | "transaction"
+    | "session"
+    | "copy"
+    | "unknown"
   /**
    * Risk
    */
@@ -8076,6 +8085,10 @@ export type PreparedStatement = {
    * Targets
    */
   targets?: Array<string>
+  /**
+   * Changes
+   */
+  readonly changes: boolean
 }
 
 /**
@@ -11433,7 +11446,16 @@ export type StatementPublic = {
   /**
    * Kind
    */
-  kind: "read" | "explain" | "dml" | "ddl" | "transaction" | "session" | "copy" | "unknown"
+  kind:
+    | "read"
+    | "explain"
+    | "dml"
+    | "ddl"
+    | "maintenance"
+    | "transaction"
+    | "session"
+    | "copy"
+    | "unknown"
   /**
    * Status
    */
@@ -12919,6 +12941,82 @@ export type ChosenStartWritable = {
    * Sample Data
    */
   sample_data?: boolean
+}
+
+/**
+ * PreparedScript
+ */
+export type PreparedScriptWritable = {
+  /**
+   * Statements
+   */
+  statements: Array<PreparedStatementWritable>
+  /**
+   * Parameters
+   */
+  parameters?: Array<string>
+}
+
+/**
+ * PreparedStatement
+ *
+ * One statement the source found in the text it was given.
+ *
+ * The range is into the submitted text, so an error can point at the place
+ * the person is looking at. Boundaries come from the dialect's own tokenizer:
+ * a semicolon inside a string, a comment or a dollar-quoted body is not a
+ * boundary, and no home-grown splitting decides that (D62).
+ */
+export type PreparedStatementWritable = {
+  /**
+   * Ordinal
+   */
+  ordinal: number
+  /**
+   * Start
+   */
+  start: number
+  /**
+   * End
+   */
+  end: number
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Kind
+   */
+  kind:
+    | "read"
+    | "explain"
+    | "dml"
+    | "ddl"
+    | "maintenance"
+    | "transaction"
+    | "session"
+    | "copy"
+    | "unknown"
+  /**
+   * Risk
+   */
+  risk?: "low" | "high"
+  /**
+   * Destructive
+   */
+  destructive?: boolean
+  /**
+   * Refused
+   */
+  refused?: string | null
+  /**
+   * Parameters
+   */
+  parameters?: Array<string>
+  /**
+   * Targets
+   */
+  targets?: Array<string>
 }
 
 /**

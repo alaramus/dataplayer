@@ -137,6 +137,22 @@ def admit(
             raise RunRefused(
                 422, f"Statement {statement.ordinal + 1}: {statement.refused}"
             )
+    if mode != "read" and any(one.kind == "maintenance" for one in script.statements):
+        # Outside a transaction, so nothing shares its run: a failure after it
+        # could not undo it, and the run would say rolled back of something
+        # the server had already kept (D206).
+        if mode == "manual":
+            raise RunRefused(
+                422,
+                "Maintenance commands run outside a transaction; "
+                "turn the manual transaction off to run this",
+            )
+        if len(script.statements) > 1:
+            raise RunRefused(
+                422,
+                "A maintenance command runs outside a transaction, "
+                "so run it on its own",
+            )
     admitted = _ADMITTED.get(mode, frozenset({"read"}))
     for statement in script.statements:
         if statement.kind in admitted:
@@ -167,7 +183,7 @@ def admit(
 # read, an auto-commit and a transaction are for.
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml", "ddl"}),
+    "auto_commit": frozenset({"read", "dml", "ddl", "maintenance"}),
     "manual": frozenset({"read", "dml", "ddl"}),
 }
 

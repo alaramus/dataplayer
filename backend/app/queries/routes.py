@@ -22,6 +22,7 @@ from app.adapters.cache import CacheKey, DataCacheDep, cached_read
 from app.adapters.cache_serialization import CacheFormat
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
+    CHANGING,
     ExplainRequest,
     ExplainResult,
     GeneratedQuery,
@@ -473,6 +474,14 @@ async def rehearse_change(
                 status_code=422,
                 detail=f"Statement {statement.ordinal + 1}: {statement.refused}",
             )
+        if statement.kind == "maintenance":
+            # A rehearsal is a transaction rolled back, and maintenance runs
+            # outside one (D206).
+            raise HTTPException(
+                status_code=422,
+                detail=f"Statement {statement.ordinal + 1}: maintenance commands "
+                "cannot be tried out first",
+            )
     document = (
         None
         if body.document_id is None
@@ -607,9 +616,7 @@ async def start_run(
             )
             or (
                 len(script.statements) > 1
-                and any(
-                    statement.kind in ("dml", "ddl") for statement in script.statements
-                )
+                and any(statement.kind in CHANGING for statement in script.statements)
             ),
         )
     except WriteRefused as refusal:

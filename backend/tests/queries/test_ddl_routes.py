@@ -214,9 +214,10 @@ async def test_what_is_outside_the_vocabulary_is_refused_in_the_sources_words(
     assert "Permissions" in response.json()["detail"]
 
 
-async def test_a_maintenance_command_is_refused_before_anything_is_recorded(
+async def test_a_maintenance_command_beside_a_change_is_refused_before_anything_is_recorded(
     client: AsyncClient, db: AsyncSession
 ) -> None:
+    """D206: maintenance runs with no transaction, so it shares a run with nothing."""
     headers = await _headers(client, db)
     connector_id = await _postgres(client, headers)
 
@@ -224,12 +225,14 @@ async def test_a_maintenance_command_is_refused_before_anything_is_recorded(
         client,
         headers,
         connector_id,
-        "reindex table demo_lab.things",
+        "create table demo_lab.dp_never (a int); reindex table demo_lab.dp_never",
         mode="auto_commit",
+        scope="script",
         confirm_high_risk=True,
     )
 
     assert response.status_code == 422
+    assert "on its own" in response.json()["detail"]
 
 
 async def test_every_structure_change_is_asked_about_even_a_harmless_one(

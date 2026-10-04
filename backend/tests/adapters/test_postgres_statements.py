@@ -88,9 +88,16 @@ def test_a_range_points_back_into_the_text_it_came_from() -> None:
         ("copy t from stdin", "copy"),
         ("copy (select 1) to stdout", "copy"),
         ("explain select 1", "explain"),
-        ("vacuum", "unknown"),
+        ("explain analyze select 1", "explain"),
+        ("analyze", "maintenance"),
+        ("analyse t", "maintenance"),
+        ("vacuum", "maintenance"),
+        ("vacuum (verbose, analyze) t", "maintenance"),
+        ("reindex table t", "maintenance"),
+        ("cluster t using i", "maintenance"),
+        ("checkpoint", "maintenance"),
+        ("refresh materialized view mv", "maintenance"),
         ("call p()", "unknown"),
-        ("refresh materialized view mv", "unknown"),
     ],
 )
 def test_the_class_of_one_statement(sql: str, kind: StatementClass) -> None:
@@ -246,9 +253,7 @@ def test_what_falls_outside_the_vocabulary_is_refused_in_words(
         "alter table t owner to bob",
         "alter table t enable row level security",
         "create policy p on t using (true)",
-        "reindex table t",
         "drop tablespace ts",
-        "cluster t using i",
     ],
 )
 def test_administrative_sql_this_dialect_module_cannot_read_is_unknown(
@@ -305,3 +310,46 @@ def test_every_structure_change_is_asked_about(sql: str) -> None:
 )
 def test_what_has_to_be_rehearsed_first(sql: str, destructive: bool) -> None:
     assert one(sql).destructive is destructive
+
+
+@pytest.mark.parametrize(
+    ("sql", "risk"),
+    [
+        ("analyze t", "low"),
+        ("vacuum t", "low"),
+        ("vacuum (verbose, analyze) t", "low"),
+        ("checkpoint", "low"),
+        ("vacuum full t", "high"),
+        ("vacuum (full, analyze) t", "high"),
+        ("reindex table t", "high"),
+        ("reindex table concurrently t", "low"),
+        ("cluster t using i", "high"),
+        ("refresh materialized view mv", "high"),
+        ("refresh materialized view concurrently mv", "low"),
+        # A word in a comment is not an option of the command.
+        ("vacuum t -- full", "low"),
+    ],
+)
+def test_maintenance_that_locks_readers_out_is_asked_about(sql: str, risk: str) -> None:
+    """D206: a rewrite or a non-concurrent rebuild holds the table from readers."""
+    assert one(sql).risk == risk
+
+
+def test_the_server_says_which_statements_change_the_source() -> None:
+    """The editor reads `changes` rather than keeping its own list of classes."""
+    changes = {
+        statement.kind: statement.changes
+        for statement in prepare(
+            "select 1; insert into t values (1); create table u (a int); "
+            "analyze; explain select 1; begin"
+        ).statements
+    }
+
+    assert changes == {
+        "read": False,
+        "dml": True,
+        "ddl": True,
+        "maintenance": True,
+        "explain": False,
+        "transaction": False,
+    }

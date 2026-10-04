@@ -5,7 +5,7 @@ documents in which a user develops one, the bounded results it produces and the
 transaction state of mutations. Read this before changing query documents, SQL
 parsing, execution, history, result snapshots, Explain or query transactions.
 
-Decisions here: D62, D63, D64, D65, D66, D77, D78, D96, D160.
+Decisions here: D62, D63, D64, D65, D66, D77, D78, D96, D160, D206.
 
 ## What exists today
 
@@ -583,3 +583,20 @@ reload command: its live text is deliberately not replaced by a server refetch,
 while the library can still re-read its list.
 
 Spec: [SQL editor permissions and immediate deletion](../decisions/2026-09-24-sql-editor-simplification.md)
+
+## D206. Maintenance commands run alone, outside a transaction
+
+ANALYZE, VACUUM, REINDEX, CLUSTER, CHECKPOINT and REFRESH MATERIALIZED VIEW are
+the class `maintenance`, read from the leading keyword. It is a change: write
+access, the owner's confirmation policy, never a read run. It runs with no
+transaction, because VACUUM, CLUSTER and the CONCURRENTLY forms refuse one: the
+source puts the borrowed connection in autocommit, sets the timeout and schema
+context for the session, and resets both before the pool gets it back —
+closing it when it cannot. With nothing to roll back, a maintenance command is
+the only statement of its run, is refused in a manual transaction and is not
+rehearsed. VACUUM FULL, CLUSTER and a non-concurrent REINDEX or REFRESH are
+high risk (D66), since they hold the table from its readers. Which classes
+change a source is one server set, sent with each prepared statement as
+`changes` so the editor does not keep its own.
+
+Spec: [Maintenance commands in the SQL editor](../decisions/2026-10-04-maintenance-statements.md)

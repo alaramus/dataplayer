@@ -35,6 +35,7 @@ from app.adapters.protocol import (
     SupportsRelationModel,
 )
 from app.adapters.query import (
+    CHANGING,
     ExecutionMode,
     QueryRequest,
     StatementClass,
@@ -671,9 +672,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             profile = adapter.query_profile()
             prepared = adapter.prepare_query(sql)
             kinds = [statement.kind for statement in prepared.statements]
-            changing: list[StatementClass] = [
-                kind for kind in kinds if kind in ("dml", "ddl")
-            ]
+            changing: list[StatementClass] = [kind for kind in kinds if kind in CHANGING]
             refusal = write_refusal(connector, held, changing)
             if refusal is not None:
                 return {"error": refusal}

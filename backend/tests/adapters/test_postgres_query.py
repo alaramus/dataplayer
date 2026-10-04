@@ -6,6 +6,7 @@ diagnostic. A fake driver would prove none of it.
 """
 
 import asyncio
+import uuid
 
 import pytest
 from pydantic import SecretStr
@@ -20,6 +21,7 @@ from app.adapters.query import (
     StatementFinished,
     SupportsQuery,
 )
+from app.adapters.resources import Pooling, ResourceStore
 from tests.utils.database import working_postgres_options
 
 LIMITS = QueryLimits(
@@ -123,7 +125,13 @@ async def test_a_writable_cte_never_reaches_the_server() -> None:
 
 @pytest.mark.parametrize(
     "text",
-    ["begin", "commit", "set search_path to public", "copy pg_class to stdout"],
+    [
+        "begin",
+        "commit",
+        "set search_path to public",
+        "copy pg_class to stdout",
+        "vacuum",
+    ],
 )
 async def test_state_changing_statements_are_refused(text: str) -> None:
     finished = await _finished(text)
@@ -268,3 +276,82 @@ async def test_the_adapter_answers_the_query_protocol() -> None:
     adapter = PostgresAdapter(PostgresUserPassword(**working_postgres_options()))
 
     assert isinstance(adapter, SupportsQuery)
+
+
+# --- maintenance, outside a transaction (D206) ------------------------------
+
+
+async def _scratch(session: PostgresSession) -> str:
+    name = f"dp_maintain_{uuid.uuid4().hex[:8]}"
+    async with session.acquire() as connection:
+        await connection.execute(f"CREATE TABLE demo_lab.{name} (id int primary key)")
+        await connection.execute(f"INSERT INTO demo_lab.{name} SELECT generate_series(1, 50)")
+        await connection.commit()
+    return name
+
+
+async def _drop(session: PostgresSession, name: str) -> None:
+    async with session.acquire() as connection:
+        await connection.execute(f"DROP TABLE IF EXISTS demo_lab.{name}")
+        await connection.commit()
+
+
+async def _maintain(session: PostgresSession, text: str) -> list[StatementFinished]:
+    execution = PostgresQuery(session).open(
+        QueryRequest(
+            text=text,
+            mode="auto_commit",
+            search_path=["demo_lab"],
+            limits=LIMITS.model_copy(update={"statement_timeout_seconds": 7}),
+        )
+    )
+    return [
+        event async for event in execution.events() if isinstance(event, StatementFinished)
+    ]
+
+
+async def test_vacuum_runs_outside_a_transaction_and_says_what_it_did() -> None:
+    """VACUUM refuses a transaction block, so a run of one opens none."""
+    session = PostgresSession(PostgresUserPassword(**working_postgres_options()))
+    name = await _scratch(session)
+    try:
+        [statement] = await _maintain(session, f"vacuum (verbose, analyze) {name}")
+
+        assert statement.status == "succeeded", statement.diagnostic
+        assert statement.command_tag == "VACUUM"
+        # VERBOSE reports as INFO messages; they arrive as the run's notices.
+        assert any("vacuuming" in notice.message for notice in statement.notices)
+        rows = await session.query(
+            "SELECT reltuples FROM pg_class WHERE oid = %s::regclass",
+            (f"demo_lab.{name}",),
+        )
+        assert rows[0]["reltuples"] == 50
+    finally:
+        await _drop(session, name)
+
+
+async def test_a_pooled_connection_goes_back_as_it_was_lent() -> None:
+    """The pool keeps a session's settings, so maintenance resets what it set."""
+    store = ResourceStore(max_entries=8, max_idle_seconds=300.0)
+    session = PostgresSession(
+        PostgresUserPassword(**working_postgres_options()),
+        Pooling(store=store, connector_id=uuid.uuid4()),
+    )
+    name = await _scratch(session)
+    try:
+        async with session.acquire() as connection:
+            before = await (await connection.execute("SHOW statement_timeout")).fetchone()
+            path = await (await connection.execute("SHOW search_path")).fetchone()
+            pid = connection.info.backend_pid
+
+        [statement] = await _maintain(session, f"analyze {name}")
+        assert statement.status == "succeeded", statement.diagnostic
+
+        async with session.acquire() as connection:
+            assert connection.info.backend_pid == pid
+            assert connection.autocommit is False
+            assert await (await connection.execute("SHOW statement_timeout")).fetchone() == before
+            assert await (await connection.execute("SHOW search_path")).fetchone() == path
+    finally:
+        await _drop(session, name)
+        await store.aclose()

@@ -17,9 +17,9 @@ import {
 const TEXT = "select 1;\nselect 2;\nselect 3"
 const SCRIPT: PreparedScript = {
   statements: [
-    { ordinal: 0, start: 0, end: 8, text: "select 1", kind: "read", parameters: [], targets: [] },
-    { ordinal: 1, start: 10, end: 18, text: "select 2", kind: "read", parameters: [], targets: [] },
-    { ordinal: 2, start: 20, end: 28, text: "select 3", kind: "read", parameters: [], targets: [] },
+    { ordinal: 0, start: 0, end: 8, text: "select 1", kind: "read", changes: false, parameters: [], targets: [] },
+    { ordinal: 1, start: 10, end: 18, text: "select 2", kind: "read", changes: false, parameters: [], targets: [] },
+    { ordinal: 2, start: 20, end: 28, text: "select 3", kind: "read", changes: false, parameters: [], targets: [] },
   ],
   parameters: [],
 }

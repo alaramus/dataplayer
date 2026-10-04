@@ -277,6 +277,7 @@ files. IDs are stable because specs and commits refer to them.
 | D203 | [search](docs/architecture/search.md) |
 | D204 | [search](docs/architecture/search.md) |
 | D205 | [search](docs/architecture/search.md) |
+| D206 | [querying](docs/architecture/querying.md) |
 
 ## Working rules
 

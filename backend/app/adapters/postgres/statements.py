@@ -35,10 +35,10 @@ _tokenizer = Postgres().tokenizer_class()
 # What may follow a colon and be a parameter name.
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
-# The leading keyword of the state-changing families, which are refused with a
-# sentence naming what they are. This table only chooses the wording: nothing
-# here can make a statement runnable, because `read` is decided below by what
-# the parse produced.
+# The leading keyword of the families the parser is not asked about. Most are
+# refused with a sentence naming what they are; `maintenance` runs, outside a
+# transaction and with write access (D206). Nothing here can make a statement
+# a read: `read` is decided below by what the parse produced.
 _LEADING: dict[str, StatementClass] = {
     "BEGIN": "transaction",
     "START": "transaction",
@@ -58,7 +58,19 @@ _LEADING: dict[str, StatementClass] = {
     "DEALLOCATE": "session",
     "COPY": "copy",
     "EXPLAIN": "explain",
+    "ANALYZE": "maintenance",
+    "ANALYSE": "maintenance",
+    "VACUUM": "maintenance",
+    "REINDEX": "maintenance",
+    "CLUSTER": "maintenance",
+    "CHECKPOINT": "maintenance",
+    "REFRESH": "maintenance",
 }
+
+# The maintenance that locks a relation against its readers while it works:
+# a full vacuum and a cluster rewrite the table, a reindex and a refresh lock
+# it unless they are told to work concurrently. Asked about every time (D66).
+_LOCKING = frozenset({"CLUSTER", "REINDEX", "REFRESH"})
 
 # What a parse of a whole statement may produce and still be a read.
 _QUERY_NODES = (exp.Select, exp.Union, exp.Intersect, exp.Except, exp.Values)
@@ -143,6 +155,19 @@ def split(text: str) -> list[tuple[int, int]]:
 def _leading_keyword(text: str) -> str:
     tokens = _tokenizer.tokenize(text)
     return tokens[0].text.upper() if tokens else ""
+
+
+def _command_words(text: str) -> set[str]:
+    """The words of a statement, upper-cased, comments and strings left out.
+
+    Trap: the tokenizer reads a command it has no grammar for — VACUUM,
+    REINDEX — as its keyword and one string holding the rest, so the rest is
+    tokenized again rather than searched as text.
+    """
+    tokens = _tokenizer.tokenize(text)
+    if len(tokens) == 2 and tokens[0].token_type is TokenType.COMMAND:
+        tokens = _tokenizer.tokenize(tokens[1].text)
+    return {token.text.upper() for token in tokens}
 
 
 def _classify(text: str) -> StatementClass:
@@ -305,6 +330,12 @@ def _risky(text: str, kind: StatementClass) -> bool:
     """
     if kind == "ddl":
         return True
+    if kind == "maintenance":
+        words = _command_words(text)
+        leading = _leading_keyword(text)
+        if leading == "VACUUM":
+            return "FULL" in words
+        return leading in _LOCKING and "CONCURRENTLY" not in words
     if kind != "dml":
         return False
     try:

@@ -549,3 +549,121 @@ def _far_future() -> Any:
     from datetime import UTC, datetime, timedelta
 
     return datetime.now(UTC) + timedelta(hours=1)
+
+
+# --- maintenance (D206) ----------------------------------------------------
+
+
+async def test_a_maintenance_command_is_run_and_kept(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    table = await _table()
+
+    prepared = await client.post(
+        f"{BASE}/prepare",
+        headers=headers,
+        json={"connector_id": connector_id, "text": f"vacuum (analyze) demo_lab.{table}"},
+    )
+    assert prepared.json()["statements"][0]["kind"] == "maintenance"
+    assert prepared.json()["statements"][0]["changes"] is True
+
+    started = await _run(
+        client, headers, connector_id, f"vacuum (analyze) demo_lab.{table}", mode="auto_commit"
+    )
+    assert started.status_code == 200, started.text
+    run = await _settled(client, headers, started.json()["id"])
+
+    assert run["status"] == "succeeded"
+    assert run["write_state"] == "committed"
+    assert run["statements"][0]["kind"] == "maintenance"
+    assert run["statements"][0]["command_tag"] == "VACUUM"
+
+
+async def test_maintenance_runs_on_its_own(client: AsyncClient, db: AsyncSession) -> None:
+    """Nothing shares its run: a failure after it could not undo it."""
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    table = await _table()
+
+    response = await _run(
+        client,
+        headers,
+        connector_id,
+        f"analyze demo_lab.{table}; select 1",
+        mode="auto_commit",
+        scope="script",
+    )
+
+    assert response.status_code == 422
+    assert "on its own" in response.json()["detail"]
+
+
+async def test_maintenance_is_not_run_inside_a_manual_transaction(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    opened = await _open(client, headers, connector_id)
+    assert opened.status_code == 200, opened.text
+
+    response = await _run(
+        client,
+        headers,
+        connector_id,
+        "analyze",
+        mode="manual",
+        transaction_id=opened.json()["id"],
+    )
+
+    assert response.status_code == 422
+    assert "outside a transaction" in response.json()["detail"]
+
+
+async def test_maintenance_obeys_the_connection_policy_and_grant(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    owner_headers = await _headers(client, db)
+    reader, reader_headers = await _person(client, db)
+    read_only = await _postgres(client, owner_headers, policy="read_only")
+    granted = await _postgres(client, owner_headers, policy="allow_writes")
+    await client.put(
+        f"{CONNECTORS}/{granted}/grants",
+        headers=owner_headers,
+        json={"user_id": str(reader.id), "access": "read"},
+    )
+
+    refused_by_owner = await _run(client, owner_headers, read_only, "analyze", mode="auto_commit")
+    refused_by_grant = await _run(client, reader_headers, granted, "analyze", mode="auto_commit")
+    as_a_read = await _run(client, owner_headers, granted, "analyze")
+
+    assert refused_by_owner.status_code == 403
+    assert refused_by_grant.status_code == 403
+    assert as_a_read.status_code == 422
+    assert "this run is a read" in as_a_read.json()["detail"]
+
+
+async def test_a_full_vacuum_is_asked_about_every_time(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+    table = await _table()
+
+    unconfirmed = await _run(
+        client, headers, connector_id, f"vacuum full demo_lab.{table}", mode="auto_commit"
+    )
+    confirmed = await _run(
+        client,
+        headers,
+        connector_id,
+        f"vacuum full demo_lab.{table}",
+        mode="auto_commit",
+        confirm_high_risk=True,
+    )
+
+    assert unconfirmed.status_code == 409
+    assert confirmed.status_code == 200, confirmed.text
+    run = await _settled(client, headers, confirmed.json()["id"])
+    assert run["status"] == "succeeded"
