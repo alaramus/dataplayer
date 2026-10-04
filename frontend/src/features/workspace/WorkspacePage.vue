@@ -25,10 +25,10 @@ import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
 import { PERMISSIONS_PAGE } from "@/features/connectors/windowPages"
 import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
-import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
-import { useCatalogSide } from "@/features/workspace/catalogSides"
 import { browserPlacesOf } from "@/features/search/browser"
-import { focusedCatalog } from "@/features/search/context"
+import { offeredScope } from "@/features/search/context"
+import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
+import { searchFromOf } from "@/features/workspace/catalogSides"
 import SearchField from "@/features/search/SearchField.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
@@ -1126,30 +1126,29 @@ function openFromAgent(intent: AiOpenIntent) {
 /**
  * The search, opened over everything (D205): from the header and by Mod+K,
  * the application's first shortcut. A catalog that has the focus when it is
- * opened is offered as its scope, standing where the catalog stands.
+ * opened is offered as its scope, standing where the catalog stands; with the
+ * focus anywhere else the tab being looked at names the scope when it can,
+ * then the catalog being looked at, so closing the last table keeps the offer.
  */
 const searchOpen = ref(false)
 const searchField = useTemplateRef<InstanceType<typeof SearchField>>("search-field")
 const searchOffer = ref<SearchScope | null>(null)
-const catalogInFocus = computed(() =>
-  focusedCatalog(
+const connectorNames = computed(
+  () => new Map((connectors.data.value?.data ?? []).map((connector) => [connector.id, connector.name] as const))
+)
+const scopeOffer = computed(() =>
+  offeredScope(
     workspace.panels.value,
     workspace.context.tree.value,
     workspace.context.focusedLeaf.value,
-    workspace.context.focusedDetached.value
+    workspace.context.focusedDetached.value,
+    searchFromOf,
+    (connectorId) => connectorNames.value.get(connectorId) ?? null
   )
 )
-const sideInFocus = useCatalogSide(() => catalogInFocus.value?.id ?? "")
 
 function openSearchField() {
-  const catalog = catalogInFocus.value
-  searchOffer.value = catalog === null
-    ? null
-    : {
-        connectorId: catalog.connectorId,
-        label: catalog.title,
-        nodeId: sideInFocus.value?.searchFrom ?? null,
-      }
+  searchOffer.value = scopeOffer.value
   if (searchOpen.value) searchField.value?.show()
   else searchOpen.value = true
 }

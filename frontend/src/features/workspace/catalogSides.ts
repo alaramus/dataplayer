@@ -34,6 +34,11 @@ export function publishSide(panelId: string, side: CatalogSide | null): void {
   else sides.set(panelId, side)
 }
 
+/** Where a catalog stands for a search scoped to it (D205): null at its top or unknown. */
+export function searchFromOf(panelId: string): string | null {
+  return sides.get(panelId)?.searchFrom ?? null
+}
+
 export function useCatalogSide(panelId: () => string) {
   return computed(() => sides.get(panelId()) ?? null)
 }

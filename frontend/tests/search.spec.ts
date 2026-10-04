@@ -140,6 +140,11 @@ test("on a Mac the search is ⌘K, and Ctrl+K in the SQL editor deletes to the e
   await expect(searchButton(page)).toContainText("⌘ + K")
   await page.keyboard.press("Meta+k")
   await expect(searchField(page)).toBeFocused()
+  // The open query names its connection, so the scope is offered and the list
+  // is shown: the first Escape closes it, the second puts the search away.
+  await expect(searchList(page)).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(searchList(page)).toHaveCount(0)
   await page.keyboard.press("Escape")
   await expect(overlay(page)).toHaveCount(0)
 

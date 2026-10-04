@@ -1,6 +1,7 @@
 import type { BrowserPlace, RecentTarget, SearchRequest } from "@/client"
 import type { Panel } from "@/features/workspace/panels"
 import type { SearchScope } from "@/features/workspace/state"
+import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import { leavesOf } from "@/shared/workspace"
 import type { LayoutNode, NodeId, PanelId } from "@/shared/workspace"
 
@@ -46,6 +47,81 @@ export function focusedCatalog(
   if (leaf === undefined || leaf.activePanel === null) return null
   const shown = panels.find((panel) => panel.id === leaf.activePanel)
   return shown?.kind === "catalog" ? shown : null
+}
+
+/**
+ * The scope the field offers (D205): the focused catalog first, standing where
+ * it stands; then the tab being looked at when it names a connection, at its
+ * top; then the catalog being looked at.
+ *
+ * The fallbacks are why closing the last table does not lose the scope: the
+ * focus stays on the emptied work column while the catalog is still open, and
+ * a scope offered for the focus alone would be gone with the table. A work
+ * tab's own title is never its connection's name, so only a fresh name or the
+ * panel's connector name labels its scope — never the title.
+ */
+export function offeredScope(
+  panels: readonly Panel[],
+  tree: LayoutNode,
+  focusedLeaf: NodeId | null,
+  focusedDetached: PanelId | null,
+  searchFromOf: (panelId: string) => string | null,
+  labelOf: (connectorId: string) => string | null
+): SearchScope | null {
+  const focused = focusedCatalog(panels, tree, focusedLeaf, focusedDetached)
+  if (focused !== null) {
+    return {
+      connectorId: focused.connectorId,
+      label: labelOf(focused.connectorId) ?? focused.title,
+      nodeId: searchFromOf(focused.id),
+    }
+  }
+  const lookingAt = panelInFocus(panels, tree, focusedLeaf, focusedDetached)
+  if (lookingAt !== null) {
+    const named = connectionOfPanel(lookingAt, labelOf)
+    if (named !== null) return { connectorId: named.connectorId, label: named.label, nodeId: null }
+  }
+  const activeId = activeCatalogPanel(tree, focusedLeaf)
+  const active = activeId === null ? undefined : panels.find((panel) => panel.id === activeId)
+  if (active !== undefined && active.kind === "catalog") {
+    return {
+      connectorId: active.connectorId,
+      label: labelOf(active.connectorId) ?? active.title,
+      nodeId: searchFromOf(active.id),
+    }
+  }
+  return null
+}
+
+/** The tab being looked at: the floating one in front, or the focused section's active tab. */
+function panelInFocus(
+  panels: readonly Panel[],
+  tree: LayoutNode,
+  focusedLeaf: NodeId | null,
+  focusedDetached: PanelId | null
+): Panel | null {
+  if (focusedDetached !== null) return panels.find((panel) => panel.id === focusedDetached) ?? null
+  const leaf = leavesOf(tree).find((one) => one.id === focusedLeaf)
+  if (leaf === undefined || leaf.activePanel === null) return null
+  return panels.find((panel) => panel.id === leaf.activePanel) ?? null
+}
+
+/** The connection a tab names, with what the scope chip shows for it. */
+function connectionOfPanel(
+  panel: Panel,
+  labelOf: (connectorId: string) => string | null
+): { connectorId: string; label: string } | null {
+  if (!("connectorId" in panel)) return null
+  const connectorId = panel.connectorId
+  if (typeof connectorId !== "string" || connectorId === "") return null
+  const fresh = labelOf(connectorId)
+  if (fresh !== null && fresh !== "") return { connectorId, label: fresh }
+  if ("connectorName" in panel) {
+    const name = panel.connectorName
+    if (typeof name === "string" && name !== "") return { connectorId, label: name }
+  }
+  if (panel.kind === "catalog" && panel.title !== "") return { connectorId, label: panel.title }
+  return null
 }
 
 /**

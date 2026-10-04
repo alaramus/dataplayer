@@ -315,7 +315,11 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
   its name is told by them alone.
 - **A scope**: opened while a catalog has focus, the first row offers "Search
   in ‹connection›" from the level the catalog stands on (a tree's grouping);
-  the right arrow takes it, Backspace removes it.
+  the right arrow takes it, Backspace removes it. With the focus anywhere else
+  the offer falls back to the tab being looked at when it names a connection,
+  then to the catalog being looked at, so closing the last table does not lose
+  the scope; a work tab scopes to the top of its connection, under the
+  connection's current name.
 - **The Search tab**, panel kind `search`, role `navigate`, stores nothing but
   its id, so a restored layout or tab group (D94) brings it back empty. It holds
   the whole answer in the plan's order, filters by group, connection, kind and
