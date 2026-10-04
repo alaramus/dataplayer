@@ -1,7 +1,7 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
-import { flushPromises, mount } from "@vue/test-utils"
+import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils"
 import { Dialog, Notify, Quasar } from "quasar"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService, QueriesService } from "@/client"
 import type { QueryDocumentSummary } from "@/client"
@@ -17,6 +17,11 @@ const workspace = {
   openQueryDocument: vi.fn(),
 }
 const library = useQueriesLibrary()
+
+// A panel left mounted still watches the library's module state: the next
+// test's reset re-keys its query after the spies are restored, and the real
+// client goes to the network.
+enableAutoUnmount(afterEach)
 
 function summary(overrides: Partial<QueryDocumentSummary> = {}): QueryDocumentSummary {
   return {
@@ -201,7 +206,6 @@ describe("the library of queries", () => {
     document.body.querySelector<HTMLElement>('[data-testid="confirm-accept"]')?.click()
     await flushPromises()
     expect(removed).toHaveBeenCalledWith({ body: { kind: "selected", ids: ["r1"] } })
-    wrapper.unmount()
   })
 
   it("filters itself to the connection it was opened from", async () => {
