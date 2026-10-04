@@ -6,7 +6,15 @@ import { formLayoutKey } from "./formLayout"
 withDefaults(defineProps<{
   /** A standalone form owns its padding and field spacing; an embedded one does not. */
   layout?: "embedded" | "section" | "grid"
-}>(), { layout: "embedded" })
+  /**
+   * Where a field's name stands. Beside it in a column of names, or above
+   * it, which is how every form is laid out once it is narrow: a short form
+   * whose fields are of different kinds — a switch, a choice of two, a row
+   * of days — reads down one edge better than across a column half of them
+   * do not use.
+   */
+  labels?: "beside" | "above"
+}>(), { layout: "embedded", labels: "beside" })
 
 provide(formLayoutKey, true)
 </script>
@@ -17,6 +25,7 @@ provide(formLayoutKey, true)
     :class="{
       'app-form--section': layout === 'section',
       'app-form--grid': layout === 'grid',
+      'app-form--labels-above': labels === 'above',
     }"
   >
     <slot />
@@ -113,6 +122,33 @@ provide(formLayoutKey, true)
   padding: 0 0 var(--dp-space-1);
 }
 .app-form--grid :deep(.app-form-field .q-field__after) {
+  grid-column: 2;
+  grid-row: 2;
+}
+/* The same rules twice, for the class and for the narrow container: a
+   container query cannot be switched on by a class. Changing one means
+   changing the other. */
+.app-form--labels-above :deep(.app-form-checkbox) {
+  margin-left: 0;
+}
+.app-form--labels-above :deep(.app-form-field > .q-field__inner > .q-field__control),
+.app-form--labels-above :deep(.app-form-field > .q-field__control) {
+  min-width: 0;
+}
+.app-form--labels-above :deep(.app-form-field) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.app-form--labels-above :deep(.app-form-field > .q-field__inner) {
+  width: 100%;
+}
+.app-form--labels-above :deep(.app-form-field .q-field__before) {
+  grid-column: 1 / -1;
+  width: auto;
+  min-height: 0;
+  padding: 0 0 var(--dp-space-1);
+}
+.app-form--labels-above :deep(.app-form-field .q-field__after) {
   grid-column: 2;
   grid-row: 2;
 }

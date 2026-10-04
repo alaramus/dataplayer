@@ -95,12 +95,15 @@ async function save() {
     :model-value="true"
     title="Schedule"
     :subtitle="`When ${pipelineName} runs by itself`"
-    size="compact-form"
-    sizing="content"
+    size="form"
+    sizing="stable"
     data-testid="schedule-window"
     @update:model-value="emit('close')"
   >
-    <AppForm layout="section">
+    <AppForm
+      layout="section"
+      labels="above"
+    >
       <AppToggle
         v-model="enabled"
         label="Run by itself"
@@ -126,38 +129,39 @@ async function save() {
         />
       </template>
       <template v-else>
-        <AppFormControl>
-          <div class="schedule-window__times">
-            <span
-              v-for="(time, index) in times"
-              :key="index"
-              class="schedule-window__time"
-            >
-              <AppInput
-                :model-value="time"
-                type="time"
-                :label="index === 0 ? 'At' : 'And at'"
-                :data-testid="`schedule-time-${index}`"
-                @update:model-value="setTime(index, $event)"
-              />
-              <AppIconButton
-                v-if="times.length > 1"
-                :icon="appIcons.close"
-                tooltip="Remove this time"
-                :data-testid="`schedule-time-remove-${index}`"
-                @click="times = times.filter((_, at) => at !== index)"
-              />
-            </span>
-            <AppButton
-              variant="quiet"
-              size="sm"
-              :icon="appIcons.add"
-              label="Add a time"
-              :disable="times.length >= MAX_TIMES"
-              data-testid="schedule-add-time"
-              @click="times = [...times, '12:00']"
+        <!-- Fields of the form like any other, so "At" stands in the label
+             column; inside a form control each one was set in twice. -->
+        <AppInput
+          v-for="(time, index) in times"
+          :key="index"
+          :model-value="time"
+          type="time"
+          :label="index === 0 ? 'At' : 'And at'"
+          :data-testid="`schedule-time-${index}`"
+          @update:model-value="setTime(index, $event)"
+        >
+          <template
+            v-if="times.length > 1"
+            #after
+          >
+            <AppIconButton
+              :icon="appIcons.close"
+              tooltip="Remove this time"
+              :data-testid="`schedule-time-remove-${index}`"
+              @click="times = times.filter((_, at) => at !== index)"
             />
-          </div>
+          </template>
+        </AppInput>
+        <AppFormControl>
+          <AppButton
+            variant="quiet"
+            size="sm"
+            :icon="appIcons.add"
+            label="Add a time"
+            :disable="times.length >= MAX_TIMES"
+            data-testid="schedule-add-time"
+            @click="times = [...times, '12:00']"
+          />
         </AppFormControl>
         <AppFormControl>
           <div class="schedule-window__days">
@@ -201,21 +205,11 @@ async function save() {
 </template>
 
 <style scoped>
-.schedule-window__times,
 .schedule-window__days {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--dp-space-2);
-}
-/* A form sets each checkbox in from the label column; these already are. */
-.schedule-window__days .schedule-window__day.app-form-checkbox {
-  margin-left: 0;
-}
-.schedule-window__time {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--dp-space-1);
 }
 .schedule-window__zone {
   color: var(--dp-text-muted);

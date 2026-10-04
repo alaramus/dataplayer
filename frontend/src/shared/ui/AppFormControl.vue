@@ -30,6 +30,9 @@ const formLayout = inject(formLayoutKey, false)
 .app-form-control--form {
   margin-left: var(--dp-form-label-width);
 }
+.app-form--labels-above .app-form-control--form {
+  margin-left: 0;
+}
 @container app-form (max-width: 480px) {
   .app-form-control--form {
     margin-left: 0;

@@ -59,7 +59,10 @@ accepted visual example and the rejected directions.
 
 - **`AppForm` supplies the compact form context** to the kit's text, numeric,
   file and select fields. It keeps a permanent label column and moves labels
-  above the fields when the container is narrow; companion actions stay beside
+  above the fields when the container is narrow, or always with
+  `labels="above"` — a short form whose fields are of different kinds (the
+  pipeline schedule's switch, choice, times and days) reads down one edge
+  better than across a column half of them leave empty; companion actions stay beside
   the control, and the field wrappers keep their value types, errors and
   accessible names. Schema-driven rows keep their source-declared grouping and
   stack on a narrow form.
