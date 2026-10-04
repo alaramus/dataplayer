@@ -390,8 +390,8 @@ defineExpose({
             </template>
 
             <AppEmptyState
-              class="dashboards__empty"
               v-if="!dashboards.isPending.value && shownDashboards.own.length === 0 && shownDashboards.shared.length === 0"
+              class="dashboards__empty"
               :text="dashboardNameFilter.trim() ? 'No matching dashboards' : 'No dashboards yet'"
             />
           </div>
