@@ -33,11 +33,13 @@ const WITHIN_MS: Record<Exclude<ChangedWithin, "any">, number> = {
 }
 
 export const CHANGED_OPTIONS: SelectOption[] = [
-  { label: "Changed any time", value: "any" },
-  { label: "Changed in the past day", value: "day" },
-  { label: "Changed in the past week", value: "week" },
-  { label: "Changed in the past month", value: "month" },
-  { label: "Changed in the past year", value: "year" },
+  // Short enough for the four filters to share a line; the select's own name,
+  // "Changed", says which date it is.
+  { label: "Any date", value: "any" },
+  { label: "Past day", value: "day" },
+  { label: "Past week", value: "week" },
+  { label: "Past month", value: "month" },
+  { label: "Past year", value: "year" },
 ]
 
 /** The connection a hit is in, or is; nothing for what the application keeps. */

@@ -165,9 +165,9 @@ function choicesWith(all: string, options: SelectOption[]): SelectOption[] {
   return [{ label: all, value: ALL }, ...options]
 }
 
-const groupOptions = computed(() => choicesWith("Every group", choices.value.groups))
-const connectionOptions = computed(() => choicesWith("Every connection", choices.value.connections))
-const kindOptions = computed(() => choicesWith("Every kind", choices.value.kinds))
+const groupOptions = computed(() => choicesWith("Any group", choices.value.groups))
+const connectionOptions = computed(() => choicesWith("Any connection", choices.value.connections))
+const kindOptions = computed(() => choicesWith("Any kind", choices.value.kinds))
 
 function setFilter(key: "group" | "connection" | "kind", value: unknown) {
   filters.value = { ...filters.value, [key]: value === ALL || typeof value !== "string" ? null : value }
@@ -343,8 +343,11 @@ function setChanged(value: unknown) {
   flex: 1 1 200px;
   min-width: 0;
 }
+/* As wide as the value they show, not a share of the row: stretched, "Every
+   kind" stood in a box three times its width and the four rarely fitted on
+   one line. Narrow, a long value ends in an ellipsis. */
 .search-tab__filters > * {
-  flex: 1 1 140px;
+  flex: 0 1 auto;
   min-width: 0;
 }
 .search-tab__scope {
