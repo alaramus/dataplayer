@@ -5,14 +5,6 @@ import { speechSupported, useVoices, voiceLabel } from "./voices"
 
 const IRINA = { name: "Irina", lang: "ru-RU", voiceURI: "irina" }
 
-function speak(list: unknown[]) {
-  vi.stubGlobal("speechSynthesis", {
-    getVoices: () => list,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  })
-}
-
 describe("the browser voices", () => {
   it("names a voice by who it is and which language it reads", () => {
     expect(voiceLabel(IRINA)).toBe("Irina · ru-RU")
