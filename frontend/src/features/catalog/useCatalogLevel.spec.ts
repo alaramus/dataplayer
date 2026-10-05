@@ -280,6 +280,38 @@ describe("groupings", () => {
       ])
     })
   })
+
+  it("keeps an explicit grouping choice on the way back from a folder", async () => {
+    // Uncheck down to one schema, walk into a folder, and come back with
+    // `..`: the way back re-reads the level and must not fall to the
+    // default `public` and `sales` again.
+    const root = [schema("public"), schema("sales"), directory("system", "System")]
+    answers(root, [table("system/report", "report")], root)
+
+    await withLevel(async (level) => {
+      await level.load()
+      await level.setGroups(["sales"])
+      await level.enter(first(level.items.value.filter((node) => node.id === "system")))
+      await level.up()
+
+      expect(level.selectedGroups.value).toEqual(["sales"])
+    })
+  })
+
+  it("keeps every schema switched off on the way back from a folder", async () => {
+    const root = [schema("public"), schema("sales"), directory("system", "System")]
+    answers(root, [table("system/report", "report")], root)
+
+    await withLevel(async (level) => {
+      await level.load()
+      await level.setGroups([])
+      await level.enter(first(level.items.value.filter((node) => node.id === "system")))
+      await level.up()
+
+      expect(level.selectedGroups.value).toEqual([])
+      expect(level.items.value.map((node) => node.label)).toEqual(["System"])
+    })
+  })
 })
 
 describe("what is ticked", () => {

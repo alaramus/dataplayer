@@ -116,6 +116,12 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   // What the list on screen is made of, level first. Not reactive: it is the
   // working note `freshness` is computed from, and only the answer is watched.
   let readings: Freshness[] = []
+  // The grouping choice standing on each level, keyed by that level's id.
+  // Walking away (`enter`) and back (`up`, `goTo`) re-reads the level, and
+  // without this the way back falls to the default: unchecking every schema to
+  // read only System reports, then pressing `..`, put `public` and `demo`
+  // back on.
+  const levelGroups = new Map<string | null, string[]>()
 
   const currentId = computed(() => path.value[path.value.length - 1]?.id ?? null)
 
@@ -237,7 +243,11 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     try {
       const children = await childrenOf(nodeId, undefined, refresh)
       groups.value = groupsOf(children)
-      selectedGroups.value = availableGroups(groupIds, groups.value)
+      // An explicit choice stays with its level while walking away and back.
+      // `undefined` is no choice only where the level was never stood on.
+      const wanted = groupIds ?? levelGroups.get(nodeId)
+      selectedGroups.value = availableGroups(wanted, groups.value)
+      levelGroups.set(nodeId, [...selectedGroups.value])
       plain.value = children.filter((node) => node.role !== "group")
       await fillRows(refresh)
     } catch (cause) {
@@ -261,6 +271,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    */
   async function setGroups(ids: string[]) {
     selectedGroups.value = ids
+    levelGroups.set(currentId.value, [...ids])
     checked.value = []
     loading.value = true
     try {
@@ -361,6 +372,10 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     )
     groups.value = groups.value.map(replaceListNode)
     selectedGroups.value = selectedGroups.value.map(replaceId)
+    for (const [levelId, ids] of [...levelGroups]) {
+      levelGroups.delete(levelId)
+      levelGroups.set(levelId === replacement.old_node_id ? replacement.new_node_id : levelId, ids.map(replaceId))
+    }
     plain.value = plain.value.map(replaceListNode)
     rows.value = rows.value.map(replaceListNode)
     checked.value = checked.value.map(replaceId)
