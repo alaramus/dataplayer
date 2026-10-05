@@ -123,7 +123,9 @@ function pick(name: string) {
 </template>
 
 <style scoped>
-.ai-chat-row { display: flex; align-items: center; border-radius: var(--dp-radius-control); }
+/* Like a connection's row (ConnectorList): edge to edge and square, one row
+   tall — not a rounded entry inset by the history's padding. */
+.ai-chat-row { display: flex; align-items: center; border-radius: 0; min-height: var(--dp-row-height); }
 .ai-chat-row:hover,
 .ai-chat-row:has(:focus-visible),
 .ai-chat-row--menu { background: var(--dp-hover); }
