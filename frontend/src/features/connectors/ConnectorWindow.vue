@@ -27,6 +27,7 @@ import {
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
 import { windowPages } from "@/features/connectors/windowPages"
 import ServerKeyField from "@/features/sshKeys/ServerKeyField.vue"
+import SshKeyDialog from "@/features/sshKeys/SshKeyDialog.vue"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
 import { useSshKeys } from "@/features/sshKeys/api"
 import { withKeyChoices } from "@/features/sshKeys/keys"
@@ -53,6 +54,7 @@ import {
   AppTabs,
   AppToggle,
   AppTooltip,
+  appIcons,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -337,6 +339,18 @@ const formKey = computed<SshKeyPublic | null>(() => {
 })
 /** A key that answered "locked", being opened from here (D147). */
 const unlocking = ref<SshKeyPublic | null>(null)
+/** Making or importing a key without leaving for Preferences (D146). */
+const makingKey = ref<"generate" | "import" | null>(null)
+/**
+ * Point this form at the key just made for it, when it points at none yet:
+ * the choice list re-reads itself on the mutation, so the id lands on it.
+ */
+function takeKey(id: string) {
+  const field = activeFields.value.find((one) => one.purpose === "ssh-key")
+  if (field && !optionValues.value[field.name]) {
+    optionValues.value = { ...optionValues.value, [field.name]: id }
+  }
+}
 const pages = computed(() => windowPages(groups.value))
 const activePage = ref(props.startOn ?? DEFAULT_GROUP)
 /**
@@ -749,6 +763,38 @@ async function parseTyped(text: string) {
             data-testid="connector-cache-window"
             @update:model-value="chooseCacheWindow"
           />
+          <!-- A key made or imported without leaving for Preferences (D146),
+               in every connection window: keys belong to the person, not to
+               the source. Where the form takes one, the choice above
+               re-reads itself, and a new key for this connection is pointed
+               at it. -->
+          <section class="connector-window__ssh-keys">
+            <h3 class="connector-window__heading-3 connector-window__ssh-keys-title">
+              SSH keys
+            </h3>
+            <span class="dp-helper">
+              Keys your SSH connections sign in with, usable anywhere. A key
+              made here never leaves this server: copy its public key into
+              authorized_keys on the servers it should open.
+            </span>
+            <div class="connector-window__ssh-keys-buttons">
+              <AppButton
+                :icon="appIcons.createSshKey"
+                label="New key"
+                :disable="readOnly"
+                data-testid="connector-ssh-key-new"
+                @click="makingKey = 'generate'"
+              />
+              <AppButton
+                variant="quiet"
+                :icon="appIcons.importSshKey"
+                label="Import"
+                :disable="readOnly"
+                data-testid="connector-ssh-key-import"
+                @click="makingKey = 'import'"
+              />
+            </div>
+          </section>
         </div>
 
         <!-- Who may reach this connection and what may be done through it,
@@ -966,6 +1012,12 @@ async function parseTyped(text: string) {
         @unlocked="check"
         @close="unlocking = null"
       />
+      <SshKeyDialog
+        :model-value="makingKey !== null"
+        :mode="makingKey ?? 'generate'"
+        @update:model-value="!$event && (makingKey = null)"
+        @created="takeKey"
+      />
     </template>
   </AppForm>
 </template>
@@ -1012,6 +1064,20 @@ async function parseTyped(text: string) {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-4);
+}
+.connector-window__ssh-keys {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+}
+/* A name of the section in the primary text, not the dimmed overline. */
+.connector-window__ssh-keys-title {
+  font-size: var(--dp-font-size);
+  font-weight: 600;
+}
+.connector-window__ssh-keys-buttons {
+  display: flex;
+  gap: var(--dp-space-2);
 }
 .connector-window__grants {
   display: flex;

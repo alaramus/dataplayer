@@ -148,7 +148,10 @@ private half write-only.
 - **A key in use is not deleted**, and the refusal names the connections.
 - **The keys are on the Preferences page**, and the connection form offers
   them as a choice; a field is marked `x-ui-purpose: ssh-key` and the screen
-  fills the choice, so the form stays generic.
+  fills the choice, so the form stays generic. Every connection window also
+  makes and imports keys in its Options — keys belong to the person, not to
+  the source — and a key just made for the connection is pointed at it where
+  the form takes one.
 - **`asyncssh` stays in its adapter**: the store asks `adapters/ssh/keys.py`
   what a key is, and never parses one itself.
 

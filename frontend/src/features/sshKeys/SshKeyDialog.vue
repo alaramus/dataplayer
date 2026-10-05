@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
+import type { SshKeyPublic } from "@/client"
 import { useGenerateSshKey, useImportSshKey } from "@/features/sshKeys/api"
 import { readKeyFile } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
@@ -23,7 +24,11 @@ import { WindowDialog } from "@/shared/windows"
  * the one that opens it.
  */
 const props = defineProps<{ modelValue: boolean; mode: "generate" | "import" }>()
-const emit = defineEmits<{ "update:modelValue": [open: boolean] }>()
+const emit = defineEmits<{
+  "update:modelValue": [open: boolean]
+  /** The id of the key just made or imported, so a form can point at it. */
+  created: [id: string]
+}>()
 
 const toast = useToast()
 const generate = useGenerateSshKey()
@@ -92,11 +97,13 @@ async function save() {
   }
   try {
     if (props.mode === "generate") {
-      await generate.mutateAsync({ name: name.value.trim(), key_type: keyType.value, ...protection })
+      const made = (await generate.mutateAsync({ name: name.value.trim(), key_type: keyType.value, ...protection })) as SshKeyPublic
       toast.success("Key made. Add its public key to the servers it should open")
+      emit("created", made.id)
     } else {
-      await keep.mutateAsync({ name: name.value.trim(), private_key: privateKey.value, ...protection })
+      const kept = (await keep.mutateAsync({ name: name.value.trim(), private_key: privateKey.value, ...protection })) as SshKeyPublic
       toast.success("Key kept")
+      emit("created", kept.id)
     }
     emit("update:modelValue", false)
   } catch (cause) {
