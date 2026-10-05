@@ -28,6 +28,7 @@ import { relationshipPanelId } from "@/features/relationships/model"
 import { browserPlacesOf } from "@/features/search/browser"
 import { offeredScope } from "@/features/search/context"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
+import { gainedPanels } from "@/features/workspace/gainedPanels"
 import { searchFromOf } from "@/features/workspace/catalogSides"
 import SearchField from "@/features/search/SearchField.vue"
 import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
@@ -273,11 +274,21 @@ function floatPanel(panel: Panel) {
 }
 
 // The same rule for what reaches the layout by another way: a saved tab group
-// restored from the header, a column brought back from the bar.
+// restored from the header, a column brought back from the bar. An arrival
+// calls Data forward (gainedPanels); what only leaves — a window closed over
+// another space — must not, or closing it takes the person to Data with
+// nothing new to look at.
 watch(
-  () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id).join("\u0000")] as const,
-  () => {
-    if (!lifting && space.current !== "data") space.show("data")
+  () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id).join(" ")] as const,
+  ([tree, ids], [previousTree, previousIds]) => {
+    if (lifting || space.current === "data") return
+    if (tree !== previousTree) {
+      space.show("data")
+      return
+    }
+    if (gainedPanels((previousIds ?? "").split(" ").filter(Boolean), ids.split(" ").filter(Boolean))) {
+      space.show("data")
+    }
   }
 )
 
