@@ -114,6 +114,7 @@ async function removeAll() {
           <AiModelSelect
             :model-value="modelValue"
             key-button
+            :hint="false"
             data-testid="ai-model"
             @update:model-value="chooseModel"
           />

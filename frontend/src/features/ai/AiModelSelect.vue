@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 
 import { AppIconButton, AppSelect, appIcons, useConfirm, useToast } from "@/shared/ui"
 import type { SelectOption } from "@/shared/ui"
@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/shared/auth/currentUser"
 import { serverStorageKey } from "@/shared/servers/context"
 
 import AiKeyDialog from "./AiKeyDialog.vue"
+import AiModelHint from "./AiModelHint.vue"
 import { useAiModels, useAiSettings } from "./api"
 import { groupedModelOptions, providerLabel } from "./modelOptions"
 import type { ModelOption, Provider } from "./modelOptions"
@@ -33,8 +34,13 @@ const props = withDefaults(
     keyButton?: boolean
     /** Plain chat chooses a concrete model and does not route through Jev. */
     allowAuto?: boolean
+    /**
+     * Point at the field while no model is chosen. Off where choosing is the
+     * screen itself, as in AI settings: there is nothing to point at.
+     */
+    hint?: boolean
   }>(),
-  { compact: false, disable: false, keyButton: false, allowAuto: true }
+  { compact: false, disable: false, keyButton: false, allowAuto: true, hint: true }
 )
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
@@ -45,6 +51,13 @@ const confirm = useConfirm()
 const toast = useToast()
 const keyProvider = ref<Provider | null>(null)
 const keyDialogOpen = ref(false)
+/**
+ * The hint opens over the field while no model is chosen and the reads that
+ * could name one have landed. Dismissed until a model arrives: choosing one
+ * re-arms it through the value going back to nothing.
+ */
+const hintDismissed = ref(false)
+const hintOpen = ref(false)
 
 const keySet = (provider: Provider) =>
   settings.data.value?.keys.find((one) => one.provider === provider)?.set ?? false
@@ -65,6 +78,31 @@ const selectedKeySet = computed(() =>
 const dialogProvider = computed(() => keyProvider.value === null
   ? null
   : { id: keyProvider.value, label: providerLabel(models.data.value ?? [], keyProvider.value) })
+watch(
+  [() => props.modelValue, () => models.isPending.value] as const,
+  ([value, pending]) => {
+    if (value !== null) {
+      hintDismissed.value = false
+      hintOpen.value = false
+      return
+    }
+    if (props.hint && !pending && !hintDismissed.value) hintOpen.value = true
+  },
+  { immediate: true }
+)
+/** A close from the popup itself dismisses it; the watcher above owns the rest. */
+function noteHintClosed(value: boolean) {
+  if (!value) hintDismissed.value = true
+}
+/**
+ * The field itself is inside the popup's anchor, so a press on it does not
+ * count as outside: reaching for the list dismisses the hint explicitly,
+ * or the two stand open one over the other.
+ */
+function dismissHint() {
+  hintOpen.value = false
+  hintDismissed.value = true
+}
 
 function manageKey(provider: Provider) {
   keyProvider.value = provider
@@ -107,7 +145,11 @@ async function choose(value: unknown) {
 </script>
 
 <template>
-  <span class="ai-model-select">
+  <span
+    class="ai-model-select"
+    @pointerdown="dismissHint"
+    @focusin="dismissHint"
+  >
     <AppSelect
       :model-value="modelValue"
       :options="options"
@@ -138,6 +180,12 @@ async function choose(value: unknown) {
       :provider="dialogProvider.id"
       :provider-label="dialogProvider.label"
       :key-set="keySet(dialogProvider.id)"
+    />
+    <!-- Inside the root, so the popup anchors to this field. The trap in the
+         header comment holds for it too: it takes no room in the wrapper. -->
+    <AiModelHint
+      v-model="hintOpen"
+      @update:model-value="noteHintClosed"
     />
   </span>
 </template>
