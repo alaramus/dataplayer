@@ -147,8 +147,10 @@ function chooseTheme(value: string) {
       </AppForm>
     </div>
 
+    <!-- `step` guards the indexing: the index only ever names a shown step,
+         but the type cannot know that (noUncheckedIndexedAccess). -->
     <div
-      v-else
+      v-else-if="step"
       class="onboarding"
     >
       <div class="onboarding__head">
