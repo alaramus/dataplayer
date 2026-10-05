@@ -283,6 +283,9 @@ async function chooseModel(value: string) {
     else {
       pendingModelKey.value = fallback?.key ?? value
       pendingAutoProvider.value = provider ?? null
+      // No conversation yet to keep it: the settings keep the last model
+      // picked anywhere (D140), so a reload still opens on it.
+      await updateSettings.mutateAsync({ model_key: fallback?.key ?? value, auto_provider: provider ?? null })
     }
   }
   catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }

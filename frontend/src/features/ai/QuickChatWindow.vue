@@ -11,7 +11,7 @@ import { WindowDialog } from "@/shared/windows"
 import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
-import { quickChatsKey, useAiSettings } from "./api"
+import { aiSettingsKey, quickChatsKey, useAiSettings, useUpdateAiSettings } from "./api"
 import { useDictation } from "./dictation"
 import { deletedQuickChat, explainRequest, explainTitle, quickChatIntent } from "./quickChatLauncher"
 
@@ -53,6 +53,16 @@ const chat = useQuery({
   enabled: computed(() => open.value && selected.value !== null),
 })
 const modelKey = ref<string | null>(null)
+const updateSettings = useUpdateAiSettings()
+/**
+ * An explicit pick is the person's choice everywhere (D140), not only for
+ * this window: the settings keep it, so a reload still opens on it.
+ */
+async function chooseModel(value: string) {
+  modelKey.value = value
+  try { await updateSettings.mutateAsync({ model_key: value }) }
+  catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+}
 const title = computed(() => chat.data.value?.id === selected.value ? chat.data.value.title : "New chat")
 watch(() => chat.data.value?.model_key, (key) => { if (key) modelKey.value = key })
 watch(() => settings.data.value?.model_key, (key) => {
@@ -150,6 +160,9 @@ async function send(value = draft.value, title: string | null = null) {
     })).data
     cache.setQueryData(["ai", "quick-chat", id], result)
     await cache.invalidateQueries({ queryKey: quickChatsKey })
+    // The server remembers an explicitly chosen model as the person's choice
+    // (D140): let the settings, and every composer reading them, follow.
+    await cache.invalidateQueries({ queryKey: aiSettingsKey })
   } catch (cause) {
     let kept = false
     const id = created ?? selected.value
@@ -273,11 +286,12 @@ function editorKeydown(event: KeyboardEvent) {
             />
             <div class="quick-chat__tools">
               <AiModelSelect
-                v-model="modelKey"
+                :model-value="modelKey"
                 class="quick-chat__model"
                 compact
                 :allow-auto="false"
                 :disable="busy"
+                @update:model-value="chooseModel"
               />
               <AppIconButton
                 :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"

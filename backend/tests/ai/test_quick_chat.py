@@ -245,3 +245,24 @@ async def test_quick_chat_history_uses_the_same_pin_project_and_archive_actions(
     assert (await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)).json()["project_id"] is None
     assert (await client.delete(f"{AI}/quick-chats/archived", headers=headers)).status_code == 200
     assert (await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)).status_code == 404
+
+
+async def test_a_model_explicitly_sent_to_a_quick_chat_is_what_the_next_chat_starts_with(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], script: Script
+) -> None:
+    """A model chosen in a quick chat becomes the person's choice too (D140)."""
+    headers = normal_user_token_headers
+    await ready_agent(client, headers)
+    other = "anthropic:claude-opus-5"
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    script.turns.append(Turn(pieces=[text("A plain answer")]))
+
+    sent = await client.post(
+        f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
+        json={"text": "Explain this", "model_key": other},
+    )
+
+    assert sent.status_code == 200, sent.text
+    assert script.built[-1][:2] == (other, KEY)
+    assert (await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)).json()["model_key"] == other
+    assert (await client.get(f"{AI}/settings", headers=headers)).json()["model_key"] == other

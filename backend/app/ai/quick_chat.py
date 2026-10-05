@@ -228,6 +228,10 @@ async def send(
     messages.append(HumanMessage(content=text))
     if not previous and opened(chat.title) in {"New chat", "New quick chat"}:
         chat.title = sealed(text.splitlines()[0][:80])
+    # An explicitly chosen model is what the next chat starts with too (D140),
+    # as a choice in an agent chat is: staged, and committed with the chat.
+    if body.model_key is not None:
+        await preferences.remember_model(session, owner_id, model.key)
     chat.model_key = model.key
     chat.updated_at = get_datetime_utc()
     session.add_all([
