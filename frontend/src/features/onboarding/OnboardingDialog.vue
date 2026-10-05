@@ -133,6 +133,7 @@ function chooseTheme(value: string) {
         Pick how the application looks, then take a short tour of what it can
         do — six silent clips, under a minute altogether.
       </p>
+      <q-separator />
       <AppForm
         layout="section"
         labels="above"
@@ -140,7 +141,7 @@ function chooseTheme(value: string) {
         <AppRadioGroup
           :model-value="theme.mode"
           :options="themeOptions"
-          label="Theme"
+          aria-label="Theme"
           data-testid="onboarding-theme"
           @update:model-value="chooseTheme"
         />
