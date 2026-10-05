@@ -558,7 +558,15 @@ defineExpose({
 .dashboards__list {
   display: flex;
   flex-direction: column;
-  padding: 0 var(--dp-space-1) var(--dp-space-2);
+  padding: 0 0 var(--dp-space-2);
+}
+
+/* Like a connection's row (ConnectorList): edge to edge and square, one row
+   tall — not a rounded entry inset by the list's padding. */
+.dashboards__list .app-button {
+  width: 100%;
+  min-height: var(--dp-row-height);
+  border-radius: 0;
 }
 
 /* The eight pixels the Data list leaves round its empty line. */
