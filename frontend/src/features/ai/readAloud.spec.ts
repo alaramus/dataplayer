@@ -1,21 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { createPinia, setActivePinia } from "pinia"
+
+import { useVoiceStore } from "@/stores/voice"
 
 import { useReadAloud } from "./readAloud"
 
 class FakeUtterance {
   onend: (() => void) | null = null
   onerror: (() => void) | null = null
+  voice: unknown = null
   constructor(public text: string) {}
 }
 
 const spoken: FakeUtterance[] = []
+const IRINA = { name: "Irina", lang: "ru-RU", voiceURI: "irina" }
 
 beforeEach(() => {
   spoken.length = 0
+  setActivePinia(createPinia())
   vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance)
   vi.stubGlobal("speechSynthesis", {
     speak: (utterance: FakeUtterance) => spoken.push(utterance),
     cancel: vi.fn(),
+    getVoices: () => [IRINA],
   })
 })
 
@@ -43,5 +50,15 @@ describe("reading a message aloud", () => {
     voice.listen("An answer")
     spoken[0]?.onend?.()
     expect(voice.speaking.value).toBeNull()
+  })
+
+  it("reads in the chosen voice, or the default when it is gone", () => {
+    useVoiceStore().setVoice("irina")
+    useReadAloud().listen("An answer")
+    expect(spoken[0]?.voice).toEqual(IRINA)
+
+    useVoiceStore().setVoice("a voice of another machine")
+    useReadAloud().listen("Another answer")
+    expect(spoken[1]?.voice).toBeNull()
   })
 })

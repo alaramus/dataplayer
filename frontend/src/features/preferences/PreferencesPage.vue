@@ -6,6 +6,8 @@ import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
 import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
 import { checkIntervalOptions } from "@/features/preferences/checks"
 import type { CheckInterval } from "@/features/preferences/checks"
+import VoiceSelect from "@/features/speech/VoiceSelect.vue"
+import { speechSupported } from "@/features/speech/voices"
 import SshKeysSection from "@/features/sshKeys/SshKeysSection.vue"
 import { messageOf } from "@/shared/api/errors"
 import {
@@ -41,6 +43,9 @@ const save = useUpdatePreferences()
 // The theme lives here, next to the account, rather than in the header. Kept
 // in this browser rather than on the server (D6), so it is not saved above.
 const theme = useThemeStore()
+// The voice reading aloud lives here for the same reason: voices are this
+// browser's own. Nowhere to choose it where there is nothing to synthesise.
+const speechOk = speechSupported()
 const themes: SelectOption[] = [
   ...THEMES.map(({ label, value, ...theme }) =>
     "description" in theme ? { label, value, description: theme.description } : { label, value }
@@ -118,6 +123,27 @@ async function chooseInterval(value: unknown) {
               aria-label="Theme"
               data-testid="preference-theme"
               @update:model-value="theme.set($event as ThemeMode)"
+            />
+          </AppForm>
+        </section>
+        <section
+          v-if="speechOk"
+          class="preferences__row"
+        >
+          <div class="preferences__what">
+            <span class="preferences__title">Reading voice</span>
+            <span class="preferences__summary">
+              The voice reading messages aloud, anywhere they are read. Voices
+              are this browser's own. Kept in this browser.
+            </span>
+          </div>
+          <AppForm
+            class="preferences__control-form"
+            layout="section"
+          >
+            <VoiceSelect
+              aria-label="Reading voice"
+              data-testid="preference-voice"
             />
           </AppForm>
         </section>

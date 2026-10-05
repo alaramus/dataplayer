@@ -1,5 +1,7 @@
 import { ref } from "vue"
 
+import { useVoiceStore } from "@/stores/voice"
+
 import { plainSpeechText } from "./streaming"
 
 /**
@@ -27,6 +29,13 @@ export function useReadAloud() {
     const plain = plainSpeechText(text)
     if (!plain) return
     const utterance = new SpeechSynthesisUtterance(plain)
+    // The chosen voice, or the browser default when there is none or it is
+    // gone: a voice stored on another machine names nothing here.
+    const wanted = useVoiceStore().voice
+    const voice = wanted
+      ? (window.speechSynthesis.getVoices?.() ?? []).find((one) => one.voiceURI === wanted)
+      : undefined
+    if (voice) utterance.voice = voice
     utterance.onend = () => { if (speaking.value === text) speaking.value = null }
     utterance.onerror = () => { if (speaking.value === text) speaking.value = null }
     speaking.value = text

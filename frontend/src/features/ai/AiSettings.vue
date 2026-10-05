@@ -9,6 +9,8 @@ import { messageOf } from "@/shared/api/errors"
 
 import AiModelSelect from "./AiModelSelect.vue"
 import AiKeyDialog from "./AiKeyDialog.vue"
+import VoiceSelect from "@/features/speech/VoiceSelect.vue"
+import { speechSupported } from "@/features/speech/voices"
 import {
   useAiSettings,
   useAiModels,
@@ -27,6 +29,9 @@ import { autoModelValue, fallbackModel } from "./modelOptions"
 const settings = useAiSettings()
 const models = useAiModels()
 const update = useUpdateAiSettings()
+// The voice reading aloud, chosen here as in Preferences: voices are this
+// browser's own, and one store serves both controls.
+const speechOk = speechSupported()
 const archive = useArchivedAiConversations()
 const quickArchive = useArchivedQuickChats()
 const updateConversation = useUpdateAiConversation()
@@ -117,6 +122,11 @@ async function removeAll() {
             :hint="false"
             data-testid="ai-model"
             @update:model-value="chooseModel"
+          />
+          <VoiceSelect
+            v-if="speechOk"
+            label="Reading voice"
+            data-testid="ai-voice"
           />
         </AppForm>
       </section>

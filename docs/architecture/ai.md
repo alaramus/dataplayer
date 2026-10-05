@@ -125,6 +125,15 @@ frontend/src/features/ai/
 ```
 
 ```
+frontend/src/features/speech/
+├── VoiceSelect.vue     the reading voice, in Preferences and AI settings
+└── voices.ts           the browser's voices, arriving after the page
+```
+
+```
+src/stores/voice.ts     the chosen reading voice, kept in this browser
+
+```
 GET    /api/v1/ai/models
 GET    /api/v1/ai/settings
 PATCH  /api/v1/ai/settings
@@ -282,6 +291,9 @@ uses the browser's speech synthesis on plain text, and the composer borrows the
 other half of the same browser: its microphone dictates into the message in the
 browser's own language, keeping what was already typed in front of what is
 heard. A browser with no recogniser says so on a microphone that stays off.
+Which voice reads is the person's choice, kept in this browser and chosen in
+Preferences or AI settings — one store serves both controls, so either one is
+the choice everywhere; without one the browser reads in its default voice.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 
