@@ -3,7 +3,7 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, 
 
 import { AppTooltip } from "@/shared/ui"
 
-import { CARD_WIDTH, HEADER_HEIGHT, READABLE_ZOOM, ROW_HEIGHT, edgePaths, fit2, labelSpots, portAnchors, zoomAt } from "./layout"
+import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, labelSpots, portAnchors, zoomAt } from "./layout"
 import { accentIndex, edgesOf, neighborsOf } from "./model"
 import type { Camera2, GraphDocument, GraphEdge, GraphPort, GraphSelection, Point2 } from "./model"
 
@@ -75,11 +75,11 @@ const draft = computed(() => {
 function dimensions() {
   return { width: root.value?.clientWidth ?? 0, height: root.value?.clientHeight ?? 0 }
 }
-/** The whole diagram when asked for by Fit; otherwise no smaller than readable. */
-function fit(whole = false) {
+/** The whole diagram, on opening as when asked for by Fit. */
+function fit() {
   const size = dimensions()
   if (size.width > 0 && size.height > 0) {
-    emit("camera", fit2(props.graph, props.positions, props.expanded, size.width, size.height, whole ? undefined : READABLE_ZOOM))
+    emit("camera", fit2(props.graph, props.positions, props.expanded, size.width, size.height))
   }
 }
 function zoom(factor: number) {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { deliveryGraph } from "./fixtures"
 import {
-  along, arrange, CARD_WIDTH, edgePaths, fit2, HEADER_HEIGHT, labelSpots, nodeHeight, portAnchors, READABLE_ZOOM, ROW_HEIGHT, zoomAt,
+  along, arrange, CARD_WIDTH, edgePaths, fit2, HEADER_HEIGHT, labelSpots, nodeHeight, portAnchors, ROW_HEIGHT, zoomAt,
 } from "./layout"
 import type { Curve } from "./layout"
 
@@ -33,11 +33,11 @@ describe("graph geometry", () => {
       expect((p.x + CARD_WIDTH) * camera.zoom + camera.x).toBeLessThanOrEqual(869)
       expect((p.y + nodeHeight(node, true)) * camera.zoom + camera.y).toBeLessThanOrEqual(469)
     }
-    // Opened with a floor, a diagram too big to read whole keeps its text
-    // legible and starts from its top left corner instead (D187).
-    const readable = fit2(deliveryGraph, positions2, true, 300, 200, READABLE_ZOOM)
+    // Fitted with a floor, a diagram too big to read whole keeps its text
+    // legible and starts from its top left corner instead.
+    const readable = fit2(deliveryGraph, positions2, true, 300, 200, 0.75)
     const left = Math.min(...deliveryGraph.nodes.map((node) => positions2[node.id]!.x))
-    expect(readable.zoom).toBe(READABLE_ZOOM)
+    expect(readable.zoom).toBe(0.75)
     expect(left * readable.zoom + readable.x).toBe(32)
     const cursor = { x: 237, y: 181 }
     const next = zoomAt(camera, 1.5, cursor)

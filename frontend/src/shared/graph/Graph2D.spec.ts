@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import Graph2D from "./Graph2D.vue"
 import { deliveryGraph } from "./fixtures"
+import { fit2 } from "./layout"
 
 const props = {
   graph: deliveryGraph, positions: { api: { x: 10, y: 20 }, worker: { x: 500, y: 20 }, monitor: { x: 900, y: 20 } },
@@ -151,6 +152,32 @@ describe("the generic 2D canvas", () => {
     expect(head.releasePointerCapture).toHaveBeenCalledWith(1)
     pointer(root.element, "pointerup", 140, 120)
     expect(wrapper.emitted("select")).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it("opens showing the whole diagram, however large it is", async () => {
+    // A larger diagram opened from its top left corner left most of it
+    // outside the visible space, with Fit as the way back to the whole.
+    let settled: (() => void) | undefined
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) {
+        settled = callback
+      }
+
+      observe() {}
+      disconnect() {}
+    })
+    const wrapper = mount(Graph2D, { props: { ...props, camera: null } })
+    const root = wrapper.get('[data-testid="graph-2d"]').element as HTMLElement
+    Object.defineProperties(root, {
+      clientWidth: { value: 300, configurable: true },
+      clientHeight: { value: 200, configurable: true },
+    })
+    settled!()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted("camera")).toEqual([
+      [fit2(deliveryGraph, props.positions, true, 300, 200)],
+    ])
     wrapper.unmount()
   })
 })

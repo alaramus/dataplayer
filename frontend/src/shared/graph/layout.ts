@@ -27,13 +27,6 @@ export function arrange(graph: GraphDocument, expanded: boolean) {
   return { positions2, positions3 }
 }
 
-/**
- * The least a diagram opens at: a row's 11px drawn at 8px. Fitted whole, four
- * tables of twenty columns opened at a fifth of that and nothing on screen
- * could be read; Fit still shows the whole of it (`floor` 0.03).
- */
-export const READABLE_ZOOM = 0.75
-
 export function fit2(graph: GraphDocument, positions: Record<string, Point2>, expanded: boolean, width: number, height: number, floor = 0.03): Camera2 {
   if (!graph.nodes.length || width <= 0 || height <= 0) return { x: 32, y: 32, zoom: 1 }
   const left = Math.min(...graph.nodes.map((node) => positions[node.id]!.x))

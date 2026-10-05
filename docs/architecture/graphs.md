@@ -19,9 +19,10 @@ drawn as a card of it, grouped under that connection's name and keyed with it,
 because two connections can hold the same id.
 
 2D and 3D share the document, selection and filters. They keep separate node
-positions and cameras. A 2D diagram opens no smaller than 75%, where a row's
-11px is still read, from its top left corner when it is larger than the
-panel; Fit shows the whole of it at whatever size that takes (D187). Moving nodes changes view state only; this slice has no
+positions and cameras. A 2D diagram opens showing the whole of it at whatever
+size that takes, as Fit does and as the 3D presentation opens: opening a larger
+diagram from its top left corner left most of it outside the visible space.
+Moving nodes changes view state only; this slice has no
 edge authoring or source mutation. Controlled interaction events and a separate
 view-state type leave that possible without introducing a second graph model.
 
