@@ -43,6 +43,9 @@ test("switching isolates authentication and leaves another browser tab on its se
     localStorage.setItem("dataplayer:servers:v1", JSON.stringify(profiles))
     localStorage.setItem("dataplayer:legacy-server:v1", alpha)
     localStorage.setItem("access_token", "alpha-token")
+    // With the tour open, switching servers would stop at its closing
+    // question instead of reaching the login page under test.
+    localStorage.setItem("dataplayer-onboarding-done", "1")
   }, { profiles, alpha })
   await page.goto("/?server=" + encodeURIComponent(alpha))
   await expectServer(page, alpha)

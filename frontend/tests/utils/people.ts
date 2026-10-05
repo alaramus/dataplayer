@@ -1,6 +1,8 @@
 import { expect } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
+import { seedOnboardingSeen } from "./onboarding"
+
 /**
  * A second person, and moving between the two of them.
  *
@@ -14,6 +16,9 @@ export function colleagueEmail(): string {
 }
 
 export async function signInAs(page: Page, email: string, password: string) {
+  // A colleague's browser is a fresh profile too: without this the welcome
+  // tour would open over their workspace and cover the controls under test.
+  await seedOnboardingSeen(page.context())
   await page.goto("/login")
   await page.getByTestId("login-email").fill(email)
   await page.getByTestId("login-password").fill(password)
