@@ -603,10 +603,7 @@ onScopeDispose(stop)
                 />
               </span>
             </div>
-            <div
-              v-if="group.id === null || !projectIsClosed(group.id)"
-              :class="{ 'ai-window__project-chats': group.id !== null }"
-            >
+            <div v-if="group.id === null || !projectIsClosed(group.id)">
               <AiChatRow
                 v-for="entry in group.chats"
                 :key="`${entry.kind}-${entry.chat.id}`"
@@ -792,9 +789,6 @@ onScopeDispose(stop)
 .ai-window__project-count { flex: none; color: var(--dp-text-muted); font-weight: 400; }
 .ai-window__project-actions { display: none; flex: none; }
 .ai-window__project:hover .ai-window__project-actions, .ai-window__project:focus-within .ai-window__project-actions { display: flex; }
-/* The chats of a folder are stepped in under its name, which is the whole way
-   a reader sees what is in it. */
-.ai-window__project-chats { padding-left: var(--dp-space-3); }
 .ai-window__group-rule { margin: var(--dp-space-1) var(--dp-space-2); border-top: 1px solid var(--dp-border); }
 .ai-window__main { flex: 1; }
 .ai-window__filter-head > :first-child { flex: 1; min-width: 0; }
