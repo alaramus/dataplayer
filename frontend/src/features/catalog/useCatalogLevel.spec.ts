@@ -70,6 +70,10 @@ const directory = (id: string, name: string) => ({
 function answers(...pages: unknown[][]) {
   const spy = vi.spyOn(ConnectorsService, "readCatalog")
   for (const page of pages) spy.mockResolvedValueOnce({ data: page } as never)
+  // A short queue used to fall through to a real request: a socket error in
+  // jsdom's XHR hissed AggregateError into the run while the test still
+  // passed on what the cache had. An unanswered read now fails loudly.
+  spy.mockRejectedValue(new Error("unexpected catalog read: the mock queue is short"))
   return spy
 }
 
@@ -286,7 +290,12 @@ describe("groupings", () => {
     // `..`: the way back re-reads the level and must not fall to the
     // default `public` and `sales` again.
     const root = [schema("public"), schema("sales"), directory("system", "System")]
-    answers(root, [table("system/report", "report")], root)
+    answers(
+      root,
+      [table("public.orders", "orders")],
+      [table("sales.leads", "leads")],
+      [table("system/report", "report")]
+    )
 
     await withLevel(async (level) => {
       await level.load()
@@ -300,7 +309,12 @@ describe("groupings", () => {
 
   it("keeps every schema switched off on the way back from a folder", async () => {
     const root = [schema("public"), schema("sales"), directory("system", "System")]
-    answers(root, [table("system/report", "report")], root)
+    answers(
+      root,
+      [table("public.orders", "orders")],
+      [table("sales.leads", "leads")],
+      [table("system/report", "report")]
+    )
 
     await withLevel(async (level) => {
       await level.load()
