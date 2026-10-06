@@ -41,9 +41,11 @@ export function statementAt(
 /**
  * What Ctrl+Enter runs: the selection, or the statement under the caret.
  *
- * Never the whole document. A selection is taken as it is — with several
- * statements in it, it is a script and the caller says so — and running the
- * document is the other command (D65).
+ * Never the whole document. A selection spanning several statements is taken
+ * as it is — it is a script and the caller says so — and running the document
+ * is the other command (D65). A selection inside a single statement runs that
+ * whole statement: undo restores the deleted text still selected, and running
+ * the literal fragment would only answer "unknown statement".
  */
 export function targetFor(
   script: PreparedScript,
@@ -59,11 +61,20 @@ export function targetFor(
     // A selection holding no statement at all — a semicolon, a blank line, a
     // comment — is nothing to run, and saying so here saves a refusal.
     if (inside.length === 0) return null
+    if (inside.length === 1) {
+      const only = inside[0]!
+      return {
+        text: only.text,
+        start: only.start,
+        end: only.end,
+        scope: "statement",
+      }
+    }
     return {
       text: selected,
       start: selection.from,
       end: selection.to,
-      scope: inside.length > 1 ? "script" : "statement",
+      scope: "script",
     }
   }
   const statement = statementAt(script, selection.from)

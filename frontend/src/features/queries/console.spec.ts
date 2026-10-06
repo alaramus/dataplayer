@@ -48,10 +48,24 @@ describe("what Run means", () => {
     expect(target).toEqual({ text: "select 2", start: 10, end: 18, scope: "statement" })
   })
 
-  it("runs a selection as it is", () => {
+  it("runs a selection of one whole statement as that statement", () => {
     const target = targetFor(SCRIPT, TEXT, { from: 10, to: 18 })
 
     expect(target).toEqual({ text: "select 2", start: 10, end: 18, scope: "statement" })
+  })
+
+  it("runs a fragment selected inside one statement as the whole statement", () => {
+    // Undo leaves the restored text selected; running the literal fragment
+    // would only be refused as an unknown statement.
+    const target = targetFor(SCRIPT, TEXT, { from: 12, to: 15 })
+
+    expect(target).toEqual({ text: "select 2", start: 10, end: 18, scope: "statement" })
+  })
+
+  it("runs a selection spanning parts of two statements as a script, as it is", () => {
+    const target = targetFor(SCRIPT, TEXT, { from: 4, to: 14 })
+
+    expect(target).toEqual({ text: "ct 1;\nselect", start: 4, end: 14, scope: "script" })
   })
 
   it("calls a selection holding several statements a script", () => {

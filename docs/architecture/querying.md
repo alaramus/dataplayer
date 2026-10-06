@@ -328,7 +328,10 @@ keeps both visible and preserves the adjustable split.
 
 Run follows the IDE convention without importing an IDE shell: Ctrl+Enter runs
 the non-empty selection or statement under the caret, gutter Run names one
-statement, and Ctrl+Shift+Enter runs the document explicitly. Formatting has
+statement, and Ctrl+Shift+Enter runs the document explicitly. A selection inside
+a single statement runs that whole statement — undo leaves the restored text
+selected, and the literal fragment would only be refused as unknown — while a
+selection spanning several statements runs literally as a script. Formatting has
 selection, statement and document commands and is one undo operation; autosave
 never formats. Focus stays in the editor after execution and terminal states are
 announced without stealing it.
