@@ -127,13 +127,17 @@ export interface Mark {
  * What is worth marking, and nothing else.
  *
  * `unknown` is a warning about this application rather than about the SQL: the
- * dialect module has not learnt the form. A relation is marked only when the
- * metadata is complete and the schema it names is one the source listed —
- * an alias, a CTE or a partial answer is left alone.
+ * dialect module has not learnt the form. A change the console would run as a
+ * change is not marked as unrunnable: whether writes are allowed is the
+ * connection's answer, and the mark only says what a read would refuse. A
+ * relation is marked only when the metadata is complete and the schema it
+ * names is one the source listed — an alias, a CTE or a partial answer is
+ * left alone.
  */
 export function marks(
   script: PreparedScript | null,
-  metadata: QueryMetadata | undefined
+  metadata: QueryMetadata | undefined,
+  writes = false
 ): Mark[] {
   if (script === null) return []
   const found: Mark[] = []
@@ -148,12 +152,14 @@ export function marks(
       continue
     }
     if (statement.kind !== "read") {
-      found.push({
-        from: statement.start,
-        to: statement.end,
-        severity: "warning",
-        message: `A ${statement.kind} statement cannot run in a read`,
-      })
+      if (!writes) {
+        found.push({
+          from: statement.start,
+          to: statement.end,
+          severity: "warning",
+          message: `A ${statement.kind} statement cannot run in a read`,
+        })
+      }
       continue
     }
     if (metadata === undefined || !metadata.complete) continue

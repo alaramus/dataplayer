@@ -365,8 +365,9 @@ when qualified. A five-minute cache, manual refresh, DDL invalidation and
 missing-object errors control freshness. Completion covers dialect vocabulary,
 functions, schemas, relations, columns, aliases, CTEs and parameters; minimal
 qualification is used unless ambiguity requires more. Syntax errors are local
-errors, unresolved objects are warnings only with complete metadata, and limited
-metadata produces a status rather than false red underlines. Browser analysis
+errors, unresolved objects are warnings only with complete metadata, limited
+metadata produces a status rather than false red underlines, and a change the
+connection would run as a change is not marked as unrunnable. Browser analysis
 never blocks Run.
 
 Queries are user objects rather than catalog nodes. A Queries navigation panel

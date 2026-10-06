@@ -107,6 +107,17 @@ describe("what the editor dares mark", () => {
     expect(found[0]?.message).toContain("dml")
   })
 
+  it("marks nothing a change the console would run as a change", () => {
+    expect(marks(script({ kind: "ddl" }), METADATA, true)).toEqual([])
+  })
+
+  it("still marks what it could not read, whatever writes are allowed", () => {
+    const found = marks(script({ kind: "unknown" }), METADATA, true)
+
+    expect(found).toHaveLength(1)
+    expect(found[0]?.message).toContain("could not be read")
+  })
+
   it("marks a qualified name the source does not have", () => {
     const found = marks(script({ kind: "read", targets: ["public.nothing"] }), METADATA)
 

@@ -215,7 +215,6 @@ const offered = computed(() =>
     parameterPrefix(profile.data.value?.parameter_syntax)
   )
 )
-const editorMarks = computed(() => marks(script.value, metadata.data.value))
 const knowledge = computed(() =>
   connectorId.value === null ? "" : metadataStatus(metadata.data.value)
 )
@@ -239,6 +238,25 @@ const canUseTransaction = computed(() =>
   profile.data.value?.statement_modes.includes("manual") === true &&
   connection.value?.execution_policy !== "read_only" &&
   connection.value?.access !== "read" && connection.value !== undefined
+)
+/**
+ * Whether a change on screen would run as a change rather than as a read.
+ *
+ * The same rule Run itself follows: an open manual transaction takes it, and
+ * otherwise a source that writes takes it unless the connection forbids it.
+ * The server stays the authority — a finer grant is still its refusal at Run —
+ * but the editor stops warning about what would not happen.
+ */
+const canWriteChanges = computed(
+  () =>
+    manualTransaction.value ||
+    ((profile.data.value?.statement_modes.includes("auto_commit") ?? true) &&
+      connection.value?.execution_policy !== "read_only" &&
+      connection.value?.access !== "read" &&
+      connection.value !== undefined)
+)
+const editorMarks = computed(() =>
+  marks(script.value, metadata.data.value, canWriteChanges.value)
 )
 const connectorLabel = computed(() => {
   const listed = connectorNameOf(connectors.data.value, connectorId.value)
