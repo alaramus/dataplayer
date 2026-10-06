@@ -66,6 +66,7 @@ def test_a_range_points_back_into_the_text_it_came_from() -> None:
         ("with recent as (select 1) select * from recent", "read"),
         ("values (1), (2)", "read"),
         ("select 1 union select 2", "read"),
+        ("table t", "read"),
         ("insert into t values (1)", "dml"),
         ("update t set a = 1", "dml"),
         ("delete from t", "dml"),
@@ -85,6 +86,7 @@ def test_a_range_points_back_into_the_text_it_came_from() -> None:
         ("discard all", "session"),
         ("listen c", "session"),
         ("prepare p as select 1", "session"),
+        ("show server_version", "session"),
         ("copy t from stdin", "copy"),
         ("copy (select 1) to stdout", "copy"),
         ("explain select 1", "explain"),
@@ -209,6 +211,8 @@ def one(text: str):  # type: ignore[no-untyped-def]
         "drop view s.v",
         "alter table s.t add column a int",
         "alter table s.t rename to u",
+        "alter table t owner to bob",
+        "alter materialized view m rename to m2",
         "create index i on s.t (a)",
         "drop index s.i",
         "comment on table s.t is 'x'",
@@ -231,7 +235,15 @@ def test_the_vocabulary_admits_schemas_tables_views_and_indexes(sql: str) -> Non
         ("create type t as enum ('a')", "Types"),
         ("grant select on t to bob", "Permissions"),
         ("revoke select on t from bob", "Permissions"),
+        ("alter table t enable row level security", "Permissions"),
         ("comment on database d is 'x'", "Databases"),
+        ("create extension postgis", "Extensions"),
+        ("create role bob", "Roles"),
+        ("alter role bob superuser", "Roles"),
+        ("alter system set work_mem = '1GB'", "something else"),
+        ("create policy p on t using (true)", "something else"),
+        ("drop tablespace ts", "something else"),
+        ("create foreign table t (a int) server s", "something else"),
     ],
 )
 def test_what_falls_outside_the_vocabulary_is_refused_in_words(
@@ -246,25 +258,63 @@ def test_what_falls_outside_the_vocabulary_is_refused_in_words(
 @pytest.mark.parametrize(
     "sql",
     [
-        "create extension postgis",
-        "create role bob",
-        "alter role bob superuser",
-        "alter system set work_mem = '1GB'",
-        "alter table t owner to bob",
-        "alter table t enable row level security",
-        "create policy p on t using (true)",
-        "drop tablespace ts",
+        "alter schema s rename to s2",
+        "alter table t set schema s2",
     ],
 )
-def test_administrative_sql_this_dialect_module_cannot_read_is_unknown(
+def test_subjects_the_catalog_owns_stay_unknown(
     sql: str,
 ) -> None:
-    """Not an allowlist entry and not a blacklist entry: a form it never learnt.
-
-    Refusing what cannot be read is what keeps the vocabulary closed without a
-    list of everything a database can be asked to do (D62).
-    """
+    """Renaming a schema and moving a relation are catalog actions. Both parse
+    precisely and stay `unknown` on purpose rather than by a parser falling
+    over (D62)."""
     assert one(sql).kind == "unknown"
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "create table t (a bit varying(128))",
+        "create table t (a bit varying)",
+        'create table t ("fingerprint" bit varying(128))',
+    ],
+)
+def test_bit_varying_reads_as_a_bit_string(sql: str) -> None:
+    """The engine this module replaced never learnt the standard spelling."""
+    [statement] = prepare(sql).statements
+
+    assert statement.kind == "ddl"
+    assert statement.refused is None
+    assert "bit varying" in statement.text
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "create table t (a int, constraint c not null a)",
+        'create table t (a int, constraint "c" not null "a")',
+    ],
+)
+def test_a_table_level_not_null_constraint_is_still_a_create_table(sql: str) -> None:
+    """A newer engine names the column rather than checking an expression."""
+    [statement] = prepare(sql).statements
+
+    assert statement.kind == "ddl"
+    assert statement.refused is None
+    assert "not null" in statement.text.lower()
+
+
+def test_changing_a_table_owner_is_an_alter_of_it() -> None:
+    """Admitted the way a drop is: refusing it while what destroys the
+    relation outright is allowed would be an arbitrary line."""
+    statement = one("alter table t owner to bob")
+
+    assert statement.kind == "ddl"
+    assert statement.refused is None
+
+
+def test_a_truncated_owner_change_is_not_an_owner_change() -> None:
+    assert kinds("alter table t owner to") == ["unknown"]
 
 
 def test_a_structure_change_that_writes_is_still_a_structure_change() -> None:
@@ -300,6 +350,7 @@ def test_every_structure_change_is_asked_about(sql: str) -> None:
         ("drop view v", True),
         ("truncate t", True),
         ("alter table t drop column a", True),
+        ("alter table t drop constraint c", True),
         ("alter table t alter column a type text", True),
         ("create table t (a int)", False),
         ("alter table t add column a int", False),

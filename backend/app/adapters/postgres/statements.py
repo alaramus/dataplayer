@@ -5,17 +5,27 @@ lets every awkward form — a semicolon inside a string, a comment or a
 dollar-quoted function body, a writable CTE, `SELECT INTO` — be tested without
 a database.
 
-The dialect's own tokenizer draws the boundaries and its parser decides the
-class. Splitting on semicolons, reading the first word or keeping a blacklist
-are not accepted substitutes (D62), and the reason is visible here: `read` is
-granted only by a parse that produced a query and nothing else, so a form this
-version has never seen is refused rather than allowed by omission.
+The dialect's own parser draws the boundaries and decides the class: pglast,
+PostgreSQL's parser itself, so a statement the server accepts is one this
+module can read. Other dialects keep their own modules rather than sharing
+this one: what `BIT VARYING` means is a fact about PostgreSQL, not about
+querying in general. Splitting on semicolons, reading the first word or
+keeping a blacklist are not accepted substitutes (D62), and the reason is
+visible here: `read` is granted only by a parse that produced a query and
+nothing else, so a form this version has never seen is refused rather than
+allowed by omission.
 """
 
 import logging
 import re
+from typing import Any
 
-from sqlglot import exp, parse_one
+from pglast import Error as PgError
+from pglast import ast as pgast
+from pglast import parse_sql
+from pglast.enums import AlterTableType, ObjectType
+from pglast.visitors import Visitor
+from sqlglot import parse_one
 from sqlglot.dialects.postgres import Postgres
 from sqlglot.errors import ParseError, TokenError
 
@@ -35,61 +45,86 @@ _tokenizer = Postgres().tokenizer_class()
 # What may follow a colon and be a parameter name.
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
-# The leading keyword of the families the parser is not asked about. Most are
-# refused with a sentence naming what they are; `maintenance` runs, outside a
-# transaction and with write access (D206). Nothing here can make a statement
-# a read: `read` is decided below by what the parse produced.
-_LEADING: dict[str, StatementClass] = {
-    "BEGIN": "transaction",
-    "START": "transaction",
-    "COMMIT": "transaction",
-    "END": "transaction",
-    "ROLLBACK": "transaction",
-    "SAVEPOINT": "transaction",
-    "RELEASE": "transaction",
-    "SET": "session",
-    "RESET": "session",
-    "DISCARD": "session",
-    "LISTEN": "session",
-    "UNLISTEN": "session",
-    "NOTIFY": "session",
-    "PREPARE": "session",
-    "EXECUTE": "session",
-    "DEALLOCATE": "session",
-    "COPY": "copy",
-    "EXPLAIN": "explain",
-    "ANALYZE": "maintenance",
-    "ANALYSE": "maintenance",
-    "VACUUM": "maintenance",
-    "REINDEX": "maintenance",
-    "CLUSTER": "maintenance",
-    "CHECKPOINT": "maintenance",
-    "REFRESH": "maintenance",
-}
-
-# The maintenance that locks a relation against its readers while it works:
-# a full vacuum and a cluster rewrite the table, a reindex and a refresh lock
-# it unless they are told to work concurrently. Asked about every time (D66).
-_LOCKING = frozenset({"CLUSTER", "REINDEX", "REFRESH"})
-
-# What a parse of a whole statement may produce and still be a read.
-_QUERY_NODES = (exp.Select, exp.Union, exp.Intersect, exp.Except, exp.Values)
-
 # Anything that writes, wherever it appears in the tree. A writable CTE parses
 # as a query whose body holds one of these, which is exactly the form a first
 # word would let through.
-_WRITE_NODES = (exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Copy)
+_WRITE_NODES = (
+    pgast.InsertStmt,
+    pgast.UpdateStmt,
+    pgast.DeleteStmt,
+    pgast.MergeStmt,
+    pgast.CopyStmt,
+)
 
-# A permission change is a change to the schema's rules, so it is DDL here
-# and high risk below; the allowlist of what may actually run is narrower.
+# The shapes that change the structure, by node rather than by word. Most are
+# refused with a sentence naming what they are; what the closed vocabulary
+# admits is decided beside the parse, in `_subject_of`. A permission change is
+# a change to the schema's rules, so it is DDL here and high risk below, while
+# the allowlist of what may actually run is narrower.
 _DDL_NODES = (
-    exp.Create,
-    exp.Drop,
-    exp.Alter,
-    exp.TruncateTable,
-    exp.Comment,
-    exp.Grant,
-    exp.Revoke,
+    pgast.CreateStmt,
+    pgast.CreateTableAsStmt,
+    pgast.CreateSchemaStmt,
+    pgast.IndexStmt,
+    pgast.ViewStmt,
+    pgast.DropStmt,
+    pgast.AlterTableStmt,
+    pgast.TruncateStmt,
+    pgast.CommentStmt,
+    pgast.GrantStmt,
+)
+
+# What other `Create` and `Alter` shapes are about, in `_OUTSIDE`'s words.
+# Whatever the engine adds tomorrow arrives as DDL and is refused with the
+# general sentence rather than admitted by omission — except the two forms the
+# application owns elsewhere: moving a relation into another schema, and
+# renaming a schema, are catalog actions and stay `unknown` here.
+_FOREIGN_SUBJECTS: dict[str, str] = {
+    "CreatedbStmt": "DATABASE",
+    "DropdbStmt": "DATABASE",
+    "CreateSeqStmt": "SEQUENCE",
+    "CreateEnumStmt": "TYPE",
+    "CreateTypeStmt": "TYPE",
+    "CreateFunctionStmt": "FUNCTION",
+    "CreateRoleStmt": "ROLE",
+    "AlterRoleStmt": "ROLE",
+    "DropRoleStmt": "ROLE",
+    "CreateExtensionStmt": "EXTENSION",
+    "AlterExtensionStmt": "EXTENSION",
+    "CreateTrigStmt": "TRIGGER",
+}
+
+# What an object type of the engine is, in the same words. A materialized view
+# answers as the view it is: creating and dropping one is admitted, so
+# renaming and commenting one is too.
+_OBJECT_SUBJECTS: dict[ObjectType, str] = {
+    ObjectType.OBJECT_TABLE: "TABLE",
+    ObjectType.OBJECT_VIEW: "VIEW",
+    ObjectType.OBJECT_MATVIEW: "VIEW",
+    ObjectType.OBJECT_INDEX: "INDEX",
+    ObjectType.OBJECT_SCHEMA: "SCHEMA",
+    ObjectType.OBJECT_COLUMN: "COLUMN",
+    ObjectType.OBJECT_DATABASE: "DATABASE",
+    ObjectType.OBJECT_ROLE: "ROLE",
+    ObjectType.OBJECT_TABLESPACE: "TABLESPACE",
+    ObjectType.OBJECT_EXTENSION: "EXTENSION",
+    ObjectType.OBJECT_FUNCTION: "FUNCTION",
+    ObjectType.OBJECT_PROCEDURE: "FUNCTION",
+    ObjectType.OBJECT_TRIGGER: "TRIGGER",
+    ObjectType.OBJECT_TYPE: "TYPE",
+    ObjectType.OBJECT_SEQUENCE: "SEQUENCE",
+}
+
+# The row-security changes, which are permission administration wearing an
+# `ALTER TABLE`: enabling row security is refused the way a grant is, rather
+# than admitted the way an ordinary alter is.
+_ROW_SECURITY = frozenset(
+    {
+        AlterTableType.AT_EnableRowSecurity,
+        AlterTableType.AT_DisableRowSecurity,
+        AlterTableType.AT_ForceRowSecurity,
+        AlterTableType.AT_NoForceRowSecurity,
+    }
 )
 
 # The closed vocabulary of structure changes this source will carry out (D66).
@@ -133,6 +168,31 @@ def split(text: str) -> list[tuple[int, int]]:
     a run keeps the exact text it executed. Blank runs between semicolons are
     not statements and are left out.
     """
+    try:
+        found = parse_sql(text)
+    except PgError:
+        # The text does not parse as a whole, so its statements are still
+        # found token by token: a script with one broken statement in it shows
+        # the others for what they are, and the broken one is refused by name
+        # rather than taking the diagnosis with it.
+        return _token_ranges(text)
+    ranges: list[tuple[int, int]] = []
+    for raw in found:
+        start = raw.stmt_location or 0
+        span = raw.stmt_len or len(text) - start
+        end = start + len(text[start : start + span].rstrip())
+        if end > start:
+            ranges.append((start, end))
+    return ranges
+
+
+def _token_ranges(text: str) -> list[tuple[int, int]]:
+    """Where the statements sit, read off tokens rather than parsed.
+
+    Only ever a fallback for a text the parser refused: a semicolon inside a
+    string the tokenizer misreads would become a boundary, which is why a text
+    that parses never comes here.
+    """
     tokens = _tokenizer.tokenize(text)
     ranges: list[tuple[int, int]] = []
     first: Token | None = None
@@ -152,57 +212,121 @@ def split(text: str) -> list[tuple[int, int]]:
     return ranges
 
 
-def _leading_keyword(text: str) -> str:
-    tokens = _tokenizer.tokenize(text)
-    return tokens[0].text.upper() if tokens else ""
+def _parse_piece(text: str) -> pgast.Node | None:
+    """The one statement this slice holds, or nothing.
 
-
-def _command_words(text: str) -> set[str]:
-    """The words of a statement, upper-cased, comments and strings left out.
-
-    Trap: the tokenizer reads a command it has no grammar for — VACUUM,
-    REINDEX — as its keyword and one string holding the rest, so the rest is
-    tokenized again rather than searched as text.
+    Parameters are this application's own spelling, which the engine does not
+    know: each `:name` reads as the null it stands for while the statement is
+    classified, and the text that runs keeps every name it was written with.
+    A slice holding anything but one statement is nothing too — that is a
+    broken split, not a second shape, and answering `unknown` refuses it
+    rather than guessing which of the two it is.
     """
-    tokens = _tokenizer.tokenize(text)
-    if len(tokens) == 2 and tokens[0].token_type is TokenType.COMMAND:
-        tokens = _tokenizer.tokenize(tokens[1].text)
-    return {token.text.upper() for token in tokens}
+    sanitized = text
+    for start, end, _name in reversed(_placeholders(text)):
+        sanitized = sanitized[:start] + "NULL" + sanitized[end:]
+    try:
+        found = parse_sql(sanitized)
+    except PgError:
+        return None
+    if len(found) != 1:
+        return None
+    return found[0].stmt
 
 
-def _classify(text: str) -> StatementClass:
+class _Collected(Visitor):
+    """Every node of one statement, in breadth-first order."""
+
+    def __init__(self) -> None:
+        self.nodes: list[Any] = []
+
+    def visit(self, ancestors: Any, node: Any) -> None:
+        self.nodes.append(node)
+
+
+def _walk(node: pgast.Node) -> list[Any]:
+    collected = _Collected()
+    collected(node)
+    return collected.nodes
+
+
+def _writes(node: pgast.Node) -> bool:
+    """Whether anything in this statement writes, wherever it sits."""
+    return any(isinstance(one, _WRITE_NODES) for one in _walk(node))
+
+
+def _classify(node: pgast.Node | None) -> StatementClass:
     """What kind of statement this is, or `unknown`.
 
-    The order is the point. A statement whose leading keyword names a
-    state-changing family is that family whatever else the parser makes of it —
-    sqlglot reads `START TRANSACTION` as an alias, and an alias must not become
-    a read. Everything else has to parse into a query with nothing that writes
-    in it before it may be called one.
+    Read off the parse tree the server's own parser produced. Structure comes
+    before writing, because a structure change may contain one:
+    `CREATE TABLE t AS WITH x AS (INSERT ... RETURNING *) SELECT * FROM x`
+    creates a relation, and reading the INSERT first would have called it a
+    DML statement and let it run on `write` access alone. Whatever the parser
+    has never seen stays `unknown` rather than becoming a read.
     """
-    leading = _leading_keyword(text)
-    named = _LEADING.get(leading)
-    if named is not None:
-        return named
-
-    try:
-        node = parse_one(text, read="postgres")
-    except (ParseError, TokenError):
+    if node is None:
         return "unknown"
-
-    # Structure before writing, because a structure change may contain one:
-    # `CREATE TABLE t AS WITH x AS (INSERT ... RETURNING *) SELECT * FROM x`
-    # creates a relation, and reading the INSERT first would have called it a
-    # DML statement and let it run on `write` access alone.
+    if isinstance(node, pgast.SelectStmt):
+        if _writes(node):
+            return "dml"
+        if getattr(node, "intoClause", None) is not None:
+            # `SELECT ... INTO new_table` creates a relation, whatever a query
+            # by itself would be allowed.
+            return "ddl"
+        return "read"
+    if isinstance(node, (pgast.InsertStmt, pgast.UpdateStmt, pgast.DeleteStmt, pgast.MergeStmt)):
+        return "dml"
+    if isinstance(node, pgast.CopyStmt):
+        return "copy"
+    if isinstance(node, pgast.ExplainStmt):
+        return "explain"
+    if isinstance(node, pgast.TransactionStmt):
+        return "transaction"
+    if isinstance(
+        node,
+        (
+            pgast.VariableSetStmt,
+            pgast.VariableShowStmt,
+            pgast.DiscardStmt,
+            pgast.ListenStmt,
+            pgast.UnlistenStmt,
+            pgast.NotifyStmt,
+            pgast.PrepareStmt,
+            pgast.ExecuteStmt,
+            pgast.DeallocateStmt,
+        ),
+    ):
+        return "session"
+    if isinstance(
+        node,
+        (
+            pgast.VacuumStmt,
+            pgast.ClusterStmt,
+            pgast.ReindexStmt,
+            pgast.RefreshMatViewStmt,
+            pgast.CheckPointStmt,
+        ),
+    ):
+        # Maintenance runs outside a transaction and with write access (D206).
+        return "maintenance"
     if isinstance(node, _DDL_NODES):
         return "ddl"
-    if any(True for _ in node.find_all(*_WRITE_NODES)):
-        return "copy" if isinstance(node, exp.Copy) else "dml"
-    if isinstance(node, exp.Select) and node.args.get("into") is not None:
-        # `SELECT ... INTO new_table` creates a relation, whatever it looks
-        # like from the first word.
+    if isinstance(node, pgast.RenameStmt):
+        # Renaming a schema, or moving a relation into one, belongs to the
+        # catalog actions that own those subjects — the screen that renames
+        # what it is looking at is not this text box.
+        if _object_subject(node.renameType) in ("TABLE", "VIEW", "INDEX"):
+            return "ddl"
+        return "unknown"
+    if type(node).__name__.startswith(("Create", "Alter", "Drop")):
+        # Whatever shape of structure change the vocabulary names below; a
+        # form named here is refused with a sentence rather than admitted by
+        # omission, and only the two subjects the catalog owns stay unknown.
+        # `AlterObjectSchemaStmt` — moving a relation — is one of them.
+        if isinstance(node, pgast.AlterObjectSchemaStmt):
+            return "unknown"
         return "ddl"
-    if isinstance(node, _QUERY_NODES):
-        return "read"
     return "unknown"
 
 
@@ -252,41 +376,78 @@ def bind(text: str) -> str:
     return "".join(pieces)
 
 
-def _refusal(text: str, kind: StatementClass) -> str | None:
+def _subject_of(node: pgast.Node) -> str:
+    """What kind of thing this structure change is about, in `_OUTSIDE`'s words."""
+    if isinstance(node, (pgast.CreateStmt, pgast.CreateTableAsStmt)):
+        return "TABLE"
+    if isinstance(node, pgast.CreateSchemaStmt):
+        return "SCHEMA"
+    if isinstance(node, pgast.IndexStmt):
+        return "INDEX"
+    if isinstance(node, pgast.ViewStmt):
+        return "VIEW"
+    if isinstance(node, pgast.AlterTableStmt):
+        return "TABLE"
+    if isinstance(node, pgast.DropStmt):
+        return _object_subject(node.removeType)
+    if isinstance(node, pgast.CommentStmt):
+        return _object_subject(node.objtype)
+    if isinstance(node, pgast.RenameStmt):
+        return _object_subject(node.renameType)
+    return _FOREIGN_SUBJECTS.get(type(node).__name__, "")
+
+
+def _object_subject(value: ObjectType | None) -> str:
+    """An object type of the engine in the same words, or nothing."""
+    return "" if value is None else _OBJECT_SUBJECTS.get(value, "")
+
+
+def _row_security(node: pgast.AlterTableStmt) -> bool:
+    """Whether this alter administers row security rather than the relation."""
+    return any(cmd.subtype in _ROW_SECURITY for cmd in node.cmds or ())
+
+
+def _refusal(node: pgast.Node | None, kind: StatementClass) -> str | None:
     """Why this source will not carry the statement out, if it will not.
 
     Only structure changes are answered here; every other class is admitted or
     refused by its class alone. The vocabulary is closed and lives beside the
-    parse because it is dialect knowledge: what `CREATE` may be followed by is
-    a fact about PostgreSQL, not about the module that runs statements (D66).
+    parse because it is dialect knowledge: what each shape may be about is a
+    fact about PostgreSQL, not about the module that runs statements (D66).
     """
-    if kind != "ddl":
+    if kind != "ddl" or node is None:
         return None
-    try:
-        node = parse_one(text, read="postgres")
-    except (ParseError, TokenError):  # pragma: no cover - `unknown` by then
-        return _GENERAL_REFUSAL
-    if isinstance(node, exp.Grant | exp.Revoke):
+    if isinstance(node, pgast.GrantStmt):
         return "Permissions are not administered from the query editor"
-    if isinstance(node, exp.TruncateTable):
+    if isinstance(node, pgast.TruncateStmt):
         return None
-    if isinstance(node, exp.Comment):
-        subject = str(node.args.get("kind") or "").upper()
+    if isinstance(node, pgast.AlterTableStmt) and _row_security(node):
+        return "Permissions are not administered from the query editor"
+    if isinstance(node, pgast.CommentStmt):
+        subject = _object_subject(node.objtype)
         if subject in _ALLOWED_COMMENT_KINDS:
             return None
         return _OUTSIDE.get(subject, _GENERAL_REFUSAL)
-    if isinstance(node, exp.Create | exp.Drop | exp.Alter):
-        subject = str(node.args.get("kind") or "").upper()
-        if subject in _ALLOWED_KINDS:
-            return None
-        return _OUTSIDE.get(subject, _GENERAL_REFUSAL)
     # `SELECT ... INTO t` creates a table and is read as a query by the parser.
-    if isinstance(node, exp.Select):
+    if isinstance(node, pgast.SelectStmt):
         return None
-    return _GENERAL_REFUSAL
+    subject = _subject_of(node)
+    if subject in _ALLOWED_KINDS:
+        return None
+    return _OUTSIDE.get(subject, _GENERAL_REFUSAL)
 
 
-def _destructive(text: str, kind: StatementClass) -> bool:
+def _takes_away(cmd: pgast.AlterTableCmd) -> bool:
+    """Whether this alter removes what was there: a column, a constraint, or
+    what a column held before its type was rewritten."""
+    if cmd.subtype in (AlterTableType.AT_DropColumn, AlterTableType.AT_DropConstraint):
+        return True
+    # A column changing type rewrites what is in it, and a value the new type
+    # cannot hold does not survive the rewrite.
+    return cmd.subtype is AlterTableType.AT_AlterColumnType and cmd.def_ is not None
+
+
+def _destructive(node: pgast.Node | None) -> bool:
     """Whether what this does cannot be read back out of the statement.
 
     Dropping something takes its dependants with it, truncating takes rows and
@@ -294,27 +455,34 @@ def _destructive(text: str, kind: StatementClass) -> bool:
     visible in the text, which is why these are the statements rehearsed in a
     transaction and rolled back before anybody runs them for real (D66).
     """
-    if kind != "ddl":
-        return False
-    try:
-        node = parse_one(text, read="postgres")
-    except (ParseError, TokenError):  # pragma: no cover - `unknown` by then
+    # Every drop by name: dropping something takes its dependants with it,
+    # whatever kind of thing it is. Refused shapes never reach a rehearsal,
+    # so this stays a uniform rule rather than a second vocabulary.
+    if type(node).__name__.startswith("Drop") or isinstance(node, pgast.TruncateStmt):
         return True
-    if isinstance(node, exp.Drop | exp.TruncateTable):
-        return True
-    if isinstance(node, exp.Alter):
-        actions = node.args.get("actions") or []
-        return any(
-            isinstance(action, exp.Drop)
-            # A column changing type rewrites what is in it, and a value the
-            # new type cannot hold does not survive the rewrite.
-            or (isinstance(action, exp.AlterColumn) and action.args.get("dtype"))
-            for action in actions
-        )
+    if isinstance(node, pgast.AlterTableStmt):
+        return any(_takes_away(cmd) for cmd in node.cmds or ())
     return False
 
 
-def _risky(text: str, kind: StatementClass) -> bool:
+def _locks_readers_out(node: pgast.Node | None) -> bool:
+    """Whether this maintenance holds the table from its readers (D66).
+
+    A full vacuum and a cluster rewrite the table, a reindex and a refresh
+    lock it unless they are told to work concurrently.
+    """
+    if isinstance(node, pgast.VacuumStmt):
+        return any(option.defname == "full" for option in node.options or ())
+    if isinstance(node, pgast.ClusterStmt):
+        return True
+    if isinstance(node, pgast.ReindexStmt):
+        return not any(option.defname == "concurrently" for option in node.params or ())
+    if isinstance(node, pgast.RefreshMatViewStmt):
+        return not node.concurrent
+    return False
+
+
+def _risky(node: pgast.Node | None, kind: StatementClass) -> bool:
     """Whether this statement is one to ask about every time (D66).
 
     High risk is not "a write": it is a write whose reach is not written down.
@@ -331,21 +499,15 @@ def _risky(text: str, kind: StatementClass) -> bool:
     if kind == "ddl":
         return True
     if kind == "maintenance":
-        words = _command_words(text)
-        leading = _leading_keyword(text)
-        if leading == "VACUUM":
-            return "FULL" in words
-        return leading in _LOCKING and "CONCURRENTLY" not in words
-    if kind != "dml":
+        return _locks_readers_out(node)
+    if kind != "dml" or node is None:
         return False
-    try:
-        node = parse_one(text, read="postgres")
-    except (ParseError, TokenError):
-        return True
-    if any(True for _ in node.find_all(exp.Merge)):
+    found = _walk(node)
+    if any(isinstance(one, pgast.MergeStmt) for one in found):
         return True
     return any(
-        write.args.get("where") is None for write in node.find_all(exp.Update, exp.Delete)
+        isinstance(one, (pgast.UpdateStmt, pgast.DeleteStmt)) and one.whereClause is None
+        for one in found
     )
 
 
@@ -362,23 +524,52 @@ def _parameters(text: str) -> list[str]:
     return found
 
 
-def _targets(text: str) -> list[str]:
+def _object_name(obj: Any) -> str:
+    """One dropped thing, dotted: a name, or a name with argument types."""
+    if isinstance(obj, pgast.String):
+        return obj.sval or ""
+    if isinstance(obj, pgast.ObjectWithArgs):
+        return ".".join(part.sval for part in obj.objname or ())
+    if isinstance(obj, (tuple, list)):
+        return ".".join(name for name in (_object_name(part) for part in obj) if name)
+    return ""
+
+
+def _dotted(variable: pgast.RangeVar | None) -> str:
+    """A relation name as dots join it: catalog and schema when named.
+
+    Built from the parts rather than rendered: rendering carries the alias
+    with it, and what a run touched is the relation, not the letter somebody
+    called it in this query.
+    """
+    if variable is None:
+        return ""
+    return ".".join(
+        part
+        for part in (variable.catalogname, variable.schemaname, variable.relname)
+        if part
+    )
+
+
+def _targets(node: pgast.Node | None) -> list[str]:
     """What the statement names, for saying what a run was about."""
-    try:
-        node = parse_one(text, read="postgres")
-    except (ParseError, TokenError):
+    if node is None:
         return []
-    names: list[str] = []
-    for table in node.find_all(exp.Table):
-        # Built from the parts rather than rendered: rendering carries the
-        # alias with it, and what a run touched is the relation, not the
-        # letter somebody called it in this query.
-        qualified = ".".join(
-            part for part in (table.catalog, table.db, table.name) if part
-        )
-        if qualified and qualified not in names:
-            names.append(qualified)
-    return names
+    if isinstance(node, pgast.DropStmt):
+        names = [_object_name(obj) for obj in node.objects or ()]
+        return [name for name in dict.fromkeys(names) if name]
+    if isinstance(node, pgast.RenameStmt):
+        parts: list[str | None] = [_dotted(node.relation), node.newname]
+        return [name for name in dict.fromkeys(parts) if name]
+    if isinstance(node, pgast.CommentStmt):
+        names = [_object_name(node.object)]
+        return [name for name in dict.fromkeys(names) if name]
+    names = [
+        _dotted(found)
+        for found in _walk(node)
+        if isinstance(found, pgast.RangeVar)
+    ]
+    return [name for name in dict.fromkeys(names) if name]
 
 
 def format_text(text: str) -> str:
@@ -423,7 +614,8 @@ def prepare(text: str) -> PreparedScript:
     parameters: list[str] = []
     for ordinal, (start, end) in enumerate(split(text)):
         piece = text[start:end]
-        kind = _classify(piece)
+        node = _parse_piece(piece)
+        kind = _classify(node)
         found = _parameters(piece)
         for name in found:
             if name not in parameters:
@@ -435,11 +627,11 @@ def prepare(text: str) -> PreparedScript:
                 end=end,
                 text=piece,
                 kind=kind,
-                risk="high" if _risky(piece, kind) else "low",
-                destructive=_destructive(piece, kind),
-                refused=_refusal(piece, kind),
+                risk="high" if _risky(node, kind) else "low",
+                destructive=_destructive(node),
+                refused=_refusal(node, kind),
                 parameters=found,
-                targets=_targets(piece),
+                targets=_targets(node),
             )
         )
     return PreparedScript(statements=statements, parameters=parameters)

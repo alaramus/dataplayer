@@ -89,8 +89,11 @@ and the default and maximum timeout and result bounds. The declaration is
 derived from implemented operations rather than from an adapter-name branch or
 a second handwritten capability list.
 
-Preparation is source-owned and authoritative. It identifies statement ranges,
-named parameters, targets and a closed class:
+Preparation is source-owned and authoritative. Each dialect module reads with
+its own engine — PostgreSQL with the server's own grammar, the file source
+with the engine it runs — so a statement the source accepts is one the
+console can read. It identifies statement ranges, named parameters, targets
+and a closed class:
 
 ```text
 read | explain | dml | ddl | transaction | session | copy | unknown
@@ -125,12 +128,13 @@ adapter type.
 
 Known deviations:
 
-- **The vocabulary is bounded by what the dialect module can read as well as by
-  what is listed.** `ALTER TABLE t DROP COLUMN a, ADD COLUMN b int` and
-  `ALTER SCHEMA s RENAME TO r` are inside the vocabulary in words and are refused
-  all the same, because the parser reads them as an opaque command and a
-  statement whose shape is not established is not run. One action per ALTER is
-  the working form.
+- **Renaming a schema and moving a relation stay catalog actions.** Both parse
+  precisely and stay `unknown` on purpose rather than by a parser falling
+  over: the screen that renames what it is looking at is not the query
+  editor. Changing who owns a table, view, schema or index is admitted as
+  the alter it is instead — refusing it while a drop is admitted would be an
+  arbitrary line — and row-security changes are refused as permission
+  administration, the way a grant is.
 - **Statement boundaries are asked of the source, not parsed in the browser.**
   This decision allows a compatible browser parser for immediate feedback; one
   parser is used, so Run waits for a short round trip after the text changes

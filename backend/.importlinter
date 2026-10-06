@@ -57,12 +57,12 @@ forbidden_modules =
 
 # psycopg_pool is named separately from psycopg: it is a different
 # distribution, so a rule that only said "psycopg" would let the pool leak into
-# the rest of the application unnoticed. sqlglot is here for the same reason
-# and not because it is a driver: the dialect that decides where a statement
-# ends belongs to the source whose dialect it is, so a query module tempted to
-# parse SQL itself fails this check instead.
+# the rest of the application unnoticed. sqlglot and pglast are here for the
+# same reason and not because they are drivers: the dialect that decides where
+# a statement ends belongs to the source whose dialect it is, so a query
+# module tempted to parse SQL itself fails this check instead.
 [importlinter:contract:driver-sdk-is-contained]
-name = the psycopg driver and the SQL dialect are imported only by the postgres adapter
+name = the psycopg driver and the SQL dialects are imported only by the postgres adapter
 type = forbidden
 source_modules =
     app.core
@@ -97,6 +97,7 @@ forbidden_modules =
     psycopg
     psycopg_pool
     sqlglot
+    pglast
 
 # The same rule as the psycopg one, for the three libraries the file explorer
 # reads with: a format's library belongs to the module that owns the format, so

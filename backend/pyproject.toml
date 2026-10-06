@@ -42,6 +42,7 @@ dependencies = [
     # Time zones for pipeline schedules (D179) where the system keeps none:
     # Windows, or a slim image.
     "tzdata>=2026.3",
+    "pglast>=8",
 ]
 
 [dependency-groups]
