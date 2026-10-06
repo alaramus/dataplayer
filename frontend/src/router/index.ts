@@ -66,7 +66,10 @@ export const router = createRouter({
       // What this account chose for itself, which every signed-in user has.
       // Its own address rather than a dialog off the menu: a preference is
       // something to come back to and to link somebody to.
-      path: "/preferences",
+      //
+      // The section is part of the address so that a link into one of them is
+      // a link; an address that names none opens the first.
+      path: "/preferences/:section?",
       name: "preferences",
       component: () => import("@/features/preferences/PreferencesPage.vue"),
       meta: { requiresAuth: true },

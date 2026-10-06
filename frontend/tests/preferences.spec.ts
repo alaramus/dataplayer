@@ -46,6 +46,7 @@ test("keeps how often connections are checked", async ({ page }) => {
   await login(page)
   await openPreferences(page)
   await expect(page.getByTestId("preferences")).toBeVisible()
+  await page.getByTestId("preferences-section-connections").click()
   const checks = page.locator(".q-field").filter({ has: page.getByTestId(CHECKS) }).first()
   await expect(checks.locator(".q-field__control")).toHaveCSS("height", "32px")
   for (const [testId, label] of [
