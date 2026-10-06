@@ -371,16 +371,47 @@ function startSelection(cell: Cell<GridFeatures, GridRow, unknown>, event: Mouse
   cell.getSelectionStartHandler()(event)
 }
 
-function selectRow(rowId: string) {
+/**
+ * The row a Shift+click grows from.
+ *
+ * Plain clicks and Ctrl+clicks move it; the cell selection itself does not
+ * say where a row range starts, only what it covers. A page or structural
+ * column change clears the selection and the anchor with it.
+ */
+let rowAnchor: string | null = null
+
+function fullRowRange(rowId: string) {
   const first = visibleColumns.value[0]
   const last = visibleColumns.value.at(-1)
-  if (first === undefined || last === undefined) return
-  table.selectCellRange({
+  if (first === undefined || last === undefined) return null
+  return {
     anchorRowId: rowId,
     focusRowId: rowId,
     anchorColumnId: first.id,
     focusColumnId: last.id,
-  })
+  }
+}
+
+function selectRow(rowId: string, event: MouseEvent) {
+  const range = fullRowRange(rowId)
+  if (range === null) return
+  // A contiguous block from the anchor, replacing whatever was there: the
+  // same meaning Shift has over the cells themselves.
+  if (event.shiftKey && rowAnchor !== null) {
+    table.selectCellRange({ ...range, anchorRowId: rowAnchor })
+    return
+  }
+  // One more row, or one less when it is already wholly selected: several
+  // rows are what Delete and the row commands act on.
+  if (event.ctrlKey || event.metaKey) {
+    const index = props.rows.findIndex((row) => row.id === rowId)
+    const adding = index < 0 || !selectedRowIndexes.value.includes(index)
+    table.selectCellRange(range, { mode: adding ? "include" : "exclude" })
+    rowAnchor = rowId
+    return
+  }
+  table.selectCellRange(range)
+  rowAnchor = rowId
 }
 
 function selectColumn(columnId: string) {
@@ -527,7 +558,10 @@ watch(selectedRowIndexes, (indexes) => emit("selection", [...indexes]), {
 })
 watch(
   () => [props.rows, props.columns] as const,
-  () => table.resetCellSelection(true)
+  () => {
+    rowAnchor = null
+    table.resetCellSelection(true)
+  }
 )
 
 defineExpose({
@@ -754,7 +788,8 @@ defineExpose({
                 class="data-grid__row-selector"
                 :data-testid="`grid-select-row-${row.id}`"
                 :aria-label="`Select row ${rowNumber(row.original, rowIndex)}`"
-                @click="selectRow(row.id)"
+                :title="`Select row ${rowNumber(row.original, rowIndex)}. Ctrl+click adds, Shift+click extends.`"
+                @click="selectRow(row.id, $event)"
               >
                 {{ rowNumber(row.original, rowIndex) }}
               </button>

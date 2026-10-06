@@ -118,6 +118,65 @@ describe("the controlled tabular grid", () => {
     })
   })
 
+  it("adds and removes whole rows with Ctrl+click on their selectors", async () => {
+    const wrapper = mount(TabularGrid, {
+      props: {
+        columns: COLUMNS,
+        rows: [
+          { id: "row-a", values: ["a1", "a2"] },
+          { id: "row-b", values: ["b1", "b2"] },
+          { id: "row-c", values: ["c1", "c2"] },
+        ],
+        page: 0,
+        pageSize: 100,
+        filters: [],
+        sort: [],
+        layout: defaultColumnLayout(COLUMNS),
+      },
+      slots: {
+        "commands-write": ({ selectedRowIndexes }) =>
+          h("button", { "data-testid": "controller-command" }, selectedRowIndexes.join(",")),
+      },
+      global: { plugins: [Quasar] },
+    })
+
+    await wrapper.get('[data-testid="grid-select-row-row-a"]').trigger("click")
+    expect(wrapper.get('[data-testid="controller-command"]').text()).toBe("0")
+
+    await wrapper.get('[data-testid="grid-select-row-row-c"]').trigger("click", { ctrlKey: true })
+    expect(wrapper.get('[data-testid="controller-command"]').text()).toBe("0,2")
+
+    await wrapper.get('[data-testid="grid-select-row-row-a"]').trigger("click", { ctrlKey: true })
+    expect(wrapper.get('[data-testid="controller-command"]').text()).toBe("2")
+  })
+
+  it("extends whole rows from the anchor with Shift+click on their selectors", async () => {
+    const wrapper = mount(TabularGrid, {
+      props: {
+        columns: COLUMNS,
+        rows: [
+          { id: "row-a", values: ["a1", "a2"] },
+          { id: "row-b", values: ["b1", "b2"] },
+          { id: "row-c", values: ["c1", "c2"] },
+        ],
+        page: 0,
+        pageSize: 100,
+        filters: [],
+        sort: [],
+        layout: defaultColumnLayout(COLUMNS),
+      },
+      slots: {
+        "commands-write": ({ selectedRowIndexes }) =>
+          h("button", { "data-testid": "controller-command" }, selectedRowIndexes.join(",")),
+      },
+      global: { plugins: [Quasar] },
+    })
+
+    await wrapper.get('[data-testid="grid-select-row-row-a"]').trigger("click")
+    await wrapper.get('[data-testid="grid-select-row-row-c"]').trigger("click", { shiftKey: true })
+    expect(wrapper.get('[data-testid="controller-command"]').text()).toBe("0,1,2")
+  })
+
   it("emits controlled sort, layout and paging changes", async () => {
     const wrapper = mountGrid({ hasMore: true })
 

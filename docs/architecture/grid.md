@@ -84,7 +84,9 @@ open editors are transient: reload starts at the first page and a page or
 structural column change clears a selection that has no stable row identity.
 
 Selection and TSV copying use the current page's data and visible column order,
-never rendered or truncated DOM text. Typed renderers change alignment and
+never rendered or truncated DOM text. A row number selects its whole row;
+Ctrl+click adds rows and Shift+click extends from the last one picked, so
+several rows are what Delete and the row commands act on. Typed renderers change alignment and
 appearance but not the canonical string; complex or long values open that same
 full string in a read-only viewer. The page ceiling is 500 rows, with explicit
 pagination rather than virtualization until browser measurement demonstrates a
