@@ -81,7 +81,11 @@ let languageRequest = 0
 function permissionExtensions(): Extension {
   return [
     EditorState.readOnly.of(props.readonly),
-    EditorView.editable.of(!props.readonly),
+    // Editable even where nothing may be typed: with it off the content is
+    // not focusable, so the keyboard — Ctrl+A among it — never reaches the
+    // editor and selects the whole page instead. Read-only mode above is
+    // what blocks changes.
+    EditorView.editable.of(true),
   ]
 }
 

@@ -404,7 +404,18 @@ test("opens a relation's source-issued DDL without making it editable", async ({
   await expect(ddl).toBeVisible()
   await expect(ddl).toContainText("CREATE TABLE")
   await expect(ddl).toContainText("connector")
-  await expect(ddl.locator(".cm-content")).toHaveAttribute("contenteditable", "false")
+  // Focusable, so the keyboard reaches the text rather than the page: only
+  // changes are blocked, not reading and copying.
+  await expect(ddl.locator(".cm-content")).toHaveAttribute("contenteditable", "true")
+
+  // Select-all lands in the DDL rather than across the application.
+  await ddl.locator(".cm-content").click()
+  await page.keyboard.press("ControlOrMeta+a")
+  const selected = await ddl.locator(".cm-content").evaluate((content) => {
+    const anchor = window.getSelection()?.anchorNode ?? null
+    return anchor !== null && content.contains(anchor)
+  })
+  await expect(selected).toBe(true)
 
   await page.getByTestId("sql-view-table").click()
   await expect(page.getByTestId("grid-header")).toBeVisible()
