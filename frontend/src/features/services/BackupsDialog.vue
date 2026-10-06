@@ -196,6 +196,7 @@ async function putBack(filename: string) {
           <AppIconButton
             :icon="appIcons.deleteOutline"
             tooltip="Delete this backup"
+            variant="danger-quiet"
             :disable="working"
             :data-testid="`delete-backup-${file.filename}`"
             @click="remove(file.filename)"
