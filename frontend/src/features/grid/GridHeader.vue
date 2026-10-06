@@ -77,7 +77,7 @@ const groups = TOOLBAR_GROUPS
                   :tooltip="canFilter
                     ? (filters.length > 0 ? `Filters (${filters.length})` : 'Filters')
                     : tipOf('Filters', NOT_OFFERED.filter)"
-                    :disable="!canFilter"
+                  :disable="!canFilter"
                   data-testid="grid-filter"
                   @click="filtersOpen = !filtersOpen"
                 />
@@ -97,7 +97,7 @@ const groups = TOOLBAR_GROUPS
                   :tooltip="canSort
                     ? (sort.length > 0 ? `Sort (${sort.length})` : 'Sort')
                     : tipOf('Sort', NOT_OFFERED.sort)"
-                    :disable="!canSort"
+                  :disable="!canSort"
                   data-testid="grid-sort"
                   @click="sortOpen = !sortOpen"
                 />
