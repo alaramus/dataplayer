@@ -56,8 +56,8 @@ describe("formatDuration", () => {
 })
 
 describe("pageScale", () => {
-  it("fits the page to the room there is", () => {
-    expect(pageScale(643, 595)).toBeCloseTo(1)
+  it("fits the page to the room there is, edge to edge", () => {
+    expect(pageScale(607, 595)).toBeCloseTo(1)
   })
 
   it("does not shrink a page to nothing before the panel is laid out", () => {

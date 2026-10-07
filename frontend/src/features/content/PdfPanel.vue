@@ -291,8 +291,10 @@ onBeforeUnmount(() => {
   gap: var(--dp-space-3);
   min-height: 0;
   overflow: auto;
-  padding: var(--dp-space-4);
-  background: var(--dp-hover);
+  /* A hair of room above and below, so the outer pages keep their shadow:
+     pages run the full width of the panel, edge to edge, on its own surface
+     rather than a substrate. */
+  padding: var(--dp-space-2) 0;
 }
 .pdf-panel__stage :deep(.pdf-panel__page) {
   position: relative;

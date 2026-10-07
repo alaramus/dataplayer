@@ -2,13 +2,14 @@
 const MIN_SCALE = 0.25
 const MAX_SCALE = 3
 /**
- * The panel's own padding, plus room for the scrollbar the pages bring.
+ * Room for the scrollbar the pages bring.
  *
  * Measured before the pages exist, so the vertical scrollbar is not in the
  * width yet; without this the first page is a scrollbar too wide and the panel
- * scrolls sideways.
+ * scrolls sideways. The stage keeps no side padding and the scrollbars are
+ * thin (`--dp-scrollbar-size`), so a dozen pixels cover it.
  */
-const MARGIN = 48
+const MARGIN = 12
 
 /**
  * Fit the page to the width available, within honest bounds.
