@@ -25,13 +25,17 @@ const FILTERS: Filter[] = [
 ]
 const SORT: Sort[] = [{ column: "status" }]
 
-function mountHeader(filters: Filter[] = [], sort: Sort[] = []) {
+function mountHeader(
+  filters: Filter[] = [],
+  sort: Sort[] = [],
+  layout = defaultColumnLayout(COLUMNS),
+) {
   return mount(GridHeader, {
     props: {
       columns: COLUMNS,
       filters,
       sort,
-      layout: defaultColumnLayout(COLUMNS),
+      layout,
     },
     global: { plugins: [Quasar] },
   })
@@ -55,5 +59,18 @@ describe("the active query indicator", () => {
     const wrapper = mountHeader([], SORT)
 
     expect(wrapper.get('[data-testid="grid-sort-count"]').text()).toContain("1")
+  })
+
+  it("hides the columns count when nothing is hidden", () => {
+    const wrapper = mountHeader()
+
+    expect(wrapper.find('[data-testid="grid-columns-count"]').exists()).toBe(false)
+  })
+
+  it("wears the hidden columns count without hovering", () => {
+    const layout = { ...defaultColumnLayout(COLUMNS), columnVisibility: { status: false } }
+    const wrapper = mountHeader([], [], layout)
+
+    expect(wrapper.get('[data-testid="grid-columns-count"]').text()).toContain("1")
   })
 })

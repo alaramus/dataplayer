@@ -33,6 +33,9 @@ const canFilter = computed(() =>
   props.columns.some((column) => (column.filter_operators?.length ?? 0) > 0)
 )
 const canSort = computed(() => props.columns.some((column) => column.sortable === true))
+const hiddenColumns = computed(
+  () => props.columns.filter((column) => props.layout.columnVisibility[column.id] === false).length
+)
 
 /**
  * The groups, their names and their order, in one place.
@@ -108,13 +111,24 @@ const groups = TOOLBAR_GROUPS
                   data-testid="grid-sort-count"
                 />
               </span>
-              <AppIconButton
-                :icon="appIcons.viewColumn"
-                tooltip="Columns"
-                :disable="columns.length === 0"
-                data-testid="grid-columns"
-                @click="columnsOpen = !columnsOpen"
-              />
+              <span
+                data-testid="grid-columns-command"
+                class="grid-header__indicator"
+              >
+                <AppIconButton
+                  :icon="appIcons.viewColumn"
+                  :tooltip="hiddenColumns > 0 ? `Columns (${hiddenColumns} hidden)` : 'Columns'"
+                  :disable="columns.length === 0"
+                  data-testid="grid-columns"
+                  @click="columnsOpen = !columnsOpen"
+                />
+                <AppBadge
+                  v-if="hiddenColumns > 0"
+                  corner
+                  :label="String(hiddenColumns)"
+                  data-testid="grid-columns-count"
+                />
+              </span>
               <slot name="commands-view" />
             </template>
             <template v-else-if="group.name === 'open'">
