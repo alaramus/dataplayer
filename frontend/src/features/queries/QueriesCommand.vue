@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, watch } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
 import { useQueryProfile } from "@/features/queries/runs"
@@ -57,6 +57,20 @@ function pressed() {
   if (supportsQueries.value === "yes") library.aim(workspace.activeConnectorId.value)
   panel.show("queries")
 }
+
+/**
+ * Aim late, when the profile lands after the press.
+ *
+ * The capability is asked of the source, so a press that opens the panel
+ * while it is still being asked leaves the library unaimed — and its New
+ * button stays disabled until somebody picks a connection by hand. Only an
+ * unpicked filter is aimed: what somebody chose stays chosen.
+ */
+watch([shown, supportsQueries], ([open, support]) => {
+  if (open && support === "yes" && library.connectorId.value === null) {
+    library.aim(workspace.activeConnectorId.value)
+  }
+})
 </script>
 
 <template>
