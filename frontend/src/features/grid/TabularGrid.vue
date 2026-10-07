@@ -824,7 +824,9 @@ defineExpose({
                    paints a box no other control in the application uses. Only
                    where there is something to say, so an ordinary cell draws
                    no tooltip component at all. -->
-              <AppTooltip v-if="cellTitle(cell) !== undefined">{{ cellTitle(cell) }}</AppTooltip>
+              <AppTooltip v-if="cellTitle(cell) !== undefined">
+                {{ cellTitle(cell) }}
+              </AppTooltip>
               <span
                 class="data-grid__value"
                 :class="{
