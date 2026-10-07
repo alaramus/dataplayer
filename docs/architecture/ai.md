@@ -119,14 +119,17 @@ frontend/src/features/ai/
 ├── context.ts          which open panels a chip may name, and the open intent
 ├── dictation.ts        the browser's recogniser behind the composer's microphone
 ├── outline.ts          the questions of a conversation, and which one is being read
-├── readAloud.ts        the one voice of the browser, shared by both chats
-├── streaming.ts        open-fence protection and speech text
+├── readAloud.ts        the chat's way into the shared reader (in features/speech)
+├── streaming.ts        open-fence protection; speech text lives in features/speech
 └── state.ts            selected-chat restoration and a chat requested from outside; the shared space store remembers AI
 ```
 
 ```
 frontend/src/features/speech/
+├── ReadAloudButton.vue the listen button of chats, documents and files
 ├── VoiceSelect.vue     the reading voice, in Preferences and AI settings
+├── readAloud.ts        the one voice of the browser, shared by every reader
+├── speechText.ts       prose without the marks around it, for Markdown only
 └── voices.ts           the browser's voices, arriving after the page
 ```
 
@@ -294,6 +297,8 @@ heard. A browser with no recogniser says so on a microphone that stays off.
 Which voice reads is the person's choice, kept in this browser and chosen in
 Preferences or AI settings — one store serves both controls, so either one is
 the choice everywhere; without one the browser reads in its default voice.
+The same button reads a Markdown document and whatever text a panel shows,
+whole and in that voice; code reads as it is rather than stripped of its marks.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 

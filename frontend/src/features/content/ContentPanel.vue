@@ -5,6 +5,7 @@ import { computed, ref, watch } from "vue"
 import type { EditorContent, EditorContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useEditorContent, useUpdateContent } from "@/features/content/api"
+import ReadAloudButton from "@/features/speech/ReadAloudButton.vue"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
@@ -145,6 +146,12 @@ watch(
     <div class="content-panel__head">
       <span class="content-panel__kind">{{ kindLabel }}</span>
       <div class="content-panel__actions">
+        <ReadAloudButton
+          v-if="editor.data.value"
+          :text="draft"
+          listen-label="Listen to file"
+          testid="content-listen"
+        />
         <span
           v-if="dirty"
           class="content-panel__dirty"

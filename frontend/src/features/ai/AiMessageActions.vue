@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { onBeforeUnmount } from "vue"
-
 import { AppIconButton, appIcons, useToast } from "@/shared/ui"
 
-import { useReadAloud } from "./readAloud"
+import ReadAloudButton from "@/features/speech/ReadAloudButton.vue"
 
 /**
  * Copy and read aloud, under a message of either chat. The parent decides
- * when they show; they are the same two buttons wherever a message is.
+ * when they show; they are the same two buttons wherever a message is. The
+ * reader is the shared one, so a message and a document stop each other.
  */
 const props = defineProps<{ text: string; role: "user" | "assistant" }>()
 
 const toast = useToast()
-const voice = useReadAloud()
 
 async function copy() {
   const what = props.role === "user" ? "Message" : "Answer"
@@ -23,11 +21,6 @@ async function copy() {
     toast.error(`The ${what.toLowerCase()} could not be copied`)
   }
 }
-
-// A message that goes away stops being read.
-onBeforeUnmount(() => {
-  if (voice.speaking.value === props.text) voice.stop()
-})
 </script>
 
 <template>
@@ -38,14 +31,11 @@ onBeforeUnmount(() => {
       data-testid="ai-message-copy"
       @click="copy"
     />
-    <AppIconButton
-      :icon="voice.speaking.value === text ? appIcons.stopCircle : appIcons.volumeUp"
-      :tooltip="voice.speaking.value === text
-        ? 'Stop reading aloud'
-        : role === 'user' ? 'Listen to message' : 'Listen to answer'"
-      :active="voice.speaking.value === text"
-      data-testid="ai-message-listen"
-      @click="voice.listen(text)"
+    <ReadAloudButton
+      :text="text"
+      strip-markdown
+      :listen-label="role === 'user' ? 'Listen to message' : 'Listen to answer'"
+      testid="ai-message-listen"
     />
   </div>
 </template>

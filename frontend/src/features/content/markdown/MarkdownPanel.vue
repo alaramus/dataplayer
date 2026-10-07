@@ -12,6 +12,7 @@ import { splitDocument } from "@/features/content/markdown/blocks"
 import type { DocumentBlock, RichDocumentBlock } from "@/features/content/markdown/blocks"
 import ProseBlock from "@/features/content/markdown/ProseBlock.vue"
 import RichBlock from "@/features/content/markdown/RichBlock.vue"
+import ReadAloudButton from "@/features/speech/ReadAloudButton.vue"
 import {
   createHtmlFileName,
   createRenderedHtml,
@@ -570,6 +571,12 @@ onBeforeUnmount(() => {
       </div>
       <div class="markdown-panel__actions">
         <template v-if="contentDocument">
+          <ReadAloudButton
+            :text="contentDocument.text"
+            strip-markdown
+            listen-label="Listen to document"
+            testid="markdown-listen"
+          />
           <AppButton
             variant="quiet"
             size="sm"

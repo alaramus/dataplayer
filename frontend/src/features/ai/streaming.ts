@@ -1,5 +1,8 @@
 import { splitDocument } from "@/features/content/markdown/blocks"
 import type { DocumentBlock } from "@/features/content/markdown/blocks"
+import { plainSpeechText } from "@/features/speech/speechText"
+
+export { plainSpeechText }
 
 export type StreamingBlock = DocumentBlock | { type: "pending-fence"; language: string }
 
@@ -28,14 +31,4 @@ export function splitStreamingDocument(text: string): StreamingBlock[] {
   if (opened === null) return splitDocument(text)
   const prefix = text.slice(0, opened.start).replace(/\n$/, "")
   return [...splitDocument(prefix), { type: "pending-fence", language: opened.language }]
-}
-
-export function plainSpeechText(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/[*_~`>#-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
 }

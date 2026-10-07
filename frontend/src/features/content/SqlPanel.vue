@@ -5,6 +5,7 @@ import { computed } from "vue"
 import type { ContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useContent } from "@/features/content/api"
+import ReadAloudButton from "@/features/speech/ReadAloudButton.vue"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
@@ -56,6 +57,12 @@ function showTable() {
     <div class="sql-panel__head">
       <span class="sql-panel__kind">SQL · read only</span>
       <div class="sql-panel__actions">
+        <ReadAloudButton
+          v-if="ddl"
+          :text="ddl.text"
+          listen-label="Listen to SQL"
+          testid="sql-listen"
+        />
         <AppButton
           v-if="tableTitle"
           variant="quiet"
