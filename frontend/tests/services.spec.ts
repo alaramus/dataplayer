@@ -201,7 +201,7 @@ test("starts an SSH server signed into with one of the person's own keys", async
   const keyName = `e2e-service-key-${stamp}`
   const name = `e2e-keyed-ssh-${stamp}`
   await login(page)
-  await page.goto("/preferences")
+  await page.goto("/preferences/ssh-keys")
   await page.getByTestId("ssh-key-new").click()
   await page.getByTestId("ssh-key-name").fill(keyName)
   await page.getByTestId("ssh-key-save").click()
@@ -246,7 +246,7 @@ test("starts an SSH server signed into with one of the person's own keys", async
   await expect(connectorRow(page, name)).toHaveCount(0)
 
   // The connection that used the key went with the service, so the key goes too.
-  await page.goto("/preferences")
+  await page.goto("/preferences/ssh-keys")
   await page.getByTestId(`ssh-key-delete-${keyName}`).click()
   await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId(`ssh-key-${keyName}`)).toHaveCount(0)

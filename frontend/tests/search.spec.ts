@@ -643,7 +643,7 @@ test("an SSH key found opens Preferences on it", async ({ page }) => {
   await openSearch(page)
   await searchField(page).fill("deploy")
   await searchOption(page, /deploy key/).click()
-  await expect(page).toHaveURL(/\/preferences\?key=k1$/)
+  await expect(page).toHaveURL(/\/preferences\/ssh-keys\?key=k1$/)
   await expect(page.getByTestId("ssh-keys")).toBeVisible()
   // Preferences has nowhere to open a hit into, so no search either.
   await expect(page.getByTestId("search-button")).toHaveCount(0)

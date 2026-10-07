@@ -32,6 +32,14 @@ async function choose(page: Page, label: string) {
   await saved
 }
 
+/** A select states its answer in an outlined field carrying its name. */
+async function expectField(page: Page, testId: string, label: string) {
+  const control = page.getByTestId(testId)
+  const field = page.locator(".q-field").filter({ has: control }).first()
+  await expect(field).toHaveClass(/q-field--outlined/)
+  await expect(control).toHaveAttribute("aria-label", label)
+}
+
 /** What the menu says is on, which is where a select states its answer. */
 async function expectChosen(page: Page, label: string) {
   await page.getByTestId(CHECKS).click()
@@ -46,18 +54,13 @@ test("keeps how often connections are checked", async ({ page }) => {
   await login(page)
   await openPreferences(page)
   await expect(page.getByTestId("preferences")).toBeVisible()
+  // The theme lives in the General section the address opens.
+  await expectField(page, "preference-theme", "Theme")
+
   await page.getByTestId("preferences-section-connections").click()
   const checks = page.locator(".q-field").filter({ has: page.getByTestId(CHECKS) }).first()
   await expect(checks.locator(".q-field__control")).toHaveCSS("height", "32px")
-  for (const [testId, label] of [
-    ["preference-theme", "Theme"],
-    [CHECKS, "How often connections are checked"],
-  ] as const) {
-    const control = page.getByTestId(testId)
-    const field = page.locator(".q-field").filter({ has: control }).first()
-    await expect(field).toHaveClass(/q-field--outlined/)
-    await expect(control).toHaveAttribute("aria-label", label)
-  }
+  await expectField(page, CHECKS, "How often connections are checked")
 
   await choose(page, "Every 5 minutes")
 

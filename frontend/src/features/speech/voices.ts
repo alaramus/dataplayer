@@ -1,4 +1,4 @@
-import { onBeforeUnmount, ref } from "vue"
+import { getCurrentInstance, onBeforeUnmount, ref } from "vue"
 
 /**
  * The voices of this browser's speech synthesis.
@@ -40,9 +40,13 @@ export function useVoices() {
 
   if (supported) {
     window.speechSynthesis.addEventListener("voiceschanged", refresh)
-    onBeforeUnmount(() => {
-      window.speechSynthesis.removeEventListener("voiceschanged", refresh)
-    })
+    // Outside a component — a bare unit test, for one — there is no instance
+    // to unmount from, and registering the hook only warns into stderr.
+    if (getCurrentInstance() !== null) {
+      onBeforeUnmount(() => {
+        window.speechSynthesis.removeEventListener("voiceschanged", refresh)
+      })
+    }
   }
 
   return { voices, supported }

@@ -21,7 +21,7 @@ test("a key is made on the Preferences page, and only its public half is shown",
 }) => {
   const name = `e2e-key-${Date.now()}`
   await login(page)
-  await page.goto("/preferences")
+  await page.goto("/preferences/ssh-keys")
 
   await page.getByTestId("ssh-key-new").click()
   await page.getByTestId("ssh-key-name").fill(name)
@@ -47,7 +47,7 @@ test("a key is imported from its file, read here rather than uploaded", async ({
   })
   const name = `e2e-file-key-${Date.now()}`
   await login(page)
-  await page.goto("/preferences")
+  await page.goto("/preferences/ssh-keys")
   await page.getByTestId("ssh-key-import").click()
 
   // The file fills the field and the name, and nothing is sent yet.

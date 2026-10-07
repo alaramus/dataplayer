@@ -65,7 +65,7 @@ describe("what Run means", () => {
   it("runs a selection spanning parts of two statements as a script, as it is", () => {
     const target = targetFor(SCRIPT, TEXT, { from: 4, to: 14 })
 
-    expect(target).toEqual({ text: "ct 1;\nselect", start: 4, end: 14, scope: "script" })
+    expect(target).toEqual({ text: "ct 1;\nsele", start: 4, end: 14, scope: "script" })
   })
 
   it("calls a selection holding several statements a script", () => {

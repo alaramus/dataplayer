@@ -21,7 +21,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.route("**/api/v1/ssh-keys/generate", (route) => route.fulfill({
       status: 400, json: { detail: "The key could not be generated" },
     }))
-    await page.goto("/preferences")
+    await page.goto("/preferences/ssh-keys")
     const footer = page.getByTestId("app-footer")
     const footerHeight = (await footer.boundingBox())!.height
     const firstKey = page.getByTestId("ssh-key-Layout key")

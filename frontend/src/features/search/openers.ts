@@ -69,7 +69,11 @@ export function useHitOpeners(): Openers {
       bottom.show("services")
     },
     sshKey: (keyId) => {
-      void router.push({ name: "preferences", query: { key: keyId } })
+      void router.push({
+        name: "preferences",
+        params: { section: "ssh-keys" },
+        query: { key: keyId },
+      })
     },
     tab: (panelId) => {
       actions.openTab(panelId)
