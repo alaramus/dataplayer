@@ -30,6 +30,7 @@ import {
   AppEmptyState,
   AppIconButton,
   AppSelect,
+  AppTooltip,
   useToast,
 } from "@/shared/ui"
 
@@ -788,10 +789,10 @@ defineExpose({
                 class="data-grid__row-selector"
                 :data-testid="`grid-select-row-${row.id}`"
                 :aria-label="`Select row ${rowNumber(row.original, rowIndex)}`"
-                :title="`Select row ${rowNumber(row.original, rowIndex)}. Ctrl+click adds, Shift+click extends.`"
                 @click="selectRow(row.id, $event)"
               >
                 {{ rowNumber(row.original, rowIndex) }}
+                <AppTooltip>Select row {{ rowNumber(row.original, rowIndex) }}. Ctrl+click adds, Shift+click extends.</AppTooltip>
               </button>
               <!-- Whatever the screen offers about a whole row. Drawn on the
                    row under the pointer only: it is a way in, not a fact
@@ -814,12 +815,16 @@ defineExpose({
                 'data-grid__selected': cell.getIsSelected(),
                 'data-grid__editable': cellIsEditable(cell),
               }"
-              :title="cellTitle(cell)"
               :style="columnStyle(cell.column)"
               @mousedown="startSelection(cell, $event)"
               @mouseenter="cell.getSelectionExtendHandler()($event)"
               @dblclick="openCell(cell, $event)"
             >
+              <!-- The kit tooltip rather than the browser's own: `title`
+                   paints a box no other control in the application uses. Only
+                   where there is something to say, so an ordinary cell draws
+                   no tooltip component at all. -->
+              <AppTooltip v-if="cellTitle(cell) !== undefined">{{ cellTitle(cell) }}</AppTooltip>
               <span
                 class="data-grid__value"
                 :class="{

@@ -4,6 +4,7 @@ import { Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { first } from "@/shared/testing/collections"
+import { AppTooltip } from "@/shared/ui"
 
 import TabularGrid from "./TabularGrid.vue"
 import { defaultColumnLayout } from "./columnLayout"
@@ -204,5 +205,46 @@ describe("the controlled tabular grid", () => {
     await wrapper.get('[data-testid="grid-retry"]').trigger("click")
     await flushPromises()
     expect(wrapper.emitted("retry")).toHaveLength(1)
+  })
+
+  it("hints with the kit tooltip rather than the browser's own", async () => {
+    vi.useFakeTimers()
+    try {
+      const wrapper = mount(TabularGrid, {
+        props: {
+          columns: COLUMNS,
+          rows: [{ id: "row-a", values: ["left", "right"] }],
+          page: 0,
+          pageSize: 100,
+          filters: [],
+          sort: [],
+          layout: defaultColumnLayout(COLUMNS),
+          editableRowIds: ["row-a"],
+        },
+        attachTo: document.body,
+        global: { plugins: [Quasar] },
+      })
+
+      // No native hint anywhere: an ordinary cell draws no tooltip at all.
+      const editable = wrapper.get('[data-testid="grid-cell-row-a-0"]')
+      expect(editable.attributes("title")).toBeUndefined()
+      const plain = wrapper.get('[data-testid="grid-cell-row-a-1"]')
+      expect(plain.attributes("title")).toBeUndefined()
+      expect(plain.findComponent(AppTooltip).exists()).toBe(false)
+      expect(
+        wrapper.get('[data-testid="grid-select-row-row-a"]').attributes("title")
+      ).toBeUndefined()
+
+      editable.element.dispatchEvent(new MouseEvent("mouseenter"))
+      await vi.advanceTimersByTimeAsync(500)
+      await flushPromises()
+      expect(document.body.querySelector(".q-tooltip")?.textContent).toBe(
+        "Double-click to edit"
+      )
+      wrapper.unmount()
+    } finally {
+      document.body.innerHTML = ""
+      vi.useRealTimers()
+    }
   })
 })
