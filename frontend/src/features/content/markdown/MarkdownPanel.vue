@@ -633,50 +633,56 @@ onBeforeUnmount(() => {
       >
         {{ contentDocument.notice }}
       </AppBanner>
-      <div
-        v-if="blockedImages > 0 || allowRemoteImages"
-        class="markdown-panel__remote"
-      >
-        <AppCheckbox
-          v-model="allowRemoteImages"
-          dense
-          label="Load images from other sites"
-          data-testid="markdown-allow-remote"
-        />
-        <span
-          v-if="!allowRemoteImages"
-          class="markdown-panel__remote-note"
-        >
-          {{ blockedImages }} image(s) in this document are hosted elsewhere and were not requested.
-        </span>
-      </div>
-
       <div class="markdown-panel__body">
         <aside
-          v-if="outlineOpen && headings.length > 0"
+          v-if="outlineOpen && (headings.length > 0 || blockedImages > 0 || allowRemoteImages)"
           class="markdown-panel__outline"
           aria-label="Table of contents"
           data-testid="markdown-contents"
         >
-          <div class="markdown-panel__outline-title dp-overline">
-            On this page
+          <template v-if="outlineOpen && headings.length > 0">
+            <div class="markdown-panel__outline-title dp-overline">
+              On this page
+            </div>
+            <div class="markdown-panel__outline-list">
+              <AppButton
+                v-for="heading in headings"
+                :key="heading.id"
+                variant="quiet"
+                size="sm"
+                :label="heading.title"
+                layout="navigation"
+                :class="[
+                  'markdown-panel__outline-entry',
+                  `markdown-panel__outline-entry--${String(Math.min(heading.level, 3))}`,
+                  { 'markdown-panel__outline-entry--active': activeSection === heading.id },
+                ]"
+                :aria-current="activeSection === heading.id ? 'location' : undefined"
+                :data-testid="`markdown-heading-${heading.id}`"
+                @click="scrollToAnchor(heading.id)"
+              />
+            </div>
+          </template>
+          <!-- Lives with the contents rather than over the document: it is an
+               option about what the document shows, and the full-width row
+               pushed the reading start down on every document that had one. -->
+          <div
+            v-if="blockedImages > 0 || allowRemoteImages"
+            class="markdown-panel__remote"
+          >
+            <AppCheckbox
+              v-model="allowRemoteImages"
+              dense
+              label="Load images from sites"
+              data-testid="markdown-allow-remote"
+            />
+            <span
+              v-if="!allowRemoteImages"
+              class="markdown-panel__remote-note"
+            >
+              {{ blockedImages }} image(s) in this document are hosted elsewhere and were not requested.
+            </span>
           </div>
-          <AppButton
-            v-for="heading in headings"
-            :key="heading.id"
-            variant="quiet"
-            size="sm"
-            :label="heading.title"
-            layout="navigation"
-            :class="[
-              'markdown-panel__outline-entry',
-              `markdown-panel__outline-entry--${String(Math.min(heading.level, 3))}`,
-              { 'markdown-panel__outline-entry--active': activeSection === heading.id },
-            ]"
-            :aria-current="activeSection === heading.id ? 'location' : undefined"
-            :data-testid="`markdown-heading-${heading.id}`"
-            @click="scrollToAnchor(heading.id)"
-          />
         </aside>
 
         <article
@@ -763,12 +769,22 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 .markdown-panel__remote {
+  flex: none;
   display: flex;
-  align-items: center;
-  gap: var(--dp-space-3);
-  padding: var(--dp-space-1) var(--dp-space-2);
+  flex-direction: column;
+  gap: var(--dp-space-1);
+  margin-top: var(--dp-space-2);
+  padding: var(--dp-space-2) var(--dp-space-2) 0;
+  border-top: 1px solid var(--dp-border-faint);
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-xs);
+}
+/* A control's own size rather than a caption's: the box picks a setting. As
+   strong as the overline above it. */
+.markdown-panel__remote :deep(.q-checkbox__label) {
+  font-size: var(--dp-font-size);
+  font-weight: 600;
+  line-height: var(--dp-line-height);
 }
 .markdown-panel__remote-note {
   min-width: 0;
@@ -779,10 +795,18 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 .markdown-panel__outline {
+  display: flex;
   flex: 0 0 210px;
-  overflow: auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
   padding: var(--dp-space-3) var(--dp-space-2);
   border-right: 1px solid var(--dp-border-faint);
+}
+.markdown-panel__outline-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .markdown-panel__outline-title {
   padding: 0 var(--dp-space-2) var(--dp-space-1);
