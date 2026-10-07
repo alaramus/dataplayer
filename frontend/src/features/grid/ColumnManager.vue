@@ -40,9 +40,8 @@ function togglePin(columnName: string) {
     data-testid="grid-column-manager"
     @keyup.esc="emit('close')"
   >
-    <!-- One column of the grid a cell: every cell the same width, so the
-         checkboxes stand under each other instead of a wrapped row of boxes
-         of every length, and pinning is the header's own pin (D187). -->
+    <!-- One row, scrolling sideways: items keep their text width and never
+         wrap, so narrowing the panel scrolls instead of restacking them. -->
     <div class="column-manager__items">
       <div
         v-for="(column, index) in orderedColumns"
@@ -99,27 +98,35 @@ function togglePin(columnName: string) {
 <style scoped>
 .column-manager {
   display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-1);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--dp-space-2);
   padding: var(--dp-space-1) var(--dp-space-2);
   border-top: 1px solid var(--dp-border-faint);
 }
 .column-manager__items {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0 var(--dp-space-3);
-  max-height: calc(6 * var(--dp-row-height));
-  overflow: auto;
+  display: flex;
+  flex: 1;
+  flex-wrap: nowrap;
+  gap: 0 var(--dp-space-5);
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 .column-manager__item {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: var(--dp-space-half);
+  flex: 0 0 auto;
   min-width: 0;
+  max-width: 280px;
   min-height: var(--dp-row-height-dense);
 }
 .column-manager__visible {
-  flex: 1;
+  /* Packs against its buttons: growing here pushed the three commands to the
+     far edge of the item. */
+  flex: 0 1 auto;
   min-width: 0;
 }
 .column-manager__visible :deep(.q-checkbox__label) {
@@ -129,6 +136,7 @@ function togglePin(columnName: string) {
 }
 .column-manager__foot {
   display: flex;
+  flex: none;
   justify-content: flex-end;
 }
 </style>
