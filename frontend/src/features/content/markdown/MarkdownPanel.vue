@@ -64,6 +64,7 @@ const toast = useToast()
 const allowRemoteImages = ref(false)
 const outlineOpen = ref(true)
 const article = ref<HTMLElement | null>(null)
+const searchOpen = ref(false)
 const searchQuery = ref("")
 const activeSearchIndex = ref(-1)
 const searchMatchCount = ref(0)
@@ -251,6 +252,16 @@ function stepSearch(direction: number): void {
   if (total === 0) return
   activeSearchIndex.value = (activeSearchIndex.value + direction + total) % total
   showActiveSearchMatch()
+}
+
+function toggleSearch(): void {
+  searchOpen.value = !searchOpen.value
+  if (!searchOpen.value) searchQuery.value = ""
+}
+
+function closeSearch(): void {
+  searchOpen.value = false
+  searchQuery.value = ""
 }
 
 function updateActiveHeading(): void {
@@ -504,7 +515,7 @@ onBeforeUnmount(() => {
     <!-- Above the banner rather than inside the branch that draws a document:
          a document that failed to load is exactly when re-reading it is worth
          offering, and the row that offers it must be on screen to be pressed. -->
-    <div class="markdown-panel__head">
+    <div class="markdown-panel__head dp-scroll-edges">
       <div class="markdown-panel__tools">
         <template v-if="contentDocument">
           <AppButton
@@ -517,38 +528,44 @@ onBeforeUnmount(() => {
             data-testid="markdown-toggle-contents"
             @click="outlineOpen = !outlineOpen"
           />
-          <AppInput
-            v-model="searchQuery"
-            compact
-            clearable
-            placeholder="Search document"
-            class="markdown-panel__search"
-            data-testid="markdown-search"
-          >
-            <template #prepend>
-              <q-icon name="search" />
-            </template>
-          </AppInput>
-          <span
-            class="markdown-panel__search-position"
-            data-testid="markdown-search-position"
-          >
-            {{ searchPosition }}
-          </span>
           <AppIconButton
-            :icon="appIcons.keyboardArrowUp"
-            tooltip="Previous match"
-            :disable="searchMatchCount === 0"
-            data-testid="markdown-search-previous"
-            @click="stepSearch(-1)"
+            :icon="appIcons.search"
+            :tooltip="searchOpen ? 'Close search' : 'Search document'"
+            :aria-pressed="searchOpen"
+            data-testid="markdown-search-toggle"
+            @click="toggleSearch"
           />
-          <AppIconButton
-            :icon="appIcons.keyboardArrowDown"
-            tooltip="Next match"
-            :disable="searchMatchCount === 0"
-            data-testid="markdown-search-next"
-            @click="stepSearch(1)"
-          />
+          <template v-if="searchOpen">
+            <AppInput
+              v-model="searchQuery"
+              compact
+              clearable
+              placeholder="Search document"
+              class="markdown-panel__search"
+              data-testid="markdown-search"
+              @keyup.esc="closeSearch"
+            />
+            <span
+              class="markdown-panel__search-position"
+              data-testid="markdown-search-position"
+            >
+              {{ searchPosition }}
+            </span>
+            <AppIconButton
+              :icon="appIcons.keyboardArrowUp"
+              tooltip="Previous match"
+              :disable="searchMatchCount === 0"
+              data-testid="markdown-search-previous"
+              @click="stepSearch(-1)"
+            />
+            <AppIconButton
+              :icon="appIcons.keyboardArrowDown"
+              tooltip="Next match"
+              :disable="searchMatchCount === 0"
+              data-testid="markdown-search-next"
+              @click="stepSearch(1)"
+            />
+          </template>
         </template>
       </div>
       <div class="markdown-panel__actions">
@@ -698,23 +715,30 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
 }
-/* Its commands keep to one line each (D187); a narrow panel puts the second
-   half of the head on a line of its own rather than squeezing the search to
-   nothing between them. */
+/* One scrolling row of commands (D187): a narrow panel reaches past its edge,
+   with a shadow where it continues, rather than putting the second half of
+   the head on a line of its own. */
 .markdown-panel__head {
-  flex-wrap: wrap;
-  justify-content: space-between;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   gap: var(--dp-space-2);
   min-height: var(--dp-toolbar-height);
   padding: var(--dp-space-1) var(--dp-space-2);
+  overflow-x: auto;
   border-bottom: 1px solid var(--dp-border-faint);
 }
 .markdown-panel__tools,
 .markdown-panel__actions {
   gap: var(--dp-space-1);
 }
+/* Nothing in the row squeezes: a tool that gave way would paint over its
+   neighbour, so the row keeps its width and the head scrolls instead. */
 .markdown-panel__tools {
-  min-width: 0;
+  flex: none;
+}
+.markdown-panel__tools > *,
+.markdown-panel__actions > * {
+  flex: none;
 }
 .markdown-panel__search {
   width: min(220px, 30vw);
@@ -722,6 +746,7 @@ onBeforeUnmount(() => {
   margin-left: var(--dp-space-1);
 }
 .markdown-panel__actions {
+  flex: none;
   margin-left: auto;
 }
 .markdown-panel__search-position {
@@ -796,13 +821,6 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--dp-find) 70%, transparent);
 }
 @media (max-width: 760px) {
-  .markdown-panel__head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .markdown-panel__actions {
-    align-self: flex-end;
-  }
   .markdown-panel__outline {
     flex-basis: 170px;
   }

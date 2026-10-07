@@ -308,6 +308,7 @@ test("opens Markdown as a document, with its diagram, chart and source", async (
   await expect(contents).toContainText("What it renders")
   await contents.getByRole("button", { name: "What it renders" }).click()
   await expect(rendered.locator("#what-it-renders")).toBeFocused()
+  await page.getByTestId("markdown-search-toggle").click()
   await page.getByTestId("markdown-search").fill("document")
   await expect(page.getByTestId("markdown-search-position")).toHaveText(/1\/\d+/)
   await page.getByTestId("markdown-search-next").click()

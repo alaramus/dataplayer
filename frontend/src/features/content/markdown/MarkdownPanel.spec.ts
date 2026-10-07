@@ -129,6 +129,7 @@ describe("the rendered document panel", () => {
 
     const wrapper = mountPanel()
     await flushPromises()
+    await wrapper.get('[data-testid="markdown-search-toggle"]').trigger("click")
     await wrapper.get('[data-testid="markdown-search"]').setValue("find")
     await flushPromises()
 
@@ -136,6 +137,39 @@ describe("the rendered document panel", () => {
     expect(wrapper.findAll("mark[data-search-highlight]")).toHaveLength(2)
     await wrapper.get('[data-testid="markdown-search-next"]').trigger("click")
     expect(wrapper.get('[data-testid="markdown-search-position"]').text()).toBe("2/2")
+  })
+
+  it("keeps the document search behind one button until it is opened", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(document())
+
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="markdown-search"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="markdown-search-position"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="markdown-search-toggle"]').trigger("click")
+
+    expect(wrapper.find('[data-testid="markdown-search"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="markdown-search-position"]').exists()).toBe(true)
+  })
+
+  it("clears the document search when it is closed again", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(
+      document({ text: "# Search\n\nFind this phrase." })
+    )
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="markdown-search-toggle"]').trigger("click")
+    await wrapper.get('[data-testid="markdown-search"]').setValue("find")
+    await flushPromises()
+    expect(wrapper.findAll("mark[data-search-highlight]").length).toBeGreaterThan(0)
+
+    await wrapper.get('[data-testid="markdown-search-toggle"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="markdown-search"]').exists()).toBe(false)
+    expect(wrapper.findAll("mark[data-search-highlight]")).toHaveLength(0)
   })
 
   it("asks for the markdown representation of the node it was opened on", async () => {
