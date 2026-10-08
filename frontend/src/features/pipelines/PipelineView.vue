@@ -159,6 +159,8 @@ const links = ref<Link[]>([])
 const saved = ref<Card[]>([])
 const camera = ref<Camera2 | null>(null)
 const selection = ref<GraphSelection>(null)
+// A link just drawn still needs its table or column choices: its window opens at once.
+const autoOpenLinkId = ref<string | null>(null)
 const hints = ref<HintLink[]>([])
 const hinting = ref(false)
 const starting = ref(false)
@@ -450,6 +452,7 @@ async function remove(cardId: string) {
   cards.value = withoutCard(cards.value, cardId)
   links.value = links.value.filter((link) => !going.includes(link))
   if (selection.value?.id === cardId || going.some((link) => link.id === selection.value?.id)) selection.value = null
+  if (autoOpenLinkId.value !== null && going.some((link) => link.id === autoOpenLinkId.value)) autoOpenLinkId.value = null
   forgetHints()
   schedule()
 }
@@ -500,6 +503,7 @@ async function join(from: LinkEnd, to: LinkEnd) {
   links.value = [...links.value, link]
   hints.value = hints.value.filter((hint) => linkBetween([link], hint.source, hint.target) === null)
   selection.value = { kind: "edge", id: link.id }
+  autoOpenLinkId.value = link.id
   schedule()
 }
 
@@ -513,6 +517,7 @@ function select(value: GraphSelection) {
     void join(hint.source, hint.target)
     return
   }
+  if (value?.kind !== "edge" || value.id !== autoOpenLinkId.value) autoOpenLinkId.value = null
   selection.value = value
 }
 
@@ -532,6 +537,11 @@ function changeLink(changed: Link) {
   schedule()
 }
 
+function closePanel() {
+  selection.value = null
+  autoOpenLinkId.value = null
+}
+
 /** Another operation chosen: one that makes nothing takes the links using what this one made. */
 async function operate(changed: Link, makes: boolean) {
   const going = makes ? [] : dependents(links.value, new Set([changed.id]))
@@ -545,6 +555,7 @@ async function operate(changed: Link, makes: boolean) {
     links.value = links.value.filter((link) => !going.includes(link))
   }
   changeLink(changed)
+  autoOpenLinkId.value = changed.id
 }
 
 async function removeLink(link: Link) {
@@ -559,6 +570,7 @@ async function removeLink(link: Link) {
   if (!sure) return
   links.value = links.value.filter((one) => one.id !== link.id && !going.includes(one))
   selection.value = null
+  if (autoOpenLinkId.value === link.id) autoOpenLinkId.value = null
   schedule()
 }
 
@@ -578,7 +590,10 @@ async function run() {
   } catch (cause) {
     // A link lacking a choice is opened, so the choice is one press away.
     const first = lackingLinks(cause)[0]
-    if (first !== undefined) selection.value = { kind: "edge", id: first }
+    if (first !== undefined) {
+      selection.value = { kind: "edge", id: first }
+      autoOpenLinkId.value = first
+    }
     toast.error(messageOf(cause, "The pipeline could not run"))
   } finally {
     starting.value = false
@@ -841,10 +856,12 @@ defineExpose({ place })
         :link-run="linkRuns.get(selectedLink.id)"
         :run="shownRun"
         :past="pastJobId !== null"
+        :auto-open="autoOpenLinkId === selectedLink.id"
         @change="changeLink"
         @operate="operate"
         @remove="removeLink(selectedLink)"
-        @close="selection = null"
+        @close="closePanel"
+        @auto-opened="autoOpenLinkId = null"
       />
     </template>
 

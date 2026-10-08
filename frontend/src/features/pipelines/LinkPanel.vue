@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from "@tanstack/vue-query"
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 
 import type { ColumnPair, Link, LinkEnd, LinkPlace, LinkRun, NewRelationColumn, PipelineRunPublic } from "@/client"
 import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
@@ -11,7 +11,7 @@ import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, appIcons } f
 
 import { linkOffersKey, readLinkOffers } from "./api"
 import type { LinkSide } from "./api"
-import { CONFLICT_CHOICES, runWords, sentence, usable, withOffer } from "./links"
+import { CONFLICT_CHOICES, needsDialog, runWords, sentence, usable, withOffer } from "./links"
 import type { EndNamer } from "./links"
 
 /**
@@ -40,6 +40,8 @@ const props = defineProps<{
   run: PipelineRunPublic | null | undefined
   /** The run shown is older than the last. */
   past: boolean
+  /** Open the table/pairing window at once: a link just drawn still needs its choices. */
+  autoOpen?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -48,6 +50,7 @@ const emit = defineEmits<{
   operate: [link: Link, makes: boolean]
   remove: []
   close: []
+  autoOpened: []
 }>()
 
 const now = useNow()
@@ -86,6 +89,24 @@ function rename(value: string | number | null) {
 
 const tableOpen = ref(false)
 const pairsOpen = ref(false)
+// What the auto-open already showed, so a refetch does not raise it again.
+const autoShownKey = ref<string | null>(null)
+
+watch(
+  [() => props.autoOpen, () => offers.data.value, workflow, () => props.link.id, () => props.link.kind],
+  ([autoOpen, loaded, flow]) => {
+    if (!autoOpen || loaded === undefined || offers.isPending.value) return
+    if (!needsDialog(props.link, flow)) return
+    const key = `${props.link.id}:${props.link.kind}:${flow}`
+    if (autoShownKey.value === key) return
+    autoShownKey.value = key
+    if (flow === "new-relation") tableOpen.value = true
+    else if (flow === "into-relation") pairsOpen.value = true
+    else return
+    emit("autoOpened")
+  },
+  { immediate: true }
+)
 
 function keepTable(made: { name: string; columns: NewRelationColumn[] }) {
   tableOpen.value = false

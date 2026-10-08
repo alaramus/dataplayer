@@ -15,6 +15,7 @@ import {
   linkFromOffer,
   listed,
   madeRows,
+  needsDialog,
   nodeIdOf,
   refusal,
   runProblem,
@@ -150,6 +151,19 @@ describe("a link between two rows", () => {
     expect(runProblem([], null)).toBe("Draw a link first")
     expect(runProblem([saving], run)).toBe("This pipeline is running; Stop is in the activity below")
     expect(runProblem([saving], { ...run, state: "succeeded" })).toBeNull()
+  })
+
+  it("opens its window at once while its table or columns are still missing", () => {
+    expect(needsDialog(saving, "file-name")).toBe(false)
+    expect(needsDialog({ ...saving, kind: "rows_new_relation" }, "new-relation")).toBe(true)
+    expect(needsDialog({ ...saving, kind: "rows_new_relation", name: "orders", columns: [] }, "new-relation")).toBe(true)
+    expect(
+      needsDialog({ ...saving, kind: "rows_new_relation", name: "orders", columns: [{ source: "id", target: "id" }] }, "new-relation")
+    ).toBe(false)
+    expect(needsDialog({ ...saving, kind: "rows_into_relation" }, "into-relation")).toBe(true)
+    expect(
+      needsDialog({ ...saving, kind: "rows_into_relation", columns: [{ source: "id", target: "id" }] }, "into-relation")
+    ).toBe(false)
   })
 })
 

@@ -209,6 +209,13 @@ export function sentence(link: Link, name: EndNamer): string {
   return `${link.title}: ${name(link.source)} → ${name(link.target)}`
 }
 
+/** Whether the link still needs its table or column choices (D176): open its window at once. */
+export function needsDialog(link: Link, workflow: string): boolean {
+  if (workflow === "new-relation") return link.name == null || (link.columns ?? []).length === 0
+  if (workflow === "into-relation") return (link.columns ?? []).length === 0
+  return false
+}
+
 /** The ends of these links, as a list a confirmation names. */
 export function listed(links: readonly Link[], name: EndNamer): string {
   return links.map((link) => `${name(link.source)} → ${name(link.target)}`).join("; ")
