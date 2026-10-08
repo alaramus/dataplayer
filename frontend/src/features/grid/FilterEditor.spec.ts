@@ -61,6 +61,13 @@ function mountEditor(filters: Filter[] = []) {
   })
 }
 
+function mountTextEditor(filters: Filter[] = []) {
+  return mount(FilterEditor, {
+    props: { columns: [NAME_COLUMN], filters },
+    global: { plugins: [Quasar] },
+  })
+}
+
 beforeEach(() => localStorage.clear())
 
 describe("the filter band", () => {
@@ -76,6 +83,9 @@ describe("the filter band", () => {
     const wrapper = mountHeader([NAME_COLUMN])
     await wrapper.get('[data-testid="grid-filter"]').trigger("click")
     wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "core")
+    // Apply is disabled while the draft is invalid and the DOM only catches
+    // up on the next tick: Quasar drops a click on the still-disabled button.
+    await wrapper.vm.$nextTick()
 
     await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
 
@@ -92,6 +102,34 @@ describe("the filter band", () => {
 
     expect(wrapper.emitted("update:filters")).toBeUndefined()
     expect(wrapper.text()).toContain("Enter a value")
+  })
+
+  // An empty value blocks Apply from the start, so it can never be sent.
+  it("blocks Apply while the value is empty", async () => {
+    const wrapper = mountTextEditor()
+
+    expect(wrapper.get('[data-testid="grid-filter-apply"]').attributes("disabled")).toBeDefined()
+    expect(wrapper.find(".q-field--error").exists()).toBe(true)
+    expect(wrapper.get('[role="alert"]').text()).toBe("Enter a value")
+
+    await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
+
+    expect(wrapper.emitted("apply")).toBeUndefined()
+  })
+
+  it("unblocks Apply once a value is typed", async () => {
+    const wrapper = mountTextEditor()
+    wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "core")
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('[data-testid="grid-filter-apply"]').attributes("disabled")).toBeUndefined()
+    expect(wrapper.find(".q-field--error").exists()).toBe(false)
+
+    await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
+
+    expect(first(wrapper.emitted("apply") ?? [])[0]).toEqual([
+      { column: "name", op: "eq", value: "core" },
+    ])
   })
 
   it("applies an in draft with the pending value as a separate item on Enter", async () => {

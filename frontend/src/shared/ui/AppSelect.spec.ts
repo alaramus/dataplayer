@@ -137,6 +137,26 @@ describe("AppSelect", () => {
     )
   })
 
+  // A toolbar is one line: the message row and the error icon each grew the
+  // box, so both stay off here. Only the frame reddens, while the message
+  // stays in the alert for a reader.
+  it("keeps a toolbar field's box in error", () => {
+    const wrapper = mountSelect({ options: ["a"], compact: true, error: "Pick one" })
+    const field = wrapper.getComponent(QSelect)
+
+    expect(field.props("noErrorIcon")).toBe(true)
+    expect(field.props("hideBottomSpace")).toBe(true)
+    expect(wrapper.find(".q-field--error").exists()).toBe(true)
+    expect(wrapper.get('[role="alert"]').text()).toBe("Pick one")
+  })
+
+  it("keeps Quasar's error icon and message space outside toolbars", () => {
+    const field = mountSelect({ options: ["a"], error: "Pick one" }).getComponent(QSelect)
+
+    expect(field.props("noErrorIcon")).toBeFalsy()
+    expect(field.props("hideBottomSpace")).toBeFalsy()
+  })
+
   it("treats an empty error string as no error", () => {
     expect(mountSelect({ options: ["a"], error: "" }).find(".q-field--error").exists()).toBe(false)
   })

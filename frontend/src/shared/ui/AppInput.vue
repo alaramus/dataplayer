@@ -49,8 +49,9 @@ const props = withDefaults(
      * A field in a toolbar rather than in a form: tighter, no underline, and
      * no room kept below for a message. Quasar reserves that room whether or
      * not there is anything to put in it, which made a one-line bar 20px
-     * taller than the line it holds. An error reserves its message space
-     * until corrected, including in a compact toolbar.
+     * taller than the line it holds. An error keeps only its red frame here:
+     * the message lives outside the box as a screen-reader alert and the
+     * error icon stays off, so the box does not change.
      */
     compact?: boolean
     /** Offer a cross that empties the field. A search is the reason it exists:
@@ -110,7 +111,7 @@ function report(value: string | number | null) {
 <template>
   <q-input
     :class="{ 'app-form-field': formLayout, 'app-input--monospace': monospace, 'app-input--compact': toolbar }"
-    v-bind="{ ...attrs, ...fieldLook(formLayout, compact, Boolean(error)) }"
+    v-bind="{ ...attrs, ...fieldLook(formLayout, compact) }"
     :model-value="modelValue"
     :label="formLayout || toolbar ? undefined : label"
     :aria-label="attrs['aria-label'] ?? (formLayout || toolbar ? label : undefined)"
@@ -122,6 +123,7 @@ function report(value: string | number | null) {
     :disable="disable"
     :clearable="clearable"
     :error="Boolean(error)"
+    :no-error-icon="toolbar"
     :aria-invalid="error ? 'true' : undefined"
     :aria-describedby="
       [attrs['aria-describedby'], error ? errorId : undefined].filter(Boolean).join(' ') || undefined
@@ -191,5 +193,20 @@ function report(value: string | number | null) {
   min-height: var(--dp-field-height);
   padding-top: 0;
   padding-bottom: 0;
+}
+/* A toolbar field in error keeps its box: Quasar's message row and its icon
+   both grew it (the row into a second line, the icon into the button beside
+   it). The message below is kept for a reader only — out of the flow, one
+   pixel, clipped — while the red frame stays. Forms keep Quasar's message. */
+.app-input--compact.q-field--error :deep(.q-field__bottom) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 </style>

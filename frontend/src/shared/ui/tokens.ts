@@ -148,14 +148,18 @@ export function toneText(tone: Tone): string {
  * Form fields have a permanent external label; toolbar fields stay borderless.
  * Both are marked by the one focus colour: left to Quasar, a field outside a
  * form was underlined in its brand blue.
+ *
+ * A toolbar field never reserves room below for a message, even in error: the
+ * message lives outside the box (a screen-reader-only alert), the error icon
+ * stays off, and only the red frame remains, so the bar keeps its height.
  */
-export function fieldLook(form: boolean, compact = false, error = false) {
+export function fieldLook(form: boolean, compact = false) {
   return {
     color: "dp-field-focus",
     dense: form || compact,
     outlined: form,
     borderless: !form && compact,
-    hideBottomSpace: form || (compact && !error),
+    hideBottomSpace: form || compact,
   }
 }
 

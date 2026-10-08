@@ -26,7 +26,6 @@ const firstColumn = filterableColumns.value[0]
 if (firstColumn === undefined) throw new Error("FilterEditor needs a filterable column")
 
 const draft = ref<FilterDraft>(draftFor(firstColumn))
-const error = ref("")
 const pendingItem = ref("")
 
 const selectedColumn = computed(() =>
@@ -50,13 +49,15 @@ const explicitValueOptions = computed(() =>
 const isNullary = computed(
   () => draft.value.op === "is_null" || draft.value.op === "is_not_null"
 )
+/** What is wrong with the draft, if anything. Apply stays blocked while there
+    is an answer here, so an empty value can never be sent. */
+const problem = computed(() => validateDraft(draft.value))
 
 function selectColumn(value: unknown) {
   if (typeof value !== "string") return
   const column = filterableColumns.value.find((candidate) => candidate.id === value)
   if (column === undefined) return
   draft.value = draftFor(column)
-  error.value = ""
 }
 
 function selectOperator(value: unknown) {
@@ -64,20 +65,17 @@ function selectOperator(value: unknown) {
   const op = operatorOptions(selectedColumn.value).find((candidate) => candidate === value)
   if (op === undefined) return
   draft.value = draftFor(selectedColumn.value, op as FilterOp)
-  error.value = ""
 }
 
 function setValue(value: unknown) {
   if (typeof value !== "string") return
   draft.value.value = value
-  if (error.value) error.value = validateDraft(draft.value) ?? ""
 }
 
 function addItem() {
   if (pendingItem.value.length === 0) return
   draft.value.values.push(pendingItem.value)
   pendingItem.value = ""
-  error.value = ""
 }
 
 function addItemAndApply() {
@@ -90,14 +88,9 @@ function removeItem(index: number) {
 }
 
 function applyDraft() {
-  const validation = validateDraft(draft.value)
-  if (validation !== null) {
-    error.value = validation
-    return
-  }
+  if (problem.value !== null) return
   emit("apply", [...props.filters, toFilter(draft.value)])
   draft.value = draftFor(selectedColumn.value)
-  error.value = ""
 }
 
 function removeFilter(index: number) {
@@ -163,7 +156,7 @@ function removeFilter(index: number) {
           v-model="pendingItem"
           class="filter-editor__field"
           label="Value"
-          :error="error"
+          :error="problem ?? ''"
           compact
           @keyup.enter="addItemAndApply"
         />
@@ -188,7 +181,7 @@ function removeFilter(index: number) {
         :model-value="draft.value"
         :options="explicitValueOptions"
         label="Value"
-        :error="error"
+        :error="problem ?? ''"
         compact
         @update:model-value="setValue"
       />
@@ -197,7 +190,7 @@ function removeFilter(index: number) {
         class="filter-editor__field"
         :model-value="draft.value"
         label="Value"
-        :error="error"
+        :error="problem ?? ''"
         compact
         data-testid="grid-filter-value"
         @update:model-value="setValue"
@@ -207,6 +200,7 @@ function removeFilter(index: number) {
       <AppButton
         label="Apply"
         size="sm"
+        :disable="problem !== null"
         data-testid="grid-filter-apply"
         @click="applyDraft"
       />

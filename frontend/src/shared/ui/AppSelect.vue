@@ -100,8 +100,9 @@ const props = withDefaults(
      * A field in a toolbar rather than in a form: tighter, no underline, and
      * no room kept below for a message. Quasar reserves that room whether or
      * not there is anything to put in it, which made a one-line bar 20px
-     * taller than the line it holds. An error reserves its message space
-     * until corrected, including in a compact toolbar.
+     * taller than the line it holds. An error keeps only its red frame here:
+     * the message lives outside the box as a screen-reader alert and the
+     * error icon stays off, so the box does not change.
      */
     compact?: boolean
     /**
@@ -209,10 +210,11 @@ const summary = computed(() => {
     :loading="loading"
     :multiple="multiple"
     :use-chips="multiple"
-    v-bind="{ ...fieldLook(formLayout, compact, Boolean(error)), color: 'dp-field-focus' }"
+    v-bind="{ ...fieldLook(formLayout, compact), color: 'dp-field-focus' }"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"
+    :no-error-icon="inlineLabel"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template
@@ -355,6 +357,21 @@ const summary = computed(() => {
 .app-select--compact :deep(.q-field__native) {
   flex-wrap: nowrap;
   overflow: hidden;
+}
+/* A toolbar field in error keeps its box: Quasar's message row and its icon
+   both grew it. The message below is kept for a reader only — out of the
+   flow, one pixel, clipped — while the red frame stays. Scoped to the inline
+   (toolbar) field so a compact field inside a form keeps Quasar's message. */
+.app-select--inline.q-field--error :deep(.q-field__bottom) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .app-select :deep(.q-field__append) {
   /* The dropdown arrow rotates on opening. Its intermediate transformed box

@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils"
-import { Quasar } from "quasar"
+import { QInput, Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
 
 import AppInput from "./AppInput.vue"
@@ -113,6 +113,28 @@ describe("AppInput", () => {
     // Absent rather than "false": a field nobody has objected to is not a
     // field announcing that it is fine.
     expect(mountInput().get("input").attributes("aria-invalid")).toBeUndefined()
+  })
+
+  // A toolbar is one line: the message row and the error icon each grew the
+  // box and pushed the row below down, so both stay off here. Only the frame
+  // reddens, while the message stays in the alert for a reader.
+  it("keeps a toolbar field's box in error", () => {
+    const wrapper = mountInput({ compact: true, error: "Enter a value" })
+    const field = wrapper.getComponent(QInput)
+
+    expect(field.props("noErrorIcon")).toBe(true)
+    expect(field.props("hideBottomSpace")).toBe(true)
+    expect(wrapper.find(".q-field--error").exists()).toBe(true)
+    expect(wrapper.get('[role="alert"]').text()).toBe("Enter a value")
+    expect(wrapper.get("input").attributes("aria-invalid")).toBe("true")
+    wrapper.unmount()
+  })
+
+  it("keeps Quasar's error icon and message space outside toolbars", () => {
+    const field = mountInput({ error: "Required" }).getComponent(QInput)
+
+    expect(field.props("noErrorIcon")).toBeFalsy()
+    expect(field.props("hideBottomSpace")).toBeFalsy()
   })
 
   it("keeps a companion action in the field's marginal area", () => {

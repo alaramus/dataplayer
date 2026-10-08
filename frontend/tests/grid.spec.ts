@@ -324,7 +324,10 @@ test("recovers from a rejected query without restoring it", async ({ page }) => 
     await page.getByRole("option", { name: "name", exact: true }).click()
     await editor.getByLabel("Operator").click()
     await page.getByRole("option", { name: "equals", exact: true }).click()
-    await editor.getByTestId("grid-filter-apply").click()
+    // An empty value blocks Apply from the start, so it can never be sent.
+    // The field already carries the reason: no click is needed to see it.
+    const apply = editor.getByTestId("grid-filter-apply")
+    await expect(apply).toBeDisabled()
     const value = editor.getByLabel("Value")
     await expect(value).toHaveAttribute("aria-invalid", "true")
     await expect(value).toHaveAccessibleDescription("Enter a value")
@@ -332,7 +335,8 @@ test("recovers from a rejected query without restoring it", async ({ page }) => 
     await editor.getByLabel("Value").fill("rejected")
     await expect(value).not.toHaveAttribute("aria-invalid", "true")
     await expect(value).not.toHaveAttribute("aria-describedby")
-    await editor.getByTestId("grid-filter-apply").click()
+    await expect(apply).toBeEnabled()
+    await apply.click()
     // What the server said, not what the screen would say instead of it: a
     // refusal written as a sentence is shown as it stands.
     await expect(page.getByTestId("grid-error")).toContainText("Query failed", {

@@ -707,6 +707,9 @@ describe("the basic data grid", () => {
     await flushPromises()
     await wrapper.get('[data-testid="grid-filter"]').trigger("click")
     wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "1")
+    // Apply is disabled while the draft is invalid and the DOM only catches
+    // up on the next tick: Quasar drops a click on the still-disabled button.
+    await wrapper.vm.$nextTick()
 
     await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
     await flushPromises()
@@ -1043,6 +1046,7 @@ describe("the basic data grid", () => {
     await flushPromises()
     await wrapper.get('[data-testid="grid-filter"]').trigger("click")
     wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "not accepted")
+    await wrapper.vm.$nextTick()
 
     await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
     await flushPromises()
@@ -1086,6 +1090,7 @@ describe("the basic data grid", () => {
     await flushPromises()
     await wrapper.get('[data-testid="grid-filter"]').trigger("click")
     wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "abc")
+    await wrapper.vm.$nextTick()
     await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
     await flushPromises()
 
@@ -1117,6 +1122,7 @@ describe("the basic data grid", () => {
 
     await wrapper.get('[data-testid="grid-filter"]').trigger("click")
     wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "abc")
+    await wrapper.vm.$nextTick()
     await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
     await flushPromises()
 
