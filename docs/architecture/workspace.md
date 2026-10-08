@@ -267,8 +267,10 @@ Known deviations:
 - **The ghost hangs from the pointer, not from where the tab was grabbed.**
 - **The threshold is three pixels for everyone** — the number the border between
   two columns uses, never measured against a touch screen or an unsteady hand.
-- **The layout is one per browser.** It lives in localStorage, so it does not
-  follow a user to another machine and is not shared between two windows.
+- **The layout is one per person per browser.** It lives in localStorage, so it does not
+  follow a user to another machine and is not shared between two windows —
+  and never meets whoever signs in next in the same one, as the tab groups
+  and what the search opened.
 - **A panel of a deleted connector stays until it is closed**, showing the error
   the server gave, because the panel cannot tell a deleted connector from a failed
   request.

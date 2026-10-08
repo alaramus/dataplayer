@@ -27,6 +27,7 @@ import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
 import { browserPlacesOf } from "@/features/search/browser"
 import { offeredScope } from "@/features/search/context"
+import { PENDING_WORKSPACE_KEY, workspaceLayoutKey } from "@/features/workspace/layoutStorage"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import { gainedPanels } from "@/features/workspace/gainedPanels"
 import { searchFromOf } from "@/features/workspace/catalogSides"
@@ -116,6 +117,7 @@ import {
   WorkspaceRoot,
   WorkspaceTaskbar,
 } from "@/shared/workspace"
+import type { WorkspaceOptions } from "@/shared/workspace"
 
 /**
  * The workspace: connections, catalogs and node-specific work, side by side.
@@ -132,8 +134,15 @@ const connectorFilterOpen = ref(false)
 const connectorColors = computed(() => new Map(
   (connectors.data.value?.data ?? []).map((connector) => [connector.id, connector.tab_color])
 ))
-const workspace = useWorkspace<Panel>({
-  storageKey: serverStorageKey("dataplayer-workspace"),
+const me = useCurrentUser()
+const meId = computed(() => me.data.value?.id ?? null)
+const workspaceOptions: WorkspaceOptions<Panel> = {
+  // Until the person is known the layout stands on nothing kept: reading the
+  // key layouts used before the per-person separation would hand whoever was
+  // here before to whoever is here now.
+  storageKey: meId.value === null
+    ? serverStorageKey(PENDING_WORKSPACE_KEY)
+    : workspaceLayoutKey(meId.value),
   panelSchema,
   retired: isRetiredPanel,
   defaults: () => ({
@@ -175,7 +184,32 @@ const workspace = useWorkspace<Panel>({
   // A tab is a person's decision to close something; what that costs is the
   // panel's to say. A console holding an open transaction is the reason (D66).
   beforeClose: (panelId) => closings.mayClose(panelId),
-})
+}
+const workspace = useWorkspace<Panel>(workspaceOptions)
+
+// The layout is one per person per browser, like the tab groups and what the
+// search opened: whoever is here now must never meet the tabs of whoever was
+// here before. The engine reads its key once and writes every change back to
+// the key in the options it holds, so the layout follows the person once they
+// are known.
+watch(
+  meId,
+  async (id, previous) => {
+    if (id === null || id === previous) return
+    const key = workspaceLayoutKey(id)
+    if (workspaceOptions.storageKey === key) return
+    workspaceOptions.storageKey = key
+    let raw: string | null = null
+    try {
+      raw = localStorage.getItem(key)
+    } catch {
+      raw = null
+    }
+    if (raw !== null && (await workspace.restore(raw)) === "restored") return
+    workspace.reset()
+  },
+  { immediate: true }
+)
 
 /**
  * Which connection is being looked at, and which have a catalog open at all.
@@ -313,7 +347,6 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
  * Several are open at once on purpose — one connection read while another is
  * filled in beside it — which is what a modal window forbids (spec O1).
  */
-const me = useCurrentUser()
 const windows = useWindowManager()
 const confirm = useConfirm()
 
@@ -350,7 +383,6 @@ const queryClient = useQueryClient()
 // its own, and a save button and a list standing on different rails then
 // wrote their stale copies over each other. Made again only for another
 // person, not for every refetch of the same one.
-const meId = computed(() => me.data.value?.id ?? null)
 const tabGroups = computed(() =>
   meId.value === null ? null : useTabGroups(meId.value, workspace, confirm, toast)
 )
