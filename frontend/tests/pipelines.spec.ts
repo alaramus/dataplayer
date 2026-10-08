@@ -326,9 +326,10 @@ test("runs every link by one Run, stops at the first failure, and says where a c
   await drawLink(page, port(page, csv), port(page, "public"))
   await expect(panel.getByTestId("link-panel-sentence")).toContainText("Create a table")
   const drawn = saved(page)
-  // The table is offered the name of the file it is read from. It was offered
-  // the sentence's "connection · file", which had to be typed over.
-  await panel.getByTestId("link-panel-choose-columns").click()
+  // A link that still needs its table opens the window at once, so there is
+  // nothing to press: the table is offered the name of the file it is read
+  // from. It was offered the sentence's "connection · file", which had to be
+  // typed over.
   await expect(page.getByTestId("grid-create-table-name")).toHaveValue(csv.replace(/\.csv$/, ""))
   await page.getByTestId("grid-create-table-dialog").getByRole("button", { name: "Cancel" }).click()
   await panel.getByTestId("link-panel-close").click()

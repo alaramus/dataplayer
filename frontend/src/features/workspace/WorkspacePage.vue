@@ -187,30 +187,6 @@ const workspaceOptions: WorkspaceOptions<Panel> = {
 }
 const workspace = useWorkspace<Panel>(workspaceOptions)
 
-// The layout is one per person per browser, like the tab groups and what the
-// search opened: whoever is here now must never meet the tabs of whoever was
-// here before. The engine reads its key once and writes every change back to
-// the key in the options it holds, so the layout follows the person once they
-// are known.
-watch(
-  meId,
-  async (id, previous) => {
-    if (id === null || id === previous) return
-    const key = workspaceLayoutKey(id)
-    if (workspaceOptions.storageKey === key) return
-    workspaceOptions.storageKey = key
-    let raw: string | null = null
-    try {
-      raw = localStorage.getItem(key)
-    } catch {
-      raw = null
-    }
-    if (raw !== null && (await workspace.restore(raw)) === "restored") return
-    workspace.reset()
-  },
-  { immediate: true }
-)
-
 /**
  * Which connection is being looked at, and which have a catalog open at all.
  *
@@ -267,6 +243,11 @@ let routing: OpenHow | null = null
 // Set while a panel is lifted into a window: opening it and lifting it out
 // changes the layout, and that change must not call Data forward (below).
 let lifting = false
+// Set while the layout follows the person to their own key: restoring it, or
+// resetting to the defaults when they have none kept, rewrites the tree, and
+// that rewrite must not call Data forward either — a reload in Pipelines
+// would land in Data with the pipeline gone from the screen.
+let followingPerson = false
 
 function openPanel(panel: Panel) {
   if (routing?.float === true) {
@@ -315,7 +296,7 @@ function floatPanel(panel: Panel) {
 watch(
   () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id).join(" ")] as const,
   ([tree, ids], [previousTree, previousIds]) => {
-    if (lifting || space.current === "data") return
+    if (lifting || followingPerson || space.current === "data") return
     if (tree !== previousTree) {
       space.show("data")
       return
@@ -812,9 +793,15 @@ onMounted(() => {
   if (shouldShowOnboarding()) onboardingOpen.value = true
 })
 
-// A link the landing screen has already resolved. Taken once, on the way in:
-// the workspace is where tabs live, and the landing screen has none.
-onMounted(() => {
+/**
+ * A link the landing screen has already resolved. Taken once, on the way in:
+ * the workspace is where tabs live, and the landing screen has none.
+ *
+ * Once per mount, after the layout has followed the person: while the person
+ * is still unknown the watch below owns the intent, and opening it here would
+ * have the watch's reset wipe the tab it just opened.
+ */
+function openPendingShare() {
   const intent = takeShareIntent()
   if (intent === null) return
   openShared({
@@ -826,7 +813,55 @@ onMounted(() => {
     view: intent.view,
   })
   toast.info(`Opened what ${intent.sharedBy} shared`)
+}
+
+onMounted(() => {
+  if (meId.value === null) return
+  openPendingShare()
 })
+
+// The layout is one per person per browser, like the tab groups and what the
+// search opened: whoever is here now must never meet the tabs of whoever was
+// here before. The engine reads its key once and writes every change back to
+// the key in the options it holds, so the layout follows the person once they
+// are known.
+//
+// A shared link resolved by the landing screen waits in `openPendingShare`
+// until the layout has followed the person: opening it before the reset below
+// would have the reset wipe the tab it just opened. Placed after the toast,
+// the panels and the intent above, so the first run already sees them.
+watch(
+  meId,
+  async (id, previous) => {
+    if (id === null || id === previous) return
+    const key = workspaceLayoutKey(id)
+    if (workspaceOptions.storageKey === key) {
+      openPendingShare()
+      return
+    }
+    workspaceOptions.storageKey = key
+    followingPerson = true
+    try {
+      let raw: string | null = null
+      try {
+        raw = localStorage.getItem(key)
+      } catch {
+        raw = null
+      }
+      if (raw !== null && (await workspace.restore(raw)) === "restored") {
+        openPendingShare()
+        return
+      }
+      workspace.reset()
+      openPendingShare()
+    } finally {
+      // Released after the watchers have run, as with `lifting` above: the
+      // tree watcher must still see the flag when the reset lands.
+      void nextTick(() => { followingPerson = false })
+    }
+  },
+  { immediate: true }
+)
 
 function replaceNode(connectorId: string, replacement: NodeReplacement) {
   for (const panel of [...workspace.panels.value]) {
