@@ -84,7 +84,7 @@ export interface JsonSchema {
     /** The code of a variant to the definition that describes it. */
     mapping: Record<string, string>
   }
-  "x-ui-workflow"?: "file-to-relation" | "model-as-code" | "table-designer"
+  "x-ui-workflow"?: "file-to-relation" | "model-as-code" | "table-designer" | "hypertable-settings"
 }
 
 export type FieldKind =

@@ -278,7 +278,9 @@ Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-t
 
 ## D207. A hypertable is designed as a whole and planned as one change
 
-Not implemented; delivery starts with the settings editor (H1, H2).
+The settings editor on an existing hypertable (H1, H2) is implemented and
+passes the whole matrix. Conversion from the editor (H3), the table designer's
+section (H4) and integer time (H5) are not.
 
 One closed model, `HypertableDesign`, says what a hypertable should be:
 
@@ -325,7 +327,37 @@ option, and which column types a dimension accepts. Their strategy declares a
 minimum release, and the matrix keeps a source on each side of it.
 
 The eleven single-purpose actions remain and are grouped in a Timescale
-submenu. Compressing and decompressing chunks stay outside the editor.
+submenu. An action names its submenu in `menu_group`, so the client groups
+lines without a list of action names. Compressing and decompressing chunks
+stay outside the editor.
+
+What the matrix showed, and the code follows:
+
+- Before 2.20 an `ALTER TABLE` that leaves a columnstore list out derives a
+  default for it again. Changing only the merge interval once produced a
+  segment column that was already an order column, and the source refused. So
+  every columnstore change states both lists whole, in one statement.
+- `RESET` of a columnstore list is refused before 2.22.1, and an unset list and
+  an empty one read alike there. "Timescale chooses" is therefore offered after
+  enabling only from 2.22.1, a minimum the matrix proves on 2.19.3 and 2.23.1.
+- The text views join column names with commas without quoting them, so the
+  lists are read from the per-column `compression_settings` view, deprecated
+  but present in every release of the matrix.
+- A policy runs at once when it is added. Scenarios use ages far beyond their
+  rows, or the job drops or compresses chunks under the test.
+
+Known deviations:
+
+- **The order of steps differs from the spec.** Policy removals come before the
+  columnstore changes rather than after the tablespaces, because a columnstore
+  cannot be turned off while its policy exists.
+- **Columns of an existing table are named, not numbered.** The spec said
+  attribute numbers. A name is checked against the table when planning, and a
+  rename between review and apply changes the fingerprint.
+- **A refusal is one sentence of the preview.** The table designer attributes
+  each problem to an object; this editor does not yet.
+- **Releases 2.20 to 2.22.0 are read as the older ones.** None of them is in the
+  matrix, so an unset list there is shown as "none".
 
 Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-design.md)
 

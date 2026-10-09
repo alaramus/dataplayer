@@ -33,6 +33,7 @@ from app.adapters.postgres.timescale.chunk_storage_plan import (
     inspect_chunk_unit,
     plan_chunk_storage,
 )
+from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import (
     ChunkStorage,
     ChunkStoragePlan,
@@ -108,6 +109,7 @@ class ConvertChunks(Action[ChunkWindowParams]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
     params_model = ChunkWindowParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:

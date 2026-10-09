@@ -174,6 +174,9 @@ import type {
   connectorsFollowReferenceData,
   connectorsFollowReferenceErrors,
   connectorsFollowReferenceResponses,
+  connectorsHypertableDesignStateData,
+  connectorsHypertableDesignStateErrors,
+  connectorsHypertableDesignStateResponses,
   connectorsImportRowsData,
   connectorsImportRowsErrors,
   connectorsImportRowsResponses,
@@ -2348,6 +2351,33 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/table-design/plan",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Hypertable Design State
+   *
+   * A hypertable as its settings editor shows it, with what may change (D207).
+   *
+   * Read at the level the change needs: the answer is for somebody about to
+   * edit, and lists the indexes and tablespaces the change may name.
+   */
+  public static hypertableDesignState<ThrowOnError extends boolean = true>(
+    options: Options<connectorsHypertableDesignStateData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsHypertableDesignStateResponses,
+      connectorsHypertableDesignStateErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/hypertable-design/state",
       ...options,
       headers: {
         "Content-Type": "application/json",

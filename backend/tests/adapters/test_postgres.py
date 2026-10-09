@@ -107,6 +107,7 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
         "drop_schema",
         "create_role",
         "describe_model",
+        "timescale_design_hypertable",
         "timescale_set_chunk_interval",
         "timescale_configure_compression",
         "timescale_set_retention_policy",

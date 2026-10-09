@@ -14,6 +14,7 @@ import {
   toCommands,
   toMenu as resolveMenu,
   withGroupingChoices,
+  withSubmenus,
 } from "./actions"
 
 function toMenu(
@@ -700,3 +701,31 @@ describe("the client's own lines of the menu", () => {
     expect(clientCommandOf("paste")).toBeNull()
   })
 })
+
+describe("a family of commands the source names", () => {
+  it("folds into one submenu where its first line stood", () => {
+    const menu = withSubmenus([
+      { name: "client:details", label: "Details" },
+      { name: "timescale_design_hypertable", label: "Hypertable settings", group: "Timescale" },
+      { name: "drop_relation", label: "Drop", group: null },
+      { name: "timescale_set_chunk_interval", label: "Change chunk interval", group: "Timescale", disable: true },
+    ])
+
+    expect(menu.map((line) => line.name)).toEqual(["client:details", "group:Timescale", "drop_relation"])
+    const family = at(menu, 1)
+    expect(family.label).toBe("Timescale")
+    expect(family.disable).toBe(false)
+    expect(family.children?.map((line) => line.name)).toEqual([
+      "timescale_design_hypertable", "timescale_set_chunk_interval",
+    ])
+  })
+
+  it("is disabled only when every line in it is", () => {
+    const [family] = withSubmenus([
+      { name: "a", label: "A", group: "Timescale", disable: true, hint: "Not a hypertable" },
+    ])
+    expect(family?.disable).toBe(true)
+    expect(family?.children?.[0]?.hint).toBe("Not a hypertable")
+  })
+})
+

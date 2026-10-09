@@ -38,6 +38,7 @@ from app.adapters.content import (
 from app.adapters.errors import ErrorKind as ErrorKind
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.hypertable_design import HypertableDesignState
 from app.adapters.indexes import (
     CreateIndexRequest,
     CreateIndexResult,
@@ -613,6 +614,25 @@ class SupportsColumnType(Protocol):
         two types with no conversion between them, and for a refusal the
         source can name — a default that cannot be cast, a view built on the
         column. Raises AdapterError for source failures.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsHypertableDesign(Protocol):
+    """A source that can read a hypertable into the design its editor shows (D207).
+
+    Reading only: the change is the `timescale_design_hypertable` action, so
+    access, review and cache invalidation stay where every other change keeps
+    them (D9).
+    """
+
+    async def hypertable_design_state(self, node_id: str) -> HypertableDesignState:
+        """The design as it is now, or the reason this table cannot be edited.
+
+        Answers rather than raises for a table that is not a hypertable this
+        editor works on. Raises NodeNotFound for an id that names nothing and
+        AdapterError for source failures.
         """
         ...
 

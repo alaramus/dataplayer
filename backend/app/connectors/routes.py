@@ -93,6 +93,7 @@ from app.adapters.fetch import (
     FetchResult,
     as_read_only,
 )
+from app.adapters.hypertable_design import HypertableDesignState, HypertableDesignTarget
 from app.adapters.indexes import (
     CreateIndexRequest,
     CreateIndexResult,
@@ -126,6 +127,7 @@ from app.adapters.protocol import (
     SupportsDropColumn,
     SupportsExport,
     SupportsFetch,
+    SupportsHypertableDesign,
     SupportsIndexes,
     SupportsInsert,
     SupportsNodePath,
@@ -2752,6 +2754,34 @@ async def plan_table(
     return await _shape_change(lambda: adapter.plan_table(request))
 
 
+@router.post("/{connector_id}/hypertable-design/state", response_model=HypertableDesignState)
+async def hypertable_design_state(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: HypertableDesignTarget,
+) -> Any:
+    """
+    A hypertable as its settings editor shows it, with what may change (D207).
+
+    Read at the level the change needs: the answer is for somebody about to
+    edit, and lists the indexes and tablespaces the change may name.
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not isinstance(adapter, SupportsHypertableDesign):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source has no hypertables to design",
+                "error_kind": "config",
+            },
+        )
+    return await _shape_change(lambda: adapter.hypertable_design_state(request.node_id))
+
+
 async def _constraining_adapter(
     session: SessionDep,
     connector_id: uuid.UUID,
@@ -2904,6 +2934,8 @@ class ActionInfo(ActionAvailability):
     # What to draw for it where it is drawn as a picture. Null everywhere it
     # is a line of a menu, which is where the title is what is read.
     icon: str | None = None
+    # The submenu it is drawn in, named by the source rather than by the client.
+    menu_group: str | None = None
     params_schema: dict[str, Any]
 
 
@@ -2955,6 +2987,7 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         acts_on=action.acts_on,
         offered_in=action.offered_in,
         icon=action.icon,
+        menu_group=action.menu_group,
         applicable=availability.applicable,
         available_node_ids=availability.available_node_ids,
         unavailable_reason=availability.unavailable_reason,

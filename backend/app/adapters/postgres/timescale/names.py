@@ -1,4 +1,4 @@
-"""Dedicated namespaces reserved for Timescale implementation objects (D122)."""
+"""Names Timescale owns (D122), and the one its actions are drawn under (D207)."""
 
 DEDICATED_SCHEMAS = frozenset(
     {
@@ -12,3 +12,6 @@ DEDICATED_SCHEMAS = frozenset(
         "timescaledb_information",
     }
 )
+
+# The submenu every Timescale management action is drawn in.
+TIMESCALE_MENU = "Timescale"

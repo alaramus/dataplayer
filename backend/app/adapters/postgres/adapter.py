@@ -26,6 +26,7 @@ from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.hypertable_design import HypertableDesignState
 from app.adapters.indexes import (
     CreateIndexRequest,
     CreateIndexResult,
@@ -303,6 +304,9 @@ class PostgresAdapter:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
+
+    async def hypertable_design_state(self, node_id: str) -> HypertableDesignState:
+        return await self._actions.hypertable_design_state(node_id)
 
     async def all_actions(self) -> list[Action[Any]]:
         return await self._actions.all_actions()

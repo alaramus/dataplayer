@@ -27,6 +27,7 @@ from app.adapters.postgres.timescale.compression_settings_action import (
     ConfigureCompression,
 )
 from app.adapters.postgres.timescale.conversion_action import ConvertToHypertable
+from app.adapters.postgres.timescale.design_action import DesignHypertable
 from app.adapters.postgres.timescale.interval_action import SetChunkInterval
 from app.adapters.postgres.timescale.plans import TimeDuration
 from app.adapters.postgres.timescale.profile import TimescaleProfile
@@ -47,7 +48,7 @@ POLICY_ACTIONS = {
 REFRESH_ACTIONS = {SetRefreshPolicy.name, RemoveRefreshPolicy.name}
 STORAGE_ACTIONS = {CompressChunks.name, DecompressChunks.name}
 MANAGEMENT = {
-    SetChunkInterval.name, ConfigureCompression.name, ConvertToHypertable.name,
+    DesignHypertable.name, SetChunkInterval.name, ConfigureCompression.name, ConvertToHypertable.name,
     *POLICY_ACTIONS, *REFRESH_ACTIONS, *STORAGE_ACTIONS,
 }
 NO_RETENTION = "This hypertable has no retention policy"
@@ -101,6 +102,13 @@ def conversion(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture(autouse=True)
+def design(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    admit = AsyncMock(return_value=None)
+    monkeypatch.setattr(actions, "design_admission", admit)
+    return admit
+
+
+@pytest.fixture(autouse=True)
 def storage(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     admit = AsyncMock(return_value={"columnstore": None, "rowstore": None})
     monkeypatch.setattr(actions, "chunk_storage_admission", admit)
@@ -134,7 +142,7 @@ async def test_vocabulary_tracks_live_installation(monkeypatch: pytest.MonkeyPat
         assert "create_schema" in names
     assert probe.await_count == 4
     assert {
-        SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
+        DesignHypertable, SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
         SetCompressionPolicy, RemoveCompressionPolicy, SetRefreshPolicy, RemoveRefreshPolicy,
         ConvertToHypertable, CompressChunks, DecompressChunks,
     } <= set(PostgresAdapter.action_types())
@@ -163,7 +171,7 @@ async def test_interval_offer_uses_live_plan_and_preserves_ordinary_guards(
     session = AsyncMock()
     registry = PostgresActions(session, catalog)
     offers = await registry.action_offers("lab.events")
-    expected = {ConfigureCompression.name, SetRetentionPolicy.name, *STORAGE_ACTIONS}
+    expected = {DesignHypertable.name, ConfigureCompression.name, SetRetentionPolicy.name, *STORAGE_ACTIONS}
     assert {item.name for item in offers.actions} == (expected if blocked else {SetChunkInterval.name, *expected})
     storage.assert_awaited_once_with(session, "lab", "events")
     assert offers.reason_for("drop_relation") == "Structured Timescale writes are disabled"
@@ -197,6 +205,23 @@ async def test_compression_settings_refusal_keeps_its_reason(
     offers = await PostgresActions(AsyncMock(), catalog).action_offers("lab.events")
     assert ConfigureCompression.name not in {item.name for item in offers.actions}
     assert offers.reason_for(ConfigureCompression.name) == "This connection may not change compression settings"
+
+
+@pytest.mark.usefixtures("policies", "refresh", "settings")
+async def test_design_refusal_keeps_its_reason(monkeypatch: pytest.MonkeyPatch, design: AsyncMock) -> None:
+    catalog = AsyncMock()
+    catalog.path_to.return_value = hypertable_path()
+    catalog.relation_action_reason.return_value = None
+    monkeypatch.setattr(actions, "preview_chunk_interval", AsyncMock(return_value=ActionPreview(
+        summary="Review interval", fingerprint="a" * 64,
+    )))
+    reason = "Hypertables partitioned by an integer column are not edited here yet"
+    design.return_value = reason
+    session = AsyncMock()
+    offers = await PostgresActions(session, catalog).action_offers("lab.events")
+    assert DesignHypertable.name not in {item.name for item in offers.actions}
+    assert offers.reason_for(DesignHypertable.name) == reason
+    design.assert_awaited_once_with(session, "lab", "events")
 
 
 @pytest.mark.parametrize("retention,offered", [

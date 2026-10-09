@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { QMenuProps } from "quasar"
+
 import AppIconButton from "./AppIconButton.vue"
 import AppTooltip from "./AppTooltip.vue"
 import { appIcons } from "./icons"
@@ -31,20 +33,33 @@ export interface MenuItem {
   hint?: string
   /** An optional removal action beside a saved entry; also its accessible label. */
   removeLabel?: string
+  /** Lines of a submenu opened from this one, which then selects nothing itself. */
+  children?: MenuItem[]
 }
 
-defineProps<{ items: MenuItem[] }>()
+withDefaults(
+  defineProps<{
+    items: MenuItem[]
+    /** Where the menu opens against what holds it; Quasar's own placement when unset. */
+    anchor?: QMenuProps["anchor"]
+    self?: QMenuProps["self"]
+  }>(),
+  { anchor: undefined, self: undefined }
+)
 
 const open = defineModel<boolean>({ default: false })
 const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
 </script>
 
 <template>
-  <!-- Selecting an entry closes the menu. A removal button stops its click
-       so deleting a saved entry neither selects it nor closes the list. -->
+  <!-- Selecting an entry closes the menu and every menu it was opened from;
+       not auto-close, which closes on the line that opens a submenu too. A
+       removal button stops its click so deleting a saved entry neither selects
+       it nor closes the list. -->
   <q-menu
     v-model="open"
-    auto-close
+    :anchor="anchor"
+    :self="self"
   >
     <q-list
       dense
@@ -58,56 +73,89 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
            in a tooltip nothing but a pointer can open (U14). Quasar keeps the
            tab stop to itself and gives a disabled item none, so walking the
            menu is how the line is met. -->
-      <q-item
+      <template
         v-for="item in items"
         :key="item.name"
-        clickable
-        role="menuitem"
-        :disable="item.disable === true"
-        :aria-disabled="item.disable === true ? 'true' : undefined"
-        :aria-label="item.disable === true && item.hint ? `${item.label} — ${item.hint}` : undefined"
-        :class="item.danger === true ? 'text-dp-action-danger' : undefined"
-        :data-testid="`menu-item-${item.name}`"
-        @click="item.disable === true ? undefined : emit('select', item.name)"
       >
-        <q-item-section
-          v-if="item.icon"
-          avatar
-          class="app-menu__icon"
+        <q-item
+          v-if="item.children"
+          clickable
+          role="menuitem"
+          aria-haspopup="menu"
+          :disable="item.disable === true"
+          :aria-disabled="item.disable === true ? 'true' : undefined"
+          :data-testid="`menu-item-${item.name}`"
         >
-          <q-icon
-            :name="item.icon"
-            size="var(--dp-icon-sm)"
+          <q-item-section>
+            <span class="app-menu__label">{{ item.label }}</span>
+          </q-item-section>
+          <q-item-section side>
+            <q-icon
+              :name="appIcons.chevronRight"
+              size="var(--dp-icon-sm)"
+            />
+          </q-item-section>
+          <!-- The same component one level down, so a line of a submenu is
+               drawn, disabled and explained exactly as a line of this one. -->
+          <AppMenu
+            :items="item.children"
+            anchor="top end"
+            self="top start"
+            @select="emit('select', $event)"
+            @remove="emit('remove', $event)"
           />
-        </q-item-section>
-        <q-item-section>
-          <span class="app-menu__label">
-            {{ item.label }}
-            <AppTooltip
-              v-if="item.hint"
-              beside
-            >{{ item.hint }}</AppTooltip>
-          </span>
-        </q-item-section>
-        <q-item-section
-          v-if="item.removeLabel"
-          side
+        </q-item>
+        <q-item
+          v-else
+          v-close-popup="-1"
+          clickable
+          role="menuitem"
+          :disable="item.disable === true"
+          :aria-disabled="item.disable === true ? 'true' : undefined"
+          :aria-label="item.disable === true && item.hint ? `${item.label} — ${item.hint}` : undefined"
+          :class="item.danger === true ? 'text-dp-action-danger' : undefined"
+          :data-testid="`menu-item-${item.name}`"
+          @click="item.disable === true ? undefined : emit('select', item.name)"
         >
-          <AppIconButton
-            :icon="appIcons.close"
-            :tooltip="item.removeLabel"
-            :aria-label="item.removeLabel"
-            :data-testid="`menu-remove-${item.name}`"
-            :disable="item.disable === true"
-            compact
-            @click.stop="emit('remove', item.name)"
-            @keydown.enter.stop
-            @keyup.enter.stop
-            @keydown.space.stop
-            @keyup.space.stop
-          />
-        </q-item-section>
-      </q-item>
+          <q-item-section
+            v-if="item.icon"
+            avatar
+            class="app-menu__icon"
+          >
+            <q-icon
+              :name="item.icon"
+              size="var(--dp-icon-sm)"
+            />
+          </q-item-section>
+          <q-item-section>
+            <span class="app-menu__label">
+              {{ item.label }}
+              <AppTooltip
+                v-if="item.hint"
+                beside
+              >{{ item.hint }}</AppTooltip>
+            </span>
+          </q-item-section>
+          <q-item-section
+            v-if="item.removeLabel"
+            side
+          >
+            <AppIconButton
+              :icon="appIcons.close"
+              :tooltip="item.removeLabel"
+              :aria-label="item.removeLabel"
+              :data-testid="`menu-remove-${item.name}`"
+              :disable="item.disable === true"
+              compact
+              @click.stop="emit('remove', item.name)"
+              @keydown.enter.stop
+              @keyup.enter.stop
+              @keydown.space.stop
+              @keyup.space.stop
+            />
+          </q-item-section>
+        </q-item>
+      </template>
     </q-list>
   </q-menu>
 </template>

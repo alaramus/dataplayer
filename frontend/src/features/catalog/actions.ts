@@ -62,6 +62,8 @@ export interface ActionCommand {
    * client choosing one would be a table of action names on this side.
    */
   icon: string | null
+  /** The submenu the source draws it in, or null for a line of the menu itself (D207). */
+  menuGroup?: string | null
   fields: FieldSpec[]
   /** What each field with a published set of values offers, by field name. */
   choices: Record<string, SchemaChoice[]>
@@ -90,6 +92,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       actsOn: action.acts_on,
       offeredIn: action.offered_in,
       icon: action.icon ?? null,
+      menuGroup: action.menu_group ?? null,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
       // Read whether or not a form is built: a workflow screen still asks the
       // schema what the source offers, in the source's own words.
@@ -184,6 +187,35 @@ export function toMenu(subjects: ActionSubjects): MenuCommand[] {
         : answer?.unavailable_reason ?? "This source does not offer it for these targets"
     return { ...command, targets, enabled, reason }
   })
+}
+
+/**
+ * Lines of one family folded into a submenu where the first of them stood.
+ *
+ * The family is the source's word (D207): a client deciding which commands
+ * belong together would be a table of action names on this side. The submenu
+ * is usable while any line in it is, and never hides a disabled line.
+ */
+export function withSubmenus(lines: (MenuItem & { group?: string | null })[]): MenuItem[] {
+  const menu: MenuItem[] = []
+  const submenus = new Map<string, MenuItem & { children: MenuItem[] }>()
+  for (const { group, ...line } of lines) {
+    if (group === null || group === undefined) {
+      menu.push(line)
+      continue
+    }
+    let submenu = submenus.get(group)
+    if (submenu === undefined) {
+      submenu = { name: `group:${group}`, label: group, children: [] }
+      submenus.set(group, submenu)
+      menu.push(submenu)
+    }
+    submenu.children.push(line)
+  }
+  for (const submenu of submenus.values()) {
+    submenu.disable = submenu.children.every((child) => child.disable === true)
+  }
+  return menu
 }
 
 /**

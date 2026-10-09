@@ -16,6 +16,7 @@ from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.interval_execution import execute_chunk_interval
 from app.adapters.postgres.timescale.interval_preview import preview_chunk_interval
+from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import TimeDuration
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
@@ -33,6 +34,7 @@ class SetChunkInterval(Action[ChunkIntervalParams]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
     params_model = ChunkIntervalParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:

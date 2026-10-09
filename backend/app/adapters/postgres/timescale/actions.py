@@ -28,6 +28,10 @@ from app.adapters.postgres.timescale.conversion_action import (
     ConvertToHypertable,
     conversion_admission,
 )
+from app.adapters.postgres.timescale.design_action import (
+    DesignHypertable,
+    design_admission,
+)
 from app.adapters.postgres.timescale.interval_action import SetChunkInterval
 from app.adapters.postgres.timescale.interval_preview import preview_chunk_interval
 from app.adapters.postgres.timescale.plans import TimeDuration
@@ -44,7 +48,7 @@ from app.adapters.specializations import (
 )
 
 TIMESCALE_ACTION_TYPES = (
-    SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
+    DesignHypertable, SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
     SetCompressionPolicy, RemoveCompressionPolicy, SetRefreshPolicy, RemoveRefreshPolicy,
     ConvertToHypertable, CompressChunks, DecompressChunks,
 )
@@ -54,6 +58,7 @@ class TimescaleActions:
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
         self._session = session
         self._catalog = catalog
+        self.design = DesignHypertable(session, catalog)
         self.interval = SetChunkInterval(session, catalog)
         self.compression_settings = ConfigureCompression(session, catalog)
         self._policies: tuple[tuple[SetAgePolicy[Any], RemoveAgePolicy], ...] = (
@@ -66,7 +71,7 @@ class TimescaleActions:
         self.compress_chunks = CompressChunks(session, catalog)
         self.decompress_chunks = DecompressChunks(session, catalog)
         self.registered: tuple[Action[Any], ...] = (
-            self.interval, self.compression_settings,
+            self.design, self.interval, self.compression_settings,
             *(action for pair in self._policies for action in pair),
             self.set_refresh, self.remove_refresh, self.convert,
             self.compress_chunks, self.decompress_chunks,
@@ -107,6 +112,7 @@ class TimescaleActions:
             self._session, schema, table, TimeDuration(amount=1, unit="day"),
         )
         reasons: dict[str, str | None] = {
+            self.design.name: await design_admission(self._session, schema, table),
             self.interval.name: interval.summary if interval.blocked else None,
             self.compression_settings.name: await compression_settings_admission(self._session, schema, table),
         }

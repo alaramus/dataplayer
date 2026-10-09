@@ -28,6 +28,7 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     inspect_age_policy,
     plan_age_policy,
 )
+from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import (
     AgePolicyKind,
     AgePolicyPlan,
@@ -145,6 +146,7 @@ class SetAgePolicy[P: ThresholdParams](Action[P]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
         self._session = session
@@ -179,6 +181,7 @@ class RemoveAgePolicy(Action[NoParams]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
     params_model = NoParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:

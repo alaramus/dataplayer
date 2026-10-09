@@ -153,6 +153,10 @@ export type ActionInfo = {
    */
   icon?: string | null
   /**
+   * Menu Group
+   */
+  menu_group?: string | null
+  /**
    * Params Schema
    */
   params_schema: {
@@ -1662,6 +1666,18 @@ export type CheckConstraint = {
 }
 
 /**
+ * ChosenByTimescale
+ *
+ * Leave the setting unset, so Timescale chooses it for each chunk.
+ */
+export type ChosenByTimescale = {
+  /**
+   * Mode
+   */
+  mode?: "default"
+}
+
+/**
  * ChosenPassword
  *
  * This one, because the person asking will type it somewhere else.
@@ -2045,6 +2061,40 @@ export type ColumnTypeRequest = {
    * Type Code
    */
   type_code: string
+}
+
+/**
+ * ColumnstoreDesign
+ */
+export type ColumnstoreDesign = {
+  /**
+   * Enabled
+   */
+  enabled: boolean
+  /**
+   * Segment By
+   */
+  segment_by?:
+    | ({
+        mode: "default"
+      } & ChosenByTimescale)
+    | ({
+        mode: "none"
+      } & NoColumns)
+    | ({
+        mode: "columns"
+      } & SegmentColumns)
+  /**
+   * Order By
+   */
+  order_by?:
+    | ({
+        mode: "default"
+      } & ChosenByTimescale)
+    | ({
+        mode: "columns"
+      } & OrderColumns)
+  merge_interval?: DesignDuration | null
 }
 
 /**
@@ -3063,6 +3113,22 @@ export type CreateRelationFromSourceRequest = {
 }
 
 /**
+ * CurrentPolicy
+ *
+ * An existing policy, in the source's words, for what the editor shows.
+ */
+export type CurrentPolicy = {
+  /**
+   * Job Id
+   */
+  job_id: string
+  /**
+   * Description
+   */
+  description: string
+}
+
+/**
  * DashboardCreate
  */
 export type DashboardCreate = {
@@ -3580,6 +3646,20 @@ export type DesignColumnType = {
    * Dimensions
    */
   dimensions?: number
+}
+
+/**
+ * DesignDuration
+ */
+export type DesignDuration = {
+  /**
+   * Amount
+   */
+  amount: number
+  /**
+   * Unit
+   */
+  unit: "second" | "minute" | "hour" | "day" | "week" | "month" | "year"
 }
 
 /**
@@ -5060,6 +5140,20 @@ export type HTTPValidationError = {
 }
 
 /**
+ * HashDimensionDesign
+ */
+export type HashDimensionDesign = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Partitions
+   */
+  partitions: number
+}
+
+/**
  * Hint
  */
 export type Hint = {
@@ -5316,6 +5410,150 @@ export type HostRestarts = {
    * Cause
    */
   cause: "agent" | "host"
+}
+
+/**
+ * HypertableColumn
+ */
+export type HypertableColumn = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Type
+   */
+  type: string
+  /**
+   * Orderable
+   */
+  orderable: boolean
+}
+
+/**
+ * HypertableDesign
+ *
+ * Every field is optional for a reader, so an older client still validates.
+ */
+export type HypertableDesign = {
+  chunk_interval?: DesignDuration | null
+  /**
+   * Hash Dimensions
+   */
+  hash_dimensions?: Array<HashDimensionDesign>
+  columnstore?: ColumnstoreDesign
+  /**
+   * Retention
+   */
+  retention?:
+    | ({
+        kind: "older_than"
+      } & OlderThan)
+    | ({
+        kind: "current"
+      } & KeptAsItIs)
+    | null
+  /**
+   * Columnstore Policy
+   */
+  columnstore_policy?:
+    | ({
+        kind: "older_than"
+      } & OlderThan)
+    | ({
+        kind: "current"
+      } & KeptAsItIs)
+    | null
+  /**
+   * Reorder Index
+   */
+  reorder_index?: string | null
+  /**
+   * Tablespaces
+   */
+  tablespaces?: Array<string>
+}
+
+/**
+ * HypertableDesignState
+ *
+ * What the editor opens with: the design as it is now, and what may change.
+ *
+ * `design` is None exactly when `reason` says why the editor cannot work on
+ * this table. Units and choices are the server's, because which of them this
+ * hypertable accepts depends on its column types and on the release.
+ */
+export type HypertableDesignState = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Reason
+   */
+  reason?: string | null
+  design?: HypertableDesign | null
+  /**
+   * Extension Version
+   */
+  extension_version?: string | null
+  /**
+   * Time Column
+   */
+  time_column?: string | null
+  /**
+   * Time Column Type
+   */
+  time_column_type?: string | null
+  /**
+   * Columns
+   */
+  columns?: Array<HypertableColumn>
+  /**
+   * Indexes
+   */
+  indexes?: Array<string>
+  /**
+   * Tablespaces
+   */
+  tablespaces?: Array<string>
+  /**
+   * Interval Units
+   */
+  interval_units?: Array<"second" | "minute" | "hour" | "day" | "week" | "month" | "year">
+  /**
+   * Policy Units
+   */
+  policy_units?: Array<"second" | "minute" | "hour" | "day" | "week" | "month" | "year">
+  /**
+   * Merge Units
+   */
+  merge_units?: Array<"second" | "minute" | "hour" | "day" | "week" | "month" | "year">
+  /**
+   * Per Chunk Defaults
+   */
+  per_chunk_defaults?: boolean
+  /**
+   * Has Chunks
+   */
+  has_chunks?: boolean
+  /**
+   * Compressed Chunks
+   */
+  compressed_chunks?: boolean
+  retention?: CurrentPolicy | null
+  columnstore_policy?: CurrentPolicy | null
+  reorder?: CurrentPolicy | null
+}
+
+/**
+ * HypertableDesignTarget
+ */
+export type HypertableDesignTarget = {
+  /**
+   * Node Id
+   */
+  node_id: string
 }
 
 /**
@@ -5993,6 +6231,22 @@ export type JsonScalar = {
 }
 
 /**
+ * KeptAsItIs
+ *
+ * An existing policy this editor cannot represent, left untouched.
+ *
+ * A threshold of "1 day 02:00:00", a creation-time threshold or a paused job
+ * is the source's, and an editor that rounded it to what its fields can hold
+ * would change it without being asked.
+ */
+export type KeptAsItIs = {
+  /**
+   * Kind
+   */
+  kind?: "current"
+}
+
+/**
  * KeptDownload
  *
  * A copy that stayed: what it is called and how much of it there is.
@@ -6584,6 +6838,18 @@ export type NewRelationTarget = {
 }
 
 /**
+ * NoColumns
+ *
+ * Set explicitly to nothing, which is not the same as leaving it unset.
+ */
+export type NoColumns = {
+  /**
+   * Mode
+   */
+  mode?: "none"
+}
+
+/**
  * NoGeneration
  */
 export type NoGeneration = {
@@ -7168,6 +7434,17 @@ export type ObjectsPlace_Output = {
 }
 
 /**
+ * OlderThan
+ */
+export type OlderThan = {
+  /**
+   * Kind
+   */
+  kind?: "older_than"
+  older_than: DesignDuration
+}
+
+/**
  * OperatorClassOption
  *
  * One operator class, for one access method and one type.
@@ -7197,6 +7474,38 @@ export type OperatorClassOption = {
    * Default
    */
   default?: boolean
+}
+
+/**
+ * OrderColumns
+ */
+export type OrderColumns = {
+  /**
+   * Mode
+   */
+  mode?: "columns"
+  /**
+   * Columns
+   */
+  columns: Array<OrderKey>
+}
+
+/**
+ * OrderKey
+ */
+export type OrderKey = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Descending
+   */
+  descending: boolean
+  /**
+   * Nulls First
+   */
+  nulls_first: boolean
 }
 
 /**
@@ -10502,6 +10811,20 @@ export type Segment = {
    * Hit
    */
   hit: boolean
+}
+
+/**
+ * SegmentColumns
+ */
+export type SegmentColumns = {
+  /**
+   * Mode
+   */
+  mode?: "columns"
+  /**
+   * Columns
+   */
+  columns: Array<string>
 }
 
 /**
@@ -15297,6 +15620,38 @@ export type connectorsPlanTableResponses = {
 
 export type connectorsPlanTableResponse =
   connectorsPlanTableResponses[keyof connectorsPlanTableResponses]
+
+export type connectorsHypertableDesignStateData = {
+  body: HypertableDesignTarget
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/hypertable-design/state"
+}
+
+export type connectorsHypertableDesignStateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsHypertableDesignStateError =
+  connectorsHypertableDesignStateErrors[keyof connectorsHypertableDesignStateErrors]
+
+export type connectorsHypertableDesignStateResponses = {
+  /**
+   * Successful Response
+   */
+  200: HypertableDesignState
+}
+
+export type connectorsHypertableDesignStateResponse =
+  connectorsHypertableDesignStateResponses[keyof connectorsHypertableDesignStateResponses]
 
 export type connectorsDropConstraintData = {
   body: DropConstraintRequest

@@ -26,6 +26,7 @@ import type {
 } from "@/features/catalog/actions"
 import FileToRelationDialog from "@/features/catalog/FileToRelationDialog.vue"
 import ModelCodeDialog from "@/features/catalog/ModelCodeDialog.vue"
+import HypertableSettings from "@/features/hypertableDesign/HypertableSettings.vue"
 import TableDesigner from "@/features/tableDesign/TableDesigner.vue"
 import { formatSize } from "@/features/catalog/nodes"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
@@ -622,6 +623,40 @@ async function runDesign(value: {
     failure.value = messageOf(cause, "The table could not be created")
   }
 }
+
+/**
+ * A workflow whose plan was reviewed in its own screen: the fingerprint of what
+ * was shown travels with the filled answer, as it does from the generic form.
+ */
+async function runReviewed(value: {
+  nodeId: string
+  params: Record<string, unknown>
+  fingerprint: string
+}) {
+  const command = props.command
+  if (command === null) return
+  failure.value = ""
+  try {
+    const outcome = await runAction.mutateAsync({
+      connectorId: props.connectorId,
+      name: command.name,
+      nodeIds: [value.nodeId],
+      params: value.params,
+      label: command.label,
+      reviewedFingerprint: value.fingerprint,
+    })
+    const unfinished = [...outcome.failures, ...(outcome.skipped ?? [])]
+    if (unfinished.length > 0) {
+      failure.value = unfinished.map((one) => one.message).join("; ")
+      return
+    }
+    toast.success(summarize(outcome, command.label))
+    emit("done", outcome)
+    close()
+  } catch (cause) {
+    failure.value = messageOf(cause, "The change could not be applied")
+  }
+}
 </script>
 
 <template>
@@ -647,6 +682,18 @@ async function runDesign(value: {
     :running="runAction.isPending.value"
     :error="failure"
     @run="runDesign"
+    @update:model-value="close"
+  />
+  <HypertableSettings
+    v-else-if="command?.workflow === 'hypertable-settings'"
+    :model-value="open"
+    :connector-id="connectorId"
+    :node-id="String(nodeIds[0] ?? '')"
+    :node-label="nodeLabel"
+    :action-name="command.name"
+    :running="runAction.isPending.value"
+    :error="failure"
+    @run="runReviewed"
     @update:model-value="close"
   />
   <FileToRelationDialog

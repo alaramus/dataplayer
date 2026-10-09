@@ -19,6 +19,7 @@ from app.adapters.layout import layout
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.age_policy_action import NoParams
+from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import (
     RefreshPlan,
     RefreshWindow,
@@ -143,6 +144,7 @@ class SetRefreshPolicy(Action[RefreshParams]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
     params_model = RefreshParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
@@ -176,6 +178,7 @@ class RemoveRefreshPolicy(Action[NoParams]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
     params_model = NoParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:

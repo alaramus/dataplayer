@@ -12,6 +12,7 @@ import {
   clientMenu,
   needsClipboard,
   toMenu,
+  withSubmenus,
 } from "@/features/catalog/actions"
 import {
   clipboard,
@@ -230,7 +231,7 @@ const backups = useBackupSupport(() => props.adapterType)
  * the source's own lines vary with the level — and because Copy and Cut read
  * as the pair Paste completes when they sit above it.
  */
-const items = computed<MenuItem[]>(() => [
+const items = computed<MenuItem[]>(() => withSubmenus([
   ...clientMenu({
     describes: props.describesNodes,
     describable: props.describedNode !== null,
@@ -274,9 +275,10 @@ const items = computed<MenuItem[]>(() => [
       hint: empty
         ? "Copy or cut something first"
         : command.enabled ? undefined : command.reason ?? undefined,
+      group: command.menuGroup,
     }
   }),
-])
+]))
 
 /** A verb of the client's: nothing is sent, and nothing waits for an answer. */
 function run(command: ClientCommand) {

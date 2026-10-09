@@ -20,8 +20,10 @@ export async function openNode(page: Page, label: string) {
   await catalogRow(page, label).click()
 }
 
-export async function catalogAction(page: Page, action: string) {
+export async function catalogAction(page: Page, action: string, submenu?: string) {
   await page.getByTestId("catalog-actions").click()
+  // A family the source names is one line that opens its own menu (D207).
+  if (submenu !== undefined) await page.getByTestId(`menu-item-group:${submenu}`).click()
   await page.getByTestId(`menu-item-${action}`).click()
 }
 

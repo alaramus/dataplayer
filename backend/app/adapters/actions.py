@@ -167,6 +167,9 @@ class Action[P: BaseModel](ABC):
     # what is offered there declares one; a client choosing it would be a
     # table of action names on that side.
     icon: ClassVar[str | None] = None
+    # The submenu the action is drawn in, when it belongs to a family the source
+    # names; declared here for the same reason as `icon` (D207).
+    menu_group: ClassVar[str | None] = None
     destructive: ClassVar[bool] = False
     # What the confirmation asks, when "are you sure you want to delete this"
     # is not what is about to happen. Every destructive action there was until

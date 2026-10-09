@@ -123,9 +123,42 @@ Found by running the matrix; each is handled in `app/` and covered here.
   source refusing an absurd interval has nothing to refuse there and skips.
 - **Hypercore is the compressed access method only in 2.18 and 2.19.** Before
   and after, a compressed chunk stays heap.
+- **An `ALTER TABLE` that leaves a columnstore list out derives it again before
+  2.20.** Setting only `compress_chunk_time_interval` chose a segment column
+  from an index, the same column the order already named, and the source
+  refused. The hypertable editor states both lists in every change
+  (`test_hypertable_design.py`).
+- **`RESET` of `compress_segmentby` or `compress_orderby` is refused up to
+  2.19,** and an unset segment list reads as NULL there whether it was never
+  set or set to nothing. From 2.23 NULL means Timescale chooses for each chunk
+  and an empty string means none.
+- **`hypertable_compression_settings` joins names with commas, unquoted.** A
+  column called `x,y` cannot be read back from it; the per-column
+  `compression_settings` view, deprecated since 2.18, still lists it whole on
+  every release here.
 - **`finalized` left `continuous_aggregates`** between 2.23 and 2.30, and
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
+
+## Validation record: 2026-10-09
+
+The hypertable settings editor (D207, H1 and H2) was added with
+`test_hypertable_design.py`, eleven scenarios on every source.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q` | 867 passed, 1 skipped, over all seven sources |
+| backend | `uv run pytest tests/ -q` | 3786 passed, 154 skipped, after one expected title was added |
+| backend | `uv run ruff check app tests compatibility`, `uv run mypy app`, `uv run lint-imports` | Passed |
+| frontend | `bun run test:unit`, `bun run type-check`, `bun run lint`, `bun run build` | Passed |
+| frontend | `bunx playwright test` over the 31 scenarios that open a menu | 177 passed or skipped; one login timeout passed on its own rerun |
+
+An earlier full run failed `test_recorded_policy_run_has_public_statistics`
+on 2.14, 2.17 and 2.19: their job scheduler had stopped starting jobs after
+many policies were added and their tables dropped within minutes, by manual
+probes and repeated runs. Restarting those three containers cleared it, and
+the editor's scenarios followed by that test pass on a fresh source. If it
+recurs, restart the source before suspecting the code.
 
 ## Validation record: 2026-09-12
 

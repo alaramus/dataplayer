@@ -23,6 +23,7 @@ from app.adapters.postgres.timescale.conversion_plan import (
     inspect_conversion,
     plan_conversion,
 )
+from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import ConversionPlan, TimeDuration
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
@@ -104,6 +105,7 @@ class ConvertToHypertable(Action[ConversionParams]):
         "The table becomes a hypertable, which DataPlayer cannot turn back into an ordinary table. Convert it?"
     )
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
     params_model = ConversionParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:

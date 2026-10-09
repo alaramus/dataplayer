@@ -36,6 +36,7 @@ from app.adapters.catalog import (
     ViewNode,
 )
 from app.adapters.delimited import DelimitedTable, read_table
+from app.adapters.hypertable_design import HypertableDesignState
 from app.adapters.model_code import (
     DIALECT_SUFFIX,
     DIALECT_TITLE,
@@ -1082,6 +1083,9 @@ class PostgresActions:
 
     def action(self, name: str) -> Action[Any]:
         return self._registered.get(name)
+
+    async def hypertable_design_state(self, node_id: str) -> HypertableDesignState:
+        return await self._timescale.design.state(node_id)
 
     async def all_actions(self) -> list[Action[Any]]:
         return [*self._actions, *(await self._timescale.all_actions())]

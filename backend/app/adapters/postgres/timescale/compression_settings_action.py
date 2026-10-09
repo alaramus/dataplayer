@@ -26,6 +26,7 @@ from app.adapters.postgres.timescale.compression_settings_plan import (
     plan_compression_settings,
     segment_option,
 )
+from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import CompressionSettingsPlan
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
@@ -111,6 +112,7 @@ class ConfigureCompression(Action[CompressionSettingsParams]):
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
+    menu_group: ClassVar[str | None] = TIMESCALE_MENU
     params_model = CompressionSettingsParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:

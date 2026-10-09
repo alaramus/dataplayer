@@ -132,7 +132,7 @@ async def test_reports_what_a_type_can_do(
         # Declared with their installation condition (D120), never offered without it.
         *(
             f"{title} (when TimescaleDB is installed)" for title in (
-                "Change chunk interval", "Configure compression",
+                "Hypertable settings", "Change chunk interval", "Configure compression",
                 "Set retention policy", "Remove retention policy",
                 "Set compression policy", "Remove compression policy",
                 "Set refresh policy", "Remove refresh policy", "Convert to hypertable",
