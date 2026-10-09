@@ -124,8 +124,7 @@ function togglePin(columnName: string) {
   min-height: var(--dp-row-height-dense);
 }
 .column-manager__visible {
-  /* Packs against its buttons: growing here pushed the three commands to the
-     far edge of the item. */
+  /* Packs against its buttons rather than pushing them to the item's far edge. */
   flex: 0 1 auto;
   min-width: 0;
 }

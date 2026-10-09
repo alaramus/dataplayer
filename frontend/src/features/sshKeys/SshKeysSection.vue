@@ -92,7 +92,7 @@ async function remove(key: SshKeyPublic) {
     <div class="ssh-keys__head">
       <div class="ssh-keys__what">
         <span class="ssh-keys__title">SSH keys</span>
-        <span class="ssh-keys__summary">
+        <span class="dp-helper">
           Keys your SSH connections sign in with. A key made here never leaves this
           server: copy its public key into authorized_keys on the servers it should
           open. A key that asks for its passphrase is kept locked, and opens for the
@@ -137,8 +137,8 @@ async function remove(key: SshKeyPublic) {
       />
       <div class="ssh-keys__facts">
         <span class="ssh-keys__name">{{ key.name }}</span>
-        <span class="ssh-keys__line">{{ key.algorithm }} · {{ key.fingerprint }}</span>
-        <span class="ssh-keys__line">{{ passphraseModeLabel(key.passphrase_mode) }} · {{ usedBy(key) }}</span>
+        <span class="ssh-keys__line dp-helper">{{ key.algorithm }} · {{ key.fingerprint }}</span>
+        <span class="ssh-keys__line dp-helper">{{ passphraseModeLabel(key.passphrase_mode) }} · {{ usedBy(key) }}</span>
       </div>
       <AppBadge
         v-if="keyState(key)"
@@ -194,11 +194,11 @@ async function remove(key: SshKeyPublic) {
   padding: var(--dp-space-4) 0;
   border-bottom: 1px solid var(--dp-border);
 }
-/* The column of controls is Preferences' own, 260px, and the buttons start
-   where its fields start. */
+/* The column of controls is a setting row's (AppSettingRow), and the buttons
+   start where its fields start. */
 .ssh-keys__head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) var(--dp-side-column-width);
   gap: var(--dp-space-5);
   align-items: start;
   padding-bottom: var(--dp-space-4);
@@ -217,12 +217,6 @@ async function remove(key: SshKeyPublic) {
 .ssh-keys__title,
 .ssh-keys__name {
   font-weight: 500;
-}
-.ssh-keys__summary,
-.ssh-keys__line {
-  color: var(--dp-text-muted);
-  font-size: var(--dp-font-size-sm);
-  line-height: var(--dp-line-height-sm);
 }
 .ssh-keys__line {
   overflow: hidden;

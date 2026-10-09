@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount } from "vue"
+import { computed, onBeforeUnmount } from "vue"
 
 import { AppIconButton, appIcons } from "@/shared/ui"
 
@@ -11,7 +11,7 @@ import { speechSupported } from "./voices"
  * Markdown document, a file. The voice is the browser's one, chosen once in
  * the voice store, so a choice in one place is the choice everywhere.
  */
-const props = withDefaults(
+withDefaults(
   defineProps<{
     text: string
     /** Markdown loses its marks before it is spoken; plain sources do not. */
@@ -24,21 +24,24 @@ const props = withDefaults(
 
 const voice = useReadAloud()
 const supported = speechSupported()
+/** This button, as the reader: its text may change while it is read. */
+const reader = Symbol("read-aloud")
+const speaking = computed(() => voice.speaking.value === reader)
 
 // Text that goes away stops being read.
 onBeforeUnmount(() => {
-  if (voice.speaking.value === props.text) voice.stop()
+  if (speaking.value) voice.stop()
 })
 </script>
 
 <template>
   <AppIconButton
     v-if="supported"
-    :class="{ 'read-aloud--speaking': voice.speaking.value === text }"
-    :icon="voice.speaking.value === text ? appIcons.stopCircle : appIcons.volumeUp"
-    :tooltip="voice.speaking.value === text ? 'Stop reading aloud' : listenLabel"
+    :class="{ 'read-aloud--speaking': speaking }"
+    :icon="speaking ? appIcons.stopCircle : appIcons.volumeUp"
+    :tooltip="speaking ? 'Stop reading aloud' : listenLabel"
     :data-testid="testid"
-    @click="voice.listen(text, { stripMarkdown })"
+    @click="voice.listen(reader, text, { stripMarkdown })"
   />
 </template>
 

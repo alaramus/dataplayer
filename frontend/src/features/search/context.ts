@@ -1,4 +1,5 @@
 import type { BrowserPlace, RecentTarget, SearchRequest } from "@/client"
+import { connectionNameOf } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 import type { SearchScope } from "@/features/workspace/state"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
@@ -68,14 +69,13 @@ export function offeredScope(
   searchFromOf: (panelId: string) => string | null,
   labelOf: (connectorId: string) => string | null
 ): SearchScope | null {
+  const scopeOf = (catalog: Extract<Panel, { kind: "catalog" }>): SearchScope => ({
+    connectorId: catalog.connectorId,
+    label: labelOf(catalog.connectorId) ?? catalog.title,
+    nodeId: searchFromOf(catalog.id),
+  })
   const focused = focusedCatalog(panels, tree, focusedLeaf, focusedDetached)
-  if (focused !== null) {
-    return {
-      connectorId: focused.connectorId,
-      label: labelOf(focused.connectorId) ?? focused.title,
-      nodeId: searchFromOf(focused.id),
-    }
-  }
+  if (focused !== null) return scopeOf(focused)
   const lookingAt = panelInFocus(panels, tree, focusedLeaf, focusedDetached)
   if (lookingAt !== null) {
     const named = connectionOfPanel(lookingAt, labelOf)
@@ -83,14 +83,7 @@ export function offeredScope(
   }
   const activeId = activeCatalogPanel(tree, focusedLeaf)
   const active = activeId === null ? undefined : panels.find((panel) => panel.id === activeId)
-  if (active !== undefined && active.kind === "catalog") {
-    return {
-      connectorId: active.connectorId,
-      label: labelOf(active.connectorId) ?? active.title,
-      nodeId: searchFromOf(active.id),
-    }
-  }
-  return null
+  return active !== undefined && active.kind === "catalog" ? scopeOf(active) : null
 }
 
 /** The tab being looked at: the floating one in front, or the focused section's active tab. */
@@ -111,17 +104,11 @@ function connectionOfPanel(
   panel: Panel,
   labelOf: (connectorId: string) => string | null
 ): { connectorId: string; label: string } | null {
-  if (!("connectorId" in panel)) return null
-  const connectorId = panel.connectorId
-  if (typeof connectorId !== "string" || connectorId === "") return null
-  const fresh = labelOf(connectorId)
-  if (fresh !== null && fresh !== "") return { connectorId, label: fresh }
-  if ("connectorName" in panel) {
-    const name = panel.connectorName
-    if (typeof name === "string" && name !== "") return { connectorId, label: name }
-  }
-  if (panel.kind === "catalog" && panel.title !== "") return { connectorId, label: panel.title }
-  return null
+  // Some panels may stand on no connection at all, so the id is optional.
+  const connectorId = "connectorId" in panel ? panel.connectorId : undefined
+  if (!connectorId) return null
+  const label = labelOf(connectorId) || connectionNameOf(panel)
+  return label ? { connectorId, label } : null
 }
 
 /**

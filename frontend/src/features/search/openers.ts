@@ -6,6 +6,7 @@ import { requestAiConversation, requestAiProject } from "@/features/ai/state"
 import { setDashboardIntent } from "@/features/dashboards/intent"
 import { useOpenGuide } from "@/features/guide/windows"
 import { setPipelineIntent } from "@/features/pipelines/intent"
+import type { PreferenceSectionId } from "@/features/preferences/sections"
 import { pointAtService } from "@/features/services/pointed"
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -71,7 +72,7 @@ export function useHitOpeners(): Openers {
     sshKey: (keyId) => {
       void router.push({
         name: "preferences",
-        params: { section: "ssh-keys" },
+        params: { section: "ssh-keys" satisfies PreferenceSectionId },
         query: { key: keyId },
       })
     },

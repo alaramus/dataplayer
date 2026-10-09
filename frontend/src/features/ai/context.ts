@@ -1,5 +1,5 @@
 import type { NodeRepresentation, ScreenContext } from "@/client"
-import { lookOf } from "@/features/workspace/panels"
+import { connectionNameOf, lookOf } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 
 const KIND_LABELS: Record<ScreenContext["kind"], string> = {
@@ -29,12 +29,7 @@ export interface AiOpenIntent {
 
 function contextLabel(panel: Exclude<Panel, { kind: "connectors" | "widget" | "service-logs" | "search" }>): string {
   const look = lookOf(panel)
-  const connectorName = "connectorName" in panel
-    ? panel.connectorName
-    : panel.kind === "catalog"
-      ? panel.title
-      : null
-  const parts = [connectorName, look.title, KIND_LABELS[panel.kind]].filter(
+  const parts = [connectionNameOf(panel), look.title, KIND_LABELS[panel.kind]].filter(
     (part, index, all): part is string => Boolean(part) && all.indexOf(part) === index
   )
   return parts.join(" · ")

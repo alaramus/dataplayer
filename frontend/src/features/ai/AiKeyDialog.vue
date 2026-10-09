@@ -8,6 +8,7 @@ import { WindowDialog } from "@/shared/windows"
 import { messageOf } from "@/shared/api/errors"
 
 import { checkAiKey, useRemoveAiKey, useWriteAiKey } from "./api"
+import { JEV_PROVIDER } from "./modelOptions"
 
 type Provider = ProviderKeyState["provider"]
 const props = defineProps<{
@@ -32,7 +33,7 @@ async function save() {
   try {
     await writeKey.mutateAsync({ provider: props.provider, key })
     draft.value = ""
-    toast.success(props.provider === "typesafe" ? "Jev key saved" : `${props.providerLabel} key saved for all its models`)
+    toast.success(props.provider === JEV_PROVIDER ? "Jev key saved" : `${props.providerLabel} key saved for all its models`)
   } catch (cause) { toast.error(messageOf(cause, "The key could not be saved")) }
 }
 async function check() {
@@ -56,7 +57,7 @@ async function clear() {
   <WindowDialog
     :model-value="modelValue"
     :title="`${providerLabel} API key`"
-    :subtitle="provider === 'typesafe' ? 'Required for the Jev change mode. The key is verified before it is saved.' : `This key is shared by every ${providerLabel} model. Check works before saving.`"
+    :subtitle="provider === JEV_PROVIDER ? 'Required for the Jev change mode. The key is verified before it is saved.' : `This key is shared by every ${providerLabel} model. Check works before saving.`"
     size="md"
     sizing="content"
     data-testid="ai-key-dialog"

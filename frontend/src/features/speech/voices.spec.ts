@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { nextTick } from "vue"
 
 import { speechSupported, useVoices, voiceLabel } from "./voices"
 
 const IRINA = { name: "Irina", lang: "ru-RU", voiceURI: "irina" }
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe("the browser voices", () => {
   it("names a voice by who it is and which language it reads", () => {
@@ -15,7 +19,6 @@ describe("the browser voices", () => {
     vi.stubGlobal("speechSynthesis", undefined as never)
     expect(speechSupported()).toBe(false)
     expect(useVoices().voices.value).toEqual([])
-    vi.unstubAllGlobals()
   })
 
   it("reads the list once it arrives", async () => {
@@ -33,6 +36,5 @@ describe("the browser voices", () => {
     heard[0]?.()
     await nextTick()
     expect(voices.value).toEqual([IRINA])
-    vi.unstubAllGlobals()
   })
 })

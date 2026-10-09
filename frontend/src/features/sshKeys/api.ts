@@ -45,7 +45,7 @@ export function useLockedKey(
 }
 
 /** Every change to a key is answered by re-reading the list it is in. */
-function useKeyMutation<T>(run: (input: T) => Promise<unknown>) {
+function useKeyMutation<T, R>(run: (input: T) => Promise<R>) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: run,

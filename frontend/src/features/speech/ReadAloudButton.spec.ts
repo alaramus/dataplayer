@@ -81,4 +81,19 @@ describe("the read-aloud button", () => {
     await listenButton(wrapper).trigger("click")
     expect(useReadAloud().speaking.value).toBeNull()
   })
+
+  it("keeps saying stop when its text changes while it is read", async () => {
+    const wrapper = mount(ReadAloudButton, {
+      props: { text: "A file", testid: "file-listen" },
+      global: { plugins: [Quasar] },
+    })
+
+    await listenButton(wrapper).trigger("click")
+    await wrapper.setProps({ text: "A file, edited" })
+    expect(listenButton(wrapper).attributes("aria-label")).toBe("Stop reading aloud")
+
+    await listenButton(wrapper).trigger("click")
+    expect(useReadAloud().speaking.value).toBeNull()
+    expect(spoken).toHaveLength(1)
+  })
 })

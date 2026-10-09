@@ -769,7 +769,7 @@ async function parseTyped(text: string) {
                re-reads itself, and a new key for this connection is pointed
                at it. -->
           <section class="connector-window__ssh-keys">
-            <h3 class="connector-window__heading-3 connector-window__ssh-keys-title">
+            <h3 class="connector-window__heading-3 dp-section-title">
               SSH keys
             </h3>
             <span class="dp-helper">
@@ -1069,11 +1069,6 @@ async function parseTyped(text: string) {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-2);
-}
-/* A name of the section in the primary text, not the dimmed overline. */
-.connector-window__ssh-keys-title {
-  font-size: var(--dp-font-size);
-  font-weight: 600;
 }
 .connector-window__ssh-keys-buttons {
   display: flex;

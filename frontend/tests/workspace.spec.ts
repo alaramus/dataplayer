@@ -374,8 +374,11 @@ test("drops a tab where it is aimed in a strip, not at the end of it", async ({
 
 /** A layout a previous run left behind is not the subject of these tests. */
 async function freshLayout(page: Page) {
+  // Kept per person and per server (D99), so every layout key goes.
   await page.evaluate(() => {
-    localStorage.removeItem("dataplayer-workspace")
+    for (const key of Object.keys(localStorage)) {
+      if (key.includes("dataplayer-workspace")) localStorage.removeItem(key)
+    }
   })
   await page.reload()
 }

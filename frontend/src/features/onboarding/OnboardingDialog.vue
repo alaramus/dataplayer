@@ -2,9 +2,8 @@
 import { computed, ref, watch } from "vue"
 
 import { AppButton, AppForm, AppRadioGroup, useConfirm } from "@/shared/ui"
-import type { RadioOption } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
-import { THEMES, useThemeStore } from "@/stores/theme"
+import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
 import { ONBOARDING_STEPS, isOnboardingDone, markOnboardingDone } from "./onboarding"
@@ -33,19 +32,6 @@ const props = withDefaults(
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
 const theme = useThemeStore()
-// The same options as Preferences, in the same order, plus System.
-const themeOptions: RadioOption[] = [
-  ...THEMES.map(({ label, value, ...theme }) =>
-    "description" in theme
-      ? { label, value, description: theme.description }
-      : { label, value }
-  ),
-  {
-    label: "System",
-    value: "system",
-    description: "Light or Dark, as the operating system changes",
-  },
-]
 
 const phase = ref<Phase>(props.startPhase)
 const stepIndex = ref(0)
@@ -59,8 +45,6 @@ const primaryLabel = computed(() =>
 )
 
 function reset() {
-  // Reopened — from nowhere today, but cheap to keep honest — the tour
-  // starts over rather than mid-sentence.
   phase.value = props.startPhase
   stepIndex.value = 0
 }
@@ -131,7 +115,7 @@ function chooseTheme(value: string) {
     >
       <p class="onboarding__intro">
         Pick how the application looks, then take a short tour of what it can
-        do — six silent clips, under a minute altogether.
+        do, one silent clip for each of its main parts.
       </p>
       <q-separator />
       <AppForm
@@ -140,7 +124,7 @@ function chooseTheme(value: string) {
       >
         <AppRadioGroup
           :model-value="theme.mode"
-          :options="themeOptions"
+          :options="THEME_CHOICES"
           aria-label="Theme"
           data-testid="onboarding-theme"
           @update:model-value="chooseTheme"

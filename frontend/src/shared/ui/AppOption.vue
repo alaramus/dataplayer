@@ -25,21 +25,12 @@ const emit = defineEmits<{
 function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly TextRun[] {
   return runs !== undefined && runs.length > 0 ? runs : [{ text, hit: false }]
 }
-/**
- * A heading whose button is switched on. It is never chosen, so neither the
- * dim nor the forbidden arrow means anything on it — only its button points.
- * A heading without a key stays dimmed like any other unavailable choice,
- * which keeps its key mark the colour of the other missing ones.
- */
-function liveHeading(option: SelectOption): boolean {
-  return Boolean(option.group && option.actionIcon && option.actionLabel && option.actionActive)
-}
 </script>
 
 <template>
   <q-item
     v-if="option.group"
-    :class="{ 'app-option--separator': option.separator, 'app-option--live-heading': liveHeading(option) }"
+    :class="{ 'app-option--separator': option.separator }"
   >
     <q-item-section>
       <q-item-label header>
@@ -163,13 +154,6 @@ function liveHeading(option: SelectOption): boolean {
    outweighs Quasar the way AppTooltip does. */
 .app-option__action,
 .app-option__action * { cursor: pointer !important; }
-/* A heading with a button is never chosen: no dim, and the default arrow
-   everywhere but the button, which the narrower rule below keeps pointing. */
-.q-item.disabled.app-option--live-heading { opacity: 1 !important; }
-.app-option--live-heading,
-.app-option--live-heading * { cursor: default !important; }
-.app-option--live-heading .app-option__action,
-.app-option--live-heading .app-option__action * { cursor: pointer !important; }
 .app-option__text { min-width: 0; }
 /* What matched, in the colour a find in a document is marked with. */
 .app-option__hit {

@@ -159,7 +159,8 @@ const links = ref<Link[]>([])
 const saved = ref<Card[]>([])
 const camera = ref<Camera2 | null>(null)
 const selection = ref<GraphSelection>(null)
-// A link just drawn still needs its table or column choices: its window opens at once.
+// A link that still needs its table or column choices — just drawn, given
+// another operation, or named by a Run that failed on it — opens its window.
 const autoOpenLinkId = ref<string | null>(null)
 const hints = ref<HintLink[]>([])
 const hinting = ref(false)

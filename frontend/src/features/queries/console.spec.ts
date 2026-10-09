@@ -10,6 +10,7 @@ import {
   statementAt,
   targetFor,
   toRemember,
+  unreadable,
   wholeDocument,
 } from "./console"
 
@@ -54,12 +55,31 @@ describe("what Run means", () => {
     expect(target).toEqual({ text: "select 2", start: 10, end: 18, scope: "statement" })
   })
 
-  it("runs a fragment selected inside one statement as the whole statement", () => {
-    // Undo leaves the restored text selected; running the literal fragment
-    // would only be refused as an unknown statement.
+  it("runs a fragment selected inside one statement as it is, its statement held in reserve", () => {
+    // A subquery selected on purpose runs alone; text that undo left selected
+    // is rarely a statement, and the caller falls back to the enclosing one.
     const target = targetFor(SCRIPT, TEXT, { from: 12, to: 15 })
 
+    expect(target).toEqual({
+      text: "lec",
+      start: 12,
+      end: 15,
+      scope: "statement",
+      enclosing: { text: "select 2", start: 10, end: 18, scope: "statement" },
+    })
+  })
+
+  it("runs a selection reaching past one statement's ends as that statement", () => {
+    const target = targetFor(SCRIPT, TEXT, { from: 9, to: 19 })
+
     expect(target).toEqual({ text: "select 2", start: 10, end: 18, scope: "statement" })
+  })
+
+  it("falls back from a fragment the source does not read as a statement", () => {
+    const read = SCRIPT.statements[0]!
+    expect(unreadable({ statements: [read], parameters: [] })).toBe(false)
+    expect(unreadable({ statements: [{ ...read, kind: "unknown" }], parameters: [] })).toBe(true)
+    expect(unreadable({ statements: [], parameters: [] })).toBe(true)
   })
 
   it("runs a selection spanning parts of two statements as a script, as it is", () => {

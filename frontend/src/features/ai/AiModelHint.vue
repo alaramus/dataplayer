@@ -21,7 +21,7 @@ const open = defineModel<boolean>({ default: false })
     no-parent-event
     no-focus
     no-refocus
-    :max-width="'300px'"
+    max-width="300px"
   >
     <div
       class="ai-model-hint"

@@ -304,10 +304,9 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.reload()
   await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
 
-  // The key on the provider heading opens the same key window the settings
-  // do; it used to sit beside every model there.
+  // The key on the provider heading opens the same key window the settings do.
   await page.getByTestId("ai-chat-model").click()
-  await page.getByRole("option", { name: /^Anthropic/ })
+  await page.getByRole("listbox")
     .getByRole("button", { name: "Manage Anthropic API key" }).click()
   await expect(page.getByTestId("ai-key-dialog")).toBeVisible()
   await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
@@ -376,7 +375,8 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-allow-all")).toHaveAttribute("aria-checked", "false")
 
   await page.getByTestId("ai-model").click()
-  const providerKey = page.getByRole("option", { name: /^Anthropic/ })
+  // A heading of the list, not one of its options: the arrows pass over it.
+  const providerKey = page.getByRole("listbox")
     .getByRole("button", { name: "Manage Anthropic API key" })
   await expect(providerKey).toBeVisible()
   await providerKey.click()

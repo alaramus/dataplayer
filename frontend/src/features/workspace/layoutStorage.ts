@@ -10,9 +10,19 @@ export const workspaceLayoutKey = (userId: string) =>
   serverStorageKey(`dataplayer-workspace:${userId}`)
 
 /**
- * The key layouts were kept under before they were separated per person.
- * Never read any more: it may hold whoever was here before, so handing it to
- * the person here now would be the leak again. Left alone rather than moved,
- * for the same reason.
+ * Keys a layout was kept under for everyone using the browser: before the
+ * separation per person, and briefly while the person was not known yet.
+ * Never read, since they may hold whoever was here before.
  */
-export const PENDING_WORKSPACE_KEY = "dataplayer-workspace:pending"
+const SHARED_LAYOUT_KEYS = ["dataplayer-workspace", "dataplayer-workspace:pending"]
+
+/** Take away the layouts kept for everyone, so nobody's tabs linger in them. */
+export function forgetSharedLayouts(storage: Storage = localStorage): void {
+  for (const key of SHARED_LAYOUT_KEYS) {
+    try {
+      storage.removeItem(serverStorageKey(key))
+    } catch {
+      // Blocked storage holds nothing to forget.
+    }
+  }
+}

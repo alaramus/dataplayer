@@ -34,7 +34,7 @@ import AiFileChip from "./AiFileChip.vue"
 import AiMessageFiles from "./AiMessageFiles.vue"
 import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
-import { AUTO_ALL_VALUE, autoModelValue, fallbackForAll, fallbackModel } from "./modelOptions"
+import { AUTO_ALL_VALUE, JEV_PROVIDER, autoModelValue, fallbackForAll, fallbackModel, jevProviderLabel, keyedProviders } from "./modelOptions"
 import { openQuickChat, quoteSelection } from "./quickChatLauncher"
 
 const props = defineProps<{
@@ -225,12 +225,13 @@ const EVERY_CHAT = "every"
 const pendingPolicy = ref<ConversationUpdate["change_policy"]>("ask")
 const pendingModelKey = ref<string | null>(null)
 const pendingAutoProvider = ref<ConversationUpdate["auto_provider"]>(null)
-const jevKeySet = computed(() => settings.data.value?.keys.some((key) => key.provider === "typesafe" && key.set) ?? false)
+const keyed = computed(() => keyedProviders(settings.data.value?.keys ?? []))
+const jevKeySet = computed(() => keyed.value.has(JEV_PROVIDER))
 const policyOptions = computed<SelectOption[]>(() => [
   { label: "Read only", value: "read_only", icon: appIcons.visibility, description: "Nothing is changed from this chat" },
   { label: "Ask before changes", value: "ask", icon: appIcons.helpOutline, description: "Every change is confirmed first" },
   { label: "Allow changes", value: "allow", icon: appIcons.edit, description: "Changes in this chat run without asking" },
-  { label: "Let Jev decide", value: "jev", icon: appIcons.key, description: jevKeySet.value ? "Jev decides before each change" : "Set a TypeSafe (Jev) API key in AI settings first", disable: !jevKeySet.value },
+  { label: "Let Jev decide", value: "jev", icon: appIcons.key, description: jevKeySet.value ? "Jev decides before each change" : `Set a ${jevProviderLabel} API key in AI settings first`, disable: !jevKeySet.value },
   { label: "Allow all changes in every chat", value: EVERY_CHAT, icon: appIcons.doneAll, description: "Changes in every chat run without asking", tone: "warning" },
 ])
 const changePolicy = computed(() => conversation.data.value?.change_policy ?? pendingPolicy.value ?? "ask")
@@ -275,9 +276,7 @@ const chatModel = computed(() => autoProvider.value ? autoModelValue(autoProvide
 async function chooseModel(value: string) {
   if (value === chatModel.value) return
   if (value === AUTO_ALL_VALUE) {
-    const list = models.data.value ?? []
-    const keyed = new Set((settings.data.value?.keys ?? []).filter((key) => key.set).map((key) => key.provider))
-    const fallback = fallbackForAll(list, fallbackKey.value, keyed)
+    const fallback = fallbackForAll(models.data.value ?? [], fallbackKey.value, keyed.value)
     if (!fallback) return
     try {
       const id = currentId.value
@@ -799,6 +798,7 @@ onBeforeUnmount(() => {
                   class="ai-conversation__model"
                   compact
                   :model-value="chatModel"
+                  :pending="currentId !== null && conversation.isPending.value"
                   :disable="activeRun !== null"
                   data-testid="ai-chat-model"
                   @update:model-value="chooseModel"

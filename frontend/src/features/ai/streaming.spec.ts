@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { plainSpeechText, splitStreamingDocument } from "./streaming"
+import { splitStreamingDocument } from "./streaming"
 
 describe("streaming Markdown", () => {
   it("does not hand an open rich fence to its renderer", () => {
@@ -14,10 +14,5 @@ describe("streaming Markdown", () => {
     expect(splitStreamingDocument("```echarts\n{}\n```")).toEqual([
       { type: "echarts", code: "{}" },
     ])
-  })
-
-  it("removes code and Markdown marks from speech", () => {
-    expect(plainSpeechText("**Hello** [there](https://example.test)\n```sql\nsecret\n```"))
-      .toBe("Hello there")
   })
 })

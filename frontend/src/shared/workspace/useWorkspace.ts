@@ -31,7 +31,11 @@ export { workspaceKey }
 export type { PanelLook, WorkspaceContext }
 
 export interface WorkspaceOptions<P extends { id: string }> {
-  storageKey: string
+  /**
+   * Where the layout is kept. Nothing is read or written while it is null:
+   * a layout whose owner is not known yet belongs to nobody.
+   */
+  storageKey: string | null
   panelSchema: ZodType<P>
   /** A stored panel of a kind that is gone, to drop rather than refuse the layout. */
   retired?: RetiredPanel
@@ -124,6 +128,12 @@ export interface WorkspaceApi<P extends { id: string }> {
   snapshot: () => string
   restore: (snapshot: string) => Promise<RestoreOutcome>
   reset: () => void
+  /**
+   * Keep the layout under another key from now on, and show what is kept
+   * there — or the defaults, when nothing is. Nothing happens for the key
+   * already in use.
+   */
+  follow: (storageKey: string) => Promise<void>
 }
 
 export type RestoreOutcome = "restored" | "cancelled" | "changed" | "invalid"
@@ -131,7 +141,8 @@ export type RestoreOutcome = "restored" | "cancelled" | "changed" | "invalid"
 export function useWorkspace<P extends { id: string }>(
   options: WorkspaceOptions<P>
 ): WorkspaceApi<P> {
-  const restored = parseWorkspace(localStorage.getItem(options.storageKey), options.panelSchema, options.retired)
+  let storageKey = options.storageKey
+  const restored = parseWorkspace(kept(storageKey), options.panelSchema, options.retired)
   const start = restored ?? options.defaults()
 
   // ref() rewrites a union into its own unwrapped shape, so the type is
@@ -187,7 +198,12 @@ export function useWorkspace<P extends { id: string }>(
   watch(
     [tree, panels, detached],
     () => {
-      localStorage.setItem(options.storageKey, serializeWorkspace(dockedLayout(tree.value, detached.value), panels.value))
+      if (storageKey === null) return
+      try {
+        localStorage.setItem(storageKey, serializeWorkspace(dockedLayout(tree.value, detached.value), panels.value))
+      } catch {
+        // A full or blocked storage loses the layout, not the session.
+      }
     },
     { deep: true }
   )
@@ -537,7 +553,24 @@ export function useWorkspace<P extends { id: string }>(
     return "restored"
   }
 
-  return { context, panels, open, replace, snapshot, restore, reset }
+  async function follow(next: string) {
+    if (next === storageKey) return
+    storageKey = next
+    const raw = kept(next)
+    if (raw !== null && (await restore(raw)) === "restored") return
+    reset()
+  }
+
+  return { context, panels, open, replace, snapshot, restore, reset, follow }
+}
+
+function kept(storageKey: string | null): string | null {
+  if (storageKey === null) return null
+  try {
+    return localStorage.getItem(storageKey)
+  } catch {
+    return null
+  }
 }
 
 function isCollapsed(root: LayoutNode, leafId: NodeId): boolean {

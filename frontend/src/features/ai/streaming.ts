@@ -1,9 +1,5 @@
 import { splitDocument } from "@/features/content/markdown/blocks"
 import type { DocumentBlock } from "@/features/content/markdown/blocks"
-import { plainSpeechText } from "@/features/speech/speechText"
-
-export { plainSpeechText }
-
 export type StreamingBlock = DocumentBlock | { type: "pending-fence"; language: string }
 
 /** Keep an unfinished rich fence away from its parser while tokens arrive (D138). */

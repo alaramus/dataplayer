@@ -113,7 +113,8 @@ half of the correction went through the screens the audit had flagged.
   reads, a grid the same rather than "Rows 0"; a search result's size keeps its
   column; a narrow connections head gives its title up whole; a restore is
   decided in its confirmation rather than in red on every row; a diagram opens
-  readable and Fit still shows it whole; a new window is lifted back rather
+  whole, as Fit shows it (opening it readable from its top left corner was
+  tried and left most of a larger one out of sight); a new window is lifted back rather
   than opened with its foot off screen; a record's null is the grid's; the window's minimize is the
   workspace's centred dash.
 

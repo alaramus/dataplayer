@@ -1,5 +1,6 @@
 import type { AgentModelPublic, ProviderKeyState } from "@/client"
 import type { SelectOption } from "@/shared/ui"
+import { appIcons } from "@/shared/ui/icons"
 
 export type Provider = ProviderKeyState["provider"]
 export type ModelOption = SelectOption & {
@@ -8,14 +9,21 @@ export type ModelOption = SelectOption & {
   /** Whose key window the row's key button opens; the row's own provider by default. */
   keyProvider?: Provider
 }
-/** No model row names it — the server sends it only with chat models — so the client says it once, as AI settings do. */
+/** The provider Jev's key is kept under. */
+export const JEV_PROVIDER: Provider = "typesafe"
+/** Jev has no model, and the server names a provider only on its models. */
 export const jevProviderLabel = "TypeSafe (Jev)"
-
-/** Jev routes among the models of every provider with a configured key. */
-export const AUTO_ALL_VALUE = "auto:all"
 
 export function autoModelValue(provider: string): string {
   return `auto:${provider}`
+}
+
+/** Jev routes among the models of every provider with a configured key. */
+export const AUTO_ALL_VALUE = autoModelValue("all")
+
+/** The providers this person has a key for. */
+export function keyedProviders(keys: readonly ProviderKeyState[]): ReadonlySet<Provider> {
+  return new Set(keys.filter((key) => key.set).map((key) => key.provider))
 }
 
 export function fallbackModel(
@@ -27,15 +35,20 @@ export function fallbackModel(
   return current?.provider === provider ? current : models.find((model) => model.provider === provider)
 }
 
-/** The fallback for the all-providers choice: the current model when it is still listed, else the first model with a key. */
+/**
+ * The fallback for the all-providers choice: the current model when its
+ * provider has a key, else the first model that has one. The server refuses a
+ * fallback it could not call (D157), so there is no keyless last resort.
+ */
 export function fallbackForAll(
   models: readonly AgentModelPublic[],
   currentKey: string | null,
-  keyed: ReadonlySet<string>
+  keyed: ReadonlySet<Provider>
 ): AgentModelPublic | undefined {
-  return models.find((model) => model.key === currentKey)
-    ?? models.find((model) => keyed.has(model.provider))
-    ?? models[0]
+  const current = models.find((model) => model.key === currentKey)
+  return current !== undefined && keyed.has(current.provider)
+    ? current
+    : models.find((model) => keyed.has(model.provider))
 }
 
 /** What the server calls a provider, from the models it sent. */
@@ -57,19 +70,19 @@ export function groupedModelOptions(
   models: readonly AgentModelPublic[],
   keys: readonly ProviderKeyState[]
 ): ModelOption[] {
-  const set = new Set(keys.filter((key) => key.set).map((key) => key.provider))
+  const set = keyedProviders(keys)
   const order = [...new Set(models.map((model) => model.provider))]
-  const jevKeySet = set.has("typesafe")
+  const jevKeySet = set.has(JEV_PROVIDER)
   const keyedCount = order.filter((provider) => set.has(provider)).length
   // The one key this row can ask for. Without a chat key at all there is no
   // single provider to offer, so the row stays without a button.
   const allKey =
     !jevKeySet || keyedCount > 0
       ? {
-          actionIcon: jevKeySet ? "key" : "key_off",
+          actionIcon: jevKeySet ? appIcons.key : appIcons.keyOff,
           actionLabel: `Manage ${jevProviderLabel} API key`,
           actionActive: jevKeySet,
-          keyProvider: "typesafe" as Provider,
+          keyProvider: JEV_PROVIDER,
         }
       : {}
   const all: ModelOption = {
@@ -85,17 +98,16 @@ export function groupedModelOptions(
   return [all, ...order.flatMap((provider) => {
     const keyIsSet = set.has(provider)
     const label = providerLabel(models, provider)
-    const ready = jevKeySet && keyIsSet
     const auto: ModelOption = {
       label: `Choose with Jev (${label})`,
       value: autoModelValue(provider),
       provider,
       auto: true,
       disable: !jevKeySet || !keyIsSet,
-      actionIcon: jevKeySet ? "key" : "key_off",
+      actionIcon: jevKeySet ? appIcons.key : appIcons.keyOff,
       actionLabel: `Manage ${jevProviderLabel} API key`,
       actionActive: jevKeySet,
-      keyProvider: "typesafe",
+      keyProvider: JEV_PROVIDER,
     }
     // One line a model: nothing of the key beside it. The heading above
     // carries the key button, and the field names the chosen model plainly.
@@ -113,7 +125,7 @@ export function groupedModelOptions(
       group: true,
       provider,
       separator: true,
-      actionIcon: keyIsSet ? "key" : "key_off",
+      actionIcon: keyIsSet ? appIcons.key : appIcons.keyOff,
       actionLabel: `Manage ${label} API key`,
       actionActive: keyIsSet,
       keyProvider: provider,

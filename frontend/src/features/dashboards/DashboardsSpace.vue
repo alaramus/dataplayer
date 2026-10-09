@@ -343,6 +343,7 @@ defineExpose({
                 v-for="dashboard in shownDashboards.own"
                 :key="dashboard.id"
                 :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
+                class="dashboards__entry"
                 :class="{
                   'dashboards__entry--current': railEntry(dashboard.color, dashboard.id === current?.id).current,
                   'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
@@ -372,6 +373,7 @@ defineExpose({
                   v-for="dashboard in shownDashboards.shared"
                   :key="dashboard.id"
                   :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
+                  class="dashboards__entry"
                   :class="{
                     'dashboards__entry--current': railEntry(dashboard.color, dashboard.id === current?.id).current,
                     'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
@@ -563,7 +565,7 @@ defineExpose({
 
 /* Like a connection's row (ConnectorList): edge to edge and square, one row
    tall — not a rounded entry inset by the list's padding. */
-.dashboards__list .app-button {
+.dashboards__list .dashboards__entry {
   width: 100%;
   min-height: var(--dp-row-height);
   border-radius: 0;

@@ -24,7 +24,7 @@ import {
   useUpdateQuickChat,
   useUpdateAiSettings,
 } from "./api"
-import { AUTO_ALL_VALUE, autoModelValue, fallbackForAll, fallbackModel } from "./modelOptions"
+import { AUTO_ALL_VALUE, JEV_PROVIDER, autoModelValue, fallbackForAll, fallbackModel, jevProviderLabel, keyedProviders } from "./modelOptions"
 
 const settings = useAiSettings()
 const models = useAiModels()
@@ -46,7 +46,8 @@ const modelValue = computed(() => settings.data.value?.auto_provider
   ? autoModelValue(settings.data.value.auto_provider)
   : settings.data.value?.model_key ?? null)
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
-const jevKeySet = computed(() => settings.data.value?.keys.some((key) => key.provider === "typesafe" && key.set) ?? false)
+const keyed = computed(() => keyedProviders(settings.data.value?.keys ?? []))
+const jevKeySet = computed(() => keyed.value.has(JEV_PROVIDER))
 const jevDialogOpen = ref(false)
 type ArchivedChat = { kind: "agent"; chat: ConversationSummary } | { kind: "quick"; chat: QuickChatSummary }
 const archived = computed<ArchivedChat[]>(() => [
@@ -56,9 +57,7 @@ const archived = computed<ArchivedChat[]>(() => [
 
 async function chooseModel(value: string) {
   if (value === AUTO_ALL_VALUE) {
-    const list = models.data.value ?? []
-    const keyed = new Set((settings.data.value?.keys ?? []).filter((key) => key.set).map((key) => key.provider))
-    const fallback = fallbackForAll(list, settings.data.value?.model_key ?? null, keyed)
+    const fallback = fallbackForAll(models.data.value ?? [], settings.data.value?.model_key ?? null, keyed.value)
     if (!fallback) return
     try { await update.mutateAsync({ model_key: fallback.key, auto_provider: "all" }) }
     catch (cause) { toast.error(messageOf(cause, "The model could not be selected")) }
@@ -162,8 +161,8 @@ async function removeAll() {
       </section>
       <AiKeyDialog
         v-model="jevDialogOpen"
-        provider="typesafe"
-        provider-label="TypeSafe (Jev)"
+        :provider="JEV_PROVIDER"
+        :provider-label="jevProviderLabel"
         :key-set="jevKeySet"
       />
       <section class="ai-settings__archive">

@@ -255,9 +255,16 @@ function stepSearch(direction: number): void {
   showActiveSearchMatch()
 }
 
-function toggleSearch(): void {
-  searchOpen.value = !searchOpen.value
-  if (!searchOpen.value) searchQuery.value = ""
+const tools = ref<HTMLElement | null>(null)
+
+async function toggleSearch(): Promise<void> {
+  if (searchOpen.value) {
+    closeSearch()
+    return
+  }
+  searchOpen.value = true
+  await nextTick()
+  tools.value?.querySelector<HTMLInputElement>('[data-testid="markdown-search"]')?.focus()
 }
 
 function closeSearch(): void {
@@ -517,7 +524,10 @@ onBeforeUnmount(() => {
          a document that failed to load is exactly when re-reading it is worth
          offering, and the row that offers it must be on screen to be pressed. -->
     <div class="markdown-panel__head dp-scroll-edges">
-      <div class="markdown-panel__tools">
+      <div
+        ref="tools"
+        class="markdown-panel__tools"
+      >
         <template v-if="contentDocument">
           <AppButton
             v-if="headings.length > 0"
@@ -542,9 +552,10 @@ onBeforeUnmount(() => {
               compact
               clearable
               placeholder="Search document"
+              aria-label="Search document"
               class="markdown-panel__search"
               data-testid="markdown-search"
-              @keyup.esc="closeSearch"
+              @keydown.esc.stop="closeSearch"
             />
             <span
               class="markdown-panel__search-position"
@@ -635,11 +646,13 @@ onBeforeUnmount(() => {
       </AppBanner>
       <div class="markdown-panel__body">
         <aside
-          v-if="outlineOpen && (headings.length > 0 || blockedImages > 0 || allowRemoteImages)"
+          v-if="(outlineOpen && headings.length > 0) || blockedImages > 0 || allowRemoteImages"
           class="markdown-panel__outline"
           aria-label="Table of contents"
           data-testid="markdown-contents"
         >
+          <!-- The option below stays when the contents are closed: it is the
+               only way to the blocked images. -->
           <template v-if="outlineOpen && headings.length > 0">
             <div class="markdown-panel__outline-title dp-overline">
               On this page
@@ -673,7 +686,7 @@ onBeforeUnmount(() => {
             <AppCheckbox
               v-model="allowRemoteImages"
               dense
-              label="Load images from sites"
+              label="Load images from other sites"
               data-testid="markdown-allow-remote"
             />
             <span
@@ -773,14 +786,16 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-1);
-  margin-top: var(--dp-space-2);
   padding: var(--dp-space-2) var(--dp-space-2) 0;
-  border-top: 1px solid var(--dp-border-faint);
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size-xs);
 }
-/* A control's own size rather than a caption's: the box picks a setting. As
-   strong as the overline above it. */
+/* Divided from the contents only when they are there to divide it from. */
+.markdown-panel__outline-list + .markdown-panel__remote {
+  margin-top: var(--dp-space-2);
+  border-top: 1px solid var(--dp-border-faint);
+}
+/* A control's own size rather than a caption's: the box picks a setting. */
 .markdown-panel__remote :deep(.q-checkbox__label) {
   font-size: var(--dp-font-size);
   font-weight: 600;

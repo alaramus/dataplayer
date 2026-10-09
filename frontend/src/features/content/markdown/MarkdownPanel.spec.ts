@@ -25,8 +25,9 @@ const Host = defineComponent({
   template: `<MarkdownPanel v-bind="panel" />`,
 })
 
-function mountPanel(overrides: Record<string, unknown> = {}) {
+function mountPanel(overrides: Record<string, unknown> = {}, options: { attachTo?: HTMLElement } = {}) {
   return mount(Host, {
+    ...options,
     props: {
       panel: {
         panelId: "content:c1:guide.md:markdown",
@@ -208,6 +209,36 @@ describe("the rendered document panel", () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="markdown-document"]').html()).toContain("example.test/a.png")
+  })
+
+  it("keeps the way to blocked images when the contents are closed", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(
+      document({ text: "# Title\n\n![one](https://example.test/a.png)" })
+    )
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="markdown-toggle-contents"]').trigger("click")
+
+    expect(wrapper.find('[data-testid="markdown-heading-title"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="markdown-allow-remote"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain("1 image(s)")
+  })
+
+  it("puts the caret in the search it opens, and Escape closes it", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(document())
+
+    // `document` is this file's response builder; the page is window.document.
+    const attached = mountPanel({}, { attachTo: window.document.body })
+    await flushPromises()
+    await attached.get('[data-testid="markdown-search-toggle"]').trigger("click")
+    await flushPromises()
+
+    const input = attached.get('[data-testid="markdown-search"]')
+    expect(window.document.activeElement).toBe(input.element)
+    await input.trigger("keydown", { key: "Escape" })
+    expect(attached.find('[data-testid="markdown-search"]').exists()).toBe(false)
+    attached.unmount()
   })
 
   it("opens the source in the editor under the name the source gave it", async () => {

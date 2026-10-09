@@ -15,6 +15,11 @@ export interface RunTarget {
   start: number
   end: number
   scope: "statement" | "script"
+  /**
+   * For a fragment selected inside one statement, that statement: run instead
+   * when the source does not read the fragment as a statement of its own (D65).
+   */
+  enclosing?: RunTarget
 }
 
 /**
@@ -41,11 +46,11 @@ export function statementAt(
 /**
  * What Ctrl+Enter runs: the selection, or the statement under the caret.
  *
- * Never the whole document. A selection spanning several statements is taken
- * as it is — it is a script and the caller says so — and running the document
- * is the other command (D65). A selection inside a single statement runs that
- * whole statement: undo restores the deleted text still selected, and running
- * the literal fragment would only answer "unknown statement".
+ * Never the whole document. A selection is taken as it is — with several
+ * statements in it, it is a script and the caller says so — and running the
+ * document is the other command (D65). A fragment of one statement carries
+ * that statement along, for when the fragment is not one by itself: undo
+ * leaves restored text selected, and that text is rarely a statement.
  */
 export function targetFor(
   script: PreparedScript,
@@ -63,11 +68,14 @@ export function targetFor(
     if (inside.length === 0) return null
     if (inside.length === 1) {
       const only = inside[0]!
+      const statement: RunTarget = { text: only.text, start: only.start, end: only.end, scope: "statement" }
+      if (selection.from <= only.start && selection.to >= only.end) return statement
       return {
-        text: only.text,
-        start: only.start,
-        end: only.end,
+        text: selected,
+        start: selection.from,
+        end: selection.to,
         scope: "statement",
+        enclosing: statement,
       }
     }
     return {
@@ -85,6 +93,11 @@ export function targetFor(
     end: statement.end,
     scope: "statement",
   }
+}
+
+/** Whether the source read a fragment as something other than statements. */
+export function unreadable(script: PreparedScript): boolean {
+  return script.statements.length === 0 || script.statements.some((one) => one.kind === "unknown")
 }
 
 /** What Ctrl+Shift+Enter runs: everything, said explicitly. */

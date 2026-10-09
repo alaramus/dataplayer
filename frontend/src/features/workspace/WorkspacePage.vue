@@ -27,13 +27,13 @@ import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
 import { browserPlacesOf } from "@/features/search/browser"
 import { offeredScope } from "@/features/search/context"
-import { PENDING_WORKSPACE_KEY, workspaceLayoutKey } from "@/features/workspace/layoutStorage"
+import { forgetSharedLayouts, workspaceLayoutKey } from "@/features/workspace/layoutStorage"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import { gainedPanels } from "@/features/workspace/gainedPanels"
 import { searchFromOf } from "@/features/workspace/catalogSides"
 import SearchField from "@/features/search/SearchField.vue"
 import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
-import { markVisited, shouldShowOnboarding } from "@/features/onboarding/onboarding"
+import { shouldShowOnboarding } from "@/features/onboarding/onboarding"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
@@ -101,7 +101,6 @@ import type {
 } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { keysOf, keyshortcutsOf, onMac, registerShortcut } from "@/shared/keys/shortcuts"
-import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { useSpaceStore } from "@/stores/space"
@@ -117,7 +116,6 @@ import {
   WorkspaceRoot,
   WorkspaceTaskbar,
 } from "@/shared/workspace"
-import type { WorkspaceOptions } from "@/shared/workspace"
 
 /**
  * The workspace: connections, catalogs and node-specific work, side by side.
@@ -136,13 +134,10 @@ const connectorColors = computed(() => new Map(
 ))
 const me = useCurrentUser()
 const meId = computed(() => me.data.value?.id ?? null)
-const workspaceOptions: WorkspaceOptions<Panel> = {
-  // Until the person is known the layout stands on nothing kept: reading the
-  // key layouts used before the per-person separation would hand whoever was
-  // here before to whoever is here now.
-  storageKey: meId.value === null
-    ? serverStorageKey(PENDING_WORKSPACE_KEY)
-    : workspaceLayoutKey(meId.value),
+const workspace = useWorkspace<Panel>({
+  // Until the person is known the layout stands on nothing kept, and follows
+  // them once they are (below).
+  storageKey: meId.value === null ? null : workspaceLayoutKey(meId.value),
   panelSchema,
   retired: isRetiredPanel,
   defaults: () => ({
@@ -184,8 +179,7 @@ const workspaceOptions: WorkspaceOptions<Panel> = {
   // A tab is a person's decision to close something; what that costs is the
   // panel's to say. A console holding an open transaction is the reason (D66).
   beforeClose: (panelId) => closings.mayClose(panelId),
-}
-const workspace = useWorkspace<Panel>(workspaceOptions)
+})
 
 /**
  * Which connection is being looked at, and which have a catalog open at all.
@@ -294,16 +288,10 @@ function floatPanel(panel: Panel) {
 // another space — must not, or closing it takes the person to Data with
 // nothing new to look at.
 watch(
-  () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id).join(" ")] as const,
+  () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id)] as const,
   ([tree, ids], [previousTree, previousIds]) => {
     if (lifting || followingPerson || space.current === "data") return
-    if (tree !== previousTree) {
-      space.show("data")
-      return
-    }
-    if (gainedPanels((previousIds ?? "").split(" ").filter(Boolean), ids.split(" ").filter(Boolean))) {
-      space.show("data")
-    }
+    if (tree !== previousTree || gainedPanels(previousIds, ids)) space.show("data")
   }
 )
 
@@ -783,23 +771,15 @@ function openShared(request: OpenSharedRequest) {
   }
 }
 
-/**
- * First-visit welcome. The visit is recorded on entry; the tour opens until
- * it was finished or skipped, then never again.
- */
+/** First-visit welcome: it opens until it was finished or skipped. */
 const onboardingOpen = ref(false)
 onMounted(() => {
-  markVisited()
   if (shouldShowOnboarding()) onboardingOpen.value = true
 })
 
 /**
  * A link the landing screen has already resolved. Taken once, on the way in:
  * the workspace is where tabs live, and the landing screen has none.
- *
- * Once per mount, after the layout has followed the person: while the person
- * is still unknown the watch below owns the intent, and opening it here would
- * have the watch's reset wipe the tab it just opened.
  */
 function openPendingShare() {
   const intent = takeShareIntent()
@@ -815,50 +795,28 @@ function openPendingShare() {
   toast.info(`Opened what ${intent.sharedBy} shared`)
 }
 
-onMounted(() => {
-  if (meId.value === null) return
-  openPendingShare()
-})
-
 // The layout is one per person per browser, like the tab groups and what the
 // search opened: whoever is here now must never meet the tabs of whoever was
-// here before. The engine reads its key once and writes every change back to
-// the key in the options it holds, so the layout follows the person once they
-// are known.
+// here before.
 //
-// A shared link resolved by the landing screen waits in `openPendingShare`
-// until the layout has followed the person: opening it before the reset below
-// would have the reset wipe the tab it just opened. Placed after the toast,
-// the panels and the intent above, so the first run already sees them.
+// A shared link resolved by the landing screen waits until the layout has
+// followed the person: opened before, the layout it lands in would replace
+// the tab it just opened. Placed after the toast, the panels and the intent
+// above, so the first run already sees them.
 watch(
   meId,
   async (id, previous) => {
     if (id === null || id === previous) return
-    const key = workspaceLayoutKey(id)
-    if (workspaceOptions.storageKey === key) {
-      openPendingShare()
-      return
-    }
-    workspaceOptions.storageKey = key
+    forgetSharedLayouts()
     followingPerson = true
     try {
-      let raw: string | null = null
-      try {
-        raw = localStorage.getItem(key)
-      } catch {
-        raw = null
-      }
-      if (raw !== null && (await workspace.restore(raw)) === "restored") {
-        openPendingShare()
-        return
-      }
-      workspace.reset()
-      openPendingShare()
+      await workspace.follow(workspaceLayoutKey(id))
     } finally {
       // Released after the watchers have run, as with `lifting` above: the
-      // tree watcher must still see the flag when the reset lands.
+      // tree watcher must still see the flag when the new layout lands.
       void nextTick(() => { followingPerson = false })
     }
+    openPendingShare()
   },
   { immediate: true }
 )

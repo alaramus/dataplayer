@@ -27,14 +27,17 @@ export function arrange(graph: GraphDocument, expanded: boolean) {
   return { positions2, positions3 }
 }
 
-export function fit2(graph: GraphDocument, positions: Record<string, Point2>, expanded: boolean, width: number, height: number, floor = 0.03): Camera2 {
+/** How far out a diagram is ever drawn, by Fit and by the wheel alike. */
+const MIN_ZOOM = 0.03
+
+export function fit2(graph: GraphDocument, positions: Record<string, Point2>, expanded: boolean, width: number, height: number): Camera2 {
   if (!graph.nodes.length || width <= 0 || height <= 0) return { x: 32, y: 32, zoom: 1 }
   const left = Math.min(...graph.nodes.map((node) => positions[node.id]!.x))
   const top = Math.min(...graph.nodes.map((node) => positions[node.id]!.y))
   const right = Math.max(...graph.nodes.map((node) => positions[node.id]!.x + CARD_WIDTH))
   const bottom = Math.max(...graph.nodes.map((node) => positions[node.id]!.y + nodeHeight(node, expanded)))
   const whole = Math.min(1, (width - 64) / (right - left), (height - 64) / (bottom - top))
-  const zoom = Math.max(floor, whole)
+  const zoom = Math.max(MIN_ZOOM, whole)
   // Held at the floor, the diagram does not fit: it opens at its top left
   // corner, where the reading starts, rather than centred on its middle.
   if (zoom > whole) return { zoom, x: 32 - left * zoom, y: 32 - top * zoom }
@@ -42,7 +45,7 @@ export function fit2(graph: GraphDocument, positions: Record<string, Point2>, ex
 }
 
 export function zoomAt(camera: Camera2, factor: number, point: Point2): Camera2 {
-  const zoom = Math.max(0.03, Math.min(3, camera.zoom * factor))
+  const zoom = Math.max(MIN_ZOOM, Math.min(3, camera.zoom * factor))
   const ratio = zoom / camera.zoom
   return { zoom, x: point.x - (point.x - camera.x) * ratio, y: point.y - (point.y - camera.y) * ratio }
 }

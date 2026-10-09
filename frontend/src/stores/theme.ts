@@ -61,6 +61,14 @@ export const THEMES = [
 type Theme = (typeof THEMES)[number]
 export type ThemeName = Theme["value"]
 
+/** Every theme as a choice, and System after them: wherever a theme is picked. */
+export const THEME_CHOICES: readonly { label: string; value: string; description?: string }[] = [
+  ...THEMES.map(({ label, value, ...theme }) =>
+    "description" in theme ? { label, value, description: theme.description } : { label, value }
+  ),
+  { label: "System", value: "system", description: "Light or Dark, as the operating system changes" },
+]
+
 /**
  * A theme, or whatever the system says. Pinia, because the server knows
  * nothing about it (D6). System is the default and a choice of its own: a

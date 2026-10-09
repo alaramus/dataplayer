@@ -1,4 +1,4 @@
-import { getCurrentInstance, onBeforeUnmount, ref } from "vue"
+import { getCurrentScope, onScopeDispose, ref } from "vue"
 
 /**
  * The voices of this browser's speech synthesis.
@@ -21,7 +21,7 @@ export function voiceLabel(voice: Pick<SpeechSynthesisVoice, "name" | "lang">): 
   return voice.lang ? `${voice.name} · ${voice.lang}` : voice.name
 }
 
-function current(): SpeechSynthesisVoice[] {
+export function availableVoices(): SpeechSynthesisVoice[] {
   if (!speechSupported()) return []
   try {
     return [...window.speechSynthesis.getVoices()]
@@ -31,19 +31,19 @@ function current(): SpeechSynthesisVoice[] {
 }
 
 export function useVoices() {
-  const voices = ref<SpeechSynthesisVoice[]>(current())
+  const voices = ref<SpeechSynthesisVoice[]>(availableVoices())
   const supported = speechSupported()
 
   function refresh() {
-    voices.value = current()
+    voices.value = availableVoices()
   }
 
   if (supported) {
     window.speechSynthesis.addEventListener("voiceschanged", refresh)
-    // Outside a component — a bare unit test, for one — there is no instance
-    // to unmount from, and registering the hook only warns into stderr.
-    if (getCurrentInstance() !== null) {
-      onBeforeUnmount(() => {
+    // Outside any scope — a bare unit test, for one — there is nothing to
+    // dispose with, and registering the hook only warns into stderr.
+    if (getCurrentScope() !== undefined) {
+      onScopeDispose(() => {
         window.speechSynthesis.removeEventListener("voiceschanged", refresh)
       })
     }

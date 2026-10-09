@@ -16,6 +16,7 @@ import {
   parameterForm,
   ready,
   targetFor,
+  unreadable,
   toRemember,
   wholeDocument,
 } from "@/features/queries/console"
@@ -234,26 +235,25 @@ const connectors = useConnectors()
 const connection = computed(() =>
   connectors.data.value?.data.find((item) => item.id === connectorId.value)
 )
+/** Whether the source runs a change on its own, committed as it runs. */
+const supportsWrites = computed(() => profile.data.value?.statement_modes.includes("auto_commit") ?? true)
+/** Whether this connection lets this person change anything at all. */
+const connectionWritable = computed(() =>
+  connection.value !== undefined &&
+  connection.value.execution_policy !== "read_only" &&
+  connection.value.access !== "read"
+)
 const canUseTransaction = computed(() =>
-  profile.data.value?.statement_modes.includes("manual") === true &&
-  connection.value?.execution_policy !== "read_only" &&
-  connection.value?.access !== "read" && connection.value !== undefined
+  profile.data.value?.statement_modes.includes("manual") === true && connectionWritable.value
 )
 /**
- * Whether a change on screen would run as a change rather than as a read.
- *
- * The same rule Run itself follows: an open manual transaction takes it, and
- * otherwise a source that writes takes it unless the connection forbids it.
- * The server stays the authority — a finer grant is still its refusal at Run —
- * but the editor stops warning about what would not happen.
+ * Whether a change on screen would run as a change rather than as a read:
+ * Run's own mode, with what the connection allows. The server stays the
+ * authority — a finer grant is still its refusal at Run — but the editor
+ * stops warning about what would not happen.
  */
 const canWriteChanges = computed(
-  () =>
-    manualTransaction.value ||
-    ((profile.data.value?.statement_modes.includes("auto_commit") ?? true) &&
-      connection.value?.execution_policy !== "read_only" &&
-      connection.value?.access !== "read" &&
-      connection.value !== undefined)
+  () => manualTransaction.value || (supportsWrites.value && connectionWritable.value)
 )
 const editorMarks = computed(() =>
   marks(script.value, metadata.data.value, canWriteChanges.value)
@@ -534,6 +534,25 @@ async function runEverything() {
   await go(wholeDocument(current, draft.value.body))
 }
 
+/**
+ * The source's answer for exactly the text being run, which may have another
+ * class than the rest of the document; a fragment it does not read as a
+ * statement gives way to the statement around it (D65).
+ */
+async function settle(
+  target: RunTarget,
+  connector: string
+): Promise<{ target: RunTarget; script: PreparedScript } | null> {
+  try {
+    const script = await prepare.mutateAsync({ connector_id: connector, text: target.text })
+    if (target.enclosing === undefined || !unreadable(script)) return { target, script }
+    return await settle(target.enclosing, connector)
+  } catch (cause) {
+    toast.error(messageOf(cause, "This query could not be prepared"))
+    return null
+  }
+}
+
 async function go(target: RunTarget | null) {
   const loaded = server.value
   const connector = connectorId.value
@@ -545,24 +564,18 @@ async function go(target: RunTarget | null) {
     toast.info("Fill in the parameters this query asks for")
     return
   }
-  let selectedScript: PreparedScript
-  try {
-    // The selection can have a different class than another statement in the
-    // document. Use the source's answer for exactly the text being run.
-    selectedScript = await prepare.mutateAsync({ connector_id: connector, text: target.text })
-  } catch (cause) {
-    toast.error(messageOf(cause, "This query could not be prepared"))
-    return
-  }
+  const settled = await settle(target, connector)
+  if (settled === null) return
+  target = settled.target
+  const selectedScript = settled.script
   const statements = selectedScript.statements
   const mutating = statements.some((one) => one.changes)
   const risky = mutating && (statements.length > 1 || statements.some((one) => one.kind === "ddl" || one.risk === "high"))
-  const supportsWrites = profile.data.value?.statement_modes.includes("auto_commit") ?? true
-  const policyConfirm = mutating && supportsWrites && (connection.value?.execution_policy ?? "confirm_writes") === "confirm_writes"
-  const mode = manualTransaction.value ? "manual" : mutating && supportsWrites ? "auto_commit" : "read"
+  const policyConfirm = mutating && supportsWrites.value && (connection.value?.execution_policy ?? "confirm_writes") === "confirm_writes"
+  const mode = manualTransaction.value ? "manual" : mutating && supportsWrites.value ? "auto_commit" : "read"
   // The connection's confirmation policy and dangerous changes ask at Run,
   // not through an independent permission switch in the editor (D160).
-  if ((risky && supportsWrites) || policyConfirm) {
+  if ((risky && supportsWrites.value) || policyConfirm) {
     const rehearsed = risky && needsRehearsal(selectedScript) ? await tryItOut(target) : null
     if (rehearsed === "blocked") return
     const tried =
@@ -653,8 +666,11 @@ async function explain() {
   const loaded = server.value
   const connector = connectorId.value
   if (current === null || connector === null) return
-  const target = targetFor(current, draft.value.body, selection.value)
-  if (target === null) return
+  const asked = targetFor(current, draft.value.body, selection.value)
+  if (asked === null) return
+  const settled = await settle(asked, connector)
+  if (settled === null) return
+  const target = settled.target
   try {
     plan.value = await explaining.mutateAsync({
       connectorId: connector,

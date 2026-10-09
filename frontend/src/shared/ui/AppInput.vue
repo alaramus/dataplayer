@@ -110,7 +110,7 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
-    :class="{ 'app-form-field': formLayout, 'app-input--monospace': monospace, 'app-input--compact': toolbar }"
+    :class="{ 'app-form-field': formLayout, 'app-input--monospace': monospace, 'app-input--compact': toolbar, 'dp-toolbar-field': toolbar }"
     v-bind="{ ...attrs, ...fieldLook(formLayout, compact) }"
     :model-value="modelValue"
     :label="formLayout || toolbar ? undefined : label"
@@ -193,20 +193,5 @@ function report(value: string | number | null) {
   min-height: var(--dp-field-height);
   padding-top: 0;
   padding-bottom: 0;
-}
-/* A toolbar field in error keeps its box: Quasar's message row and its icon
-   both grew it (the row into a second line, the icon into the button beside
-   it). The message below is kept for a reader only — out of the flow, one
-   pixel, clipped — while the red frame stays. Forms keep Quasar's message. */
-.app-input--compact.q-field--error :deep(.q-field__bottom) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  min-height: 0;
-  padding: 0;
-  margin: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 </style>

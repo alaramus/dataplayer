@@ -49,27 +49,28 @@ const command = computed(() =>
 )
 const shown = computed(() => panel.open.value === "queries")
 
+/**
+ * A press made while the capability was still being asked, which aims the
+ * library once the source answers. Only that press aims late: a filter set
+ * to every connection is a choice too, and switching connections afterwards
+ * must not overrule it.
+ */
+let aimOnAnswer = false
+
 function pressed() {
   if (shown.value) {
     panel.hide()
     return
   }
   if (supportsQueries.value === "yes") library.aim(workspace.activeConnectorId.value)
+  aimOnAnswer = supportsQueries.value === "asking"
   panel.show("queries")
 }
 
-/**
- * Aim late, when the profile lands after the press.
- *
- * The capability is asked of the source, so a press that opens the panel
- * while it is still being asked leaves the library unaimed — and its New
- * button stays disabled until somebody picks a connection by hand. Only an
- * unpicked filter is aimed: what somebody chose stays chosen.
- */
-watch([shown, supportsQueries], ([open, support]) => {
-  if (open && support === "yes" && library.connectorId.value === null) {
-    library.aim(workspace.activeConnectorId.value)
-  }
+watch(supportsQueries, (support) => {
+  if (support === "asking") return
+  if (aimOnAnswer && support === "yes" && shown.value) library.aim(workspace.activeConnectorId.value)
+  aimOnAnswer = false
 })
 </script>
 

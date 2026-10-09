@@ -33,7 +33,9 @@ import {
   AppCopyButton,
   AppScrollArea,
   AppSection,
+  AppSectionsLayout,
   AppSelect,
+  AppSettingRow,
   AppSpinner,
   AppTable,
   AppTabs,
@@ -107,6 +109,11 @@ const tabColor = ref<string | null>(null)
 const broken = ref<number | null>(null)
 const choice = ref<string | null>("postgres")
 const groupedChoice = ref<string | null>("claude")
+const KIT_SECTIONS = [
+  { id: "general", title: "General", summary: "What every page of settings starts with", icon: appIcons.settings },
+  { id: "keys", title: "Keys", summary: "A second section, one line in a list", icon: appIcons.sshKey },
+] as const
+const kitSection = ref<string>("general")
 const plain = ref("prefer")
 const several = ref<string[]>(["public"])
 const flag = ref(true)
@@ -337,6 +344,15 @@ function removeSavedEntry(name: string) {
             tooltip="Not available here"
             disable
           />
+          <AppIconButton
+            :icon="appIcons.filterAlt"
+            tooltip="Filters (2)"
+          >
+            <AppBadge
+              corner
+              label="2"
+            />
+          </AppIconButton>
           <AppCopyButton />
           <AppButton
             variant="secondary"
@@ -659,9 +675,9 @@ function removeSavedEntry(name: string) {
           v-model="groupedChoice"
           label="Grouped choices with actions"
           :options="[
-            { label: 'Anthropic', value: 'provider:anthropic', group: true },
+            { label: 'Anthropic', value: 'provider:anthropic', group: true, description: 'A heading may say more, and carry its own action', actionIcon: 'key', actionLabel: 'Manage Anthropic API key', actionActive: true },
             { label: 'Claude', value: 'claude', description: 'API key set', actionIcon: 'key', actionLabel: 'Manage Anthropic API key', actionActive: true, stateIcon: 'key', stateActive: true },
-            { label: 'OpenAI', value: 'provider:openai', group: true },
+            { label: 'OpenAI', value: 'provider:openai', group: true, separator: true },
             { label: 'GPT', value: 'gpt', description: 'API key required', actionIcon: 'key_off', actionLabel: 'Manage OpenAI API key', stateIcon: 'key_off' },
           ]"
           @option-action="toast.info($event.actionLabel ?? 'Option action')"
@@ -834,6 +850,38 @@ function removeSavedEntry(name: string) {
           A footer is AppActions; inside a dialog it is the actions slot.
         </span>
       </AppActions>
+    </AppCard>
+
+    <AppCard
+      size="lg"
+      title="Sections and settings"
+      subtitle="a page of sections beside its body, and one setting a row"
+      class="ui-kit__card"
+    >
+      <AppSection>
+        <AppSectionsLayout
+          :sections="KIT_SECTIONS"
+          :current="kitSection"
+          testid="ui-kit-sections"
+          @select="kitSection = $event"
+        >
+          <AppSettingRow
+            title="Appearance"
+            summary="The question on the left and its answer on the right."
+          >
+            <AppForm>
+              <AppSelect
+                v-model="choice"
+                aria-label="Source type"
+                :options="[
+                  { label: 'PostgreSQL', value: 'postgres' },
+                  { label: 'Files', value: 'file' },
+                ]"
+              />
+            </AppForm>
+          </AppSettingRow>
+        </AppSectionsLayout>
+      </AppSection>
     </AppCard>
 
     <AppCard

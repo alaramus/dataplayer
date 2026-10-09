@@ -42,7 +42,7 @@ describe("AppSelect", () => {
     expect(select.props("emitValue")).toBe(false)
   })
 
-  it("keeps group headings enabled so their own button stays pressable", () => {
+  it("passes over group headings as it does over a choice not yet available", () => {
     const select = mountSelect({
       options: [
         { label: "Anthropic", value: "provider:anthropic", group: true },
@@ -51,16 +51,11 @@ describe("AppSelect", () => {
       ],
     }).getComponent(QSelect)
 
-    // A heading is never taken, but it carries its own button (a provider
-    // key): disabling the row would disable the button with it, for pointer,
-    // keyboard and reader alike. Headings lose the select-on-press instead,
-    // while a choice that cannot be taken yet stays disabled.
     const disable = select.props("optionDisable") as (option: {
       group?: boolean
       disable?: boolean
     }) => boolean
-    expect(typeof disable).toBe("function")
-    expect(disable({ group: true })).toBe(false)
+    expect(disable({ group: true })).toBe(true)
     expect(disable({ disable: true })).toBe(true)
     expect(disable({})).toBe(false)
   })
@@ -238,6 +233,35 @@ describe("AppSelect", () => {
     wrapper.unmount()
   })
 
+  it("never takes a heading from the keyboard", async () => {
+    const wrapper = mount(AppSelect, {
+      attachTo: document.body,
+      global: { plugins: [Quasar] },
+      props: {
+        modelValue: null,
+        options: [
+          { label: "Anthropic", value: "provider:anthropic", group: true, actionIcon: "key", actionLabel: "Manage Anthropic API key" },
+          { label: "Claude", value: "claude" },
+        ],
+      },
+    })
+    const field = wrapper.getComponent(QSelect).vm as unknown as { showPopup: () => void }
+    field.showPopup()
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[role="option"]')).not.toBeNull()
+    })
+    // Drawn as a heading, not as an option a reader would be offered.
+    expect(document.body.querySelectorAll('[role="option"]')).toHaveLength(1)
+
+    const combobox = wrapper.get('[role="combobox"]')
+    await combobox.trigger("keydown", { key: "ArrowDown", keyCode: 40 })
+    await combobox.trigger("keydown", { key: "Enter", keyCode: 13 })
+    await flushPromises()
+
+    expect(wrapper.emitted("update:modelValue")).toEqual([["claude"]])
+    wrapper.unmount()
+  })
+
   // A heading carries its own button but is never a choice: pressing the
   // row itself selects nothing, while the button still takes over.
   it("keeps a heading action pressable without making the heading a choice", async () => {
@@ -263,9 +287,10 @@ describe("AppSelect", () => {
     await vi.waitFor(() => {
       expect(document.body.querySelector('button[aria-label="Manage Anthropic API key"]')).not.toBeNull()
     })
-    // The row QSelect disabled for a heading took the button with it: no
-    // press, keyboard or reader reached it.
+    // Disabled to QSelect, not on the row: an aria-disabled row takes the
+    // button with it for a reader and for Playwright.
     expect(document.body.querySelector(".q-item.disabled")).toBeNull()
+    expect(document.body.querySelector('.q-item[aria-disabled="true"]')).toBeNull()
 
     const row = document.body.querySelector(".q-item")
     row?.dispatchEvent(new MouseEvent("click", { bubbles: true }))

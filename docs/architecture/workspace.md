@@ -270,7 +270,8 @@ Known deviations:
 - **The layout is one per person per browser.** It lives in localStorage, so it does not
   follow a user to another machine and is not shared between two windows —
   and never meets whoever signs in next in the same one, as the tab groups
-  and what the search opened.
+  and what the search opened. Until the person is known nothing is kept, and
+  the keys a layout was once kept under for everyone are removed.
 - **A panel of a deleted connector stays until it is closed**, showing the error
   the server gave, because the panel cannot tell a deleted connector from a failed
   request.

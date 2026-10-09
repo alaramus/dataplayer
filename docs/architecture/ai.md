@@ -124,8 +124,7 @@ frontend/src/features/ai/
 ├── context.ts          which open panels a chip may name, and the open intent
 ├── dictation.ts        the browser's recogniser behind the composer's microphone
 ├── outline.ts          the questions of a conversation, and which one is being read
-├── readAloud.ts        the chat's way into the shared reader (in features/speech)
-├── streaming.ts        open-fence protection; speech text lives in features/speech
+├── streaming.ts        open-fence protection while an answer streams
 └── state.ts            selected-chat restoration and a chat requested from outside; the shared space store remembers AI
 ```
 
@@ -133,7 +132,7 @@ frontend/src/features/ai/
 frontend/src/features/speech/
 ├── ReadAloudButton.vue the listen button of chats, documents and files
 ├── VoiceSelect.vue     the reading voice, in Preferences and AI settings
-├── readAloud.ts        the one voice of the browser, shared by every reader
+├── readAloud.ts        the one voice of the browser, shared by every reader and keyed by it
 ├── speechText.ts       prose without the marks around it, for Markdown only
 └── voices.ts           the browser's voices, arriving after the page
 ```

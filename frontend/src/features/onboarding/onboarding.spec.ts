@@ -3,11 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest"
 import {
   ONBOARDING_DONE_KEY,
   ONBOARDING_STEPS,
-  VISITED_KEY,
-  hasVisited,
   isOnboardingDone,
   markOnboardingDone,
-  markVisited,
   shouldShowOnboarding,
 } from "./onboarding"
 
@@ -39,13 +36,6 @@ describe("onboarding state", () => {
   })
 
   it("shows the tour until it is finished or skipped", () => {
-    expect(hasVisited(storage)).toBe(false)
-    expect(shouldShowOnboarding(storage)).toBe(true)
-
-    markVisited(storage)
-    expect(hasVisited(storage)).toBe(true)
-    expect(storage.getItem(VISITED_KEY)).toBe("1")
-    // A recorded visit alone does not dismiss the tour.
     expect(shouldShowOnboarding(storage)).toBe(true)
 
     markOnboardingDone(storage)
@@ -63,9 +53,7 @@ describe("onboarding state", () => {
         throw new Error("denied")
       },
     } as unknown as Storage
-    expect(() => markVisited(blocked)).not.toThrow()
     expect(() => markOnboardingDone(blocked)).not.toThrow()
-    expect(hasVisited(blocked)).toBe(false)
     expect(shouldShowOnboarding(blocked)).toBe(true)
   })
 })

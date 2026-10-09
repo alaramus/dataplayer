@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { AgentModelPublic } from "@/client"
 import { AUTO_ALL_VALUE, fallbackForAll, fallbackModel, groupedModelOptions } from "./modelOptions"
+import type { Provider } from "./modelOptions"
 
 const models: AgentModelPublic[] = [
   { key: "anthropic:a", provider: "anthropic", provider_label: "Anthropic", id: "a", name: "Claude A", context_window: 1, max_output_tokens: 1, reasoning: true, image_input: false, available: false },
@@ -103,10 +104,12 @@ describe("grouped model choices", () => {
     expect(open?.description).toBeUndefined()
   })
 
-  it("keeps the current model as the all-providers fallback when listed", () => {
-    expect(fallbackForAll(models, "openai:a", new Set(["anthropic"]))?.key).toBe("openai:a")
-    expect(fallbackForAll(models, "openai:retired", new Set(["anthropic"]))?.key).toBe("anthropic:a")
-    expect(fallbackForAll(models, null, new Set())?.key).toBe("anthropic:a")
-    expect(fallbackForAll([], null, new Set())?.key).toBeUndefined()
+  it("keeps the current model as the all-providers fallback only while it has a key", () => {
+    expect(fallbackForAll(models, "openai:a", new Set<Provider>(["openai", "anthropic"]))?.key).toBe("openai:a")
+    // The server refuses a fallback whose provider has no key (D157).
+    expect(fallbackForAll(models, "openai:a", new Set<Provider>(["anthropic"]))?.key).toBe("anthropic:a")
+    expect(fallbackForAll(models, "openai:retired", new Set<Provider>(["anthropic"]))?.key).toBe("anthropic:a")
+    expect(fallbackForAll(models, null, new Set())).toBeUndefined()
+    expect(fallbackForAll([], null, new Set())).toBeUndefined()
   })
 })

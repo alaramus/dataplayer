@@ -33,12 +33,6 @@ describe("graph geometry", () => {
       expect((p.x + CARD_WIDTH) * camera.zoom + camera.x).toBeLessThanOrEqual(869)
       expect((p.y + nodeHeight(node, true)) * camera.zoom + camera.y).toBeLessThanOrEqual(469)
     }
-    // Fitted with a floor, a diagram too big to read whole keeps its text
-    // legible and starts from its top left corner instead.
-    const readable = fit2(deliveryGraph, positions2, true, 300, 200, 0.75)
-    const left = Math.min(...deliveryGraph.nodes.map((node) => positions2[node.id]!.x))
-    expect(readable.zoom).toBe(0.75)
-    expect(left * readable.zoom + readable.x).toBe(32)
     const cursor = { x: 237, y: 181 }
     const next = zoomAt(camera, 1.5, cursor)
     expect((cursor.x - camera.x) / camera.zoom).toBeCloseTo((cursor.x - next.x) / next.zoom)

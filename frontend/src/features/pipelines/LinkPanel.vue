@@ -12,7 +12,7 @@ import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, appIcons } f
 import { linkOffersKey, readLinkOffers } from "./api"
 import type { LinkSide } from "./api"
 import { CONFLICT_CHOICES, needsDialog, runWords, sentence, usable, withOffer } from "./links"
-import type { EndNamer } from "./links"
+import type { EndNamer, LinkWorkflow } from "./links"
 
 /**
  * The panel below the canvas, on the link selected (D176): what it does and
@@ -65,7 +65,7 @@ const offers = useQuery({
 })
 const choices = computed(() => usable(offers.data.value ?? []))
 const offer = computed(() => (offers.data.value ?? []).find((one) => one.kind === props.link.kind))
-const workflow = computed(() => offer.value?.workflow ?? "run")
+const workflow = computed<LinkWorkflow>(() => offer.value?.workflow ?? "run")
 const operations = computed(() => choices.value.map((one) => ({ label: one.title, value: one.kind })))
 const conflicts = computed(() =>
   CONFLICT_CHOICES.filter((choice) => choice.value !== "replace" || offer.value?.can_replace !== false)
@@ -89,20 +89,16 @@ function rename(value: string | number | null) {
 
 const tableOpen = ref(false)
 const pairsOpen = ref(false)
-// What the auto-open already showed, so a refetch does not raise it again.
-const autoShownKey = ref<string | null>(null)
-
+// Raised once: the view lowers `autoOpen` on hearing `autoOpened`, so a
+// refetch of the offers does not raise the window again, and the view raising
+// it anew — a run that failed on this link — does.
 watch(
-  [() => props.autoOpen, () => offers.data.value, workflow, () => props.link.id, () => props.link.kind],
+  [() => props.autoOpen, () => offers.data.value, workflow],
   ([autoOpen, loaded, flow]) => {
     if (!autoOpen || loaded === undefined || offers.isPending.value) return
     if (!needsDialog(props.link, flow)) return
-    const key = `${props.link.id}:${props.link.kind}:${flow}`
-    if (autoShownKey.value === key) return
-    autoShownKey.value = key
     if (flow === "new-relation") tableOpen.value = true
-    else if (flow === "into-relation") pairsOpen.value = true
-    else return
+    else pairsOpen.value = true
     emit("autoOpened")
   },
   { immediate: true }

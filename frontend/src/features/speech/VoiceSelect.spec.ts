@@ -1,7 +1,7 @@
-import { mount } from "@vue/test-utils"
+import { enableAutoUnmount, mount } from "@vue/test-utils"
 import { createPinia, setActivePinia } from "pinia"
 import { Quasar } from "quasar"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { nextTick } from "vue"
 
 import { AppSelect } from "@/shared/ui"
@@ -21,6 +21,13 @@ beforeEach(() => {
   })
 })
 
+// Hooks run last-registered first: the control is unmounted, and lets go of
+// the synthesis, before the synthesis is taken away.
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+enableAutoUnmount(afterEach)
+
 describe("the reading-voice control", () => {
   it("offers the browser voices and keeps the choice", async () => {
     const wrapper = mount(VoiceSelect, { global: { plugins: [Quasar] } })
@@ -32,7 +39,5 @@ describe("the reading-voice control", () => {
 
     field.vm.$emit("update:modelValue", "irina")
     expect(useVoiceStore().voice).toBe("irina")
-    wrapper.unmount()
-    vi.unstubAllGlobals()
   })
 })

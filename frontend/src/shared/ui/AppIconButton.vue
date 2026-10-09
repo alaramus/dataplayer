@@ -88,7 +88,9 @@ const spokenName = computed(() =>
       :color="active ? 'positive' : quietColor"
       :icon="icon"
       :loading="loading"
-    />
+    >
+      <slot />
+    </q-btn>
     <AppTooltip>{{ tooltip }}</AppTooltip>
   </span>
   <q-btn
@@ -102,6 +104,8 @@ const spokenName = computed(() =>
     :icon="icon"
     :loading="loading"
   >
+    <!-- What hangs off the button: a count on its corner (AppBadge). -->
+    <slot />
     <AppTooltip>{{ tooltip }}</AppTooltip>
   </q-btn>
 </template>

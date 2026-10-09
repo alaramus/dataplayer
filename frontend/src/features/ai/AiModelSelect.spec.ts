@@ -27,10 +27,10 @@ beforeEach(() => {
   vi.spyOn(AiService, "readSettings").mockResolvedValue({ data: { keys: [] } } as never)
 })
 
-function mountSelect(modelValue: string | null, hint = true) {
+function mountSelect(modelValue: string | null, hint = true, pending = false) {
   const client = new QueryClient()
   return mount(AiModelSelect, {
-    props: { modelValue, hint },
+    props: { modelValue, hint, pending },
     global: {
       plugins: [Quasar, [VueQueryPlugin, { queryClient: client }]],
       provide: { [windowsApiKey]: {} },
@@ -95,6 +95,28 @@ describe("the missing-model hint", () => {
     await flushPromises()
     await nextTick()
     expect(hinted()).toBe(false)
+    wrapper.unmount()
+  })
+
+  // A hint shown and then taken back by a model arriving a moment later
+  // flickers over the field.
+  it("waits for every read that could still name a model", async () => {
+    let settle: (value: unknown) => void = () => {}
+    vi.spyOn(AiService, "readSettings").mockReturnValue(new Promise((resolve) => { settle = resolve }) as never)
+    const wrapper = mountSelect(null, true, true)
+    await flushPromises()
+    await nextTick()
+    expect(hinted()).toBe(false)
+
+    settle({ data: { keys: [] } })
+    await flushPromises()
+    await nextTick()
+    expect(hinted()).toBe(false)
+
+    await wrapper.setProps({ pending: false })
+    await flushPromises()
+    await nextTick()
+    expect(hinted()).toBe(true)
     wrapper.unmount()
   })
 })

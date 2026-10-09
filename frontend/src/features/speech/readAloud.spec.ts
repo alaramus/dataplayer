@@ -31,34 +31,42 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("reading a message aloud", () => {
-  it("is one voice for every chat: another message takes over, the same one stops", () => {
+describe("reading aloud", () => {
+  it("is one voice for every reader: another takes over, the same one stops", () => {
     const quick = useReadAloud()
     const agent = useReadAloud()
 
-    quick.listen("First answer")
-    expect(agent.speaking.value).toBe("First answer")
-    agent.listen("Second answer")
-    expect(quick.speaking.value).toBe("Second answer")
-    agent.listen("Second answer")
+    quick.listen("quick", "First answer")
+    expect(agent.speaking.value).toBe("quick")
+    agent.listen("agent", "Second answer")
+    expect(quick.speaking.value).toBe("agent")
+    agent.listen("agent", "Second answer")
     expect(quick.speaking.value).toBeNull()
     expect(spoken.map((one) => one.text)).toEqual(["First answer", "Second answer"])
   })
 
+  it("is keyed by its reader, not by its text", () => {
+    const voice = useReadAloud()
+    voice.listen("file", "Same text")
+    voice.listen("document", "Same text")
+    expect(voice.speaking.value).toBe("document")
+    expect(spoken).toHaveLength(2)
+  })
+
   it("stops saying stop when the voice ends on its own", () => {
     const voice = useReadAloud()
-    voice.listen("An answer")
+    voice.listen("chat", "An answer")
     spoken[0]?.onend?.()
     expect(voice.speaking.value).toBeNull()
   })
 
   it("reads in the chosen voice, or the default when it is gone", () => {
     useVoiceStore().setVoice("irina")
-    useReadAloud().listen("An answer")
+    useReadAloud().listen("first", "An answer")
     expect(spoken[0]?.voice).toEqual(IRINA)
 
     useVoiceStore().setVoice("a voice of another machine")
-    useReadAloud().listen("Another answer")
+    useReadAloud().listen("second", "Another answer")
     expect(spoken[1]?.voice).toBeNull()
   })
 })

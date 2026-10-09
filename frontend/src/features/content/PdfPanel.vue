@@ -291,9 +291,8 @@ onBeforeUnmount(() => {
   gap: var(--dp-space-3);
   min-height: 0;
   overflow: auto;
-  /* A hair of room above and below, so the outer pages keep their shadow:
-     pages run the full width of the panel, edge to edge, on its own surface
-     rather than a substrate. */
+  /* A hair of room above and below, so the outer pages keep their shadow;
+     none at the sides, which pageScale's margin counts on. */
   padding: var(--dp-space-2) 0;
 }
 .pdf-panel__stage :deep(.pdf-panel__page) {

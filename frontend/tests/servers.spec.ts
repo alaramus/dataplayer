@@ -45,6 +45,7 @@ test("switching isolates authentication and leaves another browser tab on its se
     localStorage.setItem("access_token", "alpha-token")
     // With the tour open, switching servers would stop at its closing
     // question instead of reaching the login page under test.
+    // The key is ONBOARDING_DONE_KEY, as seedOnboardingSeen writes it.
     localStorage.setItem("dataplayer-onboarding-done", "1")
   }, { profiles, alpha })
   await page.goto("/?server=" + encodeURIComponent(alpha))

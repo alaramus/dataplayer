@@ -1,17 +1,13 @@
 /**
  * First-visit onboarding: whether this browser has seen the welcome tour.
  *
- * Kept in this browser's localStorage, like the theme — the tour is about
- * the application rather than about one server, and it must not follow a
- * user to another machine. One flag for every server open in this browser:
- * the clips show no server's data, so switching servers never brings the
- * tour back, the same reason the theme stays shared (D99). Two flags rather
- * than one: a visit is recorded on entry, while the tour stops showing only
- * once it was finished or skipped, so closing the page halfway through
- * shows it again.
+ * Kept in this browser's localStorage, like the theme. One flag for every
+ * server open in this browser: the clips show no server's data, so switching
+ * servers never brings the tour back, the same reason the theme stays shared
+ * (D99). It is set once the tour was finished or skipped, so closing the page
+ * halfway through shows it again.
  */
 
-export const VISITED_KEY = "dataplayer-visited"
 export const ONBOARDING_DONE_KEY = "dataplayer-onboarding-done"
 
 export interface OnboardingStep {
@@ -62,7 +58,7 @@ function read(storage: Storage, key: string): string | null {
   try {
     return storage.getItem(key)
   } catch {
-    // Blocked storage reads as never having visited.
+    // Blocked storage reads as never having seen the tour.
     return null
   }
 }
@@ -73,16 +69,6 @@ function write(storage: Storage, key: string, value: string): void {
   } catch {
     // A browser that refuses storage still gets this session's tour state.
   }
-}
-
-/** Whether this browser has ever opened the application. */
-export function hasVisited(storage: Storage = localStorage): boolean {
-  return read(storage, VISITED_KEY) !== null
-}
-
-/** Record the visit. The tour's own flag is separate — see above. */
-export function markVisited(storage: Storage = localStorage): void {
-  write(storage, VISITED_KEY, "1")
 }
 
 /** Whether the tour was finished or skipped and must not show again. */

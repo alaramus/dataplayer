@@ -326,7 +326,7 @@ defineExpose({
     <!-- Out of the list, and always there: a live region that appears with
          what it says is not read out. -->
     <span
-      class="app-combobox__live"
+      class="dp-reader-only"
       role="status"
     >{{ status }}</span>
     <AppPopup
@@ -465,14 +465,6 @@ defineExpose({
   font-size: var(--dp-font-size-sm);
   line-height: var(--dp-line-height);
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.app-combobox__live {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
   white-space: nowrap;
 }
 .app-combobox__rows {

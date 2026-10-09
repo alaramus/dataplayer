@@ -475,6 +475,15 @@ function rowsIcon(panel: Extract<Panel, { kind: "rows" }>): string {
   return REPRESENTATION_ICONS[preferred.kind] ?? REPRESENTATION_ICONS.table
 }
 
+/**
+ * The connection a panel shows, by the name it had when the panel opened. A
+ * catalog carries no name of its own: its tab is titled by its connection.
+ */
+export function connectionNameOf(panel: Panel): string | null {
+  if ("connectorName" in panel) return panel.connectorName || null
+  return panel.kind === "catalog" ? panel.title || null : null
+}
+
 export function lookOf(
   panel: Panel,
   colors?: ReadonlyMap<string, string | null | undefined>

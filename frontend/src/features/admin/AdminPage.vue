@@ -3,9 +3,10 @@ import { computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import UsersSection from "@/features/admin/UsersSection.vue"
-import { ADMIN_SECTIONS, sectionFor } from "@/features/admin/sections"
+import { ADMIN_SECTIONS } from "@/features/admin/sections"
+import type { AdminSectionId } from "@/features/admin/sections"
 import { useCurrentUser } from "@/shared/auth/currentUser"
-import { AppButton, AppEmptyState, AppLayout, AppPageHeader } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppLayout, AppPageHeader, AppSectionsLayout, sectionOf } from "@/shared/ui"
 
 /**
  * Administering this installation: a list of sections beside what one of them
@@ -20,16 +21,16 @@ const router = useRouter()
 const me = useCurrentUser()
 
 const current = computed(() =>
-  sectionFor(typeof route.params.section === "string" ? route.params.section : undefined)
+  sectionOf(ADMIN_SECTIONS, typeof route.params.section === "string" ? route.params.section : undefined)
 )
 
 /** Which component draws the section. A table, for the reason every other
     table in this repository is one: a second section is a line. */
-const BODIES: Record<string, typeof UsersSection> = {
+const BODIES: Record<AdminSectionId, typeof UsersSection> = {
   users: UsersSection,
 }
 
-const body = computed(() => BODIES[current.value.id] ?? null)
+const body = computed(() => BODIES[current.value.id])
 
 const isAdmin = computed(() => me.data.value?.is_superuser === true)
 
@@ -65,105 +66,16 @@ function show(id: string) {
         text="Only an administrator manages this installation"
       />
 
-      <div
+      <AppSectionsLayout
         v-else
-        class="admin"
+        :sections="ADMIN_SECTIONS"
+        :current="current.id"
+        testid="admin"
+        @select="show"
       >
-        <nav
-          class="admin__sections"
-          data-testid="admin-sections"
-        >
-          <button
-            v-for="section in ADMIN_SECTIONS"
-            :key="section.id"
-            type="button"
-            class="admin__section"
-            :class="{ 'admin__section--current': section.id === current.id }"
-            :data-testid="`admin-section-${section.id}`"
-            @click="show(section.id)"
-          >
-            <q-icon
-              :name="section.icon"
-              size="var(--dp-icon-sm)"
-            />
-            <span class="admin__section-text">
-              <span class="admin__section-title">{{ section.title }}</span>
-              <span class="admin__section-summary">{{ section.summary }}</span>
-            </span>
-          </button>
-        </nav>
-
-        <section class="admin__body">
-          <component :is="body" />
-        </section>
-      </div>
+        <component :is="body" />
+      </AppSectionsLayout>
     </div>
   </AppLayout>
 </template>
 
-<style scoped>
-.admin {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: var(--dp-space-5);
-  align-items: start;
-  min-height: 0;
-}
-
-.admin__sections {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-1);
-  min-width: 0;
-}
-
-.admin__section {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--dp-space-2);
-  padding: var(--dp-space-2) var(--dp-space-3);
-  border: 0;
-  border-radius: var(--dp-radius-control);
-  background: transparent;
-  color: var(--dp-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.admin__section:hover {
-  background: var(--dp-hover);
-}
-
-/* The section shown is the current page of a list, marked as a tab is (D186). */
-.admin__section--current {
-  background: var(--dp-tab-current);
-}
-
-.admin__section-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-half);
-  min-width: 0;
-}
-
-.admin__section-title {
-  font-weight: 500;
-}
-
-.admin__section-summary {
-  color: var(--dp-text-muted);
-  font-size: var(--dp-font-size-sm);
-}
-
-.admin__body {
-  min-width: 0;
-}
-
-/* A narrow window puts the list above what it opens rather than beside it. */
-@media (max-width: 900px) {
-  .admin {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

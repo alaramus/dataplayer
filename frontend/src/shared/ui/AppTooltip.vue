@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onDeactivated, useTemplateRef } from "vue"
+import { getCurrentInstance, onBeforeUnmount, onDeactivated, onMounted, useTemplateRef } from "vue"
 
 // One delay for every tooltip in the application. Instant tooltips flicker as
 // the pointer crosses a row of icon buttons.
@@ -9,7 +9,7 @@ const DELAY_MS = 250
  * Structural, like the other template refs in this application: the one method
  * used is stated here rather than the whole Quasar component type imported.
  */
-const tip = useTemplateRef<{ hide: () => void }>("tip")
+const tip = useTemplateRef<{ show: () => void; hide: () => void }>("tip")
 
 withDefaults(
   defineProps<{
@@ -36,6 +36,22 @@ withDefaults(
 onDeactivated(() => {
   tip.value?.hide()
 })
+
+/**
+ * A tooltip drawn only where the pointer is — one row of a grid rather than
+ * every cell of it — is mounted after the pointer entered its anchor, and
+ * Quasar shows one only on an entry it saw. So it is shown as if entered.
+ */
+const instance = getCurrentInstance()
+let pending: ReturnType<typeof setTimeout> | undefined
+onMounted(() => {
+  const anchor = (instance?.proxy?.$el as Node | null | undefined)?.parentElement
+  if (!anchor?.matches(":hover")) return
+  pending = setTimeout(() => {
+    if (anchor.matches(":hover")) tip.value?.show()
+  }, DELAY_MS)
+})
+onBeforeUnmount(() => clearTimeout(pending))
 </script>
 
 <template>

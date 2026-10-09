@@ -176,6 +176,11 @@ describe("the controlled tabular grid", () => {
     await wrapper.get('[data-testid="grid-select-row-row-a"]').trigger("click")
     await wrapper.get('[data-testid="grid-select-row-row-c"]').trigger("click", { shiftKey: true })
     expect(wrapper.get('[data-testid="controller-command"]').text()).toBe("0,1,2")
+
+    // A cell pressed since replaces the selection, and the anchor with it.
+    await wrapper.get('[data-testid="grid-cell-row-c-0"]').trigger("mousedown")
+    await wrapper.get('[data-testid="grid-select-row-row-b"]').trigger("click", { shiftKey: true })
+    expect(wrapper.get('[data-testid="controller-command"]').text()).toBe("1")
   })
 
   it("emits controlled sort, layout and paging changes", async () => {
@@ -213,13 +218,16 @@ describe("the controlled tabular grid", () => {
       const wrapper = mount(TabularGrid, {
         props: {
           columns: COLUMNS,
-          rows: [{ id: "row-a", values: ["left", "right"] }],
+          rows: [
+            { id: "row-a", values: ["left", "right"] },
+            { id: "row-b", values: ["left", "right"] },
+          ],
           page: 0,
           pageSize: 100,
           filters: [],
           sort: [],
           layout: defaultColumnLayout(COLUMNS),
-          editableRowIds: ["row-a"],
+          editableRowIds: ["row-a", "row-b"],
         },
         attachTo: document.body,
         global: { plugins: [Quasar] },
@@ -234,6 +242,13 @@ describe("the controlled tabular grid", () => {
       expect(
         wrapper.get('[data-testid="grid-select-row-row-a"]').attributes("title")
       ).toBeUndefined()
+
+      // A tooltip a cell would be thousands on a full page: only the row
+      // under the pointer has them.
+      expect(wrapper.get("tbody").findAllComponents(AppTooltip)).toHaveLength(0)
+      await wrapper.get('[data-testid="grid-row-row-a"]').trigger("mouseenter")
+      expect(wrapper.get('[data-testid="grid-row-row-a"]').findAllComponents(AppTooltip)).toHaveLength(2)
+      expect(wrapper.get('[data-testid="grid-row-row-b"]').findAllComponents(AppTooltip)).toHaveLength(0)
 
       editable.element.dispatchEvent(new MouseEvent("mouseenter"))
       await vi.advanceTimersByTimeAsync(500)

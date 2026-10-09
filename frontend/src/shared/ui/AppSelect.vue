@@ -148,15 +148,16 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
 /** A toolbar field says its name beside it, never floated over its value. */
 const inlineLabel = computed(() => props.compact && !formLayout)
 
-// A heading is never taken, but it carries its own button (a provider key
-// in the model list): QSelect would disable the whole row for it, and the
-// button with it, leaving Playwright and readers with a dead control. So
-// headings stay enabled and only lose the select-on-press.
+// A heading is disabled to QSelect, so the arrow keys pass over it and Enter
+// never takes it, but not on its row: an aria-disabled row disables the button
+// it carries (a provider key in the model list) for readers and Playwright.
+// So the row is drawn as a plain heading, neither an option nor pressable.
 function rowItemProps(scope: { opt: { group?: boolean }; itemProps: object }) {
   if (!scope.opt.group) return scope.itemProps
-  const rest = { ...scope.itemProps } as Record<string, unknown>
+  const rest = { ...scope.itemProps, disable: false, clickable: false, role: "presentation" } as Record<string, unknown>
   delete rest.onClick
   delete rest.onMousemove
+  delete rest["aria-selected"]
   return rest
 }
 
@@ -210,7 +211,7 @@ const summary = computed(() => {
   <q-select
     ref="field"
     class="app-select"
-    :class="{ 'app-select--compact': compact, 'app-select--inline': inlineLabel, 'app-form-field': formLayout }"
+    :class="{ 'app-select--compact': compact, 'app-select--inline': inlineLabel, 'dp-toolbar-field': inlineLabel, 'app-form-field': formLayout }"
     :model-value="modelValue"
     :options="options"
     :label="label"
@@ -218,7 +219,7 @@ const summary = computed(() => {
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
-    :option-disable="labelled ? (option: SelectOption) => Boolean(option.disable) : undefined"
+    :option-disable="labelled ? (option: SelectOption) => Boolean(option.group || option.disable) : undefined"
     :emit-value="labelled"
     :map-options="labelled"
     :loading="loading"
@@ -371,21 +372,6 @@ const summary = computed(() => {
 .app-select--compact :deep(.q-field__native) {
   flex-wrap: nowrap;
   overflow: hidden;
-}
-/* A toolbar field in error keeps its box: Quasar's message row and its icon
-   both grew it. The message below is kept for a reader only — out of the
-   flow, one pixel, clipped — while the red frame stays. Scoped to the inline
-   (toolbar) field so a compact field inside a form keeps Quasar's message. */
-.app-select--inline.q-field--error :deep(.q-field__bottom) {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  min-height: 0;
-  padding: 0;
-  margin: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 .app-select :deep(.q-field__append) {
   /* The dropdown arrow rotates on opening. Its intermediate transformed box

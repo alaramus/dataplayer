@@ -9,7 +9,7 @@ import { serverStorageKey } from "@/shared/servers/context"
 import AiKeyDialog from "./AiKeyDialog.vue"
 import AiModelHint from "./AiModelHint.vue"
 import { useAiModels, useAiSettings } from "./api"
-import { AUTO_ALL_VALUE, groupedModelOptions, jevProviderLabel, providerLabel } from "./modelOptions"
+import { AUTO_ALL_VALUE, JEV_PROVIDER, groupedModelOptions, jevProviderLabel, providerLabel } from "./modelOptions"
 import type { ModelOption, Provider } from "./modelOptions"
 
 /**
@@ -39,8 +39,10 @@ const props = withDefaults(
      * screen itself, as in AI settings: there is nothing to point at.
      */
     hint?: boolean
+    /** A read of the caller's that may still name the model, such as its chat. */
+    pending?: boolean
   }>(),
-  { compact: false, disable: false, keyButton: false, allowAuto: true, hint: true }
+  { compact: false, disable: false, keyButton: false, allowAuto: true, hint: true, pending: false }
 )
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
@@ -78,12 +80,15 @@ const dialogProvider = computed(() => keyProvider.value === null
   ? null
   : {
     id: keyProvider.value,
-    label: keyProvider.value === "typesafe"
+    label: keyProvider.value === JEV_PROVIDER
       ? jevProviderLabel
       : providerLabel(models.data.value ?? [], keyProvider.value),
   })
 watch(
-  [() => props.modelValue, () => models.isPending.value] as const,
+  [
+    () => props.modelValue,
+    () => models.isPending.value || settings.isPending.value || props.pending,
+  ] as const,
   ([value, pending]) => {
     if (value !== null) {
       hintDismissed.value = false

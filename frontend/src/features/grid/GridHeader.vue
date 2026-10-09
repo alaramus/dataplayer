@@ -67,68 +67,55 @@ const groups = TOOLBAR_GROUPS
           <span class="grid-header__label">{{ group.label }}</span>
           <div class="grid-header__row">
             <template v-if="group.name === 'view'">
-              <!-- The count hangs off the button's corner, so an active query
-                   is visible without opening the editor or hovering (D116): a
-                   followed reference lands as a filter the tab remembers, and
-                   that filter used to hide in the tooltip. -->
-              <span
-                data-testid="grid-filter-command"
-                class="grid-header__indicator"
+              <!-- A count on the button's corner, so an active query is
+                   visible without opening the editor or hovering: a followed
+                   reference lands as a filter the tab remembers. -->
+              <AppIconButton
+                :icon="appIcons.filterAlt"
+                :tooltip="canFilter
+                  ? (filters.length > 0 ? `Filters (${filters.length})` : 'Filters')
+                  : tipOf('Filters', NOT_OFFERED.filter)"
+                :disable="!canFilter"
+                data-testid="grid-filter"
+                @click="filtersOpen = !filtersOpen"
               >
-                <AppIconButton
-                  :icon="appIcons.filterAlt"
-                  :tooltip="canFilter
-                    ? (filters.length > 0 ? `Filters (${filters.length})` : 'Filters')
-                    : tipOf('Filters', NOT_OFFERED.filter)"
-                  :disable="!canFilter"
-                  data-testid="grid-filter"
-                  @click="filtersOpen = !filtersOpen"
-                />
                 <AppBadge
                   v-if="filters.length > 0"
                   corner
                   :label="String(filters.length)"
                   data-testid="grid-filter-count"
                 />
-              </span>
-              <span
-                data-testid="grid-sort-command"
-                class="grid-header__indicator"
+              </AppIconButton>
+              <AppIconButton
+                :icon="appIcons.sort"
+                :tooltip="canSort
+                  ? (sort.length > 0 ? `Sort (${sort.length})` : 'Sort')
+                  : tipOf('Sort', NOT_OFFERED.sort)"
+                :disable="!canSort"
+                data-testid="grid-sort"
+                @click="sortOpen = !sortOpen"
               >
-                <AppIconButton
-                  :icon="appIcons.sort"
-                  :tooltip="canSort
-                    ? (sort.length > 0 ? `Sort (${sort.length})` : 'Sort')
-                    : tipOf('Sort', NOT_OFFERED.sort)"
-                  :disable="!canSort"
-                  data-testid="grid-sort"
-                  @click="sortOpen = !sortOpen"
-                />
                 <AppBadge
                   v-if="sort.length > 0"
                   corner
                   :label="String(sort.length)"
                   data-testid="grid-sort-count"
                 />
-              </span>
-              <span
-                data-testid="grid-columns-command"
-                class="grid-header__indicator"
+              </AppIconButton>
+              <AppIconButton
+                :icon="appIcons.viewColumn"
+                :tooltip="hiddenColumns > 0 ? `Columns (${hiddenColumns} hidden)` : 'Columns'"
+                :disable="columns.length === 0"
+                data-testid="grid-columns"
+                @click="columnsOpen = !columnsOpen"
               >
-                <AppIconButton
-                  :icon="appIcons.viewColumn"
-                  :tooltip="hiddenColumns > 0 ? `Columns (${hiddenColumns} hidden)` : 'Columns'"
-                  :disable="columns.length === 0"
-                  data-testid="grid-columns"
-                  @click="columnsOpen = !columnsOpen"
-                />
                 <AppBadge
                   v-if="hiddenColumns > 0"
                   corner
                   :label="String(hiddenColumns)"
                   data-testid="grid-columns-count"
                 />
-              </span>
+              </AppIconButton>
               <slot name="commands-view" />
             </template>
             <template v-else-if="group.name === 'open'">
@@ -229,8 +216,4 @@ const groups = TOOLBAR_GROUPS
 /* The corner count is positioned against this, so an active query keeps its
    mark while the bar scrolls sideways. In flow it would widen the button and
    push its icon off the row's axis. */
-.grid-header__indicator {
-  position: relative;
-  display: inline-flex;
-}
 </style>

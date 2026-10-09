@@ -243,11 +243,11 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     try {
       const children = await childrenOf(nodeId, undefined, refresh)
       groups.value = groupsOf(children)
-      // An explicit choice stays with its level while walking away and back.
-      // `undefined` is no choice only where the level was never stood on.
+      // An explicit choice stays with its level while walking away and back;
+      // a default is not one, and is worked out again from what is there.
       const wanted = groupIds ?? levelGroups.get(nodeId)
       selectedGroups.value = availableGroups(wanted, groups.value)
-      levelGroups.set(nodeId, [...selectedGroups.value])
+      if (groupIds !== undefined) levelGroups.set(nodeId, [...selectedGroups.value])
       plain.value = children.filter((node) => node.role !== "group")
       await fillRows(refresh)
     } catch (cause) {

@@ -415,7 +415,7 @@ test("opens a relation's source-issued DDL without making it editable", async ({
     const anchor = window.getSelection()?.anchorNode ?? null
     return anchor !== null && content.contains(anchor)
   })
-  await expect(selected).toBe(true)
+  expect(selected).toBe(true)
 
   await page.getByTestId("sql-view-table").click()
   await expect(page.getByTestId("grid-header")).toBeVisible()

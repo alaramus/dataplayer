@@ -109,3 +109,21 @@ samp {
   font-weight: 500;
   line-height: var(--dp-line-height-page);
 }
+
+/* Read out, never drawn: a live announcement, and the message of a toolbar
+   field in error, which drawn would grow a one-line bar by a line while the
+   red frame already says it. Quasar draws that message itself, so the field
+   carries the class and the rule reaches in; three classes outweigh Quasar's
+   own, which is linked after this file in production. */
+.dp-reader-only,
+.dp-toolbar-field.q-field--error .q-field__bottom {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

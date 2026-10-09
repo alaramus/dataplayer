@@ -287,6 +287,7 @@ function editorKeydown(event: KeyboardEvent) {
             <div class="quick-chat__tools">
               <AiModelSelect
                 :model-value="modelKey"
+                :pending="selected !== null && chat.isPending.value"
                 class="quick-chat__model"
                 compact
                 :allow-auto="false"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import type { SshKeyPublic } from "@/client"
 import { useGenerateSshKey, useImportSshKey } from "@/features/sshKeys/api"
 import { readKeyFile } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
@@ -97,11 +96,11 @@ async function save() {
   }
   try {
     if (props.mode === "generate") {
-      const made = (await generate.mutateAsync({ name: name.value.trim(), key_type: keyType.value, ...protection })) as SshKeyPublic
+      const made = (await generate.mutateAsync({ name: name.value.trim(), key_type: keyType.value, ...protection }))
       toast.success("Key made. Add its public key to the servers it should open")
       emit("created", made.id)
     } else {
-      const kept = (await keep.mutateAsync({ name: name.value.trim(), private_key: privateKey.value, ...protection })) as SshKeyPublic
+      const kept = (await keep.mutateAsync({ name: name.value.trim(), private_key: privateKey.value, ...protection }))
       toast.success("Key kept")
       emit("created", kept.id)
     }

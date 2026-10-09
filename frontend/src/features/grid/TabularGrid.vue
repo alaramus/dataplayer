@@ -24,6 +24,7 @@ import type { CSSProperties } from "vue"
 
 import type { Sort } from "@/client"
 import { copyText } from "@/shared/clipboard"
+import { onMac } from "@/shared/keys/shortcuts"
 import {
   AppBanner,
   AppButton,
@@ -380,6 +381,21 @@ function startSelection(cell: Cell<GridFeatures, GridRow, unknown>, event: Mouse
  * column change clears the selection and the anchor with it.
  */
 let rowAnchor: string | null = null
+// A selection replaced by other means — a cell pressed, the keyboard — no
+// longer grows from the row picked before it.
+watch(selectedRowIndexes, (indexes) => {
+  if (rowAnchor === null) return
+  const index = props.rows.findIndex((row) => row.id === rowAnchor)
+  if (!indexes.includes(index)) rowAnchor = null
+})
+
+/**
+ * The row under the pointer, the only one whose hints are mounted: a tooltip
+ * a cell is a component a cell, thousands on a full page.
+ */
+const pointedRow = ref<string | null>(null)
+/** What adds a row on this platform: Ctrl+click opens the menu on a Mac. */
+const addKey = onMac() ? "⌘" : "Ctrl"
 
 function fullRowRange(rowId: string) {
   const first = visibleColumns.value[0]
@@ -777,11 +793,12 @@ defineExpose({
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody @mouseleave="pointedRow = null">
           <tr
             v-for="(row, rowIndex) in table.getRowModel().rows"
             :key="row.id"
             :data-testid="`grid-row-${row.id}`"
+            @mouseenter="pointedRow = row.id"
           >
             <td class="data-grid__selector">
               <button
@@ -792,7 +809,9 @@ defineExpose({
                 @click="selectRow(row.id, $event)"
               >
                 {{ rowNumber(row.original, rowIndex) }}
-                <AppTooltip>Select row {{ rowNumber(row.original, rowIndex) }}. Ctrl+click adds, Shift+click extends.</AppTooltip>
+                <AppTooltip v-if="pointedRow === row.id">
+                  Select row {{ rowNumber(row.original, rowIndex) }}. {{ addKey }}+click adds, Shift+click extends.
+                </AppTooltip>
               </button>
               <!-- Whatever the screen offers about a whole row. Drawn on the
                    row under the pointer only: it is a way in, not a fact
@@ -820,11 +839,9 @@ defineExpose({
               @mouseenter="cell.getSelectionExtendHandler()($event)"
               @dblclick="openCell(cell, $event)"
             >
-              <!-- The kit tooltip rather than the browser's own: `title`
-                   paints a box no other control in the application uses. Only
-                   where there is something to say, so an ordinary cell draws
-                   no tooltip component at all. -->
-              <AppTooltip v-if="cellTitle(cell) !== undefined">
+              <!-- The kit tooltip rather than the browser's own `title`, on
+                   the row under the pointer only (pointedRow). -->
+              <AppTooltip v-if="pointedRow === row.id && cellTitle(cell) !== undefined">
                 {{ cellTitle(cell) }}
               </AppTooltip>
               <span

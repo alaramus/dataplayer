@@ -71,6 +71,8 @@
      "New literal value" and "Link to this dashboard" broke onto a second
      line that stood above the middle of the field (D187). */
   --dp-form-label-width: 152px;
+  /* The list of a page's sections, and the column of a setting's control. */
+  --dp-side-column-width: 260px;
   --dp-operation-result-height: min(176px, 25vh);
 
   /* The one step below the grid: the gap between two chips, the padding of a

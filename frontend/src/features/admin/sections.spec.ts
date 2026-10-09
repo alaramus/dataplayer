@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { ADMIN_SECTIONS, sectionFor } from "./sections"
+import { sectionOf } from "@/shared/ui"
+
+import { ADMIN_SECTIONS } from "./sections"
 
 describe("what administering this installation is made of", () => {
   it("offers accounts first", () => {
@@ -13,18 +15,18 @@ describe("what administering this installation is made of", () => {
     const ids = ADMIN_SECTIONS.map((section) => section.id)
 
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ADMIN_SECTIONS.every((section) => section.summary !== "")).toBe(true)
+    expect(ADMIN_SECTIONS.every((section) => section.summary.length > 0)).toBe(true)
   })
 
   it("opens the first section for an address that names none", () => {
     // `/admin` is what the header button goes to, and an empty screen would be
     // a page that says nothing until something else is clicked.
-    expect(sectionFor(undefined).id).toBe("users")
-    expect(sectionFor("").id).toBe("users")
-    expect(sectionFor("nothing-of-ours").id).toBe("users")
+    expect(sectionOf(ADMIN_SECTIONS, undefined).id).toBe("users")
+    expect(sectionOf(ADMIN_SECTIONS, "").id).toBe("users")
+    expect(sectionOf(ADMIN_SECTIONS, "nothing-of-ours").id).toBe("users")
   })
 
   it("opens the section an address names", () => {
-    expect(sectionFor("users").id).toBe("users")
+    expect(sectionOf(ADMIN_SECTIONS, "users").id).toBe("users")
   })
 })

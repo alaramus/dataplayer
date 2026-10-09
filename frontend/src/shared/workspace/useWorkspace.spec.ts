@@ -680,3 +680,45 @@ describe("a workspace", () => {
     expect(workspace.context.dragging.value).toBeNull()
   })
 })
+
+describe("the key a layout is kept under", () => {
+  function keyed(storageKey: string | null) {
+    return useWorkspace<DemoPanel>({
+      storageKey,
+      panelSchema,
+      defaults,
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square" }),
+      component: () => Stub,
+    })
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it("keeps nothing while there is no key, and follows the one it is given", async () => {
+    const mine = defaults()
+    mine.panels = [...mine.panels, { id: "p3", kind: "rows" }]
+    const tree = mine.tree as SplitNode
+    const main = tree.children[1] as LeafNode
+    mine.tree = makeSplit("root", "row", [tree.children[0]!, { ...main, panels: ["p2", "p3"] }], [30, 70])
+    localStorage.setItem("layout:me", serializeWorkspace(mine.tree, mine.panels))
+
+    const scope = effectScope()
+    const workspace = scope.run(() => keyed(null))!
+    workspace.open({ id: "stranger", kind: "rows" })
+    await nextTick()
+    expect(localStorage.length).toBe(1)
+
+    await workspace.follow("layout:me")
+    await nextTick()
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
+
+    await workspace.follow("layout:new")
+    await nextTick()
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2"])
+    expect(localStorage.getItem("layout:new")).not.toBeNull()
+    scope.stop()
+  })
+})
