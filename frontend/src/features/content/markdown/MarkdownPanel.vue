@@ -131,6 +131,12 @@ const blockedImages = computed(() =>
     0
   )
 )
+/**
+ * The column beside the document: its contents and the choice about images
+ * from elsewhere. One Contents button folds the whole of it away, so the
+ * document can take the full width of the tab.
+ */
+const hasSidePanel = computed(() => headings.value.length > 0 || blockedImages.value > 0 || allowRemoteImages.value)
 const error = computed(() =>
   content.isError.value ? messageOf(content.error.value, "Could not open this document") : ""
 )
@@ -530,11 +536,12 @@ onBeforeUnmount(() => {
       >
         <template v-if="contentDocument">
           <AppButton
-            v-if="headings.length > 0"
+            v-if="hasSidePanel"
             variant="quiet"
             size="sm"
             :icon="appIcons.toc"
-            :label="`Contents (${String(headings.length)})`"
+            :label="headings.length > 0 ? `Contents (${String(headings.length)})` : 'Contents'"
+            :aria-pressed="outlineOpen"
             layout="toolbar"
             data-testid="markdown-toggle-contents"
             @click="outlineOpen = !outlineOpen"
@@ -646,14 +653,12 @@ onBeforeUnmount(() => {
       </AppBanner>
       <div class="markdown-panel__body">
         <aside
-          v-if="(outlineOpen && headings.length > 0) || blockedImages > 0 || allowRemoteImages"
+          v-if="outlineOpen && hasSidePanel"
           class="markdown-panel__outline"
           aria-label="Table of contents"
           data-testid="markdown-contents"
         >
-          <!-- The option below stays when the contents are closed: it is the
-               only way to the blocked images. -->
-          <template v-if="outlineOpen && headings.length > 0">
+          <template v-if="headings.length > 0">
             <div class="markdown-panel__outline-title dp-overline">
               On this page
             </div>

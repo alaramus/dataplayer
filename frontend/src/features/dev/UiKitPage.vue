@@ -335,6 +335,11 @@ function removeSavedEntry(name: string) {
             active
           />
           <AppIconButton
+            :icon="appIcons.mic"
+            tooltip="Stop dictating"
+            live
+          />
+          <AppIconButton
             :icon="appIcons.delete"
             tooltip="Delete"
             variant="danger-quiet"

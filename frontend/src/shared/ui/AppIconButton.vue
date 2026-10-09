@@ -17,6 +17,13 @@ const props = withDefaults(
     /** The command represents a configured or enabled state. */
     active?: boolean
     /**
+     * Something the button started is running — dictation, reading aloud —
+     * and pressing it stops that: red at rest, as a recording light is. A
+     * state, not a destructive command, so D186's quiet-until-hover does not
+     * apply.
+     */
+    live?: boolean
+    /**
      * A button inside a cell rather than in a toolbar.
      *
      * A row of a grid is 72 pixels wide where its controls live, and three
@@ -25,7 +32,7 @@ const props = withDefaults(
      */
     compact?: boolean
   }>(),
-  { variant: "quiet", disable: false, loading: false, active: false, compact: false }
+  { variant: "quiet", disable: false, loading: false, active: false, live: false, compact: false }
 )
 
 const look = computed(() => buttonLook(props.variant))
@@ -84,8 +91,8 @@ const spokenName = computed(() =>
       dense
       flat
       disable
-      :class="{ 'app-icon-button__compact': compact, 'app-icon-button--danger': variant === 'danger-quiet' }"
-      :color="active ? 'positive' : quietColor"
+      :class="{ 'app-icon-button__compact': compact, 'app-icon-button--danger': variant === 'danger-quiet', 'app-icon-button--live': live }"
+      :color="live ? undefined : active ? 'positive' : quietColor"
       :icon="icon"
       :loading="loading"
     >
@@ -99,8 +106,8 @@ const spokenName = computed(() =>
     v-bind="$attrs"
     dense
     flat
-    :class="{ 'app-icon-button__compact': compact, 'app-icon-button--danger': variant === 'danger-quiet' }"
-    :color="active ? 'positive' : quietColor"
+    :class="{ 'app-icon-button__compact': compact, 'app-icon-button--danger': variant === 'danger-quiet', 'app-icon-button--live': live }"
+    :color="live ? undefined : active ? 'positive' : quietColor"
     :icon="icon"
     :loading="loading"
   >
@@ -131,7 +138,8 @@ const spokenName = computed(() =>
   font-size: var(--dp-icon-sm);
 }
 .app-icon-button--danger:hover,
-.app-icon-button--danger:focus-visible {
+.app-icon-button--danger:focus-visible,
+.app-icon-button--live {
   color: var(--dp-action-danger);
 }
 /* It is what the keyboard lands on, so it has to say where the keyboard is. */

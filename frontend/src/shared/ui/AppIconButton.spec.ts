@@ -13,6 +13,18 @@ const named = (wrapper: ReturnType<typeof mount>, disable: boolean) =>
   disable ? wrapper.get('[role="button"]') : wrapper.get("button")
 
 describe("AppIconButton", () => {
+  // Dictation and reading aloud: something running that this press stops.
+  it("marks what it started and is still running, in place of the active colour", () => {
+    const wrapper = mount(AppIconButton, {
+      global: { plugins: [Quasar] },
+      props: { icon: "mic", tooltip: "Stop dictating", active: true, live: true },
+    })
+
+    expect(wrapper.get("button").classes()).toContain("app-icon-button--live")
+    expect(wrapper.getComponent(QBtn).props("color")).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it.each([false, true])("names the button before hover when disabled is %s", (disable) => {
     const wrapper = mount(AppIconButton, {
       global: { plugins: [Quasar] },

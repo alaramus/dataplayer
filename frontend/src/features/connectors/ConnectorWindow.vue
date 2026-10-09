@@ -346,6 +346,9 @@ const makingKey = ref<"generate" | "import" | null>(null)
  * the choice list re-reads itself on the mutation, so the id lands on it.
  */
 function takeKey(id: string) {
+  // A connection only shared with this person stays as its owner left it;
+  // the key is theirs all the same, in Preferences and every other form.
+  if (readOnly.value) return
   const field = activeFields.value.find((one) => one.purpose === "ssh-key")
   if (field && !optionValues.value[field.name]) {
     optionValues.value = { ...optionValues.value, [field.name]: id }
@@ -781,7 +784,6 @@ async function parseTyped(text: string) {
               <AppButton
                 :icon="appIcons.createSshKey"
                 label="New key"
-                :disable="readOnly"
                 data-testid="connector-ssh-key-new"
                 @click="makingKey = 'generate'"
               />
@@ -789,7 +791,6 @@ async function parseTyped(text: string) {
                 variant="quiet"
                 :icon="appIcons.importSshKey"
                 label="Import"
-                :disable="readOnly"
                 data-testid="connector-ssh-key-import"
                 @click="makingKey = 'import'"
               />

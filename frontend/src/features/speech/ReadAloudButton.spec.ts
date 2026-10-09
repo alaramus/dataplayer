@@ -76,7 +76,7 @@ describe("the read-aloud button", () => {
 
     await listenButton(wrapper).trigger("click")
     expect(listenButton(wrapper).attributes("aria-label")).toBe("Stop reading aloud")
-    expect(listenButton(wrapper).classes()).toContain("read-aloud--speaking")
+    expect(listenButton(wrapper).classes()).toContain("app-icon-button--live")
 
     await listenButton(wrapper).trigger("click")
     expect(useReadAloud().speaking.value).toBeNull()

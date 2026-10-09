@@ -37,7 +37,7 @@ onBeforeUnmount(() => {
 <template>
   <AppIconButton
     v-if="supported"
-    :class="{ 'read-aloud--speaking': speaking }"
+    :live="speaking"
     :icon="speaking ? appIcons.stopCircle : appIcons.volumeUp"
     :tooltip="speaking ? 'Stop reading aloud' : listenLabel"
     :data-testid="testid"
@@ -45,11 +45,3 @@ onBeforeUnmount(() => {
   />
 </template>
 
-<style scoped>
-/* A stop in progress reads in the danger colour at rest: it is a state, not
-   a destructive command, so D186's quiet-until-hover does not apply. The
-   class stands on the button itself, which is the kit button's root. */
-.read-aloud--speaking {
-  color: var(--dp-action-danger);
-}
-</style>

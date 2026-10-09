@@ -211,18 +211,31 @@ describe("the rendered document panel", () => {
     expect(wrapper.get('[data-testid="markdown-document"]').html()).toContain("example.test/a.png")
   })
 
-  it("keeps the way to blocked images when the contents are closed", async () => {
+  it("folds the whole side column away, the image option with the contents", async () => {
     vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(
       document({ text: "# Title\n\n![one](https://example.test/a.png)" })
     )
 
     const wrapper = mountPanel()
     await flushPromises()
+    expect(wrapper.find('[data-testid="markdown-allow-remote"]').exists()).toBe(true)
     await wrapper.get('[data-testid="markdown-toggle-contents"]').trigger("click")
 
-    expect(wrapper.find('[data-testid="markdown-heading-title"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="markdown-allow-remote"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain("1 image(s)")
+    expect(wrapper.find('[data-testid="markdown-contents"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="markdown-allow-remote"]').exists()).toBe(false)
+  })
+
+  it("offers the fold for a document with blocked images and no headings", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(
+      document({ text: "![one](https://example.test/a.png)" })
+    )
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="markdown-toggle-contents"]').text()).toContain("Contents")
+    await wrapper.get('[data-testid="markdown-toggle-contents"]').trigger("click")
+
+    expect(wrapper.find('[data-testid="markdown-allow-remote"]').exists()).toBe(false)
   })
 
   it("puts the caret in the search it opens, and Escape closes it", async () => {

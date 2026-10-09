@@ -805,7 +805,7 @@ onBeforeUnmount(() => {
                 />
                 <AppIconButton
                   :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
-                  :active="dictation.listening.value"
+                  :live="dictation.listening.value"
                   :tooltip="!dictation.supported
                     ? 'This browser cannot listen'
                     : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
