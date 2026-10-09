@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from app.adapters.actions import ActionRefused, ActionResult
+from app.adapters.hypertable_design import DesignDuration
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.relation import ForeignKey, PrimaryKey, RelationModel
@@ -23,6 +24,7 @@ from app.adapters.table_design import (
     IndexColumnKey,
     LiteralDefault,
     TableDefinition,
+    TableHypertable,
     TablePlanRequest,
 )
 from tests.utils.database import working_postgres_options
@@ -659,3 +661,43 @@ async def test_identity_and_a_default_cannot_arrive_together() -> None:
                 "generation": {"kind": "identity", "value": "1"},
             }
         )
+
+
+async def test_a_database_without_timescale_offers_no_hypertable(schema: str) -> None:
+    options = await _adapter().table_design_options(schema)
+
+    assert options.hypertable.available is False
+    assert options.hypertable.reason == "TimescaleDB is not installed on this database"
+
+
+async def test_a_hypertable_is_refused_where_timescale_is_not_installed(schema: str) -> None:
+    definition = TableDefinition(
+        name="readings",
+        columns=[_column("c1", "observed_at", "timestamp_tz", not_null=True)],
+        hypertable=TableHypertable(time_column_id="c1", chunk_interval=DesignDuration(amount=1, unit="day")),
+    )
+
+    plan = await _plan(schema, definition)
+
+    assert plan.fingerprint == ""
+    assert [(problem.object_id, problem.message) for problem in plan.problems] == [
+        ("hypertable", "TimescaleDB is not installed on this database"),
+    ]
+
+
+async def test_a_hypertable_cannot_also_be_partitioned_or_unlogged(schema: str) -> None:
+    definition = TableDefinition(
+        name="readings",
+        persistence="unlogged",
+        columns=[_column("c1", "observed_at", "timestamp_tz", not_null=True)],
+        partition=DesignPartition(strategy="range", column_ids=["c1"]),
+        hypertable=TableHypertable(time_column_id="c1", chunk_interval=DesignDuration(amount=1, unit="day")),
+    )
+
+    plan = await _plan(schema, definition)
+
+    assert {problem.message for problem in plan.problems} >= {
+        "A hypertable partitions itself; choose it or declarative partitioning, not both",
+        "A hypertable cannot be unlogged",
+    }
+

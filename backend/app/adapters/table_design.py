@@ -24,6 +24,12 @@ from app.adapters.expressions import (
     ExpressionContext,
     raw_shape_refusal,
 )
+from app.adapters.hypertable_design import (
+    MAX_HASH_DIMENSIONS,
+    MAX_HASH_PARTITIONS,
+    DesignDuration,
+    DurationUnit,
+)
 from app.adapters.relation import IndexMethodOption, RefAction
 
 MAX_COLUMNS = 100
@@ -131,6 +137,19 @@ class DesignLimits(BaseModel):
     name_bytes: int = NAME_LIMIT_BYTES
 
 
+class HypertableOffer(BaseModel):
+    """Whether this destination can create a hypertable, and in which units (D207)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    available: bool = False
+    reason: str | None = None
+    # Whether "Timescale chooses" is a state the release keeps after enabling.
+    per_chunk_defaults: bool = False
+    interval_units: list[DurationUnit] = Field(default_factory=list)
+    policy_units: list[DurationUnit] = Field(default_factory=list)
+
+
 class TableDesignOptions(BaseModel):
     """What one destination will accept a designed table with.
 
@@ -159,6 +178,7 @@ class TableDesignOptions(BaseModel):
     # the server rather than of the vocabulary: PostgreSQL learned it in 15, so
     # a form that offered it everywhere would be offering a syntax error.
     nulls_not_distinct_supported: bool = False
+    hypertable: HypertableOffer = Field(default_factory=HypertableOffer)
     limits: DesignLimits = Field(default_factory=DesignLimits)
 
 
@@ -340,6 +360,45 @@ class DesignPartition(BaseModel):
     column_ids: list[DraftId] = Field(min_length=1, max_length=MAX_PARTITION_COLUMNS)
 
 
+class TableHashDimension(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    column_id: DraftId
+    partitions: int = Field(strict=True, gt=0, le=MAX_HASH_PARTITIONS)
+
+
+class TableOrderKey(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    column_id: DraftId
+    descending: bool = Field(strict=True)
+    nulls_first: bool = Field(strict=True)
+
+
+class TableHypertable(BaseModel):
+    """The table created as a hypertable, its columns named by draft id (D207).
+
+    The same settings as the hypertable editor's, flattened into what a new
+    table can have: nothing is kept as it is, and no tablespace is attached,
+    since the designer places no table in one.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    time_column_id: DraftId
+    chunk_interval: DesignDuration
+    hash_dimensions: list[TableHashDimension] = Field(default_factory=list, max_length=MAX_HASH_DIMENSIONS)
+    columnstore: bool = False
+    segment_mode: Literal["default", "none", "columns"] = "default"
+    segment_column_ids: list[DraftId] = Field(default_factory=list, max_length=MAX_KEY_COLUMNS)
+    order_mode: Literal["default", "columns"] = "default"
+    order_keys: list[TableOrderKey] = Field(default_factory=list, max_length=MAX_KEY_COLUMNS)
+    merge_interval: DesignDuration | None = None
+    retention: DesignDuration | None = None
+    columnstore_policy: DesignDuration | None = None
+    reorder_index_id: DraftId | None = None
+
+
 class TableDefinition(BaseModel):
     """Everything about a table that does not exist yet.
 
@@ -363,6 +422,7 @@ class TableDefinition(BaseModel):
     )
     indexes: list[DesignIndex] = Field(default_factory=list, max_length=MAX_INDEXES)
     partition: DesignPartition | None = None
+    hypertable: TableHypertable | None = None
 
     @model_validator(mode="before")
     @classmethod

@@ -278,9 +278,9 @@ Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-t
 
 ## D207. A hypertable is designed as a whole and planned as one change
 
-The settings editor (H1, H2) and conversion from it (H3) are implemented and
-pass the whole matrix. The table designer's section (H4) and integer time (H5)
-are not.
+The settings editor (H1, H2), conversion from it (H3) and the table
+designer's Hypertable section (H4) are implemented and pass the whole matrix.
+Integer time (H5) is not.
 
 One closed model, `HypertableDesign`, says what a hypertable should be:
 
@@ -355,8 +355,20 @@ whose transaction holds the conversion with `migrate_data` and the rest of the
 design, under `TIMESCALE_CONVERSION_TIMEOUT_SECONDS`. A row with no time fails
 the whole conversion and leaves the table as it was.
 
+The table designer's Hypertable section names columns and the reorder index by
+draft id, in `TableDefinition.hypertable`. The new table is planned as the empty
+hypertable `create_hypertable` would make of it, through the same step planner,
+and the steps are rendered as statement text for the review, after the table
+and its indexes; the fingerprint covers them like every other statement (D117).
+The designer adds the time index, newest first, as one of the draft's indexes
+unless a key or index already leads with the time column, which is the rule
+TimescaleDB applies to its own default index.
+
 Known deviations:
 
+- **The designer attaches no tablespace and keeps nothing as it is.** A new
+  table has nothing to keep, and the designer places no table in a tablespace
+  (D117).
 - **A conversion that runs out of time is reported as refused,** with a message
   saying it was rolled back. The spec asked for the job's "rolled back" outcome,
   which the job handler gives only to a cancelled unit.

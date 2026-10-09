@@ -157,6 +157,143 @@ export interface Draft {
   indexes: DraftIndex[]
   partitionStrategy: "" | "range" | "list" | "hash"
   partitionColumnIds: string[]
+  /** Null for an ordinary table; set, the table is created as a hypertable (D207). */
+  hypertable: DraftHypertable | null
+}
+
+export type DurationUnit = "second" | "minute" | "hour" | "day" | "week" | "month" | "year"
+
+export interface DraftAge {
+  on: boolean
+  amount: number | null
+  unit: DurationUnit
+}
+
+export interface DraftHypertable {
+  timeColumnId: string
+  intervalAmount: number | null
+  intervalUnit: DurationUnit
+  hash: { columnId: string; partitions: number | null }[]
+  columnstore: boolean
+  segmentMode: "default" | "none" | "columns"
+  segmentColumnIds: string[]
+  orderMode: "default" | "columns"
+  orderKeys: { columnId: string; descending: boolean; nullsFirst: boolean }[]
+  merge: DraftAge
+  retention: DraftAge
+  columnstorePolicy: DraftAge
+  /** "" for no reorder policy. */
+  reorderIndexId: string
+}
+
+/** The temporal column a hypertable would most likely be partitioned by. */
+export function timeCandidate(draft: Draft): string {
+  const temporal = draft.columns.filter(
+    (column) =>
+      ["timestamp_tz", "timestamp", "date"].includes(column.typeCode) && column.dimensions === 0
+  )
+  return (temporal.find((column) => column.notNull) ?? temporal[0])?.id ?? ""
+}
+
+/**
+ * The draft made a hypertable, with an index on its time column, newest first.
+ *
+ * The server creates the hypertable without default indexes, so the one it
+ * would have added is an ordinary index of the draft instead: visible, named,
+ * and removable like any other.
+ */
+export function asHypertable(draft: Draft, method: string): Draft {
+  const timeColumnId = timeCandidate(draft)
+  // As TimescaleDB decides for itself: a key or index that already leads with
+  // the time column serves, and a second one would only duplicate it.
+  const indexed =
+    draft.primaryKey[0] === timeColumnId ||
+    draft.uniques.some((unique) => unique.columnIds[0] === timeColumnId) ||
+    draft.indexes.some((index) => {
+      const [first] = index.keys
+      return first?.kind === "column" && first.columnId === timeColumnId
+    })
+  const timeIndex = newIndex(method, timeColumnId)
+  const [key] = timeIndex.keys
+  if (key) key.direction = "desc"
+  return {
+    ...draft,
+    partitionStrategy: "",
+    partitionColumnIds: [],
+    indexes: timeColumnId === "" || indexed ? draft.indexes : [...draft.indexes, timeIndex],
+    hypertable: {
+      timeColumnId,
+      intervalAmount: 7,
+      intervalUnit: "day",
+      hash: [],
+      columnstore: false,
+      segmentMode: "default",
+      segmentColumnIds: [],
+      orderMode: "default",
+      orderKeys: [],
+      merge: { on: false, amount: null, unit: "day" },
+      retention: { on: false, amount: null, unit: "month" },
+      columnstorePolicy: { on: false, amount: null, unit: "week" },
+      reorderIndexId: "",
+    },
+  }
+}
+
+/** What a hypertable section still lacks before it can be planned, or null. */
+export function hypertableMissing(hypertable: DraftHypertable | null): string | null {
+  if (hypertable === null) return null
+  const whole = (value: number | null) => value !== null && Number.isInteger(value) && value > 0
+  if (hypertable.timeColumnId === "") return "Choose the time column"
+  if (!whole(hypertable.intervalAmount)) return "Enter the chunk interval"
+  if (hypertable.hash.some((item) => item.columnId === "" || !whole(item.partitions))) {
+    return "Choose a column and a number of partitions for every hash dimension"
+  }
+  if (hypertable.columnstore && hypertable.segmentMode === "columns" && hypertable.segmentColumnIds.length === 0) {
+    return "Choose the columns to segment by"
+  }
+  if (hypertable.columnstore && hypertable.orderMode === "columns" && hypertable.orderKeys.length === 0) {
+    return "Choose the columns to order by"
+  }
+  for (const [age, label] of [
+    [hypertable.columnstore ? hypertable.merge : null, "merge interval"],
+    [hypertable.retention, "retention age"],
+    [hypertable.columnstore ? hypertable.columnstorePolicy : null, "columnstore policy age"],
+  ] as const) {
+    if (age?.on === true && !whole(age.amount)) return `Enter the ${label}`
+  }
+  return null
+}
+
+function age(value: DraftAge, enabled = true): { amount: number; unit: DurationUnit } | null {
+  return enabled && value.on && value.amount !== null ? { amount: value.amount, unit: value.unit } : null
+}
+
+function hypertableDefinition(hypertable: DraftHypertable | null): TableDefinition["hypertable"] {
+  if (hypertable === null || hypertableMissing(hypertable) !== null) return null
+  return {
+    time_column_id: hypertable.timeColumnId,
+    chunk_interval: { amount: hypertable.intervalAmount ?? 0, unit: hypertable.intervalUnit },
+    hash_dimensions: hypertable.hash.map((item) => ({
+      column_id: item.columnId,
+      partitions: item.partitions ?? 0,
+    })),
+    columnstore: hypertable.columnstore,
+    segment_mode: hypertable.segmentMode,
+    segment_column_ids: hypertable.segmentMode === "columns" ? hypertable.segmentColumnIds : [],
+    order_mode: hypertable.orderMode,
+    order_keys:
+      hypertable.orderMode === "columns"
+        ? hypertable.orderKeys.map((key) => ({
+            column_id: key.columnId,
+            descending: key.descending,
+            nulls_first: key.nullsFirst,
+          }))
+        : [],
+    merge_interval: age(hypertable.merge, hypertable.columnstore),
+    retention: age(hypertable.retention),
+    columnstore_policy: age(hypertable.columnstorePolicy, hypertable.columnstore),
+    reorder_index_id: hypertable.reorderIndexId === "" ? null : hypertable.reorderIndexId,
+  }
 }
 
 let counter = 0
@@ -224,12 +361,23 @@ export function emptyDraft(typeCode: string): Draft {
     indexes: [],
     partitionStrategy: "",
     partitionColumnIds: [],
+    hypertable: null,
   }
 }
 
 /** Every place a column is referred to, so removing one can say what it costs. */
 export function dependents(draft: Draft, columnId: string): string[] {
   const named: string[] = []
+  const hyper = draft.hypertable
+  if (
+    hyper !== null &&
+    (hyper.timeColumnId === columnId ||
+      hyper.hash.some((item) => item.columnId === columnId) ||
+      hyper.segmentColumnIds.includes(columnId) ||
+      hyper.orderKeys.some((key) => key.columnId === columnId))
+  ) {
+    named.push("the hypertable")
+  }
   if (draft.primaryKey.includes(columnId)) named.push("the primary key")
   for (const unique of draft.uniques) {
     if (unique.columnIds.includes(columnId)) named.push(unique.name || "a unique constraint")
@@ -264,9 +412,21 @@ export function dependents(draft: Draft, columnId: string): string[] {
  * after, instead of dependent definitions quietly disappearing with the
  * column.
  */
+function hypertableWithout(hypertable: DraftHypertable | null, columnId: string): DraftHypertable | null {
+  if (hypertable === null) return null
+  return {
+    ...hypertable,
+    timeColumnId: hypertable.timeColumnId === columnId ? "" : hypertable.timeColumnId,
+    hash: hypertable.hash.filter((item) => item.columnId !== columnId),
+    segmentColumnIds: hypertable.segmentColumnIds.filter((id) => id !== columnId),
+    orderKeys: hypertable.orderKeys.filter((key) => key.columnId !== columnId),
+  }
+}
+
 export function withoutColumn(draft: Draft, columnId: string): Draft {
   return {
     ...draft,
+    hypertable: hypertableWithout(draft.hypertable, columnId),
     columns: draft.columns
       .filter((column) => column.id !== columnId)
       .map((column) =>
@@ -519,6 +679,7 @@ export function toDefinition(draft: Draft, types: DesignTypeOption[]): TableDefi
             strategy: draft.partitionStrategy,
             column_ids: draft.partitionColumnIds,
           },
+    hypertable: hypertableDefinition(draft.hypertable),
   }
 }
 
@@ -527,7 +688,9 @@ export function worthPlanning(draft: Draft): boolean {
   return (
     draft.name.trim() !== "" &&
     draft.columns.length > 0 &&
-    draft.columns.every((column) => column.name.trim() !== "")
+    draft.columns.every((column) => column.name.trim() !== "") &&
+    // An unfinished hypertable section would otherwise plan, and create, an ordinary table.
+    hypertableMissing(draft.hypertable) === null
   )
 }
 

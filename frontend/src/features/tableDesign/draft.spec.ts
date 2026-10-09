@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import type { DesignTypeOption } from "@/client"
 
 import {
+  asHypertable,
   dependents,
   emptyDraft,
   newCheck,
@@ -187,3 +188,58 @@ describe("what the editor says about itself", () => {
     expect(tally(draft)).toBe("1 column · 1 index")
   })
 })
+
+describe("a table created as a hypertable", () => {
+  function timed(): Draft {
+    const draft = emptyDraft("integer")
+    const time = newColumn("timestamp_tz", 1)
+    time.name = "observed_at"
+    time.notNull = true
+    draft.columns.push(time)
+    return draft
+  }
+
+  it("is partitioned by the temporal column and gets a visible time index, newest first", () => {
+    const draft = asHypertable(timed(), "btree")
+    const time = draft.columns[1]!
+    expect(draft.hypertable?.timeColumnId).toBe(time.id)
+    expect(draft.indexes).toHaveLength(1)
+    expect(draft.indexes[0]?.keys[0]).toMatchObject({ columnId: time.id, direction: "desc" })
+    expect(toDefinition(draft, types).hypertable).toMatchObject({
+      time_column_id: time.id,
+      chunk_interval: { amount: 7, unit: "day" },
+      columnstore: false,
+      retention: null,
+    })
+  })
+
+  it("adds no time index where the primary key already leads with the time column", () => {
+    const draft = timed()
+    draft.primaryKey = [draft.columns[1]!.id, draft.columns[0]!.id]
+    expect(asHypertable(draft, "btree").indexes).toHaveLength(0)
+  })
+
+  it("does not add a second time index, and turns declarative partitioning off", () => {
+    const first = asHypertable(timed(), "btree")
+    first.partitionStrategy = "range"
+    const again = asHypertable(first, "btree")
+    expect(again.indexes).toHaveLength(1)
+    expect(again.partitionStrategy).toBe("")
+  })
+
+  it("is not planned while it lacks what it needs, so it never plans an ordinary table", () => {
+    const draft = asHypertable(timed(), "btree")
+    draft.name = "readings"
+    expect(worthPlanning(draft)).toBe(true)
+    draft.hypertable!.intervalAmount = null
+    expect(worthPlanning(draft)).toBe(false)
+  })
+
+  it("forgets a removed column and says the hypertable used it", () => {
+    const draft = asHypertable(timed(), "btree")
+    const time = draft.columns[1]!
+    expect(dependents(draft, time.id)).toContain("the hypertable")
+    expect(withoutColumn(draft, time.id).hypertable?.timeColumnId).toBe("")
+  })
+})
+

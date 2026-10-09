@@ -124,7 +124,7 @@ class ConversionState:
     empty: bool = True
 
 
-def _create_shape(dimension_info: str) -> RoutineShape:
+def create_shape(dimension_info: str) -> RoutineShape:
     # sql/ddl_api.sql: regclass, dimension_info, three booleans, returning a record
     # set. The legacy overload beside it cannot win a call whose arguments are all
     # concrete, and its own leading arguments differ.
@@ -134,7 +134,7 @@ def _create_shape(dimension_info: str) -> RoutineShape:
     )
 
 
-def _by_range_shape(dimension_info: str) -> RoutineShape:
+def by_range_shape(dimension_info: str) -> RoutineShape:
     # name and anyelement returning dimension_info; polymorphic, so it must be alone.
     return RoutineShape("by_range", "f", "19 2283", int(dimension_info))
 
@@ -178,8 +178,8 @@ async def inspect_conversion(
             if len(indexes) > _INDEX_CEILING:
                 raise ActionRefused("not_applicable", "This table has too many indexes to inspect")
             dimension_info = await extension_type(reader, version, "_timescaledb_internal", "dimension_info")
-            create = await extension_routine(reader, version, _create_shape(dimension_info))
-            by_range = await extension_routine(reader, version, _by_range_shape(dimension_info))
+            create = await extension_routine(reader, version, create_shape(dimension_info))
+            by_range = await extension_routine(reader, version, by_range_shape(dimension_info))
             strategy = ConversionStrategy.model_validate({
                 "extension_version": version,
                 "function_schema": create.schema_name,

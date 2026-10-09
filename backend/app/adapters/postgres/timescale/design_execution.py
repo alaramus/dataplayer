@@ -100,7 +100,7 @@ def _order_value(order: OrderColumns) -> str:
     ])
 
 
-def _columnstore_statements(table: sql.Identifier, step: ConfigureColumnstore) -> list[sql.Composed]:
+def columnstore_statements(table: sql.Identifier, step: ConfigureColumnstore) -> list[sql.Composed]:
     options: list[sql.Composable] = []
     resets: list[sql.Composable] = []
     if step.enable:
@@ -190,7 +190,7 @@ async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesign
                 (relation, column, partitions),
             )
         case ConfigureColumnstore():
-            for statement in _columnstore_statements(table, step):
+            for statement in columnstore_statements(table, step):
                 await connection.execute(statement)
         case DisableColumnstore():
             await connection.execute(sql.SQL("ALTER TABLE {} SET (timescaledb.compress = false)").format(table))

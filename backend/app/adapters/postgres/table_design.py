@@ -67,7 +67,15 @@ from app.adapters.postgres.index_methods import (
 from app.adapters.postgres.names import NAME_LIMIT_BYTES, name_check
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.timescale.design_create import (
+    CreationProblem,
+    DraftColumn,
+    creation_statements,
+    hypertable_offer,
+)
+from app.adapters.postgres.timescale.design_state import UniqueKey
 from app.adapters.relation import IndexMethodOption, RefAction, RelationModel
+from app.adapters.specializations import TimescaleHypertable
 from app.adapters.table_design import (
     DesignCheck,
     DesignColumn,
@@ -224,6 +232,8 @@ class _Draft:
     # Names this definition has claimed so far, so two objects of one draft
     # cannot be given the same one.
     used: set[str] = field(default_factory=set)
+    # The name each draft index was given, for a reorder policy that names one.
+    index_names: dict[str, str] = field(default_factory=dict)
     problems: list[PlanProblem] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -289,6 +299,7 @@ class PostgresTableDesign:
             persistence_options=PERSISTENCE_CHOICES,
             partition_strategies=PARTITION_CHOICES,
             nulls_not_distinct_supported=await self._nulls_not_distinct(),
+            hypertable=await hypertable_offer(self._session),
             limits=DesignLimits(),
         )
 
@@ -449,7 +460,36 @@ class PostgresTableDesign:
         ]
         statements.extend(_index_statements(draft, table))
         statements.extend(_comment_statements(draft, table))
+        if definition.hypertable is not None and not draft.problems:
+            statements.extend(await self._hypertable_statements(draft))
         return [] if draft.problems else statements
+
+    async def _hypertable_statements(self, draft: _Draft) -> list[PlannedStatement]:
+        """The table made a hypertable and set up, after it and its indexes exist (D207)."""
+        definition = draft.definition
+        hyper = definition.hypertable
+        if hyper is None:
+            return []
+        columns = {
+            column.id: DraftColumn(
+                name=column.name, type_code=column.type.code,
+                array=column.type.dimensions > 0,
+                not_null=column.not_null or isinstance(column.generation, IdentityGeneration),
+            )
+            for column in definition.columns
+        }
+        keys = [
+            UniqueKey(name=name, columns=tuple(_column_name(draft, item) for item in ids))
+            for name, ids in _unique_keys(definition)
+        ]
+        try:
+            planned = await creation_statements(
+                self._session, draft.schema, definition.name, hyper, columns, keys, draft.index_names,
+            )
+        except CreationProblem as problem:
+            draft.note(problem.message, object_id=problem.object_id or HYPERTABLE_SECTION, field_name=problem.field)
+            return []
+        return [PlannedStatement(object_id=HYPERTABLE_SECTION, title=item.title, sql=item.sql) for item in planned]
 
     async def _constraint_clauses(self, draft: _Draft) -> list[sql.Composable]:
         clauses: list[sql.Composable] = []
@@ -495,6 +535,11 @@ class PostgresTableDesign:
         try:
             local = _column_list(draft, foreign.column_ids, unique_in="foreign key")
             target = await self._target(foreign)
+            if draft.definition.hypertable is not None and isinstance(target.specialization, TimescaleHypertable):
+                raise DesignProblem(
+                    "TimescaleDB does not allow a foreign key between two hypertables",
+                    field_name="target_node_id",
+                )
             _check_candidate_key(foreign, target)
             await self._check_comparable(draft, foreign, target)
             _check_ref_actions(draft, foreign)
@@ -938,6 +983,7 @@ def _index_statement(
                 _expression(draft, index.predicate, "predicate")
             )
         )
+    draft.index_names[index.id] = name
     return PlannedStatement(
         object_id=index.id, title=f"Index {name}", sql=sql.Composed(parts).as_string()
     )
@@ -1034,6 +1080,58 @@ def _check_columns(draft: _Draft) -> None:
         names.add(column.name)
 
 
+# The editor's row for the hypertable section, which statements and problems of
+# it name in place of a draft object (D207).
+HYPERTABLE_SECTION = "hypertable"
+
+
+def _check_hypertable(draft: _Draft) -> None:
+    """What a hypertable cannot also be, and the columns its keys must hold (D207).
+
+    TimescaleDB refuses each of these when the table is converted, in a sentence
+    that cannot be relayed; here the object at fault is named instead.
+    """
+    hyper = draft.definition.hypertable
+    if hyper is None:
+        return
+    if draft.definition.partition is not None:
+        draft.note(
+            "A hypertable partitions itself; choose it or declarative partitioning, not both",
+            object_id=None, field_name="partition",
+        )
+    if draft.definition.persistence == "unlogged":
+        draft.note("A hypertable cannot be unlogged", object_id=None, field_name="persistence")
+    wanted = [hyper.time_column_id, *(item.column_id for item in hyper.hash_dimensions)]
+    key = draft.definition.primary_key
+    if key is not None and not set(wanted) <= set(key.column_ids):
+        draft.note(
+            "The primary key of a hypertable must hold its time column and every hash column",
+            object_id=None, field_name="primary_key",
+        )
+    for unique in draft.definition.unique_constraints:
+        if not set(wanted) <= set(unique.column_ids):
+            draft.note(
+                "A unique constraint on a hypertable must hold its time column and every hash column",
+                object_id=unique.id, field_name="column_ids",
+            )
+    for index in draft.definition.indexes:
+        held = {key.column_id for key in index.keys if isinstance(key, IndexColumnKey)}
+        if index.unique and not set(wanted) <= held:
+            draft.note(
+                "A unique index on a hypertable must hold its time column and every hash column",
+                object_id=index.id, field_name="keys",
+            )
+
+
+def _unique_keys(definition: TableDefinition) -> list[tuple[str, list[str]]]:
+    """Every key of the new table by a display name, with its draft column ids."""
+    keys: list[tuple[str, list[str]]] = []
+    if definition.primary_key is not None:
+        keys.append(("primary key", list(definition.primary_key.column_ids)))
+    keys.extend((item.name or "unique constraint", list(item.column_ids)) for item in definition.unique_constraints)
+    return keys
+
+
 def _check_partition_keys(draft: _Draft) -> None:
     """A partitioned table's keys must hold every partition column.
 
@@ -1041,6 +1139,7 @@ def _check_partition_keys(draft: _Draft) -> None:
     sentence that cannot be relayed. The rule is short enough to state here,
     where the object at fault can be named instead.
     """
+    _check_hypertable(draft)
     partition = draft.definition.partition
     if partition is None:
         return

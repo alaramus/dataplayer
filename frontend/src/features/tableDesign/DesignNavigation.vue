@@ -56,7 +56,11 @@ const groups = computed(() => [
     title: "Options",
     icon: appIcons.preferences,
     count: null,
-    rows: [{ id: "options", label: "Storage & partitioning" }],
+    rows: [
+      { id: "options", label: "Storage & partitioning" },
+      // The only section the server may lack: a database without TimescaleDB says so in it.
+      { id: "hypertable", label: draft.hypertable ? "Hypertable" : "Hypertable · off" },
+    ],
   },
 ])
 </script>

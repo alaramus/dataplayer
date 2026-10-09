@@ -35,6 +35,7 @@ import type { Draft, DraftSection } from "./draft"
 import ForeignKeyInspector from "./ForeignKeyInspector.vue"
 import IndexInspector from "./IndexInspector.vue"
 import DesignSql from "./DesignSql.vue"
+import HypertableInspector from "./HypertableInspector.vue"
 import TableOptionsInspector from "./TableOptionsInspector.vue"
 
 /**
@@ -302,6 +303,7 @@ async function remove(group: DraftSection, objectId: string): Promise<void> {
   }
   if (group === "indexes") {
     draft.indexes = draft.indexes.filter((index) => index.id !== objectId)
+    if (draft.hypertable?.reorderIndexId === objectId) draft.hypertable.reorderIndexId = ""
     selected.value = draft.indexes[0]?.id ?? ""
     return
   }
@@ -506,6 +508,10 @@ function moveColumn(by: number): void {
                 v-else-if="section === 'constraints'"
                 :design-id="designId"
                 @remove="remove('constraints', $event)"
+              />
+              <HypertableInspector
+                v-else-if="selected === 'hypertable'"
+                :design-id="designId"
               />
               <TableOptionsInspector
                 v-else

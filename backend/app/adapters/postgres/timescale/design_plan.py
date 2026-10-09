@@ -71,7 +71,7 @@ ADD_REORDER = RoutineShape("add_reorder_policy", "f", "2205 19 16", 23)
 REMOVE_REORDER = RoutineShape("remove_reorder_policy", "f", "2205 16", 2278)
 
 
-def _add_dimension_shape(dimension_info: str) -> RoutineShape:
+def add_dimension_shape(dimension_info: str) -> RoutineShape:
     # The legacy overload takes a name second, so a call whose arguments are all
     # concrete cannot resolve to it.
     return RoutineShape(
@@ -79,7 +79,7 @@ def _add_dimension_shape(dimension_info: str) -> RoutineShape:
     )
 
 
-def _by_hash_shape(dimension_info: str) -> RoutineShape:
+def by_hash_shape(dimension_info: str) -> RoutineShape:
     return RoutineShape("by_hash", "f", "19 23", int(dimension_info))
 
 
@@ -453,7 +453,7 @@ def plan_steps(current: CurrentHypertable, requested: HypertableDesign) -> tuple
     )
 
 
-def _shapes(steps: tuple[DesignStep, ...]) -> list[RoutineShape]:
+def step_shapes(steps: tuple[DesignStep, ...]) -> list[RoutineShape]:
     shapes: list[RoutineShape] = []
     for step in steps:
         match step:
@@ -486,10 +486,10 @@ async def _strategy(
     reader: PostgresReader, current: CurrentHypertable, steps: tuple[DesignStep, ...],
 ) -> DesignStrategy:
     version = current.extension_version
-    shapes = _shapes(steps)
+    shapes = step_shapes(steps)
     if any(isinstance(step, AddHashDimension) for step in steps):
         dimension_info = await extension_type(reader, version, "_timescaledb_internal", "dimension_info")
-        shapes.extend((_add_dimension_shape(dimension_info), _by_hash_shape(dimension_info)))
+        shapes.extend((add_dimension_shape(dimension_info), by_hash_shape(dimension_info)))
     routines: list[RoutineUse] = []
     schema: str | None = None
     for shape in dict.fromkeys(shapes):

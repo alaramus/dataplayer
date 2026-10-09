@@ -5599,6 +5599,34 @@ export type HypertableFacts = {
 }
 
 /**
+ * HypertableOffer
+ *
+ * Whether this destination can create a hypertable, and in which units (D207).
+ */
+export type HypertableOffer = {
+  /**
+   * Available
+   */
+  available?: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+  /**
+   * Per Chunk Defaults
+   */
+  per_chunk_defaults?: boolean
+  /**
+   * Interval Units
+   */
+  interval_units?: Array<"second" | "minute" | "hour" | "day" | "week" | "month" | "year">
+  /**
+   * Policy Units
+   */
+  policy_units?: Array<"second" | "minute" | "hour" | "day" | "week" | "month" | "year">
+}
+
+/**
  * IdentityGeneration
  */
 export type IdentityGeneration = {
@@ -11993,6 +12021,7 @@ export type TableDefinition = {
    */
   indexes?: Array<DesignIndex>
   partition?: DesignPartition | null
+  hypertable?: TableHypertable | null
 }
 
 /**
@@ -12057,6 +12086,7 @@ export type TableDesignOptions = {
    * Nulls Not Distinct Supported
    */
   nulls_not_distinct_supported?: boolean
+  hypertable?: HypertableOffer
   limits?: DesignLimits
 }
 
@@ -12068,6 +12098,68 @@ export type TableDesignTarget = {
    * Node Id
    */
   node_id: string
+}
+
+/**
+ * TableHashDimension
+ */
+export type TableHashDimension = {
+  /**
+   * Column Id
+   */
+  column_id: string
+  /**
+   * Partitions
+   */
+  partitions: number
+}
+
+/**
+ * TableHypertable
+ *
+ * The table created as a hypertable, its columns named by draft id (D207).
+ *
+ * The same settings as the hypertable editor's, flattened into what a new
+ * table can have: nothing is kept as it is, and no tablespace is attached,
+ * since the designer places no table in one.
+ */
+export type TableHypertable = {
+  /**
+   * Time Column Id
+   */
+  time_column_id: string
+  chunk_interval: DesignDuration
+  /**
+   * Hash Dimensions
+   */
+  hash_dimensions?: Array<TableHashDimension>
+  /**
+   * Columnstore
+   */
+  columnstore?: boolean
+  /**
+   * Segment Mode
+   */
+  segment_mode?: "default" | "none" | "columns"
+  /**
+   * Segment Column Ids
+   */
+  segment_column_ids?: Array<string>
+  /**
+   * Order Mode
+   */
+  order_mode?: "default" | "columns"
+  /**
+   * Order Keys
+   */
+  order_keys?: Array<TableOrderKey>
+  merge_interval?: DesignDuration | null
+  retention?: DesignDuration | null
+  columnstore_policy?: DesignDuration | null
+  /**
+   * Reorder Index Id
+   */
+  reorder_index_id?: string | null
 }
 
 /**
@@ -12115,6 +12207,24 @@ export type TableNode = {
    */
   is_system?: boolean
   specialization?: TimescaleHypertable | null
+}
+
+/**
+ * TableOrderKey
+ */
+export type TableOrderKey = {
+  /**
+   * Column Id
+   */
+  column_id: string
+  /**
+   * Descending
+   */
+  descending: boolean
+  /**
+   * Nulls First
+   */
+  nulls_first: boolean
 }
 
 /**

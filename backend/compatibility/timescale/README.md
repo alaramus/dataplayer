@@ -140,6 +140,20 @@ Found by running the matrix; each is handled in `app/` and covered here.
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
 
+## Validation record: 2026-10-10, the table designer's Hypertable section
+
+H4 of D207 added `test_hypertable_creation.py`, five scenarios on every
+source: a designed table created as a hypertable with a hash dimension, a
+columnstore, retention and reorder policies and no default index, and the
+designer's refusals.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q` | 950 passed, 1 skipped, 1 failed: the scheduler test below, on 2.18 |
+| backend | `uv run pytest tests/ -q` | 3789 passed, 154 skipped |
+| frontend | unit, type, lint and build checks | Passed |
+| frontend | `bunx playwright test` over the hypertable, designer and Timescale scenarios | 11 passed |
+
 ## Validation record: 2026-10-09, conversion from the editor
 
 H3 of D207 added `test_hypertable_conversion.py`, seven scenarios on every
