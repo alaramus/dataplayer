@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.ai import quick_chat
+from app.ai import preferences, quick_chat
 from app.ai.topic import NAME, QUICK_NAME, QuickAnswerDelta
 from app.main import app
 from tests.ai.conftest import (
@@ -266,3 +266,31 @@ async def test_a_model_explicitly_sent_to_a_quick_chat_is_what_the_next_chat_sta
     assert script.built[-1][:2] == (other, KEY)
     assert (await client.get(f"{AI}/quick-chats/{chat_id}", headers=headers)).json()["model_key"] == other
     assert (await client.get(f"{AI}/settings", headers=headers)).json()["model_key"] == other
+
+
+async def test_sending_the_remembered_model_keeps_jevs_choice(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    script: Script,
+    db: AsyncSession,
+) -> None:
+    """The window sends its model with every message; that is not a new choice."""
+    headers = normal_user_token_headers
+    await ready_agent(client, headers)
+    await preferences.set_key(db, await user_id_of(client, headers), "typesafe", "jev-key")
+    chosen = await client.patch(
+        f"{AI}/settings", headers=headers,
+        json={"model_key": MODEL_KEY, "auto_provider": "all"},
+    )
+    assert chosen.status_code == 200, chosen.text
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    script.turns.append(Turn(pieces=[text("A plain answer")]))
+
+    sent = await client.post(
+        f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
+        json={"text": "Explain this", "model_key": MODEL_KEY},
+    )
+
+    assert sent.status_code == 200, sent.text
+    settings = (await client.get(f"{AI}/settings", headers=headers)).json()
+    assert (settings["model_key"], settings["auto_provider"]) == (MODEL_KEY, "all")

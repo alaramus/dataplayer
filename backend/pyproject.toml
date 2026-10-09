@@ -42,7 +42,8 @@ dependencies = [
     # Time zones for pipeline schedules (D179) where the system keeps none:
     # Windows, or a slim image.
     "tzdata>=2026.3",
-    "pglast>=8",
+    # PostgreSQL's own grammar, to classify and split statements (D62).
+    "pglast>=8.5,<9",
 ]
 
 [dependency-groups]

@@ -125,6 +125,41 @@ async def test_jev_selects_within_the_provider_and_records_the_actual_model(
     assert shown["model_key"] == MODEL_KEY
 
 
+async def test_a_jev_choice_without_a_model_pins_the_fallback_it_was_judged_by(
+    client: AsyncClient,
+    headers: dict[str, str],
+    script: Script,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A conversation reading the person's choice would otherwise ignore its own."""
+    target = "anthropic:claude-opus-5"
+
+    class FakeClassifier:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "jev-key"
+
+        async def ainvoke(self, request: dict[str, Any]) -> Any:
+            return SimpleNamespace(choices={"model": SimpleNamespace(choice=target)})
+
+    monkeypatch.setattr(model_routing, "TypeSafeClassifier", FakeClassifier)
+    await preferences.set_key(db, await user_id_of(client, headers), "typesafe", "jev-key")
+    conversation_id = await new_conversation(client, headers)
+    chosen = await client.patch(
+        f"{AI}/conversations/{conversation_id}", headers=headers,
+        json={"auto_provider": "anthropic"},
+    )
+    assert chosen.status_code == 200, chosen.text
+    script.turns += [Turn(pieces=[text("Answer")]), Turn(pieces=[text("Title")])]
+
+    run = await send(client, headers, conversation_id, "Explain this")
+    finished = await settled(client, headers, run["id"])
+
+    assert finished["model_key"] == target
+    shown = (await client.get(f"{AI}/conversations/{conversation_id}", headers=headers)).json()
+    assert (shown["model_key"], shown["auto_provider"]) == (MODEL_KEY, "anthropic")
+
+
 async def test_jev_selects_across_keyed_providers_and_uses_the_routed_key(
     client: AsyncClient,
     headers: dict[str, str],

@@ -131,10 +131,15 @@ Known deviations:
 - **Renaming a schema and moving a relation stay catalog actions.** Both parse
   precisely and stay `unknown` on purpose rather than by a parser falling
   over: the screen that renames what it is looking at is not the query
-  editor. Changing who owns a table, view, schema or index is admitted as
-  the alter it is instead — refusing it while a drop is admitted would be an
-  arbitrary line — and row-security changes are refused as permission
-  administration, the way a grant is.
+  editor. Changing an owner and row security are refused as permission
+  administration, the way a grant is, and an `ALTER TABLE` that switches a
+  tablespace, a trigger or a rule is refused with that family's sentence.
+- **PostgreSQL still has a second reader.** Boundaries and classes come from
+  the server's grammar (pglast), while the formatter and the post-commit
+  invalidation (`effects.py`) still read with sqlglot. A form only the grammar
+  reads — `bit varying`, a table-level `NOT NULL` — is left unformatted and
+  invalidates the whole connection rather than its nodes: a wider reload,
+  never a stale one.
 - **Statement boundaries are asked of the source, not parsed in the browser.**
   This decision allows a compatible browser parser for immediate feedback; one
   parser is used, so Run waits for a short round trip after the text changes

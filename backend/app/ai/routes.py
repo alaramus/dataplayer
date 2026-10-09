@@ -17,7 +17,7 @@ from pydantic import Json, ValidationError
 from sqlmodel import col, update
 
 from app.ai import attachments, conversations, preferences, quick_chat
-from app.ai.catalog import PROVIDER_TITLES, Provider, catalog
+from app.ai.catalog import Provider, catalog
 from app.ai.content import opened, opened_bytes, sealed
 from app.ai.models import (
     TERMINAL,
@@ -367,49 +367,28 @@ async def update_conversation(
         raise HTTPException(
             status_code=422, detail={"message": "That model is not in the list"}
         )
-    if body.auto_provider is not None:
+    model_key = body.model_key
+    if "auto_provider" in body.model_fields_set:
         # The fallback is what answers when Jev cannot: the model sent with
         # the choice, else the conversation's own, else the person's (D157).
-        fallback = catalog().find(body.model_key)
-        if fallback is None:
-            fallback = catalog().find(conversation.model_key)
-        if fallback is None:
-            fallback = await preferences.chosen_model(
-                session, current_user.id, catalog()
-            )
-        if fallback is None:
-            raise HTTPException(
-                status_code=422,
-                detail={"message": "Choose a fallback model first"},
-            )
-        if body.auto_provider == "all":
-            if (
-                await preferences.key_for(
-                    session, current_user.id, fallback.provider
+        fallback = (
+            catalog().find(body.model_key)
+            or catalog().find(conversation.model_key)
+            or await preferences.chosen_model(session, current_user.id, catalog())
+        )
+        if body.auto_provider is not None:
+            try:
+                await preferences.check_auto_choice(
+                    session, current_user.id, body.auto_provider, fallback
                 )
-                is None
-            ):
+            except preferences.SettingsRefused as refused:
                 raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "message": (
-                            f"Set the {PROVIDER_TITLES[fallback.provider]} API key first"
-                        )
-                    },
-                )
-        else:
-            if fallback.provider != body.auto_provider:
-                raise HTTPException(
-                    status_code=422,
-                    detail={"message": "Choose a fallback model from this provider"},
-                )
-            if await preferences.key_for(session, current_user.id, body.auto_provider) is None:
-                raise HTTPException(
-                    status_code=422,
-                    detail={"message": "Set this model provider's API key first"},
-                )
-        if await preferences.key_for(session, current_user.id, "typesafe") is None:
-            raise HTTPException(status_code=422, detail={"message": "Set a Jev API key first"})
+                    status_code=422, detail={"message": refused.message}
+                ) from refused
+        # A conversation without a model of its own reads the person's Jev
+        # choice, not its own, so the choice is pinned with its fallback.
+        if fallback is not None:
+            model_key = fallback.key
     if body.change_policy == "jev" and await preferences.key_for(
         session, current_user.id, "typesafe"
     ) is None:
@@ -428,9 +407,9 @@ async def update_conversation(
     except ValueError as refused:
         raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused
     title = body.title.strip() if body.title is not None else None
-    if body.model_key is not None:
+    if model_key is not None:
         await preferences.remember_model(
-            session, current_user.id, body.model_key, body.auto_provider
+            session, current_user.id, model_key, body.auto_provider
         )
     changed = await conversations.change(
         session,
@@ -438,10 +417,10 @@ async def update_conversation(
         title=title,
         pinned=place.pinned,
         archived=body.archived,
-        model_key=body.model_key,
+        model_key=model_key,
         auto_provider=body.auto_provider,
         set_auto_provider=(
-            "auto_provider" in body.model_fields_set or body.model_key is not None
+            "auto_provider" in body.model_fields_set or model_key is not None
         ),
         change_policy=body.change_policy,
         project_id=place.project_id,

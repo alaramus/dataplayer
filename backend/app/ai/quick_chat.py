@@ -230,8 +230,12 @@ async def send(
         chat.title = sealed(text.splitlines()[0][:80])
     # An explicitly chosen model is what the next chat starts with too (D140),
     # as a choice in an agent chat is: staged, and committed with the chat.
+    # Only a change is remembered: the window sends its model with every
+    # message, and rewriting the same one would switch Jev's choice off.
     if body.model_key is not None:
-        await preferences.remember_model(session, owner_id, model.key)
+        remembered = await preferences.chosen_model(session, owner_id, catalog)
+        if remembered is None or remembered.key != model.key:
+            await preferences.remember_model(session, owner_id, model.key)
     chat.model_key = model.key
     chat.updated_at = get_datetime_utc()
     session.add_all([

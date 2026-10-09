@@ -140,6 +140,7 @@ frontend/src/features/speech/
 
 ```
 src/stores/voice.ts     the chosen reading voice, kept in this browser
+```
 
 ```
 GET    /api/v1/ai/models
@@ -476,11 +477,14 @@ candidates for each answer; models without image input are excluded whenever
 the conversation has an image, as is any model whose provider has no key. The
 prior model stays as fallback, or the first model in the new group if the
 person switched providers; the all-providers choice falls back to the current
-model when it is still listed, else the first keyed one. A selection stores the
-scope (`all` for every keyed provider) and fallback independently. The actual chosen model is recorded on
+model when its provider has a key, else the first keyed one. A selection stores the
+scope (`all` for every keyed provider) and fallback independently; made in a
+conversation that has no model of its own, it pins the fallback it was checked
+against, since such a conversation otherwise reads the person's choice. The actual chosen model is recorded on
 the run, shown beside its steps, and used for the whole run, its summary, and
 its title. A paused run resumes with that same model. Jev sees only the latest
-user text, truncated to 16,000 characters, plus provider and image presence.
+user text, truncated to 16,000 characters, plus the providers in scope and
+image presence.
 It does not receive attachments, prior messages or tool results for routing.
 
 If Jev fails, returns a model outside the candidates, or its key was removed,

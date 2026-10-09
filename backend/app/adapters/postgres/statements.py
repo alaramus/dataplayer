@@ -83,6 +83,9 @@ _FOREIGN_SUBJECTS: dict[str, str] = {
     "CreatedbStmt": "DATABASE",
     "DropdbStmt": "DATABASE",
     "CreateSeqStmt": "SEQUENCE",
+    "AlterSeqStmt": "SEQUENCE",
+    "AlterEnumStmt": "TYPE",
+    "AlterFunctionStmt": "FUNCTION",
     "CreateEnumStmt": "TYPE",
     "CreateTypeStmt": "TYPE",
     "CreateFunctionStmt": "FUNCTION",
@@ -115,17 +118,7 @@ _OBJECT_SUBJECTS: dict[ObjectType, str] = {
     ObjectType.OBJECT_SEQUENCE: "SEQUENCE",
 }
 
-# The row-security changes, which are permission administration wearing an
-# `ALTER TABLE`: enabling row security is refused the way a grant is, rather
-# than admitted the way an ordinary alter is.
-_ROW_SECURITY = frozenset(
-    {
-        AlterTableType.AT_EnableRowSecurity,
-        AlterTableType.AT_DisableRowSecurity,
-        AlterTableType.AT_ForceRowSecurity,
-        AlterTableType.AT_NoForceRowSecurity,
-    }
-)
+_PERMISSIONS = "Permissions are not administered from the query editor"
 
 # The closed vocabulary of structure changes this source will carry out (D66).
 # Schemas, tables, views and indexes, their comments, and emptying a table.
@@ -160,6 +153,33 @@ _GENERAL_REFUSAL = (
     "this is something else"
 )
 
+# What an `ALTER TABLE` may do that is not a change to the relation itself.
+# Ownership and row security are permission administration wearing an alter,
+# refused the way a grant is; a tablespace, a trigger or a rule is a family of
+# its own that happens to be switched from the table it belongs to.
+_TRIGGERS = _OUTSIDE["TRIGGER"]
+_ALTER_REFUSALS: dict[AlterTableType, str] = {
+    AlterTableType.AT_ChangeOwner: _PERMISSIONS,
+    AlterTableType.AT_EnableRowSecurity: _PERMISSIONS,
+    AlterTableType.AT_DisableRowSecurity: _PERMISSIONS,
+    AlterTableType.AT_ForceRowSecurity: _PERMISSIONS,
+    AlterTableType.AT_NoForceRowSecurity: _PERMISSIONS,
+    AlterTableType.AT_SetTableSpace: _OUTSIDE["TABLESPACE"],
+    AlterTableType.AT_EnableTrig: _TRIGGERS,
+    AlterTableType.AT_EnableAlwaysTrig: _TRIGGERS,
+    AlterTableType.AT_EnableReplicaTrig: _TRIGGERS,
+    AlterTableType.AT_DisableTrig: _TRIGGERS,
+    AlterTableType.AT_EnableTrigAll: _TRIGGERS,
+    AlterTableType.AT_DisableTrigAll: _TRIGGERS,
+    AlterTableType.AT_EnableTrigUser: _TRIGGERS,
+    AlterTableType.AT_DisableTrigUser: _TRIGGERS,
+    AlterTableType.AT_EnableRule: _GENERAL_REFUSAL,
+    AlterTableType.AT_EnableAlwaysRule: _GENERAL_REFUSAL,
+    AlterTableType.AT_EnableReplicaRule: _GENERAL_REFUSAL,
+    AlterTableType.AT_DisableRule: _GENERAL_REFUSAL,
+    AlterTableType.AT_SetAccessMethod: _GENERAL_REFUSAL,
+}
+
 
 def split(text: str) -> list[tuple[int, int]]:
     """The range of every statement in this text, in order.
@@ -169,7 +189,7 @@ def split(text: str) -> list[tuple[int, int]]:
     not statements and are left out.
     """
     try:
-        found = parse_sql(text)
+        found = parse_sql(_without_placeholders(text))
     except PgError:
         # The text does not parse as a whole, so its statements are still
         # found token by token: a script with one broken statement in it shows
@@ -212,21 +232,28 @@ def _token_ranges(text: str) -> list[tuple[int, int]]:
     return ranges
 
 
+def _without_placeholders(text: str) -> str:
+    """The same text with every `:name` read as the engine's own `$1`.
+
+    Parameters are this application's own spelling, which the engine does not
+    know. Padded to the same length, so every offset the parser reports still
+    points into what the person wrote; the text that runs keeps every name it
+    was written with.
+    """
+    for start, end, _name in reversed(_placeholders(text)):
+        text = text[:start] + "$1".ljust(end - start) + text[end:]
+    return text
+
+
 def _parse_piece(text: str) -> pgast.Node | None:
     """The one statement this slice holds, or nothing.
 
-    Parameters are this application's own spelling, which the engine does not
-    know: each `:name` reads as the null it stands for while the statement is
-    classified, and the text that runs keeps every name it was written with.
     A slice holding anything but one statement is nothing too — that is a
     broken split, not a second shape, and answering `unknown` refuses it
     rather than guessing which of the two it is.
     """
-    sanitized = text
-    for start, end, _name in reversed(_placeholders(text)):
-        sanitized = sanitized[:start] + "NULL" + sanitized[end:]
     try:
-        found = parse_sql(sanitized)
+        found = parse_sql(_without_placeholders(text))
     except PgError:
         return None
     if len(found) != 1:
@@ -316,7 +343,7 @@ def _classify(node: pgast.Node | None) -> StatementClass:
         # Renaming a schema, or moving a relation into one, belongs to the
         # catalog actions that own those subjects — the screen that renames
         # what it is looking at is not this text box.
-        if _object_subject(node.renameType) in ("TABLE", "VIEW", "INDEX"):
+        if _renamed_subject(node) in ("TABLE", "VIEW", "INDEX"):
             return "ddl"
         return "unknown"
     if type(node).__name__.startswith(("Create", "Alter", "Drop")):
@@ -387,14 +414,25 @@ def _subject_of(node: pgast.Node) -> str:
     if isinstance(node, pgast.ViewStmt):
         return "VIEW"
     if isinstance(node, pgast.AlterTableStmt):
-        return "TABLE"
+        # The engine parses `ALTER TYPE`, `ALTER SEQUENCE` and `ALTER FOREIGN
+        # TABLE` as this node too; what it alters is in `objtype`.
+        return _object_subject(node.objtype)
     if isinstance(node, pgast.DropStmt):
         return _object_subject(node.removeType)
     if isinstance(node, pgast.CommentStmt):
         return _object_subject(node.objtype)
     if isinstance(node, pgast.RenameStmt):
-        return _object_subject(node.renameType)
+        return _renamed_subject(node)
     return _FOREIGN_SUBJECTS.get(type(node).__name__, "")
+
+
+def _renamed_subject(node: pgast.RenameStmt) -> str:
+    """What a rename alters: a column or a constraint is part of its relation."""
+    if node.renameType == ObjectType.OBJECT_TABCONSTRAINT:
+        return "TABLE"
+    if node.renameType in (ObjectType.OBJECT_COLUMN, ObjectType.OBJECT_ATTRIBUTE):
+        return _object_subject(node.relationType)
+    return _object_subject(node.renameType)
 
 
 def _object_subject(value: ObjectType | None) -> str:
@@ -402,9 +440,13 @@ def _object_subject(value: ObjectType | None) -> str:
     return "" if value is None else _OBJECT_SUBJECTS.get(value, "")
 
 
-def _row_security(node: pgast.AlterTableStmt) -> bool:
-    """Whether this alter administers row security rather than the relation."""
-    return any(cmd.subtype in _ROW_SECURITY for cmd in node.cmds or ())
+def _alter_refusal(node: pgast.AlterTableStmt) -> str | None:
+    """Why one of this alter's actions is not a change to the relation."""
+    for cmd in node.cmds or ():
+        refused = _ALTER_REFUSALS.get(cmd.subtype)
+        if refused is not None:
+            return refused
+    return None
 
 
 def _refusal(node: pgast.Node | None, kind: StatementClass) -> str | None:
@@ -417,12 +459,14 @@ def _refusal(node: pgast.Node | None, kind: StatementClass) -> str | None:
     """
     if kind != "ddl" or node is None:
         return None
-    if isinstance(node, pgast.GrantStmt):
-        return "Permissions are not administered from the query editor"
+    if isinstance(node, (pgast.GrantStmt, pgast.AlterOwnerStmt)):
+        return _PERMISSIONS
     if isinstance(node, pgast.TruncateStmt):
         return None
-    if isinstance(node, pgast.AlterTableStmt) and _row_security(node):
-        return "Permissions are not administered from the query editor"
+    if isinstance(node, pgast.AlterTableStmt):
+        refused = _alter_refusal(node)
+        if refused is not None:
+            return refused
     if isinstance(node, pgast.CommentStmt):
         subject = _object_subject(node.objtype)
         if subject in _ALLOWED_COMMENT_KINDS:
@@ -525,7 +569,7 @@ def _parameters(text: str) -> list[str]:
 
 
 def _object_name(obj: Any) -> str:
-    """One dropped thing, dotted: a name, or a name with argument types."""
+    """One dropped thing, dotted: a name, or a function's name without its arguments."""
     if isinstance(obj, pgast.String):
         return obj.sval or ""
     if isinstance(obj, pgast.ObjectWithArgs):

@@ -50,6 +50,18 @@ def test_empty_pieces_between_semicolons_are_not_statements() -> None:
     assert split("   \n  ") == []
 
 
+def test_parameters_do_not_send_a_script_to_the_token_fallback() -> None:
+    """Nested comments are the engine's own grammar; tokens alone end the
+    first statement inside the comment."""
+    text = "select 1 /* a /* nested */ ; */; select :p"
+
+    assert [text[start:end] for start, end in split(text)] == [
+        "select 1 /* a /* nested */ ; */",
+        "select :p",
+    ]
+    assert one("select * from t where a = :p and b = :longer_name").kind == "read"
+
+
 def test_a_range_points_back_into_the_text_it_came_from() -> None:
     text = "select 1;\nselect 2"
 
@@ -211,7 +223,9 @@ def one(text: str):  # type: ignore[no-untyped-def]
         "drop view s.v",
         "alter table s.t add column a int",
         "alter table s.t rename to u",
-        "alter table t owner to bob",
+        "alter table t rename column a to b",
+        "alter table t rename constraint c to d",
+        "alter view v rename column a to b",
         "alter materialized view m rename to m2",
         "create index i on s.t (a)",
         "drop index s.i",
@@ -236,6 +250,19 @@ def test_the_vocabulary_admits_schemas_tables_views_and_indexes(sql: str) -> Non
         ("grant select on t to bob", "Permissions"),
         ("revoke select on t from bob", "Permissions"),
         ("alter table t enable row level security", "Permissions"),
+        ("alter table t owner to bob", "Permissions"),
+        ("alter view v owner to bob", "Permissions"),
+        ("alter schema s owner to bob", "Permissions"),
+        ("alter table t set tablespace ts", "Tablespaces"),
+        ("alter table t disable trigger all", "Triggers"),
+        ("alter table t enable trigger tr", "Triggers"),
+        ("alter table t enable rule r", "something else"),
+        ("alter type c add attribute a int", "Types"),
+        ("alter sequence q owner to bob", "Permissions"),
+        ("alter sequence q restart", "Sequences"),
+        ("alter type e add value 'x'", "Types"),
+        ("alter function f() stable", "Functions"),
+        ("alter foreign table f add column a int", "something else"),
         ("comment on database d is 'x'", "Databases"),
         ("create extension postgis", "Extensions"),
         ("create role bob", "Roles"),
@@ -304,13 +331,14 @@ def test_a_table_level_not_null_constraint_is_still_a_create_table(sql: str) -> 
     assert "not null" in statement.text.lower()
 
 
-def test_changing_a_table_owner_is_an_alter_of_it() -> None:
-    """Admitted the way a drop is: refusing it while what destroys the
-    relation outright is allowed would be an arbitrary line."""
-    statement = one("alter table t owner to bob")
+def test_an_owner_change_among_ordinary_ones_refuses_the_whole_alter() -> None:
+    """Ownership carries every privilege with it, so it is permission
+    administration (D66) wherever in the alter it is written."""
+    statement = one("alter table t add column a int, owner to bob")
 
     assert statement.kind == "ddl"
-    assert statement.refused is None
+    assert statement.refused is not None
+    assert "Permissions" in statement.refused
 
 
 def test_a_truncated_owner_change_is_not_an_owner_change() -> None:

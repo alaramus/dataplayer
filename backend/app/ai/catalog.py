@@ -45,6 +45,7 @@ def auto_provider_of(value: str | None) -> AutoProvider | None:
         return "all"
     return chat_provider_of(value)
 
+
 CATALOG_FILE = Path(__file__).with_name("models.json")
 
 

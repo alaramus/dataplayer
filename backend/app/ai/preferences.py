@@ -113,6 +113,33 @@ class SettingsRefused(Exception):
         self.message = message
 
 
+async def check_auto_choice(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    auto_provider: AutoProvider,
+    fallback: ModelInfo | None,
+) -> None:
+    """Refuse a Jev choice that could not answer (D157).
+
+    The fallback answers whenever Jev cannot, so it must be callable: across
+    every provider it may be any keyed model, within one it must be of it.
+    """
+    if fallback is None:
+        raise SettingsRefused("Choose a fallback model first")
+    if auto_provider == "all":
+        if await key_for(session, user_id, fallback.provider) is None:
+            raise SettingsRefused(
+                f"Set the {PROVIDER_TITLES[fallback.provider]} API key first"
+            )
+    else:
+        if fallback.provider != auto_provider:
+            raise SettingsRefused("Choose a fallback model from this provider")
+        if await key_for(session, user_id, auto_provider) is None:
+            raise SettingsRefused("Set this model provider's API key first")
+    if await key_for(session, user_id, "typesafe") is None:
+        raise SettingsRefused("Set a Jev API key first")
+
+
 async def update_settings(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -128,21 +155,10 @@ async def update_settings(
             stored.auto_provider = None
     if "auto_provider" in update.model_fields_set:
         if update.auto_provider is not None:
-            fallback = models.find(update.model_key or stored.model_key)
-            if fallback is None:
-                raise SettingsRefused("Choose a fallback model first")
-            if update.auto_provider == "all":
-                if await key_for(session, user_id, fallback.provider) is None:
-                    raise SettingsRefused(
-                        f"Set the {PROVIDER_TITLES[fallback.provider]} API key first"
-                    )
-            else:
-                if fallback.provider != update.auto_provider:
-                    raise SettingsRefused("Choose a fallback model from this provider")
-                if await key_for(session, user_id, update.auto_provider) is None:
-                    raise SettingsRefused("Set this model provider's API key first")
-            if await key_for(session, user_id, "typesafe") is None:
-                raise SettingsRefused("Set a Jev API key first")
+            await check_auto_choice(
+                session, user_id, update.auto_provider,
+                models.find(update.model_key or stored.model_key),
+            )
         stored.auto_provider = update.auto_provider
     if update.allow_all_changes is not None:
         stored.allow_all_changes = update.allow_all_changes
