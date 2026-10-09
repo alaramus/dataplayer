@@ -632,10 +632,27 @@ async function runReviewed(value: {
   nodeId: string
   params: Record<string, unknown>
   fingerprint: string
+  asJob: boolean
 }) {
   const command = props.command
   if (command === null) return
   failure.value = ""
+  if (value.asJob) {
+    // Followed in Activity, whose footer names it (D95), so nothing is said here.
+    try {
+      await startJob.mutateAsync({
+        connectorId: props.connectorId,
+        name: command.name,
+        nodeId: value.nodeId,
+        params: value.params,
+        reviewedFingerprint: value.fingerprint,
+      })
+      close()
+    } catch (cause) {
+      failure.value = messageOf(cause, "The job could not be started")
+    }
+    return
+  }
   try {
     const outcome = await runAction.mutateAsync({
       connectorId: props.connectorId,
@@ -691,7 +708,7 @@ async function runReviewed(value: {
     :node-id="String(nodeIds[0] ?? '')"
     :node-label="nodeLabel"
     :action-name="command.name"
-    :running="runAction.isPending.value"
+    :running="runAction.isPending.value || startJob.isPending.value"
     :error="failure"
     @run="runReviewed"
     @update:model-value="close"

@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     PIPELINE_MAX_ACTIVE: int = 3
     # How often the server looks for pipelines whose schedule has come (D179).
     SCHEDULE_TICK_SECONDS: int = 30
+    # How long converting a table with rows into a hypertable may run before it
+    # is rolled back (D207). The table is locked against reads and writes for
+    # all of it.
+    TIMESCALE_CONVERSION_TIMEOUT_SECONDS: int = Field(default=3600, gt=0, le=86400)
 
     # What one answer of the search may spend (D200). While typing, one
     # deadline for everything; on Enter, each cheap cell, each costly cell and

@@ -10,6 +10,7 @@ chunk. The matrix holds 2.19.3 and 2.23.1 on either side.
 
 import asyncio
 import re
+from dataclasses import dataclass
 
 from psycopg import sql
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -42,7 +43,11 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     RETENTION,
     read_age_policy,
 )
-from app.adapters.postgres.timescale.plans import AgePolicy
+from app.adapters.postgres.timescale.conversion_plan import (
+    ConversionState,
+    inspect_conversion,
+)
+from app.adapters.postgres.timescale.plans import AgePolicy, ConversionColumn
 from app.adapters.postgres.timescale.policy_projection import OWNED_POLICY_ROUTINE
 from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
@@ -148,6 +153,19 @@ LEFT JOIN pg_catalog.pg_attribute AS attribute
 WHERE unique_index.indrelid = %s::pg_catalog.oid AND unique_index.indisunique
 GROUP BY index_class.relname
 ORDER BY 1
+"""
+
+_IS_HYPERTABLE = """
+SELECT EXISTS (
+    SELECT 1 FROM timescaledb_information.hypertables
+    WHERE hypertable_schema = %s AND hypertable_name = %s
+) AS converted
+"""
+
+# The planner's estimate; -1 before the first ANALYZE.
+_ESTIMATE = """
+SELECT CASE WHEN relation.reltuples < 0 THEN NULL ELSE relation.reltuples::pg_catalog.int8 END AS rows
+FROM pg_catalog.pg_class AS relation WHERE relation.oid = %s::pg_catalog.oid
 """
 
 _TABLESPACES = """
@@ -395,6 +413,29 @@ async def _reorder(reader: PostgresReader, target: DesignTarget) -> ReorderPolic
     return policy
 
 
+@dataclass(frozen=True)
+class TableFacts:
+    """What every table has, whether or not it is a hypertable yet."""
+
+    columns: tuple[ColumnFact, ...]
+    unique_keys: tuple[UniqueKey, ...]
+    indexes: tuple[str, ...]
+    tablespaces: tuple[str, ...]
+
+
+async def _table_facts(reader: PostgresReader, relation_oid: str) -> TableFacts:
+    column_rows = await reader.query(_COLUMNS, (relation_oid,), inspection=True)
+    unique_rows = await reader.query(_UNIQUE_KEYS, (relation_oid,), inspection=True)
+    index_rows = await reader.query(_INDEXES, (relation_oid,), inspection=True)
+    tablespace_rows = await reader.query(_TABLESPACES, inspection=True)
+    return TableFacts(
+        columns=tuple(ColumnFact.model_validate(item) for item in column_rows),
+        unique_keys=tuple(UniqueKey(name=item["name"], columns=tuple(item["columns"])) for item in unique_rows),
+        indexes=tuple(str(item["name"]) for item in index_rows),
+        tablespaces=tuple(str(item["name"]) for item in tablespace_rows),
+    )
+
+
 async def read_current(reader: PostgresReader, schema_name: str, table_name: str) -> CurrentHypertable:
     """The hypertable as it is now; refuses what this editor cannot work on, saying why."""
     version = require_available(await discover(reader))
@@ -434,6 +475,7 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         raise ActionRefused("not_applicable", "The hypertable's chunks and tablespaces could not be read")
 
     design = HypertableDesign(
+        time_column=target.column_name,
         chunk_interval=fixed_duration(interval),
         hash_dimensions=[
             HashDimensionDesign(column=str(item["column_name"]), partitions=int(item["num_partitions"]))
@@ -445,25 +487,136 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         reorder_index=reorder.index_name if reorder is not None else None,
         tablespaces=list(attached[0]["tablespaces"]),
     )
-    column_rows = await reader.query(_COLUMNS, (target.relation_oid,), inspection=True)
-    unique_rows = await reader.query(_UNIQUE_KEYS, (target.relation_oid,), inspection=True)
-    index_rows = await reader.query(_INDEXES, (target.relation_oid,), inspection=True)
-    tablespace_rows = await reader.query(_TABLESPACES, inspection=True)
+    facts = await _table_facts(reader, target.relation_oid)
     return CurrentHypertable(
         extension_version=version,
         target=target,
         design=design,
         interval_microseconds=interval,
-        columns=tuple(ColumnFact.model_validate(item) for item in column_rows),
-        unique_keys=tuple(UniqueKey(name=item["name"], columns=tuple(item["columns"])) for item in unique_rows),
-        indexes=tuple(str(item["name"]) for item in index_rows),
-        available_tablespaces=tuple(str(item["name"]) for item in tablespace_rows),
+        columns=facts.columns,
+        unique_keys=facts.unique_keys,
+        indexes=facts.indexes,
+        available_tablespaces=facts.tablespaces,
         retention=retention,
         compression=compression,
         reorder=reorder,
         per_chunk_defaults=per_chunk_defaults,
         has_chunks=chunks[0]["has_chunks"] is True,
         compressed_chunks=chunks[0]["compressed_chunks"] is True,
+    )
+
+
+@dataclass(frozen=True)
+class TableCandidate:
+    """An ordinary table the editor may convert, before a column is chosen (D207)."""
+
+    extension_version: str
+    conversion: ConversionState
+    facts: TableFacts
+    per_chunk_defaults: bool
+    row_estimate: int | None
+
+
+async def is_hypertable(reader: PostgresReader, schema_name: str, table_name: str) -> bool:
+    # Discovery first, so a database without the extension says that rather than
+    # failing on a view it does not have.
+    require_available(await discover(reader))
+    await require_public_view(reader, "hypertables", ("hypertable_schema", "hypertable_name"))
+    rows = await reader.query(_IS_HYPERTABLE, (schema_name, table_name), inspection=True)
+    return len(rows) == 1 and rows[0].get("converted") is True
+
+
+async def row_estimate(reader: PostgresReader, relation_oid: str) -> int | None:
+    rows = await reader.query(_ESTIMATE, (relation_oid,), inspection=True)
+    value = rows[0].get("rows") if len(rows) == 1 else None
+    return value if isinstance(value, int) and value >= 0 else None
+
+
+async def read_table(reader: PostgresReader, schema_name: str, table_name: str) -> TableCandidate:
+    """An ordinary table as a conversion would find it; refuses what cannot become a hypertable."""
+    version = require_available(await discover(reader))
+    for view, columns in _VIEWS.items():
+        await require_public_view(reader, view, columns)
+    conversion = await inspect_conversion(reader, schema_name, table_name, allow_rows=True)
+    return TableCandidate(
+        extension_version=version,
+        conversion=conversion,
+        facts=await _table_facts(reader, conversion.target.relation_oid),
+        per_chunk_defaults=release(version) >= PER_CHUNK_DEFAULTS,
+        row_estimate=await row_estimate(reader, conversion.target.relation_oid),
+    )
+
+
+def converted(candidate: TableCandidate, column: ConversionColumn, interval: DesignDuration) -> CurrentHypertable:
+    """The hypertable right after converting by this column, before anything else is set.
+
+    Planning every other step against it means a conversion and its settings are
+    planned by the same rules as the settings of a hypertable that exists.
+    """
+    microseconds = duration_microseconds(interval)
+    if microseconds is None:
+        raise ActionRefused("not_applicable", "A chunk interval is counted in minutes, hours, days or weeks")
+    target = candidate.conversion.target
+    return CurrentHypertable(
+        extension_version=candidate.extension_version,
+        target=DesignTarget(
+            database_oid=target.database_oid, relation_oid=target.relation_oid,
+            schema_name=target.schema_name, table_name=target.table_name,
+            column_name=column.name, column_type=column.type,
+        ),
+        design=HypertableDesign(
+            time_column=column.name,
+            chunk_interval=interval,
+            columnstore=ColumnstoreDesign(
+                enabled=False,
+                segment_by=ChosenByTimescale() if candidate.per_chunk_defaults else NoColumns(),
+            ),
+        ),
+        interval_microseconds=microseconds,
+        columns=candidate.facts.columns,
+        unique_keys=candidate.facts.unique_keys,
+        indexes=candidate.facts.indexes,
+        available_tablespaces=candidate.facts.tablespaces,
+        retention=None,
+        compression=None,
+        reorder=None,
+        per_chunk_defaults=candidate.per_chunk_defaults,
+        # Moving rows in makes chunks, so what needs none is planned as if there were some.
+        has_chunks=not candidate.conversion.empty,
+        compressed_chunks=False,
+    )
+
+
+def _preferred(columns: tuple[ConversionColumn, ...]) -> ConversionColumn:
+    # A column that already requires a value converts without one more rule to meet.
+    return next((column for column in columns if column.not_null), columns[0])
+
+
+def state_of_table(node_id: str, candidate: TableCandidate) -> HypertableDesignState:
+    choice = _preferred(candidate.conversion.columns)
+    # The default TimescaleDB itself gives a timestamp column.
+    proposed = converted(candidate, choice, DesignDuration(amount=1, unit="week"))
+    return HypertableDesignState(
+        node_id=node_id,
+        hypertable=False,
+        design=proposed.design,
+        extension_version=candidate.extension_version,
+        time_column=choice.name,
+        time_column_type=choice.type,
+        columns=[HypertableColumn(name=item.name, type=item.type, orderable=item.orderable)
+                 for item in candidate.facts.columns],
+        time_columns=[HypertableColumn(name=item.name, type=item.type, orderable=True)
+                      for item in candidate.conversion.columns],
+        row_estimate=candidate.row_estimate,
+        indexes=list(candidate.facts.indexes),
+        tablespaces=list(candidate.facts.tablespaces),
+        # Every unit some column allows, since the column is still to be chosen; the
+        # plan refuses hours for a date column, saying so.
+        interval_units=["minute", "hour", "day", "week"],
+        policy_units=["hour", "day", "week", "month", "year"],
+        merge_units=["minute", "hour", "day", "week"],
+        per_chunk_defaults=candidate.per_chunk_defaults,
+        has_chunks=not candidate.conversion.empty,
     )
 
 
@@ -511,7 +664,9 @@ def state_of(node_id: str, current: CurrentHypertable) -> HypertableDesignState:
 async def read_state(reader: PostgresReader, node_id: str, schema_name: str, table_name: str) -> HypertableDesignState:
     try:
         async with asyncio.timeout(5):
-            return state_of(node_id, await read_current(reader, schema_name, table_name))
+            if await is_hypertable(reader, schema_name, table_name):
+                return state_of(node_id, await read_current(reader, schema_name, table_name))
+            return state_of_table(node_id, await read_table(reader, schema_name, table_name))
     except ActionRefused as exc:
         return HypertableDesignState(node_id=node_id, reason=exc.message)
     except TimeoutError:

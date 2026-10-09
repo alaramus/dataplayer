@@ -278,9 +278,9 @@ Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-t
 
 ## D207. A hypertable is designed as a whole and planned as one change
 
-The settings editor on an existing hypertable (H1, H2) is implemented and
-passes the whole matrix. Conversion from the editor (H3), the table designer's
-section (H4) and integer time (H5) are not.
+The settings editor (H1, H2) and conversion from it (H3) are implemented and
+pass the whole matrix. The table designer's section (H4) and integer time (H5)
+are not.
 
 One closed model, `HypertableDesign`, says what a hypertable should be:
 
@@ -346,8 +346,20 @@ What the matrix showed, and the code follows:
 - A policy runs at once when it is added. Scenarios use ages far beyond their
   rows, or the job drops or compresses chunks under the test.
 
+Conversion from the editor plans an ordinary table as the hypertable it would
+become by the chosen column, so the conversion and every setting after it are
+planned by the same rules as an existing hypertable's. An empty table converts
+in the request's transaction. A table with rows makes the preview say
+`runs_as_job`, and the editor starts the job instead of applying: one unit,
+whose transaction holds the conversion with `migrate_data` and the rest of the
+design, under `TIMESCALE_CONVERSION_TIMEOUT_SECONDS`. A row with no time fails
+the whole conversion and leaves the table as it was.
+
 Known deviations:
 
+- **A conversion that runs out of time is reported as refused,** with a message
+  saying it was rolled back. The spec asked for the job's "rolled back" outcome,
+  which the job handler gives only to a cancelled unit.
 - **The order of steps differs from the spec.** Policy removals come before the
   columnstore changes rather than after the tablespaces, because a columnstore
   cannot be turned off while its policy exists.

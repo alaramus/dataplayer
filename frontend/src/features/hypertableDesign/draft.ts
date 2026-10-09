@@ -35,6 +35,8 @@ export interface HashDraft {
 }
 
 export interface Draft {
+  /** The column an ordinary table is converted by; a hypertable's own, which cannot change. */
+  timeColumn: string
   chunkInterval: DurationDraft
   hash: HashDraft[]
   columnstore: boolean
@@ -75,6 +77,7 @@ export function draftFrom(state: HypertableDesignState): Draft | null {
   const policyUnit: DurationUnit = state.policy_units?.includes("month") ? "month" : "week"
   const intervalUnit: DurationUnit = state.interval_units?.includes("day") ? "day" : "week"
   return {
+    timeColumn: design.time_column ?? state.time_column ?? "",
     chunkInterval: durationDraft(design.chunk_interval, { amount: null, unit: intervalUnit }),
     hash: (design.hash_dimensions ?? []).map((item) => ({
       column: item.column,
@@ -119,6 +122,7 @@ function policy(value: PolicyDraft): Policy | "missing" {
 
 /** The design the form describes, or what it still lacks. */
 export function completed(draft: Draft): Completed {
+  if (draft.timeColumn === "") return { missing: "Choose the time column" }
   const chunk = duration(draft.chunkInterval)
   if (chunk === null) return { missing: "Enter the chunk interval" }
   if (draft.hash.some((item) => item.column === "" || !whole(item.partitions))) {
@@ -141,6 +145,7 @@ export function completed(draft: Draft): Completed {
   if (columnstorePolicy === "missing") return { missing: "Enter the columnstore policy age" }
   return {
     design: {
+      time_column: draft.timeColumn,
       chunk_interval: chunk,
       hash_dimensions: draft.hash.map((item) => ({
         column: item.column,

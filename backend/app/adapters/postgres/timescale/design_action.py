@@ -1,6 +1,6 @@
 """Hypertable settings: one design, one reviewed plan, one transaction (D207)."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from psycopg import sql
@@ -13,7 +13,7 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
 )
-from app.adapters.catalog import NodeKind
+from app.adapters.catalog import NodeKind, SchemaNode, TableNode
 from app.adapters.features import FeatureCode
 from app.adapters.hypertable_design import (
     ChosenByTimescale,
@@ -23,15 +23,25 @@ from app.adapters.hypertable_design import (
     OrderBy,
     SegmentBy,
 )
+from app.adapters.operations import (
+    ObservedState,
+    OperationPlan,
+    OperationTarget,
+    UnitOutcome,
+)
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.timescale.design_execution import execute_design
+from app.adapters.postgres.timescale.design_execution import (
+    execute_design,
+    execute_design_job,
+)
 from app.adapters.postgres.timescale.design_plan import (
     AddAgePolicy,
     AddHashDimension,
     AddReorderPolicy,
     AttachTablespace,
     ConfigureColumnstore,
+    ConvertTable,
     DesignStep,
     DetachTablespace,
     DisableColumnstore,
@@ -42,14 +52,26 @@ from app.adapters.postgres.timescale.design_plan import (
     SetPartitions,
     plan_design,
 )
-from app.adapters.postgres.timescale.design_state import read_current, read_state
+from app.adapters.postgres.timescale.design_state import (
+    is_hypertable,
+    read_current,
+    read_state,
+    read_table,
+    row_estimate,
+)
 from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
-from app.adapters.protocol import AdapterError
+from app.adapters.protocol import AdapterError, NodeNotFound
 from app.core.access import Access
+from app.core.config import settings
 
 _UNREADABLE = "The hypertable could not be inspected safely"
+_EXISTS = """
+SELECT 1 FROM pg_catalog.pg_class AS relation
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+WHERE namespace.nspname = %s AND relation.relname = %s AND relation.relkind = 'r'
+"""
 _POLICY_NOUNS = {"retention": "retention policy", "compression": "columnstore policy", "reorder": "reorder policy"}
 _RETENTION_WARNING = (
     "TimescaleDB keeps dropping whole chunks past the retention age on its own schedule, "
@@ -98,8 +120,16 @@ def _columnstore_change(step: ConfigureColumnstore) -> str:
     return f"{lead}: " + "; ".join(changes)
 
 
+def _conversion(step: ConvertTable) -> str:
+    column = sql.Identifier(step.column).as_string()
+    moved = "and move its rows into chunks" if step.migrate else "while it is empty"
+    return f"Convert the table into a hypertable by {column} ({step.column_type}), chunks of {_spoken(step.interval)}, {moved}"
+
+
 def _describe(step: DesignStep) -> str:
     match step:
+        case ConvertTable():
+            return _conversion(step)
         case RemovePolicy(kind=kind, job_id=job_id):
             return f"Remove the {_POLICY_NOUNS[kind]} (job {job_id})"
         case AddAgePolicy(kind="retention", older_than=older_than):
@@ -128,11 +158,39 @@ def _describe(step: DesignStep) -> str:
     raise AssertionError("every step is described")
 
 
-def _items(plan: HypertableDesignPlan) -> list[str]:
+def _conversion_notes(step: ConvertTable, row_estimate: int | None) -> list[str]:
+    column = sql.Identifier(step.column).as_string()
+    notes = []
+    if not step.column_not_null:
+        notes.append(
+            f"{column} becomes NOT NULL"
+            + ("; a row without a time makes the conversion fail and roll back" if step.migrate else "")
+        )
+    notes.append(
+        f"An index on {column} alone already exists, so TimescaleDB adds none" if step.time_index_exists
+        else f"TimescaleDB adds an index on {column}, newest first"
+    )
+    if step.migrate:
+        estimate = "an unknown number of" if row_estimate is None else f"about {row_estimate:,}"
+        notes.extend((
+            f"Moves {estimate} rows into chunks as a job in Activity; the table is locked against "
+            "reads and writes until it ends",
+            f"Rolled back whole if it fails, is cancelled or runs past "
+            f"{settings.TIMESCALE_CONVERSION_TIMEOUT_SECONDS} seconds; nothing is left half converted",
+        ))
+    notes.append("DataPlayer cannot turn a hypertable back into an ordinary table")
+    return notes
+
+
+def _items(plan: HypertableDesignPlan, row_estimate: int | None = None) -> list[str]:
     items = [_describe(step) for step in plan.steps]
+    for step in plan.steps:
+        if isinstance(step, ConvertTable):
+            items.extend(_conversion_notes(step, row_estimate))
     if any(isinstance(step, AddAgePolicy) and step.kind == "retention" for step in plan.steps):
         items.append(_RETENTION_WARNING)
-    items.append(plan.coordination)
+    if not plan.migrates:
+        items.append(plan.coordination)
     return items
 
 
@@ -142,6 +200,7 @@ async def preview_design(
     try:
         async with session.inspection() as reader:
             plan = await plan_design(reader, schema_name, table_name, requested)
+            estimate = await row_estimate(reader, plan.current.target.relation_oid) if plan.migrates else None
     except ActionRefused as exc:
         return ActionPreview(summary=exc.message, blocked=True)
     except (AdapterError, ValueError, TimeoutError):
@@ -149,7 +208,11 @@ async def preview_design(
     target = sql.Identifier(plan.current.target.schema_name, plan.current.target.table_name).as_string()
     if not plan.steps:
         return ActionPreview(summary=f"{target} already matches these settings", blocked=True)
-    return ActionPreview(summary=f"Change {target}", items=_items(plan), fingerprint=plan.fingerprint())
+    converts = any(isinstance(step, ConvertTable) for step in plan.steps)
+    return ActionPreview(
+        summary=f"Convert {target} into a hypertable" if converts else f"Change {target}",
+        items=_items(plan, estimate), fingerprint=plan.fingerprint(), runs_as_job=plan.migrates,
+    )
 
 
 async def design_state(
@@ -163,10 +226,16 @@ async def design_state(
 
 
 async def design_admission(session: PostgresSession, schema_name: str, table_name: str) -> str | None:
-    """Why the editor cannot be offered for this hypertable, from one read of it."""
+    """Why the editor cannot be offered for this table, from one read of it.
+
+    A hypertable is read as it is; an ordinary table as a conversion would find it.
+    """
     try:
         async with session.inspection() as reader:
-            await read_current(reader, schema_name, table_name)
+            if await is_hypertable(reader, schema_name, table_name):
+                await read_current(reader, schema_name, table_name)
+            else:
+                await read_table(reader, schema_name, table_name)
     except ActionRefused as exc:
         return exc.message
     except (AdapterError, ValueError, TimeoutError):
@@ -188,16 +257,26 @@ class DesignHypertable(Action[HypertableDesignParams]):
         self._session = session
         self._catalog = catalog
 
+    async def _target(self, node_id: str | None) -> tuple[SchemaNode, TableNode]:
+        schema, node = await user_table(self._catalog, node_id)
+        # An ordinary table keeps its ordinary protections; a hypertable's are
+        # what refuse generic writes to it, so they are not asked of one.
+        if node.specialization is None:
+            reason = await self._catalog.relation_action_reason(schema.name, node.name)
+            if reason is not None:
+                raise ActionRefused("not_applicable", reason)
+        return schema, node
+
     async def state(self, node_id: str) -> HypertableDesignState:
         try:
-            schema, node = await user_table(self._catalog, node_id)
+            schema, node = await self._target(node_id)
         except ActionRefused as exc:
             return HypertableDesignState(node_id=node_id, reason=exc.message)
         return await design_state(self._session, node_id, schema.name, node.name)
 
     async def preview(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionPreview:
         params = self._validated(raw)
-        schema, node = await user_table(self._catalog, node_id)
+        schema, node = await self._target(node_id)
         return await preview_design(self._session, schema.name, node.name, params.design)
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
@@ -207,10 +286,64 @@ class DesignHypertable(Action[HypertableDesignParams]):
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
     ) -> ActionResult:
         params = self._validated(raw)
-        schema, node = await user_table(self._catalog, node_id)
+        schema, node = await self._target(node_id)
+        async with self._session.inspection() as reader:
+            reviewed = await plan_design(reader, schema.name, node.name, params.design)
+        if reviewed.migrates:
+            raise ActionRefused("conflict", "Moving rows into chunks runs as a job; start it from the plan")
         plan = await execute_design(self._session, schema.name, node.name, params.design, fingerprint)
         count = len(plan.steps)
+        converts = any(isinstance(step, ConvertTable) for step in plan.steps)
         return ActionResult(
-            message=f"Hypertable changed: {count} {'change' if count == 1 else 'changes'} applied",
+            message="Converted to a hypertable" if converts
+            else f"Hypertable changed: {count} {'change' if count == 1 else 'changes'} applied",
             reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID],
         )
+
+    async def plan_job(
+        self, node_id: str | None, raw: Mapping[str, Any], reviewed_fingerprint: str,
+    ) -> OperationPlan:
+        """A conversion that moves rows: one unit, the whole design in its transaction (D207)."""
+        params = self._validated(raw)
+        schema, node = await self._target(node_id)
+        async with self._session.inspection() as reader:
+            plan = await plan_design(reader, schema.name, node.name, params.design)
+        plan.require_unchanged(reviewed_fingerprint)
+        if not plan.migrates:
+            raise ActionRefused("conflict", "This change is applied at once rather than as a job")
+        target = sql.Identifier(schema.name, node.name).as_string()
+        return OperationPlan(
+            summary=f"Convert {target} into a hypertable",
+            unit_fingerprint=plan.fingerprint(),
+            targets=(OperationTarget(schema_name=schema.name, name=node.name),),
+        )
+
+    async def run_unit(
+        self, node_id: str | None, raw: Mapping[str, Any], unit_fingerprint: str,
+        target: OperationTarget,
+    ) -> UnitOutcome:
+        params = self._validated(raw)
+        try:
+            schema, node = await self._target(node_id)
+        except (AdapterError, NodeNotFound):
+            raise ActionRefused("not_applicable", "The table could not be found; nothing was converted") from None
+        if (schema.name, node.name) != (target.schema_name, target.name):
+            raise ActionRefused("conflict", "The table was renamed after review; nothing was converted")
+        await execute_design_job(self._session, schema.name, node.name, params.design, unit_fingerprint)
+        return "completed"
+
+    async def observe(
+        self, node_id: str | None, raw: Mapping[str, Any], targets: Sequence[OperationTarget],
+    ) -> list[ObservedState]:
+        self._validated(raw)
+        states: list[ObservedState] = []
+        async with self._session.inspection() as reader:
+            for target in targets:
+                exists = await reader.query(_EXISTS, (target.schema_name, target.name), inspection=True)
+                if not exists:
+                    states.append("gone")
+                elif await is_hypertable(reader, target.schema_name, target.name):
+                    states.append("as_requested")
+                else:
+                    states.append("unchanged")
+        return states

@@ -31,6 +31,7 @@ from app.adapters.postgres.timescale.design_plan import (
     AddReorderPolicy,
     AttachTablespace,
     ConfigureColumnstore,
+    ConvertTable,
     DesignStep,
     DetachTablespace,
     DisableColumnstore,
@@ -42,6 +43,7 @@ from app.adapters.postgres.timescale.design_plan import (
 )
 from app.adapters.postgres.timescale.execution import run_reviewed
 from app.adapters.postgres.timescale.plans import OrderColumn
+from app.core.config import settings
 
 _DIMENSIONS_LOCK = sql.SQL('LOCK TABLE ONLY "timescaledb_information"."dimensions" IN SHARE ROW EXCLUSIVE MODE')
 _REMOVE = {"retention": "remove_retention_policy", "compression": "remove_compression_policy",
@@ -57,6 +59,20 @@ async def execute_design(
         return await plan_design(reader, schema_name, table_name, requested)
 
     return await run_reviewed(session, replan, _locks, _apply, reviewed_fingerprint, "hypertable change")
+
+
+async def execute_design_job(
+    session: PostgresSession, schema_name: str, table_name: str,
+    requested: HypertableDesign, unit_fingerprint: str,
+) -> HypertableDesignPlan:
+    """The one unit of a conversion that moves rows: the same transaction, given time (D207)."""
+    async def replan(reader: PostgresReader) -> HypertableDesignPlan:
+        return await plan_design(reader, schema_name, table_name, requested)
+
+    return await run_reviewed(
+        session, replan, _locks, _apply, unit_fingerprint, "conversion",
+        seconds=settings.TIMESCALE_CONVERSION_TIMEOUT_SECONDS, lock_seconds=5,
+    )
 
 
 def _locks(plan: HypertableDesignPlan) -> list[sql.SQL | sql.Composed]:
@@ -127,6 +143,19 @@ async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesign
     table = sql.Identifier(target.schema_name, target.table_name)
     relation = target.relation_oid
     match step:
+        case ConvertTable(column=column, interval=interval, migrate=migrate):
+            conversion = plan.strategy.conversion
+            if conversion is None:
+                raise RuntimeError("A conversion was planned without its strategy")
+            schema = conversion.function_schema
+            # Default indexes on and if_not_exists off, as the single-purpose conversion has them.
+            await connection.execute(
+                sql.SQL(
+                    "SELECT hypertable_id FROM {}(%s::pg_catalog.regclass, "
+                    "{}(%s::pg_catalog.name, %s::pg_catalog.interval), true, false, %s)"
+                ).format(sql.Identifier(schema, "create_hypertable"), sql.Identifier(schema, "by_range")),
+                (relation, column, interval.interval_value(), migrate),
+            )
         case RemovePolicy(kind=kind):
             await connection.execute(_call(plan, _REMOVE[kind], "%s::pg_catalog.regclass, false"), (relation,))
         case AddAgePolicy(kind=kind, older_than=older_than):

@@ -121,6 +121,7 @@ async def test_a_new_hypertable_reads_as_its_design(source: TimescaleSource, tab
 
     assert state.reason is None
     assert state.design == HypertableDesign(
+        time_column="observed_at",
         chunk_interval=DesignDuration(amount=1, unit="week"),
         columnstore=ColumnstoreDesign(
             enabled=False,
@@ -151,6 +152,7 @@ async def test_one_plan_sets_everything_and_reads_back(source: TimescaleSource, 
         OrderKey(column="observed_at", descending=True, nulls_first=True),
     ])
     assert after == design.model_copy(update={
+        "time_column": "observed_at",
         "columnstore": design.columnstore.model_copy(update={"order_by": order}),
     })
     assert len(await jobs(source, table, "policy_retention")) == 1

@@ -329,6 +329,9 @@ class ActionPreview(BaseModel):
     # what it says is that the other request would not be.
     blocked: bool = False
     fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    # Whether this plan is carried out as an owned job rather than at once, for
+    # an action that can be either depending on what it is asked (D207).
+    runs_as_job: bool = False
 
 
 @runtime_checkable

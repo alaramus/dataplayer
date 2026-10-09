@@ -117,6 +117,9 @@ class HypertableDesign(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    # The column an ordinary table is partitioned by when it is converted; a
+    # hypertable's cannot change, so there it must name the one it has.
+    time_column: Name | None = None
     chunk_interval: DesignDuration | None = None
     hash_dimensions: list[HashDimensionDesign] = Field(
         default_factory=list, max_length=MAX_HASH_DIMENSIONS,
@@ -170,11 +173,17 @@ class HypertableDesignState(BaseModel):
 
     node_id: str = Field(min_length=1, max_length=512)
     reason: str | None = Field(default=None, max_length=500)
+    # False for an ordinary table, whose design starts with its conversion.
+    hypertable: bool = True
     design: HypertableDesign | None = None
     extension_version: str | None = None
     time_column: str | None = None
     time_column_type: str | None = None
     columns: list[HypertableColumn] = Field(default_factory=list)
+    # The timestamp and date columns an ordinary table may be partitioned by.
+    time_columns: list[HypertableColumn] = Field(default_factory=list)
+    # The planner's estimate for an ordinary table, never a count.
+    row_estimate: int | None = None
     indexes: list[Name] = Field(default_factory=list)
     tablespaces: list[Name] = Field(default_factory=list)
     interval_units: list[DurationUnit] = Field(default_factory=list)

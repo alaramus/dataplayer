@@ -37,16 +37,26 @@ from app.adapters.postgres.timescale.api import (
     extension_type,
     lockable_view,
 )
+from app.adapters.postgres.timescale.conversion_plan import conversion_plan
 from app.adapters.postgres.timescale.design_state import (
     CurrentHypertable,
+    TableCandidate,
+    converted,
     duration_microseconds,
     interval_duration,
     interval_units,
+    is_hypertable,
     policy_units,
     read_current,
+    read_table,
 )
 from app.adapters.postgres.timescale.interval_plan import SET_INTERVAL
-from app.adapters.postgres.timescale.plans import AgePolicy, ReviewedPlan
+from app.adapters.postgres.timescale.plans import (
+    AgePolicy,
+    ConversionStrategy,
+    ReviewedPlan,
+    TimeDuration,
+)
 from app.adapters.protocol import AdapterError
 
 _OID = r"^[1-9][0-9]{0,9}$"
@@ -85,6 +95,20 @@ class Duration(BaseModel):
 
 def _duration(value: DesignDuration) -> Duration:
     return Duration(amount=value.amount, unit=value.unit)
+
+
+class ConvertTable(BaseModel):
+    """Turn the ordinary table into a hypertable; with rows, it moves them too and runs as a job."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    step: Literal["convert_table"] = "convert_table"
+    column: str = Field(min_length=1, max_length=63)
+    column_type: str = Field(min_length=1, max_length=100)
+    interval: Duration
+    migrate: bool = Field(strict=True)
+    column_not_null: bool = Field(strict=True)
+    time_index_exists: bool = Field(strict=True)
 
 
 class RemovePolicy(BaseModel):
@@ -177,7 +201,7 @@ class AddReorderPolicy(BaseModel):
 
 
 DesignStep = Annotated[
-    RemovePolicy | AddHashDimension | SetPartitions | SetChunkInterval | ConfigureColumnstore
+    ConvertTable | RemovePolicy | AddHashDimension | SetPartitions | SetChunkInterval | ConfigureColumnstore
     | DisableColumnstore | AttachTablespace | DetachTablespace
     | AddAgePolicy | AddReorderPolicy,
     Field(discriminator="step"),
@@ -202,6 +226,7 @@ class DesignStrategy(BaseModel):
     routines: tuple[RoutineUse, ...] = ()
     jobs_view_oid: str | None = Field(default=None, pattern=_OID)
     dimensions_view_oid: str | None = Field(default=None, pattern=_OID)
+    conversion: ConversionStrategy | None = None
 
 
 class HypertableDesignPlan(ReviewedPlan):
@@ -214,9 +239,14 @@ class HypertableDesignPlan(ReviewedPlan):
     @property
     def locks_table_exclusively(self) -> bool:
         return any(
-            isinstance(step, ConfigureColumnstore | DisableColumnstore | AddHashDimension)
+            isinstance(step, ConvertTable | ConfigureColumnstore | DisableColumnstore | AddHashDimension)
             for step in self.steps
         )
+
+    @property
+    def migrates(self) -> bool:
+        """Whether rows are moved, which makes the plan a job rather than a request (D207)."""
+        return any(isinstance(step, ConvertTable) and step.migrate for step in self.steps)
 
     @property
     def coordination(self) -> str:
@@ -477,14 +507,52 @@ async def _strategy(
     )
 
 
+def _conversion(candidate: TableCandidate, requested: HypertableDesign) -> tuple[CurrentHypertable, ConvertTable]:
+    """The conversion step, and the hypertable it leaves for every other step to plan against."""
+    if requested.time_column is None:
+        raise _refuse("Choose the time column the table is partitioned by")
+    if requested.chunk_interval is None:
+        raise _refuse("Choose the chunk interval")
+    interval = requested.chunk_interval
+    if duration_microseconds(interval) is None:
+        raise _refuse("A chunk interval is counted in minutes, hours, days or weeks")
+    # The single-purpose conversion's own rules: the column, the unit for its
+    # type and every unique index holding it.
+    reviewed = conversion_plan(
+        candidate.conversion, requested.time_column, TimeDuration(amount=interval.amount, unit=interval.unit),
+    )
+    current = converted(candidate, reviewed.column, interval)
+    if interval.unit not in interval_units(current.target):
+        allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))
+        raise _refuse(f"A chunk interval of this column is counted in {allowed}")
+    return current, ConvertTable(
+        column=reviewed.column.name,
+        column_type=reviewed.column.type,
+        interval=_duration(interval),
+        migrate=not candidate.conversion.empty,
+        column_not_null=reviewed.column.not_null,
+        time_index_exists=reviewed.time_index_exists,
+    )
+
+
 async def plan_design(
     reader: PostgresReader, schema_name: str, table_name: str, requested: HypertableDesign,
 ) -> HypertableDesignPlan:
     try:
         async with asyncio.timeout(5):
-            current = await read_current(reader, schema_name, table_name)
-            steps = plan_steps(current, requested)
-            strategy = await _strategy(reader, current, steps)
+            if await is_hypertable(reader, schema_name, table_name):
+                current = await read_current(reader, schema_name, table_name)
+                if requested.time_column not in (None, current.target.column_name):
+                    raise _refuse("TimescaleDB cannot change the time column of a hypertable")
+                steps = plan_steps(current, requested)
+                strategy = await _strategy(reader, current, steps)
+            else:
+                candidate = await read_table(reader, schema_name, table_name)
+                current, conversion = _conversion(candidate, requested)
+                steps = (conversion, *plan_steps(current, requested))
+                strategy = (await _strategy(reader, current, steps)).model_copy(
+                    update={"conversion": candidate.conversion.strategy},
+                )
             return HypertableDesignPlan(current=current, requested=requested, steps=steps, strategy=strategy)
     except TimeoutError:
         raise _refuse("Planning the hypertable change timed out") from None

@@ -195,6 +195,10 @@ export type ActionPreview = {
    * Fingerprint
    */
   fingerprint?: string | null
+  /**
+   * Runs As Job
+   */
+  runs_as_job?: boolean
 }
 
 /**
@@ -5436,6 +5440,10 @@ export type HypertableColumn = {
  * Every field is optional for a reader, so an older client still validates.
  */
 export type HypertableDesign = {
+  /**
+   * Time Column
+   */
+  time_column?: string | null
   chunk_interval?: DesignDuration | null
   /**
    * Hash Dimensions
@@ -5492,6 +5500,10 @@ export type HypertableDesignState = {
    * Reason
    */
   reason?: string | null
+  /**
+   * Hypertable
+   */
+  hypertable?: boolean
   design?: HypertableDesign | null
   /**
    * Extension Version
@@ -5509,6 +5521,14 @@ export type HypertableDesignState = {
    * Columns
    */
   columns?: Array<HypertableColumn>
+  /**
+   * Time Columns
+   */
+  time_columns?: Array<HypertableColumn>
+  /**
+   * Row Estimate
+   */
+  row_estimate?: number | null
   /**
    * Indexes
    */

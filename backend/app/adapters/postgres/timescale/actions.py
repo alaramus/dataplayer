@@ -129,10 +129,13 @@ class TimescaleActions:
         # Plain PostgreSQL answers after one catalog read, and has no such command to explain.
         if (await discover(self._session)).feature.state in {"absent", "unavailable"}:
             return {}
-        reason = await self._catalog.relation_action_reason(schema, table)
-        if reason is None:
-            reason = await conversion_admission(self._session, schema, table)
-        return {self.convert.name: reason}
+        guard = await self._catalog.relation_action_reason(schema, table)
+        if guard is not None:
+            return {self.convert.name: guard, self.design.name: guard}
+        return {
+            self.convert.name: await conversion_admission(self._session, schema, table),
+            self.design.name: await design_admission(self._session, schema, table),
+        }
 
 
 def _user_relation(

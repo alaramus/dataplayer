@@ -15,6 +15,7 @@ import {
   AppSpinner,
   AppToggle,
   appIcons,
+  useConfirm,
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -35,7 +36,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
-  run: [value: { nodeId: string; params: Record<string, unknown>; fingerprint: string }]
+  run: [value: { nodeId: string; params: Record<string, unknown>; fingerprint: string; asJob: boolean }]
 }>()
 
 const state = useHypertableState(toRef(props, "connectorId"), toRef(props, "nodeId"), toRef(props, "modelValue"))
@@ -50,6 +51,9 @@ watch(
 )
 
 const facts = computed(() => state.data.value)
+/** An ordinary table: every plan starts by converting it (D207). */
+const converting = computed(() => facts.value?.hypertable === false)
+const confirm = useConfirm()
 const reason = computed(() => facts.value?.reason ?? "")
 const enabledNow = computed(() => facts.value?.design?.columnstore?.enabled === true)
 
@@ -124,14 +128,47 @@ const ready = computed(
     typeof preview.value.fingerprint === "string"
 )
 
-function apply() {
+const asJob = computed(() => preview.value?.runs_as_job === true)
+const applyLabel = computed(() =>
+  asJob.value ? "Start conversion" : converting.value ? "Convert" : "Apply"
+)
+
+async function apply() {
   const current = draft.value
   const fingerprint = preview.value?.fingerprint
   if (current === null || !ready.value || typeof fingerprint !== "string") return
   const answer = completed(current)
   if ("missing" in answer) return
-  emit("run", { nodeId: props.nodeId, params: { design: answer.design }, fingerprint })
+  const job = asJob.value
+  // The one step nothing here can undo is asked about by itself, whatever else the plan holds.
+  if (
+    converting.value &&
+    !(await confirm({
+      title: "Convert to a hypertable?",
+      message: job
+        ? "The table is locked against reads and writes while its rows move into chunks, and " +
+          "DataPlayer cannot turn it back into an ordinary table."
+        : "DataPlayer cannot turn a hypertable back into an ordinary table.",
+      confirmLabel: job ? "Start conversion" : "Convert",
+      danger: true,
+    }))
+  ) {
+    return
+  }
+  emit("run", { nodeId: props.nodeId, params: { design: answer.design }, fingerprint, asJob: job })
 }
+
+const timeColumns = computed(() =>
+  (facts.value?.time_columns ?? []).map((column) => ({
+    label: `${column.name} · ${column.type}`,
+    value: column.name,
+  }))
+)
+const estimate = computed(() => {
+  const rows = facts.value?.row_estimate
+  if (rows === null || rows === undefined) return "an unknown number of rows"
+  return `about ${rows.toLocaleString()} rows`
+})
 
 const UNIT_LABELS: Record<DurationUnit, string> = {
   second: "seconds",
@@ -208,7 +245,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
     :model-value="modelValue"
     size="xl"
     sizing="stable"
-    :title="`Hypertable settings — ${nodeLabel}`"
+    :title="`${converting ? 'Convert to hypertable' : 'Hypertable settings'} — ${nodeLabel}`"
     data-testid="hypertable-settings"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -249,7 +286,22 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
         >
           <section class="settings__group">
             <strong>Chunks</strong>
-            <p class="settings__note">
+            <template v-if="converting">
+              <p class="settings__note">
+                An ordinary table with {{ estimate }}. Choose the column it is partitioned by;
+                TimescaleDB cannot change it afterwards.
+              </p>
+              <AppSelect
+                v-model="draft.timeColumn"
+                :options="timeColumns"
+                label="Time column"
+                data-testid="time-column"
+              />
+            </template>
+            <p
+              v-else
+              class="settings__note"
+            >
               Partitioned by time on {{ facts?.time_column }} ({{ facts?.time_column_type }}).
               TimescaleDB cannot change the time column.
             </p>
@@ -301,7 +353,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
               <span
                 v-if="facts?.has_chunks"
                 class="settings__note"
-              >A hash dimension can only be added while the hypertable holds no chunks.</span>
+              >A hash dimension can only be added while the {{ converting ? "table holds no rows" : "hypertable holds no chunks" }}.</span>
             </div>
           </section>
 
@@ -525,7 +577,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
     <template #actions>
       <span class="settings__status">Nothing changes until it is applied</span>
       <AppButton
-        label="Apply"
+        :label="applyLabel"
         :loading="running"
         :disable="!ready"
         data-testid="hypertable-apply"

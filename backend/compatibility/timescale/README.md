@@ -140,6 +140,29 @@ Found by running the matrix; each is handled in `app/` and covered here.
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
 
+## Validation record: 2026-10-09, conversion from the editor
+
+H3 of D207 added `test_hypertable_conversion.py`, seven scenarios on every
+source: an empty table converted with its settings at once, a table with rows
+converted as a one-unit job, a row without a time rolling the whole job back,
+and the refusals.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q` | 915 passed, 1 skipped, 1 failed: see below |
+| backend | `uv run pytest compatibility/timescale -q -k 2.17`, twice | 131 passed each time |
+| backend | `uv run pytest tests/ -q` | 3786 passed, 154 skipped, after the fix the run found |
+| frontend | unit, type, lint and build checks | Passed |
+| frontend | `bunx playwright test` over the editor and the catalog's and Timescale's scenarios | 29 passed |
+
+`test_recorded_policy_run_has_public_statistics` failed in two of the three
+full runs since the editor's scenarios were added, on one to three of 2.14,
+2.17 and 2.19: their scheduler did not start the fixture's job within 30
+seconds. It passes alone, after the editor's files, and in the whole suite
+restricted to one of those sources. Before H2 the full run passed it. The cause
+is not established; the editor's scenarios add policies that start at once and
+drop their tables minutes later, which is the likeliest difference.
+
 ## Validation record: 2026-10-09
 
 The hypertable settings editor (D207, H1 and H2) was added with

@@ -80,3 +80,56 @@ test("changes a hypertable as one reviewed plan and reads it back", async ({ pag
     await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
   }
 })
+
+test("converts a table with rows as a job, settings and all", async ({ page }) => {
+  const stamp = Date.now()
+  const connector = `e2e-convert-${stamp}`
+  const schema = `e2e_convert_${stamp}`
+  await timescaleSql(
+    `CREATE SCHEMA ${schema};
+     CREATE TABLE ${schema}.readings (observed_at timestamptz NOT NULL, device integer NOT NULL, value double precision);
+     INSERT INTO ${schema}.readings
+       SELECT TIMESTAMPTZ '2000-01-01' + make_interval(days => g), g, g FROM generate_series(1, 50) AS g;`
+  )
+  try {
+    await login(page)
+    await createTimescaleConnector(page, connector)
+    await openConnector(page, connector)
+    await showOnlySchema(page, schema)
+    await openSettings(page)
+
+    await expect(page.getByTestId("hypertable-settings")).toBeVisible()
+    await expect(page.getByTestId("time-column")).toContainText("observed_at")
+    const plan = page.getByTestId("hypertable-plan")
+    await expect(plan).toContainText("move its rows into chunks")
+    await expect(plan).toContainText("locked against reads and writes")
+    await choose(page, "retention-mode", "Drop chunks older than")
+    await page.getByTestId("retention-amount").fill("50")
+    await expect(plan).toContainText("Add a retention policy")
+    await expect(page.getByTestId("hypertable-apply")).toHaveText(/Start conversion/)
+
+    await page.getByTestId("hypertable-apply").click()
+    await page.getByTestId("confirm-accept").click()
+    await expect(page.getByTestId("hypertable-settings")).toBeHidden()
+
+    // The job runs on the server; the table is a hypertable with its rows and its policy once it ends.
+    await expect.poll(
+      () => timescaleSql(
+        `SELECT count(*) FROM timescaledb_information.hypertables
+         WHERE hypertable_schema = '${schema}' AND hypertable_name = 'readings'`
+      ),
+      { timeout: 30_000 }
+    ).toBe("1")
+    expect(await timescaleSql(`SELECT count(*) FROM ${schema}.readings`)).toBe("50")
+    expect(
+      await timescaleSql(
+        `SELECT count(*) FROM timescaledb_information.jobs
+         WHERE hypertable_schema = '${schema}' AND proc_name = 'policy_retention'`
+      )
+    ).toBe("1")
+  } finally {
+    await deleteConnector(page, connector).catch(() => undefined)
+    await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
+  }
+})
+

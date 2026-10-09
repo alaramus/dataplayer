@@ -29,16 +29,26 @@ async def run_reviewed[P: ReviewedPlan](
     apply: Callable[[psycopg.AsyncConnection[Any], P], Awaitable[None]],
     reviewed_fingerprint: str,
     subject: str,
+    *,
+    seconds: int = 5,
+    lock_seconds: int = 2,
 ) -> P:
+    """Re-plan under the strategy's locks and apply, all in one transaction.
+
+    A longer `seconds` is for work that moves rows (D207): the statement timeout
+    is then the source rolling back on its own, so it is a refusal that changed
+    nothing rather than an unknown outcome.
+    """
     unconfirmed = f"The {subject} could not be confirmed; reload the source before reviewing again"
     mutation_started = False
     try:
-        async with asyncio.timeout(5):
+        # A little past the statement timeout, so the source's own rollback is what is reported.
+        async with asyncio.timeout(seconds + (0 if seconds <= 5 else 60)):
             async with session.acquire() as connection:
                 async with connection.transaction():
                     await connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE")
-                    await connection.execute("SET LOCAL lock_timeout = '2s'")
-                    await connection.execute("SET LOCAL statement_timeout = '5s'")
+                    await connection.execute(f"SET LOCAL lock_timeout = '{int(lock_seconds)}s'")
+                    await connection.execute(f"SET LOCAL statement_timeout = '{int(seconds)}s'")
                     reader = InspectionReader(connection)
                     preliminary = await replan(reader)
                     preliminary.require_unchanged(reviewed_fingerprint)
@@ -56,6 +66,10 @@ async def run_reviewed[P: ReviewedPlan](
     except psycopg.Error as exc:
         if exc.sqlstate in _CHANGED:
             raise ActionRefused("conflict", "The source changed or is busy; review the plan again") from None
+        if exc.sqlstate == "57014" and seconds > 5:
+            raise ActionRefused(
+                "not_applicable", f"The {subject} ran past its {seconds} seconds and was rolled back",
+            ) from None
         if exc.sqlstate == "42501":
             raise ActionRefused(
                 "not_applicable", f"This connection may not make this {subject} or lock its metadata",

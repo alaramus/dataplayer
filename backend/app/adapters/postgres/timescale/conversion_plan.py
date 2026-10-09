@@ -121,6 +121,7 @@ class ConversionState:
     columns: tuple[ConversionColumn, ...]
     indexes: tuple[TableIndex, ...]
     strategy: ConversionStrategy
+    empty: bool = True
 
 
 def _create_shape(dimension_info: str) -> RoutineShape:
@@ -138,8 +139,14 @@ def _by_range_shape(dimension_info: str) -> RoutineShape:
     return RoutineShape("by_range", "f", "19 2283", int(dimension_info))
 
 
-async def inspect_conversion(reader: PostgresReader, schema_name: str, table_name: str) -> ConversionState:
-    """Everything that refuses a conversion whatever column and interval are chosen."""
+async def inspect_conversion(
+    reader: PostgresReader, schema_name: str, table_name: str, *, allow_rows: bool = False,
+) -> ConversionState:
+    """Everything that refuses a conversion whatever column and interval are chosen.
+
+    Rows refuse it unless the caller moves them as a job (D207); then whether
+    there are any is a fact of the state.
+    """
     try:
         async with asyncio.timeout(5):
             version = require_available(await discover(reader))
@@ -164,7 +171,8 @@ async def inspect_conversion(reader: PostgresReader, schema_name: str, table_nam
             )
             if not columns:
                 raise ActionRefused("not_applicable", "This table has no timestamp or date column to partition by")
-            if not await _flag(reader, _empty_statement(target), None, "empty"):
+            empty = await _flag(reader, _empty_statement(target), None, "empty")
+            if not empty and not allow_rows:
                 raise ActionRefused("not_applicable", "This table is not empty; only empty tables are converted here")
             indexes = await reader.query(_INDEXES, (target.relation_oid, _INDEX_CEILING + 1), inspection=True)
             if len(indexes) > _INDEX_CEILING:
@@ -188,6 +196,7 @@ async def inspect_conversion(reader: PostgresReader, schema_name: str, table_nam
                     for row in indexes
                 ),
                 strategy=strategy,
+                empty=empty,
             )
     except TimeoutError:
         raise ActionRefused("not_applicable", "TimescaleDB conversion planning timed out") from None

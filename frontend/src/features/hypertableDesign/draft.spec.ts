@@ -7,6 +7,7 @@ import { completed, draftFrom } from "./draft"
 const state: HypertableDesignState = {
   node_id: "lab.events",
   design: {
+    time_column: "observed_at",
     chunk_interval: { amount: 1, unit: "week" },
     hash_dimensions: [{ column: "device", partitions: 4 }],
     columnstore: {
@@ -55,6 +56,12 @@ describe("hypertable settings draft", () => {
     const empty = draftFrom(state)!
     empty.retention = { mode: "older_than", duration: { amount: null, unit: "month" } }
     expect(completed(empty)).toEqual({ missing: "Enter the retention age" })
+  })
+
+  it("asks for the column an ordinary table is converted by", () => {
+    const draft = draftFrom({ ...state, hypertable: false })!
+    draft.timeColumn = ""
+    expect(completed(draft)).toEqual({ missing: "Choose the time column" })
   })
 
   it("drops every columnstore setting when the columnstore is off", () => {
