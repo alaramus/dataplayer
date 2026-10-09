@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, useTemplateRef, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, provide, ref, useTemplateRef, watch } from "vue"
 import type { ShallowRef } from "vue"
 
 import { ConnectorsService } from "@/client"
@@ -33,7 +33,7 @@ import { gainedPanels } from "@/features/workspace/gainedPanels"
 import { searchFromOf } from "@/features/workspace/catalogSides"
 import SearchField from "@/features/search/SearchField.vue"
 import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
-import { shouldShowOnboarding } from "@/features/onboarding/onboarding"
+import { usePreferences } from "@/features/preferences/api"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
@@ -771,11 +771,22 @@ function openShared(request: OpenSharedRequest) {
   }
 }
 
-/** First-visit welcome: it opens until it was finished or skipped. */
+/**
+ * First-visit welcome: it opens until the account says it was finished or
+ * skipped. Offered once a visit, so a failed save does not reopen it at once.
+ */
 const onboardingOpen = ref(false)
-onMounted(() => {
-  if (shouldShowOnboarding()) onboardingOpen.value = true
-})
+const preferences = usePreferences()
+let tourOffered = false
+watch(
+  () => preferences.data.value?.welcome_tour_done,
+  (done) => {
+    if (done !== false || tourOffered) return
+    tourOffered = true
+    onboardingOpen.value = true
+  },
+  { immediate: true }
+)
 
 /**
  * A link the landing screen has already resolved. Taken once, on the way in:

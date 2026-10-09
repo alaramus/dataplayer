@@ -1,6 +1,7 @@
 """What a user chose, read back and changed through their own routes."""
 
 from httpx import AsyncClient
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.users.preferences import (
@@ -9,6 +10,8 @@ from app.users.preferences import (
     as_interval,
     check_seconds,
 )
+from tests.utils.user import authentication_token_from_email
+from tests.utils.utils import random_email
 
 PREFERENCES = f"{settings.API_V1_STR}/users/me/preferences"
 
@@ -73,3 +76,23 @@ def test_a_value_from_another_version_reads_as_the_default() -> None:
     """A column holds text, and unrecognised text must not stop the probing."""
     assert as_interval("every fortnight") == DEFAULT_CHECK_INTERVAL
     assert check_seconds("every fortnight") == CHECK_SECONDS[DEFAULT_CHECK_INTERVAL]
+
+
+async def test_the_welcome_tour_is_seen_once_per_account(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Kept on the account, apart from the other choices: marking it leaves them."""
+    headers = await authentication_token_from_email(
+        client=client, email=random_email(), db=db
+    )
+    assert (await client.get(PREFERENCES, headers=headers)).json()["welcome_tour_done"] is False
+    await client.patch(PREFERENCES, headers=headers, json={"connector_checks": "5m"})
+
+    done = await client.patch(
+        PREFERENCES, headers=headers, json={"welcome_tour_done": True}
+    )
+
+    assert done.status_code == 200
+    assert done.json() == {"connector_checks": "5m", "welcome_tour_done": True}
+    read_back = await client.get(PREFERENCES, headers=headers)
+    assert read_back.json()["welcome_tour_done"] is True

@@ -2,7 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
-import { AppButton, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
+import { AppButton, AppIconButton, AppInput, AppSelect, AppTooltip } from "@/shared/ui"
 
 import {
   describeFilter,
@@ -50,7 +50,8 @@ const isNullary = computed(
   () => draft.value.op === "is_null" || draft.value.op === "is_not_null"
 )
 /** What is wrong with the draft, if anything. Apply stays blocked while there
-    is an answer here, so an empty value can never be sent. */
+    is an answer here, so an empty value can never be sent, and the answer is
+    Apply's tooltip: the field is not marked before anything was typed. */
 const problem = computed(() => validateDraft(draft.value))
 
 function selectColumn(value: unknown) {
@@ -156,7 +157,6 @@ function removeFilter(index: number) {
           v-model="pendingItem"
           class="filter-editor__field"
           label="Value"
-          :error="problem ?? ''"
           compact
           @keyup.enter="addItemAndApply"
         />
@@ -181,7 +181,6 @@ function removeFilter(index: number) {
         :model-value="draft.value"
         :options="explicitValueOptions"
         label="Value"
-        :error="problem ?? ''"
         compact
         @update:model-value="setValue"
       />
@@ -190,20 +189,26 @@ function removeFilter(index: number) {
         class="filter-editor__field"
         :model-value="draft.value"
         label="Value"
-        :error="problem ?? ''"
         compact
         data-testid="grid-filter-value"
         @update:model-value="setValue"
         @keyup.enter="applyDraft"
       />
 
-      <AppButton
-        label="Apply"
-        size="sm"
-        :disable="problem !== null"
-        data-testid="grid-filter-apply"
-        @click="applyDraft"
-      />
+      <!-- The tooltip hangs off this rather than off the button: a disabled
+           Quasar button takes no pointer events, and why it waits is the one
+           thing worth reading there. -->
+      <span>
+        <AppButton
+          label="Apply"
+          size="sm"
+          :disable="problem !== null"
+          :aria-description="problem ?? undefined"
+          data-testid="grid-filter-apply"
+          @click="applyDraft"
+        />
+        <AppTooltip v-if="problem !== null">{{ problem }}</AppTooltip>
+      </span>
     </div>
   </div>
 </template>

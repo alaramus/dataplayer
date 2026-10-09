@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import { AppButton, AppForm, AppRadioGroup, useConfirm } from "@/shared/ui"
+import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
+import { messageOf } from "@/shared/api/errors"
+import { AppButton, AppForm, AppRadioGroup, useConfirm, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
-import { ONBOARDING_STEPS, isOnboardingDone, markOnboardingDone } from "./onboarding"
+import { ONBOARDING_STEPS } from "./onboarding"
 
 /**
  * The first-visit welcome: a theme choice, then a short video tour.
@@ -49,9 +51,24 @@ function reset() {
   stepIndex.value = 0
 }
 
+const preferences = usePreferences()
+const savePreferences = useUpdatePreferences()
+const toast = useToast()
+const tourDone = computed(() => preferences.data.value?.welcome_tour_done === true)
+
+/** Kept on the account, so no other browser of this person opens it again. */
+async function markDone() {
+  if (tourDone.value) return
+  try {
+    await savePreferences.mutateAsync({ welcome_tour_done: true })
+  } catch (cause) {
+    toast.error(messageOf(cause, "The tour could not be marked as seen"))
+  }
+}
+
 /** Done, whether watched to the end or skipped halfway: never show again. */
 function finish() {
-  markOnboardingDone()
+  void markDone()
   emit("update:modelValue", false)
 }
 
@@ -71,7 +88,7 @@ const confirm = useConfirm()
  * Replaying it from Preferences, it is already done — nothing to ask.
  */
 async function confirmClose(): Promise<boolean> {
-  if (isOnboardingDone()) return true
+  if (tourDone.value) return true
   const close = await confirm({
     title: "Close the welcome tour?",
     message:
@@ -79,7 +96,7 @@ async function confirmClose(): Promise<boolean> {
     confirmLabel: "Close tour",
     cancelLabel: "Keep watching",
   })
-  if (close) markOnboardingDone()
+  if (close) void markDone()
   return close
 }
 

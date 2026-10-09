@@ -2,15 +2,17 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { firstSuperuser, firstSuperuserPassword } from "./config"
+import { setTourSeen } from "./utils/onboarding"
 
 /**
  * The first-visit welcome tour.
  *
  * Every other scenario signs in through `utils/login`, which arrives with
- * the tour already seen. This one signs in by hand, on purpose, to meet the
- * tour as a first-time visitor does.
+ * the tour already seen. This one marks it unseen on the account first, to
+ * meet the tour as a first-time visitor does.
  */
 async function loginFresh(page: Page) {
+  await setTourSeen(page.request, firstSuperuser, firstSuperuserPassword, false)
   await page.goto("/login")
   await page.getByTestId("login-email").fill(firstSuperuser)
   await page.getByTestId("login-password").fill(firstSuperuserPassword)

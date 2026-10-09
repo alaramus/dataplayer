@@ -7977,6 +7977,10 @@ export type PreferencesPublic = {
    * Connector Checks
    */
   connector_checks: "off" | "15s" | "30s" | "1m" | "5m" | "15m"
+  /**
+   * Welcome Tour Done
+   */
+  welcome_tour_done: boolean
 }
 
 /**
@@ -7993,6 +7997,10 @@ export type PreferencesUpdate = {
    * Connector Checks
    */
   connector_checks?: "off" | "15s" | "30s" | "1m" | "5m" | "15m" | null
+  /**
+   * Welcome Tour Done
+   */
+  welcome_tour_done?: boolean | null
 }
 
 /**

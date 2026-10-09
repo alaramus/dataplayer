@@ -101,16 +101,18 @@ describe("the filter band", () => {
     await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
 
     expect(wrapper.emitted("update:filters")).toBeUndefined()
-    expect(wrapper.text()).toContain("Enter a value")
+    expect(wrapper.get('[data-testid="grid-filter-apply"]').attributes("aria-description")).toBe("Enter a value")
   })
 
-  // An empty value blocks Apply from the start, so it can never be sent.
+  // An empty value blocks Apply from the start, so it can never be sent; the
+  // reason is Apply's, and the field is not marked before anything is typed.
   it("blocks Apply while the value is empty", async () => {
     const wrapper = mountTextEditor()
 
-    expect(wrapper.get('[data-testid="grid-filter-apply"]').attributes("disabled")).toBeDefined()
-    expect(wrapper.find(".q-field--error").exists()).toBe(true)
-    expect(wrapper.get('[role="alert"]').text()).toBe("Enter a value")
+    const apply = wrapper.get('[data-testid="grid-filter-apply"]')
+    expect(apply.attributes("disabled")).toBeDefined()
+    expect(apply.attributes("aria-description")).toBe("Enter a value")
+    expect(wrapper.find(".q-field--error").exists()).toBe(false)
 
     await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
 

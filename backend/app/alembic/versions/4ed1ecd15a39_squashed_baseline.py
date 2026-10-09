@@ -157,6 +157,7 @@ def upgrade():
     op.create_table('userpreferences',
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('connector_checks', sqlmodel.sql.sqltypes.AutoString(length=8), nullable=False),
+    sa.Column('welcome_tour_done', sa.Boolean(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id')
     )

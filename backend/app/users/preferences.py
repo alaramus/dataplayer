@@ -63,12 +63,16 @@ class UserPreferences(SQLModel, table=True):
     # A string in the column and a Literal on the wire, as every other closed
     # set in this application is stored.
     connector_checks: str = Field(default=DEFAULT_CHECK_INTERVAL, max_length=8)
+    # The welcome tour was finished or skipped. On the account rather than in
+    # a browser, so it opens once for each person, on whatever machine.
+    welcome_tour_done: bool = Field(default=False)
 
 
 class PreferencesPublic(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     connector_checks: CheckInterval
+    welcome_tour_done: bool
 
 
 class PreferencesUpdate(BaseModel):
@@ -82,6 +86,18 @@ class PreferencesUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     connector_checks: CheckInterval | None = None
+    welcome_tour_done: bool | None = None
+
+
+def _public(stored: UserPreferences | None) -> PreferencesPublic:
+    if stored is None:
+        return PreferencesPublic(
+            connector_checks=DEFAULT_CHECK_INTERVAL, welcome_tour_done=False
+        )
+    return PreferencesPublic(
+        connector_checks=as_interval(stored.connector_checks),
+        welcome_tour_done=stored.welcome_tour_done,
+    )
 
 
 async def stored_for(
@@ -93,10 +109,7 @@ async def stored_for(
 
 async def of(session: AsyncSession, user_id: uuid.UUID) -> PreferencesPublic:
     """What this user chose, or what everybody gets before choosing."""
-    stored = await stored_for(session, user_id)
-    if stored is None:
-        return PreferencesPublic(connector_checks=DEFAULT_CHECK_INTERVAL)
-    return PreferencesPublic(connector_checks=as_interval(stored.connector_checks))
+    return _public(await stored_for(session, user_id))
 
 
 async def set_for(
@@ -107,6 +120,8 @@ async def set_for(
         stored = UserPreferences(user_id=user_id)
     if update.connector_checks is not None:
         stored.connector_checks = update.connector_checks
+    if update.welcome_tour_done is not None:
+        stored.welcome_tour_done = update.welcome_tour_done
     session.add(stored)
     await session.commit()
-    return PreferencesPublic(connector_checks=as_interval(stored.connector_checks))
+    return _public(stored)

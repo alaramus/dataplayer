@@ -1,14 +1,8 @@
 /**
- * First-visit onboarding: whether this browser has seen the welcome tour.
- *
- * Kept in this browser's localStorage, like the theme. One flag for every
- * server open in this browser: the clips show no server's data, so switching
- * servers never brings the tour back, the same reason the theme stays shared
- * (D99). It is set once the tour was finished or skipped, so closing the page
- * halfway through shows it again.
+ * The first-visit welcome tour. Whether it was finished or skipped is a
+ * preference of the account (`welcome_tour_done`), so it opens once for each
+ * person, on whatever machine; what it shows is here.
  */
-
-export const ONBOARDING_DONE_KEY = "dataplayer-onboarding-done"
 
 export interface OnboardingStep {
   id: string
@@ -53,35 +47,3 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     src: "/onboarding/ai_agent.webm",
   },
 ]
-
-function read(storage: Storage, key: string): string | null {
-  try {
-    return storage.getItem(key)
-  } catch {
-    // Blocked storage reads as never having seen the tour.
-    return null
-  }
-}
-
-function write(storage: Storage, key: string, value: string): void {
-  try {
-    storage.setItem(key, value)
-  } catch {
-    // A browser that refuses storage still gets this session's tour state.
-  }
-}
-
-/** Whether the tour was finished or skipped and must not show again. */
-export function isOnboardingDone(storage: Storage = localStorage): boolean {
-  return read(storage, ONBOARDING_DONE_KEY) !== null
-}
-
-/** Stop showing the tour on later visits — after finishing or skipping it. */
-export function markOnboardingDone(storage: Storage = localStorage): void {
-  write(storage, ONBOARDING_DONE_KEY, "1")
-}
-
-/** Whether the welcome tour should open on this visit. */
-export function shouldShowOnboarding(storage: Storage = localStorage): boolean {
-  return !isOnboardingDone(storage)
-}

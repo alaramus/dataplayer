@@ -1,19 +1,27 @@
-import type { BrowserContext } from "@playwright/test"
+import type { APIRequestContext } from "@playwright/test"
 
 /**
- * Arrive with the first-visit tour already seen.
+ * Say on the account whether the welcome tour was seen (`welcome_tour_done`).
  *
- * Seeded at the context level, so a second tab opened mid-scenario lands on
- * a bare workspace too. The key is ONBOARDING_DONE_KEY in
- * src/features/onboarding/onboarding.ts. The tour's own scenarios sign in
- * by hand instead — see tests/onboarding.spec.ts.
+ * A preference of the account, so it is set through the API before the
+ * browser signs in: the tour opens as soon as the workspace reads it, and
+ * every scenario but the tour's own arrives with it already seen.
  */
-export async function seedOnboardingSeen(context: BrowserContext): Promise<void> {
-  await context.addInitScript(() => {
-    try {
-      localStorage.setItem("dataplayer-onboarding-done", "1")
-    } catch {
-      // A page that refuses storage still runs.
-    }
+export async function setTourSeen(
+  request: APIRequestContext,
+  email: string,
+  password: string,
+  seen = true
+): Promise<void> {
+  const api = `${process.env.VITE_API_URL ?? "http://localhost:8000"}/api/v1`
+  const login = await request.post(`${api}/login/access-token`, {
+    form: { username: email, password },
   })
+  if (!login.ok()) throw new Error(`Could not sign ${email} in: ${String(login.status())}`)
+  const { access_token: token } = (await login.json()) as { access_token: string }
+  const saved = await request.patch(`${api}/users/me/preferences`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { welcome_tour_done: seen },
+  })
+  if (!saved.ok()) throw new Error(`Could not mark the tour for ${email}: ${String(saved.status())}`)
 }

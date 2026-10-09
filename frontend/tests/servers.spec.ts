@@ -16,6 +16,9 @@ async function fakeServers(context: BrowserContext, requests: SentRequest[]) {
     let body: unknown = []
     if (url.pathname.endsWith("/utils/server-info")) body = { product: "dataplayer", client_api_version: 1 }
     else if (url.pathname.endsWith("/login/access-token")) body = { access_token: "beta-token", token_type: "bearer" }
+    // With the tour open, switching servers would stop at its closing
+    // question instead of reaching the login page under test.
+    else if (url.pathname.endsWith("/users/me/preferences")) body = { connector_checks: "15s", welcome_tour_done: true }
     else if (url.pathname.endsWith("/users/me")) body = { id: "00000000-0000-0000-0000-000000000001", email: "test@example.com", is_active: true, is_superuser: false, full_name: "Test user" }
     else if (/\/connectors\/?$/.test(url.pathname)) body = { data: [], count: 0 }
     else if (/\/jobs\/?$/.test(url.pathname)) body = { data: [], count: 0, active_count: 0 }
@@ -43,10 +46,6 @@ test("switching isolates authentication and leaves another browser tab on its se
     localStorage.setItem("dataplayer:servers:v1", JSON.stringify(profiles))
     localStorage.setItem("dataplayer:legacy-server:v1", alpha)
     localStorage.setItem("access_token", "alpha-token")
-    // With the tour open, switching servers would stop at its closing
-    // question instead of reaching the login page under test.
-    // The key is ONBOARDING_DONE_KEY, as seedOnboardingSeen writes it.
-    localStorage.setItem("dataplayer-onboarding-done", "1")
   }, { profiles, alpha })
   await page.goto("/?server=" + encodeURIComponent(alpha))
   await expectServer(page, alpha)
