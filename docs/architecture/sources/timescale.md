@@ -13,7 +13,7 @@ which pins Timescale 2.14 to 2.30 across PostgreSQL 14 to 18 and holds the
 validation record. A release outside that matrix is neither certified nor
 blocked: what a strategy can do there is decided by discovery (D120).
 
-Decisions here: D119, D120, D121, D122.
+Decisions here: D119, D120, D121, D122, D207, D208.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
 
@@ -275,3 +275,75 @@ not mean every operation is supported, and a signature match alone never enables
 a mutation.
 
 Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
+
+## D207. A hypertable is designed as a whole and planned as one change
+
+Not implemented; delivery starts with the settings editor (H1, H2).
+
+One closed model, `HypertableDesign`, says what a hypertable should be:
+
+- the time dimension and its interval, time or integer;
+- `integer_now`, chosen from the source's functions or created from a closed
+  template whose body is the server's;
+- hash dimensions;
+- the columnstore, where `segment_by` and `order_by` are each "Timescale
+  chooses", "none" or an ordered list, plus a merge interval separate from any
+  policy's age and, from 2.22, sparse indexes;
+- retention, columnstore and reorder policies;
+- attached tablespaces.
+
+The model serves two entry points:
+
+- the table designer's Hypertable section, inside `TableDefinition` (D117);
+- the `timescale_design_hypertable` action, "Hypertable settings…", on an
+  ordinary table or a hypertable.
+
+The server reads the current state into the same model and plans only the
+differences, in a fixed order, through the existing per-domain composers. A
+policy left empty in the design is removed. The person reviews one plan, and it
+applies in one transaction under the union of the parts' locks.
+
+A table with rows is converted with `migrate_data` as a one-unit owned job
+(D123). The conversion and the rest of the design are in that unit's
+transaction. Its statement timeout is a setting.
+
+The server enforces these rules:
+
+- keys contain the time column and every hash column;
+- the time column requires a value;
+- the table is not unlogged and not declaratively partitioned;
+- a hash dimension is added only to an empty hypertable, and none is removed.
+
+At creation, `create_default_indexes` is false and the designer proposes a
+visible time index instead.
+
+Creation and conversion use `create_hypertable` with `by_range`, which exists
+on every release in the matrix. `CREATE TABLE … WITH (tsdb.hypertable)` is not
+used: it exists only from 2.20, adds an unplanned columnstore policy from 2.23,
+and picks the column itself. Some things have no routine to inspect: a storage
+option, and which column types a dimension accepts. Their strategy declares a
+minimum release, and the matrix keeps a source on each side of it.
+
+The eleven single-purpose actions remain and are grouped in a Timescale
+submenu. Compressing and decompressing chunks stay outside the editor.
+
+Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-design.md)
+
+## D208. Chunk maintenance is a reviewed job over a fixed set of chunks
+
+Not implemented.
+
+Drop, merge (2.18+), split (2.20+), move, reorder, detach and attach (2.21+)
+each work like compressing chunks:
+
+- a registered action;
+- a plan that fixes the actual chunks and their ranges;
+- a unit per chunk, or per merge group;
+- an outcome per unit (D123).
+
+A drop never re-evaluates an age threshold at execution. Attach takes typed
+bounds per dimension. A Detached chunks report reads public views and
+`pg_class`, never private catalogs, so it offers attach without asserting
+anything.
+
+Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-design.md)
