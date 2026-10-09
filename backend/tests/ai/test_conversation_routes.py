@@ -125,6 +125,48 @@ async def test_jev_selects_within_the_provider_and_records_the_actual_model(
     assert shown["model_key"] == MODEL_KEY
 
 
+async def test_jev_selects_across_keyed_providers_and_uses_the_routed_key(
+    client: AsyncClient,
+    headers: dict[str, str],
+    script: Script,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await preferences.set_key(db, await user_id_of(client, headers), "openai", "openai-key")
+    await preferences.set_key(db, await user_id_of(client, headers), "typesafe", "jev-key")
+    target = "openai:gpt-5.6-luna"
+
+    class FakeClassifier:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "jev-key"
+
+        async def ainvoke(self, request: dict[str, Any]) -> Any:
+            assert request["state"]["providers"] == ["anthropic", "openai"]
+            assert target in request["questions"]["model"].criteria
+            return SimpleNamespace(choices={"model": SimpleNamespace(choice=target)})
+
+    monkeypatch.setattr(model_routing, "TypeSafeClassifier", FakeClassifier)
+    conversation_id = await new_conversation(client, headers)
+    chosen = await client.patch(
+        f"{AI}/conversations/{conversation_id}", headers=headers,
+        json={"model_key": MODEL_KEY, "auto_provider": "all"},
+    )
+    assert chosen.status_code == 200, chosen.text
+    script.turns += [Turn(pieces=[text("Answer")]), Turn(pieces=[text("Title")])]
+
+    run = await send(client, headers, conversation_id, "Explain this")
+    finished = await settled(client, headers, run["id"])
+
+    assert finished["model_key"] == target
+    # The routed provider's key answers, not the fallback's.
+    assert script.built[0][0] == target
+    assert script.built[0][1] == "openai-key"
+    assert finished["steps"][0]["title"] == "Thinking · Jev selected this model"
+    shown = (await client.get(f"{AI}/conversations/{conversation_id}", headers=headers)).json()
+    assert shown["auto_provider"] == "all"
+    assert shown["model_key"] == MODEL_KEY
+
+
 async def test_the_first_line_is_the_title_until_the_model_writes_one(
     client: AsyncClient, headers: dict[str, str], script: Script
 ) -> None:

@@ -30,9 +30,20 @@ PROVIDER_TITLES: dict[Provider, str] = {
 PROVIDERS: tuple[Provider, ...] = tuple(PROVIDER_TITLES)
 CHAT_PROVIDERS: tuple[ChatProvider, ...] = ("openai", "anthropic", "deepseek", "gemini")
 
+# Jev's automatic choice: one provider, or every provider with a key (D157).
+# Stored as text like the fallback model key, so `all` is a release rather
+# than a migration of the column's type.
+AutoProvider = ChatProvider | Literal["all"]
+
 
 def chat_provider_of(value: str | None) -> ChatProvider | None:
     return next((provider for provider in CHAT_PROVIDERS if provider == value), None)
+
+
+def auto_provider_of(value: str | None) -> AutoProvider | None:
+    if value == "all":
+        return "all"
+    return chat_provider_of(value)
 
 CATALOG_FILE = Path(__file__).with_name("models.json")
 

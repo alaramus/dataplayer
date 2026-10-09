@@ -18,7 +18,7 @@ from sqlmodel import col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.attachments import NewAttachment
-from app.ai.catalog import ChatProvider, chat_provider_of
+from app.ai.catalog import AutoProvider, auto_provider_of
 from app.ai.content import opened, sealed, sealed_bytes
 from app.ai.models import (
     MAX_TITLE_CHARS,
@@ -92,7 +92,7 @@ def summary_of(conversation: Conversation, latest: str | None) -> ConversationSu
         pinned=conversation.pinned,
         archived=conversation.archived,
         model_key=conversation.model_key,
-        auto_provider=chat_provider_of(conversation.auto_provider),
+        auto_provider=auto_provider_of(conversation.auto_provider),
         change_policy=policy_of(conversation.change_policy),
         project_id=conversation.project_id,
     )
@@ -217,7 +217,7 @@ async def change(
     pinned: bool | None = None,
     archived: bool | None = None,
     model_key: str | None = None,
-    auto_provider: ChatProvider | None = None,
+    auto_provider: AutoProvider | None = None,
     set_auto_provider: bool = False,
     change_policy: ChangePolicy | None = None,
     project_id: uuid.UUID | None = None,
@@ -722,7 +722,7 @@ async def conversation_public(
         title=opened(conversation.title),
         title_is_custom=conversation.title_is_custom,
         model_key=conversation.model_key,
-        auto_provider=chat_provider_of(conversation.auto_provider),
+        auto_provider=auto_provider_of(conversation.auto_provider),
         change_policy=policy_of(conversation.change_policy),
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,

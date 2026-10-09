@@ -21,7 +21,7 @@ from sqlmodel import Field, SQLModel
 
 from app.adapters.catalog import NodeView
 from app.adapters.content import NodeRepresentation
-from app.ai.catalog import ChatProvider, Provider
+from app.ai.catalog import AutoProvider, ChatProvider, Provider
 from app.core.schemas import get_datetime_utc
 
 # The lifecycle of one answer, and no state outside it. `awaiting_answer` is a
@@ -140,7 +140,7 @@ class Conversation(SQLModel, table=True):
     archived: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
     )
-    # The chosen model, or the fallback when Jev routes within its provider.
+    # The chosen model, or the fallback when Jev routes among keyed providers.
     # Empty inherits the person's settings (D140, D157).
     model_key: str | None = Field(default=None, max_length=160)
     # Empty means this conversation uses its named model directly.
@@ -293,7 +293,7 @@ class AttachmentRules(BaseModel):
 
 class AgentSettingsPublic(BaseModel):
     model_key: str | None
-    auto_provider: ChatProvider | None
+    auto_provider: AutoProvider | None
     # A stored choice the catalog no longer lists. The settings ask for a new
     # one rather than showing a model that cannot be used.
     model_missing: bool
@@ -308,7 +308,7 @@ class AgentSettingsUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     model_key: str | None = None
-    auto_provider: ChatProvider | None = None
+    auto_provider: AutoProvider | None = None
     allow_all_changes: bool | None = None
 
 
@@ -347,7 +347,7 @@ class ConversationSummary(BaseModel):
     # What this conversation names for itself, possibly as Jev's fallback.
     # Empty means the model chosen in the settings.
     model_key: str | None = None
-    auto_provider: ChatProvider | None = None
+    auto_provider: AutoProvider | None = None
     change_policy: ChangePolicy = "ask"
     project_id: uuid.UUID | None = None
 
@@ -395,7 +395,7 @@ class ConversationUpdate(BaseModel):
     # A model of the catalog, for this conversation alone. Empty leaves
     # whatever it had; there is no command that takes a chosen model away.
     model_key: str | None = PydanticField(default=None, max_length=160)
-    auto_provider: ChatProvider | None = None
+    auto_provider: AutoProvider | None = None
     change_policy: ChangePolicy | None = None
     # The folder, or `null` for none. Unlike the fields above it, this one is
     # read as sent rather than as set: taking a conversation out of a folder is
@@ -537,7 +537,7 @@ class ConversationPublic(BaseModel):
     title: str
     title_is_custom: bool
     model_key: str | None = None
-    auto_provider: ChatProvider | None = None
+    auto_provider: AutoProvider | None = None
     change_policy: ChangePolicy = "ask"
     created_at: datetime | None
     updated_at: datetime | None

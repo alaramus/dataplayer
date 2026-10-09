@@ -17,7 +17,7 @@ from pydantic import Json, ValidationError
 from sqlmodel import col, update
 
 from app.ai import attachments, conversations, preferences, quick_chat
-from app.ai.catalog import Provider, catalog
+from app.ai.catalog import PROVIDER_TITLES, Provider, catalog
 from app.ai.content import opened, opened_bytes, sealed
 from app.ai.models import (
     TERMINAL,
@@ -368,17 +368,46 @@ async def update_conversation(
             status_code=422, detail={"message": "That model is not in the list"}
         )
     if body.auto_provider is not None:
+        # The fallback is what answers when Jev cannot: the model sent with
+        # the choice, else the conversation's own, else the person's (D157).
         fallback = catalog().find(body.model_key)
-        if fallback is None or fallback.provider != body.auto_provider:
+        if fallback is None:
+            fallback = catalog().find(conversation.model_key)
+        if fallback is None:
+            fallback = await preferences.chosen_model(
+                session, current_user.id, catalog()
+            )
+        if fallback is None:
             raise HTTPException(
                 status_code=422,
-                detail={"message": "Choose a fallback model from this provider"},
+                detail={"message": "Choose a fallback model first"},
             )
-        if await preferences.key_for(session, current_user.id, body.auto_provider) is None:
-            raise HTTPException(
-                status_code=422,
-                detail={"message": "Set this model provider's API key first"},
-            )
+        if body.auto_provider == "all":
+            if (
+                await preferences.key_for(
+                    session, current_user.id, fallback.provider
+                )
+                is None
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "message": (
+                            f"Set the {PROVIDER_TITLES[fallback.provider]} API key first"
+                        )
+                    },
+                )
+        else:
+            if fallback.provider != body.auto_provider:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"message": "Choose a fallback model from this provider"},
+                )
+            if await preferences.key_for(session, current_user.id, body.auto_provider) is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"message": "Set this model provider's API key first"},
+                )
         if await preferences.key_for(session, current_user.id, "typesafe") is None:
             raise HTTPException(status_code=422, detail={"message": "Set a Jev API key first"})
     if body.change_policy == "jev" and await preferences.key_for(

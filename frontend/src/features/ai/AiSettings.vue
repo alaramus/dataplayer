@@ -24,7 +24,7 @@ import {
   useUpdateQuickChat,
   useUpdateAiSettings,
 } from "./api"
-import { autoModelValue, fallbackModel } from "./modelOptions"
+import { AUTO_ALL_VALUE, autoModelValue, fallbackForAll, fallbackModel } from "./modelOptions"
 
 const settings = useAiSettings()
 const models = useAiModels()
@@ -55,6 +55,15 @@ const archived = computed<ArchivedChat[]>(() => [
 ].sort((a, b) => (b.chat.updated_at ?? "").localeCompare(a.chat.updated_at ?? "")))
 
 async function chooseModel(value: string) {
+  if (value === AUTO_ALL_VALUE) {
+    const list = models.data.value ?? []
+    const keyed = new Set((settings.data.value?.keys ?? []).filter((key) => key.set).map((key) => key.provider))
+    const fallback = fallbackForAll(list, settings.data.value?.model_key ?? null, keyed)
+    if (!fallback) return
+    try { await update.mutateAsync({ model_key: fallback.key, auto_provider: "all" }) }
+    catch (cause) { toast.error(messageOf(cause, "The model could not be selected")) }
+    return
+  }
   const provider = models.data.value?.find((one) => value === autoModelValue(one.provider))?.provider
   const fallback = provider ? fallbackModel(models.data.value ?? [], settings.data.value?.model_key ?? null, provider) : null
   if (provider && !fallback) return

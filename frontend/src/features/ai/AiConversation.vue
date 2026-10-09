@@ -34,7 +34,7 @@ import AiFileChip from "./AiFileChip.vue"
 import AiMessageFiles from "./AiMessageFiles.vue"
 import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
-import { autoModelValue, fallbackModel } from "./modelOptions"
+import { AUTO_ALL_VALUE, autoModelValue, fallbackForAll, fallbackModel } from "./modelOptions"
 import { openQuickChat, quoteSelection } from "./quickChatLauncher"
 
 const props = defineProps<{
@@ -274,6 +274,23 @@ const autoProvider = computed(() => conversation.data.value?.model_key
 const chatModel = computed(() => autoProvider.value ? autoModelValue(autoProvider.value) : fallbackKey.value)
 async function chooseModel(value: string) {
   if (value === chatModel.value) return
+  if (value === AUTO_ALL_VALUE) {
+    const list = models.data.value ?? []
+    const keyed = new Set((settings.data.value?.keys ?? []).filter((key) => key.set).map((key) => key.provider))
+    const fallback = fallbackForAll(list, fallbackKey.value, keyed)
+    if (!fallback) return
+    try {
+      const id = currentId.value
+      if (id) await updateConversation.mutateAsync({ id, model_key: fallback.key, auto_provider: "all" })
+      else {
+        pendingModelKey.value = fallback.key
+        pendingAutoProvider.value = "all"
+        await updateSettings.mutateAsync({ model_key: fallback.key, auto_provider: "all" })
+      }
+    }
+    catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+    return
+  }
   const provider = models.data.value?.find((one) => value === autoModelValue(one.provider))?.provider
   const fallback = provider ? fallbackModel(models.data.value ?? [], fallbackKey.value, provider) : null
   if (provider && !fallback) return

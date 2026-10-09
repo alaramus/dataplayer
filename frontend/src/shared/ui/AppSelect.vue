@@ -24,6 +24,8 @@ export interface SelectOption {
   group?: boolean
   /** A visible choice that cannot be selected yet. */
   disable?: boolean
+  /** A hairline above the row, separating runs of choices such as provider groups. */
+  separator?: boolean
   /** A quiet second line explaining a choice. */
   description?: string
   /** Meaning shown before the choice. */
@@ -146,6 +148,18 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
 /** A toolbar field says its name beside it, never floated over its value. */
 const inlineLabel = computed(() => props.compact && !formLayout)
 
+// A heading is never taken, but it carries its own button (a provider key
+// in the model list): QSelect would disable the whole row for it, and the
+// button with it, leaving Playwright and readers with a dead control. So
+// headings stay enabled and only lose the select-on-press.
+function rowItemProps(scope: { opt: { group?: boolean }; itemProps: object }) {
+  if (!scope.opt.group) return scope.itemProps
+  const rest = { ...scope.itemProps } as Record<string, unknown>
+  delete rest.onClick
+  delete rest.onMousemove
+  return rest
+}
+
 function labelOf(value: unknown): string {
   for (const option of props.options) {
     if (typeof option === "object") {
@@ -204,7 +218,7 @@ const summary = computed(() => {
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
-    :option-disable="labelled ? (option: SelectOption) => Boolean(option.group || option.disable) : undefined"
+    :option-disable="labelled ? (option: SelectOption) => Boolean(option.disable) : undefined"
     :emit-value="labelled"
     :map-options="labelled"
     :loading="loading"
@@ -234,7 +248,7 @@ const summary = computed(() => {
       #option="scope"
     >
       <AppOption
-        v-bind="scope.itemProps"
+        v-bind="rowItemProps(scope)"
         :option="scope.opt"
         @action="act"
       />

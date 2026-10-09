@@ -32,7 +32,7 @@ from app.adapters.cache import DataCache
 from app.adapters.resources import ResourceStore
 from app.ai import checkpoints, conversations, preferences
 from app.ai.attachments import NewAttachment, model_content
-from app.ai.catalog import PROVIDER_TITLES, ModelCatalog, ModelInfo
+from app.ai.catalog import PROVIDER_TITLES, ChatProvider, ModelCatalog, ModelInfo
 from app.ai.model_routing import choose as choose_model
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
@@ -165,14 +165,29 @@ class AgentRunner:
             raise RunRefused(409, "This conversation is already being answered")
         route_note = ""
         auto_provider = await preferences.auto_provider_for(session, owner_id, conversation)
-        provider = auto_provider or model.provider
-        key = await preferences.key_for(session, owner_id, provider)
-        if key is None:
-            raise RunRefused(
-                409,
-                f"Add a key for {PROVIDER_TITLES[provider]} in the agent settings first",
-            )
-        if auto_provider is not None:
+        if auto_provider is None:
+            key = await preferences.key_for(session, owner_id, model.provider)
+            if key is None:
+                raise RunRefused(
+                    409,
+                    f"Add a key for {PROVIDER_TITLES[model.provider]} in the agent settings first",
+                )
+        else:
+            providers: list[ChatProvider]
+            if auto_provider == "all":
+                providers = await preferences.keyed_chat_providers(session, owner_id)
+                if not providers:
+                    raise RunRefused(
+                        409,
+                        "Add a key for a chat model provider in the agent settings first",
+                    )
+            else:
+                if await preferences.key_for(session, owner_id, auto_provider) is None:
+                    raise RunRefused(
+                        409,
+                        f"Add a key for {PROVIDER_TITLES[auto_provider]} in the agent settings first",
+                    )
+                providers = [auto_provider]
             needs_images = any(one.kind == "image" for one in attachments)
             needs_images = needs_images or await conversations.has_image_attachment(
                 session, conversation.id
@@ -180,7 +195,7 @@ class AgentRunner:
             try:
                 route = await choose_model(
                     catalog=self._catalog,
-                    provider=auto_provider,
+                    providers=providers,
                     fallback=model,
                     text=text,
                     needs_images=needs_images,
@@ -189,6 +204,14 @@ class AgentRunner:
             except ValueError as error:
                 raise RunRefused(422, str(error)) from error
             model, route_note = route.model, route.note
+            # The routed model may belong to another provider than the
+            # fallback, so its key is read after the choice (D157).
+            key = await preferences.key_for(session, owner_id, model.provider)
+            if key is None:
+                raise RunRefused(
+                    409,
+                    f"Add a key for {PROVIDER_TITLES[model.provider]} in the agent settings first",
+                )
         # The composer offers images only to a model that reads them (D142);
         # this is the same rule for a client that did not ask first.
         if any(one.kind == "image" for one in attachments) and not model.image_input:

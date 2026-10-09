@@ -1,4 +1,4 @@
-"""Provider-scoped Jev routing and its fallback (D157)."""
+"""Jev routing among the person's keyed providers and its fallback (D157)."""
 
 from types import SimpleNamespace
 from typing import Any
@@ -31,8 +31,40 @@ async def test_jev_can_choose_any_compatible_model_in_the_provider(
 
     monkeypatch.setattr(model_routing, "TypeSafeClassifier", FakeClassifier)
     route = await model_routing.choose(
-        catalog=models, provider="openai", fallback=fallback,
+        catalog=models, providers=("openai",), fallback=fallback,
         text="Explain this image", needs_images=True, jev_key="jev-key",
+    )
+    assert route.model == target
+    assert route.note == "Jev selected this model"
+
+
+async def test_jev_can_choose_across_providers_with_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    models = catalog()
+    fallback = next(model for model in models.models if model.key == "openai:gpt-5.6-sol")
+    target = next(
+        model for model in models.models
+        if model.provider == "anthropic" and model.image_input
+    )
+
+    class FakeClassifier:
+        def __init__(self, *, api_key: str) -> None:
+            assert api_key == "jev-key"
+
+        async def ainvoke(self, request: dict[str, Any]) -> Any:
+            choices = request["questions"]["model"].criteria
+            assert set(choices) == {
+                model.key for model in models.models
+                if model.provider in ("openai", "anthropic")
+            }
+            assert request["state"]["providers"] == ["anthropic", "openai"]
+            return SimpleNamespace(choices={"model": SimpleNamespace(choice=target.key)})
+
+    monkeypatch.setattr(model_routing, "TypeSafeClassifier", FakeClassifier)
+    route = await model_routing.choose(
+        catalog=models, providers=("openai", "anthropic"), fallback=fallback,
+        text="Answer this", needs_images=False, jev_key="jev-key",
     )
     assert route.model == target
     assert route.note == "Jev selected this model"
@@ -53,22 +85,48 @@ async def test_jev_failure_keeps_the_previously_selected_model(
 
     monkeypatch.setattr(model_routing, "TypeSafeClassifier", FailingClassifier)
     route = await model_routing.choose(
-        catalog=models, provider="openai", fallback=fallback,
+        catalog=models, providers=("openai",), fallback=fallback,
         text="Answer this", needs_images=False, jev_key="jev-key",
     )
     assert route.model == fallback
     assert route.note == "Jev unavailable; using fallback"
 
     without_key = await model_routing.choose(
-        catalog=models, provider="openai", fallback=fallback,
+        catalog=models, providers=("openai",), fallback=fallback,
         text="Answer this", needs_images=False, jev_key=None,
     )
     assert without_key.model == fallback
 
     incompatible = next(model for model in models.models if model.key == "openai:gpt-5.4-nano-2026-03-17")
     with_image = await model_routing.choose(
-        catalog=models, provider="openai", fallback=incompatible,
+        catalog=models, providers=("openai",), fallback=incompatible,
         text="Describe this", needs_images=True, jev_key=None,
     )
     assert with_image.model.image_input
     assert with_image.model.provider == "openai"
+
+
+async def test_a_fallback_without_a_key_gives_way_to_a_keyed_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    models = catalog()
+    # The fallback's provider has no key; only Anthropic does.
+    fallback = next(model for model in models.models if model.key == "openai:gpt-5.6-sol")
+    first_keyed = next(
+        model for model in models.models if model.provider == "anthropic"
+    )
+
+    class FailingClassifier:
+        def __init__(self, *, api_key: str) -> None:
+            pass
+
+        async def ainvoke(self, request: dict[str, Any]) -> Any:
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(model_routing, "TypeSafeClassifier", FailingClassifier)
+    route = await model_routing.choose(
+        catalog=models, providers=("anthropic",), fallback=fallback,
+        text="Answer this", needs_images=False, jev_key="jev-key",
+    )
+    assert route.model == first_keyed
+    assert route.note == "Jev unavailable; using fallback"

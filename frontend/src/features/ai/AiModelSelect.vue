@@ -9,7 +9,7 @@ import { serverStorageKey } from "@/shared/servers/context"
 import AiKeyDialog from "./AiKeyDialog.vue"
 import AiModelHint from "./AiModelHint.vue"
 import { useAiModels, useAiSettings } from "./api"
-import { groupedModelOptions, providerLabel } from "./modelOptions"
+import { AUTO_ALL_VALUE, groupedModelOptions, jevProviderLabel, providerLabel } from "./modelOptions"
 import type { ModelOption, Provider } from "./modelOptions"
 
 /**
@@ -62,9 +62,8 @@ const hintOpen = ref(false)
 const keySet = (provider: Provider) =>
   settings.data.value?.keys.find((one) => one.provider === provider)?.set ?? false
 const options = computed<ModelOption[]>(() =>
-  groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? [], {
-    keyInField: !props.keyButton,
-  }).filter((option) => props.allowAuto || !option.auto)
+  groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? [])
+    .filter((option) => props.allowAuto || !option.auto)
 )
 const selectedModel = computed(
   () => (models.data.value ?? []).find((one) => one.key === props.modelValue) ?? null
@@ -77,7 +76,12 @@ const selectedKeySet = computed(() =>
 )
 const dialogProvider = computed(() => keyProvider.value === null
   ? null
-  : { id: keyProvider.value, label: providerLabel(models.data.value ?? [], keyProvider.value) })
+  : {
+    id: keyProvider.value,
+    label: keyProvider.value === "typesafe"
+      ? jevProviderLabel
+      : providerLabel(models.data.value ?? [], keyProvider.value),
+  })
 watch(
   [() => props.modelValue, () => models.isPending.value] as const,
   ([value, pending]) => {
@@ -109,8 +113,8 @@ function manageKey(provider: Provider) {
   keyDialogOpen.value = true
 }
 function manageOptionKey(option: SelectOption) {
-  const provider = (option as ModelOption).provider
-  if (provider) manageKey(provider)
+  const target = (option as ModelOption).keyProvider ?? (option as ModelOption).provider
+  if (target) manageKey(target)
 }
 function manageSelectedKey() {
   if (selectedProvider.value) manageKey(selectedProvider.value)
@@ -118,10 +122,13 @@ function manageSelectedKey() {
 async function choose(value: unknown) {
   if (typeof value !== "string" || value === props.modelValue) return
   const option = options.value.find((one) => one.value === value)
-  if (option?.disable) return
+  // A heading is an enabled row (its key button must stay pressable) but
+  // never a value: the keyboard can still land on one.
+  if (option?.disable || option?.group) return
   if (option?.auto) {
+    const isAll = value === AUTO_ALL_VALUE
     const provider = option.provider
-    if (!provider) return
+    if (!isAll && !provider) return
     const userId = me.data.value?.id
     const warningKey = userId ? serverStorageKey(`dataplayer-ai-jev-routing:skip-warning:${userId}`) : null
     let skipWarning = false
@@ -130,7 +137,9 @@ async function choose(value: unknown) {
     }
     if (!skipWarning && !(await confirm({
       title: "Let Jev choose the model?",
-      message: `Jev will choose from every ${providerLabel(models.data.value ?? [], provider)} model for each answer. Models may differ in cost and capabilities. Your request will be sent to TypeSafe to make the choice.`,
+      message: isAll || !provider
+        ? "Jev will choose from every model with a configured API key for each answer. Models may differ in cost and capabilities. Your request will be sent to TypeSafe to make the choice."
+        : `Jev will choose from every ${providerLabel(models.data.value ?? [], provider)} model for each answer. Models may differ in cost and capabilities. Your request will be sent to TypeSafe to make the choice.`,
       confirmLabel: "Use Jev",
       rememberLabel: "Don't show again",
       onRemember: () => {

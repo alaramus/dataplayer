@@ -1,7 +1,8 @@
-"""Choose one catalog model within the person's provider (D157)."""
+"""Choose one catalog model among the person's keyed providers (D157)."""
 
 import asyncio
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from langchain_typesafe import Choice, TypeSafeClassifier
@@ -21,7 +22,7 @@ class ModelRoute:
 async def choose(
     *,
     catalog: ModelCatalog,
-    provider: ChatProvider,
+    providers: Sequence[ChatProvider],
     fallback: ModelInfo,
     text: str,
     needs_images: bool,
@@ -29,15 +30,17 @@ async def choose(
 ) -> ModelRoute:
     candidates = [
         model for model in catalog.models
-        if model.provider == provider and (model.image_input or not needs_images)
+        if model.provider in providers and (model.image_input or not needs_images)
     ]
     if not candidates:
-        raise ValueError("No model in this provider can read the attached image")
+        if needs_images:
+            raise ValueError("No model with a configured key can read the attached image")
+        raise ValueError("No model with a configured key is available")
     safe_fallback = fallback if fallback in candidates else candidates[0]
     if jev_key is None:
         return ModelRoute(safe_fallback, "Jev unavailable; using fallback")
     if len(candidates) == 1:
-        return ModelRoute(candidates[0], "Only compatible model in this provider")
+        return ModelRoute(candidates[0], "Only one compatible model available")
     criteria: dict[str, JsonValue] = {
         model.key: (
             f"{model.name}; context window {model.context_window} tokens; "
@@ -53,7 +56,7 @@ async def choose(
                 {
                     "state": {
                         "latest_user_request": text[:16000] or "[image-only request]",
-                        "provider": provider,
+                        "providers": sorted(providers),
                         "contains_images": needs_images,
                     },
                     "questions": {

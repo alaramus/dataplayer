@@ -42,7 +42,7 @@ describe("AppSelect", () => {
     expect(select.props("emitValue")).toBe(false)
   })
 
-  it("treats group headings as non-selectable options", () => {
+  it("keeps group headings enabled so their own button stays pressable", () => {
     const select = mountSelect({
       options: [
         { label: "Anthropic", value: "provider:anthropic", group: true },
@@ -51,14 +51,16 @@ describe("AppSelect", () => {
       ],
     }).getComponent(QSelect)
 
-    // A heading and a choice that cannot be taken yet are both unselectable,
-    // so one function answers for both rather than the name of one field.
+    // A heading is never taken, but it carries its own button (a provider
+    // key): disabling the row would disable the button with it, for pointer,
+    // keyboard and reader alike. Headings lose the select-on-press instead,
+    // while a choice that cannot be taken yet stays disabled.
     const disable = select.props("optionDisable") as (option: {
       group?: boolean
       disable?: boolean
     }) => boolean
     expect(typeof disable).toBe("function")
-    expect(disable({ group: true })).toBe(true)
+    expect(disable({ group: true })).toBe(false)
     expect(disable({ disable: true })).toBe(true)
     expect(disable({})).toBe(false)
   })
@@ -232,6 +234,50 @@ describe("AppSelect", () => {
     await flushPromises()
 
     expect(wrapper.emitted("optionAction")).toEqual([[option]])
+    expect(hide).toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  // A heading carries its own button but is never a choice: pressing the
+  // row itself selects nothing, while the button still takes over.
+  it("keeps a heading action pressable without making the heading a choice", async () => {
+    const heading = {
+      label: "Anthropic",
+      value: "provider:anthropic",
+      group: true,
+      actionIcon: "key",
+      actionLabel: "Manage Anthropic API key",
+    }
+    const wrapper = mount(AppSelect, {
+      attachTo: document.body,
+      global: { plugins: [Quasar] },
+      props: { modelValue: null, options: [heading] },
+    })
+    const field = wrapper.getComponent(QSelect).vm as unknown as {
+      showPopup: () => void
+      hidePopup: () => void
+    }
+    const hide = vi.spyOn(field, "hidePopup")
+    field.showPopup()
+
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('button[aria-label="Manage Anthropic API key"]')).not.toBeNull()
+    })
+    // The row QSelect disabled for a heading took the button with it: no
+    // press, keyboard or reader reached it.
+    expect(document.body.querySelector(".q-item.disabled")).toBeNull()
+
+    const row = document.body.querySelector(".q-item")
+    row?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+
+    const action = document.body.querySelector('button[aria-label="Manage Anthropic API key"]')
+    action?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    await flushPromises()
+
+    expect(wrapper.emitted("optionAction")).toEqual([[heading]])
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined()
     expect(hide).toHaveBeenCalled()
     wrapper.unmount()
   })

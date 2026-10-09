@@ -25,14 +25,46 @@ const emit = defineEmits<{
 function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly TextRun[] {
   return runs !== undefined && runs.length > 0 ? runs : [{ text, hit: false }]
 }
+/**
+ * A heading whose button is switched on. It is never chosen, so neither the
+ * dim nor the forbidden arrow means anything on it — only its button points.
+ * A heading without a key stays dimmed like any other unavailable choice,
+ * which keeps its key mark the colour of the other missing ones.
+ */
+function liveHeading(option: SelectOption): boolean {
+  return Boolean(option.group && option.actionIcon && option.actionLabel && option.actionActive)
+}
 </script>
 
 <template>
-  <q-item v-if="option.group">
+  <q-item
+    v-if="option.group"
+    :class="{ 'app-option--separator': option.separator, 'app-option--live-heading': liveHeading(option) }"
+  >
     <q-item-section>
       <q-item-label header>
         {{ option.label }}
       </q-item-label>
+      <q-item-label
+        v-if="option.description"
+        caption
+      >
+        {{ option.description }}
+      </q-item-label>
+    </q-item-section>
+    <!-- A heading is never chosen, but its action stays a command: the click
+         never reaches the row's own handler, which a heading does not have. -->
+    <q-item-section
+      v-if="option.actionIcon && option.actionLabel"
+      side
+      class="app-option__action"
+    >
+      <AppIconButton
+        :icon="option.actionIcon"
+        :tooltip="option.actionLabel"
+        :active="option.actionActive"
+        @click.stop.prevent="emit('action', option)"
+      />
     </q-item-section>
     <!-- Trap: QBtn hands the focus to a helper of its own on mouseup unless
          the press was refused before it saw it, and the list stays open over
@@ -40,6 +72,7 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
     <q-item-section
       v-if="option.removeLabel"
       side
+      class="app-option__action"
       @mousedown.capture.prevent
     >
       <AppButton
@@ -53,7 +86,7 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
   </q-item>
   <q-item
     v-else
-    :class="{ 'app-option--warning': option.tone === 'warning' }"
+    :class="{ 'app-option--warning': option.tone === 'warning', 'app-option--separator': option.separator }"
   >
     <q-item-section
       v-if="option.icon"
@@ -94,6 +127,7 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
     <q-item-section
       v-if="option.actionIcon && option.actionLabel"
       side
+      class="app-option__action"
     >
       <AppIconButton
         :icon="option.actionIcon"
@@ -105,6 +139,7 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
     <q-item-section
       v-if="option.removeLabel"
       side
+      class="app-option__action"
       @mousedown.capture.prevent
     >
       <AppIconButton
@@ -118,6 +153,23 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
 
 <style scoped>
 .app-option--warning { color: var(--dp-tone-warning-text); }
+/* A line above the row, separating runs of choices. A hairline border in the
+   theme's faint line colour, as elsewhere in the kit. */
+.app-option--separator { border-top: 1px solid var(--dp-border-faint); }
+/* The row may be unavailable while its button stays a command — a key window
+   on a choice without a key. Quasar marks every descendant of a disabled row
+   not-allowed with !important, so the rule names the descendants too: an
+   inherited cursor loses to a directly applied one. The scoped attribute
+   outweighs Quasar the way AppTooltip does. */
+.app-option__action,
+.app-option__action * { cursor: pointer !important; }
+/* A heading with a button is never chosen: no dim, and the default arrow
+   everywhere but the button, which the narrower rule below keeps pointing. */
+.q-item.disabled.app-option--live-heading { opacity: 1 !important; }
+.app-option--live-heading,
+.app-option--live-heading * { cursor: default !important; }
+.app-option--live-heading .app-option__action,
+.app-option--live-heading .app-option__action * { cursor: pointer !important; }
 .app-option__text { min-width: 0; }
 /* What matched, in the colour a find in a document is marked with. */
 .app-option__hit {

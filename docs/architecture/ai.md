@@ -68,12 +68,17 @@ The first line of the first message is a conversation's title until the chosen
 model writes one, unless the person renamed it — a named conversation never
 spends a model call on a title.
 
-The model selector groups models by provider. Every model row shows whether
-that provider's one key is configured; its key button opens the same provider
-key window, so setting an Anthropic key, for example, enables every Anthropic
-model rather than attaching a secret to one model.
+The model selector groups models by provider under a hairline. The provider's
+heading carries only the key button, whose mark says whether its one key is
+configured; it opens the same provider key window, so setting an Anthropic
+key, for example, enables every Anthropic model rather than attaching a
+secret to one model. The models themselves are one line each, and the field
+names the chosen model with no key mark beside it.
 Each provider group also offers Jev model selection (D157) when the person's
-provider and TypeSafe keys are set. A conversation remembers its previous model
+provider and TypeSafe keys are set, and the top of the list offers Jev across
+every provider with a key. Every Jev row carries the one Jev key button and
+names its scope in brackets, while a provider's own key lives on its heading.
+A conversation remembers its previous model
 as fallback. The actual model used is shown on the run.
 
 The experimental Jev change policy (D156) is a fourth conversation policy.
@@ -462,14 +467,17 @@ inert until explicitly cleared or removed by a later migration.
 
 Spec: [Jev change-policy experiment](../decisions/2026-09-24-jev-change-policy.md)
 
-## D157. Jev may select any compatible model within one provider
+## D157. Jev may select any compatible model with a configured key
 
 Each model group offers an automatic Jev choice when the person has both that
-provider's key and a TypeSafe key. All catalog models of that provider are
+provider's key and a TypeSafe key, and the top of the list offers one across
+every provider with a key. All catalog models of the chosen scope are
 candidates for each answer; models without image input are excluded whenever
-the conversation has an image. The prior model stays as fallback, or the first
-model in the new group if the person switched providers. A selection stores the
-provider and fallback independently. The actual chosen model is recorded on
+the conversation has an image, as is any model whose provider has no key. The
+prior model stays as fallback, or the first model in the new group if the
+person switched providers; the all-providers choice falls back to the current
+model when it is still listed, else the first keyed one. A selection stores the
+scope (`all` for every keyed provider) and fallback independently. The actual chosen model is recorded on
 the run, shown beside its steps, and used for the whole run, its summary, and
 its title. A paused run resumes with that same model. Jev sees only the latest
 user text, truncated to 16,000 characters, plus provider and image presence.
@@ -477,10 +485,13 @@ It does not receive attachments, prior messages or tool results for routing.
 
 If Jev fails, returns a model outside the candidates, or its key was removed,
 the fallback answers. If the fallback cannot read an image, the first compatible
-model in that provider answers. If no compatible model exists, the run is
-refused. A server-side key and provider check prevents selecting an unavailable
-auto choice through the API. The first UI selection warns about provider-wide
-choice, different costs and TypeSafe transfer. Its Don't show again checkbox
+model of the chosen scope answers. If no compatible model exists, the run is
+refused. A server-side key and scope check prevents selecting an unavailable
+auto choice through the API; the keyed set is read when the answer starts, so a
+key removed after the choice still routes only where a call can go, and the
+routed model's key — possibly another provider's — is read after the choice.
+The first UI selection warns about provider-wide choice, or every keyed
+provider in the all choice, different costs and TypeSafe transfer. Its Don't show again checkbox
 uses the same per-user, per-server browser storage pattern as tab groups and
 is remembered only when the person confirms.
 

@@ -304,10 +304,10 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.reload()
   await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
 
-  // The key beside a model offered in the chat opens the same key window the
-  // settings do; it used to do nothing at all there.
+  // The key on the provider heading opens the same key window the settings
+  // do; it used to sit beside every model there.
   await page.getByTestId("ai-chat-model").click()
-  await page.getByRole("option", { name: /^Claude Opus 5\b(?!\.5)/ })
+  await page.getByRole("option", { name: /^Anthropic/ })
     .getByRole("button", { name: "Manage Anthropic API key" }).click()
   await expect(page.getByTestId("ai-key-dialog")).toBeVisible()
   await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
@@ -376,7 +376,7 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-allow-all")).toHaveAttribute("aria-checked", "false")
 
   await page.getByTestId("ai-model").click()
-  const providerKey = page.getByRole("option", { name: /^Claude Opus 5\b(?!\.5)/ })
+  const providerKey = page.getByRole("option", { name: /^Anthropic/ })
     .getByRole("button", { name: "Manage Anthropic API key" })
   await expect(providerKey).toBeVisible()
   await providerKey.click()

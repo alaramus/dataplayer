@@ -614,7 +614,7 @@ export type AgentSettingsPublic = {
   /**
    * Auto Provider
    */
-  auto_provider: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  auto_provider: "openai" | "anthropic" | "deepseek" | "gemini" | "all" | null
   /**
    * Model Missing
    */
@@ -643,7 +643,7 @@ export type AgentSettingsUpdate = {
   /**
    * Auto Provider
    */
-  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | "all" | null
   /**
    * Allow All Changes
    */
@@ -2760,7 +2760,7 @@ export type ConversationPublic = {
   /**
    * Auto Provider
    */
-  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | "all" | null
   /**
    * Change Policy
    */
@@ -2826,7 +2826,7 @@ export type ConversationSummary = {
   /**
    * Auto Provider
    */
-  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | "all" | null
   /**
    * Change Policy
    */
@@ -2865,7 +2865,7 @@ export type ConversationUpdate = {
   /**
    * Auto Provider
    */
-  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | null
+  auto_provider?: "openai" | "anthropic" | "deepseek" | "gemini" | "all" | null
   /**
    * Change Policy
    */
