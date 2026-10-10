@@ -1,0 +1,29 @@
+# Running DataPlayer for use rather than for development. Chosen by
+# COMPOSE_FILE in .env (see .env.example), or by naming both files:
+#   docker compose -f compose.yml -f compose.prod.yml up -d --build
+#
+# The backend serves the built interface and the API on one port, APP_PORT.
+# It speaks plain HTTP: anything reached from outside this machine belongs
+# behind a reverse proxy that terminates HTTPS (Caddy, Traefik, nginx), with
+# FRONTEND_HOST set to the address people open.
+#
+# What compose.override.yml adds for development — hot reload, sample data,
+# the Docker socket, Adminer, Mailcatcher, a test Redis and SSH server — is
+# absent here by leaving that file out, not by undoing it.
+
+services:
+  db:
+    restart: unless-stopped
+
+  # A development convenience, kept out of a running installation: a browser
+  # on the database is one more thing to secure.
+  adminer:
+    profiles: ["tools"]
+
+  redis-cache:
+    restart: unless-stopped
+
+  backend:
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:8000"

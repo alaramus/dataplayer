@@ -68,38 +68,65 @@ or by pasting a connection string, and is checked before it is saved.
 
 ## Getting started
 
-You need Docker, [Bun](https://bun.sh) and Node.js.
+DataPlayer starts in one of two modes, chosen by one line in `.env`:
+
+| | Run it | Develop it |
+| --- | --- | --- |
+| `COMPOSE_FILE` in `.env` | `compose.yml,compose.prod.yml` | `compose.yml,compose.override.yml` (the default) |
+| You need | Docker | Docker, [Bun](https://bun.sh) and Node.js |
+| Interface | built into the image, on `APP_PORT` (8000) | Vite dev server on 5173, reloading on every edit |
+| Data at the start | the first superuser only | sample databases, files and references |
+| Extras | none; restarted after a reboot | Adminer, Mailcatcher, a test Redis and SSH server, the Docker socket for managed services |
+
+### 1. Configure
 
 ```bash
 cp .env.example .env
-cp frontend/.env.example frontend/.env
 ```
 
-Fill in both files: at minimum `SECRET_KEY`, `CONNECTOR_SECRET_KEY`, `QUERY_CONTENT_KEY`,
-`AI_CONTENT_KEY`, `POSTGRES_PASSWORD`, `FIRST_SUPERUSER_PASSWORD`, `DATA_CACHE_REDIS_PASSWORD` and
-`DATA_CACHE_SECRET_KEY`.
-
-Generate each encryption key with:
+In `.env`, keep the `COMPOSE_FILE` line of the mode you want and replace every
+placeholder: at minimum `SECRET_KEY`, `CONNECTOR_SECRET_KEY`,
+`QUERY_CONTENT_KEY`, `AI_CONTENT_KEY`, `POSTGRES_PASSWORD`,
+`FIRST_SUPERUSER_PASSWORD`, `DATA_CACHE_REDIS_PASSWORD` and
+`DATA_CACHE_SECRET_KEY`. Generate each key with:
 
 ```bash
 python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
 ```
 
-Then start the stack and the dev server:
+Running it refuses to start while `SECRET_KEY`, `POSTGRES_PASSWORD` or
+`FIRST_SUPERUSER_PASSWORD` is still `changethis`; the keys are refused in
+either mode unless they decode to 32 bytes.
+
+### 2a. Run it
+
+Also set `FRONTEND_HOST` to the address people will open, for example
+`http://localhost:8000`, comment out `FASTAPI_ENV`, and give
+`DATA_CACHE_DEPLOYMENT` a name of its own. Then:
 
 ```bash
+docker compose up -d --build
+```
+
+Open http://localhost:8000 and sign in as `FIRST_SUPERUSER` with
+`FIRST_SUPERUSER_PASSWORD`. The port speaks plain HTTP: to reach DataPlayer
+from outside this machine, put a reverse proxy that terminates HTTPS in front
+of it (Caddy, Traefik, nginx) and set `FRONTEND_HOST` to its address. Back up
+the Docker volume `dataplayer_app-db-data`; it holds everything DataPlayer
+keeps.
+
+### 2b. Develop it
+
+```bash
+cp frontend/.env.example frontend/.env
 docker compose up -d --build backend metrics
 cd frontend && bun install && bun run dev
 ```
 
-The application is served at http://localhost:5173, the API at
-http://localhost:8000, and the interactive API docs at
-http://localhost:8000/docs. Sign in as `FIRST_SUPERUSER` with
-`FIRST_SUPERUSER_PASSWORD` from `.env`.
-
-To fill the connections panel with examples — the bundled PostgreSQL under
-several names, file storage and Redis — run `bun run seed:connectors` from the
-repository root.
+The interface is at http://localhost:5173, the API at http://localhost:8000
+and its interactive docs at http://localhost:8000/docs. To fill the connections
+panel with examples — the bundled PostgreSQL under several names, file storage
+and Redis — run `bun run seed:connectors` from the repository root.
 
 The backend cannot run natively on Windows: psycopg 3 in async mode is
 incompatible with the event loop Python selects there. Use Docker.

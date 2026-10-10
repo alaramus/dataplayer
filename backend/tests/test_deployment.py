@@ -32,7 +32,7 @@ def test_the_image_names_exactly_one_worker() -> None:
 
 
 def test_no_compose_file_asks_for_a_worker_count() -> None:
-    for name in ("compose.yml", "compose.override.yml"):
+    for name in ("compose.yml", "compose.override.yml", "compose.prod.yml"):
         text = (REPOSITORY / name).read_text(encoding="utf-8")
 
         assert "--workers" not in text, name

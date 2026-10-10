@@ -74,6 +74,26 @@ backend/app/
 └── main.py              application assembly; the lifespan owns the store
 ```
 
+## Two ways to start it
+
+`COMPOSE_FILE` in `.env` names the files `docker compose` reads, so one line
+picks the mode and every later command follows it. Without the line Compose
+reads `compose.override.yml` on its own, which keeps development the default.
+
+- **`compose.yml,compose.override.yml`** — development: `fastapi dev`, sample
+  data from `prestart-dev.sh`, the Docker socket, Adminer, Mailcatcher and the
+  test servers, the interface from the Vite dev server.
+- **`compose.yml,compose.prod.yml`** — running it for use: the image's own
+  `fastapi run`, `prestart.sh` alone, the built interface served by the backend
+  on `APP_PORT`, `restart: unless-stopped`, and no helpers. `FASTAPI_ENV` is
+  unset, so a placeholder secret stops the start and the private routes do not
+  exist.
+
+What development adds lives only in the override; `compose.prod.yml` adds
+what running needs rather than undoing anything. `FRONTEND_HOST` reaches every
+backend container, because e-mail links and the one CORS origin are made from
+it.
+
 ## API
 
 ```
