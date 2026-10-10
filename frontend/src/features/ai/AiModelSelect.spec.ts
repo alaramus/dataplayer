@@ -49,7 +49,7 @@ describe("the missing-model hint", () => {
     await nextTick()
     expect(hinted()).toBe(true)
     const hint = document.body.querySelector('[data-testid="ai-model-hint"]')
-    expect(hint?.textContent).toContain("Model list")
+    expect(hint?.textContent).toContain("choose a model in this list")
     expect(hint?.textContent).toContain("API key")
     wrapper.unmount()
   })

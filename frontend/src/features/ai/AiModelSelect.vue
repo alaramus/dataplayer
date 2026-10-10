@@ -171,6 +171,8 @@ async function choose(value: unknown) {
       :disable="disable"
       :loading="models.isPending.value"
       label="Model"
+      :label-hidden="compact"
+      placeholder="Choose a model"
       @update:model-value="choose"
       @option-action="manageOptionKey"
     >

@@ -791,6 +791,7 @@ onBeforeUnmount(() => {
                   :options="policyOptions"
                   :disable="activeRun !== null"
                   label="Changes"
+                  label-hidden
                   data-testid="ai-chat-policy"
                   @update:model-value="choosePolicy"
                 />

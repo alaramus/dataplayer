@@ -75,6 +75,14 @@ describe("AppSelect", () => {
     expect(hidden.get('[role="combobox"]').attributes("aria-label")).toBe("Kind")
   })
 
+  it("says what it wants while empty, and gives the words up to a choice", () => {
+    const empty = mountSelect({ options: LABELLED, compact: true, placeholder: "Choose a kind" })
+    expect(empty.find(".app-select__placeholder").text()).toBe("Choose a kind")
+    const chosen = mountSelect({ options: LABELLED, compact: true, placeholder: "Choose a kind", modelValue: "file" })
+    expect(chosen.find(".app-select__placeholder").exists()).toBe(false)
+    expect(chosen.text()).toContain("Files")
+  })
+
   it("shows the label of the selected labelled option", () => {
     expect(mountSelect({ modelValue: "file", options: LABELLED }).text()).toContain("Files")
   })

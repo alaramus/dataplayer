@@ -37,7 +37,7 @@ const open = defineModel<boolean>({ default: false })
           @click="open = false"
         />
       </div>
-      <p>To start chatting, choose a model in this Model list. Each provider needs its own API key — open a model in the list and choose the key icon to set it.</p>
+      <p>To start chatting, choose a model in this list. Each provider needs its own API key — open a model in the list and choose the key icon to set it.</p>
     </div>
   </AppPopup>
 </template>

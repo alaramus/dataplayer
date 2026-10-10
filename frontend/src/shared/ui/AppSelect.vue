@@ -113,6 +113,8 @@ const props = withDefaults(
      * and is not drawn beside it.
      */
     labelHidden?: boolean
+    /** What a single field says while it holds nothing, "Choose a model". */
+    placeholder?: string
   }>(),
   {
     label: undefined,
@@ -124,6 +126,7 @@ const props = withDefaults(
     multiple: false,
     compact: false,
     labelHidden: false,
+    placeholder: undefined,
   }
 )
 
@@ -296,6 +299,15 @@ const summary = computed(() => {
         </q-icon>
       </span>
     </template>
+    <template
+      v-else-if="placeholder && !multiple && (modelValue === null || modelValue === undefined || modelValue === '')"
+      #selected
+    >
+      <span
+        key="placeholder"
+        class="app-select__placeholder"
+      >{{ placeholder }}</span>
+    </template>
 
     <!-- Keep companion actions in the field's 56px marginal area, above the
          separately reserved error-message line. AppInput exposes the same
@@ -329,6 +341,12 @@ const summary = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.app-select__placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dp-text-muted);
 }
 .app-select__state { flex: none; color: var(--dp-text-muted); }
 .app-select__state--on { color: var(--dp-content-success); }
