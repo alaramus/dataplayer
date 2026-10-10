@@ -1,6 +1,7 @@
 {
   "name": "dataplayer",
   "private": true,
+  "license": "Apache-2.0",
   "workspaces": ["frontend"],
   "scripts": {
     "dev": "bun run --filter frontend dev",

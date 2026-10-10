@@ -116,3 +116,10 @@ Coding agents and people start in the same place:
   decisions behind it, and where it falls short.
 - [docs/decisions/](docs/decisions/README.md) — the design history: why each
   decision was taken.
+
+## License
+
+DataPlayer is licensed under the [Apache License 2.0](LICENSE). It began from
+the [FastAPI full-stack template](https://github.com/fastapi/full-stack-fastapi-template);
+the little of that code that remains is used under the MIT License, as
+[NOTICE](NOTICE) records.
