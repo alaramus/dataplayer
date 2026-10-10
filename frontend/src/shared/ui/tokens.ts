@@ -145,7 +145,8 @@ export function toneText(tone: Tone): string {
 }
 
 /**
- * Form fields have a permanent external label; toolbar fields stay borderless.
+ * Form fields have a permanent external label; toolbar fields stay borderless
+ * unless framed, when they take a form field's box at the toolbar's height.
  * Both are marked by the one focus colour: left to Quasar, a field outside a
  * form was underlined in its brand blue.
  *
@@ -153,12 +154,13 @@ export function toneText(tone: Tone): string {
  * message lives outside the box (a screen-reader-only alert), the error icon
  * stays off, and only the red frame remains, so the bar keeps its height.
  */
-export function fieldLook(form: boolean, compact = false) {
+export function fieldLook(form: boolean, compact = false, framed = false) {
+  const boxed = form || (compact && framed)
   return {
     color: "dp-field-focus",
     dense: form || compact,
-    outlined: form,
-    borderless: !form && compact,
+    outlined: boxed,
+    borderless: !boxed && compact,
     hideBottomSpace: form || compact,
   }
 }

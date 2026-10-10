@@ -75,6 +75,15 @@ describe("AppSelect", () => {
     expect(hidden.get('[role="combobox"]').attributes("aria-label")).toBe("Kind")
   })
 
+  it("draws a framed toolbar field in a form field's box", () => {
+    const framed = mountSelect({ options: LABELLED, compact: true, framed: true })
+    expect(framed.getComponent(QSelect).props("outlined")).toBe(true)
+    expect(framed.getComponent(QSelect).props("borderless")).toBe(false)
+    expect(framed.classes()).toContain("app-select--framed")
+    const plain = mountSelect({ options: LABELLED, compact: true })
+    expect(plain.getComponent(QSelect).props("borderless")).toBe(true)
+  })
+
   it("says what it wants while empty, and gives the words up to a choice", () => {
     const empty = mountSelect({ options: LABELLED, compact: true, placeholder: "Choose a kind" })
     expect(empty.find(".app-select__placeholder").text()).toBe("Choose a kind")

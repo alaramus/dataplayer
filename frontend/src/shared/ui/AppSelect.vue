@@ -113,6 +113,11 @@ const props = withDefaults(
      * and is not drawn beside it.
      */
     labelHidden?: boolean
+    /**
+     * A toolbar field drawn in a form field's box (D131), where it stands
+     * among other controls rather than alone in a bar.
+     */
+    framed?: boolean
     /** What a single field says while it holds nothing, "Choose a model". */
     placeholder?: string
   }>(),
@@ -127,6 +132,7 @@ const props = withDefaults(
     compact: false,
     labelHidden: false,
     placeholder: undefined,
+    framed: false,
   }
 )
 
@@ -215,7 +221,7 @@ const summary = computed(() => {
   <q-select
     ref="field"
     class="app-select"
-    :class="{ 'app-select--compact': compact, 'app-select--inline': inlineLabel, 'dp-toolbar-field': inlineLabel, 'app-form-field': formLayout }"
+    :class="{ 'app-select--compact': compact, 'app-select--framed': framed && inlineLabel, 'app-select--inline': inlineLabel, 'dp-toolbar-field': inlineLabel, 'app-form-field': formLayout }"
     :model-value="modelValue"
     :options="options"
     :label="label"
@@ -229,7 +235,7 @@ const summary = computed(() => {
     :loading="loading"
     :multiple="multiple"
     :use-chips="multiple"
-    v-bind="{ ...fieldLook(formLayout, compact), color: 'dp-field-focus' }"
+    v-bind="{ ...fieldLook(formLayout, compact, framed), color: 'dp-field-focus' }"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"
@@ -341,6 +347,14 @@ const summary = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* A form field's box (AppForm) at the toolbar's height. */
+.app-select--framed :deep(.q-field__control) {
+  border-radius: var(--dp-radius-control);
+  background: var(--dp-field-surface);
+}
+.app-select--framed :deep(.q-field__control::before) {
+  border-color: var(--dp-field-border);
 }
 .app-select__placeholder {
   overflow: hidden;

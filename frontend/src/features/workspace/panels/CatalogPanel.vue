@@ -983,6 +983,7 @@ async function afterAction(outcome: ActionOutcome) {
             :summary-noun="groupsLabel"
             :multiple="!oneGroupOnly"
             compact
+            framed
             @update:model-value="pickGroups"
           />
         </div>

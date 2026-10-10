@@ -50,7 +50,10 @@ every `<h3>` of the chrome.
 - **One control height, 32px**, for a field, a button, an icon button and a
   toolbar field alike; 20px for a control inside a dense row. A toolbar field
   names itself beside it or by its placeholder, never by a label floated over
-  its value. Rows are 24px dense or 32px ordinary; both kinds of tab are 26px.
+  its value. A select standing among other controls — the AI composer, a
+  catalog's choice of groupings — is `framed`: a form field's box at the
+  toolbar's height. Rows are 24px dense or 32px ordinary; both kinds of tab
+  are 26px.
 - **Three icon sizes**: 16px inside a line of text, 20px for a control of its
   own, 24px for a source's logo and an empty panel; 32px only for the logo
   heading a panel about one source and an empty conversation. Quasar's button

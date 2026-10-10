@@ -340,8 +340,8 @@ function editorKeydown(event: KeyboardEvent) {
 .quick-chat__tools { display: flex; align-items: center; gap: var(--dp-space-2); }
 .quick-chat__model { flex: 0 1 200px; min-width: 120px; }
 .quick-chat__gap { flex: 1; }
-.quick-chat__composer :deep(.q-field__control) { background: transparent; }
-.quick-chat__composer :deep(.q-field__control::before) { border-color: transparent; }
+.quick-chat__composer :deep(.q-field:not(.app-select--framed) .q-field__control) { background: transparent; }
+.quick-chat__composer :deep(.q-field:not(.app-select--framed) .q-field__control::before) { border-color: transparent; }
 .quick-chat__composer :deep(.q-field--focused .q-field__control::after) { border-color: var(--dp-field-border); }
 .quick-chat__composer :deep(textarea) { max-height: 8lh; }
 </style>

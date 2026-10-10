@@ -792,6 +792,7 @@ onBeforeUnmount(() => {
                   :disable="activeRun !== null"
                   label="Changes"
                   label-hidden
+                  framed
                   data-testid="ai-chat-policy"
                   @update:model-value="choosePolicy"
                 />
@@ -922,8 +923,8 @@ onBeforeUnmount(() => {
 .ai-conversation__contexts { display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-conversation__picker { display: none; }
 .ai-conversation__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dp-space-2); }
-.ai-conversation__composer :deep(.q-field__control) { background: transparent; }
-.ai-conversation__composer :deep(.q-field__control::before) { border-color: transparent; }
+.ai-conversation__composer :deep(.q-field:not(.app-select--framed) .q-field__control) { background: transparent; }
+.ai-conversation__composer :deep(.q-field:not(.app-select--framed) .q-field__control::before) { border-color: transparent; }
 .ai-conversation__composer :deep(.q-field--focused .q-field__control::after) { border-color: var(--dp-field-border); }
 .ai-conversation__send { border-radius: var(--dp-radius-control); }
 .ai-conversation__gap { flex: 1; }
