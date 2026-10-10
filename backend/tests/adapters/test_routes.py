@@ -122,6 +122,9 @@ async def test_reports_what_a_type_can_do(
         "Move to schema",
         "Drop schema",
         "New role",
+        "New tablespace",
+        "Rename tablespace",
+        "Change tablespace owner",
         # Installing and removing an extension are row commands of the report
         # that lists them rather than actions of the type: they are done to
         # the rows somebody ticked, not to a name typed into a form.

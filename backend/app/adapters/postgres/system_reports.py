@@ -192,6 +192,7 @@ EXTENSIONS_REPORT_ID = _BY_KEY["extensions"].node_id
 PROCESSES_REPORT_ID = _BY_KEY["processes"].node_id
 # And for the one a role is made from (D79).
 ROLES_REPORT_ID = _BY_KEY["roles"].node_id
+TABLESPACES_REPORT_ID = _BY_KEY["tablespaces"].node_id
 
 
 def report_for(node_id: str) -> SystemReport | None:

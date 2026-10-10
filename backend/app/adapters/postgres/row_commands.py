@@ -19,10 +19,12 @@ from dataclasses import dataclass
 
 from psycopg import sql
 
+from app.adapters.postgres import tablespaces
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import (
     EXTENSIONS_REPORT_ID,
     PROCESSES_REPORT_ID,
+    TABLESPACES_REPORT_ID,
 )
 from app.adapters.row_commands import (
     RowCommand,
@@ -157,6 +159,7 @@ MAX_EXTENSIONS = 50
 _OFFERED: dict[str, tuple[RowCommand, ...]] = {
     PROCESSES_REPORT_ID: (CANCEL.command, TERMINATE.command),
     EXTENSIONS_REPORT_ID: (INSTALL_EXTENSION, DROP_EXTENSION),
+    TABLESPACES_REPORT_ID: (tablespaces.DROP_TABLESPACE,),
 }
 
 
@@ -183,6 +186,8 @@ class PostgresRowCommands:
             raise UnknownRowCommand(name)
         if node_id == EXTENSIONS_REPORT_ID:
             return await self._extensions(name, keys)
+        if node_id == TABLESPACES_REPORT_ID:
+            return await tablespaces.drop(self._session, keys)
         runnable = _RUNNABLE[name]
         if len(keys) > MAX_KEYS:
             raise ValueError(f"At most {MAX_KEYS} processes at a time")

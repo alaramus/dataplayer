@@ -34,6 +34,7 @@ from app.adapters.indexes import (
     IndexDropped,
 )
 from app.adapters.metrics import MetricPreset, MetricSample
+from app.adapters.postgres import tablespaces
 from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
 from app.adapters.postgres.backup import PostgresBackup
 from app.adapters.postgres.catalog import PostgresCatalog
@@ -414,11 +415,13 @@ class PostgresAdapter:
         return await self._row_commands.run(node_id, name, keys)
 
     def picked_rows_actions(self, node_id: str) -> list[PickedRowsAction]:
-        return picked_chunks.picked_actions(node_id)
+        return [*picked_chunks.picked_actions(node_id), *tablespaces.picked_actions(node_id)]
 
     async def resolve_picked_rows(
         self, node_id: str, action: str, keys: Sequence[Sequence[str]]
     ) -> PickedRowsTarget:
+        if tablespaces.picked_actions(node_id):
+            return await tablespaces.resolve_picked(self._session, node_id, action, keys)
         return await picked_chunks.resolve(self._session, self._catalog, node_id, action, keys)
 
     async def read_content(self, request: ContentRequest) -> ContentResult:

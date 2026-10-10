@@ -4,7 +4,7 @@ For adding an action or changing what a form may be applied to. What an action
 changes in a relation is [ddl.md](ddl.md); downloads and reports are in
 [downloads.md](downloads.md).
 
-Decisions here: D9, D56, D118, D79, D46, D68, D74, D162, D209.
+Decisions here: D9, D56, D118, D79, D46, D68, D74, D162, D209, D210.
 
 ## D209. Rows picked in a report open a reviewed action on the node they belong to
 
@@ -28,6 +28,22 @@ The Chunks report offers drop, move, reorder, detach and both merges this way;
 the actions take `chunks` by name as well as a window.
 
 Spec: [Reviewed actions from rows picked in a report](../../decisions/2026-10-10-actions-from-picked-rows-design.md)
+
+## D210. A tablespace is the server's, changed from the Tablespaces report
+
+New tablespace… sits above the report's rows like New role (D79); Rename… and
+Change owner… are offered over one picked row (D209), through `offered_in =
+"picked"`, which keeps them out of the catalog menu and the row above the grid;
+Remove is in a row's corner (D70). All need `own`. `pg_default` and
+`pg_global` are offered none of them, and a `pg_` name is refused first.
+
+`CREATE` and `DROP TABLESPACE` refuse a transaction block and are sent with
+none (`schema_change(alone=True)`, as D206). The directory is the server's:
+DataPlayer neither lists nor makes one, the form says what the path needs, and
+each refusal is a sentence chosen by SQLSTATE. A drop the server refuses
+because something is stored there loses nothing.
+
+Spec: [Tablespaces](../../decisions/2026-10-10-tablespaces-design.md)
 
 ## D162. Paste asks about a taken name in a window
 

@@ -281,6 +281,7 @@ files. IDs are stable because specs and commits refer to them.
 | D207 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D208 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D209 | [sources/actions](docs/architecture/sources/actions.md) |
+| D210 | [sources/actions](docs/architecture/sources/actions.md) |
 
 ## Working rules
 

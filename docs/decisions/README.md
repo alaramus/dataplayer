@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-10-10 | [Tablespaces](2026-10-10-tablespaces-design.md) | D210: a tablespace is made above the Tablespaces report, renamed and handed over over one picked row, removed from a row's corner, all by the owner; sent with no transaction; the directory is the server's and DataPlayer never makes one. Extensions left as they are |
 | 2026-10-10 | [Reviewed actions from rows picked in a report](2026-10-10-actions-from-picked-rows-design.md) | D209: a report declares an action offered over its picked rows; the source turns the rows into the node they belong to and the parameters naming exactly them, and the action's own window reviews it. First for the Chunks report's drop, move, reorder, detach and merges |
 | 2026-10-09 | [Designing a hypertable](2026-10-09-hypertable-designer-design.md) | D207, D208: one model of a hypertable for creation and for an existing table, planned as one reviewed change; chunk maintenance as reviewed jobs over a fixed set of chunks |
 | 2026-10-04 | [Maintenance commands in the SQL editor](2026-10-04-maintenance-statements.md) | D206: ANALYZE, VACUUM, REINDEX, CLUSTER, CHECKPOINT and REFRESH are a class of change run alone with no transaction, on a connection reset before the pool gets it back; the locking forms are high risk; `changes` sent with each statement |

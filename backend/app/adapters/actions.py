@@ -100,8 +100,9 @@ ActsOn = Literal["node", "children", "level", "group", "destination"]
 # while the list of roles it adds to was on screen a click away — the same
 # distance installing an extension was moved out of (D70). Declared rather
 # than read off the name, because a client that decided this per action would
-# have to be taught every action that is ever added.
-OfferedIn = Literal["catalog", "rows"]
+# have to be taught every action that is ever added. "picked" is neither: the
+# action is about one row, and is opened only over a row somebody picked (D209).
+OfferedIn = Literal["catalog", "rows", "picked"]
 
 
 class ActionRefused(Exception):

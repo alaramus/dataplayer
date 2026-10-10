@@ -49,8 +49,9 @@ from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.roles import CreateRole
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.system_reports import ROLES_REPORT_ID
+from app.adapters.postgres.system_reports import ROLES_REPORT_ID, TABLESPACES_REPORT_ID
 from app.adapters.postgres.table_design import PostgresTableDesign
+from app.adapters.postgres.tablespaces import TABLESPACE_ACTION_TYPES
 from app.adapters.postgres.timescale.actions import TimescaleActions
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
@@ -1060,6 +1061,7 @@ POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
     DropSchema,
     CreateRole,
     DescribeModel,
+    *TABLESPACE_ACTION_TYPES,
 )
 
 # Which report admits which commands. `applies_to` speaks about kinds, and
@@ -1068,6 +1070,7 @@ POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
 # of comparisons, so that a report gaining a command is an entry here.
 REPORT_COMMANDS: dict[str, tuple[str, ...]] = {
     ROLES_REPORT_ID: (CreateRole.name,),
+    TABLESPACES_REPORT_ID: tuple(kind.name for kind in TABLESPACE_ACTION_TYPES),
 }
 
 

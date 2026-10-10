@@ -697,17 +697,22 @@ class PostgresSession:
             raise AdapterError(error_kind, message) from None
 
     async def schema_change(
-        self, sql: str, *, refusals: Mapping[str, str] | None = None
+        self, sql: str, *, refusals: Mapping[str, str] | None = None, alone: bool = False
     ) -> None:
         """Run validated DDL without pretending it returns rows.
 
         refusals names the SQLSTATEs this caller expects, so a refusal it
         anticipated arrives as its own sentence instead of the one below, which
-        is all that can honestly be said about a code nobody claimed.
+        is all that can honestly be said about a code nobody claimed. `alone`
+        sends it with no transaction around it, for the statements that refuse
+        one, such as CREATE TABLESPACE (D206).
         """
         try:
             async with self._connection() as connection:
-                await connection.execute(sql)
+                if alone:
+                    await _without_a_transaction(connection, sql)
+                else:
+                    await connection.execute(sql)
         except PoolTimeout:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
@@ -813,3 +818,16 @@ class PostgresSession:
         # The server is reachable and the credentials work, so the wait was for
         # a free connection rather than for the server.
         return "unknown", "All connections to this source are busy"
+
+
+async def _without_a_transaction(connection: psycopg.AsyncConnection[Any], sql: str) -> None:
+    """One statement in autocommit; the pool gets the connection back as it was."""
+    await connection.set_autocommit(True)
+    try:
+        await connection.execute(sql)
+    finally:
+        try:
+            await connection.set_autocommit(False)
+        except psycopg.Error:
+            # A connection that cannot be put back as it was is not put back.
+            await connection.close()

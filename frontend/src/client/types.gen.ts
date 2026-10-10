@@ -147,7 +147,7 @@ export type ActionInfo = {
   /**
    * Offered In
    */
-  offered_in: "catalog" | "rows"
+  offered_in: "catalog" | "rows" | "picked"
   /**
    * Icon
    */
