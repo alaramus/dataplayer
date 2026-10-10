@@ -13,7 +13,7 @@ import {
   ticksAfter,
   toCommands,
   toMenu as resolveMenu,
-  withFieldChoices,
+  withFieldHints,
   withGroupingChoices,
   withSubmenus,
 } from "./actions"
@@ -730,7 +730,7 @@ describe("a family of commands the source names", () => {
   })
 })
 
-describe("choices the source names for one node", () => {
+describe("what the source says of the fields for one node", () => {
   const column = {
     name: "column",
     label: "Column",
@@ -741,14 +741,31 @@ describe("choices the source names for one node", () => {
   const amount = { ...column, name: "amount", kind: "number" as const }
 
   it("turns a typed name into a list of what the node has", () => {
-    const [changed] = withFieldChoices([column], { column: [{ value: "value", label: "value · integer" }] })
+    const [changed] = withFieldHints([column], {
+      choices: { column: [{ value: "value", label: "value · integer" }] },
+    })
     expect(changed).toMatchObject({ kind: "select", choices: [{ value: "value", label: "value · integer" }] })
   })
 
   it("keeps a field typed when nothing was named for it, or before the answer", () => {
-    expect(withFieldChoices([column], { column: [] })).toEqual([column])
-    expect(withFieldChoices([column], undefined)).toEqual([column])
-    expect(withFieldChoices([amount], { amount: [{ value: "1", label: "1" }] })).toEqual([amount])
+    expect(withFieldHints([column], { choices: { column: [] } })).toEqual([column])
+    expect(withFieldHints([column], undefined)).toEqual([column])
+    expect(withFieldHints([amount], { choices: { amount: [{ value: "1", label: "1" }] } })).toEqual([amount])
+  })
+
+  it("takes a number for an instant on a hypertable cut along an integer column", () => {
+    const endsBy = {
+      ...column,
+      name: "ends_by",
+      kind: "datetime" as const,
+      description: "With its time zone",
+      example: "2026-01-15T00:00:00Z",
+    }
+    const said = 'A value of "tick", the bigint column the hypertable is partitioned by'
+    const [changed] = withFieldHints([endsBy], { integers: { ends_by: said } })
+    expect(changed).toMatchObject({ kind: "text", description: said, example: undefined })
+    // Only an instant becomes a number: a name stays what it was.
+    expect(withFieldHints([column], { integers: { column: said } })).toEqual([column])
   })
 })
 

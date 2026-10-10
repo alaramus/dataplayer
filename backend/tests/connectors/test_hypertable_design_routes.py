@@ -58,7 +58,7 @@ async def test_a_source_without_hypertables_answers_501(
     assert response.status_code == 501
 
 
-async def test_an_action_naming_no_choices_answers_501(
+async def test_an_action_naming_no_hints_answers_501(
     client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
 ) -> None:
     connector_id = await _connector(client, normal_user_token_headers, "postgres", working_postgres_options())
@@ -67,12 +67,12 @@ async def test_an_action_naming_no_choices_answers_501(
         f"{BASE}/{connector_id}/actions", headers=normal_user_token_headers, json={"node_ids": [schema]},
     )
     assert listed.status_code == 200
-    assert {item["name"]: item["offers_choices"] for item in listed.json()}["rename_schema"] is False
+    assert {item["name"]: item["offers_hints"] for item in listed.json()}["rename_schema"] is False
 
     response = await client.post(
-        f"{BASE}/{connector_id}/actions/rename_schema/choices",
+        f"{BASE}/{connector_id}/actions/rename_schema/hints",
         headers=normal_user_token_headers,
         json={"node_id": schema, "params": {}},
     )
     assert response.status_code == 501
-    assert "offers no choices" in response.json()["detail"]["message"]
+    assert "offers no hints" in response.json()["detail"]["message"]

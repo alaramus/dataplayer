@@ -95,3 +95,37 @@ test("picks a day from the calendar and an index from the list", async ({ page }
     await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
   }
 })
+
+test("takes values of an integer time column instead of a calendar", async ({ page }) => {
+  const stamp = Date.now()
+  const connector = `e2e-ticks-${stamp}`
+  const schema = `e2e_ticks_${stamp}`
+  await timescaleSql(
+    `CREATE SCHEMA ${schema};
+     CREATE TABLE ${schema}.ticks (tick bigint NOT NULL, value integer);
+     SELECT create_hypertable('${schema}.ticks', by_range('tick', 100));
+     INSERT INTO ${schema}.ticks SELECT g, g FROM generate_series(0, 599) AS g;`
+  )
+  try {
+    await login(page)
+    await createTimescaleConnector(page, connector)
+    await openConnector(page, connector)
+    await showOnlySchema(page, schema)
+    await catalogCheck(page, "ticks").check()
+    await catalogAction(page, "timescale_drop_chunks", "Timescale")
+
+    const dialog = page.getByTestId("action-dialog")
+    // The source says what the bound is on this hypertable; the calendar goes with the instant.
+    await expect(dialog).toContainText('A value of "tick", the bigint column')
+    await expect(dialog.getByTestId("date-time-picker")).toHaveCount(0)
+    await page.getByTestId("field-ends_by").fill("200")
+    const preview = page.getByTestId("action-preview")
+    await expect(preview).toContainText("Drop 2 chunks")
+    await expect(preview).toContainText("Whole chunks from the earliest chunk to 200")
+    await dialog.getByRole("button", { name: "Cancel" }).click()
+    await expect(dialog).toHaveCount(0)
+  } finally {
+    await deleteConnector(page, connector).catch(() => undefined)
+    await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
+  }
+})

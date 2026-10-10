@@ -294,12 +294,14 @@ Known deviations:
   ([D32](ddl.md)) and has no word yet for one that is not there at all.
 
 The form is asked the same way. A field that names a thing of the node — a
-column, an index, a tablespace — is a string in the static schema, so an action
-that knows those things implements `OffersFieldChoices`: `ActionInfo` derives
-`offers_choices` from an `isinstance`, and the dialog asks
-`POST …/actions/{name}/choices` once it opens for one node. A field the answer
+column, an index, a tablespace — is a string in the static schema, and a bound
+of a chunk window is an instant on one hypertable and a number on another. An
+action whose form depends on the node implements `OffersFieldHints`:
+`ActionInfo` derives `offers_hints` from an `isinstance`, and the dialog asks
+`POST …/actions/{name}/hints` once it opens for one node. A field the answer
 names values for becomes a list; one it leaves out, or names nothing for, stays
-typed. The choices are a convenience the plan checks again, never what decides.
+typed. A field it names as an integer loses its calendar and says what number
+it takes. The hints are a convenience the plan checks again, never what decides.
 Until every required field is filled the dialog does not ask for a preview: it
 says what is missing instead of relaying the server's sentence about an empty
 value.

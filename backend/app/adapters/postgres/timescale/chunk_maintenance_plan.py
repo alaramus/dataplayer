@@ -5,14 +5,16 @@ when it runs, and a merge, a split or an attach carries the exact chunks and
 bounds it was reviewed with in its unit, so a source that changed in between
 refuses the unit instead of doing something else.
 
-Only an owned hypertable with one time dimension is maintained here, the
-target compressing chunks already uses. Which hash partition a chunk belongs
-to is not in the public views (D121), and without it neither a merge nor an
-attach can be checked before it is sent.
+An owned hypertable cut along one time or integer column is maintained here,
+with hash dimensions beside it. Which hash partition a chunk belongs to is not
+in the public views (D121), and without it neither a merge nor an attach can be
+checked before it is sent, so those two refuse a hypertable with any; a split
+is refused there by TimescaleDB itself.
 """
 
 import asyncio
 import json
+from datetime import datetime
 from typing import Literal
 
 from psycopg import sql
@@ -24,14 +26,14 @@ from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.api import RoutineShape, extension_routine
 from app.adapters.postgres.timescale.design_state import release
 from app.adapters.postgres.timescale.plans import (
-    ChunkWindow,
+    BoundWindow,
+    MaintainedHypertable,
     PlannedChunk,
     ReviewedPlan,
-    TimeHypertable,
 )
 from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
-from app.adapters.postgres.timescale.targets import time_hypertable
+from app.adapters.postgres.timescale.targets import maintained_hypertable
 from app.adapters.protocol import AdapterError
 
 Maintenance = Literal["drop", "move", "reorder", "detach", "merge", "merge_concurrently", "split", "attach"]
@@ -60,17 +62,19 @@ ROUTINES: dict[Maintenance, RoutineShape] = {
 MERGE_COMPRESSED = (2, 19, 0)
 # Each one rewrites or locks whole chunks, so one per job is a unit.
 PER_CHUNK: frozenset[Maintenance] = frozenset({"drop", "move", "reorder", "detach"})
+# What cannot be checked without knowing a chunk's hash partition, by what it does.
+NEEDS_PARTITION: dict[Maintenance, str] = {"merge": "merged", "merge_concurrently": "merged", "attach": "attached"}
 
 CHUNK_COLUMNS = (
     "hypertable_schema", "hypertable_name", "chunk_schema", "chunk_name",
-    "range_start", "range_end", "is_compressed",
+    "range_start", "range_end", "range_start_integer", "range_end_integer", "is_compressed",
 )
 
 # Whole chunks only, with where each one is stored: a chunk in the database's
 # default tablespace has no tablespace of its own in pg_class.
-_WINDOW = sql.SQL("""
+_WINDOW = """
 SELECT chunk.chunk_schema AS schema_name, chunk.chunk_name AS name,
-       chunk.range_start::text AS range_start, chunk.range_end::text AS range_end,
+       chunk.{start}::text AS range_start, chunk.{end}::text AS range_end,
        chunk.is_compressed,
        COALESCE(own.spcname, fallback.spcname) AS tablespace
 FROM timescaledb_information.chunks AS chunk
@@ -81,21 +85,22 @@ JOIN pg_catalog.pg_database AS database ON database.datname = pg_catalog.current
 JOIN pg_catalog.pg_tablespace AS fallback ON fallback.oid = database.dattablespace
 LEFT JOIN pg_catalog.pg_tablespace AS own ON own.oid = relation.reltablespace
 WHERE chunk.hypertable_schema = %s AND chunk.hypertable_name = %s
-  AND chunk.range_end <= %s::pg_catalog.timestamptz
-  AND (%s::pg_catalog.timestamptz IS NULL OR chunk.range_start >= %s::pg_catalog.timestamptz)
-ORDER BY chunk.range_start, chunk.chunk_schema, chunk.chunk_name
-LIMIT {}
-""").format(sql.Literal(MAX_OPERATION_TARGETS + 1)).as_string()
+  AND chunk.{end} <= %s::{bound}
+  AND (%s::{bound} IS NULL OR chunk.{start} >= %s::{bound})
+ORDER BY chunk.{start}, chunk.chunk_schema, chunk.chunk_name
+LIMIT {limit}
+"""
 
 # Compared in the column's own type, so a date or a timestamp without a time
-# zone is read the way the source partitions it.
+# zone is read the way the source partitions it. A hypertable with hash
+# dimensions has a chunk per partition here; LIMIT 2 still tells one from many.
 _HOLDING = """
 SELECT chunk.chunk_schema AS schema_name, chunk.chunk_name AS name,
-       chunk.range_start::text AS range_start, chunk.range_end::text AS range_end,
+       chunk.{start}::text AS range_start, chunk.{end}::text AS range_end,
        chunk.is_compressed
 FROM timescaledb_information.chunks AS chunk
 WHERE chunk.hypertable_schema = %s AND chunk.hypertable_name = %s
-  AND chunk.range_start < %s::pg_catalog.timestamptz AND chunk.range_end > %s::pg_catalog.timestamptz
+  AND chunk.{start} < %s::{bound} AND chunk.{end} > %s::{bound}
 LIMIT 2
 """
 
@@ -103,8 +108,8 @@ _OVERLAP = """
 SELECT chunk.chunk_name AS name
 FROM timescaledb_information.chunks AS chunk
 WHERE chunk.hypertable_schema = %s AND chunk.hypertable_name = %s
-  AND chunk.range_start < %s::pg_catalog.timestamptz AND chunk.range_end > %s::pg_catalog.timestamptz
-ORDER BY chunk.range_start
+  AND chunk.{start} < %s::{bound} AND chunk.{end} > %s::{bound}
+ORDER BY chunk.{start}
 LIMIT 1
 """
 
@@ -158,10 +163,13 @@ JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespa
 WHERE namespace.nspname = %s AND relation.relname = %s
 """
 
-_TIME_CAST = {
+_COLUMN_CAST = {
     "timestamp with time zone": "pg_catalog.timestamptz",
     "timestamp without time zone": "pg_catalog.timestamp",
     "date": "pg_catalog.date",
+    "smallint": "pg_catalog.int2",
+    "integer": "pg_catalog.int4",
+    "bigint": "pg_catalog.int8",
 }
 
 
@@ -193,8 +201,36 @@ async def index_names(reader: PostgresReader, schema_name: str, table_name: str)
     return [str(row["name"]) for row in await reader.query(_INDEX_CHOICES, (schema_name, table_name), inspection=True)]
 
 
-def column_cast(target: TimeHypertable) -> sql.SQL:
-    return sql.SQL(_TIME_CAST[target.column_type])
+def column_cast(target: MaintainedHypertable) -> sql.SQL:
+    return sql.SQL(_COLUMN_CAST[target.column_type])
+
+
+def _ranged(query: str, target: MaintainedHypertable) -> str:
+    """A chunk query over the range columns the public view fills for this kind of column."""
+    integer = target.integer
+    return sql.SQL(query).format(
+        start=sql.Identifier("range_start_integer" if integer else "range_start"),
+        end=sql.Identifier("range_end_integer" if integer else "range_end"),
+        bound=sql.SQL("pg_catalog.int8" if integer else "pg_catalog.timestamptz"),
+        cast=column_cast(target),
+        limit=sql.Literal(MAX_OPERATION_TARGETS + 1),
+    ).as_string()
+
+
+def require_kind(target: MaintainedHypertable, *bounds: int | datetime | None) -> None:
+    """Instants for a hypertable over time, its values for one over an integer column."""
+    for bound in bounds:
+        if bound is None:
+            continue
+        if target.integer and isinstance(bound, datetime):
+            raise _refuse(
+                f'This hypertable is partitioned by the integer column "{target.column_name}"; '
+                "give its values, not instants",
+            )
+        if not target.integer and not isinstance(bound, datetime):
+            raise _refuse(
+                f'This hypertable is partitioned by time on "{target.column_name}"; give instants, not numbers',
+            )
 
 
 class MaintenanceStrategy(BaseModel):
@@ -227,7 +263,7 @@ class MaintenanceUnit(ReviewedPlan):
 
     operation: Literal["chunk_maintenance"] = "chunk_maintenance"
     maintenance: Maintenance
-    target: TimeHypertable
+    target: MaintainedHypertable
     strategy: MaintenanceStrategy
     arguments: MaintenanceArguments = Field(default_factory=MaintenanceArguments)
     # A merge's chunks or a split's one: the unit is about exactly these.
@@ -236,7 +272,7 @@ class MaintenanceUnit(ReviewedPlan):
 
 class MaintenancePlan(ReviewedPlan):
     unit: MaintenanceUnit
-    window: ChunkWindow | None = None
+    window: BoundWindow | None = None
     # The chunks the job changes, in time order; one per unit except for a merge.
     chunks: tuple[PlannedChunk, ...] = Field(default=(), max_length=MAX_OPERATION_TARGETS)
     # Chunks inside the window the operation leaves as they are, with why.
@@ -253,7 +289,15 @@ async def inspect_unit(
 ) -> MaintenanceUnit:
     """The hypertable and the API one operation uses, with no arguments yet."""
     version = require_available(await discover(reader))
-    target = await time_hypertable(reader, schema_name, table_name)
+    target = await maintained_hypertable(reader, schema_name, table_name)
+    if target.hash_columns and maintenance in NEEDS_PARTITION:
+        columns = ", ".join(f'"{column}"' for column in target.hash_columns)
+        raise _refuse(
+            f"Chunks of a hypertable partitioned by hash on {columns} are not {NEEDS_PARTITION[maintenance]} "
+            "here: which partition a chunk is in is not public, so the result could not be checked first",
+        )
+    if target.hash_columns and maintenance == "split":
+        raise _refuse("TimescaleDB splits no chunk of a hypertable partitioned by hash as well as by time")
     await require_public_view(reader, "chunks", CHUNK_COLUMNS)
     strategy = MaintenanceStrategy(extension_version=version)
     shape = ROUTINES.get(maintenance)
@@ -265,8 +309,11 @@ async def inspect_unit(
     return MaintenanceUnit(maintenance=maintenance, target=target, strategy=strategy)
 
 
-async def _window(reader: PostgresReader, target: TimeHypertable, window: ChunkWindow) -> list[dict[str, object]]:
-    rows = await reader.query(_WINDOW, (
+async def _window(
+    reader: PostgresReader, target: MaintainedHypertable, window: BoundWindow,
+) -> list[dict[str, object]]:
+    require_kind(target, window.ends_by, window.starts_from)
+    rows = await reader.query(_ranged(_WINDOW, target), (
         target.schema_name, target.table_name, window.ends_by, window.starts_from, window.starts_from,
     ), inspection=True)
     if len(rows) > MAX_OPERATION_TARGETS:
@@ -289,7 +336,7 @@ async def _require_tablespace(reader: PostgresReader, name: str) -> None:
 
 async def plan_window_maintenance(
     reader: PostgresReader, schema_name: str, table_name: str, maintenance: Maintenance,
-    window: ChunkWindow, arguments: MaintenanceArguments,
+    window: BoundWindow, arguments: MaintenanceArguments,
 ) -> MaintenancePlan:
     """The exact chunks a per-chunk operation or a merge would change."""
     try:
@@ -335,7 +382,7 @@ async def plan_window_maintenance(
 
 
 async def ordering_index(
-    reader: PostgresReader, target: TimeHypertable, arguments: MaintenanceArguments,
+    reader: PostgresReader, target: MaintainedHypertable, arguments: MaintenanceArguments,
 ) -> MaintenanceArguments:
     if arguments.index is not None:
         if not await reader.query(_INDEX, (target.relation_oid, arguments.index), inspection=True):
@@ -347,13 +394,15 @@ async def ordering_index(
     return arguments.model_copy(update={"index": str(found[0]["name"])})
 
 
-async def chunk_holds(reader: PostgresReader, target: TimeHypertable, at: object) -> bool:
-    """Whether some chunk still holds this instant strictly inside its range."""
-    return bool(await reader.query(_HOLDING, (target.schema_name, target.table_name, at, at), inspection=True))
+async def chunk_holds(reader: PostgresReader, target: MaintainedHypertable, at: int | datetime) -> bool:
+    """Whether some chunk still holds this point strictly inside its range."""
+    return bool(await reader.query(
+        _ranged(_HOLDING, target), (target.schema_name, target.table_name, at, at), inspection=True,
+    ))
 
 
-async def window_count(reader: PostgresReader, target: TimeHypertable, window: ChunkWindow) -> int:
-    rows = await reader.query(_WINDOW, (
+async def window_count(reader: PostgresReader, target: MaintainedHypertable, window: BoundWindow) -> int:
+    rows = await reader.query(_ranged(_WINDOW, target), (
         target.schema_name, target.table_name, window.ends_by, window.starts_from, window.starts_from,
     ), inspection=True)
     return len(rows)
@@ -372,21 +421,24 @@ def _require_mergeable(rows: list[dict[str, object]], version: str) -> None:
         raise _refuse(f"TimescaleDB {version} cannot merge compressed chunks; decompress them first")
 
 
-async def plan_split(reader: PostgresReader, schema_name: str, table_name: str, at: object) -> MaintenancePlan:
-    """The one chunk holding this instant, split at it."""
+async def plan_split(
+    reader: PostgresReader, schema_name: str, table_name: str, at: int | datetime,
+) -> MaintenancePlan:
+    """The one chunk holding this point, split at it."""
     try:
         async with asyncio.timeout(5):
             unit = await inspect_unit(reader, schema_name, table_name, "split")
             target = unit.target
+            require_kind(target, at)
             point = await reader.query(
-                sql.SQL("SELECT (%s::pg_catalog.timestamptz)::{}::text AS point").format(column_cast(target)).as_string(),
+                _ranged("SELECT (%s::{bound})::{cast}::text AS point", target),
                 (at,), inspection=True,
             )
             rows = await reader.query(
-                _HOLDING, (target.schema_name, target.table_name, at, at), inspection=True,
+                _ranged(_HOLDING, target), (target.schema_name, target.table_name, at, at), inspection=True,
             )
             if len(rows) != 1:
-                raise _refuse("No chunk holds this instant strictly inside its range")
+                raise _refuse("No chunk holds this point strictly inside its range")
             chunk = _planned(rows[0])
             return MaintenancePlan(
                 unit=unit.model_copy(update={
@@ -402,13 +454,14 @@ async def plan_split(reader: PostgresReader, schema_name: str, table_name: str, 
 
 async def plan_attach(
     reader: PostgresReader, schema_name: str, table_name: str,
-    table_schema: str, table: str, starts_from: object, ends_by: object,
+    table_schema: str, table: str, starts_from: int | datetime, ends_by: int | datetime,
 ) -> MaintenancePlan:
     """A table made the hypertable's chunk for one range, which no chunk may already cover."""
     try:
         async with asyncio.timeout(5):
             unit = await inspect_unit(reader, schema_name, table_name, "attach")
             target = unit.target
+            require_kind(target, starts_from, ends_by)
             await require_public_view(reader, "hypertables", ("hypertable_schema", "hypertable_name"))
             facts = await reader.query(_ATTACHABLE, (table_schema, table), inspection=True)
             if len(facts) != 1:
@@ -424,15 +477,16 @@ async def plan_attach(
             if reason is not None:
                 raise _refuse(reason)
             overlap = await reader.query(
-                _OVERLAP, (target.schema_name, target.table_name, ends_by, starts_from), inspection=True,
+                _ranged(_OVERLAP, target), (target.schema_name, target.table_name, ends_by, starts_from),
+                inspection=True,
             )
             if overlap:
                 raise _refuse(f'Chunk "{overlap[0]["name"]}" already covers part of this range')
             bounds = await reader.query(
-                sql.SQL(
-                    "SELECT (%s::pg_catalog.timestamptz)::{cast}::text AS range_start, "
-                    "(%s::pg_catalog.timestamptz)::{cast}::text AS range_end"
-                ).format(cast=column_cast(target)).as_string(),
+                _ranged(
+                    "SELECT (%s::{bound})::{cast}::text AS range_start, (%s::{bound})::{cast}::text AS range_end",
+                    target,
+                ),
                 (starts_from, ends_by), inspection=True,
             )
             start, end = str(bounds[0]["range_start"]), str(bounds[0]["range_end"])
@@ -440,7 +494,9 @@ async def plan_attach(
                 raise _refuse("The range is empty once read in the column's type")
             # The slices are composed here from the source's own text, keyed by
             # the column the source names; nothing in them is the request's.
-            slices = json.dumps({target.column_name: [start, end]}, separators=(",", ":"))
+            # An integer column's bounds are JSON numbers, a time column's its text.
+            ends: list[object] = [int(start), int(end)] if target.integer else [start, end]
+            slices = json.dumps({target.column_name: ends}, separators=(",", ":"))
             planned = PlannedChunk(schema_name=table_schema, name=table, range_start=start, range_end=end)
             return MaintenancePlan(
                 unit=unit.model_copy(update={

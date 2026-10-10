@@ -31,7 +31,9 @@ from app.adapters.protocol import AdapterError
 _MEMBERS = """
 SELECT chunk.chunk_schema AS schema_name, chunk.chunk_name AS name,
        relation.oid::text AS relation_oid, chunk.is_compressed,
-       chunk.range_start::text AS range_start, chunk.range_end::text AS range_end,
+       -- The view fills one pair of range columns, by the kind of the time column.
+       COALESCE(chunk.range_start::text, chunk.range_start_integer::text) AS range_start,
+       COALESCE(chunk.range_end::text, chunk.range_end_integer::text) AS range_end,
        COALESCE(own.spcname, fallback.spcname) AS tablespace
 FROM timescaledb_information.chunks AS chunk
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.nspname = chunk.chunk_schema

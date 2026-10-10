@@ -157,9 +157,9 @@ export type ActionInfo = {
    */
   menu_group?: string | null
   /**
-   * Offers Choices
+   * Offers Hints
    */
-  offers_choices?: boolean
+  offers_hints?: boolean
   /**
    * Params Schema
    */
@@ -4791,6 +4791,26 @@ export type FieldChoice = {
    * Label
    */
   label: string
+}
+
+/**
+ * FieldHints
+ *
+ * What one node makes of an action's form fields, beyond the static schema.
+ */
+export type FieldHints = {
+  /**
+   * Choices
+   */
+  choices?: {
+    [key: string]: Array<FieldChoice>
+  }
+  /**
+   * Integers
+   */
+  integers?: {
+    [key: string]: string
+  }
 }
 
 /**
@@ -16400,7 +16420,7 @@ export type connectorsPreviewActionResponses = {
 export type connectorsPreviewActionResponse =
   connectorsPreviewActionResponses[keyof connectorsPreviewActionResponses]
 
-export type connectorsActionFieldChoicesData = {
+export type connectorsActionFieldHintsData = {
   body: ActionRequest
   path: {
     /**
@@ -16413,32 +16433,28 @@ export type connectorsActionFieldChoicesData = {
     action_name: string
   }
   query?: never
-  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/choices"
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/hints"
 }
 
-export type connectorsActionFieldChoicesErrors = {
+export type connectorsActionFieldHintsErrors = {
   /**
    * Validation Error
    */
   422: HTTPValidationError
 }
 
-export type connectorsActionFieldChoicesError =
-  connectorsActionFieldChoicesErrors[keyof connectorsActionFieldChoicesErrors]
+export type connectorsActionFieldHintsError =
+  connectorsActionFieldHintsErrors[keyof connectorsActionFieldHintsErrors]
 
-export type connectorsActionFieldChoicesResponses = {
+export type connectorsActionFieldHintsResponses = {
   /**
-   * Response Connectors-Action Field Choices
-   *
    * Successful Response
    */
-  200: {
-    [key: string]: Array<FieldChoice>
-  }
+  200: FieldHints
 }
 
-export type connectorsActionFieldChoicesResponse =
-  connectorsActionFieldChoicesResponses[keyof connectorsActionFieldChoicesResponses]
+export type connectorsActionFieldHintsResponse =
+  connectorsActionFieldHintsResponses[keyof connectorsActionFieldHintsResponses]
 
 export type connectorsRunActionOnSetData = {
   body: ActionSetRequest

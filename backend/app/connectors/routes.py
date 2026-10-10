@@ -32,9 +32,9 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
     ConnectorDraft,
-    FieldChoice,
+    FieldHints,
     OfferedIn,
-    OffersFieldChoices,
+    OffersFieldHints,
     PreparesConnector,
     Previews,
     PreviewsSet,
@@ -2938,8 +2938,8 @@ class ActionInfo(ActionAvailability):
     icon: str | None = None
     # The submenu it is drawn in, named by the source rather than by the client.
     menu_group: str | None = None
-    # Whether the form's choices for one node can be asked of the source.
-    offers_choices: bool = False
+    # Whether what the form's fields are on one node can be asked of the source.
+    offers_hints: bool = False
     params_schema: dict[str, Any]
 
 
@@ -2992,7 +2992,7 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         offered_in=action.offered_in,
         icon=action.icon,
         menu_group=action.menu_group,
-        offers_choices=isinstance(action, OffersFieldChoices),
+        offers_hints=isinstance(action, OffersFieldHints),
         applicable=availability.applicable,
         available_node_ids=availability.available_node_ids,
         unavailable_reason=availability.unavailable_reason,
@@ -3179,10 +3179,10 @@ async def preview_action(
 
 
 @router.post(
-    "/{connector_id}/actions/{action_name}/choices",
-    response_model=dict[str, list[FieldChoice]],
+    "/{connector_id}/actions/{action_name}/hints",
+    response_model=FieldHints,
 )
-async def action_field_choices(
+async def action_field_hints(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
@@ -3191,7 +3191,8 @@ async def action_field_choices(
     body: ActionRequest,
 ) -> Any:
     """
-    What the fields of one action's form may be set to, for one node.
+    What the fields of one action's form are for one node: what each may be
+    set to, and which take a number rather than an instant.
 
     Asked when the form opens. The level is the action's own, as for a
     preview: the choices name columns, indexes and tablespaces of the node.
@@ -3202,12 +3203,12 @@ async def action_field_choices(
     target = body.node_id or None
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
-    if not isinstance(action, OffersFieldChoices):
+    if not isinstance(action, OffersFieldHints):
         raise HTTPException(
             status_code=501,
-            detail={"message": f"{action.title} offers no choices", "error_kind": "config"},
+            detail={"message": f"{action.title} offers no hints", "error_kind": "config"},
         )
-    return await perform(lambda: action.field_choices(target))
+    return await perform(lambda: action.field_hints(target))
 
 
 @router.post("/{connector_id}/actions/{action_name}/set", response_model=ActionResult)

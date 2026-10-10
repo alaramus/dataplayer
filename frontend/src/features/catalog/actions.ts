@@ -64,8 +64,8 @@ export interface ActionCommand {
   icon: string | null
   /** The submenu the source draws it in, or null for a line of the menu itself (D207). */
   menuGroup?: string | null
-  /** Whether the source names, for one node, what some of its fields may be. */
-  offersChoices?: boolean
+  /** Whether the source says, for one node, what some of its fields are. */
+  offersHints?: boolean
   fields: FieldSpec[]
   /** What each field with a published set of values offers, by field name. */
   choices: Record<string, SchemaChoice[]>
@@ -95,7 +95,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       offeredIn: action.offered_in,
       icon: action.icon ?? null,
       menuGroup: action.menu_group ?? null,
-      offersChoices: action.offers_choices === true,
+      offersHints: action.offers_hints === true,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
       // Read whether or not a form is built: a workflow screen still asks the
       // schema what the source offers, in the source's own words.
@@ -148,24 +148,37 @@ export function withGroupingChoices(
   )
 }
 
+/** What one node makes of an action's fields, as the source says once the form is open. */
+export interface FieldHints {
+  choices?: Record<string, SchemaChoice[]>
+  /** Fields declared as instants that take a whole number here, with what it is. */
+  integers?: Record<string, string>
+}
+
 /**
- * The fields the source named values for, offered as a list instead of a box.
+ * The fields as this node has them.
  *
  * A column or an index is the node's, so the schema can only say "a string";
- * the source names them once the form is open (D9). A field it left out, or
- * named nothing for, stays typed: an empty list would be a field nobody can
- * fill.
+ * the source names them, and a field gets a list instead of a box (D9). A
+ * field it left out, or named nothing for, stays typed: an empty list would be
+ * a field nobody can fill. A bound is an instant on one hypertable and a value
+ * of an integer column on another, so such a field loses its calendar there
+ * and says what number it takes.
  */
-export function withFieldChoices(
-  fields: FieldSpec[],
-  choices: Record<string, SchemaChoice[]> | undefined
-): FieldSpec[] {
-  if (choices === undefined) return fields
+export function withFieldHints(fields: FieldSpec[], hints: FieldHints | undefined): FieldSpec[] {
+  if (hints === undefined) return fields
+  const choices = hints.choices ?? {}
+  const integers = hints.integers ?? {}
   return fields.map((field) => {
     const offered = choices[field.name]
-    return offered && offered.length > 0 && field.kind === "text"
-      ? { ...field, kind: "select", choices: offered }
-      : field
+    if (offered && offered.length > 0 && field.kind === "text") {
+      return { ...field, kind: "select", choices: offered }
+    }
+    const integer = integers[field.name]
+    if (integer !== undefined && field.kind === "datetime") {
+      return { ...field, kind: "text", description: integer, example: undefined }
+    }
+    return field
   })
 }
 

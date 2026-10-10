@@ -5,7 +5,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue"
 import type { ActionPreview } from "@/client"
 import {
   useDownloadAction,
-  useFieldChoices,
+  useFieldHints,
   usePreviewAction,
   usePreviewActionOnSet,
   useRunAction,
@@ -16,7 +16,7 @@ import {
   needsClipboard,
   nodeSetOf,
   summarize,
-  withFieldChoices,
+  withFieldHints,
   withGroupingChoices,
 } from "@/features/catalog/actions"
 import { forgetClipboard, heldFor } from "@/features/catalog/clipboard"
@@ -104,21 +104,21 @@ const dialectChoices = computed(() => props.command?.choices.dialect ?? [])
  */
 const destinationChoices = computed(() => groupingChoices(props.groupings ?? []))
 
-const fieldChoices = useFieldChoices(
+const fieldHints = useFieldHints(
   computed(() => props.connectorId),
   computed(() => props.command?.name ?? null),
   computed(() => props.nodeIds[0]),
-  computed(() => props.command?.offersChoices === true && props.nodeIds.length === 1)
+  computed(() => props.command?.offersHints === true && props.nodeIds.length === 1)
 )
 
 /**
  * The visible fields, with a field naming a grouping offering the ones there
- * are, and a field the source named values for offering those.
+ * are, and the rest as the source says this node has them.
  */
 const formFields = computed(() =>
-  withFieldChoices(
+  withFieldHints(
     withGroupingChoices(visibleFields.value, destinationChoices.value),
-    fieldChoices.data.value ?? undefined
+    fieldHints.data.value ?? undefined
   )
 )
 const conflictField = computed(() =>

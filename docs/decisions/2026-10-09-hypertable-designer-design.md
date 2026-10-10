@@ -302,7 +302,9 @@ before the next. Every slice adds its scenarios to
 - **H5 — integer time.** Integer intervals, `integer_now`, integer ages on
   policies.
 - **H6 — chunk maintenance (D208).** Drop, merge, split, move, reorder,
-  detach, attach, and the Detached chunks report.
+  detach, attach, and the Detached chunks report. Extended on 2026-10-10 to
+  integer time and to hypertables with hash dimensions; there merge, attach and
+  split refuse, the last because TimescaleDB does.
 - **H7 — release-bounded options.** Sparse indexes (2.22+), chunk skipping
   (2.16+ with the GUC), UUIDv7 time (2.22+), compaction policy (2.29+). Each
   declares its minimum release and is proven on both sides of it.

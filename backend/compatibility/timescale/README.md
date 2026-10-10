@@ -140,6 +140,23 @@ Found by running the matrix; each is handled in `app/` and covered here.
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
 
+## Validation record: 2026-10-10, chunk maintenance over integer time and hash
+
+D208 was extended past one time dimension: `test_chunk_maintenance.py` gained
+four scenarios on every source. A bigint hypertable is dropped, merged, split,
+detached and attached back by its values, and refuses instants; a hypertable
+with a hash dimension drops and reorders each partition's chunk by name and
+refuses a merge, an attach and a split. TimescaleDB itself refuses the split,
+"cannot split chunk in multi-dimensional hypertable", so the plan refuses it
+first.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q` | 1127 passed, 7 skipped |
+| backend | `uv run pytest tests/ -q` | 3811 passed, 154 skipped, 2 failed in `tests/search/test_inflight.py` while the matrix ran beside it; alone, 2 passed |
+| frontend | unit, type, lint and build checks | Passed |
+| frontend | `bunx playwright test tests/timescale-chunk-maintenance.spec.ts` | 3 passed |
+
 ## Validation record: 2026-10-10, options only some releases have
 
 H7 of D207 added `test_release_bounded.py`, seven scenarios on every source,

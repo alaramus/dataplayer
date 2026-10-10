@@ -1,18 +1,23 @@
 """Chunk maintenance rules that need no source (D208)."""
 
+from datetime import UTC, datetime
+
 import pytest
+from pydantic import ValidationError
 
 from app.adapters.actions import ActionRefused
+from app.adapters.postgres.timescale.chunk_maintenance_action import AttachParams, WindowParams
 from app.adapters.postgres.timescale.chunk_maintenance_execution import _observed
 from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     MaintenanceArguments,
     MaintenanceStrategy,
     MaintenanceUnit,
     _require_mergeable,
+    require_kind,
 )
-from app.adapters.postgres.timescale.plans import TimeHypertable
+from app.adapters.postgres.timescale.plans import MaintainedHypertable
 
-TARGET = TimeHypertable(
+TARGET = MaintainedHypertable(
     database_oid="1", relation_oid="2", schema_name="lab", table_name="events",
     column_name="observed_at", column_type="timestamp with time zone",
 )
@@ -56,3 +61,34 @@ def test_what_reading_back_says_of_each_operation() -> None:
     assert _observed(unit("move", tablespace="slow"), member, exists=True) == "unchanged"
     # Nothing public tells a reordered chunk apart; it is read as not done, and doing it again is harmless.
     assert _observed(unit("reorder", index="events_device"), member, exists=True) == "unchanged"
+
+
+def test_a_bound_is_an_instant_or_a_whole_number() -> None:
+    assert WindowParams.model_validate({"ends_by": "2020-01-03T00:00:00Z"}).window().ends_by == datetime(
+        2020, 1, 3, tzinfo=UTC,
+    )
+    # Typed into a form, a number arrives as text; it is never read as seconds from 1970.
+    window = WindowParams.model_validate({"ends_by": "1000", "starts_from": " 10 "}).window()
+    assert (window.starts_from, window.ends_by) == (10, 1000)
+    assert WindowParams.model_validate({"ends_by": 1000, "starts_from": ""}).window().starts_from is None
+    for wrong, message in (
+        ({"ends_by": "1000", "starts_from": "2020-01-01T00:00:00Z"}, "Both ends are instants, or both are numbers"),
+        ({"ends_by": "10", "starts_from": "20"}, "must start before it ends"),
+        ({"ends_by": "2020-01-03T00:00:00"}, "with its time zone"),
+        ({"ends_by": True}, "or a whole number"),
+        ({"ends_by": str(2**63)}, "outside the range of a bigint"),
+    ):
+        with pytest.raises(ValidationError, match=message):
+            WindowParams.model_validate(wrong)
+    with pytest.raises(ValidationError, match="must start before it ends"):
+        AttachParams.model_validate({"table_schema": "s", "table_name": "t", "starts_from": "8", "ends_by": "4"})
+
+
+def test_a_bound_must_be_of_the_kind_the_column_is() -> None:
+    ticks = TARGET.model_copy(update={"column_name": "tick", "column_type": "bigint"})
+    require_kind(ticks, 1000, None)
+    require_kind(TARGET, datetime(2020, 1, 1, tzinfo=UTC))
+    with pytest.raises(ActionRefused, match='integer column "tick"; give its values'):
+        require_kind(ticks, datetime(2020, 1, 1, tzinfo=UTC))
+    with pytest.raises(ActionRefused, match='by time on "observed_at"; give instants'):
+        require_kind(TARGET, 1000)

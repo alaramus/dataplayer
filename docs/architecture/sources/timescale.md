@@ -422,7 +422,8 @@ Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-de
 
 ## D208. Chunk maintenance is a reviewed job over a fixed set of chunks
 
-Implemented (H6) and passing the whole matrix.
+Implemented (H6) and passing the whole matrix, over time and integer columns,
+with hash dimensions beside them.
 
 Drop, merge (2.18+; letting reads go on, 2.29+), split (2.20+), move,
 reorder, detach and attach (2.21+) each work like compressing chunks:
@@ -433,7 +434,10 @@ reorder, detach and attach (2.21+) each work like compressing chunks:
 - an outcome per unit (D123).
 
 A drop never re-evaluates an age threshold at execution. Attach takes typed
-bounds per dimension. A Detached chunks report reads public views and
+bounds per dimension. A window, a split point and an attach range are instants
+on a hypertable over time and values of the column on one over an integer
+column; one field type takes both, the plan refuses the wrong kind, and the form
+learns which it is from the action's field hints ([D9](actions.md)). A Detached chunks report reads public views and
 `pg_class`, never private catalogs, so it offers attach without asserting
 anything.
 
@@ -464,9 +468,13 @@ Known deviations:
 - **Not offered from a selection in the Chunks report.** A report row offers
   only commands that run at once (D70), and these are reviewed first; the
   submenu's window chooses the same whole chunks.
-- **Only a hypertable with one time dimension.** Which hash partition a chunk
-  is in is not in the public views, so neither a merge nor an attach could be
-  checked; an integer one is left as compressing leaves it.
+- **No merge, attach or split beside hash dimensions.** Which hash partition
+  a chunk is in is not in the public views, so neither a merge nor an attach
+  could be checked first; TimescaleDB itself refuses to split a chunk of a
+  hypertable with more than one dimension. Drop, move, reorder and detach take
+  each partition's chunk by name. A second range dimension is not maintained.
+- **Compressing keeps the narrower target.** Converting chunks to and from the
+  columnstore still takes a hypertable with one time dimension.
 - **A reorder is never read back as done.** No public view tells a reordered
   chunk apart, so an interrupted one is read as not done; doing it again is
   harmless.

@@ -272,5 +272,5 @@ async def test_chunk_skipping_offers_only_the_columns_it_can_range(source: Times
     target = await hypertable(source, schema)
     enable = registry(source).action("timescale_enable_chunk_skipping")
     assert isinstance(enable, ChunkSkipping)
-    offered = [choice.value for choice in (await enable.field_choices(target.node_id))["column"]]
+    offered = [choice.value for choice in (await enable.field_hints(target.node_id)).choices["column"]]
     assert offered == ["observed_at", "device", "value"]

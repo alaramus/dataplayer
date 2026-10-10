@@ -102,9 +102,9 @@ import type {
   backupsRestoreData,
   backupsRestoreErrors,
   backupsRestoreResponses,
-  connectorsActionFieldChoicesData,
-  connectorsActionFieldChoicesErrors,
-  connectorsActionFieldChoicesResponses,
+  connectorsActionFieldHintsData,
+  connectorsActionFieldHintsErrors,
+  connectorsActionFieldHintsResponses,
   connectorsAddColumnData,
   connectorsAddColumnErrors,
   connectorsAddColumnResponses,
@@ -2585,24 +2585,25 @@ export class ConnectorsService {
   }
 
   /**
-   * Action Field Choices
+   * Action Field Hints
    *
-   * What the fields of one action's form may be set to, for one node.
+   * What the fields of one action's form are for one node: what each may be
+   * set to, and which take a number rather than an instant.
    *
    * Asked when the form opens. The level is the action's own, as for a
    * preview: the choices name columns, indexes and tablespaces of the node.
    */
-  public static actionFieldChoices<ThrowOnError extends boolean = true>(
-    options: Options<connectorsActionFieldChoicesData, ThrowOnError>
+  public static actionFieldHints<ThrowOnError extends boolean = true>(
+    options: Options<connectorsActionFieldHintsData, ThrowOnError>
   ) {
     return (options.client ?? client).post<
-      connectorsActionFieldChoicesResponses,
-      connectorsActionFieldChoicesErrors,
+      connectorsActionFieldHintsResponses,
+      connectorsActionFieldHintsErrors,
       ThrowOnError
     >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/choices",
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/hints",
       ...options,
       headers: {
         "Content-Type": "application/json",

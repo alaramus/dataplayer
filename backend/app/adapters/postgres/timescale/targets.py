@@ -5,7 +5,9 @@ from app.adapters.catalog import SchemaNode, TableNode, ViewNode
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.plans import (
+    INTEGER_COLUMN_TYPES,
     ContinuousAggregateTarget,
+    MaintainedHypertable,
     TimeHypertable,
 )
 from app.adapters.postgres.timescale.report_access import require_public_view
@@ -43,6 +45,40 @@ JOIN pg_catalog.pg_database AS database ON database.datname = pg_catalog.current
 WHERE hypertable.hypertable_schema = %s AND hypertable.hypertable_name = %s
   AND hypertable.num_dimensions = 1 AND dimension.dimension_type = 'Time'
   AND dimension.dimension_number = 1 AND relation.relkind = 'r'
+  AND pg_catalog.pg_has_role(relation.relowner, 'USAGE')
+  AND pg_catalog.has_schema_privilege(namespace.oid, 'USAGE')
+  AND pg_catalog.has_table_privilege(relation.oid, 'SELECT')
+  AND NOT EXISTS (
+      SELECT 1 FROM timescaledb_information.continuous_aggregates AS aggregate
+      WHERE aggregate.materialization_hypertable_schema = namespace.nspname
+        AND aggregate.materialization_hypertable_name = relation.relname
+  )
+LIMIT 2
+"""
+
+# The first dimension is the one chunks are cut along in time; any other is
+# counted, and only hash ones are named, since a second range is not maintained.
+_MAINTAINED_HYPERTABLE = """
+SELECT database.oid::text AS database_oid, relation.oid::text AS relation_oid,
+       namespace.nspname AS schema_name, relation.relname AS table_name,
+       dimension.column_name, dimension.column_type::text AS column_type,
+       ARRAY(
+           SELECT other.column_name::text FROM timescaledb_information.dimensions AS other
+           WHERE other.hypertable_schema = hypertable.hypertable_schema
+             AND other.hypertable_name = hypertable.hypertable_name
+             AND other.dimension_number > 1 AND other.dimension_type = 'Space'
+           ORDER BY other.dimension_number
+       ) AS hash_columns,
+       hypertable.num_dimensions
+FROM timescaledb_information.hypertables AS hypertable
+JOIN timescaledb_information.dimensions AS dimension
+  USING (hypertable_schema, hypertable_name)
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.nspname = hypertable.hypertable_schema
+JOIN pg_catalog.pg_class AS relation
+  ON relation.relnamespace = namespace.oid AND relation.relname = hypertable.hypertable_name
+JOIN pg_catalog.pg_database AS database ON database.datname = pg_catalog.current_database()
+WHERE hypertable.hypertable_schema = %s AND hypertable.hypertable_name = %s
+  AND dimension.dimension_type = 'Time' AND dimension.dimension_number = 1 AND relation.relkind = 'r'
   AND pg_catalog.pg_has_role(relation.relowner, 'USAGE')
   AND pg_catalog.has_schema_privilege(namespace.oid, 'USAGE')
   AND pg_catalog.has_table_privilege(relation.oid, 'SELECT')
@@ -125,6 +161,21 @@ async def time_hypertable(reader: PostgresReader, schema_name: str, table_name: 
     if rows[0].get("column_type") not in _TIME_COLUMN_TYPES:
         raise ActionRefused("not_applicable", "Only timestamp and date dimensions are supported here")
     return TimeHypertable.model_validate(rows[0])
+
+
+async def maintained_hypertable(reader: PostgresReader, schema_name: str, table_name: str) -> MaintainedHypertable:
+    """An owned hypertable cut along one time or integer column, hash dimensions beside it allowed."""
+    for view, columns in _VIEWS.items():
+        await require_public_view(reader, view, columns)
+    rows = await reader.query(_MAINTAINED_HYPERTABLE, (schema_name, table_name), inspection=True)
+    if len(rows) != 1:
+        raise ActionRefused("not_applicable", "Choose an owned hypertable partitioned by time")
+    row = dict(rows[0])
+    if int(str(row.pop("num_dimensions"))) != 1 + len(row["hash_columns"]):
+        raise ActionRefused("not_applicable", "Only a hypertable with one range dimension is maintained here")
+    if row.get("column_type") not in _TIME_COLUMN_TYPES | INTEGER_COLUMN_TYPES:
+        raise ActionRefused("not_applicable", "Only timestamp, date and integer dimensions are supported here")
+    return MaintainedHypertable.model_validate(row)
 
 
 async def continuous_aggregate(

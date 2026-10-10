@@ -343,17 +343,30 @@ class FieldChoice(BaseModel):
     label: str = Field(min_length=1, max_length=500)
 
 
+class FieldHints(BaseModel):
+    """What one node makes of an action's form fields, beyond the static schema."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # The values a field may take: a column, an index, a tablespace of the node.
+    choices: dict[str, list[FieldChoice]] = Field(default_factory=dict)
+    # Fields declared as instants that take a whole number on this node, each
+    # with what the number is: a hypertable cut along an integer column.
+    integers: dict[str, str] = Field(default_factory=dict)
+
+
 @runtime_checkable
-class OffersFieldChoices(Protocol):
-    """An action whose form names things of the node it acts on.
+class OffersFieldHints(Protocol):
+    """An action whose form depends on the node it acts on.
 
     A column, an index or a tablespace is the node's, not the action's, so a
     static schema can only say "a string" and the person types a name that is
-    already known. The action names them for one node instead; the client asks
-    once the form opens, and a field the answer leaves out stays typed.
+    already known; a bound is an instant on one hypertable and a number on
+    another. The action says so for one node instead; the client asks once the
+    form opens, and a field the answer leaves out stays as the schema says.
     """
 
-    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]: ...
+    async def field_hints(self, node_id: str | None) -> FieldHints: ...
 
 
 @runtime_checkable

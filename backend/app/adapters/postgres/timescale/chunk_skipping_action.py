@@ -22,6 +22,7 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
     FieldChoice,
+    FieldHints,
 )
 from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
@@ -184,15 +185,15 @@ class ChunkSkipping(Action[ChunkSkippingParams]):
             )
         return items
 
-    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
+    async def field_hints(self, node_id: str | None) -> FieldHints:
         """The columns Timescale keeps a range of; which of them record one now is not readable."""
         schema, node = await user_table(self._catalog, node_id)
         async with self._session.inspection() as reader:
             rows = await reader.query(_COLUMNS, (schema.name, node.name), inspection=True)
-        return {"column": [
+        return FieldHints(choices={"column": [
             FieldChoice(value=str(row["name"]), label=f'{row["name"]} · {row["type"]}')
             for row in rows if row["type"] in _RANGED
-        ]}
+        ]})
 
     async def preview(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionPreview:
         params = self._validated(raw)

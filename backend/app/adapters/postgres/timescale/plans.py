@@ -3,9 +3,22 @@
 import hashlib
 import hmac
 import json
+import re
+from datetime import datetime
 from typing import Annotated, Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    PlainValidator,
+    TypeAdapter,
+    ValidationError,
+    WithJsonSchema,
+    model_validator,
+)
 
 from app.adapters.actions import ActionRefused
 from app.adapters.operations import MAX_OPERATION_TARGETS
@@ -388,6 +401,93 @@ class ChunkWindow(BaseModel):
 
     ends_by: AwareDatetime
     starts_from: AwareDatetime | None = None
+
+
+_INSTANT: TypeAdapter[datetime] = TypeAdapter(AwareDatetime)
+_BIGINT = range(-(2**63), 2**63)
+_NOT_A_BOUND = "Give an instant with its time zone, such as 2026-01-15T00:00:00Z, or a whole number"
+
+
+def _bound(value: object) -> int | datetime:
+    # A whole number is read here rather than left to Pydantic, which takes a
+    # numeric string for an instant counted in seconds from 1970.
+    if isinstance(value, str) and re.fullmatch(r"\s*-?[0-9]{1,19}\s*", value):
+        value = int(value)
+    if isinstance(value, int) and not isinstance(value, bool):
+        if value not in _BIGINT:
+            raise ValueError("The number is outside the range of a bigint")
+        return value
+    if isinstance(value, str | datetime):
+        try:
+            return _INSTANT.validate_python(value)
+        except ValidationError:
+            pass
+    raise ValueError(_NOT_A_BOUND)
+
+
+# An instant, or a value of an integer time column. Declared to a form as an
+# instant; the form learns for one hypertable that it takes a number (FieldHints).
+ChunkBound = Annotated[
+    int | datetime,
+    PlainValidator(_bound),
+    # Written out by hand: the validator above hides from Pydantic which member a value is.
+    PlainSerializer(lambda value: value if isinstance(value, int) else value.isoformat(), when_used="json"),
+    WithJsonSchema({"type": "string", "format": "date-time"}),
+]
+
+
+def bound_text(value: int | datetime) -> str:
+    return value.isoformat() if isinstance(value, datetime) else str(value)
+
+
+def require_ordered(start: int | datetime, end: int | datetime) -> None:
+    """Two bounds of one kind, the first before the second."""
+    if isinstance(start, datetime) and isinstance(end, datetime):
+        ordered = start < end
+    elif isinstance(start, int) and isinstance(end, int):
+        ordered = start < end
+    else:
+        raise ValueError("Both ends are instants, or both are numbers")
+    if not ordered:
+        raise ValueError("The range must start before it ends")
+
+
+class BoundWindow(BaseModel):
+    """Whole chunks ending by one bound, optionally starting from another of its kind."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    ends_by: ChunkBound
+    starts_from: ChunkBound | None = None
+
+    @model_validator(mode="after")
+    def one_kind(self) -> Self:
+        if self.starts_from is not None:
+            require_ordered(self.starts_from, self.ends_by)
+        return self
+
+
+INTEGER_COLUMN_TYPES = frozenset({"smallint", "integer", "bigint"})
+
+
+class MaintainedHypertable(BaseModel):
+    """An owned hypertable over one time or integer column, and any hash dimensions."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    database_oid: str = Field(pattern=_OID)
+    relation_oid: str = Field(pattern=_OID)
+    schema_name: str = Field(min_length=1, max_length=63)
+    table_name: str = Field(min_length=1, max_length=63)
+    column_name: str = Field(min_length=1, max_length=63)
+    column_type: Literal[
+        "timestamp without time zone", "timestamp with time zone", "date", "smallint", "integer", "bigint",
+    ]
+    hash_columns: tuple[str, ...] = ()
+
+    @property
+    def integer(self) -> bool:
+        return self.column_type in INTEGER_COLUMN_TYPES
 
 
 class PlannedChunk(BaseModel):

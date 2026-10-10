@@ -5,7 +5,6 @@ from typing import Any, ClassVar, Self
 
 from psycopg import sql
 from pydantic import (
-    AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
@@ -19,6 +18,7 @@ from app.adapters.actions import (
     ActionRefused,
     ActsOn,
     FieldChoice,
+    FieldHints,
 )
 from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
@@ -51,13 +51,16 @@ from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     tablespace_names,
     window_count,
 )
-from app.adapters.postgres.timescale.chunk_storage_action import (
-    LISTED_CHUNKS,
-    ChunkWindowParams,
-)
+from app.adapters.postgres.timescale.chunk_storage_action import LISTED_CHUNKS
 from app.adapters.postgres.timescale.names import TIMESCALE_MENU
+from app.adapters.postgres.timescale.plans import (
+    BoundWindow,
+    ChunkBound,
+    bound_text,
+    require_ordered,
+)
 from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS
-from app.adapters.postgres.timescale.targets import user_table
+from app.adapters.postgres.timescale.targets import maintained_hypertable, user_table
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.core.access import Access
 
@@ -69,7 +72,40 @@ def _choices(names: list[str]) -> list[FieldChoice]:
     return [FieldChoice(value=name, label=name) for name in names]
 
 
-class MoveParams(ChunkWindowParams):
+class WindowParams(BaseModel):
+    """Whole chunks between two instants, or two values of an integer time column."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ends_by: ChunkBound = Field(
+        title="Chunks ending at or before",
+        description="With its time zone; only chunks lying entirely inside the window are chosen",
+        examples=["2026-01-15T00:00:00Z"],
+    )
+    starts_from: ChunkBound | None = Field(
+        default=None,
+        title="and starting at or after",
+        description="Leave empty for every earlier chunk",
+        examples=["2026-01-01T00:00:00Z"],
+    )
+
+    @field_validator("starts_from", mode="before")
+    @classmethod
+    def blank_is_unbounded(cls, value: object) -> object:
+        # The form sends a text field somebody emptied as an empty string.
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @model_validator(mode="after")
+    def ordered(self) -> Self:
+        if self.starts_from is not None:
+            require_ordered(self.starts_from, self.ends_by)
+        return self
+
+    def window(self) -> BoundWindow:
+        return BoundWindow(ends_by=self.ends_by, starts_from=self.starts_from)
+
+
+class MoveParams(WindowParams):
     tablespace: str = Field(
         min_length=1, max_length=63, title="Tablespace",
         description="An existing tablespace this connection may create in",
@@ -90,7 +126,7 @@ class MoveParams(ChunkWindowParams):
     )
 
 
-class ReorderParams(ChunkWindowParams):
+class ReorderParams(WindowParams):
     index: str = Field(
         min_length=1, max_length=63, title="Index", description="An index of this hypertable to order rows by",
     )
@@ -99,7 +135,7 @@ class ReorderParams(ChunkWindowParams):
 class SplitParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    at: AwareDatetime = Field(
+    at: ChunkBound = Field(
         title="Split at", description="With its time zone; the chunk holding this instant is split at it",
         examples=["2026-01-15T12:00:00Z"],
     )
@@ -113,13 +149,12 @@ class AttachParams(BaseModel):
         min_length=1, max_length=63, title="Table",
         description="A table with the hypertable's columns, such as a detached chunk",
     )
-    starts_from: AwareDatetime = Field(title="Covering from", examples=["2026-01-01T00:00:00Z"])
-    ends_by: AwareDatetime = Field(title="Until", examples=["2026-01-08T00:00:00Z"])
+    starts_from: ChunkBound = Field(title="Covering from", examples=["2026-01-01T00:00:00Z"])
+    ends_by: ChunkBound = Field(title="Until", examples=["2026-01-08T00:00:00Z"])
 
     @model_validator(mode="after")
     def ordered(self) -> Self:
-        if self.starts_from >= self.ends_by:
-            raise ValueError("The range must start before it ends")
+        require_ordered(self.starts_from, self.ends_by)
         return self
 
 
@@ -158,10 +193,34 @@ class MaintainChunks[P: BaseModel](Action[P]):
     requires: ClassVar[Access] = "structure"
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
     menu_group: ClassVar[str | None] = TIMESCALE_MENU
+    # The fields holding a point of the time column, with what each adds when
+    # that column is an integer one.
+    bound_fields: ClassVar[dict[str, str]]
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
         self._session = session
         self._catalog = catalog
+
+    async def field_hints(self, node_id: str | None) -> FieldHints:
+        schema, node = await user_table(self._catalog, node_id)
+        async with self._session.inspection() as reader:
+            choices = await self._choices(reader, schema.name, node.name)
+            try:
+                target = await maintained_hypertable(reader, schema.name, node.name)
+            except ActionRefused:
+                # The preview says why; the form stays as the schema declares it.
+                return FieldHints(choices=choices)
+        if not target.integer:
+            return FieldHints(choices=choices)
+        what = f'A value of "{target.column_name}", the {target.column_type} column the hypertable is partitioned by'
+        return FieldHints(
+            choices=choices, integers={field: what + extra for field, extra in self.bound_fields.items()},
+        )
+
+    async def _choices(
+        self, reader: PostgresReader, schema_name: str, table_name: str,
+    ) -> dict[str, list[FieldChoice]]:
+        return {}
 
     async def _plan_with(self, reader: PostgresReader, schema_name: str, table_name: str, params: P) -> MaintenancePlan:
         raise NotImplementedError
@@ -234,8 +293,8 @@ class MaintainChunks[P: BaseModel](Action[P]):
         items: list[str] = []
         if plan.window is not None:
             window = plan.window
-            start = "the earliest chunk" if window.starts_from is None else window.starts_from.isoformat()
-            items.append(f"Whole chunks from {start} to {window.ends_by.isoformat()}")
+            start = "the earliest chunk" if window.starts_from is None else bound_text(window.starts_from)
+            items.append(f"Whole chunks from {start} to {bound_text(window.ends_by)}")
         items.extend(
             f"{_chunk(chunk.schema_name, chunk.name)}: {chunk.range_start} to {chunk.range_end}"
             for chunk in plan.chunks[:LISTED_CHUNKS]
@@ -248,7 +307,9 @@ class MaintainChunks[P: BaseModel](Action[P]):
         return items
 
 
-class WindowMaintenance[W: ChunkWindowParams](MaintainChunks[W]):
+class WindowMaintenance[W: WindowParams](MaintainChunks[W]):
+    bound_fields: ClassVar[dict[str, str]] = {"ends_by": "", "starts_from": "; leave empty for every earlier chunk"}
+
     def _arguments(self, params: W) -> MaintenanceArguments:
         return MaintenanceArguments()
 
@@ -279,8 +340,8 @@ class WindowMaintenance[W: ChunkWindowParams](MaintainChunks[W]):
         return await self._reviewed_unit(reader, schema_name, table_name, params)
 
 
-class DropChunks(WindowMaintenance[ChunkWindowParams]):
-    params_model = ChunkWindowParams
+class DropChunks(WindowMaintenance[WindowParams]):
+    params_model = WindowParams
     name: ClassVar[str] = "timescale_drop_chunks"
     title: ClassVar[str] = "Drop chunks"
     maintenance: ClassVar[Maintenance] = "drop"
@@ -292,8 +353,8 @@ class DropChunks(WindowMaintenance[ChunkWindowParams]):
     )
 
 
-class DetachChunks(WindowMaintenance[ChunkWindowParams]):
-    params_model = ChunkWindowParams
+class DetachChunks(WindowMaintenance[WindowParams]):
+    params_model = WindowParams
     name: ClassVar[str] = "timescale_detach_chunks"
     title: ClassVar[str] = "Detach chunks"
     maintenance: ClassVar[Maintenance] = "detach"
@@ -304,8 +365,8 @@ class DetachChunks(WindowMaintenance[ChunkWindowParams]):
     )
 
 
-class MergeChunks(WindowMaintenance[ChunkWindowParams]):
-    params_model = ChunkWindowParams
+class MergeChunks(WindowMaintenance[WindowParams]):
+    params_model = WindowParams
     name: ClassVar[str] = "timescale_merge_chunks"
     title: ClassVar[str] = "Merge chunks"
     maintenance: ClassVar[Maintenance] = "merge"
@@ -349,11 +410,11 @@ class MoveChunks(WindowMaintenance[MoveParams]):
     )
     params_model = MoveParams
 
-    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
-        schema, node = await user_table(self._catalog, node_id)
-        async with self._session.inspection() as reader:
-            spaces = await tablespace_names(reader)
-            indexes = await index_names(reader, schema.name, node.name)
+    async def _choices(
+        self, reader: PostgresReader, schema_name: str, table_name: str,
+    ) -> dict[str, list[FieldChoice]]:
+        spaces = await tablespace_names(reader)
+        indexes = await index_names(reader, schema_name, table_name)
         return {
             "tablespace": _choices(spaces),
             "index_tablespace": [FieldChoice(value="", label="With the chunk"), *_choices(spaces)],
@@ -376,10 +437,10 @@ class ReorderChunks(WindowMaintenance[ReorderParams]):
     )
     params_model = ReorderParams
 
-    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
-        schema, node = await user_table(self._catalog, node_id)
-        async with self._session.inspection() as reader:
-            return {"index": _choices(await index_names(reader, schema.name, node.name))}
+    async def _choices(
+        self, reader: PostgresReader, schema_name: str, table_name: str,
+    ) -> dict[str, list[FieldChoice]]:
+        return {"index": _choices(await index_names(reader, schema_name, table_name))}
 
     def _arguments(self, params: ReorderParams) -> MaintenanceArguments:
         return MaintenanceArguments(index=params.index)
@@ -392,6 +453,7 @@ class SplitChunk(MaintainChunks[SplitParams]):
     verb: ClassVar[str] = "Split"
     impact: ClassVar[str] = "The chunk becomes two, divided at this point; the table is locked while it splits"
     params_model = SplitParams
+    bound_fields: ClassVar[dict[str, str]] = {"at": "; the chunk holding it is split at it"}
 
     async def _plan_with(
         self, reader: PostgresReader, schema_name: str, table_name: str, params: SplitParams,
@@ -411,7 +473,7 @@ class SplitChunk(MaintainChunks[SplitParams]):
             unit = await inspect_unit(reader, schema.name, node.name, self.maintenance)
 
         async def split(reader: PostgresReader) -> bool:
-            # Split, the instant is where two chunks meet rather than inside one.
+            # Split, the point is where two chunks meet rather than inside one.
             return not await chunk_holds(reader, unit.target, params.at)
 
         return await observe(self._session, unit, targets, split)
@@ -426,6 +488,7 @@ class AttachChunk(MaintainChunks[AttachParams]):
         "Its rows join the hypertable's queries; TimescaleDB refuses a table whose columns or rows do not fit"
     )
     params_model = AttachParams
+    bound_fields: ClassVar[dict[str, str]] = {"starts_from": "", "ends_by": ""}
 
     async def _plan_with(
         self, reader: PostgresReader, schema_name: str, table_name: str, params: AttachParams,
@@ -440,11 +503,11 @@ class AttachChunk(MaintainChunks[AttachParams]):
         target = _chunk(plan.unit.target.schema_name, plan.unit.target.table_name)
         return f"Attach {_chunk(chunk.schema_name, chunk.name)} to {target} as a chunk as a job"
 
-    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
+    async def _choices(
+        self, reader: PostgresReader, schema_name: str, table_name: str,
+    ) -> dict[str, list[FieldChoice]]:
         """The tables the Detached chunks report lists: the likeliest ones, never the only ones."""
-        await user_table(self._catalog, node_id)
-        async with self._session.inspection() as reader:
-            rows = await reader.query(DETACHED_CHUNKS.statement.as_string(), inspection=True)
+        rows = await reader.query(DETACHED_CHUNKS.statement.as_string(), inspection=True)
         schemas = sorted({str(row["table_schema"]) for row in rows})
         return {
             "table_schema": _choices(schemas),

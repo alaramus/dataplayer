@@ -8,7 +8,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from app.adapters.actions import ActionRefused, OffersFieldChoices
+from app.adapters.actions import ActionRefused, OffersFieldHints
 from app.adapters.postgres.timescale.chunk_maintenance_action import MaintainChunks
 from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS
 from compatibility.timescale.policy_tables import PolicyTable, registry
@@ -174,7 +174,7 @@ async def test_split_divides_the_chunk_holding_an_instant(source: TimescaleSourc
         ("2020-01-02 00:00", "2020-01-02 06:00"),
         ("2020-01-02 06:00", "2020-01-03 00:00"),
     ]
-    assert "No chunk holds this instant" in await refusal(
+    assert "No chunk holds this point" in await refusal(
         source, table, "timescale_split_chunk", {"at": "2020-01-02T00:00:00Z"},
     )
 
@@ -264,13 +264,145 @@ async def _chunk_schema(source: TimescaleSource, table: PolicyTable) -> str:
 
 async def test_the_forms_offer_what_the_hypertable_has(source: TimescaleSource, table: PolicyTable) -> None:
     move = action(source, "timescale_move_chunks")
-    assert isinstance(move, OffersFieldChoices)
-    choices = await move.field_choices(table.node_id)
+    assert isinstance(move, OffersFieldHints)
+    hints = await move.field_hints(table.node_id)
+    # A hypertable over time keeps its instants, and the calendar beside them.
+    assert hints.integers == {}
+    choices = hints.choices
     assert "pg_default" in [choice.value for choice in choices["tablespace"]]
     indexes = [choice.value for choice in choices["index"]]
     # The default stands first, then every index of the hypertable.
     assert indexes[0] == "" and "readings_device" in indexes
     reordering = action(source, "timescale_reorder_chunks")
-    assert isinstance(reordering, OffersFieldChoices)
-    reorder = await reordering.field_choices(table.node_id)
+    assert isinstance(reordering, OffersFieldHints)
+    reorder = (await reordering.field_hints(table.node_id)).choices
     assert "readings_device" in [choice.value for choice in reorder["index"]]
+
+
+_INTEGER_CHUNKS = """
+    SELECT chunk_name, range_start_integer AS range_start, range_end_integer AS range_end
+    FROM timescaledb_information.chunks
+    WHERE hypertable_schema = %s AND hypertable_name = %s ORDER BY range_start_integer
+"""
+
+
+async def _made(source: TimescaleSource, prefix: str, statements: tuple[str, ...]) -> PolicyTable:
+    target = PolicyTable(f"{prefix}_{uuid.uuid4().hex[:12]}", "readings")
+    session = source.session()
+    await session.schema_change(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(target.schema)).as_string())
+    for statement in statements:
+        await session.schema_change(sql.SQL(statement).format(
+            target.identifier, literal=sql.Literal(target.identifier.as_string()),
+        ).as_string())
+    return target
+
+
+async def _dropped(source: TimescaleSource, target: PolicyTable) -> None:
+    await source.session().schema_change(sql.SQL("DROP SCHEMA {} CASCADE").format(
+        sql.Identifier(target.schema),
+    ).as_string())
+
+
+@pytest.fixture
+async def ticks(source: TimescaleSource) -> AsyncIterator[PolicyTable]:
+    """Six chunks of a hundred ticks each, cut along a bigint column."""
+    target = await _made(source, "ticks", (
+        "CREATE TABLE {} (tick bigint NOT NULL, value integer)",
+        "SELECT create_hypertable({literal}::regclass, by_range('tick', 100))",
+        "INSERT INTO {} SELECT g, g FROM generate_series(0, 599) AS g",
+    ))
+    try:
+        yield target
+    finally:
+        await _dropped(source, target)
+
+
+@pytest.fixture
+async def hashed(source: TimescaleSource) -> AsyncIterator[PolicyTable]:
+    """Three days, each in two hash partitions by device."""
+    target = await _made(source, "hashed", (
+        "CREATE TABLE {} (observed_at timestamptz NOT NULL, device integer NOT NULL, value integer)",
+        "SELECT create_hypertable({literal}::regclass, by_range('observed_at', interval '1 day'))",
+        "SELECT add_dimension({literal}::regclass, by_hash('device', 2))",
+        "INSERT INTO {} SELECT TIMESTAMPTZ '2020-01-01 00:00+00' + make_interval(hours => g), g % 4, g "
+        "FROM generate_series(0, 71) AS g",
+    ))
+    try:
+        yield target
+    finally:
+        await _dropped(source, target)
+
+
+async def integer_chunks(source: TimescaleSource, target: PolicyTable) -> list[tuple[int, int]]:
+    rows = await source.session().query(_INTEGER_CHUNKS, (target.schema, target.table))
+    return [(row["range_start"], row["range_end"]) for row in rows]
+
+
+async def test_an_integer_hypertable_is_maintained_by_its_values(source: TimescaleSource, ticks: PolicyTable) -> None:
+    drop = action(source, "timescale_drop_chunks")
+    hints = await drop.field_hints(ticks.node_id)
+    # The form takes numbers there, and says what they are, instead of a calendar.
+    assert set(hints.integers) == {"ends_by", "starts_from"}
+    assert '"tick", the bigint column' in hints.integers["ends_by"]
+
+    assert 'integer column "tick"; give its values' in await refusal(
+        source, ticks, "timescale_drop_chunks", {"ends_by": "2020-01-03T00:00:00Z"},
+    )
+    preview = await drop.preview(ticks.node_id, {"ends_by": "200"})
+    assert preview.summary.startswith("Drop 2 chunks")
+    assert "Whole chunks from the earliest chunk to 200" in preview.items
+    assert await run(source, ticks, "timescale_drop_chunks", {"ends_by": "200"}) == ["completed", "completed"]
+    assert (await integer_chunks(source, ticks))[0] == (200, 300)
+
+    if source.at_least("2.18.0"):
+        params = {"starts_from": "200", "ends_by": "400"}
+        assert await run(source, ticks, "timescale_merge_chunks", params) == ["completed"]
+        assert (await integer_chunks(source, ticks))[0] == (200, 400)
+    if source.at_least("2.20.0"):
+        assert await run(source, ticks, "timescale_split_chunk", {"at": "450"}) == ["completed"]
+        assert (400, 450) in await integer_chunks(source, ticks)
+
+
+async def test_an_integer_chunk_is_detached_and_attached_by_its_values(
+    source: TimescaleSource, ticks: PolicyTable,
+) -> None:
+    if not source.at_least("2.21.0"):
+        pytest.skip("detach_chunk and attach_chunk arrived in 2.21")
+    (first, *_) = await source.session().query(_INTEGER_CHUNKS, (ticks.schema, ticks.table))
+    schema = await _chunk_schema(source, ticks)
+    assert await run(source, ticks, "timescale_detach_chunks", {"ends_by": "100"}) == ["completed"]
+    params = {"table_schema": schema, "table_name": first["chunk_name"], "starts_from": "0", "ends_by": "100"}
+    assert await run(source, ticks, "timescale_attach_chunk", params) == ["completed"]
+    assert (await integer_chunks(source, ticks))[0] == (0, 100)
+    counted = await source.session().query(sql.SQL("SELECT count(*) AS n FROM {}").format(
+        ticks.identifier,
+    ).as_string())
+    assert counted == [{"n": 600}]
+
+
+async def test_a_hash_partitioned_hypertable_is_maintained_chunk_by_chunk(
+    source: TimescaleSource, hashed: PolicyTable,
+) -> None:
+    # One day is two chunks, one per partition; both are dropped, each by name.
+    assert await run(source, hashed, "timescale_drop_chunks", window(None, 2)) == ["completed", "completed"]
+    assert len(await chunks(source, hashed)) == 4
+    assert await run(source, hashed, "timescale_reorder_chunks", {
+        **window(None, 3), "index": (await action(source, "timescale_reorder_chunks").field_hints(
+            hashed.node_id,
+        )).choices["index"][0].value,
+    }) == ["completed", "completed"]
+
+    # Which partition a chunk is in is not public: neither a merge nor an attach could be checked.
+    assert 'partitioned by hash on "device" are not merged' in await refusal(
+        source, hashed, "timescale_merge_chunks", window(None, 4),
+    )
+    assert 'partitioned by hash on "device" are not attached' in await refusal(
+        source, hashed, "timescale_attach_chunk",
+        {"table_schema": hashed.schema, "table_name": "x", "starts_from": "2020-01-01T00:00:00Z",
+         "ends_by": "2020-01-02T00:00:00Z"},
+    )
+    # TimescaleDB refuses this one itself, "cannot split chunk in multi-dimensional hypertable".
+    assert "splits no chunk of a hypertable partitioned by hash" in await refusal(
+        source, hashed, "timescale_split_chunk", {"at": "2020-01-02T06:00:00Z"},
+    )
+
