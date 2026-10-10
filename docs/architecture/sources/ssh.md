@@ -43,8 +43,8 @@ POST   /api/v1/connectors/server-key
 
 ## D144. An SSH server is the file explorer over SFTP, from where the connection stands
 
-The old application listed a folder by running `ls -la` and parsing the
-output, and read, archived and searched with commands of its own. Here the
+Rejected: listing a folder by running `ls -la` and parsing the output, and
+reading, archiving and searching with commands of its own. Instead the
 source is the file explorer (D150) over a storage that speaks SFTP, so it does
 what the file source does — tables, SQL over files, the editor, archives,
 search, paste — and nothing runs a command on the server: no name typed into a
@@ -113,8 +113,7 @@ before anything is trusted.
   A reinstalled server is a real reason, and a silent re-pin would make the
   check worthless. The one exception is a server this application started
   itself (D153).
-- **There is no "do not verify" setting.** The old application had one as its
-  only mode.
+- **There is no "do not verify" setting.**
 - **`POST /connectors/server-key`** describes the pinned key without a network
   call and, when asked, fetches the presented one and says whether they match.
   The comparison is the server's, so the client does not repeat it.
@@ -245,8 +244,8 @@ Spec: [An SSH server this application starts](../../decisions/2026-09-19-ssh-ser
 
 ## D154. A started SSH server may be signed into with one of its owner's keys
 
-The old application offered it, and a person who keeps their keys here (D146)
-has no reason to be handed a password for a machine they started.
+A person who keeps their keys here (D146) has no reason to be handed a
+password for a machine they started.
 
 - **It is a fourth way to decide the password**, beside made up, typed and
   none (D88): `{kind: "key", key_id}` in a chosen start. The request names

@@ -3305,7 +3305,7 @@ export type DashboardSave = {
  * transaction; these are separate key spaces on the same server that share
  * nothing but the port, and a key in one is invisible from another. Reusing
  * `schema` would be giving one kind two meanings, which is the thing
- * `BaseNode` says the old application did.
+ * `BaseNode` is shaped to prevent.
  *
  * It is still a grouping rather than a folder: the number chosen when the
  * connection was written says where to start, not where to stay (D91).
@@ -4632,9 +4632,9 @@ export type FetchColumn = {
  *
  * One foreign key of the fetched relation, as the grid needs to see it.
  *
- * A whole key rather than a mark on each of its columns: the old application
- * copied a constraint onto every column it touched, which split a composite
- * foreign key into independent one-column links. `columns` is the key in its
+ * A whole key rather than a mark on each of its columns: a constraint copied
+ * onto every column it touches splits a composite foreign key into
+ * independent one-column links. `columns` is the key in its
  * own order, and `name` is the source's own name for it — the handle the
  * caller sends back to follow it, never a predicate the caller composes.
  *
@@ -6534,7 +6534,7 @@ export type KeptNow = {
  * Not a table, though it is read as rows: a table has columns of its own and
  * a relation to describe, and a key has a Redis data type and an expiry
  * clock. Reusing `table` here would give one kind two meanings — exactly
- * what `BaseNode` says the old application did with `schema` — and every
+ * what `BaseNode` is shaped to prevent — and every
  * action that names a table would then be offered on a key.
  *
  * The prefix a key hangs under is a `directory`: a container of nodes with

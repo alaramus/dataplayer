@@ -4,7 +4,7 @@
  * This is a wider vocabulary than the chart panel's (D35), and deliberately so:
  * a chart built over a connection's rows is composed by the application from a
  * closed set of choices, while a fence is a picture its author already drew.
- * The set is the one the documents this viewer was ported from actually use.
+ * The set is the one real documents actually use.
  * It is loaded with the block, not with the application.
  */
 import {

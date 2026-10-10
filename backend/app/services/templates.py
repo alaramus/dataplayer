@@ -1,11 +1,8 @@
 """What this server may start, written here and chosen only by name.
 
-The old application built a Docker service out of whatever the connector form
-sent. `options.docker` could carry the image, the command, the port, the path
-inside the container and even a path on the host to mount a rendered
-configuration file from, and the whole thing was interpolated into a Mako
-template and then into a `docker compose` command line built with an f-string.
-A client that could name an image could run anything on the machine.
+A service built out of whatever a form sends — the image, the command, the
+port, a path inside the container, a path on the host to mount — lets a client
+that can name an image run anything on the machine.
 
 Here a client names a key from a closed registry and nothing else. Everything
 that would be created — the image, the command, every environment key, the
@@ -117,9 +114,8 @@ class ServiceTemplate:
     """One approved service: what runs, and what the connector to it becomes.
 
     Both halves are here on purpose. A template whose container was described
-    in one place and whose credentials were described in another is how the
-    old application could start a container with one password and save a
-    connector holding another.
+    in one place and whose credentials were described in another can start a
+    container with one password and save a connector holding another.
     """
 
     key: str
@@ -135,7 +131,7 @@ class ServiceTemplate:
     container_port: int
     # Where the image keeps its data, and therefore where this service's one
     # named volume is mounted. No path on the host is ever named: a bind mount
-    # is how the old application let a client reach the file system.
+    # would let a client reach the host's file system.
     data_path: str
     # How each credential slot is settled: written here, or made up per
     # service. Every slot a template uses must appear, which is what keeps one
@@ -327,8 +323,7 @@ SSH = ServiceTemplate(
         "with a password nobody has to choose: its files open in the explorer, "
         "and a terminal opens on it."
     ),
-    # The image the old application started and the development override
-    # runs. Its home is `/config`, which is why the volume goes there: the
+    # The image the development override runs. Its home is `/config`, which is why the volume goes there: the
     # user's files and the server's own keys outlive a restart together.
     image="lscr.io/linuxserver/openssh-server:10.3_p1-r1-ls236",
     container_port=2222,

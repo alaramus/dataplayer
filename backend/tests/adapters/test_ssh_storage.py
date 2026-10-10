@@ -1,7 +1,7 @@
 """An SSH server through the file explorer: `docker compose up -d sshd` (D150, D152).
 
-Everything here is something the old SSH source could not do and the file
-source always could — tables, SQL, a search inside files, copies, archives —
+Everything here is something the file source always could do — tables, SQL,
+a search inside files, copies, archives —
 now asked of a server. Every test works in a folder of its own below the
 user's home and takes it away afterwards.
 """

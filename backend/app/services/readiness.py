@@ -2,9 +2,9 @@
 
 A container that is running is not a database that is ready: PostgreSQL
 initialises its data directory on first start, and the port answers before the
-server does. The old application waited by calling the adapter's own
-`check_connection` up to thirty times, which was the right idea inside the
-wrong machinery — so the idea is kept and the machinery is a job (D83).
+server does. Waiting means calling the adapter's own `check_connection`
+until it answers, and the waiting is a job (D83) rather than a loop inside a
+request.
 
 Asking the source itself rather than the runtime is the point: "ready" means
 "this connector works", and the only thing that can say so is the thing that

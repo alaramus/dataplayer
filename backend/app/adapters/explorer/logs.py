@@ -2,8 +2,7 @@
 
 A log is text, and reading it as text is what the editor is for. What it is
 *not* is unstructured: a line carries a time, a level and a message, and every
-tool that shows logs shows those as columns — which is the whole reason the
-old application had this and the reason it was asked for again.
+tool that shows logs shows those as columns.
 
 The shape is read off the file rather than declared by it. There is no header
 to trust and no extension per format, so the first lines of the file are tried

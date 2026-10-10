@@ -14,11 +14,10 @@ from app.adapters.specializations import (
 class BaseNode(BaseModel):
     """Fields every catalog node has, whatever the source.
 
-    There are deliberately only four of them. In the old application every
-    node was a plain dict, which let each adapter give a shared key its own
-    meaning — `schema` held a database schema name for PostgreSQL and the
-    literal "directory" for S3. Anything beyond these four lives on a node
-    class of its own.
+    There are deliberately only four of them. A plain dict per node lets each
+    adapter give a shared key its own meaning — `schema` holding a schema name
+    for PostgreSQL and the literal "directory" for an object store. Anything
+    beyond these four lives on a node class of its own.
     """
 
     # Extra keys are rejected rather than ignored: a field belonging to another
@@ -140,7 +139,7 @@ class DatabaseNode(BaseNode):
     transaction; these are separate key spaces on the same server that share
     nothing but the port, and a key in one is invisible from another. Reusing
     `schema` would be giving one kind two meanings, which is the thing
-    `BaseNode` says the old application did.
+    `BaseNode` is shaped to prevent.
 
     It is still a grouping rather than a folder: the number chosen when the
     connection was written says where to start, not where to stay (D91).
@@ -163,7 +162,7 @@ class KeyNode(BaseNode):
     Not a table, though it is read as rows: a table has columns of its own and
     a relation to describe, and a key has a Redis data type and an expiry
     clock. Reusing `table` here would give one kind two meanings — exactly
-    what `BaseNode` says the old application did with `schema` — and every
+    what `BaseNode` is shaped to prevent — and every
     action that names a table would then be offered on a key.
 
     The prefix a key hangs under is a `directory`: a container of nodes with

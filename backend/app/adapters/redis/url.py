@@ -70,8 +70,8 @@ def options_from_url(url: str) -> dict[str, Any]:
     Which way of connecting the string describes is inferred here, because it
     is the driver's inference to make: a string carrying a password is the
     password variant, and one without it is the other. A form that read that
-    off the presence of a substring would be the old application's
-    `isFieldShowing`.
+    off the presence of a substring would be a second, weaker parser of the
+    same string.
     """
     parsed = urlsplit(url.strip())
     if parsed.scheme == TLS_SCHEME:

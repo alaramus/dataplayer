@@ -175,9 +175,6 @@ Two traps found while building it, both in LangGraph's PostgreSQL saver:
   over LangGraph's own tables; a test that a conversation keeps one state, and
   one that it still continues, notice when an upgrade changes them.
 
-The legacy application's `ai_handler` and `ChatAI` were read as evidence; what
-is ported and what is not is listed in the spec.
-
 ## D133. The agent is one more client of the application
 
 Tools run as the person who owns the conversation; no tool argument names a

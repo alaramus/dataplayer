@@ -168,8 +168,8 @@ export const MATERIALIZED_VIEW_ICON = "backup_table"
  * What a source's groupings are called, above the control that picks them.
  *
  * A table rather than a question about the type of the source: "Schemas" over
- * a list of Redis databases would be the old application's habit of giving one
- * word two meanings, and the kind of the node already says which word it is.
+ * a list of Redis databases would give one word two meanings, and the kind of
+ * the node already says which word it is.
  */
 const GROUP_TITLES: Partial<Record<CatalogNode["kind"], string>> = {
   schema: "Schemas",

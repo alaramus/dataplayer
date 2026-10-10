@@ -1,8 +1,7 @@
 """Reading a file as rows.
 
 The reader is chosen from the format of the file, matched exhaustively, so
-adding a format without a reader fails type checking. The old application
-branched on the extension in six places inside one method.
+adding a format without a reader fails type checking.
 """
 
 from pathlib import Path

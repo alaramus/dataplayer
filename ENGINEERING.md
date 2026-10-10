@@ -82,7 +82,7 @@ is where to look.
 
 ## Queries and untrusted input
 
-This is the section the old application failed hardest, so it is stated
+Untrusted input is where a data tool fails hardest, so it is stated
 separately from general typing.
 
 - **A query is never built from client strings.** Filters are a closed set of
@@ -145,9 +145,8 @@ and a download ticket are masked in both log formats, a traceback included
 ## Frontend
 
 - Server state lives in `@tanstack/vue-query`. Pinia holds only what the server
-  does not — the token, UI state. The old frontend spread server data across
-  stores with hand-rolled caches, and that is where its desynchronisation came
-  from.
+  does not — the token, UI state. Server data copied into stores with
+  hand-rolled caches falls out of step with the server.
 - **A screen asks for meaning, not for a look.** Anything with a choice of
   appearance is wrapped once in `src/shared/ui` and imported from there:
   `variant="danger"`, not `flat color="negative"`. `tokens.ts` is the only

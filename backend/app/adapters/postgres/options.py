@@ -3,8 +3,7 @@
 A flat discriminated union rather than one model with optional fields: what a
 user must fill in depends on the way the server authenticates them, and a form
 built from optional fields would have to decide for itself which of them
-matter — which is how the old application ended up asking every field whether
-it should be showing.
+matter, and ends up asking every field whether it should be showing.
 
 Flat rather than nested. Putting the varying fields in a sub-object would make
 `config` two levels deep, and with it the secret split, which cuts by

@@ -226,9 +226,7 @@ index. Secret values are absent; ordinary
 values are present only when the document explicitly remembers them.
 
 Saved favourites are unnecessary: a useful query is one somebody remembered.
-Legacy history and favourites are not migrated because their ownership,
-ordering, context and retention are not trustworthy. Documents, history and
-query results are not shareable.
+Documents, history and query results are not shareable.
 
 Known deviations:
 

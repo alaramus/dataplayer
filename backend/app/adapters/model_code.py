@@ -6,9 +6,8 @@ that into a SQLAlchemy model, a Django model or a DBML document is a pure
 function over what the source already said. No connection, no SQL, no second
 description of a relation.
 
-The old application had two of these and they lived in the driver, one copy
-per source type, each reading a driver-shaped dictionary. Here they read the
-published model, so a source that can describe a relation can be written out
+They read the published model rather than living in each driver as a copy
+per source type, so a source that can describe a relation can be written out
 in all three without knowing that any of them exists.
 
 None of it claims to be a migration. What comes out is a starting point a

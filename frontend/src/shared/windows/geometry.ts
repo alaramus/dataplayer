@@ -2,9 +2,9 @@
  * Where a floating window sits, and in what order windows stack.
  *
  * Plain functions with no imports, so the rules are checked without mounting
- * anything — the way `tree.ts` and `placement.ts` are for the workspace. The
- * old application's window manager mutated geometry in place inside the
- * manager itself, which left nothing to test and nothing to reason about.
+ * anything — the way `tree.ts` and `placement.ts` are for the workspace.
+ * Geometry mutated in place inside a window manager leaves nothing to test and
+ * nothing to reason about.
  */
 
 export interface Size {
@@ -35,8 +35,8 @@ export const CASCADE_STEP = 32
  *
  * Not the whole window: dragging one partly past an edge is ordinary and
  * useful. What must never leave is enough of the title bar to grab it by —
- * the old engine clamped nothing at all, so a window pushed past the right
- * edge could not be brought back by any means.
+ * without a clamp, a window pushed past the right edge cannot be brought back
+ * by any means.
  */
 export const GRAB_MARGIN = 120
 
@@ -190,9 +190,9 @@ export function resize(
 /**
  * The stacking order, front last.
  *
- * A position in a list rather than a z-index counter: the old engine
- * incremented one for ever and had no way back from it. Here focusing a
- * thousand times leaves a list of the same three windows.
+ * A position in a list rather than a z-index counter, which only grows and
+ * has no way back. Here focusing a thousand times leaves a list of the same
+ * three windows.
  */
 export function bringToFront(order: readonly string[], id: string): string[] {
   if (!order.includes(id)) return [...order]

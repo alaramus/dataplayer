@@ -157,9 +157,9 @@ Spec: [Choosing a DataPlayer server](../decisions/2026-09-04-server-profiles-des
 
 ## D6. Server state lives in vue-query; Pinia holds only client state
 
-The old frontend spread server data across Pinia stores, each with its own cache
-and invalidation, which is where its desynchronisation bugs came from. Enforced
-by ESLint: `src/stores/**` may not import the generated client or any feature.
+Server data spread across Pinia stores, each with its own cache and
+invalidation, falls out of step between them. Enforced by ESLint:
+`src/stores/**` may not import the generated client or any feature.
 
 A failed query is asked again only when asking again could answer differently.
 vue-query's three growing retries suit a request that never arrived, not a 4xx
@@ -173,9 +173,9 @@ Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-
 
 ## D7. The frontend is Vue 3 with Quasar
 
-The value of the rewrite is backend architecture and end-to-end typing; the UI
-kit was never the problem. The typed client generated from OpenAPI is kept — it
-does not depend on the framework.
+The value of the project is its backend architecture and end-to-end typing,
+not its UI kit. The typed client generated from OpenAPI is kept — it does not
+depend on the framework.
 
 Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-connector-registry-design.md)
 
@@ -379,9 +379,8 @@ Traps found by reading real documents:
   asked first and the series is named in the block. Title and legend both default
   to the top; `normalizeLayout` stacks them and fills in only what was unsaid.
 
-The renderer takes its ideas — two-stage sanitisation, fence splitting,
-remote-resource gating, block ceilings — from `rich-md-viewer`, a standalone
-application by the same author; its tabs, share links and i18n are not ported.
+The renderer is built on two-stage sanitisation, fence splitting,
+remote-resource gating and block ceilings; it has no tabs, share links or i18n.
 
 Relative document references do not weaken D21. The client never joins a path
 to an id: it walks every segment from the open node's source-issued path through

@@ -10,6 +10,12 @@ not update a spec to match later code — record the new reasoning in the
 architecture file, and add a new dated entry here only when the decision
 itself is revisited.
 
+DataPlayer began as a rewrite of a private predecessor, and the early specs
+argue against it by name: "the old application", `dbwebtool` (its backend),
+`myquasar` (its frontend). It is not published, nor is `rich-md-viewer`, a
+Markdown viewer some specs borrow from. Read those passages as background;
+nothing in this repository depends on either.
+
 | Date | Spec | What it settled |
 | --- | --- | --- |
 | 2026-10-10 | [Policy changes that cannot end the job scheduler](2026-10-10-job-scheduler-locks-design.md) | D211: no lock on TimescaleDB's job catalogs before its own calls take them; DataPlayer's job changes queue on an advisory lock of their own; several removals in one statement whose waits end before a deadlock check |

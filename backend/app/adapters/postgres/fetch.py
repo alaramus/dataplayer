@@ -253,9 +253,9 @@ class PostgresFetch:
     """Reading rows out of a relation.
 
     Statements are assembled with psycopg.sql composition: identifiers through
-    Identifier, values through placeholders. The old application formatted them
-    into a template string and accepted a raw SQL fragment from the client,
-    which is injection by construction.
+    Identifier, values through placeholders. Formatting them into a template
+    string, or accepting a raw SQL fragment from the client, is injection by
+    construction.
     """
 
     def __init__(

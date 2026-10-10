@@ -181,8 +181,8 @@ Spec: [Playing media, and reading a PDF](../../decisions/2026-08-31-media-and-pd
 Parquet declares its columns, their types and its exact row count; a workbook
 declares nothing as a whole, because it holds several sheets and one has to be
 chosen before rows exist. The choice is made in the catalog rather than in the
-request, so no generic contract learns that one file can hold several tables —
-which is what the old `sheet_title` parameter did to every caller.
+request, so no generic contract learns that one file can hold several tables,
+as a `sheet_title` parameter on every request would teach every caller.
 
 - An `.xlsx` or `.xlsm` file has children: listing it opens the workbook once and
   answers with one node per worksheet, in workbook order, each declaring `table`.

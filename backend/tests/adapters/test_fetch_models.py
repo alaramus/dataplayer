@@ -16,7 +16,7 @@ def test_defaults_are_bounded() -> None:
 
 @pytest.mark.parametrize("limit", [0, -1, 1001])
 def test_limit_outside_the_allowed_range_is_rejected(limit: int) -> None:
-    """The old application defaulted to limit=-1, meaning no limit at all."""
+    """-1 must not mean no limit at all."""
     with pytest.raises(ValidationError):
         FetchRequest(node_id="public.connector", limit=limit)
 

@@ -3,9 +3,8 @@
  * new one. Nodes carry no reference to their parent, so a node is addressed by
  * the path that reaches it.
  *
- * The old application mutated nodes in place and kept parent back-pointers,
- * which is why it needed a history of layouts and a command language to undo
- * anything. See the spec, W3.
+ * Nodes mutated in place with parent back-pointers would need a history of
+ * layouts and a command language to undo anything. See the spec, W3.
  */
 
 import type { LayoutNode, LeafNode, NodeId, PanelId, Path, DropZone } from "./model"
@@ -110,9 +109,8 @@ export function replaceAt(
  * Bring a tree to its canonical shape.
  *
  * Called after every edit, so no other function has to worry about an empty
- * leaf, a split of one, or sizes that no longer add up. The old application
- * had none of this, which is why it needed sections marked `fake` to stand in
- * for nodes it could not remove.
+ * leaf, a split of one, or sizes that no longer add up. Without it, a node
+ * that cannot be removed has to stay behind as a placeholder.
  */
 export function normalize(root: LayoutNode): LayoutNode | null {
   if (root.kind === "leaf") {

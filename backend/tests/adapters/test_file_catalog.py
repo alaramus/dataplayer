@@ -123,7 +123,7 @@ async def test_a_missing_root_is_a_source_failure(tmp_path: Path) -> None:
 async def test_too_many_entries_fail_instead_of_being_cut_short(
     tmp_path: Path,
 ) -> None:
-    """Silently truncating is the lie the old catalog told."""
+    """Silently truncating would be a lie about the directory."""
     for index in range(MAX_ENTRIES + 1):
         (tmp_path / f"file-{index:05d}.txt").write_text("x")
     catalog = ExplorerCatalog(LocalStorage(tmp_path))

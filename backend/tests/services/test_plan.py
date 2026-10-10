@@ -138,8 +138,8 @@ def test_what_is_not_generated_is_the_same_for_every_service() -> None:
 
 
 def test_the_container_is_started_with_the_password_the_plan_holds() -> None:
-    """The old application read the two out of different places and could
-    start a container with one password and save a connector with another."""
+    """Read from two places, the two could differ: a container started with
+    one password and a connector saved with another."""
     plan = _plan()
 
     assert plan.container.environment["POSTGRES_PASSWORD"] == plan.credentials[

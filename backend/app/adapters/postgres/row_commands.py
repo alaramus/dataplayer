@@ -2,8 +2,8 @@
 
 Two reports have something to act on. The Processes report (D55) lists what is
 connected and what each backend is doing; reading it and being unable to stop a
-statement that has been running for an hour is half a tool, and the old
-application had the other half. The Extensions report lists what this server
+statement that has been running for an hour is half a tool. The Extensions
+report lists what this server
 offers and what is installed, and the thing a person does there is install one
 and remove another — from the list, on the rows they are already looking at,
 rather than by typing a name into a form that names nothing else.

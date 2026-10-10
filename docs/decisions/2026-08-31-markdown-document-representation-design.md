@@ -24,8 +24,8 @@ same bytes — rendered and source.
 
 ## The viewer is ported, not invented
 
-`C:\Users\maxim\PycharmProjects\rich-md-viewer` is a standalone Vue 3 + Quasar
-application by the same author that renders exactly these documents. Its
+`rich-md-viewer` is a standalone Vue 3 + Quasar application by the same
+author, not published, that renders exactly these documents. Its
 rendering core is reused as an idea, on the same terms as every other port in
 this repository: read it, then write the DataPlayer version. What is taken:
 

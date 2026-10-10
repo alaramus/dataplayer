@@ -63,8 +63,8 @@ a connection, a node in it, and one of that node's columns.
 - **Both ends are navigable and neither is the key.** Which end a person is
   standing on is decided by the relation they are looking at, and the answer —
   the rows where the far column equals this value — is the same statement from
-  either side. The old application had a `swap relation` button, and all it
-  chose was which badge got drawn.
+  either side. A `swap relation` button would choose only which badge gets
+  drawn.
 - **It belongs to the person who drew it**, and it is visible only while that
   person can still read both ends. A revoked grant ([D33](../backend.md)), a
   disabled connection or a deleted one takes the arrow off the screen rather

@@ -157,7 +157,7 @@ def test_two_templates_of_one_source_type_settle_the_same_credentials() -> None:
 
 
 def test_the_ssh_template_is_a_server_signed_into_with_a_password_it_made() -> None:
-    """The old application's SSH service, as a template (D153): the account
+    """An SSH server as a template (D153): the account
     and its password go to the image, and the connector signs in with both.
 
     Nothing can say the server's key before the container has made one, so

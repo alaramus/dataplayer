@@ -313,9 +313,9 @@ Consequences kept deliberately:
 
 Known deviation:
 
-- **Groups do not exist.** The old application had them. A grant is resolved
-  by `crud.access_of`, so a second source of grants is an addition there rather
-  than a change to any route.
+- **Groups do not exist.** A grant is resolved by `crud.access_of`, so a
+  second source of grants is an addition there rather than a change to any
+  route.
 - **Nothing is logged.** Who opened what is not recorded; that is a separate
   concern with its own retention question.
 

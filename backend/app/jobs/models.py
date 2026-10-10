@@ -5,9 +5,9 @@ request that asked for it, the socket that watched it and the process that ran
 it. Closing a tab does not stop one, and a restart does not lose one — it ends
 it honestly as `interrupted` (D81).
 
-The old application had none of this. `asyncio.create_task` started the work
-and a dictionary in the process — `cache_activity[f'{id}.{user_id}']` — held a
-single boolean about it, which a reload lost and a second worker never saw.
+A bare `asyncio.create_task` with a boolean about it in a process dictionary
+is the rejected alternative: a reload loses it and a second worker never sees
+it.
 """
 
 import uuid

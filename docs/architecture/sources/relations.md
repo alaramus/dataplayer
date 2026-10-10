@@ -9,8 +9,7 @@ Decisions here: D22, D23, D42, D25, D26, D41, D36, D70, D72, D54, D109, D110.
 ## D22. A source describes a relation in full
 
 A type name cannot do three jobs safely, and a constraint copied onto every
-column splits a composite foreign key into independent one-column links, which
-is what the old application did.
+column splits a composite foreign key into independent one-column links.
 
 - `SupportsRelationModel.relation_model(node_id)` returns one `RelationModel`:
   columns, constraints, indexes and partitioning together with the relation's
@@ -118,9 +117,9 @@ Spec: [What identifies a row, and what order rows arrive in](../../decisions/202
 
 ## D25. A source issues a versioned row handle
 
-The old application preferred a special row-id column, then fell back to every
-non-null cell — a predicate that could match several duplicate rows, ignored
-nulls, guessed value types in the browser and had no version check.
+Rejected: a special row-id column with every non-null cell as the fallback — a
+predicate that can match several duplicate rows, ignores nulls, guesses value
+types in the browser and has no version check.
 
 - An editable fetched row carries an opaque handle beside its canonical values.
   The client returns that handle unchanged with one column name and one new
@@ -435,7 +434,7 @@ Known deviations:
 - **`pg_temp` and `pg_toast` are not listed at all**, so the rule never reaches
   them.
 
-Spec: [What the old PostgreSQL adapter does beyond the table rounds](../../decisions/2026-08-31-postgres-system-operations-design.md)
+Spec: [What the PostgreSQL adapter does beyond the table rounds](../../decisions/2026-08-31-postgres-system-operations-design.md)
 
 ## D109. The file source looks a value up, by equality and nothing else
 

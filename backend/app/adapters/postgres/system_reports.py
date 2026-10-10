@@ -75,9 +75,8 @@ REPORTS: tuple[SystemReport, ...] = (
         title="Settings",
         description="Every server setting, its source, and what changing it takes",
         # `context` is the useful column and is unreadable on its own, so the
-        # server is asked to say what it means. The old application computed
-        # the same sentence and this is where that belongs: once, on the
-        # server, rather than in every screen that shows a setting.
+        # server is asked to say what it means: once, on the server, rather
+        # than in every screen that shows a setting.
         statement=sql.SQL("""
             SELECT name,
                    setting,
@@ -167,7 +166,7 @@ REPORTS: tuple[SystemReport, ...] = (
     SystemReport(
         key="extensions",
         title="Extensions",
-        # One report where the old application had two: this view already
+        # One report rather than two: this view already
         # states the installed version, so "available" and "installed" are the
         # same question asked once.
         description="Extensions this server offers, and which are installed",

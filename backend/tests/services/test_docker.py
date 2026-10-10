@@ -155,7 +155,7 @@ async def test_the_container_is_created_from_the_specification_and_nothing_else(
 
 
 async def test_the_only_mount_is_the_service_s_own_named_volume() -> None:
-    """A bind mount is how the old application let a request reach the host."""
+    """A bind mount would let a request reach the host."""
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:

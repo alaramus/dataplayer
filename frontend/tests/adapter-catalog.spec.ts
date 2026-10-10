@@ -9,8 +9,8 @@ import { closeWindowDialog, connectorRow, deleteConnector } from "./utils/worksp
  * The catalog is the screen a new user meets first, and most of what it says
  * cannot be proved by a unit test: the short lists are read on the server from
  * the type's page of the guide (D183), travel through the generated client and
- * end up in the panel. Captions in the old catalog tree were computed,
- * unit-tested and never rendered.
+ * end up in the panel. A caption can be computed and unit-tested and still
+ * never be rendered.
  */
 
 test("shows what a source type can do before anything is filled in", async ({ page }) => {

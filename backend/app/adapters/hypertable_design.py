@@ -154,8 +154,7 @@ class ColumnstoreDesign(BaseModel):
     segment_by: SegmentBy = Field(default_factory=NoColumns)
     order_by: OrderBy = Field(default_factory=ChosenByTimescale)
     # compress_chunk_time_interval: how much time one compressed chunk may
-    # cover. Never the same number as a policy's age, which the old
-    # application conflated.
+    # cover. A setting of its own, never derived from a policy's age.
     merge_interval: DesignDuration | None = None
     sparse_indexes: SparseIndexes = Field(default_factory=ChosenByTimescale)
 

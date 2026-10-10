@@ -1,7 +1,7 @@
 """References somebody drew between two columns no source calls related (D106).
 
-The pair under test is deliberately the one the old application was used for:
-a PostgreSQL relation and a CSV in personal storage, joined on a code that
+The pair under test is deliberately the case this exists for: a PostgreSQL
+relation and a CSV in personal storage, joined on a code that
 neither source has ever heard of.
 """
 

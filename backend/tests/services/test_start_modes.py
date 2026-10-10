@@ -332,8 +332,8 @@ async def test_a_name_that_is_not_a_name_is_refused(
 async def test_nothing_about_the_container_can_be_asked_for(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    """The whole of D80 in one test: the old application took the image from
-    the connector form."""
+    """The whole of D80 in one test: nothing about the container comes from
+    the request."""
     for extra in [
         {"image": "evil:latest"},
         {"command": ["sh", "-c", "curl evil"]},

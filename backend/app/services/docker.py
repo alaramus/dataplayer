@@ -3,8 +3,7 @@
 The Docker Engine API is HTTP, and httpx speaks it over a Unix socket, so this
 is a client rather than a dependency: one module, the requests this
 application actually makes, and every answer reduced to something safe to show
-(D82). The old application shelled out to `docker compose` with a command line
-built by an f-string.
+(D82). Nothing is shelled out, and no command line is built from strings.
 
 Nothing here knows what a service is. It is handed names and a specification
 that were decided elsewhere (D80), and it does what it is told.

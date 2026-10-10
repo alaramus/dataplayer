@@ -1,9 +1,8 @@
 """The login shell of the account a connection signs in as (D149).
 
-A shell on the server with a pseudo-terminal of the size the browser draws —
-no program on this machine and no key written to its disk, which is what the
-old application ran `ssh` in a local pty for. The connection is the
-terminal's own and ends with it.
+A shell on the server with a pseudo-terminal of the size the browser draws,
+opened by this process: no local `ssh` in a pty and no key written to this
+machine's disk. The connection is the terminal's own and ends with it.
 """
 
 import asyncio

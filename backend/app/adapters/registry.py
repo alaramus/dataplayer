@@ -90,13 +90,13 @@ def category_title(category: Category) -> str:
 # that opens where you are.
 #
 # A closed set, so a screen switching on it cannot meet a value it has no
-# panel for, and read off the type rather than branched on by name — a screen
-# that said `if adapterType === "redis"` would be the old application (D62).
+# panel for, and read off the type rather than branched on by name — no
+# screen says `if adapterType === "redis"` (D62).
 CatalogShape = Literal["levels", "tree"]
 
 # What sort of statement a capability makes: what can be looked at, and what
-# can be changed. Two rather than the old application's ten, because two is
-# what the derivation below can honestly tell apart.
+# can be changed. Two rather than a finer taxonomy, because two is what the
+# derivation below can honestly tell apart.
 CapabilityGroup = Literal["explore", "manage"]
 
 
@@ -224,8 +224,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     There is no table of capabilities to keep in step: a driver that stops
     implementing `list_children` stops claiming to browse in the same commit,
     and the titles of its actions come from the very classes that will be
-    dispatched. The old application kept 105 capability names by hand on the
-    client and said so in its own README, at the cost it names there.
+    dispatched. A hand-kept list of capabilities drifts from the drivers;
+    deriving them cannot.
 
     `issubclass` rather than `isinstance` because the question is about the
     type. These protocols hold methods only, which is what makes the class

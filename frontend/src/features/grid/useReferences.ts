@@ -18,8 +18,8 @@ import { keyValues, referencesLedBy } from "./references"
  * away (D36) and the keys landing on it that lead back (D110).
  *
  * Written once so the grid and the row view cannot drift into two answers
- * about which cell offers what — which is how the old application ended up
- * copying a constraint onto every column it touched. What differs between the
+ * about which cell offers what, or copy a constraint onto every column it
+ * touches. What differs between the
  * callers is only which columns are on screen.
  */
 const NO_REFERENCES: FetchReference[] = []

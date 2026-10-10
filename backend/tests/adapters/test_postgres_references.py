@@ -40,8 +40,8 @@ async def _customer(schema: str) -> None:
 async def test_a_fetched_page_lists_the_whole_key_once(schema: str) -> None:
     """A composite key is one reference, not one link per column.
 
-    The old application copied a constraint onto every column it touched,
-    which turned this exact two-column key into two independent links.
+    Copying a constraint onto every column it touches would turn this exact
+    two-column key into two independent links.
     """
     result = await _adapter().fetch(
         FetchRequest(node_id=f"{schema}.customers", limit=1)

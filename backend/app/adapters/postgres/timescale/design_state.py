@@ -84,7 +84,7 @@ _SPARSE_KINDS = ("minmax", "bloom")
 _TIME_TYPES = ("timestamp without time zone", "timestamp with time zone", "date")
 INTEGER_TYPES = ("smallint", "integer", "bigint")
 INTEGER_MAX = {"smallint": 32_767, "integer": 2_147_483_647, "bigint": BIGINT_MAX}
-# The old application's proposals, an order of magnitude apart.
+# Proposed chunk intervals for an integer time column, an order of magnitude apart.
 _PROPOSED_COUNT = {"smallint": 10_000, "integer": 100_000, "bigint": 1_000_000}
 # What each type holds without overflowing: seconds since 1970 left smallint's
 # range in its first nine hours and leave integer's in 2038.

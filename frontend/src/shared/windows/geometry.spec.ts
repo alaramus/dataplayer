@@ -172,7 +172,7 @@ describe("the order windows stack in", () => {
   })
 
   it("is a position, so there is no number to overflow", () => {
-    // The old engine incremented a z-index counter for ever. Here the order
+    // A z-index counter would only grow. Here the order
     // is the list, so opening and focusing a thousand times changes nothing
     // but the sequence.
     let order = ["a", "b", "c"]

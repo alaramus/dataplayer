@@ -161,8 +161,8 @@ test("a window can be dragged, and cannot be dragged out of reach", async ({ pag
   expect(moved?.x).toBeCloseTo((before?.x ?? 0) + 120, -1)
   expect(moved?.y).toBeCloseTo((before?.y ?? 0) + 60, -1)
 
-  // Thrown at the far corner it must still be grabbable: the old engine
-  // clamped nothing, and a window past the edge could not be brought back.
+  // Thrown at the far corner it must still be grabbable: without a clamp, a
+  // window past the edge could not be brought back.
   const grip2 = await bar.boundingBox()
   await page.mouse.move((grip2?.x ?? 0) + 20, (grip2?.y ?? 0) + (grip2?.height ?? 0) / 2)
   await page.mouse.down()

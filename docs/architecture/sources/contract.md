@@ -14,8 +14,8 @@ Decisions here: D1, D13, D183, D2, D2b, D2a, D98, D21, D2c, D8, D2d, D20.
 ## D1. A source type is registered in code
 
 A driver class plus a Pydantic options schema next to it, registered by a
-decorator. Storing a driver class name in a row is what left the old
-application with no typing and a 3685-line options file.
+decorator. Storing a driver class name in a row was rejected: it leaves the
+options with no typing and gathers them into one ever-growing file.
 
 - There is no `adapter` table; `Connector.adapter_type` is a plain string key.
 - Adding a source type needs no migration.
@@ -129,10 +129,10 @@ Spec: [The connector registry and the adapter contract](../../decisions/2026-08-
 
 ## D2b. A driver is composed of capability modules
 
-The old application split by inheritance, moved backups, monitoring, extensions,
-replication and the producer into their own files, and
-`postgres_extended_adaptor.py` still reached 1243 lines. One cut cannot absorb
-growth along many capability axes at once.
+Splitting a driver by inheritance, with backups, monitoring, extensions,
+replication and the producer moved into files of their own, still leaves one
+class that every capability grows. One cut cannot absorb growth along many
+capability axes at once.
 
 - `postgres/session.py` knows how to reach the server and nothing else;
   `postgres/catalog.py` knows what to ask and nothing about connections;
@@ -149,13 +149,14 @@ Spec: [The connector registry and the adapter contract](../../decisions/2026-08-
 ## D2a. Nodes differ by kind, not by source family
 
 Grouping sources into families was rejected: the boundary is arbitrary for
-ClickHouse, Kafka, Sheets or parquet-on-S3, and misclassifying a source is what
-broke before. One source may hold nodes of several kinds.
+ClickHouse, Kafka, Sheets or parquet-on-S3, and a misclassified source breaks.
+One source may hold nodes of several kinds.
 
 - `list_children()` walks a tree one level at a time.
 - `CatalogNode` is a discriminated union; only `id`, `name` and `has_children`
-  are shared, so a key cannot pick up a second meaning. The old application's
-  `schema` held a PostgreSQL schema name and the literal `"directory"` for S3.
+  are shared, so a key cannot pick up a second meaning — a `schema` field
+  holding a PostgreSQL schema name for one source and the literal
+  `"directory"` for S3.
 - Adding a kind means adding a class to the union.
 - `list_children()` raises `AdapterError` rather than returning an empty list on
   failure: an empty node and a broken query must stay distinguishable.
@@ -223,25 +224,25 @@ Spec: [A source says for itself where a node lives](../../decisions/2026-08-24-n
 
 ## D2c. A query is never built from client strings
 
-The old application formatted a template with client input, accepted a raw SQL
-fragment guarded only by a blacklist, and defaulted to `limit=-1`.
+Rejected: formatting a template with client input, accepting a raw SQL
+fragment guarded only by a blacklist, and defaulting to `limit=-1`.
 
 - Filters are a closed set of predicates.
 - Column names are validated against the relation before anything is assembled,
   identifiers go through `psycopg.sql.Identifier`, values through placeholders.
 - `limit` has a default and a ceiling.
 - Paging reports `has_more` by reading one row past the page rather than running
-  `COUNT(*)`; the approximate total arrives on the catalog node. The old
-  application smuggled an exact count in as a pseudo-column named
-  `____total_count____` that clients had to know to discard.
+  `COUNT(*)`; the approximate total arrives on the catalog node. An exact count
+  smuggled in as a pseudo-column, which clients have to know to discard, was
+  rejected.
 
 Spec: [Reading data](../../decisions/2026-08-15-fetch-design.md)
 
 ## D8. One directory per user, and no way out of it
 
-The same rule as D2c for a source made of paths. The old application checked
-containment in one branch of one method, and the check let through any ancestor
-of the root, so the tree could be walked up to `/`.
+The same rule as D2c for a source made of paths. A containment check made in
+one branch of one method is easy to get wrong: one that lets through any
+ancestor of the root lets the tree be walked up to `/`.
 
 - `USER_STORAGE_ROOT / <user_id>` is created when the user is created.
 - The root of a file connector is composed by the server from the connector's

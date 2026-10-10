@@ -12,7 +12,7 @@ import { AppButton, AppEmptyState, AppTooltip } from "@/shared/ui"
  *
  * Not a dialog: the grid stays visible, so several types can be read through
  * in a row before one is chosen. This is the reason the catalog exists — a
- * tile that led straight to the form would be the old dropdown, enlarged.
+ * tile that led straight to the form would be a dropdown, enlarged.
  */
 const props = defineProps<{
   type: AdapterTypeInfo | null

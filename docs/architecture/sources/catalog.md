@@ -235,9 +235,9 @@ structure the names were given when they were chosen.
   sixteen every client assumes.
 - **A key is a kind of its own.** `KeyNode` carries a Redis data type, an
   expiry and a length; reusing `table` would give one kind two meanings — what
-  D2a says the old application did — and would offer every action that names a
-  table on a key. The namespace above it is a `directory`, because a container
-  of nodes with nothing else to say about itself is what a namespace is.
+  D2a rejects — and would offer every action that names a table on a key. The
+  namespace above it is a `directory`, because a container of nodes with
+  nothing else to say about itself is what a namespace is.
 - **Every id carries its database, and a letter says which kind it is**:
   `d3`, `f3:cache:` and `k3:cache:user`. The database, because a key of the same
   name in two of them would otherwise be the same string; the letter, because

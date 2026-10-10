@@ -248,7 +248,7 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
-    # DPMA/1 (D130). What sys_monitor_agent sent means something else under
+    # DPMA/1 (D130). What the agent before it sent means something else under
     # similar names, so every agent's data goes; connections' stays. Series go
     # last: the rollups' rows are found through them.
     Migration(

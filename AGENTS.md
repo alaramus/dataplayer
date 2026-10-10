@@ -12,14 +12,13 @@ before the task is known; details belong in the linked documentation.
 ## Project
 
 DataPlayer connects heterogeneous data sources and lets users explore and work
-with them through one interface. It is a typed rewrite of two working legacy
-applications:
+with them through one interface: a FastAPI backend in `backend/` and a Vue 3 +
+Quasar frontend in `frontend/`, run together with Docker Compose. It began
+from the FastAPI full-stack template, which is not a constraint.
 
-- backend: `C:\Users\maxim\PycharmProjects\dbwebtool`;
-- frontend: `C:\Users\maxim\PycharmProjects\myquasar`.
-
-Use the old projects to understand workflows and edge cases. Port ideas, never
-files or architecture. The FastAPI template is not a constraint.
+Everything needed to work on it is in this repository. Specs in
+`docs/decisions/` sometimes mention "the old application": a private
+predecessor that is not published. Do not look for it.
 
 Everything is in English: code, comments, UI strings, tests, commits and
 documentation.

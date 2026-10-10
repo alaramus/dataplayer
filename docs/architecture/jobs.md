@@ -37,11 +37,10 @@ POST /api/v1/jobs/{job_id}/cancel
 
 ## D81. Long work is a row the server owns, not a request that waits
 
-The old application started a container with `asyncio.create_task` and kept
-what it knew about it in a process dictionary —
-`cache_activity[f'{connector_id}.{user_id}'] = (result, {})` — a single
-boolean, invisible to a second worker, lost on reload, and never settled if
-the process went away. A request that wanted to know waited, polled, or gave
+Rejected: starting a container with `asyncio.create_task` and keeping what is
+known about it in a process dictionary keyed by connection and user. That is a
+single boolean, invisible to a second worker, lost on reload, and never settled
+if the process goes away; a request that wants to know waits, polls, or gives
 up.
 
 - **A job is a row before it is a task.** The request validates, writes the

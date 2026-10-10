@@ -322,9 +322,8 @@ Spec: [Charts over a bounded page](../decisions/2026-08-30-bounded-page-charts-d
 
 ## D111. One row is read downwards over the page the grid is on
 
-A wide relation is unreadable a row at a time in a grid, and the old
-application's row window was where people actually worked. It is a panel of the
-relation, not a second reading of it.
+A wide relation is unreadable a row at a time in a grid. The row view is a
+panel of the relation, not a second reading of it.
 
 - **The same page, by the same query key.** The row view reads through the same
   `useRowsPage` the grid does, so opening a row costs no request and the two
@@ -357,15 +356,15 @@ relation, not a second reading of it.
 
 Known deviations:
 
-- **No editing.** The old window had one; editing a row is the grid's cell
-  editor and its rules about what a source accepts, and a second editing
-  surface is a second set of those rules.
-- **No physical row identity on screen.** The old view listed `ctid` as a line
-  of the row. That is a row handle by another name, and D42 already decided
+- **No editing.** Editing a row is the grid's cell editor and its rules about
+  what a source accepts, and a second editing surface is a second set of those
+  rules.
+- **No physical row identity on screen.** Listing `ctid` as a line of the row
+  was rejected: that is a row handle by another name, and D42 already decided
   whose business identity is.
-- **It does not follow the grid's selection.** The old window did until it
-  froze itself, and the freezing is the tell: the useful state was the frozen
-  one, on the row somebody chose to look at.
+- **It does not follow the grid's selection.** A view that follows the
+  selection needs a way to freeze it, and the frozen state is the useful one:
+  the row somebody chose to look at.
 
 Spec: [One row, read downwards](../decisions/2026-09-05-row-view-design.md)
 

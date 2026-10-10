@@ -1,13 +1,11 @@
 """What a source can be asked to do, and the only way to ask it.
 
 An action is one object holding its name, its parameter model and its
-implementation together. That is the whole point of this module: in the old
-application the list of supported actions and the thing that dispatched them
-were separate — a 765-line table of names next to
-`getattr(connector, action)(**request_body)` guarded by `hasattr`. The table
-never took part in the guard, so any public method of a driver was callable by
-name, and any method could be added without ever being declared. Here the
-declaration *is* the callable, and a name that is not in the set does not
+implementation together. That is the whole point of this module. A table of
+names kept beside `getattr(connector, action)(**request_body)` guarded by
+`hasattr` takes no part in the guard: any public method of a driver becomes
+callable by name, and a method can be added without ever being declared. Here
+the declaration *is* the callable, and a name that is not in the set does not
 resolve.
 """
 

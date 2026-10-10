@@ -142,8 +142,7 @@ class DataAdapter(Protocol):
     below, because capabilities are independent: a queue has no columns, an
     object store has no SQL. A single contract that demanded all of them would
     force meaningless implementations, and a single inheritance chain would
-    force them into one line — which is how the old application ended up with
-    four levels of base classes.
+    force them into one line of ever deeper base classes.
     """
 
     async def check_connection(self) -> ConnectionCheckResult: ...
@@ -218,7 +217,7 @@ class SupportsCatalog(Protocol):
         Raises AdapterError for source failures and ValueError for a node_id
         the source cannot or may not reach — a path leaving the root of a file
         source, for instance. An empty list means an empty node, never a
-        failure: the old application returned an empty result for both.
+        failure, so a broken source cannot pass for an empty one.
         """
         ...
 
@@ -799,7 +798,7 @@ class ParsesConnectionString(Protocol):
     The answer is options in the shape the schema declares, discriminator
     included: which way of connecting a string describes is the driver's
     inference. A form that read it off the presence of a substring would be
-    the `isFieldShowing` of the old application.
+    a second, weaker parser of the same string.
 
     Raises ValueError for a string the driver cannot read as an address. What
     counts as one is the driver's own rule; nothing here inspects the text.

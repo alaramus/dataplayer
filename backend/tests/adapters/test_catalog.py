@@ -95,7 +95,7 @@ def test_unknown_kind_is_rejected() -> None:
 
 
 def test_a_field_of_one_kind_is_not_accepted_on_another() -> None:
-    """The failure the old application allowed: one key, two meanings.
+    """One key must not carry two meanings.
 
     A schema node must not silently carry table metadata.
     """

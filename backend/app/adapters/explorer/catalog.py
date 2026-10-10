@@ -32,8 +32,7 @@ from app.adapters.protocol import AdapterError, NodeNotFound
 
 # A schema count is bounded, a directory is not. Beyond this the listing fails
 # rather than being cut short: pagination of catalog children does not exist
-# yet, and pretending a directory is smaller than it is would be a lie of the
-# kind the old catalog told when it answered with the parent directory.
+# yet, and pretending a directory is smaller than it is would be a lie.
 MAX_ENTRIES = 2000
 
 

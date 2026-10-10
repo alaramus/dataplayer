@@ -360,8 +360,8 @@ async def test_a_ready_service_becomes_a_connector_of_its_own(
 async def test_the_connector_holds_what_the_container_was_started_with(
     client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:
-    """The old application read the two out of different places and could save
-    a connector that did not match its own container."""
+    """Read from two places, the two could differ and a connector be saved
+    that did not match its own container."""
     accepted = await _ask_for_one(client, normal_user_token_headers)
     await _wait(accepted["job"]["id"])
 

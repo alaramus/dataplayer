@@ -5,9 +5,8 @@ import { adapterIcon } from "@/features/connectors/adapters"
 /**
  * One source type in the catalog's grid.
  *
- * Three things: the logo, the name, and what sort of source it is. The old
- * application put capability chips here too and took them out again — a tile
- * is scanned, and the panel beside it is what is read.
+ * Three things: the logo, the name, and what sort of source it is. No
+ * capability chips: a tile is scanned, and the panel beside it is what is read.
  */
 defineProps<{ type: AdapterTypeInfo; selected: boolean }>()
 

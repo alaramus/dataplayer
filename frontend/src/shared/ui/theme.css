@@ -483,9 +483,9 @@ body.body--dark[data-dp-theme="dark-blue"] {
   --dp-dropzone-border: rgba(77, 208, 225, 0.7);
 }
 
-/* Warm dark paper from rich-md-viewer (`data-style="paper"` there), with its
-   bronze accent carried through links, selections and drop targets. Labelled
-   Paper dark: beside Paper light, plain Paper read as the light one. */
+/* Warm dark paper, with its bronze accent carried through links, selections
+   and drop targets. Labelled Paper dark: beside Paper light, plain Paper read
+   as the light one. */
 body.body--dark[data-dp-theme="paper"] {
   --dp-surface: #211c17;
   --dp-surface-raised: #2b241d;
@@ -526,8 +526,7 @@ body.body--dark[data-dp-theme="paper"] {
   --dp-dropzone-border: rgba(215, 164, 119, 0.7);
 }
 
-/* The dimmest theme: a near-black navy from rich-md-viewer
-   (`data-style="midnight"` there) with an ice-blue accent. Its ground sits
+/* The dimmest theme: a near-black navy with an ice-blue accent. Its ground sits
    below the dark theme's and its text a step down, so it gives off less light
    than Dark rather than more, at 13.6:1. */
 body.body--dark[data-dp-theme="midnight"] {
@@ -565,9 +564,8 @@ body.body--dark[data-dp-theme="midnight"] {
   --dp-dropzone-border: rgba(124, 199, 255, 0.7);
 }
 
-/* Dark purple neon from rich-md-viewer (`data-style="vice-city"` there): a
-   neon-pink accent through links, selections and drop targets, and the cyan
-   bright for painted text selection, as in the viewer's own. The lines are
+/* Dark purple neon: a neon-pink accent through links, selections and drop
+   targets, and the cyan bright for painted text selection. The lines are
    lavender rather than pink, so the pink still means something to press. */
 body.body--dark[data-dp-theme="dark-purple"] {
   --dp-surface: #1a102d;
@@ -606,8 +604,7 @@ body.body--dark[data-dp-theme="dark-purple"] {
   --dp-dropzone-border: rgba(255, 79, 170, 0.7);
 }
 
-/* Warm light paper from rich-md-viewer (`data-style="paper"` in the light
-   scheme there), with its bronze accent. An override of the light theme: what
+/* Warm light paper, with its bronze accent. An override of the light theme: what
    is unlisted stays as it is, and the tones the light theme drew for white
    are drawn again for cream, where they had faded into the page. */
 body:not(.body--dark)[data-dp-theme="paper-light"] {

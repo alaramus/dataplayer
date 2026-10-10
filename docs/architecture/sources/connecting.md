@@ -7,8 +7,8 @@ Decisions here: D16, D15, D17, D10, D31, D100, D101, D102, D103, D104, D105.
 
 ## D16. A way of connecting is a variant of the options
 
-One model with optional fields would put the decision about which of them matter
-in the form, which is where the old application's options file started.
+One model with optional fields was rejected: it would put the decision about
+which of them matter in the form.
 
 - `PostgresOptions` is `Annotated[PostgresUserPassword | PostgresNoAuth,
   Field(discriminator="auth_method")]`.

@@ -576,8 +576,8 @@ const canSearchContents = computed(
 /**
  * Whether this catalog is expanded where it stands rather than walked.
  *
- * The source says which (D91), and this reads the answer: a screen that asked
- * "is this Redis" would be the old application. Everything the head offers —
+ * The source says which (D91), and this reads the answer rather than asking
+ * "is this Redis". Everything the head offers —
  * a path, a set of groupings, a search — belongs to a level, so a tree shows
  * none of it and the menu is fed from the selection instead.
  */

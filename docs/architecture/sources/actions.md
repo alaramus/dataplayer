@@ -60,9 +60,9 @@ Spec: [Paste conflict window](../../decisions/2026-09-25-paste-conflict-window-d
 
 ## D9. An action is one object
 
-The old application dispatched `getattr(connector, action)(**request_body)`
-guarded only by `hasattr`, so every public method of a driver was callable by
-name from a client; its 765-line table of supported actions took no part in the
+Rejected: dispatching `getattr(connector, action)(**request_body)` guarded
+only by `hasattr`, which makes every public method of a driver callable by name
+from a client; a separate table of supported actions takes no part in such a
 guard.
 
 - A name, a title, the kinds of node it applies to, a Pydantic model of its

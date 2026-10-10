@@ -139,8 +139,8 @@ class ServicePlan:
 
     The credentials are kept beside the container rather than read back out of
     it later, because the connector this becomes needs the same values the
-    container was started with — the old application read them from two places
-    and could save a connector that did not match its own container.
+    container was started with. Read from two places, they could disagree and
+    the connector would not match its own container.
     """
 
     service_id: UUID

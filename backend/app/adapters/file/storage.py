@@ -2,8 +2,8 @@
 
 The containment rule of D8 is judged here and nowhere else: every node id
 becomes a place through `place`, which follows links and refuses anything that
-lands outside the root. The old application checked it in one branch of one
-method, and the check let through any ancestor of the root.
+lands outside the root. A check made in one branch of one method is a check
+the other branches skip.
 
 On this disk the explorer's local file is the file itself, so nothing is
 copied: reading a table, a workbook or an archive opens it where it lies.

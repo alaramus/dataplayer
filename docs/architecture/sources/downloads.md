@@ -74,8 +74,7 @@ Its first user is `describe_model`, offered on a schema and on a relation. The
 renderers are pure functions over `RelationModel` in `adapters/model_code.py`:
 a source that can describe a relation already publishes its columns, types,
 keys and comments (D22), so this is a transformation of an answer that already
-exists rather than a second description of a relation. The old application had
-two of these inside each driver, reading a driver-shaped dictionary.
+exists rather than a second description of a relation.
 
 Consequences:
 
@@ -129,10 +128,10 @@ Spec: [The model a source published, written as code](../../decisions/2026-09-02
 
 ## D55. A source may publish reports of its own
 
-Three of the old application's "System's objects" screens have no relation to
-open and never will — tablespaces need `pg_tablespace` joined to `pg_roles` and
-`pg_class` with `pg_tablespace_size` and a count of objects, and a reader cannot
-be asked to write the join.
+Some of what a source knows about itself has no relation to open and never
+will — tablespaces need `pg_tablespace` joined to `pg_roles` and `pg_class`
+with `pg_tablespace_size` and a count of objects, and a reader cannot be asked
+to write the join.
 
 - A report is a named, read-only, tabular answer a source gives about itself. It
   is a catalog node of kind `report`, walked to and opened like anything else,
@@ -159,10 +158,10 @@ be asked to write the join.
   could make — the server's own guarantee rather than a convention this project
   hopes holds.
 - The six reports PostgreSQL publishes are processes, settings, tablespaces,
-  roles, routines and extensions. Extensions is one report where the old
-  application had two, because `pg_available_extensions` already states the
-  installed version — and it is where extensions are installed and removed,
-  on its own rows ([D70](relations.md)).
+  roles, routines and extensions. Extensions is one report rather than two,
+  because `pg_available_extensions` already states the installed version —
+  and it is where extensions are installed and removed, on its own rows
+  ([D70](relations.md)).
 - A report is not a relation and answers no relation model: `describable` is
   false, and a subquery has no constraints, indexes or owner.
 - **A report offers its own statement as a second representation.** It has no
@@ -188,4 +187,4 @@ Known deviations:
   `ctid`, which is why every registered statement ends in an `ORDER BY` of its
   own.
 
-Spec: [What the old PostgreSQL adapter does beyond the table rounds](../../decisions/2026-08-31-postgres-system-operations-design.md)
+Spec: [What the PostgreSQL adapter does beyond the table rounds](../../decisions/2026-08-31-postgres-system-operations-design.md)

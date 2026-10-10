@@ -4,9 +4,7 @@ import type { AdapterTypeInfo } from "@/client"
  * Finding a source type in the catalog. Plain functions, tested without
  * mounting anything.
  *
- * What is matched, and how, is the search's (D202); the old application
- * shipped an embedding model to the browser to search 84 hand-written
- * descriptions.
+ * What is matched, and how, is the search's (D202).
  */
 
 /** The sidebar row that filters nothing. Not a category, so not a Category. */

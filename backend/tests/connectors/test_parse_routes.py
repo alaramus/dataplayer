@@ -60,8 +60,8 @@ async def test_a_url_without_a_password_names_the_other_variant(
 ) -> None:
     """Inferred by the driver, never by the form.
 
-    A form guessing the way of connecting from a substring is the
-    `isFieldShowing` of the old application, which is where this started.
+    A form guessing the way of connecting from a substring would be a
+    second, weaker parser of the same string.
     """
     _, body = await _parse(client, normal_user_token_headers, "postgresql://ann@db/app")
 

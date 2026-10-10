@@ -70,9 +70,9 @@ says what the bytes mean.
   the same idea one level up. Everything else reads through the storage's
   seekable `open`.
 
-Rejected: a copy of the explorer per source. That is what the old application
-had, and a fix in one of its two thousand lines of per-adapter catalog, archive,
-media and search code reached none of the others.
+Rejected: a copy of the explorer per source. With catalog, archive, media and
+search code written once per adapter, a fix in one copy reaches none of the
+others.
 
 Rejected: fsspec as the contract. It covers S3, GCS, FTP and SFTP, but it is not
 where this application's rules live: the server key a connection pinned, keys

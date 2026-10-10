@@ -57,11 +57,11 @@ back if it is left untyped-in. A connection check shows its result in a small
 popup anchored above Test Connection, leaving the form's layout intact.
 Clicking outside or pressing Escape dismisses it.
 
-Three things the old application's window engine got wrong are inverted here: a
-z-index counter that only ever grew is now a position in a list; geometry
-mutated in place is now pure functions whose result is assigned; and no clamping
-at all — a window dragged past an edge could not be recovered — is now a rule
-applied on every move and again when the viewport shrinks.
+Three common failures of a window engine are designed out: stacking is a
+position in a list rather than a z-index counter that only ever grows; geometry
+is pure functions whose result is assigned rather than mutated in place; and
+clamping — without it a window dragged past an edge cannot be recovered — is a
+rule applied on every move and again when the viewport shrinks.
 
 Consequences:
 

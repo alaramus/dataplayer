@@ -1,8 +1,8 @@
 """Copying a source out, and putting it back, as jobs the server owns.
 
-Neither is a request that waits: a dump of anything real is minutes, and the
-old application's answer to that — a task nobody held and a boolean in a
-process — is what D81 exists to replace. So both are jobs, with the same
+Neither is a request that waits: a dump of anything real is minutes, and a
+task nobody holds with a boolean in a process is lost on a restart (D81). So
+both are jobs, with the same
 durable state, the same named steps and the same socket.
 
 Where a backup goes is deliberately not a new place: it is a file in the

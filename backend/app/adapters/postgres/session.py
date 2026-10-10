@@ -330,9 +330,8 @@ class PostgresSession:
 
     Knows about connections, queries and driver errors, and nothing about what
     the caller wants: catalogs, fetching and everything after are built on top
-    of this rather than inside it. In the old application both lived in one
-    class, which reached 1243 lines even though backups, monitoring and
-    extensions had already been moved out of it.
+    of this rather than inside it, so neither grows into one class that does
+    everything.
     """
 
     def __init__(

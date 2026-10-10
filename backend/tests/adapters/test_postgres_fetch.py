@@ -310,7 +310,7 @@ async def test_unknown_sort_column_is_rejected() -> None:
 
 
 async def test_injection_through_a_column_name_never_reaches_sql() -> None:
-    """The failure the old application invited: identifiers taken from input.
+    """Identifiers are never taken from input.
 
     The name is rejected because it is not a column of the relation, before any
     statement is built.

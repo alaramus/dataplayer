@@ -14,8 +14,8 @@ could describe at most one of them. Six named actions each say what they take,
 which is also what the menu ends up showing.
 
 Every one of them is declared here with its own parameter model, so a name
-that is not on this list does not resolve. The old application dispatched by
-`getattr` on the driver, which made every public method an action.
+that is not on this list does not resolve. Dispatching by `getattr` on the
+driver would make every public method an action.
 """
 
 import re

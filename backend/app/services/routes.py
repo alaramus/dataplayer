@@ -107,7 +107,7 @@ class ServiceTemplateInfo(BaseModel):
     adapter_type: str
     adapter_title: str
     # Which credentials this server makes up. A statement about what a person
-    # will not be asked for, which is the whole difference from the old form.
+    # will not be asked for.
     generated: list[templates.CredentialSlot]
     # And which of them a person may name themselves when they want to. The
     # form that asks is built from this, so a template that opens a slot gains
@@ -604,7 +604,7 @@ async def _accept(
     """Write the job down, then start carrying it out.
 
     In that order: a job that exists only as a task is a job a restart loses
-    silently, which is what the old application had.
+    silently.
     """
     job = await job_crud.create(
         session,

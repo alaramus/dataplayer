@@ -64,8 +64,8 @@ class NullFilter(BaseModel):
     op: Literal["is_null", "is_not_null"]
 
 
-# A closed set. In the old application a client could pass a raw SQL fragment
-# through `sql_conditions`, guarded only by a blacklist.
+# A closed set: a raw SQL fragment from a client, however filtered, is
+# injection by construction.
 Filter = Annotated[
     ScalarFilter | InFilter | NullFilter,
     Field(discriminator="op"),
@@ -81,7 +81,7 @@ class FetchRequest(BaseModel):
     # The same opaque identifier the catalog produces; only the adapter that
     # issued it knows how to read it.
     node_id: str
-    # There is no unlimited option: the old application defaulted to -1.
+    # There is no unlimited option, and -1 is not a way to ask for one.
     limit: int = Field(default=100, ge=1, le=MAX_LIMIT)
     offset: int = Field(default=0, ge=0)
     filters: list[Filter] = Field(default_factory=list)
@@ -112,9 +112,9 @@ class FetchColumn(BaseModel):
 class FetchReference(BaseModel):
     """One foreign key of the fetched relation, as the grid needs to see it.
 
-    A whole key rather than a mark on each of its columns: the old application
-    copied a constraint onto every column it touched, which split a composite
-    foreign key into independent one-column links. `columns` is the key in its
+    A whole key rather than a mark on each of its columns: a constraint copied
+    onto every column it touches splits a composite foreign key into
+    independent one-column links. `columns` is the key in its
     own order, and `name` is the source's own name for it — the handle the
     caller sends back to follow it, never a predicate the caller composes.
 

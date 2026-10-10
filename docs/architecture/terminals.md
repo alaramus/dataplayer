@@ -82,9 +82,9 @@ Spec: [A terminal on an SSH connection](../decisions/2026-09-19-terminal-design.
 - **The shell runs on the server, not here.** The SSH driver asks for a
   pseudo-terminal and the account's login shell over its own connection —
   never the kept one, which is made again whenever the server drops it and
-  would take the shell along. The old application ran `ssh` in a local pty
-  with the key written to a temporary file and an askpass script for the
-  password; here no process is started and no key touches the disk.
+  would take the shell along. Running `ssh` in a local pty, with the key
+  written to a temporary file and an askpass script for the password, was
+  rejected: no process is started and no key touches the disk.
 - **Nothing outlives the socket.** Closing the terminal, closing the page or
   losing the network closes the shell and its connection. There is no
   reattaching: what a person sees after a drop is that it ended, and a button

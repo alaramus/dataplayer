@@ -26,3 +26,6 @@ backend/htmlcov/
 
 # Local isolated feature worktrees
 .worktrees/
+
+# Per-person Claude Code settings
+.claude/settings.local.json
