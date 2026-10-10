@@ -2294,9 +2294,8 @@ async def search_catalog(
     the listing gives, each with the place it was found in (D76). Every word
     must be in a name and nothing is compiled (D202); the walk's ceilings are
     the source's, its clock is a costly cell's in the search, and it stops when
-    the caller has gone (D200). A tree offers no search of its own (D91), so a
-    source without a node path answers 501 here even when the field finds its
-    keys.
+    the caller has gone (D200). A tree's matches carry their ancestors, which
+    is how it places them without a node path (D91).
     """
     adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"

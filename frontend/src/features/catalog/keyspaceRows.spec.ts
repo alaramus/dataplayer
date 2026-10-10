@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import { rowAt, toTreeRows, withChildren } from "./keyspaceRows"
+import type { NodeMatch } from "@/client"
+
+import { filterTree, foundTree, rowAt, toTreeRows, withChildren } from "./keyspaceRows"
 import type { TreeRow } from "./keyspaceRows"
 import type { ListNode } from "./nodes"
 
@@ -103,5 +105,77 @@ describe("putting a loaded branch into the tree", () => {
     expect(rowAt(tree, "f0:b:one:")?.label).toBe("one:")
     expect(rowAt(tree, "nowhere")).toBeNull()
     expect(rowAt(tree, null)).toBeNull()
+  })
+})
+
+function folder(id: string, label: string, children?: TreeRow[]): TreeRow {
+  const [row] = toTreeRows([node({ id, label, role: "container", kind: "directory", readable: false, representations: [], holdsNodes: true })])
+  if (row === undefined) throw new Error("no row")
+  return children === undefined ? row : { ...row, lazy: false, children }
+}
+
+function key(id: string, label: string): TreeRow {
+  const [row] = toTreeRows([node({ id, label })])
+  if (row === undefined) throw new Error("no row")
+  return row
+}
+
+function match(name: string, ancestors: [string, string][]): NodeMatch {
+  return {
+    node: { kind: "key", id: `k0:${name}`, name: name.split(":").pop() ?? name, has_children: false, representations: [], data_type: "string" },
+    ancestors: ancestors.map(([node_id, label]) => ({ node_id, name: label })),
+  } as NodeMatch
+}
+
+describe("filtering what the tree has read", () => {
+  const rows = [
+    folder("f0:user:", "user:", [key("k0:user:alice", "alice"), key("k0:user:bob", "bob")]),
+    folder("f0:order:", "order:"),
+    key("k0:greeting", "greeting"),
+  ]
+
+  it("keeps a match with the branches above it, and opens them", () => {
+    const filtered = filterTree(rows, "ALI")
+    expect(filtered.rows.map((row) => row.id)).toEqual(["f0:user:"])
+    expect(filtered.rows[0]?.children?.map((row) => row.id)).toEqual(["k0:user:alice"])
+    expect(filtered.open).toEqual(["f0:user:"])
+  })
+
+  it("keeps a matching branch whole, unopened branches included", () => {
+    const filtered = filterTree(rows, "order")
+    expect(filtered.rows.map((row) => row.id)).toEqual(["f0:order:"])
+    expect(filtered.rows[0]?.lazy).toBe(true)
+    expect(filtered.open).toEqual([])
+  })
+
+  it("leaves the rows themselves alone while nothing is typed", () => {
+    expect(filterTree(rows, "  ").rows).toBe(rows)
+  })
+})
+
+describe("a search's matches as a tree", () => {
+  it("draws each match in the folders below the root, sharing them", () => {
+    const built = foundTree(
+      [
+        match("user:alice", [["d0", "db0"], ["f0:user:", "user:"]]),
+        match("user:admin:root", [["d0", "db0"], ["f0:user:", "user:"], ["f0:user:admin:", "admin:"]]),
+      ],
+      "d0",
+      []
+    )
+    expect(built.rows.map((row) => row.id)).toEqual(["f0:user:"])
+    const user = built.rows[0]
+    expect(user?.children?.map((row) => row.id)).toEqual(["k0:user:alice", "f0:user:admin:"])
+    expect(user?.lazy).toBe(false)
+    expect(user?.node.role).toBe("container")
+    expect(rowAt(built.rows, "k0:user:admin:root")?.node.kind).toBe("key")
+    expect(built.open.sort()).toEqual(["f0:user:", "f0:user:admin:"])
+  })
+
+  it("draws a place already read as it was read", () => {
+    const known = toTreeRows([node({ id: "d0", label: "db0", kind: "database", role: "group", caption: "4 keys", icon: "storage" })])
+    const built = foundTree([match("greeting", [["d0", "db0"]])], null, known)
+    expect(built.rows[0]).toMatchObject({ id: "d0", caption: "4 keys", icon: "storage" })
+    expect(built.rows[0]?.children?.map((row) => row.id)).toEqual(["k0:greeting"])
   })
 })

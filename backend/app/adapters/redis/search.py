@@ -7,9 +7,9 @@ names are case-folded and matched here; building `[aA]` classes out of typed
 text would be compiling it (D2c). A database `INFO` says is empty is not
 scanned at all.
 
-The tree has no node path and offers no search of its own (D91). A key found
-here carries its ancestors, worked out from its name by the listing's rule, so
-it can still be shown where its tree would put it.
+The tree has no node path (D91). A key found here carries its ancestors,
+worked out from its name by the listing's rule, so it can still be shown where
+its tree would put it — by the header's field and by the tree's own search.
 """
 
 from collections.abc import Iterable

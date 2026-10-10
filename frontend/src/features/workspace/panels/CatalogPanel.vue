@@ -2,13 +2,13 @@
 import { appIcons } from "@/shared/ui"
 import { computed, inject, nextTick, onBeforeUnmount, onDeactivated, ref, toRef, useId, watch } from "vue"
 
-import type { DetectedFramework } from "@/client"
+import type { DetectedFramework, NodeMatch } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { reloadedBy, replacementsOf, ticksAfter } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
-import { useCatalogLoader, useNodePathLoader } from "@/features/catalog/api"
+import { useCatalogLoader, useNodePathLoader, useNodeSearcher } from "@/features/catalog/api"
 import type { SearchScope } from "@/features/catalog/api"
 import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
@@ -18,7 +18,8 @@ import { isPathTrail, locationOf } from "@/features/catalog/location"
 import type { Location } from "@/features/catalog/location"
 import { locationFromAncestors, revealPlan } from "@/features/catalog/reveal"
 import type { CatalogHolding } from "@/features/catalog/reveal"
-import { searchSummary } from "@/features/catalog/search"
+import { foundNodes, searchSummary } from "@/features/catalog/search"
+import type { FoundNodes } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
 import {
   connectorColorOf,
@@ -125,7 +126,7 @@ function leaveFilter() {
 }
 
 function selectHistory(query: string) {
-  level.clearSearch()
+  clearFound()
   history.select(query)
 }
 
@@ -336,6 +337,9 @@ function leaveSearchFor(nodeId: string) {
  * every database at once.
  */
 async function revealInTree(location: Location, nodeId: string) {
+  // Pointed at from elsewhere: the whole tree, or the row may be hidden.
+  clearTreeSearch()
+  level.filter.value = ""
   const group = location.groups[0]
   if (group !== undefined && treeRoot.value !== group) await level.setGroups([group])
   await nextTick()
@@ -697,15 +701,50 @@ const canRunSearch = computed(() => canSearch.value && level.filter.value.trim()
 
 /** The button says what the second gesture does; nothing else would. */
 const searchTooltip = computed(() =>
-  canSearchContents.value
-    ? "Search names below this folder — hold Shift to search inside the files"
-    : "Search everything below this folder"
+  asTree.value
+    ? `Search every name in ${groupLabel.value}`
+    : canSearchContents.value
+      ? "Search names below this folder — hold Shift to search inside the files"
+      : "Search everything below this folder"
 )
 
-const foundText = computed(() => {
-  const found = level.found.value
-  return found === null ? "" : searchSummary(found)
-})
+/**
+ * A tree's search, beside the level's rather than inside it: a level is
+ * walked and a tree is rooted, and the matches are drawn by the tree in the
+ * folders they lie in (D91).
+ */
+const searchTree = useNodeSearcher()
+const treeFound = ref<{ summary: FoundNodes; matches: NodeMatch[] } | null>(null)
+const treeSearching = ref(false)
+
+async function runTreeSearch() {
+  const query = level.filter.value.trim()
+  treeSearching.value = true
+  try {
+    const result = await searchTree(props.connectorId, treeRoot.value, query)
+    treeFound.value = { summary: foundNodes(query, result), matches: result.matches ?? [] }
+    if (result.error_kind != null) toast.error(result.notice ?? "The search stopped part way")
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not search this connection"))
+  } finally {
+    treeSearching.value = false
+  }
+}
+
+function clearTreeSearch() {
+  treeFound.value = null
+}
+watch([() => props.connectorId, treeRoot], clearTreeSearch)
+
+/** What a search left on screen, whichever shape the catalog is. */
+const found = computed(() => asTree.value ? treeFound.value?.summary ?? null : level.found.value)
+const searching = computed(() => asTree.value ? treeSearching.value : level.searching.value)
+function clearFound() {
+  if (asTree.value) clearTreeSearch()
+  else level.clearSearch()
+}
+
+const foundText = computed(() => found.value === null ? "" : searchSummary(found.value))
 
 /**
  * Search, by name or — held down — inside the files themselves.
@@ -718,6 +757,10 @@ async function runSearch(event?: MouseEvent | KeyboardEvent) {
   historyOpen.value = false
   history.remember(true)
   if (!canRunSearch.value) return
+  if (asTree.value) {
+    await runTreeSearch()
+    return
+  }
   const scope: SearchScope =
     event?.shiftKey === true && canSearchContents.value ? "contents" : "names"
   if (scope === "contents" && !(await agreedToRead())) return
@@ -1041,7 +1084,6 @@ async function afterAction(outcome: ActionOutcome) {
            so the button appears beside them rather than somewhere else with a
            field of its own (D76). -->
       <AppInput
-        v-if="!asTree"
         v-model="level.filter.value"
         class="catalog-panel__filter"
         :placeholder="canSearch ? 'Filter, or search below' : 'Filter'"
@@ -1111,7 +1153,7 @@ async function afterAction(outcome: ActionOutcome) {
             v-if="canRunSearch"
             :icon="appIcons.search"
             :tooltip="searchTooltip"
-            :loading="level.searching.value"
+            :loading="searching"
             data-testid="catalog-search"
             @click="runSearch"
           />
@@ -1135,7 +1177,7 @@ async function afterAction(outcome: ActionOutcome) {
     <!-- While this is here the list is not a level, so it says what it is
          showing and offers the way back to the folder. -->
     <div
-      v-if="level.found.value"
+      v-if="found"
       class="catalog-panel__found"
       data-testid="catalog-search-summary"
     >
@@ -1146,18 +1188,18 @@ async function afterAction(outcome: ActionOutcome) {
       <span class="catalog-panel__found-text">{{ foundText }}</span>
       <AppIconButton
         :icon="appIcons.close"
-        tooltip="Back to the folder"
+        :tooltip="asTree ? 'Back to the tree' : 'Back to the folder'"
         data-testid="catalog-search-close"
-        @click="level.clearSearch"
+        @click="clearFound"
       />
     </div>
 
     <AppBanner
-      v-if="level.found.value?.notice"
+      v-if="found?.notice"
       tone="info"
       data-testid="catalog-search-notice"
     >
-      {{ level.found.value.notice }}
+      {{ found.notice }}
     </AppBanner>
 
     <KeyspaceTree
@@ -1166,6 +1208,8 @@ async function afterAction(outcome: ActionOutcome) {
       class="catalog-panel__body"
       :connector-id="connectorId"
       :root-id="treeRoot"
+      :filter="level.filter.value"
+      :found="treeFound?.matches ?? null"
       @select="picked = $event"
       @open="onOpen"
     />

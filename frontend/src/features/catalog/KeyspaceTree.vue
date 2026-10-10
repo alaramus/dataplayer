@@ -2,7 +2,8 @@
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue"
 
 import { useCatalogLoader } from "@/features/catalog/api"
-import { toTreeRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
+import type { NodeMatch } from "@/client"
+import { filterTree, foundTree, toTreeRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
 import type { TreeRow } from "@/features/catalog/keyspaceRows"
 import { toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -20,6 +21,10 @@ const props = defineProps<{
   connectorId: string
   /** The grouping the tree is rooted in; null is the top of the connection. */
   rootId: string | null
+  /** Narrows what has been read, as the list's filter does. */
+  filter?: string
+  /** A search's matches, drawn in place of the tree while they are here. */
+  found?: readonly NodeMatch[] | null
 }>()
 
 const emit = defineEmits<{
@@ -38,7 +43,11 @@ const tree = useTemplateRef<{
 const root = useTemplateRef<HTMLElement>("root")
 
 const rows = ref<TreeRow[]>([])
+/** The search's tree, kept apart so opening a found folder reads into it. */
+const foundRows = ref<TreeRow[] | null>(null)
 const expanded = ref<string[]>([])
+/** What was open before a search opened its own way down. */
+let openBefore: string[] = []
 const selected = ref<string | null>(null)
 const loading = ref(false)
 const error = ref("")
@@ -81,7 +90,8 @@ async function expand({ node, done, fail }: TreeLazyLoad) {
   const row = node as TreeRow
   try {
     const children = await childrenOf(row.node.id)
-    rows.value = withChildren(rows.value, row.id, children)
+    if (foundRows.value === null) rows.value = withChildren(rows.value, row.id, children)
+    else foundRows.value = withChildren(foundRows.value, row.id, children)
     done(children)
   } catch (cause) {
     error.value = messageOf(cause, `Could not open ${row.node.label}`)
@@ -110,8 +120,34 @@ async function reveal(branches: string[], nodeId: string) {
   root.value?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" })
 }
 
+const filtered = computed(() => filterTree(rows.value, props.filter ?? ""))
+const shown = computed(() => foundRows.value ?? filtered.value.rows)
+
+// The branches a match stayed for are opened as the words change, and stay
+// open after: each of them has been read, so none is a lazy branch marked open
+// with nothing under it.
+watch(() => filtered.value.open, (open) => {
+  const missing = open.filter((id) => !expanded.value.includes(id))
+  if (missing.length > 0) expanded.value = [...expanded.value, ...missing]
+})
+
+// A search's places are its own, so leaving it restores what was open: the
+// tree under it never read most of them.
+watch(() => props.found ?? null, (matches) => {
+  if (matches === null) {
+    if (foundRows.value === null) return
+    foundRows.value = null
+    expanded.value = openBefore
+    return
+  }
+  if (foundRows.value === null) openBefore = expanded.value
+  const built = foundTree(matches, props.rootId, rows.value)
+  foundRows.value = built.rows
+  expanded.value = built.open
+}, { immediate: true })
+
 watch(selected, (id) => {
-  emit("select", rowAt(rows.value, id)?.node ?? null)
+  emit("select", rowAt(shown.value, id)?.node ?? null)
 })
 
 /**
@@ -135,7 +171,10 @@ function onClick(row: TreeRow) {
   tree.value?.setExpanded(row.id, !tree.value.isExpanded(row.id))
 }
 
-const empty = computed(() => !loading.value && rows.value.length === 0)
+const empty = computed(() => !loading.value && shown.value.length === 0)
+const emptyText = computed(() =>
+  foundRows.value !== null || filtered.value.rows !== rows.value ? "Nothing matches" : "Nothing here yet"
+)
 
 function reload(): Promise<void> {
   reading = load(true)
@@ -162,7 +201,7 @@ defineExpose({ reload, reveal })
     <AppEmptyState
       v-else-if="empty"
       icon="vpn_key"
-      text="Nothing here yet"
+      :text="emptyText"
     />
     <AppTree
       v-else
@@ -171,7 +210,7 @@ defineExpose({ reload, reveal })
       v-model:selected="selected"
       keep-selection
       class="keyspace__tree"
-      :nodes="rows"
+      :nodes="shown"
       node-key="id"
       data-testid="keyspace-tree"
       @lazy-load="expand"

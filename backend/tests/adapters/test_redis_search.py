@@ -1,8 +1,8 @@
-"""Keys found by name from the search field, against a real server (D202, S4).
+"""Keys found by name, against a real server (D202, S4).
 
-The tree offers no search of its own (D91): what is tested here is the
-capability the search asks, and that a key it finds can still be shown where
-its tree puts it.
+The header's field and the tree's own search ask the same thing (D91): what
+is tested here is that capability, and that a key it finds can still be shown
+where its tree puts it.
 """
 
 import time

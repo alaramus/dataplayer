@@ -203,12 +203,19 @@ def cache_windows_of(adapter_type: AdapterType) -> SourceCacheWindows | None:
 def searches_its_catalog(driver: type) -> bool:
     """Whether a catalog of this type offers a search of its own (D76).
 
-    Searching by name is not enough: a found row is placed by walking to its
-    level, so a source with no node path — a Redis key space, a tree (D91) —
-    is searched from the field and offers no search in its own catalog: the
-    gate declared references already have (D195).
+    Searching by name is not enough: a found row has to be placed. A list
+    places it by walking to its level, which takes a node path; a tree (D91)
+    places it by the ancestors each match carries, and a node path is what
+    D195 withheld from Redis.
     """
-    return issubclass(driver, SupportsNodeSearch) and issubclass(driver, SupportsNodePath)
+    # Asked before `issubclass` narrows the driver past what the registry holds.
+    tree = any(
+        one.adapter_class is driver and one.catalog_shape == "tree"
+        for one in _registry.values()
+    )
+    return issubclass(driver, SupportsNodeSearch) and (
+        tree or issubclass(driver, SupportsNodePath)
+    )
 
 
 def capabilities_of(adapter_type: AdapterType) -> list[Capability]:

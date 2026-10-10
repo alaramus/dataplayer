@@ -120,9 +120,10 @@ for a name somebody remembers in a place they do not.
   search is bounded by bytes read.
 - **Which sources search their catalog.** The file source, SSH (through the
   explorer, [D150](explorer.md)) and PostgreSQL (schemas, relations, report
-  titles: one bounded query of `pg_class` with words bound, never built in).
-  The `search` code is granted only to a type with both node search and node
-  paths, so Redis, which searches from the field only, answers 501 here (D91).
+  titles: one bounded query of `pg_class` with words bound, never built in),
+  and Redis. The `search` code is granted to a type with node search and a way
+  to place what it finds: node paths for a level, the ancestors every match
+  carries for a tree (D91).
 - **A match may carry more than its node**: `ancestors`, the path from the root
   for a source without node paths, and `full_name` when the node's name is only
   its last part; a result carries `extent`, how much there was to look at.
@@ -250,13 +251,19 @@ structure the names were given when they were chosen.
   a listing stops at a ceiling: a key space of ten million names has no useful
   tree, and a page that tried to draw one would fail slowly rather than
   quickly.
-- **A key space is searched from the search field, and the tree has no search
-  of its own** ([D200](../search.md#d200-a-cell-states-its-cost-and-a-mode-spends-only-what-it-may)).
+- **A key space is searched from the search field and from its tree, by the
+  same `search_nodes`** ([D200](../search.md#d200-a-cell-states-its-cost-and-a-mode-spends-only-what-it-may)).
   A `SCAN` bounded by keys looked at (200,000) and by time, never by matches;
   names case-folded and matched in the process, never turned into `MATCH`
   classes; empty databases skipped by `INFO`. Each match carries its ancestors
   as the listing names them, so a found key is shown in its tree without node
   paths — which would hand Redis what D195 withdrew.
+- **A tree's field filters and searches, as a level's does.** Typing narrows
+  the branches already read: a name that holds the text stays whole, a branch
+  stays and opens for a match below it. The button searches the grouping the
+  tree is rooted in, and the matches replace the tree, drawn in the folders
+  their ancestors name, until the search is closed; what was open before comes
+  back with it.
 - **What a key holds is read as rows, and the shape follows the type.** A hash
   is fields and values, a list is positions and values, a sorted set is members
   and scores. One table per type rather than a chain of branches, so a type
@@ -305,8 +312,9 @@ structure the names were given when they were chosen.
 - **The catalog is expanded where it stands, not walked.** A source declares
   which of the two it wants — `catalog_shape` is a `Literal`, read off the
   type rather than branched on by name — and a key space says `tree`, because
-  it is bounded and its shape is already in the names. A tree shows no path
-  and no search, because both are properties of a level; it keeps the control
+  it is bounded and its shape is already in the names. A tree shows no path,
+  because that is a property of a level; it keeps the filter and the search
+  above, with the meaning given below, and it keeps the control
   that picks a grouping, because a grouping is where the tree is rooted. The
   actions menu is fed from the one selected node instead of from a set of
   ticks.
@@ -364,9 +372,8 @@ Known deviations:
   console that accepted them would be a shell on somebody's server (D65).
 - **Nothing watches.** A key that expires while its page is open stays on the
   page until it is read again.
-- **A tree is not filtered and not searched.** Both belong to a level, and
-  neither has been given a meaning for a tree yet; what is on screen is the
-  whole of a bounded key space.
+- **A tree's filter sees only what has been read.** A key in a folder nobody
+  opened is not narrowed to; the search is what finds it.
 - **A tree re-reads whole after an action.** Which branches changed is still
   the server's answer, but keeping a map of what is open in step with it costs
   more than reading a bounded catalog again — so what was open closes.

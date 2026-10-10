@@ -221,10 +221,10 @@ async def test_a_database_is_searched_by_name_and_not_inside(
     assert inside.status_code == 501
 
 
-async def test_a_tree_offers_no_search_of_its_own(
+async def test_a_tree_is_searched_by_name_and_never_inside(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    """A key space is searched from the field, never from its tree (D91).
+    """A key space searches its tree by name; it has no files to read (D91).
 
     Refused before anything is asked of the server, so none needs to answer.
     """
@@ -235,14 +235,13 @@ async def test_a_tree_offers_no_search_of_its_own(
         {"auth_method": "no_auth", "host": "localhost", "port": 6379, "database": 15},
     )
 
-    for route in ("catalog/search", "catalog/search-contents"):
-        response = await client.get(
-            f"{BASE}/{connector_id}/{route}",
-            params={"query": "users"},
-            headers=normal_user_token_headers,
-        )
+    response = await client.get(
+        f"{BASE}/{connector_id}/catalog/search-contents",
+        params={"query": "users"},
+        headers=normal_user_token_headers,
+    )
 
-        assert response.status_code == 501
+    assert response.status_code == 501
 
 
 async def test_the_type_catalog_says_which_sources_can_be_searched(
@@ -262,9 +261,9 @@ async def test_the_type_catalog_says_which_sources_can_be_searched(
     }
     assert "search" in codes["file"]
     assert "search" in codes["postgres"]
-    # Found from the field, but its tree has no search of its own (D91): what
-    # the type catalog says of Redis is what it said before it could be found.
-    assert codes["redis"] - {None} == {"metrics", "relation_model"}
+    # A tree with no node path still searches its own catalog: its matches
+    # carry their ancestors (D91).
+    assert codes["redis"] - {None} == {"metrics", "relation_model", "search"}
     # Two promises, so two codes: a source may match names without being able
     # to read what is in them.
     assert "content_search" in codes["file"]

@@ -168,7 +168,7 @@ class RedisAdapter:
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._keyspace.list_children(node_id)
 
-    # --- found from the search field, never from the tree (D91) -------------
+    # --- found from the search field and the tree's filter (D91) -----------
 
     async def search_nodes(
         self, request: NodeSearchRequest, bounds: SearchBounds | None = None
