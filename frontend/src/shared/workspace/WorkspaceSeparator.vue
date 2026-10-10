@@ -67,14 +67,17 @@ function onPointerUp(event: PointerEvent) {
   content: "";
   position: absolute;
 }
+/* The system's own resize arrows, not Chrome's col-resize and row-resize:
+   on Windows those two are cursor files of Chrome's that the system drew
+   white on a light theme until the window lost focus and came back. */
 .workspace-separator--row {
-  cursor: col-resize;
+  cursor: ew-resize;
 }
 .workspace-separator--row::before {
   inset: 0 calc(-1 * var(--dp-space-half));
 }
 .workspace-separator--column {
-  cursor: row-resize;
+  cursor: ns-resize;
 }
 .workspace-separator--column::before {
   inset: calc(-1 * var(--dp-space-half)) 0;

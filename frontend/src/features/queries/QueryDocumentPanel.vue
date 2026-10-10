@@ -1331,7 +1331,8 @@ onBeforeUnmount(() => {
 .query-panel__separator {
   flex: none;
   height: 7px;
-  cursor: row-resize;
+  /* Not row-resize: see WorkspaceSeparator. */
+  cursor: ns-resize;
   background: linear-gradient(var(--dp-separator), var(--dp-separator)) center / 100% 1px
     no-repeat;
 }

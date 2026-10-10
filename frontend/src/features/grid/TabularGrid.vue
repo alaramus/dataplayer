@@ -1047,7 +1047,8 @@ defineExpose({
   inset-block: 0;
   inset-inline-end: 0;
   width: 6px;
-  cursor: col-resize;
+  /* Not col-resize: see WorkspaceSeparator. */
+  cursor: ew-resize;
   touch-action: none;
   user-select: none;
 }
