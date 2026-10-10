@@ -93,6 +93,7 @@ export type FieldKind =
   | "password"
   | "number"
   | "boolean"
+  | "datetime"
   | "select"
   | "hidden"
 
@@ -158,6 +159,8 @@ function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
     case "string":
       // Pydantic renders SecretStr as a string with format: password.
       if (property.format === "password") return "password"
+      // An instant with its zone, which a calendar can write as well as a keyboard.
+      if (property.format === "date-time") return "datetime"
       return property["x-ui-multiline"] === true ? "multiline" : "text"
     case "integer":
     case "number":

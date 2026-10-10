@@ -108,8 +108,9 @@ const props = withDefaults(
      */
     compact?: boolean
     /**
-     * A toolbar field whose choices say what it is, "Every connection": the
-     * label names it for a reader and is not drawn beside it.
+     * A field whose choices say what it is, "Every connection" in a toolbar
+     * or "days" beside an amount in a form: the label names it for a reader
+     * and is not drawn beside it.
      */
     labelHidden?: boolean
   }>(),
@@ -233,7 +234,7 @@ const summary = computed(() => {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template
-      v-if="(formLayout || (inlineLabel && !labelHidden)) && label"
+      v-if="(formLayout || inlineLabel) && !labelHidden && label"
       #before
     >
       <!-- Hidden from a reader beside a toolbar field: its name is Quasar's

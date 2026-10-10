@@ -266,3 +266,11 @@ async def test_nothing_refuses_without_saying_why(source: TimescaleSource, schem
         await registry(source).action("timescale_merge_chunks_concurrently").plan_job(
             target.node_id, {"starts_from": None, "ends_by": "2020-01-03T00:00:00Z"}, "0" * 64,
         )
+
+
+async def test_chunk_skipping_offers_only_the_columns_it_can_range(source: TimescaleSource, schema: str) -> None:
+    target = await hypertable(source, schema)
+    enable = registry(source).action("timescale_enable_chunk_skipping")
+    assert isinstance(enable, ChunkSkipping)
+    offered = [choice.value for choice in (await enable.field_choices(target.node_id))["column"]]
+    assert offered == ["observed_at", "device", "value"]

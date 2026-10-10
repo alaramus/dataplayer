@@ -32,7 +32,9 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
     ConnectorDraft,
+    FieldChoice,
     OfferedIn,
+    OffersFieldChoices,
     PreparesConnector,
     Previews,
     PreviewsSet,
@@ -2936,6 +2938,8 @@ class ActionInfo(ActionAvailability):
     icon: str | None = None
     # The submenu it is drawn in, named by the source rather than by the client.
     menu_group: str | None = None
+    # Whether the form's choices for one node can be asked of the source.
+    offers_choices: bool = False
     params_schema: dict[str, Any]
 
 
@@ -2988,6 +2992,7 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         offered_in=action.offered_in,
         icon=action.icon,
         menu_group=action.menu_group,
+        offers_choices=isinstance(action, OffersFieldChoices),
         applicable=availability.applicable,
         available_node_ids=availability.available_node_ids,
         unavailable_reason=availability.unavailable_reason,
@@ -3171,6 +3176,38 @@ async def preview_action(
             },
         )
     return await perform(lambda: action.preview(target, body.params))
+
+
+@router.post(
+    "/{connector_id}/actions/{action_name}/choices",
+    response_model=dict[str, list[FieldChoice]],
+)
+async def action_field_choices(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    action_name: str,
+    body: ActionRequest,
+) -> Any:
+    """
+    What the fields of one action's form may be set to, for one node.
+
+    Asked when the form opens. The level is the action's own, as for a
+    preview: the choices name columns, indexes and tablespaces of the node.
+    """
+    adapter, access = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    target = body.node_id or None
+    action = await action_for_node(acting_or_501(adapter), action_name, target)
+    allowed_or_403(action, access)
+    if not isinstance(action, OffersFieldChoices):
+        raise HTTPException(
+            status_code=501,
+            detail={"message": f"{action.title} offers no choices", "error_kind": "config"},
+        )
+    return await perform(lambda: action.field_choices(target))
 
 
 @router.post("/{connector_id}/actions/{action_name}/set", response_model=ActionResult)

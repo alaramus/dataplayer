@@ -13,6 +13,7 @@ import {
   ticksAfter,
   toCommands,
   toMenu as resolveMenu,
+  withFieldChoices,
   withGroupingChoices,
   withSubmenus,
 } from "./actions"
@@ -726,6 +727,28 @@ describe("a family of commands the source names", () => {
     ])
     expect(family?.disable).toBe(true)
     expect(family?.children?.[0]?.hint).toBe("Not a hypertable")
+  })
+})
+
+describe("choices the source names for one node", () => {
+  const column = {
+    name: "column",
+    label: "Column",
+    kind: "text" as const,
+    required: true,
+    group: "general",
+  }
+  const amount = { ...column, name: "amount", kind: "number" as const }
+
+  it("turns a typed name into a list of what the node has", () => {
+    const [changed] = withFieldChoices([column], { column: [{ value: "value", label: "value · integer" }] })
+    expect(changed).toMatchObject({ kind: "select", choices: [{ value: "value", label: "value · integer" }] })
+  })
+
+  it("keeps a field typed when nothing was named for it, or before the answer", () => {
+    expect(withFieldChoices([column], { column: [] })).toEqual([column])
+    expect(withFieldChoices([column], undefined)).toEqual([column])
+    expect(withFieldChoices([amount], { amount: [{ value: "1", label: "1" }] })).toEqual([amount])
   })
 })
 

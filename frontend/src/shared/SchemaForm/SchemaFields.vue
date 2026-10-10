@@ -2,6 +2,7 @@
 import { computed, inject, ref, watch } from "vue"
 import { formLayoutKey } from "@/shared/ui/formLayout"
 
+import AppDateTimeInput from "@/shared/ui/AppDateTimeInput.vue"
 import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import AppInput from "@/shared/ui/AppInput.vue"
 import AppNumberInput from "@/shared/ui/AppNumberInput.vue"
@@ -206,6 +207,18 @@ watch(
           :data-testid="`field-${field.name}`"
           :autocomplete="autofillOf(field)"
           :model-value="numberValue(field.name)"
+          :label="field.label"
+          :hint="field.description"
+          :placeholder="field.example"
+          :error="errors[field.name]"
+          :disable="disable"
+          @update:model-value="update(field.name, $event)"
+        />
+
+        <AppDateTimeInput
+          v-else-if="field.kind === 'datetime'"
+          :data-testid="`field-${field.name}`"
+          :model-value="textValue(field.name)"
           :label="field.label"
           :hint="field.description"
           :placeholder="field.example"

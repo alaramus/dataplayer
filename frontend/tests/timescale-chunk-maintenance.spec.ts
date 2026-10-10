@@ -54,3 +54,44 @@ test("drops exactly the reviewed chunks as a job from the Timescale submenu", as
     await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
   }
 })
+
+test("picks a day from the calendar and an index from the list", async ({ page }) => {
+  const stamp = Date.now()
+  const connector = `e2e-picks-${stamp}`
+  const schema = `e2e_picks_${stamp}`
+  await timescaleSql(
+    `CREATE SCHEMA ${schema};
+     CREATE TABLE ${schema}.readings (observed_at timestamptz NOT NULL, value integer);
+     SELECT create_hypertable('${schema}.readings', by_range('observed_at', interval '1 day'));`
+  )
+  try {
+    await login(page)
+    await createTimescaleConnector(page, connector)
+    await openConnector(page, connector)
+    await showOnlySchema(page, schema)
+    await catalogCheck(page, "readings").check()
+    await catalogAction(page, "timescale_reorder_chunks", "Timescale")
+
+    const dialog = page.getByRole("dialog", { name: /Reorder chunks by an index/ })
+    // The index is the hypertable's, so the form offers the ones it has.
+    await expect(dialog).toBeVisible()
+    // A box to type in until the answer arrives, a list once it has.
+    const index = dialog.getByRole("combobox", { name: "Index" })
+    await expect(index).toBeVisible()
+    await index.focus()
+    await page.keyboard.press("Enter")
+    await expect(page.getByRole("option").filter({ hasText: "readings_observed_at_idx" })).toBeVisible()
+    await page.getByRole("option").filter({ hasText: "readings_observed_at_idx" }).click()
+
+    await dialog.getByTestId("date-time-picker").first().click()
+    await page.getByRole("button", { name: "15", exact: true }).first().click()
+    await expect(page.getByTestId("field-ends_by")).toHaveValue(/^\d{4}-\d{2}-15T\d{2}:\d{2}:\d{2}Z$/)
+    // The calendar stays open for the time beside it; it and the window cover what clean-up clicks.
+    await page.keyboard.press("Escape")
+    await dialog.getByRole("button", { name: "Cancel" }).click()
+    await expect(dialog).toHaveCount(0)
+  } finally {
+    await deleteConnector(page, connector).catch(() => undefined)
+    await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
+  }
+})

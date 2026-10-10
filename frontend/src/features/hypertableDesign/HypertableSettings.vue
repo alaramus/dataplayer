@@ -8,6 +8,8 @@ import {
   AppBanner,
   AppButton,
   AppCheckbox,
+  AppForm,
+  AppFormControl,
   AppIconButton,
   AppInput,
   AppNumberInput,
@@ -333,337 +335,386 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
           class="settings__form"
           data-testid="hypertable-form"
         >
-          <section class="settings__group">
-            <strong>Chunks</strong>
-            <template v-if="converting">
-              <p class="settings__note">
-                An ordinary table with {{ estimate }}. Choose the column it is partitioned by;
-                TimescaleDB cannot change it afterwards.
-              </p>
-              <AppSelect
-                :model-value="draft.timeColumn"
-                :options="timeColumns"
-                label="Time column"
-                data-testid="time-column"
-                @update:model-value="chooseTime"
-              />
-            </template>
-            <p
-              v-else
-              class="settings__note"
-            >
-              Partitioned by time on {{ facts?.time_column }} ({{ facts?.time_column_type }}).
-              TimescaleDB cannot change the time column.
-            </p>
-            <div class="settings__pair">
-              <AppNumberInput
-                v-model="draft.chunkInterval.amount"
-                :label="integer ? 'Each chunk covers, in values of the time column' : 'Each chunk covers'"
-                data-testid="chunk-interval-amount"
-              />
-              <AppSelect
-                v-if="!integer"
-                v-model="draft.chunkInterval.unit"
-                :options="intervalUnits"
-                label="Unit"
-                data-testid="chunk-interval-unit"
-              />
-            </div>
-            <div
-              v-for="(item, at) in draft.hash"
-              :key="at"
-              class="settings__row"
-              data-testid="hash-dimension"
-            >
-              <AppSelect
-                v-model="item.column"
-                :options="hashable"
-                label="Hash column"
-                :disable="item.existing"
-              />
-              <AppNumberInput
-                v-model="item.partitions"
-                label="Partitions"
-              />
-              <AppIconButton
-                v-if="!item.existing"
-                :icon="appIcons.deleteOutline"
-                tooltip="Remove this hash dimension"
-                @click="draft.hash.splice(at, 1)"
-              />
-            </div>
-            <div class="settings__inline">
-              <AppButton
-                variant="quiet"
-                :icon="appIcons.add"
-                label="Hash dimension"
-                :disable="facts?.has_chunks === true"
-                data-testid="add-hash-dimension"
-                @click="addHash"
-              />
-              <span
-                v-if="facts?.has_chunks"
-                class="settings__note"
-              >A hash dimension can only be added while the {{ converting ? "table holds no rows" : "hypertable holds no chunks" }}.</span>
-            </div>
-          </section>
-
-          <section class="settings__group">
-            <AppToggle
-              v-model="draft.columnstore"
-              label="Columnstore"
-              data-testid="columnstore-enabled"
-            />
-            <p
-              v-if="facts?.compressed_chunks && draft.columnstore"
-              class="settings__note"
-            >
-              Some chunks are compressed, so the columnstore stays on until they are decompressed.
-            </p>
-            <template v-if="draft.columnstore">
-              <AppRadioGroup
-                v-model="draft.segmentMode"
-                :options="segmentModes"
-                label="Segment by"
-                data-testid="segment-mode"
-              />
-              <AppSelect
-                v-if="draft.segmentMode === 'columns'"
-                v-model="draft.segmentColumns"
-                :options="orderable"
-                label="Segment columns"
-                multiple
-                data-testid="segment-columns"
-              />
-              <AppRadioGroup
-                v-model="draft.orderMode"
-                :options="orderModes"
-                label="Order by"
-                data-testid="order-mode"
-              />
-              <template v-if="draft.orderMode === 'columns'">
-                <div
-                  v-for="(key, at) in draft.orderColumns"
-                  :key="at"
-                  class="settings__row"
-                  data-testid="order-column"
+          <AppForm layout="section">
+            <section class="settings__group">
+              <h3 class="dp-section-title settings__title">
+                Chunks
+              </h3>
+              <template v-if="converting">
+                <AppFormControl>
+                  <p class="settings__note">
+                    An ordinary table with {{ estimate }}. Choose the column it is partitioned by;
+                    TimescaleDB cannot change it afterwards.
+                  </p>
+                </AppFormControl>
+                <AppSelect
+                  :model-value="draft.timeColumn"
+                  :options="timeColumns"
+                  label="Time column"
+                  data-testid="time-column"
+                  @update:model-value="chooseTime"
+                />
+              </template>
+              <AppFormControl v-else>
+                <p class="settings__note">
+                  Partitioned by time on {{ facts?.time_column }} ({{ facts?.time_column_type }}).
+                  TimescaleDB cannot change the time column.
+                </p>
+              </AppFormControl>
+              <div class="settings__amount">
+                <AppNumberInput
+                  v-model="draft.chunkInterval.amount"
+                  :label="integer ? 'Each chunk covers, in values' : 'Each chunk covers'"
+                  data-testid="chunk-interval-amount"
+                />
+                <AppSelect
+                  v-if="!integer"
+                  v-model="draft.chunkInterval.unit"
+                  :options="intervalUnits"
+                  label="Unit"
+                  label-hidden
+                  data-testid="chunk-interval-unit"
+                />
+              </div>
+              <AppFormControl>
+                <AppForm
+                  v-if="draft.hash.length"
+                  layout="grid"
+                  class="settings__rows"
                 >
-                  <AppSelect
-                    v-model="key.column"
-                    :options="orderable"
-                    label="Column"
-                  />
-                  <AppCheckbox
-                    v-model="key.descending"
-                    label="Descending"
-                  />
-                  <AppCheckbox
-                    v-model="key.nullsFirst"
-                    label="Nulls first"
-                  />
-                  <AppIconButton
-                    :icon="appIcons.deleteOutline"
-                    tooltip="Remove this order column"
-                    @click="draft.orderColumns.splice(at, 1)"
-                  />
-                </div>
+                  <div
+                    v-for="(item, at) in draft.hash"
+                    :key="at"
+                    class="settings__row settings__row--pair"
+                    data-testid="hash-dimension"
+                  >
+                    <AppSelect
+                      v-model="item.column"
+                      :options="hashable"
+                      label="Hash column"
+                      :disable="item.existing"
+                    />
+                    <AppNumberInput
+                      v-model="item.partitions"
+                      label="Partitions"
+                    />
+                    <span class="settings__cell">
+                      <AppIconButton
+                        v-if="!item.existing"
+                        :icon="appIcons.deleteOutline"
+                        tooltip="Remove this hash dimension"
+                        @click="draft.hash.splice(at, 1)"
+                      />
+                    </span>
+                  </div>
+                </AppForm>
                 <div class="settings__inline">
                   <AppButton
                     variant="quiet"
                     :icon="appIcons.add"
-                    label="Order column"
-                    data-testid="add-order-column"
-                    @click="addOrder"
+                    label="Hash dimension"
+                    :disable="facts?.has_chunks === true"
+                    data-testid="add-hash-dimension"
+                    @click="addHash"
                   />
-                  <span class="settings__note">The time column is added last, descending, unless it is listed.</span>
+                  <span
+                    v-if="facts?.has_chunks"
+                    class="settings__note"
+                  >Only while the {{ converting ? "table holds no rows" : "hypertable holds no chunks" }}.</span>
                 </div>
-              </template>
-              <template v-if="facts?.sparse_indexes_supported">
-                <AppRadioGroup
-                  v-model="draft.sparseMode"
-                  :options="segmentModes"
-                  label="Sparse indexes"
-                  data-testid="sparse-mode"
+              </AppFormControl>
+            </section>
+
+            <section class="settings__group">
+              <h3 class="dp-section-title settings__title">
+                Columnstore
+              </h3>
+              <AppFormControl>
+                <AppToggle
+                  v-model="draft.columnstore"
+                  label="Compress chunks into columns"
+                  data-testid="columnstore-enabled"
                 />
-                <template v-if="draft.sparseMode === 'columns'">
-                  <div
-                    v-for="(item, at) in draft.sparseIndexes"
-                    :key="at"
-                    class="settings__row"
-                    data-testid="sparse-index"
+                <p
+                  v-if="facts?.compressed_chunks && draft.columnstore"
+                  class="settings__note"
+                >
+                  Some chunks are compressed, so the columnstore stays on until they are decompressed.
+                </p>
+              </AppFormControl>
+              <template v-if="draft.columnstore">
+                <AppRadioGroup
+                  v-model="draft.segmentMode"
+                  :options="segmentModes"
+                  label="Segment by"
+                  data-testid="segment-mode"
+                />
+                <AppSelect
+                  v-if="draft.segmentMode === 'columns'"
+                  v-model="draft.segmentColumns"
+                  :options="orderable"
+                  label="Segment columns"
+                  multiple
+                  data-testid="segment-columns"
+                />
+                <AppRadioGroup
+                  v-model="draft.orderMode"
+                  :options="orderModes"
+                  label="Order by"
+                  data-testid="order-mode"
+                />
+                <AppFormControl v-if="draft.orderMode === 'columns'">
+                  <AppForm
+                    v-if="draft.orderColumns.length"
+                    layout="grid"
+                    class="settings__rows"
                   >
-                    <AppSelect
-                      v-model="item.column"
-                      :options="columns"
-                      label="Column"
-                    />
-                    <AppSelect
-                      v-model="item.kind"
-                      :options="sparseKinds"
-                      label="Kind"
-                    />
-                    <AppIconButton
-                      :icon="appIcons.deleteOutline"
-                      tooltip="Remove this sparse index"
-                      @click="draft.sparseIndexes.splice(at, 1)"
-                    />
-                  </div>
+                    <div
+                      v-for="(key, at) in draft.orderColumns"
+                      :key="at"
+                      class="settings__row"
+                      data-testid="order-column"
+                    >
+                      <AppSelect
+                        v-model="key.column"
+                        :options="orderable"
+                        label="Column"
+                      />
+                      <span class="settings__cell">
+                        <AppCheckbox
+                          v-model="key.descending"
+                          label="Descending"
+                        />
+                      </span>
+                      <span class="settings__cell">
+                        <AppCheckbox
+                          v-model="key.nullsFirst"
+                          label="Nulls first"
+                        />
+                      </span>
+                      <span class="settings__cell">
+                        <AppIconButton
+                          :icon="appIcons.deleteOutline"
+                          tooltip="Remove this order column"
+                          @click="draft.orderColumns.splice(at, 1)"
+                        />
+                      </span>
+                    </div>
+                  </AppForm>
                   <div class="settings__inline">
                     <AppButton
                       variant="quiet"
                       :icon="appIcons.add"
-                      label="Sparse index"
-                      data-testid="add-sparse-index"
-                      @click="addSparse"
+                      label="Order column"
+                      data-testid="add-order-column"
+                      @click="addOrder"
                     />
-                    <span class="settings__note">TimescaleDB keeps sparse indexes only beside named order columns.</span>
+                    <span class="settings__note">The time column is added last, descending, unless it is listed.</span>
                   </div>
+                </AppFormControl>
+                <template v-if="facts?.sparse_indexes_supported">
+                  <AppRadioGroup
+                    v-model="draft.sparseMode"
+                    :options="segmentModes"
+                    label="Sparse indexes"
+                    data-testid="sparse-mode"
+                  />
+                  <AppFormControl v-if="draft.sparseMode === 'columns'">
+                    <AppForm
+                      v-if="draft.sparseIndexes.length"
+                      layout="grid"
+                      class="settings__rows"
+                    >
+                      <div
+                        v-for="(item, at) in draft.sparseIndexes"
+                        :key="at"
+                        class="settings__row settings__row--pair"
+                        data-testid="sparse-index"
+                      >
+                        <AppSelect
+                          v-model="item.column"
+                          :options="columns"
+                          label="Column"
+                        />
+                        <AppSelect
+                          v-model="item.kind"
+                          :options="sparseKinds"
+                          label="Kind"
+                        />
+                        <span class="settings__cell">
+                          <AppIconButton
+                            :icon="appIcons.deleteOutline"
+                            tooltip="Remove this sparse index"
+                            @click="draft.sparseIndexes.splice(at, 1)"
+                          />
+                        </span>
+                      </div>
+                    </AppForm>
+                    <div class="settings__inline">
+                      <AppButton
+                        variant="quiet"
+                        :icon="appIcons.add"
+                        label="Sparse index"
+                        data-testid="add-sparse-index"
+                        @click="addSparse"
+                      />
+                      <span class="settings__note">TimescaleDB keeps sparse indexes only beside named order columns.</span>
+                    </div>
+                  </AppFormControl>
                 </template>
+                <AppCheckbox
+                  v-if="!integer"
+                  v-model="draft.merge"
+                  label="Merge chunks as they are compressed"
+                  data-testid="merge-enabled"
+                />
+                <div
+                  v-if="draft.merge && !integer"
+                  class="settings__amount"
+                >
+                  <AppNumberInput
+                    v-model="draft.mergeInterval.amount"
+                    label="Into chunks of"
+                    hint="A whole multiple of the chunk interval"
+                    data-testid="merge-amount"
+                  />
+                  <AppSelect
+                    v-model="draft.mergeInterval.unit"
+                    :options="mergeUnits"
+                    label="Unit"
+                    label-hidden
+                  />
+                </div>
               </template>
-              <AppCheckbox
-                v-if="!integer"
-                v-model="draft.merge"
-                label="Merge chunks as they are compressed"
-                data-testid="merge-enabled"
+            </section>
+
+            <section
+              v-if="integer"
+              class="settings__group"
+              data-testid="integer-now"
+            >
+              <h3 class="dp-section-title settings__title">
+                Current value
+              </h3>
+              <AppFormControl>
+                <p class="settings__note">
+                  Age policies on an integer column need a function that says what the current value is:
+                  TimescaleDB calls it integer_now.
+                </p>
+              </AppFormControl>
+              <AppSelect
+                v-model="draft.now.mode"
+                :options="nowModes"
+                label="integer_now"
+                data-testid="integer-now-mode"
+              />
+              <AppSelect
+                v-if="draft.now.mode === 'existing'"
+                v-model="draft.now.existing"
+                :options="clocks"
+                label="Function"
+                hint="No arguments, stable, returning the column's type"
+                data-testid="integer-now-function"
+              />
+              <template v-if="draft.now.mode === 'template'">
+                <AppSelect
+                  v-model="draft.now.template"
+                  :options="templates"
+                  label="Counts"
+                  data-testid="integer-now-template"
+                />
+                <AppInput
+                  v-model="draft.now.name"
+                  label="Function name"
+                  :hint="`Created in schema ${facts?.schema_name ?? ''}`"
+                  data-testid="integer-now-name"
+                />
+              </template>
+            </section>
+
+            <section class="settings__group">
+              <h3 class="dp-section-title settings__title">
+                Policies
+              </h3>
+              <AppSelect
+                :model-value="draft.retention.mode"
+                :options="retentionModes"
+                label="Retention"
+                data-testid="retention-mode"
+                @update:model-value="setPolicy('retention', String($event))"
               />
               <div
-                v-if="draft.merge && !integer"
-                class="settings__pair"
+                v-if="draft.retention.mode === 'older_than'"
+                class="settings__amount"
               >
                 <AppNumberInput
-                  v-model="draft.mergeInterval.amount"
-                  label="Into chunks of"
-                  hint="A whole multiple of the chunk interval"
-                  data-testid="merge-amount"
+                  v-model="draft.retention.duration.amount"
+                  :label="integer ? 'Age, in values' : 'Age'"
+                  data-testid="retention-amount"
                 />
                 <AppSelect
-                  v-model="draft.mergeInterval.unit"
-                  :options="mergeUnits"
+                  v-if="!integer"
+                  v-model="draft.retention.duration.unit"
+                  :options="policyUnits"
                   label="Unit"
+                  label-hidden
                 />
               </div>
-            </template>
-          </section>
-
-          <section
-            v-if="integer"
-            class="settings__group"
-            data-testid="integer-now"
-          >
-            <strong>Current value</strong>
-            <p class="settings__note">
-              Age policies on an integer column need a function that says what the current value is:
-              TimescaleDB calls it integer_now.
-            </p>
-            <AppSelect
-              v-model="draft.now.mode"
-              :options="nowModes"
-              label="integer_now"
-              data-testid="integer-now-mode"
-            />
-            <AppSelect
-              v-if="draft.now.mode === 'existing'"
-              v-model="draft.now.existing"
-              :options="clocks"
-              label="Function"
-              hint="No arguments, stable, returning the column's type"
-              data-testid="integer-now-function"
-            />
-            <div
-              v-if="draft.now.mode === 'template'"
-              class="settings__pair"
-            >
               <AppSelect
-                v-model="draft.now.template"
-                :options="templates"
-                label="Counts"
-                data-testid="integer-now-template"
+                :model-value="draft.columnstorePolicy.mode"
+                :options="columnstorePolicyModes"
+                label="Columnstore policy"
+                :disable="!draft.columnstore"
+                data-testid="columnstore-policy-mode"
+                @update:model-value="setPolicy('columnstorePolicy', String($event))"
               />
-              <AppInput
-                v-model="draft.now.name"
-                label="Function name"
-                :hint="`Created in schema ${facts?.schema_name ?? ''}`"
-                data-testid="integer-now-name"
-              />
-            </div>
-          </section>
-
-          <section class="settings__group">
-            <strong>Policies</strong>
-            <AppSelect
-              :model-value="draft.retention.mode"
-              :options="retentionModes"
-              label="Retention"
-              data-testid="retention-mode"
-              @update:model-value="setPolicy('retention', String($event))"
-            />
-            <div
-              v-if="draft.retention.mode === 'older_than'"
-              class="settings__pair"
-            >
-              <AppNumberInput
-                v-model="draft.retention.duration.amount"
-                :label="integer ? 'Age, in values of the time column' : 'Age'"
-                data-testid="retention-amount"
+              <div
+                v-if="draft.columnstorePolicy.mode === 'older_than'"
+                class="settings__amount"
+              >
+                <AppNumberInput
+                  v-model="draft.columnstorePolicy.duration.amount"
+                  :label="integer ? 'Age, in values' : 'Age'"
+                  data-testid="columnstore-policy-amount"
+                />
+                <AppSelect
+                  v-if="!integer"
+                  v-model="draft.columnstorePolicy.duration.unit"
+                  :options="policyUnits"
+                  label="Unit"
+                  label-hidden
+                />
+              </div>
+              <AppCheckbox
+                v-if="facts?.compaction_supported"
+                v-model="draft.compaction"
+                label="Compaction policy: merge small compressed chunks"
+                :disable="!draft.columnstore"
+                data-testid="compaction-policy"
               />
               <AppSelect
-                v-if="!integer"
-                v-model="draft.retention.duration.unit"
-                :options="policyUnits"
-                label="Unit"
+                v-model="draft.reorderIndex"
+                :options="indexes"
+                label="Reorder by index"
+                :hint="facts?.reorder?.description"
+                data-testid="reorder-index"
               />
-            </div>
-            <AppSelect
-              :model-value="draft.columnstorePolicy.mode"
-              :options="columnstorePolicyModes"
-              label="Columnstore policy"
-              :disable="!draft.columnstore"
-              data-testid="columnstore-policy-mode"
-              @update:model-value="setPolicy('columnstorePolicy', String($event))"
-            />
-            <div
-              v-if="draft.columnstorePolicy.mode === 'older_than'"
-              class="settings__pair"
-            >
-              <AppNumberInput
-                v-model="draft.columnstorePolicy.duration.amount"
-                :label="integer ? 'Age, in values of the time column' : 'Age'"
-                data-testid="columnstore-policy-amount"
-              />
-              <AppSelect
-                v-if="!integer"
-                v-model="draft.columnstorePolicy.duration.unit"
-                :options="policyUnits"
-                label="Unit"
-              />
-            </div>
-            <AppCheckbox
-              v-if="facts?.compaction_supported"
-              v-model="draft.compaction"
-              label="Compaction policy: merge small compressed chunks"
-              :disable="!draft.columnstore"
-              data-testid="compaction-policy"
-            />
-            <AppSelect
-              v-model="draft.reorderIndex"
-              :options="indexes"
-              label="Reorder chunks by index"
-              :hint="facts?.reorder?.description"
-              data-testid="reorder-index"
-            />
-          </section>
+            </section>
 
-          <section class="settings__group">
-            <strong>Tablespaces</strong>
-            <AppSelect
-              v-model="draft.tablespaces"
-              :options="tablespaces"
-              label="Place new chunks in"
-              hint="Existing chunks stay where they are"
-              multiple
-              data-testid="tablespaces"
-            />
-          </section>
+            <section class="settings__group">
+              <h3 class="dp-section-title settings__title">
+                Tablespaces
+              </h3>
+              <AppSelect
+                v-model="draft.tablespaces"
+                :options="tablespaces"
+                label="New chunks in"
+                hint="Existing chunks stay where they are"
+                multiple
+                data-testid="tablespaces"
+              />
+            </section>
+          </AppForm>
         </main>
         <aside
           class="settings__plan"
@@ -759,28 +810,51 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--dp-space-3);
 }
+/* Quiet rules between regions (D131); the form's own gap spaces the fields. */
 .settings__group {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--dp-space-3);
   padding-bottom: var(--dp-space-4);
-  margin-bottom: var(--dp-space-4);
   border-bottom: 1px solid var(--dp-border);
 }
 .settings__group:last-child {
   border-bottom: none;
+  padding-bottom: 0;
 }
-.settings__pair {
+.settings__title {
+  margin: 0;
+}
+/* A number and its unit on one line, the unit narrow beside it. */
+.settings__amount {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--dp-space-3);
+  grid-template-columns: minmax(0, 1fr) 9rem;
+  gap: var(--dp-space-2);
+  align-items: start;
 }
+.settings__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+  margin-bottom: var(--dp-space-2);
+}
+/* Aligned on the controls rather than on the names above them, so a check
+   box or a delete button stands level with the field it belongs to. */
 .settings__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: var(--dp-space-3);
+  align-items: end;
+}
+.settings__row--pair {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.settings__cell {
+  display: flex;
   align-items: center;
+  min-height: var(--dp-form-control-height);
+  min-width: var(--dp-form-control-height);
 }
 .settings__inline {
   display: flex;

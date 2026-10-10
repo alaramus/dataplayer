@@ -12,6 +12,7 @@ import {
   AppColorPicker,
   AppCombobox,
   AppEmptyState,
+  AppDateTimeInput,
   AppFieldButton,
   AppFileInput,
   AppForm,
@@ -56,6 +57,7 @@ import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "chosen", "current", "danger", "danger-quiet", "quiet"]
 const iconFilter = ref("")
+const instant = ref("2026-01-15T00:00:00Z")
 const visibleIcons = computed(() => {
   const query = iconFilter.value.trim().toLowerCase()
   return namedIcons.filter(({ name, icon }) =>
@@ -545,6 +547,11 @@ function removeSavedEntry(name: string) {
             v-model="plain"
             label="SSL mode"
             :options="['prefer', 'require']"
+          />
+          <AppDateTimeInput
+            v-model="instant"
+            label="Chunks ending by"
+            hint="Typed, or picked from the calendar beside it, in UTC"
           />
           <AppFormControl>
             Prefer tries TLS first and falls back to a plain connection.

@@ -172,7 +172,8 @@ body.desktop .app-radio-group__option:not(.disabled) :deep(.q-radio__inner)::bef
 .app-radio-group--form .app-radio-group__label {
   padding-right: var(--dp-space-3);
 }
-.app-form--labels-above .app-radio-group--form {
+.app-form--labels-above .app-radio-group--form,
+.app-form--grid .app-radio-group--form {
   display: flex;
 }
 @container app-form (max-width: 480px) {

@@ -64,6 +64,8 @@ export interface ActionCommand {
   icon: string | null
   /** The submenu the source draws it in, or null for a line of the menu itself (D207). */
   menuGroup?: string | null
+  /** Whether the source names, for one node, what some of its fields may be. */
+  offersChoices?: boolean
   fields: FieldSpec[]
   /** What each field with a published set of values offers, by field name. */
   choices: Record<string, SchemaChoice[]>
@@ -93,6 +95,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       offeredIn: action.offered_in,
       icon: action.icon ?? null,
       menuGroup: action.menu_group ?? null,
+      offersChoices: action.offers_choices === true,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
       // Read whether or not a form is built: a workflow screen still asks the
       // schema what the source offers, in the source's own words.
@@ -143,6 +146,27 @@ export function withGroupingChoices(
   return fields.map((field) =>
     field.purpose === "grouping" ? { ...field, kind: "select", choices } : field
   )
+}
+
+/**
+ * The fields the source named values for, offered as a list instead of a box.
+ *
+ * A column or an index is the node's, so the schema can only say "a string";
+ * the source names them once the form is open (D9). A field it left out, or
+ * named nothing for, stays typed: an empty list would be a field nobody can
+ * fill.
+ */
+export function withFieldChoices(
+  fields: FieldSpec[],
+  choices: Record<string, SchemaChoice[]> | undefined
+): FieldSpec[] {
+  if (choices === undefined) return fields
+  return fields.map((field) => {
+    const offered = choices[field.name]
+    return offered && offered.length > 0 && field.kind === "text"
+      ? { ...field, kind: "select", choices: offered }
+      : field
+  })
 }
 
 /** One line of the stable menu and what it will be done to. */

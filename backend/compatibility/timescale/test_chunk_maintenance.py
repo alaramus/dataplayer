@@ -8,7 +8,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from app.adapters.actions import ActionRefused
+from app.adapters.actions import ActionRefused, OffersFieldChoices
 from app.adapters.postgres.timescale.chunk_maintenance_action import MaintainChunks
 from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS
 from compatibility.timescale.policy_tables import PolicyTable, registry
@@ -260,3 +260,17 @@ async def _chunk_schema(source: TimescaleSource, table: PolicyTable) -> str:
     )
     (row,) = rows
     return str(row["name"])
+
+
+async def test_the_forms_offer_what_the_hypertable_has(source: TimescaleSource, table: PolicyTable) -> None:
+    move = action(source, "timescale_move_chunks")
+    assert isinstance(move, OffersFieldChoices)
+    choices = await move.field_choices(table.node_id)
+    assert "pg_default" in [choice.value for choice in choices["tablespace"]]
+    indexes = [choice.value for choice in choices["index"]]
+    # The default stands first, then every index of the hypertable.
+    assert indexes[0] == "" and "readings_device" in indexes
+    reordering = action(source, "timescale_reorder_chunks")
+    assert isinstance(reordering, OffersFieldChoices)
+    reorder = await reordering.field_choices(table.node_id)
+    assert "readings_device" in [choice.value for choice in reorder["index"]]

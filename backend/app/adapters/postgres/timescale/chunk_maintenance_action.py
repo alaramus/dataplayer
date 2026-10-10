@@ -4,9 +4,22 @@ from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar, Self
 
 from psycopg import sql
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
-from app.adapters.actions import Action, ActionPreview, ActionRefused, ActsOn
+from app.adapters.actions import (
+    Action,
+    ActionPreview,
+    ActionRefused,
+    ActsOn,
+    FieldChoice,
+)
 from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
 from app.adapters.operations import (
@@ -29,11 +42,13 @@ from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     MaintenancePlan,
     MaintenanceUnit,
     chunk_holds,
+    index_names,
     inspect_unit,
     ordering_index,
     plan_attach,
     plan_split,
     plan_window_maintenance,
+    tablespace_names,
     window_count,
 )
 from app.adapters.postgres.timescale.chunk_storage_action import (
@@ -41,12 +56,17 @@ from app.adapters.postgres.timescale.chunk_storage_action import (
     ChunkWindowParams,
 )
 from app.adapters.postgres.timescale.names import TIMESCALE_MENU
+from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS
 from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.core.access import Access
 
 _UNREADABLE = "TimescaleDB chunk metadata could not be inspected safely"
 _JOB = "Runs in Activity, one such job per connection at a time; access is checked again before every unit"
+
+
+def _choices(names: list[str]) -> list[FieldChoice]:
+    return [FieldChoice(value=name, label=name) for name in names]
 
 
 class MoveParams(ChunkWindowParams):
@@ -58,6 +78,12 @@ class MoveParams(ChunkWindowParams):
         default=None, min_length=1, max_length=63, title="Order rows by index",
         description="Leave empty for the index on the time column",
     )
+
+    @field_validator("index_tablespace", "index", mode="before")
+    @classmethod
+    def blank_is_unset(cls, value: object) -> object:
+        # A choice of "the default" travels as an empty string.
+        return None if isinstance(value, str) and not value.strip() else value
     index_tablespace: str | None = Field(
         default=None, min_length=1, max_length=63, title="Index tablespace",
         description="Leave empty to move the indexes with the chunk",
@@ -323,6 +349,17 @@ class MoveChunks(WindowMaintenance[MoveParams]):
     )
     params_model = MoveParams
 
+    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
+        schema, node = await user_table(self._catalog, node_id)
+        async with self._session.inspection() as reader:
+            spaces = await tablespace_names(reader)
+            indexes = await index_names(reader, schema.name, node.name)
+        return {
+            "tablespace": _choices(spaces),
+            "index_tablespace": [FieldChoice(value="", label="With the chunk"), *_choices(spaces)],
+            "index": [FieldChoice(value="", label="The index on the time column"), *_choices(indexes)],
+        }
+
     def _arguments(self, params: MoveParams) -> MaintenanceArguments:
         return MaintenanceArguments(
             tablespace=params.tablespace, index_tablespace=params.index_tablespace, index=params.index,
@@ -338,6 +375,11 @@ class ReorderChunks(WindowMaintenance[ReorderParams]):
         "Each chunk is rewritten in the index's order, which speeds reads along it; reads and writes wait meanwhile"
     )
     params_model = ReorderParams
+
+    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
+        schema, node = await user_table(self._catalog, node_id)
+        async with self._session.inspection() as reader:
+            return {"index": _choices(await index_names(reader, schema.name, node.name))}
 
     def _arguments(self, params: ReorderParams) -> MaintenanceArguments:
         return MaintenanceArguments(index=params.index)
@@ -397,6 +439,20 @@ class AttachChunk(MaintainChunks[AttachParams]):
         (chunk,) = plan.chunks
         target = _chunk(plan.unit.target.schema_name, plan.unit.target.table_name)
         return f"Attach {_chunk(chunk.schema_name, chunk.name)} to {target} as a chunk as a job"
+
+    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
+        """The tables the Detached chunks report lists: the likeliest ones, never the only ones."""
+        await user_table(self._catalog, node_id)
+        async with self._session.inspection() as reader:
+            rows = await reader.query(DETACHED_CHUNKS.statement.as_string(), inspection=True)
+        schemas = sorted({str(row["table_schema"]) for row in rows})
+        return {
+            "table_schema": _choices(schemas),
+            "table_name": [
+                FieldChoice(value=str(row["table_name"]), label=f'{row["table_name"]} ({row["table_schema"]})')
+                for row in rows
+            ],
+        }
 
 
 MAINTENANCE_TYPES: tuple[type[MaintainChunks[Any]], ...] = (

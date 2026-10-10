@@ -181,7 +181,8 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
         indexes and can be removed like any other. Keys must hold the time column and every hash
         column.
       </p>
-      <div class="inspector__row">
+
+      <section class="inspector__group">
         <AppSelect
           v-model="hyper.timeColumnId"
           :options="temporal"
@@ -201,160 +202,169 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
             label="Unit"
           />
         </div>
-      </div>
-      <div
-        v-for="(item, at) in hyper.hash"
-        :key="at"
-        class="inspector__line"
-      >
-        <AppSelect
-          v-model="item.columnId"
-          :options="others"
-          label="Hash column"
-        />
-        <AppNumberInput
-          v-model="item.partitions"
-          label="Partitions"
-        />
-        <AppIconButton
-          :icon="appIcons.deleteOutline"
-          tooltip="Remove this hash dimension"
-          @click="hyper.hash.splice(at, 1)"
-        />
-      </div>
-      <div>
-        <AppButton
-          variant="quiet"
-          :icon="appIcons.add"
-          label="Hash dimension"
-          @click="hyper.hash.push({ columnId: '', partitions: 4 })"
-        />
-      </div>
-
-      <AppToggle
-        v-model="hyper.columnstore"
-        label="Columnstore"
-        data-testid="hypertable-columnstore"
-      />
-      <template v-if="hyper.columnstore">
-        <AppRadioGroup
-          v-model="hyper.segmentMode"
-          :options="segmentModes"
-          label="Segment by"
-        />
-        <AppSelect
-          v-if="hyper.segmentMode === 'columns'"
-          v-model="hyper.segmentColumnIds"
-          :options="others"
-          label="Segment columns"
-          multiple
-        />
-        <AppRadioGroup
-          v-model="hyper.orderMode"
-          :options="orderModes"
-          label="Order by"
-        />
-        <template v-if="hyper.orderMode === 'columns'">
-          <div
-            v-for="(key, at) in hyper.orderKeys"
-            :key="at"
-            class="inspector__line"
-          >
-            <AppSelect
-              v-model="key.columnId"
-              :options="design.columnChoices.value"
-              label="Column"
-            />
-            <AppCheckbox
-              v-model="key.descending"
-              label="Descending"
-            />
-            <AppCheckbox
-              v-model="key.nullsFirst"
-              label="Nulls first"
-            />
+        <div
+          v-for="(item, at) in hyper.hash"
+          :key="at"
+          class="inspector__line inspector__line--pair"
+        >
+          <AppSelect
+            v-model="item.columnId"
+            :options="others"
+            label="Hash column"
+          />
+          <AppNumberInput
+            v-model="item.partitions"
+            label="Partitions"
+          />
+          <span class="inspector__cell">
             <AppIconButton
               :icon="appIcons.deleteOutline"
-              tooltip="Remove this order column"
-              @click="hyper.orderKeys.splice(at, 1)"
+              tooltip="Remove this hash dimension"
+              @click="hyper.hash.splice(at, 1)"
             />
-          </div>
-          <div>
-            <AppButton
-              variant="quiet"
-              :icon="appIcons.add"
-              label="Order column"
-              @click="hyper.orderKeys.push({ columnId: '', descending: false, nullsFirst: false })"
-            />
-          </div>
-        </template>
-        <template v-if="offer?.sparse_indexes">
-          <AppRadioGroup
-            v-model="hyper.sparseMode"
-            :options="sparseModes"
-            label="Sparse indexes"
-            data-testid="hypertable-sparse-mode"
+          </span>
+        </div>
+        <div>
+          <AppButton
+            variant="quiet"
+            :icon="appIcons.add"
+            label="Hash dimension"
+            @click="hyper.hash.push({ columnId: '', partitions: 4 })"
           />
-          <template v-if="hyper.sparseMode === 'columns'">
+        </div>
+      </section>
+
+      <section class="inspector__group">
+        <AppToggle
+          v-model="hyper.columnstore"
+          label="Columnstore"
+          data-testid="hypertable-columnstore"
+        />
+        <template v-if="hyper.columnstore">
+          <AppRadioGroup
+            v-model="hyper.segmentMode"
+            :options="segmentModes"
+            label="Segment by"
+          />
+          <AppSelect
+            v-if="hyper.segmentMode === 'columns'"
+            v-model="hyper.segmentColumnIds"
+            :options="others"
+            label="Segment columns"
+            multiple
+          />
+          <AppRadioGroup
+            v-model="hyper.orderMode"
+            :options="orderModes"
+            label="Order by"
+          />
+          <template v-if="hyper.orderMode === 'columns'">
             <div
-              v-for="(item, at) in hyper.sparseIndexes"
+              v-for="(key, at) in hyper.orderKeys"
               :key="at"
               class="inspector__line"
             >
               <AppSelect
-                v-model="item.columnId"
+                v-model="key.columnId"
                 :options="design.columnChoices.value"
                 label="Column"
               />
-              <AppSelect
-                v-model="item.kind"
-                :options="sparseKinds"
-                label="Kind"
-              />
-              <AppIconButton
-                :icon="appIcons.deleteOutline"
-                tooltip="Remove this sparse index"
-                @click="hyper.sparseIndexes.splice(at, 1)"
-              />
+              <span class="inspector__cell">
+                <AppCheckbox
+                  v-model="key.descending"
+                  label="Descending"
+                />
+              </span>
+              <span class="inspector__cell">
+                <AppCheckbox
+                  v-model="key.nullsFirst"
+                  label="Nulls first"
+                />
+              </span>
+              <span class="inspector__cell">
+                <AppIconButton
+                  :icon="appIcons.deleteOutline"
+                  tooltip="Remove this order column"
+                  @click="hyper.orderKeys.splice(at, 1)"
+                />
+              </span>
             </div>
             <div>
               <AppButton
                 variant="quiet"
                 :icon="appIcons.add"
-                label="Sparse index"
-                @click="hyper.sparseIndexes.push({ columnId: '', kind: 'minmax' })"
+                label="Order column"
+                @click="hyper.orderKeys.push({ columnId: '', descending: false, nullsFirst: false })"
               />
             </div>
           </template>
+          <template v-if="offer?.sparse_indexes">
+            <AppRadioGroup
+              v-model="hyper.sparseMode"
+              :options="sparseModes"
+              label="Sparse indexes"
+              data-testid="hypertable-sparse-mode"
+            />
+            <template v-if="hyper.sparseMode === 'columns'">
+              <div
+                v-for="(item, at) in hyper.sparseIndexes"
+                :key="at"
+                class="inspector__line inspector__line--pair"
+              >
+                <AppSelect
+                  v-model="item.columnId"
+                  :options="design.columnChoices.value"
+                  label="Column"
+                />
+                <AppSelect
+                  v-model="item.kind"
+                  :options="sparseKinds"
+                  label="Kind"
+                />
+                <span class="inspector__cell">
+                  <AppIconButton
+                    :icon="appIcons.deleteOutline"
+                    tooltip="Remove this sparse index"
+                    @click="hyper.sparseIndexes.splice(at, 1)"
+                  />
+                </span>
+              </div>
+              <div>
+                <AppButton
+                  variant="quiet"
+                  :icon="appIcons.add"
+                  label="Sparse index"
+                  @click="hyper.sparseIndexes.push({ columnId: '', kind: 'minmax' })"
+                />
+              </div>
+            </template>
+          </template>
+          <AppCheckbox
+            v-if="!integer"
+            v-model="hyper.merge.on"
+            label="Merge chunks as they are compressed"
+          />
+          <div
+            v-if="hyper.merge.on && !integer"
+            class="inspector__pair"
+          >
+            <AppNumberInput
+              v-model="hyper.merge.amount"
+              label="Into chunks of"
+            />
+            <AppSelect
+              v-model="hyper.merge.unit"
+              :options="intervalUnits"
+              label="Unit"
+            />
+          </div>
         </template>
-        <AppCheckbox
-          v-if="offer?.compaction"
-          v-model="hyper.compaction"
-          label="Compaction policy: merge small compressed chunks"
-          data-testid="hypertable-compaction"
-        />
-        <AppCheckbox
-          v-if="!integer"
-          v-model="hyper.merge.on"
-          label="Merge chunks as they are compressed"
-        />
-        <div
-          v-if="hyper.merge.on && !integer"
-          class="inspector__pair"
-        >
-          <AppNumberInput
-            v-model="hyper.merge.amount"
-            label="Into chunks of"
-          />
-          <AppSelect
-            v-model="hyper.merge.unit"
-            :options="intervalUnits"
-            label="Unit"
-          />
-        </div>
-      </template>
+      </section>
 
-      <template v-if="integer">
+      <section
+        v-if="integer"
+        class="inspector__group"
+      >
         <AppSelect
           v-model="hyper.now.mode"
           :options="nowModes"
@@ -386,39 +396,49 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
             data-testid="hypertable-now-name"
           />
         </div>
-      </template>
-      <template
-        v-for="item in ages"
-        :key="item.key"
-      >
-        <AppCheckbox
-          v-model="item.age.on"
-          :label="item.label"
-          :disable="item.disabled"
-          :data-testid="`hypertable-${item.key}`"
-        />
-        <div
-          v-if="item.age.on && !item.disabled"
-          class="inspector__pair"
+      </section>
+
+      <section class="inspector__group">
+        <template
+          v-for="item in ages"
+          :key="item.key"
         >
-          <AppNumberInput
-            v-model="item.age.amount"
-            :label="integer ? 'Age, in values' : 'Age'"
-            :data-testid="`hypertable-${item.key}-amount`"
+          <AppCheckbox
+            v-model="item.age.on"
+            :label="item.label"
+            :disable="item.disabled"
+            :data-testid="`hypertable-${item.key}`"
           />
-          <AppSelect
-            v-if="!integer"
-            v-model="item.age.unit"
-            :options="policyUnits"
-            label="Unit"
-          />
-        </div>
-      </template>
-      <AppSelect
-        v-model="hyper.reorderIndexId"
-        :options="indexes"
-        label="Reorder chunks by index"
-      />
+          <div
+            v-if="item.age.on && !item.disabled"
+            class="inspector__pair"
+          >
+            <AppNumberInput
+              v-model="item.age.amount"
+              :label="integer ? 'Age, in values' : 'Age'"
+              :data-testid="`hypertable-${item.key}-amount`"
+            />
+            <AppSelect
+              v-if="!integer"
+              v-model="item.age.unit"
+              :options="policyUnits"
+              label="Unit"
+            />
+          </div>
+        </template>
+        <AppCheckbox
+          v-if="offer?.compaction"
+          v-model="hyper.compaction"
+          label="Compaction policy: merge small compressed chunks"
+          :disable="!hyper.columnstore"
+          data-testid="hypertable-compaction"
+        />
+        <AppSelect
+          v-model="hyper.reorderIndexId"
+          :options="indexes"
+          label="Reorder chunks by index"
+        />
+      </section>
     </template>
   </div>
 </template>
@@ -428,25 +448,41 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
   display: grid;
   gap: var(--dp-space-3);
 }
-.inspector__row,
+/* Quiet rules between groups, the way D131 separates a window's regions. */
+.inspector__group {
+  display: grid;
+  gap: var(--dp-space-3);
+  padding-top: var(--dp-space-3);
+  border-top: 1px solid var(--dp-border);
+}
 .inspector__pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--dp-space-3);
-  align-items: start;
+  align-items: end;
 }
+/* Aligned on the controls rather than on the labels above them, so a check
+   box or a delete button stands level with the field it belongs to. */
 .inspector__line {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: var(--dp-space-3);
+  align-items: end;
+}
+.inspector__line--pair {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+.inspector__cell {
+  display: flex;
   align-items: center;
+  min-height: var(--dp-form-control-height);
 }
 .inspector__note {
   margin: 0;
   color: var(--dp-text-muted);
 }
 @container table-designer (max-width: 560px) {
-  .inspector__row {
+  .inspector__pair {
     grid-template-columns: minmax(0, 1fr);
   }
 }

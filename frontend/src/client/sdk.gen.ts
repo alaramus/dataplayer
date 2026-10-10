@@ -102,6 +102,9 @@ import type {
   backupsRestoreData,
   backupsRestoreErrors,
   backupsRestoreResponses,
+  connectorsActionFieldChoicesData,
+  connectorsActionFieldChoicesErrors,
+  connectorsActionFieldChoicesResponses,
   connectorsAddColumnData,
   connectorsAddColumnErrors,
   connectorsAddColumnResponses,
@@ -2573,6 +2576,33 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/actions/{action_name}/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Action Field Choices
+   *
+   * What the fields of one action's form may be set to, for one node.
+   *
+   * Asked when the form opens. The level is the action's own, as for a
+   * preview: the choices name columns, indexes and tablespaces of the node.
+   */
+  public static actionFieldChoices<ThrowOnError extends boolean = true>(
+    options: Options<connectorsActionFieldChoicesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsActionFieldChoicesResponses,
+      connectorsActionFieldChoicesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/choices",
       ...options,
       headers: {
         "Content-Type": "application/json",

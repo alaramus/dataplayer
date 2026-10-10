@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue"
 import type { ActionPreview } from "@/client"
 import {
   useDownloadAction,
+  useFieldChoices,
   usePreviewAction,
   usePreviewActionOnSet,
   useRunAction,
@@ -15,6 +16,7 @@ import {
   needsClipboard,
   nodeSetOf,
   summarize,
+  withFieldChoices,
   withGroupingChoices,
 } from "@/features/catalog/actions"
 import { forgetClipboard, heldFor } from "@/features/catalog/clipboard"
@@ -102,9 +104,22 @@ const dialectChoices = computed(() => props.command?.choices.dialect ?? [])
  */
 const destinationChoices = computed(() => groupingChoices(props.groupings ?? []))
 
-/** The visible fields, with a field naming a grouping offering the ones there are. */
+const fieldChoices = useFieldChoices(
+  computed(() => props.connectorId),
+  computed(() => props.command?.name ?? null),
+  computed(() => props.nodeIds[0]),
+  computed(() => props.command?.offersChoices === true && props.nodeIds.length === 1)
+)
+
+/**
+ * The visible fields, with a field naming a grouping offering the ones there
+ * are, and a field the source named values for offering those.
+ */
 const formFields = computed(() =>
-  withGroupingChoices(visibleFields.value, destinationChoices.value)
+  withFieldChoices(
+    withGroupingChoices(visibleFields.value, destinationChoices.value),
+    fieldChoices.data.value ?? undefined
+  )
 )
 const conflictField = computed(() =>
   props.command?.fields.find((field) => field.purpose === "file-conflict") ?? null
@@ -180,11 +195,30 @@ async function askPreview() {
   }
 }
 
+/**
+ * The first field the form still needs before the source can be asked.
+ *
+ * Asking with it empty only brought back the server's sentence about a value
+ * that is too short, under a field whose example looked filled in.
+ */
+const unfilled = computed(() =>
+  visibleFields.value.find((field) => {
+    if (!field.required || field.kind === "boolean") return false
+    const value = values.value[field.name]
+    return value === undefined || value === null || value === ""
+  }) ?? null
+)
+
 function schedulePreview() {
   if (timer !== undefined) clearTimeout(timer)
   asked += 1
   if (props.command?.requiresPlanReview) preview.value = null
   if (!previewable.value) return
+  if (unfilled.value !== null) {
+    preview.value = null
+    previewFailed.value = ""
+    return
+  }
   timer = setTimeout(() => void askPreview(), PREVIEW_DELAY_MS)
 }
 
@@ -798,8 +832,15 @@ async function runReviewed(value: {
 
       <!-- What the source says this would do. Nothing here knows what is
            being previewed: a summary and a list of lines, in its words. -->
+      <p
+        v-if="previewable && unfilled"
+        class="action-dialog__waiting"
+        data-testid="action-preview-waiting"
+      >
+        Fill in “{{ unfilled.label }}” to see what this would do.
+      </p>
       <AppBanner
-        v-if="previewFailed"
+        v-else-if="previewFailed"
         tone="warning"
         data-testid="action-preview-error"
       >
@@ -863,6 +904,10 @@ async function runReviewed(value: {
 </template>
 
 <style scoped>
+.action-dialog__waiting {
+  margin: 0;
+  color: var(--dp-text-muted);
+}
 .action-dialog__question {
   margin: 0;
 }

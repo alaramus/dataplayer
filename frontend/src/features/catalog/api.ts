@@ -456,6 +456,29 @@ export function usePrepareConnectorAction() {
  * once beside that form and never read again, so there is nothing for a cache
  * key to be about.
  */
+/** What the fields of one action's form may be, for one node; asked as the form opens. */
+export function useFieldChoices(
+  connectorId: Ref<string>,
+  name: Ref<string | null>,
+  nodeId: Ref<string | null | undefined>,
+  enabled: Ref<boolean>
+) {
+  return useQuery({
+    queryKey: computed(() => ["action-choices", connectorId.value, name.value, nodeId.value]),
+    enabled,
+    // Asked again each time the form opens: a column added since is offered.
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    queryFn: async () =>
+      (
+        await ConnectorsService.actionFieldChoices({
+          path: { connector_id: connectorId.value, action_name: name.value ?? "" },
+          body: { node_id: nodeId.value ?? null, params: {} },
+        })
+      ).data,
+  })
+}
+
 export function usePreviewAction() {
   return useMutation({
     mutationFn: async (input: {

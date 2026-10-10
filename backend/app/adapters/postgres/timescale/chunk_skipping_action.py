@@ -21,6 +21,7 @@ from app.adapters.actions import (
     ActionRefused,
     ActionResult,
     ActsOn,
+    FieldChoice,
 )
 from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
@@ -64,6 +65,16 @@ LEFT JOIN pg_catalog.pg_attribute AS attribute
  AND attribute.attnum > 0 AND NOT attribute.attisdropped
 WHERE hypertable.hypertable_schema = %s AND hypertable.hypertable_name = %s
   AND pg_catalog.pg_has_role(relation.relowner, 'USAGE')
+"""
+
+
+_COLUMNS = """
+SELECT attribute.attname AS name, pg_catalog.format_type(attribute.atttypid, NULL) AS type
+FROM pg_catalog.pg_attribute AS attribute
+JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+WHERE namespace.nspname = %s AND relation.relname = %s AND attribute.attnum > 0 AND NOT attribute.attisdropped
+ORDER BY attribute.attnum
 """
 
 
@@ -172,6 +183,16 @@ class ChunkSkipping(Action[ChunkSkippingParams]):
                 "in sessions that turn it on",
             )
         return items
+
+    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]:
+        """The columns Timescale keeps a range of; which of them record one now is not readable."""
+        schema, node = await user_table(self._catalog, node_id)
+        async with self._session.inspection() as reader:
+            rows = await reader.query(_COLUMNS, (schema.name, node.name), inspection=True)
+        return {"column": [
+            FieldChoice(value=str(row["name"]), label=f'{row["name"]} · {row["type"]}')
+            for row in rows if row["type"] in _RANGED
+        ]}
 
     async def preview(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionPreview:
         params = self._validated(raw)

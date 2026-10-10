@@ -157,6 +157,10 @@ export type ActionInfo = {
    */
   menu_group?: string | null
   /**
+   * Offers Choices
+   */
+  offers_choices?: boolean
+  /**
    * Params Schema
    */
   params_schema: {
@@ -4771,6 +4775,22 @@ export type FetchResult = {
    * Row Commands
    */
   row_commands?: Array<RowCommand>
+}
+
+/**
+ * FieldChoice
+ *
+ * One value a field of an action's form may take, in the source's words.
+ */
+export type FieldChoice = {
+  /**
+   * Value
+   */
+  value: string
+  /**
+   * Label
+   */
+  label: string
 }
 
 /**
@@ -16379,6 +16399,46 @@ export type connectorsPreviewActionResponses = {
 
 export type connectorsPreviewActionResponse =
   connectorsPreviewActionResponses[keyof connectorsPreviewActionResponses]
+
+export type connectorsActionFieldChoicesData = {
+  body: ActionRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/choices"
+}
+
+export type connectorsActionFieldChoicesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsActionFieldChoicesError =
+  connectorsActionFieldChoicesErrors[keyof connectorsActionFieldChoicesErrors]
+
+export type connectorsActionFieldChoicesResponses = {
+  /**
+   * Response Connectors-Action Field Choices
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: Array<FieldChoice>
+  }
+}
+
+export type connectorsActionFieldChoicesResponse =
+  connectorsActionFieldChoicesResponses[keyof connectorsActionFieldChoicesResponses]
 
 export type connectorsRunActionOnSetData = {
   body: ActionSetRequest

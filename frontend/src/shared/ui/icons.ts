@@ -20,6 +20,7 @@ export const appIcons = {
   bolt: "bolt",
   bookmarkAdd: "bookmark_add",
   bookmarks: "bookmarks",
+  calendar: "calendar_month",
   cancel: "cancel",
   centerFocusStrong: "center_focus_strong",
   check: "check",

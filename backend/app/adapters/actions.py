@@ -334,6 +334,28 @@ class ActionPreview(BaseModel):
     runs_as_job: bool = False
 
 
+class FieldChoice(BaseModel):
+    """One value a field of an action's form may take, in the source's words."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    value: str = Field(max_length=500)
+    label: str = Field(min_length=1, max_length=500)
+
+
+@runtime_checkable
+class OffersFieldChoices(Protocol):
+    """An action whose form names things of the node it acts on.
+
+    A column, an index or a tablespace is the node's, not the action's, so a
+    static schema can only say "a string" and the person types a name that is
+    already known. The action names them for one node instead; the client asks
+    once the form opens, and a field the answer leaves out stays typed.
+    """
+
+    async def field_choices(self, node_id: str | None) -> dict[str, list[FieldChoice]]: ...
+
+
 @runtime_checkable
 class RequiresReviewedPlan(Protocol):
     async def perform_reviewed(

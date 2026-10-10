@@ -293,6 +293,17 @@ Known deviations:
   in place, to fail on its next read; the workspace can follow a renamed node
   ([D32](ddl.md)) and has no word yet for one that is not there at all.
 
+The form is asked the same way. A field that names a thing of the node — a
+column, an index, a tablespace — is a string in the static schema, so an action
+that knows those things implements `OffersFieldChoices`: `ActionInfo` derives
+`offers_choices` from an `isinstance`, and the dialog asks
+`POST …/actions/{name}/choices` once it opens for one node. A field the answer
+names values for becomes a list; one it leaves out, or names nothing for, stays
+typed. The choices are a convenience the plan checks again, never what decides.
+Until every required field is filled the dialog does not ask for a preview: it
+says what is missing instead of relaying the server's sentence about an empty
+value.
+
 Spec: [Dropping a relation, and seeing what goes with it](../../decisions/2026-08-30-relation-drop-design.md)
 
 ## D68. A set of nodes is a subject an action may have

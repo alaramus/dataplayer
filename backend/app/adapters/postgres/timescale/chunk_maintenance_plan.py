@@ -165,6 +165,34 @@ _TIME_CAST = {
 }
 
 
+# What the forms offer, read by name: the choices are a convenience the plan
+# checks again, never what decides.
+_TABLESPACE_CHOICES = """
+SELECT spcname AS name FROM pg_catalog.pg_tablespace
+WHERE spcname <> 'pg_global' AND pg_catalog.has_tablespace_privilege(oid, 'CREATE')
+ORDER BY 1
+"""
+
+_INDEX_CHOICES = """
+SELECT index_class.relname AS name
+FROM pg_catalog.pg_index AS table_index
+JOIN pg_catalog.pg_class AS index_class ON index_class.oid = table_index.indexrelid
+JOIN pg_catalog.pg_class AS relation ON relation.oid = table_index.indrelid
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+WHERE namespace.nspname = %s AND relation.relname = %s
+  AND table_index.indisvalid AND table_index.indisready
+ORDER BY 1
+"""
+
+
+async def tablespace_names(reader: PostgresReader) -> list[str]:
+    return [str(row["name"]) for row in await reader.query(_TABLESPACE_CHOICES, inspection=True)]
+
+
+async def index_names(reader: PostgresReader, schema_name: str, table_name: str) -> list[str]:
+    return [str(row["name"]) for row in await reader.query(_INDEX_CHOICES, (schema_name, table_name), inspection=True)]
+
+
 def column_cast(target: TimeHypertable) -> sql.SQL:
     return sql.SQL(_TIME_CAST[target.column_type])
 
