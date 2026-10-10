@@ -1,51 +1,52 @@
-# Расформирование плоского слоя в модуль пользователей
+# Breaking the flat layer up into a users module
 
-Дата: 2026-08-15
-Статус: согласовано
-Подпроект: 2а
+Date: 2026-08-15
+Status: agreed
+Subproject: 2a
 
-## Цель
+## Goal
 
-Убрать из бэкенда плоский слой, доставшийся от шаблона: `app/models.py`,
-`app/crud.py`, `app/utils.py`, `app/api/deps.py` и `app/api/routes/`. После
-работы весь код живёт в модулях функциональности, и в приложении остаётся один
-способ его организации вместо двух.
+Remove the flat layer inherited from the template from the backend:
+`app/models.py`, `app/crud.py`, `app/utils.py`, `app/api/deps.py` and
+`app/api/routes/`. Afterwards all code lives in feature modules, and the
+application keeps one way of organising it instead of two.
 
-Это решение Р5 из спека первого среза, отложенное тогда, чтобы не расширять
-срез: перестановка затрагивает пользователей и вход, не добавляя ничего к
-работе с коннекторами.
+This is decision R5 from the first slice's spec, deferred then so as not to
+widen the slice: the move touches users and login without adding anything to
+working with connectors.
 
-## Почему это не косметика
+## Why this is not cosmetic
 
-Единственный файл моделей и единственный файл CRUD на всё приложение — это
-начало пути, приведшего `common_option_adapter.py` старого приложения к 3685
-строкам. Сейчас файлы малы, и именно поэтому их дёшево разделить.
+A single models file and a single CRUD file for the whole application is the
+start of the path that led the old application's `common_option_adapter.py` to
+3685 lines. The files are small now, and that is exactly why they are cheap to
+split.
 
-Второе следствие важнее первого: направление зависимостей становится
-односторонним. `core` не знает ни о ком, `users` знает о `core`, `connectors`
-и `adapters` знают о `core` и `users` — ради `CurrentUser`. Обратных стрелок
-нет.
+The second consequence matters more than the first: the direction of
+dependencies becomes one-way. `core` knows about nobody, `users` knows about
+`core`, `connectors` and `adapters` know about `core` and `users` — for the
+sake of `CurrentUser`. There are no arrows back.
 
-## Целевая структура
+## Target structure
 
 ```
 backend/app/
 ├── main.py
-├── api/main.py          только сборка роутеров
+├── api/main.py          router assembly only
 ├── core/
 │   ├── config.py
 │   ├── db.py            + SessionDep
 │   ├── security.py
 │   ├── crypto.py
-│   ├── schemas.py       новый: Message, get_datetime_utc
-│   ├── email.py         из utils.py: отправка и шаблоны писем
-│   └── routes.py        /utils: проверка живости, тестовое письмо
+│   ├── schemas.py       new: Message, get_datetime_utc
+│   ├── email.py         from utils.py: sending emails and their templates
+│   └── routes.py        /utils: health check, test email
 ├── users/
 │   ├── models.py        User, User*, Token, TokenPayload, NewPassword
 │   ├── crud.py
 │   ├── deps.py          CurrentUser, get_current_user,
 │   │                    get_current_active_superuser
-│   ├── tokens.py        из utils.py: токены сброса пароля
+│   ├── tokens.py        from utils.py: password reset tokens
 │   ├── routes.py        /users
 │   ├── auth_routes.py   /login, /password-recovery, /reset-password
 │   └── private_routes.py
@@ -53,49 +54,49 @@ backend/app/
 └── connectors/
 ```
 
-Тесты переезжают зеркально: `tests/users/` вместо `tests/api/routes/` и
+The tests move in mirror: `tests/users/` instead of `tests/api/routes/` and
 `tests/crud/`.
 
-### Куда что уходит
+### Where everything goes
 
-| Было | Стало |
+| Was | Becomes |
 | --- | --- |
-| `app/models.py` — модели `User*` | `app/users/models.py` |
+| `app/models.py` — the `User*` models | `app/users/models.py` |
 | `app/models.py` — `Token`, `TokenPayload`, `NewPassword` | `app/users/models.py` |
 | `app/models.py` — `Message`, `get_datetime_utc` | `app/core/schemas.py` |
 | `app/crud.py` | `app/users/crud.py` |
 | `app/api/deps.py` — `SessionDep`, `get_db` | `app/core/db.py` |
-| `app/api/deps.py` — всё остальное | `app/users/deps.py` |
+| `app/api/deps.py` — everything else | `app/users/deps.py` |
 | `app/api/routes/users.py` | `app/users/routes.py` |
 | `app/api/routes/login.py` | `app/users/auth_routes.py` |
 | `app/api/routes/private.py` | `app/users/private_routes.py` |
-| `app/api/routes/utils.py` — проверка живости и тестовое письмо | `app/core/routes.py`: к пользователям это не относится |
-| `app/utils.py` — письма | `app/core/email.py` |
-| `app/utils.py` — токены сброса пароля | `app/users/tokens.py` |
+| `app/api/routes/utils.py` — health check and test email | `app/core/routes.py`: this has nothing to do with users |
+| `app/utils.py` — emails | `app/core/email.py` |
+| `app/utils.py` — password reset tokens | `app/users/tokens.py` |
 
-## Критерий готовности
+## Done criterion
 
-**Публичный API не меняется ни на байт.** Снимок `openapi.json` до перестановки
-и после должен совпасть побайтово. Для чистой перестановки это сильнее, чем
-«тесты проходят»: поймает изменившийся тег, порядок роутеров или имя операции,
-то есть поломку сгенерированного клиента.
+**The public API does not change by a single byte.** A snapshot of
+`openapi.json` before and after the move must match byte for byte. For a pure
+move this is stronger than "the tests pass": it catches a changed tag, router
+order or operation name, that is, a breakage of the generated client.
 
-Дополнительно:
+In addition:
 
-- все 101 тест проходят;
-- `mypy --strict` и `ruff` чисты;
-- **в тестах правятся только пути импортов**. Если понадобилось изменить логику
-  теста, значит перестановка что-то сломала, и это надо чинить, а не
-  подгонять тест.
+- all 101 tests pass;
+- `mypy --strict` and `ruff` are clean;
+- **only import paths are edited in the tests**. If a test's logic had to
+  change, the move broke something, and that has to be fixed rather than the
+  test adjusted.
 
-## Чего в подпроекте нет
+## Not in this subproject
 
-Переименований, изменений сигнатур, новых функций, изменений поведения, правок
-фронтенда, миграций. Только перемещение кода и правка импортов.
+Renames, signature changes, new functions, behaviour changes, frontend edits,
+migrations. Only moving code and fixing imports.
 
-## Риск
+## Risk
 
-Циклические импорты. `users/deps.py` тянет `core/db.py` и `users/models.py`,
-`connectors/routes.py` тянет `users/deps.py`. Цикла здесь нет, но
-`app/api/main.py` импортирует всё сразу, поэтому ошибка в размещении
-`SessionDep` создаст цикл немедленно. Ловится импортом приложения.
+Circular imports. `users/deps.py` pulls in `core/db.py` and `users/models.py`,
+`connectors/routes.py` pulls in `users/deps.py`. There is no cycle here, but
+`app/api/main.py` imports everything at once, so a mistake in placing
+`SessionDep` creates a cycle immediately. Caught by importing the application.

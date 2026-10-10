@@ -1,346 +1,353 @@
-# Тема, слой окна и три поправки к экрану
+# Theme, the window layer and three corrections to the screen
 
-Дата: 2026-08-23
-Статус: выполнено
-Подпроект: правки по следам работы в браузере
+Date: 2026-08-23
+Status: done
+Subproject: corrections following work in the browser
 
-## Для того, кто начинает с чистой сессии
+## For someone starting from a clean session
 
-Читать в этом порядке: [AGENTS.md](../../AGENTS.md), решения Р11 (набор
-компонентов), Р12 (рабочее пространство), Р14 (плавающее окно);
-[ENGINEERING.md](../../ENGINEERING.md), разделы «Frontend» и «Тесты».
+Read in this order: [AGENTS.md](../../AGENTS.md), decisions R11 (component
+kit), R12 (workspace), R14 (floating window);
+[ENGINEERING.md](../../ENGINEERING.md), sections "Frontend" and "Tests".
 
-Здесь нет ни одной строки бэкенда. Всё, что меняется, живёт во
-`frontend/src`, и ни одна правка не трогает контракт API — клиент
-перегенерировать не нужно.
+There is not a single line of backend here. Everything that changes lives in
+`frontend/src`, and no change touches the API contract — the client does not
+need to be regenerated.
 
-Что уже есть и на что опираемся:
+What already exists and what we build on:
 
-- Экран — три колонки, каждая из которых сворачивается
-  (`shared/workspace/WorkspaceLeaf.vue`); свёрнутая показывает то, что
-  фича сочла достойным сорока пикселей (`collapsedOf` в
+- The screen is three columns, each of which collapses
+  (`shared/workspace/WorkspaceLeaf.vue`); a collapsed one shows what the
+  feature considered worthy of forty pixels (`collapsedOf` in
   `features/workspace/panels.ts` → `ConnectorRail.vue`).
-- Подключение правится в плавающем окне (`shared/windows/`,
+- A connection is edited in a floating window (`shared/windows/`,
   `features/connectors/ConnectorWindow.vue`).
-- Каталог — один уровень: шапка со значком источника, путём и меню
-  действий, ниже фильтры и список (`panels/CatalogPanel.vue`).
-- Каждый экран собран из `shared/ui`, и обращение к `q-*` в обход набора —
-  ошибка линтера.
+- The catalog is one level: a header with the source icon, the path and the
+  actions menu, below it filters and the list (`panels/CatalogPanel.vue`).
+- Every screen is assembled from `shared/ui`, and reaching for `q-*` past the
+  kit is a linter error.
 
-Одна команда, которая понадобится сразу:
+One command that will be needed right away:
 
 ```bash
 cd frontend && bun run dev
 ```
 
-## Цель
+## Goal
 
-Четыре вещи, замеченные при работе с экраном, а не при чтении кода.
+Four things noticed while working with the screen, not while reading the code.
 
-1. Свёрнутая колонка подключений теряет «плюс»: добавить подключение из неё
-   нельзя, хотя открыть каталог — можно.
-2. Окно уезжает под синюю шапку и под залипшие заголовки колонок таблицы,
-   и из-под шапки его уже нечем взять.
-3. Выбор схем в каталоге стоит отдельной строкой, хотя у файлового источника
-   ровно в этом месте строки стоит путь.
-4. Тёмной темы нет вовсе.
+1. The collapsed connections column loses the "plus": a connection cannot be
+   added from it, although a catalog can be opened.
+2. A window slides under the blue header and under the sticky column headings
+   of a table, and from under the header there is nothing left to grab it by.
+3. The schema selection in the catalog stands on a separate line, although for
+   a file source the path stands in exactly that place of the line.
+4. There is no dark theme at all.
 
-## Чего здесь нет
+## What is not here
 
-- **Третьего состояния темы.** Только светлая и тёмная; «как в системе»
-  участвует один раз — когда выбора ещё не было. Меню из трёх пунктов ради
-  того, чтобы вернуться к значению, которое и так стоит по умолчанию, — это
-  экран состояния ради экрана состояния.
-- **Темы, которая следует за системой вживую.** Раз выбор сделан, он
-  сделан; `matchMedia` не слушается.
-- **Изменения размера окна.** Оно по-прежнему только двигается — Р14.
-- **Переезда фильтра-строки.** В шапку каталога поднимается выбор схем и
-  только он: текстовый фильтр — это то, что печатают, и ему нужна ширина.
-- **Темы у `/ui-kit` и `/workspace-demo`.** Они собраны из тех же
-  компонентов и потемнеют заодно; отдельной проверки они не получают.
+- **A third theme state.** Only light and dark; "as in the system" takes part
+  once — when no choice has been made yet. A three-item menu for the sake of
+  returning to a value that is the default anyway is a state screen for the
+  sake of a state screen.
+- **A theme that follows the system live.** Once the choice is made, it is
+  made; `matchMedia` is not listened to.
+- **Resizing the window.** It still only moves — R14.
+- **Moving the filter line.** Only the schema selection is raised into the
+  catalog header: the text filter is something one types into, and it needs
+  width.
+- **A theme for `/ui-kit` and `/workspace-demo`.** They are assembled from the
+  same components and will darken along with them; they get no separate check.
 
-## Решения
+## Decisions
 
-### Т1. Свёрнутая колонка предлагает то же действие, а не меньшее
+### T1. The collapsed column offers the same action, not a lesser one
 
-`ConnectorRail.vue` получает кнопку `add` первой строкой, над значками
-источников. Она зовёт `workspace.editConnector(null)` — ровно тот вызов,
-который делает `ConnectorsPanel`, а не свою копию его смысла.
+`ConnectorRail.vue` gets an `add` button as its first row, above the source
+icons. It calls `workspace.editConnector(null)` — exactly the call that
+`ConnectorsPanel` makes, not its own copy of its meaning.
 
-`data-testid` остаётся тем же — `add-connector`. Полоса и панель стоят под
-`v-if`/`v-else` в `WorkspaceLeaf.vue` и вместе не существуют никогда, а
-второй идентификатор утверждал бы, что это два разных органа управления.
-Это одно действие, показанное в двух ширинах.
+The `data-testid` stays the same — `add-connector`. The rail and the panel
+stand under `v-if`/`v-else` in `WorkspaceLeaf.vue` and never exist together,
+and a second identifier would claim these are two different controls. It is one
+action shown at two widths.
 
-### Т2. Окно — слой над хромом приложения, но под меню
+### T2. The window is a layer above the application chrome but below menus
 
-У `.app-window` сейчас нет `z-index` вообще. Отсюда обе половины жалобы
-сразу: залипший `<th>` объявлен с `z-index: 1`, шапка Quasar — с `2000`, и
-позиционированный элемент с положительным `z-index` рисуется поверх любого
-позиционированного с `auto`, каким бы поздним в дереве тот ни был.
+`.app-window` currently has no `z-index` at all. Hence both halves of the
+complaint at once: the sticky `<th>` is declared with `z-index: 1`, the Quasar
+header with `2000`, and a positioned element with a positive `z-index` is
+painted over any positioned one with `auto`, however late in the tree that one
+is.
 
-Окну назначается `3000`: выше шапки и подвала (`2000`), ниже `q-menu` и
-`q-dialog` (`6000`). Нижняя граница — не украшение: выпадающий список в
-форме подключения, меню действий и диалог подтверждения открываются *из*
-окна и обязаны лечь на него сверху.
+The window is assigned `3000`: above the header and footer (`2000`), below
+`q-menu` and `q-dialog` (`6000`). The lower bound is not decoration: a dropdown
+in the connection form, the actions menu and a confirmation dialog open *from*
+the window and must lie on top of it.
 
-`geometry.ts` не меняется. `clamp` и так держит `y ≥ 0`, то есть полоса
-заголовка никогда не покидала экран — она была невидима, а не недосягаема.
-Чинить надо было слой, а не правило.
+`geometry.ts` does not change. `clamp` already keeps `y ≥ 0`, so the title bar
+never left the screen — it was invisible, not unreachable. It was the layer
+that needed fixing, not the rule.
 
-Рассматривался и отвергнут второй вариант: считать полем окон область между
-шапкой и подвалом и упирать `clamp` в неё. Он честнее описывает экран, но
-требует, чтобы движок окон узнал высоту хрома приложения, — а `shared/windows`
-не знает и не должен знать, что над ним есть `AppLayout`. Цена принятого
-варианта названа в «Известных отклонениях».
+A second option was considered and rejected: treat the area between header and
+footer as the field for windows and make `clamp` stop at it. It describes the
+screen more honestly, but requires the window engine to learn the height of the
+application chrome — and `shared/windows` does not know and must not know that
+there is an `AppLayout` above it. The cost of the accepted option is named in
+"Known deviations".
 
-### Т3. В шапке каталога стоит то, чем этот уровень выбирается
+### T3. The catalog header holds what this level is chosen by
 
-Выбор схем переезжает из отдельной строки в `catalog-panel__bar` — в тот
-самый промежуток между значком подключения и меню действий, где у файлового
-источника стоят хлебные крошки.
+The schema selection moves from a separate line into `catalog-panel__bar` —
+into the very gap between the connection icon and the actions menu where a file
+source has its breadcrumbs.
 
-Это не выравнивание ради симметрии. Строка шапки отвечает на один вопрос:
-где мы находимся внутри источника. У файлового источника ответ — путь, у
-PostgreSQL — набор выбранных схем. Одно место для одного вопроса; какой
-именно вид у ответа, следует из того, какие узлы держит уровень, и никогда
-из типа источника — то же правило, по которому путь показывается только
-глубже первого уровня.
+This is not alignment for the sake of symmetry. The header line answers one
+question: where we are inside the source. For a file source the answer is a
+path, for PostgreSQL it is the set of selected schemas. One place for one
+question; what form the answer takes follows from which nodes the level holds,
+and never from the source type — the same rule by which the path is shown only
+below the first level.
 
-Оба могут отрисоваться одновременно, если однажды появится источник и с
-путём, и с группировками: крошки идут первыми, выбор за ними, меню
-по-прежнему прижато вправо.
+Both can be drawn at once, if a source with both a path and groupings ever
+appears: the crumbs come first, the selection after them, the menu is still
+pressed to the right.
 
-### Т4. Цвет — это смысл, и переводится он в одном файле
+### T4. A colour is a meaning, and it is translated in one file
 
-`shared/ui/theme.css` объявляет на `:root` каждое значение, которым
-приложение красит себя само, и переобъявляет их под `body.body--dark`.
-Имена — по смыслу, не по значению: `--dp-surface`, `--dp-surface-raised`,
-`--dp-border`, `--dp-hover`, `--dp-selected`, `--dp-text-muted`,
-`--dp-text-faint`, `--dp-shadow`, `--dp-accent-soft`.
+`shared/ui/theme.css` declares on `:root` every value the application paints
+itself with, and redeclares them under `body.body--dark`. Names are by meaning,
+not by value: `--dp-surface`, `--dp-surface-raised`, `--dp-border`,
+`--dp-hover`, `--dp-selected`, `--dp-text-muted`, `--dp-text-faint`,
+`--dp-shadow`, `--dp-accent-soft`.
 
-Те же отношения, что у `tokens.ts`: компонент называет смысл, один файл
-превращает его в значение. Сорок с лишним литералов в двенадцати `.vue`
-заменяются на `var(--dp-*)`.
+The same relationship as `tokens.ts` has: a component names a meaning, one file
+turns it into a value. Forty-odd literals in twelve `.vue` files are replaced by
+`var(--dp-*)`.
 
-Почему свойства CSS, а не переменные Sass: Sass считается на сборке, а тему
-переключают в браузере. Это ровно то, о чём говорилось в «Известных
-отклонениях» — и почему тёмной темы до сих пор не было.
+Why CSS properties and not Sass variables: Sass is computed at build time, and
+the theme is switched in the browser. This is exactly what "Known deviations"
+said — and why there was no dark theme until now.
 
-### Т5. Выбор темы — состояние клиента, и Quasar о нём узнаёт в одном месте
+### T5. The theme choice is client state, and Quasar learns of it in one place
 
-`stores/theme.ts`, Pinia: сервер о теме ничего не знает, и по Р6 ей место
-именно здесь.
+`stores/theme.ts`, Pinia: the server knows nothing about the theme, and by R6
+this is exactly where it belongs.
 
-- Первое значение: то, что записано в `localStorage`; если там пусто —
-  `prefers-color-scheme`. Система отвечает один раз, при первом заходе.
-- Переключение пишет выбор обратно в `localStorage`.
-- `Dark.set` из Quasar зовётся только отсюда. Плагин ставит на `<body>`
-  класс `body--dark`, по которому и переключаются свойства из Т4, — то есть
-  собственные цвета приложения и цвета Quasar переключаются одним событием,
-  а не двумя.
+- The first value: what is written in `localStorage`; if that is empty —
+  `prefers-color-scheme`. The system answers once, on the first visit.
+- Switching writes the choice back to `localStorage`.
+- `Dark.set` from Quasar is called only from here. The plugin puts the class
+  `body--dark` on `<body>`, by which the properties from T4 switch — so the
+  application's own colours and Quasar's colours switch with one event, not
+  two.
 
-Применяется в `main.ts` после `.use(Quasar, …)` и до `.mount()`. Обе границы
-нужны: `install()` у плагина Dark сам пишет тему в документ, так что выбор,
-применённый раньше, затирается; применённый позже — не успевает к первому
-кадру, и тёмная тема начинается со вспышки светлой. Найдено в браузере, не
-тестами — см. «Что вышло иначе».
+It is applied in `main.ts` after `.use(Quasar, …)` and before `.mount()`. Both
+bounds are needed: the Dark plugin's `install()` writes the theme to the
+document itself, so a choice applied earlier is overwritten; one applied later
+does not make it in time for the first frame, and the dark theme starts with a
+flash of light. Found in the browser, not by tests — see "What turned out
+differently".
 
-### Т6. Переключатель — компонент набора
+### T6. The toggle is a kit component
 
-`shared/ui/AppThemeToggle.vue`: `AppIconButton` со значком `dark_mode` в
-светлой теме и `light_mode` в тёмной. В наборе, потому что у него есть
-выбор внешнего вида; в бочке и в `/ui-kit`, потому что `kit.spec.ts` этого
-требует от каждого файла в `shared/ui`.
+`shared/ui/AppThemeToggle.vue`: an `AppIconButton` with the `dark_mode` icon in
+the light theme and `light_mode` in the dark one. In the kit, because it has a
+choice of appearance; in the barrel and in `/ui-kit`, because `kit.spec.ts`
+requires that of every file in `shared/ui`.
 
-`AppLayout.vue` ставит его рядом с «Sign out». Там же, где выход: это две
-вещи про сеанс, а не про то, что на экране.
+`AppLayout.vue` puts it next to "Sign out". In the same place as signing out:
+these are two things about the session, not about what is on screen.
 
-## Что меняется
+## What changes
 
-### Набор компонентов
+### Component kit
 
-- `shared/ui/theme.css` — новый: свойства светлой темы и их переобъявление
-  под `body.body--dark`.
-- `shared/ui/AppThemeToggle.vue` — новый.
-- `shared/ui/index.ts` — экспорт переключателя.
-- `shared/ui/AppLayout.vue` — переключатель в панели.
-- `shared/ui/AppTable.vue` — `#fff` у залипшей шапки → `var(--dp-surface)`.
+- `shared/ui/theme.css` — new: light theme properties and their redeclaration
+  under `body.body--dark`.
+- `shared/ui/AppThemeToggle.vue` — new.
+- `shared/ui/index.ts` — export of the toggle.
+- `shared/ui/AppLayout.vue` — the toggle in the bar.
+- `shared/ui/AppTable.vue` — `#fff` on the sticky header → `var(--dp-surface)`.
 
-### Состояние
+### State
 
-- `stores/theme.ts` — новый.
-- `stores/theme.spec.ts` — новый.
+- `stores/theme.ts` — new.
+- `stores/theme.spec.ts` — new.
 
-### Окна
+### Windows
 
-- `shared/windows/WindowFrame.vue` — `z-index: 3000`; цвета → переменные.
+- `shared/windows/WindowFrame.vue` — `z-index: 3000`; colours → variables.
 
-### Экран
+### Screen
 
-- `features/workspace/panels/ConnectorRail.vue` — «плюс» сверху; цвета.
-- `features/workspace/panels/CatalogPanel.vue` — выбор схем в шапку; цвета.
+- `features/workspace/panels/ConnectorRail.vue` — "plus" on top; colours.
+- `features/workspace/panels/CatalogPanel.vue` — schema selection into the
+  header; colours.
 - `features/catalog/CatalogList.vue`,
   `features/connectors/{AdapterCatalogDialog,AdapterDetailPanel,AdapterTile,
   ConnectionCheck,ConnectorDot,ConnectorList,ConnectorWindow}.vue`,
   `shared/workspace/{WorkspaceLeaf,WorkspaceSeparator}.vue`,
-  `features/dev/WorkspaceDemoPage.vue` — цвета.
-- `shared/workspace/WorkspaceLeaf.vue` — вкладке и кнопкам-стрелкам
-  `color: inherit`: см. «Что вышло иначе».
+  `features/dev/WorkspaceDemoPage.vue` — colours.
+- `shared/workspace/WorkspaceLeaf.vue` — `color: inherit` for the tab and the
+  arrow buttons: see "What turned out differently".
 
-### Сборка
+### Build
 
-- `main.ts` — импорт `theme.css`, применение выбора до `mount`.
-- `features/dev/UiKitPage.vue` — показ переключателя.
+- `main.ts` — import of `theme.css`, applying the choice before `mount`.
+- `features/dev/UiKitPage.vue` — showing the toggle.
 
-### Документы
+### Documents
 
-- `AGENTS.md` — из «Известных отклонений» уходит «Тёмной темы нет»;
-  приходит то, что названо ниже.
+- `AGENTS.md` — "There is no dark theme" leaves "Known deviations"; what is
+  named below arrives.
 
-## Порядок работы
+## Order of work
 
-1. Т1: «плюс» в свёрнутой колонке. Сценарий Playwright на него — первым.
-2. Т2: слой окна. Сценарий: окно, поднятое к верхней границе, остаётся
-   видимым и берётся за полосу заголовка.
-3. Т3: выбор схем в шапку. Существующий `catalog-groups` не переименовывается,
-   так что сценарии каталога должны остаться зелёными без правок.
-4. Т5: стор темы и его спека — до всякого CSS.
-5. Т4: свойства и замена литералов, файл за файлом.
-6. Т6: переключатель, бочка, `/ui-kit`, `AppLayout`, `main.ts`.
-7. Сценарий Playwright на тему: переключить, проверить `body--dark`,
-   перезагрузить, проверить снова.
+1. T1: the "plus" in the collapsed column. A Playwright scenario for it — first.
+2. T2: the window layer. Scenario: a window raised to the top edge stays
+   visible and can be grabbed by the title bar.
+3. T3: schema selection into the header. The existing `catalog-groups` is not
+   renamed, so the catalog scenarios must stay green without edits.
+4. T5: the theme store and its spec — before any CSS.
+5. T4: the properties and the replacement of literals, file by file.
+6. T6: the toggle, the barrel, `/ui-kit`, `AppLayout`, `main.ts`.
+7. A Playwright scenario for the theme: switch, check `body--dark`, reload,
+   check again.
 8. `AGENTS.md`.
 
-## Чем держится
+## What holds it up
 
-| Команда | Что проверяет |
+| Command | What it checks |
 | --- | --- |
-| `bun run test:unit` | стор темы; `kit.spec` — что переключатель есть в бочке и в `/ui-kit` |
-| `bun run lint` | что ни один экран не полез в `q-*` мимо набора |
-| `bun run type-check` | типы |
-| `bunx playwright test` | «плюс» в полосе (`workspace.spec.ts`), слой окна (`connector-windows.spec.ts`), тема и читаемость вкладки (`theme.spec.ts`) |
+| `bun run test:unit` | the theme store; `kit.spec` — that the toggle is in the barrel and in `/ui-kit` |
+| `bun run lint` | that no screen reached into `q-*` past the kit |
+| `bun run type-check` | types |
+| `bunx playwright test` | the "plus" in the rail (`workspace.spec.ts`), the window layer (`connector-windows.spec.ts`), the theme and tab legibility (`theme.spec.ts`) |
 
-Проверка «зелёный юнит-тест — не то же, что увиденное пользователем» здесь
-особенно уместна: три правки из четырёх — про то, что видно на экране, и
-ни одна из них не доказывается ничем, кроме браузера.
+The rule "a green unit test is not the same as what the user sees" is
+especially apt here: three of the four changes are about what is visible on
+screen, and none of them is proven by anything but the browser.
 
-## Известные отклонения, которые это добавит
+## Known deviations this will add
 
-- **Окно может закрыть шапку приложения.** Затащенное вверх, оно ложится
-  поверх «Sign out», пока его не отодвинут. Плата за то, что движок окон не
-  знает высоты хрома над собой; потеряться окно при этом не может — Т2.
-- **Тема не следует за системой.** Один раз спросили при первом заходе,
-  дальше выбор пользователя.
-- **Тема — на браузер.** `localStorage`, как и раскладка: на другую машину
-  не переезжает и между двумя окнами не согласуется.
-- **Тёмная палитра подобрана, а не выведена.** Значения под
-  `body.body--dark` подбирались на глаз под цвета Quasar; контраст по WCAG
-  никем не считается.
-- **Переключатель — двоичный, а состояний темы могло быть три.** Вернуться
-  к «как в системе», однажды выбрав, нечем — только очистив `localStorage`.
+- **A window can cover the application header.** Dragged up, it lies over
+  "Sign out" until moved aside. The cost of the window engine not knowing the
+  height of the chrome above it; the window cannot get lost because of this —
+  T2.
+- **The theme does not follow the system.** Asked once on the first visit,
+  after that the user's choice.
+- **The theme is per browser.** `localStorage`, like the layout: it does not
+  move to another machine and is not kept consistent between two windows.
+- **The dark palette is picked, not derived.** The values under
+  `body.body--dark` were picked by eye to match Quasar's colours; WCAG contrast
+  is not computed by anyone.
+- **The toggle is binary, while the theme could have had three states.** Once
+  a choice is made, there is no way back to "as in the system" — only by
+  clearing `localStorage`.
 
-## Что вышло иначе, чем задумано
+## What turned out differently than planned
 
-Две вещи, которых в плане не было и которые нашлись только в браузере. Обе —
-про то, что зелёный юнит-тест не есть увиденное пользователем.
+Two things that were not in the plan and were found only in the browser. Both
+are about a green unit test not being what the user sees.
 
-### Порядок применения темы: не «до `mount`», а «после Quasar и до `mount`»
+### Order of applying the theme: not "before `mount`" but "after Quasar and before `mount`"
 
-В Т5 сказано «применяется до `mount`». Этого мало. `install()` у плагина Dark
-сам пишет тему в документ — светлую, раз ничто её не настраивает, — так что
-выбор, применённый строкой выше, затирается на следующей. Стор при этом
-отвечал `dark: true`, а на `<body>` стояло `body--light`: шесть юнит-тестов
-были зелёными, и приложение открывалось не в той теме.
+T5 says "applied before `mount`". That is not enough. The Dark plugin's
+`install()` writes the theme to the document itself — light, since nothing
+configures it — so a choice applied one line above is overwritten on the next.
+Meanwhile the store answered `dark: true`, and `<body>` had `body--light`: six
+unit tests were green, and the application opened in the wrong theme.
 
-`main.ts` теперь зовёт `apply()` между `.use(Quasar, …)` и `.mount()`, и обе
-границы этого промежутка названы в комментарии на месте.
+`main.ts` now calls `apply()` between `.use(Quasar, …)` and `.mount()`, and
+both bounds of this interval are named in a comment on the spot.
 
-### Нативная кнопка не наследует цвет
+### A native button does not inherit colour
 
-Вкладка секции и стрелки сворачивания в `WorkspaceLeaf.vue` — настоящие
-`<button>`. Цвет им даёт браузер, и это чёрный; `font: inherit` цвет с собой
-не несёт. В светлой теме чёрное по белому — так и было задумано, в тёмной
-чёрное по `#121212` — вкладки не видно.
+The section tab and the collapse arrows in `WorkspaceLeaf.vue` are real
+`<button>`s. Their colour is given by the browser, and it is black;
+`font: inherit` does not carry colour with it. In the light theme black on
+white — as intended; in the dark one black on `#121212` — the tab is invisible.
 
-Лечится одним `color: inherit`, но найти это можно было только глядя на
-`getComputedStyle`. Отсюда третий сценарий в `tests/theme.spec.ts`: он
-проверяет не переменную, а цвет, которым вкладка действительно нарисована.
+It is cured by a single `color: inherit`, but it could only be found by looking
+at `getComputedStyle`. Hence the third scenario in `tests/theme.spec.ts`: it
+checks not a variable but the colour the tab is actually drawn in.
 
-### Меню действий в шапке каталога есть не всегда
+### The actions menu in the catalog header is not always there
 
-Т3 говорит о промежутке «между значком подключения и меню действий». У
-PostgreSQL меню нет вовсе — `CatalogActions` рисует что-нибудь только если
-источник объявил хоть одно действие, — так что у него строка это значок и
-выбор схем. Поведение прежнее и правильное; формулировку стоит читать как
-«до конца строки».
+T3 speaks of the gap "between the connection icon and the actions menu".
+PostgreSQL has no menu at all — `CatalogActions` draws anything only if the
+source has declared at least one action — so for it the line is the icon and
+the schema selection. The behaviour is unchanged and correct; the wording
+should be read as "to the end of the line".
 
-### Quasar даёт таблице собственную карточку
+### Quasar gives a table its own card
 
-Замечено пользователем на экране, не проверкой: правая колонка отличалась
-чёрным от средней. `q-table` рисует себе карточку — белую в светлой теме и
-`#1d1d1d` в тёмной, — и она ложилась поверх панели, которая `--dp-surface`.
-Плюс наша залипшая шапка сверху: три разных цвета в одной колонке, причём
-шапка получалась полосой поперёк таблицы, которую она возглавляет.
+Noticed by the user on screen, not by a check: the right column differed in
+black from the middle one. `q-table` draws itself a card — white in the light
+theme and `#1d1d1d` in the dark one — and it lay over the panel, which is
+`--dp-surface`. Plus our sticky header on top: three different colours in one
+column, and the header came out as a stripe across the table it heads.
 
-Таблица, занимающая панель, — не карточка: она берёт ту поверхность, на
-которую её положили. `background: var(--dp-surface)` теперь стоит и на
-таблице, и на её шапке — одним значением, потому что расходиться им нельзя
-по определению: шапка существует, чтобы прятать уезжающие под неё строки.
+A table that fills a panel is not a card: it takes the surface it was put on.
+`background: var(--dp-surface)` now stands both on the table and on its header
+— as one value, because they must not diverge by definition: the header exists
+to hide the rows sliding under it.
 
-Ловушка внутри ловушки: класс `app-table--sticky` попадает на *тот же*
-элемент, который Quasar зовёт `q-table__container`, так что первая версия
-правки была вложенным селектором и не совпадала ни с чем. Поймал это
-сценарий, а не глаз.
+A trap inside the trap: the class `app-table--sticky` lands on *the same*
+element that Quasar calls `q-table__container`, so the first version of the fix
+was a nested selector and matched nothing. A scenario caught this, not the eye.
 
-### Надпись над полем и полоса под ним
+### The label above the field and the strip below it
 
-Замечено пользователем: над выбранной схемой стояло слово «Schemas», и шапка
-из-за него была в две строки. Quasar поднимает надпись из поля наверх ровно
-тогда, когда поле заполнено, — то есть лишняя строка появлялась именно в том
-случае, когда она бесполезнее всего: чип и так называет схему.
+Noticed by the user: above the selected schema stood the word "Schemas", and
+because of it the header was two lines tall. Quasar raises the label from the
+field upwards exactly when the field is filled — that is, the extra line
+appeared exactly in the case where it is least useful: the chip already names
+the schema.
 
-Надпись теперь ставится только при пустом выборе, где она играет роль
-подсказки и стоит внутри строки. Имя контрола при этом не теряется:
-`aria-label` Quasar пробрасывает на сам `combobox`, как он пробрасывает
+The label is now set only when the selection is empty, where it plays the role
+of a hint and stands inside the line. The control's name is not lost:
+Quasar forwards `aria-label` to the `combobox` itself, as it forwards
 `data-testid`.
 
-Под полем нашлось ещё двадцать пикселей: `q-field` резервирует место под
-сообщение об ошибке независимо от того, есть ли оно. `compact` уже был
-объявлен как «поле в панели, а не в форме», и теперь означает ещё и
-`hide-bottom-space`. Ошибка по-прежнему красит поле; деться некуда только её
-тексту, так что `compact` — для панели, где ничего не проверяется. Полоса
-шапки: 61 → 41px.
+Below the field another twenty pixels were found: `q-field` reserves space for
+an error message whether or not there is one. `compact` was already declared as
+"a field in a panel, not in a form", and now also means `hide-bottom-space`. An
+error still colours the field; only its text has nowhere to go, so `compact` is
+for a panel where nothing is validated. Header strip: 61 → 41px.
 
-### Шапка каталога — одна высота, а не та, что получится
+### The catalog header is one height, not whatever comes out
 
-Замечено пользователем: у файлового источника шапка 76px, у PostgreSQL — 85,
-и при переходе между подключениями список под ней прыгал. Причина не в
-источниках: значок и меню — 32px, поле — 40, а высоту полосы никто не
-объявлял, так что она была высотой самого рослого из того, что в неё
-поставили.
+Noticed by the user: for a file source the header is 76px, for PostgreSQL 85,
+and when moving between connections the list below it jumped. The cause is not
+in the sources: the icon and the menu are 32px, the field is 40, and nobody
+declared the height of the strip, so it was the height of the tallest thing put
+into it.
 
-Теперь `height: 40px` сказано на самой полосе, и всё в ней центрируется.
-Правило про панель, а не про источник, — и только такое правило не сможет
-сломать тип источника, добавленный позже: то, что он принесёт, встанет
-внутрь строки, а не задаст её.
+Now `height: 40px` is stated on the strip itself, and everything in it is
+centred. The rule is about the panel, not the source — and only such a rule
+cannot be broken by a source type added later: what it brings will fit inside
+the line rather than set it.
 
-Проверять это глазами при каждом новом адаптере нельзя, поэтому симметрия —
-сценарий: `tests/catalog.spec.ts` меряет шапку в четырёх состояниях (база
-без выбранной схемы, база с выбранной, хранилище в корне, хранилище внутри
-папки) и требует одного числа. Без правила он даёт 85 против 76.
+This cannot be checked by eye for every new adapter, so the symmetry is a
+scenario: `tests/catalog.spec.ts` measures the header in four states (a
+database with no schema selected, a database with one selected, a storage at
+the root, a storage inside a folder) and requires one number. Without the rule
+it gives 85 against 76.
 
-## Чем это проверено на самом деле
+## How it was actually verified
 
-Каждый из трёх новых сценариев был проверен обратным ходом: правка
-откатывалась, тест запускался и падал.
+Each of the three new scenarios was verified in reverse: the change was rolled
+back, the test was run and failed.
 
-| Что откатывалось | Что покраснело |
+| What was rolled back | What went red |
 | --- | --- |
-| `z-index: 3000` у `.app-window` | «a window is painted over the chrome and over a grid it covers» |
-| «плюс» в `ConnectorRail.vue` | «a pushed-aside column of sources still opens one of them» |
-| `color: inherit` у вкладки | «a tab is legible in the dark theme» |
-| фон у `.app-table--sticky` | «a column of the workspace is one colour, grid included» |
-| `height` у `.catalog-panel__bar` | «the head of a catalog is one height across source types» |
+| `z-index: 3000` on `.app-window` | «a window is painted over the chrome and over a grid it covers» |
+| the "plus" in `ConnectorRail.vue` | «a pushed-aside column of sources still opens one of them» |
+| `color: inherit` on the tab | «a tab is legible in the dark theme» |
+| the background on `.app-table--sticky` | «a column of the workspace is one colour, grid included» |
+| `height` on `.catalog-panel__bar` | «the head of a catalog is one height across source types» |
 
-Итог: 51 сценарий Playwright, 385 юнит-тестов, `lint` и `type-check` чисты.
+Result: 51 Playwright scenarios, 385 unit tests, `lint` and `type-check` clean.

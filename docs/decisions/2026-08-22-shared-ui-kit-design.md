@@ -1,214 +1,222 @@
-# Общий набор UI-компонентов
+# Shared set of UI components
 
-Дата: 2026-08-22
-Статус: согласовано
-Подпроект: 7-подготовка
+Date: 2026-08-22
+Status: agreed
+Subproject: 7-preparation
 
-## Цель
+## Goal
 
-Впереди подпроекты 7+ — realtime, AI, сетка данных. Это много новых экранов.
-Задача — чтобы они собирались из готовых кирпичей, а не рисовались каждый раз
-заново, и чтобы фронтенд оставался управляемым, когда окон станет много.
+Subprojects 7+ are ahead — realtime, AI, the data grid. That is a lot of new
+screens. The task is for them to be assembled from ready-made bricks rather
+than drawn from scratch each time, and for the frontend to stay manageable
+once there are many windows.
 
-Попутно снимается дублирование, которое уже есть.
+Along the way, the duplication that already exists is removed.
 
-## Что дублируется сегодня
+## What is duplicated today
 
-Восемь экранов, и в них:
+Eight screens, and in them:
 
-- **Оболочка диалога** — `q-dialog > q-card`, inline-ширина (460, 520, 900px),
-  заголовок `text-h6`, `q-card-actions align="right"` с flat-Cancel и primary:
-  три раза почти дословно (`ActionDialog`, `CatalogDialog`, `ConnectorDialog`).
-- **Баннер ошибки** `q-banner dense class="bg-negative text-white"` — четыре
-  раза, плюс positive/negative вариант в `ConnectionCheck`.
-- **`messageOf(cause)`** — разбор `AxiosError` до сообщения — скопирован
-  дословно трижды; `serverErrorsFrom` / `fieldErrorsFrom` — дважды.
-- **Иконочная кнопка с тултипом** — четыре в `ConnectorTable`, две без тултипа
-  в `RowGrid`.
-- **`destructive ? 'negative' : 'primary'`** — в `ActionBar` и `ActionDialog`.
-- Пустые состояния («Nothing to show», «No rows», «No connections yet»),
-  спиннер, `quasar.notify` с руками написанным `type`.
+- **The dialog shell** — `q-dialog > q-card`, inline width (460, 520, 900px),
+  a `text-h6` heading, `q-card-actions align="right"` with a flat Cancel and a
+  primary: three times almost verbatim (`ActionDialog`, `CatalogDialog`,
+  `ConnectorDialog`).
+- **The error banner** `q-banner dense class="bg-negative text-white"` — four
+  times, plus a positive/negative variant in `ConnectionCheck`.
+- **`messageOf(cause)`** — unpacking an `AxiosError` into a message — copied
+  verbatim three times; `serverErrorsFrom` / `fieldErrorsFrom` — twice.
+- **An icon button with a tooltip** — four in `ConnectorTable`, two without a
+  tooltip in `RowGrid`.
+- **`destructive ? 'negative' : 'primary'`** — in `ActionBar` and `ActionDialog`.
+- Empty states ("Nothing to show", "No rows", "No connections yet"), a
+  spinner, `quasar.notify` with a hand-written `type`.
 
-Цвета уже собраны в `src/quasar-variables.sass`. Размеры, отступы и плотность
-— нет.
+Colours are already gathered in `src/quasar-variables.sass`. Sizes, spacing
+and density are not.
 
-## Решения
+## Decisions
 
-### Р1. Набор — смысловой слой над Quasar, а не фасад над ним
+### R1. The kit is a layer of meaning over Quasar, not a facade over it
 
-Фичи по-прежнему могут брать `q-*` напрямую там, где замены в наборе нет.
-Полный фасад — обёртка над каждым компонентом Quasar — отвергнут: цена
-пробрасывания всей поверхности API не окупается, а замена UI-кита не входит в
-цели.
+Features may still use `q-*` directly where the kit has no replacement. A full
+facade — a wrapper over every Quasar component — is rejected: the cost of
+passing through the whole API surface does not pay off, and replacing the UI
+library is not among the goals.
 
-Граница проходит так: **набор владеет тем, у чего есть выбор внешнего вида.**
+The boundary runs like this: **the kit owns whatever has a choice of
+appearance.**
 
-Оборачиваются: `q-dialog`, `q-card`, `q-card-section`, `q-card-actions`,
+Wrapped: `q-dialog`, `q-card`, `q-card-section`, `q-card-actions`,
 `q-btn`, `q-tooltip`, `q-banner`, `q-input`, `q-select`, `q-toggle`, `q-file`,
 `q-table`, `q-badge`, `q-spinner`.
 
-Не оборачиваются, и это не забывчивость:
+Not wrapped, and this is not an oversight:
 
-- `q-layout`, `q-header`, `q-toolbar`, `q-page` — живут внутри `AppLayout`,
-  один потребитель, обёртка вокруг обёртки.
-- `q-tree` — один потребитель, и в подпроекте 7 его, вероятно, заменит
-  собственное дерево.
-- `q-icon`, `q-separator`, `q-td`, `q-th`, `q-form` — примитивы без выбора
-  стиля; оборачивать нечего.
+- `q-layout`, `q-header`, `q-toolbar`, `q-page` — live inside `AppLayout`,
+  one consumer, a wrapper around a wrapper.
+- `q-tree` — one consumer, and in subproject 7 it will probably be replaced by
+  a tree of our own.
+- `q-icon`, `q-separator`, `q-td`, `q-th`, `q-form` — primitives with no
+  choice of style; there is nothing to wrap.
 
-### Р2. Смысловой API плюс сквозные attrs
+### R2. A semantic API plus pass-through attrs
 
-Экран говорит, **что** это, а не **как** это выглядит:
+A screen says **what** something is, not **how** it looks:
 
 ```vue
 <AppButton variant="danger" label="Delete" :loading="…" @click="…" />
 ```
 
-`flat`, `dense`, `color` из фич исчезают. Соответствие `variant → q-props`
-живёт чистой функцией в `tokens.ts` и тестируется без монтирования — так же,
-как `treeNodes.ts` и `rows.ts`.
+`flat`, `dense`, `color` disappear from features. The mapping
+`variant → q-props` lives as a pure function in `tokens.ts` and is tested
+without mounting — the same way as `treeNodes.ts` and `rows.ts`.
 
-Остальные атрибуты проходят насквозь. Это клапан: редкий случай не должен
-ломать набор или требовать правки обёртки посреди задачи.
+All other attributes pass through. This is a valve: a rare case must not break
+the kit or require editing a wrapper in the middle of a task.
 
-Два исключения, найденные при исполнении. `AppDialog` уводит атрибуты на
-карточку: QDialog рендерится через teleport, и атрибут на нём не попадает ни
-на один элемент, который можно адресовать. `AppSection` — двухкорневой, когда
-рисует разделитель, и Vue не может угадать корень; атрибуты идут на секцию.
-Оба объявляют `inheritAttrs: false` и биндят `$attrs` явно.
+Two exceptions, found during execution. `AppDialog` sends attributes to the
+card: QDialog renders through a teleport, and an attribute on it lands on no
+element that can be addressed. `AppSection` has two roots when it draws a
+separator, and Vue cannot guess the root; attributes go to the section. Both
+declare `inheritAttrs: false` and bind `$attrs` explicitly.
 
-**`data-testid` не объявляется как prop** и идёт через `$attrs`. Причина не в
-удобстве: Quasar переносит необъявленный атрибут на сам `<input>`, а не на
-корень поля, и тесты это уже используют. Объявленный prop сломал бы перенос.
+**`data-testid` is not declared as a prop** and goes through `$attrs`. The
+reason is not convenience: Quasar moves an undeclared attribute onto the
+`<input>` itself rather than the field's root, and the tests already rely on
+this. A declared prop would break the move.
 
-Закрытый API (`inheritAttrs: false`, только объявленные props) отвергнут: он
-превращает каждый редкий случай в правку набора.
+A closed API (`inheritAttrs: false`, declared props only) is rejected: it
+turns every rare case into an edit of the kit.
 
-### Р3. Правило держится лайнтом, а не памятью
+### R3. The rule is held by a linter, not by memory
 
-`vue/no-restricted-html-elements` сверяет `node.rawName` и пропускает всё в
-HTML-неймспейсе — `<q-btn>` туда попадает, так что правило работает по
-компонентам, несмотря на название. Включается для всего `src`, кроме
-`src/shared/ui/**` и сгенерированного `src/client/**`: `SchemaForm` живёт вне
-`features`, но это такой же экранный код. У каждого запрещённого элемента своё
-сообщение с именем замены.
+`vue/no-restricted-html-elements` compares `node.rawName` and lets through
+everything in the HTML namespace — `<q-btn>` falls into it, so the rule works
+on components despite its name. It is enabled for all of `src` except
+`src/shared/ui/**` and the generated `src/client/**`: `SchemaForm` lives
+outside `features`, but it is screen code all the same. Each forbidden element
+has its own message naming the replacement.
 
-У правила есть дыра: сравнение по сырому имени, значит `<QBtn>` его обойдёт.
-Сначала предполагалось закрыть её `vue/component-name-in-template-casing` в
-kebab-case, но это правило требует kebab-case и от собственных компонентов
-(`<ActionDialog>`, `<SchemaFields>`), то есть запрещает соглашение Vue заодно
-с дырой. Вместо него в списке перечислены **оба написания** каждого элемента:
-`q-btn` и `QBtn`. Проверено попыткой обхода.
+The rule has a hole: it compares the raw name, so `<QBtn>` gets past it. The
+first plan was to close it with `vue/component-name-in-template-casing` in
+kebab-case, but that rule demands kebab-case from our own components too
+(`<ActionDialog>`, `<SchemaFields>`), that is, it forbids the Vue convention
+together with the hole. Instead the list names **both spellings** of each
+element: `q-btn` and `QBtn`. Verified by attempting the bypass.
 
-Вторым правилом — `no-restricted-imports` на `useQuasar` в экранах: он нужен
-там только ради `notify` и `dialog`, а это теперь `useToast` и `useConfirm`.
+The second rule is `no-restricted-imports` on `useQuasar` in screens: it is
+needed there only for `notify` and `dialog`, and those are now `useToast` and
+`useConfirm`.
 
-### Р4. Витрина живёт в приложении и не может отстать
+### R4. The showcase lives in the application and cannot fall behind
 
-Маршрут `/ui-kit`, регистрируемый только при `import.meta.env.DEV`: каждый
-компонент со всеми вариантами, можно ткнуть. Ноль новых зависимостей, и
-страница ломается вместе с компонентом. Входа не требует — серверных данных на
-ней нет, так что она открывается и без работающего бэкенда.
+A `/ui-kit` route, registered only under `import.meta.env.DEV`: every
+component with all its variants, ready to be poked. Zero new dependencies, and
+the page breaks together with the component. It requires no login — there is
+no server data on it, so it opens without a running backend.
 
-Storybook отвергнут: тяжёлая зависимость, своя сборка и ещё одна строка в
-«What holds it up», которую придётся чинить.
+Storybook is rejected: a heavy dependency, its own build and one more line in
+"What holds it up" that would have to be fixed.
 
-Страница ломается вместе с компонентом, но **забыть добавить туда новый
-компонент — легко, и это никто не заметит.** Поэтому unit-тест сверяет список
-`.vue` в `shared/ui` (через `import.meta.glob`) с реестром, который рендерит
-страница. Новый компонент без демонстрации роняет `bun run test:unit`.
+The page breaks together with the component, but **forgetting to add a new
+component to it is easy, and nobody would notice.** So a unit test compares the
+list of `.vue` files in `shared/ui` (through `import.meta.glob`) with the
+registry the page renders. A new component without a demonstration fails
+`bun run test:unit`.
 
-### Р5. Разбор ошибок API — туда же, хотя это не UI
+### R5. API error parsing goes there too, although it is not UI
 
-`shared/api/errors.ts` с `messageOf(cause)` и `fieldErrorsFrom(cause)`.
-Формально не UI, но это то же самое дублирование (три и два файла) и лечится
-тем же движением.
+`shared/api/errors.ts` with `messageOf(cause)` and `fieldErrorsFrom(cause)`.
+Formally not UI, but it is the same duplication (three files and two) and is
+cured by the same move.
 
-## Состав
+## Contents
 
 ```
 src/shared/ui/
-├── AppLayout.vue        уже есть, остаётся
-├── AppPageHeader.vue    заголовок + слот действий
-├── AppCard.vue          карточка вне диалога
-├── AppDialog.vue        q-dialog + q-card + шапка + футер
-├── AppSection.vue       q-card-section, с разделителем и прокруткой
+├── AppLayout.vue        already exists, stays
+├── AppPageHeader.vue    heading + actions slot
+├── AppCard.vue          a card outside a dialog
+├── AppDialog.vue        q-dialog + q-card + header + footer
+├── AppSection.vue       q-card-section, with a separator and scrolling
 ├── AppActions.vue       q-card-actions
 ├── AppBanner.vue        tone: error | success | warning | info
 ├── AppButton.vue        variant: primary | secondary | danger |
 │                        danger-quiet | quiet
-├── AppIconButton.vue    иконка + обязательный тултип
+├── AppIconButton.vue    icon + mandatory tooltip
 ├── AppTooltip.vue
 ├── AppInput.vue  AppNumberInput.vue  AppSelect.vue  AppToggle.vue
 ├── AppFileInput.vue
-├── AppTable.vue         дефолты flat/bordered + emptyText
+├── AppTable.vue         flat/bordered defaults + emptyText
 ├── AppBadge.vue  AppSpinner.vue  AppEmptyState.vue
-├── tokens.ts            размеры панелей, чистые функции variant → q-props
-├── useConfirm.ts        обёртка над Quasar Dialog → Promise<boolean>
+├── tokens.ts            panel sizes, pure functions variant → q-props
+├── useConfirm.ts        wrapper over Quasar Dialog → Promise<boolean>
 ├── useToast.ts          success / error / info
-└── index.ts             единственная точка импорта
+└── index.ts             the single import point
 ```
 
-Плюс `src/shared/api/errors.ts` и `src/features/dev/UiKitPage.vue`.
+Plus `src/shared/api/errors.ts` and `src/features/dev/UiKitPage.vue`.
 
-Импорт явный из `@/shared/ui`, без глобальной регистрации: видно, откуда
-компонент, и типы работают. Слоты пробрасываются перечислением — кроме
-`AppTable`: слоты ячеек называются по колонкам, так что их имена набору
-неизвестны, и перечислить их значило бы знать каждый экран. Это единственное
-место с циклом по `$slots`, и там об этом сказано в комментарии.
+Imports are explicit from `@/shared/ui`, with no global registration: it is
+visible where a component comes from, and types work. Slots are passed through
+by enumeration — except in `AppTable`: cell slots are named after columns, so
+their names are unknown to the kit, and enumerating them would mean knowing
+every screen. This is the only place with a loop over `$slots`, and a comment
+there says so.
 
-Четыре решения, принятых по ходу:
+Four decisions made along the way:
 
-- **Пять вариантов кнопки, а не четыре.** Панель действий перечисляет
-  разрушительные действия рядом с обычными, и сплошные красные кнопки там
-  кричали бы. Поэтому у разрушительного действия есть и заметная форма
-  (`danger`), и сдержанная (`danger-quiet`).
-- **Размеры панелей общие для диалога и карточки** (`xs`…`lg`): это одна и та
-  же задача — панель выбранной ширины.
-- **`AppSection` и `AppActions` появились дополнительно.** Без них экран,
-  которому нужны три секции с разделителями (каталог), писал бы
-  `q-card-section` руками, то есть мимо набора.
-- **`AppNumberInput` отделён от `AppInput`.** Один компонент не может
-  сообщать и строку, и число: `string | number | null` пришлось бы держать в
-  состоянии каждого вызывающего. Заодно опустевшее числовое поле теперь `null`,
-  а не `0` — порт, который не заполнили, отсутствует, а не равен нулю.
+- **Five button variants, not four.** The action bar lists destructive actions
+  next to ordinary ones, and solid red buttons there would shout. So a
+  destructive action has both a prominent form (`danger`) and a restrained one
+  (`danger-quiet`).
+- **Panel sizes are shared by the dialog and the card** (`xs`…`lg`): it is the
+  same task — a panel of a chosen width.
+- **`AppSection` and `AppActions` were added.** Without them a screen that
+  needs three sections with separators (the catalog) would write
+  `q-card-section` by hand, that is, past the kit.
+- **`AppNumberInput` is separate from `AppInput`.** One component cannot
+  report both a string and a number: `string | number | null` would have to be
+  kept in the state of every caller. As a side effect an emptied number field
+  is now `null`, not `0` — a port nobody filled in is absent, not zero.
 
-## Миграция
+## Migration
 
-Сначала набор с тестами, затем экраны по одному, каждый отдельным коммитом с
-прогоном e2e:
+First the kit with tests, then the screens one at a time, each in a separate
+commit with an e2e run:
 
 `LoginPage` → `ConnectionCheck` → `ActionBar` → `ConnectorTable` →
 `ConnectorsPage` → `SchemaFields` → `ActionDialog` → `RowGrid` →
 `CatalogDialog`.
 
-**Критерий приёмки: в `tests/` не меняется ни строки.** Тридцать пять
-селекторов выписаны заранее; если обёртка что-то ломает — ломается она, а не
-тест.
+**Acceptance criterion: not a single line in `tests/` changes.** Thirty-five
+selectors are written out in advance; if a wrapper breaks something, the
+wrapper is what breaks, not the test.
 
-## Чем проверяется
+## What checks it
 
-| Команда | Что ловит |
+| Command | What it catches |
 | --- | --- |
-| `bun run test:unit` | `tokens.ts`, `errors.ts`, каждый компонент набора, полнота витрины |
-| `bun run lint` | `q-*` с заменой вне `shared/ui`; PascalCase-обход; импорт `quasar` в фичах |
-| `bun run type-check` | типы props и слотов |
-| `bunx playwright test` | что экраны после миграции работают как раньше |
+| `bun run test:unit` | `tokens.ts`, `errors.ts`, every kit component, completeness of the showcase |
+| `bun run lint` | `q-*` with a replacement outside `shared/ui`; the PascalCase bypass; importing `quasar` in features |
+| `bun run type-check` | types of props and slots |
+| `bunx playwright test` | that the screens work as before after migration |
 
-Оба лайнт-правила проверяются нарочной поломкой: правило, которое ни разу не
-краснело, ничего не доказывает.
+Both lint rules are verified by deliberate breakage: a rule that has never
+gone red proves nothing.
 
-`/ui-kit` смотрится в браузере — зелёный unit-тест не значит, что пользователь
-это видит.
+`/ui-kit` is looked at in the browser — a green unit test does not mean the
+user sees it.
 
-## Известные компромиссы
+## Known trade-offs
 
-- **Часть набора имеет одного потребителя** (`AppBadge`, `AppFileInput`,
-  `AppSpinner`, `AppTooltip`). Прямой отход от «Generalise on the second or
-  third use» из ENGINEERING.md, принятый сознательно: цель подпроекта —
-  предсказуемость при росте, а не минимальный диф сегодня.
-- **Сквозные attrs — обходной путь.** Через них можно передать
-  `color="purple"` и обойти смысловой API. Машина этого не ловит.
-- **`q-tree` вне набора.** В подпроекте 7 дерево придётся решать заново.
-- **Тёмная тема не делается.** Токены остаются sass-переменными времени
-  сборки; переключение на лету потребует CSS-переменных и отдельной задачи.
+- **Part of the kit has one consumer** (`AppBadge`, `AppFileInput`,
+  `AppSpinner`, `AppTooltip`). A direct departure from "Generalise on the second or
+  third use" in ENGINEERING.md, taken deliberately: the goal of the subproject
+  is predictability as it grows, not the smallest diff today.
+- **Pass-through attrs are a workaround.** Through them one can pass
+  `color="purple"` and get around the semantic API. No machine catches this.
+- **`q-tree` is outside the kit.** In subproject 7 the tree will have to be
+  decided anew.
+- **No dark theme.** Tokens stay build-time sass variables; switching on the
+  fly would need CSS variables and a separate task.

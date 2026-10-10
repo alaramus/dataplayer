@@ -1,32 +1,32 @@
-# Рабочая область и движок панелей — план реализации
+# Workspace and panel engine — implementation plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** заменить модальный `CatalogDialog` рабочей областью из панелей с изменяемыми границами, вкладками и перетаскиванием, построенной на собственном движке, который ничего не знает о предметной области.
+**Goal:** replace the modal `CatalogDialog` with a workspace of panels with resizable borders, tabs and drag and drop, built on an engine of our own that knows nothing about the domain.
 
-**Architecture:** движок в `src/shared/workspace/` держит дерево раскладки как размеченный союз и меняет его только чистыми функциями; компоненты движка получают всё через один инъектируемый контекст и никогда не видят тип панели. Фича в `src/features/workspace/` объявляет союз `Panel`, реестр видов панелей и раскладку по умолчанию.
+**Architecture:** the engine in `src/shared/workspace/` holds the layout tree as a discriminated union and changes it only through pure functions; the engine's components receive everything through one injected context and never see the panel type. The feature in `src/features/workspace/` declares the `Panel` union, the registry of panel kinds and the default layout.
 
 **Tech Stack:** Vue 3 `<script setup>`, TypeScript, Quasar, Pinia, `@tanstack/vue-query`, zod 4, Vitest, `@vue/test-utils`, Playwright.
 
 ## Global Constraints
 
-- Спека: `docs/superpowers/specs/2026-08-22-workspace-design.md`. Правила: `ENGINEERING.md`.
-- Всё в репозитории по-английски: код, комментарии, строки интерфейса, имена тестов, сообщения коммитов. Русский только в `docs/superpowers/`.
-- TDD: сначала падающий тест, затем реализация. Прогон теста и чтение вывода обязательны — «должно работать» не считается.
-- Рабочий каталог всех команд — `frontend/`. Запуск: `bun run test:unit`, `bun run lint`, `bun run type-check`, `bunx playwright test`.
-- `bun run type-check` требует настоящий Node, не bun. На Windows `.cmd`-обёртка это делает сама.
-- `src/client` порождается из OpenAPI и руками не правится.
-- Вне `src/shared/ui` запрещены `q-dialog`, `q-card`, `q-card-section`, `q-card-actions`, `q-btn`, `q-tooltip`, `q-banner`, `q-input`, `q-select`, `q-toggle`, `q-file`, `q-table`, `q-badge`, `q-spinner` в обоих написаниях, и запрещён `useQuasar`. Правило — `eslint.config.js`, проверяется `bun run lint`. В `shared/workspace` не должно быть ни одного `q-*`.
-- Pinia не импортирует `@/client` и `@/features/*` (правило ESLint для `src/stores/**`).
-- Именование, общее для всех задач: `LayoutNode`, `SplitNode`, `LeafNode`, `Path`, `PanelId`, `NodeId`, `DropZone`, `MIN_PANEL_PX = 120`, `COLLAPSED_PX = 28`.
-- Файлы движка не должны знать слов «connector», «catalog», «rows».
-- Ветка `dataPlayer`. Коммит после каждой задачи, сообщение по-английски, с `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
+- Spec: `docs/superpowers/specs/2026-08-22-workspace-design.md`. Rules: `ENGINEERING.md`.
+- Everything in the repository is in English: code, comments, UI strings, test names, commit messages. Russian only in `docs/superpowers/`.
+- TDD: first a failing test, then the implementation. Running the test and reading the output is mandatory — "it should work" does not count.
+- The working directory of every command is `frontend/`. Run: `bun run test:unit`, `bun run lint`, `bun run type-check`, `bunx playwright test`.
+- `bun run type-check` needs real Node, not bun. On Windows the `.cmd` wrapper does this itself.
+- `src/client` is generated from OpenAPI and is not edited by hand.
+- Outside `src/shared/ui`, `q-dialog`, `q-card`, `q-card-section`, `q-card-actions`, `q-btn`, `q-tooltip`, `q-banner`, `q-input`, `q-select`, `q-toggle`, `q-file`, `q-table`, `q-badge`, `q-spinner` are forbidden in both spellings, and `useQuasar` is forbidden. The rule is `eslint.config.js`, checked by `bun run lint`. There must not be a single `q-*` in `shared/workspace`.
+- Pinia does not import `@/client` or `@/features/*` (the ESLint rule for `src/stores/**`).
+- Naming shared by all tasks: `LayoutNode`, `SplitNode`, `LeafNode`, `Path`, `PanelId`, `NodeId`, `DropZone`, `MIN_PANEL_PX = 120`, `COLLAPSED_PX = 28`.
+- The engine's files must not know the words "connector", "catalog", "rows".
+- Branch `dataPlayer`. A commit after every task, message in English, with `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 
 ---
 
-# Этап A — движок
+# Stage A — the engine
 
-## Задача 1: модель раскладки и адресация узлов
+## Task 1: layout model and node addressing
 
 **Files:**
 - Create: `frontend/src/shared/workspace/model.ts`
@@ -34,8 +34,8 @@
 - Test: `frontend/src/shared/workspace/tree.spec.ts`
 
 **Interfaces:**
-- Consumes: ничего.
-- Produces: типы `LayoutNode`, `SplitNode`, `LeafNode`, `PanelId`, `NodeId`, `Path`, `DropZone`; константы `MIN_PANEL_PX`, `COLLAPSED_PX`; конструкторы `makeLeaf(id, panels, activePanel?)`, `makeSplit(id, direction, children, sizes)`; функции `nodeAt(root, path)`, `pathOfNode(root, nodeId)`, `pathOfPanel(root, panelId)`, `leavesOf(root)`.
+- Consumes: nothing.
+- Produces: types `LayoutNode`, `SplitNode`, `LeafNode`, `PanelId`, `NodeId`, `Path`, `DropZone`; constants `MIN_PANEL_PX`, `COLLAPSED_PX`; constructors `makeLeaf(id, panels, activePanel?)`, `makeSplit(id, direction, children, sizes)`; functions `nodeAt(root, path)`, `pathOfNode(root, nodeId)`, `pathOfPanel(root, panelId)`, `leavesOf(root)`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -246,19 +246,19 @@ git commit -m "feat(workspace): a layout is a tree of sections addressed by path
 
 ---
 
-## Задача 2: нормализация и замена узла
+## Task 2: normalisation and replacing a node
 
 **Files:**
 - Modify: `frontend/src/shared/workspace/tree.ts`
 - Modify: `frontend/src/shared/workspace/tree.spec.ts`
 
 **Interfaces:**
-- Consumes: `nodeAt`, `pathOfNode` из задачи 1.
-- Produces: `replaceAt(root, path, node)` где `node: LayoutNode | null` (null удаляет), `normalize(root)`. Обе возвращают новое дерево; `replaceAt` не нормализует, `normalize` вызывается всеми операциями задачи 3.
+- Consumes: `nodeAt`, `pathOfNode` from task 1.
+- Produces: `replaceAt(root, path, node)` where `node: LayoutNode | null` (null removes), `normalize(root)`. Both return a new tree; `replaceAt` does not normalise, `normalize` is called by every operation of task 3.
 
 - [ ] **Step 1: Write the failing test**
 
-Дописать в `frontend/src/shared/workspace/tree.spec.ts`:
+Append to `frontend/src/shared/workspace/tree.spec.ts`:
 
 ```ts
 import { normalize, replaceAt } from "./tree"
@@ -341,14 +341,14 @@ describe("normalising a tree", () => {
 })
 ```
 
-Дополнить импорт типов сверху файла:
+Extend the type import at the top of the file:
 
 ```ts
 import type { LeafNode, SplitNode } from "./model"
 ```
 
-и добавить рядом с `sample` конструктор недопустимого листа — `makeLeaf` его
-построить отказывается, и это правильно: пустой лист не создают, его чинят.
+and add next to `sample` a constructor of an invalid leaf — `makeLeaf` refuses to
+build it, and that is right: an empty leaf is not created, it is repaired.
 
 ```ts
 /** A leaf with no panels: not something makeLeaf builds, but what normalize repairs. */
@@ -361,8 +361,8 @@ const emptyLeaf = (id: string): LeafNode => ({
 })
 ```
 
-`normalize` возвращает `LayoutNode | null`, поэтому обращения к результату в
-тестах идут через `?.`.
+`normalize` returns `LayoutNode | null`, so accesses to the result in the
+tests go through `?.`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -371,7 +371,7 @@ Expected: FAIL — `replaceAt is not exported`.
 
 - [ ] **Step 3: Implement**
 
-Дописать в `frontend/src/shared/workspace/tree.ts`:
+Append to `frontend/src/shared/workspace/tree.ts`:
 
 ```ts
 import { makeSplit } from "./model"
@@ -470,26 +470,26 @@ git commit -m "feat(workspace): one normalisation, run after every edit"
 
 ---
 
-## Задача 3: операции над панелями и размерами
+## Task 3: operations on panels and sizes
 
 **Files:**
 - Modify: `frontend/src/shared/workspace/tree.ts`
 - Modify: `frontend/src/shared/workspace/tree.spec.ts`
 
 **Interfaces:**
-- Consumes: `replaceAt`, `normalize`, `pathOfPanel`, `pathOfNode`, `nodeAt` из задач 1–2.
+- Consumes: `replaceAt`, `normalize`, `pathOfPanel`, `pathOfNode`, `nodeAt` from tasks 1–2.
 - Produces:
   - `addPanel(root, leafId, panelId): LayoutNode`
   - `removePanel(root, panelId): LayoutNode | null`
   - `activatePanel(root, panelId): LayoutNode`
   - `setCollapsed(root, leafId, collapsed): LayoutNode`
-  - `resizeSplit(root, splitId, index, delta, minPercent): LayoutNode` — `index` это номер границы между `children[index]` и `children[index + 1]`, `delta` и `minPercent` в процентах
+  - `resizeSplit(root, splitId, index, delta, minPercent): LayoutNode` — `index` is the number of the border between `children[index]` and `children[index + 1]`, `delta` and `minPercent` are in percent
   - `splitLeaf(root, leafId, panelId, zone, newLeafId): LayoutNode`
   - `movePanel(root, panelId, targetLeafId, zone, newLeafId): LayoutNode`
 
 - [ ] **Step 1: Write the failing test**
 
-Дописать в `frontend/src/shared/workspace/tree.spec.ts`:
+Append to `frontend/src/shared/workspace/tree.spec.ts`:
 
 ```ts
 import {
@@ -610,7 +610,7 @@ Expected: FAIL — `addPanel is not exported`.
 
 - [ ] **Step 3: Implement**
 
-Дописать в `frontend/src/shared/workspace/tree.ts`:
+Append to `frontend/src/shared/workspace/tree.ts`:
 
 ```ts
 import { makeLeaf } from "./model"
@@ -766,7 +766,7 @@ Expected: PASS, 31 tests.
 - [ ] **Step 5: Check the types and the style**
 
 Run: `bun run type-check && bun run lint`
-Expected: обе команды без ошибок.
+Expected: both commands without errors.
 
 - [ ] **Step 6: Commit**
 
@@ -777,7 +777,7 @@ git commit -m "feat(workspace): add, remove, resize, split and move, all pure"
 
 ---
 
-## Задача 4: зона сброса и выбор листа для новой панели
+## Task 4: drop zone and choosing the leaf for a new panel
 
 **Files:**
 - Create: `frontend/src/shared/workspace/dropZone.ts`
@@ -891,7 +891,7 @@ describe("where a new panel goes", () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `bun run test:unit -- src/shared/workspace`
-Expected: FAIL — `Failed to resolve import "./dropZone"` и `"./placement"`.
+Expected: FAIL — `Failed to resolve import "./dropZone"` and `"./placement"`.
 
 - [ ] **Step 3: Implement dropZone.ts**
 
@@ -1000,18 +1000,18 @@ git commit -m "feat(workspace): drop zones and where a new panel lands"
 
 ---
 
-## Задача 5: сохранение раскладки
+## Task 5: persisting the layout
 
 **Files:**
 - Create: `frontend/src/shared/workspace/persist.ts`
 - Create: `frontend/src/shared/workspace/persist.spec.ts`
 
 **Interfaces:**
-- Consumes: `LayoutNode` из `model.ts`.
+- Consumes: `LayoutNode` from `model.ts`.
 - Produces:
   - `WORKSPACE_VERSION = 1`
   - `serializeWorkspace<P>(tree: LayoutNode, panels: P[]): string`
-  - `parseWorkspace<P extends { id: string }>(raw: string | null, panelSchema: ZodType<P>): { tree: LayoutNode; panels: P[] } | null` — null означает «взять раскладку по умолчанию целиком». Ограничение на `P` стоит здесь, а не в вызывающем модуле: панель без `id` нельзя сопоставить с деревом, и об этом должен знать компилятор, а не комментарий.
+  - `parseWorkspace<P extends { id: string }>(raw: string | null, panelSchema: ZodType<P>): { tree: LayoutNode; panels: P[] } | null` — null means "take the default layout whole". The constraint on `P` is here rather than in the calling module: a panel without an `id` cannot be matched to the tree, and the compiler must know that, not a comment.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1214,7 +1214,7 @@ git commit -m "feat(workspace): a stored layout is parsed, cross-checked, or ref
 
 ---
 
-## Задача 6: контекст и композабл
+## Task 6: context and composable
 
 **Files:**
 - Create: `frontend/src/shared/workspace/context.ts`
@@ -1222,13 +1222,13 @@ git commit -m "feat(workspace): a stored layout is parsed, cross-checked, or ref
 - Create: `frontend/src/shared/workspace/useWorkspace.spec.ts`
 
 **Interfaces:**
-- Consumes: всё из задач 1–5.
+- Consumes: everything from tasks 1–5.
 - Produces:
   - `workspaceKey: InjectionKey<WorkspaceContext>`
-  - `interface WorkspaceContext` — то единственное, что видят компоненты движка
+  - `interface WorkspaceContext` — the only thing the engine's components see
   - `useWorkspace<P extends { id: string }>(options): WorkspaceApi<P>`
 
-Подпись целиком, на неё опираются задачи 7–8 и 11–13:
+The full signature; tasks 7–8 and 11–13 rely on it:
 
 ```ts
 export interface PanelLook {
@@ -1594,7 +1594,7 @@ Expected: PASS, 10 tests.
 - [ ] **Step 6: Check types and style**
 
 Run: `bun run type-check && bun run lint`
-Expected: чисто.
+Expected: clean.
 
 - [ ] **Step 7: Commit**
 
@@ -1605,7 +1605,7 @@ git commit -m "feat(workspace): the composable, and the one context the componen
 
 ---
 
-## Задача 7: компоненты движка
+## Task 7: engine components
 
 **Files:**
 - Create: `frontend/src/shared/workspace/WorkspaceRoot.vue`
@@ -1616,14 +1616,14 @@ git commit -m "feat(workspace): the composable, and the one context the componen
 - Create: `frontend/src/shared/workspace/WorkspaceLeaf.spec.ts`
 
 **Interfaces:**
-- Consumes: `workspaceKey`, `WorkspaceContext` из задачи 6; `dropZoneAt` из задачи 4; `COLLAPSED_PX`, `MIN_PANEL_PX` из задачи 1.
-- Produces: `index.ts` экспортирует `WorkspaceRoot`, `useWorkspace`, типы `LayoutNode`, `PanelLook`, `WorkspaceContext`, конструкторы `makeLeaf`, `makeSplit`, `nextId`.
-- `WorkspaceRoot` props: `{ context: WorkspaceContext }` — он же выполняет `provide(workspaceKey, context)`.
-- `WorkspaceNode` props: `{ node: LayoutNode }`, рекурсивен сам в себя.
+- Consumes: `workspaceKey`, `WorkspaceContext` from task 6; `dropZoneAt` from task 4; `COLLAPSED_PX`, `MIN_PANEL_PX` from task 1.
+- Produces: `index.ts` exports `WorkspaceRoot`, `useWorkspace`, types `LayoutNode`, `PanelLook`, `WorkspaceContext`, constructors `makeLeaf`, `makeSplit`, `nextId`.
+- `WorkspaceRoot` props: `{ context: WorkspaceContext }` — it also performs `provide(workspaceKey, context)`.
+- `WorkspaceNode` props: `{ node: LayoutNode }`, recursive into itself.
 - `WorkspaceLeaf` props: `{ leaf: LeafNode; collapsible: boolean }`.
 - `WorkspaceSeparator` props: `{ direction: Direction }`, emit `move: [deltaPx: number]`.
 
-Названия `data-testid`, на которые опираются задачи 8 и 14:
+`data-testid` names that tasks 8 and 14 rely on:
 `workspace`, `workspace-leaf-{leafId}`, `workspace-tab-{panelId}`, `workspace-close-{panelId}`, `workspace-collapse-{leafId}`, `workspace-separator`, `workspace-dropzone`.
 
 - [ ] **Step 1: Write the failing test**
@@ -2180,7 +2180,7 @@ Expected: PASS, 76 tests.
 - [ ] **Step 8: Check types and style**
 
 Run: `bun run type-check && bun run lint`
-Expected: чисто. `q-icon` разрешён вне кита — у него нет выбора внешнего вида, он в списке необёрнутых в спеке кита.
+Expected: clean. `q-icon` is allowed outside the kit — it has no choice of appearance, it is in the kit spec's list of unwrapped components.
 
 - [ ] **Step 9: Commit**
 
@@ -2191,7 +2191,7 @@ git commit -m "feat(workspace): the components, driven by one injected context"
 
 ---
 
-## Задача 8: показ движка на dev-маршруте и сценарий Playwright
+## Task 8: showing the engine on a dev route and a Playwright scenario
 
 **Files:**
 - Create: `frontend/src/features/dev/WorkspaceDemoPage.vue`
@@ -2199,8 +2199,8 @@ git commit -m "feat(workspace): the components, driven by one injected context"
 - Create: `frontend/tests/workspace.spec.ts`
 
 **Interfaces:**
-- Consumes: `WorkspaceRoot`, `useWorkspace`, `makeLeaf`, `makeSplit` из `@/shared/workspace`.
-- Produces: маршрут `/workspace-demo`, только под `import.meta.env.DEV`, без авторизации — как `/ui-kit`.
+- Consumes: `WorkspaceRoot`, `useWorkspace`, `makeLeaf`, `makeSplit` from `@/shared/workspace`.
+- Produces: route `/workspace-demo`, only under `import.meta.env.DEV`, without authentication — like `/ui-kit`.
 
 - [ ] **Step 1: Write the failing Playwright scenario**
 
@@ -2289,7 +2289,7 @@ test("drags a tab to an edge and gets a new section", async ({ page }) => {
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `bunx playwright test tests/workspace.spec.ts`
-Expected: FAIL — страница `/workspace-demo` не найдена, `workspace-leaf-left` отсутствует.
+Expected: FAIL — page `/workspace-demo` not found, `workspace-leaf-left` is missing.
 
 - [ ] **Step 3: Write WorkspaceDemoPage.vue**
 
@@ -2389,7 +2389,7 @@ function openOne() {
 
 - [ ] **Step 4: Register the route**
 
-В `frontend/src/router/index.ts`, внутри `devRoutes`, после записи `ui-kit`:
+In `frontend/src/router/index.ts`, inside `devRoutes`, after the `ui-kit` entry:
 
 ```ts
       {
@@ -2403,12 +2403,12 @@ function openOne() {
 - [ ] **Step 5: Run the scenario to verify it passes**
 
 Run: `bunx playwright test tests/workspace.spec.ts`
-Expected: PASS, 3 сценария. Если браузер не установлен: `bunx playwright install chromium`.
+Expected: PASS, 3 scenarios. If the browser is not installed: `bunx playwright install chromium`.
 
 - [ ] **Step 6: Full frontend check**
 
 Run: `bun run test:unit && bun run lint && bun run type-check`
-Expected: всё чисто.
+Expected: all clean.
 
 - [ ] **Step 7: Commit**
 
@@ -2419,9 +2419,9 @@ git commit -m "feat(workspace): show the engine at /workspace-demo and prove it 
 
 ---
 
-# Этап B — рабочая область
+# Stage B — the workspace
 
-## Задача 9: полноэкранная оболочка и дерево в ките
+## Task 9: full-screen shell and the tree in the kit
 
 **Files:**
 - Modify: `frontend/src/shared/ui/AppLayout.vue`
@@ -2431,23 +2431,23 @@ git commit -m "feat(workspace): show the engine at /workspace-demo and prove it 
 
 **Interfaces:**
 - Produces:
-  - `AppLayout` получает необязательный проп `fill?: boolean` — без внутренних отступов и на всю высоту.
-  - `AppTree` props: `{ nodes: QTreeProps["nodes"]; nodeKey: string; expanded: string[]; selected: string | null }`, `v-model:expanded`, `v-model:selected`, emit `lazyLoad`, слот `default-header`. Проброс остальных атрибутов включён.
+  - `AppLayout` gets an optional prop `fill?: boolean` — without inner padding and at full height.
+  - `AppTree` props: `{ nodes: QTreeProps["nodes"]; nodeKey: string; expanded: string[]; selected: string | null }`, `v-model:expanded`, `v-model:selected`, emit `lazyLoad`, slot `default-header`. Forwarding of other attributes is on.
 
-Типы `nodes` и полезной нагрузки `lazyLoad` читаются с пропсов Quasar
+The types of `nodes` and of the `lazyLoad` payload are read from Quasar's props
 (`QTreeProps["nodes"]`, `Parameters<NonNullable<QTreeProps["onLazyLoad"]>>[0]`),
-а не объявляются как `unknown`: `unknown` не примет типизированный обработчик,
-и `CatalogPanel` из задачи 12 падает на `vue-tsc` с TS2322. Приведение в каждом
-экране, у которого есть загрузчик, — цена, которой не надо платить.
+rather than declared as `unknown`: `unknown` will not accept a typed handler,
+and `CatalogPanel` from task 12 fails `vue-tsc` with TS2322. A cast in every
+screen that has a loader is a price that need not be paid.
 
 - [ ] **Step 1: Write the failing test**
 
-`frontend/src/features/dev/kit.spec.ts` уже требует, чтобы каждый файл в `shared/ui/*.vue` был показан в `UiKitPage.vue` и экспортирован из бочки. Тест начнёт падать сам, как только появится `AppTree.vue`.
+`frontend/src/features/dev/kit.spec.ts` already requires every file in `shared/ui/*.vue` to be shown in `UiKitPage.vue` and exported from the barrel. The test will start failing on its own as soon as `AppTree.vue` appears.
 
-Создать пустой каркас `frontend/src/shared/ui/AppTree.vue` c одной строкой `<template><div /></template>` и запустить:
+Create an empty skeleton `frontend/src/shared/ui/AppTree.vue` with one line `<template><div /></template>` and run:
 
 Run: `bun run test:unit -- src/features/dev/kit.spec.ts`
-Expected: FAIL — `demonstrates AppTree` и `exports AppTree`.
+Expected: FAIL — `demonstrates AppTree` and `exports AppTree`.
 
 - [ ] **Step 2: Implement AppTree.vue**
 
@@ -2496,13 +2496,13 @@ defineEmits<{
 
 - [ ] **Step 3: Add `fill` to AppLayout.vue**
 
-Заменить блок `<script setup lang="ts">` начало на добавление пропа и изменить разметку страницы:
+Replace the start of the `<script setup lang="ts">` block with adding the prop and change the page markup:
 
 ```ts
 defineProps<{ fill?: boolean }>()
 ```
 
-и в шаблоне:
+and in the template:
 
 ```vue
     <q-page-container>
@@ -2512,7 +2512,7 @@ defineProps<{ fill?: boolean }>()
     </q-page-container>
 ```
 
-плюс стиль, чтобы страница занимала высоту:
+plus a style so that the page takes the height:
 
 ```vue
 <style scoped>
@@ -2525,13 +2525,13 @@ defineProps<{ fill?: boolean }>()
 
 - [ ] **Step 4: Export it and demonstrate it**
 
-В `frontend/src/shared/ui/index.ts`, в алфавитном порядке между `AppToggle` и `AppTooltip`:
+In `frontend/src/shared/ui/index.ts`, in alphabetical order between `AppToggle` and `AppTooltip`:
 
 ```ts
 export { default as AppTree } from "./AppTree.vue"
 ```
 
-В `frontend/src/features/dev/UiKitPage.vue` добавить раздел перед секцией «A dialog», в `<script setup>`:
+In `frontend/src/features/dev/UiKitPage.vue` add a section before the "A dialog" section, in `<script setup>`:
 
 ```ts
 const treeNodes = [
@@ -2541,7 +2541,7 @@ const treeExpanded = ref<string[]>(["public"])
 const treeSelected = ref<string | null>(null)
 ```
 
-и в шаблоне:
+and in the template:
 
 ```vue
     <AppCard
@@ -2563,17 +2563,17 @@ const treeSelected = ref<string | null>(null)
     </AppCard>
 ```
 
-Импорты `AppCard`, `AppSection`, `AppTree` добавить в существующий блок импорта из `@/shared/ui`.
+Add the `AppCard`, `AppSection`, `AppTree` imports to the existing import block from `@/shared/ui`.
 
 - [ ] **Step 5: Run the checks**
 
 Run: `bun run test:unit && bun run lint && bun run type-check`
-Expected: всё чисто.
+Expected: all clean.
 
-Запрет `q-tree` вне кита сознательно не здесь, а в задаче 12: пока
-`CatalogDialog.vue` жив, правило оставило бы линтер красным на три коммита, а
-красная проверка, которую договорились временно терпеть, — это проверка,
-которую перестают читать.
+Forbidding `q-tree` outside the kit is deliberately not here but in task 12: while
+`CatalogDialog.vue` is alive, the rule would keep the linter red for three commits, and
+a red check that everyone agreed to tolerate for a while is a check
+that people stop reading.
 
 - [ ] **Step 6: Commit**
 
@@ -2584,14 +2584,14 @@ git commit -m "feat(ui): the catalog tree joins the kit, and the layout can fill
 
 ---
 
-## Задача 10: логика дерева каталога отдельно от диалога
+## Task 10: catalog tree logic separate from the dialog
 
 **Files:**
 - Create: `frontend/src/features/catalog/useCatalogTree.ts`
 - Create: `frontend/src/features/catalog/useCatalogTree.spec.ts`
 
 **Interfaces:**
-- Consumes: `useCatalogLoader` из `features/catalog/api.ts`, `toTreeNodes`, `TreeNode` из `treeNodes.ts`, `messageOf` из `@/shared/api/errors`.
+- Consumes: `useCatalogLoader` from `features/catalog/api.ts`, `toTreeNodes`, `TreeNode` from `treeNodes.ts`, `messageOf` from `@/shared/api/errors`.
 - Produces:
 
 ```ts
@@ -2704,16 +2704,16 @@ Expected: FAIL — `Failed to resolve import "./useCatalogTree"`.
 
 - [ ] **Step 3: Implement**
 
-Перенести логику из `CatalogDialog.vue` (строки со `roots`, `expanded`, `nodesById`, `selectedId`, `selected`, `remember`, `reload`, `onLazyLoad`) в `frontend/src/features/catalog/useCatalogTree.ts`, заменив `props.connector.id` на `connectorId.value` и обращение к `props.modelValue` на явный вызов `load()`:
+Move the logic out of `CatalogDialog.vue` (the lines with `roots`, `expanded`, `nodesById`, `selectedId`, `selected`, `remember`, `reload`, `onLazyLoad`) into `frontend/src/features/catalog/useCatalogTree.ts`, replacing `props.connector.id` with `connectorId.value` and the access to `props.modelValue` with an explicit call to `load()`:
 
-`reload` дополнительно сбрасывает кэш своей ветки — этого нет в
-`CatalogDialog.vue`, и это исправление, а не перенос. Загрузчик отвечает из
-кэша `fetchQuery` со `staleTime` 60 секунд, и сегодня ветка перечитывается
-только потому, что `useRunAction` успел объявить ключ несвежим. Композабл,
-который панель зовёт напрямую, не может опираться на то, что кто-то другой
-сделал это до него: без сброса `reload` вернул бы ровно то, что его попросили
-заменить. Тест «drops a selection the reload no longer holds» падает именно на
-этом.
+`reload` additionally drops the cache of its branch — this is not in
+`CatalogDialog.vue`, and it is a fix, not a port. The loader answers from the
+`fetchQuery` cache with a `staleTime` of 60 seconds, and today a branch is reread
+only because `useRunAction` has already declared the key stale. A composable
+that a panel calls directly cannot rely on somebody else having
+done that before it: without the reset `reload` would return exactly what it was asked to
+replace. The test "drops a selection the reload no longer holds" fails precisely on
+this.
 
 ```ts
 import { useQueryClient } from "@tanstack/vue-query"
@@ -2847,7 +2847,7 @@ export function useCatalogTree(connectorId: Ref<string>): CatalogTree {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `bun run test:unit -- src/features/catalog/useCatalogTree.spec.ts`
-Expected: PASS, 4 теста.
+Expected: PASS, 4 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -2858,14 +2858,14 @@ git commit -m "refactor(catalog): walking the tree is not logic of a dialog"
 
 ---
 
-## Задача 11: союз панелей и реестр
+## Task 11: the panel union and the registry
 
 **Files:**
 - Create: `frontend/src/features/workspace/panels.ts`
 - Create: `frontend/src/features/workspace/panels.spec.ts`
 
 **Interfaces:**
-- Consumes: `PanelLook` из `@/shared/workspace`.
+- Consumes: `PanelLook` from `@/shared/workspace`.
 - Produces:
 
 ```ts
@@ -2879,7 +2879,7 @@ export function catalogPanelId(connectorId: string): string
 export function rowsPanelId(connectorId: string, nodeId: string): string
 ```
 
-Идентификаторы выводятся из того, что панель показывает, а не порождаются счётчиком: открыть ту же таблицу дважды должно активировать существующую вкладку, а не создать вторую.
+Ids are derived from what the panel shows, not generated by a counter: opening the same table twice must activate the existing tab, not create a second one.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -3023,15 +3023,15 @@ export function componentOf(panel: Panel): Component {
 }
 ```
 
-Замечание: тест не пройдёт, пока не существуют три компонента из задачи 12. Порядок: написать тест, увидеть падение на импорте, затем задача 12, затем вернуться и убедиться, что тест зелёный. Коммит — после задачи 12.
+Note: the test will not pass until the three components from task 12 exist. Order: write the test, see it fail on the import, then task 12, then come back and make sure the test is green. Commit — after task 12.
 
 - [ ] **Step 4: Commit together with task 12**
 
-Отдельного коммита у этой задачи нет: реестр без компонентов не собирается.
+This task has no separate commit: a registry without components does not build.
 
 ---
 
-## Задача 12: три панели рабочей области
+## Task 12: the three workspace panels
 
 **Files:**
 - Create: `frontend/src/features/workspace/panels/ConnectorsPanel.vue`
@@ -3041,8 +3041,8 @@ export function componentOf(panel: Panel): Component {
 - Delete: `frontend/src/features/catalog/CatalogDialog.vue`
 
 **Interfaces:**
-- Consumes: `useCatalogTree` (задача 10), `ConnectorTable`, `ConnectorDialog`, `ActionBar`, `RowGrid`, `AppTree` (задача 9), `catalogPanelId`, `rowsPanelId` (задача 11).
-- Produces: `state.ts` — тонкий мост между панелями:
+- Consumes: `useCatalogTree` (task 10), `ConnectorTable`, `ConnectorDialog`, `ActionBar`, `RowGrid`, `AppTree` (task 9), `catalogPanelId`, `rowsPanelId` (task 11).
+- Produces: `state.ts` — a thin bridge between panels:
 
 ```ts
 export interface WorkspaceActions {
@@ -3053,7 +3053,7 @@ export const workspaceActionsKey: InjectionKey<WorkspaceActions>
 export function useWorkspaceActions(): WorkspaceActions
 ```
 
-Панели не получают колбэки пропсами: `WorkspaceLeaf` рендерит `<component :is>` без пропсов, поэтому связь между панелями идёт через `provide`/`inject` от страницы.
+Panels do not receive callbacks as props: `WorkspaceLeaf` renders `<component :is>` without props, so the link between panels goes through `provide`/`inject` from the page.
 
 - [ ] **Step 1: Write state.ts**
 
@@ -3083,7 +3083,7 @@ export function useWorkspaceActions(): WorkspaceActions {
 
 - [ ] **Step 2: Write ConnectorsPanel.vue**
 
-Содержимое `ConnectorsPage.vue` без `AppLayout` и без `CatalogDialog`: «просмотреть» открывает панель каталога.
+The contents of `ConnectorsPage.vue` without `AppLayout` and without `CatalogDialog`: "browse" opens the catalog panel.
 
 ```vue
 <script setup lang="ts">
@@ -3309,15 +3309,15 @@ defineProps<{ connectorId: string; nodeId: string }>()
 
 - [ ] **Step 5: Make the panels receive their props**
 
-Исправлено по ходу выполнения: обёртка запоминается по `panel.id` и создаётся
-через `defineComponent`, а не как функциональный компонент. Движок спрашивает
-компонент активной панели на каждом рендере, а Vue различает компоненты по
-идентичности: обёртка, собранная заново, — каждый раз другой компонент, и
-панель размонтировалась бы на каждом рендере секции. Функциональная обёртка,
-кроме того, не имеет экземпляра, поэтому `<KeepAlive>` в секции нечего хранить,
-и вкладка возвращалась бы перечитанной — на этом падал `actions.spec.ts`.
+Fixed during execution: the wrapper is memoised by `panel.id` and created
+through `defineComponent`, not as a functional component. The engine asks for the
+component of the active panel on every render, and Vue tells components apart by
+identity: a wrapper built anew is a different component each time, and the
+panel would be unmounted on every render of the section. A functional wrapper,
+moreover, has no instance, so `<KeepAlive>` in the section has nothing to keep,
+and the tab would come back reread — `actions.spec.ts` failed on this.
 
-`WorkspaceLeaf` рендерит `<component :is>` без пропсов, а `CatalogPanel` и `RowsPanel` их требуют. Расширить `componentOf` в `panels.ts` так, чтобы он возвращал компонент с уже привязанными пропсами:
+`WorkspaceLeaf` renders `<component :is>` without props, while `CatalogPanel` and `RowsPanel` require them. Extend `componentOf` in `panels.ts` so that it returns a component with the props already bound:
 
 ```ts
 import { h } from "vue"
@@ -3336,10 +3336,10 @@ export function componentOf(panel: Panel): Component {
 }
 ```
 
-Ещё одно, чего не было в плане: в `CatalogPanel.vue` нужен блок
-`data-testid="opaque-file"` — тот, что был в диалоге. Выбор файла, который
-нечем прочитать, не открывает вкладку, и без единого слова щелчок выглядит
-как ничего не сделавший. Ожидание в `files.spec.ts` на этот блок и опирается.
+One more thing that was not in the plan: `CatalogPanel.vue` needs the block
+`data-testid="opaque-file"` — the one that was in the dialog. Choosing a file that
+there is nothing to read with does not open a tab, and without a single word the click looks
+like it did nothing. The expectation in `files.spec.ts` relies on that block.
 
 - [ ] **Step 6: Delete the dialog and close the rule behind it**
 
@@ -3347,33 +3347,33 @@ export function componentOf(panel: Panel): Component {
 git rm frontend/src/features/catalog/CatalogDialog.vue
 ```
 
-`ConnectorsPage.vue` пока на него ссылается и сломается — чинится задачей 13, которая идёт в том же коммите.
+`ConnectorsPage.vue` still refers to it and will break — fixed by task 13, which goes in the same commit.
 
-Последний потребитель `q-tree` вне кита исчез вместе с диалогом, поэтому
-теперь — и только теперь — в `frontend/eslint.config.js`, в массив пар правила
-`vue/no-restricted-html-elements`, после `["q-spinner", "AppSpinner"]`:
+The last consumer of `q-tree` outside the kit disappeared together with the dialog, so
+now — and only now — in `frontend/eslint.config.js`, in the array of pairs of the rule
+`vue/no-restricted-html-elements`, after `["q-spinner", "AppSpinner"]`:
 
 ```js
           ["q-tree", "AppTree"],
 ```
 
-Правило проверяется тем же способом, что и остальные: временно вернуть
-`<q-tree>` в `CatalogPanel.vue` вместо `<AppTree>`, убедиться, что `bun run
-lint` называет именно эту строку, и вернуть как было. Правило, которое ни разу
-не было красным, ничего не доказывает.
+The rule is checked the same way as the others: temporarily put
+`<q-tree>` back into `CatalogPanel.vue` instead of `<AppTree>`, make sure `bun run
+lint` names exactly that line, and restore it. A rule that has never
+been red proves nothing.
 
 - [ ] **Step 7: Run the registry test**
 
 Run: `bun run test:unit -- src/features/workspace/panels.spec.ts`
-Expected: PASS, 15 тестов — четыре `it.each` по три вида плюс три отдельных.
+Expected: PASS, 15 tests — four `it.each` over three kinds plus three separate ones.
 
 - [ ] **Step 8: Commit with task 13**
 
-Коммит выполняется в конце задачи 13, когда страница уже собрана.
+The commit is made at the end of task 13, when the page is already assembled.
 
 ---
 
-## Задача 13: страница рабочей области
+## Task 13: the workspace page
 
 **Files:**
 - Create: `frontend/src/features/workspace/WorkspacePage.vue`
@@ -3381,8 +3381,8 @@ Expected: PASS, 15 тестов — четыре `it.each` по три вида 
 - Delete: `frontend/src/features/connectors/ConnectorsPage.vue`
 
 **Interfaces:**
-- Consumes: всё из задач 6–12.
-- Produces: маршрут `/` с `name: "workspace"`. Прежнее имя маршрута `connectors` использовалось в `router.beforeEach` — заменить оба вхождения.
+- Consumes: everything from tasks 6–12.
+- Produces: route `/` with `name: "workspace"`. The previous route name `connectors` was used in `router.beforeEach` — replace both occurrences.
 
 - [ ] **Step 1: Write WorkspacePage.vue**
 
@@ -3449,7 +3449,7 @@ provide(workspaceActionsKey, {
 </template>
 ```
 
-**Раскладка по умолчанию — один лист.** Три секции нельзя выложить заранее: панель каталога описывает конкретное соединение, а его пользователь ещё не выбрал, и панель без соединения нечему показывать. Поэтому `defaults` в коде выше читается так:
+**The default layout is one leaf.** Three sections cannot be laid out in advance: the catalog panel describes a specific connection, which the user has not chosen yet, and a panel without a connection has nothing to show. So `defaults` in the code above reads:
 
 ```ts
   defaults: () => ({
@@ -3458,13 +3458,13 @@ provide(workspaceActionsKey, {
   }),
 ```
 
-и импорт `makeSplit` из этого файла не нужен.
+and the `makeSplit` import from this file is not needed.
 
-Секции появляются по мере работы: пользователь открывает каталог, `leafForKind` не находит секции с панелями вида `catalog`, берёт лист с фокусом, и каталог встаёт вкладкой рядом; перетаскивание вкладки на край разводит их по двум секциям, а таблица — по третьей. Это отличается от «трёх панелей с первого открытия» и записывается в «Известные отклонения» задачей 14.
+Sections appear as work goes on: the user opens a catalog, `leafForKind` finds no section with panels of kind `catalog`, takes the focused leaf, and the catalog lands as a tab beside it; dragging the tab to an edge separates them into two sections, and a table into a third. This differs from "three panels from the first opening" and is recorded under "Known deviations" by task 14.
 
 - [ ] **Step 2: Point the router at it**
 
-В `frontend/src/router/index.ts` заменить запись маршрута `/`:
+In `frontend/src/router/index.ts` replace the entry of route `/`:
 
 ```ts
     {
@@ -3475,12 +3475,12 @@ provide(workspaceActionsKey, {
     },
 ```
 
-и в `router.beforeEach` заменить `return { name: "connectors" }` на `return { name: "workspace" }`.
+and in `router.beforeEach` replace `return { name: "connectors" }` with `return { name: "workspace" }`.
 
-Вхождений три, а не два: `frontend/src/features/auth/LoginPage.vue` тоже
-толкает маршрут по имени. Имена маршрутов не типизированы, так что ни
-`vue-tsc`, ни модульные тесты этого не ловят — вход просто перестаёт
-завершаться, и в браузере падают все сценарии до единого.
+There are three occurrences, not two: `frontend/src/features/auth/LoginPage.vue` also
+pushes a route by name. Route names are not typed, so neither
+`vue-tsc` nor the unit tests catch this — signing in simply stops
+completing, and every single scenario fails in the browser.
 
 - [ ] **Step 3: Delete the old page**
 
@@ -3491,7 +3491,7 @@ git rm frontend/src/features/connectors/ConnectorsPage.vue
 - [ ] **Step 4: Run everything**
 
 Run: `bun run test:unit && bun run lint && bun run type-check`
-Expected: чисто. Если `lint` жалуется на `q-tree` — значит `CatalogDialog.vue` не удалён.
+Expected: clean. If `lint` complains about `q-tree`, `CatalogDialog.vue` has not been deleted.
 
 - [ ] **Step 5: Commit**
 
@@ -3503,7 +3503,7 @@ git commit -m "feat(workspace): the main screen is a workspace, not a table with
 
 ---
 
-## Задача 14: сквозные сценарии и документы
+## Task 14: end-to-end scenarios and documents
 
 **Files:**
 - Modify: `frontend/tests/catalog.spec.ts`
@@ -3513,30 +3513,30 @@ git commit -m "feat(workspace): the main screen is a workspace, not a table with
 - Modify: `AGENTS.md`
 
 **Interfaces:**
-- Consumes: `data-testid` из задачи 7 и существующие из `ConnectorTable`.
+- Consumes: `data-testid` from task 7 and the existing ones from `ConnectorTable`.
 
 - [ ] **Step 1: Run the existing scenarios and read the failures**
 
 Run: `bunx playwright test`
-Expected: FAIL. Сценарии открывают каталог кнопкой `browse-{name}` и закрывают кнопкой `Close` диалога, которой больше нет.
+Expected: FAIL. The scenarios open the catalog with the `browse-{name}` button and close it with the dialog's `Close` button, which no longer exists.
 
 - [ ] **Step 2: Adjust each scenario to the workspace**
 
-Исправлено по ходу выполнения. Закрывать вкладку каталога не нужно и не
-достаточно: обратно к таблице соединений ведёт её собственная вкладка, а
-выбор узла открывает строки поверх дерева, поэтому между двумя выборами
-сценарий возвращается на вкладку каталога. Три локатора вынесены в
+Fixed during execution. Closing the catalog tab is neither needed nor
+sufficient: the way back to the connections table is its own tab, and
+choosing a node opens rows on top of the tree, so between two choices
+the scenario returns to the catalog tab. Three locators are moved into
 `frontend/tests/utils/workspace.ts` — `connectionsTab`, `catalogTab`,
-`rowsTabs`, — потому что они одни и те же в четырёх файлах.
+`rowsTabs` — because they are the same in four files.
 
-Кроме того, `fill` у `AppLayout` не работал: страница Quasar получает только
-`min-height`, поэтому ребёнок с `height: 100%` брал высоту своего содержимого —
-рабочая область была 288 пикселей при окне в 720. Стиль теперь навешивается
-классом только в режиме `fill` и раздаёт высоту детям (`flex: 1 1 auto`), а
-сценарий из шага 3 измеряет прямоугольник. Ни один модульный тест этого не
-видит: в jsdom нет раскладки.
+Besides, `fill` on `AppLayout` did not work: a Quasar page gets only
+`min-height`, so a child with `height: 100%` took the height of its content —
+the workspace was 288 pixels in a 720 window. The style is now attached
+by a class only in `fill` mode and hands the height to the children (`flex: 1 1 auto`), and
+the scenario from step 3 measures the rectangle. No unit test
+sees this: jsdom has no layout.
 
-Замена, одна и та же в четырёх файлах: `await page.getByRole("button", { name: "Close" }).click()` уходит; вместо него вкладка каталога закрывается своим крестом, а идентификатор вкладки выводится так же, как в `panels.ts`:
+The replacement, the same in four files: `await page.getByRole("button", { name: "Close" }).click()` goes; instead the catalog tab is closed by its own cross, and the tab id is derived the same way as in `panels.ts`:
 
 ```ts
 /** The catalog tab of a connector, addressed the way panels.ts names it. */
@@ -3545,7 +3545,7 @@ async function closeCatalog(page: import("@playwright/test").Page, connectorId: 
 }
 ```
 
-Идентификатор соединения в сценарии неизвестен — он приходит с сервера. Поэтому проще закрывать по заголовку вкладки:
+The connection id is unknown in the scenario — it comes from the server. So it is simpler to close by the tab title:
 
 ```ts
 async function closeCatalogTab(page: import("@playwright/test").Page, name: string) {
@@ -3556,7 +3556,7 @@ async function closeCatalogTab(page: import("@playwright/test").Page, name: stri
 }
 ```
 
-Крест внутри вкладки — `<span>`, а не кнопка, поэтому обращение к нему:
+The cross inside the tab is a `<span>`, not a button, so it is reached like this:
 
 ```ts
   await page
@@ -3565,9 +3565,9 @@ async function closeCatalogTab(page: import("@playwright/test").Page, name: stri
     .click()
 ```
 
-Открытие каталога остаётся прежним: `await page.getByTestId(\`browse-${name}\`).click()`.
+Opening the catalog stays as before: `await page.getByTestId(\`browse-${name}\`).click()`.
 
-Просмотр строк: раньше выбор узла в дереве показывал сетку в том же диалоге; теперь он открывает вкладку. Ожидание в `rows.spec.ts` и `files.spec.ts` — сначала появление вкладки, затем содержимое:
+Viewing rows: previously choosing a node in the tree showed the grid in the same dialog; now it opens a tab. The expectation in `rows.spec.ts` and `files.spec.ts` is first the tab appearing, then the content:
 
 ```ts
   await page.locator(".q-tree__node-header", { hasText: "pg_class" }).first().click()
@@ -3577,11 +3577,11 @@ async function closeCatalogTab(page: import("@playwright/test").Page, name: stri
 
 - [ ] **Step 3: Write the workspace scenario**
 
-Дописать в `frontend/tests/workspace.spec.ts`:
+Append to `frontend/tests/workspace.spec.ts`:
 
-Имя теста приведено в соответствие с тем, что он проверяет: полный путь
-«соединение → каталог → таблица» уже покрыт `rows.spec.ts`, а здесь — что
-вошедший пользователь попадает в рабочую область и что она занимает окно.
+The test name is brought in line with what it checks: the full path
+"connection → catalog → table" is already covered by `rows.spec.ts`, and here it is that
+a signed-in user lands in the workspace and that it fills the window.
 
 ```ts
 import { login } from "./utils/login"
@@ -3598,12 +3598,12 @@ test("a signed in user lands on the workspace", async ({ page }) => {
 })
 ```
 
-Полный сценарий «соединение → каталог → таблица → перезагрузка» уже покрыт `rows.spec.ts` после правки шага 2; здесь проверяется только то, что рабочая область — это первое, что видит вошедший пользователь.
+The full scenario "connection → catalog → table → reload" is already covered by `rows.spec.ts` after the fix in step 2; here only the fact that the workspace is the first thing a signed-in user sees is checked.
 
 - [ ] **Step 4: Run the whole browser suite**
 
 Run: `bunx playwright test`
-Expected: PASS. Перед прогоном поднять стенд:
+Expected: PASS. Before the run bring up the stack:
 
 ```bash
 docker compose up -d db backend
@@ -3611,7 +3611,7 @@ docker compose up -d db backend
 
 - [ ] **Step 5: Update AGENTS.md**
 
-В разделе «What exists» в дереве `frontend/src` добавить:
+In the "What exists" section, in the `frontend/src` tree, add:
 
 ```
 ├── shared/
@@ -3622,7 +3622,7 @@ docker compose up -d db backend
     └── workspace/       the three panels and what may be opened from one
 ```
 
-В «Decisions that shape the code» добавить D12 со ссылкой на спеку:
+In "Decisions that shape the code" add D12 with a link to the spec:
 
 ```markdown
 **D12. The screen is a workspace of sections, and the engine behind it knows
@@ -3638,7 +3638,7 @@ history of layouts and a command language of nine verbs, and a node it could
 not remove had to be left in place marked `fake`.
 ```
 
-В «Known deviations» добавить:
+In "Known deviations" add:
 
 ```markdown
 - **The default layout is one section, not three.** A workspace opens showing
@@ -3655,12 +3655,12 @@ not remove had to be left in place marked `fake`.
   cannot tell a deleted connector from a failed request.
 ```
 
-В «What comes next» отметить, что подпроект 7а закрыт, и `q-tree` больше не отклонение — удалить строку «**`q-tree` is outside the kit**».
+In "What comes next" note that subproject 7a is closed and `q-tree` is no longer a deviation — delete the line "**`q-tree` is outside the kit**".
 
 - [ ] **Step 6: Check the diff before committing**
 
 Run: `git diff --stat && git show :AGENTS.md | file -`
-Expected: диффы соразмерны правкам; AGENTS.md не переписан целиком из-за смены переводов строк.
+Expected: the diffs are proportional to the edits; AGENTS.md is not rewritten whole because of a change of line endings.
 
 - [ ] **Step 7: Commit**
 
@@ -3671,32 +3671,32 @@ git commit -m "test(workspace): the browser suite works the workspace, not the m
 
 ---
 
-## Самопроверка плана
+## Plan self-review
 
-**Покрытие спеки:**
+**Spec coverage:**
 
-| Решение спеки | Задача |
+| Spec decision | Task |
 | --- | --- |
-| W1 движок не знает предметной области | 6 (контекст), 11 (реестр) |
-| W2 размеченный союз | 1 |
-| W3 чистые функции | 1–3 |
-| W4 нормализация | 2 |
-| W5 minSize в пикселях | 3 (`resizeSplit`), 7 (`WorkspaceNode.onMove`) |
-| W6 свёрнутость — поле листа | 3, 7 (`styleFor`) |
-| W7 pointer events и зоны | 4, 7 |
-| W8 секция это вкладки | 7 (`WorkspaceLeaf`) |
-| W9 сохранённое — недоверенный ввод | 5 |
-| W10 панель исчезнувшего объекта | 12 (`RowsPanel` через `RowGrid`), 14 (запись в отклонения) |
-| W11 куда открывается панель | 4 (`leafForKind`), 6 |
-| `AppTree` в ките | 9 |
-| `useCatalogTree` отдельно от диалога | 10 |
-| Удаление `CatalogDialog` | 12 |
+| W1 the engine does not know the domain | 6 (context), 11 (registry) |
+| W2 discriminated union | 1 |
+| W3 pure functions | 1–3 |
+| W4 normalisation | 2 |
+| W5 minSize in pixels | 3 (`resizeSplit`), 7 (`WorkspaceNode.onMove`) |
+| W6 collapsed is a leaf field | 3, 7 (`styleFor`) |
+| W7 pointer events and zones | 4, 7 |
+| W8 a section is tabs | 7 (`WorkspaceLeaf`) |
+| W9 stored state is untrusted input | 5 |
+| W10 a panel of a vanished object | 12 (`RowsPanel` via `RowGrid`), 14 (entry in deviations) |
+| W11 where a panel opens | 4 (`leafForKind`), 6 |
+| `AppTree` in the kit | 9 |
+| `useCatalogTree` separate from the dialog | 10 |
+| Removing `CatalogDialog` | 12 |
 
-**Согласованность имён:** `LayoutNode`, `LeafNode`, `SplitNode`, `NodeId`, `PanelId`, `DropZone`, `MIN_PANEL_PX`, `COLLAPSED_PX`, `makeLeaf`, `makeSplit`, `nextId`, `nodeAt`, `pathOfNode`, `pathOfPanel`, `leavesOf`, `replaceAt`, `normalize`, `addPanel`, `removePanel`, `activatePanel`, `setCollapsed`, `resizeSplit`, `splitLeaf`, `movePanel`, `dropZoneAt`, `leafForKind`, `serializeWorkspace`, `parseWorkspace`, `WORKSPACE_VERSION`, `workspaceKey`, `WorkspaceContext`, `useWorkspace`, `panelSchema`, `kindOf`, `lookOf`, `componentOf`, `catalogPanelId`, `rowsPanelId`, `workspaceActionsKey`, `useWorkspaceActions` — одни и те же во всех задачах.
+**Name consistency:** `LayoutNode`, `LeafNode`, `SplitNode`, `NodeId`, `PanelId`, `DropZone`, `MIN_PANEL_PX`, `COLLAPSED_PX`, `makeLeaf`, `makeSplit`, `nextId`, `nodeAt`, `pathOfNode`, `pathOfPanel`, `leavesOf`, `replaceAt`, `normalize`, `addPanel`, `removePanel`, `activatePanel`, `setCollapsed`, `resizeSplit`, `splitLeaf`, `movePanel`, `dropZoneAt`, `leafForKind`, `serializeWorkspace`, `parseWorkspace`, `WORKSPACE_VERSION`, `workspaceKey`, `WorkspaceContext`, `useWorkspace`, `panelSchema`, `kindOf`, `lookOf`, `componentOf`, `catalogPanelId`, `rowsPanelId`, `workspaceActionsKey`, `useWorkspaceActions` — the same in every task.
 
-**Две поправки, найденные при написании плана и внесённые в спеку:**
+**Two corrections found while writing the plan and made in the spec:**
 
-1. `storedSize` в `LeafNode` не нужен: сворачивание не трогает `sizes`, поэтому прежний размер уже там.
-2. Правило «куда открывается панель» читается из дерева, без отдельной истории.
+1. `storedSize` in `LeafNode` is not needed: collapsing does not touch `sizes`, so the previous size is already there.
+2. The rule "where a panel opens" is read from the tree, without a separate history.
 
-**Третья поправка, которую внести в спеку при выполнении задачи 13:** раскладка по умолчанию — один лист, а не три секции. Три секции нельзя задать заранее, не выдумав панели для соединения, которое пользователь ещё не выбрал.
+**A third correction, to make in the spec while executing task 13:** the default layout is one leaf, not three sections. Three sections cannot be set up in advance without inventing panels for a connection the user has not chosen yet.

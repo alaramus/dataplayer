@@ -1,254 +1,262 @@
-# Каталог списком, подключения без меню
+# Catalog as a list, connections without a menu
 
-Дата: 2026-08-22
-Статус: согласовано
-Подпроект: 7в (продолжение 7б)
+Date: 2026-08-22
+Status: agreed
+Subproject: 7c (continuation of 7b)
 
-## Цель
+## Goal
 
-Раскладка из 7б — три колонки, которые есть всегда. Содержимое их пока то,
-что досталось от прежних экранов: дерево каталога из модального окна, ряд
-кнопок действий над ним, меню трёх точек в каждой строке подключения. Это
-работало, пока каталог был отдельным окном во весь экран, и перестало
-работать в колонке шириной в четверть его.
+The layout from 7b is three columns that are always there. Their content is
+still what was inherited from the earlier screens: the catalog tree from a
+modal window, a row of action buttons above it, a three-dot menu in every
+connection row. This worked while the catalog was a separate full-screen
+window, and stopped working in a column a quarter of its width.
 
-Задача — привести содержимое колонок к тому виду, в котором с ними работают
-каждый день: список вместо дерева, отметка вместо клика наугад, одно место
-для действий вместо ряда кнопок, и высота, ограниченная экраном.
+The task is to bring the content of the columns to the form in which they are
+used every day: a list instead of a tree, a checkmark instead of a click at
+random, one place for actions instead of a row of buttons, and a height bounded
+by the screen.
 
-## Что меняется в прежних решениях
+## What changes in earlier decisions
 
-Ни одно решение не отменяется; три уточняются.
+No decision is revoked; three are refined.
 
-**D2a остаётся и получает применение на экране.** «Источники различаются видом
-узла, а не семейством источника» до сих пор влияло только на бэкенд. Теперь по
-виду узла решает и экран: мультиселект схем появляется не потому, что перед
-нами PostgreSQL, а потому, что дети уровня — узлы вида `schema`. См. S4.
+**D2a stays and gets applied on screen.** "Sources differ in the node kind, not
+in the source family" has so far affected only the backend. Now the screen
+decides by node kind too: the schema multiselect appears not because this is
+PostgreSQL, but because the children of the level are nodes of kind `schema`.
+See S4.
 
-**D9 дополняется.** Вопрос «что можно сделать с этим узлом» становится
-вопросом «что можно сделать со всеми этими узлами». Отвечает по-прежнему
-сервер, и по-прежнему тот же самый вызов решает, что предложено клиенту и что
-разрешено на сервере. См. S6, S7 и S8.
+**D9 is extended.** The question "what can be done with this node" becomes the
+question "what can be done with all these nodes". The server still answers, and
+the very same call still decides what is offered to the client and what is
+allowed on the server. See S6, S7 and S8.
 
-**D11 не нарушается, но набор теряет потребителя.** Дерево `AppTree` было в
-наборе ради каталога; каталог его больше не берёт. Компонент остаётся в
-наборе и в `/ui-kit` — набор строится алфавитом, а не по числу нынешних
-потребителей, — но в «Известных расхождениях» это записывается честно.
+**D11 is not violated, but the kit loses a consumer.** The `AppTree` tree was in
+the kit for the sake of the catalog; the catalog no longer uses it. The
+component stays in the kit and in `/ui-kit` — the kit is built as an alphabet,
+not by the number of current consumers — but this is recorded honestly under
+"Known deviations".
 
-## Решения
+## Decisions
 
-### S1. Строка подключения — иконка, имя, состояние, и больше ничего
+### S1. A connection row is an icon, a name, a state, and nothing else
 
-`ConnectorList` теряет меню трёх точек. В строке остаются три вещи: иконка
-типа источника, имя и точка состояния. Клик по иконке открывает окно
-подключения, клик по остальной строке открывает каталог.
+`ConnectorList` loses the three-dot menu. Three things remain in the row: the
+source type icon, the name and the state dot. A click on the icon opens the
+connection window, a click on the rest of the row opens the catalog.
 
-Причина не в экономии места, хотя колонка узкая. Меню в строке списка — это
-второе место, где живут те же самые действия: проверка и удаление уже есть
-внутри окна подключения или должны там быть. Пока их два, они расходятся —
-проверка из меню кладёт результат в тост, проверка из окна кладёт его строкой
-рядом с полями, и это две разные истории про одно и то же.
+The reason is not saving space, although the column is narrow. A menu in a list
+row is a second place where the same actions live: check and delete are already
+inside the connection window or should be there. While there are two of them,
+they diverge — a check from the menu puts the result in a toast, a check from
+the window puts it as a line next to the fields, and these are two different
+stories about the same thing.
 
-Точка состояния остаётся ровно такой, какая есть: серая, пока пользователь не
-попросил проверку. Живой статус — работа для вебсокета из подпроекта 7+, и
-пока его нет, точка не должна притворяться, что знает больше.
+The state dot stays exactly as it is: grey until the user asks for a check. A
+live status is work for the websocket of subproject 7+, and until it exists the
+dot must not pretend to know more.
 
-### S2. Иконка типа источника — файл, а не глиф шрифта
+### S2. The source type icon is a file, not a font glyph
 
-`adapterIcon()` возвращает `img:/icons/services/<файл>.svg`. Файлы берутся из
-старого приложения, где их уже 103, и кладутся в `frontend/public/icons/services/`.
-Переносятся только те, что нужны сегодня — PostgreSQL и файловое хранилище;
-остальные приезжают вместе с адаптерами, которые их потребуют.
+`adapterIcon()` returns `img:/icons/services/<file>.svg`. The files are taken
+from the old application, which already has 103 of them, and put into
+`frontend/public/icons/services/`. Only those needed today are carried over —
+PostgreSQL and file storage; the rest arrive together with the adapters that
+need them.
 
-Неизвестный тип по-прежнему получает глиф `cable`. Реестр типов живёт на
-сервере и пополняется без пересборки фронта, так что отсутствие файла — это
-нормальное состояние, а не ошибка сборки.
+An unknown type still gets the `cable` glyph. The type registry lives on the
+server and grows without rebuilding the frontend, so a missing file is a normal
+state, not a build error.
 
-Функция остаётся чистой и тестируется без монтирования, как и была.
+The function stays pure and is tested without mounting, as it was.
 
-### S3. Окно подключения одно, и удаление живёт в нём
+### S3. There is one connection window, and deletion lives in it
 
-`ConnectorDialog` не разделяется на «новое» и «редактирование»: это одна
-компонента, и разница между двумя случаями — только заполненность полей и
-заголовок. Так уже устроено; решение фиксирует, что так и останется, и
-переносит внутрь то, что оставалось снаружи.
+`ConnectorDialog` is not split into "new" and "edit": it is one component, and
+the difference between the two cases is only whether the fields are filled and
+the title. That is how it already works; the decision records that it will stay
+so, and moves inside what was left outside.
 
-В нижнем ряду: `Delete` слева, красная, только когда есть что удалять;
-`Cancel`, `Check`, `Save` справа. Удаление спрашивает подтверждение, забывает
-запись о проверке и закрывает окно — то, что сегодня делает `ConnectorsPanel`,
-переезжает туда, где показано само подключение.
+In the bottom row: `Delete` on the left, red, only when there is something to
+delete; `Cancel`, `Check`, `Save` on the right. Deletion asks for confirmation,
+forgets the check record and closes the window — what `ConnectorsPanel` does
+today moves to where the connection itself is shown.
 
-Новое подключение открывается кнопкой «+» в шапке колонки. Кнопка с подписью
-не помещается в колонку, ширина которой — пятая часть экрана.
+A new connection is opened by the "+" button in the column header. A button
+with a label does not fit in a column a fifth of the screen wide.
 
-### S4. Каталог — список одного уровня, и вид узла решает, что с узлом делать
+### S4. The catalog is a list of one level, and the node kind decides what to do with a node
 
-Дерево заменяется списком. Список показывает детей одного узла; шапка держит
-путь и кнопку «вверх». Что происходит с узлом, решает его вид — таблица видов
-лежит на фронте рядом с таблицей иконок в `treeNodes.ts`:
+The tree is replaced by a list. The list shows the children of one node; the
+header holds the path and an "up" button. What happens to a node is decided by
+its kind — the table of kinds lives on the frontend next to the table of icons
+in `treeNodes.ts`:
 
-| Вид | Что это | Что делает клик |
+| Kind | What it is | What a click does |
 | --- | --- | --- |
-| `schema` | группировка, а не место | не строка списка вовсе: пункт мультиселекта в шапке |
-| `directory` | контейнер | заходим внутрь |
-| `table`, `view`, `file` | то, что читается | вкладка в правой колонке |
-| `column` | принадлежность таблицы | в списке не показывается |
+| `schema` | a grouping, not a place | not a list row at all: an item of the multiselect in the header |
+| `directory` | a container | we go inside |
+| `table`, `view`, `file` | something that is read | a tab in the right column |
+| `column` | belongs to a table | not shown in the list |
 
-Ключевое здесь — что таблица индексирована видом узла, а не типом адаптера.
-Экран нигде не спрашивает «это PostgreSQL?». Появится ClickHouse с базами или
-Kafka с неймспейсами — добавится строка в таблицу, и мультиселект получится
-сам собой.
+The key point is that the table is indexed by node kind, not by adapter type.
+The screen nowhere asks "is this PostgreSQL?". When ClickHouse with databases or
+Kafka with namespaces appears, a row is added to the table, and the multiselect
+comes out on its own.
 
-Схема как фильтр, а не как уровень, — это то, чем старое приложение
-пользовалось каждый день: таблицы двух-трёх схем видны одним списком, и не
-надо возвращаться на уровень вверх, чтобы перейти из `public` в `sales`.
-Выбор нескольких схем означает столько же запросов `list_children`, сколько
-выбрано схем; список — их объединение, и имя схемы стоит подписью у строки,
-иначе две таблицы с одинаковым именем неразличимы.
+A schema as a filter rather than a level is what the old application was used
+for every day: the tables of two or three schemas are visible in one list, and
+there is no need to go back up a level to move from `public` to `sales`.
+Choosing several schemas means as many `list_children` requests as schemas
+chosen; the list is their union, and the schema name stands as a caption on the
+row, otherwise two tables with the same name are indistinguishable.
 
-Что выбрано при открытии: первая схема, не помеченная `is_system`, а если
-таких нет — первая по списку. Пустой мультиселект означал бы пустой список при
-открытии каталога, а выбранные разом все схемы — запрос на каждую, включая
-`pg_catalog`. Системные схемы из мультиселекта не убираются: выбрать их можно,
-просто по умолчанию не выбраны.
+What is chosen on opening: the first schema not marked `is_system`, and if
+there is none — the first in the list. An empty multiselect would mean an empty
+list when the catalog opens, and all schemas chosen at once — a request for
+each, `pg_catalog` included. System schemas are not removed from the
+multiselect: they can be chosen, they are just not chosen by default.
 
-Кнопка «вверх» на корневом уровне выключена: выше корня подниматься некуда.
+The "up" button is disabled at the root level: there is nowhere to go above the
+root.
 
-Колонки таблицы из каталога исчезают. У клика по строке остаётся один смысл,
-а колонки видны там, где они и нужны, — в шапке сетки данных справа. Так же
-было и в старом приложении.
+Table columns disappear from the catalog. A click on a row keeps one meaning,
+and the columns are visible where they are needed — in the header of the data
+grid on the right. It was the same in the old application.
 
-Фильтр по имени — строка ввода в шапке, подстрока, только по загруженному
-уровню. Серверного поиска не заводим: его нет в контракте адаптера, и
-добавлять его надо всем сразу.
+The name filter is an input field in the header, a substring, over the loaded
+level only. No server-side search is introduced: it is not in the adapter
+contract, and it would have to be added to everyone at once.
 
-### S5. Отметка и открытие — разные жесты
+### S5. Marking and opening are different gestures
 
-У каждой строки чекбокс, в шапке списка — чекбокс «выбрать все». Одиночный
-клик по строке (не по чекбоксу) открывает: директория — заход внутрь,
-читаемый узел — вкладка справа.
+Every row has a checkbox, the list header has a "select all" checkbox. A single
+click on a row (not on the checkbox) opens: a directory — going inside, a
+readable node — a tab on the right.
 
-Разведение нужно ради директорий. Пока клик и выбирал, и открывал, папку
-нельзя было переименовать, не зайдя в неё, — действие относилось бы к
-«текущему узлу», а не к тому, на что пользователь смотрит. Чекбокс это
-разделяет, и заодно даёт то, чего не было вовсе: удаление десяти файлов одним
-действием.
+The separation is needed for directories. While a click both selected and
+opened, a folder could not be renamed without going into it — the action would
+apply to the "current node", not to what the user is looking at. The checkbox
+separates these, and also gives what did not exist at all: deleting ten files
+in one action.
 
-Переход на другой уровень сбрасывает отметки. Отметка — это про то, что видно
-сейчас; пережившая переход, она означала бы действие над тем, чего на экране
-уже нет.
+Moving to another level clears the marks. A mark is about what is visible now;
+surviving the move, it would mean an action on something no longer on screen.
 
-### S6. Одно меню в шапке, и у него есть цель
+### S6. One menu in the header, and it has a target
 
-Ряд кнопок `ActionBar` исчезает. Действия собираются в меню трёх точек в шапке
-каталога. Цель действия читается так:
+The `ActionBar` row of buttons disappears. Actions are gathered into a
+three-dot menu in the catalog header. The target of an action is read like this:
 
-- ничего не отмечено — **текущий узел**: это `New folder` и `Upload`, которые
-  относятся к директории, в которую смотрят;
-- отмечено одно — этот узел;
-- отмечено несколько — все отмеченные.
+- nothing marked — **the current node**: these are `New folder` and `Upload`,
+  which apply to the directory being looked at;
+- one marked — that node;
+- several marked — all the marked ones.
 
-Кнопки в ряд были уместны, пока каталог занимал экран целиком. В колонке они
-переносятся на вторую строку, а при пяти действиях — на третью, и шапка
-съедает список.
+Buttons in a row were fitting while the catalog took the whole screen. In a
+column they wrap onto a second line, and with five actions onto a third, and
+the header eats the list.
 
-Действие над несколькими узлами: форма заполняется один раз, вызовов столько,
-сколько узлов, выполняются по очереди. Отказы собираются и докладываются одной
-строкой — «Удалено 4 из 5: summary.csv — папка не пуста». Ветки, названные в
-`reload_node_id` ответов, перечитываются по одному разу в конце, а не после
-каждого вызова.
+An action over several nodes: the form is filled once, there are as many calls
+as nodes, performed one after another. Refusals are collected and reported in
+one line — "Deleted 4 of 5: summary.csv — folder is not empty". The branches
+named in the responses' `reload_node_id` are reloaded once each at the end, not
+after every call.
 
-### S7. Что можно сделать с набором узлов — спрашивается одним вызовом
+### S7. What can be done with a set of nodes is asked in one call
 
-`GET /connectors/{id}/actions?node_id=…` заменяется на
-`POST /connectors/{id}/actions` с телом `{"node_ids": [...] | null}`. Ответ —
-действия, применимые **к каждому** из перечисленных узлов; `null` означает
-корень, как и раньше означал пропущенный параметр.
+`GET /connectors/{id}/actions?node_id=…` is replaced by
+`POST /connectors/{id}/actions` with the body `{"node_ids": [...] | null}`. The
+response is the actions applicable **to each** of the listed nodes; `null`
+means the root, as an omitted parameter meant before.
 
-Чтение выражается через POST по той же причине, по какой через POST выражен
-`fetch`: вход — список непрозрачных идентификаторов, длина которого ничем не
-ограничена. «Выбрать все» в директории на пятьсот файлов — это пятьсот
-идентификаторов, и в строке запроса им места нет. Спрашивать по одному узлу за
-раз — пятьсот запросов вместо одного; считать пересечение на клиенте — это
-клиент решает применимость, чего D9 не допускает.
+A read is expressed through POST for the same reason `fetch` is: the input is a
+list of opaque identifiers whose length is unbounded. "Select all" in a
+directory of five hundred files is five hundred identifiers, and there is no
+room for them in the query string. Asking one node at a time is five hundred
+requests instead of one; computing the intersection on the client means the
+client decides applicability, which D9 does not allow.
 
-Порядок действий в ответе — порядок, в котором их отдаёт драйвер, как и был.
+The order of actions in the response is the order in which the driver returns
+them, as it was.
 
-### S8. Массовость объявляет действие, и клиент о ней не знает
+### S8. Bulk use is declared by the action, and the client does not know about it
 
-`Action` получает `bulk: ClassVar[bool] = False`. `Delete` объявляет `true`.
-`Rename` — нет: одно имя на пять файлов бессмысленно. `CreateFolder` и
-`Upload` относятся к контейнеру, и в наборе отмеченных узлов их вопрос не
-возникает.
+`Action` gets `bulk: ClassVar[bool] = False`. `Delete` declares `true`.
+`Rename` does not: one name for five files is meaningless. `CreateFolder` and
+`Upload` apply to a container, and the question does not arise for them in a
+set of marked nodes.
 
-Флаг в API не выходит. Когда в запросе больше одного узла, сервер сам
-оставляет за бортом действия, которые массовость не объявили. Клиент
-по-прежнему знает ровно одно: вот что можно сделать с тем, что отмечено. Это
-то же самое правило, по которому корень коннектора не отдаёт `rename`, —
-применимость решается на сервере, целиком.
+The flag does not go out into the API. When a request has more than one node,
+the server itself leaves out the actions that did not declare bulk use. The
+client still knows exactly one thing: here is what can be done with what is
+marked. This is the same rule by which the connector root does not return
+`rename` — applicability is decided on the server, entirely.
 
-### S9. Иконка коннектора в шапке каталога
+### S9. The connector icon in the catalog header
 
-В шапке каталога слева стоит иконка типа источника и имя подключения. Клик по
-иконке открывает то же окно подключения, что и клик по иконке в первой
-колонке.
+On the left of the catalog header stand the source type icon and the
+connection name. A click on the icon opens the same connection window as a
+click on the icon in the first column.
 
-Смысл не в удобстве, а в том, что колонка подключений может быть свёрнута.
-Пока правка подключения достижима только из неё, свёрнутая колонка отрезает
-доступ к настройкам того, с чем сейчас работают.
+The point is not convenience but that the connections column can be collapsed.
+While editing a connection is reachable only from it, a collapsed column cuts
+off access to the settings of what is being worked with now.
 
-### S10. Секция даёт панели ящик, панель решает, что в нём едет
+### S10. A section gives a panel a box, the panel decides what moves in it
 
-`workspace-leaf__body` перестаёт прокручиваться сам (`overflow: hidden`) и
-становится ящиком фиксированной высоты. Что внутри стоит, а что прокручивается,
-решает панель.
+`workspace-leaf__body` stops scrolling itself (`overflow: hidden`) and becomes
+a box of fixed height. What stays in place inside and what scrolls is decided
+by the panel.
 
-Сейчас прокручивается панель целиком, вместе с шапкой: уезжает и путь, и
-мультиселект, и пагинатор сетки. Панель знает, что у неё шапка, а движок не
-знает и знать не должен — у него нет понятия «шапка панели», и заводить его
-ради этого значит дать движку знание о том, что панели показывают.
+Today the whole panel scrolls, header included: the path, the multiselect and
+the grid paginator all move away. The panel knows it has a header, while the
+engine does not know and must not — it has no notion of "panel header", and
+introducing one for this would give the engine knowledge of what panels show.
 
-Все три панели устроены одинаково: шапка стоит, тело едет. В сетке данных
-шапка таблицы липкая, пагинатор прибит снизу вне прокрутки. Страница целиком
-не прокручивается никогда.
+All three panels are built the same way: the header stays, the body moves. In
+the data grid the table header is sticky, the paginator is pinned to the bottom
+outside the scroll. The page as a whole never scrolls.
 
-### S11. Свёрнутая секция показывает шеврон и ничего больше
+### S11. A collapsed section shows a chevron and nothing more
 
-Причина, по которой кнопка «развернуть» пропадала: у полосы вкладок
-`overflow: hidden`, вкладки идут перед распоркой и шевроном, и в двадцати
-восьми пикселях свёрнутой колонки шеврон выдавливается за край. У колонки
-подключений вкладка широкая — там он не появлялся никогда; у остальных зависело
-от длины заголовка, отсюда «порой».
+The reason the "expand" button disappeared: the tab strip has
+`overflow: hidden`, the tabs come before the spacer and the chevron, and in the
+twenty-eight pixels of a collapsed column the chevron is pushed past the edge.
+The connections column has a wide tab — there it never appeared; for the others
+it depended on the length of the title, hence "sometimes".
 
-Свёрнутая секция не рендерит вкладки вовсе: только шеврон во всю высоту полосы,
-с подсказкой-именем. Полоса вкладок получает `min-width: 0`, кнопка — `flex:
-none`, чтобы её не выдавливало и в развёрнутой узкой колонке.
+A collapsed section does not render tabs at all: only the chevron at the full
+height of the strip, with a name tooltip. The tab strip gets `min-width: 0`, the
+button `flex: none`, so that it is not pushed out in a narrow expanded column
+either.
 
-## Что не делается
+## What is not done
 
-- **Живой статус подключения.** Точка знает только про ручную проверку. Опрос
-  по вебсокету — подпроект 7+.
-- **Серверный поиск и сортировка каталога.** Фильтр по имени — по загруженному
-  уровню. Контракт адаптера ни того, ни другого не знает.
-- **Пагинация детей каталога.** Файловый источник по-прежнему отказывается
-  перечислять директорию больше 2000 записей. Курсор меняет контракт всем
-  адаптерам сразу.
-- **Перемещение и копирование.** Действие работает внутри одного узла одного
-  подключения — как и было.
-- **Запоминание места в каталоге.** Раскладка переживает перезагрузку, а путь
-  внутри каталога — нет: после перезагрузки открыт корень.
+- **Live connection status.** The dot knows only about a manual check. Polling
+  over the websocket is subproject 7+.
+- **Server-side search and sorting of the catalog.** The name filter works over
+  the loaded level. The adapter contract knows neither.
+- **Paging of catalog children.** The file source still refuses to list a
+  directory of more than 2000 entries. A cursor changes the contract for all
+  adapters at once.
+- **Moving and copying.** An action works inside one node of one connection —
+  as it did.
+- **Remembering the place in the catalog.** The layout survives a reload, but
+  the path inside the catalog does not: after a reload the root is open.
 
-## Как проверяется
+## How it is checked
 
-| Что | Чем |
+| What | By what |
 | --- | --- |
-| `adapterIcon` отдаёт путь к файлу, неизвестный тип — глиф | `bun run test:unit` |
-| таблица видов узла: `schema` — фильтр, `column` — не показывается, что читается | `bun run test:unit`, чистая функция |
-| пересечение действий по набору узлов, `bulk` отсеивает `Rename` | `uv run pytest tests/` |
-| `POST /actions` с одним узлом отвечает как прежний `GET` | `uv run pytest tests/` |
-| действие, которого нет в наборе, не резолвится | существующий тест, 404 |
-| строка подключения не содержит меню; клик по иконке открывает окно | Playwright |
-| удаление подключения делается из окна | Playwright |
-| выбрать все, удалить несколько, увидеть доклад | Playwright |
-| каждая из трёх колонок сворачивается и разворачивается | Playwright |
-| страница не прокручивается, прокручивается тело колонки | Playwright, `scrollHeight` документа |
+| `adapterIcon` returns a file path, an unknown type gets a glyph | `bun run test:unit` |
+| the table of node kinds: `schema` is a filter, `column` is not shown, what is read | `bun run test:unit`, a pure function |
+| intersection of actions over a set of nodes, `bulk` filters out `Rename` | `uv run pytest tests/` |
+| `POST /actions` with one node answers as the old `GET` did | `uv run pytest tests/` |
+| an action not in the set does not resolve | the existing test, 404 |
+| a connection row has no menu; a click on the icon opens the window | Playwright |
+| deleting a connection is done from the window | Playwright |
+| select all, delete several, see the report | Playwright |
+| each of the three columns collapses and expands | Playwright |
+| the page does not scroll, the column body scrolls | Playwright, the document's `scrollHeight` |

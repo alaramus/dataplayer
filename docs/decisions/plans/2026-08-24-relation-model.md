@@ -1,76 +1,76 @@
-# План реализации: модель отношения
+# Implementation plan: relation model
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Источник умеет описать своё отношение целиком — колонки с разобранным типом, ограничения с упорядоченными колонками, индексы, секционирование — и это видно на отдельной вкладке структуры.
+**Goal:** A source can describe its relation in full — columns with the type taken apart, constraints with ordered columns, indexes, partitioning — and this is visible on a separate structure tab.
 
-**Architecture:** Новая необязательная способность `SupportsRelationModel` рядом с `SupportsCatalog` и `SupportsFetch`. Типы модели живут в `app/adapters/relation.py` без единой строчки SQL; реализация для PostgreSQL — четыре запроса, написанные над множеством отношений, с необязательным предикатом по имени. Тип колонки — объект, а не строка: `sql` для DDL, `category` для поведения. Файловый источник способность не реализует и отвечает 501.
+**Architecture:** A new optional capability `SupportsRelationModel` beside `SupportsCatalog` and `SupportsFetch`. The model types live in `app/adapters/relation.py` without a single line of SQL; the PostgreSQL implementation is four queries written over a set of relations, with an optional predicate on the name. A column type is an object, not a string: `sql` for DDL, `category` for behaviour. The file source does not implement the capability and answers 501.
 
-**Tech Stack:** Python 3.14, FastAPI, psycopg 3 (async) с `psycopg.sql`, Pydantic v2, pytest + pytest-asyncio, uv. Фронт: Vue 3, TypeScript, Quasar, `@tanstack/vue-query`, Vitest, Playwright, bun.
+**Tech Stack:** Python 3.14, FastAPI, psycopg 3 (async) with `psycopg.sql`, Pydantic v2, pytest + pytest-asyncio, uv. Frontend: Vue 3, TypeScript, Quasar, `@tanstack/vue-query`, Vitest, Playwright, bun.
 
-Спека: [2026-08-24-relation-model-design.md](../2026-08-24-relation-model-design.md)
+Spec: [2026-08-24-relation-model-design.md](../2026-08-24-relation-model-design.md)
 
 ## Global Constraints
 
-- Python 3.14; команды бэкенда — из `backend/`, через `uv run`.
-- После каждой задачи чисты: `uv run pytest tests/ -q`, `uv run mypy app`, `uv run ruff check app tests`, `uv run lint-imports`.
-- После задач, трогающих фронт: `bun run type-check`, `bun run lint`, `bun run test:unit` из `frontend/`.
-- Перед тестами бэкенда должна быть поднята БД: `docker compose up -d db backend`.
-- **Прогон тестов бэкенда стирает всех пользователей**, включая суперпользователя. Восстанавливает `docker compose up -d db backend`.
-- **На Windows** psycopg 3 в async несовместим с `ProactorEventLoop`; цикл берётся из `app.core.db.loop_factory`, это уже подключено к pytest.
-- Все ручки под префиксом `/api/v1` (`settings.API_V1_STR`).
-- **Запрос никогда не собирается из клиентских строк** (D2c): идентификаторы через `psycopg.sql.Identifier`, значения через плейсхолдеры. Имя схемы и имя отношения приходят из `node_id` и передаются параметрами.
-- **psycopg читает литеральный `%` как плейсхолдер, если переданы параметры**, даже пустой кортеж. Ни в одном запросе этого раунда литерального `%` нет — если появится, его надо удвоить.
-- **Текст драйвера не доходит до вызывающего**: наружу идут `AdapterError` с видом и безопасным сообщением, `NodeNotFound` для исчезнувшего узла, `ValueError` для непригодного `node_id`.
-- `frontend/src/client` генерируется, руками не правится: `bash scripts/generate-client.sh`.
-- Экран просит смысл, а не вид (D11): компоненты из `src/shared/ui`, ни одного сырого `z-index`, ни одного `q-*`, который кит замещает.
-- Всё в репозитории по-английски, кроме `docs/superpowers/`.
-- Коммит после каждой задачи; сообщения по-английски, в стиле существующих (`feat(adapters): …`, `test(…): …`).
+- Python 3.14; backend commands run from `backend/`, through `uv run`.
+- After every task these are clean: `uv run pytest tests/ -q`, `uv run mypy app`, `uv run ruff check app tests`, `uv run lint-imports`.
+- After tasks that touch the frontend: `bun run type-check`, `bun run lint`, `bun run test:unit` from `frontend/`.
+- The database must be up before backend tests: `docker compose up -d db backend`.
+- **A backend test run wipes all users**, the superuser included. `docker compose up -d db backend` restores them.
+- **On Windows** async psycopg 3 is incompatible with `ProactorEventLoop`; the loop comes from `app.core.db.loop_factory`, which is already wired into pytest.
+- All endpoints are under the `/api/v1` prefix (`settings.API_V1_STR`).
+- **A query is never built from client strings** (D2c): identifiers through `psycopg.sql.Identifier`, values through placeholders. The schema name and the relation name come from `node_id` and are passed as parameters.
+- **psycopg reads a literal `%` as a placeholder when parameters are passed**, even an empty tuple. No query in this round has a literal `%` — if one appears, it must be doubled.
+- **Driver text does not reach the caller**: what goes out is `AdapterError` with a kind and a safe message, `NodeNotFound` for a node that has disappeared, `ValueError` for an unusable `node_id`.
+- `frontend/src/client` is generated and not edited by hand: `bash scripts/generate-client.sh`.
+- A screen asks for meaning, not for a look (D11): components from `src/shared/ui`, not one raw `z-index`, not one `q-*` that the kit replaces.
+- Everything in the repository is in English, except `docs/superpowers/`.
+- A commit after every task; messages in English, in the style of the existing ones (`feat(adapters): …`, `test(…): …`).
 
 ---
 
-## Структура файлов
+## File structure
 
-**Создаются:**
+**Created:**
 
-| Файл | За что отвечает |
+| File | Responsible for |
 | --- | --- |
-| `backend/app/adapters/relation.py` | Типы модели отношения. Ни одного запроса. |
-| `backend/app/adapters/postgres/column_type.py` | Чистый разбор типа колонки: `category`, длина, точность, элемент массива. |
-| `backend/app/adapters/postgres/relation.py` | Четыре запроса и сборка `RelationModel`. |
-| `backend/tests/adapters/test_relation_models.py` | Валидация типов модели без БД. |
-| `backend/tests/adapters/test_postgres_column_type.py` | Разбор типа, без БД. |
-| `backend/tests/adapters/test_postgres_relation.py` | Модель против настоящей БД, включая круг через DDL. |
-| `backend/tests/utils/relation_fixture.py` | Фикстура «неудобной» таблицы. |
-| `frontend/src/features/structure/api.ts` | `useRelationModel` на vue-query. |
-| `frontend/src/features/structure/model.ts` | Чистые функции: значки колонки, подпись внешнего ключа. |
-| `frontend/src/features/structure/model.spec.ts` | Юниты на них. |
-| `frontend/src/features/structure/StructureView.vue` | Колонки, ограничения, индексы. |
-| `frontend/src/features/workspace/panels/StructurePanel.vue` | Обёртка панели. |
-| `frontend/tests/structure.spec.ts` | Сценарий Playwright. |
+| `backend/app/adapters/relation.py` | Relation model types. Not a single query. |
+| `backend/app/adapters/postgres/column_type.py` | Pure parsing of a column type: `category`, length, precision, array element. |
+| `backend/app/adapters/postgres/relation.py` | Four queries and the assembly of `RelationModel`. |
+| `backend/tests/adapters/test_relation_models.py` | Validation of the model types without a database. |
+| `backend/tests/adapters/test_postgres_column_type.py` | Type parsing, without a database. |
+| `backend/tests/adapters/test_postgres_relation.py` | The model against a real database, including the round trip through DDL. |
+| `backend/tests/utils/relation_fixture.py` | Fixture of an "awkward" table. |
+| `frontend/src/features/structure/api.ts` | `useRelationModel` on vue-query. |
+| `frontend/src/features/structure/model.ts` | Pure functions: column badges, foreign key caption. |
+| `frontend/src/features/structure/model.spec.ts` | Unit tests for them. |
+| `frontend/src/features/structure/StructureView.vue` | Columns, constraints, indexes. |
+| `frontend/src/features/workspace/panels/StructurePanel.vue` | Panel wrapper. |
+| `frontend/tests/structure.spec.ts` | Playwright scenario. |
 
-**Меняются:**
+**Changed:**
 
-| Файл | Что |
+| File | What |
 | --- | --- |
 | `backend/app/adapters/protocol.py` | `SupportsRelationModel`. |
-| `backend/app/adapters/registry.py` | Строка в `capabilities_of`. |
-| `backend/app/adapters/postgres/adapter.py` | Композиция и делегирование. |
-| `backend/app/adapters/postgres/catalog.py` | `_list_columns` удаляется, `has_children=False` у таблицы. |
-| `backend/app/adapters/catalog.py` | `ColumnNode` удаляется из union и из `NodeKind`. |
+| `backend/app/adapters/registry.py` | A line in `capabilities_of`. |
+| `backend/app/adapters/postgres/adapter.py` | Composition and delegation. |
+| `backend/app/adapters/postgres/catalog.py` | `_list_columns` is removed, `has_children=False` on a table. |
+| `backend/app/adapters/catalog.py` | `ColumnNode` is removed from the union and from `NodeKind`. |
 | `backend/app/connectors/routes.py` | `GET /{connector_id}/relation-model`. |
-| `frontend/src/features/catalog/nodes.ts` | `describable`, роль `column` уходит. |
-| `frontend/src/features/catalog/CatalogList.vue` | Кнопка «структура» на строке. |
-| `frontend/src/features/workspace/panels.ts` | Вид `structure` в union, `structurePanelId`, `roleOf`, `lookOf`, `componentOf`. |
-| `frontend/src/features/workspace/state.ts` | `openStructure` в контракте действий. |
-| `frontend/src/features/workspace/WorkspacePage.vue` | Реализация `openStructure`. |
+| `frontend/src/features/catalog/nodes.ts` | `describable`, the `column` role goes. |
+| `frontend/src/features/catalog/CatalogList.vue` | A "structure" button on the row. |
+| `frontend/src/features/workspace/panels.ts` | The `structure` kind in the union, `structurePanelId`, `roleOf`, `lookOf`, `componentOf`. |
+| `frontend/src/features/workspace/state.ts` | `openStructure` in the actions contract. |
+| `frontend/src/features/workspace/WorkspacePage.vue` | Implementation of `openStructure`. |
 | `AGENTS.md`, `docs/architecture/adapters.md` | D22. |
 
-**Отступление от спеки:** спека называет один файл `postgres/relation.py`. План делит его надвое — разбор типа выносится в `postgres/column_type.py`, потому что это единственная часть, которую можно проверить без базы, и именно в ней живёт ошибка `_int4`. Сборка запросов остаётся в `relation.py`.
+**Deviation from the spec:** the spec names one file `postgres/relation.py`. The plan splits it in two — type parsing moves to `postgres/column_type.py`, because it is the only part that can be checked without a database, and it is exactly where the `_int4` bug lives. Query assembly stays in `relation.py`.
 
 ---
 
-### Task 1: Типы модели и способность
+### Task 1: Model types and the capability
 
 **Files:**
 - Create: `backend/app/adapters/relation.py`
@@ -78,10 +78,10 @@
 - Modify: `backend/app/adapters/protocol.py`
 
 **Interfaces:**
-- Consumes: ничего.
-- Produces: `ColumnType`, `Column`, `PrimaryKey`, `UniqueConstraint`, `ForeignKey`, `CheckConstraint`, `ExclusionConstraint`, `Constraint`, `Index`, `Partitioning`, `PartitionOf`, `RelationModel`, `TypeCategory`, `RelationKind`, `RefAction`; протокол `SupportsRelationModel` с `async def relation_model(self, node_id: str) -> RelationModel`.
+- Consumes: nothing.
+- Produces: `ColumnType`, `Column`, `PrimaryKey`, `UniqueConstraint`, `ForeignKey`, `CheckConstraint`, `ExclusionConstraint`, `Constraint`, `Index`, `Partitioning`, `PartitionOf`, `RelationModel`, `TypeCategory`, `RelationKind`, `RefAction`; the protocol `SupportsRelationModel` with `async def relation_model(self, node_id: str) -> RelationModel`.
 
-- [ ] **Step 1: Написать падающий тест**
+- [ ] **Step 1: Write the failing test**
 
 `backend/tests/adapters/test_relation_models.py`:
 
@@ -171,12 +171,12 @@ def test_a_relation_model_holds_columns_constraints_and_indexes() -> None:
     assert model.partitioning is None
 ```
 
-- [ ] **Step 2: Прогнать и убедиться, что падает**
+- [ ] **Step 2: Run it and confirm it fails**
 
 Run: `cd backend && uv run pytest tests/adapters/test_relation_models.py -q`
 Expected: FAIL, `ModuleNotFoundError: No module named 'app.adapters.relation'`
 
-- [ ] **Step 3: Написать типы**
+- [ ] **Step 3: Write the types**
 
 `backend/app/adapters/relation.py`:
 
@@ -375,9 +375,9 @@ class RelationModel(BaseModel):
     partition_of: PartitionOf | None = None
 ```
 
-- [ ] **Step 4: Добавить способность в протокол**
+- [ ] **Step 4: Add the capability to the protocol**
 
-В конец `backend/app/adapters/protocol.py`, после `SupportsFetch`:
+At the end of `backend/app/adapters/protocol.py`, after `SupportsFetch`:
 
 ```python
 @runtime_checkable
@@ -396,18 +396,18 @@ class SupportsRelationModel(Protocol):
         ...
 ```
 
-И импорт наверху файла:
+And the import at the top of the file:
 
 ```python
 from app.adapters.relation import RelationModel
 ```
 
-- [ ] **Step 5: Прогнать тесты**
+- [ ] **Step 5: Run the tests**
 
 Run: `cd backend && uv run pytest tests/adapters/test_relation_models.py -q && uv run mypy app && uv run ruff check app tests && uv run lint-imports`
-Expected: 5 passed; mypy, ruff и lint-imports без ошибок.
+Expected: 5 passed; mypy, ruff and lint-imports without errors.
 
-- [ ] **Step 6: Коммит**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add backend/app/adapters/relation.py backend/app/adapters/protocol.py backend/tests/adapters/test_relation_models.py && git commit -m "feat(adapters): a source can describe a relation in full"
@@ -415,17 +415,17 @@ git add backend/app/adapters/relation.py backend/app/adapters/protocol.py backen
 
 ---
 
-### Task 2: Разбор типа колонки
+### Task 2: Column type parsing
 
 **Files:**
 - Create: `backend/app/adapters/postgres/column_type.py`
 - Create: `backend/tests/adapters/test_postgres_column_type.py`
 
 **Interfaces:**
-- Consumes: `ColumnType`, `TypeCategory` из Task 1.
-- Produces: `build_column_type(row: Mapping[str, Any]) -> ColumnType`, где `row` несёт ключи `sql_type`, `type_category`, `type_name`, `element_sql`, `element_category`, `element_name`, `type_mod`, `enum_values`, `element_enum_values`.
+- Consumes: `ColumnType`, `TypeCategory` from Task 1.
+- Produces: `build_column_type(row: Mapping[str, Any]) -> ColumnType`, where `row` carries the keys `sql_type`, `type_category`, `type_name`, `element_sql`, `element_category`, `element_name`, `type_mod`, `enum_values`, `element_enum_values`.
 
-- [ ] **Step 1: Написать падающий тест**
+- [ ] **Step 1: Write the failing test**
 
 `backend/tests/adapters/test_postgres_column_type.py`:
 
@@ -563,12 +563,12 @@ def test_an_unknown_category_falls_through_rather_than_failing() -> None:
     assert result.category == "other"
 ```
 
-- [ ] **Step 2: Прогнать и убедиться, что падает**
+- [ ] **Step 2: Run it and confirm it fails**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_column_type.py -q`
 Expected: FAIL, `ModuleNotFoundError: No module named 'app.adapters.postgres.column_type'`
 
-- [ ] **Step 3: Написать разбор**
+- [ ] **Step 3: Write the parser**
 
 `backend/app/adapters/postgres/column_type.py`:
 
@@ -683,12 +683,12 @@ def build_column_type(row: Mapping[str, Any]) -> ColumnType:
     )
 ```
 
-- [ ] **Step 4: Прогнать тесты**
+- [ ] **Step 4: Run the tests**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_column_type.py -q && uv run mypy app && uv run ruff check app tests`
-Expected: 9 passed; mypy и ruff чисто.
+Expected: 9 passed; mypy and ruff clean.
 
-- [ ] **Step 5: Коммит**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/adapters/postgres/column_type.py backend/tests/adapters/test_postgres_column_type.py && git commit -m "feat(postgres): a column type says what it is, not just what it is called"
@@ -696,7 +696,7 @@ git add backend/app/adapters/postgres/column_type.py backend/tests/adapters/test
 
 ---
 
-### Task 3: Отношение и колонки, и круг через DDL
+### Task 3: Relation and columns, and the round trip through DDL
 
 **Files:**
 - Create: `backend/app/adapters/postgres/relation.py`
@@ -704,10 +704,10 @@ git add backend/app/adapters/postgres/column_type.py backend/tests/adapters/test
 - Create: `backend/tests/adapters/test_postgres_relation.py`
 
 **Interfaces:**
-- Consumes: `build_column_type` (Task 2), типы модели (Task 1), `PostgresSession.query(sql, params) -> list[dict[str, Any]]`.
-- Produces: класс `PostgresRelation(session)` с `async def relation_model(self, node_id: str) -> RelationModel` и приватным `async def _models(self, schema: str, relation: str | None) -> list[RelationModel]`.
+- Consumes: `build_column_type` (Task 2), the model types (Task 1), `PostgresSession.query(sql, params) -> list[dict[str, Any]]`.
+- Produces: the class `PostgresRelation(session)` with `async def relation_model(self, node_id: str) -> RelationModel` and a private `async def _models(self, schema: str, relation: str | None) -> list[RelationModel]`.
 
-- [ ] **Step 1: Написать фикстуру неудобной таблицы**
+- [ ] **Step 1: Write the fixture of the awkward table**
 
 `backend/tests/utils/relation_fixture.py`:
 
@@ -798,7 +798,7 @@ async def make_schema() -> AsyncGenerator[str]:
         await run(f"DROP SCHEMA IF EXISTS {SCHEMA} CASCADE")
 ```
 
-- [ ] **Step 2: Написать падающие тесты**
+- [ ] **Step 2: Write the failing tests**
 
 `backend/tests/adapters/test_postgres_relation.py`:
 
@@ -932,12 +932,12 @@ async def test_the_adapter_delegates_to_it(schema: str) -> None:
     assert model.name == "customers"
 ```
 
-- [ ] **Step 3: Прогнать и убедиться, что падает**
+- [ ] **Step 3: Run it and confirm it fails**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_relation.py -q`
 Expected: FAIL, `ModuleNotFoundError: No module named 'app.adapters.postgres.relation'`
 
-- [ ] **Step 4: Написать запросы и сборку**
+- [ ] **Step 4: Write the queries and the assembly**
 
 `backend/app/adapters/postgres/relation.py`:
 
@@ -1126,41 +1126,41 @@ def _relation_model(
     )
 ```
 
-`psycopg.sql` здесь не нужен и не импортируется: ни один идентификатор в эти запросы не подставляется — имя схемы и имя отношения идут значениями через плейсхолдеры.
+`psycopg.sql` is not needed here and is not imported: no identifier is substituted into these queries — the schema name and the relation name go as values through placeholders.
 
-- [ ] **Step 5: Подключить к адаптеру**
+- [ ] **Step 5: Wire it into the adapter**
 
-В `backend/app/adapters/postgres/adapter.py`:
+In `backend/app/adapters/postgres/adapter.py`:
 
 ```python
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.relation import RelationModel
 ```
 
-в `__init__`, после `self._fetch = PostgresFetch(self._session)`:
+in `__init__`, after `self._fetch = PostgresFetch(self._session)`:
 
 ```python
         self._relation = PostgresRelation(self._session)
 ```
 
-и метод рядом с `fetch`:
+and a method beside `fetch`:
 
 ```python
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
 ```
 
-- [ ] **Step 6: Прогнать тесты**
+- [ ] **Step 6: Run the tests**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_relation.py -q`
-Expected: 9 passed. Круг через DDL — `test_the_type_of_every_column_can_be_written_back_into_ddl` — зелёный.
+Expected: 9 passed. The round trip through DDL — `test_the_type_of_every_column_can_be_written_back_into_ddl` — is green.
 
-- [ ] **Step 7: Убедиться, что круг через DDL действительно что-то ловит**
+- [ ] **Step 7: Make sure the round trip through DDL actually catches something**
 
-Временно заменить в `column_type.py` строку `sql = str(row["sql_type"])` на `sql = str(row["type_name"])` и прогнать тот же тест.
-Expected: FAIL — `CREATE TABLE` падает на `_int4`. Вернуть строку обратно и убедиться, что снова PASS. Проверка, которая ни разу не краснела, ничего не доказывает.
+Temporarily replace the line `sql = str(row["sql_type"])` in `column_type.py` with `sql = str(row["type_name"])` and run the same test.
+Expected: FAIL — `CREATE TABLE` fails on `_int4`. Put the line back and make sure it PASSes again. A check that has never gone red proves nothing.
 
-- [ ] **Step 8: Коммит**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add backend/app/adapters/postgres/relation.py backend/app/adapters/postgres/adapter.py backend/tests/utils/relation_fixture.py backend/tests/adapters/test_postgres_relation.py && git commit -m "feat(postgres): a relation describes its columns, types included"
@@ -1168,19 +1168,19 @@ git add backend/app/adapters/postgres/relation.py backend/app/adapters/postgres/
 
 ---
 
-### Task 4: Ограничения
+### Task 4: Constraints
 
 **Files:**
 - Modify: `backend/app/adapters/postgres/relation.py`
 - Modify: `backend/tests/adapters/test_postgres_relation.py`
 
 **Interfaces:**
-- Consumes: `_query`, `_models` из Task 3.
-- Produces: `constraints` заполнены в `RelationModel`.
+- Consumes: `_query`, `_models` from Task 3.
+- Produces: `constraints` filled in `RelationModel`.
 
-- [ ] **Step 1: Дописать падающие тесты**
+- [ ] **Step 1: Add the failing tests**
 
-В конец `backend/tests/adapters/test_postgres_relation.py`:
+At the end of `backend/tests/adapters/test_postgres_relation.py`:
 
 ```python
 from app.adapters.relation import (
@@ -1241,14 +1241,14 @@ async def test_unique_and_check_are_reported_with_their_own_shape(
     assert check.columns == ["balance"]
 ```
 
-- [ ] **Step 2: Прогнать и убедиться, что падает**
+- [ ] **Step 2: Run it and confirm it fails**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_relation.py -q -k constraint or foreign or unique or primary`
-Expected: FAIL — `constraints` пуст, `next()` бросает `StopIteration`.
+Expected: FAIL — `constraints` is empty, `next()` raises `StopIteration`.
 
-- [ ] **Step 3: Написать запрос и сборку**
+- [ ] **Step 3: Write the query and the assembly**
 
-В `backend/app/adapters/postgres/relation.py` добавить запрос:
+In `backend/app/adapters/postgres/relation.py` add the query:
 
 ```python
 _CONSTRAINTS = """
@@ -1292,9 +1292,9 @@ _REF_ACTIONS: dict[str, RefAction] = {
 _MATCH: dict[str, str] = {"f": "full", "p": "partial", "s": "simple"}
 ```
 
-и импорты `CheckConstraint, Constraint, ExclusionConstraint, ForeignKey, PrimaryKey, RefAction, UniqueConstraint`.
+and the imports `CheckConstraint, Constraint, ExclusionConstraint, ForeignKey, PrimaryKey, RefAction, UniqueConstraint`.
 
-Сборку — функцией рядом с `_column`:
+The assembly — as a function beside `_column`:
 
 ```python
 def _names(value: Any) -> list[str]:
@@ -1348,7 +1348,7 @@ def _constraint(row: dict[str, Any]) -> Constraint | None:
     return None
 ```
 
-В `_models`, после сборки колонок:
+In `_models`, after the columns are assembled:
 
 ```python
         constraint_rows = await self._query(
@@ -1361,7 +1361,7 @@ def _constraint(row: dict[str, Any]) -> Constraint | None:
                 constraints.setdefault(str(row["relation"]), []).append(built)
 ```
 
-`_relation_model` получает четвёртый аргумент, и вызов в `return` становится:
+`_relation_model` gets a fourth argument, and the call in `return` becomes:
 
 ```python
         return [
@@ -1375,16 +1375,16 @@ def _constraint(row: dict[str, Any]) -> Constraint | None:
         ]
 ```
 
-В самой `_relation_model` — параметр `constraints: list[Constraint]` и поле `constraints=constraints` в `RelationModel`.
+In `_relation_model` itself — the parameter `constraints: list[Constraint]` and the field `constraints=constraints` in `RelationModel`.
 
-**Почему имена разрешаются в SQL, а не в Python.** Напрашивается собрать словарь «позиция → имя» из уже прочитанных колонок и разложить по нему `conkey` и `confkey`. Для `conkey` это работает, для `confkey` — нет: цель внешнего ключа может лежать в другой схеме, колонок которой в ответе нет вовсе, и `target_columns` молча окажется пустым. `unnest(...) WITH ORDINALITY` разрешает обе стороны у источника и сохраняет порядок ключа, ради которого всё и затевалось.
+**Why names are resolved in SQL and not in Python.** The obvious move is to build a "position → name" dictionary from the columns already read and map `conkey` and `confkey` through it. For `conkey` this works, for `confkey` it does not: the target of a foreign key may live in another schema, whose columns are not in the answer at all, and `target_columns` silently turns out empty. `unnest(...) WITH ORDINALITY` resolves both sides at the source and keeps the key order, which is the whole point of the exercise.
 
-- [ ] **Step 4: Прогнать тесты**
+- [ ] **Step 4: Run the tests**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_relation.py -q && uv run mypy app && uv run ruff check app tests`
-Expected: 13 passed; mypy и ruff чисто.
+Expected: 13 passed; mypy and ruff clean.
 
-- [ ] **Step 5: Коммит**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add backend/app/adapters/postgres/relation.py backend/tests/adapters/test_postgres_relation.py && git commit -m "feat(postgres): a constraint is one object with its columns in order"
@@ -1392,7 +1392,7 @@ git add backend/app/adapters/postgres/relation.py backend/tests/adapters/test_po
 
 ---
 
-### Task 5: Индексы и секционирование
+### Task 5: Indexes and partitioning
 
 **Files:**
 - Modify: `backend/app/adapters/postgres/relation.py`
@@ -1401,11 +1401,11 @@ git add backend/app/adapters/postgres/relation.py backend/tests/adapters/test_po
 
 **Interfaces:**
 - Consumes: `_query`, `_models`.
-- Produces: `indexes`, `partitioning`, `partition_of` заполнены.
+- Produces: `indexes`, `partitioning`, `partition_of` filled.
 
-- [ ] **Step 1: Добавить секционированную таблицу в фикстуру**
+- [ ] **Step 1: Add a partitioned table to the fixture**
 
-В `SETUP`, перед `CREATE VIEW`:
+In `SETUP`, before `CREATE VIEW`:
 
 ```sql
 CREATE TABLE {SCHEMA}.events (
@@ -1417,7 +1417,7 @@ CREATE TABLE {SCHEMA}.events_2026 PARTITION OF {SCHEMA}.events
     FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
 ```
 
-- [ ] **Step 2: Дописать падающие тесты**
+- [ ] **Step 2: Add the failing tests**
 
 ```python
 async def test_indexes_are_listed_with_their_method_and_predicate(
@@ -1452,14 +1452,14 @@ async def test_a_partition_names_its_parent_as_a_node_id(schema: str) -> None:
     assert "2026-01-01" in model.partition_of.bounds
 ```
 
-- [ ] **Step 3: Прогнать и убедиться, что падает**
+- [ ] **Step 3: Run it and confirm it fails**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_relation.py -q -k "index or partition"`
-Expected: FAIL — `indexes` пуст, `partitioning` равно None.
+Expected: FAIL — `indexes` is empty, `partitioning` is None.
 
-- [ ] **Step 4: Дописать запрос индексов и поля секционирования**
+- [ ] **Step 4: Add the index query and the partitioning fields**
 
-Запрос:
+The query:
 
 ```python
 _INDEXES = """
@@ -1486,7 +1486,7 @@ WHERE n.nspname = %s
 """
 ```
 
-`_RELATIONS` дополняется тремя полями и тремя джойнами:
+`_RELATIONS` gets three fields and three joins:
 
 ```sql
        pt.partstrat                               AS partition_strategy,
@@ -1499,7 +1499,7 @@ LEFT JOIN pg_inherits inh ON inh.inhrelid = c.oid
 LEFT JOIN pg_class parent ON parent.oid = inh.inhparent
 ```
 
-Сборка индекса:
+Index assembly:
 
 ```python
 def _index(row: dict[str, Any]) -> Index:
@@ -1518,7 +1518,7 @@ def _index(row: dict[str, Any]) -> Index:
     )
 ```
 
-В `_models` — тем же порядком, что и ограничения:
+In `_models` — in the same way as the constraints:
 
 ```python
         index_rows = await self._query(_INDEXES, schema, relation, "c.relname")
@@ -1527,11 +1527,11 @@ def _index(row: dict[str, Any]) -> Index:
             indexes.setdefault(str(row["relation"]), []).append(_index(row))
 ```
 
-и пятым аргументом в `_relation_model`, где он ложится в поле `indexes`.
+and as the fifth argument to `_relation_model`, where it goes into the `indexes` field.
 
-Импорты в `relation.py` дополняются: `Index`, `Partitioning`, `PartitionOf` из `app.adapters.relation`.
+The imports in `relation.py` are extended with `Index`, `Partitioning`, `PartitionOf` from `app.adapters.relation`.
 
-и в `_relation_model` — секционирование:
+and in `_relation_model` — the partitioning:
 
 ```python
     strategy = row.get("partition_strategy")
@@ -1554,12 +1554,12 @@ def _index(row: dict[str, Any]) -> Index:
     )
 ```
 
-- [ ] **Step 5: Прогнать тесты**
+- [ ] **Step 5: Run the tests**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_relation.py -q && uv run mypy app && uv run ruff check app tests`
-Expected: 16 passed; mypy и ruff чисто.
+Expected: 16 passed; mypy and ruff clean.
 
-- [ ] **Step 6: Коммит**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add backend/app/adapters/postgres/relation.py backend/tests/utils/relation_fixture.py backend/tests/adapters/test_postgres_relation.py && git commit -m "feat(postgres): a relation reports its indexes and how it is partitioned"
@@ -1567,21 +1567,21 @@ git add backend/app/adapters/postgres/relation.py backend/tests/utils/relation_f
 
 ---
 
-### Task 6: Способность и маршрут
+### Task 6: Capability and route
 
 **Files:**
 - Modify: `backend/app/adapters/registry.py`
 - Modify: `backend/app/connectors/routes.py`
 - Modify: `backend/tests/adapters/test_routes.py`
-- Create: тесты в `backend/tests/connectors/` — см. шаг 1
+- Create: tests in `backend/tests/connectors/` — see step 1
 
 **Interfaces:**
 - Consumes: `SupportsRelationModel` (Task 1), `PostgresAdapter.relation_model` (Task 3).
-- Produces: `GET /api/v1/connectors/{connector_id}/relation-model?node_id=...`, отвечающий `RelationModel`.
+- Produces: `GET /api/v1/connectors/{connector_id}/relation-model?node_id=...`, answering with `RelationModel`.
 
-- [ ] **Step 1: Написать падающие тесты маршрута**
+- [ ] **Step 1: Write the failing route tests**
 
-Новый файл `backend/tests/connectors/test_relation_model_routes.py`, по образцу `test_fetch_routes.py` — там нет фикстур коннектора, есть локальный помощник:
+A new file `backend/tests/connectors/test_relation_model_routes.py`, modelled on `test_fetch_routes.py` — it has no connector fixtures, it has a local helper:
 
 ```python
 import uuid
@@ -1682,9 +1682,9 @@ async def test_requires_authentication(client: AsyncClient) -> None:
     assert response.status_code == 401
 ```
 
-Если `relname["type"]["sql"]` окажется не `name`, а чем-то другим, — записать то, что вернул сервер, а не ослаблять проверку до «непусто».
+If `relname["type"]["sql"]` turns out to be something other than `name`, record what the server returned rather than weakening the check to "non-empty".
 
-И в `backend/tests/adapters/test_routes.py`, в тест `test_reports_what_a_type_can_do`:
+And in `backend/tests/adapters/test_routes.py`, in the test `test_reports_what_a_type_can_do`:
 
 ```python
     titles = {capability["title"] for capability in types["postgres"]["capabilities"]}
@@ -1695,25 +1695,25 @@ async def test_requires_authentication(client: AsyncClient) -> None:
     assert "Describe a relation" not in file_titles
 ```
 
-- [ ] **Step 2: Прогнать и убедиться, что падает**
+- [ ] **Step 2: Run it and confirm it fails**
 
 Run: `cd backend && uv run pytest tests/connectors -q -k relation_model && uv run pytest tests/adapters/test_routes.py -q -k what_a_type_can_do`
-Expected: FAIL — 404 на неизвестный маршрут; способность не названа.
+Expected: FAIL — 404 on an unknown route; the capability is not named.
 
-- [ ] **Step 3: Добавить способность в реестр**
+- [ ] **Step 3: Add the capability to the registry**
 
-В `backend/app/adapters/registry.py`, в `capabilities_of`, после строки про `SupportsFetch`:
+In `backend/app/adapters/registry.py`, in `capabilities_of`, after the line about `SupportsFetch`:
 
 ```python
     if issubclass(driver, SupportsRelationModel):
         found.append(Capability(group="explore", title="Describe a relation"))
 ```
 
-и импорт `SupportsRelationModel` из `app.adapters.protocol`.
+and the import of `SupportsRelationModel` from `app.adapters.protocol`.
 
-- [ ] **Step 4: Добавить маршрут**
+- [ ] **Step 4: Add the route**
 
-В `backend/app/connectors/routes.py`, рядом с `read_catalog`:
+In `backend/app/connectors/routes.py`, beside `read_catalog`:
 
 ```python
 @router.get("/{connector_id}/relation-model", response_model=RelationModel)
@@ -1756,14 +1756,14 @@ async def read_relation_model(
         )
 ```
 
-плюс импорты `RelationModel` и `SupportsRelationModel`. Порядок `except` важен: `NodeNotFound` ловится раньше `ValueError`, если она от неё наследуется — проверить в `protocol.py` и при необходимости поставить первой.
+plus the imports `RelationModel` and `SupportsRelationModel`. The order of the `except` clauses matters: `NodeNotFound` is caught before `ValueError` if it inherits from it — check in `protocol.py` and put it first if needed.
 
-- [ ] **Step 5: Прогнать всё**
+- [ ] **Step 5: Run everything**
 
 Run: `cd backend && uv run pytest tests/ -q && uv run mypy app && uv run ruff check app tests && uv run lint-imports`
-Expected: всё зелено.
+Expected: all green.
 
-- [ ] **Step 6: Коммит**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add backend/app/adapters/registry.py backend/app/connectors/routes.py backend/tests && git commit -m "feat(api): ask a source to describe one of its relations"
@@ -1771,7 +1771,7 @@ git add backend/app/adapters/registry.py backend/app/connectors/routes.py backen
 
 ---
 
-### Task 7: Каталог перестаёт спускаться в таблицу
+### Task 7: The catalog stops descending into a table
 
 **Files:**
 - Modify: `backend/app/adapters/catalog.py`
@@ -1780,12 +1780,12 @@ git add backend/app/adapters/registry.py backend/app/connectors/routes.py backen
 - Modify: `frontend/src/features/catalog/nodes.ts`, `nodes.spec.ts`
 
 **Interfaces:**
-- Consumes: ничего нового.
-- Produces: `CatalogNode` без `ColumnNode`; `NodeKind` без `"column"`.
+- Consumes: nothing new.
+- Produces: `CatalogNode` without `ColumnNode`; `NodeKind` without `"column"`.
 
-- [ ] **Step 1: Поправить тесты под новое поведение**
+- [ ] **Step 1: Adjust the tests to the new behaviour**
 
-В `backend/tests/adapters/test_postgres_catalog.py` удалить тесты, перечисляющие колонки таблицы, и заменить одним:
+In `backend/tests/adapters/test_postgres_catalog.py` delete the tests that list a table's columns and replace them with one:
 
 ```python
 async def test_a_table_is_a_leaf_now_that_its_columns_come_from_the_model() -> None:
@@ -1801,37 +1801,37 @@ async def test_a_table_is_a_leaf_now_that_its_columns_come_from_the_model() -> N
     assert table.has_children is False
 ```
 
-Тест на `path_to`, доходящий до колонки (строка ~152), заменить на путь, оканчивающийся таблицей.
+Replace the test on `path_to` that reaches a column (line ~152) with a path ending at a table.
 
-В `backend/tests/adapters/test_catalog.py` убрать конструирование `ColumnNode` и его проверку в union.
+In `backend/tests/adapters/test_catalog.py` remove the construction of `ColumnNode` and its check in the union.
 
-- [ ] **Step 2: Прогнать и убедиться, что падает**
+- [ ] **Step 2: Run it and confirm it fails**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres_catalog.py -q`
-Expected: FAIL — `has_children` пока True.
+Expected: FAIL — `has_children` is still True.
 
-- [ ] **Step 3: Удалить колонки из каталога**
+- [ ] **Step 3: Remove columns from the catalog**
 
-В `backend/app/adapters/catalog.py` удалить класс `ColumnNode`, убрать его из `CatalogNode` и `"column"` из `NodeKind`.
+In `backend/app/adapters/catalog.py` delete the class `ColumnNode`, remove it from `CatalogNode` and `"column"` from `NodeKind`.
 
-В `backend/app/adapters/postgres/catalog.py` удалить метод `_list_columns` и его вызов, убрать импорт `ColumnNode`, поставить `has_children=False` там, где строится `TableNode` (и `ViewNode`, если он его выставляет). В `path_to` убрать ветку разбора третьего сегмента: id вида `schema.table.column` больше не существует.
+In `backend/app/adapters/postgres/catalog.py` delete the method `_list_columns` and its call, remove the import of `ColumnNode`, set `has_children=False` where `TableNode` is built (and `ViewNode`, if it sets it). In `path_to` remove the branch that parses the third segment: an id of the form `schema.table.column` no longer exists.
 
-- [ ] **Step 4: Поправить фронт**
+- [ ] **Step 4: Adjust the frontend**
 
-В `frontend/src/features/catalog/nodes.ts` убрать `column` из `ROLES` и `ICONS`, убрать ветку `case "column"` (строка ~91). В `nodes.spec.ts` убрать тест `roleOfKind("column")` и объект с `kind: "column"`.
+In `frontend/src/features/catalog/nodes.ts` remove `column` from `ROLES` and `ICONS`, remove the `case "column"` branch (line ~91). In `nodes.spec.ts` remove the `roleOfKind("column")` test and the object with `kind: "column"`.
 
-- [ ] **Step 5: Перегенерировать клиент**
+- [ ] **Step 5: Regenerate the client**
 
 ```bash
 docker compose up -d --build backend && bash scripts/generate-client.sh
 ```
 
-- [ ] **Step 6: Прогнать всё**
+- [ ] **Step 6: Run everything**
 
-Run: `cd backend && uv run pytest tests/ -q && uv run mypy app` и `cd frontend && bun run type-check && bun run lint && bun run test:unit`
-Expected: всё зелено.
+Run: `cd backend && uv run pytest tests/ -q && uv run mypy app` and `cd frontend && bun run type-check && bun run lint && bun run test:unit`
+Expected: all green.
 
-- [ ] **Step 7: Коммит**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add -A && git commit -m "refactor(catalog): columns are described once, by the relation model"
@@ -1839,7 +1839,7 @@ git add -A && git commit -m "refactor(catalog): columns are described once, by t
 
 ---
 
-### Task 8: Загрузка модели и чистая логика экрана
+### Task 8: Loading the model and the screen's pure logic
 
 **Files:**
 - Create: `frontend/src/features/structure/api.ts`
@@ -1847,10 +1847,10 @@ git add -A && git commit -m "refactor(catalog): columns are described once, by t
 - Create: `frontend/src/features/structure/model.spec.ts`
 
 **Interfaces:**
-- Consumes: сгенерированный клиент `ConnectorsService.readRelationModel`.
-- Produces: `useRelationModel(connectorId, nodeId)`; `relationModelKey`; `badgesFor(model, columnName): ColumnBadge[]`; `foreignKeyLabel(key): string`; тип `ColumnBadge = { kind: "primary_key" | "foreign_key" | "unique" | "index"; label: string; tooltip: string }`.
+- Consumes: the generated client `ConnectorsService.readRelationModel`.
+- Produces: `useRelationModel(connectorId, nodeId)`; `relationModelKey`; `badgesFor(model, columnName): ColumnBadge[]`; `foreignKeyLabel(key): string`; the type `ColumnBadge = { kind: "primary_key" | "foreign_key" | "unique" | "index"; label: string; tooltip: string }`.
 
-- [ ] **Step 1: Написать падающий тест**
+- [ ] **Step 1: Write the failing test**
 
 `frontend/src/features/structure/model.spec.ts`:
 
@@ -1918,12 +1918,12 @@ describe("foreignKeyLabel", () => {
 })
 ```
 
-- [ ] **Step 2: Прогнать и убедиться, что падает**
+- [ ] **Step 2: Run it and confirm it fails**
 
 Run: `cd frontend && bun run test:unit src/features/structure/model.spec.ts`
-Expected: FAIL — модуль не найден.
+Expected: FAIL — module not found.
 
-- [ ] **Step 3: Написать чистую логику**
+- [ ] **Step 3: Write the pure logic**
 
 `frontend/src/features/structure/model.ts`:
 
@@ -2021,12 +2021,12 @@ export function useRelationModel(connectorId: Ref<string>, nodeId: Ref<string>) 
 }
 ```
 
-- [ ] **Step 4: Прогнать тесты**
+- [ ] **Step 4: Run the tests**
 
 Run: `cd frontend && bun run test:unit src/features/structure/model.spec.ts && bun run type-check && bun run lint`
-Expected: 5 passed; type-check и lint чисто.
+Expected: 5 passed; type-check and lint clean.
 
-- [ ] **Step 5: Коммит**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add frontend/src/features/structure && git commit -m "feat(structure): read a relation model and lay its constraints out per column"
@@ -2034,7 +2034,7 @@ git add frontend/src/features/structure && git commit -m "feat(structure): read 
 
 ---
 
-### Task 9: Панель структуры
+### Task 9: Structure panel
 
 **Files:**
 - Create: `frontend/src/features/structure/StructureView.vue`
@@ -2046,11 +2046,11 @@ git add frontend/src/features/structure && git commit -m "feat(structure): read 
 
 **Interfaces:**
 - Consumes: `useRelationModel`, `badgesFor`, `foreignKeyLabel` (Task 8).
-- Produces: вид панели `structure` с полями `{ id, kind: "structure", connectorId, nodeId, title, connectorName, adapterType }`; `structurePanelId(connectorId, nodeId)`; `openStructure(request)` в `workspaceActionsKey`; `describable: boolean` на `ListNode`.
+- Produces: the panel kind `structure` with the fields `{ id, kind: "structure", connectorId, nodeId, title, connectorName, adapterType }`; `structurePanelId(connectorId, nodeId)`; `openStructure(request)` in `workspaceActionsKey`; `describable: boolean` on `ListNode`.
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write the failing tests**
 
-В `frontend/src/features/workspace/panels.spec.ts` — по образцу существующих тестов на `rows`:
+In `frontend/src/features/workspace/panels.spec.ts` — modelled on the existing tests for `rows`:
 
 ```ts
 it("puts structure in the column of work", () => {
@@ -2063,7 +2063,7 @@ it("identifies a structure panel by what it shows", () => {
 })
 ```
 
-В `frontend/src/features/catalog/nodes.spec.ts`:
+In `frontend/src/features/catalog/nodes.spec.ts`:
 
 ```ts
 it("offers structure for a relation and not for a file", () => {
@@ -2073,16 +2073,16 @@ it("offers structure for a relation and not for a file", () => {
 })
 ```
 
-Имя фабрики (`listNodeOf` или как она названа в `nodes.ts`) взять из существующего файла.
+Take the name of the factory (`listNodeOf` or whatever it is called in `nodes.ts`) from the existing file.
 
-- [ ] **Step 2: Прогнать и убедиться, что падает**
+- [ ] **Step 2: Run it and confirm it fails**
 
 Run: `cd frontend && bun run test:unit src/features/workspace/panels.spec.ts src/features/catalog/nodes.spec.ts`
-Expected: FAIL — `structurePanelId` не экспортируется, `describable` не существует.
+Expected: FAIL — `structurePanelId` is not exported, `describable` does not exist.
 
-- [ ] **Step 3: Расширить union панелей**
+- [ ] **Step 3: Extend the panel union**
 
-В `frontend/src/features/workspace/panels.ts`, в `panelSchema`:
+In `frontend/src/features/workspace/panels.ts`, in `panelSchema`:
 
 ```ts
   z.object({
@@ -2101,7 +2101,7 @@ export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
 ```
 
-в `roleOf` — `case "structure": return "work"`; в `lookOf`:
+in `roleOf` — `case "structure": return "work"`; in `lookOf`:
 
 ```ts
     case "structure":
@@ -2113,7 +2113,7 @@ export const structurePanelId = (connectorId: string, nodeId: string) =>
       }
 ```
 
-в `componentOf`:
+in `componentOf`:
 
 ```ts
     case "structure":
@@ -2126,9 +2126,9 @@ export const structurePanelId = (connectorId: string, nodeId: string) =>
       )
 ```
 
-и импорт `StructurePanelView`.
+and the import of `StructurePanelView`.
 
-- [ ] **Step 4: Написать экран**
+- [ ] **Step 4: Write the screen**
 
 `frontend/src/features/structure/StructureView.vue`:
 
@@ -2314,7 +2314,7 @@ const errorText = computed(() =>
 </style>
 ```
 
-Проверить по `src/shared/ui/index.ts`, что `AppBadge`, `AppSection`, `AppTooltip` принимают такие пропсы; если имя пропса другое — взять то, что там объявлено, а не добавлять новый.
+Check against `src/shared/ui/index.ts` that `AppBadge`, `AppSection`, `AppTooltip` accept these props; if a prop's name is different, take the one declared there rather than adding a new one.
 
 `frontend/src/features/workspace/panels/StructurePanel.vue`:
 
@@ -2356,9 +2356,9 @@ useReloadable(props.panelId, async () => {
 </style>
 ```
 
-- [ ] **Step 5: Открыть панель из каталога**
+- [ ] **Step 5: Open the panel from the catalog**
 
-В `nodes.ts` — поле `describable` на `ListNode`, вычисляемое по виду узла:
+In `nodes.ts` — a `describable` field on `ListNode`, computed from the node's kind:
 
 ```ts
 /**
@@ -2374,7 +2374,7 @@ const DESCRIBABLE: Record<CatalogNode["kind"], boolean> = {
 }
 ```
 
-В `CatalogList.vue` — после `catalog-list__name`, перед подписями:
+In `CatalogList.vue` — after `catalog-list__name`, before the captions:
 
 ```html
         <span
@@ -2391,16 +2391,16 @@ const DESCRIBABLE: Record<CatalogNode["kind"], boolean> = {
         </span>
 ```
 
-плюс `describe` в `defineEmits`.
+plus `describe` in `defineEmits`.
 
-В `state.ts` — `openStructure: (request: OpenStructureRequest) => void`; в `WorkspacePage.vue` — реализация рядом с `openRows`, через `structurePanelId`. В `CatalogPanel.vue` — обработчик `@describe`, зовущий `workspace.openStructure` с теми же полями, что `onOpen` передаёт в `openRows`.
+In `state.ts` — `openStructure: (request: OpenStructureRequest) => void`; in `WorkspacePage.vue` — the implementation beside `openRows`, through `structurePanelId`. In `CatalogPanel.vue` — a `@describe` handler that calls `workspace.openStructure` with the same fields that `onOpen` passes to `openRows`.
 
-- [ ] **Step 6: Прогнать всё**
+- [ ] **Step 6: Run everything**
 
 Run: `cd frontend && bun run test:unit && bun run type-check && bun run lint`
-Expected: всё зелено. Тест витрины `/ui-kit` не трогается: новых компонентов кита нет.
+Expected: all green. The `/ui-kit` showcase test is not touched: there are no new kit components.
 
-- [ ] **Step 7: Коммит**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add frontend/src && git commit -m "feat(structure): a relation gets a tab of its own"
@@ -2408,24 +2408,24 @@ git add frontend/src && git commit -m "feat(structure): a relation gets a tab of
 
 ---
 
-### Task 10: Сценарий в браузере
+### Task 10: Browser scenario
 
 **Files:**
 - Create: `frontend/tests/structure.spec.ts`
 
 **Interfaces:**
-- Consumes: всё предыдущее.
-- Produces: доказательство, что человек это видит.
+- Consumes: everything before.
+- Produces: proof that a person sees it.
 
-**Исправление при выполнении:** системные каталоги PostgreSQL не объявляют
-первичные ключи через `pg_constraint`, поэтому `pg_attribute` не может доказать
-значок PK. Сценарий использует `demo_lab.app_users` из dev-фикстуры: там есть и
-PK, и FK. Структура сначала открывается и проверяется, затем открываются строки,
-после чего неактивная вкладка структуры выносится в соседнюю секцию. Если
-вынести её раньше, новая вкладка строк выбирает созданную work-секцию и снова
-скрывает структуру — это проверяет не тот результат.
+**Correction during execution:** PostgreSQL's system catalogs do not declare
+primary keys through `pg_constraint`, so `pg_attribute` cannot prove the
+PK badge. The scenario uses `demo_lab.app_users` from the dev fixture: it has both
+a PK and an FK. The structure is opened and checked first, then the rows are opened,
+after which the inactive structure tab is moved into a neighbouring section. If
+it is moved earlier, the new rows tab picks the work section that was created and hides
+the structure again — that checks the wrong result.
 
-- [ ] **Step 1: Написать сценарий**
+- [ ] **Step 1: Write the scenario**
 
 `frontend/tests/structure.spec.ts`:
 
@@ -2469,11 +2469,11 @@ test("shows the structure of a relation beside its rows", async ({ page }) => {
 })
 ```
 
-Хост базы в коннекторе `createPostgresConnector` уже пишет так, как его видит бэкенд в сети compose — `db`, не `localhost`; проверка соединения выполняется на сервере.
+The database host in the connector is already written by `createPostgresConnector` the way the backend sees it in the compose network — `db`, not `localhost`; the connection check runs on the server.
 
-Если `pg_attribute` в этой версии PostgreSQL окажется без объявленного первичного ключа, взять `pg_class` — но не заменять проверку значка на что-то более слабое: без неё сценарий перестаёт доказывать, что ограничения дошли до экрана.
+If `pg_attribute` in this version of PostgreSQL turns out to have no declared primary key, take `pg_class` — but do not replace the badge check with something weaker: without it the scenario stops proving that constraints reached the screen.
 
-- [ ] **Step 2: Поднять всё и прогнать**
+- [ ] **Step 2: Bring everything up and run**
 
 ```bash
 docker compose up -d db backend
@@ -2482,12 +2482,12 @@ docker compose up -d db backend
 Run: `cd frontend && bunx playwright test tests/structure.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 3: Убедиться, что сценарий действительно проверяет**
+- [ ] **Step 3: Make sure the scenario actually checks**
 
-Временно убрать `v-if="node.describable"` из кнопки в `CatalogList.vue` — нет, это её покажет везде. Вместо этого временно поменять `data-testid="structure-view"` на другое имя и прогнать сценарий.
-Expected: FAIL по таймауту ожидания. Вернуть имя, убедиться, что снова PASS.
+Temporarily remove `v-if="node.describable"` from the button in `CatalogList.vue` — no, that would show it everywhere. Instead, temporarily change `data-testid="structure-view"` to another name and run the scenario.
+Expected: FAIL on a wait timeout. Restore the name, make sure it PASSes again.
 
-- [ ] **Step 4: Коммит**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add frontend/tests/structure.spec.ts && git commit -m "test(e2e): the structure of a relation is on screen"
@@ -2495,21 +2495,21 @@ git add frontend/tests/structure.spec.ts && git commit -m "test(e2e): the struct
 
 ---
 
-### Task 11: Документация
+### Task 11: Documentation
 
 **Files:**
 - Modify: `AGENTS.md`
 - Modify: `docs/architecture/adapters.md`
 
-- [ ] **Step 1: Записать решение**
+- [ ] **Step 1: Record the decision**
 
-В таблицу решений `AGENTS.md`, после D21:
+In the decision table of `AGENTS.md`, after D21:
 
 ```
 | D22 | A source describes a relation in full, and a column type is an object | [adapters](docs/architecture/adapters.md) |
 ```
 
-В «What already works», отдельным пунктом списка:
+In "What already works", as a separate list item:
 
 ```
 - A relation describes itself: columns with the type taken apart — what to
@@ -2518,14 +2518,14 @@ git add frontend/tests/structure.spec.ts && git commit -m "test(e2e): the struct
   own, which can sit beside the rows of the same table.
 ```
 
-В `docs/architecture/adapters.md` — дом решения: формулировка, рассуждение (три работы одной строки, почему `typname` не попал в модель, почему ограничение — объект верхнего уровня, почему запрос написан над множеством) и известное отклонение: серверного кеша нет, схема за раз не отдаётся.
+In `docs/architecture/adapters.md` — the home of the decision: the statement, the reasoning (the three jobs of one string, why `typname` did not get into the model, why a constraint is a top-level object, why the query is written over a set) and the known deviation: there is no server-side cache, and a whole schema is not served at once.
 
-- [ ] **Step 2: Проверить**
+- [ ] **Step 2: Check**
 
 Run: `bash scripts/check-docs.sh`
 Expected: `docs ok: … AGENTS.md is <N> of 24576 bytes`
 
-- [ ] **Step 3: Прогнать всё разом**
+- [ ] **Step 3: Run everything at once**
 
 ```bash
 cd backend && uv run pytest tests/ -q && uv run mypy app && uv run ruff check app tests && uv run lint-imports
@@ -2533,7 +2533,7 @@ cd ../frontend && bun run type-check && bun run lint && bun run test:unit && bun
 cd .. && bash scripts/check-docs.sh
 ```
 
-- [ ] **Step 4: Коммит**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add AGENTS.md docs/architecture/adapters.md && git commit -m "docs: a source describes a relation in full"

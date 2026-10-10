@@ -1,152 +1,160 @@
-# Проводник, полоса вкладок и нижняя строка
+# The explorer, the tab strip and the bottom bar
 
-Правки по итогам работы с трёхколоночным экраном. Не подпроект: ни одного
-нового слоя, ни одной новой возможности источника — но четыре из восьми правок
-меняют то, что записано в
-[2026-08-22-catalog-list-design.md](2026-08-22-catalog-list-design.md), и
-поэтому записываются здесь, а не в коммит-сообщении.
+Corrections following work with the three-column screen. Not a subproject: no
+new layer, no new source capability — but four of the eight corrections change
+what is recorded in
+[2026-08-22-catalog-list-design.md](2026-08-22-catalog-list-design.md), and are
+therefore recorded here rather than in a commit message.
 
-## Цель
+## Goal
 
-Экран собран, и в работе с ним вылезло восемь мест, где он ведёт себя не так,
-как ведут себя проводники, к которым привыкла рука.
+The screen is assembled, and working with it turned up eight places where it
+does not behave the way the explorers the hand is used to behave.
 
-## Что меняется в прежних решениях
+## What changes in earlier decisions
 
-- **S6 (цель меню)** — «ничего не отмечено — текущий узел» отменяется для
-  действий, которые меняют сам узел. Стоять в папке и удалить её из меню —
-  это не то, чего пользователь просил; он просил удалить то, что отмечено.
-- **S7 (один вызов про набор)** — ответ перестаёт быть списком применимого и
-  становится словарём с флагом применимости.
-- **S8 (массовость)** — не меняется по сути: `bulk` по-прежнему не выходит
-  наружу флагом, он выражается через `applicable=false` для набора.
-- **S11 (свёрнутая секция)** — свёрнутая секция больше не «шеврон и ничего
-  больше»: фича может положить в неё что-то своё.
-- **S5 (отметка и открытие)** — добавляется третий жест: строка `..`.
+- **S6 (menu target)** — "nothing checked — the current node" is cancelled for
+  actions that change the node itself. Standing in a folder and deleting it
+  from the menu is not what the user asked for; they asked to delete what is
+  checked.
+- **S7 (one call about the set)** — the response stops being a list of what
+  applies and becomes a dictionary with an applicability flag.
+- **S8 (bulk)** — does not change in substance: `bulk` still does not come out
+  as a flag, it is expressed through `applicable=false` for the set.
+- **S11 (collapsed section)** — a collapsed section is no longer "a chevron and
+  nothing else": a feature can put something of its own in it.
+- **S5 (checking and opening)** — a third gesture is added: the `..` row.
 
-## Решения
+## Decisions
 
-### V1. Меню не меняет форму: весь словарь, применимость — флаг
+### V1. The menu does not change shape: the whole dictionary, applicability is a flag
 
-`POST /connectors/{id}/actions` отвечает **всеми** действиями источника, и у
-каждого стоит `applicable` — можно ли его сделать с теми узлами, о которых
-спросили. Клиент рисует все строки и гасит неприменимые.
+`POST /connectors/{id}/actions` answers with **all** of the source's actions,
+and each carries `applicable` — whether it can be done with the nodes asked
+about. The client draws all rows and dims the inapplicable ones.
 
-Прежний ответ — только применимое — давал меню, которое меняет состав на
-каждом шаге: в корне два пункта, внутри папки четыре, на отмеченном файле два
-других. Меню, из которого пункты исчезают, ничему не учит: пользователь не
-знает, чего источник вообще не умеет, а чего нельзя прямо сейчас.
+The former response — only what applies — gave a menu that changed its
+contents at every step: two items at the root, four inside a folder, two
+different ones on a checked file. A menu from which items disappear teaches
+nothing: the user does not know what the source cannot do at all and what
+cannot be done right now.
 
-Разрешения это не ослабляет. Выполнение по-прежнему спрашивает `available` для
-конкретного узла (`_action_for_node`), так что попасть в список — не значит
-получить право. Ровно поэтому флаг безопасен: он для глаз, а не для ворот.
+This does not weaken permissions. Execution still asks `available` for the
+specific node (`_action_for_node`), so getting into the list does not mean
+getting the right. That is exactly why the flag is safe: it is for the eyes,
+not for the gate.
 
-### V2. Действие объявляет, что оно меняет
+### V2. An action declares what it changes
 
-`Action.acts_on: ClassVar[Literal["node", "children"]]`. `Rename` и `Delete` —
-`node`, `CreateFolder` и `Upload` — `children`.
+`Action.acts_on: ClassVar[Literal["node", "children"]]`. `Rename` and `Delete`
+are `node`, `CreateFolder` and `Upload` are `children`.
 
-Это то, что позволяет одному меню иметь две цели, не зная ни одного имени
-действия. Пункт со `node` уходит на отмеченные узлы и погашен, пока ничего не
-отмечено; пункт со `children` уходит на уровень, в который смотрят, и живёт
-всегда. Клиент, который различал бы их по именам, пришлось бы учить каждому
-новому действию — а весь смысл D9 в том, что источник добавляет действие и
-экран не меняется.
+This is what lets one menu have two targets without knowing a single action
+name. An item with `node` goes to the checked nodes and is dimmed while nothing
+is checked; an item with `children` goes to the level being looked at and is
+always live. A client that told them apart by name would have to be taught
+every new action — and the whole point of D9 is that a source adds an action
+and the screen does not change.
 
-Объявляется рядом с `applies_to`, а не выводится из класса: `_ActsOnNode` —
-приём файлового драйвера, а не общий контракт. Вывести структурно, как выведен
-`takes_file`, здесь не из чего.
+It is declared next to `applies_to`, not derived from the class: `_ActsOnNode`
+is a device of the file driver, not a common contract. There is nothing here to
+derive it from structurally, the way `takes_file` is derived.
 
-Побочный и главный результат: находясь в папке, её нельзя ни переименовать, ни
-удалить — до неё нужно дотянуться отметкой с уровня выше.
+The side effect, and the main result: while inside a folder, it can be neither
+renamed nor deleted — it has to be reached with a check from the level above.
 
-### V3. Нет действий — нет трёх точек
+### V3. No actions — no three dots
 
-Источник, который не реализует способность, отвечает 501; меню в этом случае не
-рисуется вовсе. Прежде кнопка стояла погашенной и обещала то, чего нет.
-Погашенный пункт означает «нельзя сейчас»; погашенное меню означало бы «нельзя
-никогда», а это не состояние, а отсутствие.
+A source that does not implement the capability answers 501; in that case the
+menu is not drawn at all. Previously the button stood dimmed and promised what
+was not there. A dimmed item means "not now"; a dimmed menu would mean "never",
+and that is not a state but an absence.
 
-### V4. Наверх — первая строка списка, а не кнопка в шапке
+### V4. Up is the first row of the list, not a button in the header
 
-`..` стоит первой строкой, без чекбокса, с иконкой выхода наверх. Кнопки
-`arrow_upward` в шапке больше нет.
+`..` is the first row, without a checkbox, with a go-up icon. The
+`arrow_upward` button in the header is gone.
 
-Так устроен любой проводник, и рука уже в списке: путь наверх — это место среди
-мест, а не команда. Строка рисуется и над пустым уровнем — в пустой папке
-дорога назад нужнее всего.
+Every explorer works this way, and the hand is already in the list: the way up
+is a place among places, not a command. The row is drawn above an empty level
+too — in an empty folder the way back is needed most.
 
-### V5. Путь начинается с кнопки home и стоит в одной строке с иконкой
+### V5. The path starts with a home button and stands on one line with the icon
 
-Первая крошка — не имя подключения, а кнопка «домой». Имя подключения уже
-написано на вкладке, и второй раз оно не сообщает ничего, зато съедает ширину
-колонки; поэтому из шапки панели оно убрано вовсе, а строка стала одной:
-иконка типа источника, путь, три точки. Три вещи об одном подключении — не
-стопка строк: шапка отнимает высоту у списка, ради которого колонка и нужна.
+The first crumb is not the connection name but a "home" button. The connection
+name is already written on the tab, and a second time it tells nothing but
+eats the column's width; so it is removed from the panel header altogether,
+and the header became one line: source type icon, path, three dots. Three
+things about one connection are not a stack of lines: a header takes height
+from the list the column exists for.
 
-Пути нет — пилюли нет. В корне идти некуда, а у базы каталог и вовсе один
-уровень: схемы — группировка, а не место, так что путь там не появляется
-никогда, и пилюля с одной кнопкой «домой» была бы обещанием хождения, которого
-нет. Высотой шапки за это не платим: строку держит кнопка рядом, а не крошки.
+No path — no pill. At the root there is nowhere to go, and a database catalog
+has only one level anyway: schemas are a grouping, not a place, so a path never
+appears there, and a pill with a single "home" button would promise navigation
+that does not exist. We do not pay for this with header height: the line is
+held by the button next to it, not by the crumbs.
 
-Хвост пути прокручивается внутри пилюли, а кнопка «домой» стоит вне прокрутки:
-путь, который не влез в колонку, не должен уносить единственный шаг,
-возвращающий наверх.
+The tail of the path scrolls inside the pill, while the "home" button stands
+outside the scroll: a path that did not fit the column must not carry away the
+only step that returns to the top.
 
-### V6. Свёрнутая колонка источников оставляет иконки
+### V6. The collapsed sources column keeps its icons
 
-Движок получает `collapsedOf(panelId)` — симметрично `emptyOf(accepts)`: он
-знает, что секция узкая, а что стоит этой ширины — знает фича. Отвечают только
-подключения: иконка типа и точка состояния, клик открывает каталог.
+The engine gets `collapsedOf(panelId)` — symmetrical to `emptyOf(accepts)`: it
+knows the section is narrow, and the feature knows what is worth that width.
+Only connections answer: a type icon and a status dot, a click opens the
+catalog.
 
-Открывает именно каталог, а не окно подключения: свёрнутая колонка — это способ
-вернуться в источник, а окно достижимо из шапки каталога (S9). `COLLAPSED_PX`
-растёт с 28 до 40 — ровно чтобы иконка помещалась.
+It opens the catalog specifically, not the connection window: the collapsed
+column is a way back into a source, and the window is reachable from the
+catalog header (S9). `COLLAPSED_PX` grows from 28 to 40 — exactly so the icon
+fits.
 
-### V7. Вкладки переносятся, полосу можно очистить до текущей
+### V7. Tabs wrap, the strip can be cleared down to the current one
 
-`overflow: hidden` у полосы вкладок сменяется на `flex-wrap: wrap`. Вкладка,
-которую не видно, недостижима, а колонка узкая по построению.
+`overflow: hidden` on the tab strip is replaced by `flex-wrap: wrap`. A tab
+that cannot be seen cannot be reached, and the column is narrow by
+construction.
 
-Рядом с шевроном появляется кнопка «закрыть остальные»: закрывает все вкладки
-секции, кроме активной. Операция раскладки, поэтому живёт в движке; панель,
-которой фича не дала крестика, переживает её так же, как пережила бы свой
-крестик.
+Next to the chevron a "close others" button appears: it closes all tabs of the
+section except the active one. It is a layout operation, so it lives in the
+engine; a panel to which the feature gave no close cross survives it the same
+way it would survive its own cross.
 
-### V8. Нижняя строка
+### V8. The bottom bar
 
-`q-footer` того же цвета, что и шапка, с пустым слотом `status`. Пусто
-намеренно: что бывает в статусной строке — что подключено, что выполняется,
-сколько стоил последний запрос — приходит вместе с работой, которая это
-порождает. Место под неё нужно сейчас, чтобы раскладка была закрыта снизу.
+A `q-footer` of the same colour as the header, with an empty `status` slot.
+Empty on purpose: what goes into a status bar — what is connected, what is
+running, what the last query cost — arrives together with the work that
+produces it. The space for it is needed now, so the layout is closed at the
+bottom.
 
-## Что не делается
+## What is not done
 
-- **Один вызов вместо двух.** Меню спрашивает сервер дважды: про уровень (там
-  словарь) и про отмеченное. Свести в один — это тело запроса, которое говорит
-  две разные вещи о двух разных наборах.
-- **Порядок вкладок.** Перетаскивание внутри своей полосы по-прежнему ничего не
-  делает.
-- **Содержимое нижней строки.**
-- **Свёрнутый каталог и свёрнутая сетка.** Списку текста нечего показать в
-  сорока пикселях; механизм есть, желающих нет.
+- **One call instead of two.** The menu asks the server twice: about the level
+  (the dictionary is there) and about what is checked. Merging them into one is
+  a request body that says two different things about two different sets.
+- **Tab order.** Dragging within its own strip still does nothing.
+- **Contents of the bottom bar.**
+- **Collapsed catalog and collapsed grid.** A list of text has nothing to show
+  in forty pixels; the mechanism exists, nobody wants it.
 
-## Как проверяется
+## How it is verified
 
-| Что | Чем |
+| What | By |
 | --- | --- |
-| ответ несёт весь словарь, применимость — флагом | `uv run pytest tests/` |
-| корень отдаёт `create_folder`/`upload` применимыми, `rename`/`delete` — нет | `uv run pytest tests/` |
-| каждое файловое действие объявляет `acts_on` | `uv run pytest tests/` |
-| `toMenu`: пока ничего не отмечено, погашено всё, что меняет узел | `bun run test:unit`, чистая функция |
-| `toMenu`: цель пункта — отмеченные либо уровень, по `acts_on` | `bun run test:unit` |
-| свёрнутая секция показывает то, что дала фича | `bun run test:unit`, WorkspaceLeaf |
-| «закрыть остальные» оставляет активную и непожимаемую | `bun run test:unit`, useWorkspace |
-| меню погашено без отметки и живо с отметкой | Playwright, `aria-disabled` |
-| у базы трёх точек нет вовсе | Playwright |
-| `..` — первая строка списка и выровнена по строкам с чекбоксом | Playwright |
-| home возвращает в корень, путь стоит в одной строке с иконкой | Playwright |
-| у базы и в корне пути нет вовсе | Playwright |
-| свёрнутая колонка источников открывает подключение | Playwright |
-| полоса очищается до текущей вкладки | Playwright |
-| нижняя строка на экране | Playwright |
+| the response carries the whole dictionary, applicability as a flag | `uv run pytest tests/` |
+| the root gives `create_folder`/`upload` as applicable, `rename`/`delete` as not | `uv run pytest tests/` |
+| every file action declares `acts_on` | `uv run pytest tests/` |
+| `toMenu`: while nothing is checked, everything that changes a node is dimmed | `bun run test:unit`, pure function |
+| `toMenu`: an item's target is the checked nodes or the level, by `acts_on` | `bun run test:unit` |
+| a collapsed section shows what the feature gave | `bun run test:unit`, WorkspaceLeaf |
+| "close others" leaves the active one and the uncloseable | `bun run test:unit`, useWorkspace |
+| the menu is dimmed without a check and live with one | Playwright, `aria-disabled` |
+| a database has no three dots at all | Playwright |
+| `..` is the first row of the list and aligned with the rows that have a checkbox | Playwright |
+| home returns to the root, the path stands on one line with the icon | Playwright |
+| a database and the root have no path at all | Playwright |
+| the collapsed sources column opens a connection | Playwright |
+| the strip is cleared down to the current tab | Playwright |
+| the bottom bar is on screen | Playwright |

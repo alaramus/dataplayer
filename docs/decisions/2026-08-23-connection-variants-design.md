@@ -1,29 +1,29 @@
-# Варианты подключения: способ аутентификации и разбор строки подключения
+# Connection variants: the authentication method and parsing a connection string
 
-Дата: 2026-08-23
-Статус: выполнено
-Подпроект: 7-подготовка, второй из двух
+Date: 2026-08-23
+Status: done
+Subproject: 7-preparation, the second of two
 
-## Для того, кто начинает с чистой сессии
+## For someone starting from a clean session
 
-Читать в этом порядке: [AGENTS.md](../../AGENTS.md), решения Р1–Р15;
-[ENGINEERING.md](../../ENGINEERING.md) целиком; спек предыдущего подпроекта
-`2026-08-23-connector-window-design.md`. Этот подпроект — его прямое
-продолжение и последний из «7-подготовка».
+Read in this order: [AGENTS.md](../../AGENTS.md), decisions R1–R15;
+[ENGINEERING.md](../../ENGINEERING.md) in full; the spec of the previous
+subproject `2026-08-23-connector-window-design.md`. This subproject is its
+direct continuation and the last of "7-preparation".
 
-Что уже сделано и на что здесь опираются:
+What is already done and what is relied on here:
 
-- Окно подключения — плавающее, их несколько сразу
-  (`features/connectors/ConnectorWindow.vue`, движок `shared/windows/`).
-- Форма строится из JSON Schema, которую отдаёт `GET /adapter-types/`
+- The connection window is floating, several of them at once
+  (`features/connectors/ConnectorWindow.vue`, engine `shared/windows/`).
+- The form is built from the JSON Schema returned by `GET /adapter-types/`
   (`shared/SchemaForm/jsonSchema.ts` → `SchemaFields.vue`).
-- Поле само говорит, в какой оно вкладке и с кем делит строку
+- A field itself says which tab it is in and whom it shares a row with
   (`app/adapters/layout.py` → `json_schema_extra`).
-- Строка подключения собирается сервером и **только показывается**:
-  `SupportsConnectionString`, маршрут `POST /connectors/describe-draft`,
-  источник без такой возможности отвечает 501.
+- The connection string is assembled by the server and **only shown**:
+  `SupportsConnectionString`, route `POST /connectors/describe-draft`, a
+  source without that capability answers 501.
 
-Три команды, которые понадобятся сразу:
+Three commands that will be needed right away:
 
 ```bash
 docker compose up -d --build backend
@@ -37,44 +37,44 @@ bash scripts/generate-client.sh
 cd backend && uv run pytest tests/ -q
 ```
 
-## Цель
+## Goal
 
-В окне подключения сейчас всегда один набор полей: хост, порт, база,
-пользователь, пароль. Нужно, чтобы состав полей зависел от выбранного способа
-подключения, и чтобы вставленную строку подключения можно было разложить по
-полям, а не набирать их заново.
+The connection window now always has one set of fields: host, port, database,
+user, password. The set of fields needs to depend on the chosen connection
+method, and a pasted connection string needs to be split into the fields
+rather than typed in again.
 
-Это последняя часть переделки окна: предыдущая дала само окно и раскладку,
-эта — то, что в нём меняется.
+This is the last part of the window rework: the previous one gave the window
+itself and the layout, this one — what changes in it.
 
-## Чего здесь нет
+## What is not here
 
-**Строка подключения не становится вторым хранимым видом опций.** Вставленный
-DSN разбирается на сервере и раскладывается по полям; поля остаются правдой,
-хранимый вид один. Отвергнут настоящий режим «URL only», как в ориентире, и по
-двум причинам сразу:
+**The connection string does not become a second stored form of the options.**
+A pasted DSN is parsed on the server and spread over the fields; the fields
+stay the truth, there is one stored form. A real "URL only" mode, as in the
+reference, is rejected, for two reasons at once:
 
-- DSN может содержать пароль, значит по Р4 он целиком становится `SecretStr` и
-  попадает в шифрованный блоб. Секрет наружу не возвращается — при правке
-  подключения поле пришло бы пустым, и чтобы поменять один порт, пришлось бы
-  набирать весь DSN заново;
-- это второй хранимый вид **поверх** вариантов аутентификации, то есть
-  перемножение: «поля + пароль», «поля без пароля», «URL + пароль», «URL без
-  пароля». Четыре формы на два независимых вопроса, и при третьем вопросе —
-  восемь.
+- a DSN may contain a password, so by R4 it becomes a `SecretStr` as a whole
+  and goes into the encrypted blob. A secret is not returned — when editing a
+  connection the field would come back empty, and to change one port one would
+  have to type the whole DSN again;
+- it is a second stored form **on top of** the authentication variants, that
+  is, a multiplication: "fields + password", "fields without password", "URL +
+  password", "URL without password". Four forms for two independent questions,
+  and with a third question — eight.
 
-Механизм при этом не теряется: источник, у которого действительно нет
-составных частей — REST-точка, очередь по адресу, — объявляет одно поле `url`
-и никакого варианта не требует.
+The mechanism is not lost: a source that really has no component parts — a
+REST endpoint, a queue at an address — declares one `url` field and needs no
+variant.
 
-**SSL-сертификаты не добавляются.** Третий способ потребовал бы хранить и
-шифровать файлы и подкладывать их драйверу; это отдельная работа.
+**SSL certificates are not added.** A third method would require storing and
+encrypting files and handing them to the driver; that is separate work.
 
-## Решения
+## Decisions
 
-### В1. Вариант — это дискриминированное объединение на сервере
+### V1. A variant is a discriminated union on the server
 
-Модель опций перестаёт быть одним классом и становится объединением по полю
+The options model stops being one class and becomes a union by the field
 `auth_method`:
 
 ```python
@@ -99,31 +99,31 @@ PostgresOptions = Annotated[
 ]
 ```
 
-**Плоское объединение, а не вложенное.** Общие поля наследуются от базового
-класса, а не выносятся в подобъект `auth: {...}`. Вложенность изменила бы
-хранимый вид (`config` стал бы двухуровневым), а вместе с ним — разделение
-секретов, которое сегодня режет по именам верхнего уровня
-(`service.split_options`). Плоское объединение оставляет `config` плоским:
-добавляется ровно один ключ `auth_method`.
+**A flat union, not a nested one.** Common fields are inherited from a base
+class, not moved into a sub-object `auth: {...}`. Nesting would change the
+stored form (`config` would become two-level), and with it the separation of
+secrets, which today cuts by top-level names (`service.split_options`). A flat
+union keeps `config` flat: exactly one key, `auth_method`, is added.
 
-**Два способа, а не один.** Выпадающий список из одного пункта — бутафория, а
-`no_auth` — не выдумка: `trust` и `peer` в `pg_hba.conf` встречаются, и разница
-в драйвере честная (пароль просто не передаётся в `conninfo`).
+**Two methods, not one.** A drop-down of one item is a stage prop, and
+`no_auth` is not invented: `trust` and `peer` do occur in `pg_hba.conf`, and the
+difference in the driver is honest (the password is simply not passed in
+`conninfo`).
 
-`model_config = ConfigDict(title=...)` — не украшение: заголовок класса
-попадает в `$defs` и становится подписью пункта в списке. Без него пунктом
-будет имя класса.
+`model_config = ConfigDict(title=...)` is not decoration: the class title gets
+into `$defs` and becomes the label of the item in the list. Without it the item
+would be the class name.
 
-### В2. Реестр перестаёт требовать `type[BaseModel]`
+### V2. The registry stops requiring `type[BaseModel]`
 
-`AdapterType.options_schema` сегодня типизирован как `type[BaseModel]`, а
-объединение — это `Annotated[Union[...]]`, у которого нет `model_json_schema`.
+`AdapterType.options_schema` is typed today as `type[BaseModel]`, and a union
+is an `Annotated[Union[...]]`, which has no `model_json_schema`.
 
-Появляется `app/adapters/options.py` — один шов, через который все обращаются
-к схеме опций, чем бы она ни была:
+`app/adapters/options.py` appears — one seam through which everyone reaches the
+options schema, whatever it is:
 
 ```python
-type OptionsSchema = Any   # type[BaseModel] или дискриминированное объединение
+type OptionsSchema = Any   # type[BaseModel] or a discriminated union
 
 def json_schema(schema: OptionsSchema) -> dict[str, Any]: ...
 def validate(schema: OptionsSchema, data: Mapping[str, Any]) -> BaseModel: ...
@@ -131,29 +131,29 @@ def variants(schema: OptionsSchema) -> list[type[BaseModel]]: ...
 def secret_field_names(schema: OptionsSchema) -> set[str]: ...
 ```
 
-Внутри — `TypeAdapter`, который одинаково работает и с обычной моделью, и с
-объединением: проверено, `TypeAdapter(Union).json_schema()` отдаёт
-`{$defs, discriminator, oneOf}`, а `TypeAdapter(Model).json_schema()` — обычную
-схему.
+Inside is a `TypeAdapter`, which works the same with an ordinary model and with
+a union: verified, `TypeAdapter(Union).json_schema()` returns
+`{$defs, discriminator, oneOf}`, and `TypeAdapter(Model).json_schema()` an
+ordinary schema.
 
-`registry.secret_field_names` **переезжает сюда** и начинает считать
-объединение имён по всем вариантам. Это то самое место, где Р4 либо
-сохраняется, либо тихо ломается: поле, объявленное `SecretStr` только в одном
-варианте, обязано попасть в шифрованный блоб.
+`registry.secret_field_names` **moves here** and starts computing the union of
+names across all variants. This is the very place where R4 is either kept or
+quietly broken: a field declared `SecretStr` in only one variant must get into
+the encrypted blob.
 
-Потребители, которых надо перевести: `connectors/service.py`
+Consumers to be moved over: `connectors/service.py`
 (`split_options`, `fill_missing_secrets`, `build_adapter`),
 `adapters/routes.py` (`options_schema.model_json_schema()`),
 `adapters/registry.py`.
 
-### В3. Существующие подключения требуют миграции данных
+### V3. Existing connections require a data migration
 
-Проверено: Pydantic **отвергает** объект без поля-дискриминатора
-(`union_tag_not_found`). Значит уже сохранённые postgres-подключения перестанут
-читаться, а вместе с ними — открываться, проверяться и опрашиваться.
+Verified: Pydantic **rejects** an object without the discriminator field
+(`union_tag_not_found`). So already saved postgres connections will stop being
+readable, and with that — being opened, checked and polled.
 
-Одна ревизия alembic, данными, без изменения схемы. Таблица называется
-`connector` (проверено), колонка `config` — jsonb:
+One alembic revision, data only, no schema change. The table is called
+`connector` (verified), the column `config` is jsonb:
 
 ```sql
 UPDATE connector
@@ -161,35 +161,38 @@ SET config = jsonb_set(config, '{auth_method}', '"user_password"')
 WHERE adapter_type = 'postgres' AND NOT (config ? 'auth_method')
 ```
 
-Обратная миграция снимает ключ. `user_password`, а не `no_auth`: у всех
-существующих подключений пароль есть, иначе они не сохранились бы.
+The downgrade removes the key. `user_password`, not `no_auth`: all existing
+connections have a password, otherwise they would not have been saved.
 
-Забыть эту миграцию — значит получить не ошибку валидации при старте, а
-подключения, которые перестали открываться; поэтому тест на неё пишется
-раньше кода варианта.
+Forgetting this migration means getting not a validation error at startup but
+connections that stopped opening; so its test is written before the variant
+code.
 
-### В4. Драйвер получает то, что выбрано, и молчит об остальном
+### V4. The driver gets what is chosen and keeps quiet about the rest
 
-`PostgresSession.__init__` принимает объединение. `conninfo()` передаёт
-`password` только когда вариант его несёт:
+`PostgresSession.__init__` takes the union. `conninfo()` passes `password`
+only when the variant carries it:
 
 ```python
 if isinstance(self._options, PostgresUserPassword):
     parts["password"] = self._options.password.get_secret_value()
 ```
 
-Это единственное место в драйвере, которое знает о вариантах. `connection_string()`
-(О8 прошлого подпроекта) уже не содержит пароля, так что менять его не нужно.
+This is the only place in the driver that knows about variants.
+`connection_string()` (O8 of the previous subproject) already contains no
+password, so it does not need to change.
 
-**Проверить руками, что `no_auth` действительно работает:** контейнер `db` в
-`compose.override.yml` поднимается с паролем, поэтому подключение без пароля к
-нему должно **не** проходить и сообщать `auth`. Тест на успешный `no_auth`
-требует сервера с `trust`, и его в этом подпроекте нет — записать в отклонения.
+**Check by hand that `no_auth` really works:** the `db` container in
+`compose.override.yml` starts with a password, so a passwordless connection to
+it must **not** succeed and must report `auth`. A test of a successful `no_auth`
+requires a server with `trust`, and there is none in this subproject — record it
+in the deviations.
 
-### В5. Разбор строки подключения — возможность класса, а не экземпляра
+### V5. Parsing a connection string is a capability of the class, not of an instance
 
-Адаптер нельзя построить, пока опций нет, а разбор как раз их производит.
-Значит вопрос задаётся **типу**, ровно как `action_types()` в Р13:
+An adapter cannot be built while there are no options, and parsing is exactly
+what produces them. So the question is asked of the **type**, just like
+`action_types()` in R13:
 
 ```python
 @runtime_checkable
@@ -198,35 +201,35 @@ class ParsesConnectionString(Protocol):
     def options_from_url(cls, url: str) -> dict[str, Any]: ...
 ```
 
-Маршрут `POST /connectors/parse-url`, тело `{adapter_type, url}`, ответ
-`{options: {...}}`. Источник без возможности — 501, неразбираемая строка — 422.
-Соединение не открывается.
+Route `POST /connectors/parse-url`, body `{adapter_type, url}`, response
+`{options: {...}}`. A source without the capability — 501, an unparseable
+string — 422. No connection is opened.
 
-Для PostgreSQL внутри — `psycopg.conninfo.conninfo_to_dict`, проверено:
+For PostgreSQL the inside is `psycopg.conninfo.conninfo_to_dict`, verified:
 `postgresql://ann@db:6543/app` → `{'user': 'ann', 'dbname': 'app',
-'host': 'db', 'port': '6543'}`. Отсюда три подробности, каждая из которых
-иначе станет ошибкой:
+'host': 'db', 'port': '6543'}`. Hence three details, each of which would
+otherwise become a bug:
 
-- ключ называется `dbname`, а поле — `database`;
-- `port` приходит **строкой**;
-- `password` отсутствует, когда его нет в строке.
+- the key is called `dbname`, and the field `database`;
+- `port` arrives as a **string**;
+- `password` is absent when it is not in the string.
 
-**Драйвер возвращает полный и валидный набор опций, включая дискриминатор.**
-Если пароль в строке есть — `user_password`, если нет — `no_auth`. Инференс
-принадлежит драйверу, а не форме: форма, угадывающая способ аутентификации по
-наличию подстроки, — это `isFieldShowing` старого приложения, с которого всё
-началось.
+**The driver returns a complete and valid set of options, including the
+discriminator.** If the string has a password — `user_password`, if not —
+`no_auth`. The inference belongs to the driver, not the form: a form that
+guesses the authentication method by the presence of a substring is the
+`isFieldShowing` of the old application, where it all started.
 
-Оговорка, которую надо назвать пользователю в интерфейсе: строка без пароля
-даёт «без пароля», и если пароль просто не хотели писать в URL, способ надо
-переключить руками.
+A caveat that has to be told to the user in the interface: a string without a
+password gives "without password", and if the password simply was not meant to
+be written into the URL, the method has to be switched by hand.
 
-**Пароль в ответе — не разглашение.** Клиент только что прислал эту самую
-строку. Но в лог она попасть не должна.
+**A password in the response is not a disclosure.** The client has just sent
+this very string. But it must not get into the log.
 
-### В6. Форма читает `oneOf` и склеивает общее
+### V6. The form reads `oneOf` and merges what is common
 
-Проверено: Pydantic отдаёт схему объединения так —
+Verified: Pydantic returns the schema of a union like this —
 
 ```json
 { "$defs": { "PostgresNoAuth": {...}, "PostgresUserPassword": {...} },
@@ -235,178 +238,183 @@ class ParsesConnectionString(Protocol):
   "oneOf": [ { "$ref": "#/$defs/PostgresUserPassword" }, ... ] }
 ```
 
-**`schemaToFields` сегодня ссылок не разворачивает** — читает `schema.properties`
-и всё. Это первое, что придётся сделать.
+**`schemaToFields` does not resolve references today** — it reads
+`schema.properties` and that is all. This is the first thing that will have to
+be done.
 
-Появляется чистая функция `readSchema(schema)` в `jsonSchema.ts`, возвращающая
-размеченное объединение:
+A pure function `readSchema(schema)` appears in `jsonSchema.ts`, returning a
+tagged union:
 
 ```ts
 type SchemaShape =
   | { kind: "plain"; fields: FieldSpec[] }
   | { kind: "variants"
-      discriminator: FieldSpec        // select, choices = пункты mapping
-      common: FieldSpec[]             // поля, одинаковые во всех вариантах
+      discriminator: FieldSpec        // select, choices = mapping items
+      common: FieldSpec[]             // fields identical in all variants
       byVariant: Record<string, FieldSpec[]> }
 ```
 
-`common` — поля, встречающиеся во **всех** вариантах с тем же видом и
-заголовком, в порядке первого варианта. Это то, что не даёт хосту и порту
-прыгать при переключении способа: общие рисуются один раз и на месте, а
-меняются только собственные поля варианта.
+`common` are the fields that occur in **all** variants with the same kind and
+title, in the order of the first variant. This is what keeps host and port
+from jumping when the method is switched: the common ones are drawn once and in
+place, and only the variant's own fields change.
 
-Порядок на экране: общие → выбор способа → поля варианта. В ориентире
-Authentication стоит между портом и пользователем, а база — ниже пароля; у нас
-база окажется выше выбора способа. Расхождение осознанное: единственный способ
-совпасть — дать полю явный порядковый номер, а это третья координата раскладки
-ради одной строки.
+The order on screen: common → choice of method → variant fields. In the
+reference Authentication stands between port and user, and the database below
+the password; here the database ends up above the choice of method. The
+divergence is deliberate: the only way to match is to give a field an explicit
+ordinal, and that is a third layout coordinate for the sake of one row.
 
-Сопутствующие правки, каждая нужна:
+Accompanying edits, each one needed:
 
-- `FieldSpec.choices` сейчас `string[]`, а пункту нужен и код, и подпись
-  (`no_auth` → «No auth»). Становится `{ value: string; label: string }[]`;
-  `AppSelect` уже умеет объекты — проверить.
-- `jsonSchemaToZod` строит проверку по **общим полям плюс активному варианту**,
-  а не по объединению целиком.
-- `defaultValues` заполняет дискриминатор первым пунктом `mapping`.
-- Переключение способа не должно стирать общие значения.
+- `FieldSpec.choices` is now `string[]`, and an item needs both a code and a
+  label (`no_auth` → "No auth"). It becomes `{ value: string; label: string }[]`;
+  `AppSelect` already handles objects — check.
+- `jsonSchemaToZod` builds validation from **the common fields plus the active
+  variant**, not from the whole union.
+- `defaultValues` fills the discriminator with the first item of `mapping`.
+- Switching the method must not erase common values.
 
-### В7. Кнопка, которая разбирает вставленную строку
+### V7. A button that parses a pasted string
 
-> **Изменено при выполнении.** Кнопки «вставить» нет: строка вводится прямо в
-> поле. См. «Что вышло иначе» в конце.
+> **Changed during execution.** There is no "paste" button: the string is typed
+> directly into the field. See "What turned out differently" at the end.
 
 
-Строка подключения остаётся показывающей, но рядом с кнопкой «скопировать»
-появляется вторая — «вставить и разобрать»: она берёт текст из буфера, шлёт его
-в `parse-url` и заменяет значения формы ответом.
+The connection string stays display-only, but next to the "copy" button a
+second one appears — "paste and parse": it takes text from the clipboard, sends
+it to `parse-url` and replaces the form's values with the response.
 
-Не редактируемое поле, потому что поле, которое то показывает собранное, то
-принимает набранное, обязано отвечать на вопрос «что из двух правда сейчас», а
-ответ у нас один: правда — поля.
+Not an editable field, because a field that sometimes shows the assembled value
+and sometimes accepts typed input has to answer the question "which of the two
+is the truth right now", and we have one answer: the fields are the truth.
 
-## Что меняется
+## What changes
 
-### Бэкенд
+### Backend
 
 ```
 app/adapters/
-├── options.py        новый: json_schema / validate / variants /
-│                     secret_field_names поверх TypeAdapter
+├── options.py        new: json_schema / validate / variants /
+│                     secret_field_names on top of TypeAdapter
 ├── protocol.py       + ParsesConnectionString (classmethod, issubclass)
-├── registry.py       options_schema: OptionsSchema; secret_field_names уезжает
-├── routes.py         схема берётся через options.json_schema
+├── registry.py       options_schema: OptionsSchema; secret_field_names moves out
+├── routes.py         the schema is taken through options.json_schema
 └── postgres/
-    ├── options.py    объединение по auth_method, два варианта
-    ├── session.py    пароль только у варианта, который его несёт
+    ├── options.py    union by auth_method, two variants
+    ├── session.py    password only for the variant that carries it
     └── adapter.py    + options_from_url (classmethod)
 app/connectors/
 ├── service.py        split_options / fill_missing_secrets / build_adapter
-│                     через app.adapters.options
+│                     through app.adapters.options
 └── routes.py         + POST /parse-url
-app/alembic/versions/ одна ревизия: auth_method существующим подключениям
+app/alembic/versions/ one revision: auth_method for existing connections
 ```
 
-### Фронтенд
+### Frontend
 
 ```
 frontend/src/
 ├── shared/SchemaForm/
-│   ├── jsonSchema.ts    readSchema, разворачивание $ref, choices как пары
-│   └── SchemaFields.vue без изменений — получает уже готовый список полей
+│   ├── jsonSchema.ts    readSchema, resolving $ref, choices as pairs
+│   └── SchemaFields.vue unchanged — gets a ready list of fields
 └── features/connectors/
-    ├── ConnectorWindow.vue  выбор способа, общие поля, поля варианта,
-    │                        кнопка «вставить и разобрать»
+    ├── ConnectorWindow.vue  choice of method, common fields, variant fields,
+    │                        "paste and parse" button
     └── api.ts               useParseUrl
 ```
 
-## Порядок работы
+## Order of work
 
-Каждый шаг — падающий тест, потом код. Порядок не случаен: первые два не видны
-на экране, но всё остальное на них стоит.
+Each step is a failing test, then code. The order is not accidental: the first
+two are not visible on screen, but everything else stands on them.
 
-1. **`app/adapters/options.py`** и перевод на него всех потребителей. Поведение
-   не меняется: схема ещё одна модель. Зелёный `pytest`, `mypy`, `lint-imports`.
-2. **Миграция данных** (В3) и тест на неё.
-3. **Объединение в `postgres/options.py`** (В1) и `session.py` (В4). Здесь
-   должен упасть и почерпнуть смысл тест «пароль не уходит при `no_auth`».
-4. **`parse-url`** (В5): 501 для файлового источника, 422 на мусор, разбор с
-   паролем и без.
-5. `bash scripts/generate-client.sh` — иначе фронтенд не увидит ни `oneOf`, ни
-   новый маршрут.
-6. **`readSchema`** (В6) с тестами на разворачивание `$ref`, на склейку общих
-   полей и на порядок.
-7. **Окно**: выбор способа, кнопка разбора.
-8. **Сценарии Playwright** — переключение способа на экране, вставка строки.
+1. **`app/adapters/options.py`** and moving all consumers to it. Behaviour does
+   not change: the schema is still one model. Green `pytest`, `mypy`,
+   `lint-imports`.
+2. **Data migration** (V3) and its test.
+3. **The union in `postgres/options.py`** (V1) and `session.py` (V4). Here the
+   test "the password is not sent with `no_auth`" must fail and gain meaning.
+4. **`parse-url`** (V5): 501 for the file source, 422 on garbage, parsing with a
+   password and without.
+5. `bash scripts/generate-client.sh` — otherwise the frontend will see neither
+   `oneOf` nor the new route.
+6. **`readSchema`** (V6) with tests on resolving `$ref`, merging common fields
+   and order.
+7. **The window**: choice of method, the parse button.
+8. **Playwright scenarios** — switching the method on screen, pasting a string.
 
-## Чем держится
+## What holds it
 
-| Проверка | Что ловит |
+| Check | What it catches |
 | --- | --- |
-| `pytest tests/adapters/test_options.py` | `secret_field_names` по объединению; `json_schema` для модели и для объединения |
-| `pytest tests/adapters/test_postgres.py` | `no_auth` не передаёт пароль в `conninfo`; `user_password` передаёт |
-| `pytest tests/connectors/test_service.py` | `split_options` кладёт пароль в блоб для одного варианта и ничего — для другого |
-| `pytest tests/connectors/test_parse_routes.py` | 501 без возможности, 422 на мусор, `dbname`→`database`, порт числом, вывод способа |
-| миграция | подключение, сохранённое до неё, читается после |
-| `bun run test:unit` | `readSchema`: `$ref`, общие поля, порядок, пары код-подпись |
-| `bunx playwright test` | смена способа убирает пароль и оставляет хост; вставка строки заполняет поля |
+| `pytest tests/adapters/test_options.py` | `secret_field_names` across the union; `json_schema` for a model and for a union |
+| `pytest tests/adapters/test_postgres.py` | `no_auth` does not pass the password into `conninfo`; `user_password` does |
+| `pytest tests/connectors/test_service.py` | `split_options` puts the password into the blob for one variant and nothing for the other |
+| `pytest tests/connectors/test_parse_routes.py` | 501 without the capability, 422 on garbage, `dbname`→`database`, port as a number, inferring the method |
+| migration | a connection saved before it is readable after it |
+| `bun run test:unit` | `readSchema`: `$ref`, common fields, order, code-label pairs |
+| `bunx playwright test` | changing the method removes the password and keeps the host; pasting a string fills the fields |
 
-Отдельно — то, чего юнит-тест не докажет: **полоса вкладок до сих пор ни разу
-не была видна** (у обоих типов одна группа). Если в этом подпроекте у
-PostgreSQL появится вторая группа, проверить её в браузере; если нет — оставить
-отклонение как есть.
+Separately — what a unit test will not prove: **the tab strip has never yet
+been visible** (both types have one group). If PostgreSQL gets a second group
+in this subproject, check it in the browser; if not, leave the deviation as it
+is.
 
-## Известные отклонения, которые это добавит
+## Known deviations this will add
 
-- **`no_auth` не проверен на сервере, который его принимает.** Контейнер
-  `db` требует пароль, поэтому тест доказывает только что пароль не уходит, а
-  не что подключение без него работает.
-- **Разбор строки угадывает способ.** URL без пароля даёт `no_auth`, даже если
-  пароль просто не хотели писать в строку.
-- ~~**Порядок полей отличается от ориентира.**~~ Снято. Порядок задаёт сам
-  сервер — объявлением полей, — а форма его больше ничем не перебивает: база
-  класса держит только адрес, каждый вариант объявляет способ сразу под ним.
-  Явного порядкового номера у поля по-прежнему нет, и поле, которому нужно
-  встать между двумя полями своей же модели, его потребует.
-- ~~**Переключение способа теряет значения полей, которых нет в новом
-  варианте.**~~ Не подтвердилось при выполнении. Значения живут в одной
-  плоской записи, а вариант решает только что рисуется и что отправляется, —
-  поэтому пароль, набранный до переключения на `no_auth`, на экран
-  возвращается, а на сервер при `no_auth` не уходит.
-- **Разобранная строка попадает в тело запроса.** Пароль из вставленного DSN
-  проходит через сервер и возвращается клиенту; ничего нового не раскрывается,
-  но в логи это попасть не должно, и никакой проверки на это нет.
-- **Вариантов два, и оба у одного типа.** Механизм рассчитан на объединение
-  любой ширины, но проверен на самом узком из возможных.
+- **`no_auth` is not verified against a server that accepts it.** The `db`
+  container requires a password, so the test proves only that the password is
+  not sent, not that a connection without it works.
+- **Parsing a string guesses the method.** A URL without a password gives
+  `no_auth`, even if the password simply was not meant to be written into the
+  string.
+- ~~**The order of fields differs from the reference.**~~ Removed. The order is
+  set by the server itself — by the declaration of fields — and the form no
+  longer overrides it in any way: the class base holds only the address, each
+  variant declares the method right below it. A field still has no explicit
+  ordinal, and a field that needs to stand between two fields of its own model
+  will require one.
+- ~~**Switching the method loses the values of fields that are not in the new
+  variant.**~~ Not confirmed during execution. The values live in one flat
+  record, and the variant only decides what is drawn and what is sent — so a
+  password typed before switching to `no_auth` comes back on screen, and is not
+  sent to the server with `no_auth`.
+- **The parsed string goes into the request body.** The password from a pasted
+  DSN passes through the server and returns to the client; nothing new is
+  disclosed, but it must not get into the logs, and there is no check for this.
+- **There are two variants, and both belong to one type.** The mechanism is
+  designed for a union of any width, but verified on the narrowest possible.
 
-## Что вышло иначе, чем задумано
+## What turned out differently than planned
 
-Записано здесь, а не только в коде: план, разошедшийся с выполнением, чинится
-вместе с кодом.
+Recorded here, not only in code: a plan that diverged from execution is fixed
+together with the code.
 
-- **Дискриминатор получил `title` и `layout()`.** В В1 он объявлен голым
-  `Literal`. Тогда подписью поля стало бы «Auth Method», а вкладку выбор
-  унаследовал бы неоткуда; форма читает заголовок и раскладку с самого
-  свойства первого варианта, так что сервер остаётся единственным местом, где
-  что-то называется.
-- **`parse-url` не проверяет полноту.** Возвращается то, что удалось разобрать,
-  плюс дискриминатор; строка без пользователя — обычное дело, и отказ на ней
-  был бы хуже пустого поля. Отвергается только то, что psycopg не читает
-  вовсе, что не называет хоста и что называет непригодный порт.
-- **`readSchema` считает общими и неподряд идущие поля.** `user` объявлен в
-  обоих вариантах после дискриминатора и совпадает по виду и заголовку —
-  значит рисуется один раз вместе с остальными общими. Отсюда и расхождение с
-  ориентиром в порядке, теперь на два поля, а не на одно.
-- **`AppIconButton` научился `loading`.** Обход набора через сквозные атрибуты
-  уже записан в отклонения.
-- **Поле URL редактируемое, кнопка «вставить» убрана** (В7 пересмотрен).
-  Возражение из В7 — «какая из двух правд сейчас» — снято не запретом, а тем,
-  что поле не хранит своего ответа: набранное уходит драйверу, драйвер
-  выдаёт поля, поля собирают строку обратно. Пароль, набранный в строке,
-  оказывается в поле пароля и из строки исчезает; правило видно, а не
-  объяснено. Пока в поле стоит курсор, собранная строка в него не пишется:
-  любой префикс адреса разбирается как адрес, и медленно набирающему иначе
-  переписывало бы строку под курсором — это проверено сценарием, который до
-  правки падал.
-- **Заглушка `<hidden>` возвращается по уходу из поля,** если ничего не
-  набрали: поле, в которое вошли и вышли, ничего не изменило.
+- **The discriminator got a `title` and `layout()`.** In V1 it is declared as a
+  bare `Literal`. Then the field label would have become "Auth Method", and the
+  choice would have had nowhere to inherit a tab from; the form reads the title
+  and layout from the property of the first variant itself, so the server stays
+  the only place where anything is named.
+- **`parse-url` does not check completeness.** What could be parsed is
+  returned, plus the discriminator; a string without a user is common, and a
+  refusal on it would be worse than an empty field. Only what psycopg cannot
+  read at all, what names no host and what names an unusable port is rejected.
+- **`readSchema` treats non-adjacent fields as common too.** `user` is declared
+  in both variants after the discriminator and matches by kind and title — so it
+  is drawn once together with the other common fields. Hence the divergence
+  from the reference in order, now by two fields rather than one.
+- **`AppIconButton` learned `loading`.** Bypassing the kit through pass-through
+  attributes is already recorded in the deviations.
+- **The URL field is editable, the "paste" button is removed** (V7 revised).
+  The objection from V7 — "which of the two truths right now" — is removed not
+  by a prohibition but by the field not keeping an answer of its own: what is
+  typed goes to the driver, the driver produces fields, the fields assemble the
+  string back. A password typed in the string ends up in the password field and
+  disappears from the string; the rule is visible rather than explained. While
+  the cursor is in the field, the assembled string is not written into it: any
+  prefix of an address parses as an address, and otherwise a slow typist would
+  have the string rewritten under the cursor — this is verified by a scenario
+  that failed before the fix.
+- **The `<hidden>` placeholder comes back on leaving the field** if nothing was
+  typed: a field that was entered and left has changed nothing.

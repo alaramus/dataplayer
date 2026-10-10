@@ -1,33 +1,33 @@
-# План реализации: реестр коннекторов, бэкенд
+# Implementation plan: connector registry, backend
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** API, позволяющий создать коннектор к PostgreSQL, сохранить его учётные данные зашифрованными и проверить соединение.
+**Goal:** an API that lets a user create a PostgreSQL connector, store its credentials encrypted and check the connection.
 
-**Architecture:** Типы источников описаны реестром в коде: класс драйвера и Pydantic-схема опций рядом друг с другом. В БД лежит только `Connector`, где несекретные поля хранятся в jsonb, а секретные — отдельным зашифрованным полем; разделение выполняется автоматически по типу `SecretStr` в схеме. Контракт адаптера — `typing.Protocol` с единственным методом `check_connection()`, который никогда не выпускает наружу исключение драйвера.
+**Architecture:** Source types are described by a registry in code: the driver class and the Pydantic options schema sit next to each other. The database holds only `Connector`, where non-secret fields are stored in jsonb and secret ones in a separate encrypted field; the split is done automatically by the `SecretStr` type in the schema. The adapter contract is a `typing.Protocol` with a single method `check_connection()`, which never lets a driver exception escape.
 
-**Tech Stack:** Python 3.14, FastAPI, SQLModel поверх SQLAlchemy 2 в асинхронном режиме, psycopg 3 (async), Alembic, PostgreSQL, pytest + pytest-asyncio, cryptography (AES-GCM), uv.
+**Tech Stack:** Python 3.14, FastAPI, SQLModel on top of SQLAlchemy 2 in async mode, psycopg 3 (async), Alembic, PostgreSQL, pytest + pytest-asyncio, cryptography (AES-GCM), uv.
 
-Спек: [2026-08-15-connector-registry-design.md](../2026-08-15-connector-registry-design.md)
+Spec: [2026-08-15-connector-registry-design.md](../2026-08-15-connector-registry-design.md)
 
 ## Global Constraints
 
-- Python 3.14; зависимости ставятся через `uv`, запуск команд — через `uv run`.
-- `uv run mypy app` (режим strict, задан в `pyproject.toml`) и `uv run ruff check app tests` проходят без ошибок после каждой задачи.
-- Все ручки живут под префиксом `/api/v1` (значение `settings.API_V1_STR`).
-- Секреты никогда не попадают в ответы API, в тексты ошибок и в логи.
-- Таймаут проверки соединения — ровно 5 секунд.
-- Ключ шифрования — переменная `CONNECTOR_SECRET_KEY`, отдельная от `SECRET_KEY`.
-- Новый код размещается модулями (`app/adapters/`, `app/connectors/`). Плоские `app/models.py`, `app/crud.py` и `app/api/routes/` в этом плане только переводятся на async, без перемещения (решение Р5 спека).
-- Перед запуском тестов должна быть поднята БД: `docker compose up -d db`.
-- **На Windows** psycopg 3 в асинхронном режиме несовместим с `ProactorEventLoop`, который Python выбирает по умолчанию, и падает с `InterfaceError`. Цикл создаётся через `app.core.db.loop_factory` — она подключена к стартовым скриптам и к pytest-asyncio (фикстура `_asyncio_loop_factory` в `tests/conftest.py`). Политики циклов для этого не годятся: в Python 3.14 они объявлены устаревшими. В Linux-контейнере фабрика возвращает обычный цикл.
-- Любой блокирующий вызов в async-ручке останавливает весь цикл событий. `send_email` работает по SMTP синхронно, поэтому вызывается через `starlette.concurrency.run_in_threadpool`. То же правило действует для любого нового блокирующего кода.
+- Python 3.14; dependencies are installed with `uv`, commands are run with `uv run`.
+- `uv run mypy app` (strict mode, set in `pyproject.toml`) and `uv run ruff check app tests` pass without errors after every task.
+- All endpoints live under the `/api/v1` prefix (the value of `settings.API_V1_STR`).
+- Secrets never appear in API responses, error messages or logs.
+- The connection check timeout is exactly 5 seconds.
+- The encryption key is the `CONNECTOR_SECRET_KEY` variable, separate from `SECRET_KEY`.
+- New code is placed in modules (`app/adapters/`, `app/connectors/`). The flat `app/models.py`, `app/crud.py` and `app/api/routes/` are only converted to async in this plan, not moved (decision R5 of the spec).
+- The database must be up before tests run: `docker compose up -d db`.
+- **On Windows** psycopg 3 in async mode is incompatible with `ProactorEventLoop`, which Python picks by default, and fails with `InterfaceError`. The loop is created through `app.core.db.loop_factory` — it is wired into the startup scripts and into pytest-asyncio (the `_asyncio_loop_factory` fixture in `tests/conftest.py`). Event loop policies do not work for this: they are deprecated in Python 3.14. In the Linux container the factory returns an ordinary loop.
+- Any blocking call in an async endpoint stalls the whole event loop. `send_email` talks SMTP synchronously, so it is called through `starlette.concurrency.run_in_threadpool`. The same rule applies to any new blocking code.
 
 ---
 
-### Task 1: Привести бэкенд в рабочее состояние и перевести на async
+### Task 1: Get the backend working and convert it to async
 
-Бэкенд сейчас не импортируется из-за синтаксической ошибки, а установленное окружение отстаёт от `pyproject.toml`. Задача чинит это и переводит весь бэкенд на асинхронный доступ к БД. Критерий готовности — существующий набор тестов проходит целиком.
+The backend currently fails to import because of a syntax error, and the installed environment lags behind `pyproject.toml`. This task fixes that and converts the whole backend to async database access. It is done when the existing test suite passes in full.
 
 **Files:**
 - Modify: `backend/pyproject.toml`
@@ -42,70 +42,70 @@
 - Modify: `backend/tests/crud/test_user.py`, `backend/tests/scripts/test_backend_pre_start.py`, `backend/tests/scripts/test_test_pre_start.py`
 
 **Interfaces:**
-- Consumes: ничего (первая задача).
+- Consumes: nothing (first task).
 - Produces:
   - `app.core.db.engine: AsyncEngine`
   - `app.core.db.async_session_maker: async_sessionmaker[AsyncSession]`
   - `app.core.db.init_db(session: AsyncSession) -> None`
   - `app.api.deps.SessionDep = Annotated[AsyncSession, Depends(get_db)]`
   - `app.api.deps.CurrentUser = Annotated[User, Depends(get_current_user)]`
-  - все функции `app.crud` становятся `async def` с теми же именами и параметрами
-  - фикстура `client` в тестах — `httpx.AsyncClient`, а не `TestClient`
+  - every function in `app.crud` becomes `async def` with the same names and parameters
+  - the `client` fixture in tests is `httpx.AsyncClient`, not `TestClient`
 
-- [ ] **Step 1: Починить синтаксическую ошибку в deps.py**
+- [ ] **Step 1: Fix the syntax error in deps.py**
 
-В `backend/app/api/deps.py:36` заменить строку
+In `backend/app/api/deps.py:36` replace the line
 
 ```python
     except InvalidTokenError, ValidationError:
 ```
 
-на
+with
 
 ```python
     except (InvalidTokenError, ValidationError):
 ```
 
-- [ ] **Step 2: Убедиться, что файл компилируется**
+- [ ] **Step 2: Make sure the file compiles**
 
 Run: `cd backend && python -m py_compile app/api/deps.py && echo OK`
-Expected: `OK` без трассировки.
+Expected: `OK` with no traceback.
 
-- [ ] **Step 3: Убрать раздачу фронтенда из main.py**
+- [ ] **Step 3: Remove frontend serving from main.py**
 
-`app.frontend()` бросает `RuntimeError`, если директории не существует, а `backend/app/frontend` появляется только после первой сборки фронтенда — из-за этого приложение не импортируется, в том числе в тестах. Фронтенд переезжает на Vue и в разработке работает на своём порту, поэтому раздача возвращается позже, в задаче 8 плана фронтенда, уже с проверкой существования директории. Удалить из `backend/app/main.py` строку 12
+`app.frontend()` raises `RuntimeError` if the directory does not exist, and `backend/app/frontend` appears only after the first frontend build — so the application fails to import, including in tests. The frontend is moving to Vue and runs on its own port in development, so serving comes back later, in task 8 of the frontend plan, with a check that the directory exists. Remove line 12 from `backend/app/main.py`
 
 ```python
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 ```
 
-последнюю строку файла
+the last line of the file
 
 ```python
 app.frontend("/", directory=FRONTEND_DIR)
 ```
 
-и ставший ненужным импорт в строке 1
+and the import on line 1 that is no longer needed
 
 ```python
 from pathlib import Path
 ```
 
-- [ ] **Step 4: Добавить зависимости**
+- [ ] **Step 4: Add dependencies**
 
-В `backend/pyproject.toml` в список `dependencies` добавить:
+In `backend/pyproject.toml` add to the `dependencies` list:
 
 ```toml
     "cryptography>=44.0.0,<47.0.0",
 ```
 
-В `[dependency-groups]` в список `dev` добавить:
+In `[dependency-groups]` add to the `dev` list:
 
 ```toml
     "pytest-asyncio>=1.0.0,<2.0.0",
 ```
 
-В конец файла добавить настройку pytest (сейчас секции `[tool.pytest.ini_options]` в файле нет):
+At the end of the file add the pytest settings (the file currently has no `[tool.pytest.ini_options]` section):
 
 ```toml
 [tool.pytest.ini_options]
@@ -113,16 +113,16 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 ```
 
-- [ ] **Step 5: Синхронизировать окружение**
+- [ ] **Step 5: Sync the environment**
 
 Run: `cd backend && uv sync`
-Expected: устанавливаются `cryptography` и `pytest-asyncio`.
+Expected: `cryptography` and `pytest-asyncio` are installed.
 
-Все команды запускаются через `uv run`: голый `python` в этом репозитории берёт другое окружение, с другими версиями пакетов.
+All commands are run through `uv run`: a bare `python` in this repository picks up a different environment, with different package versions.
 
-- [ ] **Step 6: Перевести core/db.py на асинхронный движок**
+- [ ] **Step 6: Switch core/db.py to an async engine**
 
-Полностью заменить содержимое `backend/app/core/db.py`:
+Replace the entire contents of `backend/app/core/db.py`:
 
 ```python
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -135,8 +135,8 @@ from app.models import User, UserCreate
 
 engine = create_async_engine(str(settings.DATABASE_URL))
 
-# expire_on_commit=False обязателен: иначе обращение к полю объекта после
-# commit() запускает ленивую загрузку, которая в async-режиме падает.
+# expire_on_commit=False is required: otherwise accessing an object's field after
+# commit() triggers a lazy load, which fails in async mode.
 async_session_maker = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
@@ -159,9 +159,9 @@ async def init_db(session: AsyncSession) -> None:
         user = await crud.create_user(session=session, user_create=user_in)
 ```
 
-- [ ] **Step 7: Перевести deps.py на AsyncSession**
+- [ ] **Step 7: Switch deps.py to AsyncSession**
 
-Полностью заменить содержимое `backend/app/api/deps.py`:
+Replace the entire contents of `backend/app/api/deps.py`:
 
 ```python
 from collections.abc import AsyncGenerator
@@ -223,9 +223,9 @@ def get_current_active_superuser(current_user: CurrentUser) -> User:
     return current_user
 ```
 
-- [ ] **Step 8: Перевести crud.py на async**
+- [ ] **Step 8: Convert crud.py to async**
 
-Полностью заменить содержимое `backend/app/crud.py`:
+Replace the entire contents of `backend/app/crud.py`:
 
 ```python
 import uuid
@@ -305,18 +305,18 @@ async def create_item(
     return db_item
 ```
 
-- [ ] **Step 9: Перевести ручки на async**
+- [ ] **Step 9: Convert the endpoints to async**
 
-В файлах `backend/app/api/routes/login.py`, `users.py`, `items.py`, `utils.py`, `private.py` применить механическое преобразование. Правила, применяемые к каждой функции-обработчику:
+In `backend/app/api/routes/login.py`, `users.py`, `items.py`, `utils.py`, `private.py` apply a mechanical transformation. The rules applied to every handler function:
 
 1. `def handler(...)` → `async def handler(...)`.
-2. Каждый вызов функции из `app.crud` получает `await`: `crud.create_user(...)` → `await crud.create_user(...)`.
-3. `session.exec(statement)` → `result = await session.exec(statement)`, далее `result.all()` / `result.one()` / `result.first()` вместо `session.exec(statement).all()` и т. п.
+2. Every call to a function from `app.crud` gets `await`: `crud.create_user(...)` → `await crud.create_user(...)`.
+3. `session.exec(statement)` → `result = await session.exec(statement)`, then `result.all()` / `result.one()` / `result.first()` instead of `session.exec(statement).all()` and so on.
 4. `session.get(Model, id)` → `await session.get(Model, id)`.
 5. `session.commit()` → `await session.commit()`; `session.refresh(obj)` → `await session.refresh(obj)`; `session.delete(obj)` → `await session.delete(obj)`.
-6. `session.add(obj)` остаётся без `await` — это синхронная операция.
+6. `session.add(obj)` stays without `await` — it is a synchronous operation.
 
-Пример преобразования для `read_items` в `items.py`:
+Example of the transformation for `read_items` in `items.py`:
 
 ```python
 @router.get("/", response_model=ItemsPublic)
@@ -353,11 +353,11 @@ async def read_items(
     return ItemsPublic(data=items, count=count)
 ```
 
-Функция `get_current_active_superuser` в `deps.py` остаётся синхронной — она не обращается к БД, и FastAPI корректно работает с синхронной зависимостью.
+The `get_current_active_superuser` function in `deps.py` stays synchronous — it does not touch the database, and FastAPI handles a synchronous dependency correctly.
 
-- [ ] **Step 10: Перевести стартовые скрипты на async**
+- [ ] **Step 10: Convert the startup scripts to async**
 
-В `backend/app/backend_pre_start.py` и `backend/app/tests_pre_start.py` функция `init` открывает сессию и выполняет `session.exec(select(1))`. Заменить тело на асинхронное и запускать через `asyncio.run`. Для `backend_pre_start.py`:
+In `backend/app/backend_pre_start.py` and `backend/app/tests_pre_start.py` the `init` function opens a session and runs `session.exec(select(1))`. Make the body async and run it through `asyncio.run`. For `backend_pre_start.py`:
 
 ```python
 import asyncio
@@ -403,9 +403,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Неиспользуемый импорт `Engine` удалить. Для `tests_pre_start.py` выполнить то же преобразование, сохранив его собственные тексты сообщений.
+Remove the unused `Engine` import. Apply the same transformation to `tests_pre_start.py`, keeping its own message texts.
 
-В `backend/app/initial_data.py` заменить тело на:
+In `backend/app/initial_data.py` replace the body with:
 
 ```python
 import asyncio
@@ -428,9 +428,9 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-- [ ] **Step 11: Перевести conftest.py на асинхронные фикстуры**
+- [ ] **Step 11: Switch conftest.py to async fixtures**
 
-Полностью заменить содержимое `backend/tests/conftest.py`:
+Replace the entire contents of `backend/tests/conftest.py`:
 
 ```python
 from collections.abc import AsyncGenerator
@@ -480,45 +480,45 @@ async def normal_user_token_headers(
     )
 ```
 
-Область видимости фикстур `client`, `superuser_token_headers` и `normal_user_token_headers` меняется с `module` на `session`, чтобы совпасть с областью цикла событий, заданной в `asyncio_default_fixture_loop_scope`.
+The scope of the `client`, `superuser_token_headers` and `normal_user_token_headers` fixtures changes from `module` to `session` to match the event loop scope set in `asyncio_default_fixture_loop_scope`.
 
-- [ ] **Step 12: Перевести тестовые утилиты и тесты на async**
+- [ ] **Step 12: Convert test utilities and tests to async**
 
-В `backend/tests/utils/user.py`, `backend/tests/utils/item.py`, `backend/tests/utils/utils.py` и во всех файлах `backend/tests/api/routes/*.py`, `backend/tests/crud/test_user.py`, `backend/tests/scripts/*.py` применить преобразование:
+In `backend/tests/utils/user.py`, `backend/tests/utils/item.py`, `backend/tests/utils/utils.py` and in every file in `backend/tests/api/routes/*.py`, `backend/tests/crud/test_user.py`, `backend/tests/scripts/*.py` apply the transformation:
 
-1. Каждая тестовая функция и каждая вспомогательная функция, обращающаяся к БД или к клиенту, становится `async def`.
-2. `client.get(...)`, `client.post(...)`, `client.patch(...)`, `client.delete(...)` получают `await`.
-3. Вызовы `crud.*` получают `await`.
-4. `db.exec(...)`, `db.get(...)`, `db.commit()`, `db.refresh(...)`, `db.delete(...)` получают `await`.
-5. Аннотации типов `Session` → `AsyncSession` с импортом `from sqlmodel.ext.asyncio.session import AsyncSession`.
-6. Аннотации типов `TestClient` → `AsyncClient` с импортом `from httpx import AsyncClient`.
-7. В `backend/tests/scripts/test_backend_pre_start.py` и `test_test_pre_start.py` проверяемая функция `init` стала корутиной: вызов в тесте оборачивается в `await`, а мок сессии заменяется на `MagicMock`, у которого `exec` — `AsyncMock`.
+1. Every test function and every helper that touches the database or the client becomes `async def`.
+2. `client.get(...)`, `client.post(...)`, `client.patch(...)`, `client.delete(...)` get `await`.
+3. Calls to `crud.*` get `await`.
+4. `db.exec(...)`, `db.get(...)`, `db.commit()`, `db.refresh(...)`, `db.delete(...)` get `await`.
+5. Type annotations `Session` → `AsyncSession` with the import `from sqlmodel.ext.asyncio.session import AsyncSession`.
+6. Type annotations `TestClient` → `AsyncClient` with the import `from httpx import AsyncClient`.
+7. In `backend/tests/scripts/test_backend_pre_start.py` and `test_test_pre_start.py` the `init` function under test is now a coroutine: the call in the test is wrapped in `await`, and the session mock is replaced with a `MagicMock` whose `exec` is an `AsyncMock`.
 
-Декоратор `@pytest.mark.asyncio` не нужен: он подставляется автоматически благодаря `asyncio_mode = "auto"`.
+The `@pytest.mark.asyncio` decorator is not needed: it is applied automatically thanks to `asyncio_mode = "auto"`.
 
-- [ ] **Step 13: Поднять БД и прогнать весь набор тестов**
+- [ ] **Step 13: Start the database and run the whole test suite**
 
 Run: `docker compose up -d db`
-Expected: контейнер `db` в состоянии running.
+Expected: the `db` container is running.
 
 Run: `cd backend && uv run pytest tests/ -v`
-Expected: PASS по всем тестам, ни одного ERROR и ни одного предупреждения о нераспознанной корутине.
+Expected: PASS on every test, no ERROR and no warning about an unawaited coroutine.
 
-- [ ] **Step 14: Проверить типы и стиль**
+- [ ] **Step 14: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: `Success: no issues found` и отсутствие замечаний ruff.
+Expected: `Success: no issues found` and no ruff findings.
 
 - [ ] **Step 15: Commit**
 
 ```bash
 git add backend/pyproject.toml backend/uv.lock backend/app backend/tests
-git commit -m "refactor: перевести бэкенд на async и починить сборку"
+git commit -m "refactor: convert the backend to async and fix the build"
 ```
 
 ---
 
-### Task 2: Шифрование секретов
+### Task 2: Secret encryption
 
 **Files:**
 - Create: `backend/app/core/crypto.py`
@@ -529,15 +529,15 @@ git commit -m "refactor: перевести бэкенд на async и почи�
 - Modify: `compose.yml`, `compose.override.yml`
 
 **Interfaces:**
-- Consumes: `app.core.config.settings` из задачи 1.
+- Consumes: `app.core.config.settings` from task 1.
 - Produces:
   - `app.core.crypto.encrypt(plaintext: bytes) -> bytes`
   - `app.core.crypto.decrypt(payload: bytes) -> bytes`
-  - `settings.CONNECTOR_SECRET_KEY: str` — urlsafe-base64 от ровно 32 байт
+  - `settings.CONNECTOR_SECRET_KEY: str` — urlsafe base64 of exactly 32 bytes
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `backend/tests/core/__init__.py` пустым файлом и `backend/tests/core/test_crypto.py`:
+Create `backend/tests/core/__init__.py` as an empty file and `backend/tests/core/test_crypto.py`:
 
 ```python
 import pytest
@@ -579,20 +579,20 @@ def test_tampered_payload_is_rejected() -> None:
         crypto.decrypt(bytes(payload))
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd backend && uv run pytest tests/core/test_crypto.py -v`
-Expected: FAIL с `ModuleNotFoundError: No module named 'app.core.crypto'`.
+Expected: FAIL with `ModuleNotFoundError: No module named 'app.core.crypto'`.
 
-- [ ] **Step 3: Добавить настройку CONNECTOR_SECRET_KEY**
+- [ ] **Step 3: Add the CONNECTOR_SECRET_KEY setting**
 
-В `backend/app/core/config.py` добавить импорт `base64` в начало файла, объявить поле рядом с `SECRET_KEY`:
+In `backend/app/core/config.py` add an `import base64` at the top of the file, declare the field next to `SECRET_KEY`:
 
 ```python
     CONNECTOR_SECRET_KEY: str
 ```
 
-и добавить в класс `Settings` валидатор:
+and add a validator to the `Settings` class:
 
 ```python
     @field_validator("CONNECTOR_SECRET_KEY")
@@ -611,26 +611,26 @@ Expected: FAIL с `ModuleNotFoundError: No module named 'app.core.crypto'`.
         return value
 ```
 
-- [ ] **Step 4: Сгенерировать ключ и прописать его в окружение**
+- [ ] **Step 4: Generate the key and put it into the environment**
 
 Run: `python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"`
-Expected: строка из 44 символов, оканчивающаяся на `=`.
+Expected: a 44-character string ending in `=`.
 
-Добавить её в `.env` рядом с `SECRET_KEY`:
+Add it to `.env` next to `SECRET_KEY`:
 
 ```
-CONNECTOR_SECRET_KEY=<полученное значение>
+CONNECTOR_SECRET_KEY=<the generated value>
 ```
 
-В `compose.yml` в секции `environment` сервиса `backend` (и `prestart`, если у него есть собственный список переменных) добавить строку рядом с `SECRET_KEY`:
+In `compose.yml`, in the `environment` section of the `backend` service (and `prestart`, if it has its own list of variables), add a line next to `SECRET_KEY`:
 
 ```yaml
       CONNECTOR_SECRET_KEY: ${CONNECTOR_SECRET_KEY?Variable not set}
 ```
 
-- [ ] **Step 5: Реализовать модуль шифрования**
+- [ ] **Step 5: Implement the encryption module**
 
-Создать `backend/app/core/crypto.py`:
+Create `backend/app/core/crypto.py`:
 
 ```python
 import base64
@@ -648,41 +648,41 @@ def _key() -> bytes:
 
 
 def encrypt(plaintext: bytes) -> bytes:
-    """Зашифровать данные. Возвращает nonce, склеенный с шифротекстом."""
+    """Encrypt data. Returns the nonce concatenated with the ciphertext."""
     nonce = os.urandom(NONCE_SIZE)
     return nonce + AESGCM(_key()).encrypt(nonce, plaintext, None)
 
 
 def decrypt(payload: bytes) -> bytes:
-    """Расшифровать данные, полученные из encrypt().
+    """Decrypt data produced by encrypt().
 
-    Бросает cryptography.exceptions.InvalidTag, если данные повреждены
-    или зашифрованы другим ключом.
+    Raises cryptography.exceptions.InvalidTag if the data is corrupted
+    or was encrypted with a different key.
     """
     nonce, ciphertext = payload[:NONCE_SIZE], payload[NONCE_SIZE:]
     return AESGCM(_key()).decrypt(nonce, ciphertext, None)
 ```
 
-- [ ] **Step 6: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 6: Run the tests and make sure they pass**
 
 Run: `cd backend && uv run pytest tests/core/test_crypto.py -v`
-Expected: PASS, 4 теста.
+Expected: PASS, 4 tests.
 
-- [ ] **Step 7: Проверить типы и стиль**
+- [ ] **Step 7: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add backend/app/core/crypto.py backend/app/core/config.py backend/tests/core compose.yml
-git commit -m "feat: шифрование учётных данных коннекторов через AES-GCM"
+git commit -m "feat: encrypt connector credentials with AES-GCM"
 ```
 
 ---
 
-### Task 3: Контракт адаптера и реестр типов
+### Task 3: Adapter contract and type registry
 
 **Files:**
 - Create: `backend/app/adapters/__init__.py`
@@ -693,24 +693,24 @@ git commit -m "feat: шифрование учётных данных конне
 - Create: `backend/tests/adapters/test_registry.py`
 
 **Interfaces:**
-- Consumes: ничего сверх стандартной библиотеки и pydantic.
+- Consumes: nothing beyond the standard library and pydantic.
 - Produces:
   - `app.adapters.protocol.ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]`
-  - `app.adapters.protocol.ConnectionCheckResult` с полями `ok: bool`, `message: str`, `latency_ms: int | None`, `error_kind: ErrorKind | None`
-  - `app.adapters.protocol.DataAdapter` — Protocol с методом `async def check_connection(self) -> ConnectionCheckResult`
-  - `app.adapters.registry.AdapterType` — frozen dataclass с полями `name`, `title`, `options_schema`, `factory`
-  - `app.adapters.registry.register(name, title, options_schema)` — декоратор фабрики
-  - `app.adapters.registry.get(name) -> AdapterType`, бросает `UnknownAdapterType`
-  - `app.adapters.registry.all_types() -> list[AdapterType]`, отсортирован по `title`
+  - `app.adapters.protocol.ConnectionCheckResult` with fields `ok: bool`, `message: str`, `latency_ms: int | None`, `error_kind: ErrorKind | None`
+  - `app.adapters.protocol.DataAdapter` — a Protocol with the method `async def check_connection(self) -> ConnectionCheckResult`
+  - `app.adapters.registry.AdapterType` — a frozen dataclass with fields `name`, `title`, `options_schema`, `factory`
+  - `app.adapters.registry.register(name, title, options_schema)` — a factory decorator
+  - `app.adapters.registry.get(name) -> AdapterType`, raises `UnknownAdapterType`
+  - `app.adapters.registry.all_types() -> list[AdapterType]`, sorted by `title`
   - `app.adapters.registry.secret_field_names(schema) -> set[str]`
   - `app.adapters.registry.UnknownAdapterType(Exception)`
-  - фикстура `isolated_registry` в `tests/adapters/conftest.py`
+  - the `isolated_registry` fixture in `tests/adapters/conftest.py`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `backend/tests/adapters/__init__.py` пустым файлом.
+Create `backend/tests/adapters/__init__.py` as an empty file.
 
-Создать `backend/tests/adapters/conftest.py` — фикстура, изолирующая реестр, чтобы регистрации из тестов не протекали в другие тесты:
+Create `backend/tests/adapters/conftest.py` — a fixture that isolates the registry so registrations made in tests do not leak into other tests:
 
 ```python
 from collections.abc import Generator
@@ -730,7 +730,7 @@ def isolated_registry() -> Generator[None]:
         registry._registry.update(saved)
 ```
 
-Создать `backend/tests/adapters/test_registry.py`:
+Create `backend/tests/adapters/test_registry.py`:
 
 ```python
 import pytest
@@ -800,16 +800,16 @@ def test_secret_field_names_finds_only_secretstr_fields() -> None:
     assert registry.secret_field_names(FakeOptions) == {"password"}
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd backend && uv run pytest tests/adapters/test_registry.py -v`
-Expected: FAIL с `ModuleNotFoundError: No module named 'app.adapters'`.
+Expected: FAIL with `ModuleNotFoundError: No module named 'app.adapters'`.
 
-- [ ] **Step 3: Реализовать протокол**
+- [ ] **Step 3: Implement the protocol**
 
-Создать `backend/app/adapters/__init__.py` пустым файлом.
+Create `backend/app/adapters/__init__.py` as an empty file.
 
-Создать `backend/app/adapters/protocol.py`:
+Create `backend/app/adapters/protocol.py`:
 
 ```python
 from typing import Literal, Protocol, runtime_checkable
@@ -820,10 +820,10 @@ ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]
 
 
 class ConnectionCheckResult(BaseModel):
-    """Итог проверки соединения.
+    """Outcome of a connection check.
 
-    Драйверы никогда не выпускают наружу собственные исключения: их текст
-    регулярно содержит строку подключения вместе с паролем.
+    Drivers never let their own exceptions escape: their text
+    routinely contains the connection string, password included.
     """
 
     ok: bool
@@ -837,9 +837,9 @@ class DataAdapter(Protocol):
     async def check_connection(self) -> ConnectionCheckResult: ...
 ```
 
-- [ ] **Step 4: Реализовать реестр**
+- [ ] **Step 4: Implement the registry**
 
-Создать `backend/app/adapters/registry.py`:
+Create `backend/app/adapters/registry.py`:
 
 ```python
 from collections.abc import Callable
@@ -896,9 +896,9 @@ def all_types() -> list[AdapterType]:
 
 
 def secret_field_names(schema: type[BaseModel]) -> set[str]:
-    """Имена полей схемы, объявленных как SecretStr.
+    """Names of the schema fields declared as SecretStr.
 
-    Единственный источник истины о том, какие значения подлежат шифрованию.
+    The single source of truth for which values are to be encrypted.
     """
     return {
         name
@@ -907,26 +907,26 @@ def secret_field_names(schema: type[BaseModel]) -> set[str]:
     }
 ```
 
-- [ ] **Step 5: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 5: Run the tests and make sure they pass**
 
 Run: `cd backend && uv run pytest tests/adapters/test_registry.py -v`
-Expected: PASS, 6 тестов.
+Expected: PASS, 6 tests.
 
-- [ ] **Step 6: Проверить типы и стиль**
+- [ ] **Step 6: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 7: Commit**
 
 ```bash
 git add backend/app/adapters backend/tests/adapters
-git commit -m "feat: контракт адаптера и реестр типов источников"
+git commit -m "feat: adapter contract and source type registry"
 ```
 
 ---
 
-### Task 4: Адаптер PostgreSQL
+### Task 4: PostgreSQL adapter
 
 **Files:**
 - Create: `backend/app/adapters/postgres/__init__.py`
@@ -936,15 +936,15 @@ git commit -m "feat: контракт адаптера и реестр типо�
 - Modify: `backend/app/adapters/__init__.py`
 
 **Interfaces:**
-- Consumes: `registry.register`, `ConnectionCheckResult`, `ErrorKind` из задачи 3.
+- Consumes: `registry.register`, `ConnectionCheckResult`, `ErrorKind` from task 3.
 - Produces:
-  - `app.adapters.postgres.options.PostgresOptions` с полями `host: str`, `port: int = 5432`, `database: str`, `user: str`, `password: SecretStr`
-  - `app.adapters.postgres.adapter.PostgresAdapter`, зарегистрированный под именем `"postgres"` с заголовком `"PostgreSQL"`
+  - `app.adapters.postgres.options.PostgresOptions` with fields `host: str`, `port: int = 5432`, `database: str`, `user: str`, `password: SecretStr`
+  - `app.adapters.postgres.adapter.PostgresAdapter`, registered under the name `"postgres"` with the title `"PostgreSQL"`
   - `app.adapters.postgres.adapter.CHECK_TIMEOUT_SECONDS = 5.0`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `backend/tests/adapters/test_postgres.py`. Тесты работают против той же БД, что поднимается через `docker compose up -d db`, и берут её параметры из настроек приложения:
+Create `backend/tests/adapters/test_postgres.py`. The tests run against the same database that `docker compose up -d db` starts, and take its parameters from the application settings:
 
 ```python
 from pydantic import SecretStr
@@ -1014,20 +1014,20 @@ async def test_adapter_type_is_registered() -> None:
     assert adapter_type.options_schema is PostgresOptions
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd backend && uv run pytest tests/adapters/test_postgres.py -v`
-Expected: FAIL с `ModuleNotFoundError: No module named 'app.adapters.postgres'`.
+Expected: FAIL with `ModuleNotFoundError: No module named 'app.adapters.postgres'`.
 
-- [ ] **Step 3: Описать схему опций**
+- [ ] **Step 3: Describe the options schema**
 
-Создать `backend/app/adapters/postgres/__init__.py`:
+Create `backend/app/adapters/postgres/__init__.py`:
 
 ```python
 from app.adapters.postgres import adapter  # noqa: F401
 ```
 
-Создать `backend/app/adapters/postgres/options.py`:
+Create `backend/app/adapters/postgres/options.py`:
 
 ```python
 from pydantic import BaseModel, Field, SecretStr
@@ -1041,9 +1041,9 @@ class PostgresOptions(BaseModel):
     password: SecretStr = Field(title="Password")
 ```
 
-- [ ] **Step 4: Реализовать адаптер**
+- [ ] **Step 4: Implement the adapter**
 
-Создать `backend/app/adapters/postgres/adapter.py`:
+Create `backend/app/adapters/postgres/adapter.py`:
 
 ```python
 import asyncio
@@ -1061,10 +1061,10 @@ _AUTH_MARKERS = ("password", "authentication", "role", "permission denied")
 
 
 def _classify(exc: BaseException) -> tuple[ErrorKind, str]:
-    """Свести исключение драйвера к безопасной паре (вид, сообщение).
+    """Reduce a driver exception to a safe (kind, message) pair.
 
-    Текст исключения наружу не передаётся: psycopg включает в него строку
-    подключения вместе с паролем.
+    The exception text is not passed on: psycopg includes the connection
+    string in it, password included.
     """
     if isinstance(exc, TimeoutError):
         return "timeout", "Connection timed out"
@@ -1115,58 +1115,58 @@ def _build(options: PostgresOptions) -> PostgresAdapter:
     return PostgresAdapter(options)
 ```
 
-`asyncio.wait_for` при истечении таймаута бросает `TimeoutError` — с Python 3.11 это псевдоним `asyncio.TimeoutError`, поэтому проверка в `_classify` покрывает оба случая.
+`asyncio.wait_for` raises `TimeoutError` when the timeout expires — since Python 3.11 that is an alias of `asyncio.TimeoutError`, so the check in `_classify` covers both cases.
 
-- [ ] **Step 5: Подключить драйвер к импорту пакета**
+- [ ] **Step 5: Hook the driver into the package import**
 
-Заменить содержимое `backend/app/adapters/__init__.py`:
+Replace the contents of `backend/app/adapters/__init__.py`:
 
 ```python
-# Импорт ради побочного эффекта: драйверы регистрируются в реестре при импорте.
+# Imported for its side effect: drivers register themselves in the registry on import.
 from app.adapters import postgres  # noqa: F401
 ```
 
-- [ ] **Step 6: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 6: Run the tests and make sure they pass**
 
 Run: `docker compose up -d db && cd backend && uv run pytest tests/adapters/ -v`
-Expected: PASS, 11 тестов (6 из задачи 3 и 5 новых).
+Expected: PASS, 11 tests (6 from task 3 and 5 new).
 
-- [ ] **Step 7: Проверить типы и стиль**
+- [ ] **Step 7: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add backend/app/adapters backend/tests/adapters
-git commit -m "feat: адаптер PostgreSQL с классификацией и санитизацией ошибок"
+git commit -m "feat: PostgreSQL adapter with error classification and sanitisation"
 ```
 
 ---
 
-### Task 5: Модель Connector и миграция
+### Task 5: Connector model and migration
 
 **Files:**
 - Create: `backend/app/connectors/__init__.py`
 - Create: `backend/app/connectors/models.py`
-- Create: `backend/app/alembic/versions/<hash>_add_connector.py` (генерируется)
+- Create: `backend/app/alembic/versions/<hash>_add_connector.py` (generated)
 - Create: `backend/tests/connectors/__init__.py`
 - Create: `backend/tests/connectors/test_models.py`
 - Modify: `backend/app/alembic/env.py`
 
 **Interfaces:**
-- Consumes: `app.models.get_datetime_utc`, `app.models.User` из задачи 1.
+- Consumes: `app.models.get_datetime_utc`, `app.models.User` from task 1.
 - Produces:
-  - `app.connectors.models.Connector` — таблица `connector`
-  - `app.connectors.models.ConnectorCreate` с полями `name: str`, `adapter_type: str`, `options: dict[str, Any]`
-  - `app.connectors.models.ConnectorUpdate` с полями `name: str | None`, `options: dict[str, Any] | None`
-  - `app.connectors.models.ConnectorPublic` с полями `id`, `name`, `adapter_type`, `config`, `created_at`, `updated_at`
-  - `app.connectors.models.ConnectorsPublic` с полями `data: list[ConnectorPublic]`, `count: int`
+  - `app.connectors.models.Connector` — the `connector` table
+  - `app.connectors.models.ConnectorCreate` with fields `name: str`, `adapter_type: str`, `options: dict[str, Any]`
+  - `app.connectors.models.ConnectorUpdate` with fields `name: str | None`, `options: dict[str, Any] | None`
+  - `app.connectors.models.ConnectorPublic` with fields `id`, `name`, `adapter_type`, `config`, `created_at`, `updated_at`
+  - `app.connectors.models.ConnectorsPublic` with fields `data: list[ConnectorPublic]`, `count: int`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `backend/tests/connectors/__init__.py` пустым файлом и `backend/tests/connectors/test_models.py`:
+Create `backend/tests/connectors/__init__.py` as an empty file and `backend/tests/connectors/test_models.py`:
 
 ```python
 import uuid
@@ -1264,18 +1264,18 @@ def test_public_model_has_no_secrets_field() -> None:
     assert "secrets" not in ConnectorPublic.model_fields
 ```
 
-Функция `create_random_user` уже существует в `backend/tests/utils/user.py:22` и к этому моменту переведена на async задачей 1, шаг 12. Её сигнатура должна быть `async def create_random_user(db: AsyncSession) -> User`.
+The `create_random_user` function already exists in `backend/tests/utils/user.py:22` and by this point has been converted to async by task 1, step 12. Its signature must be `async def create_random_user(db: AsyncSession) -> User`.
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd backend && uv run pytest tests/connectors/test_models.py -v`
-Expected: FAIL с `ModuleNotFoundError: No module named 'app.connectors'`.
+Expected: FAIL with `ModuleNotFoundError: No module named 'app.connectors'`.
 
-- [ ] **Step 3: Описать модель и схемы API**
+- [ ] **Step 3: Describe the model and API schemas**
 
-Создать `backend/app/connectors/__init__.py` пустым файлом.
+Create `backend/app/connectors/__init__.py` as an empty file.
 
-Создать `backend/app/connectors/models.py`:
+Create `backend/app/connectors/models.py`:
 
 ```python
 import uuid
@@ -1296,7 +1296,7 @@ class Connector(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(min_length=1, max_length=255)
-    # Ключ реестра типов адаптеров, а не внешний ключ: реестр живёт в коде.
+    # A key of the adapter type registry, not a foreign key: the registry lives in code.
     adapter_type: str = Field(max_length=64)
     config: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSONB, nullable=False)
@@ -1340,64 +1340,64 @@ class ConnectorsPublic(SQLModel):
     count: int
 ```
 
-- [ ] **Step 4: Сделать модель видимой для Alembic**
+- [ ] **Step 4: Make the model visible to Alembic**
 
-В `backend/app/alembic/env.py` рядом со строкой `from app.models import SQLModel  # noqa` добавить:
+In `backend/app/alembic/env.py` next to the line `from app.models import SQLModel  # noqa` add:
 
 ```python
 from app.connectors.models import Connector  # noqa
 ```
 
-Без этого импорта таблица не попадёт в `SQLModel.metadata`, и автогенерация её не увидит.
+Without this import the table does not get into `SQLModel.metadata`, and autogeneration does not see it.
 
-- [ ] **Step 5: Сгенерировать миграцию**
+- [ ] **Step 5: Generate the migration**
 
 Run: `docker compose up -d db && cd backend && uv run alembic revision --autogenerate -m "add connector"`
-Expected: создан файл в `backend/app/alembic/versions/`.
+Expected: a file is created in `backend/app/alembic/versions/`.
 
-Открыть созданный файл и проверить, что в `upgrade()` присутствуют: создание таблицы `connector`, столбцы `config` типа `JSONB` и `secrets` типа `LargeBinary`, внешний ключ на `user.id` с `ondelete="CASCADE"`, ограничение `uq_connector_owner_name`. Лишних операций (удаление или изменение чужих таблиц) быть не должно — если они есть, удалить их вручную.
+Open the created file and check that `upgrade()` contains: creation of the `connector` table, a `config` column of type `JSONB` and a `secrets` column of type `LargeBinary`, a foreign key to `user.id` with `ondelete="CASCADE"`, the `uq_connector_owner_name` constraint. There must be no extra operations (dropping or altering other tables) — if there are, remove them by hand.
 
-- [ ] **Step 6: Применить миграцию**
+- [ ] **Step 6: Apply the migration**
 
 Run: `cd backend && uv run alembic upgrade head`
 Expected: `Running upgrade ... -> <hash>, add connector`.
 
-- [ ] **Step 7: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 7: Run the tests and make sure they pass**
 
 Run: `cd backend && uv run pytest tests/connectors/test_models.py -v`
-Expected: PASS, 5 тестов.
+Expected: PASS, 5 tests.
 
-- [ ] **Step 8: Проверить типы и стиль**
+- [ ] **Step 8: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add backend/app/connectors backend/app/alembic backend/tests/connectors backend/tests/utils
-git commit -m "feat: модель коннектора и миграция"
+git commit -m "feat: connector model and migration"
 ```
 
 ---
 
-### Task 6: Раскладка опций на конфигурацию и секреты
+### Task 6: Splitting options into configuration and secrets
 
 **Files:**
 - Create: `backend/app/connectors/service.py`
 - Create: `backend/tests/connectors/test_service.py`
 
 **Interfaces:**
-- Consumes: `registry.get`, `registry.secret_field_names`, `registry.AdapterType` из задачи 3; `crypto.encrypt`, `crypto.decrypt` из задачи 2.
+- Consumes: `registry.get`, `registry.secret_field_names`, `registry.AdapterType` from task 3; `crypto.encrypt`, `crypto.decrypt` from task 2.
 - Produces:
   - `app.connectors.service.split_options(adapter_type: AdapterType, options: dict[str, Any]) -> tuple[dict[str, Any], bytes]`
   - `app.connectors.service.merge_options(config: dict[str, Any], secrets_blob: bytes) -> dict[str, Any]`
   - `app.connectors.service.fill_missing_secrets(adapter_type: AdapterType, options: dict[str, Any], secrets_blob: bytes) -> dict[str, Any]`
   - `app.connectors.service.build_adapter(adapter_type: AdapterType, options: dict[str, Any]) -> DataAdapter`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `backend/tests/connectors/test_service.py`:
+Create `backend/tests/connectors/test_service.py`:
 
 ```python
 import json
@@ -1490,14 +1490,14 @@ def test_encrypted_blob_is_readable_only_through_crypto() -> None:
     assert json.loads(crypto.decrypt(secrets_blob)) == {"password": "s3cret"}
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd backend && uv run pytest tests/connectors/test_service.py -v`
-Expected: FAIL с `ModuleNotFoundError: No module named 'app.connectors.service'`.
+Expected: FAIL with `ModuleNotFoundError: No module named 'app.connectors.service'`.
 
-- [ ] **Step 3: Реализовать сервис**
+- [ ] **Step 3: Implement the service**
 
-Создать `backend/app/connectors/service.py`:
+Create `backend/app/connectors/service.py`:
 
 ```python
 import json
@@ -1511,10 +1511,10 @@ from app.core import crypto
 def split_options(
     adapter_type: AdapterType, options: dict[str, Any]
 ) -> tuple[dict[str, Any], bytes]:
-    """Разделить опции на несекретную конфигурацию и зашифрованные секреты.
+    """Split options into non-secret configuration and encrypted secrets.
 
-    Разделение выполняется по объявлению схемы (какие поля SecretStr), а не по
-    отдельному списку: забыть пометить поле невозможно.
+    The split follows the schema declaration (which fields are SecretStr), not
+    a separate list: forgetting to mark a field is impossible.
     """
     model = adapter_type.options_schema.model_validate(options)
     secret_names = secret_field_names(adapter_type.options_schema)
@@ -1530,7 +1530,7 @@ def split_options(
 
 
 def merge_options(config: dict[str, Any], secrets_blob: bytes) -> dict[str, Any]:
-    """Собрать полный набор опций обратно из конфигурации и секретов."""
+    """Reassemble the full set of options from configuration and secrets."""
     secrets = json.loads(crypto.decrypt(secrets_blob))
     return {**config, **secrets}
 
@@ -1538,10 +1538,10 @@ def merge_options(config: dict[str, Any], secrets_blob: bytes) -> dict[str, Any]
 def fill_missing_secrets(
     adapter_type: AdapterType, options: dict[str, Any], secrets_blob: bytes
 ) -> dict[str, Any]:
-    """Подставить сохранённые секреты вместо непереданных.
+    """Fill in stored secrets for those not supplied.
 
-    Нужно и для PATCH, и для проверки соединения при редактировании:
-    пользователь правит порт, не вводя пароль заново.
+    Needed both for PATCH and for the connection check while editing:
+    the user changes the port without typing the password again.
     """
     stored = json.loads(crypto.decrypt(secrets_blob))
     filled = dict(options)
@@ -1556,26 +1556,26 @@ def build_adapter(adapter_type: AdapterType, options: dict[str, Any]) -> DataAda
     return adapter_type.factory(model)
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd backend && uv run pytest tests/connectors/test_service.py -v`
-Expected: PASS, 9 тестов.
+Expected: PASS, 9 tests.
 
-- [ ] **Step 5: Проверить типы и стиль**
+- [ ] **Step 5: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add backend/app/connectors/service.py backend/tests/connectors/test_service.py
-git commit -m "feat: раскладка опций коннектора на конфигурацию и шифрованные секреты"
+git commit -m "feat: split connector options into configuration and encrypted secrets"
 ```
 
 ---
 
-### Task 7: CRUD-ручки коннекторов
+### Task 7: Connector CRUD endpoints
 
 **Files:**
 - Create: `backend/app/connectors/crud.py`
@@ -1584,18 +1584,18 @@ git commit -m "feat: раскладка опций коннектора на к�
 - Modify: `backend/app/api/main.py`
 
 **Interfaces:**
-- Consumes: `SessionDep`, `CurrentUser` из задачи 1; модели из задачи 5; `split_options`, `fill_missing_secrets` из задачи 6; `registry.get`, `UnknownAdapterType` из задачи 3.
+- Consumes: `SessionDep`, `CurrentUser` from task 1; models from task 5; `split_options`, `fill_missing_secrets` from task 6; `registry.get`, `UnknownAdapterType` from task 3.
 - Produces:
   - `app.connectors.crud.create(session, *, name: str, adapter_type: str, config: dict[str, Any], secrets: bytes, owner_id: uuid.UUID) -> Connector`
   - `app.connectors.crud.get(session, *, connector_id: uuid.UUID, owner: User) -> Connector | None`
   - `app.connectors.crud.list_for(session, *, owner: User, skip: int, limit: int) -> tuple[list[Connector], int]`
   - `app.connectors.crud.save(session, *, connector: Connector) -> Connector`
   - `app.connectors.crud.delete(session, *, connector: Connector) -> None`
-  - роутер `app.connectors.routes.router` с префиксом `/connectors`
+  - the router `app.connectors.routes.router` with the prefix `/connectors`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `backend/tests/connectors/test_routes.py`:
+Create `backend/tests/connectors/test_routes.py`:
 
 ```python
 import uuid
@@ -1786,14 +1786,14 @@ async def test_unauthenticated_request_is_rejected(client: AsyncClient) -> None:
     assert response.status_code == 401
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd backend && uv run pytest tests/connectors/test_routes.py -v`
-Expected: FAIL — все запросы возвращают 404, поскольку роутер не подключён.
+Expected: FAIL — every request returns 404 because the router is not included.
 
-- [ ] **Step 3: Реализовать доступ к БД**
+- [ ] **Step 3: Implement database access**
 
-Создать `backend/app/connectors/crud.py`:
+Create `backend/app/connectors/crud.py`:
 
 ```python
 import uuid
@@ -1835,8 +1835,8 @@ async def get(
     if connector is None:
         return None
     if connector.owner_id != owner.id and not owner.is_superuser:
-        # Чужой коннектор неотличим от несуществующего: иначе перебором
-        # идентификаторов выясняется, какие подключения есть у других.
+        # Someone else's connector is indistinguishable from a missing one: otherwise
+        # enumerating identifiers reveals which connections other users have.
         return None
     return connector
 
@@ -1867,9 +1867,9 @@ async def delete(session: AsyncSession, *, connector: Connector) -> None:
     await session.commit()
 ```
 
-- [ ] **Step 4: Реализовать ручки**
+- [ ] **Step 4: Implement the endpoints**
 
-Создать `backend/app/connectors/routes.py`:
+Create `backend/app/connectors/routes.py`:
 
 ```python
 import uuid
@@ -2004,47 +2004,47 @@ async def delete_connector(
     return Message(message="Connector deleted successfully")
 ```
 
-- [ ] **Step 5: Подключить роутер**
+- [ ] **Step 5: Include the router**
 
-В `backend/app/api/main.py` добавить импорт и подключение:
+In `backend/app/api/main.py` add the import and the inclusion:
 
 ```python
 from app.connectors.routes import router as connectors_router
 ```
 
-и рядом с остальными вызовами `include_router`:
+and next to the other `include_router` calls:
 
 ```python
 api_router.include_router(connectors_router)
 ```
 
-Импорт `app.connectors.routes` тянет за собой `app.adapters`, поэтому драйверы регистрируются при старте приложения.
+Importing `app.connectors.routes` pulls in `app.adapters`, so drivers register when the application starts.
 
-- [ ] **Step 6: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 6: Run the tests and make sure they pass**
 
 Run: `cd backend && uv run pytest tests/connectors/test_routes.py -v`
-Expected: PASS, 11 тестов.
+Expected: PASS, 11 tests.
 
-- [ ] **Step 7: Прогнать весь набор тестов**
+- [ ] **Step 7: Run the whole test suite**
 
 Run: `cd backend && uv run pytest tests/ -v`
-Expected: PASS целиком.
+Expected: PASS in full.
 
-- [ ] **Step 8: Проверить типы и стиль**
+- [ ] **Step 8: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add backend/app/connectors backend/app/api/main.py backend/tests/connectors
-git commit -m "feat: CRUD-ручки коннекторов с изоляцией по владельцу"
+git commit -m "feat: connector CRUD endpoints isolated by owner"
 ```
 
 ---
 
-### Task 8: Список типов адаптеров и проверка соединения
+### Task 8: Adapter type list and connection check
 
 **Files:**
 - Create: `backend/app/adapters/routes.py`
@@ -2054,15 +2054,15 @@ git commit -m "feat: CRUD-ручки коннекторов с изоляцие�
 - Modify: `backend/app/api/main.py`
 
 **Interfaces:**
-- Consumes: всё из задач 3, 4, 6, 7.
+- Consumes: everything from tasks 3, 4, 6, 7.
 - Produces:
-  - `GET /api/v1/adapter-types/` → `list[AdapterTypeInfo]`, где `AdapterTypeInfo` имеет поля `name: str`, `title: str`, `options_schema: dict[str, Any]`
+  - `GET /api/v1/adapter-types/` → `list[AdapterTypeInfo]`, where `AdapterTypeInfo` has fields `name: str`, `title: str`, `options_schema: dict[str, Any]`
   - `POST /api/v1/connectors/{connector_id}/check` → `ConnectionCheckResult`
-  - `POST /api/v1/connectors/check-draft` → `ConnectionCheckResult`, тело `ConnectionCheckRequest` с полями `adapter_type: str`, `options: dict[str, Any]`, `connector_id: uuid.UUID | None`
+  - `POST /api/v1/connectors/check-draft` → `ConnectionCheckResult`, body `ConnectionCheckRequest` with fields `adapter_type: str`, `options: dict[str, Any]`, `connector_id: uuid.UUID | None`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `backend/tests/adapters/test_routes.py`:
+Create `backend/tests/adapters/test_routes.py`:
 
 ```python
 from httpx import AsyncClient
@@ -2100,7 +2100,7 @@ async def test_requires_authentication(client: AsyncClient) -> None:
     assert response.status_code == 401
 ```
 
-Создать `backend/tests/connectors/test_check.py`:
+Create `backend/tests/connectors/test_check.py`:
 
 ```python
 import uuid
@@ -2249,14 +2249,14 @@ async def test_check_unknown_connector_returns_404(
     assert response.status_code == 404
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd backend && uv run pytest tests/adapters/test_routes.py tests/connectors/test_check.py -v`
-Expected: FAIL — ручки возвращают 404.
+Expected: FAIL — the endpoints return 404.
 
-- [ ] **Step 3: Реализовать список типов адаптеров**
+- [ ] **Step 3: Implement the adapter type list**
 
-Создать `backend/app/adapters/routes.py`:
+Create `backend/app/adapters/routes.py`:
 
 ```python
 from typing import Any
@@ -2269,8 +2269,8 @@ from fastapi import Depends
 from app.adapters import registry
 from app.api.deps import get_current_user
 
-# Аутентификация объявлена на уровне роутера: сам обработчик пользователя не
-# использует, а неиспользуемый параметр запрещён правилом ruff ARG001.
+# Authentication is declared at the router level: the handler itself does not use
+# the user, and an unused parameter is forbidden by the ruff rule ARG001.
 router = APIRouter(
     prefix="/adapter-types",
     tags=["adapter-types"],
@@ -2296,21 +2296,21 @@ async def read_adapter_types() -> Any:
     ]
 ```
 
-- [ ] **Step 4: Добавить ручки проверки соединения**
+- [ ] **Step 4: Add the connection check endpoints**
 
-В блоке импортов `backend/app/connectors/routes.py` добавить строку
+In the import block of `backend/app/connectors/routes.py` add the line
 
 ```python
 from app.adapters.protocol import ConnectionCheckResult
 ```
 
-и дополнить существующий импорт pydantic до
+and extend the existing pydantic import to
 
 ```python
 from pydantic import BaseModel, ValidationError
 ```
 
-Затем добавить в конец файла:
+Then add at the end of the file:
 
 ```python
 class ConnectionCheckRequest(BaseModel):
@@ -2323,10 +2323,10 @@ class ConnectionCheckRequest(BaseModel):
 async def check_draft(
     session: SessionDep, current_user: CurrentUser, body: ConnectionCheckRequest
 ) -> Any:
-    """Проверить соединение по данным формы, ничего не сохраняя.
+    """Check the connection from the form data without saving anything.
 
-    Если передан connector_id, недостающие секретные поля берутся из
-    сохранённого коннектора: пользователь правит порт, не вводя пароль заново.
+    If connector_id is given, missing secret fields are taken from the
+    stored connector: the user changes the port without typing the password again.
     """
     adapter_type = _resolve_type(body.adapter_type)
     options = body.options
@@ -2364,142 +2364,142 @@ async def check_connector(
     return await adapter.check_connection()
 ```
 
-- [ ] **Step 5: Подключить роутер типов адаптеров**
+- [ ] **Step 5: Include the adapter type router**
 
-В `backend/app/api/main.py` добавить:
+In `backend/app/api/main.py` add:
 
 ```python
 from app.adapters.routes import router as adapter_types_router
 ```
 
-и рядом с остальными:
+and next to the others:
 
 ```python
 api_router.include_router(adapter_types_router)
 ```
 
-- [ ] **Step 6: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 6: Run the tests and make sure they pass**
 
 Run: `cd backend && uv run pytest tests/adapters/test_routes.py tests/connectors/test_check.py -v`
-Expected: PASS, 9 тестов.
+Expected: PASS, 9 tests.
 
-- [ ] **Step 7: Прогнать весь набор тестов**
+- [ ] **Step 7: Run the whole test suite**
 
 Run: `cd backend && uv run pytest tests/ -v`
-Expected: PASS целиком.
+Expected: PASS in full.
 
-- [ ] **Step 8: Проверить типы и стиль**
+- [ ] **Step 8: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add backend/app/adapters backend/app/connectors backend/app/api/main.py backend/tests
-git commit -m "feat: список типов адаптеров и проверка соединения"
+git commit -m "feat: adapter type list and connection check"
 ```
 
 ---
 
-### Task 9: Удалить учебную сущность Item
+### Task 9: Remove the sample Item entity
 
-Выполняется последней: до этого момента `Item` служит работающим образцом под рукой.
+Done last: until then `Item` serves as a working example at hand.
 
 **Files:**
 - Delete: `backend/app/api/routes/items.py`
 - Delete: `backend/tests/api/routes/test_items.py`
 - Delete: `backend/tests/utils/item.py`
-- Create: `backend/app/alembic/versions/<hash>_drop_item.py` (генерируется)
+- Create: `backend/app/alembic/versions/<hash>_drop_item.py` (generated)
 - Modify: `backend/app/models.py`, `backend/app/crud.py`, `backend/app/api/main.py`, `backend/app/api/routes/users.py`, `backend/tests/conftest.py`
 
 **Interfaces:**
-- Consumes: всё из задач 1–8.
-- Produces: ничего нового; удаляет `Item`, `ItemBase`, `ItemCreate`, `ItemUpdate`, `ItemPublic`, `ItemsPublic`, `crud.create_item`.
+- Consumes: everything from tasks 1–8.
+- Produces: nothing new; removes `Item`, `ItemBase`, `ItemCreate`, `ItemUpdate`, `ItemPublic`, `ItemsPublic`, `crud.create_item`.
 
-- [ ] **Step 1: Убрать роутер items**
+- [ ] **Step 1: Remove the items router**
 
-В `backend/app/api/main.py` удалить `items` из импорта `from app.api.routes import ...` и строку `api_router.include_router(items.router)`.
+In `backend/app/api/main.py` remove `items` from the `from app.api.routes import ...` import and the line `api_router.include_router(items.router)`.
 
-- [ ] **Step 2: Удалить файлы**
+- [ ] **Step 2: Delete the files**
 
 ```bash
 git rm backend/app/api/routes/items.py backend/tests/api/routes/test_items.py backend/tests/utils/item.py
 ```
 
-- [ ] **Step 3: Убрать модели Item**
+- [ ] **Step 3: Remove the Item models**
 
-В `backend/app/models.py` удалить классы `ItemBase`, `ItemCreate`, `ItemUpdate`, `Item`, `ItemPublic`, `ItemsPublic`, а также поле `items` из класса `User`:
+In `backend/app/models.py` remove the classes `ItemBase`, `ItemCreate`, `ItemUpdate`, `Item`, `ItemPublic`, `ItemsPublic`, and also the `items` field from the `User` class:
 
 ```python
     items: list[Item] = Relationship(back_populates="owner", cascade_delete=True)
 ```
 
-Если `Relationship` больше нигде не используется, удалить его из импорта `sqlmodel`.
+If `Relationship` is no longer used anywhere, remove it from the `sqlmodel` import.
 
-- [ ] **Step 4: Убрать crud.create_item**
+- [ ] **Step 4: Remove crud.create_item**
 
-В `backend/app/crud.py` удалить функцию `create_item` и упоминания `Item`, `ItemCreate` в импорте из `app.models`.
+In `backend/app/crud.py` remove the `create_item` function and the mentions of `Item`, `ItemCreate` in the import from `app.models`.
 
-- [ ] **Step 5: Поправить удаление пользователя**
+- [ ] **Step 5: Fix user deletion**
 
-В `backend/app/api/routes/users.py:228` удалить строку, вручную удаляющую связанные `Item`:
+In `backend/app/api/routes/users.py:228` remove the line that deletes the related `Item` rows by hand:
 
 ```python
     statement = delete(Item).where(col(Item.owner_id) == user_id)
 ```
 
-вместе со следующей за ней строкой выполнения этого запроса, а также убрать `Item` из импорта в строке 16. Если после этого `delete` и `col` больше нигде в файле не используются, удалить и их из импорта. Каскад на уровне БД остаётся единственным механизмом — `Connector` уже полагается на него.
+together with the line after it that executes this statement, and also remove `Item` from the import on line 16. If after that `delete` and `col` are no longer used anywhere in the file, remove them from the import too. The database-level cascade remains the only mechanism — `Connector` already relies on it.
 
-- [ ] **Step 6: Поправить conftest**
+- [ ] **Step 6: Fix conftest**
 
-В `backend/tests/conftest.py` удалить импорт `Item` и строку `await session.execute(delete(Item))`. Добавить очистку коннекторов перед удалением пользователей:
+In `backend/tests/conftest.py` remove the `Item` import and the line `await session.execute(delete(Item))`. Add clearing of connectors before users are deleted:
 
 ```python
         await session.execute(delete(Connector))
         await session.execute(delete(User))
 ```
 
-с импортом `from app.connectors.models import Connector`.
+with the import `from app.connectors.models import Connector`.
 
-- [ ] **Step 7: Сгенерировать и применить миграцию**
+- [ ] **Step 7: Generate and apply the migration**
 
 Run: `cd backend && uv run alembic revision --autogenerate -m "drop item"`
-Expected: создан файл миграции, в `upgrade()` присутствует `op.drop_table("item")`.
+Expected: a migration file is created, and `upgrade()` contains `op.drop_table("item")`.
 
 Run: `cd backend && uv run alembic upgrade head`
-Expected: миграция применена.
+Expected: the migration is applied.
 
-- [ ] **Step 8: Прогнать весь набор тестов**
+- [ ] **Step 8: Run the whole test suite**
 
 Run: `cd backend && uv run pytest tests/ -v`
-Expected: PASS целиком, тестов про `Item` не осталось.
+Expected: PASS in full, no tests about `Item` remain.
 
-- [ ] **Step 9: Проверить типы и стиль**
+- [ ] **Step 9: Check types and style**
 
 Run: `cd backend && uv run mypy app && uv run ruff check app tests`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add -A backend
-git commit -m "chore: удалить учебную сущность Item"
+git commit -m "chore: remove the sample Item entity"
 ```
 
 ---
 
-## Итог
+## Summary
 
-После задачи 9 бэкенд предоставляет:
+After task 9 the backend provides:
 
-- `GET /api/v1/adapter-types/` — типы источников с JSON Schema опций;
-- полный CRUD коннекторов с изоляцией по владельцу;
-- `POST /api/v1/connectors/{id}/check` и `POST /api/v1/connectors/check-draft`;
-- шифрование учётных данных, не покидающих сервер.
+- `GET /api/v1/adapter-types/` — source types with the JSON Schema of their options;
+- full CRUD for connectors, isolated by owner;
+- `POST /api/v1/connectors/{id}/check` and `POST /api/v1/connectors/check-draft`;
+- encryption of credentials, which never leave the server.
 
-Фронтенд на Vue описывается отдельным планом: `2026-08-15-connector-registry-frontend.md`.
+The Vue frontend is described by a separate plan: `2026-08-15-connector-registry-frontend.md`.
 
-## Известное ограничение
+## Known limitation
 
-`check-draft` по своей природе открывает TCP-соединение на присланный клиентом адрес, что даёт авторизованному пользователю возможность картировать внутреннюю сеть по времени ответа и виду ошибки. В плане реализованы смягчающие меры — жёсткий таймаут и единообразные сообщения об ошибках. Ограничение хостов списком разрешённых адресов вынесено отдельной задачей в бэклог, точка расширения — функция `_classify` и построение строки подключения в `PostgresAdapter._conninfo`.
+`check-draft` by its nature opens a TCP connection to an address sent by the client, which lets an authenticated user map the internal network by response time and error kind. The plan implements mitigations — a hard timeout and uniform error messages. Restricting hosts to an allowlist of addresses is a separate backlog task; the extension point is the `_classify` function and the building of the connection string in `PostgresAdapter._conninfo`.

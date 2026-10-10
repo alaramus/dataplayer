@@ -1,247 +1,253 @@
-# Сокет, доступность подключений и отключённый коннектор
+# The socket, connection availability and the disabled connector
 
-Дата: 2026-08-24
-Статус: согласовано
-Подпроект: 7а
+Date: 2026-08-24
+Status: agreed
+Subproject: 7a
 
-## Цель
+## Goal
 
-Сделать транспорт реального времени и первого его потребителя.
+Build the real-time transport and its first consumer.
 
-Транспорт нужен не сам по себе: на него сядут подъём сервиса под докером
-(прогресс — это поток, а не один ответ), вывод агента и подгрузка строк в
-сетку. Но транспорт без потребителя нечем проверить, поэтому вместе с ним
-делается доступность подключений — она маленькая, у неё понятное «готово или
-нет», и она честно нагружает сокет всем, что от него потребуется: подписка,
-рассылка по своей воле сервера, отключение, переподключение.
+The transport is not needed for its own sake: bringing up a service under
+Docker will sit on it (progress is a stream, not one answer), as will the
+agent's output and loading rows into the grid. But a transport without a
+consumer cannot be checked, so connection availability is built together with
+it — it is small, it has a clear "done or not", and it honestly loads the
+socket with everything that will be asked of it: subscription, sending at the
+server's own initiative, disconnection, reconnection.
 
-Заодно закрывается вещь, которая от доступности неотделима: **отключённый
-коннектор**. Отключённый не удалён — он остаётся в списке, его можно
-прочитать и включить обратно, но пользоваться им нельзя и проверять его не
-надо. Без этого правило монитора звучит как «опрашивать всех», а «всех» — не
-правило.
+It also closes a thing that cannot be separated from availability: **the
+disabled connector**. Disabled is not deleted — it stays in the list, it can
+be read and enabled again, but it cannot be used and does not need checking.
+Without this the monitor's rule reads as "poll everyone", and "everyone" is not
+a rule.
 
-## Посылки
+## Premises
 
-**`check_connection` есть у каждого источника.** Он объявлен в базовом
-контракте `DataAdapter`, а не в необязательной способности. Значит вопроса
-«что если источник не умеет проверяться» здесь не возникает и 501 в этом
-подпроекте не появляется — в отличие от каталога, выборки и действий.
+**Every source has `check_connection`.** It is declared in the base
+`DataAdapter` contract, not in an optional capability. So the question "what
+if the source cannot be checked" does not arise here, and 501 does not appear
+in this subproject — unlike the catalog, fetch and actions.
 
-**`ConnectionCheckResult` уже безопасен.** Он сводит исключение драйвера к
-виду ошибки и к сообщению, потому что текст исключения регулярно содержит
-строку подключения вместе с паролем. Кадр сокета несёт этот же объект, а не
-собственный.
+**`ConnectionCheckResult` is already safe.** It reduces a driver exception to
+an error kind and a message, because the exception text regularly contains the
+connection string together with the password. The socket frame carries this
+same object, not one of its own.
 
-**Проверка намеренно не берёт из пула.** Так уже сделано у ручной проверки, и
-довод записан прямо в `_adapter_for`: проверка должна проверять учётные
-данные, а соединение из пула отчитается «работает» и после того, как пароль
-перестал подходить. При написании кода это выяснилось и отменило первую
-редакцию посылки — там было сказано обратное, что опрос дёшев, потому что
-берёт готовое соединение. Цена опроса — одно подключение на источник за круг,
-и её сдерживают интервал, потолок одновременности и отступ после отказа.
+**The check deliberately does not take from the pool.** The manual check
+already does this, and the reasoning is written right in `_adapter_for`: a
+check must check the credentials, and a pooled connection will report "works"
+even after the password has stopped matching. This came out while writing the
+code and overturned the first wording of the premise — it said the opposite,
+that polling is cheap because it takes a ready connection. The cost of polling
+is one connection per source per round, and it is held down by the interval,
+a concurrency ceiling and a backoff after a failure.
 
-**Довод, записанный в `connectorChecks.ts`, этим подпроектом отменяется.** Там
-сказано, почему состояние проверок не спрашивают у сервера: «иначе на загрузке
-экрана откроем соединение к каждому источнику». Мы решили именно так и делать —
-пока на экран смотрят. Комментарий переписывается вместе с кодом; оставить его
-противоречить нельзя.
+**The reasoning written in `connectorChecks.ts` is overturned by this
+subproject.** It says why check state is not asked of the server: "otherwise
+on screen load we will open a connection to every source". We decided to do
+exactly that — while the screen is being looked at. The comment is rewritten
+together with the code; it cannot be left contradicting it.
 
-## Решения
+## Decisions
 
-### Р1 (D18). Транспорт не знает ни одной темы
+### R1 (D18). The transport knows no topic
 
-`app/realtime/` — только конверт, реестр тем и хаб сокетов. Ни одного импорта
-`app.connectors`.
+`app/realtime/` is only the envelope, the topic registry and the socket hub.
+Not a single import of `app.connectors`.
 
-Один роут `/api/v1/ws`. Сообщения — дискриминированные union с
-`extra="forbid"`, как `CatalogNode`:
+One route, `/api/v1/ws`. Messages are discriminated unions with
+`extra="forbid"`, like `CatalogNode`:
 
 ```python
-# клиент -> сервер
+# client -> server
 class WsAuth(BaseModel):      type: Literal["auth"];        token: str
 class WsSubscribe(BaseModel): type: Literal["subscribe"];   topic: str
 class WsUnsubscribe(BaseModel): type: Literal["unsubscribe"]; topic: str
 
-# сервер -> клиент
+# server -> client
 class WsReady(BaseModel): type: Literal["ready"]; protocol: int
 class WsEvent(BaseModel): type: Literal["event"]; topic: str; payload: ...
 class WsError(BaseModel): type: Literal["error"]; code: ...; message: str
 ```
 
-Тема — `runtime_checkable` Protocol с двумя ручками: пришёл подписчик, ушёл
-подписчик. Реестр хранит фабрики; объекты строит `lifespan` и кладёт в
-состояние приложения — пережившее запрос принадлежит приложению (D10), как пул.
+A topic is a `runtime_checkable` Protocol with two handles: a subscriber came,
+a subscriber left. The registry holds factories; the objects are built by
+`lifespan` and put into application state — whatever outlives a request
+belongs to the application (D10), like the pool.
 
-Отвергнут роут на каждую надобность (`/ws/connector-health`,
-`/ws/agent`, `/ws/docker`): у браузера тогда несколько сокетов, каждый со своей
-аутентификацией и своим переподключением, а общий код всё равно пришлось бы
-доставать в общее место — только позже и из трёх копий.
+Rejected: a route for every need (`/ws/connector-health`, `/ws/agent`,
+`/ws/docker`): the browser would then have several sockets, each with its own
+authentication and its own reconnection, and the common code would have to be
+pulled out into a shared place anyway — only later and from three copies.
 
-Отвергнуто и «сокет несёт те же запросы, что HTTP», как сделано в старом
-приложении. Там это оправдано: клиент — чужая программа, и socket экономит ей
-рукопожатие на каждый вызов. Здесь клиент свой, HTTP-запросы делает vue-query, и
-второй способ вызвать те же роуты был бы вторым API с теми же правами — то есть
-второй поверхностью, которую надо одинаково защищать.
+Also rejected: "the socket carries the same requests as HTTP", as done in the
+old application. There it is justified: the client is someone else's program,
+and the socket saves it a handshake on every call. Here the client is our own,
+HTTP requests are made by vue-query, and a second way to call the same routes
+would be a second API with the same rights — that is, a second surface that has
+to be protected equally.
 
-### Р2. Токен приходит первым кадром
+### R2. The token arrives as the first frame
 
-Браузер не может поставить заголовок на рукопожатие WebSocket. Остаётся строка
-запроса или первое сообщение.
+A browser cannot set a header on the WebSocket handshake. What remains is the
+query string or the first message.
 
-Строка запроса отвергнута: она пишет JWT в каждый access-лог, в историю
-браузера и в заголовок `Referer`. Сокет открывается неаутентифицированным, не
-отдаёт ничего до `auth` и закрывается, если `auth` не пришёл за отведённые
-секунды.
+The query string is rejected: it writes the JWT into every access log, into
+the browser history and into the `Referer` header. The socket opens
+unauthenticated, gives nothing before `auth`, and closes if `auth` has not
+arrived within the allotted seconds.
 
-### Р3 (D19). Один монитор на пользователя, и он живёт, пока смотрят
+### R3 (D19). One monitor per user, and it lives while someone is looking
 
-Подписка — «слежу за своими подключениями», без перечисления. Монитор
-создаётся, когда у пользователя появляется первый подписчик, и гаснет с
-небольшой отсрочкой после ухода последнего — иначе перезагрузка страницы
-убивает и тут же строит его заново.
+The subscription is "I watch my connections", with no enumeration. The monitor
+is created when the user gets a first subscriber, and goes out with a short
+delay after the last one leaves — otherwise a page reload kills it and
+immediately builds it again.
 
-Цикл: перечитать список коннекторов пользователя (он мог измениться), опросить
-включённые с ограничением одновременности и с таймаутом на каждый, результат
-положить в память монитора и разослать всем сокетам этого пользователя.
+The loop: reread the user's list of connectors (it may have changed), poll the
+enabled ones with a concurrency limit and a timeout on each, put the result
+into the monitor's memory and send it to all of this user's sockets.
 
-Новый подписчик первым делом получает снимок последнего известного. Поэтому
-вторая вкладка окрашивается сразу и не добавляет ни одного обращения к чужому
-серверу — ради этого монитор и общий, а не на сокет.
+A new subscriber first of all receives a snapshot of the last known state. So
+a second tab is coloured at once and adds not a single call to someone else's
+server — that is why the monitor is shared, not per socket.
 
-Отказавший источник получает отступ: его интервал удваивается до потолка и
-сбрасывается при успехе. Без этого каждый цикл упирается в таймаут подключения
-мёртвого хоста, и живые проверяются реже него.
+A failed source gets a backoff: its interval doubles up to a ceiling and is
+reset on success. Without it every loop runs into the connection timeout of a
+dead host, and the live ones are checked less often than it.
 
-Ручная проверка (`POST /{id}/check`) кладёт свой результат в монитор. Иначе на
-экране два источника правды: кнопка сказала «ок», точка показывает «упало».
+The manual check (`POST /{id}/check`) puts its result into the monitor.
+Otherwise there are two sources of truth on screen: the button said "ok", the
+dot shows "down".
 
-### Р4 (D20). Отключённый коннектор — не источник
+### R4 (D20). A disabled connector is not a source
 
-`Connector.enabled: bool = True`, миграция, поле в `ConnectorPublic` и в
-`ConnectorUpdate`.
+`Connector.enabled: bool = True`, a migration, a field in `ConnectorPublic` and
+in `ConnectorUpdate`.
 
-Запрет стоит в `_adapter_for` — единственном месте, где хранённый коннектор
-превращается в живой адаптер. Через него идут каталог, выборка, действия и
-ручная проверка, поэтому правило пишется один раз и не может быть забыто в
-новом роуте. `_get_or_404` не трогается: отключённое подключение по-прежнему
-читается, переименовывается и включается обратно.
+The prohibition sits in `_adapter_for` — the only place where a stored
+connector turns into a live adapter. The catalog, fetch, actions and the manual
+check go through it, so the rule is written once and cannot be forgotten in a
+new route. `_get_or_404` is not touched: a disabled connection can still be
+read, renamed and enabled again.
 
-Код ответа — 409. Не 404: коннектор есть, и клиент про него знает. Не 403: он
-свой, и дело не в правах.
+The response code is 409. Not 404: the connector exists, and the client knows
+about it. Not 403: it is the user's own, and rights are not the issue.
 
-Монитор не берёт отключённых в обход, а роут, который отключает, говорит
-монитору забыть последний результат — иначе включённый обратно коннектор
-секунду светит вчерашним зелёным.
+The monitor does not include disabled ones in its round, and the route that
+disables one tells the monitor to forget the last result — otherwise a
+connector enabled again glows yesterday's green for a second.
 
-Отвергнут отдельный роут `/{id}/disable`: это одно поле коннектора, и правится
-оно там же, где остальные.
+Rejected: a separate route `/{id}/disable`: this is one field of the
+connector, and it is edited where the others are.
 
-### Р5. Точка составляется из двух источников
+### R5. The dot is made up from two sources
 
-Тонов четыре: `disabled` (жёлтый) перебивает всё, дальше `unknown` (серый),
-`ok`, `failed`.
+There are four tones: `disabled` (yellow) overrides everything, then `unknown`
+(grey), `ok`, `failed`.
 
-`enabled` приезжает со списком коннекторов в vue-query — это состояние сервера.
-Последний результат проверки лежит в Pinia — сервер его не хранит. Разделение
-по D6, и оно же отвечает, почему «отключён» не шлётся через сокет: один факт в
-двух местах разъезжается.
+`enabled` arrives with the list of connectors in vue-query — it is server
+state. The last check result lives in Pinia — the server does not store it.
+The split follows D6, and it also answers why "disabled" is not sent over the
+socket: one fact in two places drifts apart.
 
-Состояния «проверяется» нет. Опрос периодический, и мигание на каждом круге —
-шум, а не сведение. Возраст последней проверки говорится в подсказке.
+There is no "checking" state. Polling is periodic, and blinking on every round
+is noise, not information. The age of the last check is given in the tooltip.
 
-### Р6. Клиент сокета свой, не библиотека
+### R6. The socket client is our own, not a library
 
-`shared/realtime/socket.ts`: открыть, аутентифицироваться, переподписаться,
-переподключиться с растущим отступом и разбросом. Логика «после открытия
-сделать вот это» всё равно наша, а без неё от `reconnecting-websocket`
-остаётся один отступ.
+`shared/realtime/socket.ts`: open, authenticate, resubscribe, reconnect with a
+growing backoff and jitter. The "after opening do this" logic is ours anyway,
+and without it what remains of `reconnecting-websocket` is the backoff alone.
 
-Своё проверяется подделкой `WebSocket` в Vitest — без сервера, без ожиданий по
-времени. Чужое так не проверяется.
+Our own is checked with a fake `WebSocket` in Vitest — no server, no waiting on
+time. Someone else's cannot be checked that way.
 
-Отдельного `useTopic.ts` в итоге нет: подписчик один —
-`features/connectors/health.ts`, — и обёртка «подписка на время жизни
-компонента» была бы слоем поверх одной строчки. Появится со вторым
-потребителем.
+In the end there is no separate `useTopic.ts`: there is one subscriber —
+`features/connectors/health.ts` — and a "subscription for the lifetime of a
+component" wrapper would be a layer over one line. It will appear with the
+second consumer.
 
-### Р7. Место в слоях
+### R7. Place in the layers
 
-`app.realtime` встаёт между `app.adapters` и `app.users`:
+`app.realtime` stands between `app.adapters` and `app.users`:
 
 ```
 api → system → connectors → adapters → realtime → users → core
 ```
 
-Транспорту нужны только пользователи (аутентификация) и ядро. Тема доступности
-живёт в `app/connectors/health.py` — она про коннекторы — и сама себя
-регистрирует. Расширение есть новый модуль плюс регистрация, а не правка
-транспорта.
+The transport needs only users (authentication) and core. The availability
+topic lives in `app/connectors/health.py` — it is about connectors — and
+registers itself. Extension is a new module plus registration, not an edit to
+the transport.
 
-## Чем проверяется
+## How it is checked
 
-Конверт и транспорт:
+Envelope and transport:
 
-- неизвестный `type` и лишний ключ отвергаются;
-- сокет без `auth` закрывается по истечении срока; с негодным токеном —
-  сразу;
-- подписка на незарегистрированную тему даёт `error`, а не разрыв;
-- ни в одном кадре нет опций коннектора и пароля — регрессия, как для текста
-  ошибки.
+- an unknown `type` and an extra key are rejected;
+- a socket without `auth` is closed when the time runs out; with an invalid
+  token — at once;
+- a subscription to an unregistered topic gives `error`, not a disconnect;
+- no frame carries connector options or the password — a regression test, as
+  for error text.
 
-Монитор:
+Monitor:
 
-- подписка сразу отдаёт снимок, дальше приходят обновления;
-- второй сокет того же пользователя не добавляет опроса;
-- отступ после отказа растёт до потолка и сбрасывается при успехе — чистая
-  функция, проверяется без сокета;
-- отключённый коннектор в обход не попадает.
+- a subscription gives a snapshot at once, then updates arrive;
+- a second socket of the same user adds no polling;
+- the backoff after a failure grows up to the ceiling and resets on success —
+  a pure function, checked without a socket;
+- a disabled connector does not get into the round.
 
-Отключение:
+Disabling:
 
-- каталог, выборка, действие и проверка отключённого дают 409;
-- чтение, переименование и включение обратно работают;
-- `mypy --strict`, `ruff`, `lint-imports` чисты, и `realtime` не импортирует
-  `connectors`.
+- catalog, fetch, action and check on a disabled one give 409;
+- reading, renaming and enabling again work;
+- `mypy --strict`, `ruff`, `lint-imports` are clean, and `realtime` does not
+  import `connectors`.
 
-Клиент:
+Client:
 
-- переподключается и переподписывается сам (Vitest, поддельный `WebSocket`);
-- точка зеленеет сама, без нажатий (Playwright);
-- отключённый светит жёлтым и не открывается (Playwright).
+- reconnects and resubscribes by itself (Vitest, fake `WebSocket`);
+- the dot turns green by itself, without clicks (Playwright);
+- a disabled one glows yellow and does not open (Playwright).
 
-**Первый тест сокета ломается намеренно.** Сокет и общий цикл событий — место,
-где легко получить зелёный тест, который просто ничего не дождался. Проверка,
-которая ни разу не краснела, не значит ничего.
+**The first socket test is broken on purpose.** A socket and a shared event
+loop are a place where it is easy to get a green test that simply waited for
+nothing. A check that has never gone red means nothing.
 
-## Что придётся добавить в оснастку
+## What has to be added to the tooling
 
-`httpx` с `ASGITransport` не умеет WebSocket, а `TestClient` от Starlette
-синхронный и заводит свой цикл событий — это ровно та ловушка с пулом и циклом,
-что записана в AGENTS.md. В dev-зависимости добавляется `httpx-ws` с его ASGI
-транспортом, и тесты сокета живут в том же сессионном цикле, что и остальные.
+`httpx` with `ASGITransport` cannot do WebSocket, and Starlette's `TestClient`
+is synchronous and starts its own event loop — exactly the pool-and-loop trap
+recorded in AGENTS.md. `httpx-ws` with its ASGI transport is added to the dev
+dependencies, and the socket tests live in the same session loop as the rest.
 
-Сокет при этом открывается **внутри теста, а не фикстурой**: транспорт держит
-anyio-scope, а сессионная фикстура закрывается в другой задаче, чем открывалась,
-и этот scope такого не допускает. Помощники — в `tests/utils/socket.py`.
+The socket is opened **inside the test, not by a fixture**: the transport holds
+an anyio scope, and a session fixture is closed in a different task from the
+one it was opened in, which this scope does not allow. Helpers are in
+`tests/utils/socket.py`.
 
-Разрыв соединения приезжает завёрнутым в `ExceptionGroup`, поэтому
-`pytest.raises(WebSocketDisconnect)` его не ловит; для «сервер положил трубку»
-есть свой менеджер контекста.
+A connection break arrives wrapped in an `ExceptionGroup`, so
+`pytest.raises(WebSocketDisconnect)` does not catch it; there is a context
+manager of its own for "the server hung up".
 
-## Известные отклонения
+## Known deviations
 
-**Монитор живёт в процессе.** При нескольких воркерах у каждого будет свой, и
-опрос умножится на их число, а сокет получит только то, что проверил его
-собственный процесс. Сегодня процесс один. Честное решение — общий канал
-(Redis pub/sub); оно записано здесь, а не отложено молча.
+**The monitor lives in the process.** With several workers each will have its
+own, polling will be multiplied by their number, and a socket will receive only
+what its own process checked. Today there is one process. The honest solution
+is a shared channel (Redis pub/sub); it is recorded here rather than postponed
+silently.
 
-## Чего в подпроекте нет
+## What this subproject does not include
 
-- долгих задач с состоянием «принято / идёт / готово» — они нужны докеру, и у
-  них пока нет потребителя;
-- истории проверок и графиков доступности;
-- уведомлений о падении, когда экран закрыт;
-- прав доступа: отключение видит и делает только владелец, потому что чужих
-  коннекторов пока не бывает;
-- проверки доступности черновика формы — она уже есть и остаётся ручной.
+- long tasks with an "accepted / running / done" state — Docker needs them,
+  and they have no consumer yet;
+- check history and availability charts;
+- notifications of a failure while the screen is closed;
+- access rights: only the owner sees and does disabling, because other people's
+  connectors do not exist yet;
+- an availability check of a form draft — it already exists and stays manual.

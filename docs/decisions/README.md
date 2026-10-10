@@ -10,11 +10,6 @@ not update a spec to match later code — record the new reasoning in the
 architecture file, and add a new dated entry here only when the decision
 itself is revisited.
 
-Language: this index, and every spec from 2026-08-28 onwards, is in English.
-The specs dated up to 2026-08-27 and the plans beside them are working notes
-written in Russian, and are kept that way as legacy. The titles below are
-translations; those files are not.
-
 | Date | Spec | What it settled |
 | --- | --- | --- |
 | 2026-10-10 | [Policy changes that cannot end the job scheduler](2026-10-10-job-scheduler-locks-design.md) | D211: no lock on TimescaleDB's job catalogs before its own calls take them; DataPlayer's job changes queue on an advisory lock of their own; several removals in one statement whose waits end before a deadlock check |
@@ -173,4 +168,5 @@ translations; those files are not.
 Implementation plans are in [plans/](plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
 grid; the other sub-projects followed their spec without a separate plan.
-The plans are frozen legacy notes and stay unchanged.
+The plans are frozen: they record what was planned and are not updated to
+match later code.

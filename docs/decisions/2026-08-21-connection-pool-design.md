@@ -1,33 +1,34 @@
-# Пул соединений
+# Connection pool
 
-Дата: 2026-08-21
-Статус: согласовано
-Подпроект: 4б
+Date: 2026-08-21
+Status: agreed
+Subproject: 4b
 
-## Цель
+## Goal
 
-Сейчас каждый запрос открывает своё соединение и закрывает его: страница
-каталога, страница сетки, проверка. Для PostgreSQL это TCP-рукопожатие,
-аутентификация и запуск backend-процесса на каждое нажатие в дереве.
+Today every request opens its own connection and closes it: a catalog page, a
+grid page, a check. For PostgreSQL that is a TCP handshake, authentication and
+starting a backend process on every click in the tree.
 
-Подпроект убирает это, не превращая пул в механизм поверх всех адаптеров.
+The subproject removes this without turning the pool into a mechanism on top of
+all adapters.
 
-## Посылка, доставшаяся от подпроекта 6
+## A premise inherited from subproject 6
 
-У файлового источника соединения нет вовсе. Значит, «пул соединений» не может
-быть общим слоем над адаптерами: пулится не адаптер, а сессия конкретного
-драйвера. Общим может быть только одно — **место, где долгоживущий объект
-переживает запрос**, потому что адаптер создаётся заново на каждый запрос и
-пережить его не может по построению.
+A file source has no connection at all. So a "connection pool" cannot be a
+shared layer over adapters: what is pooled is not the adapter but the session
+of a specific driver. Only one thing can be shared — **a place where a
+long-lived object outlives the request**, because an adapter is created anew
+for every request and cannot outlive it by construction.
 
-Отсюда разделение: контейнер ничего не знает о соединениях, а пул ничего не
-знает о том, где он хранится.
+Hence the split: the container knows nothing about connections, and the pool
+knows nothing about where it is stored.
 
-## Решения
+## Decisions
 
-### Р1. Хранилище ресурсов принадлежит приложению, а не модулю
+### R1. The resource store belongs to the application, not to a module
 
-`app/adapters/resources.py`, без единого импорта драйвера:
+`app/adapters/resources.py`, without a single driver import:
 
 ```python
 class Closeable(Protocol):
@@ -41,17 +42,19 @@ class ResourceStore:
     async def aclose(self) -> None: ...
 ```
 
-Создаётся в `lifespan` приложения и там же закрывается. Отвергнут модульный
-словарь внутри `postgres/pool.py`: ENGINEERING.md требует передавать
-зависимость, а не доставать её из глобала, и закрывать такой словарь пришлось
-бы вызовом из `main.py` — сборка приложения начала бы называть PostgreSQL по
-имени. С хранилищем `main.py` не называет ни одного драйвера, а тест получает
-собственный экземпляр вместо чистки общего состояния.
+It is created in the application's `lifespan` and closed there too. A
+module-level dictionary inside `postgres/pool.py` is rejected: ENGINEERING.md
+requires passing a dependency rather than reaching for it through a global, and
+such a dictionary would have to be closed by a call from `main.py` — the
+application assembly would start naming PostgreSQL. With the store, `main.py`
+names no driver at all, and a test gets its own instance instead of cleaning up
+shared state.
 
-`kind` в сигнатуре — не украшение: он сужает тип без `cast`, и он же
-превращает «ключи разных драйверов не пересекаются» из допущения в проверку.
+`kind` in the signature is not decoration: it narrows the type without `cast`,
+and it also turns "keys of different drivers do not collide" from an
+assumption into a check.
 
-### Р2. Контекст получает одно поле, а не два
+### R2. The context gets one field, not two
 
 ```python
 @dataclass(frozen=True)
@@ -66,132 +69,137 @@ class AdapterContext:
     pooling: Pooling | None = None
 ```
 
-Хранилище и идентичность коннектора нужны только вместе, поэтому это одно
-необязательное поле: разойтись — быть хранилищу без коннектора или наоборот —
-им негде. Отсутствие `pooling` означает черновик: у него нет идентичности, а
-значит, и ключа. Это тот же приём, что и `home_dir` в решении D8, — сервер
-кладёт в контекст то, что клиент назвать не может, — и обобщение делается на
-втором применении.
+The store and the connector identity are only needed together, so this is one
+optional field: they have nowhere to diverge — a store without a connector or
+the other way round. The absence of `pooling` means a draft: it has no
+identity, and so no key. This is the same technique as `home_dir` in decision
+D8 — the server puts into the context what the client cannot name — and the
+generalisation is made on the second use.
 
-### Р3. Ключ содержит и коннектор, и отпечаток опций
+### R3. The key contains both the connector and a fingerprint of the options
 
 `postgres:{connector_id}:{sha256(conninfo)}`.
 
-Правка пароля или хоста меняет отпечаток и тем самым ключ — старый пул
-перестаёт находиться и уходит по простою. Отдельного места, обязанного помнить
-про сброс на PATCH и DELETE, не появляется; забытый сброс означал бы работу по
-старым учётным данным.
+Editing the password or the host changes the fingerprint and thereby the key —
+the old pool is no longer found and leaves through idleness. No separate place
+appears that has to remember to reset on PATCH and DELETE; a forgotten reset
+would mean working with old credentials.
 
-Отвергнут ключ по одному отпечатку: два пользователя с одинаковыми учётными
-данными делили бы соединения, и нигде в интерфейсе это не было бы видно.
+A key by fingerprint alone is rejected: two users with identical credentials
+would share connections, and nothing in the interface would show it.
 
-Отпечаток — хеш, а не сама строка: в `conninfo` лежит пароль, а ключ попадает в
-структуры, которые естественно однажды залогировать.
+The fingerprint is a hash, not the string itself: `conninfo` holds the
+password, and the key ends up in structures that are natural to log one day.
 
-### Р4. Пул ограничен с обеих сторон
+### R4. The pool is bounded on both sides
 
-- `min_size=0` — простаивающий коннектор не держит ничего;
-- `max_size` — потолок соединений на один коннектор;
-- потолок числа пулов в хранилище, сверх него вытесняется дольше всех не
-  использованный;
-- вытеснение по простою, чтобы забытый коннектор освободил соединения;
-- проверка соединения при выдаче: один лишний круг к серверу вместо случайной
-  ошибки после перезапуска базы.
+- `min_size=0` — an idle connector holds nothing;
+- `max_size` — the ceiling of connections per connector;
+- a ceiling on the number of pools in the store, above which the least recently
+  used one is evicted;
+- eviction by idleness, so that a forgotten connector releases its connections;
+- checking a connection when it is handed out: one extra round trip to the
+  server instead of a random error after the database restarts.
 
-Настройки: `POOL_MAX_SIZE`, `POOL_MAX_POOLS`, `POOL_MAX_IDLE_SECONDS`.
+Settings: `POOL_MAX_SIZE`, `POOL_MAX_POOLS`, `POOL_MAX_IDLE_SECONDS`.
 
-Вытеснение закрывает пул, у которого может быть выданное соединение. Закрытие
-пула в psycopg\_pool не обрывает уже выданное: оно закрывается при возврате,
-поэтому идущий запрос доживает до конца. Это проверяется тестом, а не
-принимается на веру.
+Eviction closes a pool that may have a connection handed out. Closing a pool in
+psycopg\_pool does not cut a connection already handed out: it is closed when
+returned, so a running query lives to the end. This is checked by a test, not
+taken on faith.
 
-### Р5. Причина отказа не должна потеряться
+### R5. The cause of a failure must not be lost
 
-Самое неочевидное место подпроекта. С `min_size=0` пул на неверном пароле
-отдаёт `PoolTimeout`, и исходная ошибка драйвера теряется: коннектор с
-опечаткой начал бы отвечать «не удалось достучаться до сервера» вместо «ошибка
-аутентификации». Сейчас это различие проверено тестами, и терять его нельзя.
+The least obvious place in the subproject. With `min_size=0` a pool on a wrong
+password gives `PoolTimeout`, and the original driver error is lost: a
+connector with a typo would start answering "could not reach the server"
+instead of "authentication error". Today this distinction is checked by tests,
+and it must not be lost.
 
-Поэтому **на пути отказа и только там** сессия делает одно прямое подключение,
-чтобы узнать настоящую причину, и классифицирует уже её. Успешный путь ничего
-лишнего не платит; сломанный коннектор в худшем случае ждёт два таймаута
-вместо одного. Это записывается в известные отклонения, а не умалчивается.
+So **on the failure path and only there** the session makes one direct
+connection to learn the real cause, and classifies that. The success path pays
+nothing extra; a broken connector at worst waits two timeouts instead of one.
+This is recorded among the known deviations rather than left unsaid.
 
-### Р6. Проверка соединения пул не использует
+### R6. The connection check does not use the pool
 
-`check()` остаётся прямым подключением. Смысл проверки — испытать учётные
-данные, а не сообщить, что пул жив; пулу же после успешной проверки нечего
-предъявить. У `check-draft` коннектора нет вовсе, и ключ строить не из чего.
+`check()` stays a direct connection. The point of the check is to try the
+credentials, not to report that the pool is alive; and after a successful check
+the pool has nothing to show. `check-draft` has no connector at all, and there
+is nothing to build a key from.
 
-## Что меняется в коде
+## What changes in the code
 
 ```
 app/
 ├── adapters/
-│   ├── resources.py          новый: Closeable, ResourceStore, Pooling
-│   ├── registry.py           AdapterContext получает pooling
+│   ├── resources.py          new: Closeable, ResourceStore, Pooling
+│   ├── registry.py           AdapterContext gets pooling
 │   └── postgres/
-│       ├── pool.py           новый: создание пула и ключ
-│       └── session.py        query() берёт соединение из пула, если он есть
-├── connectors/routes.py      контекст собирается с pooling для сохранённого
-│                             коннектора и без него для черновика
+│       ├── pool.py           new: pool creation and the key
+│       └── session.py        query() takes a connection from the pool, if there is one
+├── connectors/routes.py      the context is built with pooling for a saved
+│                             connector and without it for a draft
 ├── core/config.py            POOL_*
-└── main.py                   lifespan: создать хранилище и закрыть его
+└── main.py                   lifespan: create the store and close it
 ```
 
-`PostgresSession` получает необязательный источник пула. Без него — прямое
-подключение, как сегодня: так работают черновик, проверка и тест, который
-строит сессию сам.
+`PostgresSession` gets an optional pool source. Without it — a direct
+connection, as today: that is how the draft, the check and a test that builds
+the session itself work.
 
-Контракт импортов дополняется: `psycopg_pool` запрещается везде, где уже
-запрещён `psycopg`. Пакет отдельный, поэтому правило, не названное явно, не
-сработало бы.
+The import contract is extended: `psycopg_pool` is forbidden everywhere
+`psycopg` already is. It is a separate package, so a rule that does not name it
+explicitly would not fire.
 
-### Выяснилось при реализации
+### Found during implementation
 
-**Пул принадлежит циклу событий, в котором создан.** У приложения цикл один на
-процесс, поэтому в работе это ничего не значит, но pytest по умолчанию давал
-каждому тесту свой цикл, и пул, созданный в одном тесте, оказывался непригоден
-в следующем — падение приходило из внутренних future драйвера, а не из кода.
-Тесты переведены на общий цикл (`asyncio_default_test_loop_scope = "session"`),
-то есть на ту же модель, что и приложение.
+**A pool belongs to the event loop it was created in.** The application has one
+loop per process, so in operation this means nothing, but pytest by default gave
+each test its own loop, and a pool created in one test turned out unusable in
+the next — the failure came from the driver's internal futures, not from the
+code. The tests were moved to a shared loop
+(`asyncio_default_test_loop_scope = "session"`), that is, to the same model as
+the application.
 
-**Соединения стало видно снаружи, и их надо подписать.** Раз соединение теперь
-переживает запрос, в `pg_stat_activity` оно висит как чужое. В строку
-подключения добавлено `application_name`, так что видно, чьи это соединения —
-и заодно именно так проверено, что пул работает в живом приложении, а не только
-в тестах.
+**Connections became visible from outside, and they need a label.** Since a
+connection now outlives the request, it hangs in `pg_stat_activity` like a
+stranger. `application_name` was added to the connection string, so it is
+visible whose connections they are — and that is also exactly how it was
+checked that the pool works in the live application, not only in tests.
 
-## Чем проверяется
+## How it is checked
 
-Хранилище:
+Store:
 
-- один объект на ключ; разные ключи — разные объекты;
-- одновременные обращения по одному ключу создают ровно один объект;
-- сверх потолка вытесняется дольше всех не использованный, и он закрывается;
-- запись, простоявшая дольше срока, закрывается;
-- `aclose()` закрывает всё и очищает хранилище.
+- one object per key; different keys — different objects;
+- concurrent requests for one key create exactly one object;
+- above the ceiling the least recently used one is evicted, and it is closed;
+- an entry idle longer than the limit is closed;
+- `aclose()` closes everything and empties the store.
 
-Драйвер:
+Driver:
 
-- два запроса подряд идут одним `pg_backend_pid()`, а без пула — разными;
-- другой отпечаток опций даёт другой пул;
-- неверный пароль через пул по-прежнему даёт `auth`, недоступный хост —
-  `network` или `timeout`, и пароля нет в тексте ошибки;
-- закрытие пула во время выданного соединения не обрывает идущий запрос.
+- two consecutive queries go through one `pg_backend_pid()`, and without a pool
+  through different ones;
+- a different options fingerprint gives a different pool;
+- a wrong password through the pool still gives `auth`, an unreachable host —
+  `network` or `timeout`, and the password is not in the error text;
+- closing the pool while a connection is handed out does not cut a running
+  query.
 
-Маршруты:
+Routes:
 
-- два обращения к каталогу одного коннектора оставляют в хранилище одну запись;
-- `check-draft` не создаёт ни одной;
-- файловый коннектор не создаёт ни одной;
-- `mypy --strict`, `ruff`, `lint-imports` чисты.
+- two catalog requests for one connector leave one entry in the store;
+- `check-draft` creates none;
+- a file connector creates none;
+- `mypy --strict`, `ruff`, `lint-imports` are clean.
 
-## Чего в подпроекте нет
+## Not in this subproject
 
-- пула для чего-либо, кроме PostgreSQL, — второго источника с соединением пока
-  нет;
-- разделения пулов между процессами: у каждого воркера свой;
-- ограничения числа одновременных запросов пользователя;
-- метрик и телеметрии пула;
-- переиспользования соединения между шагами одного сценария (транзакции).
+- a pool for anything other than PostgreSQL — there is no second source with a
+  connection yet;
+- sharing pools between processes: each worker has its own;
+- limiting the number of a user's concurrent queries;
+- pool metrics and telemetry;
+- reusing a connection between steps of one scenario (transactions).

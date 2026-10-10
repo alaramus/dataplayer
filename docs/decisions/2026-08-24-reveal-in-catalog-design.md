@@ -1,106 +1,107 @@
-# С вкладки таблицы — к её каталогу
+# From a table tab to its catalog
 
-Дата: 2026-08-24
-Статус: согласовано
-Раунд: 7в
+Date: 2026-08-24
+Status: agreed
+Round: 7c
 
-## Цель
+## Goal
 
-Убрать имя подключения из вкладки таблицы и дать с этой вкладки ход к каталогу
-того подключения, которому таблица принадлежит: каталог открывается, если его
-не было, выходит вперёд, если был, и узел в нём подсвечивается.
+Remove the connection name from the table tab and give that tab a way to the
+catalog of the connection the table belongs to: the catalog opens if it was
+not open, comes to the front if it was, and the node in it is highlighted.
 
-Нового решения нет: это то же место контракта вкладки, что и T5, — иконка
-зовёт то, что дало приложение. Меняется только, что она зовёт для вкладки
-таблицы.
+There is no new decision: this is the same place in the tab contract as T5 —
+the icon calls what the application provided. Only what it calls for a table
+tab changes.
 
-## Что теряется и куда это деть
+## What is lost and where it goes
 
-Имя подключения стоит во вкладке не для красоты. В правой колонке лежат
-таблицы из разных подключений одновременно, и две `users` из двух баз без него
-неразличимы. Поэтому оно не пропадает, а уходит в подсказку иконки:
-`prod-db · Show in catalog`. Подсказка всё равно нужна — иконка теперь делает
-не то, что раньше.
+The connection name is not in the tab for decoration. The right column holds
+tables from different connections at once, and two `users` from two databases
+are indistinguishable without it. So it does not disappear but moves into the
+icon's tooltip: `prod-db · Show in catalog`. A tooltip is needed anyway — the
+icon now does something other than before.
 
-## Решения
+## Decisions
 
-### Р1. Иконка вкладки таблицы ведёт к каталогу
+### R1. The table tab's icon leads to the catalog
 
-`lookOf` для `rows` теряет `subtitle` и получает подсказку с именем
-подключения. Иконка вкладки каталога по-прежнему открывает окно правки.
+`lookOf` for `rows` loses `subtitle` and gets a tooltip with the connection
+name. The catalog tab's icon still opens the edit window.
 
-Отвергнута третья кнопка рядом с обновлением: во вкладке уже иконка, название,
-обновление и крестик, а окно правки подключения достижимо ещё двумя ходами —
-иконкой вкладки каталога и списком подключений. «К каталогу этой таблицы» —
-единственный ход, которого больше нет нигде, и иконка источника, ведущая к
-каталогу источника, читается сама.
+Rejected: a third button next to reload: the tab already has an icon, a title,
+reload and a cross, and the connection's edit window is reachable two more
+ways — the catalog tab's icon and the list of connections. "To this table's
+catalog" is the only move that exists nowhere else, and a source icon leading
+to the source's catalog reads by itself.
 
-Отвергнут двойной клик по вкладке: жест невидим, и на сенсорном экране его
-нет.
+Rejected: a double click on the tab: the gesture is invisible, and a touch
+screen does not have it.
 
-### Р2. Показать — это открыть или выйти вперёд, плюс отметить
+### R2. Showing means opening or coming to the front, plus marking
 
-`revealInCatalog(connectorId, nodeId)` в действиях рабочей области:
+`revealInCatalog(connectorId, nodeId)` in the workspace actions:
 
-1. найти подключение в списке; нет — ничего (его удалили), отключено — тот же
-   отказ, что и при обычном открытии;
-2. `openCatalog(connector)` — движок сам выводит вперёд уже открытую панель,
-   так что «открыть или перейти» это одно и то же действие;
-3. положить цель `{ connectorId, nodeId }` в состояние экрана.
+1. find the connection in the list; none — nothing (it was deleted); disabled —
+   the same refusal as for an ordinary open;
+2. `openCatalog(connector)` — the engine itself brings an already open panel to
+   the front, so "open or go to" is one and the same action;
+3. put the target `{ connectorId, nodeId }` into screen state.
 
-`CatalogPanel` видит цель, узнаёт в ней своё подключение, подсвечивает узел,
-если тот есть в показанном уровне, и цель гасит. Цель, а не прямой вызов
-панели: панель могла ещё не смонтироваться — её только что открыли.
+`CatalogPanel` sees the target, recognises its own connection in it,
+highlights the node if it is on the shown level, and clears the target. A
+target rather than a direct call to the panel: the panel may not be mounted
+yet — it has only just been opened.
 
-Отвергнут второй реестр рядом с реестром перезагрузок: подсветка — это не
-команда панели, а состояние экрана, и watch по нему переживает монтирование,
-которого вызов не переживёт.
+Rejected: a second registry next to the reload registry: highlighting is not a
+panel command but screen state, and a watch on it survives mounting, which a
+call would not survive.
 
-### Р3. Подсветка — обводка, и она сама гаснет
+### R3. The highlight is an outline, and it fades by itself
 
-Отметки в каталоге уже есть — тик-боксы, и они значат «над этим будет
-действие». Подсветка значит «вот он», это другое, и заливкой её путали бы с
-отметкой.
+The catalog already has marks — checkboxes, and they mean "an action will be
+taken on this". The highlight means "here it is", which is something else, and
+as a fill it would be confused with a mark.
 
-Обводка держится три секунды и гаснет. Первая редакция говорила «пока не
-сменился уровень» — это неверно: обводка, которая держится сколько угодно,
-перестаёт значить «вот он» и начинает читаться как состояние строки, то есть
-как вторая разновидность отметки рядом с тик-боксами. Трёх секунд хватает,
-чтобы зацепиться взглядом. Уход с уровня гасит её раньше срока, если ушли
-быстрее.
+The outline lasts three seconds and fades. The first wording said "until the
+level changes" — that is wrong: an outline that lasts indefinitely stops
+meaning "here it is" and starts reading as a row state, that is, as a second
+kind of mark next to the checkboxes. Three seconds are enough to catch the eye.
+Leaving the level clears it early if one leaves sooner.
 
-Гаснет плавно: обводка объявлена прозрачной на каждой строке, а класс меняет
-только её цвет — цвет нельзя переходить из правила, которое уже снято. Места
-обводка не занимает, так что строкам без отметки это ничего не стоит.
+It fades smoothly: the outline is declared transparent on every row, and the
+class changes only its colour — a colour cannot transition from a rule that has
+already been removed. The outline takes no space, so it costs nothing for rows
+without the mark.
 
-Само затухание — `useFadingMark`, отдельный композабл: время проверяется
-поддельными часами и без монтирования.
+The fading itself is `useFadingMark`, a separate composable: time is checked
+with fake timers and without mounting.
 
-### Р4. Чего не умеем и не притворяемся
+### R4. What we cannot do and do not pretend to
 
-Подсветить можно только узел, который есть в показанном уровне. Обычно он там
-и есть — оттуда его и открывали. Но если ушли в другую папку или перезагрузили
-страницу, прыгнуть на уровень узла нельзя, не разбирая его id на клиенте, а
-разбор серверных строк на клиенте — то, чего проект не делает. Тогда каталог
-просто открывается, и подсветки нет.
+Only a node that is on the shown level can be highlighted. Usually it is there —
+that is where it was opened from. But if one has gone into another folder or
+reloaded the page, jumping to the node's level is impossible without parsing
+its id on the client, and parsing server strings on the client is what the
+project does not do. Then the catalog simply opens, and there is no highlight.
 
-Правильное решение — способность адаптера «путь до узла»: источник знает, как
-устроены его собственные id, клиент не знает и знать не должен. Это отдельный
-раунд.
+The right solution is an adapter capability "path to a node": the source knows
+how its own ids are built, the client does not and must not. That is a separate
+round.
 
-## Чем проверяется
+## How it is checked
 
-- `lookOf` для `rows`: подзаголовка нет, подсказка называет подключение;
-- `CatalogList`: строка с указанным id несёт отметку, остальные нет;
-- `useFadingMark`: показывает сразу, гасит по истечении срока, второй показ
-  начинает отсчёт заново, снимает таймер вместе с областью;
-- Playwright: с открытой вкладкой таблицы нажатие на её иконку выводит вперёд
-  каталог того же подключения и подсвечивает строку, а через несколько секунд
-  подсветка уходит; при закрытом каталоге — открывает его; у отключённого
-  подключения — отказывает так же, как обычное открытие.
+- `lookOf` for `rows`: no subtitle, the tooltip names the connection;
+- `CatalogList`: the row with the given id carries the mark, the others do not;
+- `useFadingMark`: shows at once, clears when the time is up, a second show
+  restarts the countdown, removes the timer together with the scope;
+- Playwright: with a table tab open, a click on its icon brings the catalog of
+  the same connection to the front and highlights the row, and after a few
+  seconds the highlight goes away; with the catalog closed — opens it; for a
+  disabled connection — refuses the same way an ordinary open does.
 
-## Чего в раунде нет
+## What this round does not include
 
-- перехода на уровень узла, который не виден;
-- подсветки в обратную сторону — из каталога к открытой вкладке таблицы;
-- памяти о подсветке между перезагрузками страницы.
+- going to the level of a node that is not visible;
+- highlighting in the other direction — from the catalog to an open table tab;
+- remembering the highlight across page reloads.

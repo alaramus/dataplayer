@@ -1,92 +1,92 @@
-# Кнопка перезагрузки на вкладке
+# A reload button on the tab
 
-Дата: 2026-08-24
-Статус: согласовано
-Раунд: 7б
+Date: 2026-08-24
+Status: agreed
+Round: 7b
 
-## Цель
+## Goal
 
-Дать возможность перечитать содержимое вкладки, не закрывая её и не
-перезагружая страницу.
+Make it possible to reread a tab's content without closing it and without
+reloading the page.
 
-Нового решения здесь нет: это третья ручка того же вида, что уже есть у
-вкладки (T5 — иконка вкладки зовёт то, что дало приложение), и она не меняет
-границу между движком и приложением (D12).
+There is no new decision here: this is a third handle of the same kind the tab
+already has (T5 — the tab icon calls what the application provided), and it
+does not move the boundary between the engine and the application (D12).
 
-## Посылка, из-за которой это не одна строчка
+## The premise that makes this more than one line
 
-«Просто позвать `invalidateQueries`» не работает. Три панели устроены
-по-разному:
+"Just call `invalidateQueries`" does not work. The three panels are built
+differently:
 
-- **Подключения** читаются через vue-query, и инвалидации хватает.
-- **Каталог** держит текущий уровень в собственных `ref`
-  (`useCatalogLevel.ts`): что показано, где мы в пути, что отмечено. Кеш
-  запросов там используется как хранилище прочитанного, а список строится в
-  локальном состоянии — инвалидация его не перерисует. У уровня уже есть свой
-  `reload(nodeId)`, им и пользуются действия.
-- **Строки** вообще не запрос, а мутация: страница живёт в `RowGrid`, у него
-  есть `load()`.
+- **Connections** are read through vue-query, and invalidation is enough.
+- **The catalog** keeps the current level in its own `ref`s
+  (`useCatalogLevel.ts`): what is shown, where we are on the path, what is
+  ticked. The query cache there is used as a store of what has been read, and
+  the list is built in local state — invalidation will not redraw it. The level
+  already has its own `reload(nodeId)`, and actions use it.
+- **Rows** are not a query at all but a mutation: the page lives in `RowGrid`,
+  which has `load()`.
 
-То есть у каждой панели своя операция «перечитать», и она уже написана. Не
-хватает способа дотянуться до неё из полосы вкладок.
+So each panel has its own "reread" operation, and it is already written. What
+is missing is a way to reach it from the tab strip.
 
-## Решения
+## Decisions
 
-### Р1. Вкладка спрашивает у приложения, есть ли что перезагружать
+### R1. The tab asks the application whether there is anything to reload
 
-В `PanelLook` добавляется `reloadTooltip?: string`, в `WorkspaceContext` —
-`onReload?(panelId)`. Кнопка рисуется, когда фича дала подсказку, ровно как
-иконка-действие рисуется, когда дан `iconTooltip`. Движок не узнаёт ни одного
-вида панели.
+`PanelLook` gets `reloadTooltip?: string`, `WorkspaceContext` gets
+`onReload?(panelId)`. The button is drawn when the feature provided a tooltip,
+exactly as the action icon is drawn when `iconTooltip` is given. The engine
+learns no panel kind.
 
-Кнопка стоит во вкладке рядом с крестиком и видна всегда — как крестик.
-Отвергнут показ по наведению: место под неё всё равно пришлось бы держать,
-чтобы заголовок не прыгал, а на сенсорном экране наведения нет.
+The button sits in the tab next to the cross and is always visible — like the
+cross. Rejected: showing it on hover: room for it would have to be kept anyway
+so the title does not jump, and a touch screen has no hover.
 
-### Р2. Панель говорит, как её перечитать
+### R2. The panel says how to reread it
 
-`useReloadable(panelId, reload)` — композабл фичи рабочей области. Панель при
-монтировании кладёт свою функцию в реестр, при размонтировании убирает.
-`WorkspacePage` зовёт то, что в реестре лежит.
+`useReloadable(panelId, reload)` is a composable of the workspace feature. On
+mount the panel puts its function into the registry, on unmount it removes it.
+`WorkspacePage` calls whatever is in the registry.
 
-Реестр — обычный объект, поэтому проверяется без монтирования: регистрация,
-снятие, зов неизвестного id ничего не ломает.
+The registry is a plain object, so it is checked without mounting:
+registration, removal, a call with an unknown id breaks nothing.
 
-**Поправка, выяснившаяся при написании кода.** Смонтирована только активная
-вкладка секции, а `<KeepAlive>` держит те, что уже показывали. Значит вкладка,
-восстановленная из хранилища и ни разу не открытая, ничего не зарегистрировала,
-и нажатие на её кнопку не сделало бы ничего. Такую вкладку показывают: панель,
-которая ничего не читала, читается тем, что её открыли. Этого в первой редакции
-плана не было.
+**A correction that came out while writing the code.** Only the active tab of a
+section is mounted, and `<KeepAlive>` keeps the ones already shown. So a tab
+restored from storage and never opened has registered nothing, and a click on
+its button would do nothing. Such a tab is shown: a panel that has read nothing
+is read by being opened. This was not in the first wording of the plan.
 
-Отвергнуты ссылки на экземпляры компонентов в движке: это привязка движка к
-внутренностям панелей, то самое, чего D12 избегает. Отвергнута и кнопка внутри
-каждой панели: движок тогда не трогается, но место кнопки у трёх панелей
-разъедется.
+Rejected: references to component instances in the engine: that ties the
+engine to the panels' internals, exactly what D12 avoids. Rejected as well: a
+button inside each panel: the engine is then not touched, but the button's
+place drifts apart across the three panels.
 
-### Р3. Перечитывают то, на что смотрят
+### R3. What is being looked at is reread
 
-Каталог перечитывает **текущий** уровень: путь и отметки остаются. Уход в
-корень — это навигация, а не обновление, и пользователь её не просил.
+The catalog rereads the **current** level: the path and the ticks stay. Going
+to the root is navigation, not a refresh, and the user did not ask for it.
 
-Строки перечитывают ту же страницу с тем же порядком.
+Rows reread the same page with the same order.
 
-### Р4. Пока идёт — иконка крутится и не нажимается
+### R4. While it runs, the icon spins and cannot be clicked
 
-Иначе на медленном источнике непонятно, нажалось ли, и вторым нажатием
-запускают второй круг.
+Otherwise on a slow source it is unclear whether the click registered, and a
+second click starts a second round.
 
-## Чем проверяется
+## How it is checked
 
-- реестр: регистрация, снятие при размонтировании, зов неизвестного id;
-- `WorkspaceLeaf`: кнопка есть только когда фича дала `reloadTooltip` и когда
-  приложение дало `onReload`, и нажатие на неё не делает вкладку активной;
-- Playwright: нажатие на вкладке каталога перечитывает уровень, а путь при
-  этом не сбрасывается; нажатие на вкладке подключений перечитывает список и
-  ничего не открывает; нажатие на вкладке, ни разу не открытой, показывает её.
+- the registry: registration, removal on unmount, a call with an unknown id;
+- `WorkspaceLeaf`: the button exists only when the feature provided
+  `reloadTooltip` and the application provided `onReload`, and clicking it does
+  not make the tab active;
+- Playwright: a click on the catalog tab rereads the level, and the path is not
+  reset; a click on the connections tab rereads the list and opens nothing; a
+  click on a tab never opened shows it.
 
-## Чего в раунде нет
+## What this round does not include
 
-- горячей клавиши;
-- «перезагрузить всё»;
-- автоматического обновления по времени.
+- a keyboard shortcut;
+- "reload everything";
+- automatic refresh on a timer.

@@ -1,103 +1,111 @@
-# Редактирование данных
+# Editing data
 
-Дата: 2026-08-27
-Статус: согласовано
-Раунд: 10
+Date: 2026-08-27
+Status: agreed
+Round: 10
 
-## Цель
+## Goal
 
-Добавить первый изменяющий сценарий в грид: безопасно изменить одну ячейку
-существующей строки, не угадывая на клиенте ни идентичность строки, ни тип
-значения, и не затирая незаметно параллельное изменение.
+Add the first modifying scenario to the grid: safely change one cell of an
+existing row, without guessing on the client either the row's identity or the
+value's type, and without silently overwriting a concurrent change.
 
-Вставка и удаление не входят в этот раунд. У вставки отдельная форма обязательных
-полей, defaults и identity; у удаления — destructive confirmation и bulk-
-семантика. Делать их особыми значениями команды update означало бы заранее
-связать три разных операции одним неустойчивым контрактом.
+Insertion and deletion are not part of this round. Insertion has its own form
+of required fields, defaults and identity; deletion has destructive
+confirmation and bulk semantics. Making them special values of the update
+command would tie three different operations to one unstable contract in
+advance.
 
-## Что было в старом приложении
+## What the old application had
 
-Клиент строил `where` сам: предпочитал спрятанный `ctid`/rowid/PK, а при его
-отсутствии отправлял все непустые значения строки. Он же по старому значению
-угадывал, превращать ли введённый текст в number или boolean. Сервер собирал
-`UPDATE ... SET ... WHERE ...` из этих словарей и после успеха перечитывал
-таблицу.
+The client built `where` itself: it preferred a hidden `ctid`/rowid/PK, and in
+its absence sent all non-empty values of the row. It also guessed from the old
+value whether to turn the entered text into a number or a boolean. The server
+assembled `UPDATE ... SET ... WHERE ...` from these dictionaries and after
+success reread the table.
 
-Полезная часть поведения — double click, короткое изменение и перечитывание —
-остаётся. Контракт отвергается: одинаковые строки могли измениться вместе, null
-исчезал из predicate, параллельная запись побеждала молча, а browser и database
-держали две реализации типов.
+The useful part of the behaviour — double click, a short edit and rereading —
+stays. The contract is rejected: identical rows could change together, null
+disappeared from the predicate, a concurrent write won silently, and the
+browser and the database kept two implementations of types.
 
-## Решения
+## Decisions
 
-### Р1. Редактирование — отдельная capability
+### R1. Editing is a separate capability
 
-`SupportsUpdate` добавляется рядом с `SupportsFetch`, а не внутрь него. Файл
-остаётся читаемым, не реализуя заглушку записи. Реестр типа выводит `Edit rows`
-из Protocol так же, как остальные способности.
+`SupportsUpdate` is added next to `SupportsFetch`, not inside it. A file stays
+readable without implementing a write stub. The type registry derives
+`Edit rows` from the Protocol the same way as the other capabilities.
 
-Но capability типа ещё не обещает, что изменяется любая его relation. Каждый
-`FetchResult` несёт `update_supported`, `update_reason` и `row_handles`, а
-каждая `FetchColumn` — `editable` и `nullable`. Поэтому view, таблица без ключа
-и generated column отвечают точно, без ветвления frontend по PostgreSQL.
+But a type's capability does not yet promise that any of its relations can be
+changed. Every `FetchResult` carries `update_supported`, `update_reason` and
+`row_handles`, and every `FetchColumn` carries `editable` and `nullable`. So a
+view, a table without a key and a generated column answer precisely, without
+the frontend branching on PostgreSQL.
 
-### Р2. Идентичность и версия — один непрозрачный handle источника
+### R2. Identity and version are one opaque source handle
 
-Frontend получает строку handle и возвращает её неизменённой. Для PostgreSQL
-внутри находятся canonical values первичного ключа и `xmin`, но этот формат не
-является публичным контрактом. Другой адаптер сможет положить туда ETag,
-revision или собственный key, не меняя API.
+The frontend receives a handle string and returns it unchanged. For PostgreSQL
+it holds the canonical values of the primary key and `xmin`, but this format
+is not a public contract. Another adapter will be able to put an ETag, a
+revision or its own key there without changing the API.
 
-PostgreSQL допускает update только для обычной или partitioned table с primary
-key. `ctid` не выбран: он физический адрес версии tuple и меняется от update и
-перезаписи таблицы. Matching по всем значениям не выбран, потому что не даёт
-идентичности вообще.
+PostgreSQL allows update only for an ordinary or partitioned table with a
+primary key. `ctid` was not chosen: it is the physical address of a tuple
+version and changes with an update and with a rewrite of the table. Matching
+on all values was not chosen, because it gives no identity at all.
 
-### Р3. UPDATE проверяет ключ и прочитанную версию
+### R3. UPDATE checks the key and the version that was read
 
-Команда содержит `node_id`, `row_handle`, имя одной колонки и `string | null`.
-Адаптер заново читает metadata, отклоняет неизвестную/generated колонку, строит
-identifiers через `psycopg.sql.Identifier`, а values передаёт параметрами.
+The command holds `node_id`, `row_handle`, the name of one column and
+`string | null`. The adapter rereads the metadata, rejects an unknown/generated
+column, builds identifiers through `psycopg.sql.Identifier`, and passes values
+as parameters.
 
-Predicate состоит из primary key и `xmin`. Ноль возвращённых строк означает,
-что запись изменилась или исчезла, и отвечает 409. Сервер не делает второй
-SELECT, чтобы различить эти причины: между двумя statement снова возможна
-гонка, а действие пользователя в обоих случаях одно — перечитать строку.
+The predicate consists of the primary key and `xmin`. Zero rows returned means
+the record has changed or disappeared, and answers 409. The server does not
+run a second SELECT to tell these causes apart: a race is again possible
+between two statements, and the user's action is the same in both cases —
+reread the row.
 
-Успех возвращает всю строку в том же canonical text, что fetch, и новый handle.
-Это учитывает triggers, generated columns и изменение самого primary key.
+Success returns the whole row in the same canonical text as fetch, and a new
+handle. This accounts for triggers, generated columns and a change of the
+primary key itself.
 
-### Р4. UI редактирует точный boundary value
+### R4. The UI edits the exact boundary value
 
-Double click по простой `editable`-ячейке открывает один dialog. У сложного
-значения обычный double click сохраняет уже существующий full-value viewer, а
-Shift + double click открывает технический editor. Empty string остаётся empty
-string; SQL `NULL` — отдельный checkbox только для nullable column. Boolean
-выбирается из двух значений, остальные категории на этом этапе вводятся canonical
-text. Сервер остаётся единственным местом окончательной проверки.
+A double click on a simple `editable` cell opens one dialog. For a complex
+value an ordinary double click keeps the existing full-value viewer, and
+Shift + double click opens the technical editor. An empty string stays an
+empty string; SQL `NULL` is a separate checkbox, only for a nullable column. A
+boolean is chosen from two values; the other categories are entered as
+canonical text at this stage. The server remains the only place of final
+validation.
 
-Пока запрос идёт, dialog блокирует повторную запись. Ошибка остаётся внутри,
-включая 409. После успеха query страницы invalidated и перечитывается: изменение
-sort/filter column может изменить положение или убрать строку, поэтому
-optimistic patch текущего массива был бы ложью о server state.
+While the request is running, the dialog blocks a repeated write. An error
+stays inside it, 409 included. After success the page query is invalidated and
+reread: a change of a sort/filter column may change the row's position or
+remove it, so an optimistic patch of the current array would be a lie about
+server state.
 
-### Р5. Один cell update — одна транзакция
+### R5. One cell update — one transaction
 
-Несохранённого набора изменений и кнопки Apply для всей таблицы пока нет. Один
-gesture создаёт одну команду, одну транзакцию и один возможный conflict. Batch
-редактор потребует модели draft rows, частичного успеха и порядка зависимых
-изменений; он не добавляется скрыто поверх первой команды.
+There is no unsaved change set and no Apply button for the whole table yet.
+One gesture creates one command, one transaction and one possible conflict. A
+batch editor will require a model of draft rows, partial success and the order
+of dependent changes; it is not added covertly on top of the first command.
 
-## Ошибки
+## Errors
 
-- 422 — relation/column/handle/value не пригодны для команды;
-- 409 — строка изменилась или удалена после fetch;
-- 501 — adapter type не имеет capability;
-- 502 — источник не выполнил запрос, наружу выходит только безопасное сообщение.
+- 422 — the relation/column/handle/value is not fit for the command;
+- 409 — the row was changed or deleted after the fetch;
+- 501 — the adapter type does not have the capability;
+- 502 — the source did not execute the request; only a safe message goes out.
 
-## Проверка
+## Checking
 
-Backend-тесты доказывают metadata, запрет keyless/generated, точный update,
-возврат generated value и конфликт старого handle. Unit-тест грида доказывает,
-что endpoint получает непрозрачный handle. Playwright меняет nullable numeric
-ячейку в `NULL`, видит текст `null`, затем возвращает fixture исходное значение.
+Backend tests prove the metadata, the ban on keyless/generated, an exact
+update, the return of a generated value and the conflict of an old handle. A
+grid unit test proves that the endpoint receives an opaque handle. Playwright
+changes a nullable numeric cell to `NULL`, sees the text `null`, then returns
+the fixture's original value.

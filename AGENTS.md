@@ -21,9 +21,8 @@ applications:
 Use the old projects to understand workflows and edge cases. Port ideas, never
 files or architecture. The FastAPI template is not a constraint.
 
-Everything newly written is in English: code, comments, UI strings, tests,
-commits and documentation. Russian specs dated through 2026-08-27 and plans are
-legacy notes and stay unchanged.
+Everything is in English: code, comments, UI strings, tests, commits and
+documentation.
 
 ## Read before changing
 

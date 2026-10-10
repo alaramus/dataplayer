@@ -1,36 +1,36 @@
-# План реализации: реестр коннекторов, фронтенд
+# Implementation plan: connector registry, frontend
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Экран, на котором пользователь заводит подключение к PostgreSQL по форме, построенной из схемы адаптера, проверяет соединение и видит результат.
+**Goal:** A screen where the user creates a PostgreSQL connection through a form built from the adapter's schema, checks the connection and sees the result.
 
-**Architecture:** Директория `frontend/` пересоздаётся на Vue 3 вместо React. Типизированный клиент по-прежнему генерируется из OpenAPI через `@hey-api/openapi-ts` — он от фреймворка не зависит. Серверное состояние живёт в `@tanstack/vue-query`, Pinia хранит только клиентское. Форма подключения строится в рантайме из JSON Schema, которую отдаёт `GET /api/v1/adapter-types/`.
+**Architecture:** The `frontend/` directory is recreated on Vue 3 instead of React. The typed client is still generated from OpenAPI through `@hey-api/openapi-ts` — it does not depend on the framework. Server state lives in `@tanstack/vue-query`; Pinia holds only client state. The connection form is built at runtime from the JSON Schema returned by `GET /api/v1/adapter-types/`.
 
-**Tech Stack:** Vue 3, TypeScript, Vite, Quasar (через `@quasar/vite-plugin`), Vue Router, Pinia, `@tanstack/vue-query`, zod, `@hey-api/openapi-ts` с клиентом на axios, Vitest + `@vue/test-utils`, Playwright, ESLint + Prettier, bun как раннер.
+**Tech Stack:** Vue 3, TypeScript, Vite, Quasar (through `@quasar/vite-plugin`), Vue Router, Pinia, `@tanstack/vue-query`, zod, `@hey-api/openapi-ts` with an axios client, Vitest + `@vue/test-utils`, Playwright, ESLint + Prettier, bun as the runner.
 
-Спек: [2026-08-15-connector-registry-design.md](../2026-08-15-connector-registry-design.md)
-Бэкенд: [2026-08-15-connector-registry-backend.md](2026-08-15-connector-registry-backend.md) — должен быть выполнен полностью до начала этого плана.
+Spec: [2026-08-15-connector-registry-design.md](../2026-08-15-connector-registry-design.md)
+Backend: [2026-08-15-connector-registry-backend.md](2026-08-15-connector-registry-backend.md) — must be fully completed before this plan starts.
 
 ## Global Constraints
 
-- Пакеты ставятся и запускаются через `bun`; корневой `package.json` объявляет workspace `frontend`.
-- `bun run --filter frontend type-check` (`vue-tsc --noEmit`) проходит без ошибок после каждой задачи.
-- `bun run --filter frontend lint` проходит без ошибок после каждой задачи.
-- Composition API и `<script setup lang="ts">` во всех новых SFC.
-- Серверное состояние — только в `@tanstack/vue-query`. В Pinia не хранится ничего, что можно перезапросить у сервера.
-- Секретные поля никогда не подставляются в форму редактирования: они приходят пустыми и отправляются, только если заполнены.
-- Vite слушает порт 5173 — на него настроен `frontend/playwright.config.ts`.
-- Бэкенд для ручной проверки поднимается командой `docker compose up -d db backend`.
+- Packages are installed and run through `bun`; the root `package.json` declares the `frontend` workspace.
+- `bun run --filter frontend type-check` (`vue-tsc --noEmit`) passes without errors after every task.
+- `bun run --filter frontend lint` passes without errors after every task.
+- Composition API and `<script setup lang="ts">` in all new SFCs.
+- Server state lives only in `@tanstack/vue-query`. Pinia holds nothing that can be re-requested from the server.
+- Secret fields are never filled into the edit form: they arrive empty and are sent only if filled in.
+- Vite listens on port 5173 — `frontend/playwright.config.ts` is configured for it.
+- The backend for manual checks is started with `docker compose up -d db backend`.
 
-## Замена React на Vue: что удаляется и что сохраняется
+## Replacing React with Vue: what is removed and what is kept
 
-**Сохраняется:** `frontend/openapi-ts.config.ts`, `frontend/playwright.config.ts`, `frontend/tests/config.ts`, `frontend/.env`, `frontend/public/`, `frontend/index.html` (правится точечно), `scripts/generate-client.sh`, корневой `package.json`.
+**Kept:** `frontend/openapi-ts.config.ts`, `frontend/playwright.config.ts`, `frontend/tests/config.ts`, `frontend/.env`, `frontend/public/`, `frontend/index.html` (edited in place), `scripts/generate-client.sh`, the root `package.json`.
 
-**Удаляется:** весь `frontend/src/` кроме сгенерированного `frontend/src/client/`, все спеки в `frontend/tests/` кроме `config.ts`, `frontend/biome.json`, `frontend/components.json`, `frontend/.tanstack/`.
+**Removed:** all of `frontend/src/` except the generated `frontend/src/client/`, all specs in `frontend/tests/` except `config.ts`, `frontend/biome.json`, `frontend/components.json`, `frontend/.tanstack/`.
 
 ---
 
-### Task 1: Каркас Vue-приложения
+### Task 1: Vue application skeleton
 
 **Files:**
 - Modify: `frontend/package.json`
@@ -49,13 +49,13 @@
 - Delete: `frontend/src/components/`, `frontend/src/hooks/`, `frontend/src/lib/`, `frontend/src/routes/`, `frontend/src/main.tsx`, `frontend/src/utils.ts`, `frontend/src/index.css`, `frontend/src/routeTree.gen.ts`, `frontend/biome.json`, `frontend/components.json`, `frontend/.tanstack/`
 
 **Interfaces:**
-- Consumes: ничего.
+- Consumes: nothing.
 - Produces:
-  - `@/stores/auth` — `useAuthStore()` с полями `token: Ref<string | null>`, `isLoggedIn: ComputedRef<boolean>` и методами `setToken(value: string): void`, `clear(): void`
-  - `@/router` — экспорт `router`
-  - алиас `@` указывает на `frontend/src`
+  - `@/stores/auth` — `useAuthStore()` with fields `token: Ref<string | null>`, `isLoggedIn: ComputedRef<boolean>` and methods `setToken(value: string): void`, `clear(): void`
+  - `@/router` — exports `router`
+  - the `@` alias points to `frontend/src`
 
-- [ ] **Step 1: Удалить исходники React**
+- [ ] **Step 1: Remove the React sources**
 
 ```bash
 cd frontend
@@ -64,11 +64,11 @@ git rm --quiet src/main.tsx src/utils.ts src/index.css src/routeTree.gen.ts biom
 rm -rf .tanstack
 ```
 
-Директория `src/client/` не трогается: она сгенерирована и переиспользуется.
+The `src/client/` directory is left alone: it is generated and reused.
 
-- [ ] **Step 2: Переписать package.json**
+- [ ] **Step 2: Rewrite package.json**
 
-Полностью заменить содержимое `frontend/package.json`:
+Replace the whole content of `frontend/package.json`:
 
 ```json
 {
@@ -120,16 +120,16 @@ rm -rf .tanstack
 }
 ```
 
-Библиотека форм намеренно отсутствует. Схема валидации строится в рантайме из JSON Schema, поэтому типизация, ради которой обычно берут `vee-validate` с `toTypedSchema`, здесь всё равно недостижима; проверка через `schema.safeParse()` в небольшом композабле занимает меньше кода, чем настройка зависимости.
+A form library is deliberately absent. The validation schema is built at runtime from JSON Schema, so the typing that is usually the reason to take `vee-validate` with `toTypedSchema` is unreachable here anyway; validation through `schema.safeParse()` in a small composable takes less code than configuring the dependency.
 
-- [ ] **Step 3: Установить зависимости**
+- [ ] **Step 3: Install dependencies**
 
 Run: `cd frontend && rm -rf node_modules && cd .. && bun install`
-Expected: установка завершается успешно, React-пакеты в `bun.lock` отсутствуют.
+Expected: installation succeeds, no React packages in `bun.lock`.
 
-- [ ] **Step 4: Переписать vite.config.ts**
+- [ ] **Step 4: Rewrite vite.config.ts**
 
-Полностью заменить содержимое `frontend/vite.config.ts`:
+Replace the whole content of `frontend/vite.config.ts`:
 
 ```ts
 import { fileURLToPath, URL } from "node:url"
@@ -157,9 +157,9 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 5: Настроить TypeScript**
+- [ ] **Step 5: Configure TypeScript**
 
-Заменить содержимое `frontend/tsconfig.json`:
+Replace the content of `frontend/tsconfig.json`:
 
 ```json
 {
@@ -171,7 +171,7 @@ export default defineConfig({
 }
 ```
 
-Заменить содержимое `frontend/tsconfig.build.json`:
+Replace the content of `frontend/tsconfig.build.json`:
 
 ```json
 {
@@ -190,15 +190,15 @@ export default defineConfig({
 }
 ```
 
-Добавить `@vue/tsconfig` в `devDependencies` `frontend/package.json`:
+Add `@vue/tsconfig` to `devDependencies` of `frontend/package.json`:
 
 ```json
     "@vue/tsconfig": "^0.8.1",
 ```
 
-и переустановить: `cd .. && bun install`.
+and reinstall: `cd .. && bun install`.
 
-Заменить содержимое `frontend/tsconfig.node.json`:
+Replace the content of `frontend/tsconfig.node.json`:
 
 ```json
 {
@@ -215,13 +215,13 @@ export default defineConfig({
 }
 ```
 
-Добавить `@tsconfig/node22` в `devDependencies`:
+Add `@tsconfig/node22` to `devDependencies`:
 
 ```json
     "@tsconfig/node22": "^22.0.2",
 ```
 
-Создать `frontend/env.d.ts`:
+Create `frontend/env.d.ts`:
 
 ```ts
 /// <reference types="vite/client" />
@@ -235,9 +235,9 @@ interface ImportMeta {
 }
 ```
 
-- [ ] **Step 6: Настроить линтер и форматирование**
+- [ ] **Step 6: Configure the linter and formatting**
 
-Создать `frontend/eslint.config.js`:
+Create `frontend/eslint.config.js`:
 
 ```js
 import js from "@eslint/js"
@@ -257,15 +257,15 @@ export default [
 ]
 ```
 
-Директория `src/client/` исключена: она генерируется и правкам не подлежит.
+The `src/client/` directory is excluded: it is generated and not to be edited.
 
-Добавить `@eslint/js` в `devDependencies`:
+Add `@eslint/js` to `devDependencies`:
 
 ```json
     "@eslint/js": "^9.39.0",
 ```
 
-Создать `frontend/.prettierrc.json`:
+Create `frontend/.prettierrc.json`:
 
 ```json
 {
@@ -276,9 +276,9 @@ export default [
 }
 ```
 
-- [ ] **Step 7: Настроить Vitest**
+- [ ] **Step 7: Configure Vitest**
 
-Создать `frontend/vitest.config.ts`:
+Create `frontend/vitest.config.ts`:
 
 ```ts
 import { fileURLToPath, URL } from "node:url"
@@ -299,11 +299,11 @@ export default defineConfig({
 })
 ```
 
-Модульные тесты лежат рядом с кодом и оканчиваются на `.spec.ts`; Playwright берёт свои файлы только из `frontend/tests/`, поэтому наборы не пересекаются.
+Unit tests sit next to the code and end in `.spec.ts`; Playwright takes its files only from `frontend/tests/`, so the suites do not overlap.
 
-- [ ] **Step 8: Создать точку входа**
+- [ ] **Step 8: Create the entry point**
 
-Заменить содержимое `frontend/index.html`:
+Replace the content of `frontend/index.html`:
 
 ```html
 <!doctype html>
@@ -320,7 +320,7 @@ export default defineConfig({
 </html>
 ```
 
-Создать `frontend/src/quasar-variables.sass`:
+Create `frontend/src/quasar-variables.sass`:
 
 ```sass
 $primary   : #1976d2
@@ -335,7 +335,7 @@ $info      : #31ccec
 $warning   : #f2c037
 ```
 
-Создать `frontend/src/App.vue`:
+Create `frontend/src/App.vue`:
 
 ```vue
 <template>
@@ -343,7 +343,7 @@ $warning   : #f2c037
 </template>
 ```
 
-Создать `frontend/src/main.ts`:
+Create `frontend/src/main.ts`:
 
 ```ts
 import { VueQueryPlugin } from "@tanstack/vue-query"
@@ -365,11 +365,11 @@ createApp(App)
   .mount("#app")
 ```
 
-Порядок важен: Pinia устанавливается до маршрутизатора, потому что навигационный сторож обращается к хранилищу.
+Order matters: Pinia is installed before the router, because the navigation guard accesses the store.
 
-- [ ] **Step 9: Создать хранилище аутентификации**
+- [ ] **Step 9: Create the authentication store**
 
-Создать `frontend/src/stores/auth.ts`:
+Create `frontend/src/stores/auth.ts`:
 
 ```ts
 import { defineStore } from "pinia"
@@ -395,9 +395,9 @@ export const useAuthStore = defineStore("auth", () => {
 })
 ```
 
-- [ ] **Step 10: Создать маршрутизатор с заглушками**
+- [ ] **Step 10: Create the router with placeholders**
 
-Создать `frontend/src/router/index.ts`:
+Create `frontend/src/router/index.ts`:
 
 ```ts
 import { createRouter, createWebHistory } from "vue-router"
@@ -433,7 +433,7 @@ router.beforeEach((to) => {
 })
 ```
 
-Создать временные заглушки, чтобы приложение собиралось до появления настоящих экранов.
+Create temporary placeholders so the application builds before the real screens exist.
 
 `frontend/src/features/auth/LoginPage.vue`:
 
@@ -451,27 +451,27 @@ router.beforeEach((to) => {
 </template>
 ```
 
-- [ ] **Step 11: Проверить, что приложение собирается и запускается**
+- [ ] **Step 11: Check that the application builds and starts**
 
 Run: `cd frontend && bun run type-check`
-Expected: без ошибок.
+Expected: no errors.
 
 Run: `cd frontend && bun run lint`
-Expected: без ошибок.
+Expected: no errors.
 
 Run: `cd frontend && bun run dev`
-Expected: Vite стартует на `http://localhost:5173`. Открыть адрес в браузере — виден текст `login` (сторож перенаправляет неавторизованного пользователя). Остановить сервер.
+Expected: Vite starts on `http://localhost:5173`. Open the address in a browser — the text `login` is visible (the guard redirects an unauthenticated user). Stop the server.
 
 - [ ] **Step 12: Commit**
 
 ```bash
 git add -A frontend bun.lock
-git commit -m "feat: заменить React-каркас фронтенда на Vue 3 с Quasar"
+git commit -m "feat: replace the React frontend skeleton with Vue 3 and Quasar"
 ```
 
 ---
 
-### Task 2: Клиент API и настройка запросов
+### Task 2: API client and request configuration
 
 **Files:**
 - Create: `frontend/src/shared/api/configure.ts`
@@ -479,35 +479,35 @@ git commit -m "feat: заменить React-каркас фронтенда на
 - Modify: `scripts/generate-client.sh`
 
 **Interfaces:**
-- Consumes: `useAuthStore` из задачи 1.
+- Consumes: `useAuthStore` from task 1.
 - Produces:
-  - `@/shared/api/configure` — `configureApiClient(): void` и `createQueryClient(): QueryClient`
-  - пересозданный `frontend/src/client/` с типами `ConnectorPublic`, `ConnectorsPublic`, `ConnectorCreate`, `ConnectorUpdate`, `ConnectionCheckResult`, `AdapterTypeInfo` и сервисами `ConnectorsService`, `AdapterTypesService`, `LoginService`, `UsersService`
+  - `@/shared/api/configure` — `configureApiClient(): void` and `createQueryClient(): QueryClient`
+  - a regenerated `frontend/src/client/` with types `ConnectorPublic`, `ConnectorsPublic`, `ConnectorCreate`, `ConnectorUpdate`, `ConnectionCheckResult`, `AdapterTypeInfo` and services `ConnectorsService`, `AdapterTypesService`, `LoginService`, `UsersService`
 
-- [ ] **Step 1: Перегенерировать клиент из OpenAPI бэкенда**
+- [ ] **Step 1: Regenerate the client from the backend's OpenAPI**
 
-Убедиться, что бэкенд из первого плана выполнен и БД поднята.
+Make sure the backend from the first plan is done and the database is up.
 
 Run: `docker compose up -d db`
-Expected: контейнер `db` running.
+Expected: container `db` running.
 
-В `scripts/generate-client.sh` последняя строка вызывает `bun run lint`, который теперь работает через ESLint и упал бы на сгенерированном коде. Заменить её на форматирование:
+In `scripts/generate-client.sh` the last line calls `bun run lint`, which now runs ESLint and would fail on the generated code. Replace it with formatting:
 
 ```bash
 bun run --filter frontend format
 ```
 
 Run: `bash scripts/generate-client.sh`
-Expected: скрипт завершается успешно; в `frontend/src/client/types.gen.ts` присутствуют типы `ConnectorPublic`, `ConnectorCreate`, `ConnectionCheckResult`, `AdapterTypeInfo`.
+Expected: the script succeeds; `frontend/src/client/types.gen.ts` contains the types `ConnectorPublic`, `ConnectorCreate`, `ConnectionCheckResult`, `AdapterTypeInfo`.
 
-- [ ] **Step 2: Проверить имена сервисов в сгенерированном коде**
+- [ ] **Step 2: Check the service names in the generated code**
 
 Run: `cd frontend && grep -n "export class .*Service" src/client/sdk.gen.ts`
-Expected: в выводе присутствуют `ConnectorsService` и `AdapterTypesService`. Если имена отличаются, использовать фактические имена во всех последующих задачах.
+Expected: the output contains `ConnectorsService` and `AdapterTypesService`. If the names differ, use the actual names in all following tasks.
 
-- [ ] **Step 3: Реализовать настройку клиента**
+- [ ] **Step 3: Implement the client configuration**
 
-Создать `frontend/src/shared/api/configure.ts`:
+Create `frontend/src/shared/api/configure.ts`:
 
 ```ts
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/vue-query"
@@ -520,7 +520,7 @@ import { useAuthStore } from "@/stores/auth"
 export function configureApiClient() {
   client.setConfig({
     baseURL: import.meta.env.VITE_API_URL ?? "",
-    // Клиент сам подставляет схему Bearer по описанию безопасности из OpenAPI.
+    // The client adds the Bearer scheme itself from the OpenAPI security description.
     auth: () => useAuthStore().token ?? "",
   })
 }
@@ -540,9 +540,9 @@ export function createQueryClient() {
 }
 ```
 
-- [ ] **Step 4: Подключить настройку в точке входа**
+- [ ] **Step 4: Wire the configuration into the entry point**
 
-Заменить содержимое `frontend/src/main.ts`:
+Replace the content of `frontend/src/main.ts`:
 
 ```ts
 import { VueQueryPlugin } from "@tanstack/vue-query"
@@ -560,7 +560,7 @@ import { configureApiClient, createQueryClient } from "@/shared/api/configure"
 const app = createApp(App)
 
 app.use(createPinia())
-// Настройка клиента обращается к хранилищу, поэтому идёт после установки Pinia.
+// Client configuration accesses the store, so it comes after Pinia is installed.
 configureApiClient()
 
 app
@@ -570,21 +570,21 @@ app
   .mount("#app")
 ```
 
-- [ ] **Step 5: Проверить типы и стиль**
+- [ ] **Step 5: Check types and style**
 
 Run: `cd frontend && bun run type-check && bun run lint`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add frontend/src scripts/generate-client.sh
-git commit -m "feat: генерация клиента API и настройка запросов на Vue"
+git commit -m "feat: API client generation and request configuration on Vue"
 ```
 
 ---
 
-### Task 3: Вход в систему и оболочка приложения
+### Task 3: Login and application shell
 
 **Files:**
 - Create: `frontend/src/features/auth/api.ts`
@@ -593,14 +593,14 @@ git commit -m "feat: генерация клиента API и настройка
 - Modify: `frontend/src/App.vue`
 
 **Interfaces:**
-- Consumes: `useAuthStore`, `router`, сгенерированный `LoginService`.
+- Consumes: `useAuthStore`, `router`, the generated `LoginService`.
 - Produces:
-  - `@/features/auth/api` — `useLogin()` с полями `mutate(credentials: { username: string; password: string })`, `isPending: Ref<boolean>`, `error: Ref<Error | null>`
-  - `@/shared/ui/AppLayout.vue` — оболочка с шапкой и кнопкой выхода, содержимое подставляется через слот по умолчанию
+  - `@/features/auth/api` — `useLogin()` with fields `mutate(credentials: { username: string; password: string })`, `isPending: Ref<boolean>`, `error: Ref<Error | null>`
+  - `@/shared/ui/AppLayout.vue` — a shell with a header and a logout button, content goes into the default slot
 
-- [ ] **Step 1: Реализовать вызов входа**
+- [ ] **Step 1: Implement the login call**
 
-Создать `frontend/src/features/auth/api.ts`:
+Create `frontend/src/features/auth/api.ts`:
 
 ```ts
 import { useMutation } from "@tanstack/vue-query"
@@ -628,9 +628,9 @@ export function useLogin() {
 }
 ```
 
-- [ ] **Step 2: Реализовать экран входа**
+- [ ] **Step 2: Implement the login screen**
 
-Заменить содержимое `frontend/src/features/auth/LoginPage.vue`:
+Replace the content of `frontend/src/features/auth/LoginPage.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -663,28 +663,28 @@ async function submit() {
       <q-page class="flex flex-center">
         <q-card style="width: 360px" class="q-pa-md">
           <q-card-section>
-            <div class="text-h6">Вход</div>
+            <div class="text-h6">Log in</div>
           </q-card-section>
           <q-form @submit.prevent="submit">
             <q-card-section class="q-gutter-md">
               <q-input
                 v-model="username"
-                label="Электронная почта"
+                label="Email"
                 type="email"
                 autocomplete="username"
                 data-testid="login-email"
-                :rules="[(value: string) => !!value || 'Укажите почту']"
+                :rules="[(value: string) => !!value || 'Enter your email']"
               />
               <q-input
                 v-model="password"
-                label="Пароль"
+                label="Password"
                 type="password"
                 autocomplete="current-password"
                 data-testid="login-password"
-                :rules="[(value: string) => !!value || 'Укажите пароль']"
+                :rules="[(value: string) => !!value || 'Enter your password']"
               />
               <q-banner v-if="failed" dense class="bg-negative text-white" data-testid="login-error">
-                Не удалось войти. Проверьте почту и пароль.
+                Could not log in. Check your email and password.
               </q-banner>
             </q-card-section>
             <q-card-actions>
@@ -692,7 +692,7 @@ async function submit() {
                 type="submit"
                 color="primary"
                 class="full-width"
-                label="Войти"
+                label="Log in"
                 data-testid="login-submit"
                 :loading="login.isPending.value"
               />
@@ -705,11 +705,11 @@ async function submit() {
 </template>
 ```
 
-Атрибуты `data-testid` нужны сценариям Playwright из задачи 8: подписи на русском языке могут поменяться, идентификаторы — нет.
+The `data-testid` attributes are needed by the Playwright scenarios of task 8: Russian-language labels may change, identifiers do not.
 
-- [ ] **Step 3: Реализовать оболочку**
+- [ ] **Step 3: Implement the shell**
 
-Создать `frontend/src/shared/ui/AppLayout.vue`:
+Create `frontend/src/shared/ui/AppLayout.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -734,7 +734,7 @@ async function logout() {
     <q-header elevated>
       <q-toolbar>
         <q-toolbar-title>DataPlayer</q-toolbar-title>
-        <q-btn flat dense label="Выйти" data-testid="logout" @click="logout" />
+        <q-btn flat dense label="Log out" data-testid="logout" @click="logout" />
       </q-toolbar>
     </q-header>
     <q-page-container>
@@ -746,36 +746,36 @@ async function logout() {
 </template>
 ```
 
-Кеш `vue-query` очищается при выходе: иначе данные предыдущего пользователя останутся видимыми следующему.
+The `vue-query` cache is cleared on logout: otherwise the previous user's data stays visible to the next one.
 
-- [ ] **Step 4: Проверить вход вручную**
+- [ ] **Step 4: Check login manually**
 
 Run: `docker compose up -d db backend`
-Expected: оба контейнера running.
+Expected: both containers running.
 
 Run: `cd frontend && bun run dev`
-Expected: Vite на 5173.
+Expected: Vite on 5173.
 
-Открыть `http://localhost:5173`, войти с учётными данными `FIRST_SUPERUSER` и `FIRST_SUPERUSER_PASSWORD` из корневого `.env`.
-Expected: переход на `/`, виден текст `connectors`. При неверном пароле показывается баннер с ошибкой. Остановить сервер.
+Open `http://localhost:5173`, log in with the `FIRST_SUPERUSER` and `FIRST_SUPERUSER_PASSWORD` credentials from the root `.env`.
+Expected: navigation to `/`, the text `connectors` is visible. A wrong password shows an error banner. Stop the server.
 
-- [ ] **Step 5: Проверить типы и стиль**
+- [ ] **Step 5: Check types and style**
 
 Run: `cd frontend && bun run type-check && bun run lint`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add frontend/src
-git commit -m "feat: вход в систему и оболочка приложения"
+git commit -m "feat: login and application shell"
 ```
 
 ---
 
-### Task 4: Преобразование JSON Schema в схему валидации и описание полей
+### Task 4: Converting JSON Schema into a validation schema and field descriptions
 
-Чистые функции без привязки к Vue — единственная часть фронтенда, покрываемая модульными тестами полностью.
+Pure functions with no tie to Vue — the only part of the frontend fully covered by unit tests.
 
 **Files:**
 - Create: `frontend/src/features/connectors/SchemaForm/jsonSchema.ts`
@@ -784,14 +784,14 @@ git commit -m "feat: вход в систему и оболочка прилож
 **Interfaces:**
 - Consumes: `zod`.
 - Produces:
-  - `@/features/connectors/SchemaForm/jsonSchema` — тип `JsonSchema`, тип `FieldSpec` с полями `name: string`, `label: string`, `kind: "text" | "password" | "number" | "boolean" | "select"`, `required: boolean`, `defaultValue?: unknown`, `choices?: string[]`
+  - `@/features/connectors/SchemaForm/jsonSchema` — type `JsonSchema`, type `FieldSpec` with fields `name: string`, `label: string`, `kind: "text" | "password" | "number" | "boolean" | "select"`, `required: boolean`, `defaultValue?: unknown`, `choices?: string[]`
   - `schemaToFields(schema: JsonSchema): FieldSpec[]`
   - `jsonSchemaToZod(schema: JsonSchema): z.ZodObject`
   - `defaultValues(fields: FieldSpec[]): Record<string, unknown>`
 
-- [ ] **Step 1: Написать падающие тесты**
+- [ ] **Step 1: Write failing tests**
 
-Создать `frontend/src/features/connectors/SchemaForm/jsonSchema.spec.ts`:
+Create `frontend/src/features/connectors/SchemaForm/jsonSchema.spec.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest"
@@ -799,7 +799,7 @@ import { describe, expect, it } from "vitest"
 import { defaultValues, jsonSchemaToZod, schemaToFields } from "./jsonSchema"
 import type { JsonSchema } from "./jsonSchema"
 
-// Форма, в которой Pydantic отдаёт схему PostgresOptions.
+// The shape in which Pydantic returns the PostgresOptions schema.
 const POSTGRES_SCHEMA: JsonSchema = {
   type: "object",
   title: "PostgresOptions",
@@ -965,14 +965,14 @@ describe("defaultValues", () => {
 })
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd frontend && bun run test:unit`
-Expected: FAIL — модуль `./jsonSchema` не найден.
+Expected: FAIL — module `./jsonSchema` not found.
 
-- [ ] **Step 3: Реализовать преобразование**
+- [ ] **Step 3: Implement the conversion**
 
-Создать `frontend/src/features/connectors/SchemaForm/jsonSchema.ts`:
+Create `frontend/src/features/connectors/SchemaForm/jsonSchema.ts`:
 
 ```ts
 import { z } from "zod"
@@ -1057,7 +1057,7 @@ function zodForField(field: FieldSpec): z.ZodType {
     }
     default: {
       let schema = z.string()
-      // Обязательное строковое поле не должно проходить проверку пустым.
+      // A required string field must not pass validation when empty.
       const minLength = field.minLength ?? (field.required ? 1 : 0)
       if (minLength > 0) schema = schema.min(minLength)
       return schema
@@ -1095,28 +1095,28 @@ export function defaultValues(fields: FieldSpec[]): Record<string, unknown> {
 }
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd frontend && bun run test:unit`
-Expected: PASS, 15 тестов.
+Expected: PASS, 15 tests.
 
-Если тест `defaults booleans to false` или `uses schema defaults and blanks for the rest` не сошёлся по типу `null` для числового поля без значения по умолчанию — в наборе таких полей нет, `port` имеет `default`. Расхождение означает ошибку в `defaultValues`.
+If the test `defaults booleans to false` or `uses schema defaults and blanks for the rest` fails on a `null` type for a numeric field without a default — the suite has no such fields, `port` has a `default`. A mismatch means a bug in `defaultValues`.
 
-- [ ] **Step 5: Проверить типы и стиль**
+- [ ] **Step 5: Check types and style**
 
 Run: `cd frontend && bun run type-check && bun run lint`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add frontend/src/features/connectors/SchemaForm
-git commit -m "feat: преобразование JSON Schema в схему валидации и описание полей"
+git commit -m "feat: convert JSON Schema into a validation schema and field descriptions"
 ```
 
 ---
 
-### Task 5: Компонент полей формы
+### Task 5: Form fields component
 
 **Files:**
 - Create: `frontend/src/features/connectors/SchemaForm/SchemaFields.vue`
@@ -1125,14 +1125,14 @@ git commit -m "feat: преобразование JSON Schema в схему ва
 - Create: `frontend/src/features/connectors/SchemaForm/useSchemaForm.spec.ts`
 
 **Interfaces:**
-- Consumes: `FieldSpec`, `jsonSchemaToZod`, `defaultValues` из задачи 4.
+- Consumes: `FieldSpec`, `jsonSchemaToZod`, `defaultValues` from task 4.
 - Produces:
-  - `@/features/connectors/SchemaForm/SchemaFields.vue` — свойства `fields: FieldSpec[]`, `modelValue: Record<string, unknown>`, `errors: Record<string, string>`, `secretPlaceholder?: string`; событие `update:modelValue`
-  - `@/features/connectors/SchemaForm/useSchemaForm` — `useSchemaForm()` возвращает `values: Ref<Record<string, unknown>>`, `errors: Ref<Record<string, string>>`, `validate(schema): boolean`, `applyServerErrors(detail): void`, `reset(fields): void`
+  - `@/features/connectors/SchemaForm/SchemaFields.vue` — props `fields: FieldSpec[]`, `modelValue: Record<string, unknown>`, `errors: Record<string, string>`, `secretPlaceholder?: string`; event `update:modelValue`
+  - `@/features/connectors/SchemaForm/useSchemaForm` — `useSchemaForm()` returns `values: Ref<Record<string, unknown>>`, `errors: Ref<Record<string, string>>`, `validate(schema): boolean`, `applyServerErrors(detail): void`, `reset(fields): void`
 
-- [ ] **Step 1: Написать падающие тесты для композабла**
+- [ ] **Step 1: Write failing tests for the composable**
 
-Создать `frontend/src/features/connectors/SchemaForm/useSchemaForm.spec.ts`:
+Create `frontend/src/features/connectors/SchemaForm/useSchemaForm.spec.ts`:
 
 ```ts
 import { describe, expect, it } from "vitest"
@@ -1203,14 +1203,14 @@ describe("useSchemaForm", () => {
 })
 ```
 
-- [ ] **Step 2: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 2: Run the tests and make sure they fail**
 
 Run: `cd frontend && bun run test:unit`
-Expected: FAIL — модуль `./useSchemaForm` не найден.
+Expected: FAIL — module `./useSchemaForm` not found.
 
-- [ ] **Step 3: Реализовать композабл**
+- [ ] **Step 3: Implement the composable**
 
-Создать `frontend/src/features/connectors/SchemaForm/useSchemaForm.ts`:
+Create `frontend/src/features/connectors/SchemaForm/useSchemaForm.ts`:
 
 ```ts
 import { ref } from "vue"
@@ -1255,7 +1255,7 @@ export function useSchemaForm() {
   function applyServerErrors(detail: ServerError[]) {
     const collected: Record<string, string> = {}
     for (const error of detail) {
-      // Путь имеет вид ["body", "options", "<поле>"]; всё короче поля не касается.
+      // The path looks like ["body", "options", "<field>"]; anything shorter does not concern a field.
       const name = error.loc.at(-1)
       if (typeof name === "string" && error.loc.length > 2) {
         collected[name] = error.msg
@@ -1268,14 +1268,14 @@ export function useSchemaForm() {
 }
 ```
 
-- [ ] **Step 4: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 4: Run the tests and make sure they pass**
 
 Run: `cd frontend && bun run test:unit`
-Expected: PASS, 20 тестов.
+Expected: PASS, 20 tests.
 
-- [ ] **Step 5: Написать падающие тесты для компонента**
+- [ ] **Step 5: Write failing tests for the component**
 
-Создать `frontend/src/features/connectors/SchemaForm/SchemaFields.spec.ts`:
+Create `frontend/src/features/connectors/SchemaForm/SchemaFields.spec.ts`:
 
 ```ts
 import { mount } from "@vue/test-utils"
@@ -1346,14 +1346,14 @@ describe("SchemaFields", () => {
 })
 ```
 
-- [ ] **Step 6: Запустить тесты и убедиться, что они падают**
+- [ ] **Step 6: Run the tests and make sure they fail**
 
 Run: `cd frontend && bun run test:unit`
-Expected: FAIL — компонент `SchemaFields.vue` не найден.
+Expected: FAIL — component `SchemaFields.vue` not found.
 
-- [ ] **Step 7: Реализовать компонент**
+- [ ] **Step 7: Implement the component**
 
-Создать `frontend/src/features/connectors/SchemaForm/SchemaFields.vue`:
+Create `frontend/src/features/connectors/SchemaForm/SchemaFields.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -1415,26 +1415,26 @@ function update(name: string, value: unknown) {
 </template>
 ```
 
-- [ ] **Step 8: Запустить тесты и убедиться, что они проходят**
+- [ ] **Step 8: Run the tests and make sure they pass**
 
 Run: `cd frontend && bun run test:unit`
-Expected: PASS, 25 тестов.
+Expected: PASS, 25 tests.
 
-- [ ] **Step 9: Проверить типы и стиль**
+- [ ] **Step 9: Check types and style**
 
 Run: `cd frontend && bun run type-check && bun run lint`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add frontend/src/features/connectors/SchemaForm
-git commit -m "feat: компонент полей формы, построенной из схемы адаптера"
+git commit -m "feat: fields component for a form built from the adapter schema"
 ```
 
 ---
 
-### Task 6: Экран коннекторов со списком
+### Task 6: Connectors screen with a list
 
 **Files:**
 - Create: `frontend/src/features/connectors/api.ts`
@@ -1442,14 +1442,14 @@ git commit -m "feat: компонент полей формы, построен�
 - Create: `frontend/src/features/connectors/ConnectorTable.vue`
 
 **Interfaces:**
-- Consumes: сгенерированные `ConnectorsService`, `AdapterTypesService`; `AppLayout` из задачи 3.
+- Consumes: the generated `ConnectorsService`, `AdapterTypesService`; `AppLayout` from task 3.
 - Produces:
-  - `@/features/connectors/api` — `useConnectors()`, `useAdapterTypes()`, `useCreateConnector()`, `useUpdateConnector()`, `useDeleteConnector()`, `useCheckConnector()`, `useCheckDraft()`, константа `connectorsKey`
-  - `@/features/connectors/ConnectorTable.vue` — свойства `rows: ConnectorPublic[]`, `loading: boolean`; события `edit`, `remove`, `check` с полезной нагрузкой `ConnectorPublic`
+  - `@/features/connectors/api` — `useConnectors()`, `useAdapterTypes()`, `useCreateConnector()`, `useUpdateConnector()`, `useDeleteConnector()`, `useCheckConnector()`, `useCheckDraft()`, constant `connectorsKey`
+  - `@/features/connectors/ConnectorTable.vue` — props `rows: ConnectorPublic[]`, `loading: boolean`; events `edit`, `remove`, `check` with a `ConnectorPublic` payload
 
-- [ ] **Step 1: Реализовать слой запросов**
+- [ ] **Step 1: Implement the query layer**
 
-Создать `frontend/src/features/connectors/api.ts`:
+Create `frontend/src/features/connectors/api.ts`:
 
 ```ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
@@ -1471,7 +1471,7 @@ export function useAdapterTypes() {
   return useQuery({
     queryKey: adapterTypesKey,
     queryFn: async () => (await AdapterTypesService.readAdapterTypes()).data,
-    // Реестр типов меняется только при развёртывании — перезапрашивать нечего.
+    // The type registry changes only on deployment — there is nothing to re-request.
     staleTime: Number.POSITIVE_INFINITY,
   })
 }
@@ -1534,11 +1534,11 @@ export function useCheckDraft() {
 }
 ```
 
-Имена методов сервисов взяты из соглашения генератора: имя операции без префикса тега. Если шаг 2 задачи 2 показал другие имена, использовать фактические.
+The service method names follow the generator's convention: the operation name without the tag prefix. If step 2 of task 2 showed different names, use the actual ones.
 
-- [ ] **Step 2: Реализовать таблицу**
+- [ ] **Step 2: Implement the table**
 
-Создать `frontend/src/features/connectors/ConnectorTable.vue`:
+Create `frontend/src/features/connectors/ConnectorTable.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -1556,9 +1556,9 @@ defineEmits<{
 }>()
 
 const columns = [
-  { name: "name", label: "Название", field: "name", align: "left" as const, sortable: true },
-  { name: "adapter_type", label: "Тип", field: "adapter_type", align: "left" as const },
-  { name: "host", label: "Хост", field: "host", align: "left" as const },
+  { name: "name", label: "Name", field: "name", align: "left" as const, sortable: true },
+  { name: "adapter_type", label: "Type", field: "adapter_type", align: "left" as const },
+  { name: "host", label: "Host", field: "host", align: "left" as const },
   { name: "actions", label: "", field: "actions", align: "right" as const },
 ]
 
@@ -1580,7 +1580,7 @@ function hostOf(connector: ConnectorPublic): string {
     flat
     bordered
     data-testid="connector-table"
-    no-data-label="Пока нет ни одного подключения"
+    no-data-label="No connections yet"
   >
     <template #body-cell-host="cellProps">
       <q-td :props="cellProps">{{ hostOf(cellProps.row) }}</q-td>
@@ -1601,7 +1601,7 @@ function hostOf(connector: ConnectorPublic): string {
           :data-testid="`check-${cellProps.row.name}`"
           @click="$emit('check', cellProps.row)"
         >
-          <q-tooltip>Проверить соединение</q-tooltip>
+          <q-tooltip>Check connection</q-tooltip>
         </q-btn>
         <q-btn
           dense
@@ -1610,7 +1610,7 @@ function hostOf(connector: ConnectorPublic): string {
           :data-testid="`edit-${cellProps.row.name}`"
           @click="$emit('edit', cellProps.row)"
         >
-          <q-tooltip>Изменить</q-tooltip>
+          <q-tooltip>Edit</q-tooltip>
         </q-btn>
         <q-btn
           dense
@@ -1620,7 +1620,7 @@ function hostOf(connector: ConnectorPublic): string {
           :data-testid="`delete-${cellProps.row.name}`"
           @click="$emit('remove', cellProps.row)"
         >
-          <q-tooltip>Удалить</q-tooltip>
+          <q-tooltip>Delete</q-tooltip>
         </q-btn>
       </q-td>
     </template>
@@ -1628,9 +1628,9 @@ function hostOf(connector: ConnectorPublic): string {
 </template>
 ```
 
-- [ ] **Step 3: Реализовать страницу**
+- [ ] **Step 3: Implement the page**
 
-Заменить содержимое `frontend/src/features/connectors/ConnectorsPage.vue`:
+Replace the content of `frontend/src/features/connectors/ConnectorsPage.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -1667,7 +1667,7 @@ async function check(connector: ConnectorPublic) {
   quasar.notify({
     type: result.ok ? "positive" : "negative",
     message: result.ok
-      ? `${result.message} (${String(result.latency_ms)} мс)`
+      ? `${result.message} (${String(result.latency_ms)} ms)`
       : result.message,
   })
 }
@@ -1675,14 +1675,14 @@ async function check(connector: ConnectorPublic) {
 function confirmRemove(connector: ConnectorPublic) {
   quasar
     .dialog({
-      title: "Удалить подключение",
-      message: `Подключение «${connector.name}» будет удалено безвозвратно.`,
+      title: "Delete connection",
+      message: `Connection "${connector.name}" will be deleted permanently.`,
       cancel: true,
-      ok: { label: "Удалить", color: "negative" },
+      ok: { label: "Delete", color: "negative" },
     })
     .onOk(() => {
       void removeConnector.mutateAsync(connector.id).then(() => {
-        quasar.notify({ type: "positive", message: "Подключение удалено" })
+        quasar.notify({ type: "positive", message: "Connection deleted" })
       })
     })
 }
@@ -1691,11 +1691,11 @@ function confirmRemove(connector: ConnectorPublic) {
 <template>
   <AppLayout>
     <div class="row items-center justify-between q-mb-md">
-      <div class="text-h5">Подключения</div>
+      <div class="text-h5">Connections</div>
       <q-btn
         color="primary"
         icon="add"
-        label="Новое подключение"
+        label="New connection"
         data-testid="add-connector"
         @click="openCreate"
       />
@@ -1712,42 +1712,42 @@ function confirmRemove(connector: ConnectorPublic) {
 </template>
 ```
 
-Диалог сюда ещё не подключается: он появится в задаче 7, и тогда же в этот файл добавятся импорт и разметка. Переменные `dialogOpen` и `editing` объявлены заранее, потому что от них зависят обработчики `openCreate` и `openEdit`.
+The dialog is not wired in here yet: it appears in task 7, and the import and markup are added to this file then. The `dialogOpen` and `editing` variables are declared in advance because the `openCreate` and `openEdit` handlers depend on them.
 
-- [ ] **Step 4: Проверить, что список показывается**
+- [ ] **Step 4: Check that the list is shown**
 
 Run: `docker compose up -d db backend && cd frontend && bun run dev`
-Expected: после входа виден заголовок «Подключения», таблица с текстом «Пока нет ни одного подключения» и кнопка «Новое подключение». Нажатие кнопки пока ничего не открывает — это ожидаемо. Остановить сервер.
+Expected: after login the heading "Connections" is visible, a table with the text "No connections yet" and a "New connection" button. Clicking the button opens nothing yet — this is expected. Stop the server.
 
-- [ ] **Step 5: Проверить типы и стиль**
+- [ ] **Step 5: Check types and style**
 
 Run: `cd frontend && bun run type-check && bun run lint`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add frontend/src/features/connectors
-git commit -m "feat: экран коннекторов со списком подключений"
+git commit -m "feat: connectors screen with a list of connections"
 ```
 
 ---
 
-### Task 7: Диалог создания и редактирования с проверкой соединения
+### Task 7: Create and edit dialog with a connection check
 
 **Files:**
 - Create: `frontend/src/features/connectors/ConnectorDialog.vue`
 - Create: `frontend/src/features/connectors/ConnectionCheck.vue`
 
 **Interfaces:**
-- Consumes: всё из задач 4, 5, 6.
+- Consumes: everything from tasks 4, 5, 6.
 - Produces:
-  - `@/features/connectors/ConnectorDialog.vue` — свойства `modelValue: boolean`, `connector: ConnectorPublic | null`; событие `update:modelValue`
-  - `@/features/connectors/ConnectionCheck.vue` — свойство `result: ConnectionCheckResult | null`
+  - `@/features/connectors/ConnectorDialog.vue` — props `modelValue: boolean`, `connector: ConnectorPublic | null`; event `update:modelValue`
+  - `@/features/connectors/ConnectionCheck.vue` — prop `result: ConnectionCheckResult | null`
 
-- [ ] **Step 1: Реализовать показ результата проверки**
+- [ ] **Step 1: Implement showing the check result**
 
-Создать `frontend/src/features/connectors/ConnectionCheck.vue`:
+Create `frontend/src/features/connectors/ConnectionCheck.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -1760,17 +1760,17 @@ const props = defineProps<{
 }>()
 
 const KIND_LABELS: Record<string, string> = {
-  auth: "Ошибка аутентификации",
-  network: "Сервер недоступен",
-  timeout: "Превышено время ожидания",
-  config: "Ошибка в параметрах",
-  unknown: "Неизвестная ошибка",
+  auth: "Authentication error",
+  network: "Server unreachable",
+  timeout: "Timed out",
+  config: "Invalid parameters",
+  unknown: "Unknown error",
 }
 
 const text = computed(() => {
   if (!props.result) return ""
   if (props.result.ok) {
-    return `${props.result.message} (${String(props.result.latency_ms)} мс)`
+    return `${props.result.message} (${String(props.result.latency_ms)} ms)`
   }
   const kind = props.result.error_kind
   const prefix = kind ? KIND_LABELS[kind] : undefined
@@ -1794,11 +1794,11 @@ const text = computed(() => {
 </template>
 ```
 
-Результат показывается строкой внутри диалога, а не всплывающим уведомлением: его читают рядом с полями, которые правят.
+The result is shown as a line inside the dialog, not as a pop-up notification: it is read next to the fields being edited.
 
-- [ ] **Step 2: Реализовать диалог**
+- [ ] **Step 2: Implement the dialog**
 
-Создать `frontend/src/features/connectors/ConnectorDialog.vue`:
+Create `frontend/src/features/connectors/ConnectorDialog.vue`:
 
 ```vue
 <script setup lang="ts">
@@ -1833,8 +1833,8 @@ const createConnector = useCreateConnector()
 const updateConnector = useUpdateConnector()
 const checkDraft = useCheckDraft()
 
-// Разбираем композабл на отдельные ref-ы: в шаблоне Vue разворачивает только
-// ref-ы верхнего уровня, поэтому form.values пришлось бы писать как
+// Destructure the composable into separate refs: in a template Vue unwraps only
+// top-level refs, so form.values would otherwise have to be written as
 // form.values.value.
 const {
   values: optionValues,
@@ -1862,8 +1862,8 @@ const selectedSchema = computed<JsonSchema | null>(() => {
 
 const fields = computed(() => (selectedSchema.value ? schemaToFields(selectedSchema.value) : []))
 
-// В режиме редактирования секретные поля приходят пустыми: сервер их не отдаёт.
-const secretPlaceholder = computed(() => (isEdit.value ? "Оставить без изменений" : undefined))
+// In edit mode secret fields arrive empty: the server does not return them.
+const secretPlaceholder = computed(() => (isEdit.value ? "Leave unchanged" : undefined))
 
 watch(
   () => props.modelValue,
@@ -1893,7 +1893,7 @@ watch(adapterType, () => {
 })
 
 function filledOptions(): Record<string, unknown> {
-  // Пустые секретные поля не отправляются: сервер сохранит прежние значения.
+  // Empty secret fields are not sent: the server keeps the previous values.
   const result: Record<string, unknown> = {}
   for (const field of fields.value) {
     const value = optionValues.value[field.name]
@@ -1910,7 +1910,7 @@ function serverErrorsFrom(error: unknown): ServerError[] | null {
 }
 
 function validateName(): boolean {
-  nameError.value = name.value.trim() === "" ? "Укажите название" : ""
+  nameError.value = name.value.trim() === "" ? "Enter a name" : ""
   return nameError.value === ""
 }
 
@@ -1928,7 +1928,7 @@ async function check() {
     if (serverErrors) {
       applyServerErrors(serverErrors)
     } else {
-      quasar.notify({ type: "negative", message: "Не удалось выполнить проверку" })
+      quasar.notify({ type: "negative", message: "Could not run the check" })
     }
   }
 }
@@ -1936,8 +1936,8 @@ async function check() {
 async function submit() {
   if (!adapterType.value || !selectedSchema.value) return
   const nameValid = validateName()
-  // В режиме редактирования пустой пароль допустим, поэтому схема проверяется
-  // только по фактически заполненным значениям.
+  // In edit mode an empty password is allowed, so the schema is checked
+  // only against the values actually filled in.
   const schema = jsonSchemaToZod(selectedSchema.value)
   const valuesValid = isEdit.value ? true : validateOptions(schema)
   if (!nameValid || !valuesValid) return
@@ -1955,14 +1955,14 @@ async function submit() {
         options: filledOptions(),
       })
     }
-    quasar.notify({ type: "positive", message: "Подключение сохранено" })
+    quasar.notify({ type: "positive", message: "Connection saved" })
     emit("update:modelValue", false)
   } catch (error) {
     const serverErrors = serverErrorsFrom(error)
     if (serverErrors) {
       applyServerErrors(serverErrors)
     } else {
-      quasar.notify({ type: "negative", message: "Не удалось сохранить подключение" })
+      quasar.notify({ type: "negative", message: "Could not save the connection" })
     }
   }
 }
@@ -1980,14 +1980,14 @@ const saving = computed(
     <q-card style="width: 520px; max-width: 90vw">
       <q-card-section>
         <div class="text-h6">
-          {{ isEdit ? "Изменить подключение" : "Новое подключение" }}
+          {{ isEdit ? "Edit connection" : "New connection" }}
         </div>
       </q-card-section>
 
       <q-card-section class="q-gutter-md">
         <q-input
           v-model="name"
-          label="Название"
+          label="Name"
           data-testid="connector-name"
           :error="Boolean(nameError)"
           :error-message="nameError"
@@ -2000,7 +2000,7 @@ const saving = computed(
           option-label="label"
           emit-value
           map-options
-          label="Тип источника"
+          label="Source type"
           data-testid="connector-type"
           :disable="isEdit"
           :loading="adapterTypes.isLoading.value"
@@ -2018,11 +2018,11 @@ const saving = computed(
       </q-card-section>
 
       <q-card-actions align="right">
-        <q-btn flat label="Отмена" @click="emit('update:modelValue', false)" />
+        <q-btn flat label="Cancel" @click="emit('update:modelValue', false)" />
         <q-btn
           flat
           color="primary"
-          label="Проверить"
+          label="Check"
           data-testid="check-draft"
           :disable="!adapterType"
           :loading="checkDraft.isPending.value"
@@ -2030,7 +2030,7 @@ const saving = computed(
         />
         <q-btn
           color="primary"
-          label="Сохранить"
+          label="Save"
           data-testid="save-connector"
           :disable="!adapterType"
           :loading="saving"
@@ -2042,55 +2042,55 @@ const saving = computed(
 </template>
 ```
 
-- [ ] **Step 3: Подключить диалог к странице**
+- [ ] **Step 3: Wire the dialog into the page**
 
-В `frontend/src/features/connectors/ConnectorsPage.vue` добавить импорт в блок `<script setup>`:
+In `frontend/src/features/connectors/ConnectorsPage.vue` add the import to the `<script setup>` block:
 
 ```ts
 import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
 ```
 
-и добавить в шаблон, сразу после `<ConnectorTable ... />` и перед закрывающим `</AppLayout>`:
+and add to the template, right after `<ConnectorTable ... />` and before the closing `</AppLayout>`:
 
 ```vue
     <ConnectorDialog v-model="dialogOpen" :connector="editing" />
 ```
 
-- [ ] **Step 4: Проверить сценарий вручную**
+- [ ] **Step 4: Check the scenario manually**
 
 Run: `docker compose up -d db backend && cd frontend && bun run dev`
 
-Пройти сценарий:
-1. Войти, нажать «Новое подключение».
-2. Выбрать тип «PostgreSQL» — появляются поля Host, Port, Database, User, Password; у Password тип `password`, у Port значение 5432.
-3. Заполнить параметрами БД из корневого `.env`, нажать «Проверить».
-Expected: зелёная строка с текстом об успехе и временем отклика.
-4. Испортить пароль, нажать «Проверить».
-Expected: красная строка «Ошибка аутентификации», пароль в тексте отсутствует.
-5. Вернуть пароль, нажать «Сохранить».
-Expected: уведомление об успехе, диалог закрывается, строка появляется в таблице.
-6. Нажать «Изменить» у созданной строки.
-Expected: поле Password пустое с подсказкой «Оставить без изменений», выбор типа заблокирован.
-7. Изменить только Port и нажать «Проверить».
-Expected: проверка отрабатывает — пароль подставлен сервером из сохранённой записи.
+Walk through the scenario:
+1. Log in, click "New connection".
+2. Choose the type "PostgreSQL" — the fields Host, Port, Database, User, Password appear; Password has type `password`, Port has value 5432.
+3. Fill in the database parameters from the root `.env`, click "Check".
+Expected: a green line with a success text and the response time.
+4. Break the password, click "Check".
+Expected: a red line "Authentication error", the password is absent from the text.
+5. Restore the password, click "Save".
+Expected: a success notification, the dialog closes, the row appears in the table.
+6. Click "Edit" on the created row.
+Expected: the Password field is empty with the hint "Leave unchanged", the type selection is disabled.
+7. Change only Port and click "Check".
+Expected: the check succeeds — the server fills in the password from the saved record.
 
-Остановить сервер.
+Stop the server.
 
-- [ ] **Step 5: Проверить типы, стиль и модульные тесты**
+- [ ] **Step 5: Check types, style and unit tests**
 
 Run: `cd frontend && bun run type-check && bun run lint && bun run test:unit`
-Expected: без ошибок, 25 модульных тестов проходят.
+Expected: no errors, 25 unit tests pass.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add frontend/src/features/connectors
-git commit -m "feat: диалог создания и редактирования подключения с проверкой соединения"
+git commit -m "feat: dialog to create and edit a connection with a connection check"
 ```
 
 ---
 
-### Task 8: Сценарий Playwright и раздача сборки бэкендом
+### Task 8: Playwright scenario and serving the build from the backend
 
 **Files:**
 - Delete: `frontend/tests/admin.spec.ts`, `items.spec.ts`, `login.spec.ts`, `reset-password.spec.ts`, `sign-up.spec.ts`, `user-settings.spec.ts`, `auth.setup.ts`, `frontend/tests/utils/`
@@ -2099,10 +2099,10 @@ git commit -m "feat: диалог создания и редактировани
 - Modify: `backend/app/main.py`
 
 **Interfaces:**
-- Consumes: всё предыдущее.
-- Produces: сценарий e2e, подтверждающий критерий готовности среза.
+- Consumes: everything above.
+- Produces: an e2e scenario confirming the slice's completion criterion.
 
-- [ ] **Step 1: Удалить сценарии, написанные под React-интерфейс**
+- [ ] **Step 1: Remove the scenarios written for the React interface**
 
 ```bash
 cd frontend
@@ -2112,21 +2112,21 @@ git rm --quiet tests/auth.setup.ts
 git rm -r --quiet tests/utils
 ```
 
-Файл `tests/config.ts` сохраняется: он читает `FIRST_SUPERUSER` и `FIRST_SUPERUSER_PASSWORD` из корневого `.env`.
+The file `tests/config.ts` is kept: it reads `FIRST_SUPERUSER` and `FIRST_SUPERUSER_PASSWORD` from the root `.env`.
 
-- [ ] **Step 2: Убрать из конфигурации Playwright проект setup**
+- [ ] **Step 2: Remove the setup project from the Playwright configuration**
 
-В `frontend/playwright.config.ts` удалить из массива `projects` запись
+In `frontend/playwright.config.ts` remove from the `projects` array the entry
 
 ```ts
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
 ```
 
-и, если у проекта `chromium` присутствуют поля `dependencies: ['setup']` или `storageState`, удалить и их: вход выполняется внутри сценария.
+and, if the `chromium` project has `dependencies: ['setup']` or `storageState` fields, remove them too: login happens inside the scenario.
 
-- [ ] **Step 3: Написать вспомогательную функцию входа**
+- [ ] **Step 3: Write a login helper**
 
-Создать `frontend/tests/utils/login.ts`:
+Create `frontend/tests/utils/login.ts`:
 
 ```ts
 import type { Page } from "@playwright/test"
@@ -2142,9 +2142,9 @@ export async function login(page: Page) {
 }
 ```
 
-- [ ] **Step 4: Написать сценарий**
+- [ ] **Step 4: Write the scenario**
 
-Создать `frontend/tests/connectors.spec.ts`:
+Create `frontend/tests/connectors.spec.ts`:
 
 ```ts
 import { expect, test } from "@playwright/test"
@@ -2161,7 +2161,7 @@ const DATABASE = {
   password: process.env.POSTGRES_PASSWORD ?? "",
 }
 
-test("создание подключения, проверка соединения и удаление", async ({ page }) => {
+test("creating a connection, checking the connection and deleting it", async ({ page }) => {
   await login(page)
 
   await page.getByTestId("add-connector").click()
@@ -2188,11 +2188,11 @@ test("создание подключения, проверка соединен
   await expect(page.locator(".q-notification").first()).toBeVisible()
 
   await page.getByTestId(`delete-${CONNECTOR_NAME}`).click()
-  await page.getByRole("button", { name: "Удалить" }).click()
+  await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(CONNECTOR_NAME)
 })
 
-test("неверный пароль показывает ошибку аутентификации без утечки пароля", async ({ page }) => {
+test("a wrong password shows an authentication error without leaking the password", async ({ page }) => {
   const wrongPassword = "definitely-not-the-password"
   await login(page)
 
@@ -2212,38 +2212,38 @@ test("неверный пароль показывает ошибку аутен
   const result = page.getByTestId("check-result")
   await expect(result).toBeVisible()
   await expect(result).toHaveClass(/bg-negative/)
-  await expect(result).toContainText("Ошибка аутентификации")
+  await expect(result).toContainText("Authentication error")
   await expect(result).not.toContainText(wrongPassword)
 })
 ```
 
-- [ ] **Step 5: Прогнать сценарий на чистой базе**
+- [ ] **Step 5: Run the scenario on a clean database**
 
 Run: `docker compose down -v && docker compose up -d db backend`
-Expected: контейнеры подняты, база пустая, суперпользователь создан скриптом инициализации.
+Expected: containers are up, the database is empty, the superuser is created by the initialisation script.
 
 Run: `cd frontend && bun run dev`
-Expected: Vite на 5173. Оставить запущенным в отдельном терминале.
+Expected: Vite on 5173. Leave it running in a separate terminal.
 
 Run: `cd frontend && bunx playwright test`
-Expected: PASS, 2 сценария.
+Expected: PASS, 2 scenarios.
 
-Это критерий готовности первого среза из спека.
+This is the completion criterion of the first slice from the spec.
 
-- [ ] **Step 6: Вернуть раздачу собранного фронтенда бэкендом**
+- [ ] **Step 6: Bring back serving the built frontend from the backend**
 
-Задача 1 плана бэкенда удалила из `backend/app/main.py` раздачу статики, потому что директории сборки не существовало и от неё зависел импорт приложения в тестах. Теперь сборка Vue кладётся в тот же путь, и раздачу можно вернуть безопасно — с проверкой существования директории, чтобы тесты бэкенда не требовали собранного фронтенда.
+Task 1 of the backend plan removed static file serving from `backend/app/main.py`, because the build directory did not exist and importing the application in tests depended on it. Now the Vue build is placed at the same path, and serving can be brought back safely — with a check that the directory exists, so that backend tests do not require a built frontend.
 
 Run: `cd frontend && bun run build`
-Expected: сборка завершается успешно, появляется `backend/app/frontend/index.html`.
+Expected: the build succeeds, `backend/app/frontend/index.html` appears.
 
-В `backend/app/main.py` добавить в начало файла
+In `backend/app/main.py` add at the top of the file
 
 ```python
 from pathlib import Path
 ```
 
-и в конец файла
+and at the end of the file
 
 ```python
 FRONTEND_DIR = Path(__file__).parent / "frontend"
@@ -2252,48 +2252,48 @@ if FRONTEND_DIR.is_dir():
     app.frontend("/", directory=FRONTEND_DIR)
 ```
 
-- [ ] **Step 7: Проверить, что бэкенд поднимается с раздачей и без неё**
+- [ ] **Step 7: Check that the backend starts with and without serving**
 
-Run: `cd backend && uv run python -c "import app.main; print('импорт с собранным фронтендом OK')"`
-Expected: сообщение без трассировки.
+Run: `cd backend && uv run python -c "import app.main; print('import with built frontend OK')"`
+Expected: the message without a traceback.
 
-Run: `rm -rf backend/app/frontend && cd backend && uv run python -c "import app.main; print('импорт без сборки OK')"`
-Expected: сообщение без трассировки.
+Run: `rm -rf backend/app/frontend && cd backend && uv run python -c "import app.main; print('import without build OK')"`
+Expected: the message without a traceback.
 
 Run: `cd backend && uv run pytest tests/ -q`
-Expected: PASS целиком.
+Expected: PASS in full.
 
-Метод `app.frontend()` в установленной версии FastAPI (0.141.1) присутствует — это проверено при выполнении задачи 1 плана бэкенда. Там же выяснено, что он бросает `RuntimeError`, если директории нет; именно поэтому здесь стоит проверка `is_dir()`.
+The `app.frontend()` method is present in the installed FastAPI version (0.141.1) — this was checked while doing task 1 of the backend plan. It was also found there that it raises `RuntimeError` if the directory does not exist; that is why the `is_dir()` check is here.
 
-- [ ] **Step 8: Проверить типы и стиль**
+- [ ] **Step 8: Check types and style**
 
 Run: `cd frontend && bun run type-check && bun run lint && bun run test:unit`
-Expected: без ошибок.
+Expected: no errors.
 
 Run: `cd backend && uv run ruff check app`
-Expected: без ошибок.
+Expected: no errors.
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add -A frontend backend/app/main.py
-git commit -m "test: сценарий Playwright для коннекторов и раздача сборки бэкендом"
+git commit -m "test: Playwright scenario for connectors and serving the build from the backend"
 ```
 
 ---
 
-## Итог
+## Outcome
 
-После задачи 8 срез завершён целиком:
+After task 8 the slice is complete:
 
-- пользователь входит в систему, видит список своих подключений;
-- заводит подключение к PostgreSQL по форме, построенной из схемы адаптера в рантайме;
-- проверяет соединение до сохранения и после;
-- редактирует подключение, не вводя пароль заново;
-- сценарий Playwright проходит на чистой базе — критерий готовности из спека выполнен.
+- the user logs in and sees a list of their connections;
+- creates a PostgreSQL connection through a form built from the adapter schema at runtime;
+- checks the connection before and after saving;
+- edits a connection without re-entering the password;
+- the Playwright scenario passes on a clean database — the completion criterion from the spec is met.
 
-## Что осталось за пределами среза
+## What is left outside the slice
 
-Согласно спеку, дальше идут подпроекты 2а (расформирование `models.py` и `crud.py` по модулям), 3 (каталог), 4 (выборка данных и пул соединений), 5 (реестр действий), 6 (второй, не-SQL адаптер) и далее realtime, AI и грид. Каждый получает собственный спек и план.
+According to the spec, next come subprojects 2a (splitting `models.py` and `crud.py` into modules), 3 (catalog), 4 (data fetching and connection pool), 5 (action registry), 6 (a second, non-SQL adapter) and then realtime, AI and the grid. Each gets its own spec and plan.
 
-Отдельной задачей в бэклоге остаётся ограничение SSRF в `check-draft`: список разрешённых адресов перед подключением.
+A separate backlog task remains: SSRF restriction in `check-draft` — an allowlist of addresses before connecting.

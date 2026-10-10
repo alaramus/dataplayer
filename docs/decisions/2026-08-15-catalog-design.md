@@ -1,64 +1,67 @@
-# Каталог источника данных
+# Data source catalog
 
-Дата: 2026-08-15
-Статус: согласовано
-Подпроект: 3
+Date: 2026-08-15
+Status: agreed
+Subproject: 3
 
-## Цель
+## Goal
 
-Расширить контракт адаптера обходом каталога: пользователь раскрывает
-подключение к PostgreSQL и видит схемы, таблицы и колонки. Форма ответа должна
-подойти не только базам данных, но и объектным хранилищам, очередям и файловым
-источникам, которые появятся дальше.
+Extend the adapter contract with catalog traversal: the user expands a
+PostgreSQL connection and sees schemas, tables and columns. The response shape
+must fit not only databases but also the object stores, queues and file
+sources that will come later.
 
-## Что выяснилось про старое приложение
+## What we learned about the old application
 
-Разбор `get_catalog` в `dbwebtool` дал четыре факта, каждый из которых
-определил решение.
+An analysis of `get_catalog` in `dbwebtool` produced four facts, each of which
+shaped the decision.
 
-**Внешняя форма у всех адаптеров была одинаковой.** Postgres, Mongo и AWS
-возвращают `{"data": [...], "meta": {...}}`. Ломалось не на конверте.
+**The outer shape was the same for every adapter.** Postgres, Mongo and AWS
+return `{"data": [...], "meta": {...}}`. The envelope was not what broke.
 
-**Ломалось на содержимом элементов.** Тип — `dict`, поэтому каждый адаптер
-трактовал общие ключи по-своему. У Postgres `schema` — имя схемы БД, у AWS то
-же поле означает `"directory"`, и туда же добавлены свои `path` и `directory`.
-Фронтенд ветвился по адаптерам молча, потому что типов не было.
+**What broke was the content of the elements.** The type is `dict`, so each
+adapter interpreted the shared keys its own way. In Postgres `schema` is the
+name of a database schema; in AWS the same field means `"directory"`, and its
+own `path` and `directory` are added there as well. The frontend branched on
+adapters silently, because there were no types.
 
-**Внутри одного метода жили два сценария доступа.** Postgres и Mongo отдают всё
-сразу, AWS принимает `path` и возвращает один уровень: объектов там
-неограниченно много.
+**One method held two access scenarios.** Postgres and Mongo return everything
+at once; AWS takes a `path` and returns one level: there are unboundedly many
+objects there.
 
-**Ошибки проглатывались.** `except Exception` → `{'data': [], 'meta': {}}`.
-Пустая база и упавший запрос неразличимы.
+**Errors were swallowed.** `except Exception` → `{'data': [], 'meta': {}}`.
+An empty database and a failed query are indistinguishable.
 
-Кроме того, `meta` смешивала метаданные схем, список поддерживаемых действий и
-перечень файлов резервных копий, а колонок в каталоге не было вовсе.
+Besides that, `meta` mixed schema metadata, the list of supported actions and
+the list of backup files, and the catalog had no columns at all.
 
-**`refresh_model` не переносится.** В базовом классе он возвращает
-`NotImplemented`, в адаптере Postgres не реализован, из веб-слоя не вызывается.
-Мёртвый метод.
+**`refresh_model` is not ported.** In the base class it returns
+`NotImplemented`, the Postgres adapter does not implement it, and the web layer
+never calls it. A dead method.
 
-## Ключевое решение
+## Key decision
 
-Различия между источниками живут **в виде узла, а не в семействе источника**.
+Differences between sources live **in the node kind, not in the source
+family**.
 
-Обсуждалась альтернатива — пресеты по семействам: отдельный тип каталога для
-баз данных, отдельный для файловых источников. Отклонена, потому что граница
-между семействами размыта, а решать её пришлось бы для каждого адаптера:
-ClickHouse, Kafka, Google Sheets, S3 с parquet-файлами. Именно попытка отнести
-источник к категории и ломалась в старом приложении.
+An alternative was discussed — presets per family: one catalog type for
+databases, another for file sources. It was rejected because the boundary
+between families is blurred, and it would have to be decided for every
+adapter: ClickHouse, Kafka, Google Sheets, S3 with parquet files. It was
+exactly the attempt to assign a source to a category that broke in the old
+application.
 
-При выбранном подходе один источник спокойно содержит узлы разных видов: S3
-отдаёт и префиксы, и объекты, и таблицы, если умеет читать parquet.
-Категоризировать источник целиком не нужно.
+With the chosen approach one source can contain nodes of different kinds
+without trouble: S3 returns prefixes, objects, and tables too if it can read
+parquet. There is no need to categorise the source as a whole.
 
-## Форма узла
+## Node shape
 
-Узел — размеченное объединение; вложенного словаря деталей нет.
+A node is a discriminated union; there is no nested dictionary of details.
 
 ```python
 class BaseNode(BaseModel):
-    id: str            # непрозрачен для всех, кроме адаптера
+    id: str            # opaque to everyone except the adapter
     name: str
     has_children: bool
 
@@ -88,20 +91,21 @@ CatalogNode = Annotated[
 ]
 ```
 
-Общих полей ровно три, и ни одно нельзя переосмыслить: `id`, `name`,
-`has_children`. Случай, когда одно имя поля значит у двух адаптеров разное,
-исключён конструктивно — у объектного хранилища будет свой класс узла.
+There are exactly three shared fields, and none of them can be reinterpreted:
+`id`, `name`, `has_children`. The case where one field name means different
+things in two adapters is excluded by construction — an object store will have
+its own node class.
 
-Объединение попадает в OpenAPI размеченным, поэтому на фронтенде получается
-настоящий tagged union: TypeScript сузит тип по `kind`.
+The union reaches OpenAPI as discriminated, so the frontend gets a real tagged
+union: TypeScript narrows the type by `kind`.
 
-Новый вид узла — новый класс в объединении. Трение намеренное: поле в общий
-словарь можно добавить молча, класс — нет.
+A new node kind is a new class in the union. The friction is intentional: a
+field can be added to a shared dictionary silently, a class cannot.
 
-`row_count_estimate` назван честно, вместо старой пары `row_count` и
-`row_precise: "raw"`.
+`row_count_estimate` is named honestly, instead of the old pair `row_count`
+and `row_precise: "raw"`.
 
-## Контракт адаптера
+## Adapter contract
 
 ```python
 class DataAdapter(Protocol):
@@ -109,70 +113,70 @@ class DataAdapter(Protocol):
     async def list_children(self, node_id: str | None) -> list[CatalogNode]: ...
 ```
 
-`node_id = None` — корень. Значение непрозрачно для API и фронтенда: Postgres
-кодирует туда `"public"` и `"public.users"`. Никто, кроме адаптера, его не
-разбирает.
+`node_id = None` is the root. The value is opaque to the API and the frontend:
+Postgres encodes `"public"` and `"public.users"` into it. Nobody but the
+adapter parses it.
 
-### Ошибки
+### Errors
 
-Адаптер бросает `AdapterError(kind, message)`, где `kind` — тот же
-`ErrorKind`, что у проверки соединения. Ручка отвечает 502 и телом
-`{"message": ..., "error_kind": ...}`. Текст исключения драйвера наружу не
-уходит по той же причине, что и при проверке соединения.
+The adapter raises `AdapterError(kind, message)`, where `kind` is the same
+`ErrorKind` as in the connection check. The endpoint answers 502 with the body
+`{"message": ..., "error_kind": ...}`. The driver's exception text does not go
+out, for the same reason as in the connection check.
 
-Пустой каталог и упавший запрос обязаны различаться — это прямое требование
-из разбора старого приложения.
+An empty catalog and a failed query must be distinguishable — this is a direct
+requirement from the analysis of the old application.
 
-## Адаптер PostgreSQL
+## PostgreSQL adapter
 
-| Уровень | Что возвращает |
+| Level | What it returns |
 | --- | --- |
-| Корень | Схемы. Системные помечены `is_system`, не скрыты |
-| Схема | Таблицы и представления |
-| Таблица | Колонки |
+| Root | Schemas. System ones are marked `is_system`, not hidden |
+| Schema | Tables and views |
+| Table | Columns |
 
-Оценка числа строк — `reltuples` из `pg_class`, размер —
-`pg_total_relation_size`. Обе величины дешёвые и приблизительные, что и
-отражено в имени поля.
+The row count estimate is `reltuples` from `pg_class`, the size is
+`pg_total_relation_size`. Both values are cheap and approximate, which the
+field name reflects.
 
 ## API
 
 ```
-GET /api/v1/connectors/{connector_id}/catalog            корень
-GET /api/v1/connectors/{connector_id}/catalog?node_id=…  дети узла
+GET /api/v1/connectors/{connector_id}/catalog            root
+GET /api/v1/connectors/{connector_id}/catalog?node_id=…  children of a node
 ```
 
-Ответ — `list[CatalogNode]`. Чужой коннектор отдаёт 404, как и остальные ручки
-коннекторов.
+The response is `list[CatalogNode]`. A foreign connector returns 404, like the
+other connector endpoints.
 
-## Фронтенд
+## Frontend
 
-Дерево на `QTree` с ленивой подгрузкой: раскрытие узла запрашивает его детей.
-Открывается из строки списка подключений.
+A tree on `QTree` with lazy loading: expanding a node requests its children.
+It opens from a row of the connections list.
 
-Компонент рисует общие поля и сужает тип по `kind` там, где показывает
-подробности: число строк у таблицы, тип данных у колонки.
+The component draws the shared fields and narrows the type by `kind` where it
+shows details: the row count of a table, the data type of a column.
 
-## Проверка
+## Verification
 
-Тесты адаптера идут против той же тестовой БД, что и остальные: подходящие
-фикстуры уже существуют — таблицы `user` и `connector`.
+The adapter tests run against the same test database as the others: suitable
+fixtures already exist — the `user` and `connector` tables.
 
-- в корне есть схема `public`;
-- в `public` есть таблица `connector`;
-- у `connector` есть колонка `adapter_type` с непустым типом данных;
-- несуществующий узел даёт `AdapterError`, а не пустой список;
-- ручка каталога чужого коннектора отдаёт 404;
-- фейковый адаптер в реестре проверяет ручку без обращения к БД;
-- `mypy --strict` и `ruff` чисты;
-- сценарий Playwright: вход, раскрытие подключения, схема → таблица → колонка.
+- the root contains the schema `public`;
+- `public` contains the table `connector`;
+- `connector` has the column `adapter_type` with a non-empty data type;
+- a nonexistent node gives `AdapterError`, not an empty list;
+- the catalog endpoint of a foreign connector returns 404;
+- a fake adapter in the registry checks the endpoint without touching the database;
+- `mypy --strict` and `ruff` are clean;
+- a Playwright scenario: log in, expand a connection, schema → table → column.
 
-## Чего в подпроекте нет
+## Not in this subproject
 
-- кеширования каталога — это подпроект 4 вместе с пулом соединений;
-- `refresh_model` — мёртвый метод, не переносится;
-- поиска и фильтрации по каталогу;
-- любых операций записи;
-- **постраничной выдачи детей**. У Postgres их конечное число; для объектных
-  хранилищ понадобится курсор. Отсрочка осознанная: добавление курсора изменит
-  контракт, но адаптер пока один, и это дёшево.
+- catalog caching — that is subproject 4, together with the connection pool;
+- `refresh_model` — a dead method, not ported;
+- search and filtering over the catalog;
+- any write operations;
+- **paging of children**. Postgres has a finite number of them; object stores
+  will need a cursor. The deferral is deliberate: adding a cursor will change
+  the contract, but there is only one adapter so far, and that is cheap.

@@ -1,82 +1,86 @@
-# Грид исследования данных
+# A grid for exploring data
 
-Дата: 2026-08-27
-Статус: согласовано
-Раунд: 9
+Date: 2026-08-27
+Status: agreed
+Round: 9
 
-## Цель
+## Goal
 
-Превратить существующий просмотр первых строк в рабочий инструмент исследования
-данных: серверные фильтры и многоколоночная сортировка, явные страницы с
-настраиваемым размером, размеры, порядок, видимость и фиксация колонок,
-табличное выделение и точное копирование, отображение по типу значения.
+Turn the existing view of the first rows into a working tool for exploring
+data: server-side filters and multi-column sorting, explicit pages with a
+configurable size, column sizes, order, visibility and pinning, tabular
+selection and exact copying, display by value type.
 
-Раунд остаётся **только для чтения**. Редактирование ячеек и строк не прячется
-за будущим флагом в этом же контракте: оно требует идентичности строки,
-оптимистической блокировки и отдельной способности источника, поэтому будет
-следующим самостоятельным этапом.
+The round stays **read-only**. Editing cells and rows is not hidden behind a
+future flag in this same contract: it requires row identity, optimistic
+locking and a separate source capability, so it will be the next standalone
+stage.
 
-## Что есть перед раундом
+## What exists before the round
 
-`RowGrid.vue` читает по 50 строк через `POST /connectors/{id}/fetch`, листает
-страницы по `offset`, сортирует по одной колонке и показывает результат через
-`AppTable`. Фильтры уже входят в backend-контракт, но UI всегда отправляет
-пустой список. Строки приходят как `Any`, а тип колонки — одной строкой
-`data_type`.
+`RowGrid.vue` reads 50 rows at a time through `POST /connectors/{id}/fetch`,
+pages by `offset`, sorts by one column and shows the result through
+`AppTable`. Filters are already part of the backend contract, but the UI
+always sends an empty list. Rows arrive as `Any`, and a column's type as one
+`data_type` string.
 
-Этого достаточно доказать безопасную выборку, но недостаточно для инструмента:
+This is enough to prove a safe fetch, but not enough for a tool:
 
-- frontend должен был бы разбирать `numeric(18,2)`, `timestamptz`, `jsonb` и
-  пользовательские типы сам, хотя D22 уже ввёл серверную модель `ColumnType`;
-- JavaScript `number` не может точно представить каждый `bigint` и `numeric`;
-- клик по заголовку не выражает ordered multi-sort;
-- у QTable нет единой модели диапазона ячеек, размеров, порядка и pinning;
-- всё состояние живёт в компоненте и исчезает при перезапуске приложения.
+- the frontend would have to parse `numeric(18,2)`, `timestamptz`, `jsonb` and
+  user-defined types itself, although D22 has already introduced the server
+  model `ColumnType`;
+- a JavaScript `number` cannot exactly represent every `bigint` and `numeric`;
+- a click on a header does not express ordered multi-sort;
+- QTable has no single model of a cell range, sizes, order and pinning;
+- all state lives in the component and disappears when the application
+  restarts.
 
-Старое приложение решало таблицу собственным `XTable`: отдельные реализации
-scroll, paginator, search, sort, resize, строк и полей. Идеи взаимодействия
-полезны, но копировать ещё один табличный движок нельзя — это тот же класс
-неограниченного роста, из-за которого переписывается backend.
+The old application solved the table with its own `XTable`: separate
+implementations of scroll, paginator, search, sort, resize, rows and fields.
+The interaction ideas are useful, but copying yet another table engine is not
+allowed — it is the same class of unbounded growth that the backend is being
+rewritten over.
 
-## Решения
+## Decisions
 
-### Р1. Грид — отдельная frontend-фича
+### R1. The grid is a separate frontend feature
 
-`RowGrid` уходит из `features/catalog` в `features/grid`. Каталог открывает узел
-и не владеет инструментом работы с его данными.
+`RowGrid` moves from `features/catalog` to `features/grid`. The catalog opens a
+node and does not own the tool for working with its data.
 
-Границы внутри фичи:
+Boundaries inside the feature:
 
-- `DataGrid.vue` связывает страницу данных, состояние TanStack Table и панели;
-- `GridHeader.vue` держит постоянную строку команд;
-- редакторы фильтров, сортировки и колонок меняют только свой slice состояния;
-- чистые `format`, `clipboard`, `queryState` и `persist` не требуют mount;
-- `RowsPanel` передаёт `connectorId` и `nodeId` и регистрирует `reload()`, как
-  сегодня. Workspace не узнаёт ни одного внутреннего действия грида (D12).
+- `DataGrid.vue` binds the data page, the TanStack Table state and the panels;
+- `GridHeader.vue` holds the permanent command row;
+- the filter, sort and column editors change only their own slice of state;
+- the pure `format`, `clipboard`, `queryState` and `persist` need no mount;
+- `RowsPanel` passes `connectorId` and `nodeId` and registers `reload()`, as
+  today. The workspace learns not a single internal action of the grid (D12).
 
-Отвергнуто оставить фичу в `catalog`: уже сейчас структура отношения живёт
-отдельно, а фильтры, clipboard и раскладка колонок не являются навигацией.
+Rejected: leaving the feature in `catalog`: the relation structure already
+lives separately, and filters, clipboard and column layout are not navigation.
 
-### Р2. TanStack Table управляет механикой, DataPlayer — видом
+### R2. TanStack Table runs the mechanics, DataPlayer the look
 
-Добавляется `@tanstack/vue-table` v9. Это MIT headless-движок: состояние и
-операции есть, готовой темы и DOM нет. DataPlayer сам рисует семантическую
-таблицу и header через свой UI kit.
+`@tanstack/vue-table` v9 is added. It is an MIT headless engine: state and
+operations are there, there is no ready theme and no DOM. DataPlayer draws the
+semantic table and header itself through its UI kit.
 
-Используются только нужные features: cell selection, column sizing/resizing,
-ordering, visibility, pinning и sorting state. Клиентские row models для
-sorting, filtering и pagination не подключаются: в браузере находится одна
-страница, а операции относятся ко всему отношению и выполняются источником.
+Only the needed features are used: cell selection, column sizing/resizing,
+ordering, visibility, pinning and sorting state. The client row models for
+sorting, filtering and pagination are not connected: the browser holds one
+page, while the operations apply to the whole relation and are performed by
+the source.
 
-Отвергнуто развитие QTable: server pagination у него есть, но range selection,
-resize, устойчивое pinning и согласование этих состояний пришлось бы писать
-самим. Отвергнут AG Grid: spreadsheet range selection и полноценный clipboard
-относятся к Enterprise, то есть нужный набор вводит лицензию именно на основной
-сценарий раунда.
+Rejected: building on QTable: it has server pagination, but range selection,
+resize, stable pinning and reconciling these states would have to be written
+by us. Rejected: AG Grid: spreadsheet range selection and a full clipboard
+belong to Enterprise, that is, the needed set brings in a licence precisely
+for the round's main scenario.
 
-### Р3. Результат описывает возможность каждой колонки
+### R3. The result describes the capability of each column
 
-`FetchColumn` становится таким:
+`FetchColumn` becomes:
 
 ```text
 FetchColumn
@@ -86,264 +90,276 @@ FetchColumn
   filter_operators: list[FilterOp]
 ```
 
-`data_type: str` удаляется. `ColumnType` переиспользуется из relation model:
-PostgreSQL собирает его тем же `build_column_type`, файловый reader объявляет
-простые `number` и `string`. Frontend не разбирает `type.sql`, не ветвится по
-adapter type и не решает сам, какие операции источник умеет.
+`data_type: str` is removed. `ColumnType` is reused from the relation model:
+PostgreSQL builds it with the same `build_column_type`, the file reader
+declares plain `number` and `string`. The frontend does not parse `type.sql`,
+does not branch on the adapter type and does not decide by itself which
+operations the source supports.
 
-Глобальные `FetchResult.sortable` и `filterable` удаляются: способность может
-различаться по колонкам. Файл отвечает `sortable=false` и пустым списком
-операторов на каждой колонке; сложный PostgreSQL-тип может быть видим, но не
-фильтруем. Это более точная форма D2d, а не новая таблица исключений в UI.
+The global `FetchResult.sortable` and `filterable` are removed: a capability
+can differ between columns. A file answers `sortable=false` and an empty list
+of operators on every column; a complex PostgreSQL type may be visible but not
+filterable. This is a more precise form of D2d, not a new table of exceptions
+in the UI.
 
-### Р4. Значение для чтения — точный канонический текст
+### R4. A value for reading is exact canonical text
 
-`FetchResult.rows` становится `list[list[str | None]]`. Адаптер превращает
-типизированное значение драйвера в канонический текст по `ColumnType`:
-целые и decimal не округляются, boolean — `true`/`false`, date/time — ISO 8601,
-UUID — полная строка, binary — hex. Для сложного типа PostgreSQL использует его
-серверное текстовое представление. Фильтрация и сортировка по-прежнему работают
-над исходной типизированной колонкой. Имена собираются только через
-`sql.Identifier`; клиентский текст в форму `SELECT` не попадает (D2c).
+`FetchResult.rows` becomes `list[list[str | None]]`. The adapter turns the
+driver's typed value into canonical text according to `ColumnType`: integers
+and decimals are not rounded, boolean is `true`/`false`, date/time is ISO 8601,
+UUID is the full string, binary is hex. For a complex type PostgreSQL uses its
+server text representation. Filtering and sorting still work over the original
+typed column. Names are assembled only through `sql.Identifier`; client text
+does not get into the shape of the `SELECT` (D2c).
 
-Так сохраняются `bigint`, `numeric`, UUID, timestamp с timezone, массивы и
-диапазоны без прохода через JavaScript `number`. `None` остаётся отдельным от
-пустой строки. JSON приходит валидным компактным JSON, binary — однозначным
-hex. Тип колонки решает только отображение; для clipboard и полного просмотра
-используется вся исходная строка.
+This preserves `bigint`, `numeric`, UUID, timestamp with timezone, arrays and
+ranges without passing through a JavaScript `number`. `None` stays separate
+from the empty string. JSON arrives as valid compact JSON, binary as
+unambiguous hex. The column type decides only the display; the clipboard and
+the full view use the whole original string.
 
-Отвергнут `Any`: он удобен короткому endpoint, но не обещает точность на
-границе JSON. Отвергнут tagged object в каждой ячейке: семантика уже перечислена
-один раз в колонке, а повторение `kind` в каждой строке раздувает широкий ответ.
+Rejected: `Any`: it is convenient for a short endpoint but does not promise
+precision at the JSON boundary. Rejected: a tagged object in every cell: the
+semantics are already listed once in the column, and repeating `kind` in every
+row bloats a wide response.
 
-### Р5. Фильтр — строгая команда, а не частично заполненный объект
+### R5. A filter is a strict command, not a partially filled object
 
-`Filter` становится discriminated union по `op`:
+`Filter` becomes a discriminated union by `op`:
 
-- `is_null` и `is_not_null` не имеют значения;
-- `in` требует непустой список текстовых значений;
-- остальные операторы требуют одно текстовое значение.
+- `is_null` and `is_not_null` have no value;
+- `in` requires a non-empty list of text values;
+- the other operators require one text value.
 
-Адаптер проверяет имя колонки и наличие оператора в её
-`filter_operators`, затем преобразует значение по серверной метаинформации и
-передаёт драйверу параметром. Неподходящий оператор и неверное значение дают
-422 до выполнения основного запроса. Ни тип, ни SQL-cast не принимаются от
-клиента.
+The adapter checks the column name and that the operator is in its
+`filter_operators`, then converts the value by the server-side metadata and
+passes it to the driver as a parameter. An unsuitable operator and a wrong
+value give 422 before the main query is run. Neither a type nor an SQL cast is
+accepted from the client.
 
-PostgreSQL начинает с консервативной таблицы: number, string и datetime умеют
-сравнение, `eq`, `ne` и `in`; string дополнительно `contains` и `starts_with`;
-boolean, uuid и enum — `eq`, `ne`, `in`; все типы — null checks. Сложные типы
-кроме null checks не фильтруются в этом раунде. Sorting включён для number,
-string, boolean, datetime, uuid и enum. File source не включает ничего. Новая
-способность типа добавляется на сервере и приезжает в ответе, а не появляется
-отдельным знанием frontend.
+PostgreSQL starts with a conservative table: number, string and datetime
+support comparison, `eq`, `ne` and `in`; string additionally `contains` and
+`starts_with`; boolean, uuid and enum — `eq`, `ne`, `in`; all types — null
+checks. Complex types are not filtered in this round except for null checks.
+Sorting is enabled for number, string, boolean, datetime, uuid and enum. The
+file source enables nothing. A new type capability is added on the server and
+arrives in the response, rather than appearing as separate knowledge in the
+frontend.
 
-Все условия первого раунда соединяются `AND`. `OR` и группы со скобками
-остаются следующим этапом: для них нужен рекурсивный контракт выражения и UI
-дерева, а не ещё одно поле в плоском списке.
+All conditions of the first round are joined with `AND`. `OR` and
+parenthesised groups remain the next stage: they need a recursive expression
+contract and a tree UI, not one more field in a flat list.
 
-### Р6. Страница — query, хотя HTTP-метод остаётся POST
+### R6. A page is a query, though the HTTP method stays POST
 
-Чтение переходит с `useMutation` на `useQuery` с ключом из connector, node,
-page size, offset, filters и ordered sort. POST выбран, чтобы структурный
-фильтр не попал в URL; это не делает идемпотентное чтение мутацией.
+Reading moves from `useMutation` to `useQuery` with a key made of connector,
+node, page size, offset, filters and ordered sort. POST is chosen so that a
+structured filter does not get into the URL; that does not make an idempotent
+read a mutation.
 
-Query даёт отмену устаревшего запроса, deduplication и защиту от ответа,
-пришедшего после более нового. Изменение filters, sort или page size ставит
-page в ноль. Переход страницы меняет только offset. Reload делает `refetch`
-того же ключа, не сбрасывая запрос (решение tab reload).
+A query gives cancellation of a stale request, deduplication and protection
+against a response that arrives after a newer one. Changing filters, sort or
+page size sets page to zero. Moving to another page changes only offset.
+Reload does a `refetch` of the same key without resetting the request (the tab
+reload decision).
 
-Размер страницы выбирается из `50 / 100 / 250 / 500`, по умолчанию 100.
-Пагинация остаётся явной: она соответствует bounded `offset + limit`, делает
-выделение предсказуемым и не скрывает стоимость запросов бесконечной
-прокруткой.
+Page size is chosen from `50 / 100 / 250 / 500`, 100 by default. Pagination
+stays explicit: it corresponds to a bounded `offset + limit`, makes selection
+predictable and does not hide the cost of queries behind infinite scrolling.
 
-WebSocket не переносит fetch. D18 прямо отвергает второй способ вызывать тот же
-HTTP-контракт. Realtime-источник строк позже добавит capability и новую topic;
-транспорт для этого менять не придётся.
+WebSocket does not carry fetch. D18 explicitly rejects a second way to call
+the same HTTP contract. A real-time row source will later add a capability and
+a new topic; the transport will not have to change for that.
 
-### Р7. Header грида — постоянное место для команд
+### R7. The grid header is a permanent place for commands
 
-Первая строка всегда имеет одну высоту и содержит:
+The first row always has one height and contains:
 
-- `Filters` и количество активных условий;
-- `Sort` и количество ключей;
-- управление колонками;
-- pin/unpin текущей колонки;
+- `Filters` and the number of active conditions;
+- `Sort` and the number of keys;
+- column management;
+- pin/unpin of the current column;
 - Copy;
 - page size;
-- overflow для будущих команд.
+- overflow for future commands.
 
-Недоступная команда остаётся на месте disabled с объяснением, поэтому header
-не прыгает между источниками и у него остаётся форма для расширения.
+An unavailable command stays in place, disabled, with an explanation, so the
+header does not jump between sources and keeps a shape for extension.
 
-`Filters` раскрывает второй пояс: активные условия, редактор одного условия,
-Apply, удаление и Clear all. Nullary-оператор скрывает value. Boolean и enum
-дают выбор, `in` — список отдельных значений; число и datetime вводятся в
-техническом формате без локализации. Ошибка остаётся у условия и не запускает
-fetch.
+`Filters` opens a second band: the active conditions, an editor for one
+condition, Apply, removal and Clear all. A nullary operator hides the value.
+Boolean and enum give a choice, `in` a list of separate values; number and
+datetime are entered in a technical format without localisation. An error
+stays with its condition and does not start a fetch.
 
-### Р8. Одна модель многоколоночной сортировки имеет два входа
+### R8. One model of multi-column sorting has two entry points
 
-Обычный клик по основной области заголовка заменяет сортировку одной колонкой и
-циклически меняет `ASC -> DESC -> none`. `Shift + click` добавляет или меняет
-колонку в ordered sort. Стрелка показывает направление, число — приоритет.
+An ordinary click on the main area of a header replaces the sort with one
+column and cycles `ASC -> DESC -> none`. `Shift + click` adds or changes a
+column in the ordered sort. An arrow shows the direction, a number the
+priority.
 
-Кнопка Sort раскрывает тот же state как список: направление, вверх/вниз по
-приоритету, удалить, очистить. Это доступный путь без знания модификатора, а не
-вторая сортировка, которую пришлось бы синхронизировать.
+The Sort button opens the same state as a list: direction, up/down by
+priority, remove, clear. It is an accessible path that needs no knowledge of
+the modifier, not a second sort that would have to be synchronised.
 
-Отдельная зона заголовка выбирает колонку, потому что один click не может
-одновременно сортировать и выделять.
+A separate zone of the header selects the column, because one click cannot
+sort and select at the same time.
 
-### Р9. Раскладка и запрос переживают сессию, позиция — нет
+### R9. The layout and the query survive the session, the position does not
 
-Versioned Zod-схема хранит по `connectorId + nodeId`:
+A versioned Zod schema stores, per `connectorId + nodeId`:
 
-- ширину, порядок, видимость и left pinning колонок;
+- column width, order, visibility and left pinning;
 - filters;
 - ordered sort.
 
-Page size — одна пользовательская настройка для всех grid. Page number,
-selection и открытый editor не сохраняются. После запуска пользователь видит
-первую страницу с прежним запросом: сохранённый offset мог указывать на данные,
-которых уже нет.
+Page size is one user setting for all grids. Page number, selection and an
+open editor are not saved. After a start the user sees the first page with the
+previous query: a saved offset could point at data that is no longer there.
 
-Filters и ordered sort записываются только после успешного ответа на их
-`FetchRequest`. Ошибочный запрос остаётся состоянием текущей вкладки и не
-становится сохранённым view; из error state доступны повтор и сброс filters/sort,
-причём сброс не зависит от метаданных колонок в неудавшемся ответе.
+Filters and ordered sort are written only after a successful response to their
+`FetchRequest`. A failed query stays as state of the current tab and does not
+become a saved view; from the error state retry and resetting filters/sort are
+available, and the reset does not depend on column metadata in the failed
+response.
 
-При чтении сохранённая раскладка согласуется с фактическими колонками по полному
-имени: исчезнувшие отбрасываются, новые добавляются справа; sort по
-несортируемой колонке и filter с больше не разрешённым operator тоже исчезают.
-Незнакомая версия, невалидный JSON или противоречивое состояние отбрасываются
-целиком.
+On reading, the saved layout is reconciled with the actual columns by full
+name: vanished ones are dropped, new ones are added on the right; a sort on a
+non-sortable column and a filter with an operator no longer allowed disappear
+too. An unknown version, invalid JSON or contradictory state is discarded
+whole.
 
-Resize идёт drag, double click подбирает ширину по заголовку и текущей странице.
-Фиксация в первом раунде только слева. Columns управляет порядком, видимостью,
-pinning и сбросом раскладки.
+Resize is by drag; a double click fits the width to the header and the current
+page. Pinning in the first round is left only. Columns manages order,
+visibility, pinning and resetting the layout.
 
-### Р10. Выделение относится только к загруженной странице
+### R10. Selection applies only to the loaded page
 
-Поддерживаются click ячейки, drag прямоугольника, `Shift + click`, стрелки и
-`Shift + arrows`. Номер выбирает строку, отдельная зона заголовка — колонку,
-угол — всю страницу. Переход страницы и структурное изменение колонок очищают
-selection: row id страницы не является идентичностью записи.
+Supported: a cell click, dragging a rectangle, `Shift + click`, arrows and
+`Shift + arrows`. The number selects a row, a separate zone of the header a
+column, the corner the whole page. Moving to another page and a structural
+change of columns clear the selection: a page row id is not a record's
+identity.
 
-`Ctrl/Cmd+C` и Copy формируют TSV прямоугольника из полных исходных значений.
-Заголовки автоматически не добавляются; `NULL` становится пустой ячейкой,
-пустая строка тоже остаётся пустой — тип различим в grid, но у TSV нет
-представления SQL NULL. Внутренние tab, CR, LF и кавычки экранируются единым
-чистым serializer, а запись в clipboard остаётся тонкой browser-обёрткой.
+`Ctrl/Cmd+C` and Copy produce TSV of the rectangle from the full original
+values. Headers are not added automatically; `NULL` becomes an empty cell, and
+an empty string stays empty too — the type is distinguishable in the grid, but
+TSV has no representation of SQL NULL. Inner tab, CR, LF and quotes are escaped
+by a single pure serializer, and writing to the clipboard stays a thin browser
+wrapper.
 
-### Р11. Тип меняет renderer, но не значение
+### R11. The type changes the renderer, not the value
 
-- number выравнивается вправо и не локализуется;
-- boolean показывается исходным canonical text `true`/`false`;
-- date и timestamp остаются в техническом ISO 8601, timezone не
-  скрывается и не пересчитывается браузером;
-- `NULL` показывается текстом `null`, отдельно от пустой строки;
-- UUID, network и binary используют monospace;
-- JSON, array и длинный text сокращаются только визуально.
+- number is right-aligned and not localised;
+- boolean is shown as the original canonical text `true`/`false`;
+- date and timestamp stay in technical ISO 8601, the timezone is neither
+  hidden nor recalculated by the browser;
+- `NULL` is shown as the text `null`, separately from an empty string;
+- UUID, network and binary use monospace;
+- JSON, array and long text are shortened only visually.
 
-Double click по сложному или сокращённому значению открывает read-only viewer с
-полным текстом и Copy. В первом раунде viewer один текстовый; syntax highlight,
-изображения и специализированные binary-viewers не входят в задачу.
+A double click on a complex or shortened value opens a read-only viewer with
+the full text and Copy. In the first round there is one text viewer; syntax
+highlighting, images and specialised binary viewers are not part of the task.
 
-### Р12. Ошибка не выдаёт старые строки за новые
+### R12. An error does not pass old rows off as new ones
 
-При первой загрузке таблица показывает skeleton. При новом запросе прежняя
-страница закрывается loading overlay. Новый запрос отменяет прежний. После
-ошибки строки убираются и видны безопасное сообщение и Retry: страница от
-другого filter state не остаётся под новым header.
+On the first load the table shows a skeleton. On a new query the previous page
+is covered by a loading overlay. A new query cancels the previous one. After an
+error the rows are removed and a safe message and Retry are shown: a page from
+another filter state does not stay under a new header.
 
-Header доступен во время ошибки. Невалидное условие не выходит из редактора;
-clipboard failure даёт toast. Пустая страница после изменения данных не
-запускает скрытый переход назад: `No rows`, Previous остаётся доступным.
+The header is available during an error. An invalid condition does not leave
+the editor; a clipboard failure gives a toast. An empty page after a data
+change does not trigger a hidden move back: `No rows`, Previous stays
+available.
 
-Virtualization в первом раунде нет. Page size ограничивает DOM 500 строками, а
-обычная семантическая таблица проще для sticky columns, focus и accessibility.
-Отдельный браузерный сценарий измеряет широкую страницу из 500 строк. Если она
-не остаётся плавной, TanStack Virtual добавляется по измерению, не заранее.
+There is no virtualization in the first round. Page size limits the DOM to 500
+rows, and an ordinary semantic table is simpler for sticky columns, focus and
+accessibility. A separate browser scenario measures a wide page of 500 rows. If
+it does not stay smooth, TanStack Virtual is added on measurement, not in
+advance.
 
-## Что меняется
+## What changes
 
-**Backend.** `adapters/fetch.py` получает per-column capability и строгий union
-фильтра. PostgreSQL переиспользует `build_column_type`, объявляет операторы,
-преобразует значения фильтра и выбирает lossless text. File readers возвращают
-те же модели с пустыми операторами. Route остаётся прежним; после схемы
-перегенерируется OpenAPI client.
+**Backend.** `adapters/fetch.py` gets per-column capability and a strict filter
+union. PostgreSQL reuses `build_column_type`, declares operators, converts
+filter values and selects lossless text. File readers return the same models
+with empty operators. The route stays the same; after the schema change the
+OpenAPI client is regenerated.
 
-**Frontend.** Добавляется зависимость `@tanstack/vue-table`; `features/grid/`
-получает компоненты и чистые модули. Старые `catalog/RowGrid.vue` и `rows.ts`
-переносятся и распадаются по ответственности. `RowsPanel` меняет только import.
-Для header и viewer добавляются ровно те semantic wrappers в `shared/ui`, для
-которых действительно есть выбор внешнего вида; Quasar primitives без такого
-выбора остаются прямыми (D11).
+**Frontend.** The dependency `@tanstack/vue-table` is added; `features/grid/`
+gets components and pure modules. The old `catalog/RowGrid.vue` and `rows.ts`
+are moved and split by responsibility. `RowsPanel` changes only an import. For
+the header and viewer exactly those semantic wrappers are added to `shared/ui`
+for which there really is a choice of appearance; Quasar primitives without
+such a choice stay direct (D11).
 
-**Документация.** После реализации новое решение о колонко-специфичном
-контракте grid получает строку в AGENTS.md и дом в `architecture/adapters.md`;
-структура frontend-фичи обновляется в `architecture/frontend.md`. До кода эти
-файлы не описывают будущее как уже существующее.
+**Documentation.** After implementation the new decision about the
+column-specific grid contract gets a line in AGENTS.md and a home in
+`architecture/adapters.md`; the structure of the frontend feature is updated in
+`architecture/frontend.md`. Before the code, these files do not describe the
+future as already existing.
 
-## Чем проверяется
+## How it is checked
 
 Backend:
 
-- `FetchColumn` несёт `ColumnType`, sortability и разрешённые operators;
-- `bigint`, `numeric`, datetime, JSON, binary и `NULL` проходят без потери;
-- неподходящий operator и неверное значение дают 422 до основного SQL;
-- два фильтра дают `AND`, multi-sort сохраняет порядок;
-- file source объявляет отсутствие sorting/filtering;
-- существующие page, limit, ownership и injection tests остаются зелёными.
+- `FetchColumn` carries `ColumnType`, sortability and the allowed operators;
+- `bigint`, `numeric`, datetime, JSON, binary and `NULL` pass without loss;
+- an unsuitable operator and a wrong value give 422 before the main SQL;
+- two filters give `AND`, multi-sort keeps its order;
+- the file source declares the absence of sorting/filtering;
+- the existing page, limit, ownership and injection tests stay green.
 
-Frontend unit и component:
+Frontend unit and component:
 
-- parse, versioning и reconciliation сохранённого grid state;
-- reset page при filters, sort и page size;
-- formatter каждой TypeCategory;
-- TSV для cell, range, row и column;
-- click и `Shift + click` sorting;
-- filter editor и локальная validation;
-- resize, auto-fit, visibility, ordering и left pinning;
+- parse, versioning and reconciliation of the saved grid state;
+- page reset on filters, sort and page size;
+- the formatter of each TypeCategory;
+- TSV for a cell, range, row and column;
+- click and `Shift + click` sorting;
+- the filter editor and local validation;
+- resize, auto-fit, visibility, ordering and left pinning;
 - mouse/keyboard selection;
-- loading, error, retry и disabled capabilities.
+- loading, error, retry and disabled capabilities.
 
 Playwright:
 
-- открыть PostgreSQL relation, применить два `AND`-фильтра и ordered
+- open a PostgreSQL relation, apply two `AND` filters and an ordered
   multi-sort;
-- сменить page size, выделить и скопировать range;
-- resize и pin колонки, перезагрузить приложение и увидеть восстановленную
-  раскладку и запрос на первой странице;
-- открыть полный viewer типизированного значения;
-- открыть CSV и увидеть disabled filters/sort;
-- проверить светлую и тёмную темы, узкую рабочую колонку и страницу 500 строк
-  без перекрытий и зависшего взаимодействия.
+- change page size, select and copy a range;
+- resize and pin a column, reload the application and see the restored layout
+  and query on the first page;
+- open the full viewer of a typed value;
+- open a CSV and see disabled filters/sort;
+- check the light and dark themes, a narrow workspace column and a page of 500
+  rows without overlaps or a stuck interaction.
 
-Проверки затронутых сторон: backend pytest, mypy, ruff, import-linter;
-регенерация API client; frontend type-check, lint, unit, build и Playwright;
-`scripts/check-docs.sh`.
+Checks of the affected sides: backend pytest, mypy, ruff, import-linter;
+regeneration of the API client; frontend type-check, lint, unit, build and
+Playwright; `scripts/check-docs.sh`.
 
-## Следующие этапы
+## Next stages
 
-- редактирование ячеек и строк: capability записи, ключ строки, concurrency и
-  подтверждение изменений;
-- `OR` и группы фильтров: рекурсивное выражение и UI дерева;
-- realtime rows/streaming: отдельная capability и topic, без второго fetch API;
-- переходы по внешним ключам из relation model;
-- сохранённые именованные представления grid и общий доступ к ним;
-- экспорт сверх текущей страницы;
-- virtualization, только если измерение bounded page покажет необходимость.
+- editing cells and rows: a write capability, a row key, concurrency and
+  confirmation of changes;
+- `OR` and filter groups: a recursive expression and a tree UI;
+- realtime rows/streaming: a separate capability and topic, without a second
+  fetch API;
+- navigation along foreign keys from the relation model;
+- saved named grid views and sharing them;
+- export beyond the current page;
+- virtualization, only if measuring a bounded page shows it is needed.
 
-## Чего в раунде нет
+## What this round does not include
 
-- записи, вставки и удаления строк;
-- `OR`, скобок и raw SQL conditions;
-- бесконечной прокрутки;
-- polling и автоматического обновления;
-- client-side sorting/filtering текущей страницы;
-- агрегаций, группировок и pivot;
-- локализации чисел и дат;
-- копирования или экспорта строк, которых нет на текущей странице.
+- writing, inserting and deleting rows;
+- `OR`, parentheses and raw SQL conditions;
+- infinite scrolling;
+- polling and automatic refresh;
+- client-side sorting/filtering of the current page;
+- aggregations, groupings and pivot;
+- localisation of numbers and dates;
+- copying or exporting rows that are not on the current page.

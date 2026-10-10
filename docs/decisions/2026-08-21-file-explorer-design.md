@@ -1,80 +1,82 @@
-# Файловый источник
+# File source
 
-Дата: 2026-08-21
-Статус: согласовано
-Подпроект: 6
+Date: 2026-08-21
+Status: agreed
+Subproject: 6
 
-## Цель
+## Goal
 
-Второй тип источника — не SQL, чтобы выяснить, течёт ли абстракция. Каталог,
-`SupportsCatalog` и `SupportsFetch` разрабатывались по одному PostgreSQL, и
-пока к ним не подключён источник другой природы, их общность — предположение,
-а не факт.
+A second source type, not SQL, to find out whether the abstraction leaks. The
+catalog, `SupportsCatalog` and `SupportsFetch` were designed against PostgreSQL
+alone, and until a source of a different nature is plugged into them, their
+generality is an assumption, not a fact.
 
-Пользовательская сторона цели: у каждого пользователя есть своя директория на
-сервере, он заводит к ней коннектор, ходит по дереву папок и читает файлы
-строками в той же сетке, что и таблицы базы.
+The user-facing side of the goal: every user has their own directory on the
+server, creates a connector to it, walks the folder tree and reads files as
+rows in the same grid as database tables.
 
-## Почему файлы, а не SQLite
+## Why files and not SQLite
 
-SQLite обошёлся бы дешевле и переиспользовал бы всю форму каталога и выборки,
-но именно поэтому он ничего и не доказывает: это третий SQL-источник. Он
-проверил бы разве что уровень «схем нет» в дереве и синхронный драйвер через
-поток. Файловый источник расходится с базой во всём, что и требуется
-проверить: виды узлов, отсутствие типов у колонок, отсутствие индексов,
-отсутствие соединения как понятия.
+SQLite would have been cheaper and would have reused the whole shape of the
+catalog and fetching, but that is exactly why it proves nothing: it is a third
+SQL source. At most it would check the "no schemas" level in the tree and a
+synchronous driver through a thread. A file source differs from a database in
+everything that needs checking: node kinds, columns without types, no indexes,
+no connection as a concept.
 
-S3 давал бы ту же проверку без чтения файловой системы сервера, но требует
-MinIO в compose и лишней инфраструктуры в тестах, а личная директория
-пользователя нужна приложению сама по себе.
+S3 would give the same check without reading the server's file system, but it
+requires MinIO in compose and extra infrastructure in tests, while the user's
+personal directory is something the application needs in its own right.
 
-## Что выяснилось про старое приложение
+## What we learned about the old application
 
-Разбор `data_adapter/file_explorer/` дал шесть фактов, и каждый из них здесь
-закрывается решением.
+An analysis of `data_adapter/file_explorer/` produced six facts, and each of
+them is closed by a decision here.
 
-**Запирание в корне не работает.** `resolve_path` сверяет путь с корнем только
-при `connector_type == 'FileExplorer'`, а условие
-`not resolved.startswith(root) and not root.startswith(resolved)` пропускает
-любого предка корня — то есть подъём до `/` разрешён по построению. Похоже,
-ради записей `.` и `..`, которые подмешиваются прямо в данные каталога.
+**Confinement to the root does not work.** `resolve_path` checks the path
+against the root only when `connector_type == 'FileExplorer'`, and the
+condition `not resolved.startswith(root) and not root.startswith(resolved)`
+lets through any ancestor of the root — that is, climbing up to `/` is allowed
+by construction. Apparently for the sake of the `.` and `..` entries, which are
+mixed right into the catalog data.
 
-**Вид узла лежит в ключе `schema`.** Значение `file` или `directory` в поле,
-которое у баз хранит имя схемы. Это тот самый случай, из-за которого
-`CatalogNode` стал размеченным union.
+**The node kind is stored in the `schema` key.** The value `file` or
+`directory` in the field that holds the schema name for databases. This is
+exactly the case because of which `CatalogNode` became a discriminated union.
 
-**Выборка — каскад `if extension ==` на шесть веток.** Внутри одной из них
-`SELECT * FROM '{table}'`, собранный форматированием строки, и `create_query`,
-вклеивающий путь в текст SQL.
+**Fetching is a cascade of `if extension ==` with six branches.** Inside one of
+them is `SELECT * FROM '{table}'` built by string formatting, and a
+`create_query` that pastes the path into the SQL text.
 
-**Ошибка молча превращается в другой ответ.** `except Exception` в `fetch`
-отдаёт файл как текст; ошибка каталога возвращает содержимое родительской
-папки. Отличить сбой от успеха снаружи невозможно.
+**An error silently turns into a different response.** `except Exception` in
+`fetch` returns the file as text; a catalog error returns the content of the
+parent folder. Telling a failure from a success from outside is impossible.
 
-**Форматы задаются белыми списками расширений** (`TEXT_EXTENSIONS`,
-`DATA_EXTENSIONS`, …), поэтому файл без расширения или незнакомый конфиг
-просто не читается.
+**Formats are given by whitelists of extensions** (`TEXT_EXTENSIONS`,
+`DATA_EXTENSIONS`, …), so a file without an extension or an unfamiliar config
+is simply not read.
 
-**Весь ввод-вывод синхронный внутри `async def`**: `os.listdir`, `open`,
-`pandas.read_csv` — прямо в обработчике.
+**All I/O is synchronous inside `async def`**: `os.listdir`, `open`,
+`pandas.read_csv` — right in the handler.
 
-## Границы
+## Boundaries
 
-**Домашняя директория.** Настройка `USER_STORAGE_ROOT`; в compose — том,
-смонтированный в контейнер бэкенда. Модуль `app/users/storage.py`:
+**The home directory.** The `USER_STORAGE_ROOT` setting; in compose, a volume
+mounted into the backend container. The module `app/users/storage.py`:
 
 ```python
 def home_dir(user_id: uuid.UUID) -> Path      # USER_STORAGE_ROOT / str(user_id)
-def create_home(user_id: uuid.UUID) -> Path   # mkdir, права 0700, идемпотентно
+def create_home(user_id: uuid.UUID) -> Path   # mkdir, mode 0700, idempotent
 ```
 
-`create_home` вызывается из `users/crud.create_user` и из
-`users/bootstrap.init_db` для первого суперпользователя — иначе у уже
-заведённых пользователей папки не будет. Владение директориями остаётся в
-модуле `users`: адаптер о пользователях не знает ничего.
+`create_home` is called from `users/crud.create_user` and from
+`users/bootstrap.init_db` for the first superuser — otherwise existing users
+would have no folder. Ownership of the directories stays in the `users`
+module: the adapter knows nothing about users.
 
-**Как корень попадает в адаптер.** Корень — не опция: клиент не должен иметь
-возможности его назвать. В реестре у фабрики появляется второй аргумент:
+**How the root reaches the adapter.** The root is not an option: the client
+must not be able to name it. In the registry the factory gets a second
+argument:
 
 ```python
 @dataclass(frozen=True)
@@ -84,49 +86,51 @@ class AdapterContext:
 Factory = Callable[[Any, AdapterContext], DataAdapter]
 ```
 
-`build_adapter(adapter_type, options, context)` — контекст собирает
-`connectors/service` из `owner_id` коннектора, а для `check-draft` из текущего
-пользователя. PostgreSQL аргумент игнорирует.
+`build_adapter(adapter_type, options, context)` — the context is built by
+`connectors/service` from the connector's `owner_id`, and for `check-draft`
+from the current user. PostgreSQL ignores the argument.
 
-Альтернатива — подложить корень в словарь опций перед валидацией — отвергнута:
-схема опций это одновременно форма в интерфейсе и хранимая конфигурация, и
-вычисленное сервером значение стало бы в ней и полем ввода, и записью в базе.
+The alternative — slipping the root into the options dictionary before
+validation — is rejected: the options schema is at once the form in the
+interface and the stored configuration, and a value computed by the server
+would become both an input field and a database record in it.
 
-Обобщение делается на втором применении, а не заранее: PostgreSQL контекст не
-требовался, файловому источнику он нужен.
+The generalisation is made on the second use, not in advance: PostgreSQL did
+not need a context, the file source needs one.
 
-**Опции файлового типа** — одна: `path: str = "/"`. Значение читается как путь
-относительно домашней директории; `/` означает саму домашнюю директорию.
-Абсолютным путём на файловой системе сервера оно не является никогда.
+**Options of the file type** — one: `path: str = "/"`. The value is read as a
+path relative to the home directory; `/` means the home directory itself. It is
+never an absolute path on the server's file system.
 
-**Разрешение путей.** `node_id` — относительный путь от корня коннектора.
-Перед каждой операцией: склеить с корнем, `Path.resolve()`, проверить
-`is_relative_to(root.resolve())`, иначе отказ. `resolve()` разворачивает
-символические ссылки, поэтому ссылка наружу отсекается тем же условием, а не
-отдельной проверкой. Записей `.` и `..` в выдаче нет: навигация вверх — дело
-интерфейса, а не данных. В текстах ошибок только относительные пути.
+**Path resolution.** `node_id` is a path relative to the connector root. Before
+every operation: join with the root, `Path.resolve()`, check
+`is_relative_to(root.resolve())`, otherwise refuse. `resolve()` expands
+symbolic links, so a link pointing outside is cut off by the same condition,
+not by a separate check. There are no `.` and `..` entries in the output:
+navigating up is the interface's business, not the data's. Error texts contain
+only relative paths.
 
-**Сегмент пути — обычное имя.** Выяснилось при реализации: на Windows
-`Path(root) / "C:" / "Windows"` молча выбрасывает всё, что было до диска, и
-даёт `root/Windows` — путь превращается в другой путь без единой ошибки.
-Поэтому каждый сегмент проверяется правилами обеих платформ сразу: сегмент с
-буквой диска или с корнем отклоняется, а не переосмысливается. Цена — каталог
-в Linux с именем вида `C:` недостижим; это дешевле, чем `node_id`, значащий
-на разных платформах разное.
+**A path segment is a plain name.** Found during implementation: on Windows
+`Path(root) / "C:" / "Windows"` silently throws away everything before the
+drive and gives `root/Windows` — the path turns into another path without a
+single error. So each segment is checked by the rules of both platforms at
+once: a segment with a drive letter or a root is rejected, not reinterpreted.
+The price is that a directory on Linux named like `C:` is unreachable; that is
+cheaper than a `node_id` that means different things on different platforms.
 
-**Вид отказа.** Путь, выходящий за корень, — это неверный запрос, а не сбой
-источника, поэтому он даёт 422, а не 502. Сейчас маршрут каталога ловит только
-`AdapterError` и отвечает 502; значит, в этом подпроекте `SupportsCatalog`
-получает то же обещание, что уже есть у `SupportsFetch` — `ValueError` для
-запроса, называющего несуществующий или недопустимый узел, — а маршрут каталога
-начинает его ловить. Для PostgreSQL это ничего не меняет.
+**Kind of refusal.** A path leaving the root is a bad request, not a source
+failure, so it gives 422, not 502. Today the catalog route catches only
+`AdapterError` and answers 502; so in this subproject `SupportsCatalog` gets the
+same promise `SupportsFetch` already has — `ValueError` for a request naming a
+nonexistent or disallowed node — and the catalog route starts catching it. For
+PostgreSQL this changes nothing.
 
-Граница ровно одна, задаётся сервером, и её нельзя сдвинуть ни опцией, ни
-`node_id`, ни симлинком.
+There is exactly one boundary, set by the server, and it cannot be moved by an
+option, by `node_id` or by a symlink.
 
-## Каталог
+## Catalog
 
-Два новых вида узла в union:
+Two new node kinds in the union:
 
 ```python
 class DirectoryNode(BaseNode):
@@ -142,55 +146,59 @@ class FileNode(BaseNode):
     content_kind: Literal["table", "text", "opaque"]
 ```
 
-`has_children` у папки — не «всегда да»: `os.scandir` и один шаг итератора,
-так что пустая папка честно показывается пустой.
+`has_children` on a folder is not "always yes": `os.scandir` and one step of the
+iterator, so an empty folder is honestly shown as empty.
 
-Порядок выдачи задаёт сервер: сначала папки, потом файлы, внутри — по имени.
-В старом приложении порядок был тот, что вернула ОС.
+The order of the output is set by the server: folders first, then files, by
+name within each. In the old application the order was whatever the OS
+returned.
 
-`content_kind` определяется по расширению, без чтения содержимого: листинг
-папки из тысячи файлов иначе стоил бы тысячу открытий. Правило перевёрнуто
-относительно старого приложения: `csv` и `tsv` дают `table`, список заведомо
-двоичных расширений (архивы, изображения, звук, видео, `pdf`, `exe`, …) даёт
-`opaque`, **всё остальное — `text`**. Так `Dockerfile`, `.env` и файл без
-расширения читаются, а не отсеиваются белым списком; ошибку выдаст чтение,
-если внутри окажутся двоичные данные.
+`content_kind` is determined by extension, without reading the content:
+otherwise listing a folder of a thousand files would cost a thousand opens. The
+rule is inverted relative to the old application: `csv` and `tsv` give `table`,
+a list of known binary extensions (archives, images, audio, video, `pdf`,
+`exe`, …) gives `opaque`, **everything else is `text`**. So `Dockerfile`, `.env`
+and a file without an extension are read rather than filtered out by a
+whitelist; reading will give an error if the inside turns out to be binary.
 
-**Потолок на листинг.** У PostgreSQL число схем ограничено, у папки — нет.
-Больше 2000 записей в директории — `AdapterError` с прямым сообщением, что
-пагинация детей каталога не реализована. Молча обрезать выдачу нельзя: это тот
-самый сорт лжи, из-за которого старый каталог отдавал содержимое родительской
-папки вместо ошибки. Подпроект делает известное отклонение видимым, а не чинит
-его.
+**A ceiling on a listing.** PostgreSQL has a bounded number of schemas, a folder
+does not. More than 2000 entries in a directory is an `AdapterError` with a
+plain message that paging of catalog children is not implemented. Silently
+truncating the output is not allowed: that is exactly the kind of lie because of
+which the old catalog returned the parent folder's content instead of an error.
+The subproject makes the known deviation visible rather than fixing it.
 
-## Чтение
+## Reading
 
-`postgres/fetch.py` собирает SQL, `file/fetch.py` выбирает читателя по
-`content_kind` — отображение из `Literal` в класс, поэтому забытый вид не
-пройдёт `mypy`. Ветвления по расширению, как в `_fetch_by_extension`, нет.
+`postgres/fetch.py` builds SQL, `file/fetch.py` picks a reader by
+`content_kind` — a mapping from a `Literal` to a class, so a forgotten kind will
+not pass `mypy`. There is no branching on extension, as in
+`_fetch_by_extension`.
 
-- `table`: первая строка — имена колонок; пустые и повторяющиеся получают
-  суффикс. Тип каждой колонки — `text`, потому что у CSV типов нет.
-  Разделитель по расширению, для `.csv` — определение по первой строке.
-- `text`: две колонки, `line_no` и `line`.
-- `opaque`: `ValueError` → 422. Тем же отвечают папка и файл, оказавшийся
-  двоичным (нулевой байт в первых 4 КиБ). Новый вид ошибки не нужен:
-  `SupportsFetch` уже обещает `ValueError` для запроса, просящего невозможного.
+- `table`: the first line is the column names; empty and repeated ones get a
+  suffix. The type of every column is `text`, because CSV has no types. The
+  delimiter is by extension; for `.csv` it is detected from the first line.
+- `text`: two columns, `line_no` and `line`.
+- `opaque`: `ValueError` → 422. The same answer is given for a folder and for a
+  file that turns out to be binary (a zero byte in the first 4 KiB). No new
+  error kind is needed: `SupportsFetch` already promises `ValueError` for a
+  request asking for the impossible.
 
-Оба читателя идут по файлу потоком: пропустить `offset` строк, взять
-`limit + 1`, лишняя даёт `has_more`. Файл целиком в память не попадает никогда.
-Глубокий `offset` стоит прохода по файлу — известная цена, записана здесь, а не
-замаскирована.
+Both readers stream through the file: skip `offset` lines, take `limit + 1`,
+the extra one gives `has_more`. The whole file never gets into memory. A deep
+`offset` costs a pass over the file — a known price, written down here rather
+than disguised.
 
-Весь ввод-вывод идёт через `anyio.to_thread.run_sync`. `open()` в `async def`
-ловит ruff (`ASYNC230`), но `os.scandir` и `os.stat` не ловит никто, поэтому
-правило проговаривается явно.
+All I/O goes through `anyio.to_thread.run_sync`. ruff catches `open()` in
+`async def` (`ASYNC230`), but nobody catches `os.scandir` and `os.stat`, so the
+rule is spelled out explicitly.
 
-## Сортировка и фильтры
+## Sorting and filters
 
-Файл нельзя отсортировать, не прочитав целиком, а у колонок CSV нет типов, так
-что `gt` и `lt` над ними лишены смысла. Значит, `SupportsFetch` как одно
-неделимое умение здесь протекает, и это фиксируется данными, а не молчанием:
+A file cannot be sorted without reading it whole, and CSV columns have no
+types, so `gt` and `lt` over them are meaningless. So `SupportsFetch` as one
+indivisible capability leaks here, and this is recorded in data rather than by
+silence:
 
 ```python
 class FetchResult(BaseModel):
@@ -199,110 +207,113 @@ class FetchResult(BaseModel):
     filterable: bool = True
 ```
 
-PostgreSQL не меняется. Файловый адаптер отдаёт `False` и отвечает 422 на
-непустые `sort` и `filters`. Сетка узнаёт из первого же ответа и не предлагает
-того, чего нет — по типу источника фронтенд по-прежнему нигде не ветвится.
+PostgreSQL does not change. The file adapter returns `False` and answers 422 to
+non-empty `sort` and `filters`. The grid learns this from the very first
+response and does not offer what is not there — the frontend still does not
+branch on the source type anywhere.
 
-Вариант «уметь всё, читая файл до потолка размера» отвергнут: порядок строк
-зависел бы от размера файла, а один запрос мог бы съесть сотни мегабайт.
+The option "support everything by reading the file up to a size ceiling" is
+rejected: the order of rows would depend on the file size, and one request
+could eat hundreds of megabytes.
 
-## Число строк
+## Row count
 
-У `FileNode` нет `row_count_estimate`: узнать его можно только проходом по
-файлу. Сетка сейчас берёт оценку из узла каталога — значит, ей придётся
-работать и без неё, листая по `has_more`. Это главная проверка подпроекта:
-течёт абстракция или нет.
+`FileNode` has no `row_count_estimate`: it can only be learned by a pass over
+the file. The grid currently takes the estimate from the catalog node — so it
+will have to work without it too, paging by `has_more`. This is the main check
+of the subproject: whether the abstraction leaks or not.
 
-## Состав модуля
+## Module layout
 
 ```
 backend/app/adapters/file/
 ├── options.py    FileOptions: path
-├── session.py    корень, разрешение и запирание путей, check_connection
+├── session.py    root, path resolution and confinement, check_connection
 ├── catalog.py    listing → DirectoryNode | FileNode
-├── fetch.py      выбор читателя по content_kind
+├── fetch.py      choosing a reader by content_kind
 ├── readers.py    CsvReader, TextReader
-└── adapter.py    фасад + register(name="file", ...)
+└── adapter.py    facade + register(name="file", ...)
 ```
 
-Раскладка та же, что у PostgreSQL (Р2b): сессия отдельно, умения отдельно,
-фасад тонкий. У файлового источника «сессия» — это корень и проверка путей, а
-`check_connection` — «папка на месте и читается».
+The layout is the same as for PostgreSQL (R2b): the session separate, the
+capabilities separate, the facade thin. For the file source the "session" is
+the root and the path checks, and `check_connection` is "the folder is in place
+and readable".
 
 ## API
 
-Новых ручек нет. Работают существующие:
+No new endpoints. The existing ones work:
 
 ```
-GET  /api/v1/adapter-types/            — тип file со своей схемой
-POST /api/v1/connectors/               — создание файлового коннектора
-GET  /api/v1/connectors/{id}/catalog   — обход дерева
-POST /api/v1/connectors/{id}/fetch     — строки файла
+GET  /api/v1/adapter-types/            — the file type with its own schema
+POST /api/v1/connectors/               — creating a file connector
+GET  /api/v1/connectors/{id}/catalog   — walking the tree
+POST /api/v1/connectors/{id}/fetch     — the rows of a file
 ```
 
-Отсутствие новых ручек — часть результата: если бы файловому источнику
-потребовалась своя ручка, абстракция бы протекла.
+The absence of new endpoints is part of the result: if the file source had
+needed an endpoint of its own, the abstraction would have leaked.
 
-## Интерфейс
+## Interface
 
-Форма коннектора не трогается: тип `file` приезжает из `/adapter-types` со
-своей схемой, и `SchemaForm` строит поле `path` сам.
+The connector form is not touched: the `file` type arrives from
+`/adapter-types` with its own schema, and `SchemaForm` builds the `path` field
+itself.
 
-- `treeNodes.ts` — иконки и подписи для `directory` и `file` (размер, дата).
-  Подпись идёт через слот заголовка `QTree` и подтверждается в браузере:
-  свойства `caption` у `QTree` нет, и однажды вычисленные подписи так и не
-  отрисовались, пройдя юнит-тесты.
-- `RowGrid.vue` — работа без общего числа строк: когда `row_count_estimate`
-  отсутствует, сетка листает по `has_more`, не показывая ни числа страниц, ни
-  перехода в конец. Сортировка по заголовку отключается при `sortable: false`.
-  Файл с `content_kind: "opaque"` в дереве виден, но выделение не открывает
-  сетку — вместо запроса сразу сообщение.
+- `treeNodes.ts` — icons and captions for `directory` and `file` (size, date).
+  The caption goes through the `QTree` header slot and is confirmed in the
+  browser: `QTree` has no `caption` property, and captions computed once were
+  never drawn, having passed the unit tests.
+- `RowGrid.vue` — working without a total row count: when `row_count_estimate`
+  is absent, the grid pages by `has_more`, showing neither the number of pages
+  nor a jump to the end. Sorting by header is disabled when `sortable: false`.
+  A file with `content_kind: "opaque"` is visible in the tree, but selecting it
+  does not open the grid — a message is shown right away instead of a request.
 
-## Образцы файлов
+## Sample files
 
-Записи в подпроекте нет, а домашняя директория нового пользователя пуста —
-значит, ни посмотреть руками, ни прогнать Playwright не на чем. Рядом с
-существующим `app/initial_data.py` появляется `app/seed_storage.py`: кладёт
-набор образцов (`sample.csv`, `sample.tsv`, `notes.txt`, вложенную папку,
-изображение как заведомо `opaque`) в домашнюю директорию указанного
-пользователя. Это инструмент разработки и подготовка сценария e2e, не часть
-API.
+There are no writes in the subproject, and a new user's home directory is
+empty — so there is nothing to look at by hand or to run Playwright on. Next to
+the existing `app/initial_data.py` comes `app/seed_storage.py`: it puts a set
+of samples (`sample.csv`, `sample.tsv`, `notes.txt`, a nested folder, an image
+as a known `opaque`) into the home directory of the given user. This is a
+development tool and preparation for the e2e scenario, not part of the API.
 
-## Проверка
+## Verification
 
-Тесты идут против `tmp_path`, а не против пустой папки.
+The tests run against `tmp_path`, not against an empty folder.
 
-- выход через `..` в `node_id`, через абсолютный путь и через символическую
-  ссылку наружу — 422 и в каталоге, и в выборке; несуществующий узел — тоже
-  422, а не 502;
-- пустая папка даёт `has_children: false`; порядок «папки, потом файлы, по
-  имени»;
-- больше 2000 записей — `AdapterError`, а не обрезанный список;
-- CSV: заголовок, страницы, `has_more` в середине и на последней строке,
-  повторяющиеся и пустые имена колонок;
-- текст: нумерация строк со смещением;
-- двоичный файл, папка и `opaque` — 422;
-- непустые `sort` и `filters` — 422, а `FetchResult` объявляет
+- escaping through `..` in `node_id`, through an absolute path and through a
+  symbolic link outward — 422 both in the catalog and in fetching; a
+  nonexistent node is also 422, not 502;
+- an empty folder gives `has_children: false`; the order "folders, then files,
+  by name";
+- more than 2000 entries is an `AdapterError`, not a truncated list;
+- CSV: header, pages, `has_more` in the middle and on the last line, repeated
+  and empty column names;
+- text: line numbering with an offset;
+- a binary file, a folder and `opaque` — 422;
+- non-empty `sort` and `filters` — 422, and `FetchResult` declares
   `sortable: false`;
-- домашняя директория создаётся при создании пользователя и при `init_db`;
-- коннектор чужого пользователя недоступен, и в тексте ошибки нет абсолютного
-  пути сервера;
-- `mypy --strict`, `ruff` и `lint-imports` чисты;
-- сценарий Playwright: дерево из образцов, открытие CSV, вторая страница,
-  текстовый файл, `opaque` без сетки.
+- the home directory is created when a user is created and in `init_db`;
+- another user's connector is not accessible, and the error text has no
+  absolute server path;
+- `mypy --strict`, `ruff` and `lint-imports` are clean;
+- a Playwright scenario: a tree of samples, opening a CSV, the second page, a
+  text file, `opaque` without a grid.
 
-## Побочная находка для подпроекта 4б
+## A side finding for subproject 4b
 
-У файлового источника соединения нет вовсе. Значит, пул нельзя проектировать
-как общий механизм поверх всех адаптеров: он относится к модулю сессии
-конкретного драйвера. Подпроект 4б должен начинаться с этой посылки.
+A file source has no connection at all. So the pool cannot be designed as a
+shared mechanism on top of all adapters: it belongs to the session module of a
+specific driver. Subproject 4b must start from this premise.
 
-## Чего в подпроекте нет
+## Not in this subproject
 
-- записи любого вида — загрузка, создание папки, переименование, удаление; это
-  первые настоящие действия для реестра подпроекта 5;
-- скачивания файла и потоковой отдачи медиа — подпроект 7;
-- архивов, `.sqlite` внутри дерева, parquet, XLSX;
-- квот и учёта занятого места;
-- пагинации детей каталога;
-- пула соединений.
+- writes of any kind — upload, creating a folder, renaming, deleting; these
+  are the first real actions for the registry of subproject 5;
+- downloading a file and streaming media out — subproject 7;
+- archives, `.sqlite` inside the tree, parquet, XLSX;
+- quotas and accounting of used space;
+- paging of catalog children;
+- the connection pool.

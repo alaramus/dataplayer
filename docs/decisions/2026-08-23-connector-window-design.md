@@ -1,127 +1,132 @@
-# Окно подключения: плавающие окна и раскладка формы
+# Connection window: floating windows and form layout
 
-Дата: 2026-08-23
-Статус: согласовано
-Подпроект: 7-подготовка
+Date: 2026-08-23
+Status: agreed
+Subproject: 7-preparation
 
-## Цель
+## Goal
 
-Сегодня подключение правится в модальном диалоге: один за раз, поля плоским
-столбцом, тип — строкой, кнопки внизу. Ориентир — окно «Data Sources and
-Drivers» в PyCharm: Host и Port в одной строке, вкладки, строка подключения
-внизу, `Test Connection` слева от `OK / Cancel / Apply`.
+Today a connection is edited in a modal dialog: one at a time, fields in a flat
+column, the type as a line, buttons at the bottom. The reference is the "Data
+Sources and Drivers" window in PyCharm: Host and Port in one row, tabs, the
+connection string at the bottom, `Test Connection` to the left of
+`OK / Cancel / Apply`.
 
-Но главное требование не про внешний вид. **Окон должно быть несколько
-одновременно**, чтобы держать открытым существующее подключение и списывать из
-него значения в новое рядом, не бегая туда-сюда. Модальное окно это запрещает
-по определению: оно блокирует всё, пока его не закроют.
+But the main requirement is not about appearance. **There must be several
+windows at once**, so that an existing connection can be kept open and values
+copied from it into a new one next to it, without going back and forth. A modal
+window forbids this by definition: it blocks everything until it is closed.
 
-Каталог типов источников остаётся тем, что есть, и остаётся модальным. Из него
-и из списка подключений открывается окно.
+The catalog of source types stays what it is, and stays modal. The window is
+opened from it and from the list of connections.
 
-## Что переносим из старого приложения
+## What we carry over from the old application
 
-`myquasar/src/myapp/components/DraggableWindows/` — движок плавающих окон,
-239 строк менеджера и 520 строк рамки. Идею берём, устройство — нет:
+`myquasar/src/myapp/components/DraggableWindows/` — a floating window engine,
+239 lines of manager and 520 lines of frame. We take the idea, not the
+construction:
 
-| там | здесь | почему |
+| there | here | why |
 | --- | --- | --- |
-| `zIndexCounter = ++` без предела | порядок в списке | считать нечего и переполнять нечего |
-| геометрия правится на месте внутри менеджера | чистые функции, результат присваивается | иначе ничего не проверить без монтирования |
-| границ нет вовсе | зажим при каждом изменении | окно за краем экрана было не вернуть |
-| `openWindow({component})` | реестр по виду окна | ту же ошибку уже исправил `panels.ts` |
+| `zIndexCounter = ++` without limit | order in a list | nothing to count and nothing to overflow |
+| geometry edited in place inside the manager | pure functions, the result is assigned | otherwise nothing can be checked without mounting |
+| no bounds at all | clamping on every change | a window beyond the screen edge could not be brought back |
+| `openWindow({component})` | a registry by window kind | `panels.ts` already fixed the same mistake |
 
-Из `EditConnectorModal.vue` (1384 строки) не переносим ничего. Его
-`isFieldShowing` — девяносто строк карт вида `{user_password: true,
-no_auth: false}`, по карте на имя поля, на клиенте. Состав полей объявляет
-сервер, и это следующий подпроект.
+From `EditConnectorModal.vue` (1384 lines) we carry over nothing. Its
+`isFieldShowing` is ninety lines of maps like `{user_password: true,
+no_auth: false}`, a map per field name, on the client. The set of fields is
+declared by the server, and that is the next subproject.
 
-## Решения
+## Decisions
 
-### О1. Рабочие окна не модальные, и это не оговорка
+### O1. Working windows are not modal, and this is not a caveat
 
-Несколько окон поверх рабочего пространства, не блокирующих ни его, ни друг
-друга. Это и есть требование: одно окно читают, во второе печатают. После
-первой реализации тот же хост стал общим для форм действий каталога,
-просмотра и правки ячейки, вставки строки, добавления колонки и вопросов о
-необратимых действиях. Каталог типов для **New connection** остаётся
-модальным: это выбор до начала работы, а не работа рядом с workspace.
+Several windows on top of the workspace, blocking neither it nor each other.
+That is the requirement: one window is read, the other is typed into. After the
+first implementation the same host became shared by the catalog's action forms,
+viewing and editing a cell, inserting a row, adding a column and questions about
+irreversible actions. The type catalog for **New connection** stays modal: it is
+a choice before work starts, not work next to the workspace.
 
-Цена названа сразу: модальность — то, что мешает пользователю уйти из
-незаконченной формы, и её больше нет. Поэтому закрытие окна с несохранёнными
-правками спрашивает (О7), а не выбрасывает их молча.
+The cost is named at once: modality is what keeps the user from leaving an
+unfinished form, and it is gone. So closing a window with unsaved edits asks
+(O7) rather than silently throwing them away.
 
-### О2. Окно опознаётся тем, что показывает
+### O2. A window is identified by what it shows
 
-`connector:<id>` для существующего подключения, `connector:new:<n>` для нового.
-Повторный вызов того же подключения выносит вперёд уже открытое окно, а не
-создаёт второе.
+`connector:<id>` for an existing connection, `connector:new:<n>` for a new one.
+Calling the same connection again brings the already open window forward
+instead of creating a second one.
 
-Не ради опрятности. Два окна одной строки — это две разные несохранённые
-правки одного и того же, и то из них, что сохранят вторым, молча затрёт первое.
-Новых окон при этом сколько угодно: у черновика нет строки, которую можно
-затереть.
+Not for tidiness. Two windows of one row are two different unsaved edits of the
+same thing, and whichever is saved second silently overwrites the first. New
+windows, meanwhile, can be as many as you like: a draft has no row that can be
+overwritten.
 
-Тот же приём, что `catalogPanelId` / `rowsPanelId` в `panels.ts`.
+The same technique as `catalogPanelId` / `rowsPanelId` in `panels.ts`.
 
-### О3. Геометрия — чистые функции
+### O3. Geometry is pure functions
 
-`shared/windows/geometry.ts`: расстановка каскадом, зажим в границы, вынос
-вперёд, авторазмер и resize от каждой грани. Ни компонентов, ни запросов — проверяется без монтирования, как
-`tree.ts`, `placement.ts` и `adapterSearch.ts`.
+`shared/windows/geometry.ts`: cascade placement, clamping to bounds, bringing
+forward, autosize and resize from every edge. No components, no requests — checked without mounting, like
+`tree.ts`, `placement.ts` and `adapterSearch.ts`.
 
-Разделение то же, что у рабочего пространства: `shared/windows` не знает, что
-такое подключение, а `features/connectors` не знает, как окно двигается.
+The split is the same as in the workspace: `shared/windows` does not know what
+a connection is, and `features/connectors` does not know how a window moves.
 
-### О4. Окно нельзя потерять
+### O4. A window cannot be lost
 
-Каждое изменение геометрии зажимается так, чтобы полоса заголовка оставалась
-внутри окна браузера — не всё окно целиком, иначе его нельзя было бы
-подвинуть частично за край, а именно та полоса, за которую его тянут. При
-изменении размера браузера зажим повторяется для всех окон.
+Every geometry change is clamped so that the title bar stays inside the browser
+window — not the whole window, otherwise it could not be moved partly past the
+edge, but exactly the bar it is dragged by. When the browser is resized,
+clamping is repeated for all windows.
 
-В старом движке зажима не было, и окно, утащенное за правый край, исчезало
-навсегда: вернуть его было нечем.
+The old engine had no clamping, and a window dragged past the right edge
+disappeared for good: there was nothing to bring it back with.
 
-### О5. Каскад, а не стопка
+### O5. A cascade, not a stack
 
-Новое окно смещается от предыдущего на постоянный шаг. Ровно наложенные окна
-противоречат тому, ради чего всё затевалось, — увидеть два сразу.
+A new window is offset from the previous one by a constant step. Windows laid
+exactly on top of each other contradict the reason all this was started — to see
+two at once.
 
-Смещение считается от **последнего открытого**, а не от числа открытых: иначе
-закрытие среднего окна сдвигает следующее назад, на занятое место.
+The offset is computed from the **last opened**, not from the number of open
+ones: otherwise closing a middle window shifts the next one back onto an
+occupied spot.
 
-### О6. Форму раскладывает сервер
+### O6. The server lays out the form
 
-`FieldSpec` получает два поля: `group` — вкладка, `row` — строка. Оба приезжают
-из JSON Schema, куда попадают из модели опций:
+`FieldSpec` gets two fields: `group` — the tab, `row` — the row. Both arrive
+from the JSON Schema, where they come from the options model:
 
 ```python
 host: str = Field(title="Host", json_schema_extra={"row": "address"})
 port: int = Field(default=5432, title="Port", json_schema_extra={"row": "address"})
 ```
 
-Клиент не угадывает по типу поля, что число — узкое и встанет рядом. Правило
-о том, что адрес — это хост с портом, принадлежит тому, кто объявляет адрес.
+The client does not guess from the field type that a number is narrow and will
+stand alongside. The rule that an address is a host with a port belongs to
+whoever declares the address.
 
-Вкладка объявляется так же. Пока обоим типам хватает `general`, полоса вкладок
-не рисуется — одна вкладка не выбор, — но механизм на месте, и SSH/SSL в
-следующем подпроекте не потребует правки экрана.
+A tab is declared the same way. While `general` is enough for both types, the
+tab strip is not drawn — one tab is not a choice — but the mechanism is in
+place, and SSH/SSL in the next subproject will not require editing the screen.
 
-### О7. OK / Cancel / Apply
+### O7. OK / Cancel / Apply
 
-- **Apply** — сохранить и оставить окно. Для нового подключения — создать, и
-  окно **становится окном этого подключения** (`connector:new:1` → `connector:<id>`).
-  Иначе второй Apply создал бы дубль.
-- **OK** — то же и закрыть.
-- **Cancel** — отбросить и закрыть.
-- Закрытие крестиком при несохранённых правках спрашивает. Модальности больше
-  нет, так что это единственное, что стоит между правкой и случайным кликом
-  мимо.
+- **Apply** — save and keep the window. For a new connection — create, and the
+  window **becomes the window of that connection** (`connector:new:1` → `connector:<id>`).
+  Otherwise a second Apply would create a duplicate.
+- **OK** — the same and close.
+- **Cancel** — discard and close.
+- Closing with the cross when there are unsaved edits asks. There is no
+  modality any more, so this is the only thing standing between an edit and an
+  accidental click elsewhere.
 
-### О8. Строку подключения собирает сервер, и она только показывается
+### O8. The server assembles the connection string, and it is only shown
 
-Новый протокол-возможность:
+A new capability protocol:
 
 ```python
 @runtime_checkable
@@ -129,133 +134,135 @@ class SupportsConnectionString(Protocol):
     def connection_string(self) -> str: ...
 ```
 
-и маршрут `POST /connectors/describe-draft`, который строит адаптер из значений
-формы и спрашивает у него строку. Соединение не открывается.
+and a route `POST /connectors/describe-draft`, which builds an adapter from the
+form values and asks it for the string. No connection is opened.
 
-Три следствия, и все три — довод в пользу именно такого устройства:
+Three consequences, and all three are arguments for exactly this construction:
 
-- **У файлового источника строки подключения нет.** Он протокол не
-  удовлетворяет, маршрут отвечает 501, и строка в окне не появляется. Это тот
-  же приём, которым 501 отвечает отсутствующая `fetch` или `catalog`, — источник
-  сам говорит, чего у него нет.
-- **Пароль в строку не попадает.** Собирает её тот же слой, который уже обязан
-  не пускать пароль в текст ошибки; на клиенте это было бы вторым местом, где
-  об этом надо помнить.
-- **Правило сборки DSN живёт в одном месте.** Шаблон в схеме и подстановка на
-  клиенте были бы дешевле — без запроса при вводе, — но это то самое «одно и то
-  же вычисление в двух местах», которое ENGINEERING.md называет дефектом.
+- **A file source has no connection string.** It does not satisfy the protocol,
+  the route answers 501, and no string appears in the window. This is the same
+  technique by which a missing `fetch` or `catalog` answers 501 — the source
+  itself says what it does not have.
+- **The password does not get into the string.** It is assembled by the same
+  layer that is already obliged to keep the password out of error text; on the
+  client this would be a second place where this has to be remembered.
+- **The DSN assembly rule lives in one place.** A template in the schema and
+  substitution on the client would be cheaper — no request while typing — but
+  that is exactly "the same computation in two places", which ENGINEERING.md
+  calls a defect.
 
-Плата названа: запрос при вводе. Смягчается задержкой и тем, что запрос уходит
-только когда значения проходят схему.
+The price is named: a request while typing. It is softened by a delay and by
+the request being sent only when the values pass the schema.
 
-### О9. Test Connection внизу слева
+### O9. Test Connection at the bottom left
 
-Там же, где в ориентире, и рядом с тем, что сказала последняя проверка. Кормит
-ту же точку в списке подключений, что и раньше: одна проверка, одна запись.
+Where it is in the reference, and next to what the last check said. It feeds
+the same dot in the list of connections as before: one check, one record.
 
-## Что меняется
+## What changes
 
-### Бэкенд
+### Backend
 
 ```
 app/adapters/
 ├── protocol.py           + SupportsConnectionString
 ├── postgres/
-│   ├── options.py        + row/group у полей
-│   └── session.py        + connection_string(), без пароля
-│       adapter.py        + фасадный метод
-└── file/options.py       + group у поля
+│   ├── options.py        + row/group on fields
+│   └── session.py        + connection_string(), without the password
+│       adapter.py        + facade method
+└── file/options.py       + group on the field
 app/connectors/routes.py  + POST /describe-draft
 ```
 
-### Фронтенд
+### Frontend
 
 ```
 frontend/src/
 ├── shared/
-│   ├── windows/            новый: движок плавающих окон
-│   │   ├── geometry.ts     чистые: каскад, зажим, размер, вынос вперёд
+│   ├── windows/            new: floating window engine
+│   │   ├── geometry.ts     pure: cascade, clamping, size, bringing forward
 │   │   ├── model.ts        WindowState, WindowLook
-│   │   ├── useWindows.ts   состояние и действия
-│   │   ├── context.ts      то, что видят компоненты
-│   │   ├── WindowFrame.vue рамка: заголовок, перетаскивание, крестик
-│   │   ├── WindowHost.vue  все окна разом
-│   │   ├── WindowDialog.vue управляемая форма внутри общего хоста
-│   │   ├── presets.ts      одинаковые вопросы и удаления
+│   │   ├── useWindows.ts   state and actions
+│   │   ├── context.ts      what components see
+│   │   ├── WindowFrame.vue frame: title, dragging, cross
+│   │   ├── WindowHost.vue  all windows at once
+│   │   ├── WindowDialog.vue a managed form inside the shared host
+│   │   ├── presets.ts      identical questions and deletions
 │   │   └── index.ts
 │   └── SchemaForm/
 │       ├── jsonSchema.ts   FieldSpec + group, row
-│       └── SchemaFields.vue раскладка строками
+│       └── SchemaFields.vue layout by rows
 └── features/connectors/
-    ├── ConnectorWindow.vue новый: содержимое окна
-    └── windows.ts          какие бывают окна подключений
+    ├── ConnectorWindow.vue new: window content
+    └── windows.ts          which connection windows exist
 ```
 
-`ConnectorDialog.vue` уходит: то, что он делал, теперь делает окно.
+`ConnectorDialog.vue` goes away: what it did, the window now does.
 
-## Чем держится
+## What holds it
 
-| Проверка | Что ловит |
+| Check | What it catches |
 | --- | --- |
-| `pytest tests/adapters/test_postgres.py` | строка подключения собирается и не содержит пароля |
-| `pytest tests/connectors/test_describe_routes.py` | 501 для источника без возможности; 422 для негодных значений |
-| `bun run test:unit` | `geometry.ts`: каскад, зажим, авторазмер, resize у каждого края, вынос вперёд |
-| `bun run test:unit` | `jsonSchema.ts`: поля одной строки собираются вместе, порядок сохраняется |
-| `bunx playwright test` | два окна одновременно, перетаскивание и resize, повторный вызов выносит вперёд, Apply не плодит дубль |
+| `pytest tests/adapters/test_postgres.py` | the connection string is assembled and contains no password |
+| `pytest tests/connectors/test_describe_routes.py` | 501 for a source without the capability; 422 for invalid values |
+| `bun run test:unit` | `geometry.ts`: cascade, clamping, autosize, resize at each edge, bringing forward |
+| `bun run test:unit` | `jsonSchema.ts`: fields of one row are gathered together, order is kept |
+| `bunx playwright test` | two windows at once, dragging and resize, calling again brings forward, Apply does not create a duplicate |
 
-Отдельно проверяется то, чего юнит-тест не докажет: что два окна действительно
-видны одновременно и не перекрывают друг друга полностью — сравнением
-прямоугольников в браузере.
+What a unit test will not prove is checked separately: that two windows are
+really visible at once and do not cover each other completely — by comparing
+rectangles in the browser.
 
-## Известные отклонения, которые это добавляет
+## Known deviations this adds
 
-- **Окна не переживают перезагрузку.** Раскладка рабочего пространства
-  переживает, окна — нет: наполовину заполненная форма, восстановленная без
-  секретов, обещала бы больше, чем в ней есть.
-- **Строка подключения — запрос при вводе.** С задержкой и без соединения, но
-  всё же запрос на каждое осмысленное изменение формы.
-- **Полоса вкладок не видна.** Механизм есть, групп пока одна, так что на
-  экране вкладок нет — то есть эта половина О6 в браузере не проверена.
-- **Ничего не сворачивается и не разворачивается.** У старого движка были
-  `minimize` и `maximize`; здесь их нет, потому что окно — разовое действие, а
-  не место, где живут.
-- **Порядок окон не запоминается между показами.** Закрытое и открытое заново
-  окно встаёт по каскаду, а не туда, где стояло.
+- **Windows do not survive a reload.** The workspace layout does, windows do
+  not: a half-filled form restored without secrets would promise more than it
+  holds.
+- **The connection string is a request while typing.** With a delay and without
+  a connection, but still a request on every meaningful change of the form.
+- **The tab strip is not visible.** The mechanism exists, there is only one
+  group so far, so there are no tabs on screen — that is, this half of O6 is not
+  verified in the browser.
+- **Nothing minimizes or maximizes.** The old engine had `minimize` and
+  `maximize`; they are absent here, because a window is a one-off action, not a
+  place to live in.
+- **Window positions are not remembered between showings.** A window closed and
+  opened again lands by the cascade, not where it stood.
 
-## Правки после первого показа
+## Edits after the first showing
 
-Всё ниже — по замечаниям после того, как окно увидели в работе. Решения из
-этого спека не отменяются, но три из них изменены; записано здесь, а не только
-в коде.
+Everything below follows remarks made after the window was seen in use. The
+decisions of this spec are not cancelled, but three of them are changed;
+recorded here, not only in code.
 
-- **Строка «Driver: PostgreSQL» убрана.** По О9 форма «называет тип, а не
-  предлагает его выбрать». Тип она называет по-прежнему — новым подключением,
-  которое открывается уже названным по типу («PostgreSQL»), — а отдельная
-  строка при одном драйвере на тип только повторяла бы иконку в заголовке
-  окна. Вернуть придётся тогда, когда у одного типа появится несколько
-  драйверов.
-- **Результат проверки — панель над кнопкой, а не строка в форме.** Ответ
-  читают один раз и закрывают, а строка внутри тела двигала все поля под
-  собой при каждой проверке. Панель всплывает над Test Connection, несёт
-  «Succeeded»/«Failed», подробности, «Copy» и крестик.
-- **Хранимый секрет показывается как `<hidden>`.** Плейсхолдер «Leave
-  unchanged» читался как пустое поле, а пустое поле рядом с сохранённым
-  подключением говорит, что пароль потерян. Заглушка уступает место пустому
-  полю в момент, когда в поле входят — щелчком или табуляцией; нетронутое поле
-  по-прежнему не отправляет ничего, и сервер оставляет своё.
-- **Строка подключения появляется сразу при открытии сохранённого
-  подключения.** Была не видна: клиент требовал пароль, которого ему никогда
-  не пришлют. Правило «пока редактируем, секрет не обязателен» теперь названо
-  один раз (`draftSchema`) и действует и на показ строки, и на сохранение.
-- **Умолчания.** Хост — `localhost` (со стороны сервера, в схеме опций), имя
-  нового подключения — заголовок типа.
-- **У файлового источника поле называется Path**, а не Folder.
-- **Кнопки «копировать» и «вставить» подняты на строку поля.** Quasar
-  резервирует под контролем строку для сообщения об ошибке, поэтому
-  выравнивание по низу опускало их на её высоту.
-- **Оконный хост стал общим и получил resize.** Все уже существовавшие формы
-  действий и вопросы, кроме каталога **New connection**, открываются в нём.
-  При первом показе рамка измеряет содержимое и выбирает высоту в пределах
-  viewport; после ручного изменения размера автоматика больше не вмешивается.
-  Одинаковые короткие вопросы и удаления получают геометрию и иконку из
-  `shared/windows/presets.ts`, а не собирают окно заново в каждой feature.
+- **The "Driver: PostgreSQL" line is removed.** By O9 the form "names the type
+  rather than offering to choose it". It still names the type — with a new
+  connection that opens already named after the type ("PostgreSQL") — and a
+  separate line with one driver per type would only repeat the icon in the
+  window title. It will have to come back when one type gets several drivers.
+- **The check result is a panel above the button, not a line in the form.** The
+  answer is read once and closed, and a line inside the body moved all the
+  fields below it on every check. The panel pops up above Test Connection and
+  carries "Succeeded"/"Failed", details, "Copy" and a cross.
+- **A stored secret is shown as `<hidden>`.** The placeholder "Leave
+  unchanged" read as an empty field, and an empty field next to a saved
+  connection says the password is lost. The placeholder gives way to an empty
+  field the moment the field is entered — by a click or by Tab; an untouched
+  field still sends nothing, and the server keeps its own.
+- **The connection string appears at once when a saved connection is opened.**
+  It was not visible: the client required a password that would never be sent
+  to it. The rule "while editing, a secret is not required" is now named once
+  (`draftSchema`) and applies both to showing the string and to saving.
+- **Defaults.** Host is `localhost` (on the server side, in the options schema),
+  the name of a new connection is the type's title.
+- **For the file source the field is called Path**, not Folder.
+- **The "copy" and "paste" buttons are raised to the field's row.** Quasar
+  reserves a line under the control for an error message, so bottom alignment
+  lowered them by its height.
+- **The window host became shared and got resize.** All the already existing
+  action forms and questions, except the **New connection** catalog, open in it.
+  On first showing the frame measures its content and chooses a height within
+  the viewport; after a manual resize the automatic sizing no longer interferes.
+  Identical short questions and deletions get their geometry and icon from
+  `shared/windows/presets.ts` rather than assembling the window anew in every
+  feature.

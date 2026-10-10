@@ -1,66 +1,70 @@
-# Рабочая область и движок панелей
+# Workspace and panel engine
 
-Дата: 2026-08-22
-Статус: согласовано
-Подпроект: 7а
+Date: 2026-08-22
+Status: agreed
+Subproject: 7a
 
-## Цель
+## Goal
 
-Сегодня каталог живёт в модальном диалоге: `CatalogDialog.vue` — 228 строк, в
-которых дерево, панель действий и сетка строк втиснуты поверх таблицы
-коннекторов. Это строительные леса. Всё, что идёт дальше — нормальная сетка
-данных, чтение файла наружу, SQL-редактор, потоковые обновления, AI-панель —
-требует места на экране и нескольких одновременно открытых объектов. Строить
-это в модалке, а потом переносить, значит делать работу дважды.
+Today the catalog lives in a modal dialog: `CatalogDialog.vue` — 228 lines in
+which the tree, the action bar and the row grid are squeezed on top of the
+connectors table. This is scaffolding. Everything that comes next — a proper
+data grid, reading a file out, an SQL editor, streaming updates, an AI panel —
+needs screen space and several objects open at once. Building it in a modal and
+moving it later means doing the work twice.
 
-Задача — заменить диалог рабочей областью: несколько панелей с изменяемыми
-границами, вкладки, перетаскивание. Основа для всех следующих подпроектов.
+The task is to replace the dialog with a workspace: several panels with
+resizable borders, tabs, dragging. The foundation for all following
+subprojects.
 
-## Что взято из старого приложения
+## What is taken from the old application
 
-Старый `myquasar` собирал главную страницу из `XFrame` — собственного движка
-панелей: `src/components/XFrame/`, 2438 строк в девяти файлах, из них
-`XFrame.tsx` — 759, `xFrameMovingImplement.ts` — 688. Раскладка главной
-страницы (`pages/app-sections-main.ts`) — дерево секций: `Connectors` 10%,
-`Catalog1` 22%, `Four` 66% с полосой вкладок внутри, плюс отключённые
-`Catalog2`, `Six`, `B`. Контент монтировался в секции через `Teleport` по имени.
+The old `myquasar` built its main page out of `XFrame` — its own panel engine:
+`src/components/XFrame/`, 2438 lines in nine files, of which `XFrame.tsx` is
+759 and `xFrameMovingImplement.ts` 688. The main page layout
+(`pages/app-sections-main.ts`) is a tree of sections: `Connectors` 10%,
+`Catalog1` 22%, `Four` 66% with a tab strip inside, plus disabled `Catalog2`,
+`Six`, `B`. Content was mounted into sections through `Teleport` by name.
 
-Идеи оттуда верные и переносятся:
+The ideas from there are right and are carried over:
 
-- дерево секций с направлением `ver`/`hor` любой глубины;
-- именованные секции, содержимое монтируется в секцию по имени, а не задаётся
-  раскладкой;
-- разделитель — самостоятельный элемент дерева, а не граница соседа;
+- a tree of sections with direction `ver`/`hor` of any depth;
+- named sections, content mounted into a section by name rather than set by
+  the layout;
+- a separator is an element of the tree in its own right, not a neighbour's
+  border;
 - `minSize`;
-- свёрнутая секция уходит в полоску, но её разделитель остаётся ручкой для
-  разворота, и прежний размер запоминается.
+- a collapsed section goes into a strip, but its separator stays a handle for
+  expanding, and the previous size is remembered.
 
-Не переносится:
+Not carried over:
 
-- командный язык `hide | show | restore | add | remove | insert | substitute |
-  complex | test | nope` с параметрами `posit`, `apply`, `reflectName`, `mark`
-  и историей `XHistoryItem[]`;
-- `fake`-секции («секция без собственного содержимого, только подсекции, для
-  поддержки особых resize'ов»);
-- обратные ссылки `parent` на узлах и служебный мешок `_context2`;
-- направление `'*'` и `Array<any>` в `sections`.
+- the command language `hide | show | restore | add | remove | insert | substitute |
+  complex | test | nope` with parameters `posit`, `apply`, `reflectName`, `mark`
+  and a history `XHistoryItem[]`;
+- `fake` sections ("a section without its own content, only subsections, to
+  support special resizes");
+- back references `parent` on nodes and the service bag `_context2`;
+- the direction `'*'` and `Array<any>` in `sections`.
 
-Код не копируется ни строкой. См. AGENTS.md, «We port ideas, not code».
+Not a single line of code is copied. See AGENTS.md, "We port ideas, not code".
 
-## Решения
+## Decisions
 
-### W1. Движок ничего не знает о предметной области
+### W1. The engine knows nothing about the domain
 
 ```
-frontend/src/shared/workspace/     дерево секций, размеры, вкладки, перетаскивание
-frontend/src/features/workspace/   какие бывают панели и что они показывают
+frontend/src/shared/workspace/     section tree, sizes, tabs, dragging
+frontend/src/features/workspace/   which panels exist and what they show
 ```
 
-Движок оперирует узлами, панелями с `id` и геометрией. Слов «коннектор»,
-«каталог», «строки» в `shared/workspace` нет. Это та же граница, что уже
-держит `shared/SchemaForm`: механика отдельно, предметная область отдельно.
+The engine operates on nodes, panels with an `id`, and geometry. The words
+"connector", "catalog", "rows" do not appear in `shared/workspace`. This is the
+same boundary that `shared/SchemaForm` already holds: mechanics separately,
+domain separately.
 
-Тип панели — обобщённый параметр движка. Предметный союз живёт в фиче:
+The panel type is a generic parameter of the engine. The domain union lives in
+the feature:
 
 ```ts
 type Panel =
@@ -69,11 +73,12 @@ type Panel =
   | { id: string; kind: "rows"; connectorId: string; nodeId: string; title: string }
 ```
 
-Рядом — реестр `kind → { component, icon, title }`. Добавить SQL-редактор
-позже значит добавить вариант в союз, запись в реестр и компонент; движок не
-меняется. Это D1 (реестр вместо ветвления по типу), применённый на фронтенде.
+Next to it is a registry `kind → { component, icon, title }`. Adding an SQL
+editor later means adding a variant to the union, an entry to the registry and
+a component; the engine does not change. This is D1 (a registry instead of
+branching on type), applied on the frontend.
 
-### W2. Раскладка — размеченный союз
+### W2. The layout is a tagged union
 
 ```ts
 type LayoutNode = SplitNode | LeafNode
@@ -82,190 +87,194 @@ interface SplitNode {
   kind: "split"
   id: string
   direction: "row" | "column"
-  children: LayoutNode[]   // не меньше двух
-  sizes: number[]          // проценты, сумма 100, длина равна children
+  children: LayoutNode[]   // at least two
+  sizes: number[]          // percentages, sum 100, length equals children
 }
 
 interface LeafNode {
   kind: "leaf"
   id: string
-  panels: PanelId[]        // не меньше одной
+  panels: PanelId[]        // at least one
   activePanel: PanelId
   collapsed: boolean
 }
 ```
 
-Секция и разделитель не смешаны в один список с полем `kind`, как было в
-старом: разделитель порождается между соседями и не является узлом дерева.
-Хранить его узлом значило поддерживать его согласованность при каждой вставке
-и удалении — источник `fake`-разделителей в старом коде.
+Section and separator are not mixed into one list with a `kind` field, as they
+were in the old code: a separator is generated between neighbours and is not a
+tree node. Storing it as a node would mean keeping it consistent on every
+insertion and removal — the source of `fake` separators in the old code.
 
-### W3. Дерево неизменяемое, каждая операция — чистая функция
+### W3. The tree is immutable, every operation is a pure function
 
 `tree.ts`: `splitLeaf`, `movePanel`, `addPanel`, `removePanel`, `resize`,
-`collapse`, `expand`, `normalize`. Каждая принимает дерево и возвращает новое;
-композабл подменяет ссылку. Узел адресуется путём `number[]`, обратных ссылок
-на родителя нет.
+`collapse`, `expand`, `normalize`. Each takes a tree and returns a new one; the
+composable swaps the reference. A node is addressed by a path `number[]`; there
+are no back references to the parent.
 
-Обоснование: именно мутация на месте вместе с `parent`-ссылками заставила
-старый движок обзавестись историей раскладок и командным языком — иначе
-операцию нельзя было ни отменить, ни выполнить составной. Дерево из десятка
-узлов достаточно мало, чтобы пересоздавать его на каждый кадр перетаскивания.
+Reasoning: it is in-place mutation together with `parent` references that made
+the old engine acquire a layout history and a command language — otherwise an
+operation could be neither undone nor composed. A tree of a dozen nodes is
+small enough to be recreated on every frame of a drag.
 
-Это же даёт главное для проверки: вся настоящая логика движка — чистые
-функции, тестируемые без монтирования компонентов. Тот же приём, что уже
-работает в `treeNodes.ts`, `rows.ts` и `jsonSchema.ts`.
+This also gives the main thing for verification: all the real logic of the
+engine is pure functions, tested without mounting components. The same
+technique that already works in `treeNodes.ts`, `rows.ts` and `jsonSchema.ts`.
 
-### W4. Нормализация — одна функция, и она выполняется после каждой операции
+### W4. Normalization is one function, and it runs after every operation
 
-`normalize()` приводит дерево к каноническому виду:
+`normalize()` brings the tree to canonical form:
 
-- сумма `sizes` внутри сплита равна 100;
-- сплит с одним ребёнком заменяется этим ребёнком;
-- лист без панелей удаляется;
-- вложенный сплит того же направления схлопывается в родительский.
+- the sum of `sizes` within a split is 100;
+- a split with one child is replaced by that child;
+- a leaf without panels is removed;
+- a nested split of the same direction is collapsed into its parent.
 
-Без этого понадобятся `fake`-секции: в старом движке они существуют ровно
-потому, что дерево не приводилось к каноническому виду и пустой узел
-приходилось оставлять на месте.
+Without this, `fake` sections would be needed: in the old engine they exist
+precisely because the tree was not brought to canonical form and an empty node
+had to be left in place.
 
-### W5. `minSize` в пикселях и проверяется в момент перетаскивания
+### W5. `minSize` is in pixels and is checked at the moment of dragging
 
-Процентами «полосе вкладок нужно 120px» не выразить, а именно это ограничение
-и требуется. Проценты — способ хранения, пиксели — способ ограничения.
+"The tab strip needs 120px" cannot be expressed in percentages, and that is
+exactly the constraint required. Percentages are how sizes are stored, pixels
+are how they are constrained.
 
-### W6. Свёрнутость — поле листа, а не размер 0
+### W6. Collapsed is a field of the leaf, not a size of 0
 
-В старом коде `isHidden` — это `visibility === 'hidden' || size === 0 || size
-=== '0%'`: три способа сказать одно и то же, которые могут разойтись. Здесь
-одно поле `collapsed`.
+In the old code `isHidden` is `visibility === 'hidden' || size === 0 || size
+=== '0%'`: three ways of saying the same thing, which can diverge. Here there
+is one field, `collapsed`.
 
-Прежний размер отдельным полем не хранится: сворачивание не трогает `sizes`
-родителя, а только меняет способ отрисовки — свёрнутый ребёнок получает
-фиксированные 28px, остальные делят остаток пропорционально своим долям.
-Поэтому прежний размер уже лежит там, где ему место, и не может разойтись с
-действительным.
+The previous size is not stored in a separate field: collapsing does not touch
+the parent's `sizes`, it only changes how it is drawn — a collapsed child gets
+a fixed 28px, the others share the remainder in proportion to their shares.
+So the previous size already lies where it belongs and cannot diverge from the
+actual one.
 
-### W7. Перетаскивание на pointer events
+### W7. Dragging on pointer events
 
-Разделители используют `setPointerCapture`. Перетаскивание панелей — тот же
-механизм, а не HTML5 drag-and-drop: два разных механизма для одного жеста
-разойдутся в поведении, и образ перетаскивания в HTML5 DnD не оформляется.
+Separators use `setPointerCapture`. Dragging panels uses the same mechanism,
+not HTML5 drag-and-drop: two different mechanisms for one gesture will diverge
+in behaviour, and the drag image in HTML5 DnD cannot be styled.
 
-Зона сброса вычисляется чистой функцией `dropZone(rect, point)` →
-`"left" | "right" | "top" | "bottom" | "center"`: край в четверть ширины или
-высоты разрезает секцию, центр кладёт панель вкладкой.
+The drop zone is computed by a pure function `dropZone(rect, point)` →
+`"left" | "right" | "top" | "bottom" | "center"`: an edge of a quarter of the
+width or height splits the section, the centre puts the panel in as a tab.
 
-### W8. Секция — это вкладки, и другой сущности вкладок в приложении нет
+### W8. A section is tabs, and there is no other tab entity in the application
 
-Любой лист — список панелей с одной активной. Каталог, таблица данных,
-будущий SQL-редактор — панели одного сорта, и любая может оказаться в любом
-листе. Отдельная модель «вкладки только в панели данных» отвергнута: это два
-разных кода для одного понятия, и перетаскивание пришлось бы описывать дважды.
+Any leaf is a list of panels with one active. The catalog, the data table, the
+future SQL editor are panels of one sort, and any of them can end up in any
+leaf. A separate model "tabs only in the data panel" is rejected: that is two
+different pieces of code for one concept, and dragging would have to be
+described twice.
 
-### W9. Сохранённая раскладка — недоверенный ввод
+### W9. A saved layout is untrusted input
 
-`persist.ts` хранит раскладку в `localStorage` с номером версии и разбирает её
-по схеме. При несовпадении версии, поломанной структуре или мусоре — раскладка
-по умолчанию целиком. Половина восстановленного дерева хуже, чем умолчание.
+`persist.ts` keeps the layout in `localStorage` with a version number and parses
+it against a schema. On a version mismatch, a broken structure or garbage — the
+default layout in full. Half a restored tree is worse than the default.
 
-Геометрия хранится одна на браузер, не по коннекторам: раскладка — свойство
-рабочего места, а не источника данных.
+Geometry is stored once per browser, not per connector: the layout is a
+property of the workplace, not of the data source.
 
-Раскладка — клиентское состояние, поэтому `localStorage` и Pinia, а не сервер.
-Это D6: сервер владеет данными, Pinia — тем, чем сервер не владеет.
+The layout is client state, so `localStorage` and Pinia, not the server. This
+is D6: the server owns data, Pinia owns what the server does not.
 
-### W10. Панель, ссылающаяся на исчезнувший объект, показывает ошибку, а не исчезает
+### W10. A panel that refers to a vanished object shows an error rather than disappearing
 
-При восстановлении список коннекторов ещё не загружен, поэтому вычистить
-вкладки удалённых коннекторов на этом шаге нельзя, не рискуя стереть вкладки
-пользователя из-за упавшего запроса. Панель сама показывает ошибку через
-`messageOf` и кнопку закрытия.
+At restore time the list of connectors is not loaded yet, so the tabs of
+deleted connectors cannot be cleaned out at this step without risking erasing
+the user's tabs because of a failed request. The panel itself shows an error
+through `messageOf` and a close button.
 
-То же рассуждение, что в D2a: пустой результат и сломанный запрос должны
-оставаться различимыми.
+The same reasoning as in D2a: an empty result and a broken request must stay
+distinguishable.
 
-### W11. Куда открывается новая панель — одно правило, чистая функция
+### W11. Where a new panel opens is one rule, a pure function
 
-В тот лист, который сейчас держит панель того же вида; если такого нет — в
-лист с фокусом; если и его нет — в самый большой. Правило читается из самого
-дерева, отдельной истории «где эта панель была раньше» не заводится: история
-может разойтись с деревом, а дерево с собой — нет.
+Into the leaf that currently holds a panel of the same kind; if there is none,
+into the leaf with focus; if there is none of those either, into the largest.
+The rule is read from the tree itself; no separate history of "where this panel
+used to be" is kept: a history can diverge from the tree, and the tree cannot
+diverge from itself.
 
-Правило само собой ведёт себя правильно после того, как пользователь перетащил
-панель в другое место.
+The rule behaves correctly by itself after the user has dragged a panel
+elsewhere.
 
-## Состав
+## Contents
 
-### Движок, `shared/workspace/`
+### Engine, `shared/workspace/`
 
-| Файл | Ответственность |
+| File | Responsibility |
 | --- | --- |
-| `model.ts` | типы раскладки, союз узлов |
-| `tree.ts` | чистые операции над деревом и `normalize` |
-| `dropZone.ts` | прямоугольник и точка → зона сброса |
-| `persist.ts` | сериализация, версия, разбор с откатом к умолчанию |
-| `useWorkspace.ts` | реактивное дерево, вызовы чистых функций |
-| `WorkspaceRoot.vue` | рекурсивный рендер узла |
-| `WorkspaceSplit.vue` | ряд или колонка детей и разделители между ними |
-| `WorkspaceLeaf.vue` | полоса вкладок, активная панель, накладка зон сброса |
-| `WorkspaceSeparator.vue` | перетаскивание границы, разворот свёрнутого соседа |
+| `model.ts` | layout types, union of nodes |
+| `tree.ts` | pure operations on the tree and `normalize` |
+| `dropZone.ts` | rectangle and point → drop zone |
+| `persist.ts` | serialization, version, parsing with fallback to default |
+| `useWorkspace.ts` | reactive tree, calls of the pure functions |
+| `WorkspaceRoot.vue` | recursive rendering of a node |
+| `WorkspaceSplit.vue` | a row or column of children and separators between them |
+| `WorkspaceLeaf.vue` | tab strip, active panel, drop zone overlay |
+| `WorkspaceSeparator.vue` | dragging a border, expanding a collapsed neighbour |
 
-### Рабочая область, `features/workspace/`
+### Workspace, `features/workspace/`
 
-| Файл | Ответственность |
+| File | Responsibility |
 | --- | --- |
-| `panels.ts` | союз `Panel` и реестр вида панели |
-| `WorkspacePage.vue` | маршрут `/`, раскладка по умолчанию |
-| `panels/ConnectorsPanel.vue` | существующая `ConnectorTable`, кнопка создания, диалоги |
-| `panels/CatalogPanel.vue` | дерево каталога одного коннектора |
-| `panels/RowsPanel.vue` | `RowGrid` и `ActionBar` для одного узла |
+| `panels.ts` | the `Panel` union and the panel kind registry |
+| `WorkspacePage.vue` | route `/`, default layout |
+| `panels/ConnectorsPanel.vue` | the existing `ConnectorTable`, the create button, dialogs |
+| `panels/CatalogPanel.vue` | the catalog tree of one connector |
+| `panels/RowsPanel.vue` | `RowGrid` and `ActionBar` for one node |
 
-`CatalogDialog.vue` удаляется. Его логика — кэш узлов по идентификатору,
-`reload` одной ветки, ленивая подгрузка — переезжает в
-`features/catalog/useCatalogTree.ts`: она никогда не была логикой диалога.
+`CatalogDialog.vue` is deleted. Its logic — a cache of nodes by identifier,
+`reload` of one branch, lazy loading — moves to
+`features/catalog/useCatalogTree.ts`: it was never dialog logic.
 
-### Кит
+### Kit
 
-`q-tree` оборачивается в `AppTree`, попадает в `shared/ui/index.ts`, в
-показ `/ui-kit` и в запрещающее правило ESLint. Подпроект 7 должен был решить
-его судьбу — решение: остаётся Quasar внутри обёртки, экраны обращаются к
-обёртке.
+`q-tree` is wrapped in `AppTree`, goes into `shared/ui/index.ts`, into the
+`/ui-kit` showcase and into the forbidding ESLint rule. Subproject 7 was to
+decide its fate — the decision: Quasar stays inside a wrapper, screens use the
+wrapper.
 
-Полоса вкладок собственная, из `AppIconButton` и обычной разметки: ей нужны
-закрытие, перетаскивание и признак активности, и `q-tabs` этого не даёт.
+The tab strip is our own, made of `AppIconButton` and ordinary markup: it needs
+closing, dragging and an active marker, and `q-tabs` does not give that.
 
-## Порядок работ
+## Order of work
 
-Два этапа, у каждого свой зелёный прогон.
+Two stages, each with its own green run.
 
-**Этап A — движок.** `shared/workspace` с панелями-заглушками на dev-маршруте.
-Код коннекторов не трогается.
+**Stage A — the engine.** `shared/workspace` with placeholder panels on a dev
+route. Connector code is not touched.
 
-**Этап B — рабочая область.** Реестр панелей, три настоящие панели, удаление
-диалога, `useCatalogTree`, маршрут `/`.
+**Stage B — the workspace.** The panel registry, three real panels, deleting
+the dialog, `useCatalogTree`, route `/`.
 
-## Проверка
+## Verification
 
-| Что | Чем |
+| What | By what |
 | --- | --- |
-| разрез, перенос, удаление, нормализация, зажим по `minSize` | `tree.spec.ts` |
-| границы зон сброса | `dropZone.spec.ts` |
-| круговой обход, чужая версия и мусор → умолчание | `persist.spec.ts` |
-| у каждого `PanelKind` есть запись в реестре | `panels.spec.ts` |
-| граница тянется, панель сворачивается, всё переживает перезагрузку | Playwright |
-| таблица открывается из каталога вкладкой и показывает строки | Playwright |
+| split, move, removal, normalization, clamping by `minSize` | `tree.spec.ts` |
+| drop zone boundaries | `dropZone.spec.ts` |
+| round trip, foreign version and garbage → default | `persist.spec.ts` |
+| every `PanelKind` has a registry entry | `panels.spec.ts` |
+| a border drags, a panel collapses, everything survives a reload | Playwright |
+| a table opens from the catalog as a tab and shows rows | Playwright |
 
-Тест реестра — по образцу того, что уже сравнивает показ `/ui-kit` с файлами
-кита: вид панели нельзя добавить, не добавив компонент.
+The registry test follows the one that already compares the `/ui-kit`
+showcase with the kit's files: a panel kind cannot be added without adding a
+component.
 
-## Ограничения объёма
+## Scope limits
 
-Сознательно вне этой работы:
+Deliberately outside this work:
 
-- **Изменение порядка вкладок внутри полосы.** Отдельная механика поверх той
-  же `movePanel`; добавляется дешевле после, чем вместе.
-- **Раскладка на сервере.** Клиентское состояние по W9; рабочее место,
-  переезжающее между машинами, — отдельная задача со своим API.
-- **Отмена действия над раскладкой.** Дерево неизменяемое, так что история —
-  это список ссылок, но пользователю она пока не нужна.
+- **Reordering tabs within a strip.** A separate mechanic on top of the same
+  `movePanel`; cheaper to add afterwards than together.
+- **Layout on the server.** Client state per W9; a workplace that moves between
+  machines is a separate task with its own API.
+- **Undoing a layout action.** The tree is immutable, so a history is a list of
+  references, but the user does not need it yet.

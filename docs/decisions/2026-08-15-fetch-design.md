@@ -1,49 +1,50 @@
-# Выборка данных
+# Data fetching
 
-Дата: 2026-08-15
-Статус: согласовано
-Подпроект: 4а
+Date: 2026-08-15
+Status: agreed
+Subproject: 4a
 
-## Цель
+## Goal
 
-Показать строки таблицы: постранично, с сортировкой и фильтрами. Пользователь
-выбирает таблицу в дереве каталога и видит данные.
+Show the rows of a table: page by page, with sorting and filters. The user
+selects a table in the catalog tree and sees the data.
 
-## Разделение подпроекта
+## Splitting the subproject
 
-Исходный подпроект 4 включал ещё и пул соединений. Разделён на два: выборка
-работает и без пула, открывая соединение на запрос, как это сейчас делает
-каталог. Пул — это производительность и жизненный цикл со своими решениями про
-воркеры, и он не нужен, чтобы выборка заработала. Настоящий документ описывает
-только 4а.
+The original subproject 4 also included the connection pool. It is split in
+two: fetching works without a pool too, opening a connection per request, as
+the catalog does now. The pool is about performance and lifecycle, with its own
+decisions about workers, and it is not needed for fetching to work. This
+document describes only 4a.
 
-## Что выяснилось про старое приложение
+## What we learned about the old application
 
-Разбор `fetch` в `postgres_extended_adaptor.py` дал пять фактов.
+An analysis of `fetch` in `postgres_extended_adaptor.py` produced five facts.
 
-**SQL собирается форматированием строк.** Вызов вида
+**SQL is built by string formatting.** A call of the form
 `sql_template(...).format(fields_str, table, where, orderby_str, limit, offset)`,
-где `where` возвращает `get_where(**kwargs)`, а `orderby` приходит от клиента.
+where `where` comes from `get_where(**kwargs)` and `orderby` comes from the
+client.
 
-**Клиент может передать сырой фрагмент SQL.** Параметр `sql_conditions`
-подставляется в запрос целиком; единственная защита — чёрный список в
-`validate_sql()`. Это внедрение SQL по построению, а чёрный список — слабейшая
-из возможных защит.
+**The client can pass a raw SQL fragment.** The `sql_conditions` parameter is
+substituted into the query whole; the only protection is a blacklist in
+`validate_sql()`. This is SQL injection by construction, and a blacklist is the
+weakest protection there is.
 
-**Каскад ветвлений вместо одного запроса.** Четыре шаблона на комбинации
-`orderby` / `orderby_str` / `where`, плюс зашитый в общий метод частный случай
-`if full_table_name.startswith('md_')`.
+**A cascade of branches instead of one query.** Four templates for the
+combinations of `orderby` / `orderby_str` / `where`, plus a special case
+`if full_table_name.startswith('md_')` hard-coded into a shared method.
 
-**Общее число строк протаскивается фальшивой колонкой.** К списку полей
-дописывается `COUNT(*) OVER() AS ____total_count____`, и она попадает в модель
-ответа: клиент обязан знать, что её надо выбросить.
+**The total row count is smuggled in as a fake column.**
+`COUNT(*) OVER() AS ____total_count____` is appended to the field list, and it
+ends up in the response model: the client has to know to throw it away.
 
-**`meta` — свалка из двенадцати ключей**, от `is_hypertable` до `queryLang` и
+**`meta` is a dump of twelve keys**, from `is_hypertable` to `queryLang` and
 `supported_actions`.
 
-Плюс `limit: int = -1` по умолчанию, то есть выборка без ограничения.
+Plus `limit: int = -1` by default, that is, a fetch without a limit.
 
-## Контракт
+## Contract
 
 ```python
 @runtime_checkable
@@ -58,7 +59,7 @@ FilterOp = Literal["eq", "ne", "gt", "gte", "lt", "lte",
 class Filter(BaseModel):
     column: str
     op: FilterOp
-    value: Any | None = None      # не используется для is_null / is_not_null
+    value: Any | None = None      # not used for is_null / is_not_null
 
 class Sort(BaseModel):
     column: str
@@ -81,35 +82,36 @@ class FetchResult(BaseModel):
     has_more: bool
 ```
 
-`node_id` — тот же непрозрачный идентификатор, который выдаёт каталог. У
-интерфейса он уже есть из дерева, и разбирает его по-прежнему только адаптер.
+`node_id` is the same opaque identifier the catalog returns. The interface
+already has it from the tree, and only the adapter parses it, as before.
 
-Строки передаются массивами, а не объектами: на широкой таблице повторение имён
-колонок в каждой строке кратно раздувает ответ, а сетка работает по индексам.
+Rows are sent as arrays, not objects: on a wide table repeating the column
+names in every row inflates the response several times over, and the grid
+works by index.
 
-## Безопасность
+## Security
 
-Четыре правила, каждое закрывает конкретную дыру старого кода.
+Four rules, each closing a specific hole in the old code.
 
-**Имена колонок сверяются с каталогом.** Перед построением запроса адаптер
-получает колонки отношения и проверяет, что каждая колонка фильтра и сортировки
-в нём есть. Неизвестная колонка даёт 422 и не доходит до SQL.
+**Column names are checked against the catalog.** Before building the query
+the adapter gets the columns of the relation and checks that every filter and
+sort column is among them. An unknown column gives 422 and never reaches SQL.
 
-**Идентификаторы экранируются `psycopg.sql.Identifier`**, значения передаются
-через `sql.Placeholder` как параметры, запрос собирается композицией
-`psycopg.sql.SQL`. Никакого `.format()` над пользовательским вводом.
+**Identifiers are escaped with `psycopg.sql.Identifier`**, values are passed
+through `sql.Placeholder` as parameters, and the query is assembled by
+composing `psycopg.sql.SQL`. No `.format()` over user input.
 
-**Строки SQL от клиента не принимаются нигде.** Аналога `sql_conditions` нет.
+**SQL strings from the client are not accepted anywhere.** There is no
+equivalent of `sql_conditions`.
 
-**У `limit` есть значение по умолчанию и верхняя граница.** Варианта «без
-ограничения» не существует.
+**`limit` has a default and an upper bound.** There is no "no limit" option.
 
-## Общее число строк
+## Total row count
 
-Отдельного `COUNT(*)` на страницу нет. Адаптер запрашивает `limit + 1` строку и
-отдаёт `has_more`; приблизительное общее число у интерфейса уже есть — оно
-приходит в узле каталога как `row_count_estimate`. На большой таблице точный
-подсчёт означал бы полный проход при каждом открытии.
+There is no separate `COUNT(*)` per page. The adapter requests `limit + 1` rows
+and returns `has_more`; the interface already has an approximate total — it
+arrives in the catalog node as `row_count_estimate`. On a large table an exact
+count would mean a full scan on every open.
 
 ## API
 
@@ -117,38 +119,39 @@ class FetchResult(BaseModel):
 POST /api/v1/connectors/{connector_id}/fetch
 ```
 
-Метод POST, а не GET: запрос структурный, и значения фильтров не должны
-попадать в URL.
+POST rather than GET: the request is structured, and filter values must not
+end up in the URL.
 
-Ошибки адаптера отдаются как 502 с видом и сообщением — так же, как в каталоге.
-Источник, не умеющий выборку, отвечает 501: `SupportsFetch` — необязательное
-умение, как и `SupportsCatalog`.
+Adapter errors are returned as 502 with a kind and a message — the same as in
+the catalog. A source that cannot fetch answers 501: `SupportsFetch` is an
+optional capability, like `SupportsCatalog`.
 
-## Интерфейс
+## Interface
 
-Выбор таблицы или представления в дереве каталога открывает сетку строк:
-серверная пагинация, сортировка по клику на заголовок. Общее число берётся из
-оценки узла каталога, страницы листаются по `has_more`.
+Selecting a table or view in the catalog tree opens a grid of rows: server-side
+paging, sorting by clicking a header. The total is taken from the catalog
+node's estimate, and pages are turned by `has_more`.
 
-## Проверка
+## Verification
 
-Против той же тестовой БД, фикстуры существуют.
+Against the same test database; the fixtures exist.
 
-- страница, смещение и границы `limit`;
-- сортировка по возрастанию и убыванию;
-- каждый предикат из перечисления;
-- `has_more` истинно в середине и ложно на последней странице;
-- неизвестная колонка в фильтре и в сортировке даёт ошибку;
-- **попытка внедрения через имя колонки отклоняется до обращения к БД**;
-- источник без умения выборки отвечает 501;
-- `mypy --strict` и `ruff` чисты;
-- сценарий Playwright: каталог, выбор таблицы, строки, вторая страница.
+- page, offset and the bounds of `limit`;
+- ascending and descending sort;
+- every predicate in the enumeration;
+- `has_more` is true in the middle and false on the last page;
+- an unknown column in a filter and in a sort gives an error;
+- **an injection attempt through a column name is rejected before the database
+  is touched**;
+- a source without the fetch capability answers 501;
+- `mypy --strict` and `ruff` are clean;
+- a Playwright scenario: catalog, selecting a table, rows, second page.
 
-## Чего в подпроекте нет
+## Not in this subproject
 
-- пула соединений — подпроект 4б;
-- записи, агрегатов, соединений таблиц;
-- потоковой выгрузки — она отдельная операция подпроекта 7, а не развитие
-  выборки; смешивание этих двух сценариев в одном методе и произошло в старом
-  приложении;
-- редактора SQL.
+- the connection pool — subproject 4b;
+- writes, aggregates, table joins;
+- streaming export — it is a separate operation of subproject 7, not an
+  extension of fetching; mixing these two scenarios in one method is exactly
+  what happened in the old application;
+- an SQL editor.

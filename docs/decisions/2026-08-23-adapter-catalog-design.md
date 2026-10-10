@@ -1,254 +1,265 @@
-# Каталог типов источников и создание подключения
+# Catalog of source types and creating a connection
 
-Дата: 2026-08-23
-Статус: согласовано
-Подпроект: 7-подготовка
+Date: 2026-08-23
+Status: agreed
+Subproject: 7-preparation
 
-## Цель
+## Goal
 
-Сегодня новое подключение создаётся так: кнопка «+» открывает `ConnectorDialog`,
-внутри которого выпадающий список `AppSelect` с типами источников. Пока типов
-два, это работает. Когда их станет восемьдесят — а реестр рассчитан именно на
-это (Р1: «добавление типа источника не требует миграции») — выпадающий список
-перестаёт быть выбором и становится списком, в котором нечего искать и не о чем
-судить.
+Today a new connection is created like this: the "+" button opens
+`ConnectorDialog`, inside which is an `AppSelect` drop-down with the source
+types. While there are two types, this works. When there are eighty — and the
+registry is designed for exactly that (R1: "adding a source type requires no
+migration") — the drop-down stops being a choice and becomes a list in which
+there is nothing to search and nothing to judge by.
 
-Нужен экран, отвечающий на три вопроса: какие типы источников есть, что каждый
-из них умеет, и как выглядит подключение к нему. Первые два — до того, как
-пользователь введёт хоть один пароль.
+What is needed is a screen that answers three questions: which source types
+exist, what each of them can do, and what connecting to it looks like. The
+first two — before the user has typed a single password.
 
-## Что было в старом приложении
+## What the old application had
 
-`myquasar/src/myapp/views/xdbview/dataplayer/` — витрина на 84 адаптера:
-боковик категорий со счётчиками, поиск, сетка плиток, выезжающая справа панель
-с описанием и возможностями, и кнопка «Try it», поднимающая демо. Плюс вкладка
-связей — граф из 19 узлов.
+`myquasar/src/myapp/views/xdbview/dataplayer/` — a showcase of 84 adapters:
+a sidebar of categories with counters, search, a grid of tiles, a panel sliding
+in from the right with a description and capabilities, and a "Try it" button
+that brought up a demo. Plus a relations tab — a graph of 19 nodes.
 
-Переносим форму экрана. Не переносим:
+We carry over the form of the screen. We do not carry over:
 
-- **граф связей** — по решению пользователя;
-- **демо** — 27 из 36 демо поднимали контейнер: генерация compose-файла, фоновая
-  задача, опрос `docker_startup_ready`, окно с параметрами подключения. Здесь
-  нет ни оркестрации Docker, ни третьего типа источника, для которого демо имело
-  бы смысл. Отдельная задача, когда появится то или другое;
-- **семантический поиск** — `transformers.js` качал модель эмбеддингов в браузер.
-  На двух записях это абсурд, а на восьмидесяти лексического поиска по имени,
-  категории, описанию и возможностям достаточно;
-- **`connectorSearchMeta.ts`** — 931 строка описаний и возможностей, написанных
-  руками на фронтенде. Его собственный README называет это «намеренным
-  дублированием» и перечисляет цену. Здесь так нельзя: ENGINEERING.md говорит
-  «одно и то же вычисление в бэкенде и фронтенде — дефект, оно принадлежит
-  серверу и приезжает в ответе».
+- **the relations graph** — by the user's decision;
+- **demos** — 27 of 36 demos brought up a container: generating a compose file,
+  a background task, polling `docker_startup_ready`, a window with connection
+  parameters. Here there is neither Docker orchestration nor a third source
+  type for which a demo would make sense. A separate task, when one or the
+  other appears;
+- **semantic search** — `transformers.js` downloaded an embedding model into
+  the browser. On two entries this is absurd, and on eighty a lexical search by
+  name, category, description and capabilities is enough;
+- **`connectorSearchMeta.ts`** — 931 lines of descriptions and capabilities
+  written by hand on the frontend. Its own README calls this "intentional
+  duplication" and lists the cost. That is not allowed here: ENGINEERING.md
+  says "the same computation in the backend and the frontend is a defect, it
+  belongs on the server and arrives in the response".
 
-## Решения
+## Decisions
 
-### К1. Тип источника описывает себя сам, на сервере
+### K1. A source type describes itself, on the server
 
-`AdapterType` в реестре получает четыре поля сверх нынешних:
+`AdapterType` in the registry gets four fields beyond the current ones:
 
 ```python
 @dataclass(frozen=True)
 class AdapterType:
     name: str
     title: str
-    category: Category            # Literal, закрытое множество
+    category: Category            # Literal, a closed set
     description: str
     options_schema: type[BaseModel]
-    adapter_class: type           # см. К2
+    adapter_class: type           # see K2
     factory: Factory
 ```
 
-`Category` — `Literal["sql", "files"]`. Закрытое множество, потому что
-категория — это набор значений, а ENGINEERING.md требует для такого `Literal`:
-опечатка в `@register` не компилируется, а не создаёт категорию из одного
-элемента. Заголовок категории (`"SQL Databases"`, `"Files & Storage"`) —
-таблица рядом с определением `Literal`, на сервере, чтобы фронтенд не заводил
-второй список названий.
+`Category` is `Literal["sql", "files"]`. A closed set, because a category is a
+set of values, and ENGINEERING.md requires a `Literal` for that: a typo in
+`@register` does not compile, rather than creating a category of one element.
+The category title (`"SQL Databases"`, `"Files & Storage"`) is a table next to
+the `Literal` definition, on the server, so that the frontend does not start a
+second list of names.
 
-Иконка категории и логотип типа остаются на фронтенде (`adapters.ts`, где уже
-живут SVG-логотипы): это оформление, а не факт об источнике, и сервер о нём
-знать не должен.
+The category icon and the type logo stay on the frontend (`adapters.ts`, where
+the SVG logos already live): this is presentation, not a fact about the source,
+and the server should not know about it.
 
-### К2. Возможности выводятся, а не перечисляются
+### K2. Capabilities are derived, not enumerated
 
-Список того, что тип умеет, нигде не хранится. Он вычисляется из того, что
-драйвер на самом деле реализует:
+The list of what a type can do is not stored anywhere. It is computed from what
+the driver actually implements:
 
-| откуда | что даёт |
+| from where | what it gives |
 | --- | --- |
-| `issubclass(adapter_class, SupportsCatalog)` | «Browse the catalog» |
-| `issubclass(adapter_class, SupportsFetch)` | «Read rows» |
-| `adapter_class.action_types()` | `title` каждого действия |
+| `issubclass(adapter_class, SupportsCatalog)` | "Browse the catalog" |
+| `issubclass(adapter_class, SupportsFetch)` | "Read rows" |
+| `adapter_class.action_types()` | the `title` of each action |
 
-`issubclass` работает, потому что все три протокола `runtime_checkable` и
-состоят только из методов. Классу, а не экземпляру, потому что вопрос задаётся
-о **типе** источника: подключения ещё нет, ни опций, ни сессии.
+`issubclass` works because all three protocols are `runtime_checkable` and
+consist of methods only. Of the class rather than an instance, because the
+question is asked about the **type** of source: there is no connection yet, no
+options, no session.
 
-Действия перечисляются классами, а не экземплярами, по той же причине: `name`,
-`title`, `applies_to` — это `ClassVar`, сессия для них не нужна. `FileActions`
-строит свой `ActionSet` из того же кортежа, из которого реестр берёт заголовки:
+Actions are enumerated as classes rather than instances for the same reason:
+`name`, `title`, `applies_to` are `ClassVar`, they need no session.
+`FileActions` builds its `ActionSet` from the same tuple the registry takes the
+titles from:
 
 ```python
 FILE_ACTION_TYPES = (CreateFolder, Upload, Rename, Delete)
 ```
 
-Один кортеж, два читателя. Второго списка, который можно забыть обновить, не
-существует — ровно та же конструкция, что `secret_field_names`, выводящая
-шифруемые поля из `SecretStr`.
+One tuple, two readers. A second list that can be forgotten in an update does
+not exist — exactly the same construction as `secret_field_names`, which
+derives the encrypted fields from `SecretStr`.
 
-Отвергнуто: читать аннотацию возврата фабрики через `get_type_hints`. Не нужен
-лишний аргумент в `@register`, но это рефлексия по подсказке типа — ломается под
-`from __future__ import annotations`, и mypy о ней ничего не гарантирует. Это та
-самая схема `hasattr`, ради устранения которой написано решение Р9.
+Rejected: reading the return annotation of the factory through
+`get_type_hints`. No extra argument in `@register` is needed, but it is
+reflection over a type hint — it breaks under `from __future__ import
+annotations`, and mypy guarantees nothing about it. This is the very `hasattr`
+scheme that decision R9 was written to eliminate.
 
-Так закрывается известное отклонение из AGENTS.md: «сервер не сообщает и о
-возможностях типа».
+This closes a known deviation from AGENTS.md: "the server does not report the
+type's capabilities either".
 
-**Что показывают выведенные возможности.** Postgres: *Browse the catalog*,
-*Read rows*. File: они же плюс *New folder*, *Upload a file*, *Rename*,
-*Delete*. Группа — `Literal["explore", "manage"]`: первые две возможности
-отвечают на вопрос «что можно посмотреть», действия — «что можно изменить».
-Десять групп старого приложения появятся, когда появится что в них класть.
+**What the derived capabilities show.** Postgres: *Browse the catalog*,
+*Read rows*. File: the same plus *New folder*, *Upload a file*, *Rename*,
+*Delete*. The group is `Literal["explore", "manage"]`: the first two
+capabilities answer the question "what can be looked at", actions — "what can
+be changed". The ten groups of the old application will appear when there is
+something to put in them.
 
-Цена честности: формулировки беднее рукописных. «Read rows» не расскажет, что
-Postgres умеет серверную сортировку и пагинацию, а файл — нет. Это осознанный
-размен: список, который не может разойтись с кодом, лучше списка, который читается
-приятнее. Когда драйверы начнут различаться внутри одной возможности, различие
-уже описано в `FetchResult.sortable` / `filterable` — оттуда его и брать.
+The cost of honesty: the wording is poorer than hand-written text. "Read rows"
+will not tell that Postgres can sort and paginate on the server and a file
+cannot. This is a deliberate trade: a list that cannot diverge from the code is
+better than a list that reads more pleasantly. When drivers start to differ
+within one capability, the difference is already described in
+`FetchResult.sortable` / `filterable` — that is where to take it from.
 
-### К3. Два окна, а не одно с шагами
+### K3. Two windows, not one with steps
 
-Каталог — новое окно шириной `lg` (900px, уже есть в `tokens.ts`). Форма —
-существующий `ConnectorDialog`, ширина `md`.
+The catalog is a new window of width `lg` (900px, already in `tokens.ts`). The
+form is the existing `ConnectorDialog`, width `md`.
 
-Одно окно, меняющее ширину между шагами, отвергнуто: 900 → 520px — заметный
-прыжок, и один компонент нёс бы две роли. Разделение даёт и то, что правка
-существующего подключения открывает форму напрямую, мимо каталога, без флага
-«мы пришли не из каталога».
+One window that changes width between steps is rejected: 900 → 520px is a
+noticeable jump, and one component would carry two roles. The split also means
+that editing an existing connection opens the form directly, bypassing the
+catalog, without a "we did not come from the catalog" flag.
 
-Поток:
+Flow:
 
 ```
-«+»  →  AdapterCatalogDialog  →  выбор типа  →  ConnectorDialog (тип задан)
+"+"  →  AdapterCatalogDialog  →  pick a type  →  ConnectorDialog (type set)
                     ↑                                     │
-                    └───────────── «Назад» ───────────────┘
+                    └───────────── "Back" ────────────────┘
 
-иконка подключения  →  ConnectorDialog (правка), каталога нет
+connection icon  →  ConnectorDialog (edit), no catalog
 ```
 
-Владеет обоими окнами `WorkspacePage`, там же, где сейчас живёт
-`ConnectorDialog`, и по той же причине: обе колонки, из которых окно
-открывается, можно свернуть, а свёрнутая колонка не рендерит ничего.
+Both windows are owned by `WorkspacePage`, where `ConnectorDialog` lives now,
+and for the same reason: both columns the window is opened from can be
+collapsed, and a collapsed column renders nothing.
 
-`editConnector(null)` перестаёт открывать форму и открывает каталог. Название
-метода становится неточным — переименовать в `newConnector` / `editConnector`
-как две операции.
+`editConnector(null)` stops opening the form and opens the catalog. The method
+name becomes inaccurate — rename to `newConnector` / `editConnector` as two
+operations.
 
-### К4. Выбор плитки открывает панель, а не форму
+### K4. Selecting a tile opens a panel, not the form
 
-Клик по плитке выделяет её и раскрывает панель справа: описание, возможности по
-группам, кнопка «Create connector». Панель не диалог — сетка остаётся видимой,
-и несколько типов можно пролистать подряд.
+A click on a tile selects it and opens a panel on the right: description,
+capabilities by group, a "Create connector" button. The panel is not a
+dialog — the grid stays visible, and several types can be browsed in a row.
 
-Это то место, ради которого экран существует. Плитка, ведущая прямо в форму,
-превратила бы каталог в тот же выпадающий список, только крупнее.
+This is the place the screen exists for. A tile leading straight into the form
+would turn the catalog into the same drop-down, only bigger.
 
-Двойной клик по плитке ведёт в форму сразу — для того, кто уже знает, что ему
-нужно.
+A double click on a tile goes into the form at once — for someone who already
+knows what they need.
 
-### К5. Выпадающий список типов из формы исчезает
+### K5. The type drop-down disappears from the form
 
-В `ConnectorDialog` `AppSelect` с типами заменяется на строку: логотип, название
-типа, категория. Тип решён в каталоге и не меняется — ни при создании, ни при
-правке (сейчас при правке `AppSelect` просто `disable`, что оставляет на экране
-неработающий орган управления).
+In `ConnectorDialog` the `AppSelect` with types is replaced by a line: logo,
+type name, category. The type is decided in the catalog and does not change —
+neither on creation nor on editing (now on editing the `AppSelect` is simply
+`disable`, which leaves a non-working control on screen).
 
-Форма получает проп `adapterType: string | null` — тип, выбранный в каталоге, —
-и событие `back`, возвращающее в каталог. `back` показывается только когда форма
-открыта из каталога.
+The form gets a prop `adapterType: string | null` — the type chosen in the
+catalog — and a `back` event returning to the catalog. `back` is shown only
+when the form was opened from the catalog.
 
-### К6. Поиск — чистая функция
+### K6. Search is a pure function
 
-`adapterSearch.ts` рядом с `adapters.ts`: на входе список типов и строка, на
-выходе отфильтрованный и отсортированный список. Совпадение по имени, заголовку,
-категории, описанию и заголовкам возможностей; совпадение в заголовке весит
-больше, чем в описании.
+`adapterSearch.ts` next to `adapters.ts`: the input is a list of types and a
+string, the output a filtered and sorted list. Matching by name, title,
+category, description and capability titles; a match in the title weighs more
+than one in the description.
 
-Ни компонентов, ни запросов — тестируется без монтирования, как `nodes.ts`,
-`rows.ts` и `tokens.ts`.
+No components, no requests — tested without mounting, like `nodes.ts`,
+`rows.ts` and `tokens.ts`.
 
-Подсчёт по категориям (`categoryCounts`) — там же и по той же причине.
+Counting by category (`categoryCounts`) is there too, for the same reason.
 
-### К7. Блока «Ваши подключения» в панели нет
+### K7. There is no "Your connections" block in the panel
 
-В старом приложении панель перечисляла уже созданные подключения этого типа.
-Здесь они постоянно видны в первой колонке рабочего пространства, прямо за
-окном. Второй список того же самого — второй дом для одной команды, а два дома
-расходятся (ровно тем доводом из S1 у списка подключений отобрали меню строки).
+In the old application the panel listed connections of this type already
+created. Here they are always visible in the first column of the workspace,
+right behind the window. A second list of the same thing is a second home for
+one command, and two homes diverge (exactly the argument from S1 by which the
+connection list lost its row menu).
 
-## Что меняется
+## What changes
 
-### Бэкенд
+### Backend
 
 ```
 app/adapters/
-├── registry.py      + Category, CATEGORY_TITLES, поля AdapterType,
-│                      capabilities_of(); register() принимает category,
+├── registry.py      + Category, CATEGORY_TITLES, AdapterType fields,
+│                      capabilities_of(); register() takes category,
 │                      description, adapter_class
-├── protocol.py      без изменений — протоколы уже те, что нужны
+├── protocol.py      unchanged — the protocols are already the ones needed
 ├── routes.py        AdapterTypeInfo + category, category_title, description,
 │                    capabilities
 ├── postgres/
 │   └── adapter.py   @register(category="sql", description=…,
 │                              adapter_class=PostgresAdapter)
 └── file/
-    ├── actions.py   FILE_ACTION_TYPES; FileActions строит ActionSet из него
+    ├── actions.py   FILE_ACTION_TYPES; FileActions builds ActionSet from it
     └── adapter.py   action_types(); @register(category="files", …)
 ```
 
-### Фронтенд
+### Frontend
 
 ```
 frontend/src/features/connectors/
-├── adapters.ts             + иконка категории
-├── adapterSearch.ts        новый: поиск и подсчёт по категориям, чистый
-├── adapterSearch.spec.ts   новый
-├── AdapterCatalogDialog.vue новый: боковик, поиск, сетка, панель
-├── AdapterTile.vue          новый
-├── AdapterDetailPanel.vue   новый
-└── ConnectorDialog.vue      AppSelect → строка типа; пропы adapterType, back
+├── adapters.ts             + category icon
+├── adapterSearch.ts        new: search and counting by category, pure
+├── adapterSearch.spec.ts   new
+├── AdapterCatalogDialog.vue new: sidebar, search, grid, panel
+├── AdapterTile.vue          new
+├── AdapterDetailPanel.vue   new
+└── ConnectorDialog.vue      AppSelect → type line; props adapterType, back
 ```
 
-`WorkspacePage.vue` владеет обоими окнами и переходами между ними.
+`WorkspacePage.vue` owns both windows and the transitions between them.
 
-Новых компонентов в `shared/ui` не требуется: заголовок возможности — `AppBadge`,
-всё остальное собирается из имеющегося. Если понадобится — витрина `/ui-kit`
-обязана его показать, это проверяется тестом.
+No new components are required in `shared/ui`: a capability title is an
+`AppBadge`, everything else is assembled from what exists. If one is needed,
+the `/ui-kit` showcase must show it; a test checks this.
 
-## Чем держится
+## What holds it
 
-| Проверка | Что ловит |
+| Check | What it catches |
 | --- | --- |
-| `pytest tests/adapters/test_registry.py` | `capabilities_of` для типа с каталогом и без; заголовки действий совпадают с `FILE_ACTION_TYPES` |
-| `pytest tests/adapters/test_routes.py` | `/adapter-types/` отдаёт категорию, описание и возможности |
-| `mypy app` | `Category` закрыт; `adapter_class` типизирован |
-| `bun run test:unit` | `adapterSearch.ts`: совпадение по возможности, по описанию, порядок, счётчики |
-| `bunx playwright test` | «+» → каталог → поиск → выбор типа → панель → форма → «Назад» → каталог |
+| `pytest tests/adapters/test_registry.py` | `capabilities_of` for a type with a catalog and without; action titles match `FILE_ACTION_TYPES` |
+| `pytest tests/adapters/test_routes.py` | `/adapter-types/` returns the category, description and capabilities |
+| `mypy app` | `Category` is closed; `adapter_class` is typed |
+| `bun run test:unit` | `adapterSearch.ts`: match by capability, by description, order, counters |
+| `bunx playwright test` | "+" → catalog → search → choosing a type → panel → form → "Back" → catalog |
 
-Отдельно проверяется то, что зелёный юнит-тест не доказывает: что возможности
-видны на экране. Сценарий Playwright читает чипы в панели и ждёт среди них
-`Upload a file` для типа `file` и его отсутствие для `postgres`.
+What a green unit test does not prove is checked separately: that the
+capabilities are visible on screen. The Playwright scenario reads the chips in
+the panel and expects `Upload a file` among them for the `file` type and its
+absence for `postgres`.
 
-## Известные отклонения, которые это добавляет
+## Known deviations this adds
 
-- **Категорий две, боковик почти пуст.** «All», «SQL Databases» (1), «Files &
-  Storage» (1). Форма построена под рост реестра, а не под сегодняшний его
-  размер — тот же довод, по которому набор UI строится алфавитом.
-- **Возможности описывают тип, а не подключение.** Драйвер `file` объявляет
-  `Delete`, но корень подключения удалить нельзя — это состояние узла, и знает о
-  нём только `available()`. Каталог отвечает на вопрос «что этот тип умеет
-  вообще», и обещает чуть больше, чем разрешит любой конкретный узел.
-- **Описание типа — свободный текст в `@register`.** Ничто не проверяет, что оно
-  есть и что оно осмысленно; пустая строка пройдёт.
-- **Поиск не знает морфологии.** «миграции» не найдёт «migrations», «база» не
-  найдёт «database». Лексическое совпадение подстроки, и только.
+- **There are two categories, the sidebar is nearly empty.** "All", "SQL
+  Databases" (1), "Files & Storage" (1). The form is built for the registry's
+  growth, not for its size today — the same argument by which the UI kit is
+  built as an alphabet.
+- **Capabilities describe the type, not the connection.** The `file` driver
+  declares `Delete`, but the connection root cannot be deleted — that is the
+  state of a node, and only `available()` knows about it. The catalog answers
+  the question "what can this type do in general", and promises a little more
+  than any particular node will allow.
+- **The type description is free text in `@register`.** Nothing checks that it
+  exists and that it makes sense; an empty string will pass.
+- **Search knows no morphology.** The Russian word for "migrations" will not
+  find "migrations", the Russian word for "database" will not find "database".
+  A lexical substring match, and nothing more.

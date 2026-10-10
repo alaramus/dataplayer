@@ -1,317 +1,319 @@
-# Колонка появляется вместе с содержимым
+# A column appears together with its content
 
-Дата: 2026-08-23
-Статус: спроектировано
-Подпроект: правки экрана по следам работы в браузере
+Date: 2026-08-23
+Status: designed
+Subproject: screen corrections following work in the browser
 
-## Для того, кто начинает с чистой сессии
+## For someone starting from a clean session
 
-Читать в этом порядке: [AGENTS.md](../../AGENTS.md), решения Р12
-(рабочее пространство) и Р11 (набор компонентов);
-[2026-08-22-workspace-design.md](2026-08-22-workspace-design.md) — движок;
+Read in this order: [AGENTS.md](../../AGENTS.md), decisions R12
+(workspace) and R11 (component kit);
+[2026-08-22-workspace-design.md](2026-08-22-workspace-design.md) — the engine;
 [2026-08-22-three-column-workspace-design.md](2026-08-22-three-column-workspace-design.md)
-— роли и три колонки; [ENGINEERING.md](../../ENGINEERING.md), разделы
-«Frontend» и «Тесты».
+— roles and three columns; [ENGINEERING.md](../../ENGINEERING.md), sections
+"Frontend" and "Tests".
 
-Здесь нет ни одной строки бэкенда. Всё меняется во `frontend/src`, контракт
-API не трогается, клиент перегенерировать не нужно.
+There is not a single line of backend here. Everything changes in
+`frontend/src`, the API contract is not touched, the client does not need to be
+regenerated.
 
-Что уже есть и на что опираемся:
+What already exists and what we build on:
 
-- Раскладка — дерево секций; каждая правка дерева — чистая функция
-  (`shared/workspace/tree.ts`), и после любой из них вызывается `normalize`.
-- Секция несёт `accepts` — роль панели, которая в неё попадает по умолчанию,
-  и `pinned` — право оставаться на экране пустой. Роль движку непрозрачна:
-  он сравнивает строки и никогда их не разбирает.
-- Куда попадает открытая панель, решает `placement.ts` → `leafForKind`.
-- Что показывает пустая закреплённая секция, спрашивают у фичи:
-  `empty(accepts)` в `features/workspace/panels.ts`.
-- Свёрнутая секция занимает `COLLAPSED_PX`, а остальные делят остаток по
-  своим долям; `sizes` при сворачивании не трогаются
+- The layout is a tree of sections; every edit of the tree is a pure function
+  (`shared/workspace/tree.ts`), and `normalize` is called after any of them.
+- A section carries `accepts` — the role of the panel that goes into it by
+  default — and `pinned` — the right to stay on screen while empty. The role is
+  opaque to the engine: it compares strings and never parses them.
+- Where an opened panel goes is decided by `placement.ts` → `leafForKind`.
+- What an empty pinned section shows is asked of the feature:
+  `empty(accepts)` in `features/workspace/panels.ts`.
+- A collapsed section takes `COLLAPSED_PX`, and the rest share the remainder by
+  their fractions; `sizes` are not touched on collapse
   (`WorkspaceNode.vue`, `styleFor`).
-- Сохранённая раскладка — недоверенный вход: разбирается, сверяется и
-  отвергается целиком, а версия отсекает чужую форму
+- A saved layout is untrusted input: it is parsed, checked and rejected as a
+  whole, and the version cuts off a foreign shape
   (`persist.ts`, `WORKSPACE_VERSION`).
 
-Одна команда, которая понадобится сразу:
+One command that will be needed right away:
 
 ```bash
 cd frontend && bun run dev
 ```
 
-## Цель
+## Goal
 
-Пять вещей, замеченных при работе с экраном.
+Five things noticed while working with the screen.
 
-1. Первый запуск встречает тремя колонками, две из которых пусты. Экран
-   выглядит как сломанный, а не как пустой, и не говорит, что делать.
-2. Перетаскивание не знает о ролях вовсе. Вкладку данных можно бросить в
-   колонку подключений и разломать три колонки насовсем.
-3. Единственную вкладку можно потащить на бок собственной секции. Получается
-   деление, где одна половина пуста, — действие без результата, которое
-   выглядит как результат.
-4. Каталог открыт ровно один: выбрал другое подключение — предыдущий закрылся
-   вместе с тем, куда ты в нём дошёл.
-5. Вкладка данных подписана именем узла и больше ничем. Пока каталог был
-   один, этого хватало.
+1. The first run greets you with three columns, two of which are empty. The
+   screen looks broken rather than empty, and does not say what to do.
+2. Dragging knows nothing about roles. A data tab can be dropped into the
+   connections column and break the three columns for good.
+3. A single tab can be dragged onto the side of its own section. The result is
+   a split where one half is empty — an action without a result that looks
+   like a result.
+4. Exactly one catalog is open: choose another connection and the previous one
+   closes along with how far you got in it.
+5. A data tab is labelled with the node name and nothing else. While there was
+   one catalog, that was enough.
 
-## Чего здесь нет
+## What is not here
 
-- **Горячих клавиш.** В приложении нет ни одной глобальной, и сцена не
-  обещает того, чего нет. Вёрстка принимает список пар «клавиша — действие»
-  под блоком действий, но пустой рамки под них не рисует. Сами клавиши —
-  отдельный подпроект.
-- **Справки в нижней полосе.** Мысль показывать то же самое по значку в
-  строке состояния, когда сцены на экране уже нет, отложена: полоса пуста и
-  сегодня, и это отдельное решение о том, что она такое.
-- **Цветовой метки подключения.** Как в DataGrip, где источнику назначают
-  цвет и он течёт по вкладкам. Различение двух подключений одного типа даёт
-  подзаголовок вкладки, а цвет — это ещё и место, где пользователь его
-  выбирает.
-- **Перестановки вкладок внутри полосы.** Отклонение остаётся как было.
-- **Двух каталогов одного подключения.** Панель по-прежнему опознаётся тем,
-  что показывает.
-- **Изменения размера сцены пользователем.** Сцена — пустой вид колонки, а
-  не панель: у неё нет вкладки, её нельзя закрыть и нельзя перетащить.
+- **Keyboard shortcuts.** The application has not a single global one, and the
+  scene does not promise what is not there. The layout accepts a list of "key —
+  action" pairs under the actions block, but does not draw an empty frame for
+  them. The shortcuts themselves are a separate subproject.
+- **Help in the bottom bar.** The idea of showing the same thing behind an icon
+  in the status bar once the scene is no longer on screen is postponed: the bar
+  is empty today too, and what it is is a separate decision.
+- **A colour label for a connection.** As in DataGrip, where a source is
+  assigned a colour and it flows through the tabs. Telling apart two
+  connections of the same type is done by the tab subtitle, and a colour is
+  also a place where the user picks it.
+- **Reordering tabs within the strip.** The deviation stays as it was.
+- **Two catalogs of one connection.** A panel is still identified by what it
+  shows.
+- **Resizing the scene by the user.** The scene is the empty view of a column,
+  not a panel: it has no tab, it cannot be closed and cannot be dragged.
 
-## Решения
+## Decisions
 
-### П1. Роль — не только адрес открытия, но и допуск
+### P1. A role is not only an opening address but also an admission
 
-`accepts` до сих пор отвечал на один вопрос: куда попадёт вновь открытая
-панель. Теперь он отвечает и на второй: что сюда можно принести руками.
+Until now `accepts` answered one question: where a newly opened panel goes. Now
+it also answers a second one: what can be brought here by hand.
 
-Дроп разрешён, только если роль перетаскиваемой панели равна `accepts`
-целевой секции. Роль движку по-прежнему неизвестна — он уже получает
-`kindOf` от фичи (это `roleOf`) и сравнивает две непрозрачные строки, ровно
-как `leafForKind` делает это сегодня. Ни одного нового понятия.
+A drop is allowed only if the role of the dragged panel equals the `accepts` of
+the target section. The role is still unknown to the engine — it already gets
+`kindOf` from the feature (this is `roleOf`) and compares two opaque strings,
+exactly as `leafForKind` does today. Not a single new concept.
 
-Там, где дроп невозможен, зона не подсвечивается. Отказ должен быть виден
-до того, как отпустили кнопку: подсветить и не принять — хуже, чем не
-подсветить.
+Where a drop is impossible, the zone is not highlighted. A refusal must be
+visible before the button is released: to highlight and not accept is worse
+than not to highlight.
 
-Альтернатива — разрешать всё и чинить последствия — отвергнута: три колонки
-объявлены свойством экрана, а не привычкой пользователя, и раскладка, в
-которой данные лежат в колонке подключений, не имеет способа вернуться
-обратно.
+The alternative — allow everything and repair the consequences — is rejected:
+the three columns are declared a property of the screen, not a habit of the
+user, and a layout in which data sits in the connections column has no way to
+get back.
 
-### П2. Отделённая секция наследует роль, но не закреплённость
+### P2. A split-off section inherits the role but not the pinning
 
-`splitLeaf` создаёт новую секцию с `accepts` той, от которой отделили.
-Без этого первое же деление порождает секцию без роли, и П1 отказал бы во
-всём, что в неё потом несут, — включая панель, которая её и создала.
+`splitLeaf` creates the new section with the `accepts` of the one it was split
+from. Without this the very first split produces a section without a role, and
+P1 would refuse everything brought to it afterwards — including the panel that
+created it.
 
-`pinned` не наследуется. Закреплённость — свойство колонки экрана, а не
-всякой секции: отделённая должна исчезать, когда закрыли её последнюю
-вкладку, иначе каждое деление оставляло бы после себя пустой след.
+`pinned` is not inherited. Pinning is a property of a screen column, not of
+every section: a split-off one must disappear when its last tab is closed,
+otherwise every split would leave an empty trace behind.
 
-### П3. Деление, оставляющее секцию пустой, — не деление
+### P3. A split that leaves a section empty is not a split
 
-Боковая зона отказывает, если после неё целевая секция осталась бы ни с чем.
-Это одно правило на два случая:
+A side zone refuses if after it the target section would be left with nothing.
+This is one rule for two cases:
 
-- единственную вкладку тащат на бок её собственной секции;
-- что угодно тащат на бок пустой секции.
+- the single tab is dragged onto the side of its own section;
+- anything is dragged onto the side of an empty section.
 
-В обоих случаях остаётся центр — то есть «положить сюда», а не «разделить
-этим».
+In both cases the centre remains — that is, "put here", not "split with this".
 
-Следствие, которое стоит назвать отдельно: **вкладка «Connections» никуда не
-переносится, и ей для этого не нужен флаг.** Роль `sources` есть у одной
-секции; её бок оставил бы её пустой, а чужие колонки не берут чужую роль.
-Запрет выведен из двух общих правил, а не объявлен третьим частным.
+A consequence worth naming separately: **the "Connections" tab cannot be moved
+anywhere, and it does not need a flag for that.** The `sources` role belongs to
+one section; its side would leave it empty, and other columns do not take
+another's role. The prohibition is derived from two general rules, not declared
+as a third, particular one.
 
-### П4. Пустая колонка, которой нечего сказать, не занимает места
+### P4. An empty column with nothing to say takes no space
 
-Закреплённая секция без панелей, для которой `empty(accepts)` ответил
-`null`, не рендерится. Её доля уходит целиком следующему соседу по
-направлению разбиения; `sizes` в дереве не трогаются, поэтому ширина
-вернётся ровно та, к которой пользователь привык. Разделитель рисуется
-только между двумя видимыми соседями.
+A pinned section without panels, for which `empty(accepts)` answered `null`, is
+not rendered. Its fraction goes entirely to the next neighbour in the direction
+of the split; `sizes` in the tree are not touched, so the width that comes back
+is exactly the one the user is used to. A separator is drawn only between two
+visible neighbours.
 
-Это тот же приём, что уже применён к свёрнутой колонке, и по той же причине:
-то, как секция выглядит сейчас, не должно стирать то, какой её сделали.
+This is the same technique already applied to the collapsed column, and for the
+same reason: how a section looks now must not erase how it was made.
 
-Доля уходит соседу целиком, а не делится пропорционально между всеми. При
-пропорциональном дележе колонка подключений на первом запуске раздувается с
-20% до 28% — на широком экране это семьсот пикселей пустого списка. Правило
-«соседу» держит колонку подключений там, где её поставили, и отдаёт всё
-освободившееся место тому, ради чего оно освободилось.
+The fraction goes to the neighbour entirely, not shared proportionally among
+all. With proportional sharing the connections column on the first run swells
+from 20% to 28% — on a wide screen that is seven hundred pixels of empty list.
+The "to the neighbour" rule keeps the connections column where it was put and
+gives all the freed space to what it was freed for.
 
-### П5. Сцена — пустой вид правой колонки, и стадию она выводит сама
+### P5. The scene is the empty view of the right column, and it derives the stage itself
 
-`empty("navigate")` возвращает `null` **всегда**, без всякого состояния:
-у средней колонки просто нет пустого вида, и П4 убирает её с экрана.
-`empty("work")` возвращает сцену — поэтому правая колонка на экране есть
-всегда.
+`empty("navigate")` returns `null` **always**, without any state: the middle
+column simply has no empty view, and P4 removes it from the screen.
+`empty("work")` returns the scene — so the right column is always on screen.
 
-Никакой стадии в движке не заводится, и `empty` не меняет подписи. Стадию
-сцена выводит из того, что у неё уже есть: список подключений (vue-query) и
-`activeConnectorId` (из `workspaceActionsKey`).
+No stage is introduced in the engine, and `empty` does not change its
+signature. The scene derives the stage from what it already has: the list of
+connections (vue-query) and `activeConnectorId` (from `workspaceActionsKey`).
 
-| Что видно | Экран |
+| What is visible | Screen |
 | --- | --- |
-| подключений нет | подключения ¦ сцена: что это, и `[+ Добавить подключение]` |
-| есть, каталог не открыт | подключения ¦ сцена: выберите подключение слева |
-| каталог открыт | подключения ¦ каталог ¦ сцена: выберите таблицу или файл |
-| открыта таблица | подключения ¦ каталог ¦ данные |
+| no connections | connections ¦ scene: what this is, and `[+ Add connection]` |
+| there are some, no catalog open | connections ¦ scene: choose a connection on the left |
+| a catalog is open | connections ¦ catalog ¦ scene: choose a table or a file |
+| a table is open | connections ¦ catalog ¦ data |
 
-На сцене стоит настоящая кнопка, а не отсылка «нажмите плюс слева».
-Отправлять человека искать кнопку в другом месте экрана, когда её можно дать
-здесь, — хуже, чем дать.
+The scene carries a real button, not a reference "press the plus on the left".
+Sending a person to look for a button elsewhere on the screen when it can be
+given here is worse than giving it.
 
-Подсказки — про текущий уровень, а не про платформу. Абстрактный текст про
-приложение читают один раз; «отметьте узлы галочками, и меню в шапке скажет,
-что с ними можно сделать» — то, чего в интерфейсе не видно, пока не
-наткнёшься.
+The hints are about the current level, not about the platform. Abstract text
+about the application is read once; "check nodes with the checkboxes, and the
+menu in the header will say what can be done with them" is something not
+visible in the interface until you stumble on it.
 
-### П6. Каталогов столько, сколько открыли
+### P6. As many catalogs as were opened
 
-`{ replace: true }` при открытии каталога снимается. AGENTS.md ровно это и
-предсказывал: «allowing two catalogs side by side is dropping one flag at one
-call site». Отклонение *One catalog at a time* вычёркивается.
+`{ replace: true }` when opening a catalog is removed. AGENTS.md predicted
+exactly this: "allowing two catalogs side by side is dropping one flag at one
+call site". The deviation *One catalog at a time* is struck out.
 
-Повторный клик по подключению не плодит вкладку: панель опознаётся по
-`catalog:{connectorId}`, и `open()` активирует уже существующую.
+A repeated click on a connection does not spawn a tab: the panel is identified
+by `catalog:{connectorId}`, and `open()` activates the existing one.
 
-Переключение вкладок каталог не сбрасывает — секция держит неактивную панель
-в `<KeepAlive>`. До сих пор это было непроверяемо, потому что каталог был
-один.
+Switching tabs does not reset a catalog — the section keeps the inactive panel
+in `<KeepAlive>`. Until now this could not be verified, because there was one
+catalog.
 
-Деление внутри средней колонки только теперь и обретает смысл: два каталога
-рядом друг с другом — это тот сценарий, ради которого написан П1.
+A split inside the middle column only now makes sense: two catalogs side by
+side is the scenario P1 is written for.
 
-### П7. Активное подключение читается с дерева
+### P7. The active connection is read from the tree
 
-Сейчас `activeConnectorId` — «первая попавшаяся панель каталога». С тремя
-каталогами она вернёт не тот, на который смотрят, а тот, что открыли раньше
-всех.
+Currently `activeConnectorId` is "the first catalog panel that comes along".
+With three catalogs it will return not the one being looked at but the one
+opened earliest.
 
-Читается с дерева: секции, принимающие `navigate`, предпочтение
-сфокусированной, её активная панель. Второго учёта, способного разойтись с
-деревом, не заводится — то же основание, по которому это уже читается с
-панелей, а не хранится рядом.
+It is read from the tree: sections that accept `navigate`, the focused one
+preferred, its active panel. No second record that could drift from the tree is
+introduced — the same reason it is already read from the panels rather than
+stored beside them.
 
-Список подключений получает два состояния вместо одного: **открыт** — у
-подключения есть вкладка каталога, приглушённая подсветка строки;
-**активен** — его каталог сейчас виден, полная. Подсветка строки, а не
-четвёртый значок в ней: строка подключения — это иконка, имя и точка
-состояния, и добавлять в неё нечего. Свёрнутая полоса (`ConnectorRail`)
-получает это бесплатно — строка та же, только уже.
+The connection list gets two states instead of one: **open** — the connection
+has a catalog tab, a muted row highlight; **active** — its catalog is visible
+now, full highlight. A row highlight, not a fourth badge in it: a connection
+row is an icon, a name and a status dot, and there is nothing to add to it. The
+collapsed strip (`ConnectorRail`) gets this for free — the row is the same,
+only narrower.
 
-### П8. Вкладка говорит, чья она
+### P8. A tab says whose it is
 
-`PanelLook` получает четвёртое поле — приглушённый подзаголовок. Вкладка
-данных: имя узла, рядом бледным имя подключения, сжимается первым. Иконка —
-типа источника вместо родовой `table_chart`.
+`PanelLook` gets a fourth field — a muted subtitle. Data tab: the node name,
+next to it the connection name in pale, shrinking first. The icon is the source
+type instead of the generic `table_chart`.
 
-Подсказка при наведении отвергнута: два подключения одного типа на глаз
-неразличимы, и наводить приходится ровно тогда, когда вкладок много, то есть
-в худший момент. Составной заголовок `prod-db · users` отвергнут: имя узла —
-то, что ищут глазами, — уезжает вправо и обрезается первым.
+A hover tooltip is rejected: two connections of the same type are
+indistinguishable by eye, and one has to hover exactly when there are many
+tabs, that is, at the worst moment. A compound title `prod-db · users` is
+rejected: the node name — what the eye looks for — moves to the right and is
+truncated first.
 
-Панель данных начинает нести `adapterType` и имя подключения — по той же
-причине, по которой их уже несёт панель каталога: восстановленная из
-хранилища раскладка рисует иконку до того, как прочитан список подключений.
+The data panel starts carrying `adapterType` and the connection name — for the
+same reason the catalog panel already carries them: a layout restored from
+storage draws the icon before the list of connections has been read.
 
-Схема панели меняется, поэтому `WORKSPACE_VERSION` → 3, и сохранённая
-раскладка отвергается целиком в пользу стандартной. Механизм для этого есть
-и уже применялся при переходе на версию 2.
+The panel schema changes, so `WORKSPACE_VERSION` → 3, and a saved layout is
+rejected as a whole in favour of the default one. The mechanism for this exists
+and was already used in the move to version 2.
 
-## Что меняется
+## What changes
 
-### Движок (`shared/workspace`)
+### Engine (`shared/workspace`)
 
-- `model.ts` — `LeafOptions` уже несёт `accepts`; ничего не добавляется.
-- `tree.ts` — `splitLeaf` передаёт `accepts` отделённой секции (П2).
-- `dropZone.ts` — зона вычисляется с оглядкой на роль и на «осталась бы
-  пустой» (П1, П3). Чистая функция, поэтому проверяется без монтирования.
-- `context.ts` — `PanelLook.subtitle?: string` (П8); контекст отвечает,
-  принимает ли секция то, что тащат.
-- `useWorkspace.ts` — `endDrag` отказывает по тем же двум правилам: то, что
-  вычисляет подсветку, и то, что применяет перенос, не должны расходиться.
-- `WorkspaceNode.vue` — скрытая секция не рендерится, её доля уходит соседу,
-  разделитель только между видимыми (П4).
-- `WorkspaceLeaf.vue` — подзаголовок во вкладке; зоны, которые отказывают,
-  не подсвечиваются.
+- `model.ts` — `LeafOptions` already carries `accepts`; nothing is added.
+- `tree.ts` — `splitLeaf` passes `accepts` to the split-off section (P2).
+- `dropZone.ts` — the zone is computed with regard to the role and to "would be
+  left empty" (P1, P3). A pure function, so it is tested without mounting.
+- `context.ts` — `PanelLook.subtitle?: string` (P8); the context answers
+  whether a section accepts what is being dragged.
+- `useWorkspace.ts` — `endDrag` refuses by the same two rules: what computes
+  the highlight and what applies the move must not drift apart.
+- `WorkspaceNode.vue` — a hidden section is not rendered, its fraction goes to
+  the neighbour, a separator only between visible ones (P4).
+- `WorkspaceLeaf.vue` — a subtitle in the tab; zones that refuse are not
+  highlighted.
 - `persist.ts` — `WORKSPACE_VERSION` → 3.
 
-### Экран (`features/workspace`)
+### Screen (`features/workspace`)
 
-- `panels.ts` — `empty("navigate")` → `null`; `empty("work")` → сцена;
-  `lookOf` панели данных отдаёт иконку типа и подзаголовок; схема панели
-  данных получает `adapterType` и имя подключения.
-- `panels/WorkspaceScene.vue` — новый: три стадии, кнопка, подсказки.
-- `panels/EmptyNavigate.vue`, `panels/EmptyWork.vue` — удаляются, их место
-  занимает сцена.
-- `WorkspacePage.vue` — снят `{ replace: true }`; `activeConnectorId`
-  читается с дерева; `openRows` принимает то, чем подписывается вкладка.
-- `state.ts` — `openRows` меняет подпись; появляется множество открытых
-  подключений для списка.
+- `panels.ts` — `empty("navigate")` → `null`; `empty("work")` → the scene;
+  `lookOf` of the data panel gives the type icon and the subtitle; the data
+  panel schema gets `adapterType` and the connection name.
+- `panels/WorkspaceScene.vue` — new: three stages, a button, hints.
+- `panels/EmptyNavigate.vue`, `panels/EmptyWork.vue` — deleted, their place
+  is taken by the scene.
+- `WorkspacePage.vue` — `{ replace: true }` removed; `activeConnectorId` is
+  read from the tree; `openRows` accepts what the tab is labelled with.
+- `state.ts` — `openRows` changes its signature; a set of open connections for
+  the list appears.
 - `panels/ConnectorsPanel.vue`, `panels/ConnectorRail.vue`,
-  `features/connectors/ConnectorList.vue` — два состояния строки.
+  `features/connectors/ConnectorList.vue` — two row states.
 
-### Набор компонентов
+### Component kit
 
-- `shared/ui/theme.css` — цвет приглушённой подсветки строки объявляется по
-  смыслу и в обеих темах. Значения в экранах не появляются.
+- `shared/ui/theme.css` — the colour of the muted row highlight is declared by
+  meaning and in both themes. Values do not appear in screens.
 
-### Документы
+### Documents
 
-- AGENTS.md: вычеркнуть *One catalog at a time*; описать экран как
-  «колонка появляется вместе с содержимым»; добавить отклонения ниже.
+- AGENTS.md: strike out *One catalog at a time*; describe the screen as
+  "a column appears together with its content"; add the deviations below.
 
-## Порядок работы
+## Order of work
 
-Тест — реализация — зелёный тест, по шагам, каждый из которых оставляет
-экран рабочим.
+Test — implementation — green test, in steps, each of which leaves the screen
+working.
 
-1. **Правила дропа** (П1, П2, П3) — целиком в движке, юнит-тестами:
-   наследование роли, отказ по роли, отказ по «осталась бы пустой».
-2. **Скрытая колонка** (П4) — юнит-тест на доли и разделители, затем
+1. **Drop rules** (P1, P2, P3) — entirely in the engine, with unit tests:
+   role inheritance, refusal by role, refusal by "would be left empty".
+2. **Hidden column** (P4) — a unit test on fractions and separators, then
    `WorkspaceNode.vue`.
-3. **Сцена** (П5) — сначала `empty("navigate")` → `null` и три стадии,
-   потом содержание.
-4. **Несколько каталогов** (П6, П7) — снятый флаг, `activeConnectorId` с
-   дерева, два состояния строки.
-5. **Подпись вкладки** (П8) — схема панели, версия 3, подзаголовок.
-6. **Документы** — AGENTS.md последним, по тому, что вышло.
+3. **Scene** (P5) — first `empty("navigate")` → `null` and the three stages,
+   then the content.
+4. **Several catalogs** (P6, P7) — the removed flag, `activeConnectorId` from
+   the tree, two row states.
+5. **Tab label** (P8) — panel schema, version 3, subtitle.
+6. **Documents** — AGENTS.md last, according to what came out.
 
-## Чем держится
+## What holds it up
 
-| Что | Чем |
+| What | By |
 | --- | --- |
-| роль наследуется при делении | юнит-тест `tree.spec.ts` |
-| дроп чужой роли отвергается | юнит-тест `dropZone.spec.ts` |
-| деление, оставляющее пустую секцию, отвергается | юнит-тест `dropZone.spec.ts` |
-| доля скрытой секции уходит соседу | юнит-тест на вычисление долей |
-| четыре стадии экрана | сценарий Playwright |
-| два каталога рядом, переключение не сбрасывает путь | сценарий Playwright |
-| «открыт» и «активен» в списке | сценарий Playwright |
-| «Connections» не утаскивается никуда | сценарий Playwright |
-| вкладка данных называет своё подключение | сценарий Playwright |
+| the role is inherited on split | unit test `tree.spec.ts` |
+| a drop of another role is rejected | unit test `dropZone.spec.ts` |
+| a split leaving an empty section is rejected | unit test `dropZone.spec.ts` |
+| the fraction of a hidden section goes to the neighbour | unit test on the fraction computation |
+| four stages of the screen | Playwright scenario |
+| two catalogs side by side, switching does not reset the path | Playwright scenario |
+| "open" and "active" in the list | Playwright scenario |
+| "Connections" cannot be dragged anywhere | Playwright scenario |
+| a data tab names its connection | Playwright scenario |
 
-Каждый новый сценарий проверяется обратным ходом: правка откатывается, тест
-запускается и падает. Сценарий, который никогда не краснел, не доказывает
-ничего.
+Each new scenario is verified in reverse: the change is rolled back, the test
+is run and fails. A scenario that has never gone red proves nothing.
 
-## Известные отклонения, которые это добавит
+## Known deviations this will add
 
-- **Отказ виден только отсутствием подсветки.** Почему сюда нельзя, экран не
-  объясняет: он просто не предлагает.
-- **Скрытая колонка остаётся в дереве.** Её видно в localStorage и в тестах
-  раскладки, хотя на экране её нет. Так и задумано — иначе не вернуть ширину,
-  — но «что я вижу» и «что записано» здесь расходятся.
-- **Доля уходит соседу справа, а не по смыслу.** Правило верно для строки из
-  трёх колонок и произвольно для разбиения сверху вниз, где «следующий сосед»
-  означает «тот, что ниже».
-- **Имя подключения на вкладке записано в момент открытия.** Переименовали
-  подключение — вкладка отстанет до переоткрытия. Ровно то же уже верно для
-  заголовка вкладки каталога.
-- **Сохранённая раскладка сбрасывается один раз** при переходе на версию 3.
-- **Сцена знает три стадии и ни одной больше.** Источник, который не умеет
-  каталог, в неё не попадает: средняя колонка для него просто не появится, а
-  сказать об этом словами по-прежнему нечем.
-- **Строка подключения несёт четыре признака.** Иконка, имя, точка состояния
-  и подсветка «открыт». На длинном списке с несколькими открытыми каталогами
-  список становится пёстрым, и мерой этого никто не занимался.
+- **A refusal is visible only as an absence of highlight.** The screen does
+  not explain why something cannot go here: it simply does not offer it.
+- **A hidden column stays in the tree.** It is visible in localStorage and in
+  layout tests, although it is not on screen. That is intended — otherwise the
+  width cannot be returned — but "what I see" and "what is recorded" diverge
+  here.
+- **The fraction goes to the neighbour on the right, not by meaning.** The rule
+  is right for a row of three columns and arbitrary for a top-to-bottom split,
+  where "the next neighbour" means "the one below".
+- **The connection name on a tab is recorded at the moment of opening.** If the
+  connection is renamed, the tab lags until reopened. Exactly the same is
+  already true of the catalog tab's title.
+- **A saved layout is reset once** on the move to version 3.
+- **The scene knows three stages and not one more.** A source that has no
+  catalog does not get into it: the middle column simply does not appear for
+  it, and there is still no way to say so in words.
+- **A connection row carries four signs.** Icon, name, status dot and the
+  "open" highlight. On a long list with several open catalogs the list becomes
+  motley, and nobody has measured this.

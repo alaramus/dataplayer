@@ -1,86 +1,91 @@
-# Вставка и удаление строк
+# Inserting and deleting rows
 
-Дата: 2026-08-27
-Статус: согласовано
-Раунд: 11
+Date: 2026-08-27
+Status: agreed
+Round: 11
 
-## Цель
+## Goal
 
-Добавить в грид две отдельные команды: вставить одну строку, не потеряв defaults
-источника, и удалить выбранные строки одной подтверждённой операцией. Обе
-команды продолжают границу D25: клиент не строит SQL, не разбирает row handle и
-не угадывает возможности PostgreSQL по имени типа источника.
+Add two separate commands to the grid: insert one row without losing the
+source's defaults, and delete the selected rows as one confirmed operation.
+Both commands continue the D25 boundary: the client does not build SQL, does
+not parse a row handle and does not guess PostgreSQL's capabilities from the
+source type's name.
 
-## Почему это не варианты update
+## Why these are not variants of update
 
-У трёх операций разные смыслы. Update меняет одно известное значение и требует
-версию одной существующей строки. Insert работает с ещё не существующей строкой
-и обязан различать отсутствие поля, SQL `NULL` и текст. Delete не несёт новых
-значений, зато должен определить транзакционную судьбу всего выделения.
-Объединённая команда получила бы множество взаимоисключающих optional-полей и
-спрятала бы эти различия в условных ветках.
+The three operations mean different things. Update changes one known value and
+requires the version of one existing row. Insert works with a row that does not
+exist yet and must distinguish an absent field, SQL `NULL` and text. Delete
+carries no new values, but has to determine the transactional fate of the whole
+selection. A combined command would get many mutually exclusive optional fields
+and would hide these differences in conditional branches.
 
-## Р1. Вставка передаёт только явно заданные поля
+## R1. Insertion passes only explicitly given fields
 
-`InsertRowRequest` содержит `node_id` и список `{column, value}`. Колонки нет в
-списке — источник применяет default. Колонка есть со значением `null` — это SQL
-`NULL`. Пустая строка остаётся пустой строкой. Список, а не JSON object, выбран
-потому, что boundary model проверяет дубликаты и сохраняет явный порядок
-параметров statement.
+`InsertRowRequest` holds `node_id` and a list of `{column, value}`. A column
+not in the list — the source applies its default. A column present with the
+value `null` — that is SQL `NULL`. An empty string stays an empty string. A
+list rather than a JSON object was chosen because the boundary model checks
+duplicates and keeps an explicit order of the statement's parameters.
 
-`FetchColumn` сообщает `insertable`, `insert_required` и `has_default`.
-Generated и identity always не вводятся; required — это insertable, NOT NULL и
-без default. Identity by default можно задать явно, но форма по умолчанию его
-опускает. PostgreSQL заново читает metadata перед командой, так что устаревшая
-форма не даёт вставить неизвестную или уже generated колонку.
+`FetchColumn` reports `insertable`, `insert_required` and `has_default`.
+Generated and identity always columns are not entered; required means
+insertable, NOT NULL and without a default. Identity by default can be given
+explicitly, but the form omits it by default. PostgreSQL rereads the metadata
+before the command, so a stale form cannot insert an unknown or since-generated
+column.
 
-В форме required-поля включены всегда. Optional-поле сначала надо включить;
-nullable-поле после этого можно отдельно сделать SQL `NULL`. Boolean и enum
-используют закрытый выбор, остальные значения остаются canonical text и
-окончательно проверяются источником. Успех возвращает всю строку через
-`RETURNING`, включая generated/default values, и row handle, если у таблицы есть
-primary key. Страница перечитывается, потому что новая строка может не пройти
-текущий filter или оказаться на другой странице sort.
+In the form, required fields are always on. An optional field has to be
+switched on first; after that a nullable field can separately be made SQL
+`NULL`. Boolean and enum use a closed choice, other values stay canonical text
+and are finally validated by the source. Success returns the whole row through
+`RETURNING`, including generated/default values, and a row handle if the table
+has a primary key. The page is reread, because the new row may not pass the
+current filter or may land on another page of the sort.
 
-## Р2. Удаляется только полная строка выделения
+## R2. Only a full row of the selection is deleted
 
-Обычный range ячеек нельзя случайно принять за список строк. Delete включается,
-только если каждый range охватывает все видимые колонки; индексы пересекающихся
-range дедуплицируются. Затем для каждой строки требуется opaque handle. Перед
-запросом показывается destructive confirmation с точным числом строк.
+An ordinary range of cells must not be mistaken for a list of rows. Delete is
+enabled only if every range covers all visible columns; the indexes of
+overlapping ranges are deduplicated. Then an opaque handle is required for each
+row. Before the request a destructive confirmation with the exact number of
+rows is shown.
 
-Скрытые колонки не мешают: полнота здесь означает строку как жест грида, а
-идентичность всё равно несёт server handle. Выделение и удаление ограничены
-текущей страницей, как и копирование; команда «удалить всё по фильтру» была бы
-другим, более опасным контрактом с отдельным preview.
+Hidden columns do not get in the way: completeness here means a row as a grid
+gesture, and identity is carried by the server handle anyway. Selection and
+deletion are limited to the current page, as copying is; a "delete everything
+matching the filter" command would be a different, more dangerous contract
+with its own preview.
 
-## Р3. Bulk delete атомарен
+## R3. Bulk delete is atomic
 
-Запрос несёт от одного до 500 handles. PostgreSQL декодирует их внутри адаптера
-и одним statement сопоставляет primary key вместе с `xmin`. `DELETE` допускается
-только когда число найденных актуальных строк равно числу запрошенных. Если хотя
-бы одна строка изменилась или исчезла, удаляется ноль и API отвечает 409.
-Дубликаты запрещены до statement.
+The request carries from one to 500 handles. PostgreSQL decodes them inside the
+adapter and in one statement matches the primary key together with `xmin`.
+`DELETE` is allowed only when the number of current rows found equals the
+number requested. If even one row has changed or disappeared, zero are deleted
+and the API answers 409. Duplicates are forbidden before the statement.
 
-Partial success отвергнут. Пользователь подтвердил одно действие над одним
-выделением; после частичного удаления пришлось бы объяснять отдельный результат
-каждой строки и повторно спрашивать согласие для остатка. All-or-nothing оставляет
-единственное восстановление после конфликта: перечитать страницу и выбрать
-актуальные строки заново.
+Partial success is rejected. The user confirmed one action on one selection;
+after a partial deletion the result of each row would have to be explained
+separately and consent asked again for the remainder. All-or-nothing leaves a
+single recovery after a conflict: reread the page and select the current rows
+again.
 
-## Способности и ошибки
+## Capabilities and errors
 
-`SupportsInsert` и `SupportsDelete` независимы. PostgreSQL вставляет в ordinary и
-partitioned tables даже без primary key; удаляет только при наличии key.
-Файловый источник остаётся read-only и сообщает причину. 422 означает неверную
-relation, колонку, handle или rejected value; 409 — конфликт версии bulk delete;
-501 — отсутствие capability у типа; 502 — безопасно сокращённый отказ источника.
+`SupportsInsert` and `SupportsDelete` are independent. PostgreSQL inserts into
+ordinary and partitioned tables even without a primary key; it deletes only
+when there is a key. The file source stays read-only and reports the reason.
+422 means a wrong relation, column, handle or a rejected value; 409 — a version
+conflict of a bulk delete; 501 — the type lacks the capability; 502 — a safely
+reduced source refusal.
 
-## Проверка
+## Checking
 
-Backend-тесты доказывают defaults, generated value, явный NULL, обязательные и
-неизвестные поля, удаление нескольких строк и нулевой эффект при одном stale
-handle. Unit-тесты проверяют полноту row selection и точные payload обеих
-команд. Playwright фильтрует `demo_lab.tags` до пустого результата, вставляет
-строку без `color`, видит PostgreSQL default, выбирает всю строку, подтверждает
-удаление и снова видит пустой результат.
+Backend tests prove defaults, a generated value, an explicit NULL, required and
+unknown fields, deleting several rows and a zero effect with one stale handle.
+Unit tests check the completeness of a row selection and the exact payloads of
+both commands. Playwright filters `demo_lab.tags` down to an empty result,
+inserts a row without `color`, sees the PostgreSQL default, selects the whole
+row, confirms deletion and sees the empty result again.

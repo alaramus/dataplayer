@@ -1,79 +1,84 @@
-# Добавление и удаление колонок
+# Adding and removing columns
 
-Дата: 2026-08-27
-Статус: согласовано
-Раунд: 12
+Date: 2026-08-27
+Status: agreed
+Round: 12
 
-## Цель
+## Goal
 
-Добавить первые изменения структуры relation: создать одну колонку и удалить
-одну колонку. Команды должны оставаться частью adapter contract, не превращать
-frontend в SQL-конструктор и после успеха синхронно обновлять Structure и Rows.
+Add the first changes to a relation's structure: create one column and drop
+one column. The commands must stay part of the adapter contract, must not turn
+the frontend into an SQL builder, and after success must update Structure and
+Rows in step.
 
-## Главная граница
+## The main boundary
 
-Тип колонки нельзя передать как произвольную SQL-строку. В отличие от значения,
-тип занимает место syntax и не может быть `%s` parameter; простая подстановка
-вернула бы ровно тот канал SQL injection, который закрывает D2c. Поэтому relation
-model несёт список `ColumnTypeOption`: человек видит title и SQL spelling, а
-клиент возвращает только opaque `code`. Адаптер сопоставляет code с заранее
-собранным `psycopg.sql.SQL` fragment. Неизвестный code отклоняется до statement.
+A column type cannot be passed as an arbitrary SQL string. Unlike a value, a
+type occupies a place in the syntax and cannot be a `%s` parameter; plain
+substitution would bring back exactly the SQL injection channel that D2c
+closes. So the relation model carries a list of `ColumnTypeOption`: a person
+sees the title and the SQL spelling, and the client returns only an opaque
+`code`. The adapter maps the code to a prebuilt `psycopg.sql.SQL` fragment. An
+unknown code is rejected before the statement.
 
-В первом словаре PostgreSQL есть common scalar types: text, integer, bigint,
-numeric, boolean, date, timestamp with time zone, jsonb и uuid. Это не попытка
-описать весь PostgreSQL. Length, precision, arrays, domains, enums и composite
-types потребуют типизированных параметров option, а не текстового поля «SQL».
+The first PostgreSQL vocabulary holds common scalar types: text, integer,
+bigint, numeric, boolean, date, timestamp with time zone, jsonb and uuid. This
+is not an attempt to describe all of PostgreSQL. Length, precision, arrays,
+domains, enums and composite types will require typed option parameters, not a
+text "SQL" field.
 
-## Р1. Возможность относится к конкретной relation
+## R1. The capability belongs to a specific relation
 
-`SupportsAddColumn` и `SupportsDropColumn` независимы от чтения структуры.
-`RelationModel` сообщает `column_changes_supported`, reason и type options.
-PostgreSQL разрешает команды для ordinary table и partitioned parent. View не
-является таблицей. Дочерняя partition получает отдельное объяснение «измените
-parent»: её колонки inherited, и локальный жест создавал бы ложное ожидание.
+`SupportsAddColumn` and `SupportsDropColumn` are independent of reading the
+structure. `RelationModel` reports `column_changes_supported`, a reason and
+type options. PostgreSQL allows the commands for an ordinary table and a
+partitioned parent. A view is not a table. A child partition gets a separate
+explanation, "change the parent": its columns are inherited, and a local
+gesture would create a false expectation.
 
-Capability типа остаётся в каталоге возможностей, а точная relation может её
-запретить. File adapter не реализует ни один DDL Protocol и на route отвечает
-501 вместо заглушки.
+The type's capability stays in the capability catalog, and a specific relation
+may forbid it. The file adapter implements no DDL Protocol and answers 501 on
+the route instead of a stub.
 
-## Р2. ADD COLUMN получает только структурированные поля
+## R2. ADD COLUMN receives only structured fields
 
-Команда содержит `node_id`, name, type code и nullable. Имя заново проверяется
-по свежей metadata, ограничивается PostgreSQL ceiling в 63 bytes и проходит
-только через `Identifier`. Type code проходит закрытый registry. Nullability —
-boolean, который добавляет фиксированный `NOT NULL` token.
+The command holds `node_id`, name, type code and nullable. The name is checked
+again against fresh metadata, limited by PostgreSQL's ceiling of 63 bytes and
+passed only through `Identifier`. The type code goes through a closed registry.
+Nullability is a boolean that adds a fixed `NOT NULL` token.
 
-Default expression в этот раунд не входит. У неё два разных смысла: literal
-value и source expression (`now()`, sequence, function). Одно text-поле снова
-смешало бы data и syntax. Следствие сказано честно: nullable включён по умолчанию,
-а NOT NULL колонка на непустой таблице без default будет отклонена источником.
+A default expression is not part of this round. It has two different meanings:
+a literal value and a source expression (`now()`, sequence, function). One text
+field would again mix data and syntax. The consequence is stated plainly:
+nullable is on by default, and a NOT NULL column on a non-empty table without a
+default will be rejected by the source.
 
-## Р3. DROP COLUMN не получает CASCADE
+## R3. DROP COLUMN gets no CASCADE
 
-Удаление адресует существующую колонку точным именем и показывает destructive
-confirmation. PostgreSQL по правилам самой таблицы удалит принадлежащие колонке
-indexes и constraints; эта потеря названа в диалоге. Но statement не содержит
-`CASCADE`: внешние зависимости должны остановить действие, а не исчезнуть как
-побочный эффект одного клика.
+Removal addresses an existing column by its exact name and shows a destructive
+confirmation. By the table's own rules PostgreSQL will remove the indexes and
+constraints that belong to the column; this loss is named in the dialog. But
+the statement does not contain `CASCADE`: external dependencies must stop the
+action, not vanish as a side effect of one click.
 
-Rename и alter type не маскируются комбинацией add/drop. Rename сохраняет
-identity и dependencies, alter type требует conversion/USING semantics; это
-отдельные будущие контракты.
+Rename and alter type are not disguised as a combination of add/drop. Rename
+preserves identity and dependencies, alter type requires conversion/USING
+semantics; these are separate future contracts.
 
-## Р4. После DDL устаревают две проекции
+## R4. After DDL two projections go stale
 
-Structure query перечитывается, чтобы показать новую модель constraints и
-indexes. Row queries того же connector тоже invalidated: массив columns и
-каждая row shape изменились одновременно. Локально вставить или вырезать один
-столбец нельзя — generated metadata и серверный порядок являются ответом
-источника, не вычислением клиента.
+The structure query is reread to show the new model of constraints and
+indexes. Row queries of the same connector are invalidated too: the columns
+array and every row shape changed at once. Inserting or cutting out one column
+locally is not possible — generated metadata and the server-side order are the
+source's answer, not a client computation.
 
-## Ошибки и проверка
+## Errors and checking
 
-404 означает исчезнувшую relation, 422 — unsupported relation, duplicate или
-unknown column/type и безопасно сокращённый отказ DDL, 501 — отсутствие
-capability, 502 — failure источника. Backend-тесты проверяют metadata, add/drop,
-quoted identifier, unknown type, views, partitions и NOT NULL rejection. Unit
-тесты проверяют exact generated-client payload и confirmation. Playwright на
-реальной `demo_lab.tags` добавляет уникальную nullable text column, видит её в
-Structure, удаляет и видит обновлённую модель.
+404 means a vanished relation, 422 — an unsupported relation, a duplicate or
+unknown column/type and a safely reduced DDL refusal, 501 — a missing
+capability, 502 — a source failure. Backend tests check metadata, add/drop, a
+quoted identifier, an unknown type, views, partitions and NOT NULL rejection.
+Unit tests check the exact generated-client payload and the confirmation.
+Playwright on the real `demo_lab.tags` adds a unique nullable text column, sees
+it in Structure, removes it and sees the updated model.
