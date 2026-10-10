@@ -14,9 +14,11 @@ import {
   toCommands,
   toMenu as resolveMenu,
   withFieldHints,
+  withPickedRows,
   withGroupingChoices,
   withSubmenus,
 } from "./actions"
+import type { ActionCommand } from "./actions"
 
 function toMenu(
   level: ActionInfo[],
@@ -769,3 +771,22 @@ describe("what the source says of the fields for one node", () => {
   })
 })
 
+
+describe("an action opened over rows picked in a report", () => {
+  it("leaves out the fields the picked rows stand in for and opens on them", () => {
+    const field = (name: string) => ({ name, label: name, kind: "text" as const, required: true, group: "general" })
+    const command = {
+      name: "timescale_drop_chunks",
+      label: "Drop chunks",
+      destructive: true,
+      icon: null,
+      fields: [field("ends_by"), field("starts_from"), { ...field("chunks"), kind: "hidden" as const }],
+      choices: {},
+      defaults: {},
+    } as unknown as ActionCommand
+    const chunks = [{ schema_name: "_timescaledb_internal", name: "_hyper_1_1_chunk" }]
+    const opened = withPickedRows(command, { params: { chunks }, replaces: ["ends_by", "starts_from"] })
+    expect(opened.fields.map((each) => each.name)).toEqual(["chunks"])
+    expect(opened.preset).toEqual({ chunks })
+  })
+})

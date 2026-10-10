@@ -6,7 +6,10 @@ import pytest
 from pydantic import ValidationError
 
 from app.adapters.actions import ActionRefused
-from app.adapters.postgres.timescale.chunk_maintenance_action import AttachParams, WindowParams
+from app.adapters.postgres.timescale.chunk_maintenance_action import (
+    AttachParams,
+    WindowParams,
+)
 from app.adapters.postgres.timescale.chunk_maintenance_execution import _observed
 from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     MaintenanceArguments,
@@ -15,7 +18,7 @@ from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     _require_mergeable,
     require_kind,
 )
-from app.adapters.postgres.timescale.plans import MaintainedHypertable
+from app.adapters.postgres.timescale.plans import ChunkRef, MaintainedHypertable
 
 TARGET = MaintainedHypertable(
     database_oid="1", relation_oid="2", schema_name="lab", table_name="events",
@@ -64,13 +67,13 @@ def test_what_reading_back_says_of_each_operation() -> None:
 
 
 def test_a_bound_is_an_instant_or_a_whole_number() -> None:
-    assert WindowParams.model_validate({"ends_by": "2020-01-03T00:00:00Z"}).window().ends_by == datetime(
+    assert WindowParams.model_validate({"ends_by": "2020-01-03T00:00:00Z"}).selection().ends_by == datetime(
         2020, 1, 3, tzinfo=UTC,
     )
     # Typed into a form, a number arrives as text; it is never read as seconds from 1970.
-    window = WindowParams.model_validate({"ends_by": "1000", "starts_from": " 10 "}).window()
+    window = WindowParams.model_validate({"ends_by": "1000", "starts_from": " 10 "}).selection()
     assert (window.starts_from, window.ends_by) == (10, 1000)
-    assert WindowParams.model_validate({"ends_by": 1000, "starts_from": ""}).window().starts_from is None
+    assert WindowParams.model_validate({"ends_by": 1000, "starts_from": ""}).selection().starts_from is None
     for wrong, message in (
         ({"ends_by": "1000", "starts_from": "2020-01-01T00:00:00Z"}, "Both ends are instants, or both are numbers"),
         ({"ends_by": "10", "starts_from": "20"}, "must start before it ends"),
@@ -92,3 +95,16 @@ def test_a_bound_must_be_of_the_kind_the_column_is() -> None:
         require_kind(ticks, datetime(2020, 1, 1, tzinfo=UTC))
     with pytest.raises(ActionRefused, match='by time on "observed_at"; give instants'):
         require_kind(TARGET, 1000)
+
+
+def test_a_window_or_picked_chunks_never_both() -> None:
+    picked = [{"schema_name": "_timescaledb_internal", "name": "_hyper_1_1_chunk"}]
+    # A hidden field nobody set arrives empty; the window's form still asks for its end.
+    assert WindowParams.model_validate({"ends_by": "", "starts_from": "", "chunks": picked}).selection() == (
+        ChunkRef(schema_name="_timescaledb_internal", name="_hyper_1_1_chunk"),
+    )
+    assert "ends_by" in WindowParams.model_json_schema()["required"]
+    with pytest.raises(ValidationError, match="Either a window or picked chunks"):
+        WindowParams.model_validate({"ends_by": "100", "chunks": picked})
+    with pytest.raises(ValidationError, match="Give where the window ends"):
+        WindowParams.model_validate({"ends_by": "", "chunks": ""})

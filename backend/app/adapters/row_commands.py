@@ -108,3 +108,51 @@ class SupportsRowCommands(Protocol):
     async def run_row_command(
         self, node_id: str, name: str, keys: Sequence[str]
     ) -> RowCommandResult: ...
+
+
+class PickedRowsAction(BaseModel):
+    """An action offered over the rows somebody picked in a relation (D209).
+
+    A row command (D70) runs at once. Some things done to rows are reviewed
+    first — dropping chunks is a job with a plan — and those are actions of
+    the node the rows belong to (D9), which the client cannot name: a node id
+    is the source's encoding. So the relation names the action and the columns
+    that name a row, and the source turns picked rows into the action's node
+    and parameters when asked.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # The name of an action of the node the rows belong to.
+    action: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    icon: str = Field(min_length=1)
+    destructive: bool = False
+    # The level the action itself requires, so nobody is shown what they may not run.
+    requires: Access = "write"
+    # The columns whose values name one row, in order.
+    identified_by: list[str] = Field(min_length=1, max_length=4)
+
+
+class PickedRowsTarget(BaseModel):
+    """What picked rows are, for the action offered over them."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str = Field(min_length=1)
+    node_label: str = Field(min_length=1)
+    # Set in the action's form; the plan reads each of them again.
+    params: dict[str, object]
+    # Fields these parameters stand in for, left out of the form.
+    replaces: list[str] = Field(default_factory=list)
+
+
+@runtime_checkable
+class SupportsPickedRows(Protocol):
+    """A source with reviewed actions over rows picked in some of its relations."""
+
+    def picked_rows_actions(self, node_id: str) -> list[PickedRowsAction]: ...
+
+    async def resolve_picked_rows(
+        self, node_id: str, action: str, keys: Sequence[Sequence[str]]
+    ) -> PickedRowsTarget: ...

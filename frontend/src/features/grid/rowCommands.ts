@@ -9,7 +9,7 @@
  * from the answer that offered it.
  */
 
-import type { FetchColumn, RowCommand } from "@/client"
+import type { FetchColumn, PickedRowsAction, RowCommand } from "@/client"
 
 import type { GridRow } from "./types"
 
@@ -74,4 +74,29 @@ export function commandOutcome(result: {
   const refused = result.refused ?? []
   if (refused.length === 0) return { text: result.message, failed: false }
   return { text: `${result.message}. ${refused.join("; ")}`, failed: true }
+}
+
+/**
+ * What the picked rows are called, for an action offered over them (D209).
+ *
+ * Each row's values in the columns the source named, in its order. Null when
+ * a column is missing from the page or a cell is blank: the source would be
+ * asked about rows it never named, so nothing is offered instead.
+ */
+export function pickedKeys(
+  action: PickedRowsAction,
+  columns: readonly FetchColumn[],
+  rows: readonly GridRow[]
+): string[][] | null {
+  const at = action.identified_by.map((name) =>
+    columns.findIndex((column) => column.name === name)
+  )
+  if (rows.length === 0 || at.some((index) => index < 0)) return null
+  const keys: string[][] = []
+  for (const row of rows) {
+    const key = at.map((index) => row.values[index])
+    if (key.some((value) => typeof value !== "string" || value === "")) return null
+    keys.push(key as string[])
+  }
+  return keys
 }

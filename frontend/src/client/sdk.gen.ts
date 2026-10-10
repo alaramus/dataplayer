@@ -264,6 +264,9 @@ import type {
   connectorsRenameColumnData,
   connectorsRenameColumnErrors,
   connectorsRenameColumnResponses,
+  connectorsResolvePickedRowsData,
+  connectorsResolvePickedRowsErrors,
+  connectorsResolvePickedRowsResponses,
   connectorsRevokeGrantData,
   connectorsRevokeGrantErrors,
   connectorsRevokeGrantResponses,
@@ -1885,6 +1888,33 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/rows/command",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Resolve Picked Rows
+   *
+   * The node and the parameters of an action over rows somebody picked (D209).
+   *
+   * Nothing is done here: the answer opens the action's own window, whose
+   * preview, review and run check everything again.
+   */
+  public static resolvePickedRows<ThrowOnError extends boolean = true>(
+    options: Options<connectorsResolvePickedRowsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsResolvePickedRowsResponses,
+      connectorsResolvePickedRowsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/rows/picked",
       ...options,
       headers: {
         "Content-Type": "application/json",

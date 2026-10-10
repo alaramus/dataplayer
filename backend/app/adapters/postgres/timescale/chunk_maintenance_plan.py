@@ -27,6 +27,7 @@ from app.adapters.postgres.timescale.api import RoutineShape, extension_routine
 from app.adapters.postgres.timescale.design_state import release
 from app.adapters.postgres.timescale.plans import (
     BoundWindow,
+    ChunkRef,
     MaintainedHypertable,
     PlannedChunk,
     ReviewedPlan,
@@ -89,6 +90,26 @@ WHERE chunk.hypertable_schema = %s AND chunk.hypertable_name = %s
   AND (%s::{bound} IS NULL OR chunk.{start} >= %s::{bound})
 ORDER BY chunk.{start}, chunk.chunk_schema, chunk.chunk_name
 LIMIT {limit}
+"""
+
+# The chunks somebody picked by name, read the way the window reads them.
+_PICKED = """
+SELECT chunk.chunk_schema AS schema_name, chunk.chunk_name AS name,
+       chunk.{start}::text AS range_start, chunk.{end}::text AS range_end,
+       chunk.is_compressed,
+       COALESCE(own.spcname, fallback.spcname) AS tablespace
+FROM timescaledb_information.chunks AS chunk
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.nspname = chunk.chunk_schema
+JOIN pg_catalog.pg_class AS relation
+  ON relation.relnamespace = namespace.oid AND relation.relname = chunk.chunk_name
+JOIN pg_catalog.pg_database AS database ON database.datname = pg_catalog.current_database()
+JOIN pg_catalog.pg_tablespace AS fallback ON fallback.oid = database.dattablespace
+LEFT JOIN pg_catalog.pg_tablespace AS own ON own.oid = relation.reltablespace
+WHERE chunk.hypertable_schema = %s AND chunk.hypertable_name = %s
+  AND (chunk.chunk_schema::text, chunk.chunk_name::text) IN (
+      SELECT * FROM ROWS FROM (pg_catalog.unnest(%s::text[]), pg_catalog.unnest(%s::text[]))
+  )
+ORDER BY chunk.{start}, chunk.chunk_schema, chunk.chunk_name
 """
 
 # Compared in the column's own type, so a date or a timestamp without a time
@@ -270,9 +291,15 @@ class MaintenanceUnit(ReviewedPlan):
     group: tuple[PlannedChunk, ...] = ()
 
 
+# Whole chunks inside a window, or exactly the chunks somebody picked (D209).
+Selection = BoundWindow | tuple[ChunkRef, ...]
+
+
 class MaintenancePlan(ReviewedPlan):
     unit: MaintenanceUnit
     window: BoundWindow | None = None
+    # Chosen by name in the Chunks report rather than by a window.
+    picked: bool = False
     # The chunks the job changes, in time order; one per unit except for a merge.
     chunks: tuple[PlannedChunk, ...] = Field(default=(), max_length=MAX_OPERATION_TARGETS)
     # Chunks inside the window the operation leaves as they are, with why.
@@ -325,6 +352,33 @@ async def _window(
     return rows
 
 
+async def _picked(
+    reader: PostgresReader, target: MaintainedHypertable, picked: tuple[ChunkRef, ...],
+) -> list[dict[str, object]]:
+    if not picked:
+        raise _refuse("Pick at least one chunk")
+    if len(picked) > MAX_OPERATION_TARGETS:
+        raise ActionRefused("too_large", f"Pick at most {MAX_OPERATION_TARGETS} chunks at a time")
+    rows = await reader.query(_ranged(_PICKED, target), (
+        target.schema_name, target.table_name,
+        [chunk.schema_name for chunk in picked], [chunk.name for chunk in picked],
+    ), inspection=True)
+    found = {(row["schema_name"], row["name"]) for row in rows}
+    gone = next((chunk for chunk in picked if (chunk.schema_name, chunk.name) not in found), None)
+    if gone is not None:
+        raise _refuse(f'"{gone.name}" is not a chunk of this hypertable any more')
+    return rows
+
+
+async def picked_left(reader: PostgresReader, target: MaintainedHypertable, picked: tuple[ChunkRef, ...]) -> int:
+    """How many of the picked chunks are still chunks of the hypertable."""
+    rows = await reader.query(_ranged(_PICKED, target), (
+        target.schema_name, target.table_name,
+        [chunk.schema_name for chunk in picked], [chunk.name for chunk in picked],
+    ), inspection=True)
+    return len(rows)
+
+
 def _planned(row: dict[str, object]) -> PlannedChunk:
     return PlannedChunk.model_validate({key: row[key] for key in ("schema_name", "name", "range_start", "range_end")})
 
@@ -336,14 +390,18 @@ async def _require_tablespace(reader: PostgresReader, name: str) -> None:
 
 async def plan_window_maintenance(
     reader: PostgresReader, schema_name: str, table_name: str, maintenance: Maintenance,
-    window: BoundWindow, arguments: MaintenanceArguments,
+    selection: Selection, arguments: MaintenanceArguments,
 ) -> MaintenancePlan:
     """The exact chunks a per-chunk operation or a merge would change."""
     try:
         async with asyncio.timeout(5):
             unit = await inspect_unit(reader, schema_name, table_name, maintenance)
             target = unit.target
-            rows = await _window(reader, target, window)
+            window = selection if isinstance(selection, BoundWindow) else None
+            rows = (
+                await _window(reader, target, window) if window is not None
+                else await _picked(reader, target, selection if isinstance(selection, tuple) else ())
+            )
             keep: list[dict[str, object]] = rows
             because: str | None = None
             match maintenance:
@@ -366,13 +424,14 @@ async def plan_window_maintenance(
                 case "merge" | "merge_concurrently":
                     _require_mergeable(rows, unit.strategy.extension_version)
             if not keep:
-                raise _refuse(f"Every whole chunk inside this window is {because}")
+                which = "whole chunk inside this window" if window is not None else "picked chunk"
+                raise _refuse(f"Every {which} is {because}")
             chunks = tuple(_planned(row) for row in keep)
             if maintenance in MERGES:
                 unit = unit.model_copy(update={"group": chunks})
             unit = unit.model_copy(update={"arguments": arguments})
             return MaintenancePlan(
-                unit=unit, window=window, chunks=chunks,
+                unit=unit, window=window, picked=window is None, chunks=chunks,
                 skipped=len(rows) - len(keep), skipped_because=because if len(rows) > len(keep) else None,
             )
     except TimeoutError:
@@ -410,12 +469,12 @@ async def window_count(reader: PostgresReader, target: MaintainedHypertable, win
 
 def _require_mergeable(rows: list[dict[str, object]], version: str) -> None:
     if len(rows) < 2:
-        raise _refuse("A merge needs at least two whole chunks inside the window")
+        raise _refuse("A merge needs at least two chunks")
     for before, after in zip(rows, rows[1:], strict=False):
         if before["range_end"] != after["range_start"]:
             raise _refuse(
                 f'Chunks "{before["name"]}" and "{after["name"]}" are not adjacent; '
-                "narrow the window to chunks that touch",
+                "choose chunks that touch",
             )
     if any(row["is_compressed"] is True for row in rows) and release(version) < MERGE_COMPRESSED:
         raise _refuse(f"TimescaleDB {version} cannot merge compressed chunks; decompress them first")

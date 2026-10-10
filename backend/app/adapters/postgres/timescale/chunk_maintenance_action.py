@@ -23,6 +23,7 @@ from app.adapters.actions import (
 from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
 from app.adapters.operations import (
+    MAX_OPERATION_TARGETS,
     ObservedState,
     OperationPlan,
     OperationTarget,
@@ -41,10 +42,12 @@ from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     MaintenanceArguments,
     MaintenancePlan,
     MaintenanceUnit,
+    Selection,
     chunk_holds,
     index_names,
     inspect_unit,
     ordering_index,
+    picked_left,
     plan_attach,
     plan_split,
     plan_window_maintenance,
@@ -56,6 +59,7 @@ from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import (
     BoundWindow,
     ChunkBound,
+    ChunkRef,
     bound_text,
     require_ordered,
 )
@@ -72,12 +76,21 @@ def _choices(names: list[str]) -> list[FieldChoice]:
     return [FieldChoice(value=name, label=name) for name in names]
 
 
+def _end_is_asked(schema: dict[str, Any]) -> None:
+    # Optional only for chunks picked by name, whose form leaves the window out
+    # (D209); a form that shows it asks for its end.
+    required = schema.setdefault("required", [])
+    if "ends_by" not in required:
+        required.append("ends_by")
+
+
 class WindowParams(BaseModel):
     """Whole chunks between two instants, or two values of an integer time column."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_extra=_end_is_asked)
 
-    ends_by: ChunkBound = Field(
+    ends_by: ChunkBound | None = Field(
+        default=None,
         title="Chunks ending at or before",
         description="With its time zone; only chunks lying entirely inside the window are chosen",
         examples=["2026-01-15T00:00:00Z"],
@@ -88,20 +101,35 @@ class WindowParams(BaseModel):
         description="Leave empty for every earlier chunk",
         examples=["2026-01-01T00:00:00Z"],
     )
+    # Exactly these chunks instead of a window, picked in the Chunks report (D209).
+    chunks: list[ChunkRef] | None = Field(
+        default=None, min_length=1, max_length=MAX_OPERATION_TARGETS, json_schema_extra={"x-ui-hidden": True},
+    )
 
-    @field_validator("starts_from", mode="before")
+    @field_validator("starts_from", "ends_by", "chunks", mode="before")
     @classmethod
     def blank_is_unbounded(cls, value: object) -> object:
-        # The form sends a text field somebody emptied as an empty string.
+        # The form sends a text field somebody emptied, or a hidden one nobody
+        # set, as an empty string.
         return None if isinstance(value, str) and not value.strip() else value
 
     @model_validator(mode="after")
     def ordered(self) -> Self:
+        if self.chunks is not None:
+            if self.ends_by is not None or self.starts_from is not None:
+                raise ValueError("Either a window or picked chunks, not both")
+            return self
+        if self.ends_by is None:
+            raise ValueError("Give where the window ends")
         if self.starts_from is not None:
             require_ordered(self.starts_from, self.ends_by)
         return self
 
-    def window(self) -> BoundWindow:
+    def selection(self) -> Selection:
+        if self.chunks is not None:
+            return tuple(self.chunks)
+        if self.ends_by is None:
+            raise AssertionError("validated: a window has its end")
         return BoundWindow(ends_by=self.ends_by, starts_from=self.starts_from)
 
 
@@ -295,6 +323,8 @@ class MaintainChunks[P: BaseModel](Action[P]):
             window = plan.window
             start = "the earliest chunk" if window.starts_from is None else bound_text(window.starts_from)
             items.append(f"Whole chunks from {start} to {bound_text(window.ends_by)}")
+        if plan.picked:
+            items.append("Exactly the chunks picked in the Chunks report, each read again by name")
         items.extend(
             f"{_chunk(chunk.schema_name, chunk.name)}: {chunk.range_start} to {chunk.range_end}"
             for chunk in plan.chunks[:LISTED_CHUNKS]
@@ -317,7 +347,7 @@ class WindowMaintenance[W: WindowParams](MaintainChunks[W]):
         self, reader: PostgresReader, schema_name: str, table_name: str, params: W,
     ) -> MaintenancePlan:
         return await plan_window_maintenance(
-            reader, schema_name, table_name, self.maintenance, params.window(), self._arguments(params),
+            reader, schema_name, table_name, self.maintenance, params.selection(), self._arguments(params),
         )
 
     async def _reviewed_unit(
@@ -385,8 +415,13 @@ class MergeChunks(WindowMaintenance[WindowParams]):
         async with self._session.inspection() as reader:
             unit = await inspect_unit(reader, schema.name, node.name, self.maintenance)
 
+        selection = params.selection()
+
         async def merged(reader: PostgresReader) -> bool:
-            return await window_count(reader, unit.target, params.window()) == 1
+            # Merged, one of the chunks is left covering them all.
+            if isinstance(selection, BoundWindow):
+                return await window_count(reader, unit.target, selection) == 1
+            return await picked_left(reader, unit.target, selection) == 1
 
         return await observe(self._session, unit, targets, merged)
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import type { FetchColumn, RowCommand } from "@/client"
+import type { FetchColumn, PickedRowsAction, RowCommand } from "@/client"
 
-import { commandOutcome, commandQuestion, commandsForRow, keyOf } from "./rowCommands"
+import { commandOutcome, commandQuestion, commandsForRow, keyOf, pickedKeys } from "./rowCommands"
 import type { GridRow } from "./types"
 
 const PID: FetchColumn = {
@@ -125,5 +125,29 @@ describe("what is said afterwards", () => {
 
   it("reads an answer that left the list out", () => {
     expect(commandOutcome({ message: "1 process closed" }).failed).toBe(false)
+  })
+})
+
+describe("what picked rows are called for an action over them", () => {
+  const DROP: PickedRowsAction = {
+    action: "timescale_drop_chunks",
+    title: "Drop chunks…",
+    icon: "delete",
+    destructive: true,
+    requires: "structure",
+    identified_by: ["state", "pid"],
+  }
+
+  it("takes each row's cells in the columns the source named, in its order", () => {
+    expect(pickedKeys(DROP, [PID, STATE], [at(0), at(1)])).toEqual([
+      ["active", "101"],
+      ["idle", "102"],
+    ])
+  })
+
+  it("offers nothing for a blank cell, a missing column or no rows", () => {
+    expect(pickedKeys(DROP, [PID, STATE], [at(0), at(2)])).toBeNull()
+    expect(pickedKeys(DROP, [PID], [at(0)])).toBeNull()
+    expect(pickedKeys(DROP, [PID, STATE], [])).toBeNull()
   })
 })

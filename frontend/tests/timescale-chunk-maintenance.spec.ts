@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { catalogAction, catalogCheck, showOnlySchema } from "./utils/catalog"
+import { addFilter, catalogAction, catalogCheck, catalogRow, showOnlySchema } from "./utils/catalog"
 import { login } from "./utils/login"
 import { createTimescaleConnector, requireTimescale, timescaleSql } from "./utils/timescale"
 import { deleteConnector, openConnector } from "./utils/workspace"
@@ -124,6 +124,60 @@ test("takes values of an integer time column instead of a calendar", async ({ pa
     await expect(preview).toContainText("Whole chunks from the earliest chunk to 200")
     await dialog.getByRole("button", { name: "Cancel" }).click()
     await expect(dialog).toHaveCount(0)
+  } finally {
+    await deleteConnector(page, connector).catch(() => undefined)
+    await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
+  }
+})
+
+test("drops the chunks picked in the Chunks report, and only those", async ({ page }) => {
+  const stamp = Date.now()
+  const connector = `e2e-picked-${stamp}`
+  const schema = `e2e_picked_${stamp}`
+  await timescaleSql(
+    `CREATE SCHEMA ${schema};
+     CREATE TABLE ${schema}.readings (observed_at timestamptz NOT NULL, value integer);
+     SELECT create_hypertable('${schema}.readings', by_range('observed_at', interval '1 day'));
+     INSERT INTO ${schema}.readings
+       SELECT TIMESTAMPTZ '2020-01-01 00:00+00' + make_interval(hours => g), g FROM generate_series(0, 95) AS g;`
+  )
+  try {
+    await login(page)
+    await createTimescaleConnector(page, connector)
+    await openConnector(page, connector)
+    await catalogRow(page, "System").click()
+    await catalogRow(page, "TimescaleDB").click()
+    await catalogRow(page, "Chunks").click()
+    await addFilter(page, "hypertable_schema", "equals", schema)
+    await expect(page.getByTestId("grid-cell-3-chunk_name")).toBeVisible()
+
+    // Nothing picked, nothing to do; the first and the third day, with a day between them.
+    await expect(page.getByTestId("grid-picked-run-timescale_drop_chunks")).toBeDisabled()
+    await page.getByTestId("grid-select-row-0").click()
+    await page.getByTestId("grid-select-row-2").click({ modifiers: ["ControlOrMeta"] })
+    await page.getByTestId("grid-picked-run-timescale_drop_chunks").click()
+
+    // The hypertable's own window, opened on the hypertable the rows belong to.
+    const dialog = page.getByTestId("action-dialog")
+    await expect(dialog).toContainText("readings")
+    await expect(page.getByTestId("field-ends_by")).toHaveCount(0)
+    const preview = page.getByTestId("action-preview")
+    await expect(preview).toContainText("Drop 2 chunks")
+    await expect(preview).toContainText("Exactly the chunks picked in the Chunks report")
+    await page.getByTestId("action-submit").click()
+    await expect(dialog).toHaveCount(0)
+
+    await expect
+      .poll(
+        () =>
+          timescaleSql(
+            `SELECT string_agg(to_char(range_start AT TIME ZONE 'UTC', 'DD'), ',' ORDER BY range_start)
+             FROM timescaledb_information.chunks
+             WHERE hypertable_schema = '${schema}' AND hypertable_name = 'readings'`
+          ),
+        { timeout: 30_000 }
+      )
+      .toBe("02,04")
   } finally {
     await deleteConnector(page, connector).catch(() => undefined)
     await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)

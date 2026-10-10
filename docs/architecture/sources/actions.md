@@ -4,7 +4,30 @@ For adding an action or changing what a form may be applied to. What an action
 changes in a relation is [ddl.md](ddl.md); downloads and reports are in
 [downloads.md](downloads.md).
 
-Decisions here: D9, D56, D118, D79, D46, D68, D74, D162.
+Decisions here: D9, D56, D118, D79, D46, D68, D74, D162, D209.
+
+## D209. Rows picked in a report open a reviewed action on the node they belong to
+
+A row command ([D70](relations.md)) runs at once. Something reviewed first —
+dropping chunks is a job with a plan (D123) — is an action of a catalog node,
+and a database-wide report's rows belong to many nodes whose ids the client
+cannot compose.
+
+- A relation declares `PickedRowsAction`s on its fetch result beside its row
+  commands: the action's name, the columns that name a row, a title and an
+  icon. They are filtered by the action's own level.
+- The grid offers them while rows are picked. Pressing one sends the picked
+  rows' keys to `POST …/rows/picked`, and the source answers with the node, the
+  parameters naming exactly those rows, and the fields they stand in for — or
+  refuses: rows of two nodes, a row that is gone.
+- The client opens the action's own window on that node, with those values set
+  and those fields left out. Preview, review, fingerprint and job are the
+  action's own, so the plan reads every picked row again.
+
+The Chunks report offers drop, move, reorder, detach and both merges this way;
+the actions take `chunks` by name as well as a window.
+
+Spec: [Reviewed actions from rows picked in a report](../../decisions/2026-10-10-actions-from-picked-rows-design.md)
 
 ## D162. Paste asks about a taken name in a window
 

@@ -464,3 +464,29 @@ async def test_a_source_without_row_commands_answers_501(
     )
 
     assert response.status_code == 501
+
+
+# --- reviewed actions over picked rows (D209) --------------------------------
+
+
+async def test_picked_rows_resolve_only_what_the_relation_offers(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    # An ordinary report offers nothing over its picked rows, so nothing resolves.
+    processes = await _fetch(
+        client, normal_user_token_headers, connector_id, node_id="pg_dataplayer.processes", limit=5,
+    )
+    assert processes.status_code == 200
+    assert processes.json()["picked_rows_actions"] == []
+    response = await client.post(
+        f"{BASE}/{connector_id}/rows/picked",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": "pg_dataplayer.processes",
+            "action": "timescale_drop_chunks",
+            "keys": [["_timescaledb_internal", "_hyper_1_1_chunk"]],
+        },
+    )
+    assert response.status_code == 404

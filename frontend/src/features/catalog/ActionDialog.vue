@@ -529,7 +529,7 @@ function takenNames(taken: File[]): string {
 
 function initialValues(command: ActionCommand | null): Record<string, unknown> {
   if (command === null) return {}
-  return { ...nameValues(command), ...clipboardValues(command) }
+  return { ...nameValues(command), ...clipboardValues(command), ...(command.preset ?? {}) }
 }
 
 /**

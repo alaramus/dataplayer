@@ -9,8 +9,11 @@ import pytest
 from psycopg import sql
 
 from app.adapters.actions import ActionRefused, OffersFieldHints
+from app.adapters.postgres.catalog import PostgresCatalog
+from app.adapters.postgres.timescale import picked_chunks
 from app.adapters.postgres.timescale.chunk_maintenance_action import MaintainChunks
 from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS
+from app.adapters.row_commands import PickedRowsTarget
 from compatibility.timescale.policy_tables import PolicyTable, registry
 from compatibility.timescale.source import TimescaleSource
 
@@ -406,3 +409,50 @@ async def test_a_hash_partitioned_hypertable_is_maintained_chunk_by_chunk(
         source, hashed, "timescale_split_chunk", {"at": "2020-01-02T06:00:00Z"},
     )
 
+
+
+async def picked(source: TimescaleSource, action: str, keys: list[list[str]]) -> PickedRowsTarget:
+    session = source.session()
+    return await picked_chunks.resolve(session, PostgresCatalog(session), picked_chunks.CHUNKS_REPORT_ID, action, keys)
+
+
+async def test_chunks_picked_in_the_report_are_dropped_exactly(source: TimescaleSource, table: PolicyTable) -> None:
+    schema = await _chunk_schema(source, table)
+    days = await chunks(source, table)
+    # Two chunks with a gap between them: no window holds exactly these.
+    keys = [[schema, days[1]["chunk_name"]], [schema, days[3]["chunk_name"]]]
+    target = await picked(source, "timescale_drop_chunks", keys)
+    assert target.node_id == table.node_id and target.replaces == ["ends_by", "starts_from"]
+
+    preview = await action(source, "timescale_drop_chunks").preview(target.node_id, target.params)
+    assert preview.summary.startswith("Drop 2 chunks"), preview.summary
+    assert "Exactly the chunks picked in the Chunks report, each read again by name" in preview.items
+    assert await run(source, table, "timescale_drop_chunks", target.params) == ["completed", "completed"]
+    left = [row["chunk_name"] for row in await chunks(source, table)]
+    assert left == [days[index]["chunk_name"] for index in (0, 2, 4, 5)]
+
+    # A picked chunk dropped meanwhile is not planned as if it were there.
+    assert "is not a chunk of this hypertable any more" in await refusal(
+        source, table, "timescale_drop_chunks", target.params,
+    )
+    if source.at_least("2.18.0"):
+        assert "are not adjacent" in await refusal(source, table, "timescale_merge_chunks", {
+            "chunks": [{"schema_name": schema, "name": left[0]}, {"schema_name": schema, "name": left[2]}],
+        })
+
+
+async def test_rows_of_two_hypertables_are_not_one_action(
+    source: TimescaleSource, table: PolicyTable, ticks: PolicyTable,
+) -> None:
+    keys = [
+        [await _chunk_schema(source, table), (await chunks(source, table))[0]["chunk_name"]],
+        [await _chunk_schema(source, ticks), (await source.session().query(
+            _INTEGER_CHUNKS, (ticks.schema, ticks.table),
+        ))[0]["chunk_name"]],
+    ]
+    with pytest.raises(ActionRefused, match="belong to 2 hypertables"):
+        await picked(source, "timescale_drop_chunks", keys)
+    with pytest.raises(ActionRefused, match="not chunks any more"):
+        await picked(source, "timescale_drop_chunks", [*keys[:1], ["nowhere", "nothing"]])
+    with pytest.raises(ActionRefused, match="not offered"):
+        await picked(source, "timescale_split_chunk", keys[:1])

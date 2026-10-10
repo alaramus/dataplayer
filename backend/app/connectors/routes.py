@@ -157,7 +157,9 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.resources import ResourcesDep
 from app.adapters.row_commands import (
+    PickedRowsTarget,
     RowCommandResult,
+    SupportsPickedRows,
     SupportsRowCommands,
     UnknownRowCommand,
 )
@@ -996,6 +998,15 @@ async def fetch_rows(
                         else []
                     )
                     if at_least(access, command.requires)
+                ],
+                "picked_rows_actions": [
+                    offered
+                    for offered in (
+                        adapter.picked_rows_actions(request.node_id)
+                        if isinstance(adapter, SupportsPickedRows)
+                        else []
+                    )
+                    if at_least(access, offered.requires)
                 ],
             }
         )
@@ -1900,6 +1911,61 @@ async def run_row_command(
     # What the command did is not in the page that was read a moment ago.
     await data_cache.invalidate_connector(connector_id)
     return result
+
+
+class PickedRowsRequest(BaseModel):
+    """The relation the rows were picked in, the action offered there, and the rows."""
+
+    node_id: str
+    action: str
+    keys: Annotated[
+        list[Annotated[list[str], Field(min_length=1, max_length=4)]],
+        Field(min_length=1, max_length=500),
+    ]
+
+
+@router.post("/{connector_id}/rows/picked", response_model=PickedRowsTarget)
+async def resolve_picked_rows(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    body: PickedRowsRequest,
+) -> Any:
+    """
+    The node and the parameters of an action over rows somebody picked (D209).
+
+    Nothing is done here: the answer opens the action's own window, whose
+    preview, review and run check everything again.
+    """
+    adapter, access = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsPickedRows):
+        raise HTTPException(
+            status_code=501,
+            detail={"message": "This source offers nothing over picked rows", "error_kind": "config"},
+        )
+    offered = {
+        item.action: item for item in adapter.picked_rows_actions(body.node_id)
+    }
+    found = offered.get(body.action)
+    if found is None:
+        raise HTTPException(
+            status_code=404, detail={"message": f"Nothing called {body.action} is offered here"}
+        )
+    if not at_least(access, found.requires):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": f"{found.title} needs {found.requires} access",
+                "required": found.requires,
+                "held": access,
+            },
+        )
+    return await perform(
+        lambda: adapter.resolve_picked_rows(body.node_id, body.action, body.keys)
+    )
 
 
 @router.post("/{connector_id}/relations/options", response_model=NewRelationOptions)

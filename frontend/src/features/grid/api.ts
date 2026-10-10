@@ -15,6 +15,7 @@ import type {
   FollowReferenceRequest,
   InsertRowRequest,
   ImportRowsRequest,
+  PickedRowsRequest,
   RowCommandRequest,
   UpdateCellRequest,
   UpdateCellsRequest,
@@ -160,6 +161,26 @@ export function useRunRowCommand(connectorId: Ref<string>) {
       })
     ).data
   )
+}
+
+/**
+ * Which node rows picked in a report belong to, and what an action there is
+ * set to for exactly them (D209). Nothing is done by asking.
+ */
+export async function pickedRowsTarget(connectorId: string, body: PickedRowsRequest) {
+  return (
+    await ConnectorsService.resolvePickedRows({ path: { connector_id: connectorId }, body })
+  ).data
+}
+
+/** What one node offers, asked once, for the node picked rows belong to. */
+export async function actionsOfNode(connectorId: string, nodeId: string) {
+  return (
+    await ConnectorsService.readActions({
+      path: { connector_id: connectorId },
+      body: { node_ids: [nodeId] },
+    })
+  ).data
 }
 
 export function useDeleteRows(connectorId: Ref<string>) {

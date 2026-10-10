@@ -4775,6 +4775,10 @@ export type FetchResult = {
    * Row Commands
    */
   row_commands?: Array<RowCommand>
+  /**
+   * Picked Rows Actions
+   */
+  picked_rows_actions?: Array<PickedRowsAction>
 }
 
 /**
@@ -8300,6 +8304,91 @@ export type PdfContents = {
    * Version
    */
   version: string
+}
+
+/**
+ * PickedRowsAction
+ *
+ * An action offered over the rows somebody picked in a relation (D209).
+ *
+ * A row command (D70) runs at once. Some things done to rows are reviewed
+ * first — dropping chunks is a job with a plan — and those are actions of
+ * the node the rows belong to (D9), which the client cannot name: a node id
+ * is the source's encoding. So the relation names the action and the columns
+ * that name a row, and the source turns picked rows into the action's node
+ * and parameters when asked.
+ */
+export type PickedRowsAction = {
+  /**
+   * Action
+   */
+  action: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Icon
+   */
+  icon: string
+  /**
+   * Destructive
+   */
+  destructive?: boolean
+  /**
+   * Requires
+   */
+  requires?: "read" | "write" | "structure" | "own"
+  /**
+   * Identified By
+   */
+  identified_by: Array<string>
+}
+
+/**
+ * PickedRowsRequest
+ *
+ * The relation the rows were picked in, the action offered there, and the rows.
+ */
+export type PickedRowsRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Action
+   */
+  action: string
+  /**
+   * Keys
+   */
+  keys: Array<Array<string>>
+}
+
+/**
+ * PickedRowsTarget
+ *
+ * What picked rows are, for the action offered over them.
+ */
+export type PickedRowsTarget = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Node Label
+   */
+  node_label: string
+  /**
+   * Params
+   */
+  params: {
+    [key: string]: unknown
+  }
+  /**
+   * Replaces
+   */
+  replaces?: Array<string>
 }
 
 /**
@@ -15459,6 +15548,38 @@ export type connectorsRunRowCommandResponses = {
 
 export type connectorsRunRowCommandResponse =
   connectorsRunRowCommandResponses[keyof connectorsRunRowCommandResponses]
+
+export type connectorsResolvePickedRowsData = {
+  body: PickedRowsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/rows/picked"
+}
+
+export type connectorsResolvePickedRowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsResolvePickedRowsError =
+  connectorsResolvePickedRowsErrors[keyof connectorsResolvePickedRowsErrors]
+
+export type connectorsResolvePickedRowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PickedRowsTarget
+}
+
+export type connectorsResolvePickedRowsResponse =
+  connectorsResolvePickedRowsResponses[keyof connectorsResolvePickedRowsResponses]
 
 export type connectorsNewRelationOptionsData = {
   body: NewRelationTarget

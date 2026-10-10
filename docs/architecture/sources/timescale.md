@@ -442,7 +442,9 @@ learns which it is from the action's field hints ([D9](actions.md)). A Detached 
 anything.
 
 Each is an action in the hypertable's Timescale submenu, over a window of
-whole chunks like compressing; a split takes the instant to split at, and an
+whole chunks like compressing, and drop, move, reorder, detach and merge are
+also offered over rows picked in the Chunks report, by name
+([D209](actions.md)); a split takes the instant to split at, and an
 attach the table and the range it is to cover. A merge, a split and an attach
 are one unit, and the unit carries the exact chunks, point or bounds it was
 reviewed with, so a source that changed between review and run refuses it.
@@ -465,9 +467,6 @@ What the matrix showed, and the code follows:
 
 Known deviations:
 
-- **Not offered from a selection in the Chunks report.** A report row offers
-  only commands that run at once (D70), and these are reviewed first; the
-  submenu's window chooses the same whole chunks.
 - **No merge, attach or split beside hash dimensions.** Which hash partition
   a chunk is in is not in the public views, so neither a merge nor an attach
   could be checked first; TimescaleDB itself refuses to split a chunk of a

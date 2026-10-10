@@ -67,6 +67,11 @@ export interface ActionCommand {
   /** Whether the source says, for one node, what some of its fields are. */
   offersHints?: boolean
   fields: FieldSpec[]
+  /**
+   * Values the form opens with that nobody types: what the source made of
+   * rows picked in a report (D209).
+   */
+  preset?: Record<string, unknown>
   /** What each field with a published set of values offers, by field name. */
   choices: Record<string, SchemaChoice[]>
   /** What each field starts as, by field name. */
@@ -146,6 +151,25 @@ export function withGroupingChoices(
   return fields.map((field) =>
     field.purpose === "grouping" ? { ...field, kind: "select", choices } : field
   )
+}
+
+/**
+ * The command as it opens over rows picked in a report (D209).
+ *
+ * The source said which node the rows belong to, what the form is set to and
+ * which fields that stands in for; those fields are left out of the form
+ * rather than shown empty, so nothing asks for a window nobody needs.
+ */
+export function withPickedRows(
+  command: ActionCommand,
+  target: { params: Record<string, unknown>; replaces?: string[] }
+): ActionCommand {
+  const replaced = new Set(target.replaces ?? [])
+  return {
+    ...command,
+    fields: command.fields.filter((field) => !replaced.has(field.name)),
+    preset: target.params,
+  }
 }
 
 /** What one node makes of an action's fields, as the source says once the form is open. */

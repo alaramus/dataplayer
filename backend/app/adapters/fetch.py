@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.relation import ColumnType
-from app.adapters.row_commands import RowCommand
+from app.adapters.row_commands import PickedRowsAction, RowCommand
 
 ScalarFilterOp = Literal[
     "eq",
@@ -179,6 +179,9 @@ class FetchResult(BaseModel):
     # What this relation offers to do to rows somebody selects. Filled by the
     # route from the composed adapter's capability, like export above (D70).
     row_commands: list[RowCommand] = Field(default_factory=list)
+    # What this relation offers to do, after a review, to rows somebody picks
+    # (D209). Filled by the route the same way.
+    picked_rows_actions: list[PickedRowsAction] = Field(default_factory=list)
 
 
 def as_read_only(result: FetchResult, reason: str) -> FetchResult:

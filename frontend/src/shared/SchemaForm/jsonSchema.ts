@@ -321,7 +321,9 @@ export function autofillOf(field: FieldSpec): "off" | "new-password" {
 function zodForField(field: FieldSpec): z.ZodType {
   switch (field.kind) {
     case "hidden":
-      return z.string()
+      // Set by the source or by the screen, never typed, and not always text:
+      // the chunks picked in a report travel as a list (D209).
+      return z.unknown()
     case "select":
       return z.enum(
         (field.choices ?? []).map((choice) => choice.value) as [string, ...string[]],

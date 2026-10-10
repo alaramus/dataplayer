@@ -71,6 +71,7 @@ from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.summary import PostgresSummaries
 from app.adapters.postgres.table_copy import DIALECT, PostgresTableCopy
 from app.adapters.postgres.table_design import PostgresTableDesign
+from app.adapters.postgres.timescale import picked_chunks
 from app.adapters.postgres.timescale.actions import TIMESCALE_ACTION_TYPES
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import (
@@ -104,7 +105,12 @@ from app.adapters.relation_changes import (
     NewRelationOptions,
 )
 from app.adapters.resources import Pooling
-from app.adapters.row_commands import RowCommand, RowCommandResult
+from app.adapters.row_commands import (
+    PickedRowsAction,
+    PickedRowsTarget,
+    RowCommand,
+    RowCommandResult,
+)
 from app.adapters.search import (
     LastSearch,
     NodeSearchRequest,
@@ -406,6 +412,14 @@ class PostgresAdapter:
         self, node_id: str, name: str, keys: Sequence[str]
     ) -> RowCommandResult:
         return await self._row_commands.run(node_id, name, keys)
+
+    def picked_rows_actions(self, node_id: str) -> list[PickedRowsAction]:
+        return picked_chunks.picked_actions(node_id)
+
+    async def resolve_picked_rows(
+        self, node_id: str, action: str, keys: Sequence[Sequence[str]]
+    ) -> PickedRowsTarget:
+        return await picked_chunks.resolve(self._session, self._catalog, node_id, action, keys)
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)

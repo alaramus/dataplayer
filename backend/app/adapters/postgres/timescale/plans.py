@@ -490,6 +490,15 @@ class MaintainedHypertable(BaseModel):
         return self.column_type in INTEGER_COLUMN_TYPES
 
 
+class ChunkRef(BaseModel):
+    """A chunk by its name, as a row of the Chunks report names it (D209)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_name: str = Field(min_length=1, max_length=63)
+    name: str = Field(min_length=1, max_length=63)
+
+
 class PlannedChunk(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 

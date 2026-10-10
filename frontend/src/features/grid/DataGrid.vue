@@ -17,6 +17,7 @@ import type {
   FetchColumn,
   FetchRequest,
   FetchResult,
+  PickedRowsAction,
   ReferencedRows,
   RowCommand,
   RowsView,
@@ -24,7 +25,7 @@ import type {
 } from "@/client"
 import { errorKindOf, messageOf, statusOf } from "@/shared/api/errors"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
-import { reloadedBy, toCommands } from "@/features/catalog/actions"
+import { reloadedBy, toCommands, withPickedRows } from "@/features/catalog/actions"
 import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
 import { useNodeActions } from "@/features/catalog/api"
 import { useConnectionFreshness } from "@/features/connectors/api"
@@ -44,6 +45,8 @@ import {
   useCreateRelationFromSource,
   useDeleteRows,
   useRunRowCommand,
+  actionsOfNode,
+  pickedRowsTarget,
   useDownloadPage,
   useExportRows,
   useImportRows,
@@ -67,7 +70,7 @@ import {
 import type { RefreshSeconds } from "./autoRefresh"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 
-import { commandOutcome, commandQuestion, commandsForRow, keyOf } from "./rowCommands"
+import { commandOutcome, commandQuestion, commandsForRow, keyOf, pickedKeys } from "./rowCommands"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CreateTableDialog from "./CreateTableDialog.vue"
 import { fromTsv } from "./clipboard"
@@ -1182,6 +1185,45 @@ const rowActions = computed<ActionCommand[]>(() =>
   )
 )
 const openAction = ref<ActionCommand | null>(null)
+/** The node an open action is about, when it is not this one: rows picked in a report belong elsewhere (D209). */
+const actionNode = ref<{ id: string; label: string } | null>(null)
+
+/** What the source offers over rows picked here, after a review (D209). */
+const pickedActions = computed<PickedRowsAction[]>(() => result.value?.picked_rows_actions ?? [])
+
+/**
+ * Open an action over the picked rows on the node the source says they belong to.
+ *
+ * The node and the form's values are the source's answer; the window is the
+ * action's own, so its preview and review check everything again.
+ */
+async function openPicked(action: PickedRowsAction, indexes: readonly number[]) {
+  const picked = indexes.map((index) => rows.value[index]).filter((row) => row !== undefined)
+  const keys = pickedKeys(action, result.value?.columns ?? [], picked)
+  if (keys === null) {
+    toast.info("Pick rows that name what this acts on")
+    return
+  }
+  try {
+    const target = await pickedRowsTarget(props.connectorId, {
+      node_id: props.nodeId,
+      action: action.action,
+      keys,
+    })
+    const offered = (await actionsOfNode(props.connectorId, target.node_id)).find(
+      (info) => info.name === action.action
+    )
+    const [command] = offered === undefined ? [] : toCommands([offered])
+    if (command === undefined) {
+      toast.info(`${action.title} is not offered on ${target.node_label}`)
+      return
+    }
+    actionNode.value = { id: target.node_id, label: target.node_label }
+    openAction.value = withPickedRows(command, target)
+  } catch (error) {
+    toast.error(messageOf(error, `Could not open ${action.title}`))
+  }
+}
 
 /**
  * What is left to do once an action run from here has finished.
@@ -1404,6 +1446,27 @@ defineExpose({
           @click="openInsert"
         />
       </span>
+      <!-- Over the rows picked here, reviewed in the action's own window on
+           the node the source says they belong to (D209). -->
+      <span
+        v-for="action in pickedActions"
+        :key="action.action"
+        :data-testid="`grid-picked-${action.action}`"
+      >
+        <AppIconButton
+          :icon="action.icon"
+          :variant="action.destructive ? 'danger-quiet' : 'quiet'"
+          :tooltip="tipOf(
+            selectedRowIndexes.length > 0
+              ? `${action.title} ${selectedRowIndexes.length} picked`
+              : action.title,
+            selectedRowIndexes.length > 0 ? null : 'Pick rows first'
+          )"
+          :disable="selectedRowIndexes.length === 0"
+          :data-testid="`grid-picked-run-${action.action}`"
+          @click="openPicked(action, selectedRowIndexes)"
+        />
+      </span>
       <span data-testid="grid-delete-command">
         <AppIconButton
           :icon="GRID_COMMANDS.remove.icon"
@@ -1587,9 +1650,9 @@ defineExpose({
         v-if="openAction !== null"
         :command="openAction"
         :connector-id="connectorId"
-        :node-ids="[nodeId]"
-        :node-label="title ?? nodeId"
-        @update:command="openAction = $event"
+        :node-ids="[actionNode?.id ?? nodeId]"
+        :node-label="actionNode?.label ?? title ?? nodeId"
+        @update:command="openAction = $event; if ($event === null) actionNode = null"
         @done="actionDone"
       />
       <ShareDialog
