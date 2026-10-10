@@ -150,9 +150,8 @@ starts it.
 
 A piece that needs a server of its own — MySQL for an adapter, say — adds an
 entry to `SERVERS`, a service to `compose.override.yml` or its own compose file,
-and the same service with its variable to the backend job of each pipeline
-(`.gitlab-ci.yml` and `.github/workflows/ci.yml`, kept equivalent so the same
-branch stays green in both forges). Forgetting the pipelines is what
+and the same service with its variable to the backend job of
+`.github/workflows/ci.yml`. Forgetting the workflow is what
 `--require-services` catches.
 
 **Enforced:** `tests/test_services.py` fails when any test module other than the
@@ -170,8 +169,8 @@ went red on variables a local run appeared to prove present.
 
 The commonest of those is now a test rather than a procedure:
 `tests/core/test_settings.py` fails locally when a setting with no default is
-missing from the backend job of either pipeline (`.gitlab-ci.yml`,
-`.github/workflows/ci.yml`) or from `.env.example`. Checked by taking the
+missing from the backend job of `.github/workflows/ci.yml` or from
+`.env.example`. Checked by taking the
 variable out again.
 
 That leaves what a list of names cannot cover — a value CI sets to something

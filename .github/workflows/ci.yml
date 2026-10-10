@@ -1,15 +1,11 @@
-# GitHub mirror of .gitlab-ci.yml: the same three checks, so a green run here
-# means the same thing as a green pipeline there.
+# Three checks: the backend suite with its servers, the frontend's unit,
+# type, lint and build checks, and the documentation check.
+# tests/core/test_settings.py fails when a required setting is missing from
+# the backend job below.
 #
-# The two files live side by side on purpose. GitLab reads only
-# .gitlab-ci.yml and GitHub reads only .github/workflows/*.yml, so the same
-# branch can stay green in both forges. When one of them changes, change the
-# other the same way: tests/core/test_settings.py fails when a required
-# setting is missing from either backend job.
-#
-# The end-to-end suite is deliberately absent, same as in .gitlab-ci.yml: it
-# needs the database, the backend and a dev server at once, and `bunx
-# playwright test` stays local, as AGENTS.md describes.
+# The end-to-end suite is deliberately absent: it needs the database, the
+# backend and a dev server at once, and `bunx playwright test` stays local,
+# as AGENTS.md describes.
 
 name: ci
 
@@ -17,8 +13,7 @@ on:
   push:
   pull_request:
 
-# Same as `interruptible: true` in .gitlab-ci.yml: a new run for the same
-# ref cancels the one still going.
+# A new run for the same ref cancels the one still going.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -53,8 +48,7 @@ jobs:
           --health-retries 10
       # The metrics store the metrics tests prepare and write (D126): the image
       # the store's service template starts. It listens on 5433 on the runner
-      # because the application database already owns 5432 there; in GitLab
-      # each service has its own hostname and they share the port.
+      # because the application database already owns 5432 there.
       timescale:
         image: timescale/timescaledb:2.30.0-pg18
         env:

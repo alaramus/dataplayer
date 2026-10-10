@@ -1,4 +1,4 @@
-"""What a deployment has to supply, and whether the pipelines supply it.
+"""What a deployment has to supply, and whether CI supplies it.
 
 Settings name `../.env`, so a run started from `backend/` reads whatever the
 developer keeps there and fills the gaps CI will not fill. Three pipelines have
@@ -8,10 +8,9 @@ last of them on `QUERY_CONTENT_KEY`.
 The rehearsal in `docs/architecture/backend.md` catches this and needs Docker,
 Linux and a clean checkout, which is why nobody runs it. This does the same
 thing in a second, in the suite that is run anyway: a setting with no default
-is a setting somebody must declare, and there are exactly three places that
-declare them — the example environment and the backend job of each pipeline
-(`.gitlab-ci.yml` and `.github/workflows/ci.yml`, which are kept equivalent
-so the same branch stays green in both forges).
+is a setting somebody must declare, and there are exactly two places that
+declare them — the example environment and the backend job of the CI
+workflow (`.github/workflows/ci.yml`).
 """
 
 import re
@@ -30,17 +29,6 @@ def _required() -> set[str]:
         name
         for name, field in Settings.model_fields.items()
         if field.default is PydanticUndefined and field.default_factory is None
-    }
-
-
-def _declared_in_pipeline() -> set[str]:
-    """The variables the backend job of the GitLab pipeline sets."""
-    text = (REPOSITORY / ".gitlab-ci.yml").read_text(encoding="utf-8")
-    block = text.split("\nbackend:", 1)[1].split("\n  cache:", 1)[0]
-    block = block.split("variables:", 1)[1]
-    return {
-        match.group(1)
-        for match in re.finditer(r"^\s{4}([A-Z_][A-Z0-9_]*):", block, re.MULTILINE)
     }
 
 
@@ -65,16 +53,6 @@ def _declared_in_example() -> set[str]:
         for line in text.splitlines()
         if "=" in line and not line.lstrip().startswith("#")
     }
-
-
-def test_the_gitlab_pipeline_declares_every_setting_that_has_no_default() -> None:
-    missing = _required() - _declared_in_pipeline()
-
-    assert not missing, (
-        f"{', '.join(sorted(missing))} has no default and is not set by the "
-        "backend job in .gitlab-ci.yml; the pipeline will fail before it runs "
-        "a single check"
-    )
 
 
 def test_the_github_workflow_declares_every_setting_that_has_no_default() -> None:
