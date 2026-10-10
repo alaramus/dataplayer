@@ -142,13 +142,12 @@ class AgePolicy(BaseModel):
 class AgePolicyStrategy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    name: Literal["age_policy_public_jobs_lock_v1"] = "age_policy_public_jobs_lock_v1"
+    name: Literal["age_policy_job_guard_v2"] = "age_policy_job_guard_v2"
     kind: AgePolicyKind
     extension_version: ExtensionVersion
     function_schema: str = Field(min_length=1, max_length=63)
     add_function_oid: str = Field(pattern=_OID)
     remove_function_oid: str = Field(pattern=_OID)
-    jobs_view_oid: str = Field(pattern=_OID)
 
 
 _IMPACT: dict[tuple[AgePolicyKind, bool], str] = {
@@ -177,11 +176,11 @@ class AgePolicyPlan(ReviewedPlan):
     older_than: TimeDuration | None
     strategy: AgePolicyStrategy
     coordination: Literal[
-        "Briefly locks TimescaleDB job and hypertable metadata across this database; "
-        "policy runs and new chunk creation may wait"
+        "Other policy changes made here in this database wait until it commits, "
+        "and so may a policy run starting meanwhile"
     ] = (
-        "Briefly locks TimescaleDB job and hypertable metadata across this database; "
-        "policy runs and new chunk creation may wait"
+        "Other policy changes made here in this database wait until it commits, "
+        "and so may a policy run starting meanwhile"
     )
 
     @model_validator(mode="after")
@@ -241,12 +240,11 @@ class RefreshWindow(BaseModel):
 class RefreshStrategy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    name: Literal["refresh_policy_public_jobs_lock_v1"] = "refresh_policy_public_jobs_lock_v1"
+    name: Literal["refresh_policy_job_guard_v2"] = "refresh_policy_job_guard_v2"
     extension_version: ExtensionVersion
     function_schema: str = Field(min_length=1, max_length=63)
     add_function_oid: str = Field(pattern=_OID)
     remove_function_oid: str = Field(pattern=_OID)
-    jobs_view_oid: str = Field(pattern=_OID)
 
 
 class RefreshPlan(ReviewedPlan):
@@ -258,11 +256,11 @@ class RefreshPlan(ReviewedPlan):
     source_retention: AgePolicy | None
     strategy: RefreshStrategy
     coordination: Literal[
-        "Briefly locks TimescaleDB job and hypertable metadata across this database; "
-        "policy runs and new chunk creation may wait"
+        "Other policy changes made here in this database wait until it commits, "
+        "and so may a policy run starting meanwhile"
     ] = (
-        "Briefly locks TimescaleDB job and hypertable metadata across this database; "
-        "policy runs and new chunk creation may wait"
+        "Other policy changes made here in this database wait until it commits, "
+        "and so may a policy run starting meanwhile"
     )
 
     @model_validator(mode="after")

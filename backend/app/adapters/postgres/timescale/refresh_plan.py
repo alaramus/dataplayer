@@ -18,7 +18,6 @@ from app.adapters.postgres.timescale.age_policy_plan import (
 from app.adapters.postgres.timescale.api import (
     RoutineShape,
     extension_routine,
-    lockable_view,
 )
 from app.adapters.postgres.timescale.plans import (
     AgePolicy,
@@ -122,7 +121,6 @@ async def _inspect(reader: PostgresReader, schema_name: str, view_name: str) -> 
         "function_schema": add.schema_name,
         "add_function_oid": add.oid,
         "remove_function_oid": remove.oid,
-        "jobs_view_oid": await lockable_view(reader, version, "jobs"),
     })
     return RefreshState(target=target, existing=existing, source_retention=source_retention, strategy=strategy)
 

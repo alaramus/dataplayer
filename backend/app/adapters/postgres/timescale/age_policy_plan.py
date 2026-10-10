@@ -11,7 +11,6 @@ from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.api import (
     RoutineShape,
     extension_routine,
-    lockable_view,
 )
 from app.adapters.postgres.timescale.plans import (
     AgePolicy,
@@ -141,7 +140,6 @@ async def inspect_age_policy(
                 "function_schema": add.schema_name,
                 "add_function_oid": add.oid,
                 "remove_function_oid": remove.oid,
-                "jobs_view_oid": await lockable_view(reader, version, "jobs"),
             })
             return AgePolicyState(target=target, existing=existing, strategy=strategy)
     except TimeoutError:

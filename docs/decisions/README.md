@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-10-10 | [Policy changes that cannot end the job scheduler](2026-10-10-job-scheduler-locks-design.md) | D211: no lock on TimescaleDB's job catalogs before its own calls take them; DataPlayer's job changes queue on an advisory lock of their own; several removals in one statement whose waits end before a deadlock check |
 | 2026-10-10 | [Tablespaces](2026-10-10-tablespaces-design.md) | D210: a tablespace is made above the Tablespaces report, renamed and handed over over one picked row, removed from a row's corner, all by the owner; sent with no transaction; the directory is the server's and DataPlayer never makes one. Extensions left as they are |
 | 2026-10-10 | [Reviewed actions from rows picked in a report](2026-10-10-actions-from-picked-rows-design.md) | D209: a report declares an action offered over its picked rows; the source turns the rows into the node they belong to and the parameters naming exactly them, and the action's own window reviews it. First for the Chunks report's drop, move, reorder, detach and merges |
 | 2026-10-09 | [Designing a hypertable](2026-10-09-hypertable-designer-design.md) | D207, D208: one model of a hypertable for creation and for an existing table, planned as one reviewed change; chunk maintenance as reviewed jobs over a fixed set of chunks |

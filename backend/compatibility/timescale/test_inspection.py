@@ -4,6 +4,7 @@ import pytest
 
 from app.adapters.export import ExportRequest
 from app.adapters.fetch import FetchRequest, ScalarFilter, Sort
+from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS, REPORTS
 from compatibility.timescale.source import TimescaleSource
 
@@ -147,8 +148,42 @@ async def test_missing_metadata_permission_is_not_absence(source: TimescaleSourc
     assert feature.reason and "fixture-only" not in feature.reason
 
 
+async def _scheduler_running(session: PostgresSession) -> bool:
+    return bool(await session.query(
+        "SELECT 1 FROM pg_catalog.pg_stat_activity "
+        "WHERE datname = pg_catalog.current_database() "
+        "AND backend_type = 'TimescaleDB Background Worker Scheduler'",
+    ))
+
+
+async def _revive_scheduler(session: PostgresSession) -> None:
+    """Bring back the database's job scheduler when the matrix has killed it.
+
+    `remove_*_policy` under the jobs lock deadlocks with a scheduler starting
+    that very job, and the scheduler is the victim when it waited first. The
+    launcher never restarts it; only a START message does, or the postmaster
+    where `bgw_scheduler_restart_time` is positive (2.18 defaults to 60 s), and
+    there a START would let a second scheduler in beside the restarted one.
+    """
+    if await _scheduler_running(session):
+        return
+    restart = await session.query(
+        "SELECT setting FROM pg_catalog.pg_settings "
+        "WHERE name = 'timescaledb.bgw_scheduler_restart_time'",
+    )
+    seconds = int(restart[0]["setting"]) if restart else -1
+    if seconds <= 0:
+        await session.query("SELECT _timescaledb_functions.start_background_workers()")
+    for _ in range(2 * (max(seconds, 0) + 15)):
+        await asyncio.sleep(0.5)
+        if await _scheduler_running(session):
+            return
+    pytest.fail("The database's job scheduler did not come back")
+
+
 async def test_recorded_policy_run_has_public_statistics(source: TimescaleSource) -> None:
     session = source.session()
+    await _revive_scheduler(session)
     jobs = await session.query(
         "SELECT job_id FROM timescaledb_information.jobs "
         "WHERE hypertable_schema = 'lab' AND hypertable_name = 'metrics' "

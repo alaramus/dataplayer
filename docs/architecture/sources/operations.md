@@ -180,10 +180,9 @@ Retention and compression policies are one family of reviewed actions over a
 time hypertable: set (first or replacement) and remove, for each kind. The plan
 fingerprints the kind, the extension-owned policy job (identity, schedule, pause
 state and validated threshold), the exact add/remove API shapes of the
-installed version and the public jobs view. Execution locks that view in SHARE
-ROW EXCLUSIVE mode, which PostgreSQL extends to the job, job-statistics and
-hypertable catalogs it reads, then ONLY the root; it replans, compares, and
-removes and adds in one transaction, so a refused addition keeps the old
+installed version. Execution takes DataPlayer's job guard, never a lock on the
+job catalogs ([D211](timescale.md)), then ONLY the root; it replans, compares,
+and removes and adds in one transaction, so a refused addition keeps the old
 policy. A paused policy is never replaced, because its replacement would be
 scheduled by default and resume it; it is removed first. Setting a retention
 policy is destructive and its question names future automatic deletion;
@@ -195,7 +194,7 @@ isolated scenarios passed on 2026-09-11.
 
 Refresh policies are set, replaced and removed on an existing continuous
 aggregate by two more reviewed actions; there is no aggregate editor. The job
-belongs to the materialization hypertable and execution locks the jobs view and
+belongs to the materialization hypertable and execution takes the job guard and
 ONLY that materialization before the same replan, compare, remove and add
 transaction. The public jobs view, though, names the materialization only up to
 2.19 and the user view from a later release on, so the plan looks for the job

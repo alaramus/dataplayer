@@ -30,7 +30,7 @@ TARGET = ContinuousAggregateTarget(
 )
 STRATEGY = RefreshStrategy(
     extension_version="2.18.0", function_schema="public", add_function_oid="456",
-    remove_function_oid="457", jobs_view_oid="789",
+    remove_function_oid="457",
 )
 POLICY_ROW: dict[str, object] = {
     "job_id": "1000", "scheduled": True, "schedule_interval": "01:00:00",
@@ -54,7 +54,6 @@ class Sources:
     views: AsyncMock
     retention: AsyncMock
     routine: AsyncMock
-    view_lock: AsyncMock
 
 
 def routine(_reader: object, _version: str, shape: RoutineShape) -> ExtensionRoutine:
@@ -69,14 +68,12 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> Sources:
         ))),
         target=AsyncMock(return_value=TARGET), views=AsyncMock(),
         retention=AsyncMock(return_value=None), routine=AsyncMock(side_effect=routine),
-        view_lock=AsyncMock(return_value="789"),
     )
     monkeypatch.setattr(refresh_plan, "discover", mocks.discover)
     monkeypatch.setattr(refresh_plan, "continuous_aggregate", mocks.target)
     monkeypatch.setattr(refresh_plan, "require_public_view", mocks.views)
     monkeypatch.setattr(refresh_plan, "read_age_policy", mocks.retention)
     monkeypatch.setattr(refresh_plan, "extension_routine", mocks.routine)
-    monkeypatch.setattr(refresh_plan, "lockable_view", mocks.view_lock)
     return mocks
 
 
@@ -113,7 +110,6 @@ async def test_inspection_reads_the_job_by_either_identity(sources: Sources) -> 
     assert [call.args[2] for call in sources.routine.await_args_list] == [
         refresh_plan.ADD_REFRESH, refresh_plan.REMOVE_REFRESH,
     ]
-    sources.view_lock.assert_awaited_once_with(reader, "2.18.0", "jobs")
 
 
 def test_existing_statement_projects_validated_offsets_only() -> None:

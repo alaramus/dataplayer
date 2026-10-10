@@ -13,7 +13,7 @@ which pins Timescale 2.14 to 2.30 across PostgreSQL 14 to 18 and holds the
 validation record. A release outside that matrix is neither certified nor
 blocked: what a strategy can do there is decided by discovery (D120).
 
-Decisions here: D119, D120, D121, D122, D207, D208.
+Decisions here: D119, D120, D121, D122, D207, D208, D211.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
 
@@ -481,3 +481,37 @@ Known deviations:
   from a selected row.
 
 Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-design.md)
+
+## D211. A policy change never locks the job catalogs before TimescaleDB does
+
+Up to 2.25 each job has a lock of its own, which TimescaleDB takes before
+`bgw_job`. A scheduler starting a job holds it while it reads that catalog.
+A removal waits for it. A change holding a lock on the catalogs while it
+removes a job therefore closes a cycle with a scheduler starting that job, and
+PostgreSQL may end the scheduler. Most releases never restart it, so every job
+in the database stops.
+
+- Nothing locks `timescaledb_information.jobs`. Locking a view locks
+  `bgw_job` and `bgw_job_stat`, the catalogs a starting job needs. The
+  privilege to lock it is no longer required.
+- DataPlayer's own job changes queue on a transaction-scoped advisory lock of
+  their own, taken first and taken by nothing in TimescaleDB. It keeps one job
+  change per database at a time.
+- The order is: that guard, dimension metadata, the table, then the job's own
+  lock, which TimescaleDB's removal takes before the catalogs. The scheduler
+  takes none of the first three.
+- A plan removing several jobs removes them in one statement, with lock
+  waits shortened to a third of `deadlock_timeout`. After the first removal,
+  `bgw_job` stays locked, so a scheduler starting a later job could be
+  waiting on the change. Giving up first refuses the change rather than
+  ending the scheduler.
+
+Known deviations:
+
+- **A policy change outside DataPlayer is not held back.** TimescaleDB's own
+  duplicate check is what refuses a second policy of a kind, and two sessions
+  adding one at the same moment can both pass it.
+- **Several removals are safe by timing, not by order.** No public routine
+  takes several job locks before the first catalog lock.
+
+Spec: [Policy changes that cannot end the job scheduler](../../decisions/2026-10-10-job-scheduler-locks-design.md)

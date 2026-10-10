@@ -40,7 +40,7 @@ SPECS = [pytest.param(RETENTION, id="retention"), pytest.param(COMPRESSION, id="
 def strategy(spec: AgePolicySpec, version: str = "2.18.0") -> AgePolicyStrategy:
     return AgePolicyStrategy.model_validate({
         "kind": spec.kind, "extension_version": version, "function_schema": "public",
-        "add_function_oid": "456", "remove_function_oid": "457", "jobs_view_oid": "789",
+        "add_function_oid": "456", "remove_function_oid": "457",
     })
 
 
@@ -63,7 +63,6 @@ class Sources:
     target: AsyncMock
     views: AsyncMock
     routine: AsyncMock
-    view_lock: AsyncMock
 
 
 def routine(_reader: object, _version: str, shape: RoutineShape) -> ExtensionRoutine:
@@ -77,13 +76,12 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> Sources:
             code="timescaledb", title="TimescaleDB", state="available", installed_version="2.18.0",
         ))),
         target=AsyncMock(return_value=TARGET), views=AsyncMock(),
-        routine=AsyncMock(side_effect=routine), view_lock=AsyncMock(return_value="789"),
+        routine=AsyncMock(side_effect=routine),
     )
     monkeypatch.setattr(age_policy_plan, "discover", mocks.discover)
     monkeypatch.setattr(age_policy_plan, "time_hypertable", mocks.target)
     monkeypatch.setattr(age_policy_plan, "require_public_view", mocks.views)
     monkeypatch.setattr(age_policy_plan, "extension_routine", mocks.routine)
-    monkeypatch.setattr(age_policy_plan, "lockable_view", mocks.view_lock)
     return mocks
 
 
@@ -99,7 +97,6 @@ async def test_inspection_reads_the_owned_policy_by_bound_identity(sources: Sour
     assert all(call.kwargs == {"inspection": True} for call in reader.query.await_args_list)
     sources.target.assert_awaited_once_with(reader, "lab", "events")
     assert [call.args[2] for call in sources.routine.await_args_list] == [spec.add, spec.remove]
-    sources.view_lock.assert_awaited_once_with(reader, "2.18.0", "jobs")
     assert "jobs" in {call.args[1] for call in sources.views.await_args_list}
 
 
@@ -258,7 +255,7 @@ def test_date_dimensions_take_whole_days(column_type: str, unit: str, allowed: b
 @pytest.mark.parametrize("section,field,value", [
     ("target", "relation_oid", "124"), ("existing", "job_id", "1001"),
     ("existing", "schedule_interval", "2 days"), ("existing", "older_than", "20 years"),
-    ("strategy", "add_function_oid", "458"), ("strategy", "jobs_view_oid", "790"),
+    ("strategy", "add_function_oid", "458"),
 ])
 def test_every_planned_fact_is_fingerprinted(section: str, field: str, value: str) -> None:
     plan = age_policy_plan.age_policy_plan(RETENTION, state(), TEN_YEARS)

@@ -1,4 +1,4 @@
-"""Age policy strategy: one transaction under the public jobs metadata lock (D123)."""
+"""Age policy strategy: one transaction behind DataPlayer's job guard (D123, D211)."""
 
 from typing import Any
 
@@ -12,11 +12,8 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     plan_age_policy,
 )
 from app.adapters.postgres.timescale.execution import run_reviewed
+from app.adapters.postgres.timescale.job_locks import JOBS_GUARD
 from app.adapters.postgres.timescale.plans import AgePolicyPlan, TimeDuration
-
-# Locking a view locks the relations it reads, so the catalogs the policy API writes
-# are serialized without naming a private relation.
-JOBS_LOCK = sql.SQL('LOCK TABLE ONLY "timescaledb_information"."jobs" IN SHARE ROW EXCLUSIVE MODE')
 
 
 async def execute_age_policy(
@@ -48,7 +45,7 @@ async def execute_age_policy(
 
 def _locks(plan: AgePolicyPlan) -> list[sql.SQL | sql.Composed]:
     return [
-        JOBS_LOCK,
+        JOBS_GUARD,
         sql.SQL("LOCK TABLE ONLY {} IN SHARE UPDATE EXCLUSIVE MODE").format(
             sql.Identifier(plan.target.schema_name, plan.target.table_name),
         ),

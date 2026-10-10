@@ -45,7 +45,7 @@ def make_plan(*, existing: RefreshPolicy | None = EXISTING, window: RefreshWindo
         existing=existing, window=window, source_retention=None,
         strategy=RefreshStrategy(
             extension_version="2.18.0", function_schema='ext"schema', add_function_oid="456",
-            remove_function_oid="457", jobs_view_oid="789",
+            remove_function_oid="457",
         ),
     )
 
@@ -80,9 +80,8 @@ async def test_replacement_locks_the_materialization_and_replaces_in_one_transac
     assert await run(session, plan) == plan
     assert phases == [3, 5]
     calls = connection.execute.await_args_list
-    assert calls[3].args[0].as_string() == (
-        'LOCK TABLE ONLY "timescaledb_information"."jobs" IN SHARE ROW EXCLUSIVE MODE'
-    )
+    # DataPlayer's own job guard, never a lock on the job catalogs a starting job needs (D211).
+    assert calls[3].args[0].as_string() == "SELECT pg_catalog.pg_advisory_xact_lock(4922527109421679187)"
     assert calls[4].args[0].as_string() == (
         'LOCK TABLE ONLY "_timescaledb_internal"."_materialized_hypertable_3" IN SHARE UPDATE EXCLUSIVE MODE'
     )
@@ -107,7 +106,6 @@ async def test_first_policy_only_adds_and_removal_only_removes(
 
 @pytest.mark.parametrize("section,field,value", [
     ("target", "view_oid", "322"), ("existing", "job_id", "1001"),
-    ("strategy", "jobs_view_oid", "790"),
 ])
 async def test_change_while_acquiring_locks_refuses_before_mutation(
     monkeypatch: pytest.MonkeyPatch, section: str, field: str, value: str,

@@ -3,7 +3,6 @@
 import asyncio
 from collections.abc import AsyncIterator
 
-import psycopg
 import pytest
 from psycopg import sql
 
@@ -12,7 +11,7 @@ from app.adapters.postgres.actions import PostgresActions
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.timescale import age_policy_execution
+from app.adapters.postgres.timescale import age_policy_execution, job_locks
 from app.adapters.postgres.timescale.age_policy_action import (
     RemoveRetentionPolicy,
     SetRetentionPolicy,
@@ -166,25 +165,23 @@ async def test_fixture_policy_is_read_from_public_config_without_change(source: 
     )
 
 
-async def test_jobs_view_lock_alone_blocks_external_policy_changes(
+async def test_job_guard_holds_back_dataplayer_changes_and_nothing_else(
     source: TimescaleSource, retention_table: PolicyTable,
 ) -> None:
+    """The guard replaced a lock on the jobs view, which a starting job also needs (D211)."""
     target = retention_table
-    plan = await plan_age_policy(
-        source.session(), RETENTION, target.schema, target.table, TimeDuration(amount=10, unit="year"),
-    )
+    duration = TimeDuration(amount=10, unit="year")
+    plan = await plan_age_policy(source.session(), RETENTION, target.schema, target.table, duration)
     async with source.session().acquire() as owner:
         async with owner.transaction():
-            await owner.execute("SET LOCAL lock_timeout = '2s'")
-            await owner.execute(age_policy_execution.JOBS_LOCK)
-            async with source.session().acquire() as writer:
-                with pytest.raises(psycopg.errors.LockNotAvailable):
-                    async with writer.transaction():
-                        await writer.execute("SET LOCAL lock_timeout = '200ms'")
-                        await writer.execute(sql.SQL("SELECT {}(%s::regclass, %s::interval)").format(
-                            sql.Identifier(plan.strategy.function_schema, "add_retention_policy"),
-                        ), (plan.target.relation_oid, "30 days"))
-    assert await policies(source, target) == []
+            await owner.execute(job_locks.JOBS_GUARD)
+            with pytest.raises(ActionRefused, match="busy"):
+                await age_policy_execution.execute_age_policy(
+                    source.session(), RETENTION, target.schema, target.table, duration, plan.fingerprint(),
+                )
+            async with asyncio.timeout(2):
+                await native_add(source, plan, "30 days")
+    assert len(await policies(source, target)) == 1
 
 
 async def test_cancellation_releases_locks_without_adding_a_policy(

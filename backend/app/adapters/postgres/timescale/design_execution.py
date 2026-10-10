@@ -1,8 +1,12 @@
 """Apply a reviewed hypertable design in one transaction (D207).
 
-Locks are taken in one order — job metadata, dimension metadata, then the
-table — which is the order every single-purpose strategy here already uses for
-the subset it needs, so no two of them can wait on each other in a circle.
+Locks are taken in one order — DataPlayer's job guard, dimension metadata, then
+the table — which is the order every single-purpose strategy here already uses
+for the subset it needs, so no two of them can wait on each other in a circle.
+A job's own lock comes after all three, taken by TimescaleDB's removal, which
+then locks the job catalogs: TimescaleDB's order, the one its scheduler keeps
+too. The scheduler takes none of the three, so nothing it holds is waited for
+before that lock (D211).
 """
 
 from typing import Any
@@ -21,12 +25,12 @@ from app.adapters.hypertable_design import (
 )
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.timescale.age_policy_execution import JOBS_LOCK
 from app.adapters.postgres.timescale.compression_settings_plan import (
     order_option,
     segment_option,
 )
 from app.adapters.postgres.timescale.design_plan import (
+    POLICY_STEPS,
     AddAgePolicy,
     AddCompactionPolicy,
     AddHashDimension,
@@ -48,6 +52,7 @@ from app.adapters.postgres.timescale.design_plan import (
     plan_design,
 )
 from app.adapters.postgres.timescale.execution import run_reviewed
+from app.adapters.postgres.timescale.job_locks import JOBS_GUARD, remove_jobs
 from app.adapters.postgres.timescale.plans import OrderColumn
 from app.core.config import settings
 
@@ -111,8 +116,8 @@ async def execute_design_job(
 
 def _locks(plan: HypertableDesignPlan) -> list[sql.SQL | sql.Composed]:
     locks: list[sql.SQL | sql.Composed] = []
-    if plan.strategy.jobs_view_oid is not None:
-        locks.append(JOBS_LOCK)
+    if any(isinstance(step, POLICY_STEPS) for step in plan.steps):
+        locks.append(JOBS_GUARD)
     if plan.strategy.dimensions_view_oid is not None:
         locks.append(_DIMENSIONS_LOCK)
     target = plan.current.target
@@ -180,9 +185,13 @@ def _schema(plan: HypertableDesignPlan) -> str:
     return plan.strategy.function_schema
 
 
-def _call(plan: HypertableDesignPlan, name: str, arguments: str) -> sql.Composed:
+def _routine(plan: HypertableDesignPlan, name: str, arguments: str) -> sql.Composed:
     # `arguments` is one of the placeholder lists below, never anything from a request.
-    return sql.SQL("SELECT {}(" + arguments + ")").format(sql.Identifier(_schema(plan), name))
+    return sql.SQL("{}(" + arguments + ")").format(sql.Identifier(_schema(plan), name))
+
+
+def _call(plan: HypertableDesignPlan, name: str, arguments: str) -> sql.Composed:
+    return sql.SQL("SELECT {}").format(_routine(plan, name, arguments))
 
 
 async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesignPlan, step: DesignStep) -> None:
@@ -269,5 +278,13 @@ async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesign
 
 
 async def _apply(connection: psycopg.AsyncConnection[Any], plan: HypertableDesignPlan) -> None:
+    # Removals lead the steps, so running them first keeps the planned order.
+    removals = [step for step in plan.steps if isinstance(step, RemovePolicy)]
+    if len(removals) > 1:
+        await remove_jobs(
+            connection, [_routine(plan, _REMOVE[step.kind], "%s::pg_catalog.regclass, false") for step in removals],
+            [plan.current.target.relation_oid] * len(removals),
+        )
     for step in plan.steps:
-        await _step(connection, plan, step)
+        if len(removals) <= 1 or not isinstance(step, RemovePolicy):
+            await _step(connection, plan, step)

@@ -38,7 +38,7 @@ def make_plan(
         existing=existing, older_than=older_than,
         strategy=AgePolicyStrategy.model_validate({
             "kind": spec.kind, "extension_version": "2.18.0", "function_schema": 'ext"schema',
-            "add_function_oid": "456", "remove_function_oid": "457", "jobs_view_oid": "789",
+            "add_function_oid": "456", "remove_function_oid": "457",
         }),
     )
 
@@ -88,9 +88,8 @@ async def test_replacement_replans_under_locks_then_removes_and_adds_in_one_tran
     calls = connection.execute.await_args_list
     assert calls[0].args[0] == "SET TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE"
     assert calls[1].args[0] == "SET LOCAL lock_timeout = '2s'"
-    assert calls[3].args[0].as_string() == (
-        'LOCK TABLE ONLY "timescaledb_information"."jobs" IN SHARE ROW EXCLUSIVE MODE'
-    )
+    # DataPlayer's own job guard, never a lock on the job catalogs a starting job needs (D211).
+    assert calls[3].args[0].as_string() == "SELECT pg_catalog.pg_advisory_xact_lock(4922527109421679187)"
     assert calls[4].args[0].as_string() == (
         'LOCK TABLE ONLY "odd""schema"."events" IN SHARE UPDATE EXCLUSIVE MODE'
     )
@@ -117,7 +116,6 @@ async def test_first_policy_only_adds_and_removal_only_removes(
 @pytest.mark.parametrize("section,field,value", [
     ("target", "relation_oid", "124"), ("existing", "job_id", "1001"),
     ("existing", "schedule_interval", "2 days"), ("strategy", "remove_function_oid", "458"),
-    ("strategy", "jobs_view_oid", "790"),
 ])
 async def test_change_while_acquiring_locks_refuses_before_mutation(
     monkeypatch: pytest.MonkeyPatch, section: str, field: str, value: str,

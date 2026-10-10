@@ -283,6 +283,9 @@ DesignStep = Annotated[
     Field(discriminator="step"),
 ]
 
+# The steps that change TimescaleDB's jobs, which wait behind DataPlayer's job guard (D211).
+POLICY_STEPS = (RemovePolicy, AddAgePolicy, AddReorderPolicy, AddCompactionPolicy)
+
 
 class RoutineUse(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -300,7 +303,6 @@ class DesignStrategy(BaseModel):
     extension_version: str
     function_schema: str | None = Field(default=None, min_length=1, max_length=63)
     routines: tuple[RoutineUse, ...] = ()
-    jobs_view_oid: str | None = Field(default=None, pattern=_OID)
     dimensions_view_oid: str | None = Field(default=None, pattern=_OID)
     conversion: ConversionStrategy | None = None
 
@@ -328,7 +330,14 @@ class HypertableDesignPlan(ReviewedPlan):
     def coordination(self) -> str:
         if self.locks_table_exclusively:
             return "Locks this hypertable exclusively while it changes; its reads and writes wait until it commits"
-        return "Briefly locks TimescaleDB metadata across this database; policy runs and new chunk creation may wait"
+        if self.strategy.dimensions_view_oid is not None:
+            return "Briefly locks TimescaleDB metadata across this database; new chunk creation may wait"
+        if any(isinstance(step, POLICY_STEPS) for step in self.steps):
+            return (
+                "Other policy changes made here in this database wait until it commits, "
+                "and so may a policy run starting meanwhile"
+            )
+        return "Other changes to this hypertable's settings wait until it commits"
 
 
 def _refuse(message: str) -> ActionRefused:
@@ -699,9 +708,6 @@ async def _strategy(
         routine = await extension_routine(reader, version, shape)
         schema = routine.schema_name
         routines.append(RoutineUse(name=shape.name, oid=routine.oid))
-    policies = any(
-        isinstance(step, RemovePolicy | AddAgePolicy | AddReorderPolicy | AddCompactionPolicy) for step in steps
-    )
     dimensions = any(
         isinstance(step, SetChunkInterval | SetPartitions | AddHashDimension | SetIntegerNow) for step in steps
     )
@@ -709,7 +715,6 @@ async def _strategy(
         extension_version=version,
         function_schema=schema,
         routines=tuple(routines),
-        jobs_view_oid=await lockable_view(reader, version, "jobs") if policies else None,
         dimensions_view_oid=await lockable_view(reader, version, "dimensions") if dimensions else None,
     )
 

@@ -1,4 +1,4 @@
-"""Refresh policy strategy: one transaction under the public jobs metadata lock (D123)."""
+"""Refresh policy strategy: one transaction behind DataPlayer's job guard (D123, D211)."""
 
 from typing import Any
 
@@ -7,8 +7,8 @@ from psycopg import sql
 
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.timescale.age_policy_execution import JOBS_LOCK
 from app.adapters.postgres.timescale.execution import run_reviewed
+from app.adapters.postgres.timescale.job_locks import JOBS_GUARD
 from app.adapters.postgres.timescale.plans import RefreshPlan, RefreshWindow
 from app.adapters.postgres.timescale.refresh_plan import (
     ADD_REFRESH,
@@ -29,7 +29,7 @@ async def execute_refresh(
 
 def _locks(plan: RefreshPlan) -> list[sql.SQL | sql.Composed]:
     return [
-        JOBS_LOCK,
+        JOBS_GUARD,
         sql.SQL("LOCK TABLE ONLY {} IN SHARE UPDATE EXCLUSIVE MODE").format(
             sql.Identifier(plan.target.materialization_schema, plan.target.materialization_name),
         ),

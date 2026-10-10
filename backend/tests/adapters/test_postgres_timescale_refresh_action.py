@@ -39,7 +39,7 @@ TARGET = ContinuousAggregateTarget(
 )
 STRATEGY = RefreshStrategy(
     extension_version="2.18.0", function_schema="public", add_function_oid="456",
-    remove_function_oid="457", jobs_view_oid="789",
+    remove_function_oid="457",
 )
 POLICY = RefreshPolicy(
     job_id="1000", scheduled=True, schedule_interval="01:00:00", start_offset="30 days", end_offset="01:00:00",

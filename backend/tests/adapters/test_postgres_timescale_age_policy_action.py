@@ -67,7 +67,7 @@ def catalog() -> AsyncMock:
 def strategy(spec: AgePolicySpec) -> AgePolicyStrategy:
     return AgePolicyStrategy.model_validate({
         "kind": spec.kind, "extension_version": "2.18.0", "function_schema": "public",
-        "add_function_oid": "456", "remove_function_oid": "457", "jobs_view_oid": "789",
+        "add_function_oid": "456", "remove_function_oid": "457",
     })
 
 

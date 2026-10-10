@@ -136,9 +136,39 @@ Found by running the matrix; each is handled in `app/` and covered here.
   column called `x,y` cannot be read back from it; the per-column
   `compression_settings` view, deprecated since 2.18, still lists it whole on
   every release here.
+- **A job has a lock of its own up to 2.25, and a dead job scheduler stays
+  dead.** A scheduler starting a job holds the job's lock while it reads
+  `bgw_job`. A change that had locked the jobs view, and so `bgw_job`, then
+  removed that job and waited for the job's lock. When the removal arrived
+  within `deadlock_timeout` of the start, PostgreSQL ended the scheduler. 2.14,
+  2.17, and 2.19 onwards, where `timescaledb.bgw_scheduler_restart_time` is -1,
+  never restart it, so every job in the database stops until a server restart
+  or `_timescaledb_functions.start_background_workers()`. 2.18 restarts it
+  after 60 s. From 2.26 TimescaleDB takes no job lock. Policy changes
+  therefore lock no job catalog themselves (D211, `test_job_scheduler.py`).
+  That scenario restarts a scheduler it finds dead, so one failure does not
+  leave the rest of the matrix without jobs.
 - **`finalized` left `continuous_aggregates`** between 2.23 and 2.30, and
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
+
+## Validation record: 2026-10-10, the scheduler a deadlock kills
+
+`test_recorded_policy_run_has_public_statistics` failed now and then because
+an earlier scenario's deadlock had killed the scheduler (see "A job has a lock
+of its own up to 2.25"). The logs of 2.14, 2.17, 2.18, 2.19 and 2.23 from the
+failing runs record the scheduler as the deadlock victim, and the cycle was
+reproduced by hand on 2.17. The test looked intermittent because `job_stats`
+keeps a container's first success: after one passing run it no longer needs a
+scheduler, so only the first full run on a fresh source could fail. It now
+starts a scheduler it finds dead before it waits for one; D211 removes the
+cause.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | the test as it was, on freshly created sources with the `timescale_fixture` scheduler terminated, `-k "recorded_policy_run and 2.17"` | 1 failed: the 30 s timeout |
+| backend | the fixed test, same state, all sources | 7 passed |
+| backend | `uv run pytest compatibility/timescale -q`, freshly created sources | 1141 passed, 7 skipped; this run happened to kill no scheduler |
 
 ## Validation record: 2026-10-10, chunk maintenance over integer time and hash
 
@@ -239,8 +269,8 @@ full runs since the editor's scenarios were added, on one to three of 2.14,
 2.17 and 2.19: their scheduler did not start the fixture's job within 30
 seconds. It passes alone, after the editor's files, and in the whole suite
 restricted to one of those sources. Before H2 the full run passed it. The cause
-is not established; the editor's scenarios add policies that start at once and
-drop their tables minutes later, which is the likeliest difference.
+was found on 2026-10-10: a deadlock that kills the scheduler, see
+[What the releases disagree about](#what-the-releases-disagree-about).
 
 ## Validation record: 2026-10-09
 
@@ -259,8 +289,8 @@ An earlier full run failed `test_recorded_policy_run_has_public_statistics`
 on 2.14, 2.17 and 2.19: their job scheduler had stopped starting jobs after
 many policies were added and their tables dropped within minutes, by manual
 probes and repeated runs. Restarting those three containers cleared it, and
-the editor's scenarios followed by that test pass on a fresh source. If it
-recurs, restart the source before suspecting the code.
+the editor's scenarios followed by that test pass on a fresh source. The
+scheduler had in fact been killed by a deadlock; the test now starts it again.
 
 ## Validation record: 2026-09-12
 
