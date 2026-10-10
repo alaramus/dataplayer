@@ -471,7 +471,9 @@ Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
 ## D130. What an agent sends is DPMA/1, checked before it is read, and a restart is a new agent process
 
-Agents are `dataplayer-monitor-agent`, and the contract is its `PROTOCOL.md`: a
+Agents are [`dataplayer-monitor-agent`](https://github.com/alaramus/dataplayer-monitor-agent),
+and the contract is its
+[`PROTOCOL.md`](https://github.com/alaramus/dataplayer-monitor-agent/blob/main/PROTOCOL.md): a
 UDP datagram `DPMA/1 <kid> <signature>\n<body>`, standing alone under 1400 bytes,
 whose body names the agent process, the host and its boot, a sequence number and
 the moment it measured. `protocol.py` is the receiving half.

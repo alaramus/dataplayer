@@ -3,7 +3,7 @@
 ## Outcome
 
 The `metrics` process receives only DPMA/1, the protocol of
-`dataplayer-monitor-agent` (repository `gitlab.com/alaramus/dataplayer_monitor_agent`,
+`dataplayer-monitor-agent` (repository `github.com/alaramus/dataplayer-monitor-agent`,
 image `alaramus/dataplayer-monitor-agent`, its `PROTOCOL.md`). Every datagram is
 checked before it is read and written as it was sent. What `sys_monitor_agent`
 sent is not read any more, and what it wrote is taken out of the store.
