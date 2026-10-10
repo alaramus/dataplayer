@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from app.adapters.actions import Action, ActionOffers, ActionUnavailability
+from app.adapters.actions import Action, ActionOffers, ActionType, ActionUnavailability
 from app.adapters.catalog import CatalogNode, SchemaNode, TableNode, ViewNode
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.session import PostgresSession
@@ -14,6 +14,11 @@ from app.adapters.postgres.timescale.age_policy_action import (
     SetCompressionPolicy,
     SetRetentionPolicy,
     age_policy_admission,
+)
+from app.adapters.postgres.timescale.chunk_maintenance_action import (
+    MAINTENANCE_TYPES,
+    MaintainChunks,
+    maintenance_admission,
 )
 from app.adapters.postgres.timescale.chunk_storage_action import (
     CompressChunks,
@@ -47,10 +52,10 @@ from app.adapters.specializations import (
     TimescaleHypertable,
 )
 
-TIMESCALE_ACTION_TYPES = (
+TIMESCALE_ACTION_TYPES: tuple[ActionType, ...] = (
     DesignHypertable, SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
     SetCompressionPolicy, RemoveCompressionPolicy, SetRefreshPolicy, RemoveRefreshPolicy,
-    ConvertToHypertable, CompressChunks, DecompressChunks,
+    ConvertToHypertable, CompressChunks, DecompressChunks, *MAINTENANCE_TYPES,
 )
 
 
@@ -70,11 +75,14 @@ class TimescaleActions:
         self.convert = ConvertToHypertable(session, catalog)
         self.compress_chunks = CompressChunks(session, catalog)
         self.decompress_chunks = DecompressChunks(session, catalog)
+        self.maintenance: tuple[MaintainChunks[Any], ...] = tuple(
+            action_type(session, catalog) for action_type in MAINTENANCE_TYPES
+        )
         self.registered: tuple[Action[Any], ...] = (
             self.design, self.interval, self.compression_settings,
             *(action for pair in self._policies for action in pair),
             self.set_refresh, self.remove_refresh, self.convert,
-            self.compress_chunks, self.decompress_chunks,
+            self.compress_chunks, self.decompress_chunks, *self.maintenance,
         )
 
     async def all_actions(self) -> list[Action[Any]]:
@@ -123,6 +131,11 @@ class TimescaleActions:
         storage = await chunk_storage_admission(self._session, schema, table)
         reasons[self.compress_chunks.name] = storage["columnstore"]
         reasons[self.decompress_chunks.name] = storage["rowstore"]
+        maintained = await maintenance_admission(
+            self._session, schema, table, [action.maintenance for action in self.maintenance],
+        )
+        for action in self.maintenance:
+            reasons[action.name] = maintained[action.maintenance]
         return reasons
 
     async def _conversion_reasons(self, schema: str, table: str) -> dict[str, str | None]:

@@ -2,7 +2,7 @@
 
 Date: 2026-10-09. Decisions: D207, D208. Extends D117, D120, D122 and D123.
 
-Status: agreed on 2026-10-09; H1–H5 implemented, H6 and H7 not. The answers to the open
+Status: agreed on 2026-10-09; H1–H6 implemented, H7 not. The answers to the open
 questions are under [Settled](#settled). The statements are in
 [timescale.md](../architecture/sources/timescale.md).
 

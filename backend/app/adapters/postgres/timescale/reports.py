@@ -38,7 +38,7 @@ def _view_report(
     )
 
 
-REPORTS = (
+_VIEW_REPORTS = (
     _view_report(
         "hypertables", "Hypertables",
         "Hypertable owners, dimension/chunk counts and compression configuration",
@@ -116,5 +116,37 @@ REPORTS = (
         }),
     ),
 )
+
+# Tables that carry a chunk's name and belong to no hypertable: detached, or
+# left behind. A guess, read from pg_class and the public chunks view only,
+# since the private catalogs that would know are not read (D121, D208): it
+# offers a table to attach and asserts nothing about where it came from.
+DETACHED_CHUNKS = TimescaleReport(
+    key="timescale.v1.detached_chunks", title="Detached chunks",
+    description="Tables named like a chunk that no hypertable holds; Attach chunk takes one back",
+    statement=sql.SQL("""
+        SELECT namespace.nspname AS table_schema, relation.relname AS table_name,
+               pg_catalog.pg_get_userbyid(relation.relowner) AS owner,
+               CASE WHEN relation.reltuples < 0 THEN NULL ELSE relation.reltuples::pg_catalog.int8 END
+                   AS row_estimate,
+               pg_catalog.pg_size_pretty(pg_catalog.pg_total_relation_size(relation.oid)) AS size
+        FROM pg_catalog.pg_class AS relation
+        JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+        WHERE relation.relkind = 'r'
+          AND relation.relname OPERATOR(pg_catalog.~) '^_hyper_[0-9]+_[0-9]+_chunk$'
+          AND NOT EXISTS (
+              SELECT 1 FROM pg_catalog.pg_inherits AS inheritance WHERE inheritance.inhrelid = relation.oid
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM timescaledb_information.chunks AS chunk
+              WHERE chunk.chunk_schema = namespace.nspname AND chunk.chunk_name = relation.relname
+          )
+          AND pg_catalog.has_schema_privilege(namespace.oid, 'USAGE')
+        ORDER BY table_schema, table_name
+    """),
+    stable_order=("table_schema", "table_name"),
+    public_view="chunks", required_columns=("chunk_schema", "chunk_name"),
+)
+REPORTS: tuple[TimescaleReport, ...] = (*_VIEW_REPORTS, DETACHED_CHUNKS)
 
 BY_ID = {report.node_id: report for report in REPORTS}

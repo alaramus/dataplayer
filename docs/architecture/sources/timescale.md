@@ -403,7 +403,7 @@ Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-de
 
 ## D208. Chunk maintenance is a reviewed job over a fixed set of chunks
 
-Not implemented.
+Implemented (H6) and passing the whole matrix.
 
 Drop, merge (2.18+), split (2.20+), move, reorder, detach and attach (2.21+)
 each work like compressing chunks:
@@ -417,5 +417,41 @@ A drop never re-evaluates an age threshold at execution. Attach takes typed
 bounds per dimension. A Detached chunks report reads public views and
 `pg_class`, never private catalogs, so it offers attach without asserting
 anything.
+
+Each is an action in the hypertable's Timescale submenu, over a window of
+whole chunks like compressing; a split takes the instant to split at, and an
+attach the table and the range it is to cover. A merge, a split and an attach
+are one unit, and the unit carries the exact chunks, point or bounds it was
+reviewed with, so a source that changed between review and run refuses it.
+
+What the matrix showed, and the code follows:
+
+- `move_chunk` and `reorder_chunk` refuse a transaction block. Their unit is
+  checked in a transaction and then sent with none, the way VACUUM runs
+  (D206). `move_chunk` also refuses a chunk with no clustered index, so a move
+  names an index, the one on the time column unless the person names another.
+- `merge_chunks` merges compressed chunks from 2.19, which has no routine to
+  inspect: the minimum is declared, and the matrix proves it on 2.18.0 and
+  2.19.3. `split_chunk`, `detach_chunk` and `attach_chunk` are found by
+  discovery; a release without them says the API is not usable.
+- `detach_chunk` refuses a compressed chunk, and a detached chunk keeps its
+  name but none of its constraints. The report therefore matches by name
+  alone.
+- A drop is `DROP TABLE` on the chunk, re-resolved as a member of the parent
+  for every unit; it drops a compressed chunk as well.
+
+Known deviations:
+
+- **Not offered from a selection in the Chunks report.** A report row offers
+  only commands that run at once (D70), and these are reviewed first; the
+  submenu's window chooses the same whole chunks.
+- **Only a hypertable with one time dimension.** Which hash partition a chunk
+  is in is not in the public views, so neither a merge nor an attach could be
+  checked; an integer one is left as compressing leaves it.
+- **A reorder is never read back as done.** No public view tells a reordered
+  chunk apart, so an interrupted one is read as not done; doing it again is
+  harmless.
+- **A split takes a point, not "the middle".** The point is typed, not taken
+  from a selected row.
 
 Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-design.md)

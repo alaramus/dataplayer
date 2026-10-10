@@ -4,7 +4,7 @@ import pytest
 
 from app.adapters.export import ExportRequest
 from app.adapters.fetch import FetchRequest, ScalarFilter, Sort
-from app.adapters.postgres.timescale.reports import REPORTS
+from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS, REPORTS
 from compatibility.timescale.source import TimescaleSource
 
 
@@ -93,7 +93,8 @@ async def test_all_public_reports_open_and_chunk_pages_keep_schema_scope(source:
     adapter = source.adapter(user="fixture_reader")
     for report in REPORTS:
         result = await adapter.fetch(FetchRequest(node_id=report.node_id, limit=2))
-        assert result.rows, report.key
+        # The fixtures detach nothing; test_chunk_maintenance lists a detached chunk in it.
+        assert result.rows or report is DETACHED_CHUNKS, report.key
         assert not result.update_supported
     chunks = next(report for report in REPORTS if report.key.endswith(".chunks"))
     filters = [

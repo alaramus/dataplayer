@@ -19,6 +19,7 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     RETENTION,
     AgePolicySpec,
 )
+from app.adapters.postgres.timescale.chunk_maintenance_action import MAINTENANCE_TYPES
 from app.adapters.postgres.timescale.chunk_storage_action import (
     CompressChunks,
     DecompressChunks,
@@ -109,6 +110,18 @@ def design(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture(autouse=True)
+def maintenance(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    async def admit(*arguments: object) -> dict[str, str | None]:
+        operations = arguments[-1]
+        assert isinstance(operations, list)
+        return dict.fromkeys(operations)
+
+    stub = AsyncMock(side_effect=admit)
+    monkeypatch.setattr(actions, "maintenance_admission", stub)
+    return stub
+
+
+@pytest.fixture(autouse=True)
 def storage(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     admit = AsyncMock(return_value={"columnstore": None, "rowstore": None})
     monkeypatch.setattr(actions, "chunk_storage_admission", admit)
@@ -171,7 +184,10 @@ async def test_interval_offer_uses_live_plan_and_preserves_ordinary_guards(
     session = AsyncMock()
     registry = PostgresActions(session, catalog)
     offers = await registry.action_offers("lab.events")
-    expected = {DesignHypertable.name, ConfigureCompression.name, SetRetentionPolicy.name, *STORAGE_ACTIONS}
+    expected = {
+        DesignHypertable.name, ConfigureCompression.name, SetRetentionPolicy.name, *STORAGE_ACTIONS,
+        *(action.name for action in MAINTENANCE_TYPES),
+    }
     assert {item.name for item in offers.actions} == (expected if blocked else {SetChunkInterval.name, *expected})
     storage.assert_awaited_once_with(session, "lab", "events")
     assert offers.reason_for("drop_relation") == "Structured Timescale writes are disabled"

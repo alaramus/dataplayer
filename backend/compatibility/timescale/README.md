@@ -140,6 +140,22 @@ Found by running the matrix; each is handled in `app/` and covered here.
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
 
+## Validation record: 2026-10-10, chunk maintenance
+
+H6 (D208) added `test_chunk_maintenance.py`, eight scenarios on every source:
+drop, reorder, merge (adjacent only; compressed from 2.19), split, detach and
+attach back through the Detached chunks report, moving to a tablespace made
+for the test, and a unit refused because its chunk went between review and
+run. Releases without `merge_chunks`, `split_chunk` or `detach_chunk` say the
+API is not usable.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q` | 1040 passed, 3 skipped, 7 failed: the open-every-report scenario expecting rows of the empty Detached chunks report, fixed; then 7 passed |
+| backend | `uv run pytest tests/ -q` | 3803 passed, 154 skipped |
+| frontend | unit, type, lint and build checks | Passed |
+| frontend | `bunx playwright test` over the chunk, hypertable, designer and Timescale scenarios | 8 passed |
+
 ## Validation record: 2026-10-10, integer time
 
 H5 of D207 added `test_hypertable_integer.py`, six scenarios on every source: an
