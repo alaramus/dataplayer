@@ -32,12 +32,16 @@ from app.adapters.postgres.timescale.design_plan import (
     AttachTablespace,
     ConfigureColumnstore,
     ConvertTable,
+    Count,
+    CreateNowFunction,
     DesignStep,
     DetachTablespace,
     DisableColumnstore,
     HypertableDesignPlan,
+    Length,
     RemovePolicy,
     SetChunkInterval,
+    SetIntegerNow,
     SetPartitions,
     plan_design,
 )
@@ -49,6 +53,34 @@ _DIMENSIONS_LOCK = sql.SQL('LOCK TABLE ONLY "timescaledb_information"."dimension
 _REMOVE = {"retention": "remove_retention_policy", "compression": "remove_compression_policy",
            "reorder": "remove_reorder_policy"}
 _ADD = {"retention": "add_retention_policy", "compression": "add_compression_policy"}
+_INTEGER_SQL = {"smallint": "pg_catalog.int2", "integer": "pg_catalog.int4", "bigint": "pg_catalog.int8"}
+_SCALE = {"epoch_seconds": "", "epoch_milliseconds": " OPERATOR(pg_catalog.*) 1000",
+          "epoch_microseconds": " OPERATOR(pg_catalog.*) 1000000"}
+
+
+def length_type(length: Length) -> sql.SQL:
+    """The cast a length takes: an interval of time, or a bigint count Timescale checks against the column."""
+    return sql.SQL("pg_catalog.int8" if isinstance(length, Count) else "pg_catalog.interval")
+
+
+def length_value(length: Length) -> int | str:
+    return length.amount if isinstance(length, Count) else length.interval_value()
+
+
+def now_function_statement(step: CreateNowFunction) -> sql.Composed:
+    """The template's function: its body is the server's constant text, never the request's (D207)."""
+    integer = _INTEGER_SQL[step.column_type]
+    body = sql.SQL("SELECT pg_catalog.floor(EXTRACT(epoch FROM pg_catalog.now()){})::{}").format(
+        sql.SQL(_SCALE[step.template]), sql.SQL(integer),
+    ).as_string()
+    return sql.SQL("CREATE FUNCTION {}() RETURNS {} LANGUAGE sql STABLE AS {}").format(
+        sql.Identifier(step.schema_name, step.name), sql.SQL(integer), sql.Literal(body),
+    )
+
+
+def routine_signature(schema_name: str, name: str) -> str:
+    """A zero-argument function as regprocedure reads it, identifiers quoted."""
+    return sql.Identifier(schema_name, name).as_string() + "()"
 
 
 async def execute_design(
@@ -152,16 +184,21 @@ async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesign
             await connection.execute(
                 sql.SQL(
                     "SELECT hypertable_id FROM {}(%s::pg_catalog.regclass, "
-                    "{}(%s::pg_catalog.name, %s::pg_catalog.interval), true, false, %s)"
-                ).format(sql.Identifier(schema, "create_hypertable"), sql.Identifier(schema, "by_range")),
-                (relation, column, interval.interval_value(), migrate),
+                    "{}(%s::pg_catalog.name, %s::{}), true, false, %s)"
+                ).format(
+                    sql.Identifier(schema, "create_hypertable"), sql.Identifier(schema, "by_range"),
+                    length_type(interval),
+                ),
+                (relation, column, length_value(interval), migrate),
             )
         case RemovePolicy(kind=kind):
             await connection.execute(_call(plan, _REMOVE[kind], "%s::pg_catalog.regclass, false"), (relation,))
         case AddAgePolicy(kind=kind, older_than=older_than):
             await connection.execute(
-                _call(plan, _ADD[kind], "%s::pg_catalog.regclass, %s::pg_catalog.interval, false"),
-                (relation, older_than.interval_value()),
+                sql.SQL("SELECT {}(%s::pg_catalog.regclass, %s::{}, false)").format(
+                    sql.Identifier(_schema(plan), _ADD[kind]), length_type(older_than),
+                ),
+                (relation, length_value(older_than)),
             )
         case AddReorderPolicy(index=index):
             await connection.execute(
@@ -170,9 +207,10 @@ async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesign
             )
         case SetChunkInterval(interval=interval):
             await connection.execute(
-                _call(plan, "set_chunk_time_interval",
-                      "%s::pg_catalog.regclass, %s::pg_catalog.interval, %s::pg_catalog.name"),
-                (relation, interval.interval_value(), target.column_name),
+                sql.SQL("SELECT {}(%s::pg_catalog.regclass, %s::{}, %s::pg_catalog.name)").format(
+                    sql.Identifier(_schema(plan), "set_chunk_time_interval"), length_type(interval),
+                ),
+                (relation, length_value(interval), target.column_name),
             )
         case SetPartitions(column=column, partitions=partitions):
             await connection.execute(
@@ -201,6 +239,15 @@ async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesign
         case DetachTablespace(name=name):
             await connection.execute(
                 _call(plan, "detach_tablespace", "%s::pg_catalog.name, %s::pg_catalog.regclass"), (name, relation),
+            )
+        case CreateNowFunction():
+            await connection.execute(now_function_statement(step))
+        case SetIntegerNow(schema_name=schema_name, name=name, replace=replace):
+            await connection.execute(
+                _call(plan, "set_integer_now_func",
+                      "%s::pg_catalog.regclass, "
+                      "%s::pg_catalog.regprocedure::pg_catalog.oid::pg_catalog.regproc, %s"),
+                (relation, routine_signature(schema_name, name), replace),
             )
 
 

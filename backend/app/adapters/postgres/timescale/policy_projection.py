@@ -51,6 +51,17 @@ def validated_interval(key: str) -> sql.Composed:
     ).format(key=sql.Literal(key), value=value, valid=_matches(value, INTERVAL_TEXT))
 
 
+def validated_count(key: str) -> sql.Composed:
+    """One positive integer setting of `source.config` as text, or NULL when absent or malformed."""
+    value = sql.SQL("source.config ->> {}").format(sql.Literal(key))
+    return sql.SQL(
+        "(CASE WHEN pg_catalog.jsonb_typeof(source.config -> {key}) = 'number' "
+        "AND pg_catalog.length({value}) <= 19 "
+        "AND {valid} "
+        "THEN {value} END)"
+    ).format(key=sql.Literal(key), value=value, valid=_matches(value, "^[1-9][0-9]{0,18}$"))
+
+
 _POLICIES = (
     ("policy_retention", "retention", ("drop_after", "drop_created_before")),
     ("policy_compression", "compression", ("compress_after", "compress_created_before")),

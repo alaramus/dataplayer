@@ -82,7 +82,8 @@ async def test_an_ordinary_table_reads_as_a_conversion_to_make(source: Timescale
     state = await editor(source).state(plain.node_id)
 
     assert state.reason is None and state.hypertable is False
-    assert [column.name for column in state.time_columns] == ["observed_at"]
+    # Integer columns are candidates too, but a time column is the one proposed.
+    assert [column.name for column in state.time_columns] == ["observed_at", "device", "value"]
     assert state.design is not None and state.design.time_column == "observed_at"
     assert state.design.chunk_interval == DesignDuration(amount=1, unit="week")
     assert state.has_chunks is False

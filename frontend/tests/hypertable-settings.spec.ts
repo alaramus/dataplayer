@@ -85,11 +85,12 @@ test("converts a table with rows as a job, settings and all", async ({ page }) =
   const stamp = Date.now()
   const connector = `e2e-convert-${stamp}`
   const schema = `e2e_convert_${stamp}`
+  // Recent rows: the retention policy runs as soon as it is added, and would drop old ones.
   await timescaleSql(
     `CREATE SCHEMA ${schema};
      CREATE TABLE ${schema}.readings (observed_at timestamptz NOT NULL, device integer NOT NULL, value double precision);
      INSERT INTO ${schema}.readings
-       SELECT TIMESTAMPTZ '2000-01-01' + make_interval(days => g), g, g FROM generate_series(1, 50) AS g;`
+       SELECT now() - make_interval(days => g), g, g FROM generate_series(1, 50) AS g;`
   )
   try {
     await login(page)
@@ -133,3 +134,59 @@ test("converts a table with rows as a job, settings and all", async ({ page }) =
   }
 })
 
+
+test("converts by an integer column with a clock made from a template", async ({ page }) => {
+  const stamp = Date.now()
+  const connector = `e2e-integer-${stamp}`
+  const schema = `e2e_integer_${stamp}`
+  const clock = `unix_seconds_${stamp}`
+  await timescaleSql(
+    `CREATE SCHEMA ${schema};
+     CREATE TABLE ${schema}.readings (observed_at timestamptz, tick bigint NOT NULL, value double precision);`
+  )
+  try {
+    await login(page)
+    await createTimescaleConnector(page, connector)
+    await openConnector(page, connector)
+    await showOnlySchema(page, schema)
+    await openSettings(page)
+
+    await choose(page, "time-column", "tick · bigint")
+    // Counted in the column's values: no unit, and the interval the server proposes for bigint.
+    await expect(page.getByTestId("chunk-interval-unit")).toHaveCount(0)
+    await expect(page.getByTestId("chunk-interval-amount")).toHaveValue("1000000")
+
+    const plan = page.getByTestId("hypertable-plan")
+    await choose(page, "retention-mode", "Drop chunks older than")
+    await page.getByTestId("retention-amount").fill("900000000000")
+    await expect(plan).toContainText("needs an integer_now function")
+
+    await choose(page, "integer-now-mode", "A new function from a template")
+    await page.getByTestId("integer-now-name").fill(clock)
+    await expect(plan).toContainText(`Create function "${schema}"."${clock}"() returning the seconds since 1970`)
+    await expect(plan).toContainText("drop chunks older than 900,000,000,000 values")
+
+    await page.getByTestId("hypertable-apply").click()
+    await page.getByTestId("confirm-accept").click()
+    await expect(toast(page, "Converted to a hypertable")).toBeVisible()
+
+    expect(
+      await timescaleSql(
+        `SELECT integer_interval || ' ' || integer_now_func FROM timescaledb_information.dimensions
+         WHERE hypertable_schema = '${schema}' AND hypertable_name = 'readings'`
+      )
+    ).toBe(`1000000 ${clock}`)
+    expect(
+      await timescaleSql(
+        `SELECT config ->> 'drop_after' FROM timescaledb_information.jobs
+         WHERE hypertable_schema = '${schema}' AND proc_name = 'policy_retention'`
+      )
+    ).toBe("900000000000")
+
+    await openSettings(page)
+    await expect(plan).toContainText("already matches these settings")
+  } finally {
+    await deleteConnector(page, connector).catch(() => undefined)
+    await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
+  }
+})

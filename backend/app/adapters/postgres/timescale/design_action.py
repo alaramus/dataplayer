@@ -36,19 +36,23 @@ from app.adapters.postgres.timescale.design_execution import (
     execute_design_job,
 )
 from app.adapters.postgres.timescale.design_plan import (
+    TEMPLATE_PHRASES,
     AddAgePolicy,
     AddHashDimension,
     AddReorderPolicy,
     AttachTablespace,
     ConfigureColumnstore,
     ConvertTable,
+    Count,
+    CreateNowFunction,
     DesignStep,
     DetachTablespace,
     DisableColumnstore,
-    Duration,
     HypertableDesignPlan,
+    Length,
     RemovePolicy,
     SetChunkInterval,
+    SetIntegerNow,
     SetPartitions,
     plan_design,
 )
@@ -87,8 +91,14 @@ class HypertableDesignParams(BaseModel):
     design: HypertableDesign
 
 
-def _spoken(duration: Duration) -> str:
-    return f"{duration.amount} {duration.unit}{'' if duration.amount == 1 else 's'}"
+def _spoken(length: Length) -> str:
+    if isinstance(length, Count):
+        return f"{length.amount:,} {'value' if length.amount == 1 else 'values'}"
+    return f"{length.amount} {length.unit}{'' if length.amount == 1 else 's'}"
+
+
+def _routine(schema_name: str, name: str) -> str:
+    return sql.Identifier(schema_name, name).as_string() + "()"
 
 
 def _columns(value: SegmentBy | OrderBy | None) -> str:
@@ -155,6 +165,13 @@ def _describe(step: DesignStep) -> str:
             return f"Place new chunks in tablespace {sql.Identifier(name).as_string()} too"
         case DetachTablespace(name=name):
             return f"Stop placing new chunks in tablespace {sql.Identifier(name).as_string()}"
+        case CreateNowFunction(schema_name=schema_name, name=name, template=template, column_type=column_type):
+            return (
+                f"Create function {_routine(schema_name, name)} returning the {TEMPLATE_PHRASES[template]} "
+                f"as {column_type}"
+            )
+        case SetIntegerNow(schema_name=schema_name, name=name):
+            return f"Policies take the current value of the time column from {_routine(schema_name, name)}"
     raise AssertionError("every step is described")
 
 

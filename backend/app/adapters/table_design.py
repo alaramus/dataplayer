@@ -29,6 +29,11 @@ from app.adapters.hypertable_design import (
     MAX_HASH_PARTITIONS,
     DesignDuration,
     DurationUnit,
+    IntegerSpan,
+    NewNowDesign,
+    NowFunction,
+    NowTemplate,
+    Span,
 )
 from app.adapters.relation import IndexMethodOption, RefAction
 
@@ -137,6 +142,18 @@ class DesignLimits(BaseModel):
     name_bytes: int = NAME_LIMIT_BYTES
 
 
+class IntegerTimeOption(BaseModel):
+    """What an integer type can be as a hypertable's time column (D207)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["smallint", "integer", "bigint"]
+    chunk_interval: IntegerSpan
+    # The largest interval or policy age the type holds, as a decimal string.
+    maximum: str
+    now_templates: list[NowTemplate] = Field(default_factory=list)
+
+
 class HypertableOffer(BaseModel):
     """Whether this destination can create a hypertable, and in which units (D207)."""
 
@@ -148,6 +165,9 @@ class HypertableOffer(BaseModel):
     per_chunk_defaults: bool = False
     interval_units: list[DurationUnit] = Field(default_factory=list)
     policy_units: list[DurationUnit] = Field(default_factory=list)
+    integer_types: list[IntegerTimeOption] = Field(default_factory=list)
+    # Functions of this database an integer time column may take as integer_now.
+    now_functions: list[NowFunction] = Field(default_factory=list)
 
 
 class TableDesignOptions(BaseModel):
@@ -386,7 +406,7 @@ class TableHypertable(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     time_column_id: DraftId
-    chunk_interval: DesignDuration
+    chunk_interval: Span
     hash_dimensions: list[TableHashDimension] = Field(default_factory=list, max_length=MAX_HASH_DIMENSIONS)
     columnstore: bool = False
     segment_mode: Literal["default", "none", "columns"] = "default"
@@ -394,9 +414,10 @@ class TableHypertable(BaseModel):
     order_mode: Literal["default", "columns"] = "default"
     order_keys: list[TableOrderKey] = Field(default_factory=list, max_length=MAX_KEY_COLUMNS)
     merge_interval: DesignDuration | None = None
-    retention: DesignDuration | None = None
-    columnstore_policy: DesignDuration | None = None
+    retention: Span | None = None
+    columnstore_policy: Span | None = None
     reorder_index_id: DraftId | None = None
+    integer_now: NewNowDesign | None = None
 
 
 class TableDefinition(BaseModel):

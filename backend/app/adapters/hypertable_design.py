@@ -15,6 +15,7 @@ MAX_HASH_DIMENSIONS = 8
 MAX_TABLESPACES = 32
 # by_hash takes a smallint-sized count; Timescale refuses more.
 MAX_HASH_PARTITIONS = 32767
+BIGINT_MAX = 9_223_372_036_854_775_807
 
 DurationUnit = Literal["second", "minute", "hour", "day", "week", "month", "year"]
 Name = Annotated[str, Field(min_length=1, max_length=63)]
@@ -25,6 +26,63 @@ class DesignDuration(BaseModel):
 
     amount: int = Field(strict=True, gt=0, le=2_147_483_647)
     unit: DurationUnit
+
+
+class IntegerSpan(BaseModel):
+    """A length counted in an integer time column's own values.
+
+    A decimal string, because a bigint column's lengths go past what a
+    browser's number holds exactly.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    unit: Literal["integer"] = "integer"
+    amount: str = Field(pattern=r"^[1-9][0-9]{0,18}$")
+
+    @model_validator(mode="after")
+    def within_bigint(self) -> Self:
+        if int(self.amount) > BIGINT_MAX:
+            raise ValueError("A length is at most the largest bigint")
+        return self
+
+
+# A time column's lengths are durations; an integer column's are counts (D207).
+Span = Annotated[DesignDuration | IntegerSpan, Field(discriminator="unit")]
+NowTemplate = Literal["epoch_seconds", "epoch_milliseconds", "epoch_microseconds"]
+
+
+class ExistingNow(BaseModel):
+    """A function that is already there, offered by the source because Timescale accepts it."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["existing"] = "existing"
+    schema_name: Name
+    name: Name
+
+
+class TemplateNow(BaseModel):
+    """A function created in the table's schema from a body the server owns (D207)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["template"] = "template"
+    template: NowTemplate
+    name: Name
+
+
+class KeptNow(BaseModel):
+    """The current function, which the public views name without its schema, left as it is."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    kind: Literal["current"] = "current"
+
+
+NowDesign = Annotated[ExistingNow | TemplateNow | KeptNow, Field(discriminator="kind")]
+# A new table has no current function to keep.
+NewNowDesign = Annotated[ExistingNow | TemplateNow, Field(discriminator="kind")]
 
 
 class ChosenByTimescale(BaseModel):
@@ -86,7 +144,7 @@ class OlderThan(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     kind: Literal["older_than"] = "older_than"
-    older_than: DesignDuration
+    older_than: Span
 
 
 class KeptAsItIs(BaseModel):
@@ -120,7 +178,7 @@ class HypertableDesign(BaseModel):
     # The column an ordinary table is partitioned by when it is converted; a
     # hypertable's cannot change, so there it must name the one it has.
     time_column: Name | None = None
-    chunk_interval: DesignDuration | None = None
+    chunk_interval: Span | None = None
     hash_dimensions: list[HashDimensionDesign] = Field(
         default_factory=list, max_length=MAX_HASH_DIMENSIONS,
     )
@@ -131,6 +189,8 @@ class HypertableDesign(BaseModel):
     columnstore_policy: AgePolicyDesign | None = None
     reorder_index: Name | None = None
     tablespaces: list[Name] = Field(default_factory=list, max_length=MAX_TABLESPACES)
+    # What "now" is for age policies on an integer time column; nothing else has one.
+    integer_now: NowDesign | None = None
 
     @model_validator(mode="after")
     def distinct(self) -> Self:
@@ -150,6 +210,20 @@ class HypertableColumn(BaseModel):
     # Whether it can be a hash dimension, an order key or a segment column,
     # as the source decides; a column without a comparison operator is none.
     orderable: bool
+    # For a column a table may be partitioned by: the interval proposed for it,
+    # and the integer_now templates its type can hold without overflowing.
+    chunk_interval: Span | None = None
+    now_templates: list[NowTemplate] = Field(default_factory=list)
+
+
+class NowFunction(BaseModel):
+    """A function Timescale would accept as integer_now for a column of `type`."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_name: Name
+    name: Name
+    type: Literal["smallint", "integer", "bigint"]
 
 
 class CurrentPolicy(BaseModel):
@@ -196,6 +270,12 @@ class HypertableDesignState(BaseModel):
     retention: CurrentPolicy | None = None
     columnstore_policy: CurrentPolicy | None = None
     reorder: CurrentPolicy | None = None
+    # The functions an integer time column may take as integer_now, and the
+    # current one's name when the views cannot say which schema holds it.
+    now_functions: list[NowFunction] = Field(default_factory=list)
+    integer_now_name: str | None = Field(default=None, max_length=63)
+    # Where a function made from a template is created.
+    schema_name: str | None = Field(default=None, max_length=63)
 
     @model_validator(mode="after")
     def answered(self) -> Self:

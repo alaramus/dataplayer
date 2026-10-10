@@ -26,6 +26,7 @@ from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.protocol import AdapterError
 
 _SUBDAY = frozenset({"second", "minute", "hour"})
+_TIME_TYPES = frozenset({"timestamp without time zone", "timestamp with time zone", "date"})
 _INDEX_CEILING = 1000
 
 _RELATION = """
@@ -84,10 +85,13 @@ SELECT attribute.attname AS name, pg_catalog.format_type(attribute.atttypid, NUL
        attribute.attnotnull AS not_null
 FROM pg_catalog.pg_attribute AS attribute
 WHERE attribute.attrelid = %s::pg_catalog.oid AND attribute.attnum > 0 AND NOT attribute.attisdropped
-  AND attribute.atttypid IN (
+  AND (attribute.atttypid IN (
       'pg_catalog.timestamp'::pg_catalog.regtype, 'pg_catalog.timestamptz'::pg_catalog.regtype,
       'pg_catalog.date'::pg_catalog.regtype
-  )
+  ) OR (%s AND attribute.atttypid IN (
+      'pg_catalog.int2'::pg_catalog.regtype, 'pg_catalog.int4'::pg_catalog.regtype,
+      'pg_catalog.int8'::pg_catalog.regtype
+  )))
 ORDER BY attribute.attnum
 """
 
@@ -140,12 +144,14 @@ def by_range_shape(dimension_info: str) -> RoutineShape:
 
 
 async def inspect_conversion(
-    reader: PostgresReader, schema_name: str, table_name: str, *, allow_rows: bool = False,
+    reader: PostgresReader, schema_name: str, table_name: str, *,
+    allow_rows: bool = False, allow_integer: bool = False,
 ) -> ConversionState:
     """Everything that refuses a conversion whatever column and interval are chosen.
 
     Rows refuse it unless the caller moves them as a job (D207); then whether
-    there are any is a fact of the state.
+    there are any is a fact of the state. Integer columns are candidates only
+    for a caller that can plan integer_now beside them.
     """
     try:
         async with asyncio.timeout(5):
@@ -167,10 +173,11 @@ async def inspect_conversion(
                 )
             columns = tuple(
                 ConversionColumn.model_validate(row)
-                for row in await reader.query(_TIME_COLUMNS, (target.relation_oid,), inspection=True)
+                for row in await reader.query(_TIME_COLUMNS, (target.relation_oid, allow_integer), inspection=True)
             )
             if not columns:
-                raise ActionRefused("not_applicable", "This table has no timestamp or date column to partition by")
+                kinds = "timestamp, date or integer" if allow_integer else "timestamp or date"
+                raise ActionRefused("not_applicable", f"This table has no {kinds} column to partition by")
             empty = await _flag(reader, _empty_statement(target), None, "empty")
             if not empty and not allow_rows:
                 raise ActionRefused("not_applicable", "This table is not empty; only empty tables are converted here")
@@ -239,15 +246,15 @@ async def _flag(
     return value
 
 
-def conversion_plan(state: ConversionState, column_name: str, interval: TimeDuration) -> ConversionPlan:
+def conversion_column(state: ConversionState, column_name: str) -> ConversionColumn:
     column = next((item for item in state.columns if item.name == column_name), None)
     if column is None:
         choices = ", ".join(item.name for item in state.columns)
-        raise ActionRefused("not_applicable", f"Choose a timestamp or date column of this table: {choices}")
-    if interval.unit in {"month", "year"}:
-        raise ActionRefused("not_applicable", "Calendar chunk intervals are not supported by this strategy")
-    if column.type == "date" and interval.unit in _SUBDAY:
-        raise ActionRefused("not_applicable", "Date columns require whole days or weeks")
+        raise ActionRefused("not_applicable", f"Choose a column this table can be partitioned by: {choices}")
+    return column
+
+
+def require_unique_indexes(state: ConversionState, column: ConversionColumn) -> None:
     missing = next(
         (index.name for index in state.indexes if index.constrains and column.name not in index.columns), None,
     )
@@ -255,10 +262,25 @@ def conversion_plan(state: ConversionState, column_name: str, interval: TimeDura
         raise ActionRefused(
             "not_applicable", f'Unique index "{missing}" must include "{column.name}", which partitions the table',
         )
+
+
+def time_index_exists(state: ConversionState, column: ConversionColumn) -> bool:
+    # The rule of the default-index check in src/indexing.c (2.17.2 and 2.18.0).
+    return any(index.columns == (column.name,) for index in state.indexes)
+
+
+def conversion_plan(state: ConversionState, column_name: str, interval: TimeDuration) -> ConversionPlan:
+    column = conversion_column(state, column_name)
+    if column.type not in _TIME_TYPES:
+        raise ActionRefused("not_applicable", "An integer column is converted from Hypertable settings")
+    if interval.unit in {"month", "year"}:
+        raise ActionRefused("not_applicable", "Calendar chunk intervals are not supported by this strategy")
+    if column.type == "date" and interval.unit in _SUBDAY:
+        raise ActionRefused("not_applicable", "Date columns require whole days or weeks")
+    require_unique_indexes(state, column)
     return ConversionPlan(
         target=state.target, column=column, interval=interval,
-        # The rule of the default-index check in src/indexing.c (2.17.2 and 2.18.0).
-        time_index_exists=any(index.columns == (column.name,) for index in state.indexes),
+        time_index_exists=time_index_exists(state, column),
         strategy=state.strategy,
     )
 

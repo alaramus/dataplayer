@@ -23,6 +23,7 @@ from app.adapters.postgres.timescale.plans import (
 )
 from app.adapters.postgres.timescale.policy_projection import (
     OWNED_POLICY_ROUTINE,
+    validated_count,
     validated_interval,
 )
 from app.adapters.postgres.timescale.profile import discover, require_available
@@ -78,7 +79,8 @@ def _existing_statement(spec: AgePolicySpec) -> str:
     return sql.SQL("""
 SELECT source.job_id::text AS job_id, source.scheduled,
        source.schedule_interval::text AS schedule_interval,
-       {older_than} AS older_than, {created_before} AS created_before
+       {older_than} AS older_than, {older_than_count} AS older_than_count,
+       {created_before} AS created_before
 FROM timescaledb_information.jobs AS source
 WHERE source.hypertable_schema = %s AND source.hypertable_name = %s
   AND source.proc_name = {routine} AND {owned}
@@ -86,6 +88,7 @@ ORDER BY source.job_id
 LIMIT 2
 """).format(
         older_than=validated_interval(spec.older_than_key),
+        older_than_count=validated_count(spec.older_than_key),
         created_before=validated_interval(spec.created_before_key),
         routine=sql.Literal(spec.routine),
         owned=OWNED_POLICY_ROUTINE,

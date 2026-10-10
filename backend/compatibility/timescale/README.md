@@ -140,6 +140,22 @@ Found by running the matrix; each is handled in `app/` and covered here.
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
 
+## Validation record: 2026-10-10, integer time
+
+H5 of D207 added `test_hypertable_integer.py`, six scenarios on every source: an
+integer table converted with a template `integer_now` and a counted retention
+age, an integer hypertable taking an existing function and swapping it, a taken
+function name refused, a dropped `integer_now` kept by its name, a merge
+interval on integer time left to SQL, and the designer creating an integer
+hypertable with its function. Every release behaved alike.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q` | 986 passed, 1 skipped, 7 failed: one conversion scenario proposing an integer column, fixed; the three editor files then 168 passed |
+| backend | `uv run pytest tests/ -q` | 3796 passed, 154 skipped |
+| frontend | unit, type, lint and build checks | Passed |
+| frontend | `bunx playwright test` over the hypertable, designer and Timescale scenarios | 7 passed |
+
 ## Validation record: 2026-10-10, the table designer's Hypertable section
 
 H4 of D207 added `test_hypertable_creation.py`, five scenarios on every

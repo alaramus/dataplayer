@@ -4307,6 +4307,26 @@ export type ExclusionConstraint = {
 }
 
 /**
+ * ExistingNow
+ *
+ * A function that is already there, offered by the source because Timescale accepts it.
+ */
+export type ExistingNow = {
+  /**
+   * Kind
+   */
+  kind?: "existing"
+  /**
+   * Schema Name
+   */
+  schema_name: string
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
  * ExplainNode
  *
  * One operation of a plan, and what the source estimates about it.
@@ -5432,6 +5452,21 @@ export type HypertableColumn = {
    * Orderable
    */
   orderable: boolean
+  /**
+   * Chunk Interval
+   */
+  chunk_interval?:
+    | ({
+        unit: "day" | "hour" | "minute" | "month" | "second" | "week" | "year"
+      } & DesignDuration)
+    | ({
+        unit: "integer"
+      } & IntegerSpan)
+    | null
+  /**
+   * Now Templates
+   */
+  now_templates?: Array<"epoch_seconds" | "epoch_milliseconds" | "epoch_microseconds">
 }
 
 /**
@@ -5444,7 +5479,17 @@ export type HypertableDesign = {
    * Time Column
    */
   time_column?: string | null
-  chunk_interval?: DesignDuration | null
+  /**
+   * Chunk Interval
+   */
+  chunk_interval?:
+    | ({
+        unit: "day" | "hour" | "minute" | "month" | "second" | "week" | "year"
+      } & DesignDuration)
+    | ({
+        unit: "integer"
+      } & IntegerSpan)
+    | null
   /**
    * Hash Dimensions
    */
@@ -5480,6 +5525,20 @@ export type HypertableDesign = {
    * Tablespaces
    */
   tablespaces?: Array<string>
+  /**
+   * Integer Now
+   */
+  integer_now?:
+    | ({
+        kind: "existing"
+      } & ExistingNow)
+    | ({
+        kind: "template"
+      } & TemplateNow)
+    | ({
+        kind: "current"
+      } & KeptNow)
+    | null
 }
 
 /**
@@ -5564,6 +5623,18 @@ export type HypertableDesignState = {
   retention?: CurrentPolicy | null
   columnstore_policy?: CurrentPolicy | null
   reorder?: CurrentPolicy | null
+  /**
+   * Now Functions
+   */
+  now_functions?: Array<NowFunction>
+  /**
+   * Integer Now Name
+   */
+  integer_now_name?: string | null
+  /**
+   * Schema Name
+   */
+  schema_name?: string | null
 }
 
 /**
@@ -5624,6 +5695,14 @@ export type HypertableOffer = {
    * Policy Units
    */
   policy_units?: Array<"second" | "minute" | "hour" | "day" | "week" | "month" | "year">
+  /**
+   * Integer Types
+   */
+  integer_types?: Array<IntegerTimeOption>
+  /**
+   * Now Functions
+   */
+  now_functions?: Array<NowFunction>
 }
 
 /**
@@ -6015,6 +6094,46 @@ export type InsertValue = {
 }
 
 /**
+ * IntegerSpan
+ *
+ * A length counted in an integer time column's own values.
+ *
+ * A decimal string, because a bigint column's lengths go past what a
+ * browser's number holds exactly.
+ */
+export type IntegerSpan = {
+  /**
+   * Unit
+   */
+  unit?: "integer"
+  /**
+   * Amount
+   */
+  amount: string
+}
+
+/**
+ * IntegerTimeOption
+ *
+ * What an integer type can be as a hypertable's time column (D207).
+ */
+export type IntegerTimeOption = {
+  /**
+   * Type
+   */
+  type: "smallint" | "integer" | "bigint"
+  chunk_interval: IntegerSpan
+  /**
+   * Maximum
+   */
+  maximum: string
+  /**
+   * Now Templates
+   */
+  now_templates?: Array<"epoch_seconds" | "epoch_milliseconds" | "epoch_microseconds">
+}
+
+/**
  * JobPublic
  *
  * A job as its owner reads it.
@@ -6312,6 +6431,18 @@ export type KeptDownload = {
    * Row Count
    */
   row_count: number
+}
+
+/**
+ * KeptNow
+ *
+ * The current function, which the public views name without its schema, left as it is.
+ */
+export type KeptNow = {
+  /**
+   * Kind
+   */
+  kind?: "current"
 }
 
 /**
@@ -7288,6 +7419,26 @@ export type NodeTarget = {
 }
 
 /**
+ * NowFunction
+ *
+ * A function Timescale would accept as integer_now for a column of `type`.
+ */
+export type NowFunction = {
+  /**
+   * Schema Name
+   */
+  schema_name: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Type
+   */
+  type: "smallint" | "integer" | "bigint"
+}
+
+/**
  * NullFilter
  */
 export type NullFilter = {
@@ -7489,7 +7640,16 @@ export type OlderThan = {
    * Kind
    */
   kind?: "older_than"
-  older_than: DesignDuration
+  /**
+   * Older Than
+   */
+  older_than:
+    | ({
+        unit: "day" | "hour" | "minute" | "month" | "second" | "week" | "year"
+      } & DesignDuration)
+    | ({
+        unit: "integer"
+      } & IntegerSpan)
 }
 
 /**
@@ -12128,7 +12288,16 @@ export type TableHypertable = {
    * Time Column Id
    */
   time_column_id: string
-  chunk_interval: DesignDuration
+  /**
+   * Chunk Interval
+   */
+  chunk_interval:
+    | ({
+        unit: "day" | "hour" | "minute" | "month" | "second" | "week" | "year"
+      } & DesignDuration)
+    | ({
+        unit: "integer"
+      } & IntegerSpan)
   /**
    * Hash Dimensions
    */
@@ -12154,12 +12323,43 @@ export type TableHypertable = {
    */
   order_keys?: Array<TableOrderKey>
   merge_interval?: DesignDuration | null
-  retention?: DesignDuration | null
-  columnstore_policy?: DesignDuration | null
+  /**
+   * Retention
+   */
+  retention?:
+    | ({
+        unit: "day" | "hour" | "minute" | "month" | "second" | "week" | "year"
+      } & DesignDuration)
+    | ({
+        unit: "integer"
+      } & IntegerSpan)
+    | null
+  /**
+   * Columnstore Policy
+   */
+  columnstore_policy?:
+    | ({
+        unit: "day" | "hour" | "minute" | "month" | "second" | "week" | "year"
+      } & DesignDuration)
+    | ({
+        unit: "integer"
+      } & IntegerSpan)
+    | null
   /**
    * Reorder Index Id
    */
   reorder_index_id?: string | null
+  /**
+   * Integer Now
+   */
+  integer_now?:
+    | ({
+        kind: "existing"
+      } & ExistingNow)
+    | ({
+        kind: "template"
+      } & TemplateNow)
+    | null
 }
 
 /**
@@ -12377,6 +12577,26 @@ export type TablesPreviewRequest = {
    */
   target_node_id?: string | null
   tables?: TablesChoice
+}
+
+/**
+ * TemplateNow
+ *
+ * A function created in the table's schema from a body the server owns (D207).
+ */
+export type TemplateNow = {
+  /**
+   * Kind
+   */
+  kind?: "template"
+  /**
+   * Template
+   */
+  template: "epoch_seconds" | "epoch_milliseconds" | "epoch_microseconds"
+  /**
+   * Name
+   */
+  name: string
 }
 
 /**

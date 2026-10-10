@@ -162,17 +162,30 @@ export interface Draft {
 }
 
 export type DurationUnit = "second" | "minute" | "hour" | "day" | "week" | "month" | "year"
+/** A time column's lengths are durations; an integer column's are counted in its values. */
+export type LengthUnit = DurationUnit | "integer"
+export type NowTemplate = "epoch_seconds" | "epoch_milliseconds" | "epoch_microseconds"
+/** The designer's codes of the integer types a hypertable may be partitioned by. */
+export const INTEGER_TIME_CODES = ["smallint", "integer", "bigint"]
 
 export interface DraftAge {
   on: boolean
   amount: number | null
-  unit: DurationUnit
+  unit: LengthUnit
+}
+
+export interface DraftNow {
+  mode: "none" | "existing" | "template"
+  /** `JSON.stringify([schema, name])` of an existing function. */
+  existing: string
+  template: NowTemplate
+  name: string
 }
 
 export interface DraftHypertable {
   timeColumnId: string
   intervalAmount: number | null
-  intervalUnit: DurationUnit
+  intervalUnit: LengthUnit
   hash: { columnId: string; partitions: number | null }[]
   columnstore: boolean
   segmentMode: "default" | "none" | "columns"
@@ -184,6 +197,43 @@ export interface DraftHypertable {
   columnstorePolicy: DraftAge
   /** "" for no reorder policy. */
   reorderIndexId: string
+  /** What "now" is for age policies on an integer time column. */
+  now: DraftNow
+}
+
+/** What the server proposes for an integer time column of one type. */
+export interface IntegerTimeChoice {
+  type: string
+  chunk_interval: { amount: string }
+  now_templates?: NowTemplate[]
+}
+
+/**
+ * The section once its time column is of another type (D207).
+ *
+ * Time and integer columns count lengths differently, so the interval becomes
+ * the one proposed for the new type and ages keep only their switches.
+ */
+export function retimedHypertable(hypertable: DraftHypertable, integer: IntegerTimeChoice | null): DraftHypertable {
+  const counted = (value: DraftAge, unit: DurationUnit): DraftAge => ({
+    on: value.on,
+    amount: null,
+    unit: integer ? "integer" : unit,
+  })
+  const templates = integer?.now_templates ?? []
+  return {
+    ...hypertable,
+    intervalAmount: integer ? Number(integer.chunk_interval.amount) : 7,
+    intervalUnit: integer ? "integer" : "day",
+    merge: { on: false, amount: null, unit: "day" },
+    retention: counted(hypertable.retention, "month"),
+    columnstorePolicy: counted(hypertable.columnstorePolicy, "week"),
+    now: {
+      ...hypertable.now,
+      mode: integer === null || (hypertable.now.mode === "template" && templates.length === 0) ? "none" : hypertable.now.mode,
+      template: templates.includes(hypertable.now.template) ? hypertable.now.template : (templates[0] ?? "epoch_seconds"),
+    },
+  }
 }
 
 /** The temporal column a hypertable would most likely be partitioned by. */
@@ -235,6 +285,7 @@ export function asHypertable(draft: Draft, method: string): Draft {
       retention: { on: false, amount: null, unit: "month" },
       columnstorePolicy: { on: false, amount: null, unit: "week" },
       reorderIndexId: "",
+      now: { mode: "none", existing: "", template: "epoch_seconds", name: "" },
     },
   }
 }
@@ -242,7 +293,7 @@ export function asHypertable(draft: Draft, method: string): Draft {
 /** What a hypertable section still lacks before it can be planned, or null. */
 export function hypertableMissing(hypertable: DraftHypertable | null): string | null {
   if (hypertable === null) return null
-  const whole = (value: number | null) => value !== null && Number.isInteger(value) && value > 0
+  const whole = (value: number | null) => value !== null && Number.isSafeInteger(value) && value > 0
   if (hypertable.timeColumnId === "") return "Choose the time column"
   if (!whole(hypertable.intervalAmount)) return "Enter the chunk interval"
   if (hypertable.hash.some((item) => item.columnId === "" || !whole(item.partitions))) {
@@ -261,18 +312,38 @@ export function hypertableMissing(hypertable: DraftHypertable | null): string | 
   ] as const) {
     if (age?.on === true && !whole(age.amount)) return `Enter the ${label}`
   }
+  if (hypertable.intervalUnit === "integer") {
+    if (hypertable.now.mode === "existing" && hypertable.now.existing === "") return "Choose the integer_now function"
+    if (hypertable.now.mode === "template" && hypertable.now.name.trim() === "") {
+      return "Name the integer_now function"
+    }
+  }
   return null
 }
 
-function age(value: DraftAge, enabled = true): { amount: number; unit: DurationUnit } | null {
-  return enabled && value.on && value.amount !== null ? { amount: value.amount, unit: value.unit } : null
+type Span = NonNullable<NonNullable<TableDefinition["hypertable"]>["retention"]>
+
+function span(amount: number, unit: LengthUnit): Span {
+  return unit === "integer" ? { amount: String(amount), unit } : { amount, unit }
+}
+
+function age(value: DraftAge, enabled = true): Span | null {
+  return enabled && value.on && value.amount !== null ? span(value.amount, value.unit) : null
+}
+
+function integerNow(hypertable: DraftHypertable): NonNullable<TableDefinition["hypertable"]>["integer_now"] {
+  const now = hypertable.now
+  if (hypertable.intervalUnit !== "integer" || now.mode === "none") return null
+  if (now.mode === "template") return { kind: "template", template: now.template, name: now.name.trim() }
+  const [schemaName, name] = JSON.parse(now.existing) as [string, string]
+  return { kind: "existing", schema_name: schemaName, name }
 }
 
 function hypertableDefinition(hypertable: DraftHypertable | null): TableDefinition["hypertable"] {
   if (hypertable === null || hypertableMissing(hypertable) !== null) return null
   return {
     time_column_id: hypertable.timeColumnId,
-    chunk_interval: { amount: hypertable.intervalAmount ?? 0, unit: hypertable.intervalUnit },
+    chunk_interval: span(hypertable.intervalAmount ?? 0, hypertable.intervalUnit),
     hash_dimensions: hypertable.hash.map((item) => ({
       column_id: item.columnId,
       partitions: item.partitions ?? 0,
@@ -289,11 +360,18 @@ function hypertableDefinition(hypertable: DraftHypertable | null): TableDefiniti
             nulls_first: key.nullsFirst,
           }))
         : [],
-    merge_interval: age(hypertable.merge, hypertable.columnstore),
+    merge_interval: hypertable.intervalUnit === "integer" ? null : mergeAge(hypertable),
     retention: age(hypertable.retention),
     columnstore_policy: age(hypertable.columnstorePolicy, hypertable.columnstore),
     reorder_index_id: hypertable.reorderIndexId === "" ? null : hypertable.reorderIndexId,
+    integer_now: integerNow(hypertable),
   }
+}
+
+function mergeAge(hypertable: DraftHypertable): { amount: number; unit: DurationUnit } | null {
+  const merge = hypertable.merge
+  if (!hypertable.columnstore || !merge.on || merge.amount === null || merge.unit === "integer") return null
+  return { amount: merge.amount, unit: merge.unit }
 }
 
 let counter = 0

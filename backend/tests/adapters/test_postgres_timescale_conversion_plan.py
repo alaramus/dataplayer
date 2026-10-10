@@ -84,7 +84,7 @@ async def test_inspection_reads_bound_identities_and_verifies_both_routines(sour
     )
     calls = reader.query.await_args_list
     assert [call.args[1] for call in calls] == [
-        ('odd"schema', "events"), ('odd"schema', "events"), ("123", "123"), ("123",), None, ("123", 1001),
+        ('odd"schema', "events"), ('odd"schema', "events"), ("123", "123"), ("123", False), None, ("123", 1001),
     ]
     assert calls[4].args[0] == 'SELECT NOT EXISTS (SELECT 1 FROM ONLY "odd""schema"."events") AS empty'
     assert all(call.kwargs == {"inspection": True} for call in calls)
@@ -162,7 +162,7 @@ def state(*indexes: TableIndex) -> ConversionState:
 
 
 def test_unknown_column_names_the_choices() -> None:
-    with pytest.raises(ActionRefused, match="of this table: observed_at, day"):
+    with pytest.raises(ActionRefused, match="partitioned by: observed_at, day"):
         conversion_plan.conversion_plan(state(), "value", WEEK)
 
 

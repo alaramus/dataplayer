@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, watch } from "vue"
 
 import {
   AppBanner,
   AppButton,
   AppCheckbox,
   AppIconButton,
+  AppInput,
   AppNumberInput,
   AppRadioGroup,
   AppSelect,
@@ -14,8 +15,8 @@ import {
 } from "@/shared/ui"
 
 import { useDesign } from "./design"
-import { asHypertable, hypertableMissing } from "./draft"
-import type { DraftAge, DurationUnit } from "./draft"
+import { INTEGER_TIME_CODES, asHypertable, hypertableMissing, retimedHypertable } from "./draft"
+import type { DraftAge, DurationUnit, LengthUnit, NowTemplate } from "./draft"
 
 const props = defineProps<{ designId: string }>()
 
@@ -24,7 +25,8 @@ const offer = computed(() => design.options.value?.hypertable ?? null)
 const hyper = computed(() => design.draft.hypertable)
 const missing = computed(() => hypertableMissing(design.draft.hypertable))
 
-const UNIT_LABELS: Record<DurationUnit, string> = {
+const UNIT_LABELS: Record<LengthUnit, string> = {
+  integer: "values",
   second: "seconds",
   minute: "minutes",
   hour: "hours",
@@ -38,11 +40,65 @@ const units = (list: readonly DurationUnit[] | undefined) =>
 const intervalUnits = computed(() => units(offer.value?.interval_units))
 const policyUnits = computed(() => units(offer.value?.policy_units))
 
+const integerTypes = computed(() => offer.value?.integer_types ?? [])
 const temporal = computed(() =>
   design.draft.columns
-    .filter((column) => ["timestamp_tz", "timestamp", "date"].includes(column.typeCode) && column.dimensions === 0)
+    .filter(
+      (column) =>
+        column.dimensions === 0 &&
+        (["timestamp_tz", "timestamp", "date"].includes(column.typeCode) ||
+          (INTEGER_TIME_CODES.includes(column.typeCode) &&
+            integerTypes.value.some((item) => item.type === column.typeCode)))
+    )
     .map((column) => ({ label: column.name || "(unnamed)", value: column.id }))
 )
+const timeType = computed(
+  () => design.draft.columns.find((column) => column.id === hyper.value?.timeColumnId)?.typeCode ?? ""
+)
+const integerType = computed(() => integerTypes.value.find((item) => item.type === timeType.value) ?? null)
+/** Counted in the column's own values rather than in time (D207). */
+const integer = computed(() => hyper.value?.intervalUnit === "integer")
+
+// Another type of time column counts its lengths in another way, so the
+// section takes what the server proposes for it. Immediate, because the type
+// may have changed in the Columns section while this one was not shown.
+watch(
+  timeType,
+  (type, before) => {
+    const current = design.draft.hypertable
+    if (current === null) return
+    const mismatched = (integerType.value !== null) !== (current.intervalUnit === "integer")
+    // One integer type for another proposes another interval and other templates.
+    const otherInteger =
+      before !== undefined && type !== before && INTEGER_TIME_CODES.includes(before) && INTEGER_TIME_CODES.includes(type)
+    if (mismatched || otherInteger) {
+      design.draft.hypertable = retimedHypertable(current, integerType.value)
+    }
+  },
+  { immediate: true }
+)
+
+const TEMPLATE_LABELS: Record<NowTemplate, string> = {
+  epoch_seconds: "Seconds since 1970",
+  epoch_milliseconds: "Milliseconds since 1970",
+  epoch_microseconds: "Microseconds since 1970",
+}
+const templates = computed(() =>
+  (integerType.value?.now_templates ?? []).map((value) => ({ label: TEMPLATE_LABELS[value], value }))
+)
+const clocks = computed(() =>
+  (offer.value?.now_functions ?? [])
+    .filter((item) => item.type === timeType.value)
+    .map((item) => ({
+      label: `${item.schema_name}.${item.name}()`,
+      value: JSON.stringify([item.schema_name, item.name]),
+    }))
+)
+const nowModes = computed(() => [
+  { label: "None", value: "none" },
+  { label: "A function of this database", value: "existing" },
+  ...(templates.value.length > 0 ? [{ label: "A new function from a template", value: "template" }] : []),
+])
 const others = computed(() =>
   design.columnChoices.value.filter((choice) => choice.value !== hyper.value?.timeColumnId)
 )
@@ -124,10 +180,11 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
         <div class="inspector__pair">
           <AppNumberInput
             v-model="hyper.intervalAmount"
-            label="Each chunk covers"
+            :label="integer ? 'Each chunk covers, in values' : 'Each chunk covers'"
             data-testid="hypertable-interval"
           />
           <AppSelect
+            v-if="!integer"
             v-model="hyper.intervalUnit"
             :options="intervalUnits"
             label="Unit"
@@ -221,11 +278,12 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
           </div>
         </template>
         <AppCheckbox
+          v-if="!integer"
           v-model="hyper.merge.on"
           label="Merge chunks as they are compressed"
         />
         <div
-          v-if="hyper.merge.on"
+          v-if="hyper.merge.on && !integer"
           class="inspector__pair"
         >
           <AppNumberInput
@@ -240,6 +298,39 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
         </div>
       </template>
 
+      <template v-if="integer">
+        <AppSelect
+          v-model="hyper.now.mode"
+          :options="nowModes"
+          label="integer_now"
+          hint="Age policies on an integer column need a function that says what the current value is"
+          data-testid="hypertable-now-mode"
+        />
+        <AppSelect
+          v-if="hyper.now.mode === 'existing'"
+          v-model="hyper.now.existing"
+          :options="clocks"
+          label="Function"
+          data-testid="hypertable-now-function"
+        />
+        <div
+          v-if="hyper.now.mode === 'template'"
+          class="inspector__pair"
+        >
+          <AppSelect
+            v-model="hyper.now.template"
+            :options="templates"
+            label="Counts"
+            data-testid="hypertable-now-template"
+          />
+          <AppInput
+            v-model="hyper.now.name"
+            label="Function name"
+            hint="Created in the table's schema"
+            data-testid="hypertable-now-name"
+          />
+        </div>
+      </template>
       <template
         v-for="item in ages"
         :key="item.key"
@@ -256,10 +347,11 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
         >
           <AppNumberInput
             v-model="item.age.amount"
-            label="Age"
+            :label="integer ? 'Age, in values' : 'Age'"
             :data-testid="`hypertable-${item.key}-amount`"
           />
           <AppSelect
+            v-if="!integer"
             v-model="item.age.unit"
             :options="policyUnits"
             label="Unit"

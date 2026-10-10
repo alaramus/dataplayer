@@ -278,9 +278,9 @@ Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-t
 
 ## D207. A hypertable is designed as a whole and planned as one change
 
-The settings editor (H1, H2), conversion from it (H3) and the table
-designer's Hypertable section (H4) are implemented and pass the whole matrix.
-Integer time (H5) is not.
+The settings editor (H1, H2), conversion from it (H3), the table designer's
+Hypertable section (H4) and integer time (H5) are implemented and pass the
+whole matrix.
 
 One closed model, `HypertableDesign`, says what a hypertable should be:
 
@@ -345,6 +345,17 @@ What the matrix showed, and the code follows:
   but present in every release of the matrix.
 - A policy runs at once when it is added. Scenarios use ages far beyond their
   rows, or the job drops or compresses chunks under the test.
+- An integer column's lengths are counts, carried as decimal strings and cast
+  to bigint; Timescale checks a chunk interval against the column's type but
+  accepts a policy age past it, so the planner checks both.
+- `timescaledb_information.dimensions` names `integer_now` without its schema,
+  and the function can be dropped while a hypertable still names it. The
+  reader names it only when one zero-argument function of that name and type
+  exists, and keeps it as it is otherwise. A template's function must have a
+  name no other zero-argument function has, so it reads back by name.
+- Timescale reads `compress_chunk_time_interval` as time even on an integer
+  column. The editor offers no merge interval there, and refuses a hypertable
+  that has one.
 
 Conversion from the editor plans an ordinary table as the hypertable it would
 become by the chosen column, so the conversion and every setting after it are
@@ -382,6 +393,11 @@ Known deviations:
   each problem to an object; this editor does not yet.
 - **Releases 2.20 to 2.22.0 are read as the older ones.** None of them is in the
   matrix, so an unset list there is shown as "none".
+- **`integer_now` cannot be taken away.** Timescale has no call that unsets it,
+  so the editor keeps it or replaces it.
+- **The designer never proposes an integer time column.** It proposes a
+  timestamp or date column; an integer one is chosen by hand, since an `id`
+  column is as likely as a clock.
 
 Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-design.md)
 

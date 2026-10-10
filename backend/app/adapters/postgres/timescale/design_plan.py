@@ -2,28 +2,35 @@
 
 The steps run in one fixed order, chosen so each one finds what it needs:
 policies go before the columnstore is turned off and are added after it is
-turned on, and a hash dimension is added before compression settings that may
-name it.
+turned on, a hash dimension is added before compression settings that may
+name it, and integer_now is set before the age policies that need it.
 """
 
 import asyncio
 from typing import Annotated, Literal
 
+from psycopg import sql
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.actions import ActionRefused
 from app.adapters.hypertable_design import (
+    BIGINT_MAX,
     AgePolicyDesign,
     ChosenByTimescale,
     ColumnstoreDesign,
     DesignDuration,
+    ExistingNow,
     HypertableDesign,
+    IntegerSpan,
+    KeptNow,
+    NowTemplate,
     OlderThan,
     OrderBy,
     OrderColumns,
     OrderKey,
     SegmentBy,
     SegmentColumns,
+    Span,
 )
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.age_policy_plan import (
@@ -37,8 +44,16 @@ from app.adapters.postgres.timescale.api import (
     extension_type,
     lockable_view,
 )
-from app.adapters.postgres.timescale.conversion_plan import conversion_plan
+from app.adapters.postgres.timescale.conversion_plan import (
+    conversion_column,
+    conversion_plan,
+    require_unique_indexes,
+    time_index_exists,
+)
 from app.adapters.postgres.timescale.design_state import (
+    INTEGER_MAX,
+    INTEGER_TYPES,
+    NOW_TEMPLATES,
     CurrentHypertable,
     TableCandidate,
     converted,
@@ -49,6 +64,8 @@ from app.adapters.postgres.timescale.design_state import (
     policy_units,
     read_current,
     read_table,
+    require_new_function,
+    span_length,
 )
 from app.adapters.postgres.timescale.interval_plan import SET_INTERVAL
 from app.adapters.postgres.timescale.plans import (
@@ -69,6 +86,13 @@ ATTACH_TABLESPACE = RoutineShape("attach_tablespace", "f", "19 2205", 2278)
 DETACH_TABLESPACE = RoutineShape("detach_tablespace", "f", "19 2205", 23)
 ADD_REORDER = RoutineShape("add_reorder_policy", "f", "2205 19 16", 23)
 REMOVE_REORDER = RoutineShape("remove_reorder_policy", "f", "2205 16", 2278)
+# regproc 24.
+SET_NOW = RoutineShape("set_integer_now_func", "f", "2205 24 16", 2278)
+TEMPLATE_PHRASES: dict[NowTemplate, str] = {
+    "epoch_seconds": "seconds since 1970",
+    "epoch_milliseconds": "milliseconds since 1970",
+    "epoch_microseconds": "microseconds since 1970",
+}
 
 
 def add_dimension_shape(dimension_info: str) -> RoutineShape:
@@ -93,8 +117,27 @@ class Duration(BaseModel):
         return f"{self.amount} {self.unit}"
 
 
+class Count(BaseModel):
+    """A length in an integer time column's values."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    unit: Literal["integer"] = "integer"
+    amount: int = Field(strict=True, gt=0, le=BIGINT_MAX)
+
+    def interval_value(self) -> str:
+        return str(self.amount)
+
+
+Length = Duration | Count
+
+
 def _duration(value: DesignDuration) -> Duration:
     return Duration(amount=value.amount, unit=value.unit)
+
+
+def length_from(value: Span) -> Length:
+    return Count(amount=int(value.amount)) if isinstance(value, IntegerSpan) else _duration(value)
 
 
 class ConvertTable(BaseModel):
@@ -105,7 +148,7 @@ class ConvertTable(BaseModel):
     step: Literal["convert_table"] = "convert_table"
     column: str = Field(min_length=1, max_length=63)
     column_type: str = Field(min_length=1, max_length=100)
-    interval: Duration
+    interval: Length
     migrate: bool = Field(strict=True)
     column_not_null: bool = Field(strict=True)
     time_index_exists: bool = Field(strict=True)
@@ -139,7 +182,7 @@ class SetChunkInterval(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     step: Literal["set_chunk_interval"] = "set_chunk_interval"
-    interval: Duration
+    interval: Length
 
 
 class ConfigureColumnstore(BaseModel):
@@ -190,7 +233,7 @@ class AddAgePolicy(BaseModel):
 
     step: Literal["add_age_policy"] = "add_age_policy"
     kind: Literal["retention", "compression"]
-    older_than: Duration
+    older_than: Length
 
 
 class AddReorderPolicy(BaseModel):
@@ -200,9 +243,30 @@ class AddReorderPolicy(BaseModel):
     index: str = Field(min_length=1, max_length=63)
 
 
+class CreateNowFunction(BaseModel):
+    """A function made from one of the server's templates; nothing in it comes from the request (D207)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    step: Literal["create_now_function"] = "create_now_function"
+    schema_name: str = Field(min_length=1, max_length=63)
+    name: str = Field(min_length=1, max_length=63)
+    template: NowTemplate
+    column_type: str = Field(pattern=r"^(smallint|integer|bigint)$")
+
+
+class SetIntegerNow(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    step: Literal["set_integer_now"] = "set_integer_now"
+    schema_name: str = Field(min_length=1, max_length=63)
+    name: str = Field(min_length=1, max_length=63)
+    replace: bool = Field(strict=True)
+
+
 DesignStep = Annotated[
     ConvertTable | RemovePolicy | AddHashDimension | SetPartitions | SetChunkInterval | ConfigureColumnstore
-    | DisableColumnstore | AttachTablespace | DetachTablespace
+    | DisableColumnstore | AttachTablespace | DetachTablespace | CreateNowFunction | SetIntegerNow
     | AddAgePolicy | AddReorderPolicy,
     Field(discriminator="step"),
 ]
@@ -259,9 +323,14 @@ def _refuse(message: str) -> ActionRefused:
     return ActionRefused("not_applicable", message)
 
 
-def _same(left: DesignDuration | None, right: DesignDuration | None) -> bool:
+def _same(left: Span | None, right: Span | None) -> bool:
     if left is None or right is None:
         return left is right
+    if isinstance(left, IntegerSpan) or isinstance(right, IntegerSpan):
+        return (
+            isinstance(left, IntegerSpan) and isinstance(right, IntegerSpan)
+            and int(left.amount) == int(right.amount)
+        )
     fixed = duration_microseconds(left), duration_microseconds(right)
     if fixed[0] is not None and fixed[1] is not None:
         return fixed[0] == fixed[1]
@@ -272,10 +341,13 @@ def _same(left: DesignDuration | None, right: DesignDuration | None) -> bool:
     )
 
 
-def _chunk_interval(current: CurrentHypertable, requested: DesignDuration | None) -> list[DesignStep]:
+def _chunk_interval(current: CurrentHypertable, requested: Span | None) -> list[DesignStep]:
     if requested is None or _same(requested, current.design.chunk_interval):
         return []
-    if requested.unit not in interval_units(current.target):
+    if current.integer:
+        span_length(current.target.column_type, requested)
+        return [SetChunkInterval(interval=length_from(requested))]
+    if isinstance(requested, IntegerSpan) or requested.unit not in interval_units(current.target):
         allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))
         raise _refuse(f"A chunk interval of this hypertable is counted in {allowed}")
     return [SetChunkInterval(interval=_duration(requested))]
@@ -365,6 +437,8 @@ def _columnstore(current: CurrentHypertable, requested: HypertableDesign) -> lis
             f"TimescaleDB {current.extension_version} cannot return a setting to its own choice; "
             "name the columns instead",
         )
+    if wanted.merge_interval is not None and current.integer:
+        raise _refuse("Merging compressed chunks is set in time, which an integer column does not count in")
     if wanted.merge_interval is not None and merge_changed:
         _merge_interval(current, requested, wanted.merge_interval)
     if now.enabled and not (segment_changed or order_changed or merge_changed):
@@ -384,7 +458,8 @@ def _merge_interval(current: CurrentHypertable, requested: HypertableDesign, mer
     if merge.unit not in interval_units(current.target):
         raise _refuse("A merge interval is counted in the units of the chunk interval")
     chunk = requested.chunk_interval or current.design.chunk_interval
-    merged, single = duration_microseconds(merge), duration_microseconds(chunk) if chunk else None
+    merged = duration_microseconds(merge)
+    single = duration_microseconds(chunk) if isinstance(chunk, DesignDuration) else None
     if merged is not None and single is not None and (merged <= single or merged % single != 0):
         raise _refuse("The merge interval must be a whole multiple of the chunk interval, larger than it")
 
@@ -401,16 +476,30 @@ def _age_policy(
             raise _refuse(f"There is no {spec.noun} to keep")
         return [], []
     wanted = design.older_than
-    if existing is not None and existing.scheduled and existing.older_than is not None:
-        if _same(interval_duration(existing.older_than), wanted):
-            return [], []
-    if wanted.unit not in policy_units(current.target):
-        raise _refuse(f"The {spec.noun} of a {current.target.column_type} column cannot count in {wanted.unit}s")
+    if existing is not None and existing.scheduled and _same(_existing_age(existing), wanted):
+        return [], []
+    column_type = current.target.column_type
+    if current.integer:
+        if not isinstance(wanted, IntegerSpan):
+            raise _refuse(f"The {spec.noun} of an integer column is a number of its values")
+        if int(wanted.amount) > INTEGER_MAX[column_type]:
+            raise _refuse(f"The {spec.noun} of a {column_type} column is at most {INTEGER_MAX[column_type]:,}")
+    elif isinstance(wanted, IntegerSpan) or wanted.unit not in policy_units(current.target):
+        unit = "plain numbers" if isinstance(wanted, IntegerSpan) else f"{wanted.unit}s"
+        raise _refuse(f"The {spec.noun} of a {column_type} column cannot count in {unit}")
     # A replacement is scheduled by default, so replacing a paused policy would resume it.
     if existing is not None and not existing.scheduled:
         raise _refuse(f"The existing {spec.noun} is paused; remove it before setting a new one")
     removal: list[DesignStep] = [] if existing is None else [RemovePolicy(kind=spec.kind, job_id=existing.job_id)]
-    return removal, [AddAgePolicy(kind=spec.kind, older_than=_duration(wanted))]
+    return removal, [AddAgePolicy(kind=spec.kind, older_than=length_from(wanted))]
+
+
+def _existing_age(existing: AgePolicy) -> Span | None:
+    if existing.older_than is not None:
+        return interval_duration(existing.older_than)
+    if existing.older_than_count is not None and int(existing.older_than_count) <= BIGINT_MAX:
+        return IntegerSpan(amount=existing.older_than_count)
+    return None
 
 
 def _reorder(current: CurrentHypertable, requested: HypertableDesign) -> tuple[list[DesignStep], list[DesignStep]]:
@@ -437,20 +526,72 @@ def _tablespaces(current: CurrentHypertable, requested: HypertableDesign) -> lis
     ]
 
 
+def _integer_now(current: CurrentHypertable, requested: HypertableDesign) -> list[DesignStep]:
+    wanted, now = requested.integer_now, current.design.integer_now
+    if not current.integer:
+        if wanted is not None:
+            raise _refuse("Only a hypertable partitioned by an integer column takes an integer_now function")
+        return []
+    column_type = current.target.column_type
+    if wanted is None:
+        if now is not None:
+            raise _refuse("TimescaleDB cannot take an integer_now function away; keep it or choose another")
+        return []
+    if isinstance(wanted, KeptNow):
+        if now is None:
+            raise _refuse("There is no integer_now function to keep")
+        return []
+    if isinstance(wanted, ExistingNow):
+        if wanted == now:
+            return []
+        if not any(
+            item.schema_name == wanted.schema_name and item.name == wanted.name for item in current.now_functions
+        ):
+            raise _refuse(
+                f'{_routine(wanted.schema_name, wanted.name)} is not a function TimescaleDB accepts as '
+                f"integer_now of a {column_type} column",
+            )
+        return [SetIntegerNow(schema_name=wanted.schema_name, name=wanted.name, replace=now is not None)]
+    if wanted.template not in NOW_TEMPLATES[column_type]:
+        raise _refuse(f"A {column_type} column cannot hold the {TEMPLATE_PHRASES[wanted.template]}")
+    schema = current.target.schema_name
+    return [
+        CreateNowFunction(
+            schema_name=schema, name=wanted.name, template=wanted.template,
+            column_type=column_type,
+        ),
+        SetIntegerNow(schema_name=schema, name=wanted.name, replace=now is not None),
+    ]
+
+
+def _routine(schema_name: str, name: str) -> str:
+    return sql.Identifier(schema_name, name).as_string() + "()"
+
+
 def plan_steps(current: CurrentHypertable, requested: HypertableDesign) -> tuple[DesignStep, ...]:
     if requested.columnstore_policy is not None and not requested.columnstore.enabled:
         raise _refuse("Remove the columnstore policy to turn the columnstore off")
     retention = _age_policy(RETENTION, current.retention, requested.retention, current)
     compression = _age_policy(COMPRESSION, current.compression, requested.columnstore_policy, current)
     reorder = _reorder(current, requested)
+    if current.integer and requested.integer_now is None and (retention[1] or compression[1]):
+        raise _refuse("An age policy on an integer column needs an integer_now function to tell the current value")
     return (
         *retention[0], *compression[0], *reorder[0],
         *_dimensions(current, requested),
         *_chunk_interval(current, requested.chunk_interval),
         *_columnstore(current, requested),
         *_tablespaces(current, requested),
+        *_integer_now(current, requested),
         *retention[1], *compression[1], *reorder[1],
     )
+
+
+async def require_new_functions(reader: PostgresReader, steps: tuple[DesignStep, ...]) -> None:
+    """What planning cannot see in the current state: whether a new function's name is free."""
+    for step in steps:
+        if isinstance(step, CreateNowFunction):
+            await require_new_function(reader, step.schema_name, step.name)
 
 
 def step_shapes(steps: tuple[DesignStep, ...]) -> list[RoutineShape]:
@@ -477,6 +618,8 @@ def step_shapes(steps: tuple[DesignStep, ...]) -> list[RoutineShape]:
                 shapes.append(ATTACH_TABLESPACE)
             case DetachTablespace():
                 shapes.append(DETACH_TABLESPACE)
+            case SetIntegerNow():
+                shapes.append(SET_NOW)
             case _:
                 pass
     return shapes
@@ -497,7 +640,9 @@ async def _strategy(
         schema = routine.schema_name
         routines.append(RoutineUse(name=shape.name, oid=routine.oid))
     policies = any(isinstance(step, RemovePolicy | AddAgePolicy | AddReorderPolicy) for step in steps)
-    dimensions = any(isinstance(step, SetChunkInterval | SetPartitions | AddHashDimension) for step in steps)
+    dimensions = any(
+        isinstance(step, SetChunkInterval | SetPartitions | AddHashDimension | SetIntegerNow) for step in steps
+    )
     return DesignStrategy(
         extension_version=version,
         function_schema=schema,
@@ -514,24 +659,27 @@ def _conversion(candidate: TableCandidate, requested: HypertableDesign) -> tuple
     if requested.chunk_interval is None:
         raise _refuse("Choose the chunk interval")
     interval = requested.chunk_interval
-    if duration_microseconds(interval) is None:
-        raise _refuse("A chunk interval is counted in minutes, hours, days or weeks")
-    # The single-purpose conversion's own rules: the column, the unit for its
-    # type and every unique index holding it.
-    reviewed = conversion_plan(
-        candidate.conversion, requested.time_column, TimeDuration(amount=interval.amount, unit=interval.unit),
-    )
-    current = converted(candidate, reviewed.column, interval)
-    if interval.unit not in interval_units(current.target):
+    state = candidate.conversion
+    column = conversion_column(state, requested.time_column)
+    if column.type in INTEGER_TYPES:
+        require_unique_indexes(state, column)
+    else:
+        if isinstance(interval, IntegerSpan) or duration_microseconds(interval) is None:
+            raise _refuse("A chunk interval is counted in minutes, hours, days or weeks")
+        # The single-purpose conversion's own rules: the unit for the column's
+        # type and every unique index holding it.
+        conversion_plan(state, column.name, TimeDuration(amount=interval.amount, unit=interval.unit))
+    current = converted(candidate, column, interval)
+    if isinstance(interval, DesignDuration) and interval.unit not in interval_units(current.target):
         allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))
         raise _refuse(f"A chunk interval of this column is counted in {allowed}")
     return current, ConvertTable(
-        column=reviewed.column.name,
-        column_type=reviewed.column.type,
-        interval=_duration(interval),
-        migrate=not candidate.conversion.empty,
-        column_not_null=reviewed.column.not_null,
-        time_index_exists=reviewed.time_index_exists,
+        column=column.name,
+        column_type=column.type,
+        interval=length_from(interval),
+        migrate=not state.empty,
+        column_not_null=column.not_null,
+        time_index_exists=time_index_exists(state, column),
     )
 
 
@@ -545,11 +693,13 @@ async def plan_design(
                 if requested.time_column not in (None, current.target.column_name):
                     raise _refuse("TimescaleDB cannot change the time column of a hypertable")
                 steps = plan_steps(current, requested)
+                await require_new_functions(reader, steps)
                 strategy = await _strategy(reader, current, steps)
             else:
                 candidate = await read_table(reader, schema_name, table_name)
                 current, conversion = _conversion(candidate, requested)
                 steps = (conversion, *plan_steps(current, requested))
+                await require_new_functions(reader, steps)
                 strategy = (await _strategy(reader, current, steps)).model_copy(
                     update={"conversion": candidate.conversion.strategy},
                 )

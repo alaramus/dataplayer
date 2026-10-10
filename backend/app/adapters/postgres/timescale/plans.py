@@ -108,17 +108,21 @@ class AgePolicy(BaseModel):
     scheduled: bool = Field(strict=True)
     schedule_interval: str = Field(min_length=1, max_length=100)
     older_than: str | None = Field(default=None, min_length=1, max_length=100)
+    # The threshold of a hypertable partitioned by an integer column, in its values.
+    older_than_count: str | None = Field(default=None, pattern=r"^[1-9][0-9]{0,18}$")
     created_before: str | None = Field(default=None, min_length=1, max_length=100)
 
     @model_validator(mode="after")
     def one_threshold(self) -> Self:
-        if (self.older_than is None) == (self.created_before is None):
+        if [self.older_than, self.older_than_count, self.created_before].count(None) != 2:
             raise ValueError("A policy has exactly one readable threshold")
         return self
 
     def threshold(self) -> str:
         if self.older_than is not None:
             return f"older than {self.older_than}"
+        if self.older_than_count is not None:
+            return f"older than {int(self.older_than_count):,}"
         return f"created more than {self.created_before} ago"
 
 
@@ -318,7 +322,10 @@ class ConversionColumn(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(min_length=1, max_length=63)
-    type: Literal["timestamp without time zone", "timestamp with time zone", "date"]
+    # Integer columns only where the caller asked for them: the hypertable editor (D207).
+    type: Literal[
+        "timestamp without time zone", "timestamp with time zone", "date", "smallint", "integer", "bigint",
+    ]
     not_null: bool = Field(strict=True)
 
 

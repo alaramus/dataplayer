@@ -12,6 +12,7 @@ import {
   newIndex,
   newTerm,
   predicateExpression,
+  retimedHypertable,
   tally,
   toDefinition,
   withoutColumn,
@@ -240,6 +241,31 @@ describe("a table created as a hypertable", () => {
     const time = draft.columns[1]!
     expect(dependents(draft, time.id)).toContain("the hypertable")
     expect(withoutColumn(draft, time.id).hypertable?.timeColumnId).toBe("")
+  })
+
+  it("counts an integer time column in its own values, with a clock from a template", () => {
+    const draft = asHypertable(timed(), "btree")
+    const tick = draft.columns[0]!
+    tick.name = "tick"
+    draft.name = "ticks"
+    const hyper = retimedHypertable(
+      { ...draft.hypertable!, timeColumnId: tick.id, retention: { on: true, amount: 30, unit: "day" } },
+      { type: "integer", chunk_interval: { amount: "100000" }, now_templates: ["epoch_seconds"] }
+    )
+    expect(hyper).toMatchObject({ intervalAmount: 100000, intervalUnit: "integer" })
+    // The typed age was a number of days, which means nothing in values.
+    expect(hyper.retention).toEqual({ on: true, amount: null, unit: "integer" })
+    draft.hypertable = { ...hyper, retention: { on: true, amount: 86400, unit: "integer" } }
+    draft.hypertable.now = { mode: "template", existing: "", template: "epoch_seconds", name: "" }
+    expect(worthPlanning(draft)).toBe(false)
+
+    draft.hypertable.now.name = "unix_seconds"
+    expect(toDefinition(draft, types).hypertable).toMatchObject({
+      chunk_interval: { amount: "100000", unit: "integer" },
+      retention: { amount: "86400", unit: "integer" },
+      merge_interval: null,
+      integer_now: { kind: "template", template: "epoch_seconds", name: "unix_seconds" },
+    })
   })
 })
 

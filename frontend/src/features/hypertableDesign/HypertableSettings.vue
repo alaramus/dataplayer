@@ -9,6 +9,7 @@ import {
   AppButton,
   AppCheckbox,
   AppIconButton,
+  AppInput,
   AppNumberInput,
   AppRadioGroup,
   AppSelect,
@@ -20,8 +21,8 @@ import {
 import { WindowDialog } from "@/shared/windows"
 
 import { useHypertableState } from "./api"
-import { completed, draftFrom } from "./draft"
-import type { Draft, DurationUnit, PolicyMode } from "./draft"
+import { clocksFor, completed, draftFrom, nowKey, retimed } from "./draft"
+import type { Draft, DurationUnit, NowTemplate, PolicyMode } from "./draft"
 
 const props = defineProps<{
   modelValue: boolean
@@ -164,6 +165,43 @@ const timeColumns = computed(() =>
     value: column.name,
   }))
 )
+/** The column partitioning the table, or the one it is to be converted by. */
+const timeColumn = computed(() =>
+  (facts.value?.time_columns ?? []).find((column) => column.name === draft.value?.timeColumn)
+)
+/** Counted in the column's own values rather than in time (D207). */
+const integer = computed(() => draft.value?.chunkInterval.unit === "integer")
+
+function chooseTime(name: unknown) {
+  const column = (facts.value?.time_columns ?? []).find((item) => item.name === name)
+  if (draft.value && column && facts.value) draft.value = retimed(draft.value, column, facts.value)
+}
+
+const TEMPLATE_LABELS: Record<NowTemplate, string> = {
+  epoch_seconds: "Seconds since 1970",
+  epoch_milliseconds: "Milliseconds since 1970",
+  epoch_microseconds: "Microseconds since 1970",
+}
+const templates = computed(() =>
+  (timeColumn.value?.now_templates ?? []).map((value) => ({ label: TEMPLATE_LABELS[value], value }))
+)
+const clocks = computed(() =>
+  clocksFor(facts.value?.now_functions, timeColumn.value?.type).map((item) => ({
+    label: `${item.schema_name}.${item.name}()`,
+    value: nowKey(item),
+  }))
+)
+const nowModes = computed(() => {
+  const current = facts.value?.design?.integer_now
+  return [
+    ...(current ? [] : [{ label: "None", value: "none" }]),
+    ...(current?.kind === "current"
+      ? [{ label: `Keep ${facts.value?.integer_now_name ?? "the current function"}()`, value: "current" }]
+      : []),
+    { label: "A function of this database", value: "existing" },
+    ...(templates.value.length > 0 ? [{ label: "A new function from a template", value: "template" }] : []),
+  ]
+})
 const estimate = computed(() => {
   const rows = facts.value?.row_estimate
   if (rows === null || rows === undefined) return "an unknown number of rows"
@@ -292,10 +330,11 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                 TimescaleDB cannot change it afterwards.
               </p>
               <AppSelect
-                v-model="draft.timeColumn"
+                :model-value="draft.timeColumn"
                 :options="timeColumns"
                 label="Time column"
                 data-testid="time-column"
+                @update:model-value="chooseTime"
               />
             </template>
             <p
@@ -308,10 +347,11 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
             <div class="settings__pair">
               <AppNumberInput
                 v-model="draft.chunkInterval.amount"
-                label="Each chunk covers"
+                :label="integer ? 'Each chunk covers, in values of the time column' : 'Each chunk covers'"
                 data-testid="chunk-interval-amount"
               />
               <AppSelect
+                v-if="!integer"
                 v-model="draft.chunkInterval.unit"
                 :options="intervalUnits"
                 label="Unit"
@@ -428,12 +468,13 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                 </div>
               </template>
               <AppCheckbox
+                v-if="!integer"
                 v-model="draft.merge"
                 label="Merge chunks as they are compressed"
                 data-testid="merge-enabled"
               />
               <div
-                v-if="draft.merge"
+                v-if="draft.merge && !integer"
                 class="settings__pair"
               >
                 <AppNumberInput
@@ -451,6 +492,49 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
             </template>
           </section>
 
+          <section
+            v-if="integer"
+            class="settings__group"
+            data-testid="integer-now"
+          >
+            <strong>Current value</strong>
+            <p class="settings__note">
+              Age policies on an integer column need a function that says what the current value is:
+              TimescaleDB calls it integer_now.
+            </p>
+            <AppSelect
+              v-model="draft.now.mode"
+              :options="nowModes"
+              label="integer_now"
+              data-testid="integer-now-mode"
+            />
+            <AppSelect
+              v-if="draft.now.mode === 'existing'"
+              v-model="draft.now.existing"
+              :options="clocks"
+              label="Function"
+              hint="No arguments, stable, returning the column's type"
+              data-testid="integer-now-function"
+            />
+            <div
+              v-if="draft.now.mode === 'template'"
+              class="settings__pair"
+            >
+              <AppSelect
+                v-model="draft.now.template"
+                :options="templates"
+                label="Counts"
+                data-testid="integer-now-template"
+              />
+              <AppInput
+                v-model="draft.now.name"
+                label="Function name"
+                :hint="`Created in schema ${facts?.schema_name ?? ''}`"
+                data-testid="integer-now-name"
+              />
+            </div>
+          </section>
+
           <section class="settings__group">
             <strong>Policies</strong>
             <AppSelect
@@ -466,10 +550,11 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
             >
               <AppNumberInput
                 v-model="draft.retention.duration.amount"
-                label="Age"
+                :label="integer ? 'Age, in values of the time column' : 'Age'"
                 data-testid="retention-amount"
               />
               <AppSelect
+                v-if="!integer"
                 v-model="draft.retention.duration.unit"
                 :options="policyUnits"
                 label="Unit"
@@ -489,10 +574,11 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
             >
               <AppNumberInput
                 v-model="draft.columnstorePolicy.duration.amount"
-                label="Age"
+                :label="integer ? 'Age, in values of the time column' : 'Age'"
                 data-testid="columnstore-policy-amount"
               />
               <AppSelect
+                v-if="!integer"
                 v-model="draft.columnstorePolicy.duration.unit"
                 :options="policyUnits"
                 label="Unit"

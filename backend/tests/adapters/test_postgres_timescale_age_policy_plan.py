@@ -110,7 +110,9 @@ def test_each_kind_reads_only_its_own_owned_job_with_validated_thresholds() -> N
     assert "'policy_compression'" in compression and "'compress_after'" in compression
     assert "drop_" not in compression
     for statement in (retention, compression):
-        assert statement.count("OPERATOR(pg_catalog.~)") == 2
+        # The interval and integer forms of the age, and the creation-time threshold.
+        assert statement.count("OPERATOR(pg_catalog.~)") == 3
+        assert "= 'number'" in statement
         assert "deptype = 'e'" in statement
         assert "source.config AS" not in statement and "source.config," not in statement
 

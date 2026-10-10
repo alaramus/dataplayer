@@ -6,6 +6,11 @@ an unset segment or order list is declared by release instead (D207): before
 2.22.1 an unset list was resolved once, when compression was enabled, and
 `RESET` was refused; from it on, an unset list means Timescale chooses for each
 chunk. The matrix holds 2.19.3 and 2.23.1 on either side.
+
+An integer time column's integer_now function is named by the views without
+its schema, and can even be dropped while it is set; the reader names it only
+when one zero-argument function of that name and type exists, and keeps it as
+it is otherwise.
 """
 
 import asyncio
@@ -17,24 +22,32 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.adapters.actions import ActionRefused
 from app.adapters.hypertable_design import (
+    BIGINT_MAX,
     AgePolicyDesign,
     ChosenByTimescale,
     ColumnstoreDesign,
     CurrentPolicy,
     DesignDuration,
     DurationUnit,
+    ExistingNow,
     HashDimensionDesign,
     HypertableColumn,
     HypertableDesign,
     HypertableDesignState,
+    IntegerSpan,
     KeptAsItIs,
+    KeptNow,
     NoColumns,
+    NowDesign,
+    NowFunction,
+    NowTemplate,
     OlderThan,
     OrderBy,
     OrderColumns,
     OrderKey,
     SegmentBy,
     SegmentColumns,
+    Span,
 )
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.age_policy_plan import (
@@ -56,7 +69,17 @@ from app.adapters.protocol import AdapterError
 _OID = r"^[1-9][0-9]{0,9}$"
 PER_CHUNK_DEFAULTS = (2, 22, 1)
 _TIME_TYPES = ("timestamp without time zone", "timestamp with time zone", "date")
-_INTEGER_TYPES = ("smallint", "integer", "bigint")
+INTEGER_TYPES = ("smallint", "integer", "bigint")
+INTEGER_MAX = {"smallint": 32_767, "integer": 2_147_483_647, "bigint": BIGINT_MAX}
+# The old application's proposals, an order of magnitude apart.
+_PROPOSED_COUNT = {"smallint": 10_000, "integer": 100_000, "bigint": 1_000_000}
+# What each type holds without overflowing: seconds since 1970 left smallint's
+# range in its first nine hours and leave integer's in 2038.
+NOW_TEMPLATES: dict[str, tuple[NowTemplate, ...]] = {
+    "smallint": (),
+    "integer": ("epoch_seconds",),
+    "bigint": ("epoch_seconds", "epoch_milliseconds", "epoch_microseconds"),
+}
 
 _VIEWS = {
     "hypertables": (
@@ -65,6 +88,7 @@ _VIEWS = {
     "dimensions": (
         "hypertable_schema", "hypertable_name", "dimension_number", "column_name",
         "column_type", "dimension_type", "time_interval", "num_partitions",
+        "integer_interval", "integer_now_func",
     ),
     "continuous_aggregates": ("materialization_hypertable_schema", "materialization_hypertable_name"),
     "chunks": ("hypertable_schema", "hypertable_name", "is_compressed"),
@@ -84,6 +108,8 @@ SELECT database.oid::text AS database_oid, relation.oid::text AS relation_oid,
        namespace.nspname AS schema_name, relation.relname AS table_name,
        dimension.column_name, dimension.column_type::text AS column_type,
        (EXTRACT(epoch FROM dimension.time_interval) * 1000000)::pg_catalog.int8 AS interval_microseconds,
+       dimension.integer_interval::pg_catalog.int8 AS integer_interval,
+       dimension.integer_now_func::text AS integer_now_func,
        hypertable.compression_enabled
 FROM timescaledb_information.hypertables AS hypertable
 JOIN timescaledb_information.dimensions AS dimension
@@ -213,6 +239,58 @@ ORDER BY source.job_id
 LIMIT 2
 """).format(owned=OWNED_POLICY_ROUTINE).as_string()
 
+# What Timescale accepts as integer_now (src/dimension.c): no arguments, the
+# column's type, stable or immutable. Functions of system schemas and of any
+# extension are nobody's clock. No placeholders, so a percent sign is safe.
+_NOW_FUNCTIONS = """
+SELECT namespace.nspname AS schema_name, routine.proname AS name,
+       pg_catalog.format_type(routine.prorettype, NULL) AS type
+FROM pg_catalog.pg_proc AS routine
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+WHERE routine.prokind = 'f' AND routine.pronargs = 0 AND NOT routine.proretset
+  AND routine.provolatile IN ('s', 'i')
+  AND routine.prorettype IN (
+      'pg_catalog.int2'::pg_catalog.regtype, 'pg_catalog.int4'::pg_catalog.regtype,
+      'pg_catalog.int8'::pg_catalog.regtype
+  )
+  AND namespace.nspname <> 'information_schema'
+  AND NOT pg_catalog.starts_with(namespace.nspname, 'pg_')
+  AND NOT pg_catalog.starts_with(namespace.nspname, '_timescaledb')
+  AND NOT pg_catalog.starts_with(namespace.nspname, 'timescaledb_')
+  AND pg_catalog.has_schema_privilege(namespace.oid, 'USAGE')
+  AND pg_catalog.has_function_privilege(routine.oid, 'EXECUTE')
+  AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_depend AS dependency
+      WHERE dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+        AND dependency.objid = routine.oid AND dependency.deptype = 'e'
+  )
+ORDER BY 1, 2
+LIMIT 100
+"""
+
+_NOW_NAMED = """
+SELECT namespace.nspname AS schema_name, routine.proname AS name
+FROM pg_catalog.pg_proc AS routine
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+WHERE routine.proname = %s AND routine.prokind = 'f' AND routine.pronargs = 0
+  AND routine.prorettype = %s::pg_catalog.regtype
+LIMIT 2
+"""
+
+# A new function's name must be free in its schema, and free of any other
+# zero-argument function, or reading it back by name would become ambiguous.
+_NAME_FREE = """
+SELECT NOT EXISTS (
+           SELECT 1 FROM pg_catalog.pg_proc AS routine
+           JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+           WHERE routine.proname = %s AND (namespace.nspname = %s OR routine.pronargs = 0)
+       ) AS free,
+       COALESCE((
+           SELECT pg_catalog.has_schema_privilege(namespace.oid, 'CREATE')
+           FROM pg_catalog.pg_namespace AS namespace WHERE namespace.nspname = %s
+       ), false) AS creatable
+"""
+
 _MICROSECONDS: dict[DurationUnit, int] = {
     "week": 604_800_000_000, "day": 86_400_000_000, "hour": 3_600_000_000,
     "minute": 60_000_000, "second": 1_000_000,
@@ -268,7 +346,8 @@ class CurrentHypertable(BaseModel):
     extension_version: str
     target: DesignTarget
     design: HypertableDesign
-    interval_microseconds: int = Field(strict=True, gt=0)
+    # Microseconds for a time column, the column's own values for an integer one.
+    interval_length: int = Field(strict=True, gt=0)
     columns: tuple[ColumnFact, ...]
     unique_keys: tuple[UniqueKey, ...]
     indexes: tuple[str, ...]
@@ -279,9 +358,16 @@ class CurrentHypertable(BaseModel):
     per_chunk_defaults: bool
     has_chunks: bool
     compressed_chunks: bool
+    # The functions integer_now may name, for an integer time column only.
+    now_functions: tuple[NowFunction, ...] = ()
+    integer_now_name: str | None = None
 
     def column(self, name: str) -> ColumnFact | None:
         return next((column for column in self.columns if column.name == name), None)
+
+    @property
+    def integer(self) -> bool:
+        return self.target.column_type in INTEGER_TYPES
 
 
 def release(version: str) -> tuple[int, ...]:
@@ -331,6 +417,10 @@ def interval_duration(text: str) -> DesignDuration | None:
     return None
 
 
+def count_span(value: int) -> IntegerSpan:
+    return IntegerSpan(amount=str(value))
+
+
 def _policy_design(policy: AgePolicy | None) -> AgePolicyDesign | None:
     if policy is None:
         return None
@@ -338,6 +428,8 @@ def _policy_design(policy: AgePolicy | None) -> AgePolicyDesign | None:
         duration = interval_duration(policy.older_than)
         if duration is not None:
             return OlderThan(older_than=duration)
+    if policy.scheduled and policy.older_than_count is not None and int(policy.older_than_count) <= BIGINT_MAX:
+        return OlderThan(older_than=IntegerSpan(amount=policy.older_than_count))
     return KeptAsItIs()
 
 
@@ -368,7 +460,7 @@ def _order_by(listed: list[OrderKey]) -> OrderBy:
 
 
 async def _columnstore(
-    reader: PostgresReader, target: DesignTarget, enabled: bool, per_chunk_defaults: bool,
+    reader: PostgresReader, target: DesignTarget, enabled: bool, per_chunk_defaults: bool, integer: bool,
 ) -> ColumnstoreDesign:
     settings = await reader.query(_SETTINGS, (target.relation_oid,), inspection=True)
     if len(settings) != 1:
@@ -383,6 +475,12 @@ async def _columnstore(
         key=lambda row: int(row["orderby_column_index"]),
     )
     merge = settings[0].get("merge_microseconds")
+    # Timescale reads the setting as time even on an integer column, so a value
+    # there means seconds nobody chose; the editor offers none and changes none.
+    if integer and merge is not None:
+        raise ActionRefused(
+            "not_applicable", "This hypertable merges compressed chunks by a time interval; manage it with SQL",
+        )
     return ColumnstoreDesign(
         enabled=enabled,
         segment_by=_segment_by(settings[0].get("segmentby"), [str(row["name"]) for row in segment], per_chunk_defaults),
@@ -446,13 +544,10 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         raise ActionRefused("not_applicable", "Choose an owned hypertable")
     row = rows[0]
     column_type = row.get("column_type")
-    if column_type in _INTEGER_TYPES:
-        raise ActionRefused(
-            "not_applicable", "Hypertables partitioned by an integer column are not edited here yet",
-        )
-    if column_type not in _TIME_TYPES:
-        raise ActionRefused("not_applicable", "Only timestamp and date time dimensions are edited here")
-    interval = row.get("interval_microseconds")
+    integer = column_type in INTEGER_TYPES
+    if not integer and column_type not in _TIME_TYPES:
+        raise ActionRefused("not_applicable", "Only timestamp, date and integer time dimensions are edited here")
+    interval = row.get("integer_interval" if integer else "interval_microseconds")
     if not isinstance(interval, int) or interval <= 0:
         raise ActionRefused("not_applicable", "The current chunk interval could not be read")
     target = DesignTarget.model_validate({key: row[key] for key in DesignTarget.model_fields})
@@ -464,7 +559,9 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         raise ActionRefused("not_applicable", "Only hash dimensions beside the time dimension are edited here")
     per_chunk_defaults = release(version) >= PER_CHUNK_DEFAULTS
     enabled = row.get("compression_enabled") is True
-    columnstore = await _columnstore(reader, target, enabled, per_chunk_defaults)
+    columnstore = await _columnstore(reader, target, enabled, per_chunk_defaults, integer)
+    now_name = row.get("integer_now_func") if integer else None
+    integer_now = await _integer_now(reader, now_name, target.column_type) if isinstance(now_name, str) else None
 
     retention = await read_age_policy(reader, RETENTION, *identity)
     compression = await read_age_policy(reader, COMPRESSION, *identity)
@@ -476,7 +573,7 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
 
     design = HypertableDesign(
         time_column=target.column_name,
-        chunk_interval=fixed_duration(interval),
+        chunk_interval=count_span(interval) if integer else fixed_duration(interval),
         hash_dimensions=[
             HashDimensionDesign(column=str(item["column_name"]), partitions=int(item["num_partitions"]))
             for item in space
@@ -486,13 +583,14 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         columnstore_policy=_policy_design(compression),
         reorder_index=reorder.index_name if reorder is not None else None,
         tablespaces=list(attached[0]["tablespaces"]),
+        integer_now=integer_now,
     )
     facts = await _table_facts(reader, target.relation_oid)
     return CurrentHypertable(
         extension_version=version,
         target=target,
         design=design,
-        interval_microseconds=interval,
+        interval_length=interval,
         columns=facts.columns,
         unique_keys=facts.unique_keys,
         indexes=facts.indexes,
@@ -503,7 +601,45 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         per_chunk_defaults=per_chunk_defaults,
         has_chunks=chunks[0]["has_chunks"] is True,
         compressed_chunks=chunks[0]["compressed_chunks"] is True,
+        now_functions=await now_functions(reader, target.column_type) if integer else (),
+        integer_now_name=now_name if isinstance(now_name, str) else None,
     )
+
+
+async def _integer_now(reader: PostgresReader, name: str, column_type: str) -> NowDesign:
+    rows = await reader.query(_NOW_NAMED, (name, column_type), inspection=True)
+    if len(rows) != 1:
+        return KeptNow()
+    return ExistingNow(schema_name=rows[0]["schema_name"], name=rows[0]["name"])
+
+
+async def now_functions(reader: PostgresReader, column_type: str | None = None) -> tuple[NowFunction, ...]:
+    """The functions integer_now may name, for one integer type or for all of them."""
+    rows = await reader.query(_NOW_FUNCTIONS, inspection=True)
+    found = []
+    for row in rows:
+        try:
+            found.append(NowFunction.model_validate(row))
+        except ValidationError:
+            continue
+    return tuple(item for item in found if column_type is None or item.type == column_type)
+
+
+async def require_new_function(reader: PostgresReader, schema_name: str, name: str) -> None:
+    """Refuse a template function whose name is taken, or a schema this role cannot create in."""
+    rows = await reader.query(_NAME_FREE, (name, schema_name, schema_name), inspection=True)
+    if len(rows) != 1 or rows[0].get("creatable") is not True:
+        raise ActionRefused("not_applicable", f'This connection may not create functions in schema "{schema_name}"')
+    if rows[0].get("free") is not True:
+        raise ActionRefused(
+            "not_applicable", f'A function named "{name}" already exists; choose it from the list or another name',
+        )
+
+
+def proposed_interval(column_type: str) -> Span:
+    count = _PROPOSED_COUNT.get(column_type)
+    # The default TimescaleDB itself gives a timestamp column.
+    return DesignDuration(amount=1, unit="week") if count is None else count_span(count)
 
 
 @dataclass(frozen=True)
@@ -515,6 +651,8 @@ class TableCandidate:
     facts: TableFacts
     per_chunk_defaults: bool
     row_estimate: int | None
+    # For every integer type, since the column is still to be chosen.
+    now_functions: tuple[NowFunction, ...] = ()
 
 
 async def is_hypertable(reader: PostgresReader, schema_name: str, table_name: str) -> bool:
@@ -537,25 +675,40 @@ async def read_table(reader: PostgresReader, schema_name: str, table_name: str) 
     version = require_available(await discover(reader))
     for view, columns in _VIEWS.items():
         await require_public_view(reader, view, columns)
-    conversion = await inspect_conversion(reader, schema_name, table_name, allow_rows=True)
+    conversion = await inspect_conversion(reader, schema_name, table_name, allow_rows=True, allow_integer=True)
     return TableCandidate(
         extension_version=version,
         conversion=conversion,
         facts=await _table_facts(reader, conversion.target.relation_oid),
         per_chunk_defaults=release(version) >= PER_CHUNK_DEFAULTS,
         row_estimate=await row_estimate(reader, conversion.target.relation_oid),
+        now_functions=await now_functions(reader),
     )
 
 
-def converted(candidate: TableCandidate, column: ConversionColumn, interval: DesignDuration) -> CurrentHypertable:
+def span_length(column_type: str, interval: Span) -> int:
+    """The interval as Timescale stores it for this column; refuses a unit the column cannot take."""
+    if column_type in INTEGER_TYPES:
+        if not isinstance(interval, IntegerSpan):
+            raise ActionRefused("not_applicable", "A chunk interval of an integer column is a number of its values")
+        if int(interval.amount) > INTEGER_MAX[column_type]:
+            raise ActionRefused(
+                "not_applicable", f"A chunk interval of a {column_type} column is at most {INTEGER_MAX[column_type]:,}",
+            )
+        return int(interval.amount)
+    microseconds = None if isinstance(interval, IntegerSpan) else duration_microseconds(interval)
+    if microseconds is None:
+        raise ActionRefused("not_applicable", "A chunk interval is counted in minutes, hours, days or weeks")
+    return microseconds
+
+
+def converted(candidate: TableCandidate, column: ConversionColumn, interval: Span) -> CurrentHypertable:
     """The hypertable right after converting by this column, before anything else is set.
 
     Planning every other step against it means a conversion and its settings are
     planned by the same rules as the settings of a hypertable that exists.
     """
-    microseconds = duration_microseconds(interval)
-    if microseconds is None:
-        raise ActionRefused("not_applicable", "A chunk interval is counted in minutes, hours, days or weeks")
+    length = span_length(column.type, interval)
     target = candidate.conversion.target
     return CurrentHypertable(
         extension_version=candidate.extension_version,
@@ -572,7 +725,7 @@ def converted(candidate: TableCandidate, column: ConversionColumn, interval: Des
                 segment_by=ChosenByTimescale() if candidate.per_chunk_defaults else NoColumns(),
             ),
         ),
-        interval_microseconds=microseconds,
+        interval_length=length,
         columns=candidate.facts.columns,
         unique_keys=candidate.facts.unique_keys,
         indexes=candidate.facts.indexes,
@@ -584,18 +737,20 @@ def converted(candidate: TableCandidate, column: ConversionColumn, interval: Des
         # Moving rows in makes chunks, so what needs none is planned as if there were some.
         has_chunks=not candidate.conversion.empty,
         compressed_chunks=False,
+        now_functions=tuple(item for item in candidate.now_functions if item.type == column.type),
     )
 
 
 def _preferred(columns: tuple[ConversionColumn, ...]) -> ConversionColumn:
-    # A column that already requires a value converts without one more rule to meet.
-    return next((column for column in columns if column.not_null), columns[0])
+    # A time column before any integer one, which is as likely an id as a clock;
+    # then one that already requires a value, which converts with one rule fewer.
+    timed = [column for column in columns if column.type in _TIME_TYPES] or list(columns)
+    return next((column for column in timed if column.not_null), timed[0])
 
 
 def state_of_table(node_id: str, candidate: TableCandidate) -> HypertableDesignState:
     choice = _preferred(candidate.conversion.columns)
-    # The default TimescaleDB itself gives a timestamp column.
-    proposed = converted(candidate, choice, DesignDuration(amount=1, unit="week"))
+    proposed = converted(candidate, choice, proposed_interval(choice.type))
     return HypertableDesignState(
         node_id=node_id,
         hypertable=False,
@@ -605,8 +760,7 @@ def state_of_table(node_id: str, candidate: TableCandidate) -> HypertableDesignS
         time_column_type=choice.type,
         columns=[HypertableColumn(name=item.name, type=item.type, orderable=item.orderable)
                  for item in candidate.facts.columns],
-        time_columns=[HypertableColumn(name=item.name, type=item.type, orderable=True)
-                      for item in candidate.conversion.columns],
+        time_columns=[time_column(item.name, item.type) for item in candidate.conversion.columns],
         row_estimate=candidate.row_estimate,
         indexes=list(candidate.facts.indexes),
         tablespaces=list(candidate.facts.tablespaces),
@@ -617,16 +771,31 @@ def state_of_table(node_id: str, candidate: TableCandidate) -> HypertableDesignS
         merge_units=["minute", "hour", "day", "week"],
         per_chunk_defaults=candidate.per_chunk_defaults,
         has_chunks=not candidate.conversion.empty,
+        now_functions=list(candidate.now_functions),
+        schema_name=candidate.conversion.target.schema_name,
+    )
+
+
+def time_column(name: str, column_type: str) -> HypertableColumn:
+    """A column a table may be partitioned by, with what the editor proposes for it."""
+    return HypertableColumn(
+        name=name, type=column_type, orderable=True,
+        chunk_interval=proposed_interval(column_type), now_templates=list(NOW_TEMPLATES.get(column_type, ())),
     )
 
 
 def interval_units(target: DesignTarget) -> list[DurationUnit]:
+    """The units of a time column's intervals; none for an integer column, counted in its values."""
+    if target.column_type in INTEGER_TYPES:
+        return []
     if target.column_type == "date":
         return ["day", "week"]
     return ["minute", "hour", "day", "week"]
 
 
 def policy_units(target: DesignTarget) -> list[DurationUnit]:
+    if target.column_type in INTEGER_TYPES:
+        return []
     units: list[DurationUnit] = ["hour", "day", "week", "month", "year"]
     return [unit for unit in units if not (target.column_type == "date" and unit in _SUBDAY)]
 
@@ -640,6 +809,7 @@ def state_of(node_id: str, current: CurrentHypertable) -> HypertableDesignState:
         time_column=current.target.column_name,
         time_column_type=current.target.column_type,
         columns=[HypertableColumn(name=item.name, type=item.type, orderable=item.orderable) for item in current.columns],
+        time_columns=[time_column(current.target.column_name, current.target.column_type)],
         indexes=list(current.indexes),
         tablespaces=list(current.available_tablespaces),
         interval_units=interval_units(current.target),
@@ -658,6 +828,9 @@ def state_of(node_id: str, current: CurrentHypertable) -> HypertableDesignState:
                 + ("" if reorder.scheduled else "; paused")
             ),
         ),
+        now_functions=list(current.now_functions),
+        integer_now_name=current.integer_now_name,
+        schema_name=current.target.schema_name,
     )
 
 

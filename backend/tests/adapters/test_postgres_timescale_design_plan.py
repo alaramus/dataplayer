@@ -9,14 +9,19 @@ from app.adapters.hypertable_design import (
     ChosenByTimescale,
     ColumnstoreDesign,
     DesignDuration,
+    ExistingNow,
     HashDimensionDesign,
     HypertableDesign,
+    IntegerSpan,
     KeptAsItIs,
+    KeptNow,
     NoColumns,
+    NowFunction,
     OlderThan,
     OrderColumns,
     OrderKey,
     SegmentColumns,
+    TemplateNow,
 )
 from app.adapters.postgres.timescale.design_plan import (
     AddAgePolicy,
@@ -24,10 +29,13 @@ from app.adapters.postgres.timescale.design_plan import (
     AddReorderPolicy,
     AttachTablespace,
     ConfigureColumnstore,
+    Count,
+    CreateNowFunction,
     DetachTablespace,
     DisableColumnstore,
     RemovePolicy,
     SetChunkInterval,
+    SetIntegerNow,
     SetPartitions,
     plan_steps,
 )
@@ -54,7 +62,7 @@ def state(**changes: Any) -> CurrentHypertable:
         "extension_version": "2.30.0",
         "target": TARGET,
         "design": HypertableDesign(chunk_interval=WEEK),
-        "interval_microseconds": 604_800_000_000,
+        "interval_length": 604_800_000_000,
         "columns": (
             ColumnFact(name="observed_at", type="timestamp with time zone", orderable=True),
             ColumnFact(name="device", type="integer", orderable=True),
@@ -269,3 +277,99 @@ def test_a_paused_reorder_policy_is_not_resumed_by_a_new_index() -> None:
     assert plan_steps(current, design(reorder_index="events_device")) == ()
     assert "reorder policy is paused" in refused(current, design(reorder_index="events_time"))
     assert plan_steps(current, design()) == (RemovePolicy(kind="reorder", job_id="1001"),)
+
+
+COUNT = IntegerSpan(amount="100000")
+CLOCK = NowFunction(schema_name="lab", name="unix_now", type="bigint")
+
+
+def integer_state(**changes: Any) -> CurrentHypertable:
+    fields: dict[str, Any] = {
+        "target": TARGET.model_copy(update={"column_name": "tick", "column_type": "bigint"}),
+        "design": HypertableDesign(chunk_interval=COUNT),
+        "interval_length": 100_000,
+        "columns": (ColumnFact(name="tick", type="bigint", orderable=True),),
+        "now_functions": (CLOCK,),
+    }
+    fields.update(changes)
+    return state(**fields)
+
+
+def integer_design(**changes: Any) -> HypertableDesign:
+    return HypertableDesign(chunk_interval=COUNT).model_copy(update=changes)
+
+
+def test_an_integer_chunk_interval_is_a_count_within_the_type() -> None:
+    assert plan_steps(integer_state(), integer_design(chunk_interval=IntegerSpan(amount="5000"))) == (
+        SetChunkInterval(interval=Count(amount=5000)),
+    )
+    small = integer_state(target=TARGET.model_copy(update={"column_name": "tick", "column_type": "smallint"}))
+    assert "at most 32,767" in refused(small, integer_design(chunk_interval=IntegerSpan(amount="40000")))
+    assert "number of its values" in refused(integer_state(), integer_design(chunk_interval=WEEK))
+    assert "counted in minutes" in refused(state(), design(chunk_interval=COUNT))
+
+
+def test_an_age_policy_on_integer_time_needs_integer_now() -> None:
+    retention = OlderThan(older_than=IntegerSpan(amount="86400"))
+    assert "needs an integer_now function" in refused(integer_state(), integer_design(retention=retention))
+
+    steps = plan_steps(integer_state(), integer_design(
+        retention=retention, integer_now=TemplateNow(template="epoch_seconds", name="unix_seconds"),
+    ))
+    assert steps == (
+        CreateNowFunction(schema_name="lab", name="unix_seconds", template="epoch_seconds", column_type="bigint"),
+        SetIntegerNow(schema_name="lab", name="unix_seconds", replace=False),
+        AddAgePolicy(kind="retention", older_than=Count(amount=86400)),
+    )
+
+
+def test_an_integer_age_is_a_count_the_column_can_hold() -> None:
+    clocked = integer_state(
+        target=TARGET.model_copy(update={"column_name": "tick", "column_type": "integer"}),
+        design=integer_design(integer_now=ExistingNow(schema_name="lab", name="unix_now")),
+    )
+    kept = {"integer_now": KeptNow()}
+    assert "at most 2,147,483,647" in refused(clocked, integer_design(
+        retention=OlderThan(older_than=IntegerSpan(amount="3000000000")), **kept,
+    ))
+    assert "number of its values" in refused(clocked, integer_design(retention=OlderThan(older_than=WEEK), **kept))
+    assert "cannot count in plain numbers" in refused(state(), design(retention=OlderThan(older_than=COUNT)))
+
+
+def test_an_unchanged_integer_policy_plans_nothing() -> None:
+    current = integer_state(
+        retention=AgePolicy(job_id="1000", scheduled=True, schedule_interval="1 day", older_than_count="86400"),
+        design=integer_design(
+            retention=OlderThan(older_than=IntegerSpan(amount="86400")), integer_now=KeptNow(),
+        ),
+    )
+    assert plan_steps(current, current.design) == ()
+
+
+def test_a_template_must_fit_the_column_type() -> None:
+    narrow = integer_state(target=TARGET.model_copy(update={"column_name": "tick", "column_type": "integer"}))
+    assert "cannot hold the milliseconds since 1970" in refused(narrow, integer_design(
+        integer_now=TemplateNow(template="epoch_milliseconds", name="unix_ms"),
+    ))
+
+
+def test_an_existing_integer_now_must_be_one_timescale_accepts() -> None:
+    assert "is not a function TimescaleDB accepts" in refused(integer_state(), integer_design(
+        integer_now=ExistingNow(schema_name="lab", name="other"),
+    ))
+    current = integer_state(design=integer_design(integer_now=KeptNow()))
+    assert plan_steps(current, integer_design(integer_now=ExistingNow(schema_name="lab", name="unix_now"))) == (
+        SetIntegerNow(schema_name="lab", name="unix_now", replace=True),
+    )
+    assert plan_steps(current, integer_design(integer_now=KeptNow())) == ()
+    assert "cannot take an integer_now function away" in refused(current, integer_design())
+    assert "no integer_now function to keep" in refused(integer_state(), integer_design(integer_now=KeptNow()))
+
+
+def test_only_integer_time_takes_integer_now_and_only_time_merges() -> None:
+    assert "Only a hypertable partitioned by an integer column" in refused(
+        state(), design(integer_now=ExistingNow(schema_name="lab", name="unix_now")),
+    )
+    assert "integer column does not count in" in refused(integer_state(), integer_design(
+        columnstore=ColumnstoreDesign(enabled=True, merge_interval=WEEK),
+    ))

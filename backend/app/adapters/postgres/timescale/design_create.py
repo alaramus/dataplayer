@@ -15,9 +15,11 @@ from app.adapters.actions import ActionRefused
 from app.adapters.hypertable_design import (
     ChosenByTimescale,
     ColumnstoreDesign,
+    DesignDuration,
     DurationUnit,
     HypertableDesign,
     NoColumns,
+    NowFunction,
     OlderThan,
     OrderBy,
     OrderColumns,
@@ -35,37 +37,59 @@ from app.adapters.postgres.timescale.api import (
     extension_type,
 )
 from app.adapters.postgres.timescale.conversion_plan import by_range_shape, create_shape
-from app.adapters.postgres.timescale.design_execution import columnstore_statements
+from app.adapters.postgres.timescale.design_execution import (
+    columnstore_statements,
+    length_type,
+    length_value,
+    now_function_statement,
+    routine_signature,
+)
 from app.adapters.postgres.timescale.design_plan import (
     AddAgePolicy,
     AddHashDimension,
     AddReorderPolicy,
     ConfigureColumnstore,
+    CreateNowFunction,
     DesignStep,
-    Duration,
+    Length,
+    SetIntegerNow,
     add_dimension_shape,
     by_hash_shape,
+    length_from,
     plan_steps,
+    require_new_functions,
     step_shapes,
 )
 from app.adapters.postgres.timescale.design_state import (
+    INTEGER_MAX,
+    INTEGER_TYPES,
+    NOW_TEMPLATES,
     PER_CHUNK_DEFAULTS,
     ColumnFact,
     CurrentHypertable,
     DesignTarget,
     UniqueKey,
-    duration_microseconds,
     interval_units,
+    now_functions,
+    proposed_interval,
     release,
+    span_length,
 )
 from app.adapters.postgres.timescale.profile import discover, require_available
-from app.adapters.table_design import HypertableOffer, TableHypertable
+from app.adapters.table_design import (
+    HypertableOffer,
+    IntegerTimeOption,
+    TableHypertable,
+)
 
 # The designer's codes for the types a time dimension may have, as PostgreSQL names them.
 TIME_TYPES = {
     "timestamp": "timestamp without time zone",
     "timestamp_tz": "timestamp with time zone",
     "date": "date",
+    "smallint": "smallint",
+    "integer": "integer",
+    "bigint": "bigint",
 }
 # The table does not exist while it is planned, so nothing reads its identity;
 # the plan carries the name and the statements cast it.
@@ -103,11 +127,22 @@ async def hypertable_offer(reader: PostgresReader) -> HypertableOffer:
     except ActionRefused as refusal:
         return HypertableOffer(reason=refusal.message)
     units: list[DurationUnit] = ["minute", "hour", "day", "week"]
+    integer_types: list[IntegerTimeOption] = []
+    for name in INTEGER_TYPES:
+        proposed = proposed_interval(name)
+        if isinstance(proposed, DesignDuration):
+            continue
+        integer_types.append(IntegerTimeOption.model_validate({
+            "type": name, "chunk_interval": proposed, "maximum": str(INTEGER_MAX[name]),
+            "now_templates": list(NOW_TEMPLATES[name]),
+        }))
     return HypertableOffer(
         available=True,
         per_chunk_defaults=release(version) >= PER_CHUNK_DEFAULTS,
         interval_units=units,
         policy_units=["hour", "day", "week", "month", "year"],
+        integer_types=integer_types,
+        now_functions=list(await now_functions(reader)),
     )
 
 
@@ -155,24 +190,30 @@ def _design(
         retention=None if hyper.retention is None else OlderThan(older_than=hyper.retention),
         columnstore_policy=None if hyper.columnstore_policy is None else OlderThan(older_than=hyper.columnstore_policy),
         reorder_index=reorder,
+        integer_now=hyper.integer_now,
     )
 
 
 def _unborn(
     schema: str, table: str, column: DraftColumn, design: HypertableDesign, version: str,
     columns: dict[str, DraftColumn], unique_keys: list[UniqueKey], index_names: dict[str, str],
+    functions: tuple[NowFunction, ...],
 ) -> CurrentHypertable:
     """The empty hypertable `create_hypertable` makes of the new table, before anything else is set."""
     interval = design.chunk_interval
-    microseconds = None if interval is None else duration_microseconds(interval)
-    if interval is None or microseconds is None:
-        raise CreationProblem("A chunk interval is counted in minutes, hours, days or weeks", field="chunk_interval")
+    column_type = TIME_TYPES[column.type_code]
+    if interval is None:
+        raise CreationProblem("Choose the chunk interval", field="chunk_interval")
+    try:
+        length = span_length(column_type, interval)
+    except ActionRefused as refusal:
+        raise CreationProblem(refusal.message, field="chunk_interval") from None
     per_chunk_defaults = release(version) >= PER_CHUNK_DEFAULTS
     return CurrentHypertable(
         extension_version=version,
         target=DesignTarget(
             database_oid=_UNBORN, relation_oid=_UNBORN, schema_name=schema, table_name=table,
-            column_name=column.name, column_type=TIME_TYPES[column.type_code],
+            column_name=column.name, column_type=column_type,
         ),
         design=HypertableDesign(
             time_column=column.name, chunk_interval=interval,
@@ -180,7 +221,7 @@ def _unborn(
                 enabled=False, segment_by=ChosenByTimescale() if per_chunk_defaults else NoColumns(),
             ),
         ),
-        interval_microseconds=microseconds,
+        interval_length=length,
         # Every type the designer offers has a default btree operator class.
         columns=tuple(ColumnFact(name=item.name, type=item.type_code, orderable=True) for item in columns.values()),
         unique_keys=tuple(unique_keys),
@@ -190,6 +231,7 @@ def _unborn(
         per_chunk_defaults=per_chunk_defaults,
         has_chunks=False,
         compressed_chunks=False,
+        now_functions=tuple(item for item in functions if item.type == column_type),
     )
 
 
@@ -209,6 +251,10 @@ def _call(schema: str, routine: str, arguments: sql.Composable) -> str:
     return sql.SQL("SELECT {}({})").format(sql.Identifier(schema, routine), arguments).as_string()
 
 
+def _length(length: Length) -> sql.Composed:
+    return sql.SQL("{}::{}").format(sql.Literal(length_value(length)), length_type(length))
+
+
 def _render(schema: str, table: sql.Identifier, step: DesignStep) -> list[CreationStatement]:
     relation = sql.SQL("{}::pg_catalog.regclass").format(sql.Literal(table.as_string()))
     match step:
@@ -223,8 +269,14 @@ def _render(schema: str, table: sql.Identifier, step: DesignStep) -> list[Creati
             return [CreationStatement("Columnstore", item.as_string()) for item in columnstore_statements(table, step)]
         case AddAgePolicy(kind=kind, older_than=older_than):
             return [CreationStatement(_TITLES[kind], _call(schema, _ADD_POLICY[kind], sql.SQL(
-                "{}, {}::pg_catalog.interval, false"
-            ).format(relation, sql.Literal(older_than.interval_value()))))]
+                "{}, {}, false"
+            ).format(relation, _length(older_than))))]
+        case CreateNowFunction():
+            return [CreationStatement(f"Function {step.name}", now_function_statement(step).as_string())]
+        case SetIntegerNow(schema_name=schema_name, name=name):
+            return [CreationStatement("Integer now", _call(schema, "set_integer_now_func", sql.SQL(
+                "{}, {}::pg_catalog.regprocedure::pg_catalog.oid::pg_catalog.regproc, false"
+            ).format(relation, sql.Literal(routine_signature(schema_name, name)))))]
         case AddReorderPolicy(index=index):
             return [CreationStatement("Reorder policy", _call(schema, "add_reorder_policy", sql.SQL(
                 "{}, {}::pg_catalog.name, false"
@@ -255,26 +307,34 @@ async def creation_statements(
             object_id=hyper.time_column_id, field="not_null",
         )
     design = _design(hyper, columns, index_names)
-    current = _unborn(schema, table_name, time_column, design, version, columns, unique_keys, index_names)
-    if hyper.chunk_interval.unit not in interval_units(current.target):
+    functions = await now_functions(reader) if TIME_TYPES[time_column.type_code] in INTEGER_TYPES else ()
+    current = _unborn(schema, table_name, time_column, design, version, columns, unique_keys, index_names, functions)
+    chunk = hyper.chunk_interval
+    if isinstance(chunk, DesignDuration) and chunk.unit not in interval_units(current.target):
         allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))
         raise CreationProblem(f"A chunk interval of this column is counted in {allowed}", field="chunk_interval")
     try:
         steps = plan_steps(current, design)
+        await require_new_functions(reader, steps)
         routine_schema = await _schema(reader, version, steps)
     except ActionRefused as refusal:
         raise CreationProblem(refusal.message) from None
     table = sql.Identifier(schema, table_name)
-    interval = Duration(amount=hyper.chunk_interval.amount, unit=hyper.chunk_interval.unit)
     # No default indexes: the designer shows the time index as one of the table's own.
-    statements = [CreationStatement("Hypertable", sql.SQL(
+    creation = CreationStatement("Hypertable", sql.SQL(
         "SELECT hypertable_id FROM {}({}::pg_catalog.regclass, {}({}::pg_catalog.name, "
-        "{}::pg_catalog.interval), false, false, false)"
+        "{}), false, false, false)"
     ).format(
         sql.Identifier(routine_schema, "create_hypertable"), sql.Literal(table.as_string()),
         sql.Identifier(routine_schema, "by_range"), sql.Literal(time_column.name),
-        sql.Literal(interval.interval_value()),
-    ).as_string())]
+        _length(length_from(chunk)),
+    ).as_string())
+    # A function integer_now names must exist before the table; nothing else needs it to.
+    statements = [
+        *(item for step in steps if isinstance(step, CreateNowFunction) for item in _render(routine_schema, table, step)),
+        creation,
+    ]
     for step in steps:
-        statements.extend(_render(routine_schema, table, step))
+        if not isinstance(step, CreateNowFunction):
+            statements.extend(_render(routine_schema, table, step))
     return statements
