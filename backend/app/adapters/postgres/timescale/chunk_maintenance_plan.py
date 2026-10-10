@@ -34,7 +34,9 @@ from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import time_hypertable
 from app.adapters.protocol import AdapterError
 
-Maintenance = Literal["drop", "move", "reorder", "detach", "merge", "split", "attach"]
+Maintenance = Literal["drop", "move", "reorder", "detach", "merge", "merge_concurrently", "split", "attach"]
+# Both take a group of adjacent chunks as one unit.
+MERGES: frozenset[Maintenance] = frozenset({"merge", "merge_concurrently"})
 _OID = r"^[1-9][0-9]{0,9}$"
 
 # sql/maintenance_utils.sql and sql/ddl_api.sql. regclass 2205, name 19,
@@ -47,6 +49,8 @@ ROUTINES: dict[Maintenance, RoutineShape] = {
     "reorder": RoutineShape("reorder_chunk", "f", "2205 2205", 2278),
     "detach": RoutineShape("detach_chunk", "p", "2205", 2278),
     "merge": RoutineShape("merge_chunks", "p", "2210", 2278, exclusive=False),
+    # 2.29: a merge that lets reads go on, and commits by itself.
+    "merge_concurrently": RoutineShape("merge_chunks_concurrently", "p", "2210", 2278),
     "split": RoutineShape("split_chunk", "p", "2205 2276", 2278),
     "attach": RoutineShape("attach_chunk", "p", "2205 2205 3802", 2278),
 }
@@ -284,12 +288,12 @@ async def plan_window_maintenance(
                 case "detach":
                     keep = [row for row in rows if row["is_compressed"] is not True]
                     because = "compressed; TimescaleDB detaches only uncompressed chunks"
-                case "merge":
+                case "merge" | "merge_concurrently":
                     _require_mergeable(rows, unit.strategy.extension_version)
             if not keep:
                 raise _refuse(f"Every whole chunk inside this window is {because}")
             chunks = tuple(_planned(row) for row in keep)
-            if maintenance == "merge":
+            if maintenance in MERGES:
                 unit = unit.model_copy(update={"group": chunks})
             unit = unit.model_copy(update={"arguments": arguments})
             return MaintenancePlan(

@@ -278,9 +278,9 @@ Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-t
 
 ## D207. A hypertable is designed as a whole and planned as one change
 
-The settings editor (H1, H2), conversion from it (H3), the table designer's
-Hypertable section (H4) and integer time (H5) are implemented and pass the
-whole matrix.
+Every slice is implemented and passes the whole matrix: the settings editor
+(H1, H2), conversion from it (H3), the table designer's Hypertable section
+(H4), integer time (H5) and the options only some releases have (H7).
 
 One closed model, `HypertableDesign`, says what a hypertable should be:
 
@@ -356,6 +356,19 @@ What the matrix showed, and the code follows:
 - Timescale reads `compress_chunk_time_interval` as time even on an integer
   column. The editor offers no merge interval there, and refuses a hypertable
   that has one.
+- Sparse indexes are offered where the settings view has its `index` column,
+  which is discovery rather than a release. The view lists Timescale's own
+  indexes beside the ones that were set; only those whose source is `config`
+  are the design's, an empty `config` entry is "none", and none at all is
+  "Timescale chooses". Timescale refuses sparse indexes without a named order,
+  and so does the planner.
+- UUIDv7 partitioning exists from 2.22, but until 2.25 the views report its
+  interval in microseconds and its chunks without a range. A UUID time column
+  is offered from 2.25, a declared minimum the matrix proves on 2.23.1 and
+  2.30.0, and an older one is refused saying so.
+- The compaction policy (2.29) needs the columnstore on, and
+  `merge_chunks_concurrently` refuses a transaction block like a move; both
+  are found by discovery.
 
 Conversion from the editor plans an ordinary table as the hypertable it would
 become by the chosen column, so the conversion and every setting after it are
@@ -395,6 +408,12 @@ Known deviations:
   matrix, so an unset list there is shown as "none".
 - **`integer_now` cannot be taken away.** Timescale has no call that unsets it,
   so the editor keeps it or replaces it.
+- **Chunk skipping is two actions, not part of the design.** Which columns
+  record their ranges is kept only in a private catalog (D121), so the editor
+  could not say what is set. "Skip chunks by a column" and "Stop skipping
+  chunks by a column" call Timescale with `if_not_exists`, so asking for what
+  already holds changes nothing, and set `timescaledb.enable_chunk_skipping`
+  for their own transaction; the preview says when it is off for queries.
 - **The designer never proposes an integer time column.** It proposes a
   timestamp or date column; an integer one is chosen by hand, since an `id`
   column is as likely as a clock.
@@ -405,8 +424,8 @@ Spec: [Designing a hypertable](../../decisions/2026-10-09-hypertable-designer-de
 
 Implemented (H6) and passing the whole matrix.
 
-Drop, merge (2.18+), split (2.20+), move, reorder, detach and attach (2.21+)
-each work like compressing chunks:
+Drop, merge (2.18+; letting reads go on, 2.29+), split (2.20+), move,
+reorder, detach and attach (2.21+) each work like compressing chunks:
 
 - a registered action;
 - a plan that fixes the actual chunks and their ranges;

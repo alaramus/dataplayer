@@ -26,6 +26,9 @@ from app.adapters.hypertable_design import (
     OrderKey,
     SegmentBy,
     SegmentColumns,
+    SparseColumns,
+    SparseIndex,
+    SparseIndexes,
 )
 from app.adapters.hypertable_design import (
     HashDimensionDesign as HashDesign,
@@ -46,6 +49,7 @@ from app.adapters.postgres.timescale.design_execution import (
 )
 from app.adapters.postgres.timescale.design_plan import (
     AddAgePolicy,
+    AddCompactionPolicy,
     AddHashDimension,
     AddReorderPolicy,
     ConfigureColumnstore,
@@ -65,10 +69,12 @@ from app.adapters.postgres.timescale.design_state import (
     INTEGER_TYPES,
     NOW_TEMPLATES,
     PER_CHUNK_DEFAULTS,
+    Capabilities,
     ColumnFact,
     CurrentHypertable,
     DesignTarget,
     UniqueKey,
+    capabilities,
     interval_units,
     now_functions,
     proposed_interval,
@@ -90,6 +96,7 @@ TIME_TYPES = {
     "smallint": "smallint",
     "integer": "integer",
     "bigint": "bigint",
+    "uuid": "uuid",
 }
 # The table does not exist while it is planned, so nothing reads its identity;
 # the plan carries the name and the statements cast it.
@@ -136,8 +143,12 @@ async def hypertable_offer(reader: PostgresReader) -> HypertableOffer:
             "type": name, "chunk_interval": proposed, "maximum": str(INTEGER_MAX[name]),
             "now_templates": list(NOW_TEMPLATES[name]),
         }))
+    offered = await capabilities(reader, version)
     return HypertableOffer(
         available=True,
+        sparse_indexes=offered.sparse_indexes,
+        compaction=offered.compaction,
+        uuid_time=offered.uuid_time,
         per_chunk_defaults=release(version) >= PER_CHUNK_DEFAULTS,
         interval_units=units,
         policy_units=["hour", "day", "week", "month", "year"],
@@ -172,6 +183,16 @@ def _design(
                      descending=key.descending, nulls_first=key.nulls_first)
             for key in hyper.order_keys
         ])
+    sparse: SparseIndexes = ChosenByTimescale()
+    if hyper.sparse_mode == "none":
+        sparse = NoColumns()
+    elif hyper.sparse_mode == "columns":
+        if not hyper.sparse_indexes:
+            raise CreationProblem("Choose the columns of the sparse indexes")
+        sparse = SparseColumns(indexes=[
+            SparseIndex(column=_name(columns, item.column_id, "sparse index"), kind=item.kind)
+            for item in hyper.sparse_indexes
+        ])
     reorder = None
     if hyper.reorder_index_id is not None:
         reorder = index_names.get(hyper.reorder_index_id)
@@ -186,18 +207,20 @@ def _design(
         ],
         columnstore=ColumnstoreDesign(
             enabled=hyper.columnstore, segment_by=segment, order_by=order, merge_interval=hyper.merge_interval,
+            sparse_indexes=sparse,
         ) if hyper.columnstore else ColumnstoreDesign(enabled=False),
         retention=None if hyper.retention is None else OlderThan(older_than=hyper.retention),
         columnstore_policy=None if hyper.columnstore_policy is None else OlderThan(older_than=hyper.columnstore_policy),
         reorder_index=reorder,
         integer_now=hyper.integer_now,
+        compaction_policy=hyper.compaction_policy,
     )
 
 
 def _unborn(
     schema: str, table: str, column: DraftColumn, design: HypertableDesign, version: str,
     columns: dict[str, DraftColumn], unique_keys: list[UniqueKey], index_names: dict[str, str],
-    functions: tuple[NowFunction, ...],
+    functions: tuple[NowFunction, ...], offered: Capabilities,
 ) -> CurrentHypertable:
     """The empty hypertable `create_hypertable` makes of the new table, before anything else is set."""
     interval = design.chunk_interval
@@ -232,6 +255,8 @@ def _unborn(
         has_chunks=False,
         compressed_chunks=False,
         now_functions=tuple(item for item in functions if item.type == column_type),
+        sparse_indexes_supported=offered.sparse_indexes,
+        compaction_supported=offered.compaction,
     )
 
 
@@ -277,6 +302,10 @@ def _render(schema: str, table: sql.Identifier, step: DesignStep) -> list[Creati
             return [CreationStatement("Integer now", _call(schema, "set_integer_now_func", sql.SQL(
                 "{}, {}::pg_catalog.regprocedure::pg_catalog.oid::pg_catalog.regproc, false"
             ).format(relation, sql.Literal(routine_signature(schema_name, name)))))]
+        case AddCompactionPolicy():
+            return [CreationStatement("Compaction policy", _call(schema, "add_compaction_policy", sql.SQL(
+                "{}, false"
+            ).format(relation)))]
         case AddReorderPolicy(index=index):
             return [CreationStatement("Reorder policy", _call(schema, "add_reorder_policy", sql.SQL(
                 "{}, {}::pg_catalog.name, false"
@@ -306,9 +335,16 @@ async def creation_statements(
             f'"{time_column.name}" partitions the hypertable, so it must have a value',
             object_id=hyper.time_column_id, field="not_null",
         )
+    offered = await capabilities(reader, version)
+    if time_column.type_code == "uuid" and not offered.uuid_time:
+        raise CreationProblem(
+            f"TimescaleDB {version} partitions by UUIDv7 only partly; choose a timestamp column", field="time_column_id",
+        )
     design = _design(hyper, columns, index_names)
     functions = await now_functions(reader) if TIME_TYPES[time_column.type_code] in INTEGER_TYPES else ()
-    current = _unborn(schema, table_name, time_column, design, version, columns, unique_keys, index_names, functions)
+    current = _unborn(
+        schema, table_name, time_column, design, version, columns, unique_keys, index_names, functions, offered,
+    )
     chunk = hyper.chunk_interval
     if isinstance(chunk, DesignDuration) and chunk.unit not in interval_units(current.target):
         allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))

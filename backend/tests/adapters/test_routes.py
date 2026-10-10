@@ -136,9 +136,9 @@ async def test_reports_what_a_type_can_do(
                 "Set retention policy", "Remove retention policy",
                 "Set compression policy", "Remove compression policy",
                 "Set refresh policy", "Remove refresh policy", "Convert to hypertable",
-                "Compress chunks", "Decompress chunks", "Drop chunks", "Merge chunks", "Split a chunk",
+                "Compress chunks", "Decompress chunks", "Drop chunks", "Merge chunks", "Merge chunks, reads going on", "Split a chunk",
                 "Move chunks to a tablespace", "Reorder chunks by an index", "Detach chunks",
-                "Attach a table as a chunk",
+                "Attach a table as a chunk", "Skip chunks by a column", "Stop skipping chunks by a column",
             )
         ),
     }

@@ -91,7 +91,7 @@ WHERE attribute.attrelid = %s::pg_catalog.oid AND attribute.attnum > 0 AND NOT a
   ) OR (%s AND attribute.atttypid IN (
       'pg_catalog.int2'::pg_catalog.regtype, 'pg_catalog.int4'::pg_catalog.regtype,
       'pg_catalog.int8'::pg_catalog.regtype
-  )))
+  )) OR (%s AND attribute.atttypid = 'pg_catalog.uuid'::pg_catalog.regtype))
 ORDER BY attribute.attnum
 """
 
@@ -145,13 +145,14 @@ def by_range_shape(dimension_info: str) -> RoutineShape:
 
 async def inspect_conversion(
     reader: PostgresReader, schema_name: str, table_name: str, *,
-    allow_rows: bool = False, allow_integer: bool = False,
+    allow_rows: bool = False, allow_integer: bool = False, allow_uuid: bool = False,
 ) -> ConversionState:
     """Everything that refuses a conversion whatever column and interval are chosen.
 
     Rows refuse it unless the caller moves them as a job (D207); then whether
     there are any is a fact of the state. Integer columns are candidates only
-    for a caller that can plan integer_now beside them.
+    for a caller that can plan integer_now beside them, and UUIDv7 ones only
+    where the release partitions by them whole (D207).
     """
     try:
         async with asyncio.timeout(5):
@@ -173,7 +174,7 @@ async def inspect_conversion(
                 )
             columns = tuple(
                 ConversionColumn.model_validate(row)
-                for row in await reader.query(_TIME_COLUMNS, (target.relation_oid, allow_integer), inspection=True)
+                for row in await reader.query(_TIME_COLUMNS, (target.relation_oid, allow_integer, allow_uuid), inspection=True)
             )
             if not columns:
                 kinds = "timestamp, date or integer" if allow_integer else "timestamp or date"
@@ -272,7 +273,7 @@ def time_index_exists(state: ConversionState, column: ConversionColumn) -> bool:
 def conversion_plan(state: ConversionState, column_name: str, interval: TimeDuration) -> ConversionPlan:
     column = conversion_column(state, column_name)
     if column.type not in _TIME_TYPES:
-        raise ActionRefused("not_applicable", "An integer column is converted from Hypertable settings")
+        raise ActionRefused("not_applicable", "An integer or UUID column is converted from Hypertable settings")
     if interval.unit in {"month", "year"}:
         raise ActionRefused("not_applicable", "Calendar chunk intervals are not supported by this strategy")
     if column.type == "date" and interval.unit in _SUBDAY:

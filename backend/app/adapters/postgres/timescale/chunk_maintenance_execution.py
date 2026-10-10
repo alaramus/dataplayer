@@ -19,6 +19,7 @@ from app.adapters.operations import ObservedState, OperationTarget, UnitOutcome
 from app.adapters.postgres.inspection import InspectionReader, PostgresReader
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.chunk_maintenance_plan import (
+    MERGES,
     ROUTINES,
     Maintenance,
     MaintenanceUnit,
@@ -68,11 +69,11 @@ _REFUSED: dict[str, tuple[RefusalReason, str]] = {
 _UNCONFIRMED = "The connection was lost while this unit was running; its outcome is unknown"
 _VERBS: dict[Maintenance, str] = {
     "drop": "dropped", "move": "moved", "reorder": "reordered", "detach": "detached",
-    "merge": "merged", "split": "split", "attach": "attached",
+    "merge": "merged", "merge_concurrently": "merged", "split": "split", "attach": "attached",
 }
 
 Reviewed = Callable[[PostgresReader], Awaitable[MaintenanceUnit]]
-OUTSIDE_A_TRANSACTION: frozenset[Maintenance] = frozenset({"move", "reorder"})
+OUTSIDE_A_TRANSACTION: frozenset[Maintenance] = frozenset({"move", "reorder", "merge_concurrently"})
 
 
 async def _members(
@@ -179,7 +180,7 @@ async def _statement(
             ),
             (unit.target.relation_oid, table[0]["relation_oid"], arguments.slices),
         )
-    chunks = list(unit.group) if unit.maintenance == "merge" else [target]
+    chunks = list(unit.group) if unit.maintenance in MERGES else [target]
     found = await _members(reader, unit, [OperationTarget(schema_name=c.schema_name, name=c.name) for c in chunks])
     rows = [found.get((chunk.schema_name, chunk.name)) for chunk in chunks]
     if any(row is None for row in rows):
@@ -215,7 +216,7 @@ async def _statement(
             if member["is_compressed"] is True:
                 raise ActionRefused("not_applicable", "This chunk was compressed after review; it was left as it is")
             return sql.SQL("CALL {}(%s::pg_catalog.regclass)").format(_routine(unit)), (oid,)
-        case "merge":
+        case "merge" | "merge_concurrently":
             if [(row["range_start"], row["range_end"]) for row in live] != [
                 (chunk.range_start, chunk.range_end) for chunk in unit.group
             ]:

@@ -121,11 +121,14 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
         "timescale_decompress_chunks",
         "timescale_drop_chunks",
         "timescale_merge_chunks",
+        "timescale_merge_chunks_concurrently",
         "timescale_split_chunk",
         "timescale_move_chunks",
         "timescale_reorder_chunks",
         "timescale_detach_chunks",
         "timescale_attach_chunk",
+        "timescale_enable_chunk_skipping",
+        "timescale_disable_chunk_skipping",
     ]
     titles = {capability.title for capability in registry.capabilities_of(registry.get("postgres"))}
     assert {

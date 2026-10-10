@@ -34,6 +34,7 @@ from app.adapters.hypertable_design import (
     NowFunction,
     NowTemplate,
     Span,
+    SparseKind,
 )
 from app.adapters.relation import IndexMethodOption, RefAction
 
@@ -168,6 +169,10 @@ class HypertableOffer(BaseModel):
     integer_types: list[IntegerTimeOption] = Field(default_factory=list)
     # Functions of this database an integer time column may take as integer_now.
     now_functions: list[NowFunction] = Field(default_factory=list)
+    # What this release has beyond the oldest one supported (D207, H7).
+    sparse_indexes: bool = False
+    compaction: bool = False
+    uuid_time: bool = False
 
 
 class TableDesignOptions(BaseModel):
@@ -395,6 +400,13 @@ class TableOrderKey(BaseModel):
     nulls_first: bool = Field(strict=True)
 
 
+class TableSparseIndex(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    column_id: DraftId
+    kind: SparseKind
+
+
 class TableHypertable(BaseModel):
     """The table created as a hypertable, its columns named by draft id (D207).
 
@@ -418,6 +430,9 @@ class TableHypertable(BaseModel):
     columnstore_policy: Span | None = None
     reorder_index_id: DraftId | None = None
     integer_now: NewNowDesign | None = None
+    sparse_mode: Literal["default", "none", "columns"] = "default"
+    sparse_indexes: list[TableSparseIndex] = Field(default_factory=list, max_length=MAX_KEY_COLUMNS)
+    compaction_policy: bool = False
 
 
 class TableDefinition(BaseModel):

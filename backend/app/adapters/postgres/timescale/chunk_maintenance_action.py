@@ -23,6 +23,7 @@ from app.adapters.postgres.timescale.chunk_maintenance_execution import (
     run_unit,
 )
 from app.adapters.postgres.timescale.chunk_maintenance_plan import (
+    MERGES,
     Maintenance,
     MaintenanceArguments,
     MaintenancePlan,
@@ -235,7 +236,7 @@ class WindowMaintenance[W: ChunkWindowParams](MaintainChunks[W]):
     async def _reviewed_unit(
         self, reader: PostgresReader, schema_name: str, table_name: str, params: W,
     ) -> MaintenanceUnit:
-        if self.maintenance == "merge":
+        if self.maintenance in MERGES:
             return (await self._plan_with(reader, schema_name, table_name, params)).unit
         # Per chunk: the window's other chunks may be done already, so only what
         # every unit runs with is read again, never the list.
@@ -301,6 +302,15 @@ class MergeChunks(WindowMaintenance[ChunkWindowParams]):
             return await window_count(reader, unit.target, params.window()) == 1
 
         return await observe(self._session, unit, targets, merged)
+
+
+class MergeChunksConcurrently(MergeChunks):
+    name: ClassVar[str] = "timescale_merge_chunks_concurrently"
+    title: ClassVar[str] = "Merge chunks, reads going on"
+    maintenance: ClassVar[Maintenance] = "merge_concurrently"
+    impact: ClassVar[str] = (
+        "The chunks become one, covering their whole range; reads go on meanwhile, writes to them wait"
+    )
 
 
 class MoveChunks(WindowMaintenance[MoveParams]):
@@ -390,5 +400,6 @@ class AttachChunk(MaintainChunks[AttachParams]):
 
 
 MAINTENANCE_TYPES: tuple[type[MaintainChunks[Any]], ...] = (
-    DropChunks, MergeChunks, SplitChunk, MoveChunks, ReorderChunks, DetachChunks, AttachChunk,
+    DropChunks, MergeChunks, MergeChunksConcurrently, SplitChunk, MoveChunks, ReorderChunks, DetachChunks,
+    AttachChunk,
 )

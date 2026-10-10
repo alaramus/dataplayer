@@ -16,6 +16,12 @@ async function choose(page: Page, field: string, option: string) {
   await page.getByRole("option", { name: option, exact: true }).click()
 }
 
+/** Choose an option of the select labelled so inside one row of a list. */
+async function chooseIn(page: Page, row: string, label: string, option: string) {
+  await page.getByTestId(row).getByRole("combobox", { name: label }).click()
+  await page.getByRole("option", { name: option, exact: true }).click()
+}
+
 async function openSettings(page: Page) {
   await catalogCheck(page, "readings").check()
   await catalogAction(page, "timescale_design_hypertable", "Timescale")
@@ -183,6 +189,59 @@ test("converts by an integer column with a clock made from a template", async ({
       )
     ).toBe("900000000000")
 
+    await openSettings(page)
+    await expect(plan).toContainText("already matches these settings")
+  } finally {
+    await deleteConnector(page, connector).catch(() => undefined)
+    await timescaleSql(`DROP SCHEMA IF EXISTS ${schema} CASCADE`)
+  }
+})
+
+test("sets sparse indexes beside a named order, and a compaction policy", async ({ page }) => {
+  const stamp = Date.now()
+  const connector = `e2e-sparse-${stamp}`
+  const schema = `e2e_sparse_${stamp}`
+  await timescaleSql(
+    `CREATE SCHEMA ${schema};
+     CREATE TABLE ${schema}.readings (observed_at timestamptz NOT NULL, device integer NOT NULL, value double precision);
+     SELECT create_hypertable('${schema}.readings', by_range('observed_at', interval '1 day'));`
+  )
+  try {
+    await login(page)
+    await createTimescaleConnector(page, connector)
+    await openConnector(page, connector)
+    await showOnlySchema(page, schema)
+    await openSettings(page)
+
+    const plan = page.getByTestId("hypertable-plan")
+    await page.getByTestId("columnstore-enabled").click()
+    await page.getByTestId("sparse-mode").getByText("These columns").click()
+    await page.getByTestId("add-sparse-index").click()
+    await chooseIn(page, "sparse-index", "Column", "device · integer")
+    await expect(plan).toContainText("need the order to be named")
+
+    await page.getByTestId("order-mode").getByText("These columns").click()
+    await page.getByTestId("add-order-column").click()
+    await chooseIn(page, "order-column", "Column", "observed_at · timestamp with time zone")
+    await page.getByTestId("compaction-policy").click()
+    await expect(plan).toContainText("sparse indexes minmax on")
+    await expect(plan).toContainText("Add a compaction policy")
+    await page.getByTestId("hypertable-apply").click()
+    await expect(toast(page, "Hypertable changed")).toBeVisible()
+
+    expect(
+      await timescaleSql(
+        `SELECT index::text LIKE '%"type": "minmax", "column": "device", "source": "config"%'
+         FROM timescaledb_information.hypertable_columnstore_settings
+         WHERE hypertable = '${schema}.readings'::regclass`
+      )
+    ).toBe("t")
+    expect(
+      await timescaleSql(
+        `SELECT count(*) FROM timescaledb_information.jobs
+         WHERE hypertable_schema = '${schema}' AND proc_name = 'policy_compaction'`
+      )
+    ).toBe("1")
     await openSettings(page)
     await expect(plan).toContainText("already matches these settings")
   } finally {

@@ -21,10 +21,13 @@ from app.adapters.hypertable_design import (
     OrderColumns,
     OrderKey,
     SegmentColumns,
+    SparseColumns,
+    SparseIndex,
     TemplateNow,
 )
 from app.adapters.postgres.timescale.design_plan import (
     AddAgePolicy,
+    AddCompactionPolicy,
     AddHashDimension,
     AddReorderPolicy,
     AttachTablespace,
@@ -41,12 +44,14 @@ from app.adapters.postgres.timescale.design_plan import (
 )
 from app.adapters.postgres.timescale.design_state import (
     ColumnFact,
+    CompactionPolicy,
     CurrentHypertable,
     DesignTarget,
     ReorderPolicy,
     UniqueKey,
     fixed_duration,
     interval_duration,
+    sparse_indexes,
 )
 from app.adapters.postgres.timescale.plans import AgePolicy
 
@@ -373,3 +378,62 @@ def test_only_integer_time_takes_integer_now_and_only_time_merges() -> None:
     assert "integer column does not count in" in refused(integer_state(), integer_design(
         columnstore=ColumnstoreDesign(enabled=True, merge_interval=WEEK),
     ))
+
+
+BLOOM = SparseColumns(indexes=[SparseIndex(column="device", kind="bloom")])
+ORDERED = OrderColumns(columns=[OrderKey(column="observed_at", descending=True, nulls_first=True)])
+
+
+@pytest.mark.parametrize("raw,expected", [
+    (None, ChosenByTimescale()),
+    ('[{"type": "minmax", "column": "observed_at", "source": "orderby"}]', ChosenByTimescale()),
+    ('[{"source": "config"}, {"type": "minmax", "column": "observed_at", "source": "orderby"}]', NoColumns()),
+    ('[{"type": "bloom", "column": "device", "source": "config"}]', BLOOM),
+])
+def test_only_the_sparse_indexes_that_were_set_are_the_design(raw: str | None, expected: object) -> None:
+    assert sparse_indexes(raw) == expected
+
+
+def test_a_sparse_index_of_an_unknown_kind_is_left_to_sql() -> None:
+    with pytest.raises(ActionRefused, match="kind this editor does not know"):
+        sparse_indexes('[{"type": "firstlast", "column": "observed_at", "source": "config"}]')
+
+
+def test_sparse_indexes_are_set_with_the_columnstore_where_the_release_has_them() -> None:
+    requested = design(columnstore=ColumnstoreDesign(enabled=True, order_by=ORDERED, sparse_indexes=BLOOM))
+    assert "has no sparse indexes; they arrived in 2.22" in refused(state(), requested)
+    supported = state(sparse_indexes_supported=True)
+    assert "need the order to be named" in refused(supported, design(
+        columnstore=ColumnstoreDesign(enabled=True, sparse_indexes=BLOOM),
+    ))
+    (step,) = plan_steps(supported, requested)
+    assert isinstance(step, ConfigureColumnstore) and step.sparse_changed and step.sparse_indexes == BLOOM
+    assert '"payload" has a type that cannot be used as a minmax' in refused(supported, design(
+        columnstore=ColumnstoreDesign(enabled=True, order_by=ORDERED, sparse_indexes=SparseColumns(indexes=[
+            SparseIndex(column="payload", kind="minmax"),
+        ])),
+    ))
+    assert "same sparse index twice" in refused(supported, design(
+        columnstore=ColumnstoreDesign(enabled=True, order_by=ORDERED, sparse_indexes=SparseColumns(indexes=[
+            SparseIndex(column="device", kind="bloom"), SparseIndex(column="device", kind="bloom"),
+        ])),
+    ))
+    enabled = supported.model_copy(update={"design": requested})
+    assert plan_steps(enabled, requested) == ()
+
+
+def test_a_compaction_policy_needs_the_columnstore_and_a_release_that_has_it() -> None:
+    on = design(columnstore=ColumnstoreDesign(enabled=True), compaction_policy=True)
+    current = state(design=design(columnstore=ColumnstoreDesign(enabled=True)))
+    assert "has no compaction policy; it arrived in 2.29" in refused(current, on)
+    capable = current.model_copy(update={"compaction_supported": True})
+    assert plan_steps(capable, on) == (AddCompactionPolicy(),)
+    assert "turn the columnstore off" in refused(capable, design(compaction_policy=True))
+
+    existing = capable.model_copy(update={
+        "compaction": CompactionPolicy(job_id="1002", scheduled=True), "design": on,
+    })
+    assert plan_steps(existing, on) == ()
+    assert plan_steps(existing, design()) == (
+        RemovePolicy(kind="compaction", job_id="1002"), DisableColumnstore(),
+    )

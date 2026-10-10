@@ -324,7 +324,7 @@ class ConversionColumn(BaseModel):
     name: str = Field(min_length=1, max_length=63)
     # Integer columns only where the caller asked for them: the hypertable editor (D207).
     type: Literal[
-        "timestamp without time zone", "timestamp with time zone", "date", "smallint", "integer", "bigint",
+        "timestamp without time zone", "timestamp with time zone", "date", "smallint", "integer", "bigint", "uuid",
     ]
     not_null: bool = Field(strict=True)
 

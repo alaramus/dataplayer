@@ -17,6 +17,7 @@ from app.adapters.hypertable_design import (
     OrderColumns,
     SegmentBy,
     SegmentColumns,
+    SparseColumns,
 )
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
@@ -27,6 +28,7 @@ from app.adapters.postgres.timescale.compression_settings_plan import (
 )
 from app.adapters.postgres.timescale.design_plan import (
     AddAgePolicy,
+    AddCompactionPolicy,
     AddHashDimension,
     AddReorderPolicy,
     AttachTablespace,
@@ -51,7 +53,7 @@ from app.core.config import settings
 
 _DIMENSIONS_LOCK = sql.SQL('LOCK TABLE ONLY "timescaledb_information"."dimensions" IN SHARE ROW EXCLUSIVE MODE')
 _REMOVE = {"retention": "remove_retention_policy", "compression": "remove_compression_policy",
-           "reorder": "remove_reorder_policy"}
+           "reorder": "remove_reorder_policy", "compaction": "remove_compaction_policy"}
 _ADD = {"retention": "add_retention_policy", "compression": "add_compression_policy"}
 _INTEGER_SQL = {"smallint": "pg_catalog.int2", "integer": "pg_catalog.int4", "bigint": "pg_catalog.int8"}
 _SCALE = {"epoch_seconds": "", "epoch_milliseconds": " OPERATOR(pg_catalog.*) 1000",
@@ -121,6 +123,11 @@ def _locks(plan: HypertableDesignPlan) -> list[sql.SQL | sql.Composed]:
     return locks
 
 
+def sparse_option(sparse: SparseColumns) -> str:
+    """The option's own syntax, `bloom("s"), minmax("v")`, from validated column names."""
+    return ", ".join(f"{index.kind}({sql.Identifier(index.column).as_string()})" for index in sparse.indexes)
+
+
 def _segment_value(segment: SegmentBy) -> str:
     return segment_option(segment.columns) if isinstance(segment, SegmentColumns) else ""
 
@@ -147,6 +154,14 @@ def columnstore_statements(table: sql.Identifier, step: ConfigureColumnstore) ->
         options.append(sql.SQL("timescaledb.compress_orderby = {}").format(sql.Literal(_order_value(order))))
     elif step.order_changed and not step.enable:
         resets.append(sql.SQL("timescaledb.compress_orderby"))
+    if step.sparse_changed:
+        sparse = step.sparse_indexes
+        if isinstance(sparse, SparseColumns):
+            options.append(sql.SQL("timescaledb.sparse_index = {}").format(sql.Literal(sparse_option(sparse))))
+        elif isinstance(sparse, NoColumns):
+            options.append(sql.SQL("timescaledb.sparse_index = ''"))
+        elif not step.enable:
+            resets.append(sql.SQL("timescaledb.sparse_index"))
     if step.merge_changed:
         merge = "0" if step.merge_interval is None else step.merge_interval.interval_value()
         options.append(sql.SQL("timescaledb.compress_chunk_time_interval = {}").format(sql.Literal(merge)))
@@ -200,6 +215,8 @@ async def _step(connection: psycopg.AsyncConnection[Any], plan: HypertableDesign
                 ),
                 (relation, length_value(older_than)),
             )
+        case AddCompactionPolicy():
+            await connection.execute(_call(plan, "add_compaction_policy", "%s::pg_catalog.regclass, false"), (relation,))
         case AddReorderPolicy(index=index):
             await connection.execute(
                 _call(plan, "add_reorder_policy", "%s::pg_catalog.regclass, %s::pg_catalog.name, false"),

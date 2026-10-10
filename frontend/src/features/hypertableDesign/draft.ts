@@ -14,6 +14,12 @@ export type LengthUnit = DurationUnit | "integer"
 export type PolicyMode = "none" | "older_than" | "current"
 export type NowTemplate = "epoch_seconds" | "epoch_milliseconds" | "epoch_microseconds"
 export type NowMode = "none" | "current" | "existing" | "template"
+export type SparseKind = "minmax" | "bloom"
+
+export interface SparseDraft {
+  column: string
+  kind: SparseKind
+}
 
 export interface DurationDraft {
   amount: number | null
@@ -70,6 +76,10 @@ export interface Draft {
   reorderIndex: string
   tablespaces: string[]
   now: NowDraft
+  /** Sparse indexes, in the three states segmenting has (D207, from 2.22). */
+  sparseMode: "default" | "none" | "columns"
+  sparseIndexes: SparseDraft[]
+  compaction: boolean
 }
 
 export type Completed = { design: HypertableDesign } | { missing: string }
@@ -115,6 +125,7 @@ export function draftFrom(state: HypertableDesignState): Draft | null {
   const store = design.columnstore ?? { enabled: false }
   const segment = store.segment_by ?? { mode: "none" }
   const order = store.order_by ?? { mode: "default" }
+  const sparse = store.sparse_indexes ?? { mode: "default" }
   const integer = design.chunk_interval?.unit === "integer"
   const policy = policyFallback(integer, state)
   const intervalUnit: DurationUnit = state.interval_units?.includes("day") ? "day" : "week"
@@ -145,6 +156,9 @@ export function draftFrom(state: HypertableDesignState): Draft | null {
     reorderIndex: design.reorder_index ?? "",
     tablespaces: [...(design.tablespaces ?? [])],
     now: nowDraft(design.integer_now),
+    sparseMode: sparse.mode,
+    sparseIndexes: sparse.mode === "columns" ? sparse.indexes.map((item) => ({ ...item })) : [],
+    compaction: design.compaction_policy ?? false,
   }
 }
 
@@ -237,6 +251,10 @@ export function completed(draft: Draft): Completed {
   if (merging && merge === null) {
     return { missing: "Enter the merge interval" }
   }
+  const sparseIndexes = draft.sparseIndexes.filter((item) => item.column !== "")
+  if (draft.columnstore && draft.sparseMode === "columns" && sparseIndexes.length === 0) {
+    return { missing: "Choose the columns of the sparse indexes" }
+  }
   const retention = policy(draft.retention)
   if (retention === "missing") return { missing: "Enter the retention age" }
   const columnstorePolicy = policy(draft.columnstorePolicy)
@@ -272,6 +290,10 @@ export function completed(draft: Draft): Completed {
                   }
                 : { mode: "default" },
             merge_interval: merge?.unit === "integer" ? null : merge,
+            sparse_indexes:
+              draft.sparseMode === "columns"
+                ? { mode: "columns", indexes: sparseIndexes.map((item) => ({ ...item })) }
+                : { mode: draft.sparseMode },
           }
         : { enabled: false },
       retention,
@@ -279,6 +301,7 @@ export function completed(draft: Draft): Completed {
       reorder_index: draft.reorderIndex === "" ? null : draft.reorderIndex,
       tablespaces: [...draft.tablespaces],
       integer_now: clock,
+      compaction_policy: draft.columnstore && draft.compaction,
     },
   }
 }

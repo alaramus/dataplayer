@@ -140,6 +140,22 @@ Found by running the matrix; each is handled in `app/` and covered here.
   `hypertable_compression_settings` gained an `index` column; the reports and
   the settings plan project only what every release in the matrix shares.
 
+## Validation record: 2026-10-10, options only some releases have
+
+H7 of D207 added `test_release_bounded.py`, seven scenarios on every source,
+each on both sides of where its option begins: sparse indexes in their three
+states (2.22, by the view's `index` column), the compaction policy (2.29),
+UUIDv7 time (declared 2.25; 2.23.1 is refused saying so), chunk skipping
+(2.16) and the merge that lets reads go on (2.29), and the designer creating a
+table with what the release offers.
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q` | 1096 passed, 3 skipped |
+| backend | `uv run pytest tests/ -q` | 3810 passed, 154 skipped |
+| frontend | unit, type, lint and build checks | Passed |
+| frontend | `bunx playwright test` over the chunk, hypertable, designer and Timescale scenarios | 9 passed |
+
 ## Validation record: 2026-10-10, chunk maintenance
 
 H6 (D208) added `test_chunk_maintenance.py`, eight scenarios on every source:

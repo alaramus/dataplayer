@@ -199,6 +199,9 @@ export interface DraftHypertable {
   reorderIndexId: string
   /** What "now" is for age policies on an integer time column. */
   now: DraftNow
+  sparseMode: "default" | "none" | "columns"
+  sparseIndexes: { columnId: string; kind: "minmax" | "bloom" }[]
+  compaction: boolean
 }
 
 /** What the server proposes for an integer time column of one type. */
@@ -286,6 +289,9 @@ export function asHypertable(draft: Draft, method: string): Draft {
       columnstorePolicy: { on: false, amount: null, unit: "week" },
       reorderIndexId: "",
       now: { mode: "none", existing: "", template: "epoch_seconds", name: "" },
+      sparseMode: "default",
+      sparseIndexes: [],
+      compaction: false,
     },
   }
 }
@@ -311,6 +317,12 @@ export function hypertableMissing(hypertable: DraftHypertable | null): string | 
     [hypertable.columnstore ? hypertable.columnstorePolicy : null, "columnstore policy age"],
   ] as const) {
     if (age?.on === true && !whole(age.amount)) return `Enter the ${label}`
+  }
+  if (hypertable.columnstore && hypertable.sparseMode === "columns" && hypertable.sparseIndexes.length === 0) {
+    return "Choose the columns of the sparse indexes"
+  }
+  if (hypertable.columnstore && hypertable.sparseIndexes.some((item) => item.columnId === "")) {
+    return "Choose a column for every sparse index"
   }
   if (hypertable.intervalUnit === "integer") {
     if (hypertable.now.mode === "existing" && hypertable.now.existing === "") return "Choose the integer_now function"
@@ -365,6 +377,12 @@ function hypertableDefinition(hypertable: DraftHypertable | null): TableDefiniti
     columnstore_policy: age(hypertable.columnstorePolicy, hypertable.columnstore),
     reorder_index_id: hypertable.reorderIndexId === "" ? null : hypertable.reorderIndexId,
     integer_now: integerNow(hypertable),
+    sparse_mode: hypertable.columnstore ? hypertable.sparseMode : "default",
+    sparse_indexes:
+      hypertable.columnstore && hypertable.sparseMode === "columns"
+        ? hypertable.sparseIndexes.map((item) => ({ column_id: item.columnId, kind: item.kind }))
+        : [],
+    compaction_policy: hypertable.columnstore && hypertable.compaction,
   }
 }
 
@@ -452,7 +470,8 @@ export function dependents(draft: Draft, columnId: string): string[] {
     (hyper.timeColumnId === columnId ||
       hyper.hash.some((item) => item.columnId === columnId) ||
       hyper.segmentColumnIds.includes(columnId) ||
-      hyper.orderKeys.some((key) => key.columnId === columnId))
+      hyper.orderKeys.some((key) => key.columnId === columnId) ||
+      hyper.sparseIndexes.some((item) => item.columnId === columnId))
   ) {
     named.push("the hypertable")
   }
@@ -498,6 +517,7 @@ function hypertableWithout(hypertable: DraftHypertable | null, columnId: string)
     hash: hypertable.hash.filter((item) => item.columnId !== columnId),
     segmentColumnIds: hypertable.segmentColumnIds.filter((id) => id !== columnId),
     orderKeys: hypertable.orderKeys.filter((key) => key.columnId !== columnId),
+    sparseIndexes: hypertable.sparseIndexes.filter((item) => item.columnId !== columnId),
   }
 }
 

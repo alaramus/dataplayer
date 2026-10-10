@@ -123,9 +123,28 @@ class OrderColumns(BaseModel):
     columns: list[OrderKey] = Field(min_length=1, max_length=MAX_DESIGN_COLUMNS)
 
 
+SparseKind = Literal["minmax", "bloom"]
+
+
+class SparseIndex(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    column: Name
+    kind: SparseKind
+
+
+class SparseColumns(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    mode: Literal["columns"] = "columns"
+    indexes: list[SparseIndex] = Field(min_length=1, max_length=MAX_DESIGN_COLUMNS)
+
+
 # Ordering has no "none": every release refuses an empty order.
 SegmentBy = Annotated[ChosenByTimescale | NoColumns | SegmentColumns, Field(discriminator="mode")]
 OrderBy = Annotated[ChosenByTimescale | OrderColumns, Field(discriminator="mode")]
+# Sparse indexes have the same three states as segmenting, from 2.22 (D207).
+SparseIndexes = Annotated[ChosenByTimescale | NoColumns | SparseColumns, Field(discriminator="mode")]
 
 
 class ColumnstoreDesign(BaseModel):
@@ -138,6 +157,7 @@ class ColumnstoreDesign(BaseModel):
     # cover. Never the same number as a policy's age, which the old
     # application conflated.
     merge_interval: DesignDuration | None = None
+    sparse_indexes: SparseIndexes = Field(default_factory=ChosenByTimescale)
 
 
 class OlderThan(BaseModel):
@@ -191,6 +211,8 @@ class HypertableDesign(BaseModel):
     tablespaces: list[Name] = Field(default_factory=list, max_length=MAX_TABLESPACES)
     # What "now" is for age policies on an integer time column; nothing else has one.
     integer_now: NowDesign | None = None
+    # A policy that merges small compressed chunks, from 2.29.
+    compaction_policy: bool = Field(default=False, strict=True)
 
     @model_validator(mode="after")
     def distinct(self) -> Self:
@@ -276,6 +298,9 @@ class HypertableDesignState(BaseModel):
     integer_now_name: str | None = Field(default=None, max_length=63)
     # Where a function made from a template is created.
     schema_name: str | None = Field(default=None, max_length=63)
+    # What this release offers beyond the matrix's oldest, found by discovery.
+    sparse_indexes_supported: bool = False
+    compaction_supported: bool = False
 
     @model_validator(mode="after")
     def answered(self) -> Self:

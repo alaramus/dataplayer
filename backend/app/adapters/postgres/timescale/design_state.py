@@ -14,6 +14,7 @@ it is otherwise.
 """
 
 import asyncio
+import json
 import re
 from dataclasses import dataclass
 
@@ -48,6 +49,9 @@ from app.adapters.hypertable_design import (
     SegmentBy,
     SegmentColumns,
     Span,
+    SparseColumns,
+    SparseIndex,
+    SparseIndexes,
 )
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.age_policy_plan import (
@@ -56,6 +60,7 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     RETENTION,
     read_age_policy,
 )
+from app.adapters.postgres.timescale.api import RoutineShape, extension_routine
 from app.adapters.postgres.timescale.conversion_plan import (
     ConversionState,
     inspect_conversion,
@@ -68,6 +73,14 @@ from app.adapters.protocol import AdapterError
 
 _OID = r"^[1-9][0-9]{0,9}$"
 PER_CHUNK_DEFAULTS = (2, 22, 1)
+# UUIDv7 partitioning arrived in 2.22, but until 2.25 the views report its
+# interval in microseconds and its chunks without a range, and a retention
+# policy refuses it; the matrix holds 2.23.1 and 2.30.0 either side (D207).
+UUID_TIME = (2, 25, 0)
+# sql/policy_api.sql from 2.29; regclass 2205, boolean 16; integer 23, void 2278.
+ADD_COMPACTION = RoutineShape("add_compaction_policy", "f", "2205 16", 23)
+REMOVE_COMPACTION = RoutineShape("remove_compaction_policy", "f", "2205 16", 2278)
+_SPARSE_KINDS = ("minmax", "bloom")
 _TIME_TYPES = ("timestamp without time zone", "timestamp with time zone", "date")
 INTEGER_TYPES = ("smallint", "integer", "bigint")
 INTEGER_MAX = {"smallint": 32_767, "integer": 2_147_483_647, "bigint": BIGINT_MAX}
@@ -221,6 +234,23 @@ FROM timescaledb_information.hypertable_compression_settings
 WHERE hypertable = %s::pg_catalog.regclass
 """
 
+# From 2.22 the settings view says which sparse indexes a chunk gets, each with
+# where it came from: "config" is what was set, anything else Timescale's own.
+_SPARSE = """
+SELECT index::text AS sparse
+FROM timescaledb_information.hypertable_compression_settings
+WHERE hypertable = %s::pg_catalog.regclass
+"""
+
+_COMPACTION = sql.SQL("""
+SELECT source.job_id::text AS job_id, source.scheduled
+FROM timescaledb_information.jobs AS source
+WHERE source.hypertable_schema = %s AND source.hypertable_name = %s
+  AND source.proc_name = 'policy_compaction' AND {owned}
+ORDER BY source.job_id
+LIMIT 2
+""").format(owned=OWNED_POLICY_ROUTINE).as_string()
+
 _SETTING_COLUMNS = """
 SELECT attname::text AS name, segmentby_column_index, orderby_column_index, orderby_asc, orderby_nullsfirst
 FROM timescaledb_information.compression_settings
@@ -338,6 +368,37 @@ class ReorderPolicy(BaseModel):
     index_name: str | None = Field(default=None, min_length=1, max_length=63)
 
 
+class CompactionPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    job_id: str = Field(pattern=_OID)
+    scheduled: bool = Field(strict=True)
+
+
+@dataclass(frozen=True)
+class Capabilities:
+    """What this release offers beyond the matrix's oldest, found where it can be."""
+
+    sparse_indexes: bool
+    compaction: bool
+    uuid_time: bool
+
+
+async def capabilities(reader: PostgresReader, version: str) -> Capabilities:
+    try:
+        await require_public_view(reader, "hypertable_compression_settings", ("index",))
+        sparse = True
+    except ValueError:
+        sparse = False
+    try:
+        await extension_routine(reader, version, ADD_COMPACTION)
+        await extension_routine(reader, version, REMOVE_COMPACTION)
+        compaction = True
+    except ActionRefused:
+        compaction = False
+    return Capabilities(sparse_indexes=sparse, compaction=compaction, uuid_time=release(version) >= UUID_TIME)
+
+
 class CurrentHypertable(BaseModel):
     """The whole present state; a plan carries it, so any change to it is a new plan."""
 
@@ -361,6 +422,9 @@ class CurrentHypertable(BaseModel):
     # The functions integer_now may name, for an integer time column only.
     now_functions: tuple[NowFunction, ...] = ()
     integer_now_name: str | None = None
+    compaction: CompactionPolicy | None = None
+    sparse_indexes_supported: bool = False
+    compaction_supported: bool = False
 
     def column(self, name: str) -> ColumnFact | None:
         return next((column for column in self.columns if column.name == name), None)
@@ -453,6 +517,27 @@ def _segment_by(raw: object, listed: list[str], per_chunk_defaults: bool) -> Seg
     return NoColumns()
 
 
+def sparse_indexes(raw: object) -> SparseIndexes:
+    """The sparse indexes that were set, read from the view's JSON; Timescale's own are not the design's."""
+    if not isinstance(raw, str):
+        return ChosenByTimescale()
+    entries = json.loads(raw)
+    if not isinstance(entries, list):
+        raise ActionRefused("not_applicable", "The current sparse indexes could not be read")
+    configured = [item for item in entries if isinstance(item, dict) and item.get("source") == "config"]
+    if not configured:
+        return ChosenByTimescale()
+    typed = [item for item in configured if "type" in item]
+    if not typed:
+        # Set to an empty list, which is "none" rather than unset.
+        return NoColumns()
+    if any(item.get("type") not in _SPARSE_KINDS or not isinstance(item.get("column"), str) for item in typed):
+        raise ActionRefused(
+            "not_applicable", "This hypertable has a sparse index of a kind this editor does not know; manage it with SQL",
+        )
+    return SparseColumns(indexes=[SparseIndex(column=item["column"], kind=item["type"]) for item in typed])
+
+
 def _order_by(listed: list[OrderKey]) -> OrderBy:
     # Every release refuses an empty order, so nothing listed is always Timescale's choice:
     # an older release resolves one on enabling, a newer one for each chunk.
@@ -461,6 +546,7 @@ def _order_by(listed: list[OrderKey]) -> OrderBy:
 
 async def _columnstore(
     reader: PostgresReader, target: DesignTarget, enabled: bool, per_chunk_defaults: bool, integer: bool,
+    sparse_supported: bool,
 ) -> ColumnstoreDesign:
     settings = await reader.query(_SETTINGS, (target.relation_oid,), inspection=True)
     if len(settings) != 1:
@@ -490,7 +576,20 @@ async def _columnstore(
             for row in order
         ]),
         merge_interval=fixed_duration(merge) if isinstance(merge, int) and merge > 0 else None,
+        sparse_indexes=await _sparse(reader, target) if sparse_supported else ChosenByTimescale(),
     )
+
+
+async def _sparse(reader: PostgresReader, target: DesignTarget) -> SparseIndexes:
+    rows = await reader.query(_SPARSE, (target.relation_oid,), inspection=True)
+    return sparse_indexes(rows[0].get("sparse") if len(rows) == 1 else None)
+
+
+async def _compaction(reader: PostgresReader, target: DesignTarget) -> CompactionPolicy | None:
+    rows = await reader.query(_COMPACTION, (target.schema_name, target.table_name), inspection=True)
+    if len(rows) > 1:
+        raise ActionRefused("not_applicable", "This hypertable has several compaction policy jobs; manage them with SQL")
+    return CompactionPolicy.model_validate(rows[0]) if rows else None
 
 
 async def _reorder(reader: PostgresReader, target: DesignTarget) -> ReorderPolicy | None:
@@ -545,8 +644,13 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
     row = rows[0]
     column_type = row.get("column_type")
     integer = column_type in INTEGER_TYPES
-    if not integer and column_type not in _TIME_TYPES:
-        raise ActionRefused("not_applicable", "Only timestamp, date and integer time dimensions are edited here")
+    offered = await capabilities(reader, version)
+    if column_type == "uuid" and not offered.uuid_time:
+        raise ActionRefused(
+            "not_applicable", f"TimescaleDB {version} partitions by UUIDv7 only partly; it is edited here from 2.25",
+        )
+    if not integer and column_type not in (*_TIME_TYPES, "uuid"):
+        raise ActionRefused("not_applicable", "Only timestamp, date, UUIDv7 and integer time dimensions are edited here")
     interval = row.get("integer_interval" if integer else "interval_microseconds")
     if not isinstance(interval, int) or interval <= 0:
         raise ActionRefused("not_applicable", "The current chunk interval could not be read")
@@ -559,13 +663,14 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         raise ActionRefused("not_applicable", "Only hash dimensions beside the time dimension are edited here")
     per_chunk_defaults = release(version) >= PER_CHUNK_DEFAULTS
     enabled = row.get("compression_enabled") is True
-    columnstore = await _columnstore(reader, target, enabled, per_chunk_defaults, integer)
+    columnstore = await _columnstore(reader, target, enabled, per_chunk_defaults, integer, offered.sparse_indexes)
     now_name = row.get("integer_now_func") if integer else None
     integer_now = await _integer_now(reader, now_name, target.column_type) if isinstance(now_name, str) else None
 
     retention = await read_age_policy(reader, RETENTION, *identity)
     compression = await read_age_policy(reader, COMPRESSION, *identity)
     reorder = await _reorder(reader, target)
+    compaction = await _compaction(reader, target) if offered.compaction else None
     attached = await reader.query(_ATTACHED, identity, inspection=True)
     chunks = await reader.query(_CHUNKS, identity, inspection=True)
     if len(attached) != 1 or len(chunks) != 1:
@@ -584,6 +689,7 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         reorder_index=reorder.index_name if reorder is not None else None,
         tablespaces=list(attached[0]["tablespaces"]),
         integer_now=integer_now,
+        compaction_policy=compaction is not None,
     )
     facts = await _table_facts(reader, target.relation_oid)
     return CurrentHypertable(
@@ -603,6 +709,9 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         compressed_chunks=chunks[0]["compressed_chunks"] is True,
         now_functions=await now_functions(reader, target.column_type) if integer else (),
         integer_now_name=now_name if isinstance(now_name, str) else None,
+        compaction=compaction,
+        sparse_indexes_supported=offered.sparse_indexes,
+        compaction_supported=offered.compaction,
     )
 
 
@@ -653,6 +762,7 @@ class TableCandidate:
     row_estimate: int | None
     # For every integer type, since the column is still to be chosen.
     now_functions: tuple[NowFunction, ...] = ()
+    capabilities: Capabilities = Capabilities(sparse_indexes=False, compaction=False, uuid_time=False)
 
 
 async def is_hypertable(reader: PostgresReader, schema_name: str, table_name: str) -> bool:
@@ -675,7 +785,10 @@ async def read_table(reader: PostgresReader, schema_name: str, table_name: str) 
     version = require_available(await discover(reader))
     for view, columns in _VIEWS.items():
         await require_public_view(reader, view, columns)
-    conversion = await inspect_conversion(reader, schema_name, table_name, allow_rows=True, allow_integer=True)
+    offered = await capabilities(reader, version)
+    conversion = await inspect_conversion(
+        reader, schema_name, table_name, allow_rows=True, allow_integer=True, allow_uuid=offered.uuid_time,
+    )
     return TableCandidate(
         extension_version=version,
         conversion=conversion,
@@ -683,6 +796,7 @@ async def read_table(reader: PostgresReader, schema_name: str, table_name: str) 
         per_chunk_defaults=release(version) >= PER_CHUNK_DEFAULTS,
         row_estimate=await row_estimate(reader, conversion.target.relation_oid),
         now_functions=await now_functions(reader),
+        capabilities=offered,
     )
 
 
@@ -738,6 +852,8 @@ def converted(candidate: TableCandidate, column: ConversionColumn, interval: Spa
         has_chunks=not candidate.conversion.empty,
         compressed_chunks=False,
         now_functions=tuple(item for item in candidate.now_functions if item.type == column.type),
+        sparse_indexes_supported=candidate.capabilities.sparse_indexes,
+        compaction_supported=candidate.capabilities.compaction,
     )
 
 
@@ -773,6 +889,8 @@ def state_of_table(node_id: str, candidate: TableCandidate) -> HypertableDesignS
         has_chunks=not candidate.conversion.empty,
         now_functions=list(candidate.now_functions),
         schema_name=candidate.conversion.target.schema_name,
+        sparse_indexes_supported=candidate.capabilities.sparse_indexes,
+        compaction_supported=candidate.capabilities.compaction,
     )
 
 
@@ -831,6 +949,8 @@ def state_of(node_id: str, current: CurrentHypertable) -> HypertableDesignState:
         now_functions=list(current.now_functions),
         integer_now_name=current.integer_now_name,
         schema_name=current.target.schema_name,
+        sparse_indexes_supported=current.sparse_indexes_supported,
+        compaction_supported=current.compaction_supported,
     )
 
 

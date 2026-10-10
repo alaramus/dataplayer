@@ -267,5 +267,25 @@ describe("a table created as a hypertable", () => {
       integer_now: { kind: "template", template: "epoch_seconds", name: "unix_seconds" },
     })
   })
+
+  it("sends sparse indexes and the compaction policy only with the columnstore", () => {
+    const draft = asHypertable(timed(), "btree")
+    draft.name = "readings"
+    const device = draft.columns[0]!
+    device.name = "device"
+    draft.hypertable!.sparseMode = "columns"
+    draft.hypertable!.sparseIndexes = [{ columnId: device.id, kind: "bloom" }]
+    draft.hypertable!.compaction = true
+    expect(toDefinition(draft, types).hypertable).toMatchObject({
+      sparse_mode: "default", sparse_indexes: [], compaction_policy: false,
+    })
+    draft.hypertable!.columnstore = true
+    expect(toDefinition(draft, types).hypertable).toMatchObject({
+      sparse_mode: "columns",
+      sparse_indexes: [{ column_id: device.id, kind: "bloom" }],
+      compaction_policy: true,
+    })
+    expect(withoutColumn(draft, device.id).hypertable?.sparseIndexes).toEqual([])
+  })
 })
 

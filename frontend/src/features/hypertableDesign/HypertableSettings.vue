@@ -270,6 +270,17 @@ const tablespaces = computed(() =>
 function addHash() {
   draft.value?.hash.push({ column: "", partitions: 4, existing: false })
 }
+function addSparse() {
+  draft.value?.sparseIndexes.push({ column: "", kind: "minmax" })
+}
+const sparseKinds = [
+  { label: "minmax: the smallest and largest value", value: "minmax" },
+  { label: "bloom: whether a value is there", value: "bloom" },
+]
+const columns = computed(() =>
+  (facts.value?.columns ?? []).map((column) => ({ label: `${column.name} · ${column.type}`, value: column.name }))
+)
+
 function addOrder() {
   draft.value?.orderColumns.push({ column: "", descending: false, nullsFirst: false })
 }
@@ -467,6 +478,48 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                   <span class="settings__note">The time column is added last, descending, unless it is listed.</span>
                 </div>
               </template>
+              <template v-if="facts?.sparse_indexes_supported">
+                <AppRadioGroup
+                  v-model="draft.sparseMode"
+                  :options="segmentModes"
+                  label="Sparse indexes"
+                  data-testid="sparse-mode"
+                />
+                <template v-if="draft.sparseMode === 'columns'">
+                  <div
+                    v-for="(item, at) in draft.sparseIndexes"
+                    :key="at"
+                    class="settings__row"
+                    data-testid="sparse-index"
+                  >
+                    <AppSelect
+                      v-model="item.column"
+                      :options="columns"
+                      label="Column"
+                    />
+                    <AppSelect
+                      v-model="item.kind"
+                      :options="sparseKinds"
+                      label="Kind"
+                    />
+                    <AppIconButton
+                      :icon="appIcons.deleteOutline"
+                      tooltip="Remove this sparse index"
+                      @click="draft.sparseIndexes.splice(at, 1)"
+                    />
+                  </div>
+                  <div class="settings__inline">
+                    <AppButton
+                      variant="quiet"
+                      :icon="appIcons.add"
+                      label="Sparse index"
+                      data-testid="add-sparse-index"
+                      @click="addSparse"
+                    />
+                    <span class="settings__note">TimescaleDB keeps sparse indexes only beside named order columns.</span>
+                  </div>
+                </template>
+              </template>
               <AppCheckbox
                 v-if="!integer"
                 v-model="draft.merge"
@@ -584,6 +637,13 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                 label="Unit"
               />
             </div>
+            <AppCheckbox
+              v-if="facts?.compaction_supported"
+              v-model="draft.compaction"
+              label="Compaction policy: merge small compressed chunks"
+              :disable="!draft.columnstore"
+              data-testid="compaction-policy"
+            />
             <AppSelect
               v-model="draft.reorderIndex"
               :options="indexes"

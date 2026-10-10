@@ -2099,6 +2099,19 @@ export type ColumnstoreDesign = {
         mode: "columns"
       } & OrderColumns)
   merge_interval?: DesignDuration | null
+  /**
+   * Sparse Indexes
+   */
+  sparse_indexes?:
+    | ({
+        mode: "default"
+      } & ChosenByTimescale)
+    | ({
+        mode: "none"
+      } & NoColumns)
+    | ({
+        mode: "columns"
+      } & SparseColumns)
 }
 
 /**
@@ -5539,6 +5552,10 @@ export type HypertableDesign = {
         kind: "current"
       } & KeptNow)
     | null
+  /**
+   * Compaction Policy
+   */
+  compaction_policy?: boolean
 }
 
 /**
@@ -5635,6 +5652,14 @@ export type HypertableDesignState = {
    * Schema Name
    */
   schema_name?: string | null
+  /**
+   * Sparse Indexes Supported
+   */
+  sparse_indexes_supported?: boolean
+  /**
+   * Compaction Supported
+   */
+  compaction_supported?: boolean
 }
 
 /**
@@ -5703,6 +5728,18 @@ export type HypertableOffer = {
    * Now Functions
    */
   now_functions?: Array<NowFunction>
+  /**
+   * Sparse Indexes
+   */
+  sparse_indexes?: boolean
+  /**
+   * Compaction
+   */
+  compaction?: boolean
+  /**
+   * Uuid Time
+   */
+  uuid_time?: boolean
 }
 
 /**
@@ -11788,6 +11825,34 @@ export type SourceFeatures = {
 }
 
 /**
+ * SparseColumns
+ */
+export type SparseColumns = {
+  /**
+   * Mode
+   */
+  mode?: "columns"
+  /**
+   * Indexes
+   */
+  indexes: Array<SparseIndex>
+}
+
+/**
+ * SparseIndex
+ */
+export type SparseIndex = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Kind
+   */
+  kind: "minmax" | "bloom"
+}
+
+/**
  * SqlContent
  *
  * A bounded, read-only SQL document issued by its source.
@@ -12360,6 +12425,18 @@ export type TableHypertable = {
         kind: "template"
       } & TemplateNow)
     | null
+  /**
+   * Sparse Mode
+   */
+  sparse_mode?: "default" | "none" | "columns"
+  /**
+   * Sparse Indexes
+   */
+  sparse_indexes?: Array<TableSparseIndex>
+  /**
+   * Compaction Policy
+   */
+  compaction_policy?: boolean
 }
 
 /**
@@ -12472,6 +12549,20 @@ export type TablePlanRequest = {
    * Revision
    */
   revision?: number
+}
+
+/**
+ * TableSparseIndex
+ */
+export type TableSparseIndex = {
+  /**
+   * Column Id
+   */
+  column_id: string
+  /**
+   * Kind
+   */
+  kind: "minmax" | "bloom"
 }
 
 /**

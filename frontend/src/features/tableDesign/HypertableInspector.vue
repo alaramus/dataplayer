@@ -47,6 +47,7 @@ const temporal = computed(() =>
       (column) =>
         column.dimensions === 0 &&
         (["timestamp_tz", "timestamp", "date"].includes(column.typeCode) ||
+          (column.typeCode === "uuid" && offer.value?.uuid_time === true) ||
           (INTEGER_TIME_CODES.includes(column.typeCode) &&
             integerTypes.value.some((item) => item.type === column.typeCode)))
     )
@@ -94,6 +95,16 @@ const clocks = computed(() =>
       value: JSON.stringify([item.schema_name, item.name]),
     }))
 )
+const sparseModes = [
+  { label: "Chosen by TimescaleDB", value: "default" },
+  { label: "None", value: "none" },
+  { label: "These columns", value: "columns" },
+]
+const sparseKinds = [
+  { label: "minmax", value: "minmax" },
+  { label: "bloom", value: "bloom" },
+]
+
 const nowModes = computed(() => [
   { label: "None", value: "none" },
   { label: "A function of this database", value: "existing" },
@@ -277,6 +288,51 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
             />
           </div>
         </template>
+        <template v-if="offer?.sparse_indexes">
+          <AppRadioGroup
+            v-model="hyper.sparseMode"
+            :options="sparseModes"
+            label="Sparse indexes"
+            data-testid="hypertable-sparse-mode"
+          />
+          <template v-if="hyper.sparseMode === 'columns'">
+            <div
+              v-for="(item, at) in hyper.sparseIndexes"
+              :key="at"
+              class="inspector__line"
+            >
+              <AppSelect
+                v-model="item.columnId"
+                :options="design.columnChoices.value"
+                label="Column"
+              />
+              <AppSelect
+                v-model="item.kind"
+                :options="sparseKinds"
+                label="Kind"
+              />
+              <AppIconButton
+                :icon="appIcons.deleteOutline"
+                tooltip="Remove this sparse index"
+                @click="hyper.sparseIndexes.splice(at, 1)"
+              />
+            </div>
+            <div>
+              <AppButton
+                variant="quiet"
+                :icon="appIcons.add"
+                label="Sparse index"
+                @click="hyper.sparseIndexes.push({ columnId: '', kind: 'minmax' })"
+              />
+            </div>
+          </template>
+        </template>
+        <AppCheckbox
+          v-if="offer?.compaction"
+          v-model="hyper.compaction"
+          label="Compaction policy: merge small compressed chunks"
+          data-testid="hypertable-compaction"
+        />
         <AppCheckbox
           v-if="!integer"
           v-model="hyper.merge.on"

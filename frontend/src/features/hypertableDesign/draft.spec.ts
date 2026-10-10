@@ -18,12 +18,14 @@ const state: HypertableDesignState = {
         columns: [{ column: "observed_at", descending: true, nulls_first: true }],
       },
       merge_interval: { amount: 2, unit: "week" },
+      sparse_indexes: { mode: "columns", indexes: [{ column: "device", kind: "bloom" }] },
     },
     retention: { kind: "current" },
     columnstore_policy: { kind: "older_than", older_than: { amount: 3, unit: "month" } },
     reorder_index: "events_device",
     tablespaces: ["pg_default"],
     integer_now: null,
+    compaction_policy: true,
   },
   interval_units: ["minute", "hour", "day", "week"],
   policy_units: ["hour", "day", "week", "month", "year"],
@@ -145,5 +147,15 @@ describe("hypertable settings draft", () => {
     counted.columnstorePolicy.duration.amount = 500
     const answer = completed(counted)
     expect("design" in answer && answer.design.columnstore?.merge_interval).toBeNull()
+  })
+
+  it("asks for the column of every sparse index, and drops the policy with the columnstore", () => {
+    const draft = draftFrom(state)!
+    draft.sparseIndexes = [{ column: "", kind: "minmax" }]
+    expect(completed(draft)).toEqual({ missing: "Choose the columns of the sparse indexes" })
+    draft.columnstore = false
+    draft.columnstorePolicy.mode = "none"
+    const answer = completed(draft)
+    expect("design" in answer && answer.design.compaction_policy).toBe(false)
   })
 })

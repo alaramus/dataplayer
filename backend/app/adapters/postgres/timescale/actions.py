@@ -20,6 +20,11 @@ from app.adapters.postgres.timescale.chunk_maintenance_action import (
     MaintainChunks,
     maintenance_admission,
 )
+from app.adapters.postgres.timescale.chunk_skipping_action import (
+    DisableChunkSkipping,
+    EnableChunkSkipping,
+    skipping_admission,
+)
 from app.adapters.postgres.timescale.chunk_storage_action import (
     CompressChunks,
     DecompressChunks,
@@ -56,6 +61,7 @@ TIMESCALE_ACTION_TYPES: tuple[ActionType, ...] = (
     DesignHypertable, SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
     SetCompressionPolicy, RemoveCompressionPolicy, SetRefreshPolicy, RemoveRefreshPolicy,
     ConvertToHypertable, CompressChunks, DecompressChunks, *MAINTENANCE_TYPES,
+    EnableChunkSkipping, DisableChunkSkipping,
 )
 
 
@@ -78,11 +84,14 @@ class TimescaleActions:
         self.maintenance: tuple[MaintainChunks[Any], ...] = tuple(
             action_type(session, catalog) for action_type in MAINTENANCE_TYPES
         )
+        self.enable_skipping = EnableChunkSkipping(session, catalog)
+        self.disable_skipping = DisableChunkSkipping(session, catalog)
         self.registered: tuple[Action[Any], ...] = (
             self.design, self.interval, self.compression_settings,
             *(action for pair in self._policies for action in pair),
             self.set_refresh, self.remove_refresh, self.convert,
             self.compress_chunks, self.decompress_chunks, *self.maintenance,
+            self.enable_skipping, self.disable_skipping,
         )
 
     async def all_actions(self) -> list[Action[Any]]:
@@ -136,6 +145,9 @@ class TimescaleActions:
         )
         for action in self.maintenance:
             reasons[action.name] = maintained[action.maintenance]
+        skipping = await skipping_admission(self._session)
+        reasons[self.enable_skipping.name] = skipping["enable"]
+        reasons[self.disable_skipping.name] = skipping["disable"]
         return reasons
 
     async def _conversion_reasons(self, schema: str, table: str) -> dict[str, str | None]:

@@ -31,6 +31,8 @@ from app.adapters.hypertable_design import (
     SegmentBy,
     SegmentColumns,
     Span,
+    SparseColumns,
+    SparseIndexes,
 )
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.age_policy_plan import (
@@ -51,9 +53,11 @@ from app.adapters.postgres.timescale.conversion_plan import (
     time_index_exists,
 )
 from app.adapters.postgres.timescale.design_state import (
+    ADD_COMPACTION,
     INTEGER_MAX,
     INTEGER_TYPES,
     NOW_TEMPLATES,
+    REMOVE_COMPACTION,
     CurrentHypertable,
     TableCandidate,
     converted,
@@ -77,7 +81,7 @@ from app.adapters.postgres.timescale.plans import (
 from app.adapters.protocol import AdapterError
 
 _OID = r"^[1-9][0-9]{0,9}$"
-PolicyKind = Literal["retention", "compression", "reorder"]
+PolicyKind = Literal["retention", "compression", "reorder", "compaction"]
 
 # sql/ddl_api.sql, sql/policy_api.sql and sql/size_utils.sql, the same across the
 # matrix. regclass 2205, name 19, integer 23, boolean 16; void 2278, record 2249.
@@ -206,6 +210,8 @@ class ConfigureColumnstore(BaseModel):
     # None stops merging chunks as they are compressed.
     merge_interval: Duration | None
     merge_changed: bool = Field(strict=True)
+    sparse_indexes: SparseIndexes = Field(default_factory=ChosenByTimescale)
+    sparse_changed: bool = Field(default=False, strict=True)
 
 
 class DisableColumnstore(BaseModel):
@@ -234,6 +240,12 @@ class AddAgePolicy(BaseModel):
     step: Literal["add_age_policy"] = "add_age_policy"
     kind: Literal["retention", "compression"]
     older_than: Length
+
+
+class AddCompactionPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    step: Literal["add_compaction_policy"] = "add_compaction_policy"
 
 
 class AddReorderPolicy(BaseModel):
@@ -267,7 +279,7 @@ class SetIntegerNow(BaseModel):
 DesignStep = Annotated[
     ConvertTable | RemovePolicy | AddHashDimension | SetPartitions | SetChunkInterval | ConfigureColumnstore
     | DisableColumnstore | AttachTablespace | DetachTablespace | CreateNowFunction | SetIntegerNow
-    | AddAgePolicy | AddReorderPolicy,
+    | AddAgePolicy | AddReorderPolicy | AddCompactionPolicy,
     Field(discriminator="step"),
 ]
 
@@ -387,7 +399,29 @@ def _dimensions(current: CurrentHypertable, requested: HypertableDesign) -> list
     return steps
 
 
+def _validated_sparse(current: CurrentHypertable, requested: SparseIndexes) -> None:
+    if isinstance(requested, ChosenByTimescale):
+        return
+    if not current.sparse_indexes_supported:
+        raise _refuse(f"TimescaleDB {current.extension_version} has no sparse indexes; they arrived in 2.22")
+    if not isinstance(requested, SparseColumns):
+        return
+    seen: set[tuple[str, str]] = set()
+    for index in requested.indexes:
+        if current.column(index.column) is None:
+            raise _refuse(f'This hypertable has no column "{index.column}"')
+        if index.kind == "minmax":
+            _orderable(current, index.column, "a minmax sparse index")
+        if (index.column, index.kind) in seen:
+            raise _refuse(f'Column "{index.column}" has the same sparse index twice')
+        seen.add((index.column, index.kind))
+
+
 def _validated_columnstore(current: CurrentHypertable, requested: ColumnstoreDesign) -> None:
+    _validated_sparse(current, requested.sparse_indexes)
+    # Timescale's own rule, "cannot set sparse index option without orderby option".
+    if not isinstance(requested.sparse_indexes, ChosenByTimescale) and not isinstance(requested.order_by, OrderColumns):
+        raise _refuse("Sparse indexes need the order to be named; choose the columns to order by")
     named: list[str] = []
     if isinstance(requested.segment_by, SegmentColumns):
         for name in requested.segment_by.columns:
@@ -428,6 +462,10 @@ def _columnstore(current: CurrentHypertable, requested: HypertableDesign) -> lis
     segment_changed = not now.enabled or wanted.segment_by != now.segment_by
     order_changed = not now.enabled or order != now.order_by
     merge_changed = not _same(wanted.merge_interval, now.merge_interval if now.enabled else None)
+    sparse_changed = (
+        wanted.sparse_indexes != now.sparse_indexes if now.enabled
+        else not isinstance(wanted.sparse_indexes, ChosenByTimescale)
+    )
     back_to_default = now.enabled and (
         (segment_changed and isinstance(wanted.segment_by, ChosenByTimescale))
         or (order_changed and isinstance(order, ChosenByTimescale))
@@ -441,7 +479,7 @@ def _columnstore(current: CurrentHypertable, requested: HypertableDesign) -> lis
         raise _refuse("Merging compressed chunks is set in time, which an integer column does not count in")
     if wanted.merge_interval is not None and merge_changed:
         _merge_interval(current, requested, wanted.merge_interval)
-    if now.enabled and not (segment_changed or order_changed or merge_changed):
+    if now.enabled and not (segment_changed or order_changed or merge_changed or sparse_changed):
         return []
     return [ConfigureColumnstore(
         enable=not now.enabled,
@@ -451,6 +489,8 @@ def _columnstore(current: CurrentHypertable, requested: HypertableDesign) -> lis
         order_changed=order_changed,
         merge_interval=None if wanted.merge_interval is None else _duration(wanted.merge_interval),
         merge_changed=merge_changed,
+        sparse_indexes=wanted.sparse_indexes,
+        sparse_changed=sparse_changed,
     )]
 
 
@@ -568,22 +608,38 @@ def _routine(schema_name: str, name: str) -> str:
     return sql.Identifier(schema_name, name).as_string() + "()"
 
 
+def _compaction(current: CurrentHypertable, requested: HypertableDesign) -> tuple[list[DesignStep], list[DesignStep]]:
+    existing = current.compaction
+    if not requested.compaction_policy:
+        return ([RemovePolicy(kind="compaction", job_id=existing.job_id)] if existing else []), []
+    if existing is not None:
+        return [], []
+    if not current.compaction_supported:
+        raise _refuse(f"TimescaleDB {current.extension_version} has no compaction policy; it arrived in 2.29")
+    if not requested.columnstore.enabled:
+        raise _refuse("A compaction policy merges compressed chunks; turn the columnstore on")
+    return [], [AddCompactionPolicy()]
+
+
 def plan_steps(current: CurrentHypertable, requested: HypertableDesign) -> tuple[DesignStep, ...]:
     if requested.columnstore_policy is not None and not requested.columnstore.enabled:
         raise _refuse("Remove the columnstore policy to turn the columnstore off")
+    if requested.compaction_policy and not requested.columnstore.enabled:
+        raise _refuse("Remove the compaction policy to turn the columnstore off")
     retention = _age_policy(RETENTION, current.retention, requested.retention, current)
     compression = _age_policy(COMPRESSION, current.compression, requested.columnstore_policy, current)
     reorder = _reorder(current, requested)
+    compaction = _compaction(current, requested)
     if current.integer and requested.integer_now is None and (retention[1] or compression[1]):
         raise _refuse("An age policy on an integer column needs an integer_now function to tell the current value")
     return (
-        *retention[0], *compression[0], *reorder[0],
+        *retention[0], *compression[0], *reorder[0], *compaction[0],
         *_dimensions(current, requested),
         *_chunk_interval(current, requested.chunk_interval),
         *_columnstore(current, requested),
         *_tablespaces(current, requested),
         *_integer_now(current, requested),
-        *retention[1], *compression[1], *reorder[1],
+        *retention[1], *compression[1], *reorder[1], *compaction[1],
     )
 
 
@@ -604,6 +660,10 @@ def step_shapes(steps: tuple[DesignStep, ...]) -> list[RoutineShape]:
                 shapes.append(COMPRESSION.remove)
             case RemovePolicy(kind="reorder"):
                 shapes.append(REMOVE_REORDER)
+            case RemovePolicy(kind="compaction"):
+                shapes.append(REMOVE_COMPACTION)
+            case AddCompactionPolicy():
+                shapes.append(ADD_COMPACTION)
             case AddAgePolicy(kind="retention"):
                 shapes.append(RETENTION.add)
             case AddAgePolicy(kind="compression"):
@@ -639,7 +699,9 @@ async def _strategy(
         routine = await extension_routine(reader, version, shape)
         schema = routine.schema_name
         routines.append(RoutineUse(name=shape.name, oid=routine.oid))
-    policies = any(isinstance(step, RemovePolicy | AddAgePolicy | AddReorderPolicy) for step in steps)
+    policies = any(
+        isinstance(step, RemovePolicy | AddAgePolicy | AddReorderPolicy | AddCompactionPolicy) for step in steps
+    )
     dimensions = any(
         isinstance(step, SetChunkInterval | SetPartitions | AddHashDimension | SetIntegerNow) for step in steps
     )
@@ -662,6 +724,11 @@ def _conversion(candidate: TableCandidate, requested: HypertableDesign) -> tuple
     state = candidate.conversion
     column = conversion_column(state, requested.time_column)
     if column.type in INTEGER_TYPES:
+        require_unique_indexes(state, column)
+    elif column.type == "uuid":
+        # Partitioned by the time inside a UUIDv7, so its intervals are durations.
+        if isinstance(interval, IntegerSpan) or duration_microseconds(interval) is None:
+            raise _refuse("A chunk interval is counted in minutes, hours, days or weeks")
         require_unique_indexes(state, column)
     else:
         if isinstance(interval, IntegerSpan) or duration_microseconds(interval) is None:

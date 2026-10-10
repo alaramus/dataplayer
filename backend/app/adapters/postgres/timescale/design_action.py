@@ -22,6 +22,7 @@ from app.adapters.hypertable_design import (
     NoColumns,
     OrderBy,
     SegmentBy,
+    SparseIndexes,
 )
 from app.adapters.operations import (
     ObservedState,
@@ -38,6 +39,7 @@ from app.adapters.postgres.timescale.design_execution import (
 from app.adapters.postgres.timescale.design_plan import (
     TEMPLATE_PHRASES,
     AddAgePolicy,
+    AddCompactionPolicy,
     AddHashDimension,
     AddReorderPolicy,
     AttachTablespace,
@@ -76,7 +78,10 @@ SELECT 1 FROM pg_catalog.pg_class AS relation
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
 WHERE namespace.nspname = %s AND relation.relname = %s AND relation.relkind = 'r'
 """
-_POLICY_NOUNS = {"retention": "retention policy", "compression": "columnstore policy", "reorder": "reorder policy"}
+_POLICY_NOUNS = {
+    "retention": "retention policy", "compression": "columnstore policy", "reorder": "reorder policy",
+    "compaction": "compaction policy",
+}
 _RETENTION_WARNING = (
     "TimescaleDB keeps dropping whole chunks past the retention age on its own schedule, "
     "after this session ends"
@@ -121,6 +126,8 @@ def _columnstore_change(step: ConfigureColumnstore) -> str:
         changes.append(f"segment by {_columns(step.segment_by)}")
     if step.order_changed:
         changes.append(f"order by {_columns(step.order_by)}")
+    if step.sparse_changed:
+        changes.append(f"sparse indexes {_sparse(step.sparse_indexes)}")
     if step.merge_changed:
         changes.append(
             "no merging of chunks" if step.merge_interval is None
@@ -128,6 +135,14 @@ def _columnstore_change(step: ConfigureColumnstore) -> str:
         )
     lead = "Turn the columnstore on" if step.enable else "Columnstore settings for chunks compressed from now on"
     return f"{lead}: " + "; ".join(changes)
+
+
+def _sparse(value: SparseIndexes) -> str:
+    if isinstance(value, ChosenByTimescale):
+        return "TimescaleDB's choice"
+    if isinstance(value, NoColumns):
+        return "none"
+    return ", ".join(f"{index.kind} on {sql.Identifier(index.column).as_string()}" for index in value.indexes)
 
 
 def _conversion(step: ConvertTable) -> str:
@@ -146,6 +161,8 @@ def _describe(step: DesignStep) -> str:
             return f"Add a retention policy: drop chunks older than {_spoken(older_than)}"
         case AddAgePolicy(older_than=older_than):
             return f"Add a columnstore policy: compress chunks older than {_spoken(older_than)}"
+        case AddCompactionPolicy():
+            return "Add a compaction policy: merge small compressed chunks on TimescaleDB's schedule"
         case AddReorderPolicy(index=index):
             return f"Add a reorder policy by index {sql.Identifier(index).as_string()}"
         case SetChunkInterval(interval=interval):

@@ -20,6 +20,10 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     AgePolicySpec,
 )
 from app.adapters.postgres.timescale.chunk_maintenance_action import MAINTENANCE_TYPES
+from app.adapters.postgres.timescale.chunk_skipping_action import (
+    DisableChunkSkipping,
+    EnableChunkSkipping,
+)
 from app.adapters.postgres.timescale.chunk_storage_action import (
     CompressChunks,
     DecompressChunks,
@@ -122,6 +126,13 @@ def maintenance(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 
 
 @pytest.fixture(autouse=True)
+def skipping(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    stub = AsyncMock(return_value={"enable": None, "disable": None})
+    monkeypatch.setattr(actions, "skipping_admission", stub)
+    return stub
+
+
+@pytest.fixture(autouse=True)
 def storage(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     admit = AsyncMock(return_value={"columnstore": None, "rowstore": None})
     monkeypatch.setattr(actions, "chunk_storage_admission", admit)
@@ -187,6 +198,7 @@ async def test_interval_offer_uses_live_plan_and_preserves_ordinary_guards(
     expected = {
         DesignHypertable.name, ConfigureCompression.name, SetRetentionPolicy.name, *STORAGE_ACTIONS,
         *(action.name for action in MAINTENANCE_TYPES),
+        EnableChunkSkipping.name, DisableChunkSkipping.name,
     }
     assert {item.name for item in offers.actions} == (expected if blocked else {SetChunkInterval.name, *expected})
     storage.assert_awaited_once_with(session, "lab", "events")
