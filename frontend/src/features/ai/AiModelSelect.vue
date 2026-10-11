@@ -9,6 +9,7 @@ import { serverStorageKey } from "@/shared/servers/context"
 import AiKeyDialog from "./AiKeyDialog.vue"
 import AiModelHint from "./AiModelHint.vue"
 import { useAiModels, useAiSettings } from "./api"
+import { browserModelOptions, useBrowserModel } from "./browserModel"
 import { AUTO_ALL_VALUE, JEV_PROVIDER, groupedModelOptions, jevProviderLabel, providerLabel } from "./modelOptions"
 import type { ModelOption, Provider } from "./modelOptions"
 
@@ -41,8 +42,10 @@ const props = withDefaults(
     hint?: boolean
     /** A read of the caller's that may still name the model, such as its chat. */
     pending?: boolean
+    /** Also offer the model Chrome runs on this computer (D223). */
+    browserModel?: boolean
   }>(),
-  { compact: false, disable: false, keyButton: false, allowAuto: true, hint: true, pending: false }
+  { compact: false, disable: false, keyButton: false, allowAuto: true, hint: true, pending: false, browserModel: false }
 )
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
@@ -63,10 +66,13 @@ const hintOpen = ref(false)
 
 const keySet = (provider: Provider) =>
   settings.data.value?.keys.find((one) => one.provider === provider)?.set ?? false
-const options = computed<ModelOption[]>(() =>
-  groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? [])
-    .filter((option) => props.allowAuto || !option.auto)
-)
+const browser = useBrowserModel()
+watch(() => props.browserModel, (offered) => { if (offered) void browser.refresh() }, { immediate: true })
+const options = computed<ModelOption[]>(() => [
+  ...groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? [])
+    .filter((option) => props.allowAuto || !option.auto),
+  ...(props.browserModel ? browserModelOptions(browser.state.value) : []),
+])
 const selectedModel = computed(
   () => (models.data.value ?? []).find((one) => one.key === props.modelValue) ?? null
 )

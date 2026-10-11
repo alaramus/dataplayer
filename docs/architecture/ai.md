@@ -6,7 +6,7 @@ uses, whose key pays and Jev are in [ai-models.md](ai-models.md). Read this
 before adding a tool, before sending a connection's data to a model provider,
 and before changing the chat window.
 
-Decisions here: D133, D134, D135, D136, D137, D138, D139, D141, D142, D158, D159.
+Decisions here: D133, D134, D135, D136, D137, D138, D139, D141, D142, D158, D159, D223.
 
 ## What exists today
 
@@ -445,3 +445,24 @@ speech recognition control as the agent composer. Dictation appends to the
 current draft and stops when the window closes or a message is sent.
 
 Spec: [Quick chat navigation](../decisions/2026-09-24-quick-chat-navigation.md)
+
+## D223. The quick chat may be answered by the model Chrome runs here
+
+The quick chat's model list ends with a "This browser" group holding Gemini
+Nano, reached through Chrome's Prompt API; the agent does not offer it. The row
+says what Chrome reports and cannot be chosen where Chrome has no API or the
+computer is below its requirements. While the model is still to be downloaded,
+a line above the composer offers Download — Chrome starts it only from a press
+— and then shows its progress; sending waits for `available`.
+
+The server never calls it. `browser-turns` keeps the question as a provider send
+does and returns the prompt and the trimmed history it would give a provider;
+`browser-answers` keeps what the browser wrote, and only while a question waits.
+The chat's model is `browser:gemini-nano`, the history is the one every quick
+chat shares, and what was written before a failure is kept (D158). A history
+too long for Nano's window loses its older half until it fits, the instructions
+kept. The settings name only models the server can call, so the choice is not
+remembered there (D140); the browser remembers that the quick chat was last on
+it.
+
+Spec: [Quick chat with the browser's model](../decisions/2026-10-11-quick-chat-browser-model.md)

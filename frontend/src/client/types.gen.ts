@@ -1218,6 +1218,16 @@ export type BooleanGroup = {
 }
 
 /**
+ * BrowserAnswer
+ */
+export type BrowserAnswer = {
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
  * BrowserPlace
  *
  * An open tab or a saved tab group: only the browser knows them (S9).
@@ -1239,6 +1249,34 @@ export type BrowserPlace = {
    * Detail
    */
   detail?: string | null
+}
+
+/**
+ * BrowserQuestion
+ */
+export type BrowserQuestion = {
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * BrowserTurn
+ *
+ * What the browser's model is given: the prompt and the trimmed history a
+ * provider would be given, so the two paths cannot drift apart.
+ */
+export type BrowserTurn = {
+  chat: QuickChatPublic
+  /**
+   * Prompt
+   */
+  prompt: string
+  /**
+   * History
+   */
+  history: Array<QuickTurnMessage>
 }
 
 /**
@@ -9644,6 +9682,20 @@ export type QuickChatUpdate = {
    * Project Id
    */
   project_id?: string | null
+}
+
+/**
+ * QuickTurnMessage
+ */
+export type QuickTurnMessage = {
+  /**
+   * Role
+   */
+  role: "user" | "assistant"
+  /**
+   * Content
+   */
+  content: string
 }
 
 /**
@@ -20770,6 +20822,70 @@ export type aiSendQuickChatMessageResponses = {
 
 export type aiSendQuickChatMessageResponse =
   aiSendQuickChatMessageResponses[keyof aiSendQuickChatMessageResponses]
+
+export type aiAskQuickChatInBrowserData = {
+  body: BrowserQuestion
+  path: {
+    /**
+     * Chat Id
+     */
+    chat_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/quick-chats/{chat_id}/browser-turns"
+}
+
+export type aiAskQuickChatInBrowserErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiAskQuickChatInBrowserError =
+  aiAskQuickChatInBrowserErrors[keyof aiAskQuickChatInBrowserErrors]
+
+export type aiAskQuickChatInBrowserResponses = {
+  /**
+   * Successful Response
+   */
+  200: BrowserTurn
+}
+
+export type aiAskQuickChatInBrowserResponse =
+  aiAskQuickChatInBrowserResponses[keyof aiAskQuickChatInBrowserResponses]
+
+export type aiKeepQuickChatBrowserAnswerData = {
+  body: BrowserAnswer
+  path: {
+    /**
+     * Chat Id
+     */
+    chat_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/quick-chats/{chat_id}/browser-answers"
+}
+
+export type aiKeepQuickChatBrowserAnswerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiKeepQuickChatBrowserAnswerError =
+  aiKeepQuickChatBrowserAnswerErrors[keyof aiKeepQuickChatBrowserAnswerErrors]
+
+export type aiKeepQuickChatBrowserAnswerResponses = {
+  /**
+   * Successful Response
+   */
+  200: QuickChatPublic
+}
+
+export type aiKeepQuickChatBrowserAnswerResponse =
+  aiKeepQuickChatBrowserAnswerResponses[keyof aiKeepQuickChatBrowserAnswerResponses]
 
 export type aiReadModelsData = {
   body?: never

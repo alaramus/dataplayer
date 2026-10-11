@@ -31,7 +31,7 @@ for (const theme of ["light", "dark"] as const) {
     const keyPage = page.getByTestId("ai-key-page")
     await expect(keyPage).toHaveAttribute("href", "https://console.anthropic.com/settings/keys")
     await expect(keyPage).toHaveAttribute("target", "_blank")
-    await expect(keyPage).toHaveText("console.anthropic.com")
+    await expect(keyPage).toHaveAccessibleName("console.anthropic.com")
 
     const key = page.getByTestId("ai-provider-key")
     await expect(key).toHaveAccessibleName("API key")

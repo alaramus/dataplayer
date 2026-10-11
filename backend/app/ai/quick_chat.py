@@ -41,6 +41,9 @@ PROMPT = (
     "using Markdown. You have no access to application data or tools. "
     "Do not claim to have inspected data, files, or connections."
 )
+# The model Chrome runs on the person's own machine (D223). It is in no
+# catalog: the server never calls it, and only stores what the browser wrote.
+BROWSER_MODEL_KEY = "browser:gemini-nano"
 
 
 class QuickConversation(SQLModel, table=True):
@@ -121,6 +124,32 @@ class QuickChatSend(BaseModel):
     model_key: str | None = PydanticField(default=None, max_length=160)
 
 
+class BrowserQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = PydanticField(min_length=1, max_length=MAX_QUICK_TEXT)
+
+
+class BrowserAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = PydanticField(min_length=1, max_length=ANSWER_LIMIT)
+
+
+class QuickTurnMessage(BaseModel):
+    role: Role
+    content: str
+
+
+class BrowserTurn(BaseModel):
+    """What the browser's model is given: the prompt and the trimmed history a
+    provider would be given, so the two paths cannot drift apart."""
+
+    chat: QuickChatPublic
+    prompt: str
+    history: list[QuickTurnMessage]
+
+
 def shown_title(title: str) -> str:
     """The title a quick chat is listed and found by: an older untitled one was
     stored as "New quick chat"."""
@@ -185,6 +214,82 @@ async def public(session: AsyncSession, chat: QuickConversation) -> QuickChatPub
     )
 
 
+async def _history(session: AsyncSession, chat: QuickConversation) -> list[QuickTurnMessage]:
+    """The latest messages, oldest first, within the count and the characters
+    a model is given."""
+    previous = (await session.exec(
+        select(QuickMessage)
+        .where(QuickMessage.conversation_id == chat.id)
+        .order_by(col(QuickMessage.created_at).desc(), col(QuickMessage.id).desc())
+        .limit(HISTORY_LIMIT)
+    )).all()
+    kept: list[QuickTurnMessage] = []
+    used = 0
+    for row in previous:
+        content = opened(row.content)
+        if used + len(content) > HISTORY_CHARS:
+            break
+        kept.append(QuickTurnMessage(
+            role="user" if row.role == "user" else "assistant", content=content
+        ))
+        used += len(content)
+    return kept[::-1]
+
+
+async def _last_message(session: AsyncSession, chat: QuickConversation) -> QuickMessage | None:
+    return (await session.exec(
+        select(QuickMessage)
+        .where(QuickMessage.conversation_id == chat.id)
+        .order_by(col(QuickMessage.created_at).desc(), col(QuickMessage.id).desc())
+        .limit(1)
+    )).first()
+
+
+async def _name_by_question(session: AsyncSession, chat: QuickConversation, text: str) -> None:
+    if (
+        opened(chat.title) in {"New chat", "New quick chat"}
+        and await _last_message(session, chat) is None
+    ):
+        chat.title = sealed(text.splitlines()[0][:80])
+
+
+async def ask_in_browser(
+    session: AsyncSession, chat: QuickConversation, body: BrowserQuestion
+) -> BrowserTurn:
+    """Keeps the question, as `send` does before the model is called, and hands
+    the browser what to answer it from (D223)."""
+    text = body.text.strip()
+    if not text:
+        raise ValueError("Write a message first")
+    history = await _history(session, chat)
+    await _name_by_question(session, chat, text)
+    # Not remembered as the person's choice: the settings name a model the
+    # server can call, and this one exists only in a browser.
+    chat.model_key = BROWSER_MODEL_KEY
+    chat.updated_at = get_datetime_utc()
+    session.add_all([
+        chat,
+        QuickMessage(conversation_id=chat.id, role="user", content=sealed(text)),
+    ])
+    await session.commit()
+    return BrowserTurn(chat=await public(session, chat), prompt=PROMPT, history=history)
+
+
+async def answer_from_browser(
+    session: AsyncSession, chat: QuickConversation, body: BrowserAnswer
+) -> QuickChatPublic:
+    last = await _last_message(session, chat)
+    if last is None or last.role != "user":
+        raise ValueError("No question is waiting for an answer")
+    chat.updated_at = get_datetime_utc()
+    session.add_all([
+        chat,
+        QuickMessage(conversation_id=chat.id, role="assistant", content=sealed(body.text)),
+    ])
+    await session.commit()
+    return await public(session, chat)
+
+
 async def send(
     session: AsyncSession,
     chat: QuickConversation,
@@ -205,29 +310,14 @@ async def send(
     text = body.text.strip()
     if not text:
         raise ValueError("Write a message first")
-    previous = (await session.exec(
-        select(QuickMessage)
-        .where(QuickMessage.conversation_id == chat.id)
-        .order_by(col(QuickMessage.created_at).desc(), col(QuickMessage.id).desc())
-        .limit(HISTORY_LIMIT)
-    )).all()
-    kept: list[QuickMessage] = []
-    used = 0
-    for row in previous:
-        length = len(opened(row.content))
-        if used + length > HISTORY_CHARS:
-            break
-        kept.append(row)
-        used += length
+    history = await _history(session, chat)
     messages: list[BaseMessage] = [SystemMessage(content=PROMPT)]
     messages.extend(
-        HumanMessage(content=opened(row.content)) if row.role == "user"
-        else AIMessage(content=opened(row.content))
-        for row in reversed(kept)
+        HumanMessage(content=one.content) if one.role == "user" else AIMessage(content=one.content)
+        for one in history
     )
     messages.append(HumanMessage(content=text))
-    if not previous and opened(chat.title) in {"New chat", "New quick chat"}:
-        chat.title = sealed(text.splitlines()[0][:80])
+    await _name_by_question(session, chat, text)
     # An explicitly chosen model is what the next chat starts with too (D140),
     # as a choice in an agent chat is: staged, and committed with the chat.
     # Only a change is remembered: the window sends its model with every

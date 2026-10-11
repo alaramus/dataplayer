@@ -295,6 +295,7 @@ files. IDs are stable because specs and commits refer to them.
 | D220 | [search-kept](docs/architecture/search-kept.md) |
 | D221 | [search-kept](docs/architecture/search-kept.md) |
 | D222 | [search-kept](docs/architecture/search-kept.md) |
+| D223 | [ai](docs/architecture/ai.md) |
 
 ## Working rules
 

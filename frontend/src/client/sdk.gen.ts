@@ -14,6 +14,9 @@ import type {
   aiAnswerRunData,
   aiAnswerRunErrors,
   aiAnswerRunResponses,
+  aiAskQuickChatInBrowserData,
+  aiAskQuickChatInBrowserErrors,
+  aiAskQuickChatInBrowserResponses,
   aiCancelRunData,
   aiCancelRunErrors,
   aiCancelRunResponses,
@@ -40,6 +43,9 @@ import type {
   aiDeleteQuickChatData,
   aiDeleteQuickChatErrors,
   aiDeleteQuickChatResponses,
+  aiKeepQuickChatBrowserAnswerData,
+  aiKeepQuickChatBrowserAnswerErrors,
+  aiKeepQuickChatBrowserAnswerResponses,
   aiListQuickChatsData,
   aiListQuickChatsErrors,
   aiListQuickChatsResponses,
@@ -5831,6 +5837,52 @@ export class AiService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/quick-chats/{chat_id}/messages",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Ask Quick Chat In Browser
+   *
+   * Keeps a question the browser's own model will answer (D223).
+   */
+  public static askQuickChatInBrowser<ThrowOnError extends boolean = true>(
+    options: Options<aiAskQuickChatInBrowserData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiAskQuickChatInBrowserResponses,
+      aiAskQuickChatInBrowserErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/{chat_id}/browser-turns",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Keep Quick Chat Browser Answer
+   */
+  public static keepQuickChatBrowserAnswer<ThrowOnError extends boolean = true>(
+    options: Options<aiKeepQuickChatBrowserAnswerData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiKeepQuickChatBrowserAnswerResponses,
+      aiKeepQuickChatBrowserAnswerErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/{chat_id}/browser-answers",
       ...options,
       headers: {
         "Content-Type": "application/json",

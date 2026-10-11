@@ -5,13 +5,20 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 import { AiService } from "@/client"
 import { messageOf } from "@/shared/api/errors"
 import { realtime } from "@/shared/realtime/client"
-import { AppBanner, AppButton, AppIconButton, AppInput, AppSpinner, appIcons, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSpinner, appIcons, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { aiSettingsKey, quickChatsKey, useAiSettings, useUpdateAiSettings } from "./api"
+import {
+  BROWSER_MODEL_KEY,
+  answerInBrowser,
+  browserModelRemembered,
+  rememberBrowserModel,
+  useBrowserModel,
+} from "./browserModel"
 import { useDictation } from "./dictation"
 import { deletedQuickChat, explainRequest, explainTitle, quickChatIntent } from "./quickChatLauncher"
 
@@ -52,16 +59,28 @@ const chat = useQuery({
   queryFn: async () => (await AiService.readQuickChat({ path: { chat_id: selected.value as string } })).data,
   enabled: computed(() => open.value && selected.value !== null),
 })
-const modelKey = ref<string | null>(null)
+const modelKey = ref<string | null>(browserModelRemembered() ? BROWSER_MODEL_KEY : null)
 const updateSettings = useUpdateAiSettings()
+const browser = useBrowserModel()
+const inBrowser = computed(() => modelKey.value === BROWSER_MODEL_KEY)
+/** What stands between the browser's model and an answer, or nothing. */
+const browserBlocked = computed(() => inBrowser.value && browser.state.value !== "available")
 /**
  * An explicit pick is the person's choice everywhere (D140), not only for
- * this window: the settings keep it, so a reload still opens on it.
+ * this window: the settings keep it, so a reload still opens on it. The
+ * browser's model is no model the settings could name, so this browser
+ * remembers it instead (D223).
  */
 async function chooseModel(value: string) {
   modelKey.value = value
+  rememberBrowserModel(value === BROWSER_MODEL_KEY)
+  if (value === BROWSER_MODEL_KEY) { await browser.refresh(); return }
   try { await updateSettings.mutateAsync({ model_key: value }) }
   catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+}
+async function downloadBrowserModel() {
+  try { await browser.download() }
+  catch (cause) { toast.error(messageOf(cause, "Chrome could not download the model")) }
 }
 const title = computed(() => chat.data.value?.id === selected.value ? chat.data.value.title : "New chat")
 watch(() => chat.data.value?.model_key, (key) => { if (key) modelKey.value = key })
@@ -125,6 +144,33 @@ watch(() => quickChatIntent.value?.id, async () => {
   }
 })
 
+/**
+ * The question kept by the server, answered here, and the answer kept there
+ * too (D223). Whatever was written before the model failed is kept, as the
+ * server keeps a provider's (D158).
+ */
+async function answerHere(id: string, text: string) {
+  const turn = (await AiService.askQuickChatInBrowser({ path: { chat_id: id }, body: { text } })).data
+  cache.setQueryData(["ai", "quick-chat", id], turn.chat)
+  let failure: unknown = null
+  try {
+    await answerInBrowser({
+      prompt: turn.prompt,
+      history: turn.history,
+      question: text,
+      onText: (piece) => { answer.value += piece },
+    })
+  } catch (cause) { failure = cause }
+  const written = answer.value
+  if (!written.trim()) throw failure ?? new Error("The model returned an empty answer")
+  const saved = (await AiService.keepQuickChatBrowserAnswer({ path: { chat_id: id }, body: { text: written } })).data
+  if (failure !== null) {
+    cache.setQueryData(["ai", "quick-chat", id], saved)
+    throw new Error(`${messageOf(failure, "The model stopped answering")}. The answer so far is kept.`)
+  }
+  return saved
+}
+
 /** A new chat, named when the caller knows better than its first line. */
 async function createChat(title: string | null): Promise<string> {
   const id = (await AiService.createQuickChat()).data.id
@@ -140,7 +186,7 @@ async function createChat(title: string | null): Promise<string> {
 
 async function send(value = draft.value, title: string | null = null) {
   const text = value.trim()
-  if (!text || busy.value) return
+  if (!text || busy.value || browserBlocked.value) return
   busy.value = true
   dictation.stop()
   // Out of the composer as it goes into the transcript; put back below if the
@@ -155,9 +201,11 @@ async function send(value = draft.value, title: string | null = null) {
     const id = selected.value ?? (await createChat(title))
     if (selected.value === null) created = id
     selected.value = id
-    const result = (await AiService.sendQuickChatMessage({
-      path: { chat_id: id }, body: { text, model_key: modelKey.value },
-    })).data
+    const result = inBrowser.value
+      ? await answerHere(id, text)
+      : (await AiService.sendQuickChatMessage({
+          path: { chat_id: id }, body: { text, model_key: modelKey.value },
+        })).data
     cache.setQueryData(["ai", "quick-chat", id], result)
     await cache.invalidateQueries({ queryKey: quickChatsKey })
     // The server remembers an explicitly chosen model as the person's choice
@@ -272,6 +320,44 @@ function editorKeydown(event: KeyboardEvent) {
           </article>
         </div>
         <div class="quick-chat__dock">
+          <AppBanner
+            v-if="browserBlocked"
+            :tone="browser.state.value === 'unavailable' || browser.state.value === 'unsupported' ? 'warning' : 'info'"
+            class="quick-chat__browser"
+            data-testid="quick-chat-browser-model"
+          >
+            <template v-if="browser.state.value === 'downloadable'">
+              Gemini Nano runs on this computer. Chrome downloads it once; it takes a few gigabytes.
+            </template>
+            <template v-else-if="browser.state.value === 'downloading'">
+              Chrome is downloading Gemini Nano.
+              <AppProgress
+                label="Gemini Nano download"
+                :value="browser.progress.value"
+                class="quick-chat__progress"
+              />
+            </template>
+            <template v-else-if="browser.state.value === 'unavailable'">
+              This computer cannot run Gemini Nano: Chrome needs 22 GB of free space and a graphics card with 4 GB or 16 GB of memory.
+            </template>
+            <template v-else-if="browser.state.value === 'unsupported'">
+              Gemini Nano runs only in Chrome on a desktop computer.
+            </template>
+            <template v-else>
+              Checking whether Chrome has Gemini Nano…
+            </template>
+            <template
+              v-if="browser.state.value === 'downloadable'"
+              #action
+            >
+              <AppButton
+                :icon="appIcons.download"
+                label="Download"
+                data-testid="quick-chat-browser-download"
+                @click="downloadBrowserModel"
+              />
+            </template>
+          </AppBanner>
           <div class="quick-chat__composer">
             <AppInput
               v-model="draft"
@@ -291,6 +377,7 @@ function editorKeydown(event: KeyboardEvent) {
                 class="quick-chat__model"
                 compact
                 :allow-auto="false"
+                browser-model
                 :disable="busy"
                 @update:model-value="chooseModel"
               />
@@ -309,7 +396,7 @@ function editorKeydown(event: KeyboardEvent) {
                 :icon="appIcons.send"
                 label="Send"
                 icon-only
-                :disable="busy || !draft.trim()"
+                :disable="busy || !draft.trim() || browserBlocked"
                 data-testid="quick-chat-send"
                 @click="send()"
               />
@@ -340,6 +427,8 @@ function editorKeydown(event: KeyboardEvent) {
 .quick-chat__tools { display: flex; align-items: center; gap: var(--dp-space-2); }
 .quick-chat__model { flex: 0 1 200px; min-width: 120px; }
 .quick-chat__gap { flex: 1; }
+.quick-chat__browser { max-width: 960px; margin: 0 auto var(--dp-space-2); }
+.quick-chat__progress { margin-top: var(--dp-space-1); }
 .quick-chat__composer :deep(.q-field:not(.app-select--framed) .q-field__control) { background: transparent; }
 .quick-chat__composer :deep(.q-field:not(.app-select--framed) .q-field__control::before) { border-color: transparent; }
 .quick-chat__composer :deep(.q-field--focused .q-field__control::after) { border-color: var(--dp-field-border); }

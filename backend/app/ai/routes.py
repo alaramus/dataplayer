@@ -162,6 +162,41 @@ async def send_quick_chat_message(
         raise HTTPException(status_code=502, detail={"message": str(failed)}) from failed
 
 
+@router.post("/quick-chats/{chat_id}/browser-turns", response_model=quick_chat.BrowserTurn)
+async def ask_quick_chat_in_browser(
+    session: SessionDep,
+    current_user: CurrentUser,
+    chat_id: uuid.UUID,
+    body: quick_chat.BrowserQuestion,
+) -> Any:
+    """Keeps a question the browser's own model will answer (D223)."""
+    chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+    try:
+        return await quick_chat.ask_in_browser(session, chat, body)
+    except ValueError as refused:
+        raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused
+
+
+@router.post(
+    "/quick-chats/{chat_id}/browser-answers", response_model=quick_chat.QuickChatPublic
+)
+async def keep_quick_chat_browser_answer(
+    session: SessionDep,
+    current_user: CurrentUser,
+    chat_id: uuid.UUID,
+    body: quick_chat.BrowserAnswer,
+) -> Any:
+    chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
+    if chat is None:
+        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+    try:
+        return await quick_chat.answer_from_browser(session, chat, body)
+    except ValueError as refused:
+        raise HTTPException(status_code=409, detail={"message": str(refused)}) from refused
+
+
 @router.get("/models", response_model=list[AgentModelPublic])
 async def read_models(session: SessionDep, current_user: CurrentUser) -> Any:
     """Every model the list holds, and whether this person has a key for it (D140)."""

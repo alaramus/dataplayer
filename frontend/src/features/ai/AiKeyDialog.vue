@@ -84,10 +84,21 @@ async function clear() {
           />
         </template>
       </AppInput>
-      <p v-if="keyPage" class="ai-key-dialog__page">
+      <p
+        v-if="keyPage"
+        class="ai-key-dialog__page"
+      >
         {{ keySet ? "Keys are issued at" : "No key yet? Create one at" }}
-        <a :href="keyPage" target="_blank" rel="noopener noreferrer" data-testid="ai-key-page">
-          {{ keyPageHost }}<q-icon :name="appIcons.openInNew" class="ai-key-dialog__page-icon" />
+        <a
+          :href="keyPage"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="ai-key-page"
+        >
+          {{ keyPageHost }}<q-icon
+            :name="appIcons.openInNew"
+            class="ai-key-dialog__page-icon"
+          />
         </a>
       </p>
     </AppForm>
