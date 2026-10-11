@@ -1,13 +1,12 @@
 # Frontend
 
-How a screen is built, where state lives, and what the component kit is. The
-panel engine, the layout and floating windows are in
+How a screen is built and where state lives. The panel engine, the layout and floating windows are in
 [workspace.md](workspace.md); the grid, its downloads and its charts are in
 [grid.md](grid.md); 2D and 3D graph viewers are in [graphs.md](graphs.md);
-the scale of type, heights, icons and text colours is in
-[design-system.md](design-system.md).
+the component kit, its tokens and the scale of type, heights, icons and text
+colours are in [design-system.md](design-system.md).
 
-Decisions here: D99, D131, D6, D7, D11, D50.
+Decisions here: D99, D131, D6, D7, D50.
 
 ## What exists today
 
@@ -178,141 +177,6 @@ not its UI kit. The typed client generated from OpenAPI is kept — it does not
 depend on the framework.
 
 Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-connector-registry-design.md)
-
-## D11. A screen asks the kit for meaning, not Quasar for a look
-
-Every component with a choice of appearance is wrapped once in `shared/ui`, and a
-screen says `variant="danger"` rather than `flat color="negative"`. `tokens.ts`
-is the only place that turns one into the other, and it is plain functions, so
-the mapping is tested without mounting anything.
-
-It is not a facade over Quasar: what has no choice of appearance (`q-icon`,
-`q-separator`, `q-td`, `q-form`) and what has one consumer (`q-layout`, `q-tree`)
-stays as it is. Undeclared attributes fall through, so a rare case does not force
-a change to the kit, and `data-testid` keeps landing where Quasar puts it.
-
-Consequences:
-
-- **A colour is spent in `theme.css`.** A screen carries `var(--dp-hover)`,
-  never `rgba(0, 0, 0, 0.04)`. Light values sit on `:root` and are redeclared
-  under `body.body--dark`, which a Sass variable, settled at build time, could
-  not do. `stores/theme.ts` is the only caller of Quasar's Dark plugin.
-- **A layer is spent in `layers.css`.** A screen carries
-  `var(--dp-layer-overlay)`, never `2`: two numbers decided alone cannot be
-  compared, which is how a sticky table heading declaring `1` painted over a
-  floating window and then over the workspace drop zone. Quasar's header and
-  footer sit at 2000 and its menus and dialogs at 6000, so anything that must
-  clear the first and stay under the second is placed between them.
-- **Density and geometry are spent in `metrics.css`**: header, status line, tab
-  strip, insets, spacing and radii. A feature arranges its own content but does
-  not invent another toolbar height or panel corner. A button beside a kit field
-  goes in its `after` slot, which aligns it with the control rather than with the
-  line reserved for a validation message. `AppSelect` clips its append area so
-  the rotating arrow cannot widen a scrollable toolbar; its teleported options
-  stay outside the clip. Select options use the same neutral focus colour in
-  toolbars and forms.
-- **A card is one look.** A Data section, the dashboards rail and dashboard,
-  a widget, the chats and a chat are `AppCardFrame` with an `AppCardHead`:
-  one frame, and a head of the tab strip's height on `--dp-card-head` in
-  every state, empty or loading included. A collapsed rail keeps the head with
-  its plus alone in it — the connections, the dashboards, the chats — so the
-  strip runs unbroken across the screen. `WorkspaceLeaf` draws the same frame and
-  head from the same tokens, because its root is the engine's. The head is a
-  middle tone between the outer chrome and the card's working surface; neutral
-  tabs keep a distinct fill on that tone.
-- **Button layout belongs to the kit.** `toolbar` keeps an icon and label on one
-  line, `navigation` aligns an entry to the left and keeps it to one line — a
-  long name ends in an ellipsis and is given whole on hover — and `AppTree`
-  owns the full-row selection mark. Screens size fields through their own classes on kit
-  components, never by selecting Quasar internals.
-- **Button icon names live in `shared/ui/icons.ts`.** A screen chooses a named
-  action from `appIcons`; its ligatures use Material Symbols Outlined, including
-  the application's replacements for older names absent from that font.
-  Quasar's built-in controls use the same icon set. A source-provided icon
-  remains part of its source contract, and the UI kit shows every named icon.
-- **Flat action text has theme colours of its own.** `secondary` and
-  `danger-quiet`, icon buttons included, use `--dp-action-secondary` and
-  `--dp-action-danger`, lighter in the dark theme than the filled `primary` and
-  `danger`.
-- **The one you are in is `chosen`, not `secondary`.** The space you are in, the
-  view a window shows, a toggle that is on: written as `secondary`, it was a
-  grey dimmer than the quiet buttons beside it in the dark theme, so it stood
-  out least. `chosen` is filled like `primary` until the visual pass gives it a
-  look of its own.
-- **Shadows and paper are theme tokens too.** Activity sheets and notification
-  cards use the soft shadow, PDF pages the strong one; PDF paper and selection
-  colours are the same in both themes, because the document does not change
-  palette with the application.
-- **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
-  forbids, outside `shared/ui`, exactly those `q-*` that have a replacement, in
-  both spellings Vue accepts — matching only `q-btn` would let `<QBtn>` walk
-  past. `useQuasar` is forbidden in screens; `useToast` and `useConfirm` replace
-  it.
-- **An icon button's tooltip is its accessible name** in every state, unless the
-  caller passes its own `aria-label`. A button drawn as an icon alone keeps the
-  label it does not draw and speaks it instead: a narrow rail is a reason to
-  show less, not to be called nothing, and four commands that dropped their
-  label to fit one were announced as unnamed buttons (U04).
-- **A command that is off is still a command.** Disabled, an icon button is out
-  of the tab order, which left its reason on hover and nowhere else; the
-  wrapper that already carried the tooltip takes the button's place in the tab
-  order and its name — label and reason together — and the button inside is
-  hidden from a reader so the pair is announced once. A disabled menu line says
-  the same way that it is a line of the menu, that it is off and why, because
-  Quasar otherwise draws it as loose text (U14). The tab stop there is Quasar's
-  to give, and it gives a disabled item none.
-- **The kit documents itself at `/ui-kit`**, a route registered only under
-  `import.meta.env.DEV`. It renders the real components, and a test compares the
-  page against the files in `shared/ui`, so a component cannot be added without
-  a demonstration.
-- **Reading an API error is one function**, `shared/api/errors.ts`.
-
-Three tests read every `.vue` under `src` and fail on a `z-index` that is not a
-`--dp-layer-…` name, on a gap, padding, margin or radius written as pixels, and
-on a colour reached for past the theme — written as a number, as
-`var(--q-negative)`, or as one of Quasar's colour classes outside the kit. The
-colour test reads the `.ts` modules too, because a class name is as often built
-there.
-
-A fourth asks not what a value looks like but whether it exists.
-`var(--dp-radius)` in a dialog and `var(--dp-danger-text, #d32f2f)` in the
-highlighter both named a token nobody had declared — the first dropped in silence
-by the browser, the second a literal colour wearing a token's name — and the
-graph asked for `--dp-muted` where the theme declares `--dp-text-muted`, so its
-captions were never muted. Vite hands a test an empty string for a `.css` file,
-whatever the query, so this one reads the three token files from the disk; it is
-the single source file typed by `tsconfig.node.json` rather than by the
-application's browser-only config, which is why Node stays out of the
-application's types. What actually paints over what remains a browser question,
-answered by a Playwright scenario.
-
-Two exceptions are written into the tests rather than left to review.
-`panelColor.ts` computes the colours a person chose for a connection, which are
-data and not a palette; `tokens.ts` says `color="negative"` because it is the
-one place meaning becomes a Quasar prop. A `1px` border keeps its pixel: it is a
-hairline, not a space.
-
-Known deviations:
-
-- **Part of the kit has one consumer or none** (`AppBadge`, `AppFileInput`,
-  `AppSpinner`, `AppTooltip`; `AppTree` since the catalog became a list). A
-  knowing departure from "generalise on the second use": the kit is built as an
-  alphabet, for predictability as screens grow.
-- **Attribute fall-through is a way around the kit.** Nothing stops a screen
-  passing `color="purple"` to the Quasar component underneath; only review does.
-- **`AppTree` wraps `q-tree`.** Its node and lazy-load types are read off
-  Quasar's props, so replacing the tree would change what a screen passes it.
-- **The theme is chosen once per browser.** Light, Paper light, Dark, Paper
-  dark, Midnight, Dark blue, Dark purple or System, listed once in
-  `stores/theme.ts`; System is what nothing stored means and follows the
-  operating system between Light and Dark as it changes. The named ones carry
-  their own grounds, selected by a marker beside the dark class; Paper light
-  carries it without the dark class. The choice does not follow a user
-  elsewhere.
-- **Every theme is measured** against contrast floors and one order of
-  grounds by `contrast.spec.ts` (D196).
-
-Spec: [The shared UI kit](../decisions/2026-08-22-shared-ui-kit-design.md)
 
 ## Checking the types at all
 

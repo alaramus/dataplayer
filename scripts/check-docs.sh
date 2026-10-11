@@ -13,7 +13,9 @@
 #      which is the whole reason it was split up. Raised from 16 KB to 24 KB in
 #      round 8: the file had 142 bytes left, and the first thing the budget
 #      would have evicted was a trap that belongs in every session. A ceiling
-#      that pushes out what the file exists to hold is set too low;
+#      that pushes out what the file exists to hold is set too low. Raised to
+#      32 KB at D211 with 400 bytes left: the decision table grows a row with
+#      every decision, so the alternative was evicting traps again;
 #   4. every decision carries exactly one `Spec:` line, so the argument behind
 #      a statement is reachable from the statement. The path used to run one
 #      way only, from the spec index, and finding the argument meant guessing
@@ -44,7 +46,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-AGENTS_BUDGET=24576
+AGENTS_BUDGET=32768
 FILE_BUDGET=40960
 WARN_AT=32768
 failed=0

@@ -278,7 +278,7 @@ earns its place at all rests on review.
 link resolves, and one carrying a `#fragment` names a heading the target file
 really has; every decision lives in exactly the file the `AGENTS.md` table
 names, and none lives in `docs/architecture/` unlisted; `AGENTS.md` stays under
-24 KB; every decision carries exactly one `Spec:` line, so the argument is
+32 KB; every decision carries exactly one `Spec:` line, so the argument is
 reachable from the statement; no architecture file exceeds 40 KB — the ceiling
 `adapters.md` never had, which is how it reached 114 KB; no architecture file is
 an orphan; and every file holding decisions names exactly them in its
