@@ -7,7 +7,7 @@ work to an AI agent that uses the same connections you do.
 DataPlayer runs on your own machine or server with Docker Compose. Credentials
 are encrypted at rest and never leave the backend.
 
-![The workspace: connections, a catalog, tabs of rows, a quick chat window, the server's log and the activity panel](docs/screenshots/overview.webp)
+![The workspace: connections, a catalog, tabs of rows, a quick chat answered by Gemini Nano in the browser, the server's log and the activity panel](docs/screenshots/overview.webp)
 
 | | |
 | --- | --- |
