@@ -6,6 +6,7 @@ import {
   contentsLine,
   folderName,
   isBusy,
+  meaningLine,
   offersKeeping,
   statusLine,
   summaryLine,
@@ -160,6 +161,20 @@ describe("what files hold", () => {
     expect(summaryLine(state({}), NOW)).toBe("1,234 names, read 12m ago")
     expect(summaryLine(state({ contents: [{ node_id: "a", files: 1 }] }), NOW)).toBe(
       "1,234 names, read 12m ago · text of 1 file in 1 folder"
+    )
+  })
+})
+
+describe("meaningLine", () => {
+  it("says how much the model has read, or that none runs", () => {
+    expect(meaningLine(state({ meaning: null }))).toBe(
+      "Search by meaning is not running on this server"
+    )
+    expect(meaningLine(state({ meaning: { model: "e5", passages: 10, vectors: 4 } }))).toBe(
+      "By meaning: 4 of 10 passages read · e5"
+    )
+    expect(meaningLine(state({ meaning: { model: "e5", passages: 10, vectors: 10 } }))).toBe(
+      "By meaning: all 10 passages read · e5"
     )
   })
 })

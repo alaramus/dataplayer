@@ -23,7 +23,9 @@ from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from typing import Literal
 
+import httpx
 from pydantic import TypeAdapter
 
 from app.adapters.catalog import (
@@ -65,6 +67,7 @@ from app.core.schemas import get_datetime_utc
 from app.search import kept as kept_names
 from app.search.excerpts import segments
 from app.search.kept import KeptList
+from app.search.kept_meaning import ready_model
 from app.search.models import (
     Cell,
     ConnectionPlace,
@@ -672,12 +675,13 @@ async def from_list(connection: VisibleConnection, listed: KeptList, asked: Aske
         notice=listed.notice,
     )
     found = _found(connection, result, asked, owned=connection.access == "own")
-    return replace(
+    found = replace(
         found,
         hits=[hit.model_copy(update={"via": "kept", "as_of": listed.kept_at}) for hit in found.hits],
         way="kept",
         as_of=listed.kept_at,
     )
+    return _with_meaning(found, await by_meaning(connection, listed, asked, "name"), asked.limit)
 
 
 # Chunks asked for each file a cell may show: a chunk can hold the words on
@@ -728,7 +732,7 @@ async def from_text(connection: VisibleConnection, listed: KeptList, asked: Aske
         hits.append(hit.model_copy(update={"via": "kept", "as_of": listed.kept_at}))
     found = ordered(hits, asked.limit)
     more = found.more or len(chunks) >= asking
-    return Found(
+    words = Found(
         hits=found.hits,
         complete=not more,
         more=more,
@@ -736,3 +740,74 @@ async def from_text(connection: VisibleConnection, listed: KeptList, asked: Aske
         way="kept",
         as_of=listed.kept_at,
     )
+    return _with_meaning(words, await by_meaning(connection, listed, asked, "text"), asked.limit)
+
+
+# What meaning adds to a cell at most: it says "these might be it", after the
+# words, and a page of guesses would bury what the words found.
+_MEANING_ROWS = 5
+
+
+async def by_meaning(
+    connection: VisibleConnection,
+    listed: KeptList,
+    asked: Asked,
+    kind: Literal["name", "text"],
+) -> list[Hit]:
+    """Hits the model finds near the words, class `meaning`, on Enter only (D222).
+
+    Nothing when no model answers: the cell is what the words found.
+    """
+    if asked.mode != "search":
+        return []
+    ready = await ready_model()
+    if ready is None:
+        return []
+    model, name = ready
+    try:
+        [query] = await model.queries([asked.typed])
+    except httpx.HTTPError:
+        return []
+    found = await kept_names.similar(
+        asked.session,
+        asked.user.id,
+        connection.id,
+        kind,
+        query,
+        name,
+        _MEANING_ROWS,
+        settings.EMBEDDINGS_MIN_SIMILARITY,
+    )
+    hits: list[Hit] = []
+    for one in found:
+        match = NodeMatch(
+            node=_NODE.validate_python(one.name.node),
+            parent_id=one.name.parent_id,
+            location=one.name.location,
+            ancestors=None
+            if one.name.ancestors is None
+            else [Ancestor.model_validate(each) for each in one.name.ancestors],
+        )
+        # A passage is a run of lines and the model says which run, not which
+        # line: the hit opens at its first, and shows the run.
+        excerpt = " / ".join(one.passage.text.split("\n"))[:MAX_EXCERPT_CHARACTERS]
+        hit = node_hit(
+            connection,
+            match,
+            Match(
+                field="contents" if kind == "text" else "name",
+                match_class="meaning",
+                line=one.passage.line,
+                excerpt=segments(excerpt, ()),
+            ),
+        )
+        hits.append(hit.model_copy(update={"via": "kept", "as_of": listed.kept_at}))
+    return hits
+
+
+def _with_meaning(found: Found, meant: list[Hit], limit: int) -> Found:
+    """The words' hits first, then meaning's not already among them (D222)."""
+    seen = {hit.key for hit in found.hits}
+    added = [hit for hit in meant if hit.key not in seen]
+    room = max(0, limit - len(found.hits))
+    return replace(found, hits=[*found.hits, *added[:room]])

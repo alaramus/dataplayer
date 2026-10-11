@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Column, DateTime, Index, Text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import UserDefinedType
 from sqlmodel import Field, SQLModel
 
 from app.core.schemas import get_datetime_utc
@@ -210,6 +211,8 @@ class KeepState(BaseModel):
     # Whether this type can keep its files' text, and the folders that do (D217).
     contents_available: bool = False
     contents: list[ContentsScopeState] = []
+    # Search by meaning, when the installation runs a model (D220).
+    meaning: MeaningState | None = None
 
 
 class KeepOverview(BaseModel):
@@ -224,3 +227,73 @@ class KeepUpdate(BaseModel):
 
     keep: bool
     window_seconds: KeepWindow = DEFAULT_WINDOW
+
+
+class _Vector(UserDefinedType[list[float]]):
+    """pgvector's `vector`, with no dimension: each model has its own (D221).
+
+    Written as the text pgvector reads, `[0.1,0.2]`, so no driver type is
+    imported here: psycopg stays inside its adapter.
+    """
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        return "vector"
+
+    def bind_processor(self, dialect: Any) -> Any:
+        def process(value: list[float] | None) -> str | None:
+            return None if value is None else "[" + ",".join(repr(float(one)) for one in value) + "]"
+
+        return process
+
+    def result_processor(self, dialect: Any, coltype: Any) -> Any:
+        def process(value: str | None) -> list[float] | None:
+            return None if value is None else [float(one) for one in value.strip("[]").split(",")]
+
+        return process
+
+
+VECTOR = _Vector()
+
+PassageKind = Literal["name", "text"]
+
+
+class SearchPassage(SQLModel, table=True):
+    """What is embedded: a kept name, or a short run of a kept file's lines (D221)."""
+
+    __tablename__ = "search_passage"
+
+    connector_id: uuid.UUID = Field(
+        foreign_key="connector.id", primary_key=True, ondelete="CASCADE"
+    )
+    kind: str = Field(primary_key=True, max_length=8)
+    node_id: str = Field(sa_column=Column(Text, primary_key=True))
+    seq: int = Field(primary_key=True)
+    # The number of its first line, for a passage of a file.
+    line: int | None = None
+    text: str = Field(sa_column=Column(Text, nullable=False))
+    # Of the text: what a vector is kept under, so the same text is embedded once.
+    digest: str = Field(sa_column=Column(Text, nullable=False, index=True))
+
+
+class SearchVector(SQLModel, table=True):
+    """A passage's vector under one model; a new model's are made beside (D221)."""
+
+    __tablename__ = "search_vector"
+
+    digest: str = Field(sa_column=Column(Text, primary_key=True))
+    model: str = Field(sa_column=Column(Text, primary_key=True))
+    embedding: list[float] = Field(sa_column=Column(VECTOR, nullable=False))
+
+
+class MeaningState(BaseModel):
+    """How much of a connection's kept names and text the model has read."""
+
+    model: str
+    passages: int
+    vectors: int
+
+
+# KeepState names MeaningState before it is defined.
+KeepState.model_rebuild()

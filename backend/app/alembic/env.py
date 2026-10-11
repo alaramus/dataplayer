@@ -52,7 +52,10 @@ from app.ai.models import (  # noqa
 )
 from app.ai.checkpoints import CHECKPOINT_TABLES  # noqa
 from app.ai.quick_chat import QuickConversation, QuickMessage  # noqa
-from app.search.keep import SearchKeep, SearchName  # noqa
+from app.search.keep import (  # noqa
+    SearchChunk, SearchContentFile, SearchContentScope, SearchKeep, SearchName,
+    SearchPassage, SearchVector,
+)
 
 target_metadata = SQLModel.metadata
 

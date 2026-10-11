@@ -120,6 +120,13 @@ class Settings(BaseSettings):
     # What one pass over a connection's kept text may read (D218): the rest
     # is read by the next.
     SEARCH_KEPT_CONTENTS_BYTES: int = Field(default=512_000_000, ge=1, le=20_000_000_000)
+    # Search by meaning (D220): where the local model answers, empty for off;
+    # what it expects before a query and a passage (e5's two by default); how
+    # close a passage must be to be offered.
+    EMBEDDINGS_URL: str = ""
+    EMBEDDINGS_QUERY_PREFIX: str = "query: "
+    EMBEDDINGS_PASSAGE_PREFIX: str = "passage: "
+    EMBEDDINGS_MIN_SIMILARITY: float = Field(default=0.8, ge=0, le=1)
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

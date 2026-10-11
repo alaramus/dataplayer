@@ -10,7 +10,20 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import ColumnElement, case, delete, false, func, not_, or_, update
+from sqlalchemy import (
+    ColumnElement,
+    Float,
+    and_,
+    case,
+    cast,
+    delete,
+    false,
+    func,
+    literal,
+    not_,
+    or_,
+    update,
+)
 from sqlalchemy.orm import Mapped
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -25,18 +38,23 @@ from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
 from app.search.keep import (
     DEFAULT_WINDOW,
+    VECTOR,
     ContentsScopeState,
     KeepOverview,
     KeepState,
     KeepStatus,
     KeepUpdate,
     KeepWindow,
+    MeaningState,
     SearchChunk,
     SearchContentFile,
     SearchContentScope,
     SearchKeep,
     SearchName,
+    SearchPassage,
+    SearchVector,
 )
+from app.search.kept_meaning import ready_model
 from app.users.models import User
 
 # Trigrams serve a word of three characters or more; an answer of only
@@ -101,8 +119,10 @@ def state_of(
     owner_email: str | None,
     row: SearchKeep | None,
     scopes: Sequence[SearchContentScope] = (),
+    meaning: MeaningState | None = None,
 ) -> KeepState:
     return KeepState(
+        meaning=meaning if row is not None else None,
         contents_available=can_keep_contents(connector.adapter_type),
         contents=[
             ContentsScopeState(
@@ -138,10 +158,16 @@ async def overview(session: AsyncSession, user: User) -> KeepOverview:
     standings = await crud.visible_with_standing(session, user=user, limit=1000)
     rows = await _rows(session, [connector.id for connector, _, _ in standings])
     scopes = await scopes_of(session, list(rows))
+    meanings = await meanings_of(session, list(rows))
     return KeepOverview(
         lists=[
             state_of(
-                connector, access, owner_email, rows[connector.id], scopes.get(connector.id, [])
+                connector,
+                access,
+                owner_email,
+                rows[connector.id],
+                scopes.get(connector.id, []),
+                meanings.get(connector.id),
             )
             for connector, access, owner_email in standings
             if connector.id in rows
@@ -169,6 +195,9 @@ async def change(
             delete(SearchContentFile).where(col(SearchContentFile.connector_id) == connector.id)
         )
         await session.exec(delete(SearchChunk).where(col(SearchChunk.connector_id) == connector.id))
+        await session.exec(
+            delete(SearchPassage).where(col(SearchPassage.connector_id) == connector.id)
+        )
         if row is not None:
             await session.delete(row)
         await session.commit()
@@ -349,6 +378,13 @@ async def remove_contents(session: AsyncSession, connector_id: uuid.UUID, node_i
             outside(col(SearchChunk.node_id), left),
         )
     )
+    await session.exec(
+        delete(SearchPassage).where(
+            col(SearchPassage.connector_id) == connector_id,
+            col(SearchPassage.kind) == "text",
+            outside(col(SearchPassage.node_id), left),
+        )
+    )
     await session.commit()
 
 
@@ -393,6 +429,112 @@ async def nodes_of(
         )
     )
     return {row.node_id: row for row in rows.all()}
+
+
+@dataclass(frozen=True)
+class Similar:
+    """A passage the model found near the words, and the node it belongs to."""
+
+    passage: SearchPassage
+    name: SearchName
+    similarity: float
+
+
+async def similar(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    connector_id: uuid.UUID,
+    kind: str,
+    query: Sequence[float],
+    model: str,
+    limit: int,
+    min_similarity: float,
+) -> list[Similar]:
+    """Passages of one kind nearest the query, at least `min_similarity` near (D222).
+
+    The standing and the connection being switched on are inside the query, as
+    for the words (D199). Several passages of one file count once, the nearest.
+    """
+    vector = "[" + ",".join(repr(float(one)) for one in query) + "]"
+    distance = col(SearchVector.embedding).op("<=>", return_type=Float)(
+        cast(literal(vector), VECTOR)
+    )
+    statement = (
+        select(SearchPassage, SearchName, distance)
+        .join(
+            SearchVector,
+            and_(
+                col(SearchVector.digest) == col(SearchPassage.digest),
+                col(SearchVector.model) == model,
+            ),
+        )
+        .join(
+            SearchName,
+            and_(
+                col(SearchName.connector_id) == col(SearchPassage.connector_id),
+                col(SearchName.node_id) == col(SearchPassage.node_id),
+            ),
+        )
+        .join(Connector, col(Connector.id) == col(SearchPassage.connector_id))
+        .where(
+            col(SearchPassage.connector_id) == connector_id,
+            col(SearchPassage.kind) == kind,
+            col(Connector.enabled).is_(True),
+            crud.visible_to(user_id),
+            distance <= 1 - min_similarity,
+        )
+        .order_by(distance)
+        .limit(limit * 4)
+    )
+    found: dict[str, Similar] = {}
+    for passage, name, far in (await session.exec(statement)).all():
+        if passage.node_id not in found:
+            found[passage.node_id] = Similar(passage=passage, name=name, similarity=1 - far)
+    return list(found.values())[:limit]
+
+
+async def meaning_of(
+    session: AsyncSession, connector_ids: Collection[uuid.UUID], model: str
+) -> dict[uuid.UUID, tuple[int, int]]:
+    """Passages, and how many of them the model has read, per connection."""
+    if not connector_ids:
+        return {}
+    statement = (
+        select(
+            col(SearchPassage.connector_id),
+            func.count(),
+            func.count(col(SearchVector.digest)),
+        )
+        .outerjoin(
+            SearchVector,
+            and_(
+                col(SearchVector.digest) == col(SearchPassage.digest),
+                col(SearchVector.model) == model,
+            ),
+        )
+        .where(col(SearchPassage.connector_id).in_(list(connector_ids)))
+        .group_by(col(SearchPassage.connector_id))
+    )
+    return {row[0]: (int(row[1]), int(row[2])) for row in (await session.exec(statement)).all()}
+
+
+async def meanings_of(
+    session: AsyncSession, connector_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, MeaningState]:
+    """How much the model answering now has read of each, when one answers (D220)."""
+    ready = await ready_model()
+    if ready is None:
+        return {}
+    _, model = ready
+    counts = await meaning_of(session, connector_ids, model)
+    return {
+        connector_id: MeaningState(
+            model=model,
+            passages=counts.get(connector_id, (0, 0))[0],
+            vectors=counts.get(connector_id, (0, 0))[1],
+        )
+        for connector_id in connector_ids
+    }
 
 
 async def names_changed(connector_id: uuid.UUID) -> None:

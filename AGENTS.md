@@ -63,7 +63,7 @@ documentation.
 | The agent, its tools, sending data to a third party, quick chat | [ai.md](docs/architecture/ai.md) |
 | Models, provider keys, Jev | [ai-models.md](docs/architecture/ai-models.md) |
 | One search over everything, its providers, the field in the header | [search.md](docs/architecture/search.md) |
-| A connection's names and files' text kept for search, the search-keeper process, the Search index window | [search-kept.md](docs/architecture/search-kept.md) |
+| A connection's names and files' text kept for search, search by meaning and its model, the search-keeper process, the Search index window | [search-kept.md](docs/architecture/search-kept.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
 What is already done is recorded by the spec
@@ -292,6 +292,9 @@ files. IDs are stable because specs and commits refer to them.
 | D217 | [search-kept](docs/architecture/search-kept.md) |
 | D218 | [search-kept](docs/architecture/search-kept.md) |
 | D219 | [search-kept](docs/architecture/search-kept.md) |
+| D220 | [search-kept](docs/architecture/search-kept.md) |
+| D221 | [search-kept](docs/architecture/search-kept.md) |
+| D222 | [search-kept](docs/architecture/search-kept.md) |
 
 ## Working rules
 
@@ -330,6 +333,10 @@ the backend from serving; inspect it with `docker compose logs prestart`.
 Demo connections for a full connections panel — the same PostgreSQL under
 several names, file storage, Redis and SSH — come from `bun run seed:connectors`,
 which reads `.env` and skips names that already exist.
+
+Kept lists for search are read by `search-keeper`, and search by meaning needs
+its model, which `docker compose up -d` does not start:
+`docker compose --profile meaning up -d embedder` (D214, D220).
 
 Backend checks, from `backend/`:
 

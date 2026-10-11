@@ -119,10 +119,12 @@ async def _state(session: SessionDep, connector: Connector, access: Access) -> K
         found = await session.get(User, connector.owner_id)
         owner = None if found is None else found.email
     scopes = await kept.scopes_of(session, [connector.id])
+    meanings = await kept.meanings_of(session, [connector.id])
     return kept.state_of(
         connector,
         access,
         owner,
         await kept.row_of(session, connector.id),
         scopes.get(connector.id, []),
+        meanings.get(connector.id),
     )

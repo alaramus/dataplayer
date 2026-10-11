@@ -1,13 +1,14 @@
-# Search: names and text kept
+# Search: names, text and meaning kept
 
 A connection's names kept in the application database, so the search finds a
-large tree, a remote server or a large key space by name without asking it, and
-the text of the files below chosen folders, found on Enter.
+large tree, a remote server or a large key space by name without asking it;
+the text of the files below chosen folders, found on Enter; and, when a local
+model runs, vectors of both, so Enter finds by meaning as well.
 The search itself — the engine, cells, outcomes, the field and the tab — is in
 [search.md](search.md). Read this before changing what a pass reads, the
 `search-keeper` process, the kept cell, or what marks a list stale.
 
-Decisions here: D212, D213, D214, D215, D216, D217, D218, D219.
+Decisions here: D212, D213, D214, D215, D216, D217, D218, D219, D220, D221, D222.
 
 ```
 backend/app/
@@ -20,7 +21,9 @@ backend/app/
 └── search/
     ├── keep.py                search_keep, search_name, the API models
     ├── kept.py                state, the owner's switch, the kept queries, stale
-    ├── kept_text.py           the text pass after the names
+    ├── kept_text.py           the text pass after the names, and its passages
+    ├── kept_meaning.py        name passages, vectors, pruning
+    └── embedder.py            Embedder, LocalEmbedder (TEI)
     ├── keeper.py              python -m app.search.keeper: the passes
     └── keep_routes.py         /search/kept
 
@@ -186,3 +189,52 @@ Spec: [Search, phase 3: what files hold, kept](../decisions/2026-10-11-search-co
 - **Said as kept**: `way`, `as_of` and `via`, as D215.
 
 Spec: [Search, phase 3: what files hold, kept](../decisions/2026-10-11-search-contents-kept.md)
+
+## D220. One local model, behind a protocol, started on request
+
+- **`Embedder`**: `info()` (model name, token ceiling, nothing when none
+  answers), `queries()` and `passages()` with their own prefixes
+  (`EMBEDDINGS_QUERY_PREFIX`, `EMBEDDINGS_PASSAGE_PREFIX`), `sends_out`.
+  `LocalEmbedder` speaks Text Embeddings Inference; `/info` is believed 30 s
+  either way, the last 128 queries are remembered.
+- **The `embedder` service** under the compose profile `meaning`, model
+  `EMBEDDINGS_MODEL` (`intfloat/multilingual-e5-small`), downloaded on first
+  start into its volume; optional `HF_TOKEN` is passed to it alone.
+  `EMBEDDINGS_URL` points the backend and the keeper at it; empty is off.
+- **A model that sends text out is not used.** An external provider is a second
+  implementation that must first check D135 per connection and use the owner's
+  key (D140); the words a person types never leave the server.
+
+Spec: [Search, phase 4: meaning](../decisions/2026-10-11-search-meaning.md)
+
+## D221. Passages are embedded once per text and model, in the database
+
+- **`search_passage`**: a kept name as "name (location)", or a run of a kept
+  file's non-empty lines of at most 1,000 characters with its first line's
+  number; written and deleted with the names and the chunks.
+- **`search_vector`** keyed by the text's digest and the model, `vector` with no
+  dimension, in the application database (pgvector,
+  `pgvector/pgvector:0.8.1-pg18-trixie`). No index: a search compares one
+  connection's passages exactly.
+- **The keeper** embeds after each pass's text, and every minute reads what a
+  model started later has not; it prunes vectors no passage holds, and another
+  model's once this one's are whole.
+- **The window** shows passages and how many the model has read.
+
+Spec: [Search, phase 4: meaning](../decisions/2026-10-11-search-meaning.md)
+
+## D222. Meaning adds to a kept cell what the words missed, said as such
+
+- **On Enter**, in a kept names cell and a kept contents cell: nearest passages
+  of that kind, standing and `enabled` inside the query, at least
+  `EMBEDDINGS_MIN_SIMILARITY` (0.8) near, one per node, at most five.
+- **After the words**, class `meaning`, never repeating a node they found,
+  within the cell's rows. A row says "By meaning" and nothing in it is marked.
+- **Nothing** without a model, and nothing while typing.
+
+Known deviation:
+
+- **A hit by meaning opens at its passage's first line**: the model ranks runs
+  of lines, not lines.
+
+Spec: [Search, phase 4: meaning](../decisions/2026-10-11-search-meaning.md)

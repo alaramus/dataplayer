@@ -33,6 +33,9 @@ export const SHOW_IN_CATALOG = "Show in catalog"
  * row carries Show in catalog as its own action.
  */
 export function hitOption(hit: Hit): SelectOption {
+  // Found by a model rather than the words (D222): said as such, and nothing
+  // in it is marked, because no word of the query is what matched.
+  if (hit.match.match_class === "meaning") return meantOption(hit)
   const byName = hit.match.field === "name"
   // A line found inside a file says which line it is (S7).
   const line: TextRun[] = !byName && hit.match.line !== null
@@ -52,6 +55,27 @@ export function hitOption(hit: Hit): SelectOption {
       : hit.detail
         ? { description: hit.detail }
         : {}),
+    ...(showsInCatalog(hit) ? { actionIcon: appIcons.myLocation, actionLabel: SHOW_IN_CATALOG } : {}),
+  }
+}
+
+export const BY_MEANING = "By meaning"
+
+function meantOption(hit: Hit): SelectOption {
+  const inside = hit.match.field !== "name"
+  const what: TextRun[] = inside
+    ? [
+        ...(hit.match.line !== null ? [{ text: `Line ${String(hit.match.line)}: `, hit: false }] : []),
+        ...hit.match.excerpt.map((segment) => ({ text: segment.text, hit: false })),
+      ]
+    : hit.detail
+      ? [{ text: hit.detail, hit: false }]
+      : []
+  return {
+    label: hit.title,
+    value: hit.key,
+    icon: hitIcon(hit),
+    descriptionRuns: [{ text: BY_MEANING, hit: false }, ...(what.length > 0 ? [{ text: " · ", hit: false }, ...what] : [])],
     ...(showsInCatalog(hit) ? { actionIcon: appIcons.myLocation, actionLabel: SHOW_IN_CATALOG } : {}),
   }
 }

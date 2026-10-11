@@ -15,6 +15,7 @@ import {
   type KeepWindow,
   contentsLine,
   folderName,
+  meaningLine,
   statusLine,
 } from "@/features/searchIndex/state"
 import { messageOf } from "@/shared/api/errors"
@@ -215,6 +216,11 @@ async function readAgain() {
           @click="readAgain"
         />
       </section>
+      <span
+        v-if="kept"
+        class="dp-helper"
+        data-testid="search-index-meaning"
+      >{{ meaningLine(current) }}</span>
 
       <section
         v-if="current.contents_available"

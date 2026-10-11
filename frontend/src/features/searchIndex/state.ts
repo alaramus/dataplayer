@@ -123,3 +123,13 @@ export function summaryLine(state: KeepState, now: number = Date.now()): string 
   const folders = `${scopes.length.toLocaleString("en-US")} ${scopes.length === 1 ? "folder" : "folders"}`
   return `${names} · text of ${files.toLocaleString("en-US")} ${files === 1 ? "file" : "files"} in ${folders}`
 }
+
+/** How much of what is kept the model has read, or that no model runs (D220). */
+export function meaningLine(state: KeepState): string {
+  const meaning = state.meaning
+  if (!meaning) return "Search by meaning is not running on this server"
+  const passages = meaning.passages.toLocaleString("en-US")
+  if (meaning.passages === 0) return `By meaning: nothing to read yet · ${meaning.model}`
+  if (meaning.vectors >= meaning.passages) return `By meaning: all ${passages} passages read · ${meaning.model}`
+  return `By meaning: ${meaning.vectors.toLocaleString("en-US")} of ${passages} passages read · ${meaning.model}`
+}

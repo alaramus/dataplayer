@@ -762,6 +762,9 @@ Designed and decided in [Search, phase 3: what files hold, kept](2026-10-11-sear
 
 ### Phase 4 — meaning
 
+Designed and decided in [Search, phase 4: meaning](2026-10-11-search-meaning.md)
+(D220–D222). The direction as first written:
+
 - **A local embedding model in a container of its own**, behind an embedder
   protocol (model, dimensions, token ceiling, the query and passage forms,
   whether it sends data out). Vectors keyed by a chunk's text hash and the
@@ -1011,7 +1014,8 @@ dashboard is ever in its results.
   [its own spec](2026-10-11-search-names-kept.md).
 - **S12 — contents kept** (phase 3):
   [its own spec](2026-10-11-search-contents-kept.md).
-- **S13 — meaning** (phase 4), its own spec.
+- **S13 — meaning** (phase 4):
+  [its own spec](2026-10-11-search-meaning.md).
 
 ## Testing
 

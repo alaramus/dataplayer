@@ -6,6 +6,7 @@ import { appIcons } from "@/shared/ui/icons"
 import {
   ASK_VALUE,
   ASK_OPTION,
+  BY_MEANING,
   fieldOptions,
   hitOption,
   recentOptions,
@@ -119,5 +120,43 @@ describe("the row that asks the agent", () => {
     expect(ASK_OPTION.value).toBe(ASK_VALUE)
     expect(ASK_OPTION.description).toBeUndefined()
     expect(ASK_OPTION.icon).toBe(appIcons.robot2)
+  })
+})
+
+describe("a hit found by meaning", () => {
+  it("says so, and marks nothing in it", () => {
+    const meant = hit("billing/notes.txt", {
+      title: "notes.txt",
+      match: {
+        field: "contents",
+        match_class: "meaning",
+        line: 4,
+        excerpt: [{ text: "the invoices for march", hit: false }],
+      },
+    })
+
+    const option = hitOption(meant)
+
+    expect(option.label).toBe("notes.txt")
+    expect(option.labelRuns).toBeUndefined()
+    expect(option.descriptionRuns).toEqual([
+      { text: BY_MEANING, hit: false },
+      { text: " · ", hit: false },
+      { text: "Line 4: ", hit: false },
+      { text: "the invoices for march", hit: false },
+    ])
+  })
+
+  it("names where a name found by meaning is", () => {
+    const meant = hit("customers.csv", {
+      detail: "files · reports",
+      match: { field: "name", match_class: "meaning", line: null, excerpt: [] },
+    })
+
+    expect(hitOption(meant).descriptionRuns).toEqual([
+      { text: BY_MEANING, hit: false },
+      { text: " · ", hit: false },
+      { text: "files · reports", hit: false },
+    ])
   })
 })

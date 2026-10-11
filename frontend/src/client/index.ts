@@ -845,6 +845,7 @@ export type {
   logsReadLogsResponses,
   MarkdownContent,
   Match,
+  MeaningState,
   Membership,
   Message,
   MessageAttachmentPublic,

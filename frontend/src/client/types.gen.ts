@@ -6608,6 +6608,7 @@ export type KeepState = {
    * Contents
    */
   contents?: Array<ContentsScopeState>
+  meaning?: MeaningState | null
 }
 
 /**
@@ -7008,6 +7009,26 @@ export type Match = {
    * Excerpt
    */
   excerpt: Array<Segment>
+}
+
+/**
+ * MeaningState
+ *
+ * How much of a connection's kept names and text the model has read.
+ */
+export type MeaningState = {
+  /**
+   * Model
+   */
+  model: string
+  /**
+   * Passages
+   */
+  passages: number
+  /**
+   * Vectors
+   */
+  vectors: number
 }
 
 /**

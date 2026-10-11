@@ -28,13 +28,24 @@ from app.core.config import settings
 from app.core.db import async_session_maker, loop_factory
 from app.core.logs import record_failure
 from app.core.schemas import get_datetime_utc
+from app.search.embedder import Embedder
 from app.search.keep import SearchKeep, SearchName
 from app.search.kept import reading, stale, window_of
+from app.search.kept_meaning import (
+    embed_missing,
+    keep_meaning,
+    name_passages,
+    prune,
+    ready_model,
+    waiting_for_vectors,
+)
 from app.search.kept_text import keep_text
 
 logger = logging.getLogger(__name__)
 
 TICK_SECONDS = 5.0
+# How often, in ticks, what the model has not read yet is looked for.
+MEANING_TICKS = 12
 # Passes at once. A pass is mostly waiting on somebody's server, but two
 # remote trees walked at once already hold two worker threads.
 PASSES = 2
@@ -135,6 +146,11 @@ async def run_pass(connector: Connector) -> None:
             await keep_text(connector.id, adapter)
     except Exception as failure:
         record_failure(logger, "A pass over a connection's text failed", failure)
+    # Then what the model reads of both (D221); without a model, nothing.
+    try:
+        await keep_meaning(connector.id)
+    except Exception as failure:
+        record_failure(logger, "A pass over a connection's meaning failed", failure)
     await _ended(
         connector.id,
         outcome="kept" if notice is None else "partial",
@@ -281,11 +297,40 @@ async def settle_interrupted() -> None:
         await session.commit()
 
 
+async def _meaning_now(running: dict[uuid.UUID, asyncio.Task[None]]) -> None:
+    """Vectors for lists read before the model started, and old ones pruned (D221)."""
+    ready = await ready_model()
+    if ready is None:
+        return
+    model, name = ready
+    for connector_id in await waiting_for_vectors(name):
+        if len(running) >= PASSES:
+            return
+        if connector_id not in running:
+            running[connector_id] = asyncio.create_task(_embed_only(connector_id, model, name))
+    await prune(name)
+
+
+async def _embed_only(connector_id: uuid.UUID, model: Embedder, name: str) -> None:
+    try:
+        await name_passages(connector_id)
+        await embed_missing(connector_id, model, name)
+    except Exception as failure:
+        record_failure(logger, "A connection's passages could not be embedded", failure)
+
+
 async def serve() -> None:
     await settle_interrupted()
     running: dict[uuid.UUID, asyncio.Task[None]] = {}
     logger.info("Keeping names for search")
+    ticks = 0
     while True:
+        ticks += 1
+        if ticks % MEANING_TICKS == 0:
+            try:
+                await _meaning_now(running)
+            except Exception as failure:
+                record_failure(logger, "The vectors could not be looked after", failure)
         try:
             async with async_session_maker() as session:
                 found = await due_now(session)

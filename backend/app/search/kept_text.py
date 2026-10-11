@@ -6,6 +6,7 @@ change keeps its chunks. What the rule does not read — binary, too large — i
 remembered as such so it is not opened again while it stays the same.
 """
 
+import hashlib
 import logging
 import uuid
 from collections.abc import Mapping, Sequence
@@ -25,6 +26,7 @@ from app.search.keep import (
     SearchContentFile,
     SearchContentScope,
     SearchName,
+    SearchPassage,
 )
 from app.search.kept import outside, under
 
@@ -34,6 +36,9 @@ logger = logging.getLogger(__name__)
 # names a few lines, large enough that a file is not thousands of rows.
 CHUNK_LINES = 40
 CHUNK_CHARACTERS = 8000
+# A passage the model reads (D221): well inside its 512 tokens, so nothing of
+# it is cut, and short enough that a hit by meaning points at a few lines.
+PASSAGE_CHARACTERS = 1000
 
 
 def version_of(node: Mapping[str, Any]) -> str:
@@ -56,6 +61,33 @@ def chunks_of(lines: Sequence[str]) -> list[tuple[int, str]]:
         found.append((start + 1, "\n".join(lines[start:end])))
         start = end
     return found
+
+
+def passages_of(lines: Sequence[str]) -> list[tuple[int, str]]:
+    """Runs of non-empty lines of at most `PASSAGE_CHARACTERS`, each with its first
+    line's number; a longer line is a passage of its own, cut."""
+    found: list[tuple[int, str]] = []
+    run: list[str] = []
+    first = 0
+    size = 0
+    for number, line in enumerate(lines, start=1):
+        text = line.strip()
+        if not text:
+            continue
+        if run and size + len(text) + 1 > PASSAGE_CHARACTERS:
+            found.append((first, "\n".join(run)))
+            run, size = [], 0
+        if not run:
+            first = number
+        run.append(text[:PASSAGE_CHARACTERS])
+        size += len(run[-1]) + 1
+    if run:
+        found.append((first, "\n".join(run)))
+    return found
+
+
+def digest_of(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 @dataclass
@@ -173,6 +205,25 @@ async def _write(
                     col(SearchChunk.node_id) == node_id,
                 )
             )
+            await session.exec(
+                delete(SearchPassage).where(
+                    col(SearchPassage.connector_id) == connector_id,
+                    col(SearchPassage.kind) == "text",
+                    col(SearchPassage.node_id) == node_id,
+                )
+            )
+            for seq, (line, text) in enumerate(passages_of(lines or [])):
+                session.add(
+                    SearchPassage(
+                        connector_id=connector_id,
+                        kind="text",
+                        node_id=node_id,
+                        seq=seq,
+                        line=line,
+                        text=text,
+                        digest=digest_of(text),
+                    )
+                )
             for seq, (line, text) in enumerate(chunks_of(lines or [])):
                 session.add(
                     SearchChunk(
@@ -195,6 +246,17 @@ async def _settle(connector_id: uuid.UUID, scopes: list[str], state: _Pass) -> N
     async with async_session_maker() as session:
         if state.notice is None:
             names = select(SearchName.node_id).where(col(SearchName.connector_id) == connector_id)
+            for passages in (
+                not_(col(SearchPassage.node_id).in_(names)),
+                outside(col(SearchPassage.node_id), scopes),
+            ):
+                await session.exec(
+                    delete(SearchPassage).where(
+                        col(SearchPassage.connector_id) == connector_id,
+                        col(SearchPassage.kind) == "text",
+                        passages,
+                    )
+                )
             for table in (SearchContentFile, SearchChunk):
                 await session.exec(
                     delete(table).where(
