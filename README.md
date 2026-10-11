@@ -7,6 +7,15 @@ work to an AI agent that uses the same connections you do.
 DataPlayer runs on your own machine or server with Docker Compose. Credentials
 are encrypted at rest and never leave the backend.
 
+![The workspace: connections, a catalog, tabs of rows, a quick chat window, the server's log and the activity panel](docs/screenshots/overview.webp)
+
+| | |
+| --- | --- |
+| ![A connection's catalog beside a live grid of rows](docs/screenshots/data.webp) | ![A pipeline: a table copied between PostgreSQL connections, then saved as CSV](docs/screenshots/pipelines.webp) |
+| **Data** — a catalog per connection and a grid of rows | **Pipelines** — steps between connections, run as one |
+| ![A dashboard of PostgreSQL metrics](docs/screenshots/dashboards.webp) | ![A conversation with the AI agent](docs/screenshots/ai-agent.webp) |
+| **Dashboards** — metrics from connection polls and agents | **AI agent** — works through the same connections you do |
+
 ## What it does
 
 **Sources**
