@@ -21,8 +21,10 @@ import uuid
 from collections import OrderedDict
 from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
+
+from pydantic import TypeAdapter
 
 from app.adapters.catalog import (
     CatalogNode,
@@ -45,6 +47,7 @@ from app.adapters.registry import UnknownAdapterType
 from app.adapters.registry import get as adapter_type_of
 from app.adapters.resources import BorrowingStore, Pooling, ResourceStore
 from app.adapters.search import (
+    Ancestor,
     LastSearch,
     NodeMatch,
     NodeSearchRequest,
@@ -57,7 +60,9 @@ from app.connectors.access import context_for
 from app.connectors.health import delay_after
 from app.core.config import settings
 from app.core.schemas import get_datetime_utc
+from app.search import kept as kept_names
 from app.search.excerpts import segments
+from app.search.kept import KeptList
 from app.search.models import (
     Cell,
     ConnectionPlace,
@@ -210,13 +215,20 @@ class ConnectionSearch:
         user: User,
         request: SearchRequest,
         visible: Sequence[VisibleConnection],
+        *,
+        kept: Mapping[uuid.UUID, KeptList] | None = None,
     ) -> Inside:
         """The candidates of every visible connection, in the order they are asked.
 
         In context first, in the order the browser sent; then what was opened
         from the search lately; then by name. A connection named as a scope is
         asked from the level it names, and counts as in context.
+
+        A names cell of a connection whose list `kept` holds, asked from the
+        top, is answered from that list: instant, and no server is asked, so
+        neither its health nor its backoff holds it back (D215).
         """
+        lists = kept or {}
         scoped = {
             place.connector_id: place
             for place in request.only or []
@@ -238,13 +250,23 @@ class ConnectionSearch:
                 rank=CONNECTION_GROUPS_RANK + position,
             )
             costs: dict[SearchedField, Cost] = {}
+            listed = lists.get(connection.id) if place.node_id is None else None
             for one, able in _fields(connection):
-                blocked, since = self._blocked(user.id, connection, able, down)
-                costs[one] = self._cost(connection, one)
+                from_list = one == "names" and listed is not None
+                blocked: SkipReason | None
+                since: datetime | None
+                if from_list:
+                    blocked = None if connection.enabled else "switched_off"
+                    since = None
+                    costs[one] = "instant"
+                else:
+                    blocked, since = self._blocked(user.id, connection, able, down)
+                    costs[one] = self._cost(connection, one)
                 candidates.append(
                     Candidate(
                         cell=Cell(place=place, field=one),
                         cost=costs[one],
+                        way="kept" if from_list else "live",
                         group=group,
                         connector_id=connection.id,
                         in_context=connection.id in request.context or connection.id in scoped,
@@ -256,7 +278,7 @@ class ConnectionSearch:
                     )
                 )
             providers[place.model_dump_json()] = ConnectionProvider(
-                self, connection, place, opened=opened, costs=costs, insist=insist
+                self, connection, place, opened=opened, costs=costs, insist=insist, kept=listed
             )
         return Inside(candidates=candidates, providers=providers)
 
@@ -405,8 +427,10 @@ class ConnectionProvider:
         opened: float,
         costs: Mapping[SearchedField, Cost],
         insist: bool,
+        kept: KeptList | None = None,
     ) -> None:
         self._inside = inside
+        self._kept = kept
         self._connection = connection
         self._place = place
         # When the answer that built it began, what each of its cells costs,
@@ -416,6 +440,8 @@ class ConnectionProvider:
         self._insist = insist
 
     async def search(self, asked: Asked) -> Found:
+        if asked.field == "names" and self._kept is not None:
+            return await from_list(self._connection, self._kept, asked)
         return await self._inside.ask(
             self._connection,
             self._place,
@@ -593,3 +619,40 @@ def _changed_at(node: CatalogNode) -> datetime | None:
     if isinstance(node, DirectoryNode | FileNode | EntryNode):
         return node.modified_at
     return None
+
+
+_NODE: TypeAdapter[CatalogNode] = TypeAdapter(CatalogNode)
+
+
+async def from_list(connection: VisibleConnection, listed: KeptList, asked: Asked) -> Found:
+    """A names cell answered from the connection's kept list (D215).
+
+    The same hits a live search would give, classed again by the rule, each
+    saying when the list was read.
+    """
+    rows = await kept_names.find(
+        asked.session, asked.user.id, connection.id, asked.words, asked.limit
+    )
+    result = NodeSearchResult(
+        matches=[
+            NodeMatch(
+                node=_NODE.validate_python(row.node),
+                parent_id=row.parent_id,
+                location=row.location,
+                ancestors=None
+                if row.ancestors is None
+                else [Ancestor.model_validate(one) for one in row.ancestors],
+                full_name=row.name,
+            )
+            for row in rows
+        ],
+        complete=len(rows) <= asked.limit and listed.complete,
+        notice=listed.notice,
+    )
+    found = _found(connection, result, asked, owned=connection.access == "own")
+    return replace(
+        found,
+        hits=[hit.model_copy(update={"via": "kept", "as_of": listed.kept_at}) for hit in found.hits],
+        way="kept",
+        as_of=listed.kept_at,
+    )

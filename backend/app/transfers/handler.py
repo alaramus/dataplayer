@@ -23,6 +23,7 @@ from app.adapters.registry import UnknownAdapterType
 from app.adapters.resources import Pooling, ResourceStore
 from app.connectors import crud as connector_crud
 from app.connectors.access import context_for
+from app.connectors.names import NamesChanged, unchanged
 from app.connectors.paste.kinds import PastesAsJob
 from app.connectors.paste.registry import kind_named
 from app.connectors.paste.transfer import Transfer, TransferStopped, in_worker
@@ -56,8 +57,14 @@ class RunTransfer:
     kind: ClassVar[JobKind] = KIND
     steps: ClassVar[tuple[str, ...]] = (WAITING, CHECKING, TRANSFERRING, REMOVING)
 
-    def __init__(self, cache: DataCache, resources: ResourceStore | None = None) -> None:
+    def __init__(
+        self,
+        cache: DataCache,
+        resources: ResourceStore | None = None,
+        names: NamesChanged = unchanged,
+    ) -> None:
         self._cache = cache
+        self._names = names
         self._resources = resources
         # Made on first use, by the loop that runs the jobs: both belong to it.
         self._slots: asyncio.Semaphore | None = None
@@ -102,7 +109,7 @@ class RunTransfer:
         touched = (transfer.destination_connector_id,) + (
             (transfer.source_connector_id,) if kind.changes_source else ()
         )
-        report = _Report(keeper, transfer, threads, self._cache, touched)
+        report = _Report(keeper, transfer, threads, self._cache, touched, self._names)
         stopped: str | None = None
         try:
             await kind.transfer(source, destination, transfer, report)
@@ -235,12 +242,14 @@ class _Report:
         threads: CapacityLimiter,
         cache: DataCache,
         touched: tuple[uuid.UUID, ...],
+        names: NamesChanged = unchanged,
     ) -> None:
         self._keeper = keeper
         self._transfer = transfer
         self._threads = threads
         self._cache = cache
         self._touched = touched
+        self._names = names
         self._published = transfer.published
         self._last = 0.0
         self._step = TRANSFERRING
@@ -268,6 +277,7 @@ class _Report:
     async def touch(self) -> None:
         for connector_id in self._touched:
             await self._cache.invalidate_connector(connector_id)
+            await self._names(connector_id)
 
 
 def _loaded(job: Job) -> Transfer:

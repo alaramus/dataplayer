@@ -18,6 +18,7 @@ from app.search.models import (
     ProviderKey,
     SearchMode,
     SkipReason,
+    Way,
     cell_key,
 )
 
@@ -59,6 +60,8 @@ class Candidate:
     owned: bool = False
     # Where a connection stands in the order connections are asked in.
     order: int = 0
+    # Answered from a kept list rather than by asking the source (D215).
+    way: Way = "live"
     # The connection can be searched inside its files as well (S7).
     contents: bool = False
 
@@ -96,6 +99,8 @@ def plan(
         if (
             reason is None
             and candidate.connector_id is not None
+            # A kept list asks no server, so it counts against no ceiling.
+            and candidate.way == "live"
             and not insist
             and candidate.connector_id not in asked_connections
         ):
@@ -110,7 +115,7 @@ def plan(
                     cell=candidate.cell,
                     group=candidate.group,
                     cost=candidate.cost,
-                    way="none" if reason is not None else "live",
+                    way="none" if reason is not None else candidate.way,
                     connector_id=candidate.connector_id,
                     contents=candidate.contents,
                 ),

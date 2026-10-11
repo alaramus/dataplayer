@@ -12,7 +12,7 @@ worked out from its name by the listing's rule, so it can still be shown where
 its tree would put it — by the header's field and by the tree's own search.
 """
 
-from collections.abc import Iterable
+from collections.abc import AsyncIterator, Iterable
 
 from app.adapters.protocol import AdapterError
 from app.adapters.redis.keyspace import (
@@ -30,6 +30,8 @@ from app.adapters.redis.keyspace import (
 from app.adapters.redis.session import RedisSession, text
 from app.adapters.search import (
     Kept,
+    KeptName,
+    NameBatch,
     NodeMatch,
     NodeSearchRequest,
     NodeSearchResult,
@@ -174,3 +176,60 @@ class RedisSearch:
                 )
             )
         return matches
+
+    async def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        """Every key of every database, for a kept list (D213).
+
+        A database is one scope: a scan that broke off leaves what was kept
+        of it alone. Each batch of a scan is described in one round trip, as
+        the search describes what it found.
+        """
+        async with self._session.connection() as client:
+            counts = await self._keyspace.key_counts(client)
+        read = 0
+        for database in sorted(counts):
+            seen: set[str] = set()
+            try:
+                async with self._session.connection(database) as client:
+                    cursor = 0
+                    while True:
+                        if bounds.over():
+                            yield NameBatch(
+                                unread=[database_id(database)],
+                                notice=out_of_time(read, "keys"),
+                            )
+                            return
+                        cursor, batch = await client.scan(cursor=cursor, count=SCAN_BATCH)
+                        fresh = [name for raw in batch if (name := text(raw)) not in seen]
+                        seen.update(fresh)
+                        if read + len(fresh) > limit:
+                            fresh = fresh[: limit - read]
+                        matches = await self._matches((database, name) for name in fresh)
+                        read += len(fresh)
+                        yield NameBatch(
+                            names=[
+                                KeptName(
+                                    node=match.node,
+                                    parent_id=match.parent_id,
+                                    location=match.location,
+                                    ancestors=match.ancestors,
+                                    full_name=match.full_name,
+                                    scope=database_id(database),
+                                )
+                                for match in matches
+                            ]
+                        )
+                        if read >= limit and cursor != 0:
+                            yield NameBatch(
+                                unread=[database_id(database)],
+                                notice=f"More than {limit:,} keys; the first {limit:,} are kept",
+                            )
+                            return
+                        if cursor == 0:
+                            break
+            except AdapterError:
+                # One database that dropped is one scope unread, not a failed
+                # pass: what was kept of the others is still true.
+                yield NameBatch(unread=[database_id(database)])

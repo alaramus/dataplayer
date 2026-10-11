@@ -38,6 +38,7 @@ from app.queries.results import QueryResults
 from app.queries.search import SavedQueries
 from app.queries.sessions import QuerySessions
 from app.realtime import topics
+from app.search import kept
 from app.search.connections import ConnectionRows
 from app.search.contents import ContentsMemory
 from app.search.contents import handlers as contents_handlers
@@ -100,6 +101,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         max_idle_seconds=settings.POOL_MAX_IDLE_SECONDS,
     )
     application.state.data_cache = build_data_cache()
+    # What renames in DataPlayer tells the search its kept list is stale (D216).
+    application.state.names_changed = kept.names_changed
     application.state.topics = topics.build_all()
     # Captured results and the runs producing them: both process-local, both
     # holding what cannot cross a process — memory and a connection (D64).
@@ -110,6 +113,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     application.state.query_runner = QueryRunner(
         results=application.state.query_results,
         cache=application.state.data_cache,
+        names=kept.names_changed,
     )
     # The work the server owns, and the runtime it may ask to do it. Whether
     # this installation runs services at all is decided here and nowhere else;
@@ -121,7 +125,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         else NoEngine(SWITCHED_OFF_MESSAGE)
     )
     application.state.service_engine = engine
-    transfers = RunTransfer(application.state.data_cache, application.state.resources)
+    transfers = RunTransfer(
+        application.state.data_cache, application.state.resources, kept.names_changed
+    )
     # A search inside files holds its words and matches here, never in its
     # job's row, and forgets them a while after it ends (S7, D124).
     application.state.contents_memory = ContentsMemory(settings.SEARCH_CONTENTS_HELD_SECONDS)

@@ -113,6 +113,10 @@ class Settings(BaseSettings):
     # memory once it ends.
     SEARCH_CONTENTS_SECONDS: float = Field(default=600.0, gt=0, le=3600)
     SEARCH_CONTENTS_HELD_SECONDS: float = Field(default=1800.0, gt=0, le=7200)
+    # A kept list of names (D213): how many one connection keeps at most, and
+    # how long one pass over it may take.
+    SEARCH_KEPT_MAX_NAMES: int = Field(default=200_000, ge=1, le=2_000_000)
+    SEARCH_KEPT_PASS_SECONDS: float = Field(default=900.0, gt=0, le=7200)
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

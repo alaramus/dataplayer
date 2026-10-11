@@ -229,6 +229,7 @@ from app.connectors.models import (
     GrantsPublic,
     GrantWrite,
 )
+from app.connectors.names import NamesChanged, NamesChangedDep
 from app.core.access import Access, at_least
 from app.core.config import settings
 from app.core.db import SessionDep
@@ -254,9 +255,12 @@ def _cache_key(
 
 async def _invalidate_after[T](
     run: Callable[[], Awaitable[T]], data_cache: DataCache, connector_id: uuid.UUID,
-    *, even_on_failure: bool = False,
+    *, even_on_failure: bool = False, names: NamesChanged | None = None,
 ) -> T:
+    """`run`, then the read cache emptied; with `names`, the search told when
+    the run created, replaced or reloaded nodes (D216) — or failed part way."""
     succeeded = False
+    result: T | None = None
     try:
         result = await run()
         succeeded = True
@@ -264,6 +268,15 @@ async def _invalidate_after[T](
     finally:
         if succeeded or even_on_failure:
             await data_cache.invalidate_connector(connector_id)
+            if names is not None and (not succeeded or _renames(result)):
+                await names(connector_id)
+
+
+def _renames(result: object) -> bool:
+    """Whether an action's result says nodes were created, replaced or reloaded."""
+    if not isinstance(result, ActionResult):
+        return False
+    return bool(result.created_node_id or result.replacement or result.reload_node_ids)
 
 
 def _split_or_422(
@@ -1999,6 +2012,7 @@ async def create_relation_from_source(
     current_user: CurrentUser,
     resources: ResourcesDep,
     data_cache: DataCacheDep,
+    names: NamesChangedDep,
     connector_id: uuid.UUID,
     request: imports.CreateRelationFromSourceRequest,
 ) -> Any:
@@ -2063,6 +2077,7 @@ async def create_relation_from_source(
             ],
         )
     await data_cache.invalidate_connector(connector_id)
+    await names(connector_id)
     return result
 
 
@@ -3167,6 +3182,7 @@ async def run_action(
     current_user: CurrentUser,
     resources: ResourcesDep,
     data_cache: DataCacheDep,
+    names: NamesChangedDep,
     connector_id: uuid.UUID,
     action_name: str,
     body: ActionRequest,
@@ -3190,6 +3206,7 @@ async def run_action(
             data_cache,
             connector_id,
             even_on_failure=True,
+            names=names,
         )
     if not isinstance(action, TakesParams):
         raise HTTPException(
@@ -3200,6 +3217,7 @@ async def run_action(
         lambda: perform(lambda: action.perform(body.node_id, body.params)),
         data_cache,
         connector_id,
+        names=names,
     )
 
 
@@ -3282,6 +3300,7 @@ async def run_action_on_set(
     current_user: CurrentUser,
     resources: ResourcesDep,
     data_cache: DataCacheDep,
+    names: NamesChangedDep,
     connector_id: uuid.UUID,
     action_name: str,
     body: ActionSetRequest,
@@ -3311,6 +3330,7 @@ async def run_action_on_set(
         lambda: perform(lambda: action.perform_on_set(body.node_ids, body.params)),
         data_cache,
         connector_id,
+        names=names,
     )
 
 
@@ -3386,6 +3406,7 @@ async def run_action_with_file(
     current_user: CurrentUser,
     resources: ResourcesDep,
     data_cache: DataCacheDep,
+    names: NamesChangedDep,
     connector_id: uuid.UUID,
     action_name: str,
     file: Annotated[UploadFile, File()],
@@ -3428,6 +3449,7 @@ async def run_action_with_file(
         lambda: perform(lambda: action.perform_with_file(target, given, file)),
         data_cache,
         connector_id,
+        names=names,
     )
 
 

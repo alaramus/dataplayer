@@ -53,6 +53,7 @@ from app.connectors.access import (
     resolve,
     resolve_source,
 )
+from app.connectors.names import NamesChangedDep
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message
@@ -1256,6 +1257,7 @@ async def commit_transaction(
     session: SessionDep,
     sessions: SessionsDep,
     data_cache: DataCacheDep,
+    names: NamesChangedDep,
     current_user: CurrentUser,
     transaction_id: str,
 ) -> TransactionEnded:
@@ -1287,6 +1289,7 @@ async def commit_transaction(
         # What was read from this connection describes a source that has just
         # been altered, so none of it is worth keeping (D31).
         await data_cache.invalidate_connector(lease.connector_id)
+        await names(lease.connector_id)
     return TransactionEnded(
         message=(
             f"Committed {state.mutating_statements} changing "

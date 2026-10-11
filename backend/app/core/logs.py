@@ -18,8 +18,8 @@ from typing import Any, Literal
 
 from app.core.config import settings
 
-ProcessName = Literal["backend", "metrics"]
-PROCESSES: tuple[ProcessName, ...] = ("backend", "metrics")
+ProcessName = Literal["backend", "metrics", "search-keeper"]
+PROCESSES: tuple[ProcessName, ...] = ("backend", "metrics", "search-keeper")
 
 # The request being answered, as its method and path, written beside anything
 # logged meanwhile. Set by `RecordFailures`; the query string is left out,

@@ -58,6 +58,7 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.search import (
     LastSearch,
+    NameBatch,
     NodeSearchRequest,
     NodeSearchResult,
     SearchBounds,
@@ -463,6 +464,25 @@ class SupportsNodeSearch(Protocol):
         Raises NodeNotFound for a level that is gone, ValueError for a node
         this source may not reach, for one that is not a level and for a query
         it cannot use, and AdapterError for source failures.
+        """
+        ...
+
+
+@runtime_checkable
+class EnumeratesNames(Protocol):
+    """A source whose every name can be read for a kept list (D213).
+
+    Its own promise rather than `SupportsNodeSearch` with no words: a search
+    keeps the best few and stops, a pass reads everything once, in batches,
+    and must say which parts it could not read so that nothing kept under them
+    is deleted.
+    """
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        """Every name, at most `limit`, in batches, until `bounds` is over.
+
+        A source that stops at the limit or the clock says so in the last
+        batch's `notice`. Raises AdapterError when it cannot begin at all.
         """
         ...
 

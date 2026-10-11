@@ -22,6 +22,7 @@ the whole search stops after so many bytes however many files that took.
 
 import io
 from collections import deque
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 
 from anyio import CapacityLimiter, to_thread
@@ -33,7 +34,9 @@ from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     MAX_EXCERPT_CHARACTERS,
     Kept,
+    KeptName,
     MatchClass,
+    NameBatch,
     NodeMatch,
     NodeSearchRequest,
     NodeSearchResult,
@@ -88,6 +91,77 @@ class ExplorerSearch:
         return await to_thread.run_sync(
             self._search, request, bounds, True, limiter=_limiter(bounds)
         )
+
+    async def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        """Every file and folder, for a kept list (D213): the same walk, all of it.
+
+        Stepped one batch at a time on a worker thread, so a tree of a hundred
+        thousand entries is never held whole and the loop is never blocked.
+        """
+        walk = self._names(limit, bounds)
+        while True:
+            batch = await to_thread.run_sync(next, walk, None, limiter=bounds.limiter)
+            if batch is None:
+                return
+            yield batch
+
+    def _names(self, limit: int, bounds: SearchBounds) -> Iterator[NameBatch]:
+        """Breadth first; each name's scope is the folder it was listed in."""
+        root = self._storage.place(None)
+        queue: deque[_Level] = deque([_Level(place=root, node_id=None, depth=0)])
+        read = 0
+        first = True
+        while queue:
+            level = queue.popleft()
+            scope = level.node_id or ""
+            try:
+                entries = self._storage.entries(level.place)
+            except OSError:
+                if first:
+                    raise AdapterError(
+                        "config", "The directory of this connector does not exist"
+                    ) from None
+                yield NameBatch(unread=[scope])
+                continue
+            except AdapterError as failure:
+                # Gone part way — a dropped connection: what was read is kept,
+                # and nothing is deleted.
+                if first:
+                    raise
+                yield NameBatch(notice=failure.message)
+                return
+            first = False
+            names: list[KeptName] = []
+            unread: list[str] = []
+            for entry in entries:
+                if bounds.over():
+                    yield NameBatch(names=names, notice=out_of_time(read, "entries"))
+                    return
+                if read >= limit:
+                    yield NameBatch(
+                        names=names,
+                        notice=f"More than {limit:,} entries; the first {limit:,} are kept",
+                    )
+                    return
+                read += 1
+                names.append(
+                    KeptName(
+                        node=node_of(self._storage, entry),
+                        parent_id=level.node_id,
+                        location=scope,
+                        scope=scope,
+                    )
+                )
+                if not _walkable(entry):
+                    continue
+                child = node_id_of(entry.place) or ""
+                if level.depth + 1 > MAX_DEPTH:
+                    unread.append(child)
+                    continue
+                queue.append(_Level(place=entry.place, node_id=child, depth=level.depth + 1))
+            yield NameBatch(names=names, unread=unread)
 
     def _search(
         self, request: NodeSearchRequest, bounds: SearchBounds | None, inside: bool

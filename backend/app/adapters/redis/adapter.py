@@ -48,6 +48,7 @@ from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.search import (
     LastSearch,
+    NameBatch,
     NodeSearchRequest,
     NodeSearchResult,
     SearchBounds,
@@ -174,6 +175,9 @@ class RedisAdapter:
         self, request: NodeSearchRequest, bounds: SearchBounds | None = None
     ) -> NodeSearchResult:
         return await self._search.search_nodes(request, bounds)
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
 
     @classmethod
     def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:

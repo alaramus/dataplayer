@@ -19,7 +19,7 @@ again by the rule itself.
 
 import asyncio
 import time
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
 from psycopg import sql
@@ -44,6 +44,8 @@ from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     MAX_EXCERPT_CHARACTERS,
+    KeptName,
+    NameBatch,
     NodeMatch,
     NodeSearchRequest,
     NodeSearchResult,
@@ -240,6 +242,35 @@ def _columns_statement(count: int) -> sql.Composed:
     )
 
 
+# Every schema and relation the listing shows, for a kept list (D213): one
+# query, no sizes — a size opens the relation and waits behind its lock.
+_ALL_NAMES = sql.SQL(
+    """
+    SELECT * FROM (
+        SELECT n.nspname::text AS schema, NULL::text AS relation, NULL::text AS kind,
+               NULL::real AS row_estimate, NULL::bigint AS size_bytes,
+               (SELECT array_agg(t.relname::text) FROM pg_class t
+                WHERE t.relnamespace = n.oid AND t.relkind IN ('r', 'p')
+                  AND left(n.nspname, 3) <> 'pg_'
+                  AND n.nspname <> 'information_schema') AS tables
+        FROM pg_namespace n
+        WHERE {listed}
+        UNION ALL
+        SELECT n.nspname::text, c.relname::text, c.relkind::text, c.reltuples,
+               NULL::bigint, NULL::text[]
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE {relations} AND {listed}
+    ) AS every_name
+    ORDER BY schema, relation NULLS FIRST
+    LIMIT %(limit)s
+    """
+).format(listed=_LISTED, relations=_RELATIONS)
+
+# How many names one batch of a pass carries.
+_BATCH = 1000
+
+
 class PostgresSearch:
     """`catalog/search` and the columns search of a PostgreSQL server."""
 
@@ -293,6 +324,41 @@ class PostgresSearch:
             return await self._result(rows, request.limit, evidence=True)
 
         return await _within(bounds, columns)
+
+    async def enumerate_names(
+        self, limit: int, bounds: SearchBounds
+    ) -> AsyncIterator[NameBatch]:
+        """Every schema and relation, for a kept list: one scope, the server.
+
+        The reports are written here rather than read, and are found live.
+        """
+        seconds = bounds.left()
+        if seconds <= 0:
+            yield NameBatch(notice="Time ran out before the server was asked")
+            return
+        rows = await self._session.bounded_query(
+            _ALL_NAMES, {"limit": limit + 1}, seconds=seconds
+        )
+        notice = (
+            f"More than {limit:,} names; the first {limit:,} are kept"
+            if len(rows) > limit
+            else None
+        )
+        rows = rows[:limit]
+        contexts: dict[str, SchemaRelationContext] = {}
+        for start in range(0, len(rows), _BATCH):
+            names: list[KeptName] = []
+            for row in rows[start : start + _BATCH]:
+                schema = row["schema"]
+                if row["relation"] is not None and schema not in contexts:
+                    contexts[schema] = await self._relation_context.schema(schema)
+                match = _match(row, contexts, evidence=False)
+                names.append(
+                    KeptName(node=match.node, parent_id=match.parent_id, location=match.location)
+                )
+            yield NameBatch(names=names)
+        if notice is not None:
+            yield NameBatch(notice=notice)
 
     async def _sized(
         self, statement: sql.Composed, parameters: Mapping[str, object], ends: float

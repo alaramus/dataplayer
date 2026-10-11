@@ -92,7 +92,7 @@ async def get_with_access(
     return connector, access
 
 
-def _visible_to(user_id: uuid.UUID) -> ColumnElement[bool]:
+def visible_to(user_id: uuid.UUID) -> ColumnElement[bool]:
     """The condition that a connection is the user's own or granted to them."""
     return or_(
         col(Connector.owner_id) == user_id,
@@ -115,7 +115,7 @@ async def list_for(
     """
     count = (
         await session.exec(
-            select(func.count()).select_from(Connector).where(_visible_to(user.id))
+            select(func.count()).select_from(Connector).where(visible_to(user.id))
         )
     ).one()
     statement = (
@@ -154,7 +154,7 @@ def _with_standing(user: User) -> Any:
             isouter=True,
         )
         .join(User, onclause=col(User.id) == Connector.owner_id)
-        .where(_visible_to(user.id))
+        .where(visible_to(user.id))
     )
 
 
@@ -174,7 +174,7 @@ def _standings(
 
 async def visible_of(session: AsyncSession, *, user_id: uuid.UUID) -> list[Connector]:
     """Every connection one user may see, owned or granted, switched on or not."""
-    statement = select(Connector).where(_visible_to(user_id))
+    statement = select(Connector).where(visible_to(user_id))
     return list((await session.exec(statement)).all())
 
 
@@ -188,7 +188,7 @@ async def visible_enabled_of(
     given it.
     """
     statement = select(Connector).where(
-        _visible_to(user_id), col(Connector.enabled).is_(True)
+        visible_to(user_id), col(Connector.enabled).is_(True)
     )
     return list((await session.exec(statement)).all())
 
@@ -206,7 +206,7 @@ async def visible_names(
     if not connector_ids:
         return {}
     statement = select(Connector).where(
-        _visible_to(user.id), col(Connector.id).in_(list(connector_ids))
+        visible_to(user.id), col(Connector.id).in_(list(connector_ids))
     )
     return {
         connector.id: connector.name

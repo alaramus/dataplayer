@@ -27,6 +27,7 @@ from app.adapters.query import (
     SchemaEffect,
     StatementFinished,
 )
+from app.connectors.names import NamesChanged, unchanged
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
@@ -214,12 +215,15 @@ class QueryRunner:
     — and a restart marks whatever was left non-terminal as interrupted.
     """
 
-    def __init__(self, *, results: QueryResults, cache: DataCache) -> None:
+    def __init__(
+        self, *, results: QueryResults, cache: DataCache, names: NamesChanged = unchanged
+    ) -> None:
         self._results = results
         # What a structure change has to throw away. Held here because the
         # request that started the run answered long ago, and the cache is
         # the application's rather than the run's (D31, D66).
         self._cache = cache
+        self._names = names
         self._active: dict[uuid.UUID, _Active] = {}
         self._lock = asyncio.Lock()
 
@@ -393,6 +397,7 @@ class QueryRunner:
         if run is None or run.connector_id is None:
             return
         await self._cache.invalidate_connector(run.connector_id)
+        await self._names(run.connector_id)
 
     async def _record(
         self,

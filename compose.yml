@@ -162,6 +162,28 @@ services:
       context: .
       dockerfile: backend/Dockerfile
 
+  # The one process that reads the kept lists of names for search (D214). The
+  # backend's image; it reads files where the backend does. Source changes need
+  # `docker compose up -d --build search-keeper`.
+  search-keeper:
+    image: backend:latest
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+      prestart:
+        condition: service_completed_successfully
+    command: ["python", "-m", "app.search.keeper"]
+    environment: *backend-environment
+    volumes:
+      - user-storage:/data/users
+      # The backend reads this process's log file from the same volume.
+      - app-logs:/app/logs
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
 volumes:
   app-db-data:
   user-storage:

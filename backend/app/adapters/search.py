@@ -279,3 +279,39 @@ class NodeSearchResult(BaseModel):
     # How much there was to look at, where the source knows: what the search
     # remembers to state the next one's cost (`LastSearch`).
     extent: int | None = None
+
+
+class KeptName(BaseModel):
+    """One name a source holds, read for the list a connection keeps (D213).
+
+    What a live search would have answered for it — the node, where it sits,
+    the levels above it, what the words are matched against — so a hit from
+    the list is the same pointer as one found live (D198).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    node: CatalogNode
+    parent_id: str | None = None
+    location: str = ""
+    ancestors: list[Ancestor] | None = None
+    # What the words are matched against; the node's own name when absent.
+    full_name: str | None = None
+    # The subtree whose complete reading vouches for this name: the folder it
+    # sits in, a Redis database, the whole connection. A pass deletes a name it
+    # did not see only where it read that subtree completely.
+    scope: str = ""
+
+
+class NameBatch(BaseModel):
+    """Names read so far, and what could not be read completely."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    names: list[KeptName] = Field(default_factory=list)
+    # Scopes the source failed to read: what was kept under them stays.
+    unread: list[str] = Field(default_factory=list)
+    # Set on the batch where the source stopped short of everything — a
+    # ceiling, the clock — in its own words. A pass that saw one deletes
+    # nothing.
+    notice: str | None = None

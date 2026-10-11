@@ -41,6 +41,7 @@ from app.search.models import (
     SearchField,
     SearchMode,
     SkipReason,
+    Way,
 )
 from app.users.models import User
 
@@ -108,6 +109,9 @@ class Found:
     # the answer ran, such as its server not answering a cell before this one.
     skipped: SkipReason | None = None
     since: datetime | None = None
+    # Answered from a kept list, read at `as_of` (D215).
+    way: Way = "live"
+    as_of: datetime | None = None
 
 
 @dataclass(frozen=True)

@@ -6,6 +6,7 @@ differs between them — the options, how the storage is built, a terminal —
 stays with the source; nothing here knows which storage it has.
 """
 
+from collections.abc import AsyncIterator
 from typing import Any, ClassVar
 
 from anyio import to_thread
@@ -65,6 +66,7 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.search import (
     LastSearch,
+    NameBatch,
     NodeSearchRequest,
     NodeSearchResult,
     SearchBounds,
@@ -151,6 +153,9 @@ class Explorer:
         self, request: NodeSearchRequest, bounds: SearchBounds | None = None
     ) -> NodeSearchResult:
         return await self._search.search_contents(request, bounds)
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
 
     @classmethod
     def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:

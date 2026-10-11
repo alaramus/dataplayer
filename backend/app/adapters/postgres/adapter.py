@@ -114,6 +114,7 @@ from app.adapters.row_commands import (
 )
 from app.adapters.search import (
     LastSearch,
+    NameBatch,
     NodeSearchRequest,
     NodeSearchResult,
     SearchBounds,
@@ -387,6 +388,9 @@ class PostgresAdapter:
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         return await self._catalog.path_to(node_id)
+
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
 
     async def search_nodes(
         self, request: NodeSearchRequest, bounds: SearchBounds | None = None

@@ -39,7 +39,7 @@ from app.adapters.search import (
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
-from app.search import connections
+from app.search import connections, kept
 from app.search.models import (
     BestLine,
     CellLine,
@@ -56,6 +56,7 @@ from app.search.models import (
     SearchLine,
     SearchMode,
     SearchRequest,
+    Way,
     cell_key,
     recent_target,
     target_key,
@@ -287,10 +288,15 @@ class SearchEngine:
         if audience == "agent":
             asking = [provider for provider in asking if provider.offered_to_agent]
             inside_of = [one for one in visible if one.id in request.context]
+        lists = (
+            await kept.usable(session, [one.id for one in inside_of if one.enabled])
+            if self.inside is not None and kept.answers_kept(words_of(request.words))
+            else {}
+        )
         inside = (
             None
             if self.inside is None or not request.words
-            else self.inside.prepare(user, request, inside_of)
+            else self.inside.prepare(user, request, inside_of, kept=lists)
         )
         candidates = [
             candidate
@@ -536,7 +542,8 @@ class Answer:
             if planned.cell.cost in ("instant", "cheap")
             else limits.costly_seconds
         )
-        return Outcome(way="live", status="late", deadline_seconds=seconds)
+        way: Way = "kept" if planned.cell.way == "kept" else "live"
+        return Outcome(way=way, status="late", deadline_seconds=seconds)
 
     def _start(self, cells: list[Planned]) -> None:
         together = [
@@ -657,17 +664,18 @@ def _outcome_of(found: Found) -> Outcome:
         return Outcome(way="none", status="skipped", reason=found.skipped, since=found.since)
     if found.error_kind is not None:
         return Outcome(
-            way="live",
+            way=found.way,
             status="failed",
             error_kind=found.error_kind,
             message=found.message,
             owned=found.owned,
         )
     return Outcome(
-        way="live",
+        way=found.way,
         status="complete" if found.complete else "stopped",
         notice=found.notice,
         more=found.more,
+        as_of=found.as_of,
     )
 
 
