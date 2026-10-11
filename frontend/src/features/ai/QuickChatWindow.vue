@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import { AiService } from "@/client"
+import type { QuickChatPublic } from "@/client"
 import { messageOf } from "@/shared/api/errors"
 import { realtime } from "@/shared/realtime/client"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSpinner, appIcons, useToast } from "@/shared/ui"
@@ -144,10 +145,32 @@ watch(() => quickChatIntent.value?.id, async () => {
   }
 })
 
-/** Set while the browser's model writes: only an answer written here can be stopped. */
+/** Set while the browser's model writes. */
 const stopping = ref<AbortController | null>(null)
-function stopAnswer() { stopping.value?.abort() }
-onBeforeUnmount(stopAnswer)
+/** The chat whose answer the server is writing. */
+const answering = ref<string | null>(null)
+const stopPending = ref(false)
+/** The send itself keeps what was written and returns the chat as usual. */
+async function stopAnswer() {
+  if (stopping.value) { stopping.value.abort(); return }
+  if (answering.value === null || stopPending.value) return
+  stopPending.value = true
+  try { await AiService.stopQuickChatAnswer({ path: { chat_id: answering.value } }) }
+  catch (cause) { toast.error(messageOf(cause, "The answer could not be stopped")) }
+  finally { stopPending.value = false }
+}
+onBeforeUnmount(() => stopping.value?.abort())
+
+/**
+ * The saved chat in, and the answer drawn while it was written out, in one
+ * tick. Cleared any later, the two stood one under the other for as long as
+ * the reads after a send took: the same answer twice, for a blink.
+ */
+function settle(id: string, saved: QuickChatPublic) {
+  cache.setQueryData(["ai", "quick-chat", id], saved)
+  asked.value = null
+  answer.value = ""
+}
 
 /**
  * The question kept by the server, answered here, and the answer kept there
@@ -180,7 +203,7 @@ async function answerHere(id: string, text: string) {
   }
   const saved = (await AiService.keepQuickChatBrowserAnswer({ path: { chat_id: id }, body: { text: written } })).data
   if (failure !== null) {
-    cache.setQueryData(["ai", "quick-chat", id], saved)
+    settle(id, saved)
     throw new Error(`${messageOf(failure, "The model stopped answering")}. The answer so far is kept.`)
   }
   return saved
@@ -216,12 +239,14 @@ async function send(value = draft.value, title: string | null = null) {
     const id = selected.value ?? (await createChat(title))
     if (selected.value === null) created = id
     selected.value = id
+    if (!inBrowser.value) answering.value = id
     const result = inBrowser.value
       ? await answerHere(id, text)
       : (await AiService.sendQuickChatMessage({
           path: { chat_id: id }, body: { text, model_key: modelKey.value },
         })).data
-    cache.setQueryData(["ai", "quick-chat", id], result)
+    answering.value = null
+    settle(id, result)
     await cache.invalidateQueries({ queryKey: quickChatsKey })
     // The server remembers an explicitly chosen model as the person's choice
     // (D140): let the settings, and every composer reading them, follow.
@@ -233,7 +258,7 @@ async function send(value = draft.value, title: string | null = null) {
       try {
         const saved = (await AiService.readQuickChat({ path: { chat_id: id } })).data
         if (saved.messages.length > beforeCount && saved.messages.some((message) => message.role === "user" && message.content === text)) {
-          cache.setQueryData(["ai", "quick-chat", id], saved)
+          settle(id, saved)
           await cache.invalidateQueries({ queryKey: quickChatsKey })
           kept = true
         } else if (created !== null) {
@@ -247,6 +272,7 @@ async function send(value = draft.value, title: string | null = null) {
   }
   finally {
     busy.value = false
+    answering.value = null
     asked.value = null
     answer.value = ""
   }
@@ -301,6 +327,7 @@ function editorKeydown(event: KeyboardEvent) {
             <div
               v-if="message.role === 'user'"
               class="quick-chat__question"
+              data-testid="quick-chat-question"
             >
               {{ message.content }}
             </div>
@@ -318,7 +345,10 @@ function editorKeydown(event: KeyboardEvent) {
             v-if="askedShown"
             class="quick-chat__message quick-chat__message--user"
           >
-            <div class="quick-chat__question">
+            <div
+              class="quick-chat__question"
+              data-testid="quick-chat-question"
+            >
               {{ asked }}
             </div>
           </article>
@@ -408,10 +438,11 @@ function editorKeydown(event: KeyboardEvent) {
               />
               <span class="quick-chat__gap" />
               <AppButton
-                v-if="stopping"
+                v-if="stopping || answering"
                 variant="danger-quiet"
                 :icon="appIcons.stop"
                 label="Stop"
+                :loading="stopPending"
                 data-testid="quick-chat-stop"
                 @click="stopAnswer"
               />

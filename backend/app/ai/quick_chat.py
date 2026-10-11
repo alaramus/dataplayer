@@ -19,6 +19,7 @@ from app.ai.content import opened, sealed
 from app.ai.models import MAX_TITLE_CHARS, Role
 from app.ai.providers import ChatModels
 from app.ai.providers.failures import UNKNOWN_FAILURE
+from app.ai.quick_answers import QuickAnswers
 from app.ai.runner import DELTA_INTERVAL_SECONDS, split_text
 from app.ai.topic import QuickAnswerDelta, announce_quick
 from app.core.logs import record_failure, with_ref
@@ -298,6 +299,7 @@ async def send(
     catalog: ModelCatalog,
     chat_models: ChatModels,
     topics: TopicSet,
+    answers: QuickAnswers,
 ) -> QuickChatPublic:
     model = catalog.find(body.model_key or chat.model_key)
     if model is None:
@@ -345,7 +347,8 @@ async def send(
     deadline = loop.time() + ANSWER_SECONDS
     failure: str | None = None
     ref: str | None = None
-    try:
+    async def write() -> None:
+        nonlocal unsent, sent_at
         async with asyncio.timeout(QUIET_SECONDS) as limit:
             async for chunk in chat_models.build(
                 model, key, max_output_tokens=min(model.max_output_tokens, 8192)
@@ -359,6 +362,20 @@ async def send(
                     unsent, sent_at = "", time.monotonic()
             if unsent:
                 await say(unsent)
+
+    # A task of its own, so Stop can cancel the writing and leave this request
+    # to keep what was written and answer as usual.
+    writer = asyncio.create_task(write())
+    stopped = False
+    try:
+        with answers.writing(chat.id, owner_id, writer) as entry:
+            try:
+                await writer
+            except asyncio.CancelledError:
+                if not entry.stopped:
+                    writer.cancel()
+                    raise
+                stopped = True
     except TimeoutError:
         logger.warning("Quick chat answer stopped arriving")
         failure = TOO_QUIET
@@ -375,6 +392,8 @@ async def send(
 
     answer = "".join(written)[:ANSWER_LIMIT]
     if not answer.strip():
+        if stopped:
+            return await public(session, chat)
         raise RuntimeError(refused(failure or "The model returned an empty answer"))
     # Kept even when the provider failed on the way: an answer that broke off
     # at its end is most of an answer, and it was already on the screen.

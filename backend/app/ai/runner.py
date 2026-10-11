@@ -44,6 +44,7 @@ from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, Step
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
 from app.ai.providers import ChatModels
 from app.ai.providers.failures import UNKNOWN_FAILURE
+from app.ai.quick_answers import QuickAnswers
 from app.ai.tools import (
     LIMIT_MESSAGE,
     ToolLimitReached,
@@ -144,6 +145,7 @@ class AgentRunner:
         search_engine: SearchEngine | None = None,
     ) -> None:
         self.chat_models = chat_models
+        self.quick_answers = QuickAnswers()
         self._checkpointer = checkpointer
         self._topics = topics
         self._catalog = catalog

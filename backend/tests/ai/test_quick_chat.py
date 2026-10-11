@@ -3,6 +3,7 @@
 
 import asyncio
 import re
+import uuid
 
 import pytest
 from httpx import AsyncClient
@@ -294,3 +295,41 @@ async def test_sending_the_remembered_model_keeps_jevs_choice(
     assert sent.status_code == 200, sent.text
     settings = (await client.get(f"{AI}/settings", headers=headers)).json()
     assert (settings["model_key"], settings["auto_provider"]) == (MODEL_KEY, "all")
+
+
+async def test_stop_keeps_what_the_model_had_written(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    script: Script,
+    db: AsyncSession,
+) -> None:
+    headers = normal_user_token_headers
+    await ready_agent(client, headers)
+    chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
+    stranger = await authentication_token_from_email(client=client, email=random_email(), db=db)
+    # Held after its first piece, as a long answer is between two of them.
+    script.turns.append(Turn(pieces=[text("Begun"), text(" never sent")], gate=asyncio.Event()))
+    answers = app.state.agent_runner.quick_answers
+    stop = f"{AI}/quick-chats/{chat_id}/stop"
+
+    sending = asyncio.create_task(client.post(
+        f"{AI}/quick-chats/{chat_id}/messages", headers=headers,
+        json={"text": "Go on", "model_key": MODEL_KEY},
+    ))
+    for _ in range(100):
+        if answers.writes(uuid.UUID(chat_id)):
+            break
+        await asyncio.sleep(0.02)
+    await asyncio.sleep(0.1)
+    by_stranger = await client.post(stop, headers=stranger)
+    stopped = await client.post(stop, headers=headers)
+    sent = await sending
+
+    assert by_stranger.json()["message"] == "Nothing is being written"
+    assert stopped.json()["message"] == "Stopped"
+    assert sent.status_code == 200, sent.text
+    assert [(one["role"], one["content"]) for one in sent.json()["messages"]] == [
+        ("user", "Go on"), ("assistant", "Begun"),
+    ]
+    again = await client.post(stop, headers=headers)
+    assert again.json()["message"] == "Nothing is being written"

@@ -20823,6 +20823,38 @@ export type aiSendQuickChatMessageResponses = {
 export type aiSendQuickChatMessageResponse =
   aiSendQuickChatMessageResponses[keyof aiSendQuickChatMessageResponses]
 
+export type aiStopQuickChatAnswerData = {
+  body?: never
+  path: {
+    /**
+     * Chat Id
+     */
+    chat_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/quick-chats/{chat_id}/stop"
+}
+
+export type aiStopQuickChatAnswerErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiStopQuickChatAnswerError =
+  aiStopQuickChatAnswerErrors[keyof aiStopQuickChatAnswerErrors]
+
+export type aiStopQuickChatAnswerResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiStopQuickChatAnswerResponse =
+  aiStopQuickChatAnswerResponses[keyof aiStopQuickChatAnswerResponses]
+
 export type aiAskQuickChatInBrowserData = {
   body: BrowserQuestion
   path: {

@@ -82,6 +82,9 @@ import type {
   aiSendQuickChatMessageData,
   aiSendQuickChatMessageErrors,
   aiSendQuickChatMessageResponses,
+  aiStopQuickChatAnswerData,
+  aiStopQuickChatAnswerErrors,
+  aiStopQuickChatAnswerResponses,
   aiUpdateConversationData,
   aiUpdateConversationErrors,
   aiUpdateConversationResponses,
@@ -5842,6 +5845,29 @@ export class AiService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Stop Quick Chat Answer
+   *
+   * Stops the answer a provider is writing; the send keeps what was written.
+   *
+   * Not an error when nothing is being written: Stop pressed as the answer
+   * ends is the same press, a moment late.
+   */
+  public static stopQuickChatAnswer<ThrowOnError extends boolean = true>(
+    options: Options<aiStopQuickChatAnswerData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiStopQuickChatAnswerResponses,
+      aiStopQuickChatAnswerErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/quick-chats/{chat_id}/stop",
+      ...options,
     })
   }
 

@@ -1,6 +1,26 @@
 import { expect, test } from "@playwright/test"
 
+import type { Page } from "@playwright/test"
+
 import { login } from "./utils/login"
+
+/**
+ * Counts the questions on screen at every change. The answer drawn while it
+ * was written once stood under the saved one for a blink after it ended, too
+ * short for an assertion polled after the fact to see.
+ */
+async function watchQuestions(page: Page) {
+  await page.evaluate(() => {
+    const seen = { most: 0 }
+    Object.assign(window, { __questionsSeen: seen })
+    new MutationObserver(() => {
+      seen.most = Math.max(seen.most, document.querySelectorAll("[data-testid=quick-chat-question]").length)
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+}
+async function mostQuestionsSeen(page: Page): Promise<number> {
+  return page.evaluate(() => (window as unknown as { __questionsSeen: { most: number } }).__questionsSeen.most)
+}
 
 /**
  * The model Chrome runs on this computer (D223), stood in for by a page-side
@@ -44,9 +64,12 @@ test("the quick chat downloads the browser's model and keeps its answer in the h
 
   await page.getByTestId("quick-chat-browser-download").click()
   await expect(offer).toHaveCount(0)
+  await watchQuestions(page)
   await page.getByTestId("quick-chat-send").click()
   const messages = page.getByTestId("quick-chat-messages")
   await expect(messages).toContainText("Nano says: Is it local?")
+  await expect(page.getByTestId("quick-chat-answering")).toHaveCount(0)
+  expect(await mostQuestionsSeen(page)).toBe(1)
 
   // The question and the answer are the server's, in the history every quick
   // chat shares, and the browser's model was given the server's instructions.
@@ -97,4 +120,40 @@ test("an answer the browser's model is writing can be stopped, and what it wrote
   await page.getByTestId("space-ai").click()
   await page.getByText(question, { exact: true }).first().click()
   await expect(page.getByTestId("quick-chat-messages")).toContainText("Written before the stop")
+})
+
+test("a provider's answer can be stopped, and the chat it returns is shown once", async ({ page }) => {
+  const question = `Stop the provider ${Date.now()}`
+  let stopPressed: () => void = () => {}
+  const pressed = new Promise<void>((resolve) => { stopPressed = resolve })
+  // The server is stood in for: stopping a provider is its test's business,
+  // and this one is about the window.
+  await page.route("**/api/v1/ai/quick-chats/*/stop", async (route) => {
+    stopPressed()
+    await route.fulfill({ json: { message: "Stopped" } })
+  })
+  await page.route("**/api/v1/ai/quick-chats/*/messages", async (route) => {
+    const id = /quick-chats\/([^/]+)\/messages/.exec(route.request().url())?.[1] ?? ""
+    await pressed
+    await route.fulfill({
+      json: {
+        id, title: question, model_key: null, updated_at: null, pinned: false, archived: false, project_id: null,
+        messages: [
+          { id: crypto.randomUUID(), role: "user", content: question, created_at: null },
+          { id: crypto.randomUUID(), role: "assistant", content: "Written before the stop", created_at: null },
+        ],
+      },
+    })
+  })
+  await login(page)
+  await page.getByTestId("quick-chat-rail").click()
+  await page.getByTestId("quick-chat-input").fill(question)
+  await watchQuestions(page)
+  await page.getByTestId("quick-chat-send").click()
+
+  await page.getByTestId("quick-chat-stop").click()
+  await expect(page.getByTestId("quick-chat-messages")).toContainText("Written before the stop")
+  await expect(page.getByTestId("quick-chat-stop")).toHaveCount(0)
+  await expect(page.getByTestId("quick-chat-answering")).toHaveCount(0)
+  expect(await mostQuestionsSeen(page)).toBe(1)
 })

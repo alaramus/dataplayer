@@ -154,12 +154,26 @@ async def send_quick_chat_message(
         raise HTTPException(status_code=422, detail={"message": "That model is not in the list"})
     try:
         return await quick_chat.send(
-            session, chat, current_user.id, body, catalog(), runner.chat_models, topics
+            session, chat, current_user.id, body, catalog(), runner.chat_models, topics,
+            runner.quick_answers,
         )
     except ValueError as refused:
         raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused
     except RuntimeError as failed:
         raise HTTPException(status_code=502, detail={"message": str(failed)}) from failed
+
+
+@router.post("/quick-chats/{chat_id}/stop", response_model=Message)
+async def stop_quick_chat_answer(
+    current_user: CurrentUser, runner: AgentRunnerDep, chat_id: uuid.UUID
+) -> Any:
+    """Stops the answer a provider is writing; the send keeps what was written.
+
+    Not an error when nothing is being written: Stop pressed as the answer
+    ends is the same press, a moment late."""
+    if runner.quick_answers.stop(chat_id, current_user.id):
+        return Message(message="Stopped")
+    return Message(message="Nothing is being written")
 
 
 @router.post("/quick-chats/{chat_id}/browser-turns", response_model=quick_chat.BrowserTurn)
