@@ -105,8 +105,11 @@ export default defineConfigWithVueTs(
     // until it is src/** and this comment goes.
     files: [
       "src/features/auth/**/*.vue",
+      "src/features/catalog/**/*.vue",
       "src/features/preferences/**/*.vue",
-      "src/shared/ui/AppThemeToggle.vue",
+      "src/features/workspace/**/*.vue",
+      "src/shared/ui/**/*.vue",
+      "src/shared/workspace/**/*.vue",
     ],
     plugins: { "@intlify/vue-i18n": vueI18n },
     rules: {

@@ -11,8 +11,8 @@ frontend/src/shared/i18n/
 ├── index.ts          the languages, `t`, loading one, which one opens first
 ├── problems.ts       a coded refusal told apart and worded
 └── locales/
-    ├── en.ts         the source: every other language is typed against it
-    └── ru.ts         the interface in Russian, and the server's refusals
+    ├── en/           the source, a module per area; every other language is typed against it
+    └── ru/           the same areas in Russian, the server's refusals, and glossary.md
 
 frontend/src/features/preferences/
 ├── GeneralSection.vue   the Language choice
@@ -46,6 +46,10 @@ the screen, and the language on the person.
 A string taken from `t` while a module loads is fixed in the language current
 then. Constants a screen reads — section lists, theme names — hold their words
 in getters, and a function returning words calls `t` when it is called.
+
+Each language keeps a glossary beside its dictionaries — one word for one
+thing, and its typographic conventions — so screens moved at different times
+agree.
 
 A message's syntax is vue-i18n's: `{name}` takes a parameter, `|` separates
 plural forms, `@` and `$` must not appear bare. The order of plural forms in a
