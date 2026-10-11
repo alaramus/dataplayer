@@ -3,6 +3,7 @@ import type { SelectOption } from "@/shared/ui"
 import { appIcons } from "@/shared/ui/icons"
 
 export type Provider = ProviderKeyState["provider"]
+type KeyState = Pick<ProviderKeyState, "provider" | "set">
 export type ModelOption = SelectOption & {
   provider?: Provider
   auto?: boolean
@@ -22,7 +23,7 @@ export function autoModelValue(provider: string): string {
 export const AUTO_ALL_VALUE = autoModelValue("all")
 
 /** The providers this person has a key for. */
-export function keyedProviders(keys: readonly ProviderKeyState[]): ReadonlySet<Provider> {
+export function keyedProviders(keys: readonly KeyState[]): ReadonlySet<Provider> {
   return new Set(keys.filter((key) => key.set).map((key) => key.provider))
 }
 
@@ -68,7 +69,7 @@ export function providerLabel(models: readonly AgentModelPublic[], provider: Pro
  */
 export function groupedModelOptions(
   models: readonly AgentModelPublic[],
-  keys: readonly ProviderKeyState[]
+  keys: readonly KeyState[]
 ): ModelOption[] {
   const set = keyedProviders(keys)
   const order = [...new Set(models.map((model) => model.provider))]

@@ -16,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.ai.attachments import RULES as ATTACHMENT_RULES
 from app.ai.catalog import (
     CHAT_PROVIDERS,
+    PROVIDER_KEY_PAGES,
     PROVIDER_TITLES,
     PROVIDERS,
     AutoProvider,
@@ -102,7 +103,9 @@ async def settings_of(
         auto_provider=auto_provider_of(stored.auto_provider) if chosen else None,
         model_missing=stored.model_key is not None and chosen is None,
         allow_all_changes=stored.allow_all_changes,
-        keys=[ProviderKeyState(provider=p, set=p in keys) for p in PROVIDERS],
+        keys=[
+            ProviderKeyState(provider=p, set=p in keys, key_page=PROVIDER_KEY_PAGES[p]) for p in PROVIDERS
+        ],
         attachments=ATTACHMENT_RULES,
     )
 

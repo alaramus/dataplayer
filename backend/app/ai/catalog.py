@@ -27,6 +27,16 @@ PROVIDER_TITLES: dict[Provider, str] = {
     "typesafe": "TypeSafe (Jev)",
 }
 
+# Where a person signs in and creates a key, offered beside the key field so a
+# first key is one click away. Kept beside the titles for the same reason.
+PROVIDER_KEY_PAGES: dict[Provider, str] = {
+    "openai": "https://platform.openai.com/api-keys",
+    "anthropic": "https://console.anthropic.com/settings/keys",
+    "deepseek": "https://platform.deepseek.com/api_keys",
+    "gemini": "https://aistudio.google.com/apikey",
+    "typesafe": "https://console.typesafe.ai/keys",
+}
+
 PROVIDERS: tuple[Provider, ...] = tuple(PROVIDER_TITLES)
 CHAT_PROVIDERS: tuple[ChatProvider, ...] = ("openai", "anthropic", "deepseek", "gemini")
 

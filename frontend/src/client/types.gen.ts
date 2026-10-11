@@ -9116,6 +9116,10 @@ export type ProviderKeyState = {
    * Set
    */
   set: boolean
+  /**
+   * Key Page
+   */
+  key_page: string
 }
 
 /**

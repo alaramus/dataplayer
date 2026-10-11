@@ -24,6 +24,20 @@ from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
 
+def key_states(settings: dict[str, Any]) -> dict[str, bool]:
+    return {one["provider"]: one["set"] for one in settings["keys"]}
+
+
+async def test_every_provider_names_where_its_keys_are_issued(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    settings = (await client.get(f"{AI}/settings", headers=normal_user_token_headers)).json()
+
+    pages = {one["provider"]: one["key_page"] for one in settings["keys"]}
+    assert set(pages) == {"openai", "anthropic", "deepseek", "gemini", "typesafe"}
+    assert all(page.startswith("https://") for page in pages.values())
+
+
 async def test_a_key_is_said_to_be_set_and_never_sent_back(
     client: AsyncClient, normal_user_token_headers: dict[str, str], db: AsyncSession
 ) -> None:
@@ -32,7 +46,7 @@ async def test_a_key_is_said_to_be_set_and_never_sent_back(
     written = await client.put(f"{AI}/keys/gemini", headers=headers, json={"key": KEY})
 
     assert written.status_code == 200
-    assert {"provider": "gemini", "set": True} in written.json()["keys"]
+    assert key_states(written.json())["gemini"] is True
     read = await client.get(f"{AI}/settings", headers=headers)
     assert KEY not in written.text
     assert KEY not in read.text
@@ -41,7 +55,7 @@ async def test_a_key_is_said_to_be_set_and_never_sent_back(
     assert KEY.encode() not in stored.secret
 
     removed = await client.delete(f"{AI}/keys/gemini", headers=headers)
-    assert {"provider": "gemini", "set": False} in removed.json()["keys"]
+    assert key_states(removed.json())["gemini"] is False
 
 
 async def test_jev_key_must_answer_before_it_is_saved(
@@ -73,7 +87,7 @@ async def test_jev_key_must_answer_before_it_is_saved(
         f"{AI}/keys/typesafe", headers=headers, json={"key": "working-key"}
     )
     assert saved.status_code == 200
-    assert {"provider": "typesafe", "set": True} in saved.json()["keys"]
+    assert key_states(saved.json())["typesafe"] is True
     assert "working-key" not in saved.text
 
 
@@ -99,7 +113,7 @@ async def test_keys_are_one_persons_own(
 
     settings = (await client.get(f"{AI}/settings", headers=other)).json()
 
-    assert {"provider": "deepseek", "set": False} in settings["keys"]
+    assert key_states(settings)["deepseek"] is False
 
 
 async def test_models_are_offered_by_whether_their_provider_has_a_key(

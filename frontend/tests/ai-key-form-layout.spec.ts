@@ -28,6 +28,10 @@ for (const theme of ["light", "dark"] as const) {
     expect(provider, "the subtitle names the provider").toBeTruthy()
     await expect(frame).toHaveAccessibleName(`${provider ?? ""} API key`)
     await expect(content.getByText(provider ?? "", { exact: true })).toHaveCount(0)
+    const keyPage = page.getByTestId("ai-key-page")
+    await expect(keyPage).toHaveAttribute("href", "https://console.anthropic.com/settings/keys")
+    await expect(keyPage).toHaveAttribute("target", "_blank")
+    await expect(keyPage).toHaveText("console.anthropic.com")
 
     const key = page.getByTestId("ai-provider-key")
     await expect(key).toHaveAccessibleName("API key")

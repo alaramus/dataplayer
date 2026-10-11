@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 
 import type { ProviderKeyState } from "@/client"
 import { AppButton, AppForm, AppIconButton, AppInput, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { messageOf } from "@/shared/api/errors"
 
-import { checkAiKey, useRemoveAiKey, useWriteAiKey } from "./api"
+import { checkAiKey, useAiSettings, useRemoveAiKey, useWriteAiKey } from "./api"
 import { JEV_PROVIDER } from "./modelOptions"
 
 type Provider = ProviderKeyState["provider"]
@@ -24,6 +24,9 @@ const checking = ref(false)
 const writeKey = useWriteAiKey()
 const removeKey = useRemoveAiKey()
 const toast = useToast()
+const settings = useAiSettings()
+const keyPage = computed(() => settings.data.value?.keys.find((one) => one.provider === props.provider)?.key_page)
+const keyPageHost = computed(() => (keyPage.value ? new URL(keyPage.value).host : ""))
 
 watch(() => props.modelValue, (open) => { if (open) { draft.value = ""; revealed.value = false } })
 
@@ -81,6 +84,12 @@ async function clear() {
           />
         </template>
       </AppInput>
+      <p v-if="keyPage" class="ai-key-dialog__page">
+        {{ keySet ? "Keys are issued at" : "No key yet? Create one at" }}
+        <a :href="keyPage" target="_blank" rel="noopener noreferrer" data-testid="ai-key-page">
+          {{ keyPageHost }}<q-icon :name="appIcons.openInNew" class="ai-key-dialog__page-icon" />
+        </a>
+      </p>
     </AppForm>
     <template #actions>
       <AppButton
@@ -114,3 +123,21 @@ async function clear() {
     </template>
   </WindowDialog>
 </template>
+
+<style scoped>
+.ai-key-dialog__page {
+  margin: 0;
+  color: var(--dp-text-muted);
+}
+.ai-key-dialog__page a {
+  color: var(--dp-link);
+  text-decoration: none;
+}
+.ai-key-dialog__page a:hover {
+  text-decoration: underline;
+}
+.ai-key-dialog__page-icon {
+  margin-inline-start: var(--dp-space-half);
+  vertical-align: text-top;
+}
+</style>

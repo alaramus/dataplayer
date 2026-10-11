@@ -278,6 +278,8 @@ class ProviderKeyState(BaseModel):
     provider: Provider
     # Set or not, and nothing else: a key is never sent back (D140).
     set: bool
+    # Where the provider issues keys.
+    key_page: str
 
 
 class AttachmentRules(BaseModel):

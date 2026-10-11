@@ -37,7 +37,8 @@ with a release, validated at startup and in CI, served to the client through the
 API. A stored model missing from the file reads as none chosen. One key per
 provider per person, encrypted under `CONNECTOR_SECRET_KEY` and never returned,
 with Check, which answers for a key as it is typed as well as for the stored
-one and keeps neither. A conversation is held with the model it names, chosen
+one and keeps neither. The key window links to the page where the provider
+issues keys; the address is the server's, sent with each key's state. A conversation is held with the model it names, chosen
 in its own composer; the settings choose what a new conversation starts with,
 and a model chosen in a composer — an agent chat or a quick one — becomes that
 choice as well, in the same commit, so the last model picked anywhere is the
