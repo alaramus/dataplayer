@@ -478,7 +478,7 @@ test("installs an extension from the report that lists them, and removes it", as
 
   // Filtered rather than read off row 0: the report lists every extension the
   // server offers, so the name alone proves nothing — `installed` does.
-  await addFilter(page, "name", "equals", "pg_trgm")
+  await addFilter(page, "name", "equals", "fuzzystrmatch")
   await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("false")
 
   // One of the two in the corner of a row, never both: an extension is

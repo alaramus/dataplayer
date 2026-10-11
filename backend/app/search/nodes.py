@@ -47,6 +47,7 @@ from app.adapters.registry import UnknownAdapterType
 from app.adapters.registry import get as adapter_type_of
 from app.adapters.resources import BorrowingStore, Pooling, ResourceStore
 from app.adapters.search import (
+    MAX_EXCERPT_CHARACTERS,
     Ancestor,
     LastSearch,
     NodeMatch,
@@ -54,6 +55,7 @@ from app.adapters.search import (
     NodeSearchResult,
     SearchBounds,
     SearchedField,
+    holds_every_word,
 )
 from app.connectors import service
 from app.connectors.access import context_for
@@ -277,6 +279,24 @@ class ConnectionSearch:
                         contents=searches_contents(connection),
                     )
                 )
+            if listed is not None and listed.contents and request.mode == "search":
+                # The text kept below the chosen folders, found at once on
+                # Enter; the rest of the connection is still the job's (D219).
+                costs["contents"] = "instant"
+                candidates.append(
+                    Candidate(
+                        cell=Cell(place=place, field="contents"),
+                        cost="instant",
+                        way="kept",
+                        group=group,
+                        connector_id=connection.id,
+                        in_context=connection.id in request.context or connection.id in scoped,
+                        blocked=None if connection.enabled else "switched_off",
+                        owned=connection.access == "own",
+                        order=position,
+                        contents=searches_contents(connection),
+                    )
+                )
             providers[place.model_dump_json()] = ConnectionProvider(
                 self, connection, place, opened=opened, costs=costs, insist=insist, kept=listed
             )
@@ -442,6 +462,8 @@ class ConnectionProvider:
     async def search(self, asked: Asked) -> Found:
         if asked.field == "names" and self._kept is not None:
             return await from_list(self._connection, self._kept, asked)
+        if asked.field == "contents" and self._kept is not None:
+            return await from_text(self._connection, self._kept, asked)
         return await self._inside.ask(
             self._connection,
             self._place,
@@ -653,6 +675,64 @@ async def from_list(connection: VisibleConnection, listed: KeptList, asked: Aske
     return replace(
         found,
         hits=[hit.model_copy(update={"via": "kept", "as_of": listed.kept_at}) for hit in found.hits],
+        way="kept",
+        as_of=listed.kept_at,
+    )
+
+
+# Chunks asked for each file a cell may show: a chunk can hold the words on
+# different lines, which the live rule does not count.
+_CHUNKS_PER_HIT = 4
+
+
+async def from_text(connection: VisibleConnection, listed: KeptList, asked: Asked) -> Found:
+    """A contents cell answered from the text kept below the chosen folders (D219).
+
+    The live rule decides, here as there: every word on one line. The first
+    such line of a file is its hit, with its number.
+    """
+    asking = asked.limit * _CHUNKS_PER_HIT
+    chunks = await kept_names.find_text(
+        asked.session, asked.user.id, connection.id, asked.words, asking
+    )
+    lines: dict[str, tuple[int, str]] = {}
+    for chunk in chunks:
+        if chunk.node_id in lines:
+            continue
+        for offset, line in enumerate(chunk.text.split("\n")):
+            if holds_every_word(asked.words, line):
+                lines[chunk.node_id] = (chunk.line + offset, line)
+                break
+    nodes = await kept_names.nodes_of(asked.session, connection.id, list(lines))
+    hits: list[Hit] = []
+    for node_id, (number, line) in lines.items():
+        row = nodes.get(node_id)
+        if row is None:
+            continue
+        match = NodeMatch(
+            node=_NODE.validate_python(row.node),
+            parent_id=row.parent_id,
+            location=row.location,
+        )
+        excerpt = line.strip()[:MAX_EXCERPT_CHARACTERS]
+        hit = node_hit(
+            connection,
+            match,
+            Match(
+                field="contents",
+                match_class="text",
+                line=number,
+                excerpt=segments(excerpt, asked.words),
+            ),
+        )
+        hits.append(hit.model_copy(update={"via": "kept", "as_of": listed.kept_at}))
+    found = ordered(hits, asked.limit)
+    more = found.more or len(chunks) >= asking
+    return Found(
+        hits=found.hits,
+        complete=not more,
+        more=more,
+        notice=None if not more else f"The first {asked.limit} files; there may be more",
         way="kept",
         as_of=listed.kept_at,
     )

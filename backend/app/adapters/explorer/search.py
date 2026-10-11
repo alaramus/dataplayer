@@ -30,9 +30,11 @@ from anyio import CapacityLimiter, to_thread
 from app.adapters.explorer.binary import SNIFF_BYTES, bytes_look_binary
 from app.adapters.explorer.catalog import node_of
 from app.adapters.explorer.storage import Entry, Place, Storage, node_id_of
+from app.adapters.explorer.text import ENCODING, extract, readable
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     MAX_EXCERPT_CHARACTERS,
+    ExtractedText,
     Kept,
     KeptName,
     MatchClass,
@@ -106,6 +108,19 @@ class ExplorerSearch:
             if batch is None:
                 return
             yield batch
+
+    async def extract_text(self, node_id: str, bounds: SearchBounds) -> ExtractedText:
+        """One file's text by the rule live search reads it by (D218)."""
+
+        def read() -> ExtractedText:
+            # Containment first, as for every read of this source (D8).
+            entry = self._storage.entry(self._storage.place(node_id))
+            if entry is None:
+                raise NodeNotFound(node_id)
+            found = extract(self._storage, entry, self._storage.search_limits.file_bytes)
+            return ExtractedText(lines=found.lines, digest=found.digest, read_bytes=found.read_bytes)
+
+        return await to_thread.run_sync(read, limiter=bounds.limiter)
 
     def _names(self, limit: int, bounds: SearchBounds) -> Iterator[NameBatch]:
         """Breadth first; each name's scope is the folder it was listed in."""
@@ -321,7 +336,7 @@ class ExplorerSearch:
         """
         if entry.is_directory or entry.is_link:
             return _Looked()
-        if entry.size_bytes > self._storage.search_limits.file_bytes:
+        if not readable(entry, self._storage.search_limits.file_bytes):
             return _Looked(unreadable=True)
         try:
             with self._storage.open(entry.place) as raw:
@@ -329,7 +344,7 @@ class ExplorerSearch:
                 if bytes_look_binary(sniffed):
                     return _Looked(unreadable=True, read_bytes=len(sniffed))
                 raw.seek(0)
-                text = io.TextIOWrapper(raw, encoding="utf-8", errors="replace")
+                text = io.TextIOWrapper(raw, encoding=ENCODING, errors="replace")
                 try:
                     for number, line in enumerate(text, start=1):
                         if holds_every_word(words, line):

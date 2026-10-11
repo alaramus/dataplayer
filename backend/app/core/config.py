@@ -117,6 +117,9 @@ class Settings(BaseSettings):
     # how long one pass over it may take.
     SEARCH_KEPT_MAX_NAMES: int = Field(default=200_000, ge=1, le=2_000_000)
     SEARCH_KEPT_PASS_SECONDS: float = Field(default=900.0, gt=0, le=7200)
+    # What one pass over a connection's kept text may read (D218): the rest
+    # is read by the next.
+    SEARCH_KEPT_CONTENTS_BYTES: int = Field(default=512_000_000, ge=1, le=20_000_000_000)
 
     # Connections a source keeps between requests. Per process: every worker
     # has its own pools, so a server with four workers may hold four times

@@ -10,11 +10,12 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from sqlalchemy import case, delete, func, update
+from sqlalchemy import ColumnElement, case, delete, false, func, not_, or_, update
+from sqlalchemy.orm import Mapped
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.adapters.protocol import EnumeratesNames
+from app.adapters.protocol import EnumeratesNames, ExtractsText
 from app.adapters.registry import UnknownAdapterType, all_types
 from app.adapters.registry import get as adapter_type_of
 from app.connectors import crud
@@ -24,11 +25,15 @@ from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
 from app.search.keep import (
     DEFAULT_WINDOW,
+    ContentsScopeState,
     KeepOverview,
     KeepState,
     KeepStatus,
     KeepUpdate,
     KeepWindow,
+    SearchChunk,
+    SearchContentFile,
+    SearchContentScope,
     SearchKeep,
     SearchName,
 )
@@ -48,6 +53,15 @@ def can_keep(adapter_type: str) -> bool:
     except UnknownAdapterType:
         return False
     return issubclass(driver, EnumeratesNames)
+
+
+def can_keep_contents(adapter_type: str) -> bool:
+    """Whether its files' text can be kept too: it reads its names and its text (D217)."""
+    try:
+        driver = adapter_type_of(adapter_type).adapter_class
+    except UnknownAdapterType:
+        return False
+    return issubclass(driver, EnumeratesNames) and issubclass(driver, ExtractsText)
 
 
 def keeping_types() -> list[str]:
@@ -82,9 +96,24 @@ def status_of(row: SearchKeep | None) -> KeepStatus:
 
 
 def state_of(
-    connector: Connector, access: Access, owner_email: str | None, row: SearchKeep | None
+    connector: Connector,
+    access: Access,
+    owner_email: str | None,
+    row: SearchKeep | None,
+    scopes: Sequence[SearchContentScope] = (),
 ) -> KeepState:
     return KeepState(
+        contents_available=can_keep_contents(connector.adapter_type),
+        contents=[
+            ContentsScopeState(
+                node_id=scope.node_id,
+                files=scope.files,
+                unread=scope.unread,
+                read_at=scope.read_at,
+                notice=scope.notice,
+            )
+            for scope in sorted(scopes, key=lambda one: one.node_id)
+        ],
         connector_id=connector.id,
         name=connector.name,
         adapter_type=connector.adapter_type,
@@ -108,9 +137,12 @@ async def overview(session: AsyncSession, user: User) -> KeepOverview:
     """Every kept list on a connection the person can see, by connection name."""
     standings = await crud.visible_with_standing(session, user=user, limit=1000)
     rows = await _rows(session, [connector.id for connector, _, _ in standings])
+    scopes = await scopes_of(session, list(rows))
     return KeepOverview(
         lists=[
-            state_of(connector, access, owner_email, rows[connector.id])
+            state_of(
+                connector, access, owner_email, rows[connector.id], scopes.get(connector.id, [])
+            )
             for connector, access, owner_email in standings
             if connector.id in rows
         ],
@@ -128,9 +160,15 @@ async def change(
     """The owner's switch. Off deletes the names in the same transaction (D212)."""
     row = await session.get(SearchKeep, connector.id)
     if not body.keep:
+        # The text goes with the names it was read through (D217).
+        await session.exec(delete(SearchName).where(col(SearchName.connector_id) == connector.id))
         await session.exec(
-            delete(SearchName).where(col(SearchName.connector_id) == connector.id)
+            delete(SearchContentScope).where(col(SearchContentScope.connector_id) == connector.id)
         )
+        await session.exec(
+            delete(SearchContentFile).where(col(SearchContentFile.connector_id) == connector.id)
+        )
+        await session.exec(delete(SearchChunk).where(col(SearchChunk.connector_id) == connector.id))
         if row is not None:
             await session.delete(row)
         await session.commit()
@@ -161,6 +199,8 @@ class KeptList:
     kept_at: datetime
     complete: bool
     notice: str | None
+    # Some of its files' text is kept too, and answers a contents cell (D219).
+    contents: bool = False
 
 
 async def usable(
@@ -173,13 +213,18 @@ async def usable(
     """
     now = get_datetime_utc()
     found: dict[uuid.UUID, KeptList] = {}
-    for connector_id, row in (await _rows(session, connector_ids)).items():
+    rows = await _rows(session, connector_ids)
+    scopes = await scopes_of(session, list(rows))
+    for connector_id, row in rows.items():
         if row.kept_at is None or stale(row):
             continue
         if now - row.kept_at > timedelta(seconds=window_of(row)):
             continue
         found[connector_id] = KeptList(
-            kept_at=row.kept_at, complete=row.kept_notice is None, notice=row.kept_notice
+            kept_at=row.kept_at,
+            complete=row.kept_notice is None,
+            notice=row.kept_notice,
+            contents=any(scope.read_at is not None for scope in scopes.get(connector_id, [])),
         )
     return found
 
@@ -238,6 +283,116 @@ async def mark_stale(session: AsyncSession, connector_id: uuid.UUID) -> None:
         .values(stale_at=get_datetime_utc())
     )
     await session.commit()
+
+
+async def scopes_of(
+    session: AsyncSession, connector_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, list[SearchContentScope]]:
+    if not connector_ids:
+        return {}
+    rows = await session.exec(
+        select(SearchContentScope).where(
+            col(SearchContentScope.connector_id).in_(list(connector_ids))
+        )
+    )
+    found: dict[uuid.UUID, list[SearchContentScope]] = {}
+    for scope in rows.all():
+        found.setdefault(scope.connector_id, []).append(scope)
+    return found
+
+
+def under(node_id: str, scope: str) -> bool:
+    """Whether a node lies in a scope: the whole connection, itself, or below it."""
+    return scope == "" or node_id == scope or node_id.startswith(f"{scope}/")
+
+
+def outside(column: Mapped[str], scopes: Sequence[str]) -> ColumnElement[bool]:
+    """A node id in none of these scopes, as a condition."""
+    if "" in scopes:
+        return false()
+    return not_(
+        or_(
+            false(),
+            *(
+                or_(column == scope, column.startswith(f"{scope}/", autoescape=True))
+                for scope in scopes
+            ),
+        )
+    )
+
+
+async def add_contents(session: AsyncSession, row: SearchKeep, node_id: str) -> None:
+    """Keep the text below this folder too; the worker reads it at once (D217)."""
+    if await session.get(SearchContentScope, (row.connector_id, node_id)) is None:
+        session.add(SearchContentScope(connector_id=row.connector_id, node_id=node_id))
+    row.refresh_asked_at = get_datetime_utc()
+    session.add(row)
+    await session.commit()
+
+
+async def remove_contents(session: AsyncSession, connector_id: uuid.UUID, node_id: str) -> None:
+    """Stop keeping a folder's text; what no other scope covers is deleted with it."""
+    scope = await session.get(SearchContentScope, (connector_id, node_id))
+    if scope is not None:
+        await session.delete(scope)
+        await session.flush()
+    left = [one.node_id for one in (await scopes_of(session, [connector_id])).get(connector_id, [])]
+    await session.exec(
+        delete(SearchContentFile).where(
+            col(SearchContentFile.connector_id) == connector_id,
+            outside(col(SearchContentFile.node_id), left),
+        )
+    )
+    await session.exec(
+        delete(SearchChunk).where(
+            col(SearchChunk.connector_id) == connector_id,
+            outside(col(SearchChunk.node_id), left),
+        )
+    )
+    await session.commit()
+
+
+async def find_text(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    connector_id: uuid.UUID,
+    words: Sequence[str],
+    limit: int,
+) -> list[SearchChunk]:
+    """Chunks holding every word, the standing inside the query (D199, D219).
+
+    A chunk holds many lines, so one found may hold the words on different
+    lines; the caller keeps only a line that holds them all, the live rule.
+    """
+    folded = col(SearchChunk.folded)
+    statement = (
+        select(SearchChunk)
+        .join(Connector, col(Connector.id) == col(SearchChunk.connector_id))
+        .where(
+            col(SearchChunk.connector_id) == connector_id,
+            col(Connector.enabled).is_(True),
+            crud.visible_to(user_id),
+            *(folded.like(f"%{_escaped(word)}%", escape="\\") for word in words),
+        )
+        .order_by(col(SearchChunk.node_id), col(SearchChunk.seq))
+        .limit(limit)
+    )
+    return list((await session.exec(statement)).all())
+
+
+async def nodes_of(
+    session: AsyncSession, connector_id: uuid.UUID, node_ids: Sequence[str]
+) -> dict[str, SearchName]:
+    """The kept names of these nodes, for the hits their text was found in."""
+    if not node_ids:
+        return {}
+    rows = await session.exec(
+        select(SearchName).where(
+            col(SearchName.connector_id) == connector_id,
+            col(SearchName.node_id).in_(list(node_ids)),
+        )
+    )
+    return {row.node_id: row for row in rows.all()}
 
 
 async def names_changed(connector_id: uuid.UUID) -> None:

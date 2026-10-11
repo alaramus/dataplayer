@@ -30,6 +30,7 @@ from app.core.logs import record_failure
 from app.core.schemas import get_datetime_utc
 from app.search.keep import SearchKeep, SearchName
 from app.search.kept import reading, stale, window_of
+from app.search.kept_text import keep_text
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +93,9 @@ async def run_pass(connector: Connector) -> None:
         )
         await session.commit()
     try:
+        adapter = _adapter_of(connector)
         async with asyncio.timeout(settings.SEARCH_KEPT_PASS_SECONDS + 30):
-            notice, unread = await _read(connector, pass_id)
+            notice, unread = await _read(adapter, connector, pass_id)
     except AdapterError as failure:
         message = _LOCKED if failure.error_kind == "locked" else failure.message
         await _ended(connector.id, outcome="failed", notice=message, error_kind=failure.error_kind)
@@ -126,6 +128,13 @@ async def run_pass(connector: Connector) -> None:
         await session.commit()
     if notice is None and unread:
         notice = f"{len(unread):,} folders could not be read; what was kept in them stays"
+    # The text below the chosen folders, from the names just kept (D218). Its
+    # failure is said on its scopes and never undoes the names.
+    try:
+        async with asyncio.timeout(settings.SEARCH_KEPT_PASS_SECONDS + 30):
+            await keep_text(connector.id, adapter)
+    except Exception as failure:
+        record_failure(logger, "A pass over a connection's text failed", failure)
     await _ended(
         connector.id,
         outcome="kept" if notice is None else "partial",
@@ -134,14 +143,19 @@ async def run_pass(connector: Connector) -> None:
     )
 
 
-async def _read(connector: Connector, pass_id: uuid.UUID) -> tuple[str | None, list[str]]:
-    """Every batch written as it arrives; the source's notice and what it could not read."""
-    adapter = build_adapter(
+def _adapter_of(connector: Connector) -> object:
+    return build_adapter(
         registry.get(connector.adapter_type),
         merge_options(connector.config, connector.secrets),
         # The owner's credentials, and no pool: a connection of its own (D127).
         context_for(connector.owner_id),
     )
+
+
+async def _read(
+    adapter: object, connector: Connector, pass_id: uuid.UUID
+) -> tuple[str | None, list[str]]:
+    """Every batch written as it arrives; the source's notice and what it could not read."""
     if not isinstance(adapter, EnumeratesNames):
         raise AdapterError("config", "This kind of source cannot keep its names")
     bounds = SearchBounds.within(settings.SEARCH_KEPT_PASS_SECONDS)

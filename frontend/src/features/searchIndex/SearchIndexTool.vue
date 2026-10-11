@@ -4,7 +4,7 @@ import { computed } from "vue"
 import type { KeepState } from "@/client"
 import { useKeptLists, useRefreshKeep } from "@/features/searchIndex/api"
 import { useSearchIndexWindow } from "@/features/searchIndex/searchIndexWindow"
-import { statusLine, windowName } from "@/features/searchIndex/state"
+import { summaryLine, windowName } from "@/features/searchIndex/state"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppBanner,
@@ -68,7 +68,7 @@ async function readAgain(state: KeepState) {
         <div class="search-index-tool__what">
           <span class="search-index-tool__name">{{ state.name }}</span>
           <span class="dp-helper">
-            {{ statusLine(state) }}
+            {{ summaryLine(state) }}
           </span>
         </div>
         <span class="dp-helper search-index-tool__window">

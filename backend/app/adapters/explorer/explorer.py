@@ -65,6 +65,7 @@ from app.adapters.relation_changes import (
     NewRelationOptions,
 )
 from app.adapters.search import (
+    ExtractedText,
     LastSearch,
     NameBatch,
     NodeSearchRequest,
@@ -156,6 +157,9 @@ class Explorer:
 
     def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
         return self._search.enumerate_names(limit, bounds)
+
+    async def extract_text(self, node_id: str, bounds: SearchBounds) -> ExtractedText:
+        return await self._search.extract_text(node_id, bounds)
 
     @classmethod
     def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:

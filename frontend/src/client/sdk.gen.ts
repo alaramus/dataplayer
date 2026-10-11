@@ -556,6 +556,9 @@ import type {
   queriesUpdateDocumentData,
   queriesUpdateDocumentErrors,
   queriesUpdateDocumentResponses,
+  searchAddContentsData,
+  searchAddContentsErrors,
+  searchAddContentsResponses,
   searchChangeKeepData,
   searchChangeKeepErrors,
   searchChangeKeepResponses,
@@ -570,6 +573,9 @@ import type {
   searchRefreshKeepData,
   searchRefreshKeepErrors,
   searchRefreshKeepResponses,
+  searchRemoveContentsData,
+  searchRemoveContentsErrors,
+  searchRemoveContentsResponses,
   searchSearchContentsData,
   searchSearchContentsErrors,
   searchSearchContentsResponses,
@@ -6398,6 +6404,51 @@ export class SearchService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/search/kept/{connector_id}/refresh",
       ...options,
+    })
+  }
+
+  /**
+   * Remove Contents
+   *
+   * Stop keeping a folder's text; what no other folder covers is deleted.
+   */
+  public static removeContents<ThrowOnError extends boolean = true>(
+    options: Options<searchRemoveContentsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      searchRemoveContentsResponses,
+      searchRemoveContentsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/kept/{connector_id}/contents",
+      ...options,
+    })
+  }
+
+  /**
+   * Add Contents
+   *
+   * Keep the text of the files below a folder, or of the whole connection.
+   * The owner's alone, like the names it is read through (D217).
+   */
+  public static addContents<ThrowOnError extends boolean = true>(
+    options: Options<searchAddContentsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      searchAddContentsResponses,
+      searchAddContentsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/kept/{connector_id}/contents",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 }

@@ -103,6 +103,88 @@ class SearchName(SQLModel, table=True):
     pass_id: uuid.UUID
 
 
+class SearchContentScope(SQLModel, table=True):
+    """A folder whose files' text is kept, or the whole connection (D217).
+
+    Read by the pass that follows the names, so a scope exists only while the
+    connection keeps its names.
+    """
+
+    __tablename__ = "search_content_scope"
+
+    connector_id: uuid.UUID = Field(
+        foreign_key="connector.id", primary_key=True, ondelete="CASCADE"
+    )
+    # The folder's node id; the empty string is the whole connection.
+    node_id: str = Field(sa_column=Column(Text, primary_key=True))
+    added_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    # The last contents pass over it.
+    read_at: datetime | None = _moment()
+    files: int = Field(default=0)
+    # Files the rule does not read: binary, or larger than the storage's ceiling.
+    unread: int = Field(default=0)
+    notice: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+
+
+class SearchContentFile(SQLModel, table=True):
+    """One file whose text is kept, and what it was when it was read (D218)."""
+
+    __tablename__ = "search_content_file"
+
+    connector_id: uuid.UUID = Field(
+        foreign_key="connector.id", primary_key=True, ondelete="CASCADE"
+    )
+    node_id: str = Field(sa_column=Column(Text, primary_key=True))
+    # Its time and size as the names pass read them: unchanged, it is not read.
+    version: str = Field(sa_column=Column(Text, nullable=False))
+    # Of the bytes: changed time and the same text, the chunks are not rewritten.
+    digest: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    # Not text by the rule: kept as a row so it is not read again unchanged.
+    readable: bool = Field(default=True)
+
+
+class SearchChunk(SQLModel, table=True):
+    """A run of a file's lines, the unit the trigram index finds (D219)."""
+
+    __tablename__ = "search_chunk"
+    __table_args__ = (
+        Index(
+            "ix_search_chunk_folded",
+            "folded",
+            postgresql_using="gin",
+            postgresql_ops={"folded": "gin_trgm_ops"},
+        ),
+    )
+
+    connector_id: uuid.UUID = Field(
+        foreign_key="connector.id", primary_key=True, ondelete="CASCADE"
+    )
+    node_id: str = Field(sa_column=Column(Text, primary_key=True))
+    seq: int = Field(primary_key=True)
+    # The number of its first line, counted from 1.
+    line: int
+    text: str = Field(sa_column=Column(Text, nullable=False))
+    folded: str = Field(sa_column=Column(Text, nullable=False))
+
+
+class ContentsScopeState(BaseModel):
+    node_id: str
+    files: int = 0
+    unread: int = 0
+    read_at: datetime | None = None
+    notice: str | None = None
+
+
+class ContentsAdd(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # The folder; absent or empty for the whole connection.
+    node_id: str | None = None
+
+
 class KeepState(BaseModel):
     """What a person is told of one connection's list."""
 
@@ -125,6 +207,9 @@ class KeepState(BaseModel):
     stale: bool = False
     notice: str | None = None
     error_kind: str | None = None
+    # Whether this type can keep its files' text, and the folders that do (D217).
+    contents_available: bool = False
+    contents: list[ContentsScopeState] = []
 
 
 class KeepOverview(BaseModel):

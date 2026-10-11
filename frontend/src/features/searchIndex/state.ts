@@ -1,4 +1,4 @@
-import type { KeepState, Outcome, PlannedCell } from "@/client"
+import type { ContentsScopeState, KeepState, Outcome, PlannedCell } from "@/client"
 import { ageLabel } from "@/shared/freshness/freshness"
 
 /**
@@ -92,4 +92,34 @@ export function offersKeeping(
     types.includes(connection.adapterType) &&
     !kept.has(id)
   )
+}
+
+/** A folder whose text is kept, by its path; the empty one is everything. */
+export function folderName(nodeId: string): string {
+  return nodeId === "" ? "The whole connection" : nodeId
+}
+
+/** What is kept of one folder's files, and what the rule left out. */
+export function contentsLine(scope: ContentsScopeState, now: number = Date.now()): string {
+  if (!scope.read_at) return "Waiting for its first reading"
+  const files = scope.files ?? 0
+  const parts = [
+    `${files.toLocaleString("en-US")} ${files === 1 ? "file" : "files"}, read ${since(scope.read_at, now) ?? ""}`,
+  ]
+  const unread = scope.unread ?? 0
+  if (unread > 0) {
+    parts.push(`${unread.toLocaleString("en-US")} not text or too large`)
+  }
+  if (scope.notice) parts.push(scope.notice)
+  return parts.join(" · ")
+}
+
+/** The tool's one line for a connection: its names, and its folders' text. */
+export function summaryLine(state: KeepState, now: number = Date.now()): string {
+  const scopes = state.contents ?? []
+  const names = statusLine(state, now)
+  if (scopes.length === 0) return names
+  const files = scopes.reduce((total, scope) => total + (scope.files ?? 0), 0)
+  const folders = `${scopes.length.toLocaleString("en-US")} ${scopes.length === 1 ? "folder" : "folders"}`
+  return `${names} · text of ${files.toLocaleString("en-US")} ${files === 1 ? "file" : "files"} in ${folders}`
 }

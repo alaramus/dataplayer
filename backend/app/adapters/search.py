@@ -315,3 +315,18 @@ class NameBatch(BaseModel):
     # ceiling, the clock — in its own words. A pass that saw one deletes
     # nothing.
     notice: str | None = None
+
+
+class ExtractedText(BaseModel):
+    """A file's text, for the contents a connection keeps (D218).
+
+    `lines` is absent for a file the rule does not read — binary, too large,
+    a folder — which is an answer, not a failure.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    lines: list[str] | None = None
+    # Of the bytes read, so a pass skips a file whose time changed and text did not.
+    digest: str | None = None
+    read_bytes: int = 0

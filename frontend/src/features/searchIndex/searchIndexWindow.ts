@@ -10,6 +10,11 @@ import { ref } from "vue"
 export interface IndexedConnection {
   id: string
   name: string
+  /**
+   * The folder the catalog stood in when the window was opened, offered as
+   * the place whose files' text is kept (D217). Absent: the whole connection.
+   */
+  folder?: { id: string; label: string } | null
 }
 
 const asked = ref<IndexedConnection | null>(null)

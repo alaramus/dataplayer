@@ -17,8 +17,9 @@ from app.adapters.row_commands import UnknownRowCommand
 from tests.utils.database import working_postgres_options
 
 # Shipped with every PostgreSQL server and installed by nothing here, so it can
-# be put on and taken off again without disturbing anything.
-SPARE = "pg_trgm"
+# be put on and taken off again without disturbing anything. Not pg_trgm: the
+# application's own database needs that one for the kept names (D215).
+SPARE = "fuzzystrmatch"
 
 
 def _adapter() -> PostgresAdapter:

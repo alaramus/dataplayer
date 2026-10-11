@@ -65,3 +65,31 @@ export function useRefreshKeep() {
     onSuccess: settled,
   })
 }
+
+export function useAddContents() {
+  const settled = useSettled()
+  return useMutation({
+    mutationFn: async ({ connectorId, nodeId }: { connectorId: string; nodeId: string | null }) =>
+      (
+        await SearchService.addContents({
+          path: { connector_id: connectorId },
+          body: { node_id: nodeId },
+        })
+      ).data,
+    onSuccess: settled,
+  })
+}
+
+export function useRemoveContents() {
+  const settled = useSettled()
+  return useMutation({
+    mutationFn: async ({ connectorId, nodeId }: { connectorId: string; nodeId: string }) =>
+      (
+        await SearchService.removeContents({
+          path: { connector_id: connectorId },
+          query: { node_id: nodeId },
+        })
+      ).data,
+    onSuccess: settled,
+  })
+}

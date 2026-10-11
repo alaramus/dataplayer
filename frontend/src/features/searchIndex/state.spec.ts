@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest"
 
 import type { KeepState, Outcome, PlannedCell } from "@/client"
 
-import { isBusy, offersKeeping, statusLine, windowName } from "./state"
+import {
+  contentsLine,
+  folderName,
+  isBusy,
+  offersKeeping,
+  statusLine,
+  summaryLine,
+  windowName,
+} from "./state"
 
 const NOW = Date.parse("2026-10-11T12:00:00Z")
 
@@ -121,5 +129,37 @@ describe("offersKeeping", () => {
         new Set()
       )
     ).toBe(false)
+  })
+})
+
+describe("what files hold", () => {
+  it("names a folder by its path and the empty one as everything", () => {
+    expect(folderName("docs/2026")).toBe("docs/2026")
+    expect(folderName("")).toBe("The whole connection")
+  })
+
+  it("says how many files were read and what was left out", () => {
+    const scope = { node_id: "docs", files: 12, unread: 2, read_at: "2026-10-11T11:58:00Z" }
+    expect(contentsLine(scope, NOW)).toBe("12 files, read 2m ago · 2 not text or too large")
+    expect(contentsLine({ node_id: "docs", files: 1, read_at: "2026-10-11T11:58:00Z" }, NOW)).toBe(
+      "1 file, read 2m ago"
+    )
+    expect(contentsLine({ node_id: "docs" }, NOW)).toBe("Waiting for its first reading")
+  })
+
+  it("adds the folders' text to the line of a connection", () => {
+    const withText = state({
+      contents: [
+        { node_id: "a", files: 3 },
+        { node_id: "b", files: 4 },
+      ],
+    })
+    expect(summaryLine(withText, NOW)).toBe(
+      "1,234 names, read 12m ago · text of 7 files in 2 folders"
+    )
+    expect(summaryLine(state({}), NOW)).toBe("1,234 names, read 12m ago")
+    expect(summaryLine(state({ contents: [{ node_id: "a", files: 1 }] }), NOW)).toBe(
+      "1,234 names, read 12m ago · text of 1 file in 1 folder"
+    )
   })
 })

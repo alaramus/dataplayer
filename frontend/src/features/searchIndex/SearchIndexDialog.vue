@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import { useChangeKeep, useKeepState, useRefreshKeep } from "@/features/searchIndex/api"
+import {
+  useAddContents,
+  useChangeKeep,
+  useKeepState,
+  useRefreshKeep,
+  useRemoveContents,
+} from "@/features/searchIndex/api"
 import { useSearchIndexWindow } from "@/features/searchIndex/searchIndexWindow"
 import {
   DEFAULT_WINDOW,
   KEEP_WINDOWS,
   type KeepWindow,
+  contentsLine,
+  folderName,
   statusLine,
 } from "@/features/searchIndex/state"
 import { messageOf } from "@/shared/api/errors"
@@ -35,6 +43,8 @@ const connectorId = computed(() => window.asked.value?.id ?? null)
 const state = useKeepState(connectorId)
 const change = useChangeKeep()
 const refresh = useRefreshKeep()
+const addContents = useAddContents()
+const removeContents = useRemoveContents()
 const toast = useToast()
 
 const keep = ref(false)
@@ -91,6 +101,36 @@ async function save() {
   }
 }
 
+/** Where the window offers to keep what files hold: the folder it was opened in. */
+const offeredFolder = computed(() => {
+  const folder = window.asked.value?.folder ?? null
+  const scopes = current.value?.contents ?? []
+  const id = folder?.id ?? ""
+  if (scopes.some((scope) => scope.node_id === id)) return null
+  return { id, label: folder === null ? "the whole connection" : folder.label }
+})
+
+async function keepContents() {
+  const id = connectorId.value
+  const folder = offeredFolder.value
+  if (id === null || folder === null) return
+  try {
+    await addContents.mutateAsync({ connectorId: id, nodeId: folder.id || null })
+  } catch (cause) {
+    toast.error(messageOf(cause, "What the files hold could not be kept"))
+  }
+}
+
+async function stopContents(nodeId: string) {
+  const id = connectorId.value
+  if (id === null) return
+  try {
+    await removeContents.mutateAsync({ connectorId: id, nodeId })
+  } catch (cause) {
+    toast.error(messageOf(cause, "It could not be stopped"))
+  }
+}
+
 async function readAgain() {
   const id = connectorId.value
   if (id === null) return
@@ -143,9 +183,9 @@ async function readAgain() {
         data-testid="search-index-keep"
       />
       <span class="dp-helper">
-        The names of tables, keys, folders and files — never what is in them — are
-        read with the owner's credentials and copied into this server's database
-        as plain text. Switching this off deletes the copy.
+        The names of tables, keys, folders and files are read with the owner's
+        credentials and copied into this server's database as plain text.
+        Switching this off deletes the copy, and any text kept with it.
       </span>
       <AppSelect
         :model-value="windowSeconds"
@@ -175,6 +215,54 @@ async function readAgain() {
           @click="readAgain"
         />
       </section>
+
+      <section
+        v-if="current.contents_available"
+        class="search-index__contents"
+        data-testid="search-index-contents"
+      >
+        <h3 class="dp-section-title">
+          What files hold
+        </h3>
+        <span class="dp-helper">
+          The text of the files below a folder, copied the same way, so a word
+          inside them is found on Enter without reading them again. Binary files
+          and files above the server's size limit are left out.
+        </span>
+        <ul class="search-index__scopes">
+          <li
+            v-for="scope in current.contents ?? []"
+            :key="scope.node_id"
+            class="search-index__scope"
+            :data-testid="`search-index-scope-${scope.node_id || 'root'}`"
+          >
+            <div class="search-index__scope-what">
+              <span class="search-index__scope-name">{{ folderName(scope.node_id) }}</span>
+              <span class="dp-helper">{{ contentsLine(scope) }}</span>
+            </div>
+            <AppButton
+              v-if="mayChange"
+              variant="quiet"
+              size="sm"
+              label="Stop"
+              @click="stopContents(scope.node_id)"
+            />
+          </li>
+        </ul>
+        <AppButton
+          v-if="mayChange && offeredFolder"
+          variant="secondary"
+          size="sm"
+          :label="`Keep what files hold in ${offeredFolder.label}`"
+          :disable="!kept"
+          data-testid="search-index-keep-contents"
+          @click="keepContents"
+        />
+        <span
+          v-if="mayChange && offeredFolder && !kept"
+          class="dp-helper"
+        >Keep the names first: the files are found through them.</span>
+      </section>
     </AppForm>
 
     <template #actions>
@@ -203,6 +291,33 @@ async function readAgain() {
 }
 .search-index__line {
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+.search-index__contents {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--dp-space-2);
+}
+.search-index__scopes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+.search-index__scope {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dp-space-3);
+  padding: var(--dp-space-1) 0;
+}
+.search-index__scope-what {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.search-index__scope-name {
   overflow-wrap: anywhere;
 }
 </style>

@@ -738,6 +738,9 @@ first written:
 
 ### Phase 3 — contents, kept
 
+Designed and decided in [Search, phase 3: what files hold, kept](2026-10-11-search-contents-kept.md)
+(D217–D219). The direction as first written:
+
 - **An owner names a scope**: a connection and a node, with what it covers
   (formats, the largest file). The legacy "mark this folder", for any source
   that has contents.
@@ -1006,7 +1009,8 @@ dashboard is ever in its results.
 
 - **S11 — names kept** (phase 2):
   [its own spec](2026-10-11-search-names-kept.md).
-- **S12 — contents kept** (phase 3), its own spec.
+- **S12 — contents kept** (phase 3):
+  [its own spec](2026-10-11-search-contents-kept.md).
 - **S13 — meaning** (phase 4), its own spec.
 
 ## Testing

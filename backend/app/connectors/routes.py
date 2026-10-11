@@ -256,6 +256,7 @@ def _cache_key(
 async def _invalidate_after[T](
     run: Callable[[], Awaitable[T]], data_cache: DataCache, connector_id: uuid.UUID,
     *, even_on_failure: bool = False, names: NamesChanged | None = None,
+    renames: bool = False,
 ) -> T:
     """`run`, then the read cache emptied; with `names`, the search told when
     the run created, replaced or reloaded nodes (D216) — or failed part way."""
@@ -268,7 +269,7 @@ async def _invalidate_after[T](
     finally:
         if succeeded or even_on_failure:
             await data_cache.invalidate_connector(connector_id)
-            if names is not None and (not succeeded or _renames(result)):
+            if names is not None and (renames or not succeeded or _renames(result)):
                 await names(connector_id)
 
 
@@ -1162,6 +1163,7 @@ async def update_content(
     current_user: CurrentUser,
     resources: ResourcesDep,
     data_cache: DataCacheDep,
+    names: NamesChangedDep,
     connector_id: uuid.UUID,
     request: UpdateContentRequest,
 ) -> Any:
@@ -1178,8 +1180,13 @@ async def update_content(
             },
         )
     try:
+        # A file written in place changes the text a connection may keep (D216).
         return await _invalidate_after(
-            lambda: adapter.update_content(request), data_cache, connector_id
+            lambda: adapter.update_content(request),
+            data_cache,
+            connector_id,
+            names=names,
+            renames=True,
         )
     except ContentConflict:
         raise HTTPException(

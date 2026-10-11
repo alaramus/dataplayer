@@ -57,6 +57,7 @@ from app.adapters.relation_changes import (
     NewRelationOptions,
 )
 from app.adapters.search import (
+    ExtractedText,
     LastSearch,
     NameBatch,
     NodeSearchRequest,
@@ -484,6 +485,21 @@ class EnumeratesNames(Protocol):
         A source that stops at the limit or the clock says so in the last
         batch's `notice`. Raises AdapterError when it cannot begin at all.
         """
+        ...
+
+
+@runtime_checkable
+class ExtractsText(Protocol):
+    """A source whose files' text can be read whole for kept contents (D218).
+
+    The same rule as `SearchesContents` about what is text, so the kept and the
+    live search never disagree about a file; the ceiling is the storage's.
+    """
+
+    async def extract_text(self, node_id: str, bounds: SearchBounds) -> ExtractedText:
+        """The lines of one file. Raises NodeNotFound for one that is gone,
+        ValueError for a node this source may not reach, AdapterError for
+        source failures."""
         ...
 
 

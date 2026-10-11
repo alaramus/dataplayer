@@ -2650,6 +2650,16 @@ export type ContentUpdated = {
 }
 
 /**
+ * ContentsAdd
+ */
+export type ContentsAdd = {
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+}
+
+/**
  * ContentsAnswer
  *
  * What a search inside files found, while it is held (S7).
@@ -2742,6 +2752,32 @@ export type ContentsRequest = {
    * Connector Ids
    */
   connector_ids: Array<string>
+}
+
+/**
+ * ContentsScopeState
+ */
+export type ContentsScopeState = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Files
+   */
+  files?: number
+  /**
+   * Unread
+   */
+  unread?: number
+  /**
+   * Read At
+   */
+  read_at?: string | null
+  /**
+   * Notice
+   */
+  notice?: string | null
 }
 
 /**
@@ -6564,6 +6600,14 @@ export type KeepState = {
    * Error Kind
    */
   error_kind?: string | null
+  /**
+   * Contents Available
+   */
+  contents_available?: boolean
+  /**
+   * Contents
+   */
+  contents?: Array<ContentsScopeState>
 }
 
 /**
@@ -21466,6 +21510,72 @@ export type searchRefreshKeepResponses = {
 }
 
 export type searchRefreshKeepResponse = searchRefreshKeepResponses[keyof searchRefreshKeepResponses]
+
+export type searchRemoveContentsData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: {
+    /**
+     * Node Id
+     */
+    node_id?: string
+  }
+  url: "/api/v1/search/kept/{connector_id}/contents"
+}
+
+export type searchRemoveContentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchRemoveContentsError = searchRemoveContentsErrors[keyof searchRemoveContentsErrors]
+
+export type searchRemoveContentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeepState
+}
+
+export type searchRemoveContentsResponse =
+  searchRemoveContentsResponses[keyof searchRemoveContentsResponses]
+
+export type searchAddContentsData = {
+  body: ContentsAdd
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/search/kept/{connector_id}/contents"
+}
+
+export type searchAddContentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchAddContentsError = searchAddContentsErrors[keyof searchAddContentsErrors]
+
+export type searchAddContentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeepState
+}
+
+export type searchAddContentsResponse = searchAddContentsResponses[keyof searchAddContentsResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

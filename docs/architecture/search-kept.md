@@ -1,23 +1,26 @@
-# Search: names kept
+# Search: names and text kept
 
 A connection's names kept in the application database, so the search finds a
-large tree, a remote server or a large key space by name without asking it.
+large tree, a remote server or a large key space by name without asking it, and
+the text of the files below chosen folders, found on Enter.
 The search itself — the engine, cells, outcomes, the field and the tab — is in
 [search.md](search.md). Read this before changing what a pass reads, the
 `search-keeper` process, the kept cell, or what marks a list stale.
 
-Decisions here: D212, D213, D214, D215, D216.
+Decisions here: D212, D213, D214, D215, D216, D217, D218, D219.
 
 ```
 backend/app/
 ├── adapters/search.py         KeptName, NameBatch
-├── adapters/protocol.py       EnumeratesNames
+├── adapters/protocol.py       EnumeratesNames, ExtractsText
+├── adapters/explorer/text.py  what counts as text, for live and kept alike
 ├── adapters/postgres/search.py, adapters/redis/search.py,
 │   adapters/explorer/search.py   enumerate_names, each source's own walk
 ├── connectors/names.py        NamesChanged, handed in at assembly (D216)
 └── search/
     ├── keep.py                search_keep, search_name, the API models
-    ├── kept.py                state, the owner's switch, the kept query, stale
+    ├── kept.py                state, the owner's switch, the kept queries, stale
+    ├── kept_text.py           the text pass after the names
     ├── keeper.py              python -m app.search.keeper: the passes
     └── keep_routes.py         /search/kept
 
@@ -35,6 +38,8 @@ GET  /api/v1/search/kept                          every kept list the person can
 GET  /api/v1/search/kept/{connector_id}           one connection's, kept or not
 PUT  /api/v1/search/kept/{connector_id}           the owner's switch and window
 POST /api/v1/search/kept/{connector_id}/refresh   read it now
+POST   /api/v1/search/kept/{connector_id}/contents   keep a folder's text
+DELETE /api/v1/search/kept/{connector_id}/contents   stop, ?node_id=
 ```
 
 ## D212. A connection's names are kept by its owner's choice, made from the catalog
@@ -137,3 +142,47 @@ Known deviation:
 - **A pipeline's paste** does not mark a list stale; the next pass sees it.
 
 Spec: [Search, phase 2: names kept](../decisions/2026-10-11-search-names-kept.md)
+
+## D217. A folder's text is kept by its owner's choice, in the same window
+
+- **"What files hold"** in the Search index window, on a type with
+  `EnumeratesNames` and `ExtractsText`: the kept folders with their counts and
+  Stop, and "Keep what files hold in" the folder the catalog stood in, or the
+  whole connection (`node_id` empty).
+- **Through the names**: 409 until they are kept, 422 for a node whose kept name
+  is not a folder, 501 for a type without the capabilities, 403 for a grantee.
+  The names switched off take every folder and its text with them.
+- **Stop** deletes the text no other kept folder covers.
+
+Spec: [Search, phase 3: what files hold, kept](../decisions/2026-10-11-search-contents-kept.md)
+
+## D218. Text is read after the names, only where it changed, by the live rule
+
+- **After every names pass that did not fail**, from the kept file names below
+  the folders: same `version` (time and size), not opened; same `digest`,
+  chunks untouched; not text by the rule, kept as such and not opened again.
+- **One rule with the live search**, `explorer/text.py`: no folder or link, at
+  most the storage's `file_bytes`, no zero byte in the first 4 KB, UTF-8 with
+  replacement.
+- **Chunks** of 40 lines or 8,000 characters with their first line's number,
+  `casefold`ed once, trigram-indexed.
+- **Bounds**: the pass's clock and `SEARCH_KEPT_CONTENTS_BYTES` (512 MB); the
+  rest waits for the next pass. Only a finished pass deletes, and only text no
+  kept name holds or no folder covers. A folder keeps when it was read, its
+  files, what was left out and why it stopped.
+- **An edit in place** through the editor marks the list stale (D216).
+
+Spec: [Search, phase 3: what files hold, kept](../decisions/2026-10-11-search-contents-kept.md)
+
+## D219. Kept text answers a contents cell on Enter, by the live rule
+
+- **On Enter** for a connection whose list is usable (D215) and has a folder
+  read once: a `contents` cell, `kept`, `instant`, in the connection's group;
+  the job still searches the rest. Never while typing.
+- **One query of `search_chunk`**, standing and `enabled` inside it, every word
+  in the folded chunk, four chunks per row asked. A file counts only when one of
+  its lines holds every word — the live rule — and that line is the hit's line
+  and excerpt.
+- **Said as kept**: `way`, `as_of` and `via`, as D215.
+
+Spec: [Search, phase 3: what files hold, kept](../decisions/2026-10-11-search-contents-kept.md)

@@ -525,7 +525,14 @@ function showBackups() {
 const searchIndexWindow = useSearchIndexWindow()
 
 function showSearchIndex() {
-  searchIndexWindow.open({ id: props.connectorId, name: props.title })
+  // The level the catalog stands in is the folder offered for its files' text
+  // (D217); the server refuses one that is not a folder.
+  const here = level.currentId.value
+  searchIndexWindow.open({
+    id: props.connectorId,
+    name: props.title,
+    folder: here ? { id: here, label: levelLabel.value } : null,
+  })
 }
 
 function showDetails() {
