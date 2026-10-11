@@ -18,6 +18,7 @@ import type { CopyChoices, LinksChoice, RowsChoice } from "@/features/catalog/ta
 import CodeFence from "@/features/content/markdown/CodeFence.vue"
 import { placesIn } from "@/features/grid/relationPlaces"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -134,9 +135,9 @@ const preview = useQuery({
 const plan = computed(() => preview.data.value ?? null)
 const failure = computed(() => {
   if (props.error) return props.error
-  if (places.isError.value) return messageOf(places.error.value, "Could not read the schemas here")
-  if (places.data.value?.length === 0) return "This connection has no schema to copy tables into"
-  return preview.isError.value ? messageOf(preview.error.value, "The copy could not be planned") : ""
+  if (places.isError.value) return messageOf(places.error.value, t("catalog.copy_tables.schemas_failed"))
+  if (places.data.value?.length === 0) return t("catalog.copy_tables.no_schema")
+  return preview.isError.value ? messageOf(preview.error.value, t("catalog.copy_tables.plan_failed")) : ""
 })
 
 /**
@@ -164,22 +165,26 @@ const ready = computed(
     !preview.isFetching.value
 )
 
-const ROWS: RadioOption[] = [
-  { label: "Structure and rows", value: "rows" },
-  { label: "Structure only", value: "structure", description: "Empty tables with every key, index and link" },
-]
+const rowOptions = computed<RadioOption[]>(() => [
+  { label: t("catalog.copy_tables.structure_and_rows"), value: "rows" },
+  {
+    label: t("catalog.copy_tables.structure_only"),
+    value: "structure",
+    description: t("catalog.copy_tables.structure_only_hint"),
+  },
+])
 const linkOptions = computed<RadioOption[]>(() => [
   {
-    label: "Copy those tables too",
+    label: t("catalog.copy_tables.links_copy"),
     value: "copy",
-    description: "And the tables they point at, to the end of the chain",
+    description: t("catalog.copy_tables.links_copy_hint"),
   },
-  { label: "Drop the links", value: "drop", description: "The copies point at nothing" },
+  { label: t("catalog.copy_tables.links_drop"), value: "drop", description: t("catalog.copy_tables.links_drop_hint") },
   ...(plan.value?.keep_allowed === true
     ? [{
-        label: "Keep the links to the originals",
+        label: t("catalog.copy_tables.links_keep"),
         value: "keep",
-        description: "The copies point at the tables that are already here",
+        description: t("catalog.copy_tables.links_keep_hint"),
       }]
     : []),
 ])
@@ -221,8 +226,8 @@ function copy() {
 <template>
   <WindowDialog
     :model-value="shown"
-    title="Copy tables"
-    :subtitle="`From ${intent.sourceLabel}`"
+    :title="t('catalog.copy_tables.title')"
+    :subtitle="t('catalog.copy_tables.from', { source: intent.sourceLabel })"
     size="wide-form"
     sizing="stable"
     data-testid="copy-tables"
@@ -242,7 +247,7 @@ function copy() {
         v-if="plan === null && failure && (places.data.value?.length ?? 0) > 0"
         :model-value="place"
         :options="places.data.value ?? []"
-        label="Into schema"
+        :label="t('catalog.copy_tables.into_schema')"
         data-testid="copy-tables-place"
         @update:model-value="choosePlace"
       />
@@ -251,7 +256,7 @@ function copy() {
         class="copy-tables__planning"
       >
         <AppSpinner />
-        <span>Planning the copy</span>
+        <span>{{ t("catalog.copy_tables.planning") }}</span>
       </div>
       <AppBanner
         v-for="problem in plan?.problems ?? []"
@@ -267,10 +272,10 @@ function copy() {
         data-testid="copy-tables-names"
       >
         <template #from>
-          Table
+          {{ t("catalog.copy_tables.table") }}
         </template>
         <template #to>
-          Copy into
+          {{ t("catalog.copy_tables.copy_into") }}
         </template>
         <AppPairsRow
           v-for="(table, index) in plan.tables"
@@ -294,7 +299,7 @@ function copy() {
                 v-if="index === 0"
                 :model-value="place"
                 :options="places.data.value ?? []"
-                aria-label="Schema the copies go into"
+                :aria-label="t('catalog.copy_tables.schema_label')"
                 :loading="places.isFetching.value"
                 compact
                 data-testid="copy-tables-place"
@@ -306,7 +311,7 @@ function copy() {
               >{{ placeLabel }}</span>
               <AppInput
                 :model-value="nameOf(table.node_id, table.name)"
-                :aria-label="`Name of the copy of ${table.label}`"
+                :aria-label="t('catalog.copy_tables.name_label', { table: table.label })"
                 autocomplete="off"
                 compact
                 :data-testid="`copy-tables-name-${table.node_id}`"
@@ -320,8 +325,8 @@ function copy() {
       <AppRadioGroup
         v-if="plan"
         :model-value="rows"
-        :options="ROWS"
-        label="Rows"
+        :options="rowOptions"
+        :label="t('catalog.copy_tables.rows')"
         data-testid="copy-tables-rows"
         @update:model-value="chooseRows"
       />
@@ -331,7 +336,7 @@ function copy() {
           class="copy-tables__links"
           data-testid="copy-tables-outside"
         >
-          <span>These tables point at tables that were not ticked:</span>
+          <span>{{ t("catalog.copy_tables.outside") }}</span>
           <span
             v-for="link in plan.outside"
             :key="`${link.table}-${link.target}`"
@@ -341,7 +346,7 @@ function copy() {
         <AppRadioGroup
           :model-value="links ?? plan.links"
           :options="linkOptions"
-          label="Links"
+          :label="t('catalog.copy_tables.links')"
           data-testid="copy-tables-links"
           @update:model-value="chooseLinks"
         />
@@ -352,7 +357,7 @@ function copy() {
         class="copy-tables__pointing"
         data-testid="copy-tables-pointing"
       >
-        <span>Tables that point at these, to copy as well:</span>
+        <span>{{ t("catalog.copy_tables.pointing") }}</span>
         <AppCheckbox
           v-for="pointing in plan.pointing"
           :key="pointing.node_id"
@@ -368,7 +373,7 @@ function copy() {
         tone="info"
         data-testid="copy-tables-left-behind"
       >
-        Not copied:
+        {{ t("catalog.copy_tables.not_copied") }}
         <span
           v-for="line in behind"
           :key="line"
@@ -390,7 +395,7 @@ function copy() {
         <AppButton
           variant="quiet"
           size="sm"
-          :label="sqlShown ? 'Hide the SQL' : 'Show the SQL'"
+          :label="sqlShown ? t('catalog.copy_tables.hide_sql') : t('catalog.copy_tables.show_sql')"
           :icon="sqlShown ? appIcons.keyboardArrowUp : appIcons.keyboardArrowDown"
           data-testid="copy-tables-sql-toggle"
           @click="sqlShown = !sqlShown"
@@ -405,12 +410,12 @@ function copy() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="running"
         @click="emit('close')"
       />
       <AppButton
-        label="Copy"
+        :label="t('catalog.actions.copy')"
         :disable="!ready"
         :loading="running || (preview.isFetching.value && !plan)"
         data-testid="copy-tables-run"

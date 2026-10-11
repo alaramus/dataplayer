@@ -64,8 +64,12 @@ modules are not seen by it and rest on review.
 
 ### Known deviations
 
-- Most screens are still English: only sign-in, Preferences and the theme
-  toggle are moved. A language shows English wherever a screen has not moved.
+- Most screens are still English: sign-in, Preferences, the workspace, the
+  panel engine, the catalog and the component kit are moved. A language shows
+  English wherever a screen has not moved.
+- Text a source declares — action titles and their questions, parameter
+  labels, menu groups, previews, report captions — is English in every
+  language: it comes from the adapters, which have no dictionaries.
 - Dates and numbers are formatted by the browser's locale, not by the chosen
   language.
 - The user's guide (D183) is English only.
@@ -94,9 +98,15 @@ parameter would arrive in English inside a translated sentence.
 
 ### Known deviations
 
-- Only the account and sign-in routes are coded. Every other route still
-  refuses with an English sentence or an adapter's `{kind, message}`, shown as
-  English in every language until it is coded.
+- Coded so far: the account, sign-in, connector, access, action, declared
+  reference, SSH key and paste routes. Every other route still refuses with an
+  English sentence, shown as English in every language until it is coded.
+- A refusal shaped `{"message", "error_kind"}` — a source lacking a capability
+  (501), a result that could not be stored (507) — stays in that shape:
+  `retry.ts` reads the kind to decide not to retry, and `ProblemDetail` has no
+  kind yet.
+- An action's title is passed as `{action}` in several codes, so it reaches a
+  translated sentence in English until actions are translated.
 - A validation failure (422) is FastAPI's list with Pydantic's English `msg`;
   its `type` is a code the browser could word, and does not yet.
 - Adapter failures reduced by `classify` carry an English message and a kind,

@@ -1,6 +1,7 @@
 import type { ActionInfo, ActionResult } from "@/client"
 import { choicesOf, defaultsOf, schemaToFields } from "@/shared/SchemaForm/jsonSchema"
 import type { FieldSpec, JsonSchema, SchemaChoice } from "@/shared/SchemaForm/jsonSchema"
+import { t } from "@/shared/i18n"
 import type { MenuItem } from "@/shared/ui"
 
 /**
@@ -222,12 +223,9 @@ export interface ActionSubject {
 
 export type ActionSubjects = Record<ActionInfo["acts_on"], ActionSubject>
 
-const NO_TARGET: Record<ActionInfo["acts_on"], string> = {
-  level: "This source does not offer it at this level",
-  children: "There is nowhere here to put it",
-  node: "Tick a row to use this",
-  group: "Select a grouping to use this",
-  destination: "No available destination here",
+/** Why a line is off when its subject is empty, keyed by what it acts on. */
+function noTarget(actsOn: ActionInfo["acts_on"]): string {
+  return t(`catalog.actions.no_target.${actsOn}`)
 }
 
 /** Resolve each action against its own subject, including its form target (D118). */
@@ -244,8 +242,8 @@ export function toMenu(subjects: ActionSubjects): MenuCommand[] {
     const reason = enabled
       ? null
       : targets.length === 0
-        ? NO_TARGET[command.actsOn]
-        : answer?.unavailable_reason ?? "This source does not offer it for these targets"
+        ? noTarget(command.actsOn)
+        : answer?.unavailable_reason ?? t("catalog.actions.not_for_targets")
     return { ...command, targets, enabled, reason }
   })
 }
@@ -377,23 +375,23 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
   if (state.describes) {
     items.push({
       name: clientCommandName("details"),
-      label: "Details",
+      label: t("catalog.actions.details"),
       disable: !state.describable,
-      hint: state.describable ? undefined : "Tick one row to describe",
+      hint: state.describable ? undefined : t("catalog.actions.details_hint"),
     })
   }
   if (state.diagrams) {
     items.push({
       name: clientCommandName("relationships"),
-      label: "Relationships",
+      label: t("catalog.actions.relationships"),
       disable: !state.diagrammable,
-      hint: state.diagrammable ? undefined : "Nothing here has a structure to draw",
+      hint: state.diagrammable ? undefined : t("catalog.actions.relationships_hint"),
     })
   }
   if (state.copy) {
     items.push({
       name: clientCommandName("copy"),
-      label: "Copy",
+      label: t("catalog.actions.copy"),
       disable: !state.copy.enabled,
       hint: state.copy.reason,
     })
@@ -401,7 +399,7 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
   if (state.cut) {
     items.push({
       name: clientCommandName("cut"),
-      label: "Cut",
+      label: t("catalog.actions.cut"),
       disable: !state.cut.enabled,
       hint: state.cut.reason,
     })
@@ -411,7 +409,7 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
   if (state.backups) {
     items.push({
       name: clientCommandName("backups"),
-      label: "Backups",
+      label: t("catalog.actions.backups"),
       disable: !state.backups.enabled,
       hint: state.backups.reason,
     })
@@ -419,7 +417,7 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
   if (state.searchIndex) {
     items.push({
       name: clientCommandName("searchIndex"),
-      label: "Search index…",
+      label: t("catalog.actions.search_index"),
       disable: !state.searchIndex.enabled,
       hint: state.searchIndex.reason,
     })
@@ -505,11 +503,11 @@ function subjectOf(failure: ActionFailure): string {
 export function summarize(outcome: ActionOutcome, label: string): string {
   const first = outcome.done[0]
   if (outcome.total === 1 && outcome.failures.length === 0) {
-    return first?.message ?? `${label} done`
+    return first?.message ?? t("catalog.actions.done", { label })
   }
   const stopped = outcome.skipped?.length ?? 0
-  const head = `${label}: ${String(outcome.done.length)} of ${String(outcome.total)}` +
-    (stopped > 0 ? `. Stopped; ${stopped} not started` : "")
+  const head = t("catalog.actions.done_of", { label, done: outcome.done.length, total: outcome.total }) +
+    (stopped > 0 ? `. ${t("catalog.actions.stopped", { n: stopped }, stopped)}` : "")
   if (outcome.failures.length === 0) return head
   const said = outcome.failures
     .map((failure) => `${subjectOf(failure)} — ${failure.message}`)

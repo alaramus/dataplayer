@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { nextTick, ref } from "vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { t } from "@/shared/i18n"
 import { AppIconButton, AppInput } from "@/shared/ui"
 
 /**
@@ -38,7 +39,7 @@ function closeFilter() {
     ref="head"
     class="connectors-head"
     role="toolbar"
-    aria-label="Connections"
+    :aria-label="t('workspace.connectors.title')"
     data-testid="connectors-head"
     @keydown.esc.stop="closeFilter"
   >
@@ -46,8 +47,8 @@ function closeFilter() {
       <AppInput
         :model-value="workspace.connectorNameFilter.value"
         class="connectors-head__filter"
-        placeholder="Filter connections"
-        aria-label="Filter connections by name"
+        :placeholder="t('workspace.connectors.filter')"
+        :aria-label="t('workspace.connectors.filter_by_name')"
         autocomplete="off"
         compact
         data-testid="connectors-name-filter"
@@ -55,22 +56,22 @@ function closeFilter() {
       />
       <AppIconButton
         :icon="appIcons.close"
-        tooltip="Close connection filter"
+        :tooltip="t('workspace.connectors.close_filter')"
         data-testid="connectors-filter-close"
         @click="closeFilter"
       />
     </template>
     <template v-else>
-      <span class="connectors-head__title">Connections</span>
+      <span class="connectors-head__title">{{ t('workspace.connectors.title') }}</span>
       <AppIconButton
         :icon="appIcons.add"
-        tooltip="New connection"
+        :tooltip="t('workspace.connectors.new')"
         data-testid="add-connector"
         @click="workspace.editConnector(null)"
       />
       <AppIconButton
         :icon="appIcons.search"
-        tooltip="Filter connections by name"
+        :tooltip="t('workspace.connectors.filter_by_name')"
         data-testid="connectors-filter-open"
         @click="openFilter"
       />

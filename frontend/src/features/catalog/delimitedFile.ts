@@ -1,3 +1,5 @@
+import { t } from "@/shared/i18n"
+
 const DELIMITERS = [",", ";", "\t", "|"] as const
 
 export interface DelimitedFile {
@@ -36,7 +38,7 @@ export function parseDelimited(text: string, name: string, previewRows = 20): De
         value += '"'
         index += 1
       } else if (character === '"') quoted = false
-      else if (character === undefined) throw new Error("The file ends inside a quoted value")
+      else if (character === undefined) throw new Error(t("catalog.file.unclosed_quote"))
       else value += character
       continue
     }
@@ -56,7 +58,7 @@ export function parseDelimited(text: string, name: string, previewRows = 20): De
   }
   const header = records.shift()
   if (header === undefined || header.every((name) => name.trim() === "")) {
-    throw new Error("The file has no header row")
+    throw new Error(t("catalog.file.no_header"))
   }
   const columns: string[] = []
   for (const [index, raw] of header.entries()) {
@@ -71,7 +73,7 @@ export function parseDelimited(text: string, name: string, previewRows = 20): De
 }
 
 export async function readDelimited(file: File): Promise<DelimitedFile> {
-  if (file.size > 16 * 1024 * 1024) throw new Error("The file must be under 16 MB")
+  if (file.size > 16 * 1024 * 1024) throw new Error(t("catalog.file.too_large"))
   return parseDelimited(await file.text(), file.name)
 }
 
@@ -90,9 +92,7 @@ export function filenameStem(name: string): string {
  * so the wording is tested without mounting a dialog that reads a catalog.
  */
 export function columnTally(total: number, taken: number, unnamed: number): string {
-  if (unnamed > 0) {
-    return `${unnamed} of them ${unnamed === 1 ? "needs" : "need"} a name`
-  }
-  if (taken === 0) return `none of ${total}`
-  return taken === total ? `all ${total}` : `${taken} of ${total}`
+  if (unnamed > 0) return t("catalog.file.unnamed", { n: unnamed }, unnamed)
+  if (taken === 0) return t("catalog.file.none_of", { total })
+  return taken === total ? t("catalog.file.all_of", { total }) : t("catalog.file.some_of", { taken, total })
 }

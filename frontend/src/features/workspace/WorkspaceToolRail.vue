@@ -2,6 +2,8 @@
 import { computed, ref } from "vue"
 
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 
 import { TOOL_BLOCKS } from "./toolBlocks"
 import type { RailContext, ToolBlock } from "./toolBlocks"
@@ -39,11 +41,11 @@ const context = computed<RailContext>(() => ({
   side: props.zone.startsWith("left") ? "left" : "right",
 }))
 const overIndex = ref<number | null>(null)
-const ZONE_TITLES: Record<ToolRailZone, string> = {
-  "left-top": "Top left tools",
-  "left-bottom": "Bottom left tools",
-  "right-top": "Top right tools",
-  "right-bottom": "Bottom right tools",
+const ZONE_TITLES: Record<ToolRailZone, MessageKey> = {
+  "left-top": "workspace.rail.left_top",
+  "left-bottom": "workspace.rail.left_bottom",
+  "right-top": "workspace.rail.right_top",
+  "right-bottom": "workspace.rail.right_bottom",
 }
 
 const MIME = "application/x-dataplayer-tool"
@@ -87,7 +89,7 @@ function onRailDrop(event: DragEvent) {
       'tool-rail--bottom': zone.endsWith('bottom'),
     }"
     :data-testid="`tool-rail-${zone}`"
-    :aria-label="ZONE_TITLES[zone]"
+    :aria-label="t(ZONE_TITLES[zone])"
     @dragover.prevent="overIndex = blocks.length"
     @dragleave="overIndex = null"
     @drop="onRailDrop"

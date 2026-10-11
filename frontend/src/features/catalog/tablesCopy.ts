@@ -7,6 +7,7 @@
  */
 
 import type { CopiedRow, TablesChoice, TablesPreview } from "@/client"
+import { t } from "@/shared/i18n"
 
 export type RowsChoice = "rows" | "structure"
 export type LinksChoice = "copy" | "drop" | "keep"
@@ -58,8 +59,8 @@ export function startingPlace(
 
 /** Why a table is in the copy when nobody ticked it. */
 export function originNote(row: CopiedRow): string | undefined {
-  if (row.origin === "linked") return "a copied table points at it"
-  if (row.origin === "added") return "it points at a copied table"
+  if (row.origin === "linked") return t("catalog.copy_tables.linked")
+  if (row.origin === "added") return t("catalog.copy_tables.added")
   return undefined
 }
 
@@ -70,7 +71,7 @@ export function copyScript(preview: TablesPreview): string {
   const lines = [
     ...before.map((statement) => `-- ${statement.title}\n${statement.sql};`),
     ...preview.loads.map(
-      (load) => `-- The rows of ${load.node_id} arrive in ${load.schema_name}.${load.name}`
+      (load) => `-- ${t("catalog.copy_tables.rows_arrive", { node: load.node_id, target: `${load.schema_name}.${load.name}` })}`
     ),
     ...after.map((statement) => `-- ${statement.title}\n${statement.sql};`),
   ]

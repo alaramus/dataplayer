@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n"
 import { appIcons } from "@/shared/ui/icons"
 
 /**
@@ -42,11 +43,11 @@ export interface ConnectionCommand {
 export function queriesCommand(state: ConnectionState): ConnectionCommand {
   const about =
     state.name !== null && state.supportsQueries === "yes"
-      ? `Queries written against ${state.name}`
-      : "Every query you have written"
+      ? t("workspace.commands.queries_of", { name: state.name })
+      : t("workspace.commands.queries_all")
   return {
     name: "queries",
-    label: "Queries",
+    label: t("workspace.commands.queries"),
     icon: appIcons.code,
     enabled: true,
     tooltip: about,
@@ -73,21 +74,21 @@ export interface ServicesState {
 /** Of the services here, how many run: all of them is the common case. */
 function runningTooltip(running: number, count: number): string {
   if (running === count) {
-    return count === 1 ? "One service is running here" : `${String(count)} services are running here`
+    return t("workspace.commands.services_all_running", { n: count }, count)
   }
   if (running === 0) {
     return count === 1
-      ? "Your one service here is stopped"
-      : `None of your ${String(count)} services here is running`
+      ? t("workspace.commands.services_one_stopped")
+      : t("workspace.commands.services_all_stopped", { n: count })
   }
-  return `${String(running)} of ${String(count)} services are running here`
+  return t("workspace.commands.services_some_running", { running, n: count })
 }
 
 export function servicesCommand(state: ServicesState): ConnectionCommand {
   if (state.working !== null) {
     return {
       name: "services",
-      label: "Services",
+      label: t("workspace.commands.services"),
       icon: appIcons.dns,
       enabled: true,
       // While something is happening, the button is where it is said: this is
@@ -101,15 +102,15 @@ export function servicesCommand(state: ServicesState): ConnectionCommand {
     // that is an answer as well (D143).
     return {
       name: "services",
-      label: "Services",
+      label: t("workspace.commands.services"),
       icon: appIcons.dns,
       enabled: true,
-      tooltip: "This server is not running anything for you",
+      tooltip: t("workspace.commands.services_none"),
     }
   }
   return {
     name: "services",
-    label: "Services",
+    label: t("workspace.commands.services"),
     icon: appIcons.dns,
     enabled: true,
     tooltip: runningTooltip(state.running, state.count),

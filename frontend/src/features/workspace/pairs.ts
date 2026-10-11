@@ -6,6 +6,7 @@
 import type { PasteOffer } from "@/client"
 import { offerPlace } from "@/features/catalog/pasteOffers"
 import type { CrossPasteIntent } from "@/features/catalog/pasteOffers"
+import { t } from "@/shared/i18n"
 
 import type { CatalogSide } from "./catalogSides"
 
@@ -39,7 +40,7 @@ export type PairDrop =
 export function dropOnPair(waiting: PairCandidate | null, carried: PairCandidate): PairDrop {
   if (waiting === null || waiting.panelId === carried.panelId) return { kind: "hold" }
   if (waiting.connectorId === carried.connectorId) {
-    return { kind: "refuse", reason: "a catalog of this connection is already waiting" }
+    return { kind: "refuse", reason: t("workspace.pair.already_waiting") }
   }
   return { kind: "complete", left: waiting, right: carried }
 }
@@ -53,14 +54,16 @@ export interface PairCommand {
 export function pairCommand(waiting: PairCandidate | null, candidate: PairCandidate): PairCommand {
   const drop = dropOnPair(waiting, candidate)
   if (drop.kind === "refuse") {
-    return { tooltip: `Pair with another connection — ${drop.reason}`, refused: true }
+    return { tooltip: t("workspace.pair.with_another_refused", { reason: drop.reason }), refused: true }
   }
-  if (drop.kind === "complete") return { tooltip: `Pair with ${drop.left.title}`, refused: false }
-  return { tooltip: "Pair with another connection", refused: false }
+  if (drop.kind === "complete") {
+    return { tooltip: t("workspace.pair.with", { name: drop.left.title }), refused: false }
+  }
+  return { tooltip: t("workspace.pair.with_another"), refused: false }
 }
 
 export function pairTitle(pair: Pair): string {
-  return `${pair.left.title} and ${pair.right.title}`
+  return t("workspace.pair.title", { left: pair.left.title, right: pair.right.title })
 }
 
 export function swapped(pair: Pair): Pair {
@@ -103,7 +106,7 @@ export function usable(offer: PasteOffer): boolean {
 
 /** What an item says beside its button, or instead of one. */
 export function itemDetail(offer: PasteOffer, intent: CrossPasteIntent): string {
-  if (!usable(offer)) return offer.reason ?? "Not possible here"
-  return `${intent.sourceLabel} into ${offerPlace(offer, intent)}`
+  if (!usable(offer)) return offer.reason ?? t("workspace.pair.not_possible")
+  return t("workspace.pair.into", { what: intent.sourceLabel, where: offerPlace(offer, intent) })
 }
 

@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, useTemplateRef } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppCardFrame, AppCardHead, AppIconButton } from "@/shared/ui"
 import { WorkspaceSeparator } from "@/shared/workspace"
 
@@ -50,7 +51,7 @@ function resize(deltaPx: number) {
         <template #actions>
           <AppIconButton
             :icon="appIcons.remove"
-            tooltip="Hide"
+            :tooltip="t('workspace.bottom.hide')"
             data-testid="bottom-panel-hide"
             @click="panel.hide()"
           />

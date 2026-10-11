@@ -6,6 +6,7 @@ import { useRouter } from "vue-router"
 import ToastHost from "@/shared/notifications/ToastHost.vue"
 import { resetNotices } from "@/shared/notifications/notices"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { t } from "@/shared/i18n"
 import { closeRealtime } from "@/shared/realtime/client"
 import { forgetContentsWords } from "@/shared/search/contentsWords"
 import { forgetOpened } from "@/shared/search/opened"
@@ -38,12 +39,12 @@ let footerObserver: ResizeObserver | null = null
 
 const userMenuItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [
-    { name: "preferences", label: "Preferences", icon: appIcons.preferences },
+    { name: "preferences", label: t("kit.layout.preferences"), icon: appIcons.preferences },
   ]
   if (me.data.value?.is_superuser === true) {
-    items.push({ name: "admin", label: "Admin", icon: appIcons.administration })
+    items.push({ name: "admin", label: t("kit.layout.admin"), icon: appIcons.administration })
   }
-  items.push({ name: "logout", label: "Sign out", icon: appIcons.signOut })
+  items.push({ name: "logout", label: t("kit.layout.sign_out"), icon: appIcons.signOut })
   return items
 })
 
@@ -132,12 +133,12 @@ async function logout() {
             variant="quiet"
             size="sm"
             :icon="appIcons.accountMenu"
-            aria-label="User menu"
+            :aria-label="t('kit.layout.user_menu')"
             aria-haspopup="menu"
             :aria-expanded="userMenuOpen"
             data-testid="user-menu"
           >
-            <AppTooltip>User menu</AppTooltip>
+            <AppTooltip>{{ t('kit.layout.user_menu') }}</AppTooltip>
             <AppMenu
               v-model="userMenuOpen"
               :items="userMenuItems"

@@ -172,7 +172,7 @@ async def test_an_invalid_export_ticket_is_not_a_connector_id(
     response = await client.get(f"{BASE}/export-downloads/not-a-ticket")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Export not found"
+    assert response.json()["detail"]["code"] == "connectors.export_not_found"
 
 
 async def test_a_download_hands_the_page_over_and_keeps_nothing(

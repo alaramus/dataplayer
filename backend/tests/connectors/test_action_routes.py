@@ -820,7 +820,7 @@ async def test_an_invalid_download_ticket_is_not_a_connector_id(
     response = await client.get(f"{BASE}/action-downloads/not-a-ticket")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Download not found"
+    assert response.json()["detail"]["code"] == "connectors.download_not_found"
 
 
 @pytest.mark.usefixtures("home")

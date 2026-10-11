@@ -32,6 +32,7 @@ import HypertableSettings from "@/features/hypertableDesign/HypertableSettings.v
 import TableDesigner from "@/features/tableDesign/TableDesigner.vue"
 import { formatSize } from "@/features/catalog/nodes"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
@@ -191,7 +192,7 @@ async function askPreview() {
     if (mine !== asked) return
     preview.value = null
     // Optional previews remain advisory; reviewed plans require a fresh fingerprint.
-    previewFailed.value = messageOf(cause, "Could not read what this would do")
+    previewFailed.value = messageOf(cause, t("catalog.action_dialog.preview_failed"))
   }
 }
 
@@ -278,7 +279,7 @@ const windowSizing = computed(() =>
 const destructiveQuestion = computed(
   () =>
     props.command?.question ??
-    `Are you sure you want to delete ${props.nodeLabel}?`
+    t("catalog.action_dialog.delete_question", { name: props.nodeLabel })
 )
 
 watch(
@@ -345,7 +346,7 @@ async function submit() {
   const command = props.command
   if (!command) return
   if (command.takesFile && files.value.length === 0) {
-    failure.value = "Choose a file first"
+    failure.value = t("catalog.action_dialog.choose_file")
     return
   }
 
@@ -353,7 +354,7 @@ async function submit() {
   const params = await normalizedParams()
   if (params === null) return
   if (reviewMissing.value) {
-    failure.value = "Review the operation plan before running it"
+    failure.value = t("catalog.action_dialog.review_plan")
     return
   }
   if (command.producesJob) {
@@ -419,7 +420,7 @@ async function submit() {
     report([
       {
         nodeId: props.nodeIds[0] ?? null,
-        message: messageOf(cause, "The action could not be performed"),
+        message: messageOf(cause, t("catalog.actions.failed")),
         ...(sent === undefined ? {} : { file: sent }),
         conflict: statusOf(cause) === 409,
       },
@@ -437,7 +438,7 @@ async function submit() {
 async function start(command: ActionCommand, params: Record<string, unknown>) {
   const fingerprint = preview.value?.fingerprint
   if (fingerprint === undefined || fingerprint === null) {
-    failure.value = "Review the operation plan before running it"
+    failure.value = t("catalog.action_dialog.review_plan")
     return
   }
   try {
@@ -458,7 +459,7 @@ async function start(command: ActionCommand, params: Record<string, unknown>) {
       answering.value = true
       return
     }
-    failure.value = messageOf(cause, "The job could not be started")
+    failure.value = messageOf(cause, t("catalog.action_dialog.job_failed"))
   }
 }
 
@@ -471,7 +472,7 @@ async function start(command: ActionCommand, params: Record<string, unknown>) {
 async function download(command: ActionCommand, params: Record<string, unknown>) {
   const targets = nodeSet.value
   if (targets === null) {
-    failure.value = "Choose what to write out"
+    failure.value = t("catalog.action_dialog.choose_targets")
     return
   }
   try {
@@ -484,7 +485,7 @@ async function download(command: ActionCommand, params: Record<string, unknown>)
     saveNativeDownload(ready.download_url)
     close()
   } catch (cause) {
-    failure.value = messageOf(cause, "The download could not be prepared")
+    failure.value = messageOf(cause, t("catalog.action_dialog.download_failed"))
   }
 }
 
@@ -510,7 +511,9 @@ function report(failed: ActionFailure[]) {
     failed.every((one) => one.conflict === true)
   failure.value = conflict.value
     ? clipboardConflict
-      ? `${failed[0]?.message ?? "A file already exists"}. Replace it or keep both files.`
+      ? t("catalog.action_dialog.replace_or_keep", {
+        message: failed[0]?.message ?? t("catalog.action_dialog.file_exists"),
+      })
       : takenNames(left)
     : failed.map((one) => one.message).join("; ")
 }
@@ -519,12 +522,9 @@ function report(failed: ActionFailure[]) {
 function takenNames(taken: File[]): string {
   const first = taken[0]
   if (taken.length === 1 && first !== undefined) {
-    return `${first.name} already exists. Replace it or keep both files.`
+    return t("catalog.action_dialog.taken_one", { name: first.name })
   }
-  return (
-    `${String(taken.length)} of these files already exist. ` +
-    "Replace them or keep both copies of each."
-  )
+  return t("catalog.action_dialog.taken_many", { n: taken.length }, taken.length)
 }
 
 function initialValues(command: ActionCommand | null): Record<string, unknown> {
@@ -585,11 +585,12 @@ async function normalizedParams(): Promise<Record<string, unknown> | null> {
   }
   if (requested.extension === original.extension) return params
   const accepted = await confirm({
-    title: "Change file extension?",
-    message:
-      `Change ${original.extension} to ${requested.extension}? ` +
-      "The file contents will not be converted.",
-    confirmLabel: "Change extension",
+    title: t("catalog.action_dialog.extension_title"),
+    message: t("catalog.action_dialog.extension_message", {
+      from: original.extension,
+      to: requested.extension,
+    }),
+    confirmLabel: t("catalog.action_dialog.extension_confirm"),
     danger: true,
   })
   return accepted ? params : null
@@ -624,7 +625,7 @@ async function runWorkflow(value: {
     emit("done", outcome)
     close()
   } catch (cause) {
-    failure.value = messageOf(cause, "The table could not be created")
+    failure.value = messageOf(cause, t("catalog.action_dialog.table_failed"))
   }
 }
 
@@ -654,7 +655,7 @@ async function runDesign(value: {
     emit("done", outcome)
     close()
   } catch (cause) {
-    failure.value = messageOf(cause, "The table could not be created")
+    failure.value = messageOf(cause, t("catalog.action_dialog.table_failed"))
   }
 }
 
@@ -683,7 +684,7 @@ async function runReviewed(value: {
       })
       close()
     } catch (cause) {
-      failure.value = messageOf(cause, "The job could not be started")
+      failure.value = messageOf(cause, t("catalog.action_dialog.job_failed"))
     }
     return
   }
@@ -705,7 +706,7 @@ async function runReviewed(value: {
     emit("done", outcome)
     close()
   } catch (cause) {
-    failure.value = messageOf(cause, "The change could not be applied")
+    failure.value = messageOf(cause, t("catalog.action_dialog.change_failed"))
   }
 }
 </script>
@@ -793,7 +794,7 @@ async function runReviewed(value: {
         :append="command.takesManyFiles"
         listed
         :disable="runAction.isPending.value"
-        :label="command.takesManyFiles ? 'Files' : 'File'"
+        :label="command.takesManyFiles ? t('catalog.action_dialog.files') : t('catalog.action_dialog.file')"
         data-testid="action-file"
         @update:model-value="choose"
       />
@@ -815,7 +816,7 @@ async function runReviewed(value: {
           <span class="action-dialog__file-size">{{ formatSize(chosen.size) }}</span>
           <AppIconButton
             :icon="appIcons.close"
-            :tooltip="`Take ${chosen.name} off the list`"
+            :tooltip="t('catalog.action_dialog.remove_file', { name: chosen.name })"
             :disable="runAction.isPending.value"
             :data-testid="`action-file-remove-${String(index)}`"
             @click="forget(index)"
@@ -837,7 +838,7 @@ async function runReviewed(value: {
         class="action-dialog__waiting"
         data-testid="action-preview-waiting"
       >
-        Fill in “{{ unfilled.label }}” to see what this would do.
+        {{ t("catalog.action_dialog.fill_in", { field: unfilled.label }) }}
       </p>
       <AppBanner
         v-else-if="previewFailed"
@@ -871,20 +872,20 @@ async function runReviewed(value: {
     <template #actions>
       <AppButton
         variant="quiet"
-        :label="runAction.isPending.value ? 'Hide' : 'Cancel'"
+        :label="runAction.isPending.value ? t('catalog.common.hide') : t('catalog.common.cancel')"
         @click="close"
       />
       <AppButton
         v-if="conflict"
         variant="secondary"
-        label="Keep both"
+        :label="t('catalog.action_dialog.keep_both')"
         data-testid="action-keep-both"
         @click="retryConflict('rename')"
       />
       <AppButton
         v-if="conflict"
         variant="danger"
-        label="Replace"
+        :label="t('catalog.action_dialog.replace')"
         data-testid="action-replace"
         @click="retryConflict('replace')"
       />

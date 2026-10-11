@@ -7,6 +7,7 @@ second word for it.
 
 - Sentence case: «Новое подключение», not «Новое Подключение».
 - A button or menu item is an infinitive: «Сохранить», «Удалить», «Открыть».
+  Cancel is the one exception, as everywhere in Russian interfaces: «Отмена».
 - The reader is addressed as «вы», lower case, and only when it cannot be
   avoided; impersonal forms are preferred: «Не удалось сохранить».
 - Quotes are «ёлочки»; a dash is «—» with spaces; an ellipsis is «…».
@@ -75,3 +76,26 @@ second word for it.
 | settings / preferences | настройки |
 | owner | владелец |
 | access | доступ |
+| section (of the panel engine) | раздел |
+| put aside / bring back | отложить / вернуть |
+| service | сервис |
+| live (fresh data) | онлайн |
+| layout (of tabs) | раскладка |
+| details | подробности |
+| relationships | связи |
+| backups | резервные копии |
+| search index | поисковый индекс |
+| cut | вырезать |
+| plan (of an operation) | план операции |
+| destination | место назначения |
+| match (search) | совпадение |
+| item / member | элемент |
+| stream entry | запись |
+| viewer | просмотрщик |
+| discard | отбросить |
+| tick | отметить |
+| sign out | выйти |
+| administration | администрирование |
+| clear | очистить |
+| fullscreen | во весь экран |
+| paused | приостановлено |

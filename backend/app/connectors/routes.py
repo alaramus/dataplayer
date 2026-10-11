@@ -212,6 +212,7 @@ from app.connectors.access import (
     resolve_source,
 )
 from app.connectors.action_lookup import (
+    ACTION_NEEDS,
     ActionRequest,
     acting_or_501,
     action_for_node,
@@ -233,6 +234,7 @@ from app.connectors.names import NamesChanged, NamesChangedDep
 from app.core.access import Access, at_least
 from app.core.config import settings
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message, get_datetime_utc
 from app.realtime.topics import TopicsDep
 from app.users import storage
@@ -323,10 +325,10 @@ async def preview_content_file(
     # The purpose is checked, not merely the signature: a ticket minted for the
     # ranged route of D52 is not authority for bytes held whole.
     if not isinstance(claims, content_tickets.ImagePreviewClaims):
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
     user = await session.get(User, claims.user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
 
     adapter = await adapter_for(
         session, claims.connector_id, user, resources, requires="read"
@@ -358,7 +360,7 @@ async def preview_content_file(
             },
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Content not found") from exc
+        raise Problem(404, "connectors.content_not_found") from exc
     except AdapterError as exc:
         raise HTTPException(
             status_code=502,
@@ -383,10 +385,10 @@ async def stream_content_file(
     """
     claims = content_tickets.read_content_ticket(ticket)
     if not isinstance(claims, content_tickets.ContentStreamClaims):
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
     user = await session.get(User, claims.user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
 
     adapter = await adapter_for(
         session, claims.connector_id, user, resources, requires="read"
@@ -406,7 +408,7 @@ async def stream_content_file(
             )
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Content not found") from exc
+        raise Problem(404, "connectors.content_not_found") from exc
     except AdapterError as exc:
         raise HTTPException(
             status_code=502,
@@ -427,9 +429,7 @@ async def stream_content_file(
         )
     except ranges.UnsatisfiableRange:
         headers["Content-Range"] = f"bytes */{stream.size_bytes}"
-        raise HTTPException(
-            status_code=416, detail="Requested range not satisfiable", headers=headers
-        ) from None
+        raise Problem(416, "connectors.range_not_satisfiable", headers=headers) from None
 
     if wanted is None:
         return StreamingResponse(
@@ -458,10 +458,10 @@ async def download_action_result(
     """Redeem one source action ticket after rechecking access and targets."""
     claims = action_downloads.read_action_download_ticket(ticket)
     if claims is None:
-        raise HTTPException(status_code=404, detail="Download not found")
+        raise Problem(404, "connectors.download_not_found")
     user = await session.get(User, claims.user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status_code=404, detail="Download not found")
+        raise Problem(404, "connectors.download_not_found")
 
     adapter, access = await resolve_adapter(
         session, claims.connector_id, user, resources, requires="read"
@@ -471,10 +471,7 @@ async def download_action_result(
     )
     allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not produce a download"},
-        )
+        raise Problem(415, "actions.no_download", action=action.title)
     prepared = await perform(
         lambda: action.download(claims.node_ids, claims.params)
     )
@@ -503,7 +500,7 @@ async def download_finished_export(ticket: str) -> FileResponse:
     """
     claims = downloads.read_export_ticket(ticket)
     if claims is None:
-        raise HTTPException(status_code=404, detail="Export not found")
+        raise Problem(404, "connectors.export_not_found")
     scratch = await to_thread.run_sync(
         lambda: downloads.scratch_export_path(claims)
     )
@@ -513,7 +510,7 @@ async def download_finished_export(ticket: str) -> FileResponse:
         )
     )
     if path is None:
-        raise HTTPException(status_code=404, detail="Export not found")
+        raise Problem(404, "connectors.export_not_found")
     return FileResponse(
         path,
         media_type="text/csv",
@@ -1189,12 +1186,7 @@ async def update_content(
             renames=True,
         )
     except ContentConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "The file changed or was deleted; reload it and try again"
-            },
-        ) from None
+        raise Problem(409, "connectors.file_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1566,10 +1558,7 @@ async def update_cell(
             lambda: adapter.update_cell(request), data_cache, connector_id
         )
     except RowConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "The row changed or was deleted; reload it and try again"},
-        ) from None
+        raise Problem(409, "connectors.row_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1612,10 +1601,7 @@ async def update_cells(
     try:
         result = await adapter.update_cells(request)
     except RowConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "A row changed or was deleted; reload and try again"},
-        ) from None
+        raise Problem(409, "connectors.rows_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1694,12 +1680,7 @@ async def delete_rows(
             lambda: adapter.delete_rows(request), data_cache, connector_id
         )
     except RowConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "One or more rows changed or were deleted; reload and try again"
-            },
-        ) from None
+        raise Problem(409, "connectors.rows_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1902,19 +1883,9 @@ async def run_row_command(
     }
     command = offered.get(body.name)
     if command is None:
-        raise HTTPException(
-            status_code=404,
-            detail={"message": f"Unknown row command: {body.name}"},
-        )
+        raise Problem(404, "actions.unknown_row_command", name=body.name)
     if not at_least(access, command.requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"{command.title} needs {command.requires} access",
-                "required": command.requires,
-                "held": access,
-            },
-        )
+        raise Problem(403, ACTION_NEEDS[command.requires], action=command.title)
     try:
         result = await adapter.run_row_command(body.node_id, body.name, body.keys)
     except UnknownRowCommand as exc:
@@ -1971,18 +1942,9 @@ async def resolve_picked_rows(
     }
     found = offered.get(body.action)
     if found is None:
-        raise HTTPException(
-            status_code=404, detail={"message": f"Nothing called {body.action} is offered here"}
-        )
+        raise Problem(404, "actions.not_offered", name=body.action)
     if not at_least(access, found.requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"{found.title} needs {found.requires} access",
-                "required": found.requires,
-                "held": access,
-            },
-        )
+        raise Problem(403, ACTION_NEEDS[found.requires], action=found.title)
     return await perform(
         lambda: adapter.resolve_picked_rows(body.node_id, body.action, body.keys)
     )
@@ -2064,12 +2026,8 @@ async def create_relation_from_source(
             lambda: imports.create_from_source(target, source, request)
         )
     except imports.SourceTooLarge:
-        raise HTTPException(
-            status_code=413,
-            detail={
-                "message": "A new table may be filled with at most "
-                f"{imports.IMPORT_CEILING} rows"
-            },
+        raise Problem(
+            413, "connectors.import_too_many_rows", limit=imports.IMPORT_CEILING
         ) from None
     if not isinstance(result, RelationCreated):
         raise HTTPException(
@@ -3093,19 +3051,14 @@ async def _action_for_nodes(
 ) -> Action[Any]:
     """One bulk action admitted by every selected node, checked together."""
     if len(set(node_ids)) != len(node_ids):
-        raise HTTPException(
-            status_code=422, detail={"message": "A node may be selected only once"}
-        )
+        raise Problem(422, "actions.node_repeated")
     action: Action[Any] | None = None
     for node_id in node_ids:
         action = await action_for_node(adapter, action_name, node_id)
     if action is None:
-        raise HTTPException(status_code=422, detail={"message": "Choose a node"})
+        raise Problem(422, "actions.no_node")
     if len(node_ids) > 1 and not action.bulk:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": f"{action.title} cannot be done in bulk"},
-        )
+        raise Problem(422, "actions.not_bulk", action=action.title)
     return action
 
 
@@ -3176,10 +3129,7 @@ async def prepare_connector_action(
     )
     allowed_or_403(action, access)
     if not isinstance(action, PreparesConnector):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not prepare a connector"},
-        )
+        raise Problem(415, "actions.no_connector", action=action.title)
     return await perform(lambda: action.prepare_connector(body.node_id, body.params))
 
 
@@ -3207,7 +3157,7 @@ async def run_action(
     if isinstance(action, RequiresReviewedPlan):
         fingerprint = body.reviewed_fingerprint
         if fingerprint is None:
-            raise HTTPException(status_code=422, detail={"message": "Review the operation plan before running it"})
+            raise Problem(422, "actions.plan_not_reviewed")
         return await _invalidate_after(
             lambda: perform(lambda: action.perform_reviewed(body.node_id, body.params, fingerprint)),
             data_cache,
@@ -3216,10 +3166,7 @@ async def run_action(
             names=names,
         )
     if not isinstance(action, TakesParams):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} uses a different request transport"},
-        )
+        raise Problem(415, "actions.other_transport", action=action.title)
     return await _invalidate_after(
         lambda: perform(lambda: action.perform(body.node_id, body.params)),
         data_cache,
@@ -3329,10 +3276,7 @@ async def run_action_on_set(
     )
     allowed_or_403(action, access)
     if not isinstance(action, TakesNodeSet):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} is done to one node at a time"},
-        )
+        raise Problem(415, "actions.one_node_at_a_time", action=action.title)
     return await _invalidate_after(
         lambda: perform(lambda: action.perform_on_set(body.node_ids, body.params)),
         data_cache,
@@ -3363,10 +3307,7 @@ async def preview_action_on_set(
     )
     allowed_or_403(action, access)
     if not isinstance(action, PreviewsSet):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} cannot say what it would do"},
-        )
+        raise Problem(415, "actions.no_preview", action=action.title)
     return await perform(lambda: action.preview_on_set(body.node_ids, body.params))
 
 
@@ -3391,10 +3332,7 @@ async def prepare_action_download(
     )
     allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not produce a download"},
-        )
+        raise Problem(415, "actions.no_download", action=action.title)
     ticket = action_downloads.issue_action_download_ticket(
         user_id=current_user.id,
         connector_id=connector_id,
@@ -3435,22 +3373,14 @@ async def run_action_with_file(
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
     if not isinstance(action, TakesFile):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not take a file"},
-        )
+        raise Problem(415, "actions.no_file", action=action.title)
 
     try:
         given = json.loads(params)
     except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": "The params field is not valid JSON"},
-        ) from exc
+        raise Problem(422, "actions.params_not_json") from exc
     if not isinstance(given, dict):
-        raise HTTPException(
-            status_code=422, detail={"message": "The params field must be an object"}
-        )
+        raise Problem(422, "actions.params_not_object")
 
     return await _invalidate_after(
         lambda: perform(lambda: action.perform_with_file(target, given, file)),
@@ -3554,5 +3484,5 @@ async def revoke_grant(
     if not await crud.remove_grant(
         session, connector_id=connector_id, user_id=user_id
     ):
-        raise HTTPException(status_code=404, detail="Grant not found")
+        raise Problem(404, "access.grant_not_found")
     return Message(message="Access revoked")

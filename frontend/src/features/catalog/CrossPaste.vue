@@ -12,6 +12,7 @@ import type { CrossPasteIntent, PasteStep } from "@/features/catalog/pasteOffers
 import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
 import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppInput, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -43,12 +44,12 @@ const offer = ref<PasteOffer | null>(only)
 const step = ref<PasteStep | "choose">(only === null ? "choose" : firstStep(only))
 const name = ref(only?.suggested_name ?? "")
 const failure = ref(
-  step.value === "conflict" ? only?.reason ?? "A file already exists here" : ""
+  step.value === "conflict" ? only?.reason ?? t("catalog.cross_paste.exists_here") : ""
 )
 const pending = ref(false)
 const nameHint = computed(() =>
   offer.value?.name_conflict === true && name.value.trim() === offer.value.suggested_name
-    ? "A file with this name is already here"
+    ? t("catalog.cross_paste.name_taken")
     : undefined
 )
 
@@ -113,12 +114,12 @@ async function paste(
     toast.success(answer.message)
     emit("close")
   } catch (cause) {
-    const message = messageOf(cause, "Nothing was pasted")
+    const message = messageOf(cause, t("catalog.cross_paste.nothing_pasted"))
     // A batch may have changed both ends before it failed, so the destination
     // is re-read; and what it was about stays ticked, for another try.
     if (chosen.changes_source === true) emit("sourceChanged", intent.sourceConnectorId)
     emit("done", {
-      done: [{ message: "Paste ended", reload_node_ids: [intent.destinationNodeId] }],
+      done: [{ message: t("catalog.cross_paste.ended"), reload_node_ids: [intent.destinationNodeId] }],
       failures: [intent.targetNodeId, ...intent.sourceNodeIds].map((nodeId) => ({
         nodeId,
         message,
@@ -169,8 +170,8 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
   <WindowDialog
     v-if="step === 'choose'"
     :model-value="true"
-    title="Paste"
-    :subtitle="`What ${intent.sourceLabel} becomes here`"
+    :title="t('catalog.catalog_actions.paste')"
+    :subtitle="t('catalog.cross_paste.becomes', { source: intent.sourceLabel })"
     size="compact-form"
     data-testid="cross-paste-choose"
     @update:model-value="closeFrom('choose')"
@@ -188,7 +189,7 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('close')"
       />
     </template>
@@ -197,7 +198,7 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
     v-else-if="step === 'file-name' && offer"
     :model-value="true"
     :title="offer.title"
-    :subtitle="`${intent.sourceLabel} into ${intent.destinationLabel}`"
+    :subtitle="t('catalog.cross_paste.into', { source: intent.sourceLabel, destination: intent.destinationLabel })"
     size="compact-form"
     data-testid="cross-paste-name"
     @update:model-value="closeFrom('file-name')"
@@ -205,7 +206,7 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
     <AppForm layout="section">
       <AppInput
         v-model="name"
-        label="File name"
+        :label="t('catalog.cross_paste.file_name')"
         :hint="nameHint"
         :error="failure"
         data-testid="cross-paste-file-name"
@@ -215,12 +216,12 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="pending"
         @click="emit('close')"
       />
       <AppButton
-        label="Save"
+        :label="t('catalog.common.save')"
         :disable="!name.trim()"
         :loading="pending"
         data-testid="cross-paste-save"
@@ -272,24 +273,24 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
   <WindowDialog
     v-else-if="step === 'conflict' && offer"
     :model-value="true"
-    title="File already exists"
+    :title="t('catalog.cross_paste.conflict_title')"
     size="compact-form"
     data-testid="cross-paste-conflict"
     @update:model-value="closeFrom('conflict')"
   >
     <p class="cross-paste__message">
-      {{ failure }}. Choose what to do with the pasted {{ intent.sourceNodeIds.length > 1 ? "files" : "file" }}.
+      {{ t("catalog.cross_paste.conflict", { message: failure }, intent.sourceNodeIds.length) }}
     </p>
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="pending"
         @click="emit('close')"
       />
       <AppButton
         variant="secondary"
-        label="Keep both"
+        :label="t('catalog.action_dialog.keep_both')"
         :loading="pending"
         data-testid="cross-paste-keep-both"
         @click="paste('rename')"
@@ -297,7 +298,7 @@ function copyTables(copy: { choice: TablesChoice; place: string }) {
       <AppButton
         v-if="offer.can_replace !== false"
         variant="danger"
-        label="Replace"
+        :label="t('catalog.action_dialog.replace')"
         :loading="pending"
         data-testid="cross-paste-replace"
         @click="paste('replace')"

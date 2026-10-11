@@ -6,6 +6,7 @@ import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult, NodeSearchResult } from "@/client"
 import { jobsKey } from "@/features/activity/api"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { freshnessOf } from "@/shared/freshness/freshness"
 import type { Freshness } from "@/shared/freshness/freshness"
 import { useOperations } from "@/shared/operations"
@@ -298,7 +299,7 @@ export function useRunAction() {
         if (together !== null) {
           // One request, so one answer: a refusal arrives as an exception and
           // is read where a single action's refusal is read.
-          await operation.next("Waiting for the server")
+          await operation.next(t("catalog.actions.waiting"))
           const result = (
             await ConnectorsService.runActionOnSet({
               path: { connector_id: input.connectorId, action_name: input.name },
@@ -313,10 +314,10 @@ export function useRunAction() {
         const failures: ActionFailure[] = []
         const skipped: ActionFailure[] = []
         for (const [index, { nodeId, file }] of requests.entries()) {
-          if (!(await operation.next(file?.name ?? nodeId ?? "Waiting for the server"))) {
+          if (!(await operation.next(file?.name ?? nodeId ?? t("catalog.actions.waiting")))) {
             skipped.push(...requests.slice(index).map((request) => ({
               nodeId: request.nodeId,
-              message: "Not started: the queue was stopped",
+              message: t("catalog.actions.not_started"),
               ...(request.file === null ? {} : { file: request.file }),
             })))
             break
@@ -337,7 +338,7 @@ export function useRunAction() {
             if (total === 1) throw cause
             failures.push({
               nodeId,
-              message: messageOf(cause, "Could not be done"),
+              message: messageOf(cause, t("catalog.actions.could_not_be_done")),
               ...(file === null ? {} : { file }),
               conflict: statusOf(cause) === 409,
             })
@@ -349,7 +350,7 @@ export function useRunAction() {
         operation.finish(summarize(outcome, label), failures.length > 0)
         return outcome
       } catch (cause) {
-        operation.fail(messageOf(cause, "The action could not be performed"))
+        operation.fail(messageOf(cause, t("catalog.actions.failed")))
         throw cause
       }
     },

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { t } from "@/shared/i18n"
+
 import AppButton from "./AppButton.vue"
 import AppIconButton from "./AppIconButton.vue"
 import type { SelectOption, TextRun } from "./AppSelect.vue"
@@ -69,7 +71,7 @@ function runsOf(runs: readonly TextRun[] | undefined, text: string): readonly Te
       <AppButton
         variant="quiet"
         size="sm"
-        label="Clear"
+        :label="t('kit.option.clear')"
         :aria-label="option.removeLabel"
         @click.stop.prevent="emit('remove', option)"
       />

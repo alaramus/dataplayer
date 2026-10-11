@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { t } from "@/shared/i18n"
+
 import AppIconButton from "./AppIconButton.vue"
 import AppInput from "./AppInput.vue"
 import { appIcons } from "./icons"
@@ -48,7 +50,7 @@ function pick(value: unknown) {
     <template #after>
       <AppIconButton
         :icon="appIcons.calendar"
-        tooltip="Pick a day and time, in UTC"
+        :tooltip="t('kit.date_time.pick')"
         :disable="disable"
         data-testid="date-time-picker"
       >

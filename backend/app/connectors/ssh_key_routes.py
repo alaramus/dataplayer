@@ -22,6 +22,7 @@ from app.connectors.ssh_keys import (
     SshKeyUnlock,
 )
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message
 from app.users.deps import CurrentUser
 
@@ -123,10 +124,7 @@ async def delete_ssh_key(
     used_by = (await ssh_keys.uses(session, current_user.id)).get(row.id, [])
     if used_by:
         names = ", ".join(use.name for use in used_by)
-        raise HTTPException(
-            status_code=409,
-            detail=f"This key is used by {names}; point them at another key first",
-        )
+        raise Problem(409, "ssh_keys.in_use", names=names)
     KEYRING.lock(row.id)
     await session.delete(row)
     await session.commit()
@@ -145,9 +143,7 @@ async def unlock_ssh_key(
     """
     row = await _own_or_404(session, key_id, current_user.id)
     if row.passphrase_mode != "ask":
-        raise HTTPException(
-            status_code=409, detail="This key does not ask for a passphrase"
-        )
+        raise Problem(409, "ssh_keys.no_passphrase")
     passphrase = body.passphrase.get_secret_value()
     try:
         await to_thread.run_sync(
@@ -176,7 +172,7 @@ async def _own_or_404(
 ) -> SshKey:
     row = await ssh_keys.get_own(session, key_id, owner_id)
     if row is None:
-        raise HTTPException(status_code=404, detail="Key not found")
+        raise Problem(404, "ssh_keys.not_found")
     return row
 
 

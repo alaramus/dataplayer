@@ -2,6 +2,7 @@ import { readonly, ref, watch } from "vue"
 import type { InjectionKey } from "vue"
 
 import type { ConnectorPublic } from "@/client"
+import { t } from "@/shared/i18n"
 import { nextId } from "@/shared/workspace"
 import type { WorkspaceApi } from "@/shared/workspace"
 
@@ -46,7 +47,7 @@ export function usePairs(
   function commandOf(panelId: string): PairCommand {
     const candidate = candidateOf(panelId)
     return candidate === null
-      ? { tooltip: "Pair with another connection", refused: true }
+      ? { tooltip: t("workspace.pair.with_another"), refused: true }
       : pairCommand(waiting.value, candidate)
   }
 

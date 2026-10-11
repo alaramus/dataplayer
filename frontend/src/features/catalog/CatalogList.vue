@@ -4,6 +4,7 @@ import { computed, nextTick, ref, watch } from "vue"
 
 import type { ListNode } from "@/features/catalog/nodes"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import { AppCheckbox, AppEmptyState, AppIconButton, AppSpinner, useToast } from "@/shared/ui"
 
 /**
@@ -57,9 +58,9 @@ const toast = useToast()
 async function copyName(node: ListNode) {
   try {
     await copyText(node.label)
-    toast.success(`Copied “${node.label}”`)
+    toast.success(t("catalog.list.copied", { name: node.label }))
   } catch {
-    toast.error("This browser would not let the name be copied")
+    toast.error(t("catalog.list.copy_refused"))
   }
 }
 
@@ -110,10 +111,10 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
 const countLabel = computed(() => {
   // Before the level is read there is nothing to count, and "0 items" beside
   // the spinner said the level was empty.
-  if (props.loading) return "Reading…"
-  const total = `${String(props.items.length)} ${props.items.length === 1 ? "item" : "items"}`
+  if (props.loading) return t("catalog.list.reading")
+  const total = t("catalog.count.item", { n: props.items.length }, props.items.length)
   if (props.checked.length === 0) return total
-  return `${total} (${String(props.checked.length)} selected)`
+  return t("catalog.list.selected", { total, n: props.checked.length })
 })
 
 </script>
@@ -128,7 +129,7 @@ const countLabel = computed(() => {
         :model-value="allChecked"
         :indeterminate="someChecked"
         dense
-        aria-label="Select everything here"
+        :aria-label="t('catalog.list.select_all')"
         data-testid="catalog-check-all"
         @update:model-value="emit('toggle-all', $event)"
       />
@@ -181,7 +182,7 @@ const countLabel = computed(() => {
       <AppEmptyState
         v-if="items.length === 0"
         class="catalog-list__empty"
-        :text="emptyText ?? 'Nothing here'"
+        :text="emptyText ?? t('catalog.list.empty')"
       />
 
       <!-- A div and not a button: the row carries a tick box of its own, and a
@@ -191,7 +192,7 @@ const countLabel = computed(() => {
         :key="node.id"
         role="button"
         tabindex="0"
-        :aria-label="`Open ${node.label}`"
+        :aria-label="t('catalog.list.open', { name: node.label })"
         class="catalog-list__row"
         :class="{
           'catalog-list__row--checked': checked.includes(node.id),
@@ -208,7 +209,7 @@ const countLabel = computed(() => {
           <AppCheckbox
             :model-value="checked.includes(node.id)"
             dense
-            :aria-label="`Select ${node.label}`"
+            :aria-label="t('catalog.list.select', { name: node.label })"
             :data-testid="`catalog-check-${node.label}`"
             @update:model-value="emit('toggle', node.id, $event)"
           />
@@ -225,7 +226,7 @@ const countLabel = computed(() => {
           <AppIconButton
             class="catalog-list__copy"
             :icon="appIcons.copy"
-            :tooltip="`Copy “${node.label}”`"
+            :tooltip="t('catalog.list.copy_name', { name: node.label })"
             :data-testid="`catalog-copy-${node.label}`"
             @click.stop="copyName(node)"
             @keydown.enter.stop

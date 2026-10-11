@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue"
 
+import { t } from "@/shared/i18n"
+
 import AppButton from "./AppButton.vue"
 import AppTooltip from "./AppTooltip.vue"
 
@@ -52,7 +54,7 @@ function clear() {
       <AppButton
         class="app-color-picker__clear"
         variant="quiet"
-        label="Reset color"
+        :label="t('kit.color_picker.reset')"
         :disable="color === null"
         @click="clear"
       />

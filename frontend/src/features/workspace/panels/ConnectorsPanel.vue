@@ -5,6 +5,7 @@ import ConnectorList from "@/features/connectors/ConnectorList.vue"
 import { useConnectors } from "@/features/connectors/api"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { t } from "@/shared/i18n"
 
 const workspace = useWorkspaceActions()
 const connectors = useConnectors()
@@ -38,7 +39,7 @@ const filteredRows = computed(() => {
            (D143). -->
       <ConnectorList
         :rows="filteredRows"
-        :empty-text="workspace.connectorNameFilter.value.trim() ? 'No matching connections' : undefined"
+        :empty-text="workspace.connectorNameFilter.value.trim() ? t('workspace.connectors.no_matching') : undefined"
         :loading="connectors.isLoading.value"
         :selected-id="workspace.activeConnectorId.value"
         :open-ids="workspace.openConnectorIds.value"

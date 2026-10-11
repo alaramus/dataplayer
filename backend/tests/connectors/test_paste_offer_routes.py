@@ -609,4 +609,4 @@ async def test_a_pair_is_two_connections(
     )
 
     assert answer.status_code == 422
-    assert answer.json()["detail"]["message"] == "Pair two different connections"
+    assert answer.json()["detail"]["code"] == "paste.same_connection"

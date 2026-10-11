@@ -7,6 +7,7 @@
 
 import type { ClipboardOffer, PasteOffer } from "@/client"
 import type { ClipboardMode } from "@/features/catalog/clipboard"
+import { t } from "@/shared/i18n"
 
 /**
  * What a Paste was chosen with.
@@ -60,11 +61,11 @@ export function pasteHint(state: {
   failed: boolean
   offers: PasteOffer[] | undefined
 }): string | undefined {
-  if (state.checking) return "Checking what can be pasted here"
-  if (state.failed) return "Could not check this destination"
+  if (state.checking) return t("catalog.paste.checking")
+  if (state.failed) return t("catalog.paste.check_failed")
   const offers = state.offers ?? []
   if (usableOffers(offers).length > 0) return undefined
-  return offers.find((offer) => offer.reason)?.reason ?? "Nothing here can take what was copied"
+  return offers.find((offer) => offer.reason)?.reason ?? t("catalog.paste.nothing_takes")
 }
 
 export type PasteStep =
@@ -106,7 +107,7 @@ export function holdLines(
 ): { copy?: HoldLine; cut?: HoldLine } {
   if (ownPaste) {
     const line = ticked === 0
-      ? { enabled: false, reason: "Tick a row to use this" }
+      ? { enabled: false, reason: t("catalog.actions.no_target.node") }
       : { enabled: true }
     return { copy: line, cut: line }
   }

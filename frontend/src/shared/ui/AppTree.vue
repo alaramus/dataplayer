@@ -2,6 +2,8 @@
 import type { QTree, QTreeProps } from "quasar"
 import { computed, useTemplateRef } from "vue"
 
+import { t } from "@/shared/i18n"
+
 import AppCheckbox from "./AppCheckbox.vue"
 import { leafKeys, tickStates, withTicks } from "./treeTicks"
 import type { TickNode, TickState } from "./treeTicks"
@@ -116,7 +118,7 @@ defineExpose({ setExpanded, isExpanded })
         :model-value="boxOf(scope.node) === true"
         :indeterminate="boxOf(scope.node) === null"
         dense
-        :aria-label="`Tick ${nameOf(scope.node)}`"
+        :aria-label="t('kit.tree.tick', { name: nameOf(scope.node) })"
         @update:model-value="tick(scope.node, $event)"
       />
       <slot

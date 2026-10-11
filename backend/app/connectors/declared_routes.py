@@ -24,6 +24,7 @@ from app.connectors.declared import (
     read_end,
 )
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message
 from app.users.deps import CurrentUser
 
@@ -124,6 +125,6 @@ async def undeclare_reference(
     """
     reference = await get_own(session, author=current_user, reference_id=reference_id)
     if reference is None:
-        raise HTTPException(status_code=404, detail="Declared reference not found")
+        raise Problem(404, "declared.not_found")
     await delete(session, reference)
     return Message(message="Declared reference removed")

@@ -143,7 +143,7 @@ async def test_an_invalid_content_ticket_is_not_a_connector_id(
     response = await client.get(f"{BASE}/content-files/not-a-ticket")
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Content not found"
+    assert response.json()["detail"]["code"] == "connectors.content_not_found"
 
 
 @pytest.mark.usefixtures("home")

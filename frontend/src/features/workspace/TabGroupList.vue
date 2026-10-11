@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppMenu, AppPopup, AppTooltip, useToast } from "@/shared/ui"
 import { useSpaceStore } from "@/stores/space"
 
@@ -31,10 +32,10 @@ const name = ref("")
 const problem = computed(() => groupNameProblem(name.value, list.value, renaming.value ?? undefined))
 
 const menuItems = computed(() => [
-  { name: "update-group", label: "Update from current layout", icon: appIcons.save,
-    disable: !props.groups.canSave.value, hint: "Open a tab first" },
-  { name: "rename-group", label: "Rename", icon: appIcons.edit },
-  { name: "delete-group", label: "Delete", icon: appIcons.delete, danger: true },
+  { name: "update-group", label: t("workspace.groups.update"), icon: appIcons.save,
+    disable: !props.groups.canSave.value, hint: t("workspace.groups.open_tab_first") },
+  { name: "rename-group", label: t("workspace.groups.rename"), icon: appIcons.edit },
+  { name: "delete-group", label: t("workspace.groups.delete"), icon: appIcons.delete, danger: true },
 ])
 
 function select(action: string, group: TabGroup) {
@@ -45,7 +46,7 @@ function select(action: string, group: TabGroup) {
     renaming.value = group.id
   }
   if (action === "delete-group") void props.groups.remove(group)
-  if (action === "update-group" && props.groups.update(group.id)) toast.success(`Updated "${group.name}".`)
+  if (action === "update-group" && props.groups.update(group.id)) toast.success(t("workspace.groups.updated", { name: group.name }))
 }
 
 function openGroup(group: TabGroup) {
@@ -71,7 +72,7 @@ function rename() {
       variant="quiet"
       size="sm"
       :icon="appIcons.bookmarks"
-      aria-label="Saved tab groups"
+      :aria-label="t('workspace.groups.saved')"
       aria-haspopup="menu"
       :aria-expanded="listOpen"
       :disable="busy || unavailable !== null"
@@ -85,13 +86,13 @@ function rename() {
         <div
           class="group-list"
           role="menu"
-          aria-label="Saved tab groups"
+          :aria-label="t('workspace.groups.saved')"
         >
           <div
             v-if="!list.length"
             class="group-list__empty"
           >
-            No saved groups yet
+            {{ t('workspace.groups.empty') }}
           </div>
           <div
             v-for="group in list"
@@ -103,7 +104,7 @@ function rename() {
               size="sm"
               :icon="appIcons.viewColumn"
               :label="group.name"
-              :aria-label="`Open group ${group.name}`"
+              :aria-label="t('workspace.groups.open_named', { name: group.name })"
               :disable="busy || unavailable !== null"
               class="group-list__open"
               data-testid="open-tab-group"
@@ -113,11 +114,11 @@ function rename() {
               variant="quiet"
               size="sm"
               :icon="appIcons.moreVert"
-              :aria-label="`Manage group ${group.name}`"
+              :aria-label="t('workspace.groups.manage_named', { name: group.name })"
               :disable="busy || unavailable !== null"
               data-testid="manage-tab-group"
             >
-              <AppTooltip>Manage group</AppTooltip>
+              <AppTooltip>{{ t('workspace.groups.manage') }}</AppTooltip>
               <AppMenu
                 :items="menuItems"
                 @select="select($event, group)"
@@ -127,12 +128,16 @@ function rename() {
         </div>
       </AppPopup>
     </AppButton>
-    <AppTooltip>{{ unavailable === null ? "Saved tab groups" : `Saved tab groups — ${unavailable}` }}</AppTooltip>
+    <AppTooltip>
+      {{ unavailable === null
+        ? t('workspace.groups.saved')
+        : t('workspace.groups.saved_unavailable', { reason: unavailable }) }}
+    </AppTooltip>
   </span>
   <TabGroupNameDialog
     v-model:name="name"
     :model-value="renaming !== null"
-    title="Rename tab group"
+    :title="t('workspace.groups.rename_title')"
     :problem="problem"
     :busy="busy"
     @update:model-value="(shown) => { if (!shown) renaming = null }"

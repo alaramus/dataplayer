@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppInput } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
+
+import { NAME_MAX } from "./groups"
 
 /** Naming a tab group: the same window for saving one and renaming one. */
 defineProps<{
@@ -26,10 +29,10 @@ const emit = defineEmits<{ "update:modelValue": [open: boolean]; confirm: [] }>(
     <AppForm layout="section">
       <AppInput
         v-model="name"
-        label="Group name"
+        :label="t('workspace.groups.name')"
         :error="name.length > 0 ? problem : ''"
         autofocus
-        maxlength="80"
+        :maxlength="NAME_MAX"
         data-testid="tab-group-name"
         @keydown.enter.prevent="emit('confirm')"
       />
@@ -37,11 +40,11 @@ const emit = defineEmits<{ "update:modelValue": [open: boolean]; confirm: [] }>(
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('workspace.groups.cancel')"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Save"
+        :label="t('workspace.groups.confirm_save')"
         :disable="Boolean(problem) || busy"
         data-testid="confirm-tab-group-name"
         @click="emit('confirm')"

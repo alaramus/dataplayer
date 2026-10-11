@@ -43,6 +43,7 @@ import type { RevealTarget } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -106,7 +107,7 @@ const historyItems = computed(() =>
   history.entries.value.map((query) => ({
     name: query,
     label: query,
-    removeLabel: `Remove “${query}” from history`,
+    removeLabel: t("workspace.catalog.remove_from_history", { query }),
   }))
 )
 watch(history.entries, (entries) => {
@@ -155,7 +156,7 @@ async function showTreeRelationships() {
     const tables = toListNodes((await loadChildren(props.connectorId, treeLevelId.value)).nodes)
       .filter((node) => node.kind === "table" && node.describable)
     if (tables.length === 0) {
-      toast.info("There are no tables here to draw")
+      toast.info(t("workspace.catalog.no_tables_to_draw"))
       return
     }
     workspace.openRelationships({
@@ -165,7 +166,7 @@ async function showTreeRelationships() {
       nodes: tables.slice(0, MAX_RELATIONS).map(({ id, label }) => ({ id, label })),
     })
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not read the catalog"))
+    toast.error(messageOf(cause, t("workspace.catalog.read_failed")))
   }
 }
 
@@ -286,10 +287,10 @@ async function reveal(target: RevealTarget) {
     if (status === 404) {
       // A tab outlives the table it shows. Worth a word: without one the
       // press looks like it did nothing.
-      toast.info(`${label} is no longer in the catalog`)
+      toast.info(t("workspace.catalog.node_gone", { name: label }))
       return
     }
-    toast.error(messageOf(cause, "Could not find this node in the catalog"))
+    toast.error(messageOf(cause, t("workspace.catalog.find_failed")))
   }
 }
 
@@ -382,7 +383,7 @@ void queue(async () => {
           })
         }
       } catch (cause) {
-        toast.error(messageOf(cause, "Could not open the copied catalog at that location"))
+        toast.error(messageOf(cause, t("workspace.catalog.open_copied_failed")))
       }
     }
   } finally {
@@ -477,7 +478,7 @@ const selectedGroupNodes = computed(() =>
 const checkedLabel = computed(() => {
   const ticked = level.checkedNodes.value
   if (ticked.length === 1) return ticked[0]?.label ?? ""
-  return `${String(ticked.length)} items`
+  return t("workspace.catalog.items", { n: ticked.length }, ticked.length)
 })
 
 /**
@@ -509,9 +510,9 @@ const describesNodes = computed(() => level.items.value.some((node) => node.summ
 async function copyPath() {
   try {
     await copyText(levelPath(level.currentId.value))
-    toast.success("Path copied")
+    toast.success(t("workspace.catalog.path_copied"))
   } catch {
-    toast.error("This browser would not let the path be copied")
+    toast.error(t("workspace.catalog.path_copy_refused"))
   }
 }
 
@@ -707,7 +708,7 @@ const floating = computed(() =>
 
 /** What Pair says here, with whatever is waiting for a second catalog (D167). */
 const pairing = computed(() =>
-  workspace.pairCommandOf?.(props.panelId) ?? { tooltip: "Pair with another connection", refused: false }
+  workspace.pairCommandOf?.(props.panelId) ?? { tooltip: t("workspace.pair.with_another"), refused: false }
 )
 
 /** Offered once there is something to look for, exactly as a filter is. */
@@ -716,10 +717,10 @@ const canRunSearch = computed(() => canSearch.value && level.filter.value.trim()
 /** The button says what the second gesture does; nothing else would. */
 const searchTooltip = computed(() =>
   asTree.value
-    ? `Search every name in ${groupLabel.value}`
+    ? t("workspace.catalog.search_tree", { name: groupLabel.value })
     : canSearchContents.value
-      ? "Search names below this folder — hold Shift to search inside the files"
-      : "Search everything below this folder"
+      ? t("workspace.catalog.search_names")
+      : t("workspace.catalog.search_below")
 )
 
 /**
@@ -737,9 +738,9 @@ async function runTreeSearch() {
   try {
     const result = await searchTree(props.connectorId, treeRoot.value, query)
     treeFound.value = { summary: foundNodes(query, result), matches: result.matches ?? [] }
-    if (result.error_kind != null) toast.error(result.notice ?? "The search stopped part way")
+    if (result.error_kind != null) toast.error(result.notice ?? t("workspace.catalog.search_stopped"))
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not search this connection"))
+    toast.error(messageOf(cause, t("workspace.catalog.search_failed")))
   } finally {
     treeSearching.value = false
   }
@@ -801,12 +802,10 @@ async function afterUnlock() {
 async function agreedToRead(): Promise<boolean> {
   if (!shouldAsk(localStorage)) return true
   return await confirm({
-    title: "Search inside files",
-    message:
-      "Every file below this folder will be opened and read, which can take " +
-      "minutes. Binary files and files over 8 MB are skipped.",
-    confirmLabel: "Search inside",
-    rememberLabel: "Do not ask again",
+    title: t("workspace.catalog.search_inside_title"),
+    message: t("workspace.catalog.search_inside_message"),
+    confirmLabel: t("workspace.catalog.search_inside"),
+    rememberLabel: t("workspace.catalog.do_not_ask"),
     onRemember: () => {
       rememberAnswer(localStorage, false)
     },
@@ -831,7 +830,7 @@ async function openFound(node: ListNode) {
     await level.showLocation(locationOf(await loadPath(props.connectorId, node.id)))
     await level.enter(node)
   } catch (cause) {
-    toast.error(messageOf(cause, `Could not open ${node.label}`))
+    toast.error(messageOf(cause, t("workspace.catalog.open_failed", { name: node.label })))
   }
 }
 
@@ -860,7 +859,7 @@ function onOpen(node: ListNode) {
   }
   // Said rather than left silent: a picture opens no tab, and without a word
   // the click looks like it did nothing at all.
-  toast.info(`${node.label} has no viewer yet`)
+  toast.info(t("workspace.catalog.no_viewer", { name: node.label }))
 }
 
 function onToggle(id: string, on: boolean) {
@@ -929,7 +928,7 @@ async function afterAction(outcome: ActionOutcome) {
         >
           <AppIconButton
             :icon="appIcons.home"
-            tooltip="The top of this connection"
+            :tooltip="t('workspace.catalog.top')"
             :disable="level.path.value.length < 2"
             data-testid="catalog-home"
             @click="level.goTo(0)"
@@ -964,7 +963,7 @@ async function afterAction(outcome: ActionOutcome) {
             v-if="pathIsCopyable"
             class="catalog-panel__copy-path"
             compact
-            tooltip="Copy the path of this level"
+            :tooltip="t('workspace.catalog.copy_path')"
             data-testid="catalog-copy-path"
             @click="copyPath"
           />
@@ -1023,7 +1022,7 @@ async function afterAction(outcome: ActionOutcome) {
             <AppIconButton
               class="catalog-panel__beside"
               :icon="appIcons.duplicate"
-              tooltip="Duplicate catalog beside this one"
+              :tooltip="t('workspace.catalog.duplicate')"
               data-testid="catalog-duplicate"
               @click="workspace.duplicateCatalog(panelId, level.currentId.value)"
             />
@@ -1103,11 +1102,11 @@ async function afterAction(outcome: ActionOutcome) {
       <AppInput
         v-model="level.filter.value"
         class="catalog-panel__filter"
-        :placeholder="canSearch ? 'Filter, or search below' : 'Filter'"
+        :placeholder="canSearch ? t('workspace.catalog.filter_or_search') : t('workspace.catalog.filter')"
         compact
         clearable
         autocomplete="off"
-        aria-label="Filter catalog"
+        :aria-label="t('workspace.catalog.filter_label')"
         aria-haspopup="menu"
         :aria-controls="historyOpen ? historyId : undefined"
         data-testid="catalog-filter"
@@ -1145,7 +1144,7 @@ async function afterAction(outcome: ActionOutcome) {
             v-if="frameworks.length"
             class="catalog-panel__frameworks"
             role="group"
-            aria-label="Detected frameworks"
+            :aria-label="t('workspace.catalog.frameworks')"
             data-testid="catalog-frameworks"
           >
             <AppButton
@@ -1161,8 +1160,8 @@ async function afterAction(outcome: ActionOutcome) {
             >
               <AppTooltip>
                 {{ level.filter.value === framework.table_filter
-                  ? 'Clear the table filter'
-                  : 'Detected from table names. Filter matching tables' }}
+                  ? t('workspace.catalog.clear_table_filter')
+                  : t('workspace.catalog.framework_hint') }}
               </AppTooltip>
             </AppButton>
           </span>
@@ -1205,7 +1204,7 @@ async function afterAction(outcome: ActionOutcome) {
       <span class="catalog-panel__found-text">{{ foundText }}</span>
       <AppIconButton
         :icon="appIcons.close"
-        :tooltip="asTree ? 'Back to the tree' : 'Back to the folder'"
+        :tooltip="asTree ? t('workspace.catalog.back_to_tree') : t('workspace.catalog.back_to_folder')"
         data-testid="catalog-search-close"
         @click="clearFound"
       />

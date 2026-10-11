@@ -7,7 +7,7 @@ it is `app.transfers`', which may start a job (D168).
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.adapters.protocol import DataAdapter
 from app.adapters.resources import ResourcesDep
@@ -29,6 +29,7 @@ from app.connectors.paste.registry import KINDS, outranked, short_of
 from app.connectors.paste.tables import TablesPreview, TablesPreviewRequest, preview
 from app.core.access import Access, at_least
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
@@ -98,9 +99,7 @@ async def pair_offers(
     sides swapped, as the window asks it.
     """
     if request.source.connector_id == request.destination.connector_id:
-        raise HTTPException(
-            status_code=422, detail={"message": "Pair two different connections"}
-        )
+        raise Problem(422, "paste.same_connection")
     source, source_access = await resolve_adapter(
         session, request.source.connector_id, current_user, resources, requires="read"
     )

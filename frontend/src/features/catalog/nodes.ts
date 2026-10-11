@@ -1,5 +1,6 @@
 import type { connectorsReadCatalogResponses } from "@/client"
 import type { DetectedFramework, FetchColumn, NodeRepresentation } from "@/client"
+import { t } from "@/shared/i18n"
 
 /** One catalog node as the API returns it: a union discriminated by `kind`. */
 export type CatalogNode = connectorsReadCatalogResponses[200][number]
@@ -171,15 +172,16 @@ export const MATERIALIZED_VIEW_ICON = "backup_table"
  * a list of Redis databases would give one word two meanings, and the kind of
  * the node already says which word it is.
  */
-const GROUP_TITLES: Partial<Record<CatalogNode["kind"], string>> = {
-  schema: "Schemas",
-  database: "Databases",
+const GROUP_TITLES: Partial<Record<CatalogNode["kind"], "schemas" | "databases">> = {
+  schema: "schemas",
+  database: "databases",
 }
 
 /** The word for the groupings on a level, or none when it offers no kind. */
 export function groupTitle(groups: ListNode[]): string {
   const kind = groups[0]?.kind
-  return (kind === undefined ? undefined : GROUP_TITLES[kind]) ?? "Groups"
+  const title = kind === undefined ? undefined : GROUP_TITLES[kind]
+  return t(`catalog.nodes.${title ?? "groups"}`)
 }
 
 /**
@@ -211,9 +213,11 @@ export const REPRESENTATION_ICONS: Record<NodeRepresentation["kind"], string> = 
  * "no rows" from "no answer" — which is the one thing an estimate must never
  * be confused with.
  */
-const NOT_COUNTED = "N/A"
+function notCounted(): string {
+  return t("catalog.nodes.not_counted")
+}
 
-const UNITS = ["B", "KB", "MB", "GB", "TB"]
+const UNITS = ["b", "kb", "mb", "gb", "tb"] as const
 
 /** File size in the shortest form that still says which unit it is. */
 export function formatSize(bytes: number): string {
@@ -224,7 +228,7 @@ export function formatSize(bytes: number): string {
     unit += 1
   }
   const rounded = unit === 0 ? String(size) : size.toFixed(1)
-  return `${rounded} ${UNITS[unit]}`
+  return t(`catalog.size.${UNITS[unit] ?? "tb"}`, { n: rounded })
 }
 
 /**
@@ -266,13 +270,13 @@ function captionOf(node: CatalogNode): string | undefined {
   switch (node.kind) {
     case "table":
       return node.row_count_estimate === null || node.row_count_estimate === undefined
-        ? NOT_COUNTED
-        : `~${node.row_count_estimate} rows`
+        ? notCounted()
+        : t("catalog.nodes.estimate", { n: node.row_count_estimate }, node.row_count_estimate)
     // In the same column as a table's estimate, because it is the same
     // question asked of the same kind of thing. The answer is that there is
     // nothing stored to count.
     case "view":
-      return NOT_COUNTED
+      return notCounted()
     case "report":
       // The source's own line about what the report answers. Nothing here
       // rewrites it: only the source knows what its statement is for.
@@ -291,7 +295,7 @@ function captionOf(node: CatalogNode): string | undefined {
       return node.keys === null || node.keys === undefined
         ? undefined
         : node.keys === 0
-          ? "empty"
+          ? t("catalog.nodes.empty")
           : counted(node.keys, "key")
     default:
       return undefined
@@ -307,13 +311,13 @@ function captionOf(node: CatalogNode): string | undefined {
  */
 function captionHintOf(node: CatalogNode): string | undefined {
   if (node.kind === "view") {
-    return "A view stores no rows; how many it returns is known only when it runs"
+    return t("catalog.nodes.view_hint")
   }
   if (node.kind !== "table") return undefined
   if (node.row_count_estimate !== null && node.row_count_estimate !== undefined) {
     return undefined
   }
-  return "Not analysed yet, so the server offers no estimate"
+  return t("catalog.nodes.not_analysed")
 }
 
 /** What a sheet says about itself before it is opened. */
@@ -327,7 +331,7 @@ function datasetCaption(node: Extract<CatalogNode, { kind: "dataset" }>): string
   }
   // A sheet hidden in the spreadsheet is still listed: hiding is presentation
   // rather than permission, and saying so is what keeps that honest.
-  if (node.hidden === true) parts.push("hidden")
+  if (node.hidden === true) parts.push(t("catalog.nodes.hidden"))
   return parts.length === 0 ? undefined : parts.join(" · ")
 }
 
@@ -337,7 +341,7 @@ function datasetCaption(node: Extract<CatalogNode, { kind: "dataset" }>): string
  * "11 items" about a string of eleven characters is a number with the wrong
  * noun on it, and the noun is the part that says what was counted.
  */
-const KEY_UNITS: Partial<Record<string, string>> = {
+const KEY_UNITS: Partial<Record<string, Noun>> = {
   string: "character",
   hash: "field",
   list: "item",
@@ -360,31 +364,34 @@ function keyCaption(node: Extract<CatalogNode, { kind: "key" }>): string | undef
     parts.push(counted(node.length, KEY_UNITS[node.data_type] ?? "item"))
   }
   if (node.ttl_seconds !== null && node.ttl_seconds !== undefined) {
-    parts.push(`expires in ${formatDuration(node.ttl_seconds)}`)
+    parts.push(t("catalog.nodes.expires_in", { duration: formatDuration(node.ttl_seconds) }))
   }
   return parts.join(" · ")
 }
 
 /** A number of seconds in the largest unit that still says something. */
 export function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${String(seconds)}s`
-  if (seconds < 3600) return `${String(Math.round(seconds / 60))}m`
-  if (seconds < 86400) return `${String(Math.round(seconds / 3600))}h`
-  return `${String(Math.round(seconds / 86400))}d`
+  if (seconds < 60) return t("catalog.duration.seconds", { n: seconds })
+  if (seconds < 3600) return t("catalog.duration.minutes", { n: Math.round(seconds / 60) })
+  if (seconds < 86400) return t("catalog.duration.hours", { n: Math.round(seconds / 3600) })
+  return t("catalog.duration.days", { n: Math.round(seconds / 86400) })
 }
 
 /** What an entry of an archive says about itself before it is opened. */
 function entryCaption(node: Extract<CatalogNode, { kind: "entry" }>): string | undefined {
-  if (node.is_link === true) return "link"
-  if (node.is_encrypted === true) return "encrypted"
+  if (node.is_link === true) return t("catalog.nodes.link")
+  if (node.is_encrypted === true) return t("catalog.nodes.encrypted")
   if (node.has_children) return undefined
   return node.size_bytes === null || node.size_bytes === undefined
     ? undefined
     : formatSize(node.size_bytes)
 }
 
-function counted(count: number, noun: string): string {
-  return `${String(count)} ${noun}${count === 1 ? "" : "s"}`
+/** What a caption counts, each a plural message of its own. */
+type Noun = "row" | "column" | "key" | "character" | "field" | "item" | "member" | "entry"
+
+function counted(count: number, noun: Noun): string {
+  return t(`catalog.count.${noun}`, { n: count }, count)
 }
 
 function isPreferred(node: CatalogNode): boolean {

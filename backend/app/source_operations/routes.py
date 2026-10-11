@@ -14,6 +14,7 @@ from app.connectors.action_lookup import (
     perform,
 )
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.jobs import crud as job_crud
 from app.jobs.models import JobPublic, public
 from app.jobs.runner import JobRunnerDep
@@ -61,9 +62,7 @@ async def start_action_job(
         )
     fingerprint = body.reviewed_fingerprint
     if fingerprint is None:
-        raise HTTPException(
-            status_code=422, detail={"message": "Review the operation plan before running it"}
-        )
+        raise Problem(422, "actions.plan_not_reviewed")
     plan = await perform(lambda: action.plan_job(body.node_id, body.params, fingerprint))
     operation = SourceOperation(
         action=action.name,

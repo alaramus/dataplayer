@@ -72,7 +72,7 @@ async def test_a_job_needs_a_reviewed_fingerprint(
         json={**REQUEST, "reviewed_fingerprint": None},
     )
     assert response.status_code == 422
-    assert response.json()["detail"]["message"] == "Review the operation plan before running it"
+    assert response.json()["detail"]["code"] == "actions.plan_not_reviewed"
 
 
 async def test_a_reviewed_job_is_admitted_then_carried_out_by_the_server(

@@ -158,7 +158,15 @@ export async function applyLanguage(chosen: Language | null): Promise<void> {
   } catch {
     // Remembering is a convenience for the next sign-in page, nothing more.
   }
-  const bundle = await LOADERS[language]()
+  let bundle: Bundle
+  try {
+    bundle = await LOADERS[language]()
+  } catch {
+    // A chunk that did not arrive — a deployment replaced under an open tab,
+    // a network blink — leaves the interface in what it already speaks
+    // rather than without one.
+    return
+  }
   i18n.global.setLocaleMessage(language, bundle.messages)
   problemDictionaries[language] = bundle.problems
   Lang.set(bundle.quasar)
