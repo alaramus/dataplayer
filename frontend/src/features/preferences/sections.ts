@@ -1,24 +1,26 @@
+import { t } from "@/shared/i18n"
 import type { PageSection } from "@/shared/ui"
 import { appIcons } from "@/shared/ui/icons"
 
-/** What Preferences offers, in order; the page maps each id onto its body. */
+/** What Preferences offers, in order; the page maps each id onto its body.
+    Words are getters, read in the language current when they are shown. */
 export const PREFERENCE_SECTIONS = [
   {
     id: "general",
-    title: "General",
-    summary: "Theme, reading voice and the welcome tour",
+    get title() { return t("preferences.sections.general") },
+    get summary() { return t("preferences.sections.general_summary") },
     icon: appIcons.settings,
   },
   {
     id: "connections",
-    title: "Connections",
-    summary: "How often connections are checked while a workspace is open",
+    get title() { return t("preferences.sections.connections") },
+    get summary() { return t("preferences.sections.connections_summary") },
     icon: appIcons.lan,
   },
   {
     id: "ssh-keys",
-    title: "SSH keys",
-    summary: "The keys this account uses for SSH connections",
+    get title() { return t("preferences.sections.ssh_keys") },
+    get summary() { return t("preferences.sections.ssh_keys_summary") },
     icon: appIcons.sshKey,
   },
 ] as const satisfies readonly [PageSection, ...PageSection[]]

@@ -3,6 +3,7 @@ import { computed } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import SshKeysSection from "@/features/sshKeys/SshKeysSection.vue"
+import { t } from "@/shared/i18n"
 import { AppButton, AppLayout, AppPageHeader, AppSectionsLayout, sectionOf } from "@/shared/ui"
 
 import ConnectionsSection from "./ConnectionsSection.vue"
@@ -50,11 +51,11 @@ function show(id: string) {
       <!-- The heading names the page and the list names the section: a header
            that repeated the section would be saying it twice, and AppPageHeader
            takes a title and nothing else. -->
-      <AppPageHeader title="Preferences">
+      <AppPageHeader :title="t('preferences.title')">
         <template #actions>
           <AppButton
             variant="quiet"
-            label="Back to workspace"
+            :label="t('common.back_to_workspace')"
             data-testid="back-to-workspace"
             @click="router.push({ name: 'workspace' })"
           />

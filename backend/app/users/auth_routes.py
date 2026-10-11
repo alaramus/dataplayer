@@ -1,7 +1,7 @@
 from datetime import timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.concurrency import run_in_threadpool
@@ -10,6 +10,7 @@ from app.core import security
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.email import generate_reset_password_email, send_email
+from app.core.problems import Problem
 from app.core.schemas import Message
 from app.users import crud
 from app.users.deps import CurrentUser, get_current_active_superuser
@@ -33,9 +34,9 @@ async def login_access_token(
         session=session, email=form_data.username, password=form_data.password
     )
     if not user:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise Problem(400, "auth.wrong_credentials")
     elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise Problem(400, "auth.inactive_user")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return Token(
         access_token=security.create_access_token(
@@ -86,13 +87,13 @@ async def reset_password(session: SessionDep, body: NewPassword) -> Message:
     """
     email = verify_password_reset_token(token=body.token)
     if not email:
-        raise HTTPException(status_code=400, detail="Invalid token")
+        raise Problem(400, "auth.invalid_token")
     user = await crud.get_user_by_email(session=session, email=email)
     if not user:
         # Don't reveal that the user doesn't exist - use same error as invalid token
-        raise HTTPException(status_code=400, detail="Invalid token")
+        raise Problem(400, "auth.invalid_token")
     elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise Problem(400, "auth.inactive_user")
     user_in_update = UserUpdate(password=body.new_password)
     await crud.update_user(
         session=session,
@@ -114,10 +115,7 @@ async def recover_password_html_content(email: str, session: SessionDep) -> Any:
     user = await crud.get_user_by_email(session=session, email=email)
 
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this username does not exist in the system.",
-        )
+        raise Problem(404, "auth.no_user_with_email")
     password_reset_token = generate_password_reset_token(email=email)
     email_data = generate_reset_password_email(
         email_to=user.email, email=email, token=password_reset_token

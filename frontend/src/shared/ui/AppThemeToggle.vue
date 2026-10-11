@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { useThemeStore } from "@/stores/theme"
 
 import AppIconButton from "./AppIconButton.vue"
@@ -19,7 +20,7 @@ const theme = useThemeStore()
 
 const look = computed(() => ({
   icon: theme.dark ? appIcons.lightTheme : appIcons.darkTheme,
-  tooltip: `Switch to ${theme.opposite.label}`,
+  tooltip: t("theme.switch_to", { theme: theme.opposite.label }),
 }))
 </script>
 

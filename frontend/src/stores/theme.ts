@@ -2,6 +2,8 @@ import { defineStore } from "pinia"
 import { Dark } from "quasar"
 import { computed, ref, watch } from "vue"
 
+import { t } from "@/shared/i18n"
+
 export const THEME_KEY = "dataplayer-theme"
 /** The last light and the last dark theme chosen, which the toggle returns to. */
 export const LIGHT_THEME_KEY = "dataplayer-theme-light"
@@ -17,42 +19,43 @@ export const DARK_THEME_KEY = "dataplayer-theme-dark"
  * paper-light carries the marker without it.
  */
 export const THEMES = [
-  { value: "light", label: "Light", dark: false, named: false },
+  // Names are getters, read in the language current when they are shown.
+  { value: "light", get label() { return t("theme.light") }, dark: false, named: false },
   {
     value: "paper-light",
-    label: "Paper light",
-    description: "Warm light paper with a bronze accent",
+    get label() { return t("theme.paper_light") },
+    get description() { return t("theme.paper_light_hint") },
     dark: false,
     named: true,
   },
-  { value: "dark", label: "Dark", dark: true, named: false },
+  { value: "dark", get label() { return t("theme.dark") }, dark: true, named: false },
   {
     value: "paper",
     // Labelled by its polarity: beside Paper light, plain Paper read as the
     // light one. The id stays, so a stored choice still finds it.
-    label: "Paper dark",
-    description: "Warm dark paper with a bronze accent",
+    get label() { return t("theme.paper") },
+    get description() { return t("theme.paper_hint") },
     dark: true,
     named: true,
   },
   {
     value: "midnight",
-    label: "Midnight",
-    description: "The dimmest: near-black navy with an ice-blue accent",
+    get label() { return t("theme.midnight") },
+    get description() { return t("theme.midnight_hint") },
     dark: true,
     named: true,
   },
   {
     value: "dark-blue",
-    label: "Dark blue",
-    description: "Saturated navy with a cyan accent",
+    get label() { return t("theme.dark_blue") },
+    get description() { return t("theme.dark_blue_hint") },
     dark: true,
     named: true,
   },
   {
     value: "dark-purple",
-    label: "Dark purple",
-    description: "Purple neon with pink and cyan accents",
+    get label() { return t("theme.dark_purple") },
+    get description() { return t("theme.dark_purple_hint") },
     dark: true,
     named: true,
   },
@@ -63,10 +66,16 @@ export type ThemeName = Theme["value"]
 
 /** Every theme as a choice, and System after them: wherever a theme is picked. */
 export const THEME_CHOICES: readonly { label: string; value: string; description?: string }[] = [
-  ...THEMES.map(({ label, value, ...theme }) =>
-    "description" in theme ? { label, value, description: theme.description } : { label, value }
-  ),
-  { label: "System", value: "system", description: "Light or Dark, as the operating system changes" },
+  ...THEMES.map((theme) => ({
+    value: theme.value,
+    get label() { return theme.label },
+    get description() { return "description" in theme ? theme.description : undefined },
+  })),
+  {
+    value: "system",
+    get label() { return t("theme.system") },
+    get description() { return t("theme.system_hint") },
+  },
 ]
 
 /**

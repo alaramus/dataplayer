@@ -7,7 +7,7 @@ answer for everybody who never opened the screen.
 """
 
 import uuid
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, SQLModel, select
@@ -36,6 +36,11 @@ CHECK_SECONDS: dict[CheckInterval, float | None] = {
 
 DEFAULT_CHECK_INTERVAL: CheckInterval = "15s"
 
+# The languages the interface is translated into (D224). No choice — None — is
+# a choice too: the browser's language, whatever machine the account opens on.
+Language = Literal["en", "ru"]
+LANGUAGES: tuple[Language, ...] = get_args(Language)
+
 
 def as_interval(value: str) -> CheckInterval:
     """A stored string read back as a choice.
@@ -54,6 +59,15 @@ def check_seconds(value: str) -> float | None:
     return CHECK_SECONDS[as_interval(value)]
 
 
+def as_language(value: str | None) -> Language | None:
+    """A stored language read back, the way `as_interval` reads an interval: one
+    this version does not offer any more is the browser's."""
+    for choice in LANGUAGES:
+        if choice == value:
+            return choice
+    return None
+
+
 class UserPreferences(SQLModel, table=True):
     """One row per user, written the first time they choose anything."""
 
@@ -66,6 +80,7 @@ class UserPreferences(SQLModel, table=True):
     # The welcome tour was finished or skipped. On the account rather than in
     # a browser, so it opens once for each person, on whatever machine.
     welcome_tour_done: bool = Field(default=False)
+    language: str | None = Field(default=None, max_length=8)
 
 
 class PreferencesPublic(BaseModel):
@@ -73,6 +88,7 @@ class PreferencesPublic(BaseModel):
 
     connector_checks: CheckInterval
     welcome_tour_done: bool
+    language: Language | None
 
 
 class PreferencesUpdate(BaseModel):
@@ -87,16 +103,21 @@ class PreferencesUpdate(BaseModel):
 
     connector_checks: CheckInterval | None = None
     welcome_tour_done: bool | None = None
+    # Absent leaves it alone; null says "the browser's" and is a value to store.
+    language: Language | None = None
 
 
 def _public(stored: UserPreferences | None) -> PreferencesPublic:
     if stored is None:
         return PreferencesPublic(
-            connector_checks=DEFAULT_CHECK_INTERVAL, welcome_tour_done=False
+            connector_checks=DEFAULT_CHECK_INTERVAL,
+            welcome_tour_done=False,
+            language=None,
         )
     return PreferencesPublic(
         connector_checks=as_interval(stored.connector_checks),
         welcome_tour_done=stored.welcome_tour_done,
+        language=as_language(stored.language),
     )
 
 
@@ -122,6 +143,8 @@ async def set_for(
         stored.connector_checks = update.connector_checks
     if update.welcome_tour_done is not None:
         stored.welcome_tour_done = update.welcome_tour_done
+    if "language" in update.model_fields_set:
+        stored.language = update.language
     session.add(stored)
     await session.commit()
     return _public(stored)

@@ -5,6 +5,7 @@ import { usePreferences, useUpdatePreferences } from "@/features/preferences/api
 import { checkIntervalOptions } from "@/features/preferences/checks"
 import type { CheckInterval } from "@/features/preferences/checks"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppForm, AppSelect, AppSettingRow, AppSpinner, useToast } from "@/shared/ui"
 
 /**
@@ -18,7 +19,7 @@ const toast = useToast()
 const preferences = usePreferences()
 const save = useUpdatePreferences()
 
-const intervals = checkIntervalOptions()
+const intervals = computed(() => checkIntervalOptions())
 // Whatever the server says it is, and nothing while it has not said: a
 // default written here too would be a second place for it to be wrong.
 const chosen = computed(() => preferences.data.value?.connector_checks)
@@ -28,9 +29,9 @@ async function chooseInterval(value: unknown) {
   if (connector_checks === chosen.value) return
   try {
     await save.mutateAsync({ connector_checks })
-    toast.success("Preference saved")
+    toast.success(t("preferences.saved"))
   } catch (cause) {
-    toast.error(messageOf(cause, "The preference could not be saved"))
+    toast.error(messageOf(cause, t("preferences.not_saved")))
   }
 }
 </script>
@@ -45,15 +46,15 @@ async function chooseInterval(value: unknown) {
 
   <AppSettingRow
     v-else
-    title="Check that connections are reachable"
-    summary="Every connection is probed on this schedule while a workspace is open, and the dot beside it says what the last answer was. A probe opens a connection of its own, so a slow or distant server is worth asking less often."
+    :title="t('preferences.checks')"
+    :summary="t('preferences.checks_summary')"
   >
     <AppForm>
       <AppSelect
         :model-value="chosen"
         :options="intervals"
         :loading="save.isPending.value"
-        aria-label="How often connections are checked"
+        :aria-label="t('preferences.checks_label')"
         data-testid="preference-connector-checks"
         @update:model-value="chooseInterval"
       />

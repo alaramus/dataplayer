@@ -51,6 +51,7 @@ documentation.
 | Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
 | Backend modules, routes, migrations, secrets, database, the server's log | [backend.md](docs/architecture/backend.md) |
 | Screens, where state lives, Markdown rendering | [frontend.md](docs/architecture/frontend.md) |
+| Any text a person reads, a language, a refusal a route sends | [localization.md](docs/architecture/localization.md) |
 | The component kit, colours, layers, a size of text, a weight, a height, an icon size, a theme | [design-system.md](docs/architecture/design-system.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, the bar and card at the foot | [workspace.md](docs/architecture/workspace.md) |
@@ -296,6 +297,8 @@ files. IDs are stable because specs and commits refer to them.
 | D221 | [search-kept](docs/architecture/search-kept.md) |
 | D222 | [search-kept](docs/architecture/search-kept.md) |
 | D223 | [ai](docs/architecture/ai.md) |
+| D224 | [localization](docs/architecture/localization.md) |
+| D225 | [localization](docs/architecture/localization.md) |
 
 ## Working rules
 

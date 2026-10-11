@@ -1,6 +1,8 @@
 import { AxiosError, AxiosHeaders } from "axios"
 import { describe, expect, it } from "vitest"
 
+import { applyLanguage } from "@/shared/i18n"
+
 import { fieldErrorsFrom, messageOf } from "./errors"
 
 function axiosError(status: number, data: unknown): AxiosError {
@@ -16,6 +18,22 @@ function axiosError(status: number, data: unknown): AxiosError {
 }
 
 describe("messageOf", () => {
+  // D225: the code is worded here, in the reader's language.
+  it("words a coded refusal in the language being read", async () => {
+    const cause = axiosError(404, {
+      detail: { code: "users.not_found", params: {}, message: "User not found" },
+    })
+
+    expect(messageOf(cause, "fallback")).toBe("User not found")
+    await applyLanguage("ru")
+    try {
+      expect(messageOf(cause, "fallback")).toBe("Пользователь не найден")
+    } finally {
+      await applyLanguage("en")
+      localStorage.clear()
+    }
+  })
+
   it("reads the message the backend put in detail", () => {
     const cause = axiosError(400, { detail: { kind: "conflict", message: "Name is taken" } })
 

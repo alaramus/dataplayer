@@ -1,12 +1,15 @@
 import { AxiosError } from "axios"
 
+import { problemMessage } from "@/shared/i18n"
 import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
 
 /**
- * What a failed request says, in the three shapes the backend answers with: an
- * adapter failure as `detail: {kind, message}`, a validation failure as
- * `detail: [{loc, msg, type}]`, and a refusal a route wrote itself as
- * `detail: "a sentence"`.
+ * What a failed request says, in the four shapes the backend answers with: a
+ * coded refusal as `detail: {code, params, message}`, worded in the reader's
+ * language (D225); an adapter failure as `detail: {kind, message}`; a
+ * validation failure as `detail: [{loc, msg, type}]`; and a refusal a route
+ * wrote itself as `detail: "a sentence"`. The last three are English until
+ * their routes are coded.
  *
  * Every screen used to carry its own copy and they had drifted. The fallback
  * stays the caller's, because reading rows is not saving a connection.
@@ -15,6 +18,9 @@ export function messageOf(cause: unknown, fallback: string): string {
   if (!(cause instanceof AxiosError)) return fallback
 
   const detail: unknown = cause.response?.data?.detail
+
+  const coded = problemMessage(detail)
+  if (coded !== null) return coded
 
   if (Array.isArray(detail)) {
     const first: unknown = detail[0]

@@ -18,6 +18,7 @@ import "@/shared/ui/theme.css"
 import App from "@/App.vue"
 import { router } from "@/router"
 import { configureApiClient, createQueryClient } from "@/shared/api/configure"
+import { applyLanguage, i18n, initialLanguage } from "@/shared/i18n"
 import { watchSessionAcrossTabs } from "@/shared/auth/session"
 import { symbolIcon } from "@/shared/ui/symbolIcons"
 import { useThemeStore } from "@/stores/theme"
@@ -35,6 +36,7 @@ watchSessionAcrossTabs(queryClient)
 app
   .use(Quasar, { plugins: { Notify }, iconSet: symbolsOutlined })
   .use(router)
+  .use(i18n)
   .use(VueQueryPlugin, { queryClient })
 
 IconSet.iconMapFn = symbolIcon
@@ -49,4 +51,6 @@ IconSet.iconMapFn = symbolIcon
  */
 useThemeStore().apply()
 
-app.mount("#app")
+// Mounted once the language is loaded, so the first frame is in it rather than
+// in English for as long as the chunk takes to arrive.
+void applyLanguage(initialLanguage()).finally(() => app.mount("#app"))
