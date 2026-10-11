@@ -105,8 +105,13 @@ export default defineConfigWithVueTs(
     // until it is src/** and this comment goes.
     files: [
       "src/features/auth/**/*.vue",
+      "src/features/ai/**/*.vue",
       "src/features/catalog/**/*.vue",
+      "src/features/content/**/*.vue",
+      "src/features/dashboards/**/*.vue",
+      "src/features/grid/**/*.vue",
       "src/features/preferences/**/*.vue",
+      "src/features/queries/**/*.vue",
       "src/features/workspace/**/*.vue",
       "src/shared/ui/**/*.vue",
       "src/shared/workspace/**/*.vue",
