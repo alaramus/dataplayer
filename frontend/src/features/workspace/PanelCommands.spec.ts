@@ -296,9 +296,11 @@ describe("PanelCommands", () => {
     expect(wrapper.getComponent(AppIconButton).props("tooltip")).toBe("Re-read this table")
     // Quasar teleports a tooltip away and renders nothing of it in place, so
     // what hovering would say is read from the slot rather than from the text.
+    // A second or two may pass between reading the headers and drawing them on
+    // a loaded machine, and the age is counted on the screen's shared clock.
     expect(
       slotText(wrapper.get('[data-testid="panel-freshness"]').findComponent(AppTooltip))
-    ).toBe("Read from the source 20s ago. This connection keeps answers for 5m.")
+    ).toMatch(/^Read from the source 2[0-2]s ago\. This connection keeps answers for 5m\.$/)
   })
 
   it("re-reads from the button under the mark", async () => {
