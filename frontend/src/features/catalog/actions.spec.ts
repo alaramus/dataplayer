@@ -626,6 +626,20 @@ describe("the client's own lines of the menu", () => {
     ])
   })
 
+  it("puts the search index last, after Backups, and says why it cannot be kept", () => {
+    const items = clientMenu({
+      ...everything,
+      backups: { enabled: true },
+      searchIndex: { enabled: false, reason: "This kind of source cannot keep its names" },
+    })
+    const line = items.at(-1)
+
+    expect(items.map((item) => item.label).slice(-2)).toEqual(["Backups", "Search index…"])
+    expect(line?.disable).toBe(true)
+    expect(line?.hint).toBe("This kind of source cannot keep its names")
+    expect(line?.name).toBe("client:searchIndex")
+  })
+
   it("leaves out copying a source out that cannot be copied out", () => {
     // A file source declares no `backup` capability, and a line that can never
     // work is worse than no line.

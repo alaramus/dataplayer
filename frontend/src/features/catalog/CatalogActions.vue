@@ -33,6 +33,7 @@ import {
   usePrepareConnectorAction,
 } from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
+import { useKeptLists } from "@/features/searchIndex/api"
 import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
@@ -89,6 +90,7 @@ const emit = defineEmits<{
   details: []
   relationships: []
   backups: []
+  searchIndex: []
   connector: [draft: ConnectorDraft]
 }>()
 const toast = useToast()
@@ -224,6 +226,16 @@ const holds = computed(() =>
  */
 const backups = useBackupSupport(() => props.adapterType)
 
+/** The other line about the connection: whether its names are kept (D212). */
+const kept = useKeptLists()
+const searchIndex = computed(() => {
+  const types = kept.data.value?.types
+  if (types === undefined) return { enabled: false, reason: "Checking this kind of source" }
+  return types.includes(props.adapterType)
+    ? { enabled: true }
+    : { enabled: false, reason: "This kind of source cannot keep its names" }
+})
+
 /**
  * One menu, two vocabularies: what the client can do, then what the source can.
  *
@@ -246,6 +258,7 @@ const items = computed<MenuItem[]>(() => withSubmenus([
           },
         }
       : {}),
+    searchIndex: searchIndex.value,
   }),
   ...(crossHeld.value === null ? [] : [{
     name: "client:cross-paste",
@@ -295,6 +308,10 @@ function run(command: ClientCommand) {
   // And copying the connection out is about no node in it at all.
   if (command === "backups") {
     if (backups.value.enabled) emit("backups")
+    return
+  }
+  if (command === "searchIndex") {
+    if (searchIndex.value.enabled) emit("searchIndex")
     return
   }
   if (props.checkedIds.length === 0) return

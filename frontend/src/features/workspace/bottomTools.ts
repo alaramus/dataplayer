@@ -2,6 +2,7 @@ import type { Component } from "vue"
 
 import LogsTool from "@/features/logs/LogsTool.vue"
 import QueriesTool from "@/features/queries/QueriesTool.vue"
+import SearchIndexTool from "@/features/searchIndex/SearchIndexTool.vue"
 import ManagedServices from "@/features/services/ManagedServices.vue"
 import TerminalsHead from "@/features/terminals/TerminalsHead.vue"
 import TerminalsTool from "@/features/terminals/TerminalsTool.vue"
@@ -25,4 +26,5 @@ export const BOTTOM_TOOLS: readonly BottomTool[] = [
   { id: "terminals", title: "Terminals", component: TerminalsTool, head: TerminalsHead },
   { id: "queries", title: "Queries", component: QueriesTool },
   { id: "logs", title: "Logs", component: LogsTool },
+  { id: "search-index", title: "Search index", component: SearchIndexTool },
 ]

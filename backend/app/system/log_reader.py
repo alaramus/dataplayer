@@ -18,7 +18,7 @@ from app.core.logs import PROCESSES, ProcessName
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LevelChoice = Literal["all", "warning", "error"]
-ProcessChoice = Literal["all", "backend", "metrics"]
+ProcessChoice = Literal["all", "backend", "metrics", "search-keeper"]
 
 _RANK: dict[str, int] = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40, "CRITICAL": 50}
 _FLOOR: dict[LevelChoice, int] = {"all": 0, "warning": 30, "error": 40}

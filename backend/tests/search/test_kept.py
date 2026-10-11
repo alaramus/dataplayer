@@ -25,7 +25,7 @@ from app.connectors.models import Connector
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
-from app.search import kept, keeper
+from app.search import keeper, kept
 from app.search.keep import SearchKeep, SearchName
 from app.users import crud
 from tests.utils.database import working_postgres_options
@@ -369,7 +369,9 @@ def _named(node_id: str, scope: str) -> KeptName:
 
 @pytest.fixture
 async def scripted(
-    isolated_registry: None, client: AsyncClient, person: dict[str, str]
+    isolated_registry: None,  # noqa: ARG001 - asked for the registry it restores, not a value
+    client: AsyncClient,
+    person: dict[str, str],
 ) -> AsyncGenerator[str]:
     registry.register(
         name="script",
@@ -440,8 +442,9 @@ async def test_a_failed_pass_keeps_the_old_list_and_says_why(scripted: str) -> N
     assert not keeper.due(row, get_datetime_utc())
 
 
+@pytest.mark.usefixtures("isolated_registry")
 async def test_a_type_that_cannot_keep_its_names_is_refused(
-    isolated_registry: None, client: AsyncClient, person: dict[str, str]
+    client: AsyncClient, person: dict[str, str]
 ) -> None:
     registry.register(
         name="ping",

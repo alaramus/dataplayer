@@ -16,11 +16,15 @@ const props = defineProps<{
   said: Said
   /** The connection the place is, for the key it signs in with. */
   connectorId: string | null
+  /** Whether to offer keeping this connection's names, a slow one's way on (D212). */
+  offerKeep?: boolean
 }>()
 
 const emit = defineEmits<{
   /** The gesture was taken: ask again, or go where it says. */
   gesture: []
+  /** Keep names was asked for. */
+  keep: []
 }>()
 
 const lockedKey = useLockedKey(
@@ -49,6 +53,14 @@ const lockedKey = useLockedKey(
       :label="said.gesture.label"
       data-testid="search-gesture"
       @click="emit('gesture')"
+    />
+    <AppButton
+      v-if="offerKeep"
+      variant="quiet"
+      size="sm"
+      label="Keep names"
+      data-testid="search-keep-names"
+      @click="emit('keep')"
     />
   </div>
 </template>

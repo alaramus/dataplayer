@@ -1,0 +1,141 @@
+# Search: names kept
+
+A connection's names kept in the application database, so the search finds a
+large tree, a remote server or a large key space by name without asking it.
+The search itself — the engine, cells, outcomes, the field and the tab — is in
+[search.md](search.md). Read this before changing what a pass reads, the
+`search-keeper` process, the kept cell, or what marks a list stale.
+
+Decisions here: D212, D213, D214, D215, D216.
+
+```
+backend/app/
+├── adapters/search.py         KeptName, NameBatch
+├── adapters/protocol.py       EnumeratesNames
+├── adapters/postgres/search.py, adapters/redis/search.py,
+│   adapters/explorer/search.py   enumerate_names, each source's own walk
+├── connectors/names.py        NamesChanged, handed in at assembly (D216)
+└── search/
+    ├── keep.py                search_keep, search_name, the API models
+    ├── kept.py                state, the owner's switch, the kept query, stale
+    ├── keeper.py              python -m app.search.keeper: the passes
+    └── keep_routes.py         /search/kept
+
+frontend/src/features/searchIndex/
+├── state.ts                   what a list is said to be, when Keep names is offered
+├── api.ts                     vue-query, polled while a pass is near
+├── searchIndexWindow.ts       which connection's window is open
+├── SearchIndexDialog.vue      the window: the switch, the window, Read now
+├── SearchIndexTool.vue        the tool at the foot
+└── SearchIndexCommand.vue     its block on the rails
+```
+
+```
+GET  /api/v1/search/kept                          every kept list the person can see
+GET  /api/v1/search/kept/{connector_id}           one connection's, kept or not
+PUT  /api/v1/search/kept/{connector_id}           the owner's switch and window
+POST /api/v1/search/kept/{connector_id}/refresh   read it now
+```
+
+## D212. A connection's names are kept by its owner's choice, made from the catalog
+
+- **Search index…** is a line of the catalog's Actions menu about the
+  connection, beside Backups, offered on every connection; on a type without
+  `EnumeratesNames` it is disabled with the reason. One window, drawn once by
+  the workspace and opened from wherever a list is mentioned.
+- **Only the owner changes it** (D135's rule): 403 for a grantee, who opens the
+  same window read-only and sees the state. 404 for anybody without standing.
+- **Off by default.** Off, or the connection deleted, deletes the names in the
+  same transaction.
+- **The window says what it costs**: a plaintext copy of the names, read with
+  the owner's credentials; contents are never copied.
+- **Freshness**: 1 hour, 6 hours, 1 day (default) or 1 week.
+- **Seen from three more places**: the Search index tool at the foot, opened by
+  a block on the tool rails; a mark after the name in the Connections list; a
+  line on the connection window's Options page.
+- **Offered where it is needed**: a names cell of the person's own connection,
+  asked live and `stopped` or `late`, offers "Keep names".
+
+Known deviation:
+
+- **The mark in the Connections list is on trial.** That list's rule is an
+  icon, a name and a state dot; the user decides whether a fourth thing stays.
+
+Spec: [Search, phase 2: names kept](../decisions/2026-10-11-search-names-kept.md)
+
+## D213. A pass reads names through the source's own enumerator
+
+- **`EnumeratesNames.enumerate_names(limit, bounds)`** yields `NameBatch`es.
+  PostgreSQL: one catalog query of schemas and relations, no sizes. Redis:
+  `SCAN` of every database, each batch described in one round trip. Explorer:
+  breadth first, links not followed, `MAX_DEPTH` deep, stepped a batch at a
+  time on a worker thread — never `list_children`, which refuses 2,000 entries.
+- **A kept name is the live hit's pointer** — node, parent, location,
+  ancestors, the matched name — plus its `scope`: the folder it was listed in,
+  the Redis database, or the whole PostgreSQL connection.
+- **A finished pass deletes what it did not see**, except under a scope the
+  source reported `unread` (equal, or below it by `/`). A pass with a `notice`
+  — `SEARCH_KEPT_MAX_NAMES` (200,000) or `SEARCH_KEPT_PASS_SECONDS` (900) —
+  writes what it saw and deletes nothing, `partial`. A failed pass keeps the
+  list and its time and says why.
+- **The owner's credentials, no pool** (D127's way). A key whose passphrase
+  only the backend holds (D147) fails the pass `locked`, said in words.
+
+Spec: [Search, phase 2: names kept](../decisions/2026-10-11-search-names-kept.md)
+
+## D214. Passes run in one worker process, and the backend reads their state from rows
+
+- **`search-keeper`**, `python -m app.search.keeper`: the backend's image, the
+  user storage mounted, its own `search-keeper.log` read by the Logs panel.
+  Not started by `docker compose up -d db backend`.
+- **A tick every 5 seconds** takes what is due — never read, stale, asked to
+  refresh, or past half its window — at most two passes at once. A failed pass
+  is tried again after the smaller of half its window and ten minutes. A pass
+  left running by a stop is ended `failed` when the process starts.
+- **State is `search_keep`**: window, `stale_at`, `refresh_asked_at`, the last
+  pass's start, end, outcome, notice and kind, and `kept_at` /
+  `kept_started_at` / `kept_notice` of the pass that last wrote the list.
+- **Not a job and not on the socket**: the screens poll, every 2 seconds while
+  a pass is near and every 30 otherwise.
+
+Spec: [Search, phase 2: names kept](../decisions/2026-10-11-search-names-kept.md)
+
+## D215. A kept list answers the names cell, and what it cannot answer stays live
+
+- **Usable**: written, not stale (`stale_at` before `kept_started_at`),
+  younger than its window, the connection switched on, the cell not scoped to
+  a level, and one word of three characters or more. Then the cell is `kept`
+  and `instant` — asked while typing for every connection, outside the
+  connection ceiling, never held back by health or backoff.
+- **One query of `search_name`**, the standing and `enabled` inside it (D199):
+  every word as a `LIKE` on a bound, escaped value over the trigram index;
+  exact, then prefix, then shortest name first, rows plus one. The engine
+  classes the hits again by the rule.
+- **Said as such**: the outcome's `way` is `kept` and its `as_of` and every
+  hit's are `kept_at`; the hit's `via` is `kept`. A partial list answers
+  `stopped` with its notice.
+- **Folded once, in the process**, by `casefold`: `strasse` finds `straße`.
+
+Known deviations:
+
+- **A scoped search stays live**: a subtree of a kept list is a different query
+  per source type.
+- **A switched-off connection keeps its list** until it is switched on again or
+  the list is switched off; nothing asks it meanwhile (D20).
+
+Spec: [Search, phase 2: names kept](../decisions/2026-10-11-search-names-kept.md)
+
+## D216. What renames in DataPlayer marks the list stale at once
+
+- **`NamesChanged`** (`app.connectors.names`) is handed in at assembly as
+  `app.search.kept.names_changed`, which sets `stale_at`. A stale list is not
+  asked; the worker reads it on its next tick.
+- **Callers**: an action whose result creates, replaces or reloads nodes, or
+  that failed after a reviewed plan; a table created from rows; a SQL commit
+  or auto-commit run with a schema effect; a transfer's arrival. Not a row edit.
+
+Known deviation:
+
+- **A pipeline's paste** does not mark a list stale; the next pass sees it.
+
+Spec: [Search, phase 2: names kept](../decisions/2026-10-11-search-names-kept.md)

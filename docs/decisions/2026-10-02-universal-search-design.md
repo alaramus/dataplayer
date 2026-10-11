@@ -680,6 +680,11 @@ written now so that phase 1 builds nothing in their way.
 
 ### Phase 2 — names, kept
 
+Designed and decided in [Search, phase 2: names kept](2026-10-11-search-names-kept.md)
+(D212–D216), which moved the owner's choice from the connection window to the
+catalog's Actions menu and a tool at the foot of the screen. The direction as
+first written:
+
 - **An owner's choice per connection**, off by default: "Keep a list of names
   for search", in the connection window, changed only by the owner, the way the
   transfer flag is (D135). A grantee sees the state.
@@ -999,7 +1004,8 @@ dashboard is ever in its results.
 
 ### Later phases
 
-- **S11 — names kept** (phase 2), its own spec.
+- **S11 — names kept** (phase 2):
+  [its own spec](2026-10-11-search-names-kept.md).
 - **S12 — contents kept** (phase 3), its own spec.
 - **S13 — meaning** (phase 4), its own spec.
 

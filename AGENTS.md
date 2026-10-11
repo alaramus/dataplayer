@@ -63,6 +63,7 @@ documentation.
 | The agent, its tools, sending data to a third party, quick chat | [ai.md](docs/architecture/ai.md) |
 | Models, provider keys, Jev | [ai-models.md](docs/architecture/ai-models.md) |
 | One search over everything, its providers, the field in the header | [search.md](docs/architecture/search.md) |
+| A connection's names kept for search, the search-keeper process, the Search index window | [search-kept.md](docs/architecture/search-kept.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
 What is already done is recorded by the spec
@@ -283,6 +284,11 @@ files. IDs are stable because specs and commits refer to them.
 | D209 | [sources/actions](docs/architecture/sources/actions.md) |
 | D210 | [sources/actions](docs/architecture/sources/actions.md) |
 | D211 | [sources/timescale](docs/architecture/sources/timescale.md) |
+| D212 | [search-kept](docs/architecture/search-kept.md) |
+| D213 | [search-kept](docs/architecture/search-kept.md) |
+| D214 | [search-kept](docs/architecture/search-kept.md) |
+| D215 | [search-kept](docs/architecture/search-kept.md) |
+| D216 | [search-kept](docs/architecture/search-kept.md) |
 
 ## Working rules
 

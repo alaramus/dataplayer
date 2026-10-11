@@ -267,9 +267,9 @@ Spec: [Universal search](../decisions/2026-10-02-universal-search-design.md)
 
 ## D203. Live and kept answer the same cell, and what is kept is never a provider
 
-- **A plan is a set of cells**, each answered `live`, `kept` or `none`. In this
-  phase every cell is live or none; the plan and the outcome already carry the
-  way, so a later phase that keeps names changes no request, hit or outcome.
+- **A plan is a set of cells**, each answered `live`, `kept` or `none`. A names
+  cell is `kept` when its connection's list may answer it (D215,
+  [search-kept.md](search-kept.md)); no request, hit or outcome changed shape.
 - **What is kept will be one store asked once** for every cell it claims, its
   hits folded into their place's group; a chunk is evidence, never a target.
 

@@ -4,6 +4,7 @@ import QuickChatCommand from "@/features/ai/QuickChatCommand.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import LogsCommand from "@/features/logs/LogsCommand.vue"
 import QueriesCommand from "@/features/queries/QueriesCommand.vue"
+import SearchIndexCommand from "@/features/searchIndex/SearchIndexCommand.vue"
 import ServicesCommand from "@/features/services/ServicesCommand.vue"
 import TerminalCommand from "@/features/terminals/TerminalCommand.vue"
 
@@ -72,6 +73,13 @@ export const TOOL_BLOCKS: readonly ToolBlock[] = [
     component: LogsCommand,
     props: () => ({ iconOnly: true }),
     superuserOnly: true,
+  },
+  {
+    id: "search-index",
+    home: "left-bottom",
+    beside: "logs",
+    component: SearchIndexCommand,
+    props: () => ({ iconOnly: true }),
   },
   { id: "groups-save", home: "right-top", component: TabGroupSave, props: (rail) => ({ groups: rail.groups }) },
   {

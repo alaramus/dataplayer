@@ -36,9 +36,10 @@ const LEVELS: { label: string; value: LevelChoice }[] = [
   { label: "Errors", value: "error" },
 ]
 const PROCESSES: { label: string; value: ProcessChoice }[] = [
-  { label: "Backend and metrics", value: "all" },
+  { label: "Every process", value: "all" },
   { label: "Backend", value: "backend" },
   { label: "Metrics", value: "metrics" },
+  { label: "Search index", value: "search-keeper" },
 ]
 
 const me = useCurrentUser()

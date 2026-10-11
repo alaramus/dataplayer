@@ -3,7 +3,9 @@ import { computed } from "vue"
 
 import type { ConnectorPublic } from "@/client"
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
-import { AppEmptyState, AppSpinner } from "@/shared/ui"
+import { useKeptLists } from "@/features/searchIndex/api"
+import { isKept } from "@/features/searchIndex/state"
+import { AppEmptyState, AppSpinner, AppTooltip, appIcons } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
 /**
@@ -41,6 +43,16 @@ const emit = defineEmits<{
 }>()
 
 const selected = computed(() => props.selectedId ?? null)
+
+// A connection whose names are kept for search wears a mark after its name
+// (D212). On trial: the user decides whether a fourth thing in the row stays.
+const kept = useKeptLists()
+const keptIds = computed(
+  () =>
+    new Set(
+      (kept.data.value?.lists ?? []).filter(isKept).map((state) => state.connector_id)
+    )
+)
 const open = computed(() => props.openIds ?? new Set<string>())
 
 function startDrag(event: DragEvent, connector: ConnectorPublic) {
@@ -102,6 +114,17 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
       </span>
 
       <span class="connector-list__name">{{ connector.name }}</span>
+      <span
+        v-if="keptIds.has(connector.id)"
+        class="connector-list__kept"
+        :data-testid="`connector-kept-${connector.name}`"
+      >
+        <q-icon
+          :name="appIcons.manageSearch"
+          size="var(--dp-icon-sm)"
+        />
+        <AppTooltip>Names kept for search</AppTooltip>
+      </span>
     </div>
   </div>
 </template>
@@ -156,6 +179,13 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
   background: var(--dp-panel-background, var(--dp-panel-plain));
   color: var(--dp-panel-foreground, inherit);
   font-weight: 500;
+}
+.connector-list__kept {
+  display: flex;
+  color: var(--dp-text-faint);
+}
+.connector-list__row--selected .connector-list__kept {
+  color: inherit;
 }
 .connector-list__name {
   flex: 1;

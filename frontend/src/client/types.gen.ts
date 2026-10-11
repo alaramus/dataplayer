@@ -6479,6 +6479,108 @@ export type JsonScalar = {
 }
 
 /**
+ * KeepOverview
+ *
+ * Every kept list the person can see, and which types can keep one.
+ */
+export type KeepOverview = {
+  /**
+   * Lists
+   */
+  lists: Array<KeepState>
+  /**
+   * Types
+   */
+  types: Array<string>
+}
+
+/**
+ * KeepState
+ *
+ * What a person is told of one connection's list.
+ */
+export type KeepState = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null
+  /**
+   * May Change
+   */
+  may_change: boolean
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Status
+   */
+  status: "off" | "waiting" | "reading" | "kept" | "partial" | "failed"
+  /**
+   * Window Seconds
+   */
+  window_seconds?: 3600 | 21600 | 86400 | 604800
+  /**
+   * Names
+   */
+  names?: number
+  /**
+   * Kept At
+   */
+  kept_at?: string | null
+  /**
+   * Pass Started At
+   */
+  pass_started_at?: string | null
+  /**
+   * Pass Ended At
+   */
+  pass_ended_at?: string | null
+  /**
+   * Refresh Asked
+   */
+  refresh_asked?: boolean
+  /**
+   * Stale
+   */
+  stale?: boolean
+  /**
+   * Notice
+   */
+  notice?: string | null
+  /**
+   * Error Kind
+   */
+  error_kind?: string | null
+}
+
+/**
+ * KeepUpdate
+ */
+export type KeepUpdate = {
+  /**
+   * Keep
+   */
+  keep: boolean
+  /**
+   * Window Seconds
+   */
+  window_seconds?: 3600 | 21600 | 86400 | 604800
+}
+
+/**
  * KeptAsItIs
  *
  * An existing policy this editor cannot represent, left untouched.
@@ -6770,7 +6872,7 @@ export type LogEntry = {
   /**
    * Process
    */
-  process: "backend" | "metrics"
+  process: "backend" | "metrics" | "search-keeper"
   /**
    * Level
    */
@@ -14562,7 +14664,7 @@ export type logsReadLogsData = {
     /**
      * Process
      */
-    process?: "all" | "backend" | "metrics"
+    process?: "all" | "backend" | "metrics" | "search-keeper"
     /**
      * Q
      */
@@ -21258,6 +21360,112 @@ export type searchReadSearchContentsResponses = {
 
 export type searchReadSearchContentsResponse =
   searchReadSearchContentsResponses[keyof searchReadSearchContentsResponses]
+
+export type searchReadKeptData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/search/kept"
+}
+
+export type searchReadKeptResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeepOverview
+}
+
+export type searchReadKeptResponse = searchReadKeptResponses[keyof searchReadKeptResponses]
+
+export type searchReadKeepData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/search/kept/{connector_id}"
+}
+
+export type searchReadKeepErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchReadKeepError = searchReadKeepErrors[keyof searchReadKeepErrors]
+
+export type searchReadKeepResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeepState
+}
+
+export type searchReadKeepResponse = searchReadKeepResponses[keyof searchReadKeepResponses]
+
+export type searchChangeKeepData = {
+  body: KeepUpdate
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/search/kept/{connector_id}"
+}
+
+export type searchChangeKeepErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchChangeKeepError = searchChangeKeepErrors[keyof searchChangeKeepErrors]
+
+export type searchChangeKeepResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeepState
+}
+
+export type searchChangeKeepResponse = searchChangeKeepResponses[keyof searchChangeKeepResponses]
+
+export type searchRefreshKeepData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/search/kept/{connector_id}/refresh"
+}
+
+export type searchRefreshKeepErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type searchRefreshKeepError = searchRefreshKeepErrors[keyof searchRefreshKeepErrors]
+
+export type searchRefreshKeepResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeepState
+}
+
+export type searchRefreshKeepResponse = searchRefreshKeepResponses[keyof searchRefreshKeepResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

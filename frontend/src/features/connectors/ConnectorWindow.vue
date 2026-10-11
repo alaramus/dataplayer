@@ -58,6 +58,9 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
+import { useKeepState } from "@/features/searchIndex/api"
+import { useSearchIndexWindow } from "@/features/searchIndex/searchIndexWindow"
+import { statusLine } from "@/features/searchIndex/state"
 import { useServices } from "@/features/services/api"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
@@ -253,6 +256,18 @@ const isOwner = computed(() => access.value === "own")
  * available: it opens nothing this window does not already read.
  */
 const readOnly = computed(() => isEdit.value && !isOwner.value)
+
+/**
+ * What the search keeps of this connection, said here and changed in its own
+ * window, which the catalog's Actions menu opens too (D212).
+ */
+const keepState = useKeepState(computed(() => saved.value?.id ?? null))
+const searchIndexWindow = useSearchIndexWindow()
+
+function openSearchIndex() {
+  const connector = saved.value
+  if (connector) searchIndexWindow.open({ id: connector.id, name: connector.name })
+}
 /**
  * The stored connection a draft takes its secrets from: only one's own.
  *
@@ -766,6 +781,28 @@ async function parseTyped(text: string) {
             data-testid="connector-cache-window"
             @update:model-value="chooseCacheWindow"
           />
+          <section
+            v-if="isEdit && keepState.data.value"
+            class="connector-window__search-index"
+          >
+            <span
+              class="dp-helper"
+              data-testid="connector-search-index"
+            >
+              Search index: {{
+                keepState.data.value.available
+                  ? statusLine(keepState.data.value)
+                  : "this kind of source cannot keep its names"
+              }}
+            </span>
+            <AppButton
+              v-if="keepState.data.value.available"
+              variant="quiet"
+              size="sm"
+              label="Search index…"
+              @click="openSearchIndex"
+            />
+          </section>
           <!-- A key made or imported without leaving for Preferences (D146),
                in every connection window: keys belong to the person, not to
                the source. Where the form takes one, the choice above
@@ -1065,6 +1102,12 @@ async function parseTyped(text: string) {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-4);
+}
+.connector-window__search-index {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dp-space-3);
 }
 .connector-window__ssh-keys {
   display: flex;

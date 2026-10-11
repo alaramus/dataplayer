@@ -6,7 +6,7 @@ import { LogsService } from "@/client"
 import type { LogPage } from "@/client"
 
 export type LevelChoice = "all" | "warning" | "error"
-export type ProcessChoice = "all" | "backend" | "metrics"
+export type ProcessChoice = "all" | "backend" | "metrics" | "search-keeper"
 
 export interface LogFilter {
   level: LevelChoice

@@ -314,7 +314,7 @@ export function nodeSetOf(nodeIds: (string | null)[]): string[] | null {
  * names its actions with identifiers, so a colon cannot collide.
  */
 export const CLIENT_COMMANDS = [
-  "details", "relationships", "copy", "cut", "backups",
+  "details", "relationships", "copy", "cut", "backups", "searchIndex",
 ] as const
 export type ClientCommand = (typeof CLIENT_COMMANDS)[number]
 
@@ -355,6 +355,13 @@ export interface ClientMenuState {
    * refusal carried here.
    */
   backups?: { enabled: boolean; reason?: string }
+  /**
+   * Whether this connection could keep a list of its names for search, and
+   * why not (D212). Offered on every connection, so the line is found where
+   * a person looks for what can be done to one; disabled with the reason on
+   * a type that cannot say its names.
+   */
+  searchIndex?: { enabled: boolean; reason?: string }
 }
 
 /**
@@ -407,6 +414,14 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
       label: "Backups",
       disable: !state.backups.enabled,
       hint: state.backups.reason,
+    })
+  }
+  if (state.searchIndex) {
+    items.push({
+      name: clientCommandName("searchIndex"),
+      label: "Search index…",
+      disable: !state.searchIndex.enabled,
+      hint: state.searchIndex.reason,
     })
   }
   return items

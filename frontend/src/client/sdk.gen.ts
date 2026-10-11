@@ -556,9 +556,20 @@ import type {
   queriesUpdateDocumentData,
   queriesUpdateDocumentErrors,
   queriesUpdateDocumentResponses,
+  searchChangeKeepData,
+  searchChangeKeepErrors,
+  searchChangeKeepResponses,
+  searchReadKeepData,
+  searchReadKeepErrors,
+  searchReadKeepResponses,
+  searchReadKeptData,
+  searchReadKeptResponses,
   searchReadSearchContentsData,
   searchReadSearchContentsErrors,
   searchReadSearchContentsResponses,
+  searchRefreshKeepData,
+  searchRefreshKeepErrors,
+  searchRefreshKeepResponses,
   searchSearchContentsData,
   searchSearchContentsErrors,
   searchSearchContentsResponses,
@@ -6305,6 +6316,87 @@ export class SearchService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/search/contents/{job_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Kept
+   *
+   * Every kept list on a connection this person can see.
+   */
+  public static readKept<ThrowOnError extends boolean = true>(
+    options?: Options<searchReadKeptData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<searchReadKeptResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/kept",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Keep
+   *
+   * One connection's list, kept or not.
+   */
+  public static readKeep<ThrowOnError extends boolean = true>(
+    options: Options<searchReadKeepData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      searchReadKeepResponses,
+      searchReadKeepErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/kept/{connector_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Change Keep
+   *
+   * Keep this connection's names, or stop and delete them. The owner's alone:
+   * the list is a plaintext copy of their names (D212).
+   */
+  public static changeKeep<ThrowOnError extends boolean = true>(
+    options: Options<searchChangeKeepData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      searchChangeKeepResponses,
+      searchChangeKeepErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/kept/{connector_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Refresh Keep
+   *
+   * Read the names again now rather than when the window says.
+   */
+  public static refreshKeep<ThrowOnError extends boolean = true>(
+    options: Options<searchRefreshKeepData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      searchRefreshKeepResponses,
+      searchRefreshKeepErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/search/kept/{connector_id}/refresh",
       ...options,
     })
   }

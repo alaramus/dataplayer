@@ -41,6 +41,11 @@ vi.mock("@/features/catalog/api", () => ({
   useDownloadAction: () => ({ mutateAsync: vi.fn() }),
   usePrepareConnectorAction: () => ({ isPending: computed(() => false), mutateAsync: vi.fn() }),
 }))
+// Whether this kind of source can keep its names (D212): the line is drawn
+// on every connection, so the lists are answered as empty.
+vi.mock("@/features/searchIndex/api", () => ({
+  useKeptLists: () => ({ data: computed(() => ({ lists: [], types: [] })) }),
+}))
 vi.mock("@/features/services/backups", () => ({
   useBackupSupport: () => computed(() => ({ offered: false })),
 }))

@@ -30,6 +30,7 @@ import {
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { groupTitle, levelPath, showsPath, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
+import { useSearchIndexWindow } from "@/features/searchIndex/searchIndexWindow"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
@@ -519,6 +520,12 @@ const backingUp = ref<{ id: string; name: string } | null>(null)
 
 function showBackups() {
   backingUp.value = { id: props.connectorId, name: props.title }
+}
+
+const searchIndexWindow = useSearchIndexWindow()
+
+function showSearchIndex() {
+  searchIndexWindow.open({ id: props.connectorId, name: props.title })
 }
 
 function showDetails() {
@@ -1051,6 +1058,7 @@ async function afterAction(outcome: ActionOutcome) {
             @details="showDetails"
             @relationships="showTreeRelationships"
             @backups="showBackups"
+            @search-index="showSearchIndex"
           />
           <CatalogActions
             v-else-if="!paired"
@@ -1076,6 +1084,7 @@ async function afterAction(outcome: ActionOutcome) {
             @details="showDetails"
             @relationships="showRelationships"
             @backups="showBackups"
+            @search-index="showSearchIndex"
           />
         </div>
       </div>

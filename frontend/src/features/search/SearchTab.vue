@@ -2,6 +2,10 @@
 import { computed, ref, watch } from "vue"
 
 import type { SearchRequest } from "@/client"
+import { useConnectors } from "@/features/connectors/api"
+import { useKeptLists } from "@/features/searchIndex/api"
+import { useSearchIndexWindow } from "@/features/searchIndex/searchIndexWindow"
+import { isKept, offersKeeping } from "@/features/searchIndex/state"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import type { SearchScope } from "@/features/workspace/state"
@@ -123,6 +127,40 @@ function everywhere() {
 }
 
 const TRY_AGAIN: Gesture = { kind: "retry", label: "Try again" }
+
+// A slow or stopped connection of one's own can keep its names (D212).
+const connectors = useConnectors()
+const keptLists = useKeptLists()
+const searchIndexWindow = useSearchIndexWindow()
+const keptIds = computed(
+  () =>
+    new Set(
+      (keptLists.data.value?.lists ?? []).filter(isKept).map((state) => state.connector_id)
+    )
+)
+
+function connectionOf(one: SaidCell) {
+  const id = one.cell.planned.connector_id
+  return connectors.data.value?.data.find((connector) => connector.id === id)
+}
+
+function offersKeep(one: SaidCell): boolean {
+  const connection = connectionOf(one)
+  return offersKeeping(
+    one.cell.planned,
+    one.cell.outcome,
+    connection === undefined
+      ? undefined
+      : { owned: connection.access === "own", adapterType: connection.adapter_type },
+    keptLists.data.value?.types ?? [],
+    keptIds.value
+  )
+}
+
+function keepNames(one: SaidCell) {
+  const connection = connectionOf(one)
+  if (connection) searchIndexWindow.open({ id: connection.id, name: connection.name })
+}
 
 /** A gesture on one place: that place asked again, beside the answer, never instead of it. */
 function take(one: SaidCell) {
@@ -305,7 +343,9 @@ function setChanged(value: unknown) {
           :key="one.cell.planned.key"
           :said="one.said"
           :connector-id="one.cell.planned.connector_id"
+          :offer-keep="offersKeep(one)"
           @gesture="take(one)"
+          @keep="keepNames(one)"
         />
         <AppOption
           v-for="hit in group.hits"

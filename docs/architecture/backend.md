@@ -409,10 +409,11 @@ failed" and nothing else: the exception was dropped with `from None` and
 written nowhere, so neither the person nor anybody else could learn why.
 
 - **One configuration per process**, `core.logs.configure`, called before the
-  application is built and by the metrics collector. Standard output keeps its
-  text; with `LOG_DIR` set, each process also writes `<process>.log` as JSON
-  lines, rotated by size (`LOG_FILE_MAX_BYTES`, `LOG_FILE_COUNT`). Compose puts
-  both processes' files on the `app-logs` volume, so a rebuild keeps them.
+  application is built, by the metrics collector and by the search keeper
+  (D214). Standard output keeps its text; with `LOG_DIR` set, each process also
+  writes `<process>.log` as JSON lines, rotated by size (`LOG_FILE_MAX_BYTES`,
+  `LOG_FILE_COUNT`). Compose puts every process's file on the `app-logs`
+  volume, so a rebuild keeps them.
   Uvicorn's own loggers are taken over, so requests and tracebacks reach the
   file. The health check Docker asks every ten seconds, and the panel reading
   the log every three while it follows it, are not written down.

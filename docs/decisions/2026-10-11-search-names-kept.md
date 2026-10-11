@@ -188,3 +188,29 @@ Spec: [Search, phase 2: names kept](2026-10-11-search-names-kept.md)
 ## Validation
 
 Each slice records here the checks it ran and their results.
+
+- **S11a.** `pytest tests/search/test_kept.py`: 19 passed — a pass over the
+  development PostgreSQL keeps `pg_class`, found while typing out of context
+  as `kept` and `instant` with its `as_of`; an exact name first; `100%` a
+  character; `pg` asked live; a stale list and one past its window asked
+  live; a switched-off connection's names found by nobody, nor by somebody
+  without standing; a grantee refused the switch and Read now and shown the
+  state; switching off deletes the names; a finished pass deletes what it did
+  not see and keeps an unread folder's; a pass stopped short deletes nothing; a
+  failed pass keeps the list and is not retried at once; a type without
+  `EnumeratesNames` refused 501; files kept by folder and a deleted file gone
+  after the next pass; New file marks the list stale; Redis keys kept with
+  their ancestors. `pytest tests/search tests/alembic tests/system
+  tests/transfers tests/connectors/test_action_routes.py tests/core` 284 passed,
+  2 skipped, on `dataplayer_test`; `pytest tests/queries` 175 passed on the
+  development database, which has `demo_lab`. `ruff`, `mypy`, `lint-imports`:
+  clean. The migration applied to both databases, `pg_trgm` included.
+- **S11b.** `vitest` 2,519 passed (the window's sentences, when Keep names is
+  offered, the Actions line), `type-check`, `lint`: clean. In the browser
+  against the rebuilt backend and a running `search-keeper`: Search index… in
+  pg-warehouse's Actions menu, switched on and saved; 274 names read within
+  seconds; the mark in the Connections list; `pipeline` typed with no catalog
+  in context answered by pg-warehouse alone, `way: kept`, every other
+  connection skipped; the tool at the foot with Read now; the line on the
+  connection window's Options page. No Playwright scenario yet.
+- **`check-docs`**: clean.
