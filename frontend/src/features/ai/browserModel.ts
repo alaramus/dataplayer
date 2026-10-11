@@ -100,7 +100,7 @@ export function shorterHistory(messages: readonly PromptMessage[]): PromptMessag
   return [...system, ...turns.slice(Math.ceil(turns.length / 2))]
 }
 
-/** The answer, streamed to `onText` as it is written. */
+/** The answer, streamed to `onText` as it is written; `signal` stops it. */
 export async function answerInBrowser(turn: {
   prompt: string
   history: readonly QuickTurnMessage[]
@@ -110,6 +110,7 @@ export async function answerInBrowser(turn: {
 }): Promise<string> {
   const found = factory()
   if (!found) throw new Error("This browser cannot run Gemini Nano")
+  turn.signal?.throwIfAborted()
   let initial: PromptMessage[] = [{ role: "system", content: turn.prompt }, ...turn.history]
   let session: PromptSession
   for (;;) {

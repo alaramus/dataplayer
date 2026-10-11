@@ -144,14 +144,21 @@ watch(() => quickChatIntent.value?.id, async () => {
   }
 })
 
+/** Set while the browser's model writes: only an answer written here can be stopped. */
+const stopping = ref<AbortController | null>(null)
+function stopAnswer() { stopping.value?.abort() }
+onBeforeUnmount(stopAnswer)
+
 /**
  * The question kept by the server, answered here, and the answer kept there
- * too (D223). Whatever was written before the model failed is kept, as the
- * server keeps a provider's (D158).
+ * too (D223). Whatever was written before the model failed or was stopped is
+ * kept, as the server keeps a provider's (D158).
  */
 async function answerHere(id: string, text: string) {
   const turn = (await AiService.askQuickChatInBrowser({ path: { chat_id: id }, body: { text } })).data
   cache.setQueryData(["ai", "quick-chat", id], turn.chat)
+  const controller = new AbortController()
+  stopping.value = controller
   let failure: unknown = null
   try {
     await answerInBrowser({
@@ -159,10 +166,18 @@ async function answerHere(id: string, text: string) {
       history: turn.history,
       question: text,
       onText: (piece) => { answer.value += piece },
+      signal: controller.signal,
     })
-  } catch (cause) { failure = cause }
+  } catch (cause) {
+    if (!controller.signal.aborted) failure = cause
+  } finally {
+    stopping.value = null
+  }
   const written = answer.value
-  if (!written.trim()) throw failure ?? new Error("The model returned an empty answer")
+  if (!written.trim()) {
+    if (controller.signal.aborted) return turn.chat
+    throw failure ?? new Error("The model returned an empty answer")
+  }
   const saved = (await AiService.keepQuickChatBrowserAnswer({ path: { chat_id: id }, body: { text: written } })).data
   if (failure !== null) {
     cache.setQueryData(["ai", "quick-chat", id], saved)
@@ -393,6 +408,15 @@ function editorKeydown(event: KeyboardEvent) {
               />
               <span class="quick-chat__gap" />
               <AppButton
+                v-if="stopping"
+                variant="danger-quiet"
+                :icon="appIcons.stop"
+                label="Stop"
+                data-testid="quick-chat-stop"
+                @click="stopAnswer"
+              />
+              <AppButton
+                v-else
                 :icon="appIcons.send"
                 label="Send"
                 icon-only

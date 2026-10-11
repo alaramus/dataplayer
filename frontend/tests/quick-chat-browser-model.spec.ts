@@ -57,3 +57,44 @@ test("the quick chat downloads the browser's model and keeps its answer in the h
   const prompts = await page.evaluate(() => (window as unknown as { __nanoAsked: { role: string }[][] }).__nanoAsked)
   expect(prompts.at(-1)?.[0]?.role).toBe("system")
 })
+
+test("an answer the browser's model is writing can be stopped, and what it wrote is kept", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.assign(window, {
+      LanguageModel: {
+        availability: async () => "available",
+        create: async () => ({
+          // Writes once, then goes on until it is stopped, as a long answer does.
+          async *promptStreaming(_question: string, options?: { signal?: AbortSignal }) {
+            yield "Written before the stop"
+            await new Promise((_resolve, reject) => {
+              options?.signal?.addEventListener("abort", () => reject(new DOMException("Stopped", "AbortError")))
+            })
+          },
+          destroy: () => {},
+        }),
+      },
+    })
+  })
+  await login(page)
+  await page.getByTestId("quick-chat-rail").click()
+  const chat = page.getByTestId("quick-chat-window")
+  await chat.getByRole("combobox").click()
+  await page.getByRole("listbox").getByRole("option", { name: /Gemini Nano/ }).click()
+  const question = `Stop me ${Date.now()}`
+  await page.getByTestId("quick-chat-input").fill(question)
+  await page.getByTestId("quick-chat-send").click()
+  const messages = page.getByTestId("quick-chat-messages")
+  await expect(messages).toContainText("Written before the stop")
+
+  await page.getByTestId("quick-chat-stop").click()
+  await expect(page.getByTestId("quick-chat-stop")).toHaveCount(0)
+  await expect(page.getByTestId("quick-chat-send")).toBeVisible()
+  await expect(page.getByTestId("quick-chat-answering")).toHaveCount(0)
+  await expect(messages).toContainText("Written before the stop")
+
+  await page.getByRole("button", { name: "Close window" }).click()
+  await page.getByTestId("space-ai").click()
+  await page.getByText(question, { exact: true }).first().click()
+  await expect(page.getByTestId("quick-chat-messages")).toContainText("Written before the stop")
+})

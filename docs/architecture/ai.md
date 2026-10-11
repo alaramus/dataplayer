@@ -459,7 +459,8 @@ The server never calls it. `browser-turns` keeps the question as a provider send
 does and returns the prompt and the trimmed history it would give a provider;
 `browser-answers` keeps what the browser wrote, and only while a question waits.
 The chat's model is `browser:gemini-nano`, the history is the one every quick
-chat shares, and what was written before a failure is kept (D158). A history
+chat shares, and what was written before a failure is kept (D158). While it
+writes, Send becomes Stop; what was written by then is kept as the answer. A history
 too long for Nano's window loses its older half until it fits, the instructions
 kept. The settings name only models the server can call, so the choice is not
 remembered there (D140); the browser remembers that the quick chat was last on
