@@ -50,16 +50,14 @@ POST /api/v1/search/kept/{connector_id}/refresh   read it now
 - **The window says what it costs**: a plaintext copy of the names, read with
   the owner's credentials; contents are never copied.
 - **Freshness**: 1 hour, 6 hours, 1 day (default) or 1 week.
-- **Seen from three more places**: the Search index tool at the foot, opened by
-  a block on the tool rails; a mark after the name in the Connections list; a
-  line on the connection window's Options page.
+- **Seen from two more places**: the Search index tool at the foot, opened by
+  a block on the tool rails, and a line on the connection window's Options
+  page.
 - **Offered where it is needed**: a names cell of the person's own connection,
   asked live and `stopped` or `late`, offers "Keep names".
 
-Known deviation:
-
-- **The mark in the Connections list is on trial.** That list's rule is an
-  icon, a name and a state dot; the user decides whether a fourth thing stays.
+Rejected: a mark after the name in the Connections list. Tried and taken out;
+that list stays an icon, a name and a state dot.
 
 Spec: [Search, phase 2: names kept](../decisions/2026-10-11-search-names-kept.md)
 

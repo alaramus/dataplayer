@@ -47,7 +47,7 @@ export function queriesCommand(state: ConnectionState): ConnectionCommand {
   return {
     name: "queries",
     label: "Queries",
-    icon: appIcons.manageSearch,
+    icon: appIcons.code,
     enabled: true,
     tooltip: about,
   }

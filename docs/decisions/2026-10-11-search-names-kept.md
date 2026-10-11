@@ -19,8 +19,7 @@ name in that connection is found as fast as a connection row, the Search tab
 says the list was read 12 minutes ago, and a large tree over SSH is found while
 typing. A **Search index** tool in the panel at the foot of the screen, opened
 from a block on the tool rails, lists every connection whose names are kept,
-with its state, its age and Refresh. A connection whose names are kept wears a
-small mark in the Connections list.
+with its state, its age and Refresh.
 
 ## What changed from the direction
 
@@ -62,11 +61,11 @@ is phase 3's scope; the same window will grow that section then.
 - **The window says what it costs**: a plaintext copy of the names in the
   application database, read with the owner's credentials.
 - **A freshness window**: 1 hour, 6 hours, 1 day (the default) or 1 week.
-- **Seen from three more places**: the Search index tool at the foot (every
+- **Seen from two more places**: the Search index tool at the foot (every
   kept connection the person can see, its state, names, age, Refresh, the
-  window), a mark beside the name in the Connections list, and a line in the
-  connection window's Options page. The mark is on trial: the user decides
-  whether it stays after looking at it.
+  window) and a line in the connection window's Options page. A mark beside
+  the name in the Connections list was tried on the branch and taken out at
+  the user's word: the list stays an icon, a name and a state dot.
 - **Offered where it is needed**: a names cell of a connection the person owns
   that ended `stopped` or `late` offers "Keep names" beside its own gesture.
 
@@ -183,7 +182,7 @@ Spec: [Search, phase 2: names kept](2026-10-11-search-names-kept.md)
   not asked; a finished pass deletes a dropped table and keeps a folder that
   failed; switching off deletes the names.
 - **S11b, browser.** The Actions line and the window, the foot tool and its
-  rail block, the mark, the Options line, "Keep names" in the Search tab.
+  rail block, the Options line, "Keep names" in the Search tab.
 
 ## Validation
 
@@ -204,12 +203,14 @@ Each slice records here the checks it ran and their results.
   tests/transfers tests/connectors/test_action_routes.py tests/core` 284 passed,
   2 skipped, on `dataplayer_test`; `pytest tests/queries` 175 passed on the
   development database, which has `demo_lab`. `ruff`, `mypy`, `lint-imports`:
-  clean. The migration applied to both databases, `pg_trgm` included.
+  clean. The tables and `pg_trgm` are in the squashed baseline rather than a
+  revision of their own — nobody else runs this database yet — and a database
+  built from it passes the same tests.
 - **S11b.** `vitest` 2,519 passed (the window's sentences, when Keep names is
   offered, the Actions line), `type-check`, `lint`: clean. In the browser
   against the rebuilt backend and a running `search-keeper`: Search index… in
   pg-warehouse's Actions menu, switched on and saved; 274 names read within
-  seconds; the mark in the Connections list; `pipeline` typed with no catalog
+  seconds; `pipeline` typed with no catalog
   in context answered by pg-warehouse alone, `way: kept`, every other
   connection skipped; the tool at the foot with Read now; the line on the
   connection window's Options page. No Playwright scenario yet.
