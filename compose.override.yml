@@ -65,11 +65,13 @@ services:
       SERVICE_STORAGE_VOLUME: "dataplayer_user-storage"
 
   # A Redis for the backend suite to read and write, and for a person to point
-  # a connection at while working on that source type. Development only: the
-  # application itself keeps nothing in Redis, and a deployment that wants one
-  # starts it as a service (D80).
+  # a connection at while working on that source type. Behind the `tools`
+  # profile: a bare `up` never starts it, `--profile tools` (or naming `redis`
+  # explicitly) does. The application itself reads the `redis-cache` service
+  # when DATA_CACHE_BACKEND=redis, not this one (D103).
   redis:
     image: redis:8
+    profiles: ["tools"]
     ports:
       - "6379:6379"
 
@@ -77,9 +79,10 @@ services:
   # connection at while working on that source (D144): host `sshd`, port 2222
   # from the backend, 127.0.0.1:2222 from this machine, user and password
   # `dataplayer`. Published on the loopback only, because that password is in
-  # this file. Development only.
+  # this file. Behind the `tools` profile, like `redis` above.
   sshd:
     image: lscr.io/linuxserver/openssh-server:latest
+    profiles: ["tools"]
     environment:
       PUID: "1000"
       PGID: "1000"
@@ -117,11 +120,17 @@ services:
 
   mailcatcher:
     image: schickling/mailcatcher
+    # Behind the `tools` profile: the backend sends mail through it when it
+    # runs (`SMTP_HOST: mailcatcher` above), and its absence otherwise only
+    # means mail is not caught locally. Also in `e2e`, which the playwright
+    # service below depends on.
+    profiles: ["tools", "e2e"]
     ports:
       - "1080:1080"
       - "1025:1025"
 
   playwright:
+    profiles: ["e2e"]
     build:
       context: .
       dockerfile: frontend/Dockerfile.playwright

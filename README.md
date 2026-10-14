@@ -77,65 +77,68 @@ or by pasting a connection string, and is checked before it is saved.
 
 ## Getting started
 
-DataPlayer starts in one of two modes, chosen by one line in `.env`:
+DataPlayer starts in one of two modes, and in one of three presets:
+
+| Preset | Adds over the previous | Profiles in `.env` |
+| --- | --- | --- |
+| `minimal` | db, the API, metrics and search-keeper; the memory cache, no search by meaning | none |
+| `standard` | the shared Redis read cache | `cache` |
+| `full` | search by meaning through a local model | `cache,meaning` |
 
 | | Run it | Develop it |
 | --- | --- | --- |
-| `COMPOSE_FILE` in `.env` | `compose.yml,compose.prod.yml` | `compose.yml,compose.override.yml` (the default) |
-| You need | Docker | Docker, [Bun](https://bun.sh) and Node.js |
+| Mode in `.env` | `compose.yml,compose.prod.yml` | `compose.yml,compose.override.yml` (the default) |
+| You need | Docker, Python | Docker, Python, [Bun](https://bun.sh) and Node.js |
 | Interface | built into the image, on `APP_PORT` (8000) | Vite dev server on 5173, reloading on every edit |
 | Data at the start | the first superuser only | sample databases, files and references |
-| Extras | none; restarted after a reboot | Adminer, Mailcatcher, a test Redis and SSH server, the Docker socket for managed services |
+| Extras | none; restarted after a reboot | the Docker socket for managed services; Adminer, Mailcatcher, a test Redis and SSH server on request with `docker compose --profile tools up -d` |
 
-### 1. Configure
+### 1. Set up
 
 ```bash
 cp .env.example .env
+docker compose --profile setup run --build --rm setup && docker compose up -d --build
 ```
 
-In `.env`, keep the `COMPOSE_FILE` line of the mode you want and replace every
-placeholder: at minimum `SECRET_KEY`, `CONNECTOR_SECRET_KEY`,
-`QUERY_CONTENT_KEY`, `AI_CONTENT_KEY`, `POSTGRES_PASSWORD`,
-`FIRST_SUPERUSER_PASSWORD`, `DATA_CACHE_REDIS_PASSWORD` and
-`DATA_CACHE_SECRET_KEY`. Generate each key with:
+With no flags the script walks through every choice step by step — mode,
+preset, superuser email and password (generated or your own), the address
+people open, and managed services — then writes `.env` and starts the stack
+with a bare `docker compose up -d --build`: files and profiles come from
+`.env` itself, so every later compose command follows them. Secrets are
+filled where `.env` still holds the `changethis` placeholder; anything
+already chosen is left alone. Nothing is written before the final
+confirmation, a backup lands in `.env.bak`, and `--no-run` writes the files
+without starting anything. Flags (`--preset`, `--mode`, `--enable-services`,
+`--yes`) skip the questions for repeat runs and CI; `--mode dev` also creates
+`frontend/.env` and defaults to `--preset full`, so everything runs at once.
+Flags go after the service name, before the `&&`:
 
 ```bash
-python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
+docker compose --profile setup run --build --rm setup python scripts/setup.py --preset standard --mode prod --yes && docker compose up -d --build
 ```
 
-Running it refuses to start while `SECRET_KEY`, `POSTGRES_PASSWORD` or
-`FIRST_SUPERUSER_PASSWORD` is still `changethis`; the keys are refused in
-either mode unless they decode to 32 bytes.
+Managed services stay off in every preset. Adding `--enable-services` turns
+them on deliberately: in development the Docker socket is already mounted,
+while a running installation additionally reads `compose.services.yml`.
 
 ### 2a. Run it
 
-Also set `FRONTEND_HOST` to the address people will open, for example
-`http://localhost:8000`, comment out `FASTAPI_ENV`, and give
-`DATA_CACHE_DEPLOYMENT` a name of its own. Then:
-
-```bash
-docker compose up -d --build
-```
-
-Open http://localhost:8000 and sign in as `FIRST_SUPERUSER` with
-`FIRST_SUPERUSER_PASSWORD`. The port speaks plain HTTP: to reach DataPlayer
-from outside this machine, put a reverse proxy that terminates HTTPS in front
-of it (Caddy, Traefik, nginx) and set `FRONTEND_HOST` to its address. Back up
-the Docker volume `dataplayer_app-db-data`; it holds everything DataPlayer
-keeps.
+Open the address in `FRONTEND_HOST` (http://localhost:8000 by default) and sign
+in as `FIRST_SUPERUSER` with the generated `FIRST_SUPERUSER_PASSWORD` from
+`.env`. The port speaks plain HTTP: to reach DataPlayer from outside this
+machine, put a reverse proxy that terminates HTTPS in front of it (Caddy,
+Traefik, nginx) and set `FRONTEND_HOST` to its address. Back up the Docker
+volume `dataplayer_app-db-data`; it holds everything DataPlayer keeps.
 
 ### 2b. Develop it
-
-```bash
-cp frontend/.env.example frontend/.env
-docker compose up -d --build backend metrics
-cd frontend && bun install && bun run dev
-```
 
 The interface is at http://localhost:5173, the API at http://localhost:8000
 and its interactive docs at http://localhost:8000/docs. To fill the connections
 panel with examples — the bundled PostgreSQL under several names, file storage
-and Redis — run `bun run seed:connectors` from the repository root.
+and Redis — run `bun run seed:connectors` from the repository root. A bare
+`docker compose up -d` starts only what the interface talks to; the helpers
+(Adminer, Mailcatcher, a test Redis and SSH server) start on request with
+`docker compose --profile tools up -d`.
 
 The backend cannot run natively on Windows: psycopg 3 in async mode is
 incompatible with the event loop Python selects there. Use Docker.

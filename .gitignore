@@ -1,6 +1,7 @@
 # Environment files hold credentials and machine-specific values.
 # Copy .env.example to .env and fill it in.
 .env
+.env.bak
 frontend/.env
 
 .idea
