@@ -101,29 +101,10 @@ export default defineConfigWithVueTs(
   {
     // A screen speaks through the dictionaries (D224): text written into a
     // template, or into an attribute a person reads, is English in every
-    // language. Listed by directory while screens move over; the list grows
-    // until it is src/** and this comment goes.
-    files: [
-      "src/features/auth/**/*.vue",
-      "src/features/ai/**/*.vue",
-      "src/features/catalog/**/*.vue",
-      "src/features/connectors/**/*.vue",
-      "src/features/content/**/*.vue",
-      "src/features/dashboards/**/*.vue",
-      "src/features/grid/**/*.vue",
-      "src/features/hypertableDesign/**/*.vue",
-      "src/features/pipelines/**/*.vue",
-      "src/features/preferences/**/*.vue",
-      "src/features/queries/**/*.vue",
-      "src/features/servers/**/*.vue",
-      "src/features/services/**/*.vue",
-      "src/features/sshKeys/**/*.vue",
-      "src/features/structure/**/*.vue",
-      "src/features/tableDesign/**/*.vue",
-      "src/features/workspace/**/*.vue",
-      "src/shared/ui/**/*.vue",
-      "src/shared/workspace/**/*.vue",
-    ],
+    // language. Words in .ts modules are not seen here and rest on review.
+    files: ["src/**/*.vue"],
+    // Pages a development server alone routes to; no build ships them.
+    ignores: ["src/features/dev/**"],
     plugins: { "@intlify/vue-i18n": vueI18n },
     rules: {
       "@intlify/vue-i18n/no-raw-text": [
