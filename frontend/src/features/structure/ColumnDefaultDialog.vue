@@ -2,6 +2,7 @@
 import { ref, watch } from "vue"
 
 import { AppBanner, AppButton, AppInput, AppForm } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -32,7 +33,7 @@ watch(
     :model-value="modelValue"
     sizing="stable"
     size="compact-form"
-    :title="`Column default — ${name}`"
+    :title="t('structure.default_dialog.title', { name })"
     data-testid="structure-default-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -45,12 +46,12 @@ watch(
         {{ error }}
       </AppBanner>
       <div v-if="currentDefault !== null">
-        Current source expression: <code>{{ currentDefault }}</code>
+        {{ t('structure.default_dialog.current') }} <code>{{ currentDefault }}</code>
       </div>
       <AppInput
         :model-value="value"
-        label="New literal value"
-        hint="Saved as a value, never executed as SQL. An empty box sets the empty string."
+        :label="t('structure.default_dialog.value')"
+        :hint="t('structure.default_dialog.hint')"
         :disable="saving"
         data-testid="structure-default-value"
         @update:model-value="value = $event"
@@ -59,20 +60,20 @@ watch(
     <template #actions>
       <AppButton
         v-if="currentDefault !== null"
-        label="Drop default"
+        :label="t('structure.default_dialog.drop')"
         variant="danger-quiet"
         :disable="saving"
         data-testid="structure-default-drop"
         @click="emit('drop')"
       />
       <AppButton
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         variant="quiet"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Set default"
+        :label="t('structure.default_dialog.set')"
         :loading="saving"
         data-testid="structure-default-save"
         @click="emit('save', value)"

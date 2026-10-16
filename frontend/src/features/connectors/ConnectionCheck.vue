@@ -4,6 +4,8 @@ import { computed } from "vue"
 import type { ConnectionCheckReport } from "@/client"
 import { sourceFacts } from "@/features/connectors/sourceFacts"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 import { AppCopyButton, useToast } from "@/shared/ui"
 
 const props = defineProps<{
@@ -14,16 +16,18 @@ const props = defineProps<{
 
 const toast = useToast()
 
-const KIND_LABELS: Record<string, string> = {
-  auth: "Authentication failed",
-  network: "Server unreachable",
-  timeout: "Timed out",
-  config: "Invalid parameters",
-  locked: "Key locked",
-  unknown: "Unknown error",
+const KIND_LABELS: Record<string, MessageKey> = {
+  auth: "connectors.check.kinds.auth",
+  network: "connectors.check.kinds.network",
+  timeout: "connectors.check.kinds.timeout",
+  config: "connectors.check.kinds.config",
+  locked: "connectors.check.kinds.locked",
+  unknown: "connectors.check.kinds.unknown",
 }
 
-const heading = computed(() => (props.result?.ok === true ? "Succeeded" : "Failed"))
+const heading = computed(() =>
+  props.result?.ok === true ? t("connectors.check.succeeded") : t("connectors.check.failed")
+)
 
 /** The lines of the answer, each already safe to show — see AdapterError. */
 const lines = computed(() => {
@@ -32,11 +36,12 @@ const lines = computed(() => {
   const collected: string[] = []
   if (!result.ok) {
     const kind = result.error_kind
-    if (kind && KIND_LABELS[kind]) collected.push(KIND_LABELS[kind])
+    const label = kind ? KIND_LABELS[kind] : undefined
+    if (label) collected.push(t(label))
   }
   collected.push(result.message)
   if (result.latency_ms !== null && result.latency_ms !== undefined) {
-    collected.push(`Ping: ${String(result.latency_ms)} ms`)
+    collected.push(t("connectors.check.ping", { ms: result.latency_ms }))
   }
   return collected
 })
@@ -47,7 +52,7 @@ const facts = computed(() => sourceFacts(props.result?.features, props.sourceTit
 async function copy() {
   const said = facts.value.map((fact) => `${fact.label}: ${fact.value}`)
   await copyText([heading.value, ...lines.value, ...said].join("\n"))
-  toast.success("Result copied")
+  toast.success(t("connectors.check.copied"))
 }
 </script>
 
@@ -57,7 +62,7 @@ async function copy() {
     class="connection-check"
     :class="result.ok ? 'connection-check--ok' : 'connection-check--failed'"
     role="region"
-    aria-label="Connection check result"
+    :aria-label="t('connectors.check.region')"
     data-testid="check-result"
   >
     <header class="connection-check__head">
@@ -69,7 +74,7 @@ async function copy() {
         {{ heading }}
       </span>
       <AppCopyButton
-        tooltip="Copy the check result"
+        :tooltip="t('connectors.check.copy')"
         data-testid="copy-check-result"
         @click="copy"
       />
@@ -77,7 +82,7 @@ async function copy() {
     <div
       class="connection-check__details"
       tabindex="0"
-      aria-label="Check details"
+      :aria-label="t('connectors.check.details')"
     >
       <p
         v-for="line in lines"

@@ -11,6 +11,7 @@ import {
   AppSelect,
   AppSpinner,
 } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -39,18 +40,15 @@ const emit = defineEmits<{
   ]
 }>()
 
-const KINDS = [
-  { label: "Unique", value: "unique" },
-  { label: "Foreign key", value: "foreign_key" },
-]
+const KINDS = computed(() => [
+  { label: t("structure.add_constraint.kinds.unique"), value: "unique" },
+  { label: t("structure.add_constraint.kinds.foreign_key"), value: "foreign_key" },
+])
 // The same closed set the relation model reports, so nothing new is invented.
-const ACTIONS: { label: string; value: RefAction }[] = [
-  { label: "No action", value: "no_action" },
-  { label: "Restrict", value: "restrict" },
-  { label: "Cascade", value: "cascade" },
-  { label: "Set null", value: "set_null" },
-  { label: "Set default", value: "set_default" },
-]
+const REF_ACTIONS: RefAction[] = ["no_action", "restrict", "cascade", "set_null", "set_default"]
+const ACTIONS = computed(() =>
+  REF_ACTIONS.map((value) => ({ label: t(`structure.add_constraint.actions.${value}`), value }))
+)
 
 const kind = ref<"unique" | "foreign_key">("unique")
 const chosen = ref<string[]>([])
@@ -102,17 +100,23 @@ const ready = computed(() => {
 
 const blockedText = computed(() => {
   if (props.blocked === null) return ""
-  const many = props.blocked.count !== 1
+  const n = props.blocked.count
   if (props.blocked.kind === "repeating") {
-    const values = props.blocked.exact
-      ? `${props.blocked.count} ${many ? "values" : "value"}`
-      : `More than ${props.blocked.count} values`
-    return `${values} already appear more than once, so this cannot be promised.`
+    return t(
+      props.blocked.exact
+        ? "structure.add_constraint.repeating"
+        : "structure.add_constraint.repeating_more",
+      { n },
+      n
+    )
   }
-  const rows = props.blocked.exact
-    ? `${props.blocked.count} ${many ? "rows" : "row"}`
-    : `More than ${props.blocked.count} rows`
-  return `${rows} point at nothing in the chosen relation. Correct or remove them first.`
+  return t(
+    props.blocked.exact
+      ? "structure.add_constraint.unmatched"
+      : "structure.add_constraint.unmatched_more",
+    { n },
+    n
+  )
 })
 
 function save() {
@@ -137,8 +141,8 @@ function save() {
   <WindowDialog
     :model-value="modelValue"
     sizing="stable"
-    title="Add constraint"
-    subtitle="The source names it and says what may be pointed at"
+    :title="t('structure.add_constraint.title')"
+    :subtitle="t('structure.add_constraint.subtitle')"
     size="form"
     data-testid="structure-constraint-dialog"
     @update:model-value="emit('update:modelValue', $event)"
@@ -162,7 +166,7 @@ function save() {
       <AppSelect
         :model-value="kind"
         :options="KINDS"
-        label="Kind"
+        :label="t('structure.add_constraint.kind')"
         :disable="saving"
         data-testid="structure-constraint-kind"
         @update:model-value="kind = $event as 'unique' | 'foreign_key'"
@@ -170,7 +174,7 @@ function save() {
       <AppSelect
         :model-value="chosen"
         :options="columns"
-        label="Columns, in order"
+        :label="t('structure.add_constraint.columns')"
         multiple
         :disable="saving"
         data-testid="structure-constraint-columns"
@@ -180,7 +184,7 @@ function save() {
         <AppSelect
           :model-value="targetNodeId"
           :options="(targets.data.value ?? []).map((node) => ({ label: node.name, value: node.id }))"
-          label="Points at"
+          :label="t('structure.add_constraint.points_at')"
           :loading="targets.isFetching.value"
           :disable="saving"
           data-testid="structure-constraint-target"
@@ -192,14 +196,13 @@ function save() {
           tone="info"
           data-testid="structure-constraint-no-key"
         >
-          That relation has no unique key of {{ chosen.length }}
-          {{ chosen.length === 1 ? "column" : "columns" }} to point at.
+          {{ t('structure.add_constraint.no_key', { n: chosen.length }, chosen.length) }}
         </AppBanner>
         <AppSelect
           v-else-if="targetNodeId !== ''"
           :model-value="targetKeyName"
           :options="usableKeys.map((key) => ({ label: `${key.name} (${key.columns.join(', ')})`, value: key.name }))"
-          label="Key"
+          :label="t('structure.add_constraint.key')"
           :disable="saving"
           data-testid="structure-constraint-key"
           @update:model-value="targetKeyName = String($event)"
@@ -207,7 +210,7 @@ function save() {
         <AppSelect
           :model-value="onUpdate"
           :options="ACTIONS"
-          label="On update"
+          :label="t('structure.add_constraint.on_update')"
           :disable="saving"
           data-testid="structure-constraint-on-update"
           @update:model-value="onUpdate = $event as RefAction"
@@ -215,7 +218,7 @@ function save() {
         <AppSelect
           :model-value="onDelete"
           :options="ACTIONS"
-          label="On delete"
+          :label="t('structure.add_constraint.on_delete')"
           :disable="saving"
           data-testid="structure-constraint-on-delete"
           @update:model-value="onDelete = $event as RefAction"
@@ -225,12 +228,12 @@ function save() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Add"
+        :label="t('structure.add_constraint.add')"
         :disable="!ready"
         :loading="saving"
         data-testid="structure-constraint-save"

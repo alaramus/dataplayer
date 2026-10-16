@@ -10,6 +10,7 @@ from app.adapters import registry
 from app.adapters.protocol import SupportsBackup
 from app.connectors.models import Connector
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message
 from app.jobs import crud as job_crud
 from app.jobs.models import JobKind, JobPublic
@@ -187,15 +188,7 @@ async def restore(
     await _refuse_unless_source_available(connector)
     await _refuse_unless_possible(engine)
     if not body.understood:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "message": (
-                    "A restore replaces what is in the database; say that it "
-                    "is meant"
-                )
-            },
-        )
+        raise Problem(422, "backups.restore_not_confirmed")
     name = await to_thread.run_sync(
         _one_of_their_own, current_user.id, body.filename
     )
@@ -210,13 +203,7 @@ async def restore(
             parameters={"filename": name},
         )
     except job_crud.SubjectBusy as busy:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "A source operation is running on this connection",
-                "job_id": str(busy.job_id),
-            },
-        )
+        raise Problem(409, "backups.operation_running", job_id=str(busy.job_id)) from None
     await runner.launch(job, topics)
     return job_public(job)
 
@@ -247,18 +234,16 @@ def _one_of_their_own(owner_id: uuid.UUID, filename: str) -> str:
     for entry in folder.iterdir() if folder.is_dir() else []:
         if entry.is_file() and entry.name == filename:
             return entry.name
-    raise HTTPException(
-        status_code=404, detail={"message": "You have no backup by that name"}
-    )
+    raise Problem(404, "backups.not_found")
 
 
 async def _refuse_unless_possible(engine: ServiceEngineDep) -> None:
     runtime = await engine.availability()
     if not runtime.available:
-        raise HTTPException(
-            status_code=503,
-            detail={"message": runtime.reason or "This server cannot run programs"},
-        )
+        if runtime.reason is None:
+            raise Problem(503, "backups.no_runtime")
+        # The runtime's own sentence, passed on as it is.
+        raise HTTPException(status_code=503, detail={"message": runtime.reason})
     nowhere = storage_volume_reason()
     if nowhere is not None:
         raise HTTPException(status_code=503, detail={"message": nowhere})
@@ -276,15 +261,13 @@ async def _own_connector_or_404(
     """
     connector = await session.get(Connector, connector_id)
     if connector is None or connector.owner_id != owner_id:
-        raise HTTPException(
-            status_code=404, detail={"message": "No such connection"}
-        )
+        raise Problem(404, "backups.connection_not_found")
     return connector
 
 
 async def _refuse_unless_source_available(connector: Connector) -> None:
     if not connector.enabled:
-        raise HTTPException(status_code=409, detail={"message": "This connection is disabled"})
+        raise Problem(409, "backups.connection_disabled")
     offer = await backup_source(connector).backup_availability()
     if not offer.available:
         raise HTTPException(status_code=422, detail={"message": offer.reason})
@@ -303,10 +286,7 @@ def _refuse_unless_the_source_can(connector: Connector) -> None:
     if not issubclass(
         registry.get(connector.adapter_type).adapter_class, SupportsBackup
     ):
-        raise HTTPException(
-            status_code=501,
-            detail={"message": "This kind of connection cannot be copied out"},
-        )
+        raise Problem(501, "backups.not_supported")
 
 
 # Named so the assembly can ask what the two kinds of work are without

@@ -20,6 +20,7 @@ import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import { badgesFor, datasetFacts, foreignKeyLabel } from "@/features/structure/model"
 import type { ForeignKey, RefAction } from "@/features/structure/model"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBadge,
   AppButton,
@@ -99,24 +100,24 @@ const droppingConstraint = ref<string | null>(null)
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
-const COLUMNS = [
-  { name: "name", label: "Column", field: "name", align: "left" as const },
-  { name: "type", label: "Type", field: "type", align: "left" as const },
-  { name: "nullable", label: "Null", field: "nullable", align: "left" as const },
+const COLUMNS = computed(() => [
+  { name: "name", label: t("structure.view.table.column"), field: "name", align: "left" as const },
+  { name: "type", label: t("structure.view.table.type"), field: "type", align: "left" as const },
+  { name: "nullable", label: t("structure.view.table.nullable"), field: "nullable", align: "left" as const },
   // A default can be a whole expression; it is cut in its own column rather
   // than pushing the commands of every row past the panel's edge.
   {
-    name: "default", label: "Default", field: "default", align: "left" as const,
+    name: "default", label: t("structure.view.table.default"), field: "default", align: "left" as const,
     classes: "structure-view__default", headerClasses: "structure-view__default",
   },
-  { name: "keys", label: "Keys", field: "keys", align: "left" as const },
+  { name: "keys", label: t("structure.view.table.keys"), field: "keys", align: "left" as const },
   // Held at the right edge while the columns scroll under it: at 1440 the
   // table was wider than its panel and Drop stood outside it (D187).
   {
     name: "actions", label: "", field: "actions", align: "right" as const,
     classes: "structure-view__actions", headerClasses: "structure-view__actions",
   },
-]
+])
 
 const rows = computed(() =>
   (query.data.value?.columns ?? []).map((column) => ({
@@ -149,7 +150,7 @@ const facts = computed(() => {
 const errorText = computed(() =>
   query.error.value === null
     ? ""
-    : messageOf(query.error.value, "Could not read the structure")
+    : messageOf(query.error.value, t("structure.view.read_failed"))
 )
 
 function openAdd() {
@@ -167,26 +168,26 @@ async function saveAdd(value: { name: string; typeCode: string; nullable: boolea
       nullable: value.nullable,
     })
     addOpen.value = false
-    toast.success(`Column ${value.name} added`)
+    toast.success(t("structure.view.column_added", { name: value.name }))
   } catch (error) {
-    addError.value = messageOf(error, "Could not add the column")
+    addError.value = messageOf(error, t("structure.view.add_column_failed"))
   }
 }
 
 async function drop(name: string) {
   const accepted = await confirm({
-    title: `Drop column ${name}?`,
-    message: "Its data and indexes or constraints owned by this column will be removed.",
-    confirmLabel: "Drop",
+    title: t("structure.view.drop_column_title", { name }),
+    message: t("structure.view.drop_column_message"),
+    confirmLabel: t("structure.view.drop"),
     danger: true,
   })
   if (!accepted) return
   dropping.value = name
   try {
     await dropColumn.mutateAsync({ node_id: props.nodeId, name })
-    toast.success(`Column ${name} dropped`)
+    toast.success(t("structure.view.column_dropped", { name }))
   } catch (error) {
-    toast.error(messageOf(error, "Could not drop the column"))
+    toast.error(messageOf(error, t("structure.view.drop_column_failed")))
   } finally {
     dropping.value = null
   }
@@ -204,9 +205,9 @@ async function saveRename(newName: string) {
   try {
     await renameColumn.mutateAsync({ node_id: props.nodeId, name, new_name: newName })
     renaming.value = null
-    toast.success(`Column ${name} renamed to ${newName}`)
+    toast.success(t("structure.view.column_renamed", { name, new_name: newName }))
   } catch (error) {
-    renameError.value = messageOf(error, "Could not rename the column")
+    renameError.value = messageOf(error, t("structure.view.rename_column_failed"))
   }
 }
 
@@ -218,9 +219,9 @@ function openDefault(name: string, currentDefault: string | null) {
 function constraintTooltip(name: string): string {
   const model = query.data.value
   if (model?.constraint_changes_supported !== true) {
-    return model?.constraint_changes_reason ?? "This constraint cannot be dropped"
+    return model?.constraint_changes_reason ?? t("structure.view.constraint_fixed")
   }
-  return `Drop constraint ${name}`
+  return t("structure.view.drop_constraint", { name })
 }
 
 type ColumnOperation = "add" | "drop" | "rename" | "default" | "nullability" | "type"
@@ -236,7 +237,7 @@ function supportsColumn(operation: ColumnOperation): boolean {
 function changeTooltip(operation: ColumnOperation, what: string): string {
   const model = query.data.value
   if (!supportsColumn(operation)) {
-    return model?.column_changes_reason ?? "This column cannot be changed"
+    return model?.column_changes_reason ?? t("structure.view.column_fixed")
   }
   return what
 }
@@ -268,9 +269,9 @@ async function changeType(typeCode: string) {
       return
     }
     typeColumn.value = null
-    toast.success(`${column.name} is now ${result.type_sql}`)
+    toast.success(t("structure.view.type_changed", { name: column.name, type: result.type_sql }))
   } catch (error) {
-    typeError.value = messageOf(error, "Could not change the type")
+    typeError.value = messageOf(error, t("structure.view.change_type_failed"))
   }
 }
 
@@ -320,26 +321,26 @@ async function saveConstraint(value: ConstraintChoice) {
       return
     }
     constraintOpen.value = false
-    toast.success(`Constraint ${result.name} added`)
+    toast.success(t("structure.view.constraint_added", { name: result.name }))
   } catch (error) {
-    constraintError.value = messageOf(error, "Could not add the constraint")
+    constraintError.value = messageOf(error, t("structure.view.add_constraint_failed"))
   }
 }
 
 async function removeConstraint(name: string) {
   const accepted = await confirm({
-    title: `Drop constraint ${name}?`,
-    message: "The promise it makes about the rows stops being enforced.",
-    confirmLabel: "Drop",
+    title: t("structure.view.drop_constraint_title", { name }),
+    message: t("structure.view.drop_constraint_message"),
+    confirmLabel: t("structure.view.drop"),
     danger: true,
   })
   if (!accepted) return
   droppingConstraint.value = name
   try {
     await dropConstraint.mutateAsync({ node_id: props.nodeId, name })
-    toast.success(`Constraint ${name} dropped`)
+    toast.success(t("structure.view.constraint_dropped", { name }))
   } catch (error) {
-    toast.error(messageOf(error, "Could not drop the constraint"))
+    toast.error(messageOf(error, t("structure.view.drop_constraint_failed")))
   } finally {
     droppingConstraint.value = null
   }
@@ -375,26 +376,26 @@ async function saveIndex(value: {
       return
     }
     indexOpen.value = false
-    toast.success(`Index ${result.name} created`)
+    toast.success(t("structure.view.index_created", { name: result.name }))
   } catch (error) {
-    indexError.value = messageOf(error, "Could not create the index")
+    indexError.value = messageOf(error, t("structure.view.create_index_failed"))
   }
 }
 
 async function removeIndex(name: string) {
   const accepted = await confirm({
-    title: `Drop index ${name}?`,
-    message: "Queries that rely on it will be planned without it.",
-    confirmLabel: "Drop",
+    title: t("structure.view.drop_index_title", { name }),
+    message: t("structure.view.drop_index_message"),
+    confirmLabel: t("structure.view.drop"),
     danger: true,
   })
   if (!accepted) return
   droppingIndex.value = name
   try {
     await dropIndex.mutateAsync({ node_id: props.nodeId, name })
-    toast.success(`Index ${name} dropped`)
+    toast.success(t("structure.view.index_dropped", { name }))
   } catch (error) {
-    toast.error(messageOf(error, "Could not drop the index"))
+    toast.error(messageOf(error, t("structure.view.drop_index_failed")))
   } finally {
     droppingIndex.value = null
   }
@@ -403,7 +404,7 @@ async function removeIndex(name: string) {
 function nullabilityTooltip(nullable: boolean): string {
   return changeTooltip(
     "nullability",
-    nullable ? "Require a value in every row" : "Allow rows with no value"
+    nullable ? t("structure.view.require_every_row") : t("structure.view.allow_no_value")
   )
 }
 
@@ -436,11 +437,11 @@ async function changeNullability(nullable: boolean) {
     nullabilityColumn.value = null
     toast.success(
       nullable
-        ? `${column.name} now accepts rows with no value`
-        : `${column.name} now requires a value`
+        ? t("structure.view.now_nullable", { name: column.name })
+        : t("structure.view.now_required", { name: column.name })
     )
   } catch (error) {
-    nullabilityError.value = messageOf(error, "Could not change this column")
+    nullabilityError.value = messageOf(error, t("structure.view.change_column_failed"))
   }
 }
 
@@ -456,9 +457,13 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       ...(action === "set" ? { value: value ?? "" } : {}),
     })
     defaultColumn.value = null
-    toast.success(action === "set" ? `Default for ${column.name} set` : `Default for ${column.name} dropped`)
+    toast.success(
+      action === "set"
+        ? t("structure.view.default_set", { name: column.name })
+        : t("structure.view.default_dropped", { name: column.name })
+    )
   } catch (error) {
-    defaultError.value = messageOf(error, "Could not change the default")
+    defaultError.value = messageOf(error, t("structure.view.change_default_failed"))
   }
 }
 </script>
@@ -485,15 +490,15 @@ async function changeDefault(action: "set" | "drop", value?: string) {
         data-testid="structure-format"
       >
         <div class="structure-view__title">
-          Format
+          {{ t('structure.view.format') }}
         </div>
         <dl class="structure-view__facts">
           <template
             v-for="fact in facts"
-            :key="fact.label"
+            :key="fact.key"
           >
             <dt>{{ fact.label }}</dt>
-            <dd :data-testid="`structure-fact-${fact.label}`">
+            <dd :data-testid="`structure-fact-${fact.key}`">
               {{ fact.value }}
             </dd>
           </template>
@@ -503,7 +508,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       <AppSection :divided="facts.length > 0">
         <div class="structure-view__heading">
           <div class="structure-view__title">
-            Columns
+            {{ t('structure.view.columns') }}
           </div>
           <!-- The span is what the tooltip hangs on: a disabled button
                takes no pointer events, so a tooltip inside it would never be
@@ -511,7 +516,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                the same sentence twice, once styled and once by the browser. -->
           <span>
             <AppButton
-              label="Add column"
+              :label="t('structure.view.add_column')"
               variant="secondary"
               size="sm"
               :disable="!supportsColumn('add')"
@@ -529,7 +534,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           row-key="name"
           compact
           :paged="false"
-          empty-text="No columns"
+          :empty-text="t('structure.view.no_columns')"
         >
           <!-- The fact being changed is already printed here, so it is the
                control: another icon in the row of actions would have to name
@@ -543,8 +548,8 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 {{ cellProps.row.type }}
                 <AppTooltip>
                   {{ cellProps.row.generated
-                    ? 'A generated column takes its type from its expression'
-                    : changeTooltip('type', `Change the type of ${cellProps.row.name}`) }}
+                    ? t('structure.view.generated_type')
+                    : changeTooltip('type', t('structure.view.change_type', { name: cellProps.row.name })) }}
                 </AppTooltip>
               </span>
               <AppButton
@@ -558,8 +563,8 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               >
                 <AppTooltip>
                   {{ cellProps.row.generated
-                    ? 'A generated column takes its type from its expression'
-                    : changeTooltip('type', `Change the type of ${cellProps.row.name}`) }}
+                    ? t('structure.view.generated_type')
+                    : changeTooltip('type', t('structure.view.change_type', { name: cellProps.row.name })) }}
                 </AppTooltip>
               </AppButton>
             </q-td>
@@ -570,12 +575,12 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 v-if="!supportsColumn('nullability')"
                 :data-testid="`structure-nullability-${cellProps.row.name}`"
               >
-                {{ cellProps.row.nullable ? 'yes' : 'no' }}
+                {{ cellProps.row.nullable ? t('structure.view.yes') : t('structure.view.no') }}
                 <AppTooltip>{{ nullabilityTooltip(cellProps.row.nullable) }}</AppTooltip>
               </span>
               <AppButton
                 v-else
-                :label="cellProps.row.nullable ? 'yes' : 'no'"
+                :label="cellProps.row.nullable ? t('structure.view.yes') : t('structure.view.no')"
                 variant="quiet"
                 size="sm"
                 layout="inline"
@@ -610,8 +615,8 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               <AppIconButton
                 :icon="appIcons.dataObject"
                 :tooltip="cellProps.row.generated
-                  ? 'A generated column cannot have a default'
-                  : `Change default for ${cellProps.row.name}`"
+                  ? t('structure.view.generated_default')
+                  : t('structure.view.change_default', { name: cellProps.row.name })"
                 :disable="!supportsColumn('default') || cellProps.row.generated"
                 :data-testid="`structure-default-${cellProps.row.name}`"
                 compact
@@ -619,7 +624,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               />
               <AppIconButton
                 :icon="appIcons.edit"
-                :tooltip="changeTooltip('rename', `Rename column ${cellProps.row.name}`)"
+                :tooltip="changeTooltip('rename', t('structure.view.rename_column', { name: cellProps.row.name }))"
                 :disable="!supportsColumn('rename')"
                 :data-testid="`structure-rename-${cellProps.row.name}`"
                 compact
@@ -627,7 +632,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               />
               <AppIconButton
                 :icon="appIcons.deleteOutline"
-                :tooltip="changeTooltip('drop', `Drop column ${cellProps.row.name}`)"
+                :tooltip="changeTooltip('drop', t('structure.view.drop_column', { name: cellProps.row.name }))"
                 variant="danger-quiet"
                 :disable="!supportsColumn('drop')"
                 :loading="dropping === cellProps.row.name"
@@ -643,11 +648,11 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       <AppSection divided>
         <div class="structure-view__heading">
           <div class="structure-view__title">
-            Constraints
+            {{ t('structure.view.constraints') }}
           </div>
           <span>
             <AppButton
-              label="Add constraint"
+              :label="t('structure.view.add_constraint')"
               variant="secondary"
               size="sm"
               :disable="query.data.value.constraint_changes_supported !== true"
@@ -661,7 +666,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
         </div>
         <AppEmptyState
           v-if="foreignKeys.length === 0 && otherConstraints.length === 0"
-          text="None"
+          :text="t('structure.view.none')"
         />
         <ul
           v-else
@@ -676,7 +681,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           >
             <span>
               {{ foreignKeyLabel(key) }}
-              <template v-if="key.validated === false"> · not validated</template>
+              <template v-if="key.validated === false"> · {{ t('structure.view.not_validated') }}</template>
             </span>
             <AppIconButton
               :icon="appIcons.deleteOutline"
@@ -694,7 +699,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
             class="structure-view__index"
             :data-constraint="constraint.name"
           >
-            <span>{{ constraint.kind }} · {{ constraint.name }}</span>
+            <span>{{ t(`structure.view.constraint_kind.${constraint.kind}`) }} · {{ constraint.name }}</span>
             <AppIconButton
               :icon="appIcons.deleteOutline"
               :tooltip="constraintTooltip(constraint.name)"
@@ -711,11 +716,11 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       <AppSection divided>
         <div class="structure-view__heading">
           <div class="structure-view__title">
-            Indexes
+            {{ t('structure.view.indexes') }}
           </div>
           <span>
             <AppButton
-              label="Add index"
+              :label="t('structure.view.add_index')"
               variant="secondary"
               size="sm"
               :disable="query.data.value.index_changes_supported !== true"
@@ -729,7 +734,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
         </div>
         <AppEmptyState
           v-if="(query.data.value.indexes ?? []).length === 0"
-          text="None"
+          :text="t('structure.view.none')"
         />
         <ul
           v-else
@@ -746,12 +751,12 @@ async function changeDefault(action: "set" | "drop", value?: string) {
               <template v-if="(index.columns ?? []).length">
                 ({{ (index.columns ?? []).join(", ") }})
               </template>
-              <template v-if="index.unique"> · unique</template>
-              <template v-if="index.valid === false"> · invalid</template>
+              <template v-if="index.unique"> · {{ t('structure.view.unique') }}</template>
+              <template v-if="index.valid === false"> · {{ t('structure.view.invalid') }}</template>
             </span>
             <AppIconButton
               :icon="appIcons.deleteOutline"
-              :tooltip="query.data.value?.index_changes_supported === true ? `Drop index ${index.name}` : query.data.value?.index_changes_reason ?? 'This index cannot be dropped'"
+              :tooltip="query.data.value?.index_changes_supported === true ? t('structure.view.drop_index', { name: index.name }) : query.data.value?.index_changes_reason ?? t('structure.view.index_fixed')"
               variant="danger-quiet"
               :disable="query.data.value?.index_changes_supported !== true"
               :loading="droppingIndex === index.name"

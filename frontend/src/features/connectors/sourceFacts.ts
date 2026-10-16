@@ -1,4 +1,5 @@
 import type { SourceFeature, SourceFeatures } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * What a source said about itself, as lines to read.
@@ -20,9 +21,9 @@ export interface SourceFact {
 }
 
 const STATES: Record<Exclude<SourceFeature["state"], "available">, string> = {
-  absent: "Not installed",
-  unsupported: "Unsupported inspection API",
-  unavailable: "Inspection unavailable",
+  get absent() { return t("connectors.facts.absent") },
+  get unsupported() { return t("connectors.facts.unsupported") },
+  get unavailable() { return t("connectors.facts.unavailable") },
 }
 
 /** What one optional feature says: its version, or why there is none. */

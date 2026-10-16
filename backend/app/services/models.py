@@ -185,10 +185,6 @@ NAME_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
 # none of those reliably. Eight characters because a database published on
 # the machine is worth that much.
 PASSWORD_PATTERN = r"[!-~]{8,128}"
-# What to say when one does not fit, naming the rule and never the value.
-UNUSABLE_PASSWORD = (
-    "A password is 8 to 128 characters, with no spaces and nothing exotic in it"
-)
 
 
 def password_survives_where_it_goes(value: str) -> bool:

@@ -9,6 +9,7 @@ import { useAdapterTypes } from "@/features/connectors/api"
 import { isJobEvent, JOBS_TOPIC } from "@/features/services/jobs"
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
+import { t } from "@/shared/i18n"
 import Graph2D from "@/shared/graph/Graph2D.vue"
 import type { Camera2, GraphPort, GraphSelection, Point2 } from "@/shared/graph/model"
 import { realtime } from "@/shared/realtime/client"
@@ -146,7 +147,7 @@ watch(
   () => pastRun.isError.value,
   (failed) => {
     if (!failed || pastJobId.value === null) return
-    toast.info("That run could not be read, so the last run is shown")
+    toast.info(t("pipelines.view.past_run_failed"))
     pastJobId.value = null
   }
 )
@@ -205,13 +206,13 @@ async function send(): Promise<boolean> {
     return true
   } catch (cause) {
     if (cause instanceof AxiosError && cause.response?.status === 409) {
-      toast.error("This pipeline was changed somewhere else; it has been read again")
+      toast.error(t("pipelines.view.changed_elsewhere"))
       pending = false
       version.value = 0
       await queryClient.invalidateQueries({ queryKey: pipelineKey(props.pipelineId) })
       return false
     }
-    toast.error(messageOf(cause, "The pipeline could not be saved"))
+    toast.error(messageOf(cause, t("pipelines.view.save_failed")))
     return false
   }
 }
@@ -307,7 +308,7 @@ function labelEnd(end: LinkEnd): string | null {
   if (card === undefined) return null
   if (end.made_by != null) {
     const made = results.value.find((one) => one.link_id === end.made_by)
-    return made?.name ?? "what a link makes"
+    return made?.name ?? t("pipelines.view.made_by_link")
   }
   if (end.node_id == null) return null
   return card.rows.find((one) => one.node_id === end.node_id)?.label ?? end.node_id
@@ -316,9 +317,11 @@ function labelEnd(end: LinkEnd): string | null {
 /** One end of a link as a sentence names it: "Sales · orders", "Files (top)". */
 function nameEnd(end: LinkEnd): string {
   const card = cards.value.find((one) => one.id === end.card_id)
-  if (card === undefined) return "a card no longer here"
+  if (card === undefined) return t("pipelines.view.card_gone")
   const label = labelEnd(end)
-  return label === null ? `${cardName(card)} (top)` : `${cardName(card)} · ${label}`
+  return label === null
+    ? t("pipelines.view.end_top", { card: cardName(card) })
+    : t("pipelines.view.end", { card: cardName(card), label })
 }
 
 function sideOf(end: LinkEnd): LinkSide | null {
@@ -356,11 +359,11 @@ function startCard(connectorId: string, spot: Point2, clear: boolean) {
   const connection = props.connections.find((one) => one.id === connectorId)
   if (connection === undefined) return
   if (!connection.enabled) {
-    toast.error(`${connection.name} is switched off`)
+    toast.error(t("pipelines.view.switched_off", { name: connection.name }))
     return
   }
   if (cards.value.length >= MAX_CARDS) {
-    toast.error(`A pipeline holds at most ${String(MAX_CARDS)} cards`)
+    toast.error(t("pipelines.view.max_cards", { n: MAX_CARDS }))
     return
   }
   picking.value = { connectorId, connectionName: connection.name, cardId: null, rows: null, spot, clear }
@@ -424,9 +427,9 @@ async function picked(rows: CardRow[]) {
     const going = links.value.filter((link) => !staying.includes(link))
     if (going.length > 0) {
       const sure = await confirm({
-        title: "Untick rows that links use?",
-        message: `These links go with the rows unticked: ${listed(going, nameEnd)}.`,
-        confirmLabel: "Untick",
+        title: t("pipelines.view.untick_title"),
+        message: t("pipelines.view.untick_message", { links: listed(going, nameEnd) }),
+        confirmLabel: t("pipelines.view.untick"),
       })
       if (!sure) return
     }
@@ -441,13 +444,13 @@ async function remove(cardId: string) {
   const card = cards.value.find((one) => one.id === cardId)
   const touching = links.value.filter((link) => link.source.card_id === cardId || link.target.card_id === cardId)
   const going = [...touching, ...dependents(links.value, new Set(touching.map((link) => link.id)))]
-  const label = card === undefined ? "The card" : cardName(card)
+  const label = card === undefined ? t("pipelines.view.the_card") : cardName(card)
   const sure = await confirm({
-    title: "Take this card off the pipeline?",
+    title: t("pipelines.view.take_off_title"),
     message: going.length === 0
-      ? `${label} and what is ticked on it leave this pipeline. Nothing in the connection changes.`
-      : `${label} leaves this pipeline, and with it these links: ${listed(going, nameEnd)}. Nothing in the connections changes.`,
-    confirmLabel: "Take off",
+      ? t("pipelines.view.take_off_alone", { card: label })
+      : t("pipelines.view.take_off_links", { card: label, links: listed(going, nameEnd) }),
+    confirmLabel: t("pipelines.view.take_off"),
   })
   if (!sure) return
   cards.value = withoutCard(cards.value, cardId)
@@ -474,7 +477,7 @@ async function join(from: LinkEnd, to: LinkEnd) {
     return
   }
   if (links.value.length >= MAX_LINKS) {
-    toast.error(`A pipeline holds at most ${String(MAX_LINKS)} links`)
+    toast.error(t("pipelines.view.max_links", { n: MAX_LINKS }))
     return
   }
   const source = sideOf(from)
@@ -491,7 +494,7 @@ async function join(from: LinkEnd, to: LinkEnd) {
       staleTime: 60_000,
     })
   } catch (cause) {
-    toast.error(messageOf(cause, "What these rows can do could not be read"))
+    toast.error(messageOf(cause, t("pipelines.view.offers_failed")))
     return
   }
   const fit = usable(offers)
@@ -548,9 +551,9 @@ async function operate(changed: Link, makes: boolean) {
   const going = makes ? [] : dependents(links.value, new Set([changed.id]))
   if (going.length > 0) {
     const sure = await confirm({
-      title: "Change what this link does?",
-      message: `${changed.title} makes nothing for later links to read, so these go: ${listed(going, nameEnd)}.`,
-      confirmLabel: "Change",
+      title: t("pipelines.view.change_title"),
+      message: t("pipelines.view.change_message", { operation: changed.title, links: listed(going, nameEnd) }),
+      confirmLabel: t("pipelines.view.change"),
     })
     if (!sure) return
     links.value = links.value.filter((link) => !going.includes(link))
@@ -562,11 +565,13 @@ async function operate(changed: Link, makes: boolean) {
 async function removeLink(link: Link) {
   const going = dependents(links.value, new Set([link.id]))
   const sure = await confirm({
-    title: "Remove this link?",
+    title: t("pipelines.view.remove_link_title"),
     message: going.length === 0
-      ? `${nameEnd(link.source)} → ${nameEnd(link.target)} and the choices kept with it go. Nothing in the connections changes.`
-      : `${nameEnd(link.source)} → ${nameEnd(link.target)} goes, and with what it makes these links: ${listed(going, nameEnd)}. Nothing in the connections changes.`,
-    confirmLabel: "Remove",
+      ? t("pipelines.view.remove_link_alone", { from: nameEnd(link.source), to: nameEnd(link.target) })
+      : t("pipelines.view.remove_link_more", {
+        from: nameEnd(link.source), to: nameEnd(link.target), links: listed(going, nameEnd),
+      }),
+    confirmLabel: t("pipelines.view.remove"),
   })
   if (!sure) return
   links.value = links.value.filter((one) => one.id !== link.id && !going.includes(one))
@@ -595,7 +600,7 @@ async function run() {
       selection.value = { kind: "edge", id: first }
       autoOpenLinkId.value = first
     }
-    toast.error(messageOf(cause, "The pipeline could not run"))
+    toast.error(messageOf(cause, t("pipelines.view.run_failed")))
   } finally {
     starting.value = false
   }
@@ -627,9 +632,9 @@ async function toggleHint() {
     const answer = await readHint(props.pipelineId, card)
     hints.value = answer.links
     if (answer.notice) toast.info(answer.notice)
-    else if (answer.links.length === 0) toast.info("No other link can be drawn between these rows")
+    else if (answer.links.length === 0) toast.info(t("pipelines.view.no_other_link"))
   } catch (cause) {
-    toast.error(messageOf(cause, "The possible links could not be read"))
+    toast.error(messageOf(cause, t("pipelines.view.hints_failed")))
   } finally {
     hinting.value = false
   }
@@ -653,9 +658,9 @@ function applyRename() {
 
 async function removePipeline() {
   const sure = await confirm({
-    title: "Delete this pipeline?",
-    message: `${name.value}, its ${String(cards.value.length)} cards and the history of its runs will be removed. Nothing in the connections changes.`,
-    confirmLabel: "Delete",
+    title: t("pipelines.view.delete_title"),
+    message: t("pipelines.view.delete_message", { name: name.value, n: cards.value.length }, cards.value.length),
+    confirmLabel: t("pipelines.view.delete"),
     danger: true,
   })
   if (!sure) return
@@ -665,7 +670,7 @@ async function removePipeline() {
     await deleting.mutateAsync(props.pipelineId)
     emit("deleted")
   } catch (cause) {
-    toast.error(messageOf(cause, "The pipeline could not be deleted"))
+    toast.error(messageOf(cause, t("pipelines.view.delete_failed")))
   }
 }
 
@@ -683,7 +688,7 @@ defineExpose({ place })
         :model-value="pipelineId"
         :options="switcher"
         compact
-        aria-label="Pipeline"
+        :aria-label="t('pipelines.view.pipeline')"
         data-testid="pipeline-switcher"
         @update:model-value="emit('select', String($event))"
       />
@@ -691,37 +696,37 @@ defineExpose({ place })
         v-if="nextRun"
         class="pipeline-view__next-run"
         data-testid="pipeline-next-run"
-      >Next run: {{ nextRun }}</span>
+      >{{ t('pipelines.view.next_run', { when: nextRun }) }}</span>
       <template #actions>
         <span class="pipeline-view__run">
           <AppButton
             size="sm"
             :icon="appIcons.playArrow"
-            label="Run"
+            :label="t('pipelines.view.run')"
             :disable="runBlocked !== null"
             :loading="starting"
             data-testid="pipeline-run"
             @click="run"
           />
-          <AppTooltip>{{ runBlocked ?? "Run every link, one after another, as saved" }}</AppTooltip>
+          <AppTooltip>{{ runBlocked ?? t('pipelines.view.run_hint') }}</AppTooltip>
         </span>
         <AppIconButton
           :icon="appIcons.schedule"
-          :tooltip="`Schedule: ${scheduleWords(timetable.data.value?.settings)}`"
+          :tooltip="t('pipelines.view.schedule_tooltip', { what: scheduleWords(timetable.data.value?.settings) })"
           :active="timetable.data.value?.settings?.enabled === true"
           data-testid="pipeline-schedule"
           @click="scheduling = true"
         />
         <AppIconButton
           :icon="appIcons.history"
-          tooltip="History: what each run did"
+          :tooltip="t('pipelines.view.history_tooltip')"
           :active="historyOpen"
           data-testid="pipeline-history"
           @click="historyOpen = !historyOpen"
         />
         <AppIconButton
           :icon="appIcons.lightbulb"
-          :tooltip="hints.length > 0 ? 'Hide the possible links' : 'Show the links that could be drawn'"
+          :tooltip="hints.length > 0 ? t('pipelines.view.hide_hints') : t('pipelines.view.show_hints')"
           :active="hints.length > 0"
           :loading="hinting"
           data-testid="pipeline-hint"
@@ -729,19 +734,19 @@ defineExpose({ place })
         />
         <AppIconButton
           :icon="appIcons.centerFocusStrong"
-          tooltip="Fit every card in view"
+          :tooltip="t('pipelines.view.fit')"
           data-testid="pipeline-fit"
           @click="canvas?.fit()"
         />
         <AppIconButton
           :icon="appIcons.edit"
-          tooltip="Rename this pipeline"
+          :tooltip="t('pipelines.view.rename_tooltip')"
           data-testid="pipeline-rename"
           @click="startRename"
         />
         <AppIconButton
           :icon="appIcons.delete"
-          tooltip="Delete this pipeline"
+          :tooltip="t('pipelines.view.delete_tooltip')"
           data-testid="pipeline-delete"
           @click="removePipeline"
         />
@@ -749,7 +754,7 @@ defineExpose({ place })
           variant="quiet"
           size="sm"
           :icon="appIcons.add"
-          label="New"
+          :label="t('pipelines.view.new')"
           :loading="creating"
           data-testid="pipeline-new"
           @click="emit('create')"
@@ -767,14 +772,14 @@ defineExpose({ place })
       v-else-if="pipeline.isError.value"
       tone="error"
     >
-      {{ messageOf(pipeline.error.value, "The pipeline could not be read") }}
+      {{ messageOf(pipeline.error.value, t('pipelines.view.read_failed')) }}
     </AppBanner>
     <template v-else>
       <AppBanner
         v-if="pipeline.data.value?.broken"
         tone="warning"
       >
-        What was kept of this pipeline could not be read, so it starts empty.
+        {{ t('pipelines.view.broken') }}
       </AppBanner>
       <AppBanner
         v-if="pastJobId !== null && pastRun.data.value"
@@ -786,7 +791,7 @@ defineExpose({ place })
           <AppButton
             variant="quiet"
             size="sm"
-            label="Back to the last run"
+            :label="t('pipelines.view.back_to_last')"
             data-testid="pipeline-shown-run-back"
             @click="pastJobId = null"
           />
@@ -818,14 +823,14 @@ defineExpose({ place })
           <template #node-head="{ node }">
             <AppIconButton
               :icon="appIcons.settings"
-              tooltip="Choose what this card holds"
+              :tooltip="t('pipelines.view.card_settings')"
               :data-testid="`pipeline-card-settings-${node.label}`"
               compact
               @click="edit(node.id)"
             />
             <AppIconButton
               :icon="appIcons.close"
-              tooltip="Take this card off the pipeline"
+              :tooltip="t('pipelines.view.card_remove')"
               :data-testid="`pipeline-card-remove-${node.label}`"
               compact
               @click="remove(node.id)"
@@ -838,7 +843,7 @@ defineExpose({ place })
         >
           <AppEmptyState
             :icon="appIcons.accountTree"
-            text="Drag a connection here from the list on the left, or press one."
+            :text="t('pipelines.view.empty')"
           />
         </div>
       </div>
@@ -894,7 +899,7 @@ defineExpose({ place })
 
     <WindowDialog
       v-model="renameOpen"
-      title="Rename pipeline"
+      :title="t('pipelines.view.rename_title')"
       size="sm"
       sizing="content"
     >
@@ -904,7 +909,7 @@ defineExpose({ place })
              opens it again. Prevented, the Enter ends here. -->
         <AppInput
           v-model="renameDraft"
-          label="Name"
+          :label="t('pipelines.view.name')"
           data-testid="pipeline-rename-input"
           @keydown.enter.prevent="applyRename"
         />
@@ -912,11 +917,11 @@ defineExpose({ place })
       <template #actions>
         <AppButton
           variant="quiet"
-          label="Cancel"
+          :label="t('catalog.common.cancel')"
           @click="renameOpen = false"
         />
         <AppButton
-          label="Rename"
+          :label="t('pipelines.view.rename')"
           :disable="renameDraft.trim() === ''"
           data-testid="pipeline-rename-apply"
           @click="applyRename"

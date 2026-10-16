@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { useSiblingTables } from "@/features/catalog/api"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppCheckbox, AppInput, AppSelect } from "@/shared/ui"
 
 import { useCandidateKeys, useDatabaseSchemas } from "./api"
@@ -115,14 +116,14 @@ function chooseKey(value: string): void {
   >
     <AppInput
       v-model="foreign.name"
-      label="Constraint name"
-      placeholder="Automatic name"
+      :label="t('table_design.foreign.constraint_name')"
+      :placeholder="t('table_design.automatic_name')"
     />
     <div class="inspector__row">
       <AppSelect
         :model-value="schemaId"
         :options="schemaChoices"
-        label="Referenced schema"
+        :label="t('table_design.foreign.schema')"
         :loading="schemas.isLoading.value"
         data-testid="foreign-schema"
         @update:model-value="chooseSchema(String($event))"
@@ -130,14 +131,14 @@ function chooseKey(value: string): void {
       <AppSelect
         :model-value="foreign.targetNodeId"
         :options="tableChoices"
-        label="Referenced table"
+        :label="t('table_design.foreign.table')"
         data-testid="foreign-table"
         @update:model-value="chooseTable(String($event))"
       />
       <AppSelect
         :model-value="chosenKey"
         :options="keyChoices"
-        label="Referenced key"
+        :label="t('table_design.foreign.key')"
         :loading="keys.isLoading.value"
         data-testid="foreign-key-columns"
         @update:model-value="chooseKey(String($event))"
@@ -145,7 +146,7 @@ function chooseKey(value: string): void {
       <AppSelect
         v-model="foreign.match"
         :options="matches"
-        label="Match"
+        :label="t('table_design.foreign.match')"
       />
     </div>
     <div
@@ -153,25 +154,25 @@ function chooseKey(value: string): void {
       data-testid="foreign-relationship"
     >
       <div class="inspector__relation">
-        <strong>{{ design.draft.name || "New table" }} · new</strong>
+        <strong>{{ t('table_design.foreign.new_side', { name: design.draft.name || t('table_design.foreign.new_table') }) }}</strong>
         <span>{{
           foreign.columnIds
             .map(
               (id) =>
-                design.draft.columns.find((column) => column.id === id)?.name || "Choose column"
+                design.draft.columns.find((column) => column.id === id)?.name || t('table_design.choose_column')
             )
-            .join(" + ") || "Choose columns"
+            .join(" + ") || t('table_design.foreign.choose_columns')
         }}</span>
       </div>
-      <span class="inspector__arrow">N → 1</span>
+      <span class="inspector__arrow">{{ t('table_design.foreign.cardinality') }}</span>
       <div class="inspector__relation">
         <strong>{{ schemaChoices.find((choice) => choice.value === schemaId)?.label
-        }}{{ foreign.targetLabel ? "." + foreign.targetLabel : " · target" }}</strong>
-        <span>{{ foreign.targetColumns.join(" + ") || "Choose key" }}</span>
+        }}{{ foreign.targetLabel ? "." + foreign.targetLabel : t('table_design.foreign.target_side') }}</strong>
+        <span>{{ foreign.targetColumns.join(" + ") || t('table_design.foreign.choose_key') }}</span>
       </div>
     </div>
     <h3 class="dp-overline">
-      Column mapping
+      {{ t('table_design.foreign.mapping') }}
     </h3>
     <div
       v-for="(target, at) in foreign.targetColumns"
@@ -181,14 +182,14 @@ function chooseKey(value: string): void {
       <AppSelect
         :model-value="foreign.columnIds[at] ?? ''"
         :options="design.columnChoices.value"
-        label="Local column"
+        :label="t('table_design.foreign.local_column')"
         :data-testid="`foreign-column-${at}`"
         @update:model-value="foreign.columnIds[at] = String($event)"
       />
       <span class="inspector__arrow">→</span>
       <AppInput
         :model-value="target"
-        label="Target column"
+        :label="t('table_design.foreign.target_column')"
         readonly
       />
     </div>
@@ -196,35 +197,34 @@ function chooseKey(value: string): void {
       v-if="foreign.targetNodeId !== '' && keyChoices.length === 0 && !keys.isLoading.value"
       tone="warning"
     >
-      That table publishes no key to point at.
+      {{ t('table_design.foreign.no_key') }}
     </AppBanner>
     <AppBanner
       v-else-if="arity > 0 && !paired"
       tone="warning"
     >
-      A foreign key names as many columns as it points at: {{ arity }}
-      {{ arity === 1 ? "column" : "columns" }} are expected here.
+      {{ t('table_design.foreign.arity', { n: arity }, arity) }}
     </AppBanner>
     <div class="inspector__row">
       <AppSelect
         v-model="foreign.onDelete"
         :options="actions"
-        label="On delete"
+        :label="t('table_design.foreign.on_delete')"
         data-testid="foreign-on-delete"
       />
       <AppSelect
         v-model="foreign.onUpdate"
         :options="actions"
-        label="On update"
+        :label="t('table_design.foreign.on_update')"
       />
       <AppCheckbox
         v-model="foreign.deferrable"
-        label="Deferrable"
+        :label="t('table_design.deferrable')"
         dense
       />
       <AppCheckbox
         v-model="foreign.initiallyDeferred"
-        label="Initially deferred"
+        :label="t('table_design.initially_deferred')"
         dense
         :disable="!foreign.deferrable"
       />
@@ -234,7 +234,7 @@ function chooseKey(value: string): void {
     v-else
     class="inspector__note"
   >
-    No foreign keys.
+    {{ t('table_design.foreign.none') }}
   </p>
 </template>
 

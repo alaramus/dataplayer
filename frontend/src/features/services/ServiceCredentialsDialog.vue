@@ -7,6 +7,7 @@ import {
 } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppCopyButton, AppForm, AppInput, AppSpinner, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -54,15 +55,22 @@ const failure = computed(() =>
 const rows = computed(() => {
   const found = answer.value
   if (found === undefined) return []
-  return [
-    { label: "Host", value: found.host },
-    { label: "Port", value: found.port === null ? null : String(found.port) },
-    { label: "User", value: found.user },
-    { label: "Database", value: found.database },
+  const parts = [
+    { key: "host", value: found.host },
+    { key: "port", value: found.port === null ? null : String(found.port) },
+    { key: "user", value: found.user },
+    { key: "database", value: found.database },
     // Only in the answer that carries one, and last of the parts, so it is
     // read after everything that says what it belongs to.
-    { label: "Password", value: revealing.value ? handed.data.value?.password : null },
-  ].filter((row): row is { label: string; value: string } => Boolean(row.value))
+    { key: "password", value: revealing.value ? handed.data.value?.password : null },
+  ] as const
+  return parts.flatMap((row) => row.value ? [{
+    key: row.key,
+    value: row.value,
+    label: t(`services.credentials.rows.${row.key}.label`),
+    copy: t(`services.credentials.rows.${row.key}.copy`),
+    copied: t(`services.credentials.rows.${row.key}.copied`),
+  }] : [])
 })
 
 /**
@@ -76,21 +84,14 @@ const rows = computed(() => {
  */
 const aboutThePassword = computed(() => {
   const mode = answer.value?.password_mode
-  if (mode === "none") return "This service was started without a password."
-  if (mode === "key") return "It has no password: it is signed into with your SSH key."
+  if (mode === "none") return t("services.credentials.no_password")
+  if (mode === "key") return t("services.credentials.key")
   if (revealing.value) {
-    if (mode === "chosen") return "It uses the password you typed for it."
-    return (
-      "This is the only time this password is shown. Copy it now — from here " +
-      "on it lives encrypted in the connection and nothing can read it back."
-    )
+    if (mode === "chosen") return t("services.credentials.typed_now")
+    return t("services.credentials.only_time")
   }
-  if (mode === "chosen") return "It uses the password you typed when you started it."
-  return (
-    "Its password was made up here and was shown once, when the service was " +
-    "made. Start a service with a password of your own if you need to type " +
-    "one in."
-  )
+  if (mode === "chosen") return t("services.credentials.typed")
+  return t("services.credentials.made_up")
 })
 
 /** Whether that sentence is a warning or a fact. */
@@ -125,8 +126,8 @@ async function copy(what: string, said: string) {
     :model-value="service !== null"
     size="form"
     sizing="stable"
-    :title="`Connecting to ${service?.name ?? ''}`"
-    subtitle="Where this service answers, for your own tools."
+    :title="t('services.credentials.title', { name: service?.name ?? '' })"
+    :subtitle="t('services.credentials.subtitle')"
     data-testid="service-credentials-dialog"
     @update:model-value="emit('update:service', null)"
   >
@@ -136,7 +137,7 @@ async function copy(what: string, said: string) {
         v-else-if="failure"
         tone="warning"
       >
-        {{ messageOf(failure, "These could not be shown") }}
+        {{ messageOf(failure, t('services.credentials.read_failed')) }}
       </AppBanner>
       <template v-else>
         <!-- First of all, because it is the sentence that decides whether
@@ -155,18 +156,18 @@ async function copy(what: string, said: string) {
         </AppBanner>
         <AppInput
           v-for="row in rows"
-          :key="row.label"
+          :key="row.key"
           :model-value="row.value"
           :label="row.label"
           readonly
           monospace
-          :data-testid="`credential-${row.label.toLowerCase()}`"
+          :data-testid="`credential-${row.key}`"
         >
           <template #after>
             <AppCopyButton
-              :tooltip="`Copy the ${row.label.toLowerCase()}`"
-              :data-testid="`copy-${row.label.toLowerCase()}`"
-              @click="copy(row.value, `${row.label} copied`)"
+              :tooltip="row.copy"
+              :data-testid="`copy-${row.key}`"
+              @click="copy(row.value, row.copied)"
             />
           </template>
         </AppInput>
@@ -178,16 +179,16 @@ async function copy(what: string, said: string) {
         <AppInput
           v-if="url"
           :model-value="url"
-          label="URL"
+          :label="t('services.credentials.url')"
           readonly
           monospace
           data-testid="credential-url"
         >
           <template #after>
             <AppCopyButton
-              tooltip="Copy the connection string"
+              :tooltip="t('services.credentials.copy_url')"
               data-testid="copy-url"
-              @click="copy(url, 'Connection string copied')"
+              @click="copy(url, t('services.credentials.url_copied'))"
             />
           </template>
         </AppInput>
@@ -196,7 +197,7 @@ async function copy(what: string, said: string) {
 
     <template #actions>
       <AppButton
-        label="Done"
+        :label="t('services.credentials.done')"
         data-testid="credentials-done"
         @click="emit('update:service', null)"
       />

@@ -7,6 +7,7 @@
 import type { Card, CardRow, CardState } from "@/client"
 import { ICONS } from "@/features/catalog/nodes"
 import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT } from "@/shared/graph/layout"
+import { t } from "@/shared/i18n"
 import type { Camera2, GraphDocument, GraphEdge, GraphNode, GraphRow, Point2 } from "@/shared/graph/model"
 
 /** What the list of connections says of the one a card is on. */
@@ -22,19 +23,6 @@ export const TOP_ICON = "home_storage"
 /** The dragged thing a connection is on its way to the canvas, by its id. */
 export const CONNECTION_DRAG = "application/x-dataplayer-connection"
 
-const KIND_WORDS: Record<NonNullable<CardRow["kind"]>, string> = {
-  schema: "schema",
-  table: "table",
-  view: "view",
-  directory: "folder",
-  file: "file",
-  dataset: "dataset",
-  entry: "entry",
-  report: "report",
-  database: "database",
-  key: "key",
-}
-
 /**
  * A row's id on the canvas. The top of a connection has no node id, and a
  * node's own id is prefixed so no source's id can be taken for it.
@@ -49,7 +37,9 @@ function rowOf(row: CardRow, missing: ReadonlySet<string>): GraphRow {
   return {
     id: rowId(row.node_id),
     label: row.label,
-    detail: gone ? "not found" : where || (row.kind == null ? "top" : KIND_WORDS[row.kind]),
+    detail: gone
+      ? t("pipelines.card.not_found")
+      : where || t(row.kind == null ? "pipelines.card.top" : `pipelines.card.kinds.${row.kind}`),
     icon: row.kind == null ? TOP_ICON : ICONS[row.kind],
     muted: gone,
   }
@@ -96,8 +86,8 @@ export function withMade(rows: readonly GraphRow[], made: readonly MadeRow[]): G
  */
 export function cardProblem(connection: CardConnection | undefined, state: CardState | undefined): string | null {
   if (state?.problem) return state.problem
-  if (connection === undefined) return "This connection is gone, or no longer shared with you"
-  if (!connection.enabled) return "This connection is switched off"
+  if (connection === undefined) return t("pipelines.card.gone")
+  if (!connection.enabled) return t("pipelines.card.switched_off")
   return null
 }
 
@@ -236,5 +226,5 @@ export function checkedRowsKey(card: Card): string {
 
 /** The name a new pipeline starts with, as a new dashboard's does. */
 export function newPipelineName(count: number): string {
-  return count === 0 ? "My pipeline" : `Pipeline ${String(count + 1)}`
+  return count === 0 ? t("pipelines.space.first_name") : t("pipelines.space.numbered_name", { n: count + 1 })
 }

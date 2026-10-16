@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 
 import { useUnlockSshKey } from "@/features/sshKeys/api"
 import { unlockOptions } from "@/features/sshKeys/keys"
 import type { UnlockMinutes } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppInput, AppSelect, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -29,7 +30,7 @@ const unlock = useUnlockSshKey()
 const passphrase = ref("")
 const minutes = ref<UnlockMinutes>(15)
 const error = ref("")
-const spans = unlockOptions()
+const spans = computed(() => unlockOptions())
 
 watch(
   () => props.keyId,
@@ -47,11 +48,11 @@ async function open() {
       keyId: props.keyId,
       body: { passphrase: passphrase.value, minutes: minutes.value },
     })
-    toast.success(`${props.keyName} is unlocked`)
+    toast.success(t("ssh_keys.unlock.unlocked", { name: props.keyName }))
     emit("unlocked")
     emit("close")
   } catch (cause) {
-    error.value = messageOf(cause, "The key could not be unlocked")
+    error.value = messageOf(cause, t("ssh_keys.unlock.failed"))
   }
 }
 </script>
@@ -59,7 +60,7 @@ async function open() {
 <template>
   <WindowDialog
     :model-value="keyId !== null"
-    :title="`Unlock ${keyName}`"
+    :title="t('ssh_keys.unlock.title', { name: keyName })"
     size="md"
     sizing="content"
     data-testid="unlock-key-dialog"
@@ -69,7 +70,7 @@ async function open() {
       <AppInput
         v-model="passphrase"
         type="password"
-        label="Passphrase"
+        :label="t('ssh_keys.unlock.passphrase')"
         autofocus
         autocomplete="new-password"
         :error="error"
@@ -79,8 +80,8 @@ async function open() {
       <AppSelect
         :model-value="minutes"
         :options="spans"
-        label="Keep it open for"
-        hint="Held in memory only, and forgotten when the server restarts"
+        :label="t('ssh_keys.unlock.keep_open')"
+        :hint="t('ssh_keys.unlock.keep_open_hint')"
         data-testid="unlock-key-minutes"
         @update:model-value="minutes = $event as UnlockMinutes"
       />
@@ -88,11 +89,11 @@ async function open() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('close')"
       />
       <AppButton
-        label="Unlock"
+        :label="t('ssh_keys.unlock.confirm')"
         :disable="passphrase === ''"
         :loading="unlock.isPending.value"
         data-testid="unlock-key-confirm"

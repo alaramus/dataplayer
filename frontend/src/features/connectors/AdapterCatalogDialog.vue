@@ -9,6 +9,7 @@ import { categoryIcon } from "@/features/connectors/adapters"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { useServiceTemplates } from "@/features/services/api"
 import { useProviderHits } from "@/features/search/useProviderHits"
+import { t } from "@/shared/i18n"
 import { AppButton, AppEmptyState, AppInput, AppSpinner, appIcons } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -108,8 +109,8 @@ function start(template: ServiceTemplateInfo) {
     :model-value="modelValue"
     size="wide-form"
     sizing="stable"
-    title="New connection"
-    subtitle="Pick the kind of source to connect to."
+    :title="t('connectors.new_connection')"
+    :subtitle="t('connectors.catalog_dialog.subtitle')"
     data-testid="adapter-catalog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -146,7 +147,7 @@ function start(template: ServiceTemplateInfo) {
           clearable
           compact
           :prepend-icon="appIcons.search"
-          placeholder="Search by name or by what it can do"
+          :placeholder="t('connectors.catalog_dialog.search')"
           data-testid="adapter-search"
         />
 
@@ -171,7 +172,7 @@ function start(template: ServiceTemplateInfo) {
           >
             <AppEmptyState
               icon="search_off"
-              text="No source type matches that."
+              :text="t('connectors.catalog_dialog.no_match')"
             />
           </div>
         </div>
@@ -188,7 +189,7 @@ function start(template: ServiceTemplateInfo) {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('update:modelValue', false)"
       />
     </template>

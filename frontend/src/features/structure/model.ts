@@ -1,5 +1,6 @@
 import type { connectorsReadRelationModelResponses } from "@/client"
 import { formatSize } from "@/features/catalog/nodes"
+import { t } from "@/shared/i18n"
 
 export type RelationModel = connectorsReadRelationModelResponses[200]
 export type Constraint = NonNullable<RelationModel["constraints"]>[number]
@@ -49,6 +50,8 @@ export function foreignKeyLabel(key: ForeignKey): string {
 export type DatasetInfo = NonNullable<RelationModel["dataset"]>
 
 export interface DatasetFact {
+  /** Which fact, in any language: what a test finds it by. */
+  key: string
   label: string
   value: string
 }
@@ -65,37 +68,57 @@ export function datasetFacts(dataset: DatasetInfo): DatasetFact[] {
   switch (dataset.kind) {
     case "parquet":
       return [
-        { label: "Format", value: `Parquet ${dataset.format_version}` },
-        { label: "Rows", value: String(dataset.rows) },
-        { label: "Row groups", value: String(dataset.row_groups) },
-        { label: "Columns", value: String(dataset.columns) },
+        fact("format", `Parquet ${dataset.format_version}`),
+        fact("rows", String(dataset.rows)),
+        fact("row_groups", String(dataset.row_groups)),
+        fact("columns", String(dataset.columns)),
         ...((dataset.compression ?? []).length === 0
           ? []
-          : [{ label: "Compression", value: (dataset.compression ?? []).join(", ") }]),
+          : [fact("compression", (dataset.compression ?? []).join(", "))]),
         ...(dataset.created_by === null || dataset.created_by === undefined
           ? []
-          : [{ label: "Written by", value: dataset.created_by }]),
-        { label: "Size", value: formatSize(dataset.size_bytes) },
+          : [fact("written_by", dataset.created_by)]),
+        fact("size", formatSize(dataset.size_bytes)),
       ]
     case "worksheet":
       return [
-        { label: "Format", value: "Worksheet" },
-        { label: "Workbook", value: dataset.workbook },
-        {
-          label: "Sheet",
-          value: `${dataset.sheet_name} (${String(dataset.sheet_position)} of ${String(dataset.sheet_count)})`,
-        },
-        ...(dataset.hidden === true ? [{ label: "Hidden", value: "yes" }] : []),
+        fact("format", t("structure.facts.worksheet")),
+        fact("workbook", dataset.workbook),
+        fact(
+          "sheet",
+          t("structure.facts.sheet_of", {
+            name: dataset.sheet_name,
+            position: dataset.sheet_position,
+            count: dataset.sheet_count,
+          })
+        ),
+        ...(dataset.hidden === true ? [fact("hidden", t("structure.facts.yes"))] : []),
         ...(dataset.rows === null || dataset.rows === undefined
           ? []
-          : [{ label: "Rows", value: String(dataset.rows) }]),
+          : [fact("rows", String(dataset.rows))]),
         ...(dataset.columns === null || dataset.columns === undefined
           ? []
-          : [{ label: "Columns", value: String(dataset.columns) }]),
+          : [fact("columns", String(dataset.columns))]),
       ]
     default:
       return unknownFormat(dataset)
   }
+}
+
+type FactKey =
+  | "format"
+  | "rows"
+  | "row_groups"
+  | "columns"
+  | "compression"
+  | "written_by"
+  | "size"
+  | "workbook"
+  | "sheet"
+  | "hidden"
+
+function fact(key: FactKey, value: string): DatasetFact {
+  return { key, label: t(`structure.facts.${key}`), value }
 }
 
 function unknownFormat(dataset: never): never {

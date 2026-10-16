@@ -2,8 +2,9 @@
 import { computed, ref, watch } from "vue"
 
 import { useGenerateSshKey, useImportSshKey } from "@/features/sshKeys/api"
-import { readKeyFile } from "@/features/sshKeys/keys"
+import { codeParts, codePlaces, readKeyFile } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppButton,
   AppFileInput,
@@ -42,18 +43,19 @@ const passphrase = ref("")
 const remember = ref<"ask" | "stored">("ask")
 const error = ref("")
 
-const keyTypes = [
-  { label: "ED25519", value: "ed25519", description: "What every current server accepts" },
-  { label: "RSA 4096", value: "rsa", description: "For old servers that refuse ED25519" },
-]
-const rememberOptions = [
-  {
-    label: "Ask for it",
-    value: "ask",
-    description: "Held in memory for a while after you type it; a copy of the server opens nothing",
-  },
-  { label: "Keep it", value: "stored", description: "Kept encrypted beside the key; never asked for" },
-]
+const keyTypes = computed(() => [
+  { label: "ED25519", value: "ed25519", description: t("ssh_keys.dialog.ed25519_hint") },
+  { label: "RSA 4096", value: "rsa", description: t("ssh_keys.dialog.rsa_hint") },
+])
+const rememberOptions = computed(() => [
+  { label: t("ssh_keys.dialog.ask"), value: "ask", description: t("ssh_keys.dialog.ask_hint") },
+  { label: t("ssh_keys.dialog.keep"), value: "stored", description: t("ssh_keys.dialog.keep_hint") },
+])
+
+const WHERE_CODES = { ed25519: "id_ed25519", rsa: "id_rsa", folder: ".ssh", pub: ".pub" }
+const whereParts = computed(() =>
+  codeParts(t("ssh_keys.dialog.where", codePlaces(WHERE_CODES)), WHERE_CODES)
+)
 
 const busy = computed(() => generate.isPending.value || keep.isPending.value)
 const ready = computed(
@@ -83,7 +85,7 @@ watch(keyFile, async (file) => {
     privateKey.value = await readKeyFile(file)
     if (name.value.trim() === "") name.value = file.name
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "The file could not be read"
+    error.value = cause instanceof Error ? cause.message : t("ssh_keys.dialog.file_unreadable")
   }
 })
 
@@ -97,16 +99,16 @@ async function save() {
   try {
     if (props.mode === "generate") {
       const made = (await generate.mutateAsync({ name: name.value.trim(), key_type: keyType.value, ...protection }))
-      toast.success("Key made. Add its public key to the servers it should open")
+      toast.success(t("ssh_keys.dialog.made"))
       emit("created", made.id)
     } else {
       const kept = (await keep.mutateAsync({ name: name.value.trim(), private_key: privateKey.value, ...protection }))
-      toast.success("Key kept")
+      toast.success(t("ssh_keys.dialog.kept"))
       emit("created", kept.id)
     }
     emit("update:modelValue", false)
   } catch (cause) {
-    error.value = messageOf(cause, "The key could not be saved")
+    error.value = messageOf(cause, t("ssh_keys.dialog.save_failed"))
   }
 }
 </script>
@@ -114,7 +116,7 @@ async function save() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    :title="mode === 'generate' ? 'New SSH key' : 'Import an SSH key'"
+    :title="mode === 'generate' ? t('ssh_keys.dialog.title_new') : t('ssh_keys.dialog.title_import')"
     size="form"
     sizing="stable"
     data-testid="ssh-key-dialog"
@@ -123,7 +125,7 @@ async function save() {
     <AppForm layout="section">
       <AppInput
         v-model="name"
-        label="Name"
+        :label="t('ssh_keys.dialog.name')"
         autofocus
         data-testid="ssh-key-name"
       />
@@ -131,27 +133,31 @@ async function save() {
         v-if="mode === 'generate'"
         :model-value="keyType"
         :options="keyTypes"
-        label="Type"
+        :label="t('ssh_keys.dialog.type')"
         data-testid="ssh-key-type"
         @update:model-value="keyType = $event as 'ed25519' | 'rsa'"
       />
       <template v-else>
         <AppFileInput
           v-model="keyFile"
-          label="Key file"
+          :label="t('ssh_keys.dialog.key_file')"
           data-testid="ssh-key-file"
         />
         <p class="ssh-key-dialog__where">
-          Usually <code>id_ed25519</code> or <code>id_rsa</code> in the
-          <code>.ssh</code> folder of your home — the one without
-          <code>.pub</code>. It is read here and sent like pasted text.
+          <template
+            v-for="(part, index) in whereParts"
+            :key="index"
+          >
+            <code v-if="part.code">{{ part.text }}</code>
+            <span v-else>{{ part.text }}</span>
+          </template>
         </p>
         <AppInput
           v-model="privateKey"
           type="textarea"
-          label="Private key"
+          :label="t('ssh_keys.dialog.private_key')"
           autocomplete="off"
-          hint="The text of the key file, OpenSSH or PEM, or choose the file above. It is never shown again."
+          :hint="t('ssh_keys.dialog.private_key_hint')"
           :error="error"
           data-testid="ssh-key-private"
         />
@@ -159,12 +165,12 @@ async function save() {
       <AppInput
         v-model="passphrase"
         type="password"
-        label="Passphrase"
+        :label="t('ssh_keys.dialog.passphrase')"
         autocomplete="new-password"
         :hint="
           mode === 'import'
-            ? 'The one that opens the key, or a new one to lock a key that has none'
-            : 'Optional. Without one the key opens for anybody who holds this server'
+            ? t('ssh_keys.dialog.passphrase_import_hint')
+            : t('ssh_keys.dialog.passphrase_generate_hint')
         "
         :error="mode === 'generate' ? error : ''"
         data-testid="ssh-key-passphrase"
@@ -173,7 +179,7 @@ async function save() {
         v-if="passphrase !== ''"
         :model-value="remember"
         :options="rememberOptions"
-        label="The passphrase"
+        :label="t('ssh_keys.dialog.remember')"
         data-testid="ssh-key-remember"
         @update:model-value="remember = $event as 'ask' | 'stored'"
       />
@@ -181,11 +187,11 @@ async function save() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        :label="mode === 'generate' ? 'Make key' : 'Import'"
+        :label="mode === 'generate' ? t('ssh_keys.dialog.make') : t('ssh_keys.dialog.import')"
         :disable="!ready"
         :loading="busy"
         data-testid="ssh-key-save"

@@ -1,4 +1,5 @@
 import type { ServiceRequestWritable } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * The two shapes a request to start a service can take.
@@ -129,7 +130,7 @@ export function passwordProblem(form: StartForm): string | null {
   if (form.optionalPassword && !form.wantsPassword) return null
   if (form.password === "") return null
   if (USABLE_PASSWORD.test(form.password)) return null
-  return "8 to 128 characters, with no spaces and nothing exotic in it"
+  return t("services.start.password_problem")
 }
 
 /**

@@ -9,9 +9,10 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.jobs.models import JobPublic
 from app.jobs.runner import JobRunnerDep
 from app.realtime.topics import TopicsDep
@@ -40,7 +41,7 @@ async def _prepared(
     try:
         return await engine.prepare(session, current_user, body)
     except ScopeNotFound:
-        raise HTTPException(status_code=404, detail="Connector not found")
+        raise Problem(404, "connectors.not_found")
 
 
 @router.post("")
@@ -85,12 +86,9 @@ async def search_contents(
             session, current_user, body, memory=memory, runner=runner, topics=topics
         )
     except contents.PlaceNotFound:
-        raise HTTPException(status_code=404, detail="Connector not found") from None
+        raise Problem(404, "connectors.not_found") from None
     except contents.ContentsBusy:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "A search inside files is already running — stop it or wait for it"},
-        ) from None
+        raise Problem(409, "search.contents_busy") from None
 
 
 @router.get("/contents/{job_id}", response_model=ContentsAnswer)
@@ -103,5 +101,5 @@ async def read_search_contents(
     """What a search inside files found, while it is held; 404 unless it is the caller's."""
     found = await contents.answer(session, current_user, job_id, memory)
     if found is None:
-        raise HTTPException(status_code=404, detail={"message": "No such job"})
+        raise Problem(404, "jobs.not_found")
     return found

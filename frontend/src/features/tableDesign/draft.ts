@@ -6,6 +6,8 @@ import type {
   TableDefinition,
 } from "@/client"
 
+import { t } from "@/shared/i18n"
+
 /**
  * One node of the expression model, named after where it is used.
  *
@@ -300,34 +302,34 @@ export function asHypertable(draft: Draft, method: string): Draft {
 export function hypertableMissing(hypertable: DraftHypertable | null): string | null {
   if (hypertable === null) return null
   const whole = (value: number | null) => value !== null && Number.isSafeInteger(value) && value > 0
-  if (hypertable.timeColumnId === "") return "Choose the time column"
-  if (!whole(hypertable.intervalAmount)) return "Enter the chunk interval"
+  if (hypertable.timeColumnId === "") return t("hypertable_design.missing.time_column")
+  if (!whole(hypertable.intervalAmount)) return t("hypertable_design.missing.chunk_interval")
   if (hypertable.hash.some((item) => item.columnId === "" || !whole(item.partitions))) {
-    return "Choose a column and a number of partitions for every hash dimension"
+    return t("hypertable_design.missing.hash")
   }
   if (hypertable.columnstore && hypertable.segmentMode === "columns" && hypertable.segmentColumnIds.length === 0) {
-    return "Choose the columns to segment by"
+    return t("hypertable_design.missing.segment")
   }
   if (hypertable.columnstore && hypertable.orderMode === "columns" && hypertable.orderKeys.length === 0) {
-    return "Choose the columns to order by"
+    return t("hypertable_design.missing.order")
   }
   for (const [age, label] of [
-    [hypertable.columnstore ? hypertable.merge : null, "merge interval"],
-    [hypertable.retention, "retention age"],
-    [hypertable.columnstore ? hypertable.columnstorePolicy : null, "columnstore policy age"],
+    [hypertable.columnstore ? hypertable.merge : null, "hypertable_design.missing.merge"],
+    [hypertable.retention, "hypertable_design.missing.retention"],
+    [hypertable.columnstore ? hypertable.columnstorePolicy : null, "hypertable_design.missing.columnstore_policy"],
   ] as const) {
-    if (age?.on === true && !whole(age.amount)) return `Enter the ${label}`
+    if (age?.on === true && !whole(age.amount)) return t(label)
   }
   if (hypertable.columnstore && hypertable.sparseMode === "columns" && hypertable.sparseIndexes.length === 0) {
-    return "Choose the columns of the sparse indexes"
+    return t("hypertable_design.missing.sparse")
   }
   if (hypertable.columnstore && hypertable.sparseIndexes.some((item) => item.columnId === "")) {
-    return "Choose a column for every sparse index"
+    return t("hypertable_design.missing.sparse_column")
   }
   if (hypertable.intervalUnit === "integer") {
-    if (hypertable.now.mode === "existing" && hypertable.now.existing === "") return "Choose the integer_now function"
+    if (hypertable.now.mode === "existing" && hypertable.now.existing === "") return t("hypertable_design.missing.now_function")
     if (hypertable.now.mode === "template" && hypertable.now.name.trim() === "") {
-      return "Name the integer_now function"
+      return t("hypertable_design.missing.now_name")
     }
   }
   return null
@@ -473,24 +475,24 @@ export function dependents(draft: Draft, columnId: string): string[] {
       hyper.orderKeys.some((key) => key.columnId === columnId) ||
       hyper.sparseIndexes.some((item) => item.columnId === columnId))
   ) {
-    named.push("the hypertable")
+    named.push(t("table_design.dependents.hypertable"))
   }
-  if (draft.primaryKey.includes(columnId)) named.push("the primary key")
+  if (draft.primaryKey.includes(columnId)) named.push(t("table_design.dependents.primary_key"))
   for (const unique of draft.uniques) {
-    if (unique.columnIds.includes(columnId)) named.push(unique.name || "a unique constraint")
+    if (unique.columnIds.includes(columnId)) named.push(unique.name || t("table_design.dependents.unique"))
   }
   for (const foreign of draft.foreignKeys) {
-    if (foreign.columnIds.includes(columnId)) named.push(foreign.name || "a foreign key")
+    if (foreign.columnIds.includes(columnId)) named.push(foreign.name || t("table_design.dependents.foreign_key"))
   }
   for (const index of draft.indexes) {
     const inKeys = index.keys.some((key) => key.columnId === columnId)
     const carried = index.includeColumnIds.includes(columnId)
     const filtered = index.predicate.terms.some((term) => term.columnId === columnId)
-    if (inKeys || carried || filtered) named.push(index.name || "an index")
+    if (inKeys || carried || filtered) named.push(index.name || t("table_design.dependents.index"))
   }
   for (const check of draft.checks) {
     if (check.predicate.terms.some((term) => term.columnId === columnId)) {
-      named.push(check.name || "a check")
+      named.push(check.name || t("table_design.dependents.check"))
     }
   }
   for (const column of draft.columns) {
@@ -794,20 +796,14 @@ export function worthPlanning(draft: Draft): boolean {
 
 /** The one line under the editor: what this draft holds. */
 export function tally(draft: Draft): string {
-  const parts = [
-    `${String(draft.columns.length)} ${draft.columns.length === 1 ? "column" : "columns"}`,
-  ]
+  const parts = [t("catalog.count.column", { n: draft.columns.length }, draft.columns.length)]
   if (draft.indexes.length > 0) {
-    parts.push(
-      `${String(draft.indexes.length)} ${draft.indexes.length === 1 ? "index" : "indexes"}`
-    )
+    parts.push(t("table_design.count.index", { n: draft.indexes.length }, draft.indexes.length))
   }
   const constraints =
     draft.uniques.length + draft.checks.length + draft.foreignKeys.length
   if (constraints > 0) {
-    parts.push(
-      `${String(constraints)} ${constraints === 1 ? "constraint" : "constraints"}`
-    )
+    parts.push(t("table_design.count.constraint", { n: constraints }, constraints))
   }
   return parts.join(" · ")
 }

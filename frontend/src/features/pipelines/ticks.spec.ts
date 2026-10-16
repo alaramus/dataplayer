@@ -4,7 +4,7 @@ import type { CardRow } from "@/client"
 import { toListNodes } from "@/features/catalog/nodes"
 import type { CatalogNode } from "@/features/catalog/nodes"
 
-import { isTicked, MAX_CARD_ROWS, ticked, tickedAll, tickedNode, TOO_MANY, topRow, whereOf } from "./ticks"
+import { isTicked, MAX_CARD_ROWS, ticked, tickedAll, tickedNode, tooMany, topRow, whereOf } from "./ticks"
 
 function table(name: string): CatalogNode {
   return {
@@ -51,8 +51,8 @@ describe("what a card's window ticks", () => {
       node_id: `n${String(n)}`, label: `n${String(n)}`, kind: "file", trail: [],
     }))
 
-    expect(tickedNode(full, orders!, ["sales"], true)).toBe(TOO_MANY)
-    expect(tickedAll(full.slice(1), [orders!, customers!], ["sales"], true)).toBe(TOO_MANY)
+    expect(tickedNode(full, orders!, ["sales"], true)).toBe(tooMany())
+    expect(tickedAll(full.slice(1), [orders!, customers!], ["sales"], true)).toBe(tooMany())
     expect(tickedNode(full, orders!, ["sales"], false)).toEqual(full)
   })
 })

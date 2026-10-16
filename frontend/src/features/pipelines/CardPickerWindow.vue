@@ -8,6 +8,7 @@ import CatalogList from "@/features/catalog/CatalogList.vue"
 import { ICONS, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppCheckbox, AppIconButton, AppInput, appIcons } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -71,7 +72,7 @@ async function show(nodeId: string | null): Promise<boolean> {
     filter.value = ""
     return true
   } catch (cause) {
-    failure.value = messageOf(cause, "Could not read this connection")
+    failure.value = messageOf(cause, t("pipelines.card_picker.read_failed"))
     return false
   } finally {
     loading.value = false
@@ -121,8 +122,8 @@ function iconOf(row: CardRow): string {
 <template>
   <WindowDialog
     :model-value="true"
-    :title="`Choose from ${connectionName}`"
-    subtitle="Tick what this pipeline takes from here, or a place for things to arrive in"
+    :title="t('pipelines.card_picker.title', { name: connectionName })"
+    :subtitle="t('pipelines.card_picker.subtitle')"
     size="form"
     sizing="stable"
     data-testid="card-picker"
@@ -137,8 +138,8 @@ function iconOf(row: CardRow): string {
         v-model="filter"
         compact
         clearable
-        placeholder="Filter"
-        aria-label="Filter this level"
+        :placeholder="t('pipelines.card_picker.filter')"
+        :aria-label="t('pipelines.card_picker.filter_label')"
         autocomplete="off"
         data-testid="card-picker-filter"
       />
@@ -156,7 +157,7 @@ function iconOf(row: CardRow): string {
         <AppCheckbox
           :model-value="topTicked"
           dense
-          :aria-label="`Tick the top of ${connectionName}`"
+          :aria-label="t('pipelines.card_picker.tick_top', { name: connectionName })"
           data-testid="card-picker-top"
           @update:model-value="apply(ticked(chosen, topRow(connectionName), $event))"
         />
@@ -164,7 +165,7 @@ function iconOf(row: CardRow): string {
           :name="TOP_ICON"
           size="var(--dp-icon-sm)"
         />
-        <span>The top of {{ connectionName }}</span>
+        <span>{{ t('pipelines.card_picker.top', { name: connectionName }) }}</span>
       </label>
       <CatalogList
         class="card-picker__list"
@@ -182,7 +183,7 @@ function iconOf(row: CardRow): string {
         data-testid="card-picker-chosen"
       >
         <span class="card-picker__count">
-          {{ chosen.length === 0 ? "Nothing ticked yet" : `${chosen.length} ticked` }}
+          {{ chosen.length === 0 ? t('pipelines.card_picker.nothing_ticked') : t('pipelines.card_picker.ticked', { n: chosen.length }) }}
         </span>
         <span
           v-if="refusal"
@@ -204,7 +205,7 @@ function iconOf(row: CardRow): string {
             <span class="card-picker__place">{{ whereOf(row) }}</span>
             <AppIconButton
               :icon="appIcons.close"
-              :tooltip="`Untick ${row.label}`"
+              :tooltip="t('pipelines.card_picker.untick', { name: row.label })"
               @click="apply(ticked(chosen, row, false))"
             />
           </li>
@@ -214,11 +215,11 @@ function iconOf(row: CardRow): string {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('close')"
       />
       <AppButton
-        :label="rows === null ? 'Place on the canvas' : 'Save'"
+        :label="rows === null ? t('pipelines.card_picker.place') : t('catalog.common.save')"
         :disable="chosen.length === 0"
         data-testid="card-picker-done"
         @click="emit('done', chosen)"

@@ -4,6 +4,7 @@ import { ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import { serverCheckOptions } from "./api"
+import { t } from "@/shared/i18n"
 import { switchServer } from "@/shared/servers/leaving"
 import { normalizeServerUrl, parseProfile, safeLocalPath } from "@/shared/servers/profiles"
 import AppActions from "@/shared/ui/AppActions.vue"
@@ -27,7 +28,7 @@ watch(() => route.query.server, (value) => {
   address.value = typeof value === "string" ? value : ""
   const known = servers.profiles.find((profile) => profile.url === address.value)
   try { name.value = known?.name ?? new URL(address.value).host }
-  catch { name.value = "New server" }
+  catch { name.value = t("servers.link.new_server") }
   error.value = ""
 }, { immediate: true })
 
@@ -38,14 +39,14 @@ async function connect() {
   try {
     const url = normalizeServerUrl(address.value)
     const profile = parseProfile({ name: name.value, url })
-    if (profile === null) throw new Error("Enter a server name of 1 to 100 characters.")
+    if (profile === null) throw new Error(t("servers.name_invalid"))
     await cache.fetchQuery({ ...serverCheckOptions(url), staleTime: 0 })
     const next = safeLocalPath(route.query.next) ?? "/"
     await switchServer(url, next, () => {
       if (!servers.profiles.some((item) => item.url === url)) servers.save(profile)
     })
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : "Could not connect to this server."
+    error.value = cause instanceof Error ? cause.message : t("servers.link.connect_failed")
   } finally { busy.value = false }
 }
 </script>
@@ -54,21 +55,21 @@ async function connect() {
   <div class="server-connect">
     <AppCard
       size="sm"
-      title="Choose the server for this link"
+      :title="t('servers.link.title')"
     >
       <AppForm layout="section">
         <AppBanner tone="info">
-          This link uses another server. Check the address before connecting; you may need to sign in there.
+          {{ t('servers.link.notice') }}
         </AppBanner>
         <AppInput
           v-model="name"
-          label="Server name"
+          :label="t('servers.name')"
           :disable="busy"
           maxlength="100"
         />
         <AppInput
           v-model="address"
-          label="Server URL"
+          :label="t('servers.url')"
           :disable="busy"
           data-testid="link-server-url"
         />
@@ -81,13 +82,13 @@ async function connect() {
       </AppForm>
       <AppActions>
         <AppButton
-          label="Cancel"
+          :label="t('catalog.common.cancel')"
           variant="quiet"
           :disable="busy"
           @click="router.push('/')"
         />
         <AppButton
-          label="Check and connect"
+          :label="t('servers.link.connect')"
           :loading="busy"
           data-testid="link-server-connect"
           @click="connect"

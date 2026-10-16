@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import type { PlanProblem } from "@/client"
+import { t } from "@/shared/i18n"
 
 import { useDesign } from "./design"
 import type { DraftSection } from "./draft"
@@ -19,47 +20,47 @@ const troubled = computed(() => new Set(props.problems.map((problem) => problem.
 const groups = computed(() => [
   {
     section: "columns" as const,
-    title: "Columns",
+    title: t("table_design.designer.headings.columns"),
     icon: appIcons.viewColumn,
     count: draft.columns.length,
-    rows: draft.columns.map((column) => ({ id: column.id, label: column.name || "(unnamed)" })),
+    rows: draft.columns.map((column) => ({ id: column.id, label: column.name || t("table_design.unnamed") })),
   },
   {
     section: "indexes" as const,
-    title: "Indexes",
+    title: t("table_design.designer.headings.indexes"),
     icon: appIcons.filterList,
     count: draft.indexes.length,
     rows: draft.indexes.map((index) => ({
       id: index.id,
-      label: index.name || "Automatic index name",
+      label: index.name || t("table_design.automatic_index_name"),
     })),
   },
   {
     section: "foreign-keys" as const,
-    title: "Foreign keys",
+    title: t("table_design.designer.headings.foreign_keys"),
     icon: appIcons.link,
     count: draft.foreignKeys.length,
     rows: draft.foreignKeys.map((foreign) => ({
       id: foreign.id,
-      label: foreign.name || "Automatic constraint name",
+      label: foreign.name || t("table_design.automatic_constraint_name"),
     })),
   },
   {
     section: "constraints" as const,
-    title: "Constraints",
+    title: t("table_design.designer.headings.constraints"),
     icon: appIcons.verifiedUser,
     count: Number(draft.primaryKey.length > 0) + draft.uniques.length + draft.checks.length,
-    rows: [{ id: "constraints", label: "Primary / unique / checks" }],
+    rows: [{ id: "constraints", label: t("table_design.navigation.constraints_row") }],
   },
   {
     section: "options" as const,
-    title: "Options",
+    title: t("table_design.navigation.options"),
     icon: appIcons.preferences,
     count: null,
     rows: [
-      { id: "options", label: "Storage & partitioning" },
+      { id: "options", label: t("table_design.navigation.storage") },
       // The only section the server may lack: a database without TimescaleDB says so in it.
-      { id: "hypertable", label: draft.hypertable ? "Hypertable" : "Hypertable · off" },
+      { id: "hypertable", label: draft.hypertable ? t("table_design.navigation.hypertable") : t("table_design.navigation.hypertable_off") },
     ],
   },
 ])
@@ -68,7 +69,7 @@ const groups = computed(() => [
 <template>
   <nav
     class="navigation"
-    aria-label="Table definition"
+    :aria-label="t('table_design.navigation.aria')"
     data-testid="design-navigation"
   >
     <section

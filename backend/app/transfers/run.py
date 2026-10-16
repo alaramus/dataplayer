@@ -11,7 +11,6 @@ import uuid
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -26,6 +25,7 @@ from app.connectors.paste.models import PasteResult, PasteRun
 from app.connectors.paste.registry import kind_named
 from app.connectors.paste.transfer import Transfer
 from app.core.config import settings
+from app.core.problems import Problem
 from app.jobs import crud as job_crud
 from app.jobs.models import JobPublic, public
 from app.jobs.runner import JobRunner
@@ -44,9 +44,6 @@ class PasteStarted(BaseModel):
 
 
 PasteAnswer = Annotated[PasteResult | PasteStarted, Field(discriminator="outcome")]
-
-_SPELLED = ("Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine")
-
 
 @dataclass(frozen=True)
 class Carrying:
@@ -68,10 +65,7 @@ async def run_paste(
     what the kind needs; refusals are raised as the paste route answers them."""
     kind = kind_named(request.kind)
     if kind.mode != request.mode:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": f"{kind.title} does not take this clipboard"},
-        )
+        raise Problem(422, "transfers.wrong_clipboard")
     session, user, resources = carrying.session, carrying.user, carrying.resources
     source = await adapter_for(
         session, request.source_connector_id, user, resources, requires=kind.source_requires
@@ -80,15 +74,12 @@ async def run_paste(
         session, connector_id, user, resources, requires=kind.destination_requires
     )
     if not kind.serves(source, destination):
-        raise HTTPException(
-            status_code=501,
-            detail={"message": f"{kind.title} is not possible between these connections"},
-        )
+        raise Problem(501, "transfers.not_possible")
     if isinstance(kind, PastesAsJob):
         transfer = await planned(session, kind, source, destination, connector_id, request)
         return await _started(carrying, transfer, connector_id)
     if not isinstance(kind, PastesNow):
-        raise HTTPException(status_code=501, detail={"message": f"{kind.title} cannot run"})
+        raise Problem(501, "transfers.cannot_run")
     return await paste_now(carrying.data_cache, kind, source, destination, connector_id, request)
 
 
@@ -159,11 +150,8 @@ async def _started(
             parameters=transfer.model_dump(mode="json"),
         )
     except job_crud.TooManyActive:
-        limit = settings.TRANSFER_MAX_ACTIVE
-        count = _SPELLED[limit] if limit < len(_SPELLED) else str(limit)
-        raise HTTPException(
-            status_code=429,
-            detail={"message": f"{count} transfers are running — wait for one to finish"},
+        raise Problem(
+            429, "transfers.too_many_running", count=settings.TRANSFER_MAX_ACTIVE
         ) from None
     await carrying.runner.launch(job, carrying.topics)
     return PasteStarted(job=public(job))

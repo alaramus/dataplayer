@@ -6,6 +6,7 @@ import AutoRefreshButton from "@/features/grid/AutoRefreshButton.vue"
 import { REFRESH_SECONDS } from "@/features/grid/autoRefresh"
 import type { RefreshSeconds } from "@/features/grid/autoRefresh"
 import { useServiceLogs } from "@/features/services/api"
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 import { AppEmptyState, AppIconButton, AppSpinner } from "@/shared/ui"
 
@@ -25,8 +26,8 @@ const panelShown = ref(true)
 const windowShown = ref(true)
 const onScreen = computed(() => panelShown.value && windowShown.value && props.serviceId !== null)
 const held = computed(() => !onScreen.value
-  ? "while this view is not on screen"
-  : logs.isFetching.value ? "while the last read is still running" : null)
+  ? t("services.logs.held_away")
+  : logs.isFetching.value ? t("grid.refresh.held.fetching") : null)
 
 function refreshKey(serviceId: string): string {
   return serverStorageKey(`dataplayer:service-logs:refresh:${serviceId}`)
@@ -102,7 +103,7 @@ onBeforeUnmount(() => {
       />
       <AppIconButton
         :icon="appIcons.refresh"
-        tooltip="Refresh service logs"
+        :tooltip="t('services.logs.refresh')"
         :loading="logs.isFetching.value"
         :disable="serviceId === null"
         data-testid="service-logs-refresh"
@@ -113,7 +114,7 @@ onBeforeUnmount(() => {
     <AppEmptyState
       v-else-if="(logs.data.value?.lines.length ?? 0) === 0"
       icon="notes"
-      text="It has printed nothing."
+      :text="t('services.logs.empty')"
     />
     <pre
       v-else

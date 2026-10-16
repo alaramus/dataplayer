@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.adapters.operations import ProducesJob
 from app.adapters.resources import ResourcesDep
@@ -56,10 +56,7 @@ async def start_action_job(
     action = await action_for_node(acting_or_501(adapter), action_name, body.node_id)
     allowed_or_403(action, access)
     if not isinstance(action, ProducesJob):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} is not carried out as a job"},
-        )
+        raise Problem(415, "actions.not_a_job", action=action.title)
     fingerprint = body.reviewed_fingerprint
     if fingerprint is None:
         raise Problem(422, "actions.plan_not_reviewed")
@@ -86,12 +83,6 @@ async def start_action_job(
             parameters=operation.model_dump(mode="json"),
         )
     except job_crud.SubjectBusy as busy:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "Another operation is already running on this connection",
-                "job_id": str(busy.job_id),
-            },
-        )
+        raise Problem(409, "actions.operation_running", job_id=str(busy.job_id)) from None
     await runner.launch(job, topics)
     return public(job)

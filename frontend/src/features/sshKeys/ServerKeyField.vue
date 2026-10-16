@@ -3,7 +3,9 @@ import { computed, ref, watch } from "vue"
 
 import type { ServerKey } from "@/client"
 import { useServerKey } from "@/features/sshKeys/api"
+import { codeParts, codePlaces } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton } from "@/shared/ui"
 
 /**
@@ -31,6 +33,11 @@ const presented = ref<ServerKey | null>(null)
 const matches = ref<boolean | null>(null)
 const error = ref("")
 
+const COMPARE_CODES = { command: "ssh-keygen -lf", folder: "/etc/ssh" }
+const compareParts = computed(() =>
+  codeParts(t("ssh_keys.server_key.compare", codePlaces(COMPARE_CODES)), COMPARE_CODES)
+)
+
 const hasAddress = computed(
   () => typeof props.options.host === "string" && props.options.host.trim() !== ""
 )
@@ -53,7 +60,7 @@ watch(
       })
       pinned.value = report.pinned
     } catch (cause) {
-      error.value = messageOf(cause, "The trusted key cannot be read")
+      error.value = messageOf(cause, t("ssh_keys.server_key.unreadable"))
     }
   },
   { immediate: true }
@@ -70,7 +77,7 @@ async function fetchPresented() {
     presented.value = report.presented ?? null
     matches.value = report.matches ?? null
   } catch (cause) {
-    error.value = messageOf(cause, "The server could not be asked")
+    error.value = messageOf(cause, t("ssh_keys.server_key.not_asked"))
   }
 }
 
@@ -84,20 +91,19 @@ function trust() {
     class="server-key"
     data-testid="server-key"
   >
-    <span class="server-key__label">Server key</span>
+    <span class="server-key__label">{{ t('ssh_keys.server_key.label') }}</span>
     <span
       v-if="pinned"
       class="server-key__line"
       data-testid="server-key-pinned"
     >
-      Trusted: {{ pinned.algorithm }} {{ pinned.fingerprint }}
+      {{ t('ssh_keys.server_key.trusted', { algorithm: pinned.algorithm, fingerprint: pinned.fingerprint }) }}
     </span>
     <span
       v-else
       class="server-key__line"
     >
-      None trusted yet. Nothing connects until you fetch the server's key,
-      compare it and trust it.
+      {{ t('ssh_keys.server_key.none') }}
     </span>
 
     <div
@@ -106,24 +112,28 @@ function trust() {
       data-testid="server-key-presented"
     >
       <span class="server-key__line">
-        The server presents: {{ presented.algorithm }} {{ presented.fingerprint }}
+        {{ t('ssh_keys.server_key.presents', { algorithm: presented.algorithm, fingerprint: presented.fingerprint }) }}
       </span>
       <span class="server-key__hint">
-        Compare it with <code>ssh-keygen -lf</code> on its key in
-        <code>/etc/ssh</code> on the server itself.
+        <template
+          v-for="(part, index) in compareParts"
+          :key="index"
+        >
+          <code v-if="part.code">{{ part.text }}</code>
+          <span v-else>{{ part.text }}</span>
+        </template>
       </span>
       <AppBanner
         v-if="matches === false"
         tone="warning"
       >
-        This is not the key trusted before. If the server was not reinstalled,
-        somebody may be standing between you and it.
+        {{ t('ssh_keys.server_key.changed') }}
       </AppBanner>
       <span
         v-else-if="matches === true"
         class="server-key__line"
       >
-        This is the key already trusted.
+        {{ t('ssh_keys.server_key.same') }}
       </span>
     </div>
 
@@ -136,7 +146,7 @@ function trust() {
       <AppButton
         variant="secondary"
         size="sm"
-        label="Fetch from the server"
+        :label="t('ssh_keys.server_key.fetch')"
         :disable="disable || !hasAddress"
         :loading="describe.isPending.value"
         data-testid="server-key-fetch"
@@ -145,7 +155,7 @@ function trust() {
       <AppButton
         v-if="presented && matches !== true"
         size="sm"
-        :label="pinned ? 'Trust the new key' : 'Trust this key'"
+        :label="pinned ? t('ssh_keys.server_key.trust_new') : t('ssh_keys.server_key.trust')"
         :disable="disable"
         data-testid="server-key-trust"
         @click="trust"

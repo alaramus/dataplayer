@@ -1,7 +1,8 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from app.core.problems import Problem
 from app.guide import reader
 from app.users.deps import get_current_user
 
@@ -28,5 +29,5 @@ def read_guide_page(key: str) -> Any:
     """One page of the user's guide, as Markdown."""
     found = reader.page(key)
     if found is None:
-        raise HTTPException(status_code=404, detail="No such page in the guide")
+        raise Problem(404, "guide.page_not_found")
     return found

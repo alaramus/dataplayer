@@ -200,4 +200,4 @@ async def test_another_persons_history_can_be_neither_listed_nor_shown(
     # A run of another pipeline, or none, is no run of this one.
     for job_id in (elsewhere.id, uuid.uuid4()):
         refused = await client.get(f"{own}/runs/{job_id}", headers=normal_user_token_headers)
-        assert (refused.status_code, refused.json()["detail"]["message"]) == (404, "No such run")
+        assert (refused.status_code, refused.json()["detail"]["code"]) == (404, "pipelines.run_not_found")

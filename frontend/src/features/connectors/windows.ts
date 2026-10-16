@@ -4,6 +4,7 @@ import type { Component } from "vue"
 import type { ConnectorDraft, ConnectorPublic } from "@/client"
 import ConnectorWindowView from "@/features/connectors/ConnectorWindow.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
+import { t } from "@/shared/i18n"
 import type { OpenWindow } from "@/shared/windows"
 
 /**
@@ -58,7 +59,7 @@ export function connectorWindow(options: {
   return {
     id: options.id,
     look: {
-      title: options.connector ? options.connector.name : "New connection",
+      title: options.connector ? options.connector.name : t("connectors.new_connection"),
       icon: type ? adapterIcon(type) : undefined,
     },
     size: CONNECTOR_WINDOW_SIZE,

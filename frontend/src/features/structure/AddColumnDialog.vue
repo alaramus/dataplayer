@@ -10,6 +10,7 @@ import {
   AppForm,
   AppSelect,
 } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -48,8 +49,8 @@ function save() {
     :model-value="modelValue"
     sizing="stable"
     size="compact-form"
-    title="Add column"
-    subtitle="The source controls the available SQL types"
+    :title="t('structure.add_column.title')"
+    :subtitle="t('structure.add_column.subtitle')"
     data-testid="structure-add-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -63,7 +64,7 @@ function save() {
       </AppBanner>
       <AppInput
         :model-value="name"
-        label="Column name"
+        :label="t('structure.add_column.name')"
         :disable="saving"
         data-testid="structure-add-name"
         @update:model-value="name = $event"
@@ -71,14 +72,14 @@ function save() {
       <AppSelect
         :model-value="typeCode"
         :options="types.map((type) => ({ label: `${type.title} · ${type.sql}`, value: type.code }))"
-        label="Type"
+        :label="t('structure.add_column.type')"
         :disable="saving"
         data-testid="structure-add-type"
         @update:model-value="typeCode = String($event)"
       />
       <AppCheckbox
         :model-value="nullable"
-        label="Allow SQL NULL"
+        :label="t('structure.add_column.nullable')"
         :disable="saving"
         data-testid="structure-add-nullable"
         @update:model-value="nullable = $event"
@@ -87,13 +88,13 @@ function save() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
         variant="primary"
-        label="Add"
+        :label="t('structure.add_column.add')"
         :disable="name.length === 0 || typeCode.length === 0"
         :loading="saving"
         data-testid="structure-add-save"

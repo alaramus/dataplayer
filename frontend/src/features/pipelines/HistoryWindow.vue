@@ -3,6 +3,7 @@ import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppEmptyState, AppSpinner, appIcons } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -34,8 +35,8 @@ const lines = computed(() => (history.data.value ?? []).map((row) => historyLine
 <template>
   <WindowDialog
     :model-value="true"
-    title="History"
-    :subtitle="`What ${pipelineName} did, newest first`"
+    :title="t('pipelines.history.title')"
+    :subtitle="t('pipelines.history.subtitle', { name: pipelineName })"
     size="medium-form"
     sizing="stable"
     data-testid="history-window"
@@ -47,12 +48,12 @@ const lines = computed(() => (history.data.value ?? []).map((row) => historyLine
         v-else-if="history.isError.value"
         tone="error"
       >
-        {{ messageOf(history.error.value, "The history could not be read") }}
+        {{ messageOf(history.error.value, t('pipelines.history.read_failed')) }}
       </AppBanner>
       <AppEmptyState
         v-else-if="lines.length === 0"
         :icon="appIcons.history"
-        text="Not run yet"
+        :text="t('pipelines.history.not_run')"
       />
       <template v-else>
         <template

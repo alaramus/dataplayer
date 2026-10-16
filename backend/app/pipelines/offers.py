@@ -20,6 +20,7 @@ from app.connectors.paste.models import Foreseen, PairEnd, PasteOffer, PastePair
 from app.connectors.paste.registry import KINDS, short_of
 from app.connectors.paste.rows import columns_of
 from app.core.access import Access
+from app.core.problems import Problem
 from app.pipelines.models import Card, CardRow, LinkEnd, PipelineContent
 from app.pipelines.results import Foresight, by_label, root_of
 from app.users.models import User
@@ -101,9 +102,9 @@ class Asking:
         source_card = self._content.card(source_end.card_id)
         target_card = self._content.card(target_end.card_id)
         if source_card is None or target_card is None:
-            raise HTTPException(404, detail={"message": "No such card"})
+            raise Problem(404, "pipelines.card_not_found")
         if not self._content.holds(source_end) or not self._content.holds(target_end):
-            raise HTTPException(404, detail={"message": "No such row"})
+            raise Problem(404, "pipelines.row_not_found")
         source = await self.adapter(source_card)
         target = await self.adapter(target_card)
         if source is None or target is None:

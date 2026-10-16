@@ -105,13 +105,17 @@ word passed to one.
 ### Known deviations
 
 - Coded so far: the account, sign-in, connector, access, action, declared
-  reference, SSH key, paste, query, agent and metrics routes. Every other
-  route still refuses with an English sentence, shown as English in every
-  language until it is coded.
+  reference, SSH key, paste, query, agent, metrics, service, backup, pipeline,
+  share, search, search index, transfer, job, source operation and guide
+  routes. Every other route still refuses with an English sentence, shown as
+  English in every language until it is coded.
 - A refusal that passes on another module's sentence stays English: a write
   the connection's policy refuses (D66), a statement refused by its source, the
-  dashboards' setup, an agent's refusal to run, and the text of a `ValueError`
-  or `NodeNotFound` an adapter raised.
+  dashboards' setup, an agent's refusal to run, the text of a `ValueError`
+  or `NodeNotFound` an adapter raised, the container runtime's reason it cannot
+  run (a service, a backup's program, its storage volume), a service engine's
+  refusal, a backup source's reason it cannot be copied, and a pipeline run
+  that names the links lacking something (`Nothing ran: …`, with `link_ids`).
 - An action's title is passed as `{action}` in several codes, so it reaches a
   translated sentence in English until actions are translated.
 - A validation failure (422) is FastAPI's list with Pydantic's English `msg`;

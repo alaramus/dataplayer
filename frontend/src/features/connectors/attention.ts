@@ -2,6 +2,7 @@ import { computed, ref } from "vue"
 import type { ComputedRef } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
+import { t } from "@/shared/i18n"
 import type { AttentionItem } from "@/shared/notifications"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 import type { CheckReport } from "@/stores/connectorChecks"
@@ -24,10 +25,10 @@ export function checkItem(
   return {
     id: `check:${connectorId}:${report.checkedAt}`,
     tone: "error",
-    title: `${name} is not answering`,
+    title: t("connectors.attention.not_answering", { name }),
     detail: report.message,
     at: Date.parse(report.checkedAt) || Date.now(),
-    action: { label: "Open", run: () => { open(connectorId) } },
+    action: { label: t("connectors.attention.open"), run: () => { open(connectorId) } },
     // Waved away by the report it was about, so the next bad answer from the
     // same connection is news again.
     dismiss,

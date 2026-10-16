@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppCheckbox, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
 
 import { useDesign } from "./design"
@@ -31,14 +32,14 @@ function addUnique(): void {
   >
     <section>
       <h3 class="dp-overline">
-        Primary key
+        {{ t('table_design.primary_key') }}
       </h3>
       <div class="constraints__badges">
         <AppCheckbox
           v-for="column in draft.columns"
           :key="column.id"
           :model-value="draft.primaryKey.includes(column.id)"
-          :label="column.name || '(unnamed)'"
+          :label="column.name || t('table_design.unnamed')"
           dense
           @update:model-value="membership(draft.primaryKey, column.id, $event)"
         />
@@ -52,23 +53,23 @@ function addUnique(): void {
     >
       <div class="constraints__heading">
         <h3 class="dp-overline">
-          Unique constraint
+          {{ t('table_design.constraints.unique_constraint') }}
         </h3>
         <AppIconButton
           :icon="appIcons.deleteOutline"
-          :tooltip="`Remove ${unique.name || 'unique constraint'}`"
+          :tooltip="unique.name ? t('table_design.constraints.remove_named', { name: unique.name }) : t('table_design.constraints.remove_unique')"
           @click="emit('remove', unique.id)"
         />
       </div>
       <div class="constraints__fields">
         <AppInput
           v-model="unique.name"
-          label="Name"
-          placeholder="Automatic name"
+          :label="t('table_design.name')"
+          :placeholder="t('table_design.automatic_name')"
         />
         <AppCheckbox
           v-model="unique.nullsNotDistinct"
-          label="Nulls not distinct"
+          :label="t('table_design.constraints.nulls_not_distinct')"
           dense
           :disable="!nullsMayRepeat"
         />
@@ -78,21 +79,21 @@ function addUnique(): void {
           v-for="column in draft.columns"
           :key="column.id"
           :model-value="unique.columnIds.includes(column.id)"
-          :label="column.name || '(unnamed)'"
+          :label="column.name || t('table_design.unnamed')"
           dense
           @update:model-value="membership(unique.columnIds, column.id, $event)"
         />
       </div>
       <details class="constraints__advanced dp-disclosure">
-        <summary>Deferrability</summary>
+        <summary>{{ t('table_design.constraints.deferrability') }}</summary>
         <AppCheckbox
           v-model="unique.deferrable"
-          label="Deferrable"
+          :label="t('table_design.deferrable')"
           dense
         />
         <AppCheckbox
           v-model="unique.initiallyDeferred"
-          label="Initially deferred"
+          :label="t('table_design.initially_deferred')"
           dense
           :disable="!unique.deferrable"
         />
@@ -101,7 +102,7 @@ function addUnique(): void {
     <AppButton
       variant="quiet"
       :icon="appIcons.add"
-      label="Unique constraint"
+      :label="t('table_design.constraints.unique_constraint')"
       data-testid="add-unique"
       @click="addUnique"
     />
@@ -113,35 +114,35 @@ function addUnique(): void {
     >
       <div class="constraints__heading">
         <h3 class="dp-overline">
-          CHECK
+          {{ t('table_design.constraints.check') }}
         </h3>
         <AppIconButton
           :icon="appIcons.deleteOutline"
-          :tooltip="`Remove ${check.name || 'check'}`"
+          :tooltip="check.name ? t('table_design.constraints.remove_named', { name: check.name }) : t('table_design.constraints.remove_check')"
           @click="emit('remove', check.id)"
         />
       </div>
       <div class="constraints__fields">
         <AppInput
           v-model="check.name"
-          label="Name"
-          placeholder="Automatic name"
+          :label="t('table_design.name')"
+          :placeholder="t('table_design.automatic_name')"
         />
         <PredicateField
           :design-id="designId"
           owner="check"
           :owner-id="check.id"
           testid="check-predicate"
-          label="Expression"
+          :label="t('table_design.expression')"
         />
       </div>
     </section>
     <details class="constraints__advanced dp-disclosure">
-      <summary>Primary key · column order</summary>
+      <summary>{{ t('table_design.constraints.key_order') }}</summary>
       <AppSelect
         v-model="draft.primaryKey"
         :options="design.columnChoices.value"
-        label="Columns"
+        :label="t('table_design.columns')"
         multiple
       />
     </details>

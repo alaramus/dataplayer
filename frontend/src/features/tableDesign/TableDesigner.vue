@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from "vue"
 
 import type { TablePlan } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -102,7 +103,7 @@ const definition = computed(() => toDefinition(draft, types.value))
 
 const columnChoices = computed(() =>
   draft.columns.map((column) => ({
-    label: column.name || "(unnamed)",
+    label: column.name || t("table_design.unnamed"),
     value: column.id,
   }))
 )
@@ -168,12 +169,12 @@ const ready = computed(
     problems.value.length === 0
 )
 const status = computed(() => {
-  if (!worthPlanning(draft)) return "Name the table and its columns"
-  if (planTable.isPending.value || stale.value) return "Working out the SQL…"
+  if (!worthPlanning(draft)) return t("table_design.designer.name_first")
+  if (planTable.isPending.value || stale.value) return t("table_design.designer.working_out")
   if (problems.value.length > 0) {
-    return `${String(problems.value.length)} ${problems.value.length === 1 ? "problem" : "problems"} to resolve`
+    return t("table_design.designer.problems", { n: problems.value.length }, problems.value.length)
   }
-  return "Preview only"
+  return t("table_design.designer.preview_only")
 })
 
 function schedulePlan(): void {
@@ -207,7 +208,7 @@ async function ask(): Promise<void> {
   } catch (cause) {
     if (revision === asked) {
       plan.value = null
-      trouble.value = messageOf(cause, "The SQL could not be worked out")
+      trouble.value = messageOf(cause, t("table_design.designer.plan_failed"))
     }
   }
 }
@@ -289,9 +290,9 @@ async function remove(group: DraftSection, objectId: string): Promise<void> {
     if (affected.length > 0) {
       const name = draft.columns.find((column) => column.id === objectId)?.name ?? ""
       const agreed = await confirm({
-        title: `Remove ${name}?`,
-        message: `It is used by ${[...new Set(affected)].join(", ")}. Removing the column removes it from them too.`,
-        confirmLabel: "Remove",
+        title: t("table_design.designer.remove_title", { name }),
+        message: t("table_design.designer.remove_message", { list: [...new Set(affected)].join(", ") }),
+        confirmLabel: t("table_design.designer.remove"),
         danger: true,
       })
       if (!agreed) return
@@ -332,9 +333,9 @@ function create(): void {
 async function mayClose(): Promise<boolean> {
   if (!touched.value || props.running) return true
   return confirm({
-    title: "Discard this table?",
-    message: "Nothing has been created, and the draft is not kept.",
-    confirmLabel: "Discard",
+    title: t("table_design.designer.discard_title"),
+    message: t("table_design.designer.discard_message"),
+    confirmLabel: t("table_design.designer.discard"),
     danger: true,
   })
 }
@@ -361,28 +362,32 @@ const schemaLabel = computed(
     places.value.find((place) => place.value === destination.value)?.label ??
     openedIn.value
 )
-const headings: Record<DraftSection, string> = {
-  columns: "Columns",
-  indexes: "Indexes",
-  "foreign-keys": "Foreign keys",
-  constraints: "Constraints",
-  options: "Table options",
-}
-const objectLabels: Record<DraftSection, string> = {
-  columns: "column",
-  indexes: "index",
-  "foreign-keys": "foreign key",
-  constraints: "check",
-  options: "",
-}
+/** The dictionary's spelling of a section, which cannot hold a hyphen. */
+const SECTION_KEYS = {
+  columns: "columns",
+  indexes: "indexes",
+  "foreign-keys": "foreign_keys",
+  constraints: "constraints",
+  options: "options",
+} as const satisfies Record<DraftSection, string>
+const sectionKey = computed(() => SECTION_KEYS[section.value])
+/** The section's own objects; Options holds none, and shows no add or remove. */
+const objectKey = computed(() => {
+  const key = sectionKey.value
+  return key === "options" ? null : key
+})
 const editorTitle = computed(() =>
   section.value === "columns"
-    ? draft.columns.find((column) => column.id === selected.value)?.name || "Columns"
-    : headings[section.value]
+    ? draft.columns.find((column) => column.id === selected.value)?.name ||
+      t("table_design.designer.headings.columns")
+    : t(`table_design.designer.headings.${sectionKey.value}`)
 )
-const summary = computed(
-  () =>
-    `${draft.columns.length} ${draft.columns.length === 1 ? "column" : "columns"} · ${draft.indexes.length} ${draft.indexes.length === 1 ? "index" : "indexes"} · ${draft.foreignKeys.length} foreign ${draft.foreignKeys.length === 1 ? "key" : "keys"}`
+const summary = computed(() =>
+  [
+    t("catalog.count.column", { n: draft.columns.length }, draft.columns.length),
+    t("table_design.count.index", { n: draft.indexes.length }, draft.indexes.length),
+    t("table_design.count.foreign_key", { n: draft.foreignKeys.length }, draft.foreignKeys.length),
+  ].join(" · ")
 )
 const columnPosition = computed(() =>
   draft.columns.findIndex((column) => column.id === selected.value)
@@ -401,7 +406,7 @@ function moveColumn(by: number): void {
     :model-value="modelValue"
     size="xl"
     sizing="stable"
-    title="Create table"
+    :title="t('table_design.designer.title')"
     :before-close="mayClose"
     data-testid="table-designer"
     @update:model-value="emit('update:modelValue', $event)"
@@ -441,18 +446,18 @@ function moveColumn(by: number): void {
           <AppSelect
             v-model="destination"
             :options="places"
-            label="Schema"
+            :label="t('table_design.designer.schema')"
             data-testid="table-schema"
           />
           <AppInput
             v-model="draft.name"
-            label="Table name"
+            :label="t('table_design.designer.table_name')"
             data-testid="table-name"
           />
           <AppInput
             v-model="draft.comment"
             class="designer__comment"
-            label="Comment"
+            :label="t('table_design.comment')"
           />
         </AppForm>
         <div
@@ -473,13 +478,11 @@ function moveColumn(by: number): void {
             <div class="designer__toolbar">
               <strong>{{ editorTitle }}</strong>
               <AppButton
-                v-if="section !== 'options'"
+                v-if="objectKey !== null"
                 variant="quiet"
                 :icon="appIcons.add"
-                :label="
-                  objectLabels[section].charAt(0).toUpperCase() + objectLabels[section].slice(1)
-                "
-                :aria-label="`Add a${section === 'indexes' ? 'n' : ''} ${objectLabels[section]}`"
+                :label="t(`table_design.designer.add.${objectKey}`)"
+                :aria-label="t(`table_design.designer.add_aria.${objectKey}`)"
                 :data-testid="`add-${section}`"
                 @click="add(section)"
               />
@@ -525,14 +528,14 @@ function moveColumn(by: number): void {
                 <template v-if="section === 'columns'">
                   <AppButton
                     variant="quiet"
-                    label="Move up"
+                    :label="t('table_design.designer.move_up')"
                     :icon="appIcons.arrowUpward"
                     :disable="columnPosition <= 0"
                     @click="moveColumn(-1)"
                   />
                   <AppButton
                     variant="quiet"
-                    label="Move down"
+                    :label="t('table_design.designer.move_down')"
                     :icon="appIcons.arrowDownward"
                     :disable="columnPosition >= draft.columns.length - 1"
                     @click="moveColumn(1)"
@@ -541,7 +544,7 @@ function moveColumn(by: number): void {
                 <AppButton
                   variant="quiet"
                   :icon="appIcons.deleteOutline"
-                  :label="`Remove ${objectLabels[section]}`"
+                  :label="objectKey === null ? '' : t(`table_design.designer.remove_object.${objectKey}`)"
                   :disable="section === 'columns' && draft.columns.length === 1"
                   data-testid="remove-object"
                   @click="remove(section, selected)"
@@ -551,12 +554,12 @@ function moveColumn(by: number): void {
           </main>
           <aside
             class="designer__sql"
-            aria-label="SQL preview"
+            :aria-label="t('table_design.designer.sql_preview')"
             data-testid="design-sql"
             :aria-busy="stale"
           >
             <div class="designer__sql-head">
-              <span>SQL preview</span><span>{{ stale && worthPlanning(draft) ? "Updating…" : previousPreview ? "Previous valid" : "Live" }}</span>
+              <span>{{ t('table_design.designer.sql_preview') }}</span><span>{{ stale && worthPlanning(draft) ? t('table_design.designer.updating') : previousPreview ? t('table_design.designer.previous_valid') : t('table_design.designer.live') }}</span>
             </div>
             <div
               v-if="problems.length"
@@ -579,7 +582,7 @@ function moveColumn(by: number): void {
                 v-if="previewStatements.length"
                 class="dp-disclosure"
               >
-                <summary>Full creation script</summary>
+                <summary>{{ t('table_design.designer.full_script') }}</summary>
                 <DesignSql :sql="script" />
               </details>
             </div>
@@ -590,13 +593,13 @@ function moveColumn(by: number): void {
         v-else
         class="designer__review"
         data-testid="design-review"
-        aria-label="Review table creation"
+        :aria-label="t('table_design.designer.review_aria')"
       >
         <div class="designer__toolbar">
-          <strong>Review · {{ schemaLabel }}.{{ draft.name }}</strong>
+          <strong>{{ t('table_design.designer.review_title', { schema: schemaLabel, name: draft.name }) }}</strong>
           <AppButton
             variant="quiet"
-            label="Back to definition"
+            :label="t('table_design.designer.back')"
             data-testid="design-back"
             @click="step = 'definition'"
           />
@@ -614,10 +617,10 @@ function moveColumn(by: number): void {
       <span
         v-else
         class="designer__status"
-      >Nothing has been created yet</span>
+      >{{ t('table_design.designer.nothing_created') }}</span>
       <AppButton
         v-if="step === 'definition'"
-        label="Review SQL"
+        :label="t('table_design.designer.review_sql')"
         :icon-right="appIcons.arrowForward"
         :disable="!ready"
         data-testid="design-review-sql"
@@ -625,7 +628,7 @@ function moveColumn(by: number): void {
       />
       <AppButton
         v-else
-        label="Create table"
+        :label="t('table_design.designer.title')"
         :loading="running"
         :disable="!ready"
         data-testid="design-create"

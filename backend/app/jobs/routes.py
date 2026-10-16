@@ -1,9 +1,10 @@
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.jobs import crud
 from app.jobs.models import JobPublic, JobsPublic, is_terminal, public
 from app.jobs.runner import JobRunnerDep
@@ -36,7 +37,7 @@ async def read_job(
     """
     job = await crud.get_for_owner(session, job_id, current_user.id)
     if job is None:
-        raise HTTPException(status_code=404, detail={"message": "No such job"})
+        raise Problem(404, "jobs.not_found")
     return public(job)
 
 
@@ -59,15 +60,12 @@ async def cancel_job(
     """
     job = await crud.get_for_owner(session, job_id, current_user.id)
     if job is None:
-        raise HTTPException(status_code=404, detail={"message": "No such job"})
+        raise Problem(404, "jobs.not_found")
     if is_terminal(job.state):
         return public(job)
     if not await runner.cancel(job_id):
         # Not this process's to stop. One process carries out what it accepted,
         # so the honest answer is that this one cannot reach it.
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "This job is being carried out elsewhere"},
-        )
+        raise Problem(409, "jobs.elsewhere")
     await session.refresh(job)
     return public(job)

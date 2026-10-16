@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
 
 import { useDesign } from "./design"
@@ -37,30 +38,22 @@ const predicate = computed<DraftPredicate>(() => {
   return held ?? { operator: "and", terms: [] }
 })
 
-const operators = [
-  { label: "is", value: "eq" },
-  { label: "is not", value: "ne" },
-  { label: "is less than", value: "lt" },
-  { label: "is at most", value: "lte" },
-  { label: "is greater than", value: "gt" },
-  { label: "is at least", value: "gte" },
-  { label: "is one of", value: "in" },
-  { label: "is none of", value: "not_in" },
-  { label: "is empty", value: "is_null" },
-  { label: "is not empty", value: "is_not_null" },
+const OPERATORS: DraftTerm["operator"][] = [
+  "eq", "ne", "lt", "lte", "gt", "gte", "in", "not_in", "is_null", "is_not_null",
 ]
+const operators = computed(() =>
+  OPERATORS.map((value) => ({ label: t(`table_design.predicate.operators.${value}`), value }))
+)
 
-const kinds = [
-  { label: "Text", value: "text" },
-  { label: "Number", value: "number" },
-  { label: "True or false", value: "boolean" },
-  { label: "JSON", value: "json" },
-]
+const KINDS: DraftTerm["valueKind"][] = ["text", "number", "boolean", "json"]
+const kinds = computed(() =>
+  KINDS.map((value) => ({ label: t(`table_design.predicate.kinds.${value}`), value }))
+)
 
-const joins = [
-  { label: "All of these", value: "and" },
-  { label: "Any of these", value: "or" },
-]
+const joins = computed(() => [
+  { label: t("table_design.predicate.joins.and"), value: "and" },
+  { label: t("table_design.predicate.joins.or"), value: "or" },
+])
 
 const terms = computed(() => predicate.value.terms)
 
@@ -94,7 +87,7 @@ function takesList(term: DraftTerm): boolean {
       <AppSelect
         v-model="predicate.operator"
         :options="joins"
-        label="Holds when"
+        :label="t('table_design.predicate.holds_when')"
         compact
         :data-testid="`${testid}-join`"
       />
@@ -108,27 +101,27 @@ function takesList(term: DraftTerm): boolean {
       <AppSelect
         v-model="term.columnId"
         :options="design.columnChoices.value"
-        aria-label="Column"
+        :aria-label="t('table_design.column_label')"
         compact
       />
       <AppSelect
         v-model="term.operator"
         :options="operators"
-        aria-label="Comparison"
+        :aria-label="t('table_design.predicate.comparison')"
         compact
       />
       <AppSelect
         v-if="takesValue(term)"
         v-model="term.valueKind"
         :options="kinds"
-        aria-label="Kind of value"
+        :aria-label="t('table_design.predicate.kind')"
         compact
       />
       <template v-if="takesValue(term) && !takesList(term)">
         <AppInput
           v-model="term.value"
-          aria-label="Value"
-          placeholder="Value"
+          :aria-label="t('table_design.predicate.value')"
+          :placeholder="t('table_design.predicate.value')"
           compact
         />
       </template>
@@ -143,14 +136,14 @@ function takesList(term: DraftTerm): boolean {
         >
           <AppInput
             :model-value="term.values[index] ?? ''"
-            aria-label="Value"
-            placeholder="Value"
+            :aria-label="t('table_design.predicate.value')"
+            :placeholder="t('table_design.predicate.value')"
             compact
             @update:model-value="term.values[index] = $event"
           />
           <AppIconButton
             :icon="appIcons.close"
-            tooltip="Remove this value"
+            :tooltip="t('table_design.predicate.remove_value')"
             compact
             :disable="term.values.length === 1"
             @click="term.values.splice(index, 1)"
@@ -159,14 +152,14 @@ function takesList(term: DraftTerm): boolean {
         <AppButton
           variant="quiet"
           size="sm"
-          label="Add a value"
+          :label="t('table_design.predicate.add_value')"
           @click="term.values.push('')"
         />
       </div>
       <span v-else />
       <AppIconButton
         :icon="appIcons.close"
-        tooltip="Remove this condition"
+        :tooltip="t('table_design.predicate.remove_condition')"
         compact
         @click="remove(term)"
       />
@@ -174,7 +167,7 @@ function takesList(term: DraftTerm): boolean {
     <AppButton
       variant="quiet"
       size="sm"
-      label="Add a condition"
+      :label="t('table_design.predicate.add_condition')"
       :data-testid="`${testid}-add`"
       @click="add"
     />

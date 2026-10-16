@@ -110,7 +110,8 @@ async def test_a_second_operation_on_the_connection_is_refused_with_the_running_
         )
     response = await client.post(_jobs(connector_id), headers=normal_user_token_headers, json=REQUEST)
     assert response.status_code == 409
-    assert response.json()["detail"]["job_id"] == str(running.id)
+    assert response.json()["detail"]["code"] == "actions.operation_running"
+    assert response.json()["detail"]["params"]["job_id"] == str(running.id)
 
 
 async def test_a_stale_review_is_refused_before_anything_is_recorded(

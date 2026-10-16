@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n"
 import { DEFAULT_GROUP } from "@/shared/SchemaForm/jsonSchema"
 
 /**
@@ -29,7 +30,7 @@ export function windowPages(groups: readonly { id: string }[]): WindowPage[] {
     // as a tab's first word. The one exception is the group a field falls into
     // when its model says nothing: that word is this application's, and
     // "general" says nothing about what the page holds.
-    label: group.id === DEFAULT_GROUP ? "Connection" : group.id.charAt(0).toUpperCase() + group.id.slice(1),
+    label: group.id === DEFAULT_GROUP ? t("connectors.pages.connection") : group.id.charAt(0).toUpperCase() + group.id.slice(1),
     owner: "source",
   }))
 
@@ -49,7 +50,7 @@ export function windowPages(groups: readonly { id: string }[]): WindowPage[] {
     // How this connection behaves rather than how to reach it. Its own page
     // because it is nobody's first question: a connection is made to connect,
     // and how long its answers may be kept is a second thought (D105).
-    own(OPTIONS_PAGE, "Options", "options"),
-    own(PERMISSIONS_PAGE, "Permissions", "permissions"),
+    own(OPTIONS_PAGE, t("connectors.pages.options"), "options"),
+    own(PERMISSIONS_PAGE, t("connectors.pages.permissions"), "permissions"),
   ]
 }

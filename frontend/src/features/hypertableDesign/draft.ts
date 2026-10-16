@@ -1,4 +1,5 @@
 import type { HypertableColumn, HypertableDesign, HypertableDesignState, NowFunction } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * The hypertable settings form, and the one place it becomes a design (D207).
@@ -232,36 +233,36 @@ function now(value: NowDraft): Now | "missing" {
 
 /** The design the form describes, or what it still lacks. */
 export function completed(draft: Draft): Completed {
-  if (draft.timeColumn === "") return { missing: "Choose the time column" }
+  if (draft.timeColumn === "") return { missing: t("hypertable_design.missing.time_column") }
   const integer = draft.chunkInterval.unit === "integer"
   const chunk = duration(draft.chunkInterval)
-  if (chunk === null) return { missing: "Enter the chunk interval" }
+  if (chunk === null) return { missing: t("hypertable_design.missing.chunk_interval") }
   if (draft.hash.some((item) => item.column === "" || !whole(item.partitions))) {
-    return { missing: "Choose a column and a number of partitions for every hash dimension" }
+    return { missing: t("hypertable_design.missing.hash") }
   }
   if (draft.columnstore && draft.segmentMode === "columns" && draft.segmentColumns.length === 0) {
-    return { missing: "Choose the columns to segment by" }
+    return { missing: t("hypertable_design.missing.segment") }
   }
   const orderColumns = draft.orderColumns.filter((key) => key.column !== "")
   if (draft.columnstore && draft.orderMode === "columns" && orderColumns.length === 0) {
-    return { missing: "Choose the columns to order by" }
+    return { missing: t("hypertable_design.missing.order") }
   }
   const merging = draft.columnstore && draft.merge && !integer
   const merge = merging ? duration(draft.mergeInterval) : null
   if (merging && merge === null) {
-    return { missing: "Enter the merge interval" }
+    return { missing: t("hypertable_design.missing.merge") }
   }
   const sparseIndexes = draft.sparseIndexes.filter((item) => item.column !== "")
   if (draft.columnstore && draft.sparseMode === "columns" && sparseIndexes.length === 0) {
-    return { missing: "Choose the columns of the sparse indexes" }
+    return { missing: t("hypertable_design.missing.sparse") }
   }
   const retention = policy(draft.retention)
-  if (retention === "missing") return { missing: "Enter the retention age" }
+  if (retention === "missing") return { missing: t("hypertable_design.missing.retention") }
   const columnstorePolicy = policy(draft.columnstorePolicy)
-  if (columnstorePolicy === "missing") return { missing: "Enter the columnstore policy age" }
+  if (columnstorePolicy === "missing") return { missing: t("hypertable_design.missing.columnstore_policy") }
   const clock = integer ? now(draft.now) : null
   if (clock === "missing") {
-    return { missing: draft.now.mode === "template" ? "Name the integer_now function" : "Choose the integer_now function" }
+    return { missing: t(draft.now.mode === "template" ? "hypertable_design.missing.now_name" : "hypertable_design.missing.now_function") }
   }
   return {
     design: {

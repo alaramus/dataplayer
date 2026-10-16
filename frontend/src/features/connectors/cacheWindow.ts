@@ -1,4 +1,5 @@
 import type { SourceCacheWindows } from "@/client"
+import { t } from "@/shared/i18n"
 import type { SelectOption } from "@/shared/ui"
 
 import { windowLabel } from "@/shared/freshness/freshness"
@@ -42,19 +43,20 @@ export function windowApplies(source: SourceWindows): boolean {
  * the default does is the whole reason to keep it (D105).
  */
 export function sourceWindowLabel(source: SourceWindows): string {
-  if (source === null) return "This source is always read live"
-  if (source === undefined) return "As this source decides"
-  return `As this source decides (rows ${windowLabel(source.fetch)}, lists ${windowLabel(
-    source.catalog
-  )})`
+  if (source === null) return t("connectors.cache.always_live")
+  if (source === undefined) return t("connectors.cache.source_decides")
+  return t("connectors.cache.source_decides_windows", {
+    rows: windowLabel(source.fetch),
+    lists: windowLabel(source.catalog),
+  })
 }
 
 export function cacheWindowOptions(source: SourceWindows): SelectOption[] {
   return [
     { label: sourceWindowLabel(source), value: SOURCE_WINDOW },
-    { label: "Never keep answers", value: 0 },
+    { label: t("connectors.cache.never"), value: 0 },
     ...CACHE_WINDOWS.filter((seconds) => seconds > 0).map((seconds) => ({
-      label: `Keep for ${windowLabel(seconds)}`,
+      label: t("connectors.cache.keep_for", { window: windowLabel(seconds) }),
       value: seconds,
     })),
   ]
@@ -81,15 +83,16 @@ export function cacheWindowOf(value: unknown): number | null | undefined {
 /** The line under the field: what this choice does, in one sentence. */
 export function cacheWindowNote(seconds: number | null, source: SourceWindows): string {
   if (source === null) {
-    return "This source keeps nothing: every read reaches it, whatever is chosen here."
+    return t("connectors.cache.note_keeps_nothing")
   }
   if (seconds === null) {
     return source === undefined
-      ? "Each kind of read is kept for as long as this source says."
-      : `Rows are re-read after ${windowLabel(source.fetch)} and catalog levels after ${windowLabel(
-          source.catalog
-        )}.`
+      ? t("connectors.cache.note_source_says")
+      : t("connectors.cache.note_source", {
+          rows: windowLabel(source.fetch),
+          lists: windowLabel(source.catalog),
+        })
   }
-  if (seconds <= 0) return "Every read reaches the source."
-  return `Rows and catalog levels are re-read after ${windowLabel(seconds)}.`
+  if (seconds <= 0) return t("connectors.cache.note_every_read")
+  return t("connectors.cache.note_after", { window: windowLabel(seconds) })
 }

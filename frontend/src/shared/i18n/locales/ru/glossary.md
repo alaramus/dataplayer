@@ -139,6 +139,30 @@ second word for it.
 | view (of the grid) | вид |
 | auto-refresh | обновлять автоматически |
 | ascending / descending | по возрастанию / по убыванию |
+| passphrase | парольная фраза |
+| public / private key | открытый / закрытый ключ |
+| lock / unlock (a key) | заблокировать / разблокировать |
+| server key | ключ сервера |
+| account | учётная запись |
+| guide | руководство |
+| share (verb) | поделиться |
+| card (pipeline) | карточка |
+| canvas | холст |
+| link (pipeline) | связь |
+| restore | восстановить |
+| take a backup | создать резервную копию |
+| output / logs | вывод / журнал |
+| container | контейнер |
+| connection string | строка подключения |
+| generated column | вычисляемый столбец |
+| tablespace | табличное пространство |
+| partition | секция |
+| collation | правило сортировки |
+| operator class | класс операторов |
+| access method | метод доступа |
+| columnstore | колоночное хранилище |
+| retention | хранение |
+| up to date (a preview) | актуально |
 
 ## Gender
 

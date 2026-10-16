@@ -287,7 +287,7 @@ async def test_a_postgres_may_not_be_asked_to_want_none(
     )
 
     assert refused.status_code == 422
-    assert "without a password" in refused.json()["detail"]["message"]
+    assert refused.json()["detail"]["code"] == "services.password_required"
     assert engine.created == []
 
 
@@ -307,7 +307,7 @@ async def test_a_name_the_template_does_not_open_is_refused(
     )
 
     assert refused.status_code == 422
-    assert refused.json()["detail"]["message"] == "This service has no user to name"
+    assert refused.json()["detail"]["code"] == "services.no_user_to_name"
 
 
 @pytest.mark.usefixtures("engine")

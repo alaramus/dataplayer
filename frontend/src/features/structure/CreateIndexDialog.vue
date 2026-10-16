@@ -9,6 +9,7 @@ import {
   AppForm,
   AppSelect,
 } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -56,10 +57,12 @@ watch(uniqueAllowed, (allowed) => {
 
 const blockedText = computed(() => {
   if (props.blocked === null) return ""
-  const groups = props.blocked.exact
-    ? `${props.blocked.groups} ${props.blocked.groups === 1 ? "value" : "values"}`
-    : `More than ${props.blocked.groups} values`
-  return `${groups} already appear more than once, so this index cannot be unique.`
+  const n = props.blocked.groups
+  return t(
+    props.blocked.exact ? "structure.index_dialog.blocked" : "structure.index_dialog.blocked_more",
+    { n },
+    n
+  )
 })
 </script>
 
@@ -68,8 +71,8 @@ const blockedText = computed(() => {
     :model-value="modelValue"
     sizing="stable"
     size="compact-form"
-    title="Add index"
-    subtitle="The source names it and picks the methods"
+    :title="t('structure.index_dialog.title')"
+    :subtitle="t('structure.index_dialog.subtitle')"
     data-testid="structure-index-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -92,7 +95,7 @@ const blockedText = computed(() => {
       <AppSelect
         :model-value="chosen"
         :options="columns"
-        label="Columns, in index order"
+        :label="t('structure.index_dialog.columns')"
         multiple
         :disable="saving"
         data-testid="structure-index-columns"
@@ -101,15 +104,15 @@ const blockedText = computed(() => {
       <AppSelect
         :model-value="method"
         :options="methods.map((option) => ({ label: option.title, value: option.code }))"
-        label="Method"
-        :error="tooManyColumns ? `${current?.title} indexes one column only` : ''"
+        :label="t('structure.index_dialog.method')"
+        :error="tooManyColumns ? t('structure.index_dialog.one_column', { method: current?.title ?? '' }) : ''"
         :disable="saving"
         data-testid="structure-index-method"
         @update:model-value="method = String($event)"
       />
       <AppCheckbox
         :model-value="unique"
-        :label="uniqueAllowed ? 'Unique' : `Unique — ${current?.title} cannot`"
+        :label="uniqueAllowed ? t('structure.index_dialog.unique') : t('structure.index_dialog.unique_refused', { method: current?.title ?? '' })"
         :disable="saving || !uniqueAllowed"
         data-testid="structure-index-unique"
         @update:model-value="unique = $event"
@@ -118,12 +121,12 @@ const blockedText = computed(() => {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Create"
+        :label="t('structure.index_dialog.create')"
         :disable="chosen.length === 0 || method.length === 0 || tooManyColumns"
         :loading="saving"
         data-testid="structure-index-save"

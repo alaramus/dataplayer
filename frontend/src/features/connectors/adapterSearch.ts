@@ -1,4 +1,5 @@
 import type { AdapterTypeInfo } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * Finding a source type in the catalog. Plain functions, tested without
@@ -51,7 +52,7 @@ export function categoryCounts(types: AdapterTypeInfo[]): CategoryCount[] {
   }
 
   return [
-    { id: ALL_CATEGORIES, title: "All", count: types.length },
+    { id: ALL_CATEGORIES, title: t("connectors.catalog_dialog.all"), count: types.length },
     ...[...found.values()].sort((a, b) => a.title.localeCompare(b.title)),
   ]
 }
