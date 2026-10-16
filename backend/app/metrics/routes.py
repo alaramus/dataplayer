@@ -15,6 +15,7 @@ from app.connectors.models import Connector
 from app.core.access import Access
 from app.core.config import settings
 from app.core.db import SessionDep
+from app.core.problems import Problem, ProblemCode
 from app.core.schemas import Message
 from app.jobs.runner import JobRunnerDep
 from app.metrics import access, crud, history, keys, restarts, setup
@@ -78,6 +79,14 @@ router = APIRouter(
 )
 
 MAX_PROCESS_ROWS = 200
+
+# One code per level rather than the level as a parameter (D225).
+DASHBOARD_NEEDS: dict[Access, ProblemCode] = {
+    "read": "metrics.dashboard_needs_read",
+    "write": "metrics.dashboard_needs_write",
+    "structure": "metrics.dashboard_needs_structure",
+    "own": "metrics.dashboard_needs_own",
+}
 
 
 @router.get("/store", response_model=StoreStatus)
@@ -373,9 +382,7 @@ async def update_reporting(
     reporting is this server polling their database."""
     connector = await get_or_404(session, connector_id, current_user, requires="own")
     if not _reports_metrics(connector):
-        raise HTTPException(
-            501, detail={"message": "This kind of source does not report metrics"}
-        )
+        raise Problem(501, "metrics.no_metrics", error_kind="config")
     row = await session.get(MetricsConnector, connector.id) or MetricsConnector(connector_id=connector.id)
     row.enabled = body.enabled
     row.interval_seconds = body.interval_seconds
@@ -398,9 +405,7 @@ async def purge_connector(
     server reading their database."""
     connector = await get_or_404(session, connector_id, current_user, requires="own")
     if not _reports_metrics(connector):
-        raise HTTPException(
-            501, detail={"message": "This kind of source does not report metrics"}
-        )
+        raise Problem(501, "metrics.no_metrics", error_kind="config")
     store = await _store(session, holder)
     try:
         await store.purge(Source(kind="connector", id=connector.id))
@@ -431,7 +436,7 @@ async def read_processes(
     try:
         await access.require_agent(session, current_user, agent_id, host, through=through)
     except access.AgentNotReadable:
-        raise HTTPException(404, detail={"message": "No such agent"}) from None
+        raise Problem(404, "metrics.agent_not_found") from None
     store = await _store(session, holder)
     try:
         latest = await store.latest_processes(agent_id, host, sort, limit)
@@ -479,13 +484,11 @@ async def read_presets(
         try:
             await access.require_agent(session, current_user, agent_id)
         except access.AgentNotReadable:
-            raise HTTPException(404, detail={"message": "No such agent"}) from None
+            raise Problem(404, "metrics.agent_not_found") from None
         presets = AGENT_PRESETS
         source_id, source_host, processes_known = agent_id, host, True
     else:
-        raise HTTPException(
-            422, detail={"message": "Name an agent and a host, or a connection"}
-        )
+        raise Problem(422, "metrics.agent_or_connection_required")
     store = await _store(session, holder)
     try:
         stored = await store.catalog([source_id])
@@ -539,7 +542,7 @@ async def read_history(
             else await store.bucketed_points(ids, body.start, body.end, width, density.tier)
         )
     except access.SeriesNotReadable:
-        raise HTTPException(404, detail={"message": "No such series"}) from None
+        raise Problem(404, "metrics.series_not_found") from None
     except StoreUnavailable:
         raise _unavailable() from None
     return HistoryAnswer(
@@ -646,23 +649,20 @@ async def save_dashboard(
     """
     dashboard, held = await _dashboard(session, current_user, dashboard_id, requires="write")
     if body.version != dashboard.version:
-        raise HTTPException(
-            409,
-            detail={"message": "This dashboard was changed somewhere else; reload it"},
-        )
+        raise Problem(409, "metrics.dashboard_changed")
     known_hosts = access.hosts_on(dashboard)
     for agent_id, host in {h for widget in body.widgets for h in hosts_of(widget)} - known_hosts:
         try:
             await access.require_agent(session, current_user, agent_id, host)
         except access.AgentNotReadable:
-            raise HTTPException(422, detail={"message": "A widget names an agent you cannot read"}) from None
+            raise Problem(422, "metrics.widget_agent_unreadable") from None
     added = sorted({s for widget in body.widgets for s in series_of(widget)} - access.series_on(dashboard))
     if added:
         store = await _store(session, holder)
         try:
             await access.require_readable(session, store, current_user, added)
         except access.SeriesNotReadable:
-            raise HTTPException(422, detail={"message": "A widget names a series you cannot read"}) from None
+            raise Problem(422, "metrics.widget_series_unreadable") from None
         except StoreUnavailable:
             raise _unavailable() from None
     content = DashboardContent(options=body.options, widgets=body.widgets)
@@ -731,7 +731,7 @@ async def revoke_dashboard_grant(
     next read."""
     await _dashboard(session, current_user, dashboard_id, requires="own")
     if not await crud.remove_dashboard_grant(session, dashboard_id, user_id):
-        raise HTTPException(404, detail={"message": "No such grant"})
+        raise Problem(404, "metrics.grant_not_found")
     return Message(message="Access revoked")
 
 
@@ -741,12 +741,9 @@ async def _dashboard(
     try:
         return await access.resolve_dashboard(session, user, dashboard_id, requires=requires)
     except access.DashboardNotFound:
-        raise HTTPException(404, detail={"message": "No such dashboard"}) from None
+        raise Problem(404, "metrics.dashboard_not_found") from None
     except access.DashboardRefused as refusal:
-        raise HTTPException(
-            403,
-            detail={"message": str(refusal), "required": refusal.required, "held": refusal.held},
-        ) from None
+        raise Problem(403, DASHBOARD_NEEDS[refusal.required]) from None
 
 
 async def _public_dashboard(session: AsyncSession, dashboard: Dashboard, held: Access) -> DashboardPublic:
@@ -760,12 +757,12 @@ async def _store(session: AsyncSession, holder: StoreHolder) -> MetricsStore:
     except StoreUnavailable:
         raise _unavailable() from None
     if store is None:
-        raise HTTPException(409, detail={"message": setup.NOT_SET_UP})
+        raise Problem(409, "metrics.not_set_up")
     return store
 
 
 def _unavailable() -> HTTPException:
-    return HTTPException(503, detail={"message": setup.NOT_ANSWERING})
+    return Problem(503, "metrics.store_not_answering")
 
 
 async def _own_agent(
@@ -773,7 +770,7 @@ async def _own_agent(
 ) -> MetricsAgent:
     agent = await crud.agent_of(session, agent_id, owner_id)
     if agent is None:
-        raise HTTPException(404, detail={"message": "No such agent"})
+        raise Problem(404, "metrics.agent_not_found")
     return agent
 
 

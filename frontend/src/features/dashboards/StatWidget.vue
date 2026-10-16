@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppSpinner } from "@/shared/ui"
 
 import { useHistory } from "./api"
@@ -33,7 +34,7 @@ const reading = computed(() => {
   return readStat(points, unit.value)
 })
 const failure = computed(() =>
-  history.isError.value ? messageOf(history.error.value, "The history could not be read") : null
+  history.isError.value ? messageOf(history.error.value, t("dashboards.common.history_failed")) : null
 )
 </script>
 
@@ -47,7 +48,7 @@ const failure = computed(() =>
     <span
       v-else-if="reading === null"
       class="stat-widget__note"
-    >Nothing reported in this range</span>
+    >{{ t('dashboards.common.nothing_in_range') }}</span>
     <template v-else>
       <span
         class="stat-widget__value"
@@ -56,11 +57,11 @@ const failure = computed(() =>
       <span
         v-if="reading.since !== null"
         class="stat-widget__note"
-      >since {{ new Date(reading.since * 1000).toLocaleString() }}</span>
+      >{{ t('dashboards.stat.since', { when: new Date(reading.since * 1000).toLocaleString() }) }}</span>
       <span
         v-if="reading.restarted"
         class="stat-widget__note"
-      >restarted in this range</span>
+      >{{ t('dashboards.stat.restarted') }}</span>
     </template>
   </div>
 </template>

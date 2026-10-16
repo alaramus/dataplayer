@@ -5,14 +5,16 @@
  */
 
 import type { DashboardPublic } from "@/client"
+import { t } from "@/shared/i18n"
 
 import type { SeriesEntry } from "./catalog"
 
 export type DashboardLevel = "read" | "write"
 
-export const DASHBOARD_LEVELS: { label: string; value: DashboardLevel }[] = [
-  { label: "Can view", value: "read" },
-  { label: "Can edit", value: "write" },
+// Labels are getters: read at render, in the language current then (D224).
+export const DASHBOARD_LEVELS: { readonly label: string; value: DashboardLevel }[] = [
+  { get label() { return t("dashboards.share.can_view") }, value: "read" },
+  { get label() { return t("dashboards.share.can_edit") }, value: "write" },
 ]
 
 export function levelLabel(level: DashboardLevel): string {

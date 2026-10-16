@@ -508,7 +508,9 @@ async def test_more_runs_at_once_than_allowed_are_refused_rather_than_queued(
         )
 
         assert refused.status_code == 429
-        assert str(settings.QUERY_MAX_ACTIVE_RUNS) in refused.json()["detail"]
+        detail = refused.json()["detail"]
+        assert detail["code"] == "queries.too_many_runs"
+        assert detail["params"] == {"limit": settings.QUERY_MAX_ACTIVE_RUNS}
     finally:
         for run in started:
             await _stop(client, headers, run["id"])

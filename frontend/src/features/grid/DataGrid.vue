@@ -24,6 +24,7 @@ import type {
   Sort,
 } from "@/client"
 import { errorKindOf, messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { reloadedBy, toCommands, withPickedRows } from "@/features/catalog/actions"
 import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
@@ -300,14 +301,14 @@ const { cellReferences, cellArriving, follow, followBack, isPending: jumping } =
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 useServerLeaveGuard(async () => {
   if ([updateCell, updateCells, insertRow, deleteRows, importRows, createRelation].some((mutation) => mutation.isPending.value)) {
-    toast.info("Wait for the table change to finish before switching servers")
+    toast.info(t("grid.leave.wait"))
     return false
   }
   if (editor.value === null && !insertOpen.value && !importOpen.value && !createTableOpen.value) return true
   return await confirm({
-    title: "Leave the unfinished table form?",
-    message: "An edit, insertion or import form is still open. Its unapplied values will be lost when switching servers.",
-    confirmLabel: "Leave form",
+    title: t("grid.leave.title"),
+    message: t("grid.leave.message"),
+    confirmLabel: t("grid.leave.confirm"),
     danger: true,
   })
 })
@@ -325,8 +326,8 @@ const editableRowIds = computed(() =>
 )
 const offset = computed(() => queryState.value.page * queryState.value.pageSize)
 const range = computed(() => {
-  if (rows.value.length === 0) return "Rows 0"
-  return `Rows ${offset.value + 1}–${offset.value + rows.value.length}`
+  if (rows.value.length === 0) return t("grid.pager.none")
+  return t("grid.pager.range", { from: offset.value + 1, to: offset.value + rows.value.length })
 })
 
 function turnPage(delta: number) {
@@ -395,12 +396,12 @@ async function pasteSelection(request: TabularPasteRequest) {
   try {
     text = await readText()
   } catch {
-    toast.error("Could not read the clipboard")
+    toast.error(t("grid.clipboard.read_failed"))
     return
   }
   const block = fromTsv(text)
   if (block === null) {
-    toast.info("The clipboard does not hold a rectangle of cells")
+    toast.info(t("grid.clipboard.not_cells"))
     return
   }
   const plan = planPaste(
@@ -427,17 +428,12 @@ async function pasteSelection(request: TabularPasteRequest) {
     if (answer.kind === "rejected") {
       const first = answer.cells[0]
       const where = first === undefined ? "" : ` (${first.column})`
-      toast.error(
-        `${answer.cells.length} pasted ${answer.cells.length === 1 ? "value" : "values"} ` +
-          `cannot be read by ${answer.cells.length === 1 ? "its" : "their"} column${where}`
-      )
+      toast.error(t("grid.paste.rejected", { n: answer.cells.length, where }, answer.cells.length))
       return
     }
-    toast.success(
-      `${answer.rows.length} ${answer.rows.length === 1 ? "row" : "rows"} updated`
-    )
+    toast.success(t("grid.paste.updated", { n: answer.rows.length }, answer.rows.length))
   } catch (error) {
-    toast.error(messageOf(error, "Could not paste those cells"))
+    toast.error(messageOf(error, t("grid.paste.failed")))
   }
 }
 
@@ -482,11 +478,11 @@ async function bringIn(value: {
     importOpen.value = false
     toast.success(
       answer.truncated
-        ? `${answer.inserted} rows brought in; the source held more`
-        : `${answer.inserted} rows brought in`
+        ? t("grid.import.done_truncated", { n: answer.inserted }, answer.inserted)
+        : t("grid.import.done", { n: answer.inserted }, answer.inserted)
     )
   } catch (error) {
-    importError.value = messageOf(error, "Could not bring those rows in")
+    importError.value = messageOf(error, t("grid.import.failed"))
   }
 }
 
@@ -518,9 +514,11 @@ async function createTable(value: {
     // showing — a folder of the source these rows came from — and a list that
     // built itself does not re-read on a cache being emptied (D66).
     changes.announce(value.connectorId)
-    toast.success(`Created ${answer.node.name} with ${answer.inserted} rows`)
+    toast.success(
+      t("grid.create_table.done", { name: answer.node.name, n: answer.inserted }, answer.inserted)
+    )
   } catch (error) {
-    createTableError.value = messageOf(error, "The new table or file could not be created")
+    createTableError.value = messageOf(error, t("grid.create_table.failed"))
   }
 }
 
@@ -529,12 +527,12 @@ async function pasteIntoInsert() {
   try {
     text = await readText()
   } catch {
-    toast.error("Could not read the clipboard")
+    toast.error(t("grid.clipboard.read_failed"))
     return
   }
   const block = fromTsv(text)
   if (block === null) {
-    toast.info("The clipboard does not hold a row of cells")
+    toast.info(t("grid.clipboard.not_row"))
     return
   }
   const plan = planRowPaste(
@@ -550,7 +548,7 @@ async function pasteIntoInsert() {
   }
   insertForm.value?.fill(plan.fill.values)
   if (plan.fill.skipped.length > 0) {
-    toast.info(`Left to the source: ${plan.fill.skipped.join(", ")}`)
+    toast.info(t("grid.insert.left_to_source", { columns: plan.fill.skipped.join(", ") }))
   }
 }
 
@@ -590,7 +588,9 @@ async function runDownload(scope: DownloadScope, destination: DownloadDestinatio
           ? await keepRows.mutateAsync(whole)
           : await keepPage.mutateAsync(page)
       downloadOpen.value = false
-      toast.success(`${kept.row_count} rows saved to your files as ${kept.filename}`)
+      toast.success(
+        t("grid.download.kept", { n: kept.row_count, file: kept.filename }, kept.row_count)
+      )
       return
     }
     if (scope === "all") {
@@ -599,7 +599,7 @@ async function runDownload(scope: DownloadScope, destination: DownloadDestinatio
       const exported = await exportRows.mutateAsync(whole)
       saveNativeDownload(exported.download_url)
       downloadOpen.value = false
-      toast.success(`${exported.row_count} rows downloaded`)
+      toast.success(t("grid.download.exported", { n: exported.row_count }, exported.row_count))
       return
     }
     const downloaded = await downloadPage.mutateAsync(page)
@@ -608,9 +608,9 @@ async function runDownload(scope: DownloadScope, destination: DownloadDestinatio
       filenameFromDisposition(downloaded.disposition, `${title}.csv`)
     )
     downloadOpen.value = false
-    toast.success("Page downloaded")
+    toast.success(t("grid.download.page_done"))
   } catch (error) {
-    toast.error(messageOf(error, "Could not write this table out"))
+    toast.error(messageOf(error, t("grid.download.failed")))
   }
 }
 
@@ -664,9 +664,9 @@ async function saveCell(value: string | null) {
       value,
     })
     editor.value = null
-    toast.success("Cell updated")
+    toast.success(t("grid.cell_editor.done"))
   } catch (error) {
-    editError.value = messageOf(error, "Could not update the cell")
+    editError.value = messageOf(error, t("grid.cell_editor.failed"))
   }
 }
 
@@ -689,9 +689,9 @@ async function saveInsert(values: { column: string; value: string | null }[]) {
   try {
     await insertRow.mutateAsync({ node_id: props.nodeId, values })
     insertOpen.value = false
-    toast.success("Row inserted")
+    toast.success(t("grid.insert.done"))
   } catch (error) {
-    insertError.value = messageOf(error, "Could not insert the row")
+    insertError.value = messageOf(error, t("grid.insert.failed"))
   }
 }
 
@@ -719,18 +719,18 @@ async function deleteSelection(indexes: number[]) {
   const handles = selectedRowHandles(indexes)
   if (!canDeleteRows(indexes) || handles.length === 0) return
   const accepted = await confirm({
-    title: `Delete ${handles.length} ${handles.length === 1 ? "row" : "rows"}?`,
-    message: "This cannot be undone.",
-    confirmLabel: "Delete",
+    title: t("grid.delete.title", { n: handles.length }, handles.length),
+    message: t("grid.delete.message"),
+    confirmLabel: t("grid.delete.confirm"),
     danger: true,
   })
   if (!accepted) return
   try {
     await deleteRows.mutateAsync({ node_id: props.nodeId, row_handles: handles })
     tabularGrid.value?.clearSelection()
-    toast.success(`${handles.length} ${handles.length === 1 ? "row" : "rows"} deleted`)
+    toast.success(t("grid.delete.done", { n: handles.length }, handles.length))
   } catch (error) {
-    toast.error(messageOf(error, "Could not delete the selected rows"))
+    toast.error(messageOf(error, t("grid.delete.failed")))
   }
 }
 
@@ -793,7 +793,7 @@ watch(
     const { state, dropped } = prunedToColumns(quarantined, serverColumns)
     if (dropped.length > 0) {
       toast.info(
-        `${dropped.join(", ")} ${dropped.length === 1 ? "is" : "are"} no longer in this relation, so the query no longer ${dropped.length === 1 ? "uses it" : "uses them"}`
+        t("grid.dropped.query", { columns: dropped.join(", ") }, dropped.length)
       )
     }
     queryAwaitingPersistence.value = null
@@ -873,7 +873,7 @@ watch(
     const dropped = droppedByReconciliation(wanted, kept)
     if (dropped.length > 0) {
       toast.info(
-        `${dropped.join(", ")} ${dropped.length === 1 ? "is" : "are"} no longer in this relation, so the shared query does not use ${dropped.length === 1 ? "it" : "them"}`
+        t("grid.dropped.shared", { columns: dropped.join(", ") }, dropped.length)
       )
     }
   },
@@ -1201,7 +1201,7 @@ async function openPicked(action: PickedRowsAction, indexes: readonly number[]) 
   const picked = indexes.map((index) => rows.value[index]).filter((row) => row !== undefined)
   const keys = pickedKeys(action, result.value?.columns ?? [], picked)
   if (keys === null) {
-    toast.info("Pick rows that name what this acts on")
+    toast.info(t("grid.picked.no_keys"))
     return
   }
   try {
@@ -1215,13 +1215,13 @@ async function openPicked(action: PickedRowsAction, indexes: readonly number[]) 
     )
     const [command] = offered === undefined ? [] : toCommands([offered])
     if (command === undefined) {
-      toast.info(`${action.title} is not offered on ${target.node_label}`)
+      toast.info(t("grid.picked.not_offered", { action: action.title, node: target.node_label }))
       return
     }
     actionNode.value = { id: target.node_id, label: target.node_label }
     openAction.value = withPickedRows(command, target)
   } catch (error) {
-    toast.error(messageOf(error, `Could not open ${action.title}`))
+    toast.error(messageOf(error, t("grid.picked.open_failed", { action: action.title })))
   }
 }
 
@@ -1270,7 +1270,7 @@ async function runCommand(command: RowCommand, row: GridRow) {
     // stop offering to be installed again.
     await refreshRows()
   } catch (cause) {
-    toast.error(messageOf(cause, `${command.title} could not be done`))
+    toast.error(messageOf(cause, t("grid.row_command.failed", { command: command.title })))
   }
 }
 
@@ -1328,8 +1328,8 @@ defineExpose({
     :has-more="result?.has_more === true"
     :loading="rowsQuery.isPending.value"
     :refreshing="rowsQuery.isFetching.value && result !== undefined"
-    :error="rowsQuery.isError.value ? messageOf(rowsQuery.error.value, 'Could not read the rows') : ''"
-    :empty-text="insertOpen ? '' : 'No rows'"
+    :error="rowsQuery.isError.value ? messageOf(rowsQuery.error.value, t('grid.read_failed')) : ''"
+    :empty-text="insertOpen ? '' : t('grid.no_rows')"
     :update-reason="result?.update_reason ?? ''"
     :editable-row-ids="editableRowIds"
     @update:page-size="changePageSize"
@@ -1458,9 +1458,9 @@ defineExpose({
           :variant="action.destructive ? 'danger-quiet' : 'quiet'"
           :tooltip="tipOf(
             selectedRowIndexes.length > 0
-              ? `${action.title} ${selectedRowIndexes.length} picked`
+              ? t('grid.picked.title', { action: action.title, n: selectedRowIndexes.length })
               : action.title,
-            selectedRowIndexes.length > 0 ? null : 'Pick rows first'
+            selectedRowIndexes.length > 0 ? null : t('grid.picked.pick_first')
           )"
           :disable="selectedRowIndexes.length === 0"
           :data-testid="`grid-picked-run-${action.action}`"
@@ -1472,7 +1472,7 @@ defineExpose({
           :icon="GRID_COMMANDS.remove.icon"
           :tooltip="tipOf(
             selectedRowIndexes.length > 0
-              ? `Delete ${selectedRowIndexes.length} selected rows`
+              ? t('grid.delete.selected', { n: selectedRowIndexes.length }, selectedRowIndexes.length)
               : GRID_COMMANDS.remove.label,
             deleteReason(selectedRowIndexes)
           )"
@@ -1563,7 +1563,7 @@ defineExpose({
         v-if="canOpenRecord"
         :icon="appIcons.tableRows"
         compact
-        tooltip="Read this row downwards"
+        :tooltip="t('grid.open_record')"
         :data-testid="`grid-open-row-${row.id}`"
         @click="openRecord(row)"
       />
@@ -1572,7 +1572,7 @@ defineExpose({
     <template #cell-overlay="{ row, column, value }">
       <!-- A corner mark rather than a button in the cell: a way out belongs to
            the value, and an icon the size of a button was drawn over the value
-           it belongs to. `title=""` is not decoration — the cell carries the
+           it belongs to. An empty `title` is not decoration — the cell carries the
            browser's own hint about editing, and without an empty one here that
            hint was drawn beside this tooltip whenever the mark was hovered. -->
       <button
@@ -1580,15 +1580,15 @@ defineExpose({
         :key="reference.name"
         type="button"
         class="data-grid__follow"
-        title=""
+        :title="''"
         :style="{ insetInlineEnd: `${index * 12}px` }"
         :disabled="jumping"
-        :aria-label="`Go to ${reference.target_title}`"
+        :aria-label="t('grid.references.go_to', { target: reference.target_title })"
         :data-testid="`grid-follow-${row.id}-${reference.name}`"
         @click.stop
         @dblclick.stop
       >
-        <AppTooltip>Go to {{ reference.target_title }}</AppTooltip>
+        <AppTooltip>{{ t('grid.references.go_to', { target: reference.target_title }) }}</AppTooltip>
         <AppMenu
           :items="[{ name: reference.name, label: reference.target_title }]"
           @select="follow(row.values, reference)"
@@ -1601,14 +1601,14 @@ defineExpose({
         v-if="cellArriving(column.id, value).length > 0"
         type="button"
         class="data-grid__follow data-grid__follow--back"
-        title=""
+        :title="''"
         :disabled="jumping"
-        aria-label="What points at this row"
+        :aria-label="t('grid.references.arriving')"
         :data-testid="`grid-arriving-${row.id}-${column.id}`"
         @click.stop
         @dblclick.stop
       >
-        <AppTooltip>What points at this row</AppTooltip>
+        <AppTooltip>{{ t('grid.references.arriving') }}</AppTooltip>
         <AppMenu
           :items="
             cellArriving(column.id, value).map((reference) => ({

@@ -2,6 +2,7 @@
 import { ref, watch } from "vue"
 
 import type { ScreenContext } from "@/client"
+import { t } from "@/shared/i18n"
 import { AppButton, AppCheckbox } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -37,8 +38,8 @@ function apply() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Attach workspace tabs"
-    subtitle="Choose up to five tabs for the next message only."
+    :title="t('ai.context.title')"
+    :subtitle="t('ai.context.subtitle')"
     size="md"
     sizing="stable"
     data-testid="ai-context-dialog"
@@ -61,16 +62,16 @@ function apply() {
       v-else
       class="ai-context-dialog__empty"
     >
-      There are no attachable workspace tabs.
+      {{ t('ai.context.empty') }}
     </div>
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Done"
+        :label="t('ai.context.done')"
         @click="apply"
       />
     </template>

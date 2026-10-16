@@ -2,6 +2,7 @@
 import { ref, watch } from "vue"
 
 import type { FetchColumn } from "@/client"
+import { t } from "@/shared/i18n"
 import {
   AppButton,
   AppCheckbox,
@@ -45,7 +46,7 @@ function save() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    :title="`Edit ${column.name}`"
+    :title="t('grid.cell_editor.title', { column: column.name })"
     size="compact-form"
     sizing="stable"
     data-testid="grid-cell-editor"
@@ -59,10 +60,10 @@ function save() {
         v-if="column.type.category === 'boolean'"
         :model-value="draft"
         :options="[
-          { label: 'True', value: 'true' },
-          { label: 'False', value: 'false' },
+          { label: t('grid.cell_editor.true'), value: 'true' },
+          { label: t('grid.cell_editor.false'), value: 'false' },
         ]"
-        label="Value"
+        :label="t('grid.cell_editor.value')"
         :error="error"
         :disable="isNull || saving"
         data-testid="grid-edit-value"
@@ -71,7 +72,7 @@ function save() {
       <AppInput
         v-else
         :model-value="draft"
-        label="Value"
+        :label="t('grid.cell_editor.value')"
         :hint="`${column.type.sql} — ${inputHint(column.type)}`"
         :error="error"
         :disable="isNull || saving"
@@ -81,7 +82,7 @@ function save() {
       <AppCheckbox
         v-if="column.nullable === true"
         :model-value="isNull"
-        label="Set SQL NULL"
+        :label="t('grid.cell_editor.set_null')"
         data-testid="grid-edit-null"
         @update:model-value="isNull = $event"
       />
@@ -89,13 +90,13 @@ function save() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
         variant="primary"
-        label="Save"
+        :label="t('catalog.common.save')"
         :loading="saving"
         data-testid="grid-edit-save"
         @click="save"

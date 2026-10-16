@@ -6,6 +6,8 @@
  * here it is shown as what it means. See D50.
  */
 
+import { t } from "@/shared/i18n"
+
 export const AGENT_KINDS = [
   "summary",
   "warning",
@@ -35,16 +37,27 @@ export interface AgentLook {
   accent: string
 }
 
+/** The label is a getter: the table is built at import, the words when read (D224). */
+function look(kind: AgentKind, icon: string, accent: string): AgentLook {
+  return {
+    get label() {
+      return t(`content.markdown.callout.${kind}`)
+    },
+    icon,
+    accent,
+  }
+}
+
 export const AGENT_LOOKS: Record<AgentKind, AgentLook> = {
-  summary: { label: "summary", icon: "summarize", accent: "var(--dp-callout-note)" },
-  warning: { label: "warning", icon: "warning", accent: "var(--dp-callout-caution)" },
-  decision: { label: "decision", icon: "gavel", accent: "var(--dp-callout-decision)" },
-  risk: { label: "risk", icon: "crisis_alert", accent: "var(--dp-callout-caution)" },
-  file: { label: "file", icon: "draft", accent: "var(--dp-callout-note)" },
-  verification: { label: "verification", icon: "fact_check", accent: "var(--dp-callout-done)" },
-  command: { label: "command", icon: "terminal", accent: "var(--dp-callout-plain)" },
-  result: { label: "result", icon: "task_alt", accent: "var(--dp-callout-done)" },
-  question: { label: "question", icon: "help", accent: "var(--dp-callout-question)" },
+  summary: look("summary", "summarize", "var(--dp-callout-note)"),
+  warning: look("warning", "warning", "var(--dp-callout-caution)"),
+  decision: look("decision", "gavel", "var(--dp-callout-decision)"),
+  risk: look("risk", "crisis_alert", "var(--dp-callout-caution)"),
+  file: look("file", "draft", "var(--dp-callout-note)"),
+  verification: look("verification", "fact_check", "var(--dp-callout-done)"),
+  command: look("command", "terminal", "var(--dp-callout-plain)"),
+  result: look("result", "task_alt", "var(--dp-callout-done)"),
+  question: look("question", "help", "var(--dp-callout-question)"),
 }
 
 export interface AgentField {

@@ -46,6 +46,26 @@ describe("whether a failed request is worth making again", () => {
     expect(isSettledRefusal(failed("timeout"))).toBe(false)
   })
 
+  it("does not ask again about a coded refusal of a settled kind", () => {
+    // A source lacking a capability answers 501 with a code (D225); without
+    // the kind it would be retried like a server that broke.
+    const lacking = answeredWith(501, {
+      detail: {
+        code: "connectors.no_search",
+        params: {},
+        message: "This source cannot be searched",
+        error_kind: "config",
+      },
+    })
+    const coded = answeredWith(503, {
+      detail: { code: "metrics.store_not_answering", params: {}, message: "The metrics store is not answering" },
+    })
+
+    expect(isSettledRefusal(lacking)).toBe(true)
+    expect(shouldRetry(0, lacking, 3)).toBe(false)
+    expect(isSettledRefusal(coded)).toBe(false)
+  })
+
   it("asks again when nothing answered at all", () => {
     // A request that never arrived says nothing about itself, so the moment
     // is the only thing that could have been wrong with it.

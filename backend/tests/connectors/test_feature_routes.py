@@ -199,6 +199,8 @@ async def test_source_without_runtime_feature_capability_returns_501(
 
     assert response.status_code == 501
     assert response.json()["detail"] == {
+        "code": "connectors.no_runtime_features",
+        "params": {},
         "message": "This source does not report runtime features",
         "error_kind": "config",
     }

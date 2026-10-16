@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppCheckbox, AppIconButton } from "@/shared/ui"
 
 import { defaultColumnLayout, moveColumn } from "./columnLayout"
@@ -58,7 +59,7 @@ function togglePin(columnName: string) {
         />
         <AppIconButton
           :icon="appIcons.arrowUpward"
-          :tooltip="`Move ${column.label} up`"
+          :tooltip="t('grid.columns.move_up', { column: column.label })"
           :disable="index === 0"
           compact
           :data-testid="`grid-column-up-${column.id}`"
@@ -66,7 +67,7 @@ function togglePin(columnName: string) {
         />
         <AppIconButton
           :icon="appIcons.arrowDownward"
-          :tooltip="`Move ${column.label} down`"
+          :tooltip="t('grid.columns.move_down', { column: column.label })"
           :disable="index === orderedColumns.length - 1"
           compact
           :data-testid="`grid-column-down-${column.id}`"
@@ -76,7 +77,7 @@ function togglePin(columnName: string) {
           :icon="appIcons.pushPin"
           :active="layout.pinnedLeft.includes(column.id)"
           :aria-pressed="layout.pinnedLeft.includes(column.id)"
-          :tooltip="layout.pinnedLeft.includes(column.id) ? `Unpin ${column.label}` : `Pin ${column.label} to the left`"
+          :tooltip="layout.pinnedLeft.includes(column.id) ? t('grid.columns.unpin', { column: column.label }) : t('grid.columns.pin', { column: column.label })"
           compact
           :data-testid="`grid-pin-${column.id}`"
           @click="togglePin(column.id)"
@@ -85,7 +86,7 @@ function togglePin(columnName: string) {
     </div>
     <div class="column-manager__foot">
       <AppButton
-        label="Reset layout"
+        :label="t('grid.columns.reset')"
         variant="quiet"
         size="sm"
         data-testid="grid-columns-reset"

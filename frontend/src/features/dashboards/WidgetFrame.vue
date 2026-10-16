@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { nextTick, ref } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppCardFrame, AppCardHead, AppIconButton, AppInput } from "@/shared/ui"
 
 import { MAX_TITLE } from "./dashboardModel"
@@ -73,7 +74,7 @@ function onHeaderPointerDown(event: PointerEvent) {
         v-model="draft"
         class="widget-frame__title-input"
         compact
-        aria-label="Widget title"
+        :aria-label="t('dashboards.widget.title')"
         @keydown.enter="commit"
         @keydown.esc="editing = false"
         @blur="commit"
@@ -81,25 +82,25 @@ function onHeaderPointerDown(event: PointerEvent) {
       <span
         v-else
         class="widget-frame__title"
-        :title="editable === false ? title : `${title} — double-click to rename`"
+        :title="editable === false ? title : t('dashboards.widget.rename_hint', { title })"
       >{{ title }}</span>
       <AppIconButton
         :icon="appIcons.openInNew"
-        tooltip="Open in a window, over the data as well"
+        :tooltip="t('dashboards.widget.detach')"
         compact
         data-testid="widget-detach"
         @click="emit('detach')"
       />
       <AppIconButton
         :icon="expanded ? appIcons.closeFullscreen : appIcons.openInFull"
-        :tooltip="expanded ? 'Back to the dashboard' : 'Fill the dashboard with this widget'"
+        :tooltip="expanded ? t('dashboards.widget.back') : t('dashboards.widget.expand')"
         compact
         @click="emit('toggleExpand')"
       />
       <AppIconButton
         v-if="editable !== false"
         :icon="appIcons.close"
-        tooltip="Remove this widget"
+        :tooltip="t('dashboards.widget.remove')"
         compact
         data-testid="widget-remove"
         @click="emit('remove')"
@@ -117,7 +118,7 @@ function onHeaderPointerDown(event: PointerEvent) {
     <div
       v-if="!expanded && editable !== false"
       class="widget-frame__resize"
-      title="Drag to resize"
+      :title="t('dashboards.widget.resize')"
       @pointerdown.stop="emit('grabResize', $event)"
     />
   </AppCardFrame>

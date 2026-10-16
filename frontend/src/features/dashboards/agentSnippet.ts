@@ -6,6 +6,8 @@
  * container. `/:/host` is plain `ro`: Docker Desktop refuses `rslave`.
  */
 
+import { t } from "@/shared/i18n"
+
 export const AGENT_IMAGE = "alaramus/dataplayer-monitor-agent:latest"
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"])
@@ -50,10 +52,10 @@ export function composeSnippet(request: SnippetRequest): string {
 
 /** When an agent was last heard from, as a person reads it. */
 export function lastHeardWording(lastHeardAt: string | null | undefined, nowMs: number): string {
-  if (lastHeardAt === null || lastHeardAt === undefined) return "Never"
+  if (lastHeardAt === null || lastHeardAt === undefined) return t("dashboards.heard.never")
   const seconds = Math.max(0, Math.round((nowMs - Date.parse(lastHeardAt)) / 1000))
-  if (seconds < 60) return `${String(seconds)} s ago`
-  if (seconds < 3600) return `${String(Math.floor(seconds / 60))} min ago`
-  if (seconds < 86400) return `${String(Math.floor(seconds / 3600))} h ago`
-  return `${String(Math.floor(seconds / 86400))} d ago`
+  if (seconds < 60) return t("dashboards.heard.seconds", { n: seconds })
+  if (seconds < 3600) return t("dashboards.heard.minutes", { n: Math.floor(seconds / 60) })
+  if (seconds < 86400) return t("dashboards.heard.hours", { n: Math.floor(seconds / 3600) })
+  return t("dashboards.heard.days", { n: Math.floor(seconds / 86400) })
 }

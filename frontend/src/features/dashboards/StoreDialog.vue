@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppEmptyState, AppForm, AppSpinner, useConfirm, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -24,9 +25,9 @@ const facts = computed(() => usage.data.value ?? null)
 async function remove() {
   if (facts.value === null) return
   const sure = await confirm({
-    title: "Remove the metrics store?",
+    title: t("dashboards.store.remove_title"),
     message: removalWarning(facts.value),
-    confirmLabel: "Remove the store",
+    confirmLabel: t("dashboards.common.remove_store"),
     danger: true,
   })
   if (!sure) return
@@ -34,7 +35,7 @@ async function remove() {
     toast.success((await removing.mutateAsync()).message)
     open.value = false
   } catch (cause) {
-    toast.error(messageOf(cause, "The metrics store could not be removed"))
+    toast.error(messageOf(cause, t("dashboards.store.remove_failed")))
   }
 }
 </script>
@@ -42,8 +43,8 @@ async function remove() {
 <template>
   <WindowDialog
     v-model="open"
-    title="Metrics store"
-    subtitle="Where every person's samples are kept"
+    :title="t('dashboards.store.title')"
+    :subtitle="t('dashboards.store.subtitle')"
     size="compact-form"
     sizing="stable"
     data-testid="store-dialog"
@@ -53,21 +54,21 @@ async function remove() {
       <AppEmptyState
         v-else-if="facts === null"
         icon="error"
-        :text="messageOf(usage.error.value, 'The store could not be described')"
+        :text="messageOf(usage.error.value, t('dashboards.store.describe_failed'))"
       />
       <dl
         v-else
         class="store-facts"
       >
-        <dt>Where</dt>
+        <dt>{{ t('dashboards.store.where') }}</dt>
         <dd data-testid="store-origin">
           {{ originWording(facts) }}
         </dd>
-        <dt>Size</dt>
+        <dt>{{ t('dashboards.store.size') }}</dt>
         <dd data-testid="store-size">
           {{ sizeWording(facts) }}
         </dd>
-        <dt>Kept</dt>
+        <dt>{{ t('dashboards.store.kept') }}</dt>
         <dd>
           <div
             v-for="tier in facts.tiers"
@@ -83,7 +84,7 @@ async function remove() {
       <AppButton
         variant="danger"
         :icon="appIcons.deleteForever"
-        label="Remove the store"
+        :label="t('dashboards.common.remove_store')"
         :disable="facts === null"
         :loading="removing.isPending.value"
         data-testid="store-remove"
@@ -91,7 +92,7 @@ async function remove() {
       />
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('dashboards.common.close')"
         @click="open = false"
       />
     </template>

@@ -1,6 +1,7 @@
 import { AxiosError } from "axios"
 
 import { problemMessage } from "@/shared/i18n"
+import { isProblem } from "@/shared/i18n/problems"
 import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
 
 /**
@@ -40,7 +41,9 @@ export function messageOf(cause: unknown, fallback: string): string {
 }
 
 /**
- * The kind a source failure was reduced to, or null for any other failure.
+ * The kind a source failure was reduced to, or null for any other failure:
+ * an adapter failure's `error_kind`, or a coded refusal's (D225) — a source
+ * lacking a capability is `config`.
  *
  * Read where a screen offers a way on rather than only a sentence: a key
  * that is `locked` is opened by its passphrase (D147), and a screen that
@@ -49,6 +52,7 @@ export function messageOf(cause: unknown, fallback: string): string {
 export function errorKindOf(cause: unknown): string | null {
   if (!(cause instanceof AxiosError)) return null
   const detail: unknown = cause.response?.data?.detail
+  if (isProblem(detail)) return detail.error_kind ?? null
   if (detail && typeof detail === "object" && "error_kind" in detail) {
     return typeof detail.error_kind === "string" ? detail.error_kind : null
   }

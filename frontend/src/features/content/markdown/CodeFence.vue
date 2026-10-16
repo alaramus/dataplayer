@@ -13,6 +13,7 @@ import { copySource } from "@/features/content/markdown/blockActions"
 import BlockChrome from "@/features/content/markdown/BlockChrome.vue"
 import { syntaxColours } from "@/features/content/highlight"
 import { languageFor } from "@/features/content/language"
+import { t } from "@/shared/i18n"
 import { AppCopyButton, useToast } from "@/shared/ui"
 
 const props = defineProps<{ language: string; code: string }>()
@@ -48,7 +49,7 @@ function mount() {
         EditorView.lineWrapping,
         syntaxHighlighting(syntaxColours, { fallback: true }),
         languageSlot.of([]),
-        EditorView.contentAttributes.of({ "aria-label": "Code block", spellcheck: "false" }),
+        EditorView.contentAttributes.of({ "aria-label": t("content.markdown.code.aria"), spellcheck: "false" }),
         EditorView.theme({
           "&": {
             color: "var(--dp-text)",
@@ -68,7 +69,7 @@ function mount() {
 
 async function copy() {
   await copySource(props.code)
-  toast.success("Code copied")
+  toast.success(t("content.markdown.code.copied"))
 }
 
 onMounted(mount)
@@ -83,10 +84,10 @@ watch(() => props.language, () => void loadLanguage())
 </script>
 
 <template>
-  <BlockChrome :label="language || 'text'">
+  <BlockChrome :label="language || t('content.markdown.code.label')">
     <template #actions>
       <AppCopyButton
-        tooltip="Copy this code"
+        :tooltip="t('content.markdown.code.copy')"
         data-testid="code-copy"
         @click="copy"
       />

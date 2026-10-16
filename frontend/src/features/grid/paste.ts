@@ -6,6 +6,8 @@
  * the server will be sent or the reason it will not be.
  */
 
+import { t } from "@/shared/i18n"
+
 import type { GridRow } from "./types"
 
 export interface PasteColumn {
@@ -42,31 +44,27 @@ export function planPaste(
 ): PastePlan {
   const height = block.length
   const width = block[0]?.length ?? 0
-  if (height === 0 || width === 0) return { ok: false, reason: "Nothing to paste" }
+  if (height === 0 || width === 0) return { ok: false, reason: t("grid.paste.nothing") }
 
   // Nothing is truncated and no row is invented: a block that does not fit is
   // refused whole, so what lands is always what was pasted.
   if (at.rowIndex + height > rows.length) {
     return {
       ok: false,
-      reason: `This block is ${height} rows tall and only ${
-        rows.length - at.rowIndex
-      } are loaded below the selection`,
+      reason: t("grid.paste.too_tall", { height, loaded: rows.length - at.rowIndex }),
     }
   }
   if (at.columnIndex + width > columns.length) {
     return {
       ok: false,
-      reason: `This block is ${width} columns wide and only ${
-        columns.length - at.columnIndex
-      } are shown to the right of the selection`,
+      reason: t("grid.paste.too_broad", { width, shown: columns.length - at.columnIndex }),
     }
   }
 
   const landing = columns.slice(at.columnIndex, at.columnIndex + width)
   const uneditable = landing.find((column) => !column.editable)
   if (uneditable !== undefined) {
-    return { ok: false, reason: `Column ${uneditable.name} cannot be edited` }
+    return { ok: false, reason: t("grid.paste.not_editable", { column: uneditable.name }) }
   }
 
   const planned: PasteRow[] = []
@@ -77,7 +75,7 @@ export function planPaste(
     // The source issues a handle only where it can version a row (D25); a page
     // without them cannot be edited at all, and half of one cannot either.
     if (row === undefined || typeof handle !== "string") {
-      return { ok: false, reason: "This relation cannot identify one of those rows" }
+      return { ok: false, reason: t("grid.paste.no_identity") }
     }
     const cells = landing
       .map((column, index) => ({
@@ -93,13 +91,13 @@ export function planPaste(
     if (cells.length > 0) planned.push({ row_handle: handle, cells })
   }
 
-  if (planned.length === 0) return { ok: false, reason: "Those cells already hold that" }
+  if (planned.length === 0) return { ok: false, reason: t("grid.paste.unchanged") }
   if (planned.length > MAX_ROWS) {
-    return { ok: false, reason: `A paste may cover at most ${MAX_ROWS} rows` }
+    return { ok: false, reason: t("grid.paste.too_many_rows", { n: MAX_ROWS }) }
   }
   const total = planned.reduce((sum, row) => sum + row.cells.length, 0)
   if (total > MAX_CELLS) {
-    return { ok: false, reason: `A paste may carry at most ${MAX_CELLS} cells` }
+    return { ok: false, reason: t("grid.paste.too_many_cells", { n: MAX_CELLS }) }
   }
   return { ok: true, rows: planned }
 }
@@ -131,14 +129,14 @@ export function planRowPaste(
   columns: readonly InsertablePasteColumn[]
 ): RowPastePlan {
   if (block.length !== 1) {
-    return { ok: false, reason: "One row is inserted at a time" }
+    return { ok: false, reason: t("grid.paste.one_row") }
   }
   const line = block[0] ?? []
-  if (line.length === 0) return { ok: false, reason: "Nothing to paste" }
+  if (line.length === 0) return { ok: false, reason: t("grid.paste.nothing") }
   if (line.length > columns.length) {
     return {
       ok: false,
-      reason: `That line has ${line.length} values and ${columns.length} columns are shown`,
+      reason: t("grid.paste.too_wide", { values: line.length, columns: columns.length }),
     }
   }
   const values: { column: string; value: string | null }[] = []
@@ -150,7 +148,7 @@ export function planRowPaste(
     else skipped.push(column.name)
   })
   if (values.length === 0) {
-    return { ok: false, reason: "The source fills every one of those columns itself" }
+    return { ok: false, reason: t("grid.paste.all_generated") }
   }
   return { ok: true, fill: { values, skipped } }
 }

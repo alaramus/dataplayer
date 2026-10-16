@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { ProviderKeyState } from "@/client"
+import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppIconButton, AppInput, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { messageOf } from "@/shared/api/errors"
@@ -36,8 +37,8 @@ async function save() {
   try {
     await writeKey.mutateAsync({ provider: props.provider, key })
     draft.value = ""
-    toast.success(props.provider === JEV_PROVIDER ? "Jev key saved" : `${props.providerLabel} key saved for all its models`)
-  } catch (cause) { toast.error(messageOf(cause, "The key could not be saved")) }
+    toast.success(props.provider === JEV_PROVIDER ? t("ai.key.jev_saved") : t("ai.key.saved", { provider: props.providerLabel }))
+  } catch (cause) { toast.error(messageOf(cause, t("ai.key.save_failed"))) }
 }
 async function check() {
   checking.value = true
@@ -47,20 +48,20 @@ async function check() {
     const result = await checkAiKey(props.provider, draft.value.trim() || null)
     if (result.ok) toast.success(result.message)
     else toast.error(result.message)
-  } catch (cause) { toast.error(messageOf(cause, "The key could not be checked")) }
+  } catch (cause) { toast.error(messageOf(cause, t("ai.key.check_failed"))) }
   finally { checking.value = false }
 }
 async function clear() {
-  try { await removeKey.mutateAsync(props.provider); draft.value = ""; toast.info(`${props.providerLabel} key removed`) }
-  catch (cause) { toast.error(messageOf(cause, "The key could not be removed")) }
+  try { await removeKey.mutateAsync(props.provider); draft.value = ""; toast.info(t("ai.key.removed", { provider: props.providerLabel })) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.key.remove_failed"))) }
 }
 </script>
 
 <template>
   <WindowDialog
     :model-value="modelValue"
-    :title="`${providerLabel} API key`"
-    :subtitle="provider === JEV_PROVIDER ? 'Required for the Jev change mode. The key is verified before it is saved.' : `This key is shared by every ${providerLabel} model. Check works before saving.`"
+    :title="t('ai.key.title', { provider: providerLabel })"
+    :subtitle="provider === JEV_PROVIDER ? t('ai.key.jev_subtitle') : t('ai.key.subtitle', { provider: providerLabel })"
     size="md"
     sizing="content"
     data-testid="ai-key-dialog"
@@ -70,8 +71,8 @@ async function clear() {
       <AppInput
         v-model="draft"
         :type="revealed ? 'text' : 'password'"
-        label="API key"
-        :placeholder="keySet ? 'A key is already set' : undefined"
+        :label="t('ai.key.label')"
+        :placeholder="keySet ? t('ai.key.already_set') : undefined"
         autocomplete="new-password"
         data-testid="ai-provider-key"
         @keyup.enter="save"
@@ -79,7 +80,7 @@ async function clear() {
         <template #after>
           <AppIconButton
             :icon="revealed ? appIcons.visibilityOff : appIcons.visibility"
-            :tooltip="revealed ? 'Hide key' : 'Show key'"
+            :tooltip="revealed ? t('ai.key.hide') : t('ai.key.show')"
             @click="revealed = !revealed"
           />
         </template>
@@ -88,7 +89,7 @@ async function clear() {
         v-if="keyPage"
         class="ai-key-dialog__page"
       >
-        {{ keySet ? "Keys are issued at" : "No key yet? Create one at" }}
+        {{ keySet ? t('ai.key.issued_at') : t('ai.key.create_at') }}
         <a
           :href="keyPage"
           target="_blank"
@@ -106,14 +107,14 @@ async function clear() {
       <AppButton
         v-if="keySet"
         variant="danger-quiet"
-        label="Clear"
+        :label="t('ai.key.clear')"
         :loading="removeKey.isPending.value"
         data-testid="ai-key-clear"
         @click="clear"
       />
       <AppButton
         variant="quiet"
-        label="Check"
+        :label="t('ai.key.check')"
         :disable="!keySet && !draft.trim()"
         :loading="checking"
         data-testid="ai-key-check"
@@ -121,11 +122,11 @@ async function clear() {
       />
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('catalog.common.close')"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Save"
+        :label="t('catalog.common.save')"
         :disable="!draft.trim()"
         :loading="writeKey.isPending.value"
         data-testid="ai-key-save"

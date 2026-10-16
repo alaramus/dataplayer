@@ -2,6 +2,7 @@ import { computed } from "vue"
 import type { ComputedRef } from "vue"
 
 import type { HostRestarts } from "@/client"
+import { t } from "@/shared/i18n"
 import type { AttentionItem } from "@/shared/notifications"
 import { useSpaceStore } from "@/stores/space"
 
@@ -20,17 +21,17 @@ export function restartItem(
   openDashboards: () => void
 ): AttentionItem {
   const minutes = Math.round(windowSeconds / 60)
-  const times = `${String(restarts.count)} times in the last ${String(minutes)} minutes`
+  const times = t("dashboards.restarts.times", { n: restarts.count, minutes }, restarts.count)
   const detail = restarts.cause === "host"
-    ? `The host booted ${times}, by what ${restarts.agent_name} reports.`
-    : `The agent ${restarts.agent_name} started again ${times}; its log says why.`
+    ? t("dashboards.restarts.host", { times, agent: restarts.agent_name })
+    : t("dashboards.restarts.agent", { agent: restarts.agent_name, times })
   return {
     id: `restarts:${restarts.agent_id}:${restarts.host}`,
     tone: "warning",
-    title: `${restarts.host} keeps restarting`,
+    title: t("dashboards.restarts.title", { host: restarts.host }),
     detail,
     at: Date.parse(restarts.last_at) || Date.now(),
-    action: { label: "Open Dashboards", run: openDashboards },
+    action: { label: t("dashboards.restarts.open"), run: openDashboards },
     dismiss: null,
   }
 }

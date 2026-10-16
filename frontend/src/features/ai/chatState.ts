@@ -1,4 +1,5 @@
 import type { ConversationSummary, QuickChatSummary } from "@/client"
+import { t } from "@/shared/i18n"
 
 /** What the dot beside a chat in the history says. */
 export type ChatState = "idle" | "working" | "waiting" | "failed"
@@ -17,9 +18,6 @@ export function chatStateOf(chat: ConversationSummary | QuickChatSummary): ChatS
 }
 
 /** The words for a state, shown with the chat's name on hover. */
-export const CHAT_STATE_WORDS: Record<ChatState, string | null> = {
-  idle: null,
-  working: "The agent is working",
-  waiting: "The agent waits for your answer",
-  failed: "The last answer failed",
+export function chatStateWords(state: ChatState): string | null {
+  return state === "idle" ? null : t(`ai.state.${state}`)
 }

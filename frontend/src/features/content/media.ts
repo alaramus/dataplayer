@@ -1,5 +1,6 @@
 import type { AudioContent, VideoContent } from "@/client"
 import { formatSize } from "@/features/catalog/nodes"
+import { t } from "@/shared/i18n"
 
 /**
  * What a player's head says about a file before it plays.
@@ -16,7 +17,7 @@ export function mediaDetails(media: AudioContent | VideoContent): string {
   }
   if (media.kind === "audio") {
     if (media.channels) parts.push(channels(media.channels))
-    if (media.sample_rate) parts.push(`${String(media.sample_rate / 1000)} kHz`)
+    if (media.sample_rate) parts.push(t("content.media.kilohertz", { n: String(media.sample_rate / 1000) }))
   }
   if (media.duration_seconds !== null && media.duration_seconds !== undefined) {
     parts.push(formatDuration(media.duration_seconds))
@@ -36,11 +37,11 @@ export function mediaTypeName(mediaType: string): string {
     "audio/mpeg": "MP3",
     "audio/wav": "WAV",
     "audio/ogg": "Ogg",
-    "audio/mp4": "MP4 audio",
+    "audio/mp4": t("content.media.mp4_audio"),
     "audio/flac": "FLAC",
     "video/mp4": "MP4",
     "video/webm": "WebM",
-    "video/ogg": "Ogg video",
+    "video/ogg": t("content.media.ogg_video"),
     "video/quicktime": "QuickTime",
     "image/png": "PNG",
     "image/jpeg": "JPEG",
@@ -49,9 +50,9 @@ export function mediaTypeName(mediaType: string): string {
 }
 
 function channels(count: number): string {
-  if (count === 1) return "mono"
-  if (count === 2) return "stereo"
-  return `${String(count)} channels`
+  if (count === 1) return t("content.media.mono")
+  if (count === 2) return t("content.media.stereo")
+  return t("content.media.channels", { n: count }, count)
 }
 
 /** Hours only when there are any, and always two digits for what follows. */

@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { Sort } from "@/client"
+import { t } from "@/shared/i18n"
 import { AppButton, AppIconButton, AppSelect } from "@/shared/ui"
 
 import { moveSort } from "./sortModel"
@@ -61,7 +62,7 @@ function remove(index: number) {
       <span class="sort-editor__priority">{{ index + 1 }}</span>
       <span>{{ columns.find((column) => column.id === item.column)?.label ?? item.column }}</span>
       <AppButton
-        :label="item.descending === true ? 'Descending' : 'Ascending'"
+        :label="item.descending === true ? t('grid.sort.descending') : t('grid.sort.ascending')"
         variant="quiet"
         size="sm"
         :data-testid="`grid-sort-direction-${index}`"
@@ -69,21 +70,21 @@ function remove(index: number) {
       />
       <AppIconButton
         :icon="appIcons.arrowUpward"
-        :tooltip="`Move ${item.column} up`"
+        :tooltip="t('grid.columns.move_up', { column: item.column })"
         :disable="index === 0"
         :data-testid="`grid-sort-up-${index}`"
         @click="emit('apply', moveSort(sort, index, -1))"
       />
       <AppIconButton
         :icon="appIcons.arrowDownward"
-        :tooltip="`Move ${item.column} down`"
+        :tooltip="t('grid.columns.move_down', { column: item.column })"
         :disable="index === sort.length - 1"
         :data-testid="`grid-sort-down-${index}`"
         @click="emit('apply', moveSort(sort, index, 1))"
       />
       <AppIconButton
         :icon="appIcons.close"
-        :tooltip="`Remove ${item.column}`"
+        :tooltip="t('grid.sort.remove', { column: item.column })"
         :data-testid="`grid-sort-delete-${index}`"
         @click="remove(index)"
       />
@@ -92,18 +93,18 @@ function remove(index: number) {
     <span
       v-if="sort.length === 0"
       class="sort-editor__empty"
-    >No sort: rows come in the source's order</span>
+    >{{ t('grid.sort.none') }}</span>
     <div class="sort-editor__add">
       <AppSelect
         v-model="selectedColumn"
         class="sort-editor__field"
         :options="addOptions"
-        label="Column"
+        :label="t('grid.column')"
         compact
         :disable="availableColumns.length === 0"
       />
       <AppButton
-        label="Add"
+        :label="t('grid.add')"
         variant="quiet"
         size="sm"
         :disable="availableColumns.length === 0"
@@ -111,7 +112,7 @@ function remove(index: number) {
         @click="addColumn"
       />
       <AppButton
-        label="Clear all"
+        :label="t('grid.clear_all')"
         variant="quiet"
         size="sm"
         :disable="sort.length === 0"

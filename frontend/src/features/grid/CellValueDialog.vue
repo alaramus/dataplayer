@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import { AppButton, AppCopyButton, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -17,7 +18,7 @@ async function copyValue() {
   try {
     await copyText(props.value)
   } catch {
-    toast.error("Could not copy the value")
+    toast.error(t("grid.cell_viewer.copy_failed"))
   }
 }
 </script>
@@ -36,12 +37,12 @@ async function copyValue() {
     </div>
     <template #actions>
       <AppCopyButton
-        tooltip="Copy the full value"
+        :tooltip="t('grid.cell_viewer.copy')"
         data-testid="grid-viewer-copy"
         @click="copyValue"
       />
       <AppButton
-        label="Close"
+        :label="t('catalog.common.close')"
         @click="emit('update:modelValue', false)"
       />
     </template>

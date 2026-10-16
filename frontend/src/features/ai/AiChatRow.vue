@@ -3,10 +3,11 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { ChatProjectPublic, ConversationSummary, QuickChatSummary } from "@/client"
+import { t } from "@/shared/i18n"
 import { AppButton, AppIconButton, AppMenu, AppTooltip, toneFill } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
-import { CHAT_STATE_WORDS, chatStateOf } from "./chatState"
+import { chatStateOf, chatStateWords } from "./chatState"
 import type { ChatState } from "./chatState"
 
 const props = defineProps<{
@@ -34,14 +35,14 @@ const moves = computed<MenuItem[]>(() => [
     .filter((project) => project.id !== props.chat.project_id)
     .map((project) => ({ name: project.id, label: project.name, icon: appIcons.folder })),
   ...(props.chat.project_id
-    ? [{ name: NO_PROJECT, label: "No project", icon: appIcons.folderOff }]
+    ? [{ name: NO_PROJECT, label: t("ai.row.no_project"), icon: appIcons.folderOff }]
     : []),
-  { name: NEW_PROJECT, label: "New project…", icon: appIcons.createNewFolder },
+  { name: NEW_PROJECT, label: t("ai.row.new_project"), icon: appIcons.createNewFolder },
 ])
 
 const state = computed(() => chatStateOf(props.chat))
 // The name in full, as a cut one needs, and what the dot says under it.
-const stateWords = computed(() => CHAT_STATE_WORDS[state.value])
+const stateWords = computed(() => chatStateWords(state.value))
 const LOOK: Record<ChatState, string> = {
   idle: "ai-chat-row__state--idle",
   working: "ai-chat-row__state--working",
@@ -92,7 +93,7 @@ function pick(name: string) {
       <AppIconButton
         v-if="!chat.project_id"
         :icon="appIcons.pushPin"
-        :tooltip="chat.pinned ? 'Unpin chat' : 'Pin chat'"
+        :tooltip="chat.pinned ? t('ai.row.unpin') : t('ai.row.pin')"
         :active="chat.pinned"
         compact
         :data-testid="`ai-pin-${chat.id}`"
@@ -101,7 +102,7 @@ function pick(name: string) {
       <span>
         <AppIconButton
           :icon="appIcons.folder"
-          tooltip="Move to project"
+          :tooltip="t('ai.row.move')"
           compact
           :data-testid="`ai-move-${chat.id}`"
         />
@@ -113,7 +114,7 @@ function pick(name: string) {
       </span>
       <AppIconButton
         :icon="appIcons.archive"
-        tooltip="Archive chat"
+        :tooltip="t('ai.row.archive')"
         compact
         :data-testid="`ai-archive-${chat.id}`"
         @click="emit('archive')"

@@ -1,5 +1,6 @@
 import type { PreparedScript, QueryRehearsal, SchemaEffect } from "@/client"
 import { sourceFeaturesKey } from "@/features/connectors/features"
+import { t } from "@/shared/i18n"
 
 /**
  * Structure changes in the console: what to rehearse, what to say, what to
@@ -26,22 +27,23 @@ export function needsRehearsal(script: PreparedScript | null): boolean {
 export function rehearsalReport(rehearsal: QueryRehearsal): string {
   const lines: string[] = []
   for (const statement of rehearsal.statements ?? []) {
-    const place = `Statement ${statement.ordinal + 1}`
+    const place = t("queries.rehearsal.statement", { n: statement.ordinal + 1 })
     if (statement.outcome === "blocked") {
-      lines.push(`${place}: could not be tried — something else is holding it open.`)
+      lines.push(t("queries.rehearsal.blocked", { place }))
       continue
     }
     if (statement.outcome === "failed") {
       lines.push(
-        `${place}: the source refused it — ${
-          statement.diagnostic?.message ?? "it could not be carried out"
-        }.`
+        t("queries.rehearsal.refused", {
+          place,
+          reason: statement.diagnostic?.message ?? t("queries.rehearsal.refused_reason"),
+        })
       )
       continue
     }
     if (statement.outcome === "not_run") continue
-    const tag = statement.command_tag ?? "it would be carried out"
-    lines.push(`${place}: ${tag}.`)
+    const tag = statement.command_tag ?? t("queries.rehearsal.would_be_carried_out")
+    lines.push(t("queries.rehearsal.outcome", { place, tag }))
     for (const notice of statement.notices ?? []) lines.push(`  ${notice.message}`)
   }
   return lines.join("\n")
@@ -55,10 +57,7 @@ export function rehearsalReport(rehearsal: QueryRehearsal): string {
  */
 export function blockedReason(rehearsal: QueryRehearsal): string | null {
   if (rehearsal.blocked === true) {
-    return (
-      "Something else is holding a lock on this. Nothing could be tried out, " +
-      "so nothing is run — try again when it lets go."
-    )
+    return t("queries.rehearsal.locked")
   }
   return null
 }

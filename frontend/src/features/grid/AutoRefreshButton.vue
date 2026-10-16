@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppMenu, AppTooltip } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
@@ -37,7 +38,7 @@ const emit = defineEmits<{ "update:seconds": [value: RefreshSeconds | null] }>()
 const items = computed<MenuItem[]>(() => [
   {
     name: refreshItemName(null),
-    label: "Off",
+    label: t("grid.refresh.off_item"),
     // A tick rather than a highlight: the kit's menu has one way to say
     // "this is the one", and it is the icon slot.
     ...(props.seconds === null ? { icon: appIcons.check } : {}),

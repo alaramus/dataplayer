@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ParameterEntry } from "@/features/queries/console"
+import { t } from "@/shared/i18n"
 import { AppCheckbox, AppInput } from "@/shared/ui"
 
 /**
@@ -39,7 +40,7 @@ function change(name: string, patch: Partial<ParameterEntry>) {
         :model-value="entry.value"
         :type="entry.secret ? 'password' : 'text'"
         :disable="entry.isNull"
-        :placeholder="entry.isNull ? 'SQL null' : 'value'"
+        :placeholder="entry.isNull ? t('queries.parameters.sql_null') : t('queries.parameters.value')"
         compact
         class="parameters__value"
         :data-testid="`parameter-value-${entry.name}`"
@@ -47,14 +48,14 @@ function change(name: string, patch: Partial<ParameterEntry>) {
       />
       <AppCheckbox
         :model-value="entry.isNull"
-        label="null"
+        :label="t('queries.parameters.null')"
         dense
         :data-testid="`parameter-null-${entry.name}`"
         @update:model-value="change(entry.name, { isNull: $event === true })"
       />
       <AppCheckbox
         :model-value="entry.secret"
-        label="secret"
+        :label="t('queries.parameters.secret')"
         dense
         :data-testid="`parameter-secret-${entry.name}`"
         @update:model-value="
@@ -67,7 +68,7 @@ function change(name: string, patch: Partial<ParameterEntry>) {
       />
       <AppCheckbox
         :model-value="entry.remember"
-        label="remember"
+        :label="t('queries.parameters.remember')"
         dense
         :disable="entry.secret"
         :data-testid="`parameter-remember-${entry.name}`"

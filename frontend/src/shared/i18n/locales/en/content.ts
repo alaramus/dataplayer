@@ -19,6 +19,8 @@ export const content = {
     save: "Save",
     reload_file: "Reload file",
     invalid_json: "Invalid JSON value",
+    keyword: "keyword",
+    source_aria: "{name} source",
   },
   image: {
     could_not_open: "Could not open this image",

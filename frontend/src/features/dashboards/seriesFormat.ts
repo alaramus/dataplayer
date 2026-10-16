@@ -6,8 +6,25 @@
  * seconds become a duration, a percentage keeps one decimal.
  */
 
-const BYTE_STEPS = ["B", "KB", "MB", "GB", "TB", "PB"]
-const BIT_STEPS = ["b/s", "Kb/s", "Mb/s", "Gb/s", "Tb/s"]
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
+
+/** The words of each step, worded when a value is; the units a series is stored with stay data. */
+const BYTE_STEPS: MessageKey[] = [
+  "dashboards.units.b",
+  "dashboards.units.kb",
+  "dashboards.units.mb",
+  "dashboards.units.gb",
+  "dashboards.units.tb",
+  "dashboards.units.pb",
+]
+const BIT_STEPS: MessageKey[] = [
+  "dashboards.units.bps",
+  "dashboards.units.kbps",
+  "dashboards.units.mbps",
+  "dashboards.units.gbps",
+  "dashboards.units.tbps",
+]
 const BYTES_PER: Record<string, number> = { B: 1, kB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 }
 
 function short(value: number): string {
@@ -17,14 +34,15 @@ function short(value: number): string {
   return value.toFixed(2)
 }
 
-function stepped(value: number, steps: string[]): string {
+function stepped(value: number, steps: readonly MessageKey[]): string {
   let scaled = value
   let index = 0
   while (Math.abs(scaled) >= 1024 && index < steps.length - 1) {
     scaled /= 1024
     index += 1
   }
-  return `${short(scaled)} ${steps[index] ?? ""}`
+  const step = steps[index]
+  return `${short(scaled)} ${step === undefined ? "" : t(step)}`
 }
 
 export function duration(seconds: number): string {
@@ -32,10 +50,16 @@ export function duration(seconds: number): string {
   const days = Math.floor(total / 86400)
   const hours = Math.floor((total % 86400) / 3600)
   const minutes = Math.floor((total % 3600) / 60)
-  if (days > 0) return hours > 0 ? `${String(days)} d ${String(hours)} h` : `${String(days)} d`
-  if (hours > 0) return minutes > 0 ? `${String(hours)} h ${String(minutes)} min` : `${String(hours)} h`
-  if (minutes > 0) return `${String(minutes)} min`
-  return `${String(total)} s`
+  if (days > 0) {
+    return hours > 0 ? t("dashboards.duration.days_hours", { d: days, h: hours }) : t("dashboards.duration.days", { d: days })
+  }
+  if (hours > 0) {
+    return minutes > 0
+      ? t("dashboards.duration.hours_minutes", { h: hours, m: minutes })
+      : t("dashboards.duration.hours", { h: hours })
+  }
+  if (minutes > 0) return t("dashboards.duration.minutes", { m: minutes })
+  return t("dashboards.duration.seconds", { s: total })
 }
 
 export function formatValue(value: number, unit: string): string {
@@ -43,7 +67,9 @@ export function formatValue(value: number, unit: string): string {
     // A connection's counter, read as a rate: bytes step like bytes, a count
     // keeps a short number.
     const base = unit.slice(0, -2)
-    return base === "" ? `${short(value)} /s` : `${formatValue(value, base)}/s`
+    return base === ""
+      ? t("dashboards.units.count_per_second", { value: short(value) })
+      : t("dashboards.units.per_second", { value: formatValue(value, base) })
   }
   const bytes = BYTES_PER[unit]
   if (bytes !== undefined) return stepped(value * bytes, BYTE_STEPS)

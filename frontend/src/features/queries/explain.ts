@@ -1,4 +1,5 @@
 import type { ExplainNode } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * A plan read as a list.
@@ -39,13 +40,13 @@ export function nodeById(node: ExplainNode, id: string): ExplainNode | null {
 export function estimate(node: ExplainNode): string {
   const parts: string[] = []
   if (node.total_cost !== null && node.total_cost !== undefined) {
-    parts.push(`cost ${node.total_cost.toFixed(2)}`)
+    parts.push(t("queries.explain.cost", { n: node.total_cost.toFixed(2) }))
   }
   if (node.rows !== null && node.rows !== undefined) {
-    parts.push(`${node.rows} rows`)
+    parts.push(t("queries.explain.rows", { n: node.rows }, node.rows))
   }
   if (node.width !== null && node.width !== undefined) {
-    parts.push(`${node.width} bytes wide`)
+    parts.push(t("queries.explain.width", { n: node.width }, node.width))
   }
   return parts.join(" · ")
 }

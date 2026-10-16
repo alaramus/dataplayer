@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
 import type { Sort } from "@/client"
+import { t } from "@/shared/i18n"
 import { AppBadge, AppCopyButton, AppIconButton, AppToolbarRule } from "@/shared/ui"
 
 import FilterEditor from "./FilterEditor.vue"
@@ -73,8 +74,8 @@ const groups = TOOLBAR_GROUPS
               <AppIconButton
                 :icon="appIcons.filterAlt"
                 :tooltip="canFilter
-                  ? (filters.length > 0 ? `Filters (${filters.length})` : 'Filters')
-                  : tipOf('Filters', NOT_OFFERED.filter)"
+                  ? (filters.length > 0 ? t('grid.header.filters_count', { n: filters.length }) : t('grid.header.filters'))
+                  : tipOf(t('grid.header.filters'), NOT_OFFERED.filter)"
                 :disable="!canFilter"
                 data-testid="grid-filter"
                 @click="filtersOpen = !filtersOpen"
@@ -89,8 +90,8 @@ const groups = TOOLBAR_GROUPS
               <AppIconButton
                 :icon="appIcons.sort"
                 :tooltip="canSort
-                  ? (sort.length > 0 ? `Sort (${sort.length})` : 'Sort')
-                  : tipOf('Sort', NOT_OFFERED.sort)"
+                  ? (sort.length > 0 ? t('grid.header.sort_count', { n: sort.length }) : t('grid.header.sort'))
+                  : tipOf(t('grid.header.sort'), NOT_OFFERED.sort)"
                 :disable="!canSort"
                 data-testid="grid-sort"
                 @click="sortOpen = !sortOpen"
@@ -104,7 +105,7 @@ const groups = TOOLBAR_GROUPS
               </AppIconButton>
               <AppIconButton
                 :icon="appIcons.viewColumn"
-                :tooltip="hiddenColumns > 0 ? `Columns (${hiddenColumns} hidden)` : 'Columns'"
+                :tooltip="hiddenColumns > 0 ? t('grid.header.columns_hidden', { n: hiddenColumns }) : t('grid.header.columns')"
                 :disable="columns.length === 0"
                 data-testid="grid-columns"
                 @click="columnsOpen = !columnsOpen"
@@ -123,7 +124,7 @@ const groups = TOOLBAR_GROUPS
             </template>
             <template v-else-if="group.name === 'out'">
               <AppCopyButton
-                tooltip="Copy the selection"
+                :tooltip="t('grid.header.copy')"
                 :disable="!canCopy"
                 data-testid="grid-copy"
                 @click="emit('copy')"

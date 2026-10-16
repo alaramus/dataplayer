@@ -96,15 +96,22 @@ parameter would arrive in English inside a translated sentence.
 
 `messageOf` words a coded refusal before any other shape of `detail`.
 
+A refusal about a source carries `error_kind` beside its code — `config` for a
+capability the source lacks, a result that could not be stored — and
+`errorKindOf` reads it there as from an adapter failure, so `retry.ts` does
+not ask again. A capability is its own code (`connectors.no_search`), not a
+word passed to one.
+
 ### Known deviations
 
 - Coded so far: the account, sign-in, connector, access, action, declared
-  reference, SSH key and paste routes. Every other route still refuses with an
-  English sentence, shown as English in every language until it is coded.
-- A refusal shaped `{"message", "error_kind"}` — a source lacking a capability
-  (501), a result that could not be stored (507) — stays in that shape:
-  `retry.ts` reads the kind to decide not to retry, and `ProblemDetail` has no
-  kind yet.
+  reference, SSH key, paste, query, agent and metrics routes. Every other
+  route still refuses with an English sentence, shown as English in every
+  language until it is coded.
+- A refusal that passes on another module's sentence stays English: a write
+  the connection's policy refuses (D66), a statement refused by its source, the
+  dashboards' setup, an agent's refusal to run, and the text of a `ValueError`
+  or `NodeNotFound` an adapter raised.
 - An action's title is passed as `{action}` in several codes, so it reaches a
   translated sentence in English until actions are translated.
 - A validation failure (422) is FastAPI's list with Pydantic's English `msg`;

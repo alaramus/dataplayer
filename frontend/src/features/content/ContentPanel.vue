@@ -12,6 +12,7 @@ import { useReloadable } from "@/features/workspace/reloadable"
 import { useClosable } from "@/features/workspace/closable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { errorKindOf, messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppSpinner, useConfirm, useToast } from "@/shared/ui"
 
 const props = defineProps<{
@@ -43,27 +44,27 @@ const saveConflict = ref(false)
 const dirty = computed(() => draft.value !== baseline.value)
 useClosable(props.panelId, async () => {
   if (updateContent.isPending.value) {
-    toast.info("Wait for the file to finish saving before leaving")
+    toast.info(t("content.editor.wait_for_save"))
     return false
   }
   return !dirty.value || await confirm({
-    title: "Discard file changes?",
-    message: `The changes to ${props.title} have not been saved.`,
-    confirmLabel: "Discard changes",
+    title: t("content.editor.discard_title"),
+    message: t("content.editor.discard_message", { name: props.title }),
+    confirmLabel: t("content.editor.discard_confirm"),
     danger: true,
   })
 })
 const writable = computed(() => editor.data.value?.writable === true)
 const canSave = computed(() => writable.value && loadedVersion.value !== null && dirty.value)
 const error = computed(() =>
-  editor.isError.value ? messageOf(editor.error.value, "Could not open this file") : ""
+  editor.isError.value ? messageOf(editor.error.value, t("content.common.could_not_open_file")) : ""
 )
 /* Said the way a media panel says "PNG · 68 B": a format's name, in capitals
    only where it is an acronym. "TEXT" above an editor read as the one
    overline among the panels' meta lines. */
 const kindLabel = computed(() => {
-  if (props.representation === "jsonl") return "JSON lines"
-  if (props.representation === "text") return "Plain text"
+  if (props.representation === "jsonl") return t("content.editor.json_lines")
+  if (props.representation === "text") return t("content.editor.plain_text")
   return props.representation.toUpperCase()
 })
 
@@ -84,7 +85,7 @@ async function reload() {
 // document is left alone and the reason is said rather than guessed at.
 useReloadable(() => props.panelId, async () => {
   if (dirty.value) {
-    toast.info("This file has unsaved changes; save or undo them before reloading")
+    toast.info(t("content.editor.unsaved_before_reload"))
     return
   }
   await reload()
@@ -104,9 +105,9 @@ async function save() {
     })
     baseline.value = saved
     loadedVersion.value = result.version
-    toast.success(`${props.title} saved`)
+    toast.success(t("content.editor.saved", { name: props.title }))
   } catch (cause) {
-    saveError.value = messageOf(cause, "Could not save this file")
+    saveError.value = messageOf(cause, t("content.editor.could_not_save"))
     saveConflict.value = statusOf(cause) === 409
   }
 }
@@ -149,7 +150,7 @@ watch(
         <ReadAloudButton
           v-if="editor.data.value"
           :text="draft"
-          listen-label="Listen to file"
+          :listen-label="t('content.editor.listen')"
           testid="content-listen"
         />
         <span
@@ -157,14 +158,14 @@ watch(
           class="content-panel__dirty"
           data-testid="content-dirty"
         >
-          Unsaved changes
+          {{ t("content.editor.unsaved") }}
         </span>
         <AppButton
           v-if="writable"
           variant="primary"
           size="sm"
           :icon="appIcons.save"
-          label="Save"
+          :label="t('content.editor.save')"
           :loading="updateContent.isPending.value"
           :disable="!canSave"
           data-testid="content-save"
@@ -220,7 +221,7 @@ watch(
           v-if="saveConflict"
           variant="quiet"
           size="sm"
-          label="Reload file"
+          :label="t('content.editor.reload_file')"
           data-testid="content-reload"
           @click="reload"
         />

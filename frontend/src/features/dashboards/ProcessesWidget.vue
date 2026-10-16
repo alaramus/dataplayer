@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppSelect, AppSpinner, AppTable, AppTooltip } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui"
 
@@ -34,26 +35,38 @@ const table = useProcesses(
   () => props.dashboardId
 )
 
-const columns: TableColumns = [
-  { name: "pid", label: "PID", field: "pid", align: "right" },
-  { name: "user", label: "User", field: "user", align: "left" },
-  { name: "state", label: "S", field: "state", align: "left" },
-  { name: "pcpu", label: "%CPU", field: "pcpu", align: "right" },
-  { name: "pmem", label: "%MEM", field: "pmem", align: "right" },
-  { name: "rss", label: "Resident", field: (row: ProcessInfo) => formatValue(row.rss_bytes, "B"), align: "right" },
-  { name: "running", label: "Running for", field: (row: ProcessInfo) => runningForWording(row, table.dataUpdatedAt.value), align: "left" },
-  { name: "command", label: "Command", field: (row: ProcessInfo) => commandWording(row), align: "left" },
-]
+const columns = computed<TableColumns>(() => [
+  { name: "pid", label: t("dashboards.processes.pid"), field: "pid", align: "right" },
+  { name: "user", label: t("dashboards.processes.user"), field: "user", align: "left" },
+  { name: "state", label: t("dashboards.processes.state"), field: "state", align: "left" },
+  { name: "pcpu", label: t("dashboards.processes.cpu"), field: "pcpu", align: "right" },
+  { name: "pmem", label: t("dashboards.processes.mem"), field: "pmem", align: "right" },
+  {
+    name: "rss",
+    label: t("dashboards.processes.resident"),
+    field: (row: ProcessInfo) => formatValue(row.rss_bytes, "B"),
+    align: "right",
+  },
+  {
+    name: "running",
+    label: t("dashboards.processes.running_for"),
+    field: (row: ProcessInfo) => runningForWording(row, table.dataUpdatedAt.value),
+    align: "left",
+  },
+  { name: "command", label: t("dashboards.processes.command"), field: (row: ProcessInfo) => commandWording(row), align: "left" },
+])
 
 const rows = computed(() => table.data.value?.rows ?? [])
 const taken = computed(() => {
   const answer = table.data.value
   if (answer?.ts === null || answer?.ts === undefined) return null
-  const at = `As of ${new Date(answer.ts * 1000).toLocaleTimeString()}`
-  return answer.total === null || answer.total === undefined ? at : `${at} · ${String(answer.total)} processes on the host`
+  const at = t("dashboards.processes.as_of", { time: new Date(answer.ts * 1000).toLocaleTimeString() })
+  return answer.total === null || answer.total === undefined
+    ? at
+    : t("dashboards.processes.on_host", { at, n: answer.total }, answer.total)
 })
 const failure = computed(() =>
-  table.isError.value ? messageOf(table.error.value, "The process table could not be read") : null
+  table.isError.value ? messageOf(table.error.value, t("dashboards.processes.read_failed")) : null
 )
 </script>
 
@@ -68,14 +81,14 @@ const failure = computed(() =>
         :model-value="sort"
         :options="PROCESS_SORTS"
         compact
-        aria-label="Sort processes"
+        :aria-label="t('dashboards.processes.sort')"
         @update:model-value="(value) => emit('options', { sort: value as ProcessSort })"
       />
       <AppSelect
         :model-value="limit"
         :options="PROCESS_LIMITS"
         compact
-        aria-label="Rows"
+        :aria-label="t('dashboards.processes.rows')"
         @update:model-value="(value) => emit('options', { limit: value as ProcessLimit })"
       />
     </div>
@@ -95,7 +108,7 @@ const failure = computed(() =>
       v-else-if="table.data.value?.ts === null"
       class="processes-widget__center"
     >
-      No process table in the last hour
+      {{ t('dashboards.processes.none') }}
     </div>
     <div
       v-else

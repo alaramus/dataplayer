@@ -1,6 +1,7 @@
 import type { AgentModelPublic, ProviderKeyState } from "@/client"
 import type { SelectOption } from "@/shared/ui"
 import { appIcons } from "@/shared/ui/icons"
+import { t } from "@/shared/i18n"
 
 export type Provider = ProviderKeyState["provider"]
 type KeyState = Pick<ProviderKeyState, "provider" | "set">
@@ -81,18 +82,18 @@ export function groupedModelOptions(
     !jevKeySet || keyedCount > 0
       ? {
           actionIcon: jevKeySet ? appIcons.key : appIcons.keyOff,
-          actionLabel: `Manage ${jevProviderLabel} API key`,
+          actionLabel: t("ai.model.manage_key", { provider: jevProviderLabel }),
           actionActive: jevKeySet,
           keyProvider: JEV_PROVIDER,
         }
       : {}
   const all: ModelOption = {
-    label: "Choose with Jev (all)",
+    label: t("ai.model.jev_all"),
     value: AUTO_ALL_VALUE,
     auto: true,
     // The row stands on its label alone, as the models do; only a row with
     // no button to press keeps an explaining line.
-    description: !jevKeySet || keyedCount > 0 ? undefined : "Set a chat provider API key first",
+    description: !jevKeySet || keyedCount > 0 ? undefined : t("ai.model.set_provider_key"),
     disable: !jevKeySet || keyedCount === 0,
     ...allKey,
   }
@@ -100,13 +101,13 @@ export function groupedModelOptions(
     const keyIsSet = set.has(provider)
     const label = providerLabel(models, provider)
     const auto: ModelOption = {
-      label: `Choose with Jev (${label})`,
+      label: t("ai.model.jev_provider", { provider: label }),
       value: autoModelValue(provider),
       provider,
       auto: true,
       disable: !jevKeySet || !keyIsSet,
       actionIcon: jevKeySet ? appIcons.key : appIcons.keyOff,
-      actionLabel: `Manage ${jevProviderLabel} API key`,
+      actionLabel: t("ai.model.manage_key", { provider: jevProviderLabel }),
       actionActive: jevKeySet,
       keyProvider: JEV_PROVIDER,
     }
@@ -127,7 +128,7 @@ export function groupedModelOptions(
       provider,
       separator: true,
       actionIcon: keyIsSet ? appIcons.key : appIcons.keyOff,
-      actionLabel: `Manage ${label} API key`,
+      actionLabel: t("ai.model.manage_key", { provider: label }),
       actionActive: keyIsSet,
       keyProvider: provider,
     }

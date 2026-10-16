@@ -7,7 +7,7 @@ import type { Locator, Page } from "@playwright/test"
  * application's and not of sixteen tests: it used to be Quasar's notification
  * at the bottom centre and is now a card of ours at the bottom right (D114).
  */
-export function toast(page: Page, text: string): Locator {
+export function toast(page: Page, text: string | RegExp): Locator {
   return page.getByTestId("toast").filter({ hasText: text })
 }
 

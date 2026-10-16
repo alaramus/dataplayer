@@ -50,13 +50,7 @@ REFUSAL_STATUS: dict[RefusalReason, int] = {
 
 def acting_or_501(adapter: DataAdapter) -> SupportsActions:
     if not isinstance(adapter, SupportsActions):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support actions",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "actions.not_supported", error_kind="config")
     return adapter
 
 

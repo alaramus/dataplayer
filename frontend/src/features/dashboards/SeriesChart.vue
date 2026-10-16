@@ -6,6 +6,7 @@ import type { EChartsType } from "echarts/core"
 import { SVGRenderer } from "echarts/renderers"
 import { onBeforeUnmount, onMounted, ref, watch } from "vue"
 
+import { currentLanguage } from "@/shared/i18n"
 import { useThemeStore } from "@/stores/theme"
 
 import { timeseriesOption } from "./chartOption"
@@ -56,6 +57,8 @@ onBeforeUnmount(() => {
 watch(() => props.series, draw, { deep: true })
 // The palette is read off the theme, so a switch of theme is a redraw.
 watch(() => theme.dark, () => requestAnimationFrame(draw))
+// So are the unit words on the scale, which are the language's.
+watch(currentLanguage, draw)
 </script>
 
 <template>

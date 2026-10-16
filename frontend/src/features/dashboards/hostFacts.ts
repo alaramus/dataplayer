@@ -1,4 +1,6 @@
 import type { AgentHost, ProcessInfo } from "@/client"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 
 import { duration, formatValue } from "./seriesFormat"
 
@@ -8,21 +10,26 @@ import { duration, formatValue } from "./seriesFormat"
 
 export function systemWording(host: AgentHost): string {
   const known = [host.os, host.arch].filter((part): part is string => typeof part === "string" && part !== "")
-  return known.length === 0 ? "Not described yet" : known.join(" · ")
+  return known.length === 0 ? t("dashboards.host.not_described") : known.join(" · ")
 }
 
 /** What does not fit a row: the agent's version, the kernel, the processor and what it collects. */
 export function hostDetailWording(host: AgentHost): string {
-  const agent = `Agent ${host.agent_version}`
+  const agent = t("dashboards.host.agent", { version: host.agent_version })
   if (host.kernel === null || host.kernel === undefined) return agent
-  return [agent, `kernel ${host.kernel}`, host.cpu_model ?? "", `collects ${collectorsWording(host)}`]
+  return [
+    agent,
+    t("dashboards.host.kernel", { kernel: host.kernel }),
+    host.cpu_model ?? "",
+    t("dashboards.host.collects", { collectors: collectorsWording(host) }),
+  ]
     .filter((part) => part !== "")
     .join(", ")
 }
 
 export function hardwareWording(host: AgentHost): string {
   const parts: string[] = []
-  if (typeof host.cpus === "number") parts.push(host.cpus === 1 ? "1 CPU" : `${String(host.cpus)} CPUs`)
+  if (typeof host.cpus === "number") parts.push(t("dashboards.host.cpus", { n: host.cpus }, host.cpus))
   if (typeof host.memory_bytes === "number") parts.push(formatValue(host.memory_bytes, "B"))
   return parts.length === 0 ? "—" : parts.join(" · ")
 }
@@ -37,22 +44,23 @@ export function upWording(host: AgentHost, nowMs: number): string {
 export function collectorsWording(host: AgentHost): string {
   const entries = Object.entries(host.collectors ?? {})
   if (entries.length === 0) return "—"
-  return entries.map(([name, seconds]) => `${name} ${String(seconds)} s`).join(", ")
+  return entries.map(([name, seconds]) => `${name} ${t("dashboards.duration.seconds", { s: seconds })}`).join(", ")
 }
 
-const STATES: Record<string, string> = {
-  R: "Running",
-  S: "Sleeping",
-  D: "Waiting on I/O",
-  Z: "Zombie",
-  T: "Stopped",
-  t: "Traced",
-  I: "Idle",
-  X: "Dead",
+const STATES: Record<string, MessageKey> = {
+  R: "dashboards.process_state.running",
+  S: "dashboards.process_state.sleeping",
+  D: "dashboards.process_state.waiting_io",
+  Z: "dashboards.process_state.zombie",
+  T: "dashboards.process_state.stopped",
+  t: "dashboards.process_state.traced",
+  I: "dashboards.process_state.idle",
+  X: "dashboards.process_state.dead",
 }
 
 export function stateWording(state: string): string {
-  return STATES[state] ?? state
+  const key = STATES[state]
+  return key === undefined ? state : t(key)
 }
 
 /** A kernel thread has no command line; it is shown by name, as `ps` does. */

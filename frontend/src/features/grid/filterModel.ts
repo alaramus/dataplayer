@@ -1,3 +1,5 @@
+import { t } from "@/shared/i18n"
+
 import type { TabularColumn } from "./tabular"
 import type { Filter } from "./types"
 
@@ -11,17 +13,39 @@ export interface FilterDraft {
 }
 
 export const OPERATOR_LABELS: Record<FilterOp, string> = {
-  eq: "equals",
-  ne: "does not equal",
-  gt: "greater than",
-  gte: "greater than or equal",
-  lt: "less than",
-  lte: "less than or equal",
-  contains: "contains",
-  starts_with: "starts with",
-  in: "is one of",
-  is_null: "is null",
-  is_not_null: "is not null",
+  get eq() {
+    return t("grid.filter.op.eq")
+  },
+  get ne() {
+    return t("grid.filter.op.ne")
+  },
+  get gt() {
+    return t("grid.filter.op.gt")
+  },
+  get gte() {
+    return t("grid.filter.op.gte")
+  },
+  get lt() {
+    return t("grid.filter.op.lt")
+  },
+  get lte() {
+    return t("grid.filter.op.lte")
+  },
+  get contains() {
+    return t("grid.filter.op.contains")
+  },
+  get starts_with() {
+    return t("grid.filter.op.starts_with")
+  },
+  get in() {
+    return t("grid.filter.op.in")
+  },
+  get is_null() {
+    return t("grid.filter.op.is_null")
+  },
+  get is_not_null() {
+    return t("grid.filter.op.is_not_null")
+  },
 }
 
 const NULL_OPERATORS = new Set<FilterOp>(["is_null", "is_not_null"])
@@ -54,7 +78,7 @@ export function describeFilter(filter: Filter): string {
   if ("values" in filter) {
     const shown = filter.values.slice(0, MAX_SHOWN_VALUES).map(quoted)
     const rest = filter.values.length - shown.length
-    return `${head} ${shown.join(", ")}${rest > 0 ? ` +${rest} more` : ""}`
+    return `${head} ${shown.join(", ")}${rest > 0 ? ` ${t("grid.filter.more", { n: rest })}` : ""}`
   }
   return "value" in filter ? `${head} ${quoted(filter.value)}` : head
 }
@@ -84,9 +108,9 @@ export function draftFor(column: FilterColumn, op?: FilterOp): FilterDraft {
 }
 
 export function validateDraft(draft: FilterDraft): string | null {
-  if (draft.op === "in") return draft.values.length === 0 ? "Add at least one value" : null
+  if (draft.op === "in") return draft.values.length === 0 ? t("grid.filter.add_value") : null
   if (NULL_OPERATORS.has(draft.op)) return null
-  return draft.value.length === 0 ? "Enter a value" : null
+  return draft.value.length === 0 ? t("grid.filter.enter_value") : null
 }
 
 export function toFilter(draft: FilterDraft): Filter {

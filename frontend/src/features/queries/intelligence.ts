@@ -1,4 +1,5 @@
-import type { PreparedScript, QueryMetadata, QueryProfile } from "@/client"
+import type { PreparedScript, QueryMetadata, QueryProfile, RelationSummary } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * What the editor offers, and what it dares say is wrong.
@@ -29,6 +30,11 @@ function qualified(schema: string, name: string): string {
   return schema === "" ? name : `${schema}.${name}`
 }
 
+/** What kind of relation it is, as the word beside it. */
+function relationKind(kind: RelationSummary["kind"]): string {
+  return t(`queries.relation_kind.${kind}`)
+}
+
 /** How this source spells a named parameter, taken from what it said. */
 export function parameterPrefix(
   syntax: QueryProfile["parameter_syntax"] | undefined
@@ -55,18 +61,21 @@ export function suggestions(
     seenBare.set(relation.name, (seenBare.get(relation.name) ?? 0) + 1)
   }
   for (const schema of metadata?.schemas ?? []) {
-    found.push({ label: schema, detail: "schema", kind: "schema" })
+    found.push({ label: schema, detail: t("queries.suggest.schema"), kind: "schema" })
   }
   for (const relation of metadata?.relations ?? []) {
     found.push({
       label: qualified(relation.schema_name, relation.name),
-      detail: relation.kind.replace("_", " "),
+      detail: relationKind(relation.kind),
       kind: "relation",
     })
     if (seenBare.get(relation.name) === 1 && relation.schema_name !== "") {
       found.push({
         label: relation.name,
-        detail: `${relation.kind.replace("_", " ")} in ${relation.schema_name}`,
+        detail: t("queries.suggest.relation_in", {
+          kind: relationKind(relation.kind),
+          schema: relation.schema_name,
+        }),
         kind: "relation",
       })
     }
@@ -85,7 +94,7 @@ export function suggestions(
   for (const parameter of script?.parameters ?? []) {
     found.push({
       label: `${prefix}${parameter}`,
-      detail: "parameter",
+      detail: t("queries.suggest.parameter"),
       kind: "parameter",
     })
   }
@@ -147,7 +156,7 @@ export function marks(
         from: statement.start,
         to: statement.end,
         severity: "warning",
-        message: "This statement could not be read, and will not be run",
+        message: t("queries.marks.unreadable"),
       })
       continue
     }
@@ -157,7 +166,9 @@ export function marks(
           from: statement.start,
           to: statement.end,
           severity: "warning",
-          message: `A ${statement.kind} statement cannot run in a read`,
+          message: t("queries.marks.not_in_read", {
+            kind: t(`queries.statement_kind.${statement.kind}`),
+          }),
         })
       }
       continue
@@ -183,7 +194,7 @@ export function marks(
           from: statement.start,
           to: statement.end,
           severity: "warning",
-          message: `${schema} has nothing called ${name}`,
+          message: t("queries.marks.unknown_relation", { schema, name }),
         })
       }
     }
@@ -193,9 +204,7 @@ export function marks(
 
 /** What the console says about how much it knows, or nothing at all. */
 export function metadataStatus(metadata: QueryMetadata | undefined): string {
-  if (metadata === undefined) return "Reading what this connection holds…"
-  if (!metadata.complete) {
-    return "This connection has more relations than are offered here"
-  }
+  if (metadata === undefined) return t("queries.marks.reading")
+  if (!metadata.complete) return t("queries.marks.partial")
   return ""
 }

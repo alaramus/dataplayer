@@ -51,3 +51,27 @@ async def test_the_login_refusal_is_coded(client: AsyncClient) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "auth.wrong_credentials"
+
+
+async def test_a_problem_carries_the_kind_a_source_refusal_was_reduced_to() -> None:
+    """The browser reads the kind to stop asking again (`retry.ts`)."""
+    application = FastAPI()
+
+    @application.get("/refuse")
+    async def refuse() -> None:
+        raise Problem(501, "connectors.no_search", error_kind="config")
+
+    async with AsyncClient(
+        transport=ASGITransport(app=application), base_url="http://test"
+    ) as client:
+        response = await client.get("/refuse")
+
+    assert response.status_code == 501
+    assert response.json() == {
+        "detail": {
+            "code": "connectors.no_search",
+            "params": {},
+            "message": "This source cannot be searched",
+            "error_kind": "config",
+        }
+    }

@@ -2,6 +2,7 @@ import { computed } from "vue"
 import type { ComputedRef } from "vue"
 
 import type { ConversationSummary } from "@/client"
+import { t } from "@/shared/i18n"
 import type { AttentionItem } from "@/shared/notifications"
 import { useSpaceStore } from "@/stores/space"
 
@@ -22,10 +23,10 @@ export function waitingItem(
   return {
     id: `ai-waiting:${chat.id}`,
     tone: "warning",
-    title: `The agent waits in “${chat.title}”`,
-    detail: "It cannot continue until its question there is answered.",
+    title: t("ai.attention.title", { title: chat.title }),
+    detail: t("ai.attention.detail"),
     at: Date.parse(chat.updated_at ?? "") || Date.now(),
-    action: { label: "Answer", run: () => { open(chat.id) } },
+    action: { label: t("ai.attention.answer"), run: () => { open(chat.id) } },
     dismiss: null,
   }
 }

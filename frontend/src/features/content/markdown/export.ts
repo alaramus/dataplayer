@@ -1,3 +1,5 @@
+import { t } from "@/shared/i18n"
+
 type FetchResource = (input: RequestInfo | URL) => Promise<Pick<Response, "blob" | "ok">>
 
 function escapeHtml(value: string): string {
@@ -117,7 +119,7 @@ async function embedLocalImages(
       // would look portable, then break as soon as its ticket expires.
       target.removeAttribute("src")
       target.setAttribute("data-export-image-error", "")
-      target.setAttribute("title", "This local image could not be embedded")
+      target.setAttribute("title", t("content.markdown.export_file.image_not_embedded"))
     }
     target.removeAttribute("data-relative-reference")
     target.removeAttribute("data-relative-loading")
@@ -164,7 +166,7 @@ export function createHtmlFileName(documentName: string): string {
 /** Print the inert export, not the surrounding workspace application. */
 export function printRenderedHtml(html: string): void {
   const frame = document.createElement("iframe")
-  frame.setAttribute("title", "Printable document")
+  frame.setAttribute("title", t("content.markdown.export_file.printable"))
   frame.style.position = "fixed"
   frame.style.width = "1px"
   frame.style.height = "1px"

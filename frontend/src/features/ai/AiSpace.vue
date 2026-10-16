@@ -19,6 +19,7 @@ import {
 import { WindowDialog } from "@/shared/windows"
 import { realtime } from "@/shared/realtime/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 import { WorkspaceSeparator } from "@/shared/workspace"
 import { useSideRail } from "@/shared/workspace/useSideRail"
@@ -155,7 +156,7 @@ const grouped = computed<HistoryGroup[]>(() => {
   const pinned = chats.filter((entry) => entry.chat.pinned === true)
   const unpinned = chats.filter((entry) => entry.chat.pinned !== true)
   return [
-    ...(pinned.length > 0 ? [{ kind: "pinned" as const, id: PINNED, name: "Pinned", chats: pinned }] : []),
+    ...(pinned.length > 0 ? [{ kind: "pinned" as const, id: PINNED, name: t("ai.space.pinned"), chats: pinned }] : []),
     ...projects.value.map((project) => ({
       kind: "project" as const,
       id: project.id,
@@ -223,40 +224,46 @@ async function saveProject() {
     }
     projectDialogShown.value = false
   }
-  catch (cause) { toast.error(messageOf(cause, "The project could not be saved")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.space.project_save_failed"))) }
 }
 async function removeProject(id: string, name: string) {
   const held = grouped.value.find((group) => group.id === id)?.chats.length ?? 0
   const one = held === 1
   let chats: "keep" | "archive" = "keep"
   if (!(await confirm({
-    title: "Delete project?",
+    title: t("ai.space.project_delete_title"),
+    // One chat is "it" and many are "them", whatever a language's plural
+    // forms group with 1: a Russian 21 is plural here.
     message: held === 0
-      ? `“${name}” will be deleted.`
-      : `“${name}” will be deleted. ${one ? "Where does its chat go?" : `Where do its ${String(held)} chats go?`}`,
-    confirmLabel: "Delete",
+      ? t("ai.space.project_deleted", { name })
+      : one ? t("ai.space.project_deleted_one", { name }) : t("ai.space.project_deleted_many", { name, n: held }, held),
+    confirmLabel: t("ai.common.delete"),
     danger: true,
     ...(held === 0 ? {} : {
       choices: [
         {
           value: "keep",
-          label: `Move ${one ? "it" : "them"} to the chat list`,
-          description: `${one ? "It stays" : "They stay"} in the history, in no project`,
+          label: one ? t("ai.space.move_out_one") : t("ai.space.move_out_many"),
+          description: one ? t("ai.space.move_out_hint_one") : t("ai.space.move_out_hint_many"),
         },
-        { value: "archive", label: `Archive ${one ? "it" : "them"}`, description: "Restored or deleted later in Settings" },
+        {
+          value: "archive",
+          label: one ? t("ai.space.archive_one") : t("ai.space.archive_many"),
+          description: t("ai.space.archive_hint"),
+        },
       ],
       onChoice: (value: string) => { chats = value === "archive" ? "archive" : "keep" },
     }),
   }))) return
   try { await deleteProject.mutateAsync({ id, chats }) }
-  catch (cause) { toast.error(messageOf(cause, "The project could not be deleted")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.space.project_delete_failed"))) }
 }
 async function moveChat(entry: HistoryChat, projectId: string | null) {
   try {
     if (entry.kind === "agent") await updateConversation.mutateAsync({ id: entry.chat.id, project_id: projectId })
     else await updateQuickChat.mutateAsync({ id: entry.chat.id, project_id: projectId })
   }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be moved")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.space.move_failed"))) }
 }
 
 watch(conversations, (rows) => {
@@ -293,7 +300,7 @@ watch([requestedAiProject, () => projectList.data.value], ([id, listed]) => {
   if (id === null || listed === undefined) return
   requestedAiProject.value = null
   if (!listed.data.some((project) => project.id === id)) {
-    toast.info("That project no longer exists")
+    toast.info(t("ai.space.project_gone"))
     return
   }
   collapsed.value = false
@@ -378,15 +385,15 @@ async function finishRename() {
   const title = titleDraft.value.trim()
   if (id === null || !title) return
   try { await updateConversation.mutateAsync({ id, title }); renameShown.value = false }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be renamed")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.space.rename_failed"))) }
 }
 async function setPinned(id: string, pinned: boolean) {
   try { await updateConversation.mutateAsync({ id, pinned }) }
-  catch (cause) { toast.error(messageOf(cause, pinned ? "The chat could not be pinned" : "The chat could not be unpinned")) }
+  catch (cause) { toast.error(messageOf(cause, pinned ? t("ai.space.pin_failed") : t("ai.space.unpin_failed"))) }
 }
 async function setQuickPinned(id: string, pinned: boolean) {
   try { await updateQuickChat.mutateAsync({ id, pinned }) }
-  catch (cause) { toast.error(messageOf(cause, pinned ? "The chat could not be pinned" : "The chat could not be unpinned")) }
+  catch (cause) { toast.error(messageOf(cause, pinned ? t("ai.space.pin_failed") : t("ai.space.unpin_failed"))) }
 }
 // Archiving is not deleting: it is offered without a confirmation and taken
 // back from the message it leaves. What is in the archive is deleted in the
@@ -394,24 +401,24 @@ async function setQuickPinned(id: string, pinned: boolean) {
 async function archive(id: string) {
   try {
     await updateConversation.mutateAsync({ id, archived: true })
-    toast.offer("Chat archived", { label: "Undo", onClick: () => { void restore(id) } })
+    toast.offer(t("ai.space.archived"), { label: t("ai.space.undo"), onClick: () => { void restore(id) } })
   }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be archived")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.space.archive_failed"))) }
 }
 async function archiveQuick(id: string) {
   try {
     await updateQuickChat.mutateAsync({ id, archived: true })
-    toast.offer("Chat archived", { label: "Undo", onClick: () => { void restoreQuick(id) } })
+    toast.offer(t("ai.space.archived"), { label: t("ai.space.undo"), onClick: () => { void restoreQuick(id) } })
   }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be archived")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.space.archive_failed"))) }
 }
 async function restoreQuick(id: string) {
   try { await updateQuickChat.mutateAsync({ id, archived: false }) }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be restored")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.common.restore_failed"))) }
 }
 async function restore(id: string) {
   try { await updateConversation.mutateAsync({ id, archived: false }); selected.value = id }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be restored")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.common.restore_failed"))) }
 }
 
 function eventOf(payload: unknown): AiEvent | null {
@@ -467,15 +474,15 @@ onScopeDispose(stop)
           ref="chatFilterField"
           v-model="chatNameFilter"
           compact
-          placeholder="Filter chats"
-          aria-label="Filter chats and projects by name"
+          :placeholder="t('ai.space.filter')"
+          :aria-label="t('ai.space.filter_label')"
           autocomplete="off"
           data-testid="ai-name-filter"
         />
         <template #actions>
           <AppIconButton
             :icon="appIcons.close"
-            tooltip="Close chat filter"
+            :tooltip="t('ai.space.close_filter')"
             data-testid="ai-filter-close"
             @click="closeChatFilter"
           />
@@ -483,24 +490,24 @@ onScopeDispose(stop)
       </AppCardHead>
       <AppCardHead
         v-else-if="!collapsed"
-        title="Chats"
+        :title="t('ai.space.chats')"
       >
         <template #actions>
           <AppIconButton
             :icon="appIcons.add"
-            tooltip="New chat"
+            :tooltip="t('ai.common.new_chat')"
             data-testid="ai-new-chat"
             @click="makeConversation"
           />
           <AppIconButton
             :icon="appIcons.search"
-            tooltip="Filter chats and projects by name"
+            :tooltip="t('ai.space.filter_label')"
             data-testid="ai-filter-open"
             @click="openChatFilter"
           />
           <AppIconButton
             :icon="appIcons.createNewFolder"
-            tooltip="New project"
+            :tooltip="t('ai.common.new_project')"
             data-testid="ai-new-project"
             @click="beginProjectFor(null)"
           />
@@ -516,7 +523,7 @@ onScopeDispose(stop)
       >
         <AppIconButton
           :icon="appIcons.add"
-          tooltip="New chat"
+          :tooltip="t('ai.common.new_chat')"
           data-testid="ai-new-chat"
           @click="makeConversation"
         />
@@ -524,7 +531,7 @@ onScopeDispose(stop)
       <div
         v-if="!collapsed"
         class="ai-window__history"
-        aria-label="Chat history"
+        :aria-label="t('ai.space.history')"
         :aria-busy="historyLoading"
         data-testid="ai-history"
       >
@@ -532,12 +539,12 @@ onScopeDispose(stop)
         <AppEmptyState
           v-else-if="chatNameFilter.trim() && visibleGroups.length === 0"
           class="ai-window__empty"
-          text="No matching chats or projects"
+          :text="t('ai.space.no_matches')"
         />
         <AppEmptyState
           v-else-if="visibleGroups.length === 0"
           class="ai-window__empty"
-          text="No chats yet"
+          :text="t('ai.space.no_chats')"
         />
         <template v-else>
           <div
@@ -581,21 +588,21 @@ onScopeDispose(stop)
               >
                 <AppIconButton
                   :icon="appIcons.add"
-                  tooltip="New chat in this project"
+                  :tooltip="t('ai.space.new_chat_in_project')"
                   compact
                   :data-testid="`ai-project-new-chat-${group.id}`"
                   @click="makeConversationIn(group.id)"
                 />
                 <AppIconButton
                   :icon="appIcons.edit"
-                  tooltip="Rename project"
+                  :tooltip="t('ai.space.rename_project')"
                   compact
                   :data-testid="`ai-project-rename-${group.id}`"
                   @click="beginProjectRename(group.id, group.name)"
                 />
                 <AppIconButton
                   :icon="appIcons.delete"
-                  tooltip="Delete project"
+                  :tooltip="t('ai.space.delete_project')"
                   variant="danger-quiet"
                   compact
                   :data-testid="`ai-project-delete-${group.id}`"
@@ -626,7 +633,7 @@ onScopeDispose(stop)
           variant="quiet"
           layout="navigation"
           :icon="appIcons.settings"
-          label="Settings"
+          :label="t('ai.common.settings')"
           :aria-pressed="settingsShown"
           data-testid="ai-open-settings"
           @click="toggleSettings"
@@ -634,7 +641,7 @@ onScopeDispose(stop)
         <AppIconButton
           v-else
           :icon="appIcons.settings"
-          tooltip="Settings"
+          :tooltip="t('ai.common.settings')"
           :aria-pressed="settingsShown"
           data-testid="ai-open-settings"
           @click="toggleSettings"
@@ -653,7 +660,7 @@ onScopeDispose(stop)
     >
       <AppCardHead
         v-if="settingsShown"
-        title="Settings"
+        :title="t('ai.common.settings')"
       />
       <!-- The open chat is named where the eye already is, and renamed from
            the pencil beside the name, as a dashboard is. -->
@@ -669,14 +676,14 @@ onScopeDispose(stop)
         >{{ selectedChat.title }}</span>
         <AppIconButton
           :icon="appIcons.edit"
-          tooltip="Rename this chat"
+          :tooltip="t('ai.space.rename_chat')"
           data-testid="ai-chat-rename"
           @click="beginRename(selectedChat.id, selectedChat.title)"
         />
       </AppCardHead>
       <AppCardHead
         v-else-if="newDraftOpen"
-        :title="draftProject === null ? 'New chat' : `New chat in “${draftProject.name}”`"
+        :title="draftProject === null ? t('ai.common.new_chat') : t('ai.space.new_chat_in', { name: draftProject.name })"
         data-testid="ai-draft-head"
       />
       <AppCardHead v-else />
@@ -695,14 +702,14 @@ onScopeDispose(stop)
       >
         <AppButton
           :icon="appIcons.addComment"
-          label="New chat"
+          :label="t('ai.common.new_chat')"
           @click="makeConversation"
         />
       </div>
     </AppCardFrame>
     <WindowDialog
       v-model="renameShown"
-      title="Rename chat"
+      :title="t('ai.space.rename_title')"
       size="sm"
       sizing="content"
       data-testid="ai-rename-dialog"
@@ -711,7 +718,7 @@ onScopeDispose(stop)
         <AppInput
           ref="renameField"
           v-model="titleDraft"
-          label="Name"
+          :label="t('ai.common.name')"
           autofocus
           data-testid="ai-rename-input"
           @focus="selectAllIn(renameField)"
@@ -721,11 +728,11 @@ onScopeDispose(stop)
       <template #actions>
         <AppButton
           variant="quiet"
-          label="Cancel"
+          :label="t('catalog.common.cancel')"
           @click="renameShown = false"
         />
         <AppButton
-          label="Rename"
+          :label="t('ai.common.rename')"
           :disable="!titleDraft.trim()"
           data-testid="ai-rename-save"
           @click="finishRename"
@@ -734,7 +741,7 @@ onScopeDispose(stop)
     </WindowDialog>
     <WindowDialog
       v-model="projectDialogShown"
-      :title="renamingProject === null ? 'New project' : 'Rename project'"
+      :title="renamingProject === null ? t('ai.common.new_project') : t('ai.space.rename_project')"
       size="sm"
       sizing="stable"
       data-testid="ai-project-dialog"
@@ -743,7 +750,7 @@ onScopeDispose(stop)
         <AppInput
           ref="projectField"
           v-model="projectDraft"
-          label="Name"
+          :label="t('ai.common.name')"
           autofocus
           data-testid="ai-project-name"
           @focus="selectAllIn(projectField)"
@@ -753,11 +760,11 @@ onScopeDispose(stop)
       <template #actions>
         <AppButton
           variant="quiet"
-          label="Cancel"
+          :label="t('catalog.common.cancel')"
           @click="projectDialogShown = false"
         />
         <AppButton
-          :label="renamingProject === null ? 'Create' : 'Rename'"
+          :label="renamingProject === null ? t('ai.common.create') : t('ai.common.rename')"
           :disable="!projectDraft.trim()"
           data-testid="ai-project-save"
           @click="saveProject"

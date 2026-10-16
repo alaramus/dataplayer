@@ -7,6 +7,7 @@ import type { AgentRunPublic, ConversationMessagePublic, ConversationUpdate, Scr
 import { AppBanner, AppButton, AppIconButton, AppInput, AppMenu, AppSelect, AppSpinner, AppTooltip, useToast } from "@/shared/ui"
 import type { MenuItem, SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { useNow } from "@/shared/freshness/useNow"
 import { serverStorageKey } from "@/shared/servers/context"
 
@@ -142,18 +143,18 @@ const readsImages = computed(() => autoProvider.value
 // An image picked for one model stays when another is chosen; the message
 // then waits for a model that reads it, or for the image to go.
 const imageProblem = computed(() =>
-  readsImages.value ? "" : `${currentModel.value?.name ?? "This model"} does not read images`
+  readsImages.value ? "" : t("ai.attachments.no_images", { model: currentModel.value?.name ?? t("ai.conversation.this_model") })
 )
 const blocked = computed(() => pending.value.some((one) => one.kind === "image") && imageProblem.value !== "")
 const attachItems = computed<MenuItem[]>(() => [
   {
     name: "tabs",
-    label: "Workspace tabs…",
+    label: t("ai.conversation.attach_tabs"),
     icon: appIcons.tab,
     disable: props.contexts.length === 0,
-    ...(props.contexts.length === 0 ? { hint: "No open tab names a connection or a node" } : {}),
+    ...(props.contexts.length === 0 ? { hint: t("ai.conversation.no_tabs") } : {}),
   },
-  { name: "files", label: "Files from computer…", icon: appIcons.attachFile, disable: rules.value === null },
+  { name: "files", label: t("ai.conversation.attach_files"), icon: appIcons.attachFile, disable: rules.value === null },
 ])
 function chooseAttachment(name: string) {
   if (name === "tabs") contextDialogShown.value = true
@@ -170,7 +171,7 @@ function pickFiles(event: Event) {
     picked,
     pending.value.map((one) => one.file),
     given,
-    { name: currentModel.value?.name ?? "This model", readsImages: readsImages.value }
+    { name: currentModel.value?.name ?? t("ai.conversation.this_model"), readsImages: readsImages.value }
   )
   pending.value = [...pending.value, ...taken.map((file) => ({
     id: crypto.randomUUID(),
@@ -191,13 +192,13 @@ function openFile(address: string) {
 
 /**
  * What an empty chat offers to ask, each a thing the agent's tools can answer.
- * Pressed, one is sent as it is written.
+ * Pressed, one is sent as it is written, in the language of the interface.
  */
 const EXAMPLES = [
-  { icon: appIcons.storage, text: "Show my connections" },
-  { icon: appIcons.info, text: "What is DataPlayer, and what can you do here?" },
-  { icon: appIcons.tableView, text: "Which tables are in my databases?" },
-  { icon: appIcons.insertChart, text: "Draw a chart from one of my tables" },
+  { key: "connections", icon: appIcons.storage, get text() { return t("ai.conversation.examples.connections") } },
+  { key: "about", icon: appIcons.info, get text() { return t("ai.conversation.examples.about") } },
+  { key: "tables", icon: appIcons.tableView, get text() { return t("ai.conversation.examples.tables") } },
+  { key: "chart", icon: appIcons.insertChart, get text() { return t("ai.conversation.examples.chart") } },
 ] as const
 /**
  * Offered only while the composer is empty: somebody who has started typing is
@@ -228,11 +229,11 @@ const pendingAutoProvider = ref<ConversationUpdate["auto_provider"]>(null)
 const keyed = computed(() => keyedProviders(settings.data.value?.keys ?? []))
 const jevKeySet = computed(() => keyed.value.has(JEV_PROVIDER))
 const policyOptions = computed<SelectOption[]>(() => [
-  { label: "Read only", value: "read_only", icon: appIcons.visibility, description: "Nothing is changed from this chat" },
-  { label: "Ask before changes", value: "ask", icon: appIcons.helpOutline, description: "Every change is confirmed first" },
-  { label: "Allow changes", value: "allow", icon: appIcons.edit, description: "Changes in this chat run without asking" },
-  { label: "Let Jev decide", value: "jev", icon: appIcons.key, description: jevKeySet.value ? "Jev decides before each change" : `Set a ${jevProviderLabel} API key in AI settings first`, disable: !jevKeySet.value },
-  { label: "Allow all changes in every chat", value: EVERY_CHAT, icon: appIcons.doneAll, description: "Changes in every chat run without asking", tone: "warning" },
+  { label: t("ai.conversation.policy.read_only"), value: "read_only", icon: appIcons.visibility, description: t("ai.conversation.policy.read_only_hint") },
+  { label: t("ai.conversation.policy.ask"), value: "ask", icon: appIcons.helpOutline, description: t("ai.conversation.policy.ask_hint") },
+  { label: t("ai.conversation.policy.allow"), value: "allow", icon: appIcons.edit, description: t("ai.conversation.policy.allow_hint") },
+  { label: t("ai.conversation.policy.jev"), value: "jev", icon: appIcons.key, description: jevKeySet.value ? t("ai.conversation.policy.jev_hint") : t("ai.conversation.policy.jev_needs_key", { provider: jevProviderLabel }), disable: !jevKeySet.value },
+  { label: t("ai.conversation.policy.every"), value: EVERY_CHAT, icon: appIcons.doneAll, description: t("ai.conversation.policy.every_hint"), tone: "warning" },
 ])
 const changePolicy = computed(() => conversation.data.value?.change_policy ?? pendingPolicy.value ?? "ask")
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
@@ -263,7 +264,7 @@ async function choosePolicy(value: unknown) {
       await updateSettings.mutateAsync({ allow_all_changes: false })
     }
   }
-  catch (cause) { toast.error(messageOf(cause, "The permission could not be changed")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.conversation.policy.failed"))) }
 }
 // What this chat is answered with: its own model, or the one the settings
 // chose for every chat that has not said otherwise. Choosing here is also
@@ -287,7 +288,7 @@ async function chooseModel(value: string) {
         await updateSettings.mutateAsync({ model_key: fallback.key, auto_provider: "all" })
       }
     }
-    catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+    catch (cause) { toast.error(messageOf(cause, t("ai.composer.model_failed"))) }
     return
   }
   const provider = models.data.value?.find((one) => value === autoModelValue(one.provider))?.provider
@@ -304,7 +305,7 @@ async function chooseModel(value: string) {
       await updateSettings.mutateAsync({ model_key: fallback?.key ?? value, auto_provider: provider ?? null })
     }
   }
-  catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.composer.model_failed"))) }
 }
 
 // The contents of the conversation, down the edge of it: one mark per
@@ -340,7 +341,7 @@ function runFor(message: ConversationMessagePublic): AgentRunPublic | undefined 
 function errorOf(message: ConversationMessagePublic): string | null {
   const run = runFor(message)
   if (run === undefined || run.status !== "failed") return null
-  return run.error ?? "The answer failed."
+  return run.error ?? t("ai.conversation.answer_failed")
 }
 function stepSummary(run: AgentRunPublic): string {
   const model = models.data.value?.find((one) => one.key === run.model_key)?.name ?? run.model_key
@@ -348,7 +349,7 @@ function stepSummary(run: AgentRunPublic): string {
   const steps = run.steps ?? []
   const current = [...steps].reverse().find((step) => step.status === "running")
   if (current) return `${model} · ${current.title} · ${duration}`
-  return `${model} · ${String(steps.length)} ${steps.length === 1 ? "step" : "steps"}${duration ? ` · ${duration}` : ""}`
+  return `${model} · ${t("ai.conversation.steps", { n: steps.length }, steps.length)}${duration ? ` · ${duration}` : ""}`
 }
 function toggle(set: Set<string>, id: string) {
   const next = new Set(set)
@@ -403,7 +404,7 @@ async function submit() {
         }
       } catch { /* Retain the chat ID until its saved state can be checked. */ }
     }
-    toast.error(messageOf(cause, "The message could not be sent"))
+    toast.error(messageOf(cause, t("ai.conversation.send_failed")))
   } finally { starting.value = false }
 }
 function onEditorKeydown(event: KeyboardEvent) {
@@ -414,7 +415,7 @@ function onEditorKeydown(event: KeyboardEvent) {
 async function stop() {
   if (!activeRun.value || !currentId.value) return
   try { await cancel.mutateAsync({ id: activeRun.value.id, conversationId: currentId.value }) }
-  catch (cause) { toast.error(messageOf(cause, "The answer could not be stopped")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.composer.stop_failed"))) }
 }
 async function answerQuestion(choice: string) {
   if (!activeRun.value?.question || !currentId.value) return
@@ -425,7 +426,7 @@ async function answerQuestion(choice: string) {
       answer: choice,
     })
   }
-  catch (cause) { toast.error(messageOf(cause, "The answer could not be continued")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.conversation.continue_failed"))) }
 }
 // What was typed before the microphone was pressed. Everything heard is kept
 // beside it, so speaking adds to a half-written message instead of erasing it.
@@ -434,10 +435,16 @@ const dictation = useDictation(
   (heard) => { draft.value = `${spokenInto.value}${heard}` },
   (reason) => {
     toast.error(reason === "not-allowed"
-      ? "The microphone is not allowed for this page"
-      : "Dictation stopped")
+      ? t("ai.composer.mic_refused")
+      : t("ai.composer.dictation_stopped"))
   }
 )
+/** What a run that ended without an answer says, when it gave no reason. */
+function endedWords(run: AgentRunPublic): string {
+  if (run.status === "cancelled") return t("ai.conversation.ended.cancelled")
+  if (run.status === "interrupted") return t("ai.conversation.ended.interrupted")
+  return t("ai.conversation.ended.failed")
+}
 function dictate() {
   if (!dictation.listening.value) {
     const typed = draft.value.trimEnd()
@@ -464,14 +471,14 @@ onBeforeUnmount(() => {
       v-else-if="conversation.isError.value"
       tone="error"
     >
-      This conversation could not be loaded.
+      {{ t('ai.conversation.load_failed') }}
     </AppBanner>
     <template v-else>
       <div class="ai-conversation__body">
         <nav
           v-if="marks.length > 1"
           class="ai-outline"
-          aria-label="What was asked in this chat"
+          :aria-label="t('ai.outline.label')"
           data-testid="ai-outline"
         >
           <button
@@ -515,7 +522,7 @@ onBeforeUnmount(() => {
               >
                 <AppButton
                   v-for="example in EXAMPLES"
-                  :key="example.text"
+                  :key="example.key"
                   variant="quiet"
                   layout="navigation"
                   :icon="example.icon"
@@ -525,7 +532,7 @@ onBeforeUnmount(() => {
                   @click="ask(example.text)"
                 />
               </div>
-              <span v-else>What would you like to know?</span>
+              <span v-else>{{ t('ai.composer.empty') }}</span>
             </div>
             <article
               v-for="message in conversation.data.value?.messages ?? []"
@@ -556,14 +563,14 @@ onBeforeUnmount(() => {
                     :key="step.ordinal"
                     class="ai-step"
                   >
-                    <span>{{ step.title }}</span><span>{{ step.status }}</span>
+                    <span>{{ step.title }}</span><span>{{ t(`ai.conversation.step_status.${step.status}`) }}</span>
                     <button
                       v-if="step.kind === 'thinking' && step.detail"
                       type="button"
                       class="ai-step__reasoning"
                       @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)"
                     >
-                      Thinking
+                      {{ t('ai.conversation.thinking') }}
                     </button>
                     <div
                       v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)"
@@ -633,14 +640,14 @@ onBeforeUnmount(() => {
                     :key="step.ordinal"
                     class="ai-step"
                   >
-                    <span>{{ step.title }}</span><span>{{ step.status }}</span>
+                    <span>{{ step.title }}</span><span>{{ t(`ai.conversation.step_status.${step.status}`) }}</span>
                     <button
                       v-if="step.kind === 'thinking' && step.detail"
                       type="button"
                       class="ai-step__reasoning"
                       @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)"
                     >
-                      Thinking
+                      {{ t('ai.conversation.thinking') }}
                     </button>
                     <div
                       v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)"
@@ -701,7 +708,7 @@ onBeforeUnmount(() => {
               :tone="run.status === 'cancelled' ? 'info' : 'warning'"
               data-testid="ai-run-ended"
             >
-              {{ run.error || (run.status === "cancelled" ? "The answer was stopped." : `The answer was ${run.status}.`) }}
+              {{ run.error || endedWords(run) }}
             </AppBanner>
           </div>
           <div class="ai-conversation__dock">
@@ -713,7 +720,7 @@ onBeforeUnmount(() => {
               <div
                 v-if="selectedContexts.length"
                 class="ai-conversation__contexts"
-                aria-label="Tabs attached to the next message"
+                :aria-label="t('ai.conversation.contexts')"
               >
                 <span
                   v-for="context in selectedContexts"
@@ -723,7 +730,7 @@ onBeforeUnmount(() => {
                   <span class="ai-context-chip__label">{{ context.label }}</span>
                   <AppIconButton
                     :icon="appIcons.close"
-                    :tooltip="`Remove ${context.label}`"
+                    :tooltip="t('ai.common.remove', { name: context.label })"
                     compact
                     @click="selectedContextIds = selectedContextIds.filter((id) => id !== context.panel_id)"
                   />
@@ -732,7 +739,7 @@ onBeforeUnmount(() => {
               <div
                 v-if="pending.length"
                 class="ai-conversation__contexts"
-                aria-label="Files attached to the next message"
+                :aria-label="t('ai.conversation.files')"
               >
                 <AiFileChip
                   v-for="one in pending"
@@ -752,8 +759,8 @@ onBeforeUnmount(() => {
                 type="textarea"
                 grow
                 compact
-                placeholder="Message the agent"
-                aria-label="Message the agent"
+                :placeholder="t('ai.conversation.placeholder')"
+                :aria-label="t('ai.conversation.placeholder')"
                 data-testid="ai-message-input"
                 :disable="activeRun !== null"
                 @keydown="onEditorKeydown"
@@ -765,7 +772,7 @@ onBeforeUnmount(() => {
                 <span>
                   <AppIconButton
                     :icon="appIcons.add"
-                    tooltip="Attach tabs or files"
+                    :tooltip="t('ai.conversation.attach')"
                     data-testid="ai-attach"
                     :disable="activeRun !== null"
                   />
@@ -790,7 +797,7 @@ onBeforeUnmount(() => {
                   :model-value="shownPolicy"
                   :options="policyOptions"
                   :disable="activeRun !== null"
-                  label="Changes"
+                  :label="t('ai.conversation.policy.label')"
                   label-hidden
                   framed
                   data-testid="ai-chat-policy"
@@ -809,8 +816,8 @@ onBeforeUnmount(() => {
                   :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
                   :live="dictation.listening.value"
                   :tooltip="!dictation.supported
-                    ? 'This browser cannot listen'
-                    : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+                    ? t('ai.composer.cannot_listen')
+                    : dictation.listening.value ? t('ai.composer.stop_dictating') : t('ai.composer.dictate')"
                   :disable="!dictation.supported || activeRun !== null"
                   data-testid="ai-dictate"
                   @click="dictate"
@@ -820,7 +827,7 @@ onBeforeUnmount(() => {
                   v-if="activeRun"
                   variant="danger-quiet"
                   :icon="appIcons.stop"
-                  label="Stop"
+                  :label="t('ai.composer.stop')"
                   :loading="cancel.isPending.value"
                   data-testid="ai-stop"
                   @click="stop"
@@ -828,7 +835,7 @@ onBeforeUnmount(() => {
                 <AppButton
                   v-else
                   :icon="appIcons.send"
-                  label="Send"
+                  :label="t('ai.composer.send')"
                   icon-only
                   class="ai-conversation__send"
                   :disable="!canSend"
@@ -850,13 +857,13 @@ onBeforeUnmount(() => {
         <AppButton
           variant="quiet"
           size="sm"
-          label="Add to chat"
+          :label="t('ai.conversation.add_to_chat')"
           @click="addSelectionToAgent"
         />
         <AppButton
           variant="quiet"
           size="sm"
-          label="More details"
+          :label="t('ai.conversation.more_details')"
           @click="explainSelection"
         />
       </div>

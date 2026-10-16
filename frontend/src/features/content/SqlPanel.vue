@@ -11,6 +11,7 @@ import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppSpinner } from "@/shared/ui"
 
 const props = defineProps<{
@@ -33,7 +34,7 @@ const errorKind = computed(() => errorKindOf(content.error.value))
 const workspace = useWorkspaceActions()
 const ddl = computed(() => (content.data.value?.kind === "sql" ? content.data.value : null))
 const error = computed(() =>
-  content.isError.value ? messageOf(content.error.value, "Could not read this DDL") : ""
+  content.isError.value ? messageOf(content.error.value, t("content.sql.could_not_read")) : ""
 )
 
 useReloadable(() => props.panelId, async () => {
@@ -55,12 +56,12 @@ function showTable() {
 <template>
   <div class="sql-panel">
     <div class="sql-panel__head">
-      <span class="sql-panel__kind">SQL · read only</span>
+      <span class="sql-panel__kind">{{ t("content.sql.kind") }}</span>
       <div class="sql-panel__actions">
         <ReadAloudButton
           v-if="ddl"
           :text="ddl.text"
-          listen-label="Listen to SQL"
+          :listen-label="t('content.sql.listen')"
           testid="sql-listen"
         />
         <AppButton

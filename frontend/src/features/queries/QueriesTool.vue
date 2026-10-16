@@ -7,6 +7,7 @@ import {
   useDeleteQueryDocument,
   useQueryDocuments,
 } from "@/features/queries/api"
+import { statusWord } from "@/features/queries/console"
 import { clearShadow, emptyDraft, writeDraft } from "@/features/queries/draft"
 import {
   useDeleteRuns,
@@ -15,6 +16,7 @@ import {
 } from "@/features/queries/runs"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppEmptyState,
@@ -48,10 +50,10 @@ import type { LibraryPlace } from "./library"
  * thing it is: a document by its name and its connection, a run by what it
  * did, when, and which document it was run from.
  */
-const PLACES: { value: LibraryPlace; label: string; icon: string }[] = [
-  { value: "favorites", label: "Favorites", icon: appIcons.star },
-  { value: "history", label: "History", icon: appIcons.history },
-]
+const places = computed<{ value: LibraryPlace; label: string; icon: string }[]>(() => [
+  { value: "favorites", label: t("queries.library.favorites"), icon: appIcons.star },
+  { value: "history", label: t("queries.library.history"), icon: appIcons.history },
+])
 
 const workspace = useWorkspaceActions()
 const toast = useToast()
@@ -79,7 +81,7 @@ const deleteRuns = useDeleteRuns()
 const deleteDocument = useDeleteQueryDocument()
 
 const connectorOptions = computed(() => [
-  { label: "All connections", value: "" },
+  { label: t("queries.library.all_connections"), value: "" },
   ...(connectors.data.value?.data ?? []).map((connector) => ({
     label: connector.name,
     value: connector.id,
@@ -93,7 +95,7 @@ const named = computed(() => rows.value.filter((row) => row.title !== null))
 const drafts = computed(() => rows.value.filter((row) => row.title === null))
 const error = computed(() =>
   documents.isError.value
-    ? messageOf(documents.error.value, "Could not read your queries")
+    ? messageOf(documents.error.value, t("queries.library.read_failed"))
     : ""
 )
 
@@ -161,7 +163,7 @@ function when(moment: string | null | undefined): string {
 async function openAsQuery(run: { id: string; connector_id: string | null }) {
   const connector = run.connector_id
   if (connector === null) {
-    toast.info("The connection this ran against is no longer available")
+    toast.info(t("queries.library.connection_gone"))
     return
   }
   try {
@@ -177,46 +179,46 @@ async function openAsQuery(run: { id: string; connector_id: string | null }) {
       title: null,
     })
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not open this run as a query"))
+    toast.error(messageOf(cause, t("queries.library.open_run_failed")))
   }
 }
 
 async function forget(runId: string) {
   const accepted = await confirm({
-    title: "Delete this run from your history?",
-    message: "What ran is not kept anywhere else afterwards.",
-    confirmLabel: "Delete",
+    title: t("queries.library.delete_run_title"),
+    message: t("queries.library.delete_run_message"),
+    confirmLabel: t("queries.common.delete"),
     danger: true,
   })
   if (!accepted) return
   try {
     await deleteRuns.mutateAsync({ kind: "selected", ids: [runId] })
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not delete this run"))
+    toast.error(messageOf(cause, t("queries.library.delete_run_failed")))
   }
 }
 
 async function forgetEverything() {
   const accepted = await confirm({
-    title: "Delete all of your query history?",
-    message: "What ran is not kept anywhere else afterwards.",
-    confirmLabel: "Delete",
+    title: t("queries.library.delete_all_title"),
+    message: t("queries.library.delete_run_message"),
+    confirmLabel: t("queries.common.delete"),
     danger: true,
   })
   if (!accepted) return
   try {
     await deleteRuns.mutateAsync({ kind: "all" })
-    toast.success("History deleted")
+    toast.success(t("queries.library.history_deleted"))
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not delete your history"))
+    toast.error(messageOf(cause, t("queries.library.delete_history_failed")))
   }
 }
 
 async function deleteQuery(documentId: string) {
   const accepted = await confirm({
-    title: "Delete this query for good?",
-    message: "Its text cannot be recovered afterwards.",
-    confirmLabel: "Delete",
+    title: t("queries.library.delete_query_title"),
+    message: t("queries.library.delete_query_message"),
+    confirmLabel: t("queries.common.delete"),
     danger: true,
   })
   if (!accepted) return
@@ -224,9 +226,9 @@ async function deleteQuery(documentId: string) {
     await deleteDocument.mutateAsync(documentId)
     clearShadow(documentId)
     workspace.closeQueryDocument(documentId)
-    toast.success("Deleted")
+    toast.success(t("queries.library.deleted"))
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not delete this query"))
+    toast.error(messageOf(cause, t("queries.library.delete_query_failed")))
   }
 }
 </script>
@@ -237,7 +239,7 @@ async function deleteQuery(documentId: string) {
       <!-- Saved documents and execution history answer different questions. -->
       <AppTabs
         :model-value="showing"
-        :options="PLACES"
+        :options="places"
         data-testid="queries-places"
         @update:model-value="show"
       />
@@ -246,8 +248,8 @@ async function deleteQuery(documentId: string) {
         :icon="appIcons.add"
         :tooltip="
           connectorId === null
-            ? 'Choose a connection to write a query against'
-            : 'New query'
+            ? t('queries.library.choose_connection')
+            : t('queries.library.new_query')
         "
         :disable="connectorId === null"
         data-testid="new-query"
@@ -264,7 +266,11 @@ async function deleteQuery(documentId: string) {
       />
       <AppInput
         v-model="search"
-        :placeholder="showing === 'history' ? 'Search what you ran' : 'Search favorites'"
+        :placeholder="
+          showing === 'history'
+            ? t('queries.library.search_history')
+            : t('queries.library.search_favorites')
+        "
         compact
         clearable
         class="queries-tool__search"
@@ -280,15 +286,15 @@ async function deleteQuery(documentId: string) {
       <AppSpinner v-if="history.isPending.value" />
       <AppEmptyState
         v-else-if="runs.length === 0"
-        :text="search ? 'No run matches that' : 'Nothing has been run yet'"
+        :text="search ? t('queries.library.no_run_matches') : t('queries.library.nothing_run')"
         data-testid="history-empty"
       />
       <template v-else>
         <div class="queries-tool__history-bar">
-          <span class="queries-tool__heading dp-overline">What you have run</span>
+          <span class="queries-tool__heading dp-overline">{{ t("queries.library.what_you_ran") }}</span>
           <AppIconButton
             :icon="appIcons.deleteSweep"
-            tooltip="Delete all of your history"
+            :tooltip="t('queries.library.delete_all_history')"
             variant="danger-quiet"
             data-testid="history-delete-all"
             @click="forgetEverything"
@@ -306,22 +312,22 @@ async function deleteQuery(documentId: string) {
             :data-testid="`history-restore-${run.id}`"
             @click="openAsQuery(run)"
           >
-            <span class="queries-tool__title">{{ run.preview || "(empty)" }}</span>
+            <span class="queries-tool__title">{{ run.preview || t("queries.library.empty_preview") }}</span>
             <span class="queries-tool__meta">
-              {{ run.status }} · {{ when(run.created_at) }}
-              <template v-if="run.duration_ms !== null">
-                · {{ run.duration_ms }} ms
+              {{ statusWord(run.status) }} · {{ when(run.created_at) }}
+              <template v-if="run.duration_ms !== null && run.duration_ms !== undefined">
+                · {{ t("queries.duration.ms", { n: run.duration_ms }) }}
               </template>
               <!-- Which document this was run from, when it still has a name.
                    Without it the two lists read as the same list twice. -->
               <template v-if="run.document_title">
-                · from {{ run.document_title }}
+                · {{ t("queries.library.from", { title: run.document_title }) }}
               </template>
             </span>
           </button>
           <AppIconButton
             :icon="appIcons.delete"
-            tooltip="Delete this run"
+            :tooltip="t('queries.library.delete_run')"
             variant="danger-quiet"
             :data-testid="`history-delete-${run.id}`"
             @click="forget(run.id)"
@@ -344,14 +350,14 @@ async function deleteQuery(documentId: string) {
       <AppSpinner v-else-if="documents.isPending.value" />
       <AppEmptyState
         v-else-if="rows.length === 0"
-        :text="search ? 'No query matches that' : 'No favorites yet'"
+        :text="search ? t('queries.library.no_query_matches') : t('queries.library.no_favorites')"
         data-testid="queries-empty"
       />
       <template v-else>
         <section
           v-for="group in [
-            { key: 'named', title: 'Named', rows: named },
-            { key: 'drafts', title: 'Drafts', rows: drafts },
+            { key: 'named', title: t('queries.library.named'), rows: named },
+            { key: 'drafts', title: t('queries.library.drafts'), rows: drafts },
           ]"
           v-show="group.rows.length > 0"
           :key="group.key"
@@ -372,15 +378,15 @@ async function deleteQuery(documentId: string) {
               :data-testid="`open-query-${row.id}`"
               @click="openDocument(row)"
             >
-              <span class="queries-tool__title">{{ row.title ?? "Untitled query" }}</span>
+              <span class="queries-tool__title">{{ row.title ?? t("queries.common.untitled") }}</span>
               <span class="queries-tool__meta">
-                {{ row.connector_label ?? "Connection unavailable" }}
+                {{ row.connector_label ?? t("queries.common.connection_unavailable") }}
                 <template v-if="row.preview"> · {{ row.preview }}</template>
               </span>
             </button>
             <AppIconButton
               :icon="appIcons.delete"
-              tooltip="Delete query"
+              :tooltip="t('queries.library.delete_query')"
               variant="danger-quiet"
               :data-testid="`delete-query-${row.id}`"
               @click="deleteQuery(row.id)"

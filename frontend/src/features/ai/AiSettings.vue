@@ -6,6 +6,7 @@ import type { ConversationSummary, QuickChatSummary } from "@/client"
 
 import { AppBanner, AppButton, AppEmptyState, AppForm, AppIconButton, AppSpinner, AppToggle, AppTooltip, useConfirm, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 
 import AiModelSelect from "./AiModelSelect.vue"
 import AiKeyDialog from "./AiKeyDialog.vue"
@@ -60,43 +61,43 @@ async function chooseModel(value: string) {
     const fallback = fallbackForAll(models.data.value ?? [], settings.data.value?.model_key ?? null, keyed.value)
     if (!fallback) return
     try { await update.mutateAsync({ model_key: fallback.key, auto_provider: "all" }) }
-    catch (cause) { toast.error(messageOf(cause, "The model could not be selected")) }
+    catch (cause) { toast.error(messageOf(cause, t("ai.settings.model_failed"))) }
     return
   }
   const provider = models.data.value?.find((one) => value === autoModelValue(one.provider))?.provider
   const fallback = provider ? fallbackModel(models.data.value ?? [], settings.data.value?.model_key ?? null, provider) : null
   if (provider && !fallback) return
   try { await update.mutateAsync({ model_key: fallback?.key ?? value, auto_provider: provider ?? null }) }
-  catch (cause) { toast.error(messageOf(cause, "The model could not be selected")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.settings.model_failed"))) }
 }
 async function setAllowAll(value: boolean) {
   try { await update.mutateAsync({ allow_all_changes: value }) }
-  catch (cause) { toast.error(messageOf(cause, "The confirmation setting could not be changed")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.settings.allow_all_failed"))) }
 }
 async function restore(entry: ArchivedChat) {
   try {
     if (entry.kind === "agent") await updateConversation.mutateAsync({ id: entry.chat.id, archived: false })
     else await updateQuickChat.mutateAsync({ id: entry.chat.id, archived: false })
-    toast.success("Chat restored")
+    toast.success(t("ai.settings.restored"))
   }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be restored")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.common.restore_failed"))) }
 }
 async function remove(entry: ArchivedChat) {
-  if (!(await confirm({ title: "Delete chat?", message: `“${entry.chat.title}” will be permanently deleted.`, confirmLabel: "Delete", danger: true }))) return
+  if (!(await confirm({ title: t("ai.settings.delete_title"), message: t("ai.settings.delete_message", { title: entry.chat.title }), confirmLabel: t("ai.common.delete"), danger: true }))) return
   try {
     if (entry.kind === "agent") await deleteConversation.mutateAsync(entry.chat.id)
     else await deleteQuickChat.mutateAsync(entry.chat.id)
   }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be deleted")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.common.delete_failed"))) }
 }
 async function removeAll() {
   const count = archived.value.length
-  if (!(await confirm({ title: "Empty the archive?", message: `${String(count)} ${count === 1 ? "chat" : "chats"} will be permanently deleted.`, confirmLabel: "Delete all", danger: true }))) return
+  if (!(await confirm({ title: t("ai.settings.empty_title"), message: t("ai.settings.empty_message", { n: count }, count), confirmLabel: t("ai.common.delete_all"), danger: true }))) return
   try {
     if (archive.data.value?.data.length) await deleteArchived.mutateAsync()
     if (quickArchive.data.value?.length) await deleteArchivedQuick.mutateAsync()
   }
-  catch (cause) { toast.error(messageOf(cause, "The chats could not be deleted")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.settings.delete_all_failed"))) }
 }
 </script>
 
@@ -110,7 +111,7 @@ async function removeAll() {
       v-else-if="settings.isError.value"
       tone="error"
     >
-      Agent settings could not be loaded.
+      {{ t('ai.settings.load_failed') }}
     </AppBanner>
     <template v-else>
       <section class="ai-settings__group">
@@ -122,7 +123,7 @@ async function removeAll() {
             v-if="settings.data.value?.model_missing"
             tone="warning"
           >
-            The saved model is no longer available. Choose another one.
+            {{ t('ai.settings.model_missing') }}
           </AppBanner>
           <AiModelSelect
             :model-value="modelValue"
@@ -133,7 +134,7 @@ async function removeAll() {
           />
           <VoiceSelect
             v-if="speechOk"
-            label="Reading voice"
+            :label="t('ai.settings.voice')"
             data-testid="ai-voice"
           />
         </AppForm>
@@ -143,17 +144,17 @@ async function removeAll() {
           layout="section"
           class="ai-settings__form"
         >
-          <h3>Confirmations</h3>
+          <h3>{{ t('ai.settings.confirmations') }}</h3>
           <AppToggle
             :model-value="allowAll"
-            label="Allow all changes in every chat"
+            :label="t('ai.settings.allow_all')"
             data-testid="ai-allow-all"
             @update:model-value="setAllowAll"
           />
           <AppButton
             class="ai-settings__jev"
             variant="quiet"
-            :label="jevKeySet ? 'Manage Jev API key' : 'Set Jev API key'"
+            :label="jevKeySet ? t('ai.settings.manage_jev') : t('ai.settings.set_jev')"
             data-testid="ai-jev-key"
             @click="jevDialogOpen = true"
           />
@@ -166,18 +167,18 @@ async function removeAll() {
         :key-set="jevKeySet"
       />
       <section class="ai-settings__archive">
-        <h3>Archive</h3>
+        <h3>{{ t('ai.settings.archive') }}</h3>
         <AppSpinner v-if="archive.isPending.value || quickArchive.isPending.value" />
         <AppBanner
           v-else-if="archive.isError.value || quickArchive.isError.value"
           tone="error"
         >
-          The archive could not be loaded.
+          {{ t('ai.settings.archive_failed') }}
         </AppBanner>
         <AppEmptyState
           v-else-if="!archived.length"
           icon="archive"
-          text="Chats you archive are kept here until you delete them."
+          :text="t('ai.settings.archive_empty')"
         />
         <template v-else>
           <div class="ai-settings__archived-list">
@@ -193,13 +194,13 @@ async function removeAll() {
               </span>
               <AppIconButton
                 :icon="appIcons.unarchive"
-                tooltip="Restore chat"
+                :tooltip="t('ai.settings.restore')"
                 :data-testid="`ai-restore-${entry.chat.id}`"
                 @click="restore(entry)"
               />
               <AppIconButton
                 :icon="appIcons.delete"
-                tooltip="Delete chat"
+                :tooltip="t('ai.settings.delete_chat')"
                 variant="danger-quiet"
                 :data-testid="`ai-delete-${entry.chat.id}`"
                 @click="remove(entry)"
@@ -210,7 +211,7 @@ async function removeAll() {
             class="ai-settings__delete-all"
             variant="danger-quiet"
             size="sm"
-            label="Delete all"
+            :label="t('ai.common.delete_all')"
             data-testid="ai-delete-all"
             @click="removeAll"
           />

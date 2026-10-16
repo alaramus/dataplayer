@@ -99,3 +99,48 @@ second word for it.
 | clear | очистить |
 | fullscreen | во весь экран |
 | paused | приостановлено |
+| chart | график |
+| diagram | диаграмма |
+| callout | врезка |
+| code block | блок кода |
+| export | экспортировать |
+| chat | чат |
+| project (agent) | проект |
+| conversation | разговор |
+| model | модель |
+| provider | провайдер |
+| API key | API-ключ |
+| step (of a run) | шаг |
+| thinking | рассуждения |
+| pin / unpin | закрепить / открепить |
+| archive (verb) | архивировать |
+| dictate | надиктовать |
+| quick chat | быстрый чат |
+| attach | приложить |
+| widget | виджет |
+| metrics store | хранилище метрик |
+| sample | замер |
+| series | ряд |
+| host | хост |
+| preset | готовый набор |
+| range (of time) | диапазон |
+| statement (SQL) | инструкция |
+| transaction | транзакция |
+| commit / roll back | зафиксировать / откатить |
+| auto-commit | автофиксация |
+| run (noun) / Run (button) | запуск / Выполнить |
+| explain (plan) | план |
+| history | история |
+| favorites | избранное |
+| draft | черновик |
+| console | консоль |
+| parameter | параметр |
+| session | сеанс |
+| view (of the grid) | вид |
+| auto-refresh | обновлять автоматически |
+| ascending / descending | по возрастанию / по убыванию |
+
+## Gender
+
+A sentence around a parameter must not depend on the parameter's gender:
+«{what}: скопировано», not «{what} скопирован».

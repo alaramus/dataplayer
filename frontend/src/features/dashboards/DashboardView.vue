@@ -6,6 +6,7 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } 
 
 import type { DashboardPublic, MetricsCatalog } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppButton,
   AppCardHead,
@@ -123,11 +124,11 @@ async function save() {
     version.value = saved.version
   } catch (cause) {
     if (cause instanceof AxiosError && cause.response?.status === 409) {
-      toast.error("This dashboard was changed somewhere else; it has been read again")
+      toast.error(t("dashboards.view.changed_elsewhere"))
       await queryClient.invalidateQueries({ queryKey: dashboardsKey })
       return
     }
-    toast.error(messageOf(cause, "The dashboard could not be saved"))
+    toast.error(messageOf(cause, t("dashboards.view.save_failed")))
   }
 }
 
@@ -157,7 +158,7 @@ function addDrafts(drafts: WidgetDraft[]) {
   const result = withDrafts(widgets.value, drafts, () => crypto.randomUUID())
   widgets.value = result.widgets
   if (result.left > 0) {
-    toast.info(`${String(result.left)} of ${String(drafts.length)} did not fit: a dashboard holds ${String(MAX_WIDGETS)} widgets`)
+    toast.info(t("dashboards.view.did_not_fit", { left: result.left, total: drafts.length, max: MAX_WIDGETS }))
   }
   schedule()
 }
@@ -166,7 +167,7 @@ function addPreset(preset: Widget[]) {
   const result = withPreset(widgets.value, preset, () => crypto.randomUUID())
   widgets.value = result.widgets
   if (result.left > 0) {
-    toast.info(`${String(result.left)} of ${String(preset.length)} did not fit: a dashboard holds ${String(MAX_WIDGETS)} widgets`)
+    toast.info(t("dashboards.view.did_not_fit", { left: result.left, total: preset.length, max: MAX_WIDGETS }))
   }
   schedule()
 }
@@ -251,9 +252,9 @@ function applyRename() {
 
 async function removeDashboard() {
   const sure = await confirm({
-    title: "Delete this dashboard?",
-    message: `${name.value} and its ${String(widgets.value.length)} widgets will be removed. The metrics stay.`,
-    confirmLabel: "Delete",
+    title: t("dashboards.view.delete_title"),
+    message: t("dashboards.view.delete_message", { name: name.value, n: widgets.value.length }, widgets.value.length),
+    confirmLabel: t("dashboards.view.delete_confirm"),
     danger: true,
   })
   if (!sure) return
@@ -263,7 +264,7 @@ async function removeDashboard() {
     await deleting.mutateAsync(props.dashboard.id)
     emit("deleted")
   } catch (cause) {
-    toast.error(messageOf(cause, "The dashboard could not be deleted"))
+    toast.error(messageOf(cause, t("dashboards.view.delete_failed")))
   }
 }
 
@@ -295,25 +296,28 @@ onBeforeUnmount(() => {
         v-if="!manageable"
         class="dashboard-view__shared"
         data-testid="dashboard-shared-by"
-      >{{ editable ? "You can edit" : "View only" }} · shared by {{ dashboard.owner ?? "somebody" }}</span>
+      >{{ t('dashboards.view.shared_by', {
+        access: editable ? t('dashboards.view.you_can_edit') : t('dashboards.view.view_only'),
+        owner: dashboard.owner ?? t('dashboards.common.somebody'),
+      }) }}</span>
       <AppIconButton
         v-if="editable"
         :icon="appIcons.edit"
-        tooltip="Rename this dashboard"
+        :tooltip="t('dashboards.view.rename')"
         :disable="busy"
         @click="startRename"
       />
       <AppColorPicker
         v-if="editable"
         :model-value="color"
-        label="Dashboard color"
+        :label="t('dashboards.view.color')"
         :disable="busy"
         data-testid="dashboard-color"
         @update:model-value="chooseColor"
       />
       <AppIconButton
         :icon="appIcons.share"
-        tooltip="Share this dashboard"
+        :tooltip="t('dashboards.view.share')"
         :disable="busy"
         data-testid="dashboard-share"
         @click="shareOpen = true"
@@ -321,7 +325,7 @@ onBeforeUnmount(() => {
       <AppIconButton
         v-if="manageable"
         :icon="appIcons.delete"
-        tooltip="Delete this dashboard"
+        :tooltip="t('dashboards.view.delete')"
         variant="danger-quiet"
         :disable="busy"
         @click="removeDashboard"
@@ -331,7 +335,7 @@ onBeforeUnmount(() => {
         :model-value="range"
         :options="RANGES"
         compact
-        aria-label="Range"
+        :aria-label="t('dashboards.view.range')"
         data-testid="dashboard-range"
         @update:model-value="chooseRange"
       />
@@ -339,7 +343,7 @@ onBeforeUnmount(() => {
         :model-value="refresh"
         :options="REFRESHES"
         compact
-        aria-label="Refresh every"
+        :aria-label="t('dashboards.view.refresh_every')"
         data-testid="dashboard-refresh"
         @update:model-value="chooseRefresh"
       />
@@ -348,7 +352,7 @@ onBeforeUnmount(() => {
         variant="secondary"
         size="sm"
         :icon="appIcons.addChart"
-        label="Add widgets"
+        :label="t('dashboards.view.add_widgets')"
         :disable="widgets.length >= MAX_WIDGETS"
         data-testid="dashboard-add"
         @click="addOpen = true"
@@ -360,11 +364,11 @@ onBeforeUnmount(() => {
         v-if="widgets.length === 0"
         class="dashboard-view__empty"
       >
-        <span>Nothing on this dashboard yet.</span>
+        <span>{{ t('dashboards.view.empty') }}</span>
         <AppButton
           v-if="editable"
           :icon="appIcons.addChart"
-          label="Add widgets"
+          :label="t('dashboards.view.add_widgets')"
           @click="addOpen = true"
         />
       </div>
@@ -417,7 +421,7 @@ onBeforeUnmount(() => {
 
     <WindowDialog
       v-model="renameOpen"
-      title="Rename dashboard"
+      :title="t('dashboards.view.rename_title')"
       size="sm"
       sizing="content"
     >
@@ -427,7 +431,7 @@ onBeforeUnmount(() => {
              opens it again. Prevented, the Enter ends here. -->
         <AppInput
           v-model="renameDraft"
-          label="Name"
+          :label="t('dashboards.view.name')"
           data-testid="dashboard-rename-input"
           @keydown.enter.prevent="applyRename"
         />
@@ -435,11 +439,11 @@ onBeforeUnmount(() => {
       <template #actions>
         <AppButton
           variant="quiet"
-          label="Cancel"
+          :label="t('dashboards.common.cancel')"
           @click="renameOpen = false"
         />
         <AppButton
-          label="Rename"
+          :label="t('dashboards.view.rename_confirm')"
           :disable="renameDraft.trim() === ''"
           @click="applyRename"
         />

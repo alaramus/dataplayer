@@ -145,7 +145,8 @@ async def test_autosave_on_a_stale_revision_is_refused_and_writes_nothing(
 
     assert late.status_code == 409
     detail = late.json()["detail"]
-    assert detail["revision"] == 2
+    assert detail["code"] == "queries.document_changed"
+    assert detail["params"]["revision"] == 2
     remote = await client.get(
         f"{BASE}/{document['id']}", headers=normal_user_token_headers
     )

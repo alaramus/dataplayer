@@ -9,6 +9,7 @@ import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppSpinner } from "@/shared/ui"
 
 const props = defineProps<{
@@ -36,7 +37,7 @@ const previewUrl = computed(() => {
   return url ? client.buildUrl({ url }) : ""
 })
 const error = computed(() =>
-  content.isError.value ? messageOf(content.error.value, "Could not open this image") : ""
+  content.isError.value ? messageOf(content.error.value, t("content.image.could_not_open")) : ""
 )
 const details = computed(() => {
   const value = image.value
@@ -86,7 +87,7 @@ useReloadable(() => props.panelId, reload)
       tone="error"
       data-testid="image-error"
     >
-      The verified preview could not be loaded. Reload this tab to request a new one.
+      {{ t("content.image.preview_failed") }}
     </AppBanner>
     <div
       v-else

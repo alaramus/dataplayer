@@ -8,6 +8,7 @@ import type {
   ReferencedRows,
 } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { useToast } from "@/shared/ui"
 
 import { useArrivingReferences, useFollowReference } from "./api"
@@ -95,7 +96,7 @@ export function useReferences(options: {
   ) {
     const taken = keyValues(reference, options.columns.value, values)
     if (taken === null) {
-      toast.info("This page was read before the relation changed; reload it")
+      toast.info(t("grid.references.stale"))
       return
     }
     try {
@@ -113,7 +114,7 @@ export function useReferences(options: {
       }
       options.onFollow(target)
     } catch (error) {
-      toast.error(messageOf(error, "Could not follow this reference"))
+      toast.error(messageOf(error, t("grid.references.follow_failed")))
     }
   }
 

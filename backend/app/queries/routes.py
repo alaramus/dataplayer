@@ -23,6 +23,7 @@ from app.adapters.cache_serialization import CacheFormat
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     CHANGING,
+    ExecutionMode,
     ExplainRequest,
     ExplainResult,
     GeneratedQuery,
@@ -56,6 +57,7 @@ from app.connectors.access import (
 from app.connectors.names import NamesChangedDep
 from app.core.config import settings
 from app.core.db import SessionDep
+from app.core.problems import Problem, ProblemCode
 from app.core.schemas import Message
 from app.queries import crud, execution, history, snapshot
 from app.queries.content import (
@@ -113,6 +115,13 @@ router = APIRouter(prefix="/queries", tags=["queries"])
 QUERY_METADATA_CACHE_FORMAT: CacheFormat[QueryMetadata] = CacheFormat(QueryMetadata)
 
 MAX_PAGE = 200
+
+# One code per mode rather than the mode as a parameter (D225).
+MODE_UNSUPPORTED: dict[ExecutionMode, ProblemCode] = {
+    "read": "queries.no_read_mode",
+    "auto_commit": "queries.no_auto_commit_mode",
+    "manual": "queries.no_manual_mode",
+}
 
 
 def _title_of(raw: str | None) -> str | None:
@@ -189,7 +198,7 @@ async def _owned_or_404(
 ) -> QueryDocument:
     document = await crud.get_owned(session, document_id=document_id, owner=user)
     if document is None:
-        raise HTTPException(status_code=404, detail="Query document not found")
+        raise Problem(404, "queries.document_not_found")
     return document
 
 
@@ -291,13 +300,7 @@ async def update_document(
     """
     document = await _owned_or_404(session, document_id, current_user)
     if body.revision != document.revision:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "This document changed elsewhere",
-                "revision": document.revision,
-            },
-        )
+        raise Problem(409, "queries.document_changed", revision=document.revision)
     if "title" in body.model_fields_set:
         document.title = _title_of(body.title)
     if body.body is not None:
@@ -343,13 +346,7 @@ async def _source_or_501(
     """
     adapter = await adapter_for(session, connector_id, user, resources, requires="read")
     if not isinstance(adapter, SupportsQuery):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not run queries",
-                "capability": "query",
-            },
-        )
+        raise Problem(501, "queries.no_queries", error_kind="config")
     return adapter
 
 
@@ -381,7 +378,7 @@ async def _owned_run_or_404(
 ) -> ExecutionRun:
     run = await session.get(ExecutionRun, run_id)
     if run is None or run.owner_id != user.id:
-        raise HTTPException(status_code=404, detail="Run not found")
+        raise Problem(404, "queries.run_not_found")
     return run
 
 
@@ -478,10 +475,10 @@ async def rehearse_change(
         if statement.kind == "maintenance":
             # A rehearsal is a transaction rolled back, and maintenance runs
             # outside one (D206).
-            raise HTTPException(
-                status_code=422,
-                detail=f"Statement {statement.ordinal + 1}: maintenance commands "
-                "cannot be tried out first",
+            raise Problem(
+                422,
+                "queries.maintenance_not_rehearsed",
+                statement=statement.ordinal + 1,
             )
     document = (
         None
@@ -510,22 +507,13 @@ async def rehearse_change(
             # are not read as somebody else blocking them (D66).
             lease = await sessions.get(body.transaction_id, owner_id=current_user.id)
             if lease is None:
-                raise HTTPException(status_code=404, detail="No such open transaction")
+                raise Problem(404, "queries.transaction_not_found")
             if lease.connector_id != body.connector_id:
-                raise HTTPException(
-                    status_code=409,
-                    detail="That transaction belongs to another connection",
-                )
+                raise Problem(409, "queries.transaction_other_connection")
             rehearsal = await lease.transaction.rehearse(request)
         else:
             if not isinstance(source, SupportsRehearsal):
-                raise HTTPException(
-                    status_code=501,
-                    detail={
-                        "message": "This source does not rehearse changes",
-                        "capability": "rehearsal",
-                    },
-                )
+                raise Problem(501, "queries.no_rehearsal", error_kind="config")
             rehearsal = await source.rehearse_query(request)
     except AdapterError as failure:
         raise HTTPException(
@@ -557,18 +545,13 @@ async def start_run(
             existing.owner_id != current_user.id
             or existing.fingerprint != execution.fingerprint(body)
         ):
-            raise HTTPException(
-                status_code=409,
-                detail="This run id was already used for a different run",
-            )
+            raise Problem(409, "queries.run_id_taken")
         return await _run_public(session, existing)
 
     source = await _source_or_501(session, body.connector_id, current_user, resources)
     profile = source.query_profile()
     if body.mode not in profile.statement_modes:
-        raise HTTPException(
-            status_code=422, detail=f"This source does not run in {body.mode} mode"
-        )
+        raise Problem(422, MODE_UNSUPPORTED[body.mode])
     timeout = min(
         body.timeout_seconds or profile.default_timeout_seconds,
         profile.max_timeout_seconds,
@@ -581,9 +564,7 @@ async def start_run(
         # One document, one run at a time. Another document is the explicit way
         # to run two things at once (D64).
         if await runner.is_running_document(document.id):
-            raise HTTPException(
-                status_code=409, detail="This document is already running something"
-            )
+            raise Problem(409, "queries.document_busy")
 
     script = source.prepare_query(body.text)
     try:
@@ -630,31 +611,19 @@ async def start_run(
     lease = None
     if body.mode == "manual":
         if body.transaction_id is None:
-            raise HTTPException(
-                status_code=422, detail="A manual run needs a transaction to run in"
-            )
+            raise Problem(422, "queries.manual_needs_transaction")
         lease = await sessions.get(body.transaction_id, owner_id=current_user.id)
         if lease is None:
-            raise HTTPException(status_code=404, detail="No such open transaction")
+            raise Problem(404, "queries.transaction_not_found")
         if lease.connector_id != body.connector_id:
-            raise HTTPException(
-                status_code=409,
-                detail="That transaction belongs to another connection",
-            )
+            raise Problem(409, "queries.transaction_other_connection")
         if lease.transaction.state().broken:
-            raise HTTPException(
-                status_code=409,
-                detail="This transaction failed and can only be rolled back",
-            )
+            raise Problem(409, "queries.transaction_failed")
 
     # Refused rather than queued where nobody can see it (D64).
     if await runner.active_count(current_user.id) >= settings.QUERY_MAX_ACTIVE_RUNS:
-        raise HTTPException(
-            status_code=429,
-            detail=(
-                f"You already have {settings.QUERY_MAX_ACTIVE_RUNS} runs going; "
-                "wait for one to finish or cancel it"
-            ),
+        raise Problem(
+            429, "queries.too_many_runs", limit=settings.QUERY_MAX_ACTIVE_RUNS
         )
 
     search_path = list(document.search_path) if document is not None else []
@@ -736,9 +705,7 @@ async def _captured_or_404(
     if result is None:
         # Expired, evicted, or somebody else's: one answer for all three, since
         # an opaque id is not an authorisation.
-        raise HTTPException(
-            status_code=404, detail="This result is no longer available"
-        )
+        raise Problem(404, "queries.result_gone")
     return result
 
 
@@ -880,13 +847,7 @@ async def keep_result(
             detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
         ) from None
     except OSError:
-        raise HTTPException(
-            status_code=507,
-            detail={
-                "message": "The result could not be stored",
-                "error_kind": "config",
-            },
-        ) from None
+        raise Problem(507, "queries.result_not_stored", error_kind="config") from None
     return downloads.KeptDownload(filename=path.name, row_count=row_count)
 
 
@@ -1024,13 +985,7 @@ async def read_metadata(
     )
     adapter = source.adapter
     if not isinstance(adapter, SupportsQueryMetadata):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot describe itself for an editor",
-                "capability": "query_metadata",
-            },
-        )
+        raise Problem(501, "queries.no_editor_metadata", error_kind="config")
     completions = adapter
     return await cached_read(
         data_cache=data_cache,
@@ -1067,10 +1022,7 @@ async def explain_query(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsExplain):
-        raise HTTPException(
-            status_code=501,
-            detail={"message": "This source does not plan queries", "capability": "explain"},
-        )
+        raise Problem(501, "queries.no_explain", error_kind="config")
     document = (
         None
         if body.document_id is None
@@ -1117,13 +1069,7 @@ async def format_query(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsQueryFormatting):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not format SQL",
-                "capability": "query_formatting",
-            },
-        )
+        raise Problem(501, "queries.no_formatting", error_kind="config")
     return FormattedQuery(text=adapter.format_query(body.text))
 
 
@@ -1145,13 +1091,7 @@ async def generate_query(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsGeneratedQuery):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not write queries about its nodes",
-                "capability": "generated_query",
-            },
-        )
+        raise Problem(501, "queries.no_generated_query", error_kind="config")
     try:
         return await adapter.generate_query(body)
     except ValueError as refusal:
@@ -1188,28 +1128,16 @@ async def open_transaction(
         else await _owned_or_404(session, body.document_id, current_user)
     )
     if document is not None and await sessions.for_document(document.id) is not None:
-        raise HTTPException(
-            status_code=409, detail="This document already has a transaction open"
-        )
+        raise Problem(409, "queries.transaction_already_open")
     if await sessions.count_for(current_user.id) >= settings.QUERY_MAX_TRANSACTIONS:
-        raise HTTPException(
-            status_code=429,
-            detail=(
-                f"You already have {settings.QUERY_MAX_TRANSACTIONS} transactions "
-                "open; end one first"
-            ),
+        raise Problem(
+            429, "queries.too_many_transactions", limit=settings.QUERY_MAX_TRANSACTIONS
         )
     adapter = await adapter_for(
         session, body.connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsTransactions):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not hold transactions open",
-                "capability": "transactions",
-            },
-        )
+        raise Problem(501, "queries.no_transactions", error_kind="config")
     profile = adapter.query_profile() if isinstance(adapter, SupportsQuery) else None
     timeout = min(
         body.timeout_seconds or (profile.default_timeout_seconds if profile else 30),
@@ -1248,7 +1176,7 @@ async def read_transaction(
     """
     lease = await sessions.get(transaction_id, owner_id=current_user.id)
     if lease is None:
-        raise HTTPException(status_code=404, detail="No such open transaction")
+        raise Problem(404, "queries.transaction_not_found")
     return sessions.public(lease)
 
 
@@ -1269,13 +1197,10 @@ async def commit_transaction(
     """
     lease = await sessions.get(transaction_id, owner_id=current_user.id)
     if lease is None:
-        raise HTTPException(status_code=404, detail="No such open transaction")
+        raise Problem(404, "queries.transaction_not_found")
     state = lease.transaction.state()
     if state.broken:
-        raise HTTPException(
-            status_code=409,
-            detail="This transaction failed and can only be rolled back",
-        )
+        raise Problem(409, "queries.transaction_failed")
     try:
         await sessions.end(transaction_id, commit=True)
     except AdapterError as failure:
@@ -1314,7 +1239,7 @@ async def rollback_transaction(
     """
     lease = await sessions.get(transaction_id, owner_id=current_user.id)
     if lease is None:
-        raise HTTPException(status_code=404, detail="No such open transaction")
+        raise Problem(404, "queries.transaction_not_found")
     state = lease.transaction.state()
     await sessions.end(transaction_id, commit=False)
     await execution.settle(session, transaction_id=transaction_id, committed=False)
