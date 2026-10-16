@@ -1,6 +1,7 @@
 import type { DeclaredReferencePublic, ReferenceEndPublic, RelationModel } from "@/client"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { GRAPH_LIMITS } from "@/shared/graph/model"
 import { MAX_RELATIONS } from "./model"
 import type { DiagramNodeRef, FarRelation, RelationGraphSource } from "./model"
@@ -62,7 +63,7 @@ export async function withDeclared(
       far.push({ ...place, model: await read(end, signal) })
     } catch (error) {
       signal.throwIfAborted()
-      far.push({ ...place, model: null, message: messageOf(error, "Could not read this structure") })
+      far.push({ ...place, model: null, message: messageOf(error, t("relationships.read_failed")) })
     }
   }
   return { ...source, connectorId, declared, far }
@@ -74,7 +75,7 @@ export async function loadRelations(
   signal: AbortSignal,
   progress: (loaded: number) => void,
 ): Promise<RelationGraphSource> {
-  if (requested.length > MAX_RELATIONS) throw new GraphLoadError(`Select at most ${MAX_RELATIONS} tables for one diagram.`)
+  if (requested.length > MAX_RELATIONS) throw new GraphLoadError(t("relationships.too_many", { n: MAX_RELATIONS }))
   const stop = new AbortController()
   const combined = AbortSignal.any([signal, stop.signal])
   const result: RelationGraphSource = { requested, models: [], failures: [] }
@@ -95,13 +96,13 @@ export async function loadRelations(
         if (rows > GRAPH_LIMITS.rows || edges > GRAPH_LIMITS.edges) {
           tooLarge = true
           stop.abort()
-          throw new GraphLoadError("This graph is too large. Select fewer tables.")
+          throw new GraphLoadError(t("relationships.too_large"))
         }
         result.models.push(model)
       } catch (error) {
-        if (tooLarge) throw new GraphLoadError("This graph is too large. Select fewer tables.")
+        if (tooLarge) throw new GraphLoadError(t("relationships.too_large"))
         combined.throwIfAborted()
-        result.failures.push({ ...item, message: messageOf(error, "Could not read this structure") })
+        result.failures.push({ ...item, message: messageOf(error, t("relationships.read_failed")) })
       }
       progress(++loaded)
     }

@@ -6,12 +6,12 @@ import { appIcons } from "@/shared/ui/icons"
 import {
   ASK_VALUE,
   ASK_OPTION,
-  BY_MEANING,
+  byMeaning,
   fieldOptions,
   hitOption,
   recentOptions,
   ROWS_IN_FIELD,
-  SHOW_IN_CATALOG,
+  showInCatalogLabel,
 } from "./rows"
 import type { SearchLine } from "./stream"
 import { CONNECTIONS, GUIDE, hit, outcome, plannedCell } from "./testing"
@@ -76,7 +76,7 @@ describe("the rows of the field", () => {
       },
       open: "rows",
     }))
-    expect(node).toMatchObject({ actionIcon: appIcons.myLocation, actionLabel: SHOW_IN_CATALOG })
+    expect(node).toMatchObject({ actionIcon: appIcons.myLocation, actionLabel: showInCatalogLabel() })
     const page = hitOption(hit("Redis"))
     expect(page.actionIcon).toBeUndefined()
     expect(page.actionLabel).toBeUndefined()
@@ -140,7 +140,7 @@ describe("a hit found by meaning", () => {
     expect(option.label).toBe("notes.txt")
     expect(option.labelRuns).toBeUndefined()
     expect(option.descriptionRuns).toEqual([
-      { text: BY_MEANING, hit: false },
+      { text: byMeaning(), hit: false },
       { text: " · ", hit: false },
       { text: "Line 4: ", hit: false },
       { text: "the invoices for march", hit: false },
@@ -154,7 +154,7 @@ describe("a hit found by meaning", () => {
     })
 
     expect(hitOption(meant).descriptionRuns).toEqual([
-      { text: BY_MEANING, hit: false },
+      { text: byMeaning(), hit: false },
       { text: " · ", hit: false },
       { text: "files · reports", hit: false },
     ])

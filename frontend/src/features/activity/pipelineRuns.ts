@@ -1,5 +1,6 @@
 import type { JobPublic } from "@/client"
 import { isWorking } from "@/features/services/jobs"
+import { t } from "@/shared/i18n"
 
 import { isRecord, listed, text, transferLines, transferOf, WAITING } from "./transfers"
 import type { TransferRecord, Writing } from "./transfers"
@@ -79,18 +80,22 @@ export function pipelineRunOf(job: Pick<JobPublic, "kind" | "parameters">): Pipe
 function current(run: PipelineRunRecord): { step: RunStepRecord; at: string } | null {
   const index = run.steps.findIndex((step) => step.outcome === "running")
   const step = run.steps[index]
-  return step === undefined ? null : { step, at: `${String(index + 1)} of ${String(run.steps.length)}` }
+  return step === undefined
+    ? null
+    : { step, at: t("activity.pipeline.at", { at: index + 1, total: run.steps.length }) }
 }
 
 /** The pipeline's name, and that the schedule started it when it did. */
 export function pipelineName(run: PipelineRunRecord): string {
-  return run.scheduled ? `${run.pipelineName} · scheduled` : run.pipelineName
+  return run.scheduled ? t("activity.pipeline.scheduled", { name: run.pipelineName }) : run.pipelineName
 }
 
 /** What the footer says of it: "Nightly · 2 of 5: Save as CSV". */
 export function pipelineBrief(run: PipelineRunRecord): string {
   const now = current(run)
-  return now === null ? `${pipelineName(run)} · starting` : `${pipelineName(run)} · ${now.at}: ${now.step.title}`
+  return now === null
+    ? t("activity.pipeline.brief_starting", { name: pipelineName(run) })
+    : t("activity.pipeline.brief", { name: pipelineName(run), at: now.at, title: now.step.title })
 }
 
 /** Links that have ended, done or not. */
@@ -101,12 +106,12 @@ export function settledSteps(run: PipelineRunRecord): number {
 /** How a step ended, where a finished run lists it. */
 function ending(step: RunStepRecord): string {
   switch (step.outcome) {
-    case "done": return step.message ?? "done"
-    case "failed": return step.message ?? "failed"
+    case "done": return step.message ?? t("activity.pipeline.done")
+    case "failed": return step.message ?? t("activity.pipeline.failed")
     // The server stopped under it: nothing settled it.
-    case "running": return "interrupted"
+    case "running": return t("activity.pipeline.interrupted")
     case "waiting":
-    case "not_run": return "not run"
+    case "not_run": return t("activity.pipeline.not_run")
   }
 }
 
@@ -117,23 +122,27 @@ function ending(step: RunStepRecord): string {
 export function pipelineLines(job: JobPublic, run: PipelineRunRecord): string[] {
   if (isWorking(job)) {
     const now = current(run)
-    if (now === null) return ["Starting"]
-    const head = `${now.at}: ${now.step.title} — ${now.step.sourceLabel} → ${now.step.targetLabel}`
-    if (job.step === WAITING) return [head, "Waiting for a free transfer slot"]
+    if (now === null) return [t("activity.pipeline.starting")]
+    const head = t("activity.pipeline.head", {
+      at: now.at, title: now.step.title, source: now.step.sourceLabel, target: now.step.targetLabel,
+    })
+    if (job.step === WAITING) return [head, t("activity.transfers.waiting_slot")]
     const transfer = now.step.transfer
     return transfer === null || transfer.current === null ? [head] : [head, ...transferLines(job, transfer)]
   }
   return [
     ...(job.message === null ? [] : [job.message]),
-    ...listed(run.steps.map((step, index) => `${String(index + 1)}. ${step.title} — ${ending(step)}${read(run, step)}`), 0),
+    ...listed(run.steps.map((step, index) => withRead(run, step, t("activity.pipeline.step", {
+      index: index + 1, title: step.title, ending: ending(step),
+    }))), 0),
   ]
 }
 
 /** What a link that ran read of another's result, by the name it was made under. */
-function read(run: PipelineRunRecord, step: RunStepRecord): string {
-  if (step.reads === null || (step.outcome !== "done" && step.outcome !== "failed")) return ""
+function withRead(run: PipelineRunRecord, step: RunStepRecord, line: string): string {
+  if (step.reads === null || (step.outcome !== "done" && step.outcome !== "failed")) return line
   const maker = run.steps.find((one) => one.linkId === step.reads)
-  return maker?.madeName ? ` · read ${maker.madeName}` : ""
+  return maker?.madeName ? t("activity.pipeline.read", { line, name: maker.madeName }) : line
 }
 
 /** The connections a run has written into, re-read as its links end (D177). */

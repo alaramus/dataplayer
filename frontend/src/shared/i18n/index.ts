@@ -74,6 +74,8 @@ export const i18n = createI18n<[Messages], Language, false>({
   locale: "en",
   fallbackLocale: "en",
   messages: { en } as Record<Language, Messages>,
+  // Words reach the page as text, never as HTML, so "<default>" is a word.
+  warnHtmlMessage: false,
   pluralRules: Object.fromEntries(
     Object.entries(PLURAL_FORMS).map(([language, forms]) => [language, pluralRule(language, forms)])
   ),

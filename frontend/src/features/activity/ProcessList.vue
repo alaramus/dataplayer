@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
 import { AppBadge, AppButton, AppEmptyState, AppProgress } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import type { ProcessRow } from "./presentation"
 
 defineProps<{
@@ -31,7 +32,7 @@ defineEmits<{
     </p>
     <AppEmptyState
       v-if="rows.length === 0 && !error"
-      :text="loading ? 'Loading processes' : 'Nothing is running'"
+      :text="loading ? t('activity.processes.loading') : t('activity.processes.nothing_running')"
     />
     <article
       v-for="row in rows"
@@ -43,7 +44,7 @@ defineEmits<{
         <strong>{{ row.label }}</strong>
         <AppBadge
           :tone="row.tone"
-          :label="stopping.has(row.id) ? 'Stopping' : row.status"
+          :label="stopping.has(row.id) ? t('activity.processes.stopping') : row.status"
         />
       </div>
       <div class="processes__detail">
@@ -69,7 +70,7 @@ defineEmits<{
           variant="quiet"
           size="sm"
           :icon="appIcons.pause"
-          label="Pause after current"
+          :label="t('activity.processes.pause')"
           @click="$emit('pause', row)"
         />
         <AppButton
@@ -77,7 +78,7 @@ defineEmits<{
           variant="quiet"
           size="sm"
           :icon="appIcons.playArrow"
-          label="Resume"
+          :label="t('activity.processes.resume')"
           @click="$emit('resume', row)"
         />
         <AppButton
@@ -85,7 +86,9 @@ defineEmits<{
           variant="danger-quiet"
           size="sm"
           :icon="appIcons.stop"
-          :label="row.source === 'server' ? 'Cancel job' : row.paused ? 'Stop queue' : 'Stop after current'"
+          :label="row.source === 'server'
+            ? t('activity.processes.cancel_job')
+            : row.paused ? t('activity.processes.stop_queue') : t('activity.processes.stop_after')"
           :loading="stopping.has(row.id)"
           @click="$emit('stop', row)"
         />
@@ -95,7 +98,7 @@ defineEmits<{
       v-if="more && rows.length > 0"
       variant="quiet"
       size="sm"
-      label="Load more"
+      :label="t('activity.processes.load_more')"
       :loading="loading"
       @click="$emit('more')"
     />

@@ -163,6 +163,27 @@ second word for it.
 | columnstore | колоночное хранилище |
 | retention | хранение |
 | up to date (a preview) | актуально |
+| minimize / maximize | свернуть / развернуть |
+| confirm | подтвердить |
+| default server | сервер по умолчанию |
+| user / superuser | пользователь / суперпользователь |
+| shell | оболочка |
+| give / take away access | открыть / закрыть доступ |
+| request access | запросить доступ |
+| listen (read aloud) | прослушать |
+| tour | тур |
+| declared reference | нарисованная ссылка |
+| arrange (a graph) | упорядочить |
+| zoom in / out | приблизить / отдалить |
+| activity | активность |
+| needs you | требует внимания |
+| working (running now) | выполняется |
+| recent | недавнее |
+| do not disturb | не беспокоить |
+| dismiss | убрать |
+| by meaning | по смыслу |
+| passage | фрагмент |
+| transfer | перенос |
 
 ## Gender
 

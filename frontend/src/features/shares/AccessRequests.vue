@@ -7,6 +7,7 @@ import type { Grant } from "@/features/connectors/access"
 import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import { useAccessRequests, useAnswerRequest } from "@/features/shares/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppIconButton, AppSelect, useToast } from "@/shared/ui"
 
 /**
@@ -32,9 +33,15 @@ const connectors = useConnectors()
  * window where the name is being edited, and what somebody asked for is the
  * connection as it stands, not as it is being renamed.
  */
-const connectorName = computed(
-  () => connectorNameOf(connectors.data.value, connectorId.value) ?? "this connection"
-)
+const connectorName = computed(() => connectorNameOf(connectors.data.value, connectorId.value))
+
+/** What somebody asked for: the node the link named, or the connection. */
+function askedFor(nodeLabel: string | null | undefined): string {
+  const name = nodeLabel ?? connectorName.value
+  return t("shares.asking.asked_for", {
+    what: name === null ? t("shares.to_this_connection") : t("shares.named", { name }),
+  })
+}
 
 const waiting = computed(() => requests.data.value?.data ?? [])
 
@@ -51,7 +58,7 @@ async function answer(requestId: string, access: Grant | null) {
   try {
     await answerRequest.mutateAsync({ requestId, access })
   } catch (error) {
-    toast.error(messageOf(error, "That request could not be answered"))
+    toast.error(messageOf(error, t("shares.asking.answer_failed")))
   }
 }
 </script>
@@ -62,7 +69,7 @@ async function answer(requestId: string, access: Grant | null) {
     class="asking"
   >
     <h3 class="asking__heading dp-overline">
-      Waiting for an answer
+      {{ t('shares.asking.heading') }}
     </h3>
     <ul
       class="asking__list"
@@ -79,7 +86,7 @@ async function answer(requestId: string, access: Grant | null) {
             {{ ask.requester_name ?? ask.requester_email }}
           </span>
           <span class="asking__email">
-            asked for {{ ask.node_label ?? connectorName }}
+            {{ askedFor(ask.node_label) }}
           </span>
         </span>
         <AppForm class="asking__level">
@@ -92,7 +99,7 @@ async function answer(requestId: string, access: Grant | null) {
           />
         </AppForm>
         <AppButton
-          label="Give access"
+          :label="t('shares.asking.give_access')"
           size="sm"
           :loading="answerRequest.isPending.value"
           :data-testid="`share-approve-${ask.requester_email}`"
@@ -101,7 +108,7 @@ async function answer(requestId: string, access: Grant | null) {
         <AppIconButton
           :icon="appIcons.close"
           variant="danger-quiet"
-          tooltip="Say no. They are told, without a reason."
+          :tooltip="t('shares.asking.decline')"
           :data-testid="`share-decline-${ask.requester_email}`"
           @click="answer(ask.id, null)"
         />

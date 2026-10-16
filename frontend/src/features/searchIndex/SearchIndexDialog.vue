@@ -19,6 +19,7 @@ import {
   statusLine,
 } from "@/features/searchIndex/state"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -74,7 +75,7 @@ watch(
   { immediate: true }
 )
 
-const windowOptions = KEEP_WINDOWS.map((one) => ({ label: one.label, value: one.value }))
+const windowOptions = computed(() => KEEP_WINDOWS.map((one) => ({ label: one.label, value: one.value })))
 
 function chooseWindow(value: unknown) {
   const found = KEEP_WINDOWS.find((one) => one.value === Number(value))
@@ -90,25 +91,29 @@ async function save() {
       connectorId: id,
       body: { keep: keep.value, window_seconds: windowSeconds.value },
     })
+    const name = window.asked.value?.name
     toast.success(
       keep.value
-        ? `The names of ${window.asked.value?.name ?? "this connection"} will be kept`
-        : `The kept names of ${window.asked.value?.name ?? "this connection"} were deleted`
+        ? name === undefined ? t("search_index.dialog.kept_this") : t("search_index.dialog.kept", { name })
+        : name === undefined ? t("search_index.dialog.deleted_this") : t("search_index.dialog.deleted", { name })
     )
   } catch (cause) {
-    toast.error(messageOf(cause, "The search index could not be changed"))
+    toast.error(messageOf(cause, t("search_index.dialog.change_failed")))
   } finally {
     saving.value = false
   }
 }
 
-/** Where the window offers to keep what files hold: the folder it was opened in. */
+/**
+ * Where the window offers to keep what files hold: the folder it was opened
+ * in, or the whole connection, whose label is null.
+ */
 const offeredFolder = computed(() => {
   const folder = window.asked.value?.folder ?? null
   const scopes = current.value?.contents ?? []
   const id = folder?.id ?? ""
   if (scopes.some((scope) => scope.node_id === id)) return null
-  return { id, label: folder === null ? "the whole connection" : folder.label }
+  return { id, label: folder === null ? null : folder.label }
 })
 
 async function keepContents() {
@@ -118,7 +123,7 @@ async function keepContents() {
   try {
     await addContents.mutateAsync({ connectorId: id, nodeId: folder.id || null })
   } catch (cause) {
-    toast.error(messageOf(cause, "What the files hold could not be kept"))
+    toast.error(messageOf(cause, t("search_index.dialog.keep_failed")))
   }
 }
 
@@ -128,7 +133,7 @@ async function stopContents(nodeId: string) {
   try {
     await removeContents.mutateAsync({ connectorId: id, nodeId })
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be stopped"))
+    toast.error(messageOf(cause, t("search_index.dialog.stop_failed")))
   }
 }
 
@@ -138,7 +143,7 @@ async function readAgain() {
   try {
     await refresh.mutateAsync(id)
   } catch (cause) {
-    toast.error(messageOf(cause, "The names could not be asked for again"))
+    toast.error(messageOf(cause, t("search_index.dialog.reread_failed")))
   }
 }
 </script>
@@ -148,8 +153,8 @@ async function readAgain() {
     :model-value="window.asked.value !== null"
     size="medium-form"
     sizing="stable"
-    :title="`Search index of ${window.asked.value?.name ?? ''}`"
-    subtitle="Find what this connection holds by name without asking its server."
+    :title="t('search_index.dialog.title', { name: window.asked.value?.name ?? '' })"
+    :subtitle="t('search_index.dialog.subtitle')"
     data-testid="search-index-dialog"
     @update:model-value="window.close()"
   >
@@ -158,7 +163,7 @@ async function readAgain() {
       v-else-if="state.isError.value"
       tone="warning"
     >
-      {{ messageOf(state.error.value, "The search index could not be read") }}
+      {{ messageOf(state.error.value, t('search_index.dialog.read_failed')) }}
     </AppBanner>
     <AppForm
       v-else-if="current"
@@ -168,31 +173,29 @@ async function readAgain() {
         v-if="!available"
         tone="info"
       >
-        This kind of source cannot keep its names.
+        {{ t('search_index.dialog.cannot_keep') }}
       </AppBanner>
       <AppBanner
         v-else-if="!mayChange"
         tone="info"
       >
-        Only {{ current.owner_email ?? "its owner" }} decides whether its names are kept.
+        {{ t('search_index.dialog.only_owner', { owner: current.owner_email ?? t('search_index.dialog.its_owner') }) }}
       </AppBanner>
 
       <AppToggle
         v-model="keep"
-        label="Keep a list of names for search"
+        :label="t('search_index.dialog.keep')"
         :disable="!mayChange || !available"
         data-testid="search-index-keep"
       />
       <span class="dp-helper">
-        The names of tables, keys, folders and files are read with the owner's
-        credentials and copied into this server's database as plain text.
-        Switching this off deletes the copy, and any text kept with it.
+        {{ t('search_index.dialog.keep_helper') }}
       </span>
       <AppSelect
         :model-value="windowSeconds"
         :options="windowOptions"
-        label="Read again within"
-        hint="Older than this, the search asks the server instead."
+        :label="t('search_index.dialog.window')"
+        :hint="t('search_index.dialog.window_hint')"
         :disable="!mayChange || !keep"
         data-testid="search-index-window"
         @update:model-value="chooseWindow"
@@ -210,7 +213,7 @@ async function readAgain() {
           v-if="mayChange"
           variant="secondary"
           size="sm"
-          label="Read now"
+          :label="t('search_index.dialog.read_now')"
           :disable="current.status === 'reading' || current.refresh_asked === true"
           data-testid="search-index-refresh"
           @click="readAgain"
@@ -228,12 +231,10 @@ async function readAgain() {
         data-testid="search-index-contents"
       >
         <h3 class="dp-section-title">
-          What files hold
+          {{ t('search_index.dialog.contents_title') }}
         </h3>
         <span class="dp-helper">
-          The text of the files below a folder, copied the same way, so a word
-          inside them is found on Enter without reading them again. Binary files
-          and files above the server's size limit are left out.
+          {{ t('search_index.dialog.contents_helper') }}
         </span>
         <ul class="search-index__scopes">
           <li
@@ -250,7 +251,7 @@ async function readAgain() {
               v-if="mayChange"
               variant="quiet"
               size="sm"
-              label="Stop"
+              :label="t('search_index.dialog.stop')"
               @click="stopContents(scope.node_id)"
             />
           </li>
@@ -259,7 +260,9 @@ async function readAgain() {
           v-if="mayChange && offeredFolder"
           variant="secondary"
           size="sm"
-          :label="`Keep what files hold in ${offeredFolder.label}`"
+          :label="offeredFolder.label === null
+            ? t('search_index.dialog.keep_contents_all')
+            : t('search_index.dialog.keep_contents', { folder: offeredFolder.label })"
           :disable="!kept"
           data-testid="search-index-keep-contents"
           @click="keepContents"
@@ -267,19 +270,19 @@ async function readAgain() {
         <span
           v-if="mayChange && offeredFolder && !kept"
           class="dp-helper"
-        >Keep the names first: the files are found through them.</span>
+        >{{ t('search_index.dialog.names_first') }}</span>
       </section>
     </AppForm>
 
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('catalog.common.close')"
         @click="window.close()"
       />
       <AppButton
         v-if="mayChange"
-        label="Save"
+        :label="t('catalog.common.save')"
         :disable="!changed || saving"
         data-testid="search-index-save"
         @click="save"

@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue"
 
 import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppRadioGroup, useConfirm, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
@@ -41,9 +42,15 @@ const stepIndex = ref(0)
 const step = computed(() => ONBOARDING_STEPS[stepIndex.value] ?? ONBOARDING_STEPS[0])
 const isFirstStep = computed(() => stepIndex.value === 0)
 const isLastStep = computed(() => stepIndex.value === ONBOARDING_STEPS.length - 1)
-const position = computed(() => `Step ${stepIndex.value + 1} of ${ONBOARDING_STEPS.length}`)
+const position = computed(() =>
+  t("onboarding.position", { n: stepIndex.value + 1, total: ONBOARDING_STEPS.length })
+)
 const primaryLabel = computed(() =>
-  phase.value === "theme" ? "Start tour" : isLastStep.value ? "Finish" : "Next"
+  phase.value === "theme"
+    ? t("onboarding.start")
+    : isLastStep.value
+      ? t("onboarding.finish")
+      : t("onboarding.next")
 )
 
 function reset() {
@@ -62,7 +69,7 @@ async function markDone() {
   try {
     await savePreferences.mutateAsync({ welcome_tour_done: true })
   } catch (cause) {
-    toast.error(messageOf(cause, "The tour could not be marked as seen"))
+    toast.error(messageOf(cause, t("onboarding.mark_failed")))
   }
 }
 
@@ -90,11 +97,10 @@ const confirm = useConfirm()
 async function confirmClose(): Promise<boolean> {
   if (tourDone.value) return true
   const close = await confirm({
-    title: "Close the welcome tour?",
-    message:
-      "The tour will not open again by itself. You can replay it anytime in Preferences, under Welcome tour.",
-    confirmLabel: "Close tour",
-    cancelLabel: "Keep watching",
+    title: t("onboarding.close_title"),
+    message: t("onboarding.close_message"),
+    confirmLabel: t("onboarding.close_confirm"),
+    cancelLabel: t("onboarding.keep_watching"),
   })
   if (close) void markDone()
   return close
@@ -119,7 +125,7 @@ function chooseTheme(value: string) {
 <template>
   <WindowDialog
     :model-value="props.modelValue"
-    title="Welcome to DataPlayer"
+    :title="t('onboarding.title')"
     size="wide-form"
     sizing="stable"
     :before-close="confirmClose"
@@ -131,8 +137,7 @@ function chooseTheme(value: string) {
       class="onboarding"
     >
       <p class="onboarding__intro">
-        Pick how the application looks, then take a short tour of what it can
-        do, one silent clip for each of its main parts.
+        {{ t('onboarding.intro') }}
       </p>
       <q-separator />
       <AppForm
@@ -142,7 +147,7 @@ function chooseTheme(value: string) {
         <AppRadioGroup
           :model-value="theme.mode"
           :options="THEME_CHOICES"
-          aria-label="Theme"
+          :aria-label="t('theme.label')"
           data-testid="onboarding-theme"
           @update:model-value="chooseTheme"
         />
@@ -178,14 +183,14 @@ function chooseTheme(value: string) {
     <template #actions>
       <AppButton
         variant="quiet"
-        :label="phase === 'theme' ? 'Skip tour' : 'Skip'"
+        :label="phase === 'theme' ? t('onboarding.skip_tour') : t('onboarding.skip')"
         data-testid="onboarding-skip"
         @click="finish"
       />
       <AppButton
         v-if="phase === 'tour'"
         variant="quiet"
-        label="Back"
+        :label="t('catalog.common.back')"
         data-testid="onboarding-back"
         @click="back"
       />

@@ -1,3 +1,29 @@
 import type { Messages } from "../en"
 
-export const terminals: Messages["terminals"] = {}
+export const terminals: Messages["terminals"] = {
+  terminals: "Терминалы",
+  press: {
+    hide: "Скрыть терминалы",
+    open: "Открыть терминал",
+    open_on: "Открыть терминал на «{name}»",
+    on: "Терминал на «{name}»",
+    with_open: "{doing} · открыто: {n}",
+  },
+  connection: "Подключение",
+  numbered: "{name} ({n})",
+  notice: {
+    connecting: "Подключение…",
+    ended: "Оболочка завершилась",
+    ended_with: "Оболочка завершилась с кодом {status}",
+    lost: "Соединение с сервером потеряно",
+    sign_in: "Войдите снова, чтобы открыть терминал",
+  },
+  close: "Закрыть терминал",
+  open: "Открыть терминал",
+  none_menu: "Ни у одного вашего подключения нет терминала",
+  none_menu_hint: "Он есть у SSH-подключения",
+  none: "Ни у одного вашего подключения нет терминала. Он есть у SSH-подключения.",
+  choose: "Ни один терминал не открыт. Выберите подключение, на котором его открыть:",
+  open_again: "Открыть снова",
+  unlock: "Разблокировать ключ",
+}

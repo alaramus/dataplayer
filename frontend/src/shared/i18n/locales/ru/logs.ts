@@ -1,3 +1,29 @@
 import type { Messages } from "../en"
 
-export const logs: Messages["logs"] = {}
+export const logs: Messages["logs"] = {
+  logs: "Журнал",
+  tooltip: "Журнал сервера",
+  levels: {
+    all: "Всё",
+    warning: "Предупреждения и ошибки",
+    error: "Ошибки",
+  },
+  processes: {
+    all: "Все процессы",
+    backend: "Бэкенд",
+    metrics: "Метрики",
+    search_keeper: "Поисковый индекс",
+  },
+  only_superuser: "Журнал сервера может читать только суперпользователь.",
+  search: "Искать в тексте, по ref или пути",
+  follow: "Следить",
+  reload: "Прочитать журнал снова",
+  read_failed: "Не удалось прочитать журнал",
+  not_kept: "Сервер не хранит файлы журнала. Чтобы хранить их, задайте LOG_DIR; до тех пор журнал пишется в стандартный вывод сервера.",
+  nothing: "В журнале ничего не найдено.",
+  ref: "ref {ref}",
+  copy: "Копировать запись",
+  copied: "Скопировано",
+  copy_refused: "Браузер не разрешил копирование",
+  older: "Более ранние записи",
+}

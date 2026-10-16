@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSelect } from "@/shared/ui"
 import Graph2D from "./Graph2D.vue"
 import { isLegacyFlat3 } from "./layout3d"
@@ -24,7 +25,7 @@ const matches = computed(() => {
   const needle = search.value.trim().toLowerCase()
   return needle ? graph.value.nodes.filter((node) => [node.label, node.caption ?? "", ...node.rows.map((row) => row.label)].some((value) => value.toLowerCase().includes(needle))).slice(0, 30) : []
 })
-const groups = computed(() => [{ label: "All groups", value: "" }, ...props.graph.groups.map((group) => ({ label: group.label, value: group.id }))])
+const groups = computed(() => [{ label: t("graph.all_groups"), value: "" }, ...props.graph.groups.map((group) => ({ label: group.label, value: group.id }))])
 const selectedNode = computed(() => selection.value?.kind === "node" ? props.graph.nodes.find((node) => node.id === selection.value?.id) : undefined)
 const selectedEdge = computed(() => selection.value?.kind === "edge" ? props.graph.edges.find((edge) => edge.id === selection.value?.id) : undefined)
 const related = computed(() => edgesOf(props.graph, selection.value))
@@ -39,7 +40,7 @@ function stopLayout() {
   timeout = undefined
   loading.value = false
 }
-function cancelLayout() { stopLayout(); layoutError.value = "Layout cancelled. Use Arrange to try again." }
+function cancelLayout() { stopLayout(); layoutError.value = t("graph.layout.cancelled") }
 function arrange(force?: "2d" | "3d") {
   stopLayout()
   if (problem.value || !props.graph.nodes.length) return
@@ -59,16 +60,16 @@ function arrange(force?: "2d" | "3d") {
         const positions3 = keep3 ? view.value.positions3 : Object.fromEntries(props.graph.nodes.map((node) => [node.id, force !== "3d" && !upgradeNow && Object.hasOwn(view.value.positions3, node.id) ? view.value.positions3[node.id]! : result.positions3[node.id]!]))
         patch({ positions2, positions3, ...(force === "2d" ? { camera2: null } : {}), ...(force === "3d" || upgradeNow ? { camera3: null } : {}) })
         if (force) void nextTick(() => surface.value?.fit())
-      } else layoutError.value = event.data.error ?? "This graph could not be arranged."
+      } else layoutError.value = t("graph.layout.failed")
       stopLayout()
     }
-    worker.onerror = () => { layoutError.value = "This graph could not be arranged. Try a smaller selection."; stopLayout() }
-    timeout = setTimeout(() => { layoutError.value = "Arranging took too long. Try a smaller selection."; stopLayout() }, 20_000)
+    worker.onerror = () => { layoutError.value = t("graph.layout.crashed"); stopLayout() }
+    timeout = setTimeout(() => { layoutError.value = t("graph.layout.too_long"); stopLayout() }, 20_000)
     // Vue proxies do not cross a worker boundary. The document contains only
     // bounded presentation data; neither callbacks nor source objects cross.
     worker.postMessage({ graph: JSON.parse(JSON.stringify(props.graph)), expanded: view.value.expanded })
   } catch {
-    layoutError.value = "The layout worker could not be started."
+    layoutError.value = t("graph.layout.no_worker")
     stopLayout()
   }
 }
@@ -104,7 +105,7 @@ onBeforeUnmount(stopLayout)
   >
     <div class="graph-viewer__toolbar">
       <AppButton
-        label="2D"
+        :label="t('graph.mode_2d')"
         size="sm"
         :variant="view.mode === '2d' ? 'current' : 'quiet'"
         :aria-pressed="view.mode === '2d'"
@@ -112,7 +113,7 @@ onBeforeUnmount(stopLayout)
         @click="patch({ mode: '2d' })"
       />
       <AppButton
-        label="3D"
+        :label="t('graph.mode_3d')"
         size="sm"
         :variant="view.mode === '3d' ? 'current' : 'quiet'"
         :aria-pressed="view.mode === '3d'"
@@ -125,26 +126,26 @@ onBeforeUnmount(stopLayout)
       />
       <AppIconButton
         :icon="appIcons.centerFocusStrong"
-        tooltip="Fit graph"
+        :tooltip="t('graph.fit')"
         data-testid="graph-fit"
         :disable="!ready"
         @click="surface?.fit()"
       />
       <AppIconButton
         :icon="appIcons.add"
-        tooltip="Zoom in"
+        :tooltip="t('graph.zoom_in')"
         :disable="!ready"
         @click="surface?.zoom(1.25)"
       />
       <AppIconButton
         :icon="appIcons.remove"
-        tooltip="Zoom out"
+        :tooltip="t('graph.zoom_out')"
         :disable="!ready"
         @click="surface?.zoom(0.8)"
       />
       <AppIconButton
         :icon="appIcons.autoAwesomeMosaic"
-        tooltip="Arrange this view"
+        :tooltip="t('graph.arrange')"
         data-testid="graph-arrange"
         :disable="Boolean(problem) || loading"
         @click="arrange(view.mode)"
@@ -152,14 +153,14 @@ onBeforeUnmount(stopLayout)
       <AppIconButton
         v-if="view.mode === '2d'"
         :icon="view.expanded ? appIcons.unfoldLess : appIcons.unfoldMore"
-        :tooltip="view.expanded ? 'Collapse fields' : 'Show fields'"
+        :tooltip="view.expanded ? t('graph.collapse_fields') : t('graph.show_fields')"
         data-testid="graph-details-toggle"
         @click="patch({ expanded: !view.expanded })"
       />
       <AppIconButton
         v-else
         :icon="view.labels ? appIcons.labelOff : appIcons.label"
-        :tooltip="view.labels ? 'Hide labels' : 'Show labels'"
+        :tooltip="view.labels ? t('graph.hide_labels') : t('graph.show_labels')"
         @click="patch({ labels: !view.labels })"
       />
       <AppSelect
@@ -167,7 +168,7 @@ onBeforeUnmount(stopLayout)
         :model-value="view.groupId ?? ''"
         :options="groups"
         compact
-        aria-label="Graph group"
+        :aria-label="t('graph.group')"
         data-testid="graph-group"
         class="graph-viewer__group"
         @update:model-value="chooseGroup"
@@ -177,15 +178,15 @@ onBeforeUnmount(stopLayout)
           v-model="search"
           compact
           clearable
-          placeholder="Find a node or field"
-          aria-label="Find a node or field"
+          :placeholder="t('graph.find')"
+          :aria-label="t('graph.find')"
           data-testid="graph-search"
         />
         <div
           v-if="search.trim()"
           class="graph-viewer__matches"
           role="list"
-          aria-label="Matching nodes"
+          :aria-label="t('graph.matches')"
         >
           <AppButton
             v-for="node in matches"
@@ -195,7 +196,7 @@ onBeforeUnmount(stopLayout)
             size="sm"
             @click="searchPick(node.id)"
           />
-          <span v-if="!matches.length">No matching nodes</span>
+          <span v-if="!matches.length">{{ t("graph.no_matches") }}</span>
         </div>
       </div>
       <!-- What the panel showing this graph offers about itself (D112): drawn
@@ -208,9 +209,9 @@ onBeforeUnmount(stopLayout)
       class="graph-viewer__loading"
       role="status"
     >
-      <span>Arranging graph…</span><AppProgress label="Arranging graph" /><AppIconButton
+      <span>{{ t("graph.arranging") }}</span><AppProgress :label="t('graph.arranging_label')" /><AppIconButton
         :icon="appIcons.close"
-        tooltip="Cancel layout"
+        :tooltip="t('graph.cancel_layout')"
         @click="cancelLayout"
       />
     </div>
@@ -257,12 +258,12 @@ onBeforeUnmount(stopLayout)
         v-if="selection"
         class="graph-viewer__inspector"
         data-testid="graph-inspector"
-        aria-label="Selection details"
+        :aria-label="t('graph.inspector')"
       >
         <div class="graph-viewer__inspector-head">
           <strong>{{ selectedNode?.label ?? selectedEdge?.label }}</strong><AppIconButton
             :icon="appIcons.close"
-            tooltip="Clear selection"
+            :tooltip="t('graph.clear_selection')"
             @click="select(null)"
           />
         </div>
@@ -299,13 +300,13 @@ onBeforeUnmount(stopLayout)
           <AppButton
             variant="quiet"
             size="sm"
-            :label="`From: ${nameOf(selectedEdge.source.nodeId)}`"
+            :label="t('graph.from', { name: nameOf(selectedEdge.source.nodeId) })"
             @click="select({ kind: 'node', id: selectedEdge.source.nodeId }, true)"
           />
           <AppButton
             variant="quiet"
             size="sm"
-            :label="`To: ${nameOf(selectedEdge.target.nodeId)}`"
+            :label="t('graph.to', { name: nameOf(selectedEdge.target.nodeId) })"
             @click="select({ kind: 'node', id: selectedEdge.target.nodeId }, true)"
           />
           <!-- What a producer offers to do with a connection it drew, as
@@ -327,7 +328,7 @@ onBeforeUnmount(stopLayout)
           v-if="selectedNode"
           class="graph-viewer__connections"
         >
-          <strong>Connections · {{ related.length }}</strong>
+          <strong>{{ t("graph.connections", { n: related.length }) }}</strong>
           <AppButton
             v-for="edge in related"
             :key="edge.id"
@@ -336,7 +337,7 @@ onBeforeUnmount(stopLayout)
             :label="relatedLabel(props.graph, selectedNode.id, edge)"
             @click="select({ kind: 'edge', id: edge.id })"
           />
-          <span v-if="!related.length">No connections in this graph</span>
+          <span v-if="!related.length">{{ t("graph.no_connections") }}</span>
         </div>
       </aside>
     </div>
@@ -344,7 +345,7 @@ onBeforeUnmount(stopLayout)
       v-else-if="!loading && !problem && !layoutError"
       class="graph-viewer__empty"
     >
-      No nodes to display
+      {{ t("graph.no_nodes") }}
     </div>
     <!-- No standing bar under the canvas: it counted what is already on
          screen and listed the gestures, and the canvas itself carries those

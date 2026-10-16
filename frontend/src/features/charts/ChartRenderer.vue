@@ -8,6 +8,7 @@ import type { EChartsOption } from "echarts"
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import type { FetchColumn } from "@/client"
+import { t } from "@/shared/i18n"
 import { useThemeStore } from "@/stores/theme"
 
 import { buildChart } from "./model"
@@ -104,7 +105,7 @@ onBeforeUnmount(() => {
       class="chart-renderer__empty"
       data-testid="chart-no-data"
     >
-      No plottable values on this page
+      {{ t("charts.no_data") }}
     </div>
     <div
       ref="host"

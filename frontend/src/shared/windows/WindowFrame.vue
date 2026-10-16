@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppIconButton } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
@@ -213,24 +214,24 @@ const resizeEdges: ResizeEdge[] = [
              under the square and the cross beside it (D187). -->
         <AppIconButton
           :icon="appIcons.remove"
-          tooltip="Minimize"
-          aria-label="Minimize"
+          :tooltip="t('windows.minimize')"
+          :aria-label="t('windows.minimize')"
           :data-testid="`window-minimize-${window.id}`"
           @click="emit('minimize')"
         />
         <AppIconButton
           :icon="window.maximized ? appIcons.filterNone : appIcons.cropSquare"
-          :tooltip="window.maximized ? 'Restore size' : 'Maximize'"
-          :aria-label="window.maximized ? 'Restore size' : 'Maximize'"
+          :tooltip="window.maximized ? t('windows.restore_size') : t('windows.maximize')"
+          :aria-label="window.maximized ? t('windows.restore_size') : t('windows.maximize')"
           :data-testid="`window-maximize-${window.id}`"
           @click="emit('toggleMaximize')"
         />
         <AppIconButton
           class="dp-window-close"
           :icon="appIcons.close"
-          tooltip="Close"
+          :tooltip="t('catalog.common.close')"
           variant="danger-quiet"
-          aria-label="Close window"
+          :aria-label="t('windows.close_window')"
           :data-testid="`window-close-${window.id}`"
           @click="emit('close')"
         />

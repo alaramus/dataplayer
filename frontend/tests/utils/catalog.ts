@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 /**
@@ -21,6 +22,9 @@ export async function openNode(page: Page, label: string) {
 }
 
 export async function catalogAction(page: Page, action: string, submenu?: string) {
+  // The menu chosen from last is still fading out, items and all; opened
+  // over it, the same item stands twice and the click lands on neither.
+  await expect(page.getByTestId(/^menu-item-/)).toHaveCount(0)
   await page.getByTestId("catalog-actions").click()
   // A family the source names is one line that opens its own menu (D207).
   if (submenu !== undefined) await page.getByTestId(`menu-item-group:${submenu}`).click()

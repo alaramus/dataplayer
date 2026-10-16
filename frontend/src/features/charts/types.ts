@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { t } from "@/shared/i18n"
+
 export const ROW_FIELD = "$row"
 
 export const chartSpecSchema = z.discriminatedUnion("type", [
@@ -36,5 +38,5 @@ export function chartSpecKey(spec: ChartSpec): string {
 }
 
 export function fieldLabel(field: string): string {
-  return field === ROW_FIELD ? "Row" : field
+  return field === ROW_FIELD ? t("charts.row") : field
 }

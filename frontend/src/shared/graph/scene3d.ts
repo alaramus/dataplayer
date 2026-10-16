@@ -1,6 +1,8 @@
 import * as THREE from "three"
 import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 
+import { t } from "@/shared/i18n"
+
 import { accentIndex, edgesOf, neighborsOf } from "./model"
 import type { Camera3, GraphDocument, GraphSelection, Point3 } from "./model"
 
@@ -42,7 +44,7 @@ export class GraphScene {
   constructor(private readonly root: HTMLElement, private readonly events: SceneEvents, saved: Camera3 | null) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    this.renderer.domElement.setAttribute("aria-label", "3D graph. Drag to orbit, scroll to zoom, Shift-drag a node to move it.")
+    this.renderer.domElement.setAttribute("aria-label", t("graph.canvas_3d"))
     this.renderer.domElement.setAttribute("data-testid", "graph-3d-canvas")
     root.append(this.renderer.domElement)
     this.scene.add(this.objects, this.edges, new THREE.HemisphereLight(0xffffff, 0x445566, 2.4))

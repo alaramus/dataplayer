@@ -1,4 +1,6 @@
 import type { ContentsPlace, JobPublic } from "@/client"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 
 import type { AnswerState } from "./answer"
 
@@ -13,7 +15,9 @@ import type { AnswerState } from "./answer"
 export const CONTENTS_KIND = "search.contents"
 
 /** What Recent says of a search whose matches the server has let go. */
-export const NO_LONGER_HELD = "Its matches are no longer held"
+export function noLongerHeld(): string {
+  return t("search.contents.no_longer_held")
+}
 
 export interface ContentsChoice {
   connectorId: string
@@ -55,13 +59,17 @@ export function contentsCounts(job: Pick<JobPublic, "kind" | "parameters">): Cou
   }
 }
 
-function plural(count: number, one: string, many: string): string {
-  return `${count.toLocaleString()} ${count === 1 ? one : many}`
-}
-
 /** "1 of 2 connections · 3 found": what the footer measures it by. */
 export function contentsMeasure(counts: Counts): string {
-  return `${String(counts.searched)} of ${plural(counts.connections, "connection", "connections")} · ${counts.found.toLocaleString()} found`
+  return t(
+    "search.contents.measure",
+    {
+      searched: String(counts.searched),
+      n: counts.connections.toLocaleString(),
+      found: counts.found.toLocaleString(),
+    },
+    counts.connections
+  )
 }
 
 /** When the server lets its matches go, or null when it has not ended. */
@@ -80,24 +88,24 @@ export function contentsExpired(
   return until !== null && now >= until
 }
 
-const SKIPPED: Record<string, string> = {
-  switched_off: "Switched off",
-  cannot_search: "Can't be searched inside files",
-  not_asked: "Not searched",
+const SKIPPED: Record<string, MessageKey> = {
+  switched_off: "search.contents.switched_off",
+  cannot_search: "search.contents.cannot_search",
+  not_asked: "search.contents.not_searched",
 }
 
 /** What one chosen connection says, or null when it simply answered. */
 export function placeSentence(place: ContentsPlace): string | null {
   switch (place.status) {
     case "waiting":
-      return "Waiting"
+      return t("search.contents.waiting")
     case "complete":
       return place.notice
     case "stopped":
-      return place.notice ?? "Stopped"
+      return place.notice ?? t("search.contents.stopped")
     case "failed":
-      return place.message ?? "Could not be searched"
+      return place.message ?? t("search.contents.failed")
     case "skipped":
-      return place.notice ?? SKIPPED[place.reason ?? ""] ?? "Not searched"
+      return place.notice ?? t(SKIPPED[place.reason ?? ""] ?? "search.contents.not_searched")
   }
 }

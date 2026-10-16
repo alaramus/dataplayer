@@ -1,3 +1,5 @@
+import { t } from "@/shared/i18n"
+
 export interface ServerProfile {
   name: string
   url: string
@@ -9,16 +11,16 @@ export const LEGACY_SERVER_KEY = "dataplayer:legacy-server:v1"
 
 export function normalizeServerUrl(value: string): string {
   const text = value.trim()
-  if (!text || /[\\\s]/u.test(text)) throw new Error("Enter a full HTTP or HTTPS server URL.")
+  if (!text || /[\\\s]/u.test(text)) throw new Error(t("shell.server_url.full_http"))
   let url: URL
   try { url = new URL(text) } catch {
-    throw new Error("Enter a full URL, such as https://data.example.com.")
+    throw new Error(t("shell.server_url.full_url"))
   }
   if (!["http:", "https:"].includes(url.protocol) || !url.hostname) {
-    throw new Error("Use an HTTP or HTTPS server URL.")
+    throw new Error(t("shell.server_url.http_only"))
   }
   if (url.username || url.password || text.includes("?") || text.includes("#")) {
-    throw new Error("The server URL must not contain credentials, a query or a fragment.")
+    throw new Error(t("shell.server_url.no_extras"))
   }
   return url.href.replace(/\/+$/u, "")
 }
@@ -70,7 +72,7 @@ export function routeServerTarget(requested: unknown, shared: boolean, activeUrl
 
 export function serverNavigation(url: string, next = "/"): string {
   const local = safeLocalPath(next)
-  if (local === null) throw new Error("Invalid destination")
+  if (local === null) throw new Error(t("shell.server_url.invalid_destination"))
   const destination = new URL(local, "https://frontend.invalid")
   destination.searchParams.set("server", normalizeServerUrl(url))
   return destination.pathname + destination.search + destination.hash

@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
+import { t } from "@/shared/i18n"
 import { AppButton, AppTooltip, appIcons } from "@/shared/ui"
 
 /**
@@ -23,13 +24,13 @@ const shown = computed(() => panel.open.value === "logs")
       :variant="shown ? 'chosen' : 'quiet'"
       size="sm"
       :icon="appIcons.receiptLong"
-      label="Logs"
+      :label="t('logs.logs')"
       :icon-only="iconOnly"
       :aria-pressed="shown"
       data-testid="command-logs"
       @click="panel.toggle('logs')"
     />
-    <AppTooltip>The server's log</AppTooltip>
+    <AppTooltip>{{ t('logs.tooltip') }}</AppTooltip>
   </span>
 </template>
 

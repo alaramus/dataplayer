@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue"
 
 import type { FetchColumn } from "@/client"
+import { t } from "@/shared/i18n"
 import { AppButton, AppEmptyState, AppForm, AppSelect } from "@/shared/ui"
 
 import ChartRenderer from "./ChartRenderer.vue"
@@ -61,13 +62,11 @@ watch(
   { deep: true }
 )
 
-const chartTypes = [
-  { label: "Line", value: "line" },
-  { label: "Bar", value: "bar" },
-  { label: "Pie", value: "pie" },
-] as const
+const chartTypes = computed(() =>
+  (["line", "bar", "pie"] as const).map((value) => ({ label: t(`charts.types.${value}`), value }))
+)
 const dimensionOptions = computed(() => [
-  { label: "Row", value: ROW_FIELD },
+  { label: t("charts.row"), value: ROW_FIELD },
   ...props.columns.map((column) => ({ label: column.name, value: column.name })),
 ])
 const measureOptions = computed(() => {
@@ -78,7 +77,7 @@ const measureOptions = computed(() => {
       label:
         column.type.category === "number"
           ? column.name
-          : `${column.name} (numeric on this page)`,
+          : t("charts.numeric_on_page", { name: column.name }),
       value: column.name,
     }))
 })
@@ -127,7 +126,7 @@ function chooseSuggestion(value: unknown): void {
 <template>
   <AppEmptyState
     v-if="measureOptions.length === 0"
-    text="This page has no numeric visible column to chart"
+    :text="t('charts.no_measure')"
     data-testid="chart-no-measure"
   />
 
@@ -143,35 +142,35 @@ function chooseSuggestion(value: unknown): void {
         <AppSelect
           :model-value="selectedSuggestion"
           :options="suggestionOptions"
-          label="Suggested view"
+          :label="t('charts.fields.suggestion')"
           data-testid="chart-suggestion"
           @update:model-value="chooseSuggestion"
         />
         <AppSelect
           :model-value="spec.type"
           :options="chartTypes"
-          label="Chart type"
+          :label="t('charts.fields.type')"
           data-testid="chart-type"
           @update:model-value="setType"
         />
         <AppSelect
           :model-value="dimensionField(spec)"
           :options="dimensionOptions"
-          :label="spec.type === 'pie' ? 'Label' : 'X axis'"
+          :label="spec.type === 'pie' ? t('charts.fields.label') : t('charts.fields.x')"
           data-testid="chart-dimension"
           @update:model-value="setDimension"
         />
         <AppSelect
           :model-value="measureField(spec)"
           :options="measureOptions"
-          :label="spec.type === 'pie' ? 'Value' : 'Y axis'"
+          :label="spec.type === 'pie' ? t('charts.fields.value') : t('charts.fields.y')"
           data-testid="chart-measure"
           @update:model-value="setMeasure"
         />
       </AppForm>
       <AppButton
         class="chart-view__best-fit"
-        label="Best fit"
+        :label="t('charts.best_fit')"
         variant="secondary"
         size="sm"
         :disable="suggestions.length === 0"

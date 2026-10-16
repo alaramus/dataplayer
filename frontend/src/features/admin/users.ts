@@ -1,4 +1,5 @@
 import type { UserCreate, UserPublic, UserUpdate } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * The form behind the user dialog, and what it turns into.
@@ -51,13 +52,13 @@ export const MIN_PASSWORD = 8
 export function validate(form: UserForm, isNew: boolean): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!/^\S+@\S+\.\S+$/.test(form.email)) {
-    errors.email = "A valid email address is required"
+    errors.email = t("admin.users.email_invalid")
   }
   const password = form.password
   if (isNew && password === "") {
-    errors.password = "A password is required"
+    errors.password = t("admin.users.password_required")
   } else if (password !== "" && password.length < MIN_PASSWORD) {
-    errors.password = `At least ${MIN_PASSWORD} characters`
+    errors.password = t("admin.users.password_short", { n: MIN_PASSWORD }, MIN_PASSWORD)
   }
   return errors
 }
@@ -97,5 +98,5 @@ export function toUpdate(form: UserForm): UserUpdate {
  * press is the same rule shown rather than explained after the fact.
  */
 export function undeletableReason(user: UserPublic, currentUserId: string | null): string {
-  return user.id === currentUserId ? "You cannot delete your own account" : ""
+  return user.id === currentUserId ? t("admin.users.cannot_delete_self") : ""
 }

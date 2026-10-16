@@ -1,5 +1,7 @@
 import { shallowRef } from "vue"
 
+import { t } from "@/shared/i18n"
+
 export type OperationState = "running" | "pausing" | "paused" | "stopping" | "succeeded" | "failed" | "cancelled"
 
 export interface Operation {
@@ -32,7 +34,7 @@ export function createOperations() {
   function start(label: string, total: number) {
     const id = crypto.randomUUID()
     let current: Operation = {
-      id, label, detail: "Starting", state: "running", total, completed: 0,
+      id, label, detail: t("notifications.operations.starting"), state: "running", total, completed: 0,
       transfer: null, createdAt: Date.now(), canPause: total > 1, canStop: total > 1,
     }
     let inFlight = false
@@ -86,7 +88,7 @@ export function createOperations() {
       /** A checkpoint before dispatch, never cancellation of a sent request. */
       async next(detail: string): Promise<boolean> {
         if (paused && !stopped) {
-          update({ state: "paused", detail: "Waiting to resume", transfer: null })
+          update({ state: "paused", detail: t("notifications.operations.waiting_to_resume"), transfer: null })
           await new Promise<void>((resolve) => { wake = resolve })
           wake = undefined
         }
@@ -102,7 +104,7 @@ export function createOperations() {
         const sent = Math.min(totalBytes, Math.max(0, loaded))
         update({
           transfer: { loaded: sent, total: totalBytes },
-          ...(sent >= totalBytes ? { detail: "Upload sent; waiting for the server" } : {}),
+          ...(sent >= totalBytes ? { detail: t("notifications.operations.upload_sent") } : {}),
         })
       },
       complete() {

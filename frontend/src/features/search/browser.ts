@@ -2,22 +2,26 @@ import type { BrowserPlace } from "@/client"
 import type { TabGroup } from "@/features/workspace/groups"
 import { lookOf } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 
 /** The most places a request names (the server's MAX_BROWSER_PLACES). */
 export const MAX_BROWSER_PLACES = 200
 
 /** What a tab that names no connection is called beside its title. */
-const KIND_WORDS: Partial<Record<Panel["kind"], string>> = {
-  catalog: "Catalog",
-  query: "Query",
-  result: "Captured result",
-  widget: "Dashboard widget",
-  "service-logs": "Service output",
+const KIND_WORDS: Partial<Record<Panel["kind"], MessageKey>> = {
+  catalog: "search.browser.catalog",
+  query: "search.browser.query",
+  result: "search.browser.result",
+  widget: "search.browser.widget",
+  "service-logs": "search.browser.service_logs",
 }
 
 function detailOf(panel: Panel): string | undefined {
   const connection = "connectorName" in panel ? panel.connectorName : null
-  return connection ?? KIND_WORDS[panel.kind]
+  if (connection !== null) return connection
+  const key = KIND_WORDS[panel.kind]
+  return key === undefined ? undefined : t(key)
 }
 
 /**

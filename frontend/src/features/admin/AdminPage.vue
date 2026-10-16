@@ -6,6 +6,7 @@ import UsersSection from "@/features/admin/UsersSection.vue"
 import { ADMIN_SECTIONS } from "@/features/admin/sections"
 import type { AdminSectionId } from "@/features/admin/sections"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { t } from "@/shared/i18n"
 import { AppButton, AppEmptyState, AppLayout, AppPageHeader, AppSectionsLayout, sectionOf } from "@/shared/ui"
 
 /**
@@ -48,11 +49,11 @@ function show(id: string) {
       <!-- The heading names the page and the list names the section: a header
            that repeated the section would be saying it twice, and AppPageHeader
            takes a title and nothing else. -->
-      <AppPageHeader title="Administration">
+      <AppPageHeader :title="t('admin.title')">
         <template #actions>
           <AppButton
             variant="quiet"
-            label="Back to workspace"
+            :label="t('common.back_to_workspace')"
             data-testid="back-to-workspace"
             @click="router.push({ name: 'workspace' })"
           />
@@ -63,7 +64,7 @@ function show(id: string) {
            says so once, here, rather than in each section separately. -->
       <AppEmptyState
         v-if="me.isFetched.value && !isAdmin"
-        text="Only an administrator manages this installation"
+        :text="t('admin.only_admin')"
       />
 
       <AppSectionsLayout

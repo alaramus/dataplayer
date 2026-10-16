@@ -1,6 +1,7 @@
 import { defineStore } from "pinia"
 import { computed, onScopeDispose, ref } from "vue"
 
+import { t } from "@/shared/i18n"
 import { serverContext } from "@/shared/servers/context"
 import { PROFILES_KEY, parseProfile, parseProfiles } from "@/shared/servers/profiles"
 import type { ServerProfile } from "@/shared/servers/profiles"
@@ -23,14 +24,14 @@ export const useServersStore = defineStore("servers", () => {
   }
   function save(profile: ServerProfile, previousUrl?: string) {
     const parsed = parseProfile(profile)
-    if (parsed === null) throw new Error("Enter a valid server name and HTTP(S) URL.")
+    if (parsed === null) throw new Error(t("shell.servers.invalid_profile"))
     profile = parsed
-    if (profile.url === context.defaultServer.url) throw new Error("The default server is configured by this installation.")
+    if (profile.url === context.defaultServer.url) throw new Error(t("shell.servers.default_is_configured"))
     if (saved.value.some((item) => item.url === profile.url && item.url !== previousUrl)) {
-      throw new Error("That server is already saved.")
+      throw new Error(t("shell.servers.already_saved"))
     }
     if (!saved.value.some((item) => item.url === previousUrl) && saved.value.length >= 50) {
-      throw new Error("Remove a saved server before adding another (maximum 50).")
+      throw new Error(t("shell.servers.too_many", { n: 50 }))
     }
     write([...saved.value.filter((item) => item.url !== previousUrl), profile])
   }

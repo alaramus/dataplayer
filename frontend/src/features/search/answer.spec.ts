@@ -12,7 +12,7 @@ import {
   reduceAnswer,
   reduceFollow,
   settleFollow,
-  STOPPED_BEFORE_ANSWER,
+  stoppedBeforeAnswer,
   stopPending,
   withoutHits,
 } from "./answer"
@@ -216,7 +216,7 @@ describe("a follow-up folded into the answer", () => {
     const stopped = stopPending(asked)
     expect(pendingOf(stopped)).toEqual([])
     const cell = stopped.cells.find((one) => one.planned.key === "connection:c1/names")
-    expect(cell?.outcome?.message).toBe(STOPPED_BEFORE_ANSWER)
+    expect(cell?.outcome?.message).toBe(stoppedBeforeAnswer())
     expect(cell && cell.outcome ? saidOf(cell.outcome, cell.planned)?.gesture?.kind : null).toBe("retry")
     expect(nothingFound(stopped)).toBe(false)
   })

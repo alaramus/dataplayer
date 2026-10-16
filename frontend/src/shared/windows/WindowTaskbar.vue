@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue"
 
+import { t } from "@/shared/i18n"
 import AppTaskbar from "@/shared/ui/AppTaskbar.vue"
 import AppTaskbarItem from "@/shared/ui/AppTaskbarItem.vue"
 import { appIcons } from "@/shared/ui/icons"
@@ -55,7 +56,7 @@ watch(
   <AppTaskbar
     v-if="items.length"
     ref="bar"
-    label="Open windows"
+    :label="t('windows.open_windows')"
     data-testid="window-taskbar"
   >
     <AppTaskbarItem
@@ -66,7 +67,7 @@ watch(
       :color="entry.look.color"
       :front="isFront(entry)"
       :aside="entry.minimized"
-      :close-label="`Close ${entry.look.title}`"
+      :close-label="t('windows.close_named', { title: entry.look.title })"
       :close-test-id="`window-tab-close-${entry.id}`"
       :data-testid="`window-tab-${entry.id}`"
       :data-window-key="entry.key"

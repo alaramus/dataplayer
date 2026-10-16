@@ -1,4 +1,5 @@
 import type { WindowAction } from "./useWindows"
+import { t } from "@/shared/i18n"
 import { appIcons } from "@/shared/ui/icons"
 
 /**
@@ -7,5 +8,13 @@ import { appIcons } from "@/shared/ui/icons"
  * and closes the window, and the engine knows nothing about either side.
  */
 export function openAsTabAction(run: () => void): WindowAction {
-  return { icon: appIcons.tab, tooltip: "Open as a tab", testid: "window-to-tab", run }
+  return {
+    icon: appIcons.tab,
+    // A getter, so a window opened before a language switch follows it.
+    get tooltip() {
+      return t("windows.open_as_tab")
+    },
+    testid: "window-to-tab",
+    run,
+  }
 }

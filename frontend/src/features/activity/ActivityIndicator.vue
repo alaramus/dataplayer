@@ -5,10 +5,11 @@ import { computed, onBeforeUnmount, ref, watch } from "vue"
 import type { JobPublic } from "@/client"
 import { connectorsKey, useConnectors } from "@/features/connectors/api"
 import {
-  CONTENTS_KIND, contentsExpired, contentsWordsOf, NO_LONGER_HELD,
+  CONTENTS_KIND, contentsExpired, contentsWordsOf, noLongerHeld,
 } from "@/features/search/contents"
 import { backupsKey, servicesKey, useCancelJob, useServices } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import type { SearchTarget } from "@/features/workspace/state"
 import { notices } from "@/shared/notifications"
 import type { NoticeAction } from "@/shared/notifications"
@@ -195,14 +196,14 @@ function insideFiles(job: JobPublic, now: number): { lines: string[]; action: No
   const words = contentsWordsOf(job.id) ?? ""
   if (contentsExpired(job, now)) {
     return {
-      lines: [...lines, NO_LONGER_HELD],
-      action: { label: "Search again", run: () => { emit("openSearch", { words, scope: null }) } },
+      lines: [...lines, noLongerHeld()],
+      action: { label: t("activity.indicator.search_again"), run: () => { emit("openSearch", { words, scope: null }) } },
     }
   }
   return {
     lines,
     action: {
-      label: "Show results",
+      label: t("activity.indicator.show_results"),
       run: () => { emit("openSearch", { words, scope: null, contentsJob: job.id }) },
     },
   }
@@ -260,12 +261,12 @@ const icon = computed(() => {
   return attention.value.length > 0 ? "notifications_active" : "notifications"
 })
 const tooltip = computed(() => {
-  if (jobs.isError.value) return "Activity unavailable. Show activity"
-  if (current.value) return `${current.value.status}: ${current.value.detail}. Show activity`
-  return "Show activity"
+  if (jobs.isError.value) return t("activity.indicator.unavailable")
+  if (current.value) return t("activity.indicator.running", { status: current.value.status, detail: current.value.detail })
+  return t("activity.indicator.show")
 })
 const error = computed(() => jobs.isError.value
-  ? messageOf(jobs.error.value, "Server processes could not be refreshed. Last known state is shown.") : "")
+  ? messageOf(jobs.error.value, t("activity.indicator.refresh_failed")) : "")
 
 async function stop(row: ProcessRow) {
   if (row.source === "local") { operations.stop(row.id); return }
@@ -274,7 +275,7 @@ async function stop(row: ProcessRow) {
   try {
     await cancel.mutateAsync(row.id)
   } catch (cause) {
-    toast.error(messageOf(cause, "The job could not be stopped"))
+    toast.error(messageOf(cause, t("activity.indicator.stop_failed")))
     const next = new Set(stopping.value)
     next.delete(row.id)
     stopping.value = next
@@ -306,14 +307,14 @@ function refresh() { void jobs.refetch() }
         :value="current.progress"
         :paused="current.paused"
       />
-      <AppTooltip>{{ current.status }}: {{ current.detail }}. Show activity</AppTooltip>
+      <AppTooltip>{{ t('activity.indicator.running', { status: current.status, detail: current.detail }) }}</AppTooltip>
     </AppButton>
     <AppButton
       variant="quiet"
       size="sm"
       class="activity-indicator"
       :class="{ 'activity-indicator--error': jobs.isError.value }"
-      aria-label="Show activity"
+      :aria-label="t('activity.indicator.show')"
       :aria-expanded="log.open.value"
       data-testid="activity-indicator"
       @click="log.setOpen(!log.open.value)"

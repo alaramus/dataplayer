@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { onBeforeUnmount, onMounted } from "vue"
 
+import { t } from "@/shared/i18n"
 import { notices } from "@/shared/notifications"
 import type { AttentionItem } from "@/shared/notifications"
 import { AppButton, AppEmptyState, AppIconButton, AppToggle, bannerLook, toneText } from "@/shared/ui"
@@ -79,20 +80,20 @@ function follow(run: () => void) {
       class="sheet"
       :style="{ bottom: `calc(${bottom}px + var(--dp-space-1))` }"
       role="complementary"
-      aria-label="Activity"
+      :aria-label="t('activity.panel.title')"
       data-testid="activity-panel"
     >
       <header class="sheet__bar">
-        <strong>Activity</strong>
+        <strong>{{ t('activity.panel.title') }}</strong>
         <AppToggle
           :model-value="log.doNotDisturb.value"
-          label="Do not disturb"
+          :label="t('activity.panel.do_not_disturb')"
           data-testid="do-not-disturb"
           @update:model-value="log.setDoNotDisturb($event)"
         />
         <AppIconButton
           :icon="appIcons.close"
-          tooltip="Close"
+          :tooltip="t('catalog.common.close')"
           @click="emit('close')"
         />
       </header>
@@ -103,7 +104,7 @@ function follow(run: () => void) {
           data-testid="attention-section"
         >
           <h3 class="sheet__heading dp-overline">
-            <span>Needs you</span>
+            <span>{{ t('activity.panel.needs_you') }}</span>
             <span
               v-if="attention.length > 0"
               class="sheet__count"
@@ -111,7 +112,7 @@ function follow(run: () => void) {
           </h3>
           <AppEmptyState
             v-if="attention.length === 0"
-            text="Nothing is waiting for you"
+            :text="t('activity.panel.nothing_waiting')"
           />
           <article
             v-for="item in attention"
@@ -145,7 +146,7 @@ function follow(run: () => void) {
             <AppIconButton
               v-if="item.dismiss"
               :icon="appIcons.close"
-              tooltip="Dismiss"
+              :tooltip="t('activity.panel.dismiss')"
               compact
               @click="item.dismiss()"
             />
@@ -157,7 +158,7 @@ function follow(run: () => void) {
           data-testid="working-section"
         >
           <h3 class="sheet__heading dp-overline">
-            <span>Working</span>
+            <span>{{ t('activity.panel.working') }}</span>
             <span
               v-if="working() > 0"
               class="sheet__count"
@@ -165,7 +166,7 @@ function follow(run: () => void) {
             <AppButton
               variant="quiet"
               size="sm"
-              label="Refresh"
+              :label="t('activity.panel.refresh')"
               :loading="loading"
               @click="emit('refresh')"
             />
@@ -188,18 +189,18 @@ function follow(run: () => void) {
           data-testid="recent-section"
         >
           <h3 class="sheet__heading dp-overline">
-            <span>Recent</span>
+            <span>{{ t('activity.panel.recent') }}</span>
             <AppButton
               v-if="log.entries.value.length > 0"
               variant="quiet"
               size="sm"
-              label="Clear all"
+              :label="t('activity.panel.clear_all')"
               @click="log.forgetAll()"
             />
           </h3>
           <AppEmptyState
             v-if="log.entries.value.length === 0"
-            text="Nothing has been said yet"
+            :text="t('activity.panel.nothing_said')"
           />
           <article
             v-for="notice in log.entries.value"
@@ -236,7 +237,7 @@ function follow(run: () => void) {
             />
             <AppIconButton
               :icon="appIcons.close"
-              tooltip="Remove"
+              :tooltip="t('activity.panel.remove')"
               compact
               @click="log.forget(notice.id)"
             />

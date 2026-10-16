@@ -5,6 +5,7 @@ import type { LogEntry } from "@/client"
 import { messageOf } from "@/shared/api/errors"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -30,17 +31,17 @@ import { textOf, timeOf, toneOf } from "./entries"
  * D184): what the backend and the metrics collector wrote, newest first. A
  * superuser's: it names every request and every failure of the installation.
  */
-const LEVELS: { label: string; value: LevelChoice }[] = [
-  { label: "Everything", value: "all" },
-  { label: "Warnings and errors", value: "warning" },
-  { label: "Errors", value: "error" },
-]
-const PROCESSES: { label: string; value: ProcessChoice }[] = [
-  { label: "Every process", value: "all" },
-  { label: "Backend", value: "backend" },
-  { label: "Metrics", value: "metrics" },
-  { label: "Search index", value: "search-keeper" },
-]
+const LEVELS = computed<{ label: string; value: LevelChoice }[]>(() => [
+  { label: t("logs.levels.all"), value: "all" },
+  { label: t("logs.levels.warning"), value: "warning" },
+  { label: t("logs.levels.error"), value: "error" },
+])
+const PROCESSES = computed<{ label: string; value: ProcessChoice }[]>(() => [
+  { label: t("logs.processes.all"), value: "all" },
+  { label: t("logs.processes.backend"), value: "backend" },
+  { label: t("logs.processes.metrics"), value: "metrics" },
+  { label: t("logs.processes.search_keeper"), value: "search-keeper" },
+])
 
 const me = useCurrentUser()
 const allowed = computed(() => me.data.value?.is_superuser === true)
@@ -80,9 +81,9 @@ function toggle(entry: LogEntry) {
 async function copy(entry: LogEntry) {
   try {
     await copyText(textOf(entry))
-    toast.info("Copied")
+    toast.info(t("logs.copied"))
   } catch {
-    toast.error("The browser did not allow copying")
+    toast.error(t("logs.copy_refused"))
   }
 }
 </script>
@@ -95,7 +96,7 @@ async function copy(entry: LogEntry) {
     <AppEmptyState
       v-if="!allowed"
       :icon="appIcons.receiptLong"
-      text="Only a superuser can read the server's log."
+      :text="t('logs.only_superuser')"
     />
     <template v-else>
       <div class="logs-tool__bar">
@@ -115,7 +116,7 @@ async function copy(entry: LogEntry) {
         />
         <AppInput
           v-model="search"
-          placeholder="Search the text, a ref or a path"
+          :placeholder="t('logs.search')"
           compact
           clearable
           class="logs-tool__search"
@@ -124,12 +125,12 @@ async function copy(entry: LogEntry) {
         <AppToolbarRule />
         <AppToggle
           v-model="follow"
-          label="Follow"
+          :label="t('logs.follow')"
           data-testid="logs-follow"
         />
         <AppIconButton
           :icon="appIcons.refresh"
-          tooltip="Read the log again"
+          :tooltip="t('logs.reload')"
           data-testid="logs-reload"
           @click="logs.refetch()"
         />
@@ -144,17 +145,17 @@ async function copy(entry: LogEntry) {
           v-else-if="logs.isError.value"
           tone="error"
         >
-          {{ messageOf(logs.error.value, "The log could not be read") }}
+          {{ messageOf(logs.error.value, t('logs.read_failed')) }}
         </AppBanner>
         <AppEmptyState
           v-else-if="!kept"
           :icon="appIcons.receiptLong"
-          text="This server keeps no log files. Set LOG_DIR to keep them; until then the log is on the server's standard output."
+          :text="t('logs.not_kept')"
         />
         <AppEmptyState
           v-else-if="entries.length === 0"
           :icon="appIcons.receiptLong"
-          text="Nothing in the log matches."
+          :text="t('logs.nothing')"
         />
         <template v-else>
           <div
@@ -186,7 +187,7 @@ async function copy(entry: LogEntry) {
                 v-if="entry.ref"
                 class="logs-tool__ref"
                 data-testid="log-entry-ref"
-              >ref {{ entry.ref }}</span>
+              >{{ t('logs.ref', { ref: entry.ref }) }}</span>
             </button>
             <div
               v-if="open.has(keyOf(entry))"
@@ -196,9 +197,9 @@ async function copy(entry: LogEntry) {
               <div class="logs-tool__facts">
                 <span>{{ entry.time }}</span>
                 <span v-if="entry.request">{{ entry.request }}</span>
-                <span v-if="entry.ref">ref {{ entry.ref }}</span>
+                <span v-if="entry.ref">{{ t('logs.ref', { ref: entry.ref }) }}</span>
                 <AppCopyButton
-                  tooltip="Copy this entry"
+                  :tooltip="t('logs.copy')"
                   data-testid="log-entry-copy"
                   @click="copy(entry)"
                 />
@@ -217,7 +218,7 @@ async function copy(entry: LogEntry) {
           >
             <AppButton
               variant="quiet"
-              label="Older entries"
+              :label="t('logs.older')"
               :loading="logs.isFetchingNextPage.value"
               data-testid="logs-older"
               @click="logs.fetchNextPage()"

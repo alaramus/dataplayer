@@ -1,6 +1,7 @@
 import type { EChartsOption } from "echarts"
 
 import type { FetchColumn } from "@/client"
+import { t } from "@/shared/i18n"
 
 import { ROW_FIELD, chartSpecKey, dimensionField, fieldLabel, measureField } from "./types"
 import type { ChartSpec } from "./types"
@@ -230,7 +231,7 @@ function pieChart(
   const ranked = [...aggregated.entries()].sort((left, right) => right[1] - left[1])
   const visible = ranked.slice(0, 12).map(([name, value]) => ({ name, value }))
   const remainder = ranked.slice(12).reduce((sum, [, value]) => sum + value, 0)
-  if (remainder > 0) visible.push({ name: "Other", value: remainder })
+  if (remainder > 0) visible.push({ name: t("charts.other"), value: remainder })
   return {
     points: aggregated.size,
     option: {
@@ -325,25 +326,28 @@ export function suggestCharts(
 
   if (datetime !== undefined) {
     suggestions.push({
-      label: `${measure.name} over ${datetime.name}`,
+      label: t("charts.suggestions.over", { measure: measure.name, dimension: datetime.name }),
       spec: { type: "line", x: datetime.name, y: measure.name },
     })
   }
   if (category !== undefined) {
     suggestions.push({
-      label: `${measure.name} by ${category.name}`,
+      label: t("charts.suggestions.by", { measure: measure.name, dimension: category.name }),
       spec: { type: "bar", x: category.name, y: measure.name },
     })
     if (pieIsUseful(category.name, measure.name, columns, rows, offset)) {
       suggestions.push({
-        label: `${measure.name} share by ${category.name}`,
+        label: t("charts.suggestions.share", { measure: measure.name, dimension: category.name }),
         spec: { type: "pie", label: category.name, value: measure.name },
       })
     }
   }
   if (suggestions.length === 0 || datetime === undefined) {
     suggestions.push({
-      label: `${measure.name} over ${fieldLabel(lineDimension)}`,
+      label: t("charts.suggestions.over", {
+        measure: measure.name,
+        dimension: fieldLabel(lineDimension),
+      }),
       spec: { type: "line", x: lineDimension, y: measure.name },
     })
   }

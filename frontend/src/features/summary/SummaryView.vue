@@ -6,6 +6,7 @@ import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import { useNodeSummary } from "@/features/summary/api"
 import { describe } from "@/features/summary/facts"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppSection, AppSpinner } from "@/shared/ui"
 
 /**
@@ -30,7 +31,7 @@ const described = computed(() =>
 const errorText = computed(() =>
   query.error.value === null
     ? ""
-    : messageOf(query.error.value, "Could not read this node")
+    : messageOf(query.error.value, t("summary.read_failed"))
 )
 </script>
 
@@ -74,7 +75,7 @@ const errorText = computed(() =>
         data-testid="summary-contents"
       >
         <div class="summary-view__title">
-          Contents
+          {{ t("summary.contents") }}
         </div>
         <dl class="summary-view__facts">
           <template
@@ -95,7 +96,7 @@ const errorText = computed(() =>
         data-testid="summary-related-views"
       >
         <div class="summary-view__title">
-          Related views
+          {{ t("summary.related_views") }}
         </div>
         <AppButton
           v-for="view in query.data.value.related_views"

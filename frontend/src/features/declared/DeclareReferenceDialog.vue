@@ -8,6 +8,7 @@ import type { PickedNode } from "@/features/catalog/nodes"
 import { useDeclareReference } from "@/features/declared/api"
 import { lookupColumns } from "@/features/declared/model"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppForm, AppSelect } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -70,7 +71,7 @@ watch(
       })
       nearColumns.value = answer.data.columns
     } catch (error) {
-      trouble.value = messageOf(error, "Could not read this node as rows")
+      trouble.value = messageOf(error, t("declared.dialog.read_failed"))
     }
   },
   { immediate: true }
@@ -103,7 +104,7 @@ async function run() {
     emit("declared")
     emit("update:modelValue", false)
   } catch (error) {
-    trouble.value = messageOf(error, "Could not declare this reference")
+    trouble.value = messageOf(error, t("declared.dialog.failed"))
   }
 }
 </script>
@@ -111,8 +112,8 @@ async function run() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Declare a reference"
-    :subtitle="`From a column of ${nodeLabel} to a column anywhere else`"
+    :title="t('declared.declare_one')"
+    :subtitle="t('declared.dialog.subtitle', { node: nodeLabel })"
     size="form"
     sizing="stable"
     data-testid="declare-reference-dialog"
@@ -129,14 +130,14 @@ async function run() {
       <AppSelect
         :model-value="nearColumn"
         :options="nearOptions"
-        label="This column"
+        :label="t('declared.dialog.near')"
         data-testid="declare-reference-near-column"
         @update:model-value="nearColumn = String($event)"
       />
       <NodePicker
         :key="modelValue ? 'open' : 'closed'"
         testid="declare-reference"
-        label="Points at"
+        :label="t('declared.dialog.points_at')"
         @pick="picked"
         @trouble="trouble = $event"
       />
@@ -144,7 +145,7 @@ async function run() {
         v-if="far !== null"
         :model-value="farColumn"
         :options="farOptions"
-        label="That column"
+        :label="t('declared.dialog.far')"
         data-testid="declare-reference-far-column"
         @update:model-value="farColumn = String($event)"
       />
@@ -152,12 +153,12 @@ async function run() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="declare.isPending.value"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Declare"
+        :label="t('declared.dialog.declare')"
         :disable="!ready"
         :loading="declare.isPending.value"
         data-testid="declare-reference-run"

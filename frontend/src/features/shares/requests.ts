@@ -4,6 +4,8 @@ import { getCurrentScope, onScopeDispose } from "vue"
 import { connectorsKey } from "@/features/connectors/api"
 import { requestsKey } from "@/features/shares/api"
 import { waitingKey } from "@/features/shares/attention"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 import { realtime } from "@/shared/realtime/client"
 
 /**
@@ -44,14 +46,24 @@ export function isRequestEvent(payload: unknown): payload is AccessRequestEvent 
  * conversation between people rather than a field in a form (D61).
  */
 export function wordingOf(event: AccessRequestEvent): string {
-  if (event.kind === "asked") {
-    return `${event.person} is asking for access to ${event.connector_label}`
-  }
+  const said = { person: event.person, connector: event.connector_label }
+  if (event.kind === "asked") return t("shares.requests.asked", said)
   if (event.outcome === "approved") {
-    const level = event.access ?? "read"
-    return `${event.person} gave you ${level} access to ${event.connector_label}`
+    return t("shares.requests.approved", { ...said, level: levelWord(event.access ?? "read") })
   }
-  return `${event.person} did not open access to ${event.connector_label}`
+  return t("shares.requests.declined", said)
+}
+
+const LEVEL_WORDS: Record<string, MessageKey> = {
+  read: "shares.levels.read",
+  write: "shares.levels.write",
+  structure: "shares.levels.structure",
+}
+
+/** A level as the sentence names it; one this build does not know, as sent. */
+function levelWord(level: string): string {
+  const key = LEVEL_WORDS[level]
+  return key === undefined ? level : t(key)
 }
 
 export interface RequestEventHandlers {

@@ -19,6 +19,7 @@ import { linkFor } from "@/features/shares/sharedView"
 import { emptyRecipientsMessage } from "./recipients"
 import { serverContext } from "@/shared/servers/context"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { copyText } from "@/shared/clipboard"
 import {
   AppButton,
@@ -60,7 +61,23 @@ const connectors = useConnectors()
 const connector = computed(() =>
   (connectors.data.value?.data ?? []).find((row) => row.id === props.connectorId)
 )
-const connectorName = computed(() => connector.value?.name ?? "this connection")
+const connectorName = computed(() => connector.value?.name ?? null)
+const named = (name: string) => t("shares.named", { name })
+const title = computed(() => {
+  const name = props.nodeLabel ?? connectorName.value
+  return t("shares.dialog.title", { name: name === null ? t("shares.this_connection") : named(name) })
+})
+const linkNote = computed(() =>
+  t("shares.dialog.link_note", {
+    connector: connectorName.value === null ? t("shares.to_this_connection") : named(connectorName.value),
+  })
+)
+const wholeConnection = computed(() => {
+  const node = props.nodeLabel === undefined ? t("shares.to_this_node") : named(props.nodeLabel)
+  return connectorName.value === null
+    ? t("shares.dialog.whole_connection_unnamed", { node })
+    : t("shares.dialog.whole_connection", { connector: named(connectorName.value), node })
+})
 const isOwner = computed(() => connector.value?.access === "own")
 
 const grants = useGrants(computed(() => (isOwner.value ? connectorId.value : null)))
@@ -108,7 +125,7 @@ watch(
       })
       token.value = made.token
     } catch (error) {
-      linkError.value = messageOf(error, "This link could not be made")
+      linkError.value = messageOf(error, t("shares.dialog.link_failed"))
     }
   },
   { immediate: true }
@@ -148,16 +165,16 @@ const loading = computed(
 )
 
 function openersOf(openers: { email: string; opens: number }[]): string {
-  if (openers.length === 0) return "Not opened yet"
-  return `Opened by ${openers.map((opener) => opener.email).join(", ")}`
+  if (openers.length === 0) return t("shares.dialog.not_opened")
+  return t("shares.dialog.opened_by", { people: openers.map((opener) => opener.email).join(", ") })
 }
 
 async function copyLink() {
   try {
     await copyText(link.value)
-    toast.success("Link copied")
+    toast.success(t("shares.dialog.link_copied"))
   } catch {
-    toast.error("This browser would not let the link be copied")
+    toast.error(t("shares.dialog.copy_refused"))
   }
 }
 
@@ -169,7 +186,7 @@ async function share() {
     pickedUser.value = null
     pickedLevel.value = "read"
   } catch (error) {
-    toast.error(messageOf(error, "That access could not be given"))
+    toast.error(messageOf(error, t("shares.dialog.give_failed")))
   }
 }
 
@@ -180,7 +197,7 @@ async function forget(shareId: string) {
       token.value = null
     }
   } catch (error) {
-    toast.error(messageOf(error, "That link could not be deleted"))
+    toast.error(messageOf(error, t("shares.dialog.delete_failed")))
   }
 }
 </script>
@@ -193,7 +210,7 @@ async function forget(shareId: string) {
   -->
   <WindowDialog
     :model-value="modelValue"
-    :title="`Share — ${nodeLabel ?? connectorName}`"
+    :title="title"
     size="form"
     sizing="stable"
     data-testid="share-dialog"
@@ -218,22 +235,20 @@ async function forget(shareId: string) {
           <template v-else>
             <AppInput
               :model-value="link"
-              label="Link to this view"
+              :label="t('shares.dialog.link_label')"
               readonly
               data-testid="share-link"
             >
               <template #after>
                 <AppCopyButton
-                  tooltip="Copy this link"
+                  :tooltip="t('shares.dialog.copy_link')"
                   data-testid="share-copy"
                   @click="copyLink"
                 />
               </template>
             </AppInput>
             <p class="share__note">
-              Anyone signed in who has access to {{ connectorName }} opens the same
-              rows with the same filters. Anyone else is shown what it is and who
-              shared it, and nothing more.
+              {{ linkNote }}
             </p>
           </template>
         </AppForm>
@@ -245,9 +260,9 @@ async function forget(shareId: string) {
               tone="error"
               data-testid="share-recipients-error"
             >
-              Could not load recipients and their access. Try again.
+              {{ t('shares.dialog.recipients_failed') }}
               <AppButton
-                label="Retry"
+                :label="t('shares.dialog.retry')"
                 variant="quiet"
                 :loading="directory.isFetching.value || grants.isFetching.value"
                 @click="retryRecipients"
@@ -263,20 +278,20 @@ async function forget(shareId: string) {
             </p>
             <AppSelect
               v-model="pickedUser"
-              label="Person"
+              :label="t('shares.dialog.person')"
               data-testid="share-user"
               :options="candidates"
               :disable="!recipientsReady || recipientsFailed || candidates.length === 0"
             />
             <AppSelect
               v-model="pickedLevel"
-              label="May"
+              :label="t('shares.dialog.may')"
               data-testid="share-level"
               :options="GRANT_OPTIONS"
             >
               <template #after>
                 <AppButton
-                  label="Give access"
+                  :label="t('shares.dialog.give_access')"
                   data-testid="share-submit"
                   :disable="!recipientsReady || recipientsFailed || !candidates.some((candidate) => candidate.value === pickedUser)"
                   :loading="writeGrant.isPending.value"
@@ -286,8 +301,7 @@ async function forget(shareId: string) {
             </AppSelect>
 
             <p class="share__note">
-              Access is to the whole connection {{ connectorName }}, not only to
-              {{ nodeLabel ?? "this node" }}.
+              {{ wholeConnection }}
             </p>
           </AppForm>
 
@@ -313,7 +327,7 @@ async function forget(shareId: string) {
           class="share__links"
         >
           <h3 class="share__heading dp-overline">
-            Other links to this connection
+            {{ t('shares.dialog.other_links') }}
           </h3>
           <ul
             class="share__list"
@@ -335,7 +349,7 @@ async function forget(shareId: string) {
                 v-if="other.can_delete"
                 :icon="appIcons.close"
                 variant="danger-quiet"
-                tooltip="Delete this link. It does not take anybody's access away."
+                :tooltip="t('shares.dialog.delete_link')"
                 :data-testid="`share-forget-${other.id}`"
                 @click="forget(other.id)"
               />
@@ -348,7 +362,7 @@ async function forget(shareId: string) {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('catalog.common.close')"
         data-testid="share-close"
         @click="emit('update:modelValue', false)"
       />

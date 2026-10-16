@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from "vue"
+import { t } from "@/shared/i18n"
 import { formLayoutKey } from "@/shared/ui/formLayout"
 
 import AppDateTimeInput from "@/shared/ui/AppDateTimeInput.vue"
@@ -100,7 +101,7 @@ function inputType(field: FieldSpec): "text" | "password" | "textarea" {
  * whatever is typed then replaces it. A field left untouched reports nothing,
  * and the server keeps what it has.
  */
-const HIDDEN = "<hidden>"
+const hidden = computed(() => t("schema_form.hidden"))
 
 const touched = ref<Set<string>>(new Set())
 const visiblePasswords = ref<Set<string>>(new Set())
@@ -236,7 +237,7 @@ watch(
           v-else
           :data-testid="`field-${field.name}`"
           :autocomplete="autofillOf(field)"
-          :model-value="isHidden(field) ? HIDDEN : textValue(field.name)"
+          :model-value="isHidden(field) ? hidden : textValue(field.name)"
           :label="field.label"
           :hint="field.description"
           :placeholder="field.example"
@@ -255,7 +256,11 @@ watch(
               :icon="
                 visiblePasswords.has(field.name) ? appIcons.visibilityOff : appIcons.visibility
               "
-              :tooltip="visiblePasswords.has(field.name) ? 'Hide password' : 'Show password'"
+              :tooltip="
+                visiblePasswords.has(field.name)
+                  ? t('schema_form.hide_password')
+                  : t('schema_form.show_password')
+              "
               :disable="disable || textValue(field.name) === '' || isHidden(field)"
               :data-testid="`field-${field.name}-visibility`"
               @click="togglePassword(field.name)"

@@ -1,5 +1,6 @@
 import type { BestLine, CellLine, EndLine, PlanLine, SearchRequest } from "@/client"
 import { router } from "@/router"
+import { problemMessage, t } from "@/shared/i18n"
 import { serverUrl } from "@/shared/servers/context"
 import { useAuthStore } from "@/stores/auth"
 
@@ -81,12 +82,14 @@ async function refusalOf(response: Response): Promise<string> {
     const body: unknown = await response.json()
     if (typeof body === "object" && body !== null && "detail" in body) {
       const detail = body.detail
+      const worded = problemMessage(detail)
+      if (worded !== null) return worded
       if (typeof detail === "string") return detail
     }
   } catch {
     // Not JSON: the status says enough.
   }
-  return "The search could not be run"
+  return t("search.refused")
 }
 
 /**
@@ -113,7 +116,7 @@ export async function* askSearch(
   if (response.status === 401) {
     auth.clear()
     void router.push({ name: "login" })
-    throw new SearchRefused(401, "Signed out")
+    throw new SearchRefused(401, t("search.signed_out"))
   }
   if (!response.ok || response.body === null) {
     throw new SearchRefused(response.status, await refusalOf(response))

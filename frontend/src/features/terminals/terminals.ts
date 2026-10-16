@@ -1,4 +1,5 @@
 import type { AdapterTypeInfo, ConnectorPublic } from "@/client"
+import { t } from "@/shared/i18n"
 
 import type { LinkState } from "./terminalLink"
 
@@ -87,16 +88,20 @@ export function terminalPressTooltip(
   const doing = ((): string => {
     switch (press.kind) {
       case "hide":
-        return "Hide the terminals"
+        return t("terminals.press.hide")
       case "open":
-        return connectorName === null ? "Open a terminal" : `Open a terminal on ${connectorName}`
+        return connectorName === null
+          ? t("terminals.press.open")
+          : t("terminals.press.open_on", { name: connectorName })
       case "select":
-        return connectorName === null ? "Terminals" : `Terminal on ${connectorName}`
+        return connectorName === null
+          ? t("terminals.terminals")
+          : t("terminals.press.on", { name: connectorName })
       case "show":
-        return "Terminals"
+        return t("terminals.terminals")
     }
   })()
-  return open === 0 ? doing : `${doing} · ${String(open)} open`
+  return open === 0 ? doing : t("terminals.press.with_open", { doing, n: open })
 }
 
 /**
@@ -114,8 +119,8 @@ export function nextOrdinal(open: readonly OpenTerminal[], connectorId: string):
 
 /** A terminal's tab: the connection's name now, and its number past the first. */
 export function terminalTitle(terminal: OpenTerminal, connectorName: string | null): string {
-  const name = connectorName ?? "Connection"
-  return terminal.ordinal === 1 ? name : `${name} (${String(terminal.ordinal)})`
+  const name = connectorName ?? t("terminals.connection")
+  return terminal.ordinal === 1 ? name : t("terminals.numbered", { name, n: terminal.ordinal })
 }
 
 /** Which terminal comes forward when one is closed: its neighbour, if any. */
@@ -149,7 +154,7 @@ export function terminalNotice(state: LinkState): TerminalNotice | null {
     case "open":
       return null
     case "connecting":
-      return { tone: "info", text: "Connecting…", action: null }
+      return { tone: "info", text: t("terminals.notice.connecting"), action: null }
     case "refused":
       return {
         tone: "error",
@@ -161,11 +166,11 @@ export function terminalNotice(state: LinkState): TerminalNotice | null {
         tone: "info",
         text:
           state.exitStatus === null || state.exitStatus === 0
-            ? "The shell has ended"
-            : `The shell has ended with status ${String(state.exitStatus)}`,
+            ? t("terminals.notice.ended")
+            : t("terminals.notice.ended_with", { status: state.exitStatus }),
         action: "again",
       }
     case "lost":
-      return { tone: "warning", text: "The connection to the server was lost", action: "again" }
+      return { tone: "warning", text: t("terminals.notice.lost"), action: "again" }
   }
 }

@@ -58,15 +58,15 @@ language other than English is in `PLURAL_FORMS`, judged by the browser's
 every message of every language through vue-i18n's compiler.
 
 ESLint's `no-raw-text` fails on text written into a template, or into an
-attribute a person reads, in the directories already moved to dictionaries;
-the list in `eslint.config.js` grows until it is `src/**`. Words in `.ts`
-modules are not seen by it and rest on review.
+attribute a person reads, in every `.vue` under `src` but the developer pages
+in `features/dev`, which no build ships. Words in `.ts` modules are not seen
+by it and rest on review.
 
 ### Known deviations
 
-- Most screens are still English: sign-in, Preferences, the workspace, the
-  panel engine, the catalog and the component kit are moved. A language shows
-  English wherever a screen has not moved.
+- Text saved with a thing is in the language it was made in: a new
+  dashboard's name, a widget's title made from what was ticked, a new
+  project's name.
 - Text a source declares — action titles and their questions, parameter
   labels, menu groups, previews, report captions — is English in every
   language: it comes from the adapters, which have no dictionaries.

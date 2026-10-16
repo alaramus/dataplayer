@@ -76,7 +76,11 @@ describe("the dictionaries", () => {
       // The one mistake the compiler forgives: a `{` left open at the end is dropped.
       const count = (mark: string) => String(source).split(mark).length
       expect(count("{"), `${language} ${key}`).toBe(count("}"))
-      expect(t(key, { theme: "X" }).trim(), key).not.toBe("")
+      // Every parameter filled, so a message that is one parameter is not blank.
+      const params = Object.fromEntries(
+        [...String(source).matchAll(/\{(\w+)\}/g)].map(([, name]) => [name, "X"])
+      )
+      expect(t(key, params).trim(), key).not.toBe("")
     }
   })
 

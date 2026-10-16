@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm"
 import { computed, effectScope, markRaw, ref, watch } from "vue"
 import type { Raw } from "vue"
 
+import { t } from "@/shared/i18n"
 import { serverUrl } from "@/shared/servers/context"
 import { useAuthStore } from "@/stores/auth"
 
@@ -51,7 +52,7 @@ function connect(session: TerminalSession) {
     session.state = {
       kind: "refused",
       code: "unauthenticated",
-      message: "Sign in again to open a terminal",
+      message: t("terminals.notice.sign_in"),
       errorKind: null,
     }
     return
