@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { AppIconButton, appIcons, useToast } from "@/shared/ui"
+import { copyText } from "@/shared/clipboard"
 import { t } from "@/shared/i18n"
 
 import ReadAloudButton from "@/features/speech/ReadAloudButton.vue"
@@ -16,7 +17,7 @@ const toast = useToast()
 async function copy() {
   const user = props.role === "user"
   try {
-    await navigator.clipboard.writeText(props.text)
+    await copyText(props.text)
     toast.success(user ? t("ai.message.message_copied") : t("ai.message.answer_copied"))
   } catch {
     toast.error(user ? t("ai.message.message_copy_failed") : t("ai.message.answer_copy_failed"))

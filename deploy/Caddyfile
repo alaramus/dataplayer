@@ -1,0 +1,6 @@
+# The site is the address people open, so there is one setting rather than
+# two that can disagree. Caddy passes WebSockets and the X-Forwarded headers
+# through without being told to.
+{$FRONTEND_HOST} {
+	reverse_proxy backend:8000
+}

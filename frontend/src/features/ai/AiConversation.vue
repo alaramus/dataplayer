@@ -37,6 +37,7 @@ import AiMessageActions from "./AiMessageActions.vue"
 import AiModelSelect from "./AiModelSelect.vue"
 import { AUTO_ALL_VALUE, JEV_PROVIDER, autoModelValue, fallbackForAll, fallbackModel, jevProviderLabel, keyedProviders } from "./modelOptions"
 import { openQuickChat, quoteSelection } from "./quickChatLauncher"
+import { newId } from "@/shared/ids"
 
 const props = defineProps<{
   conversationId: string | null
@@ -174,7 +175,7 @@ function pickFiles(event: Event) {
     { name: currentModel.value?.name ?? t("ai.conversation.this_model"), readsImages: readsImages.value }
   )
   pending.value = [...pending.value, ...taken.map((file) => ({
-    id: crypto.randomUUID(),
+    id: newId(),
     file,
     kind: kindOf(file, given),
     address: URL.createObjectURL(file),

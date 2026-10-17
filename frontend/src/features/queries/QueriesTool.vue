@@ -33,6 +33,7 @@ import {
 
 import { useQueriesLibrary } from "./library"
 import type { LibraryPlace } from "./library"
+import { newId } from "@/shared/ids"
 
 /**
  * The library of query documents (D65), a tool of the panel at the foot of
@@ -114,7 +115,7 @@ function pickConnector(value: unknown) {
 function newDocument() {
   const chosen = connectorId.value
   if (chosen === null) return
-  const draftId = crypto.randomUUID()
+  const draftId = newId()
   writeDraft(draftId, emptyDraft())
   workspace.openQueryDraft({
     draftId,
@@ -171,7 +172,7 @@ async function openAsQuery(run: { id: string; connector_id: string | null }) {
     const text = await runText.mutateAsync(run.id)
     // A console holding what it ran, and not a second copy in the library:
     // the run is already the record of what was executed (D63).
-    const draftId = crypto.randomUUID()
+    const draftId = newId()
     writeDraft(draftId, { ...emptyDraft(), body: text.text })
     workspace.openQueryDraft({
       draftId,

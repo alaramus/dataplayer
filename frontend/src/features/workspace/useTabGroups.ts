@@ -7,6 +7,7 @@ import type { WorkspaceApi } from "@/shared/workspace"
 import { groupNameProblem, groupsKey, groupWarningKey, parseGroups, serializeGroups, validGroupSnapshot } from "./groups"
 import type { TabGroup } from "./groups"
 import type { Panel } from "./panels"
+import { newId } from "@/shared/ids"
 
 export function useTabGroups(
   userId: string,
@@ -44,7 +45,7 @@ export function useTabGroups(
       toast.error(t("workspace.groups.layout_not_saved"))
       return false
     }
-    return write([...groups.value, { id: crypto.randomUUID(), name: name.trim(), snapshot }])
+    return write([...groups.value, { id: newId(), name: name.trim(), snapshot }])
   }
 
   function rename(id: string, name: string): boolean {

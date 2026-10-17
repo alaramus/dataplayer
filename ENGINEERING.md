@@ -195,7 +195,10 @@ any feature, verified by introducing the import. ESLint also forbids, outside
 `src/shared/ui`, every `q-*` the kit replaces — in both spellings Vue accepts,
 because the rule matches the raw tag name and `<QBtn>` would otherwise walk
 past — and forbids `useQuasar` in screens, which now use `useToast` and
-`useConfirm`. Both were checked by attempting the bypass. A test compares the
+`useConfirm`. Both were checked by attempting the bypass. ESLint forbids `crypto.randomUUID`
+and `navigator.clipboard` outside the two modules wrapping them, because
+neither exists on a page served over plain HTTP to another machine; checked by
+using each. A test compares the
 `/ui-kit` showcase against the files in `shared/ui`, so a component cannot be
 added without a demonstration. `vue-tsc` and ESLint cover the rest. The
 pure-logic split rests on review.

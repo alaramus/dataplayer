@@ -31,7 +31,7 @@ import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
 import { useNodeActions } from "@/features/catalog/api"
 import { useConnectionFreshness } from "@/features/connectors/api"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
-import { readText } from "@/shared/clipboard"
+import { ClipboardUnavailable, readText } from "@/shared/clipboard"
 import {
   AppBanner,
   AppButton,
@@ -376,6 +376,18 @@ function saveQueryState(state: GridQueryState) {
   })
 }
 
+/** The clipboard's text, or null once the reader has been told why not. */
+async function clipboardText(): Promise<string | null> {
+  try {
+    return await readText()
+  } catch (error) {
+    toast.error(
+      t(error instanceof ClipboardUnavailable ? "grid.clipboard.needs_https" : "grid.clipboard.read_failed")
+    )
+    return null
+  }
+}
+
 /**
  * Put a copied block back, from the top-left of the selection.
  *
@@ -392,13 +404,8 @@ async function pasteSelection(request: TabularPasteRequest) {
       result.value?.columns.find((candidate) => candidate.name === column.id)?.editable ===
       true,
   }))
-  let text = ""
-  try {
-    text = await readText()
-  } catch {
-    toast.error(t("grid.clipboard.read_failed"))
-    return
-  }
+  const text = request.text ?? (await clipboardText())
+  if (text === null) return
   const block = fromTsv(text)
   if (block === null) {
     toast.info(t("grid.clipboard.not_cells"))
@@ -522,14 +529,9 @@ async function createTable(value: {
   }
 }
 
-async function pasteIntoInsert() {
-  let text = ""
-  try {
-    text = await readText()
-  } catch {
-    toast.error(t("grid.clipboard.read_failed"))
-    return
-  }
+async function pasteIntoInsert(pasted?: string) {
+  const text = pasted ?? (await clipboardText())
+  if (text === null) return
   const block = fromTsv(text)
   if (block === null) {
     toast.info(t("grid.clipboard.not_row"))

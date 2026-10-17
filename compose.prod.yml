@@ -4,8 +4,9 @@
 #
 # The backend serves the built interface and the API on one port, APP_PORT.
 # It speaks plain HTTP: anything reached from outside this machine belongs
-# behind a reverse proxy that terminates HTTPS (Caddy, Traefik, nginx), with
-# FRONTEND_HOST set to the address people open.
+# behind a reverse proxy that terminates HTTPS — the `caddy` service below, or
+# one already running — with FRONTEND_HOST set to the address people open.
+# docs/deployment.md has both.
 #
 # What compose.override.yml adds for development — hot reload, sample data,
 # the Docker socket, Adminer, Mailcatcher, a test Redis and SSH server — is
@@ -22,3 +23,30 @@ services:
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8000}:8000"
+
+  # HTTPS for a machine with nothing in front of it yet: `https` added to
+  # COMPOSE_PROFILES, FRONTEND_HOST set to https:// and a domain pointing at
+  # this machine, and Caddy fetches and renews the certificate itself. Left
+  # off where a proxy already holds ports 80 and 443 (docs/deployment.md).
+  caddy:
+    image: caddy:2.10
+    profiles: [https]
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      FRONTEND_HOST: ${FRONTEND_HOST:?Variable not set}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The certificates and the account they were issued to: without them
+      # every restart asks Let's Encrypt again and runs into its rate limit.
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

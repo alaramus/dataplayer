@@ -156,6 +156,29 @@ def test_a_rerun_without_flags_keeps_mode_and_preset(
     assert dev.preset == "full"
 
 
+def test_a_rerun_keeps_the_https_front_only_while_running_it(
+    setup: ModuleType, example: object
+) -> None:
+    example.set("COMPOSE_PROFILES", "cache,https")  # type: ignore[attr-defined]
+    setup.configure(example, setup.Choices("prod", "full", False))
+    assert example.get("COMPOSE_PROFILES") == "cache,meaning,https"  # type: ignore[attr-defined]
+    assert setup.current_preset(example) == "full"
+    setup.configure(example, setup.Choices("dev", "minimal", False))
+    assert example.get("COMPOSE_PROFILES") == ""  # type: ignore[attr-defined]
+
+
+def test_a_rerun_keeps_a_compose_file_of_the_installations_own(
+    setup: ModuleType, example: object
+) -> None:
+    example.set("COMPOSE_FILE", "compose.yml,compose.prod.yml,compose.traefik.yml")  # type: ignore[attr-defined]
+    setup.configure(example, setup.Choices("prod", "minimal", True))
+    assert example.get("COMPOSE_FILE") == (  # type: ignore[attr-defined]
+        "compose.yml,compose.prod.yml,compose.services.yml,compose.traefik.yml"
+    )
+    setup.configure(example, setup.Choices("prod", "minimal", False))
+    assert example.get("COMPOSE_FILE") == "compose.yml,compose.prod.yml,compose.traefik.yml"  # type: ignore[attr-defined]
+
+
 def test_set_takes_over_a_commented_entry(example: object) -> None:
     example.comment_out("FASTAPI_ENV")  # type: ignore[attr-defined]
     example.set("FASTAPI_ENV", "development")  # type: ignore[attr-defined]

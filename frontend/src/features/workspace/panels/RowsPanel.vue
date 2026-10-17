@@ -14,6 +14,7 @@ import { messageOf } from "@/shared/api/errors"
 import type { Freshness } from "@/shared/freshness/freshness"
 import { t } from "@/shared/i18n"
 import { useToast } from "@/shared/ui"
+import { newId } from "@/shared/ids"
 
 /**
  * One relation, in its own tab.
@@ -129,7 +130,7 @@ async function openAsQuery() {
     // Nothing is put in the library: pressing this used to leave a document
     // behind every time, so a person who looked at six tables had six queries
     // they never wrote. The console holds the text until they keep it (D65).
-    const draftId = crypto.randomUUID()
+    const draftId = newId()
     writeDraft(draftId, { ...emptyDraft(props.title), body: generated.text })
     workspace.openQueryDraft({
       draftId,

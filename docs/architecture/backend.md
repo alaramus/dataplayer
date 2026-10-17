@@ -94,7 +94,8 @@ starts nothing; `docker compose up -d --build` follows.
   `fastapi run`, `prestart.sh` alone, the built interface served by the backend
   on `APP_PORT`, `restart: unless-stopped`, and no helpers. `FASTAPI_ENV` is
   unset, so a placeholder secret stops the start and the private routes do not
-  exist.
+  exist. HTTPS in front of it is the `https` profile's Caddy or a proxy of the
+  operator's own; [deployment.md](../deployment.md) says what either must do.
 
 - **`minimal`** — no profile: `db`, `prestart`, the backend, `metrics` and
   `search-keeper`, the memory read cache, `EMBEDDINGS_URL` empty.

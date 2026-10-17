@@ -20,7 +20,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   cancel: []
-  paste: []
+  paste: [text?: string]
   save: [values: InsertValue[]]
 }>()
 
@@ -126,14 +126,16 @@ function handleKey(event: KeyboardEvent) {
   } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
     event.preventDefault()
     save()
-  } else if (event.key.toLowerCase() === "v" && (event.ctrlKey || event.metaKey)) {
-    // Only when the press did not land in a field: inside one, Ctrl+V is the
-    // browser pasting text into that field, which is also what a reader means.
-    if ((event.target as HTMLElement | null)?.tagName !== "INPUT") {
-      event.preventDefault()
-      emit("paste")
-    }
   }
+}
+
+// Only when the paste did not land in a field: inside one it is the browser
+// pasting text into that field, which is also what a reader means. Taken from
+// the paste event rather than the clipboard, as the grid does.
+function handleNativePaste(event: ClipboardEvent) {
+  if ((event.target as HTMLElement | null)?.tagName === "INPUT") return
+  event.preventDefault()
+  emit("paste", event.clipboardData?.getData("text/plain") ?? "")
 }
 </script>
 
@@ -142,6 +144,7 @@ function handleKey(event: KeyboardEvent) {
     class="row-insert"
     data-testid="grid-insert-row"
     @keydown="handleKey"
+    @paste="handleNativePaste"
   >
     <td class="row-insert__selector">
       <span>{{ rowNumber }}</span>

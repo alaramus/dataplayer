@@ -99,6 +99,23 @@ export default defineConfigWithVueTs(
     },
   },
   {
+    // Both exist only in a secure context, so over plain HTTP to another
+    // machine they are undefined and whatever calls them stops working.
+    files: ["src/**/*.vue", "src/**/*.ts"],
+    ignores: ["src/shared/ids.ts", "src/shared/clipboard.ts", "src/**/*.spec.ts"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        { object: "crypto", property: "randomUUID", message: "Use newId from @/shared/ids." },
+        {
+          object: "navigator",
+          property: "clipboard",
+          message: "Use copyText or readText from @/shared/clipboard.",
+        },
+      ],
+    },
+  },
+  {
     // A screen speaks through the dictionaries (D224): text written into a
     // template, or into an attribute a person reads, is English in every
     // language. Words in .ts modules are not seen here and rest on review.

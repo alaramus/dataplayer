@@ -1,6 +1,7 @@
 import { computed, shallowRef } from "vue"
 
 import type { Tone } from "@/shared/ui/tokens"
+import { newId } from "@/shared/ids"
 
 /**
  * Everything the application has said, and what is on screen right now.
@@ -109,7 +110,7 @@ export function createNotices() {
     notice: Omit<Notice, "id" | "at" | "seq">,
     options: { id?: string; at?: number; card?: boolean } = {}
   ): string {
-    const id = options.id ?? crypto.randomUUID()
+    const id = options.id ?? newId()
     if (forgotten.value.has(id) || entries.value.some((entry) => entry.id === id)) return id
     const entry: Notice = { ...notice, id, at: options.at ?? Date.now(), seq: ++said }
     // Newest first by when it happened, not by when it was written down.

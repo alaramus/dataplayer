@@ -46,6 +46,10 @@ PLACEHOLDER = "changethis"
 MODES = ("prod", "dev")
 PRESETS = ("minimal", "standard", "full")
 PROFILES = {"minimal": (), "standard": ("cache",), "full": ("cache", "meaning")}
+# Switched on by hand rather than by a preset (compose.prod.yml's Caddy), so a
+# rerun keeps it in a running installation instead of dropping the HTTPS front.
+# A Compose file of the installation's own (a proxy's labels) is kept the same way.
+HTTPS_PROFILE = "https"
 COMPOSE_FILES = {
     "dev": ("compose.yml", "compose.override.yml"),
     "prod": ("compose.yml", "compose.prod.yml"),
@@ -265,6 +269,13 @@ def current_services(env: EnvFile) -> bool:
     return SERVICES_FILE in (env.get("COMPOSE_FILE") or "")
 
 
+def own_compose_files(env: EnvFile) -> list[str]:
+    """The files in COMPOSE_FILE that the setup did not put there."""
+    ours = {name for names in COMPOSE_FILES.values() for name in names} | {SERVICES_FILE}
+    named = [name.strip() for name in (env.get("COMPOSE_FILE") or "").split(",")]
+    return [name for name in named if name and name not in ours]
+
+
 def default_preset(mode: str) -> str:
     # Development runs everything the presets cover, so nothing in it is
     # untested by the person changing it.
@@ -304,12 +315,16 @@ def configure(env: EnvFile, choices: Choices) -> None:
         env.set("FIRST_SUPERUSER", choices.email)
 
     profiles = PROFILES[choices.preset]
+    running = {p.strip() for p in (env.get("COMPOSE_PROFILES") or "").split(",")}
+    kept = (HTTPS_PROFILE,) if choices.mode == "prod" and HTTPS_PROFILE in running else ()
     files = list(COMPOSE_FILES[choices.mode])
     if choices.mode == "prod" and choices.services:
         files.append(SERVICES_FILE)
+    if choices.mode == "prod":
+        files.extend(own_compose_files(env))
     env.set("COMPOSE_PATH_SEPARATOR", ",")
     env.set("COMPOSE_FILE", ",".join(files))
-    env.set("COMPOSE_PROFILES", ",".join(profiles))
+    env.set("COMPOSE_PROFILES", ",".join(profiles + kept))
     env.set("DATA_CACHE_BACKEND", "redis" if "cache" in profiles else "memory")
     if "meaning" not in profiles:
         # Search never aims at a model that is not running.

@@ -118,6 +118,7 @@ import {
   WorkspaceRoot,
   WorkspaceTaskbar,
 } from "@/shared/workspace"
+import { newId } from "@/shared/ids"
 
 /**
  * The workspace: connections, catalogs and node-specific work, side by side.
@@ -612,7 +613,7 @@ function duplicateCatalog(panelId: string, startAt: string | null, reveal?: Reve
       return
     }
   }
-  const copyId = `${catalogPanelId(original.connectorId)}:copy:${crypto.randomUUID()}`
+  const copyId = `${catalogPanelId(original.connectorId)}:copy:${newId()}`
   const copy = { ...original, id: copyId, startAt: startAt ?? undefined }
   // Left before the copy exists, which takes it as it mounts.
   if (reveal !== undefined) revealTarget.value = { ...reveal, connectorId: original.connectorId, panelId: copyId }
@@ -1129,7 +1130,7 @@ const actions: WorkspaceActions = {
   },
   openWidgetTab: (request: OpenWidgetTabRequest) => {
     openPanel({
-      id: widgetPanelId(request.dashboardId, request.widget.id, crypto.randomUUID()),
+      id: widgetPanelId(request.dashboardId, request.widget.id, newId()),
       kind: "widget",
       ...request,
     })

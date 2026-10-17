@@ -26,6 +26,8 @@ export interface TabularColumn {
 export interface TabularPasteRequest {
   bounds: CellSelectionBounds
   columns: VisibleGridColumn[]
+  /** What a keyboard paste carried; absent, the clipboard is read for it. */
+  text?: string
 }
 
 export interface TabularVisibleColumn extends VisibleGridColumn {

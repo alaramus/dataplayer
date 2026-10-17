@@ -1,6 +1,7 @@
 import { shallowRef } from "vue"
 
 import { t } from "@/shared/i18n"
+import { newId } from "@/shared/ids"
 
 export type OperationState = "running" | "pausing" | "paused" | "stopping" | "succeeded" | "failed" | "cancelled"
 
@@ -32,7 +33,7 @@ export function createOperations() {
   }
 
   function start(label: string, total: number) {
-    const id = crypto.randomUUID()
+    const id = newId()
     let current: Operation = {
       id, label, detail: t("notifications.operations.starting"), state: "running", total, completed: 0,
       transfer: null, createdAt: Date.now(), canPause: total > 1, canStop: total > 1,

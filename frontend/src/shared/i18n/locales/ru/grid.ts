@@ -174,6 +174,8 @@ export const grid: Messages["grid"] = {
   },
   clipboard: {
     read_failed: "Не удалось прочитать буфер обмена",
+    needs_https:
+      "Браузер даёт странице читать буфер обмена только по HTTPS. Нажмите Ctrl+V или откройте DataPlayer по HTTPS",
     not_cells: "В буфере обмена нет прямоугольника ячеек",
     not_row: "В буфере обмена нет строки ячеек",
   },

@@ -86,6 +86,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
+import { newId } from "@/shared/ids"
 
 /**
  * One console: a document above, what it produced below (D65).
@@ -619,7 +620,7 @@ async function go(target: RunTarget | null) {
   if (run.data.value !== undefined && !pinned.value) keptRunId.value = run.data.value.id
   try {
     const started = await startRun.mutateAsync({
-      run_id: crypto.randomUUID(),
+      run_id: newId(),
       connector_id: connector,
       document_id: loaded?.id ?? null,
       document_revision: loaded?.revision ?? null,

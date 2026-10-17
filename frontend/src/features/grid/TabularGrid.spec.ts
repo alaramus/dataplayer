@@ -119,6 +119,21 @@ describe("the controlled tabular grid", () => {
     })
   })
 
+  it("pastes what the browser's paste event carries, without reading the clipboard", async () => {
+    const wrapper = mountGrid()
+    await wrapper.get('[data-testid="grid-select-row-row-a"]').trigger("click")
+
+    const event = new Event("paste", { bubbles: true, cancelable: true })
+    Object.defineProperty(event, "clipboardData", {
+      value: { getData: (type: string) => (type === "text/plain" ? "x\ty" : "") },
+    })
+    wrapper.get('[data-testid="grid-focus"]').element.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(first(wrapper.emitted("paste") ?? [])[0]).toMatchObject({ text: "x\ty" })
+    expect(navigator.clipboard.readText).not.toHaveBeenCalled()
+  })
+
   it("adds and removes whole rows with Ctrl+click on their selectors", async () => {
     const wrapper = mount(TabularGrid, {
       props: {

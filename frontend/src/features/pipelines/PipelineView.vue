@@ -86,6 +86,7 @@ import {
   worldPoint,
 } from "./model"
 import type { CardConnection } from "./model"
+import { newId } from "@/shared/ids"
 
 /**
  * One pipeline: its head, the canvas of its cards and the links between their
@@ -411,7 +412,7 @@ async function picked(rows: CardRow[]) {
   if (made.cardId === null) {
     const spot = made.clear ? freeSpot(cards.value, made.spot, rows.length) : made.spot
     const card: Card = {
-      id: crypto.randomUUID(),
+      id: newId(),
       connector_id: made.connectorId,
       connector_name: made.connectionName,
       x: spot.x,
@@ -503,7 +504,7 @@ async function join(from: LinkEnd, to: LinkEnd) {
     toast.info(refusal(offers))
     return
   }
-  const link = linkFromOffer(crypto.randomUUID(), from, to, first)
+  const link = linkFromOffer(newId(), from, to, first)
   links.value = [...links.value, link]
   hints.value = hints.value.filter((hint) => linkBetween([link], hint.source, hint.target) === null)
   selection.value = { kind: "edge", id: link.id }

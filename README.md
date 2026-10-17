@@ -119,9 +119,10 @@ docker compose -f compose.setup.yml run --rm setup python scripts/setup.py --mod
 
 Open the address the setup printed and sign in as the superuser; a generated
 password is printed once and stays in `.env` as `FIRST_SUPERUSER_PASSWORD`.
-The port speaks plain HTTP: to reach DataPlayer from outside this machine, put
-a reverse proxy that terminates HTTPS in front of it (Caddy, Traefik, nginx)
-and give its address to the setup. Back up the Docker volume
+The port speaks plain HTTP: to reach DataPlayer from outside this machine, give
+it HTTPS — the bundled Caddy behind the `https` profile, or a proxy you already
+run. [docs/deployment.md](docs/deployment.md) has both, with nginx and Traefik
+examples. Back up the Docker volume
 `dataplayer_app-db-data`; it holds everything DataPlayer keeps.
 
 ### Develop it

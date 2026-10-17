@@ -47,6 +47,7 @@ import WidgetBody from "./WidgetBody.vue"
 import WidgetFrame from "./WidgetFrame.vue"
 import WidgetWindow from "./WidgetWindow.vue"
 import type { WidgetDraft } from "./widgetSpecs"
+import { newId } from "@/shared/ids"
 
 /**
  * One dashboard. What is on it is held here as a draft and saved whole, a
@@ -155,7 +156,7 @@ function applyLayout(items: Placed[]) {
 }
 
 function addDrafts(drafts: WidgetDraft[]) {
-  const result = withDrafts(widgets.value, drafts, () => crypto.randomUUID())
+  const result = withDrafts(widgets.value, drafts, () => newId())
   widgets.value = result.widgets
   if (result.left > 0) {
     toast.info(t("dashboards.view.did_not_fit", { left: result.left, total: drafts.length, max: MAX_WIDGETS }))
@@ -164,7 +165,7 @@ function addDrafts(drafts: WidgetDraft[]) {
 }
 
 function addPreset(preset: Widget[]) {
-  const result = withPreset(widgets.value, preset, () => crypto.randomUUID())
+  const result = withPreset(widgets.value, preset, () => newId())
   widgets.value = result.widgets
   if (result.left > 0) {
     toast.info(t("dashboards.view.did_not_fit", { left: result.left, total: preset.length, max: MAX_WIDGETS }))

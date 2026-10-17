@@ -506,10 +506,29 @@ function handleGridKey(event: KeyboardEvent) {
     void copySelection()
     return
   }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-    event.preventDefault()
-    requestPaste()
-  }
+}
+
+// Ctrl+V is left to the browser rather than read from the clipboard: its paste
+// event carries the text without a permission prompt, and over plain HTTP,
+// where the page cannot read the clipboard at all, it is the only way in.
+function handleNativePaste(event: ClipboardEvent) {
+  if (isTextField(event.target)) return
+  const bounds = table.getCellSelectionBounds()[0]
+  if (bounds === undefined) return
+  event.preventDefault()
+  emit("paste", {
+    bounds,
+    columns: [...visibleColumns.value],
+    text: event.clipboardData?.getData("text/plain") ?? "",
+  })
+}
+
+function isTextField(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  )
 }
 
 function presentCell(cell: Cell<GridFeatures, GridRow, unknown>): CellPresentation {
@@ -697,6 +716,7 @@ defineExpose({
       tabindex="0"
       data-testid="grid-focus"
       @keydown="handleGridKey"
+      @paste="handleNativePaste"
     >
       <div
         v-if="loading"

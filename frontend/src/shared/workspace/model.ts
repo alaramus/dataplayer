@@ -1,3 +1,5 @@
+import { newId } from "@/shared/ids"
+
 /**
  * The layout of the workspace: a tree of sections, and nothing about what
  * they show.
@@ -119,5 +121,5 @@ export function makeSplit(
 
 /** A restored layout can contain ids from an earlier browser session. */
 export function nextId(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`
+  return `${prefix}-${newId()}`
 }

@@ -173,6 +173,8 @@ export const grid = {
   },
   clipboard: {
     read_failed: "Could not read the clipboard",
+    needs_https:
+      "The browser lets a page read the clipboard only over HTTPS. Press Ctrl+V instead, or open DataPlayer over HTTPS",
     not_cells: "The clipboard does not hold a rectangle of cells",
     not_row: "The clipboard does not hold a row of cells",
   },
