@@ -2,9 +2,9 @@ import { expect, test } from "@playwright/test"
 import type { APIRequestContext, Page } from "@playwright/test"
 
 import { firstSuperuser, firstSuperuserPassword } from "./config"
-import { createPostgresConnector } from "./utils/connectors"
+import { createPostgresConnector, pickAdapterType } from "./utils/connectors"
 import { login } from "./utils/login"
-import { deleteConnector, openConnector } from "./utils/workspace"
+import { deleteConnector, editConnector, openConnector } from "./utils/workspace"
 
 /**
  * The language of the interface (D224): the browser's until the account
@@ -103,5 +103,55 @@ test("what a source writes reaches a Russian reader in Russian", async ({ page, 
   await setLanguage(request, null)
   await page.reload()
   await deleteConnector(page, name)
+})
+
+/** The tops of two buttons, so "on one row" is a measurement, not a look. */
+async function sameRow(page: Page, first: string, second: string) {
+  const one = await page.locator(`[data-testid="${first}"]:visible`).first().boundingBox()
+  const two = await page.locator(`[data-testid="${second}"]:visible`).first().boundingBox()
+  expect(one, first).not.toBeNull()
+  expect(two, second).not.toBeNull()
+  expect(Math.abs((one?.y ?? 0) - (two?.y ?? 0)), `${first} beside ${second}`).toBeLessThan(4)
+}
+
+test("Russian words keep a connection window's foot on one row", async ({ page, request }) => {
+  const name = `e2e-foot-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await setLanguage(request, "ru")
+  await page.reload()
+
+  // An existing connection carries Delete beside the check.
+  await editConnector(page, name)
+  await expect(page.getByTestId("check-draft")).toContainText("Проверить")
+  await sameRow(page, "check-draft", "save-connector")
+  await sameRow(page, "delete-connector", "save-connector")
+  await page.getByTestId("cancel-connector").click()
+
+  // A new one carries Back.
+  await pickAdapterType(page, "ssh")
+  await sameRow(page, "check-draft", "save-connector")
+  await page.getByTestId("cancel-connector").click()
+
+  await setLanguage(request, null)
+  await page.reload()
+  await deleteConnector(page, name)
+})
+
+test("Russian words keep the metrics store's two offers on one row", async ({ page, request }) => {
+  // A server whose dashboards have no store yet, and that may start one.
+  await page.route("**/api/v1/metrics/store", (route) =>
+    route.fulfill({
+      json: { state: "not_configured", may_set_up: true, start: { available: true, reason: null } },
+    })
+  )
+  await login(page)
+  await setLanguage(request, "ru")
+  await page.reload()
+  await page.getByTestId("space-dashboards").click()
+  await expect(page.getByTestId("store-start")).toContainText("Запустить TimescaleDB")
+
+  await sameRow(page, "store-start", "store-connect")
+  await page.screenshot({ path: "test-results/store-offer-ru.png" })
 })
 

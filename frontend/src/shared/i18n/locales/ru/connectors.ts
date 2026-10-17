@@ -123,7 +123,9 @@ export const connectors: Messages["connectors"] = {
     },
     url: "URL",
     copy_url: "Копировать строку подключения. Пароля в ней нет.",
-    test: "Проверить подключение",
+    // Short as the English "Test": beside Cancel, Apply and OK a longer
+    // label wrapped the foot of the window onto a second row.
+    test: "Проверить",
     server: "Сервер",
     apply: "Применить",
     ok: "ОК",

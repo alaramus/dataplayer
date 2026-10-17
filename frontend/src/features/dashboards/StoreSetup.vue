@@ -197,7 +197,9 @@ async function connect() {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--dp-space-3);
-  max-width: 640px;
+  /* Wide enough for both offers on one row in a language longer than
+     English: at 640px the Russian pair stood one under the other. */
+  max-width: 760px;
   margin: 10vh auto 0;
   padding: var(--dp-space-4);
 }
