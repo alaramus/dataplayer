@@ -2,7 +2,7 @@
     window (features/guide) and of reading aloud (features/speech). */
 export const onboarding = {
   title: "Welcome to DataPlayer",
-  intro: "Pick how the application looks, then take a short tour of what it can do, one silent clip for each of its main parts.",
+  intro: "Pick a language and how the application looks, then take a short tour of what it can do, one silent clip for each of its main parts.",
   steps: {
     new_connection: "Creating a new connection",
     tabs: "Working with tabs",

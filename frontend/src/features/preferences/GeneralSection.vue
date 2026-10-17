@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { ref } from "vue"
 
 import OnboardingDialog from "@/features/onboarding/OnboardingDialog.vue"
-import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
+import { useLanguageChoice } from "@/features/preferences/languageChoice"
 import VoiceSelect from "@/features/speech/VoiceSelect.vue"
 import { speechSupported } from "@/features/speech/voices"
-import { messageOf } from "@/shared/api/errors"
-import { applyLanguage, LANGUAGES, languageName, t } from "@/shared/i18n"
-import type { Language } from "@/shared/i18n"
-import { AppButton, AppForm, AppSelect, AppSettingRow, useToast } from "@/shared/ui"
+import { t } from "@/shared/i18n"
+import { AppButton, AppForm, AppSelect, AppSettingRow } from "@/shared/ui"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
@@ -18,42 +16,14 @@ import type { ThemeMode } from "@/stores/theme"
 // The voice reading aloud lives here for the same reason: voices are this
 // browser's own. Nowhere to choose it where there is nothing to synthesise.
 // The language is the account's, so it follows the person to any browser (D224).
-const toast = useToast()
 const theme = useThemeStore()
 const speechOk = speechSupported()
-const preferences = usePreferences()
-const save = useUpdatePreferences()
 
 // The welcome tour, on demand: finished or skipped long ago, it opens here
 // again from its first clip rather than from the theme choice above.
 const tourOpen = ref(false)
 
-// A select holds no null, so the browser's language travels as a word of its
-// own between here and the request.
-const BROWSER = "browser"
-
-const languageChoices = computed(() => [
-  { value: BROWSER, label: t("language.browser"), description: t("language.browser_hint") },
-  ...LANGUAGES.map((language) => ({ value: language, label: languageName(language) })),
-])
-
-const chosenLanguage = computed(() => {
-  const data = preferences.data.value
-  return data === undefined ? undefined : (data.language ?? BROWSER)
-})
-
-async function chooseLanguage(value: unknown) {
-  if (value === chosenLanguage.value) return
-  const language = value === BROWSER ? null : (value as Language)
-  try {
-    await save.mutateAsync({ language })
-    // Before the toast, so it is already said in the language just chosen.
-    await applyLanguage(language)
-    toast.success(t("preferences.saved"))
-  } catch (cause) {
-    toast.error(messageOf(cause, t("preferences.not_saved")))
-  }
-}
+const language = useLanguageChoice()
 </script>
 
 <template>
@@ -64,12 +34,12 @@ async function chooseLanguage(value: unknown) {
     >
       <AppForm>
         <AppSelect
-          :model-value="chosenLanguage"
-          :options="languageChoices"
-          :loading="save.isPending.value"
+          :model-value="language.chosen.value"
+          :options="language.options.value"
+          :loading="language.saving.value"
           :aria-label="t('language.label')"
           data-testid="preference-language"
-          @update:model-value="chooseLanguage"
+          @update:model-value="language.choose"
         />
       </AppForm>
     </AppSettingRow>

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue"
 
 import { usePreferences, useUpdatePreferences } from "@/features/preferences/api"
+import { useLanguageChoice } from "@/features/preferences/languageChoice"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppRadioGroup, useConfirm, useToast } from "@/shared/ui"
@@ -12,7 +13,7 @@ import type { ThemeMode } from "@/stores/theme"
 import { ONBOARDING_STEPS } from "./onboarding"
 
 /**
- * The first-visit welcome: a theme choice, then a short video tour.
+ * The first-visit welcome: the language and a theme, then a short video tour.
  *
  * A window of its own rather than a page: it opens over the workspace the
  * person has just arrived at and goes away whole. Finishing or skipping
@@ -35,6 +36,7 @@ const props = withDefaults(
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
 const theme = useThemeStore()
+const language = useLanguageChoice()
 
 const phase = ref<Phase>(props.startPhase)
 const stepIndex = ref(0)
@@ -144,10 +146,20 @@ function chooseTheme(value: string) {
         layout="section"
         labels="above"
       >
+        <!-- Before the theme: everything after it is read in this language.
+             Shown once the account has been read, so it never offers a guess. -->
+        <AppRadioGroup
+          v-if="language.chosen.value !== undefined"
+          :model-value="language.chosen.value"
+          :options="language.options.value"
+          :label="t('language.label')"
+          data-testid="onboarding-language"
+          @update:model-value="language.choose"
+        />
         <AppRadioGroup
           :model-value="theme.mode"
+          :label="t('theme.label')"
           :options="THEME_CHOICES"
-          :aria-label="t('theme.label')"
           data-testid="onboarding-theme"
           @update:model-value="chooseTheme"
         />

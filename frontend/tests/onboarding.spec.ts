@@ -43,6 +43,31 @@ test("a first visit opens the welcome tour, and skipping it keeps it closed", as
   await expect(page.getByTestId("onboarding-dialog")).toHaveCount(0)
 })
 
+test("the welcome offers the language first, and the rest of it follows the choice", async ({
+  page,
+}) => {
+  await loginFresh(page)
+  const welcome = page.getByTestId("onboarding-dialog")
+  await expect(page.getByTestId("onboarding-language")).toBeVisible()
+  await expect(welcome).toContainText("Pick a language")
+
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().endsWith("/users/me/preferences")
+  )
+  await page.getByTestId("onboarding-language-ru").click()
+  await saved
+  // The account keeps it (D224), and the welcome is read in it at once.
+  await expect(welcome).toContainText("Выберите язык")
+
+  // Back to the browser's language, so every other scenario reads English.
+  await page.getByTestId("onboarding-language-browser").click()
+  await expect(welcome).toContainText("Pick a language")
+  await page.getByTestId("onboarding-skip").click()
+  await expect(welcome).toHaveCount(0)
+})
+
 test("Preferences replays the tour from its first clip", async ({ page }) => {
   await loginFresh(page)
   await expect(page.getByTestId("onboarding-dialog")).toBeVisible()
