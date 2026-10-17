@@ -27,8 +27,14 @@ const props = withDefaults(
     modelValue: string
     options: readonly RadioOption[]
     label?: string
+    /**
+     * Side by side in as many columns as fit rather than one under another:
+     * for a list that grows (themes), so each option adds a third of a line
+     * rather than a line and a half.
+     */
+    grid?: boolean
   }>(),
-  { label: undefined }
+  { label: undefined, grid: false }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
@@ -51,7 +57,7 @@ function choose(value: unknown) {
 <template>
   <div
     class="app-radio-group"
-    :class="{ 'app-radio-group--form': formLayout && label }"
+    :class="{ 'app-radio-group--form': formLayout && label, 'app-radio-group--grid': grid }"
     role="radiogroup"
     :aria-labelledby="label ? `${id}-label` : undefined"
   >
@@ -161,6 +167,18 @@ body.desktop .app-radio-group__option:not(.disabled) :deep(.q-radio__inner)::bef
   font-size: var(--dp-font-size-sm);
   line-height: var(--dp-line-height-sm);
   color: var(--dp-text-muted);
+}
+.app-radio-group--grid .app-radio-group__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--dp-width-name), 1fr));
+  gap: var(--dp-space-3) var(--dp-space-4);
+}
+/* Three lines at most, so no row of the grid stands much taller than the next. */
+.app-radio-group--grid .app-radio-group__description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 .app-radio-group--form {
   display: grid;

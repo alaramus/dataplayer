@@ -310,6 +310,6 @@ export const dashboards = {
     gbps: "Gb/s",
     tbps: "Tb/s",
     per_second: "{value}/s",
-    count_per_second: "{value} /s",
+    count_per_second: "{value}/s",
   },
 }

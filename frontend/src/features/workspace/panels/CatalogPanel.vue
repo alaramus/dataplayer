@@ -1318,13 +1318,11 @@ async function afterAction(outcome: ActionOutcome) {
   height: var(--dp-toolbar-height);
   container: catalog-bar / inline-size;
 }
-/* As wide as its crumbs: stretched across the bar, the root alone was a
-   grey pill with a house at one end that read as an empty field. */
 .catalog-panel__crumbs {
   display: flex;
   align-items: center;
   gap: var(--dp-space-half);
-  flex: 0 1 auto;
+  flex: 1;
   min-width: 0;
   border-radius: var(--dp-radius-pill);
   background: var(--dp-hover);

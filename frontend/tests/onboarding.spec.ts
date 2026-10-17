@@ -56,13 +56,17 @@ test("the welcome offers the language first, and the rest of it follows the choi
       response.request().method() === "PATCH" &&
       response.url().endsWith("/users/me/preferences")
   )
-  await page.getByTestId("onboarding-language-ru").click()
+  // A choice in one row: an option's name carries its second line, so it is
+  // matched by its start.
+  await page.getByTestId("onboarding-language").click()
+  await page.getByRole("option", { name: /^Русский/ }).click()
   await saved
   // The account keeps it (D224), and the welcome is read in it at once.
   await expect(welcome).toContainText("Выберите язык")
 
   // Back to the browser's language, so every other scenario reads English.
-  await page.getByTestId("onboarding-language-browser").click()
+  await page.getByTestId("onboarding-language").click()
+  await page.getByRole("option", { name: /^Язык браузера/ }).click()
   await expect(welcome).toContainText("Pick a language")
   await page.getByTestId("onboarding-skip").click()
   await expect(welcome).toHaveCount(0)

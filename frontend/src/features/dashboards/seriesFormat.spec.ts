@@ -34,7 +34,7 @@ describe("a value as it is read", () => {
 
 describe("a rate a connection reports", () => {
   it("reads a count per second and bytes per second", () => {
-    expect(formatValue(2.5, "/s")).toBe("2.50 /s")
+    expect(formatValue(2.5, "/s")).toBe("2.50/s")
     expect(formatValue(4096, "B/s")).toBe("4 KB/s")
     expect(formatValue(2048, "b/s")).toBe("2 Kb/s")
   })

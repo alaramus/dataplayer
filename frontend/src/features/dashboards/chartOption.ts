@@ -8,7 +8,7 @@
 
 import type { EChartsOption } from "echarts"
 
-import { formatDateTime } from "@/shared/i18n/format"
+import { formatDate, formatDateTime, formatTime } from "@/shared/i18n/format"
 
 import { formatValue } from "./seriesFormat"
 
@@ -27,6 +27,24 @@ export interface ChartColours {
   /** The caption size of the scale, in pixels, read off --dp-font-size-xs. */
   size: number
   font: string
+}
+
+/**
+ * A tick on the time axis. ECharts marks midnight with the day alone, a bare
+ * "18" among the hours that read as a value, and its own Russian months are
+ * capitalised ("Окт"); the interface's language writes «18 окт.».
+ */
+export function timeTick(value: number): string {
+  const at = new Date(value)
+  if (at.getHours() === 0 && at.getMinutes() === 0 && at.getSeconds() === 0) {
+    return formatDate(at, { day: "numeric", month: "short" })
+  }
+  return formatTime(at, {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(at.getSeconds() === 0 ? {} : { second: "2-digit" }),
+    hourCycle: "h23",
+  })
 }
 
 export function sharedUnit(series: readonly ChartSeries[]): string | null {
@@ -72,7 +90,12 @@ export function timeseriesOption(series: readonly ChartSeries[], colours: ChartC
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: colours.text, fontSize: colours.size, hideOverlap: true },
+      axisLabel: {
+        color: colours.text,
+        fontSize: colours.size,
+        hideOverlap: true,
+        formatter: timeTick,
+      },
       axisLine: { lineStyle: { color: colours.grid } },
       splitLine: { show: false },
     },

@@ -317,6 +317,6 @@ export const dashboards: Messages["dashboards"] = {
     gbps: "Гбит/с",
     tbps: "Тбит/с",
     per_second: "{value}/с",
-    count_per_second: "{value} /с",
+    count_per_second: "{value}/с",
   },
 }

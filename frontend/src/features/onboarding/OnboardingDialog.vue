@@ -5,7 +5,7 @@ import { usePreferences, useUpdatePreferences } from "@/features/preferences/api
 import { useLanguageChoice } from "@/features/preferences/languageChoice"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
-import { AppButton, AppForm, AppRadioGroup, useConfirm, useToast } from "@/shared/ui"
+import { AppButton, AppForm, AppRadioGroup, AppSelect, useConfirm, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
@@ -142,17 +142,19 @@ function chooseTheme(value: string) {
         {{ t('onboarding.intro') }}
       </p>
       <q-separator />
-      <AppForm
-        layout="section"
-        labels="above"
-      >
+      <!-- Both lists grow — more languages, more themes — so neither may cost
+           a line per entry: the language is a choice in one row, the themes a
+           grid. Choosing a theme repaints the whole application, which is
+           its preview. -->
+      <AppForm layout="section">
         <!-- Before the theme: everything after it is read in this language.
              Shown once the account has been read, so it never offers a guess. -->
-        <AppRadioGroup
+        <AppSelect
           v-if="language.chosen.value !== undefined"
           :model-value="language.chosen.value"
           :options="language.options.value"
           :label="t('language.label')"
+          class="onboarding__language"
           data-testid="onboarding-language"
           @update:model-value="language.choose"
         />
@@ -160,6 +162,7 @@ function chooseTheme(value: string) {
           :model-value="theme.mode"
           :label="t('theme.label')"
           :options="THEME_CHOICES"
+          grid
           data-testid="onboarding-theme"
           @update:model-value="chooseTheme"
         />
@@ -223,7 +226,6 @@ function chooseTheme(value: string) {
   padding: var(--dp-space-4);
   min-height: 0;
 }
-/* The one sentence the welcome is about: full size, in the primary text. */
 /* The window's subtitle, set as every window's is: at 15px it stood heavier
    than the title above it. */
 .onboarding__intro {
@@ -231,6 +233,9 @@ function chooseTheme(value: string) {
   color: var(--dp-text-muted);
   font-size: var(--dp-font-size);
   line-height: var(--dp-line-height);
+}
+.onboarding__language {
+  max-width: var(--dp-width-popover);
 }
 .onboarding__head {
   display: flex;

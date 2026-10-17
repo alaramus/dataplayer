@@ -788,6 +788,12 @@ function removeSavedEntry(name: string) {
           label="Rows"
           :options="ROW_SCOPES"
         />
+        <AppRadioGroup
+          v-model="rows"
+          label="Rows, in a grid"
+          :options="ROW_SCOPES"
+          grid
+        />
         <AppFileInput
           v-model="file"
           label="File"
