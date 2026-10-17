@@ -1,295 +1,257 @@
 """The first-run setup fills placeholders, never chosen values."""
 
 import base64
-import builtins
 import importlib.util
 import shutil
 import sys
+from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SETUP_PATH = REPO_ROOT / "scripts" / "setup.py"
+EXAMPLE = REPO_ROOT / ".env.example"
 
 
-def load_setup() -> object:
+@pytest.fixture(scope="module")
+def setup() -> Iterator[ModuleType]:
     spec = importlib.util.spec_from_file_location("dataplayer_setup", SETUP_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    sys.modules["dataplayer_setup"] = module
+    # dataclasses look their module up in sys.modules while the class is made.
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    return module
+    yield module
+    del sys.modules[spec.name]
 
 
 @pytest.fixture()
-def setup() -> object:
-    return load_setup()
+def example(setup: ModuleType) -> object:
+    return setup.EnvFile.load(EXAMPLE)
 
 
-@pytest.fixture()
-def env_copy(tmp_path: Path) -> Path:
-    target = tmp_path / ".env"
-    shutil.copy(REPO_ROOT / ".env.example", target)
-    return target
+def answer(monkeypatch: pytest.MonkeyPatch, *answers: str) -> None:
+    given = iter(answers)
+    monkeypatch.setattr("builtins.input", lambda _prompt="": next(given))
 
 
-def test_generated_key_is_32_urlsafe_bytes(setup: object) -> None:
-    raw = base64.urlsafe_b64decode(setup.generate_key())  # type: ignore[attr-defined]
-    assert len(raw) == 32
+def run(setup: ModuleType, tmp_path: Path, *argv: str) -> int:
+    code: int = setup.main(
+        list(argv),
+        env_path=tmp_path / ".env",
+        frontend_env_path=tmp_path / "frontend.env",
+    )
+    return code
 
 
-def test_generated_password_needs_no_url_encoding(setup: object) -> None:
-    password = setup.generate_password()  # type: ignore[attr-defined]
-    assert len(password) >= 8
-    assert all(char.isascii() and char.isalnum() or char in "-_" for char in password)
+def test_a_generated_key_is_32_urlsafe_bytes(setup: ModuleType) -> None:
+    assert len(base64.urlsafe_b64decode(setup.generate_key())) == 32
 
 
-def test_placeholder_is_filled_but_a_choice_is_kept(
-    setup: object, env_copy: Path
+def test_a_generated_password_needs_no_url_encoding(setup: ModuleType) -> None:
+    password = setup.generate_password()
+    assert len(password) >= 24
+    assert all(char.isascii() and (char.isalnum() or char in "-_") for char in password)
+
+
+def test_every_placeholder_is_filled_and_then_kept(
+    setup: ModuleType, example: object
 ) -> None:
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    report = setup.Report()  # type: ignore[attr-defined]
-    choices = setup.Choices("prod", "minimal", False)  # type: ignore[attr-defined]
-    setup.configure(env, choices, report)  # type: ignore[attr-defined]
-    assert "SECRET_KEY" in report.generated
-    first = env.get("SECRET_KEY")
-    assert first not in (None, "", "changethis")
-    second_report = setup.Report()  # type: ignore[attr-defined]
-    setup.configure(env, choices, second_report)  # type: ignore[attr-defined]
-    assert env.get("SECRET_KEY") == first
-    assert "SECRET_KEY" not in second_report.generated
+    choices = setup.Choices("prod", "minimal", False)
+    setup.configure(example, choices)
+    first = {name: example.get(name) for name in setup.SECRETS}  # type: ignore[attr-defined]
+    assert setup.PLACEHOLDER not in first.values()
+    setup.configure(example, setup.Choices("dev", "full", False))
+    assert {name: example.get(name) for name in setup.SECRETS} == first  # type: ignore[attr-defined]
 
 
 def test_minimal_prod_runs_on_memory_without_meaning(
-    setup: object, env_copy: Path
+    setup: ModuleType, example: object
 ) -> None:
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    report = setup.Report()  # type: ignore[attr-defined]
-    choices = setup.Choices("prod", "minimal", False)  # type: ignore[attr-defined]
-    # A stale model address from an earlier preset does not survive minimal.
-    env.set("EMBEDDINGS_URL", "http://embedder:80")
-    setup.configure(env, choices, report)  # type: ignore[attr-defined]
-    assert env.get("DATA_CACHE_BACKEND") == "memory"
-    assert env.get("EMBEDDINGS_URL") == ""
-    assert "EMBEDDINGS_URL (cleared)" in report.changed
-    assert env.get("COMPOSE_FILE") == "compose.yml,compose.prod.yml"
-    assert env.get("COMPOSE_PROFILES") == ""
-    assert env.get("FASTAPI_ENV") is None
-    assert env.get("DATA_CACHE_DEPLOYMENT") == "production"
-    assert env.get("FRONTEND_HOST") == "http://localhost:8000"
-    assert env.get("SERVICES_ENABLED") == "false"
+    example.set("EMBEDDINGS_URL", "http://embedder:80")  # type: ignore[attr-defined]
+    setup.configure(example, setup.Choices("prod", "minimal", False))
+    get = example.get  # type: ignore[attr-defined]
+    assert get("COMPOSE_FILE") == "compose.yml,compose.prod.yml"
+    assert get("COMPOSE_PROFILES") == ""
+    assert get("DATA_CACHE_BACKEND") == "memory"
+    assert get("EMBEDDINGS_URL") == ""
+    assert get("FASTAPI_ENV") is None
+    assert get("DATA_CACHE_DEPLOYMENT") == "production"
+    assert get("FRONTEND_HOST") == "http://localhost:8000"
+    assert get("SERVICES_ENABLED") == "false"
 
 
-def test_meaning_url_is_synced_both_ways(setup: object, env_copy: Path) -> None:
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    full = setup.Choices("prod", "full", False)  # type: ignore[attr-defined]
-    setup.configure(env, full, setup.Report())  # type: ignore[attr-defined]
-    assert env.get("EMBEDDINGS_URL") == "http://embedder:80"
-    assert env.get("DATA_CACHE_BACKEND") == "redis"
-    assert env.get("COMPOSE_PROFILES") == "cache,meaning"
-
-    minimal = setup.Choices("prod", "minimal", False)  # type: ignore[attr-defined]
-    report = setup.Report()  # type: ignore[attr-defined]
-    setup.configure(env, minimal, report)  # type: ignore[attr-defined]
-    assert env.get("EMBEDDINGS_URL") == ""
-    assert "EMBEDDINGS_URL (cleared)" in report.changed
-
-    custom = setup.Choices("prod", "full", False)  # type: ignore[attr-defined]
-    env.set("EMBEDDINGS_URL", "http://gpu-box:80")
-    setup.configure(env, custom, setup.Report())  # type: ignore[attr-defined]
-    assert env.get("EMBEDDINGS_URL") == "http://gpu-box:80"
-
-
-def test_dev_keeps_a_custom_frontend_host(setup: object, env_copy: Path) -> None:
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    env.set("FRONTEND_HOST", "http://192.168.1.10:5173")
-    choices = setup.Choices("dev", "full", False)  # type: ignore[attr-defined]
-    setup.configure(env, choices, setup.Report())  # type: ignore[attr-defined]
-    assert env.get("FRONTEND_HOST") == "http://192.168.1.10:5173"
-    assert env.get("FASTAPI_ENV") == "development"
-
-
-def test_dev_resets_a_stale_prod_frontend_host(
-    setup: object, env_copy: Path
+def test_full_points_search_at_the_model_and_keeps_another(
+    setup: ModuleType, example: object
 ) -> None:
-    # The API accepts calls from FRONTEND_HOST alone, so a prod address left
-    # by an earlier run would lock the Vite interface out with a CORS error.
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    env.set("COMPOSE_FILE", "compose.yml,compose.prod.yml")
-    env.set("FRONTEND_HOST", "http://localhost:8000")
-    env.set("DATA_CACHE_DEPLOYMENT", "production")
-    choices = setup.Choices("dev", "minimal", False)  # type: ignore[attr-defined]
-    report = setup.Report()  # type: ignore[attr-defined]
-    setup.configure(env, choices, report)  # type: ignore[attr-defined]
-    assert env.get("FRONTEND_HOST") == "http://localhost:5173"
-    assert "FRONTEND_HOST" in report.changed
-    assert env.get("DATA_CACHE_DEPLOYMENT") == "development"
+    setup.configure(example, setup.Choices("prod", "full", False))
+    assert example.get("COMPOSE_PROFILES") == "cache,meaning"  # type: ignore[attr-defined]
+    assert example.get("DATA_CACHE_BACKEND") == "redis"  # type: ignore[attr-defined]
+    assert example.get("EMBEDDINGS_URL") == "http://embedder:80"  # type: ignore[attr-defined]
+    example.set("EMBEDDINGS_URL", "http://gpu-box:80")  # type: ignore[attr-defined]
+    setup.configure(example, setup.Choices("prod", "full", False))
+    assert example.get("EMBEDDINGS_URL") == "http://gpu-box:80"  # type: ignore[attr-defined]
 
 
-def test_prod_resets_a_dev_frontend_host(setup: object, env_copy: Path) -> None:
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    env.set("FRONTEND_HOST", "http://192.168.1.10:5173")
-    choices = setup.Choices("prod", "minimal", False)  # type: ignore[attr-defined]
-    setup.configure(env, choices, setup.Report())  # type: ignore[attr-defined]
-    assert env.get("FRONTEND_HOST") == "http://localhost:8000"
-
-
-def test_set_reuses_a_commented_entry(setup: object, env_copy: Path) -> None:
-    # A prod run comments FASTAPI_ENV out; the next dev run must flip that
-    # line back, not append a duplicate at the end of the file.
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    assert env.comment_out("FASTAPI_ENV")  # type: ignore[attr-defined]
-    env.set("FASTAPI_ENV", "development")  # type: ignore[attr-defined]
-    assert env.get("FASTAPI_ENV") == "development"
-    assert env.lines.count("FASTAPI_ENV=development") == 1
-
-
-def test_compose_command_follows_env(setup: object) -> None:
-    prod = setup.Choices("prod", "minimal", False)  # type: ignore[attr-defined]
-    assert setup.compose_command(prod) == [  # type: ignore[attr-defined]
-        "docker",
-        "compose",
-        "up",
-        "-d",
-        "--build",
-    ]
-    dev = setup.Choices("dev", "minimal", False)  # type: ignore[attr-defined]
-    assert setup.compose_command(dev)[-3:] == [  # type: ignore[attr-defined]
-        "backend",
-        "metrics",
-        "search-keeper",
-    ]
-    full_dev = setup.Choices("dev", "full", False)  # type: ignore[attr-defined]
-    assert setup.compose_command(full_dev)[-1] == "embedder"  # type: ignore[attr-defined]
-
-
-def test_current_mode_and_preset(setup: object, env_copy: Path) -> None:
-    env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-    env.set("COMPOSE_FILE", "compose.yml,compose.prod.yml")
-    env.set("COMPOSE_PROFILES", "cache,meaning")
-    assert setup.current_mode(env) == "prod"  # type: ignore[attr-defined]
-    assert setup.current_preset(env) == "full"  # type: ignore[attr-defined]
-    env.set("COMPOSE_PROFILES", "")
-    assert setup.current_preset(env) == "minimal"  # type: ignore[attr-defined]
-
-
-def test_choice_is_numbers_only(
-    setup: object, capsys: pytest.CaptureFixture[str]
-) -> None:
-    real_input = builtins.input
-    options = ("minimal", "standard", "full")
-    try:
-        builtins.input = lambda prompt="": "2"
-        ask = setup.ask_choice  # type: ignore[attr-defined]
-        assert ask("preset", options, "minimal") == "standard"
-        answers = iter(["standart", "3"])
-        builtins.input = lambda prompt="": next(answers)
-        assert ask("preset", options, "minimal") == "full"
-        assert "enter a number" in capsys.readouterr().out
-        builtins.input = lambda prompt="": ""
-        assert ask("preset", options, "full") == "full"
-    finally:
-        builtins.input = real_input
-
-
-def test_wizard_walks_through_every_choice(setup: object, env_copy: Path) -> None:
-    real_input = builtins.input
-    answers = iter(["1", "2", "owner@example.com", "1", "", "n", "y"])
-    builtins.input = lambda prompt="": next(answers)
-    try:
-        env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-        result = setup.run_wizard(env)  # type: ignore[attr-defined]
-    finally:
-        builtins.input = real_input
-    assert result is not None
-    assert (result.mode, result.preset, result.services) == ("prod", "standard", False)
-    assert result.email == "owner@example.com"
-    # The wizard only answers; configure() writes.
-    setup.configure(env, result, setup.Report())  # type: ignore[attr-defined]
-    assert env.get("FIRST_SUPERUSER") == "owner@example.com"
-
-
-def test_wizard_abort_writes_nothing(setup: object, env_copy: Path) -> None:
-    real_input = builtins.input
-    answers = iter(["1", "", "", "1", "", "n", "n"])
-    builtins.input = lambda prompt="": next(answers)
-    try:
-        env = setup.EnvFile.load(env_copy)  # type: ignore[attr-defined]
-        result = setup.run_wizard(env)  # type: ignore[attr-defined]
-    finally:
-        builtins.input = real_input
-    assert result is None
-
-
-def test_container_run_writes_but_never_starts(
-    setup: object,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    env_path = tmp_path / ".env"
-    shutil.copy(REPO_ROOT / ".env.example", env_path)
-    monkeypatch.setenv("SETUP_CONTAINER", "1")
-
-    def fail_run(*_args: object, **_kwargs: object) -> object:
-        raise AssertionError("must not start anything inside the container")
-
-    monkeypatch.setattr(setup.subprocess, "run", fail_run)  # type: ignore[attr-defined]
-    code = setup.main(  # type: ignore[attr-defined]
-        ["--preset", "minimal", "--mode", "prod", "--yes"],
-        env_path=env_path,
-        frontend_env_path=tmp_path / "frontend.env",
+def test_the_api_origin_follows_the_mode(setup: ModuleType, example: object) -> None:
+    # The API accepts calls from FRONTEND_HOST alone: a prod address left in
+    # development locks the Vite interface out.
+    setup.configure(
+        example,
+        setup.Choices("prod", "minimal", False, host="https://data.example.com"),
     )
-    assert code == 0
-    assert "docker compose up -d --build" in capsys.readouterr().out
+    setup.configure(example, setup.Choices("dev", "minimal", False))
+    assert example.get("FRONTEND_HOST") == "http://localhost:5173"  # type: ignore[attr-defined]
+    assert example.get("FASTAPI_ENV") == "development"  # type: ignore[attr-defined]
+    assert example.get("DATA_CACHE_DEPLOYMENT") == "development"  # type: ignore[attr-defined]
+    example.set("FRONTEND_HOST", "http://192.168.1.10:5173")  # type: ignore[attr-defined]
+    setup.configure(example, setup.Choices("dev", "minimal", False))
+    assert example.get("FRONTEND_HOST") == "http://192.168.1.10:5173"  # type: ignore[attr-defined]
+    setup.configure(example, setup.Choices("prod", "minimal", False))
+    assert example.get("FRONTEND_HOST") == "http://localhost:8000"  # type: ignore[attr-defined]
 
 
-def test_decline_stops_the_chain(
-    setup: object,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
+def test_the_published_port_follows_a_local_address(
+    setup: ModuleType, example: object
 ) -> None:
-    env_path = tmp_path / ".env"
-    shutil.copy(REPO_ROOT / ".env.example", env_path)
-    before = env_path.read_bytes()
+    setup.configure(
+        example, setup.Choices("prod", "minimal", False, host="http://localhost:9000")
+    )
+    assert example.get("APP_PORT") == "9000"  # type: ignore[attr-defined]
+    assert example.lines.count("APP_PORT=9000") == 1  # type: ignore[attr-defined]
+    assert not any(line.startswith("# APP_PORT") for line in example.lines)  # type: ignore[attr-defined]
+    setup.configure(
+        example,
+        setup.Choices("prod", "minimal", False, host="https://data.example.com"),
+    )
+    assert example.get("APP_PORT") == "9000"  # type: ignore[attr-defined]
+
+
+def test_managed_services_add_their_file(setup: ModuleType, example: object) -> None:
+    setup.configure(example, setup.Choices("prod", "standard", True))
+    assert example.get("COMPOSE_FILE") == (  # type: ignore[attr-defined]
+        "compose.yml,compose.prod.yml,compose.services.yml"
+    )
+    assert example.get("SERVICES_ENABLED") == "true"  # type: ignore[attr-defined]
+    assert example.get("SERVICE_NETWORK") == "dataplayer_default"  # type: ignore[attr-defined]
+    args = setup.parse_args(["--yes"])
+    assert setup.defaults_from(example, args).services is True
+    assert (
+        setup.defaults_from(example, setup.parse_args(["--disable-services"])).services
+        is False
+    )
+
+
+def test_a_rerun_without_flags_keeps_mode_and_preset(
+    setup: ModuleType, example: object
+) -> None:
+    setup.configure(example, setup.Choices("prod", "standard", False))
+    defaults = setup.defaults_from(example, setup.parse_args([]))
+    assert (defaults.mode, defaults.preset) == ("prod", "standard")
+    fresh = setup.defaults_from(None, setup.parse_args([]))
+    assert (fresh.mode, fresh.preset) == ("prod", "minimal")
+    dev = setup.defaults_from(None, setup.parse_args(["--mode", "dev"]))
+    assert dev.preset == "full"
+
+
+def test_set_takes_over_a_commented_entry(example: object) -> None:
+    example.comment_out("FASTAPI_ENV")  # type: ignore[attr-defined]
+    example.set("FASTAPI_ENV", "development")  # type: ignore[attr-defined]
+    assert example.lines.count("FASTAPI_ENV=development") == 1  # type: ignore[attr-defined]
+
+
+def test_changes_name_every_line_and_warn_about_a_started_stack(
+    setup: ModuleType, example: object
+) -> None:
+    before = example.copy()  # type: ignore[attr-defined]
+    setup.configure(example, setup.Choices("prod", "minimal", False))
+    changed = {change.name for change in setup.changes(before, example)}
+    assert {
+        "SECRET_KEY",
+        "POSTGRES_PASSWORD",
+        "COMPOSE_FILE",
+        "FRONTEND_HOST",
+    } <= changed
+    assert "PROJECT_NAME" not in changed
+    found = setup.changes(before, example)
+    assert setup.warnings(found, existed=False) == []
+    warned = " ".join(setup.warnings(found, existed=True))
+    assert "POSTGRES_PASSWORD" in warned and "FIRST_SUPERUSER_PASSWORD" in warned
+
+
+def test_an_unattended_run_writes_and_a_second_keeps_the_secrets(
+    setup: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert (
+        run(setup, tmp_path, "--mode", "dev", "--superuser", "owner@example.com") == 0
+    )
+    first = setup.EnvFile.load(tmp_path / ".env")
+    assert first.get("FIRST_SUPERUSER") == "owner@example.com"
+    assert first.get("COMPOSE_PROFILES") == "cache,meaning"
+    assert (tmp_path / "frontend.env").exists()
+    output = capsys.readouterr().out
+    assert "docker compose up -d --build" in output
+    # Not a terminal: the generated password stays in .env alone.
+    assert first.get("FIRST_SUPERUSER_PASSWORD") not in output
+
+    assert run(setup, tmp_path, "--mode", "prod", "--preset", "minimal", "--yes") == 0
+    second = setup.EnvFile.load(tmp_path / ".env")
+    for name in setup.SECRETS:
+        assert second.get(name) == first.get(name)
+    assert second.get("FIRST_SUPERUSER") == "owner@example.com"
+    assert "POSTGRES_PASSWORD" not in capsys.readouterr().out
+    assert sorted(path.name for path in tmp_path.iterdir()) == [".env", "frontend.env"]
+
+
+def test_the_wizard_asks_and_writes_after_a_yes(
+    setup: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr(builtins, "input", lambda prompt="": "n")
-    code = setup.main(  # type: ignore[attr-defined]
-        ["--preset", "minimal", "--mode", "prod"],
-        env_path=env_path,
-        frontend_env_path=tmp_path / "frontend.env",
+    # mode prod, preset standard, email, type a password, address, no services, write.
+    answer(
+        monkeypatch,
+        "1",
+        "2",
+        "owner@example.com",
+        "2",
+        "https://data.example.com/",
+        "n",
+        "y",
     )
-    assert code == 1
-    assert env_path.read_bytes() == before
-    assert "nothing was written" in capsys.readouterr().out
+    monkeypatch.setattr(setup.getpass, "getpass", lambda _prompt="": "a long secret")
+    assert run(setup, tmp_path) == 0
+    env = setup.EnvFile.load(tmp_path / ".env")
+    assert env.get("COMPOSE_PROFILES") == "cache"
+    assert env.get("FRONTEND_HOST") == "https://data.example.com"
+    assert env.get("FIRST_SUPERUSER_PASSWORD") == "a long secret"
+    assert "FIRST_SUPERUSER_PASSWORD='a long secret'" in env.lines
+    # Listed before it is written, the secrets by name alone.
+    output = capsys.readouterr().out
+    assert "FRONTEND_HOST" in output and "a long secret" not in output
 
 
-def test_main_writes_but_never_overwrites(
-    setup: object, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+def test_declining_writes_nothing(
+    setup: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    env_path = tmp_path / ".env"
-    shutil.copy(REPO_ROOT / ".env.example", env_path)
-    frontend_path = tmp_path / "frontend.env"
-    main = setup.main  # type: ignore[attr-defined]
-    code = main(
-        ["--preset", "minimal", "--mode", "prod", "--no-run"],
-        env_path=env_path,
-        frontend_env_path=frontend_path,
-    )
-    assert code == 0
-    first = setup.EnvFile.load(env_path)  # type: ignore[attr-defined]
-    assert first.get("SECRET_KEY") != "changethis"
-    code = main(
-        ["--preset", "full", "--mode", "prod", "--no-run"],
-        env_path=env_path,
-        frontend_env_path=frontend_path,
-    )
-    assert code == 0
-    second = setup.EnvFile.load(env_path)  # type: ignore[attr-defined]
-    assert second.get("SECRET_KEY") == first.get("SECRET_KEY")
-    assert second.get("DATA_CACHE_BACKEND") == "redis"
-    assert second.get("EMBEDDINGS_URL") == "http://embedder:80"
-    assert (tmp_path / ".env.bak").exists()
-    assert "Setup summary" in capsys.readouterr().out
+    shutil.copy(EXAMPLE, tmp_path / ".env")
+    before = (tmp_path / ".env").read_bytes()
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    # A copied example is development: mode, preset, email, password, write.
+    answer(monkeypatch, "", "", "", "", "n")
+    assert run(setup, tmp_path) == 1
+    assert (tmp_path / ".env").read_bytes() == before
+
+
+def test_a_choice_takes_numbers_alone(
+    setup: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    answer(monkeypatch, "standart", "9", "3")
+    assert setup.ask_choice("preset", setup.PRESETS, "minimal", {}) == "full"
+    assert "enter a number" in capsys.readouterr().out

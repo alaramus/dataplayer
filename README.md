@@ -77,67 +77,64 @@ or by pasting a connection string, and is checked before it is saved.
 
 ## Getting started
 
-DataPlayer starts in one of two modes, and in one of three presets:
+All it needs is Docker. From the repository root:
 
-| Preset | Adds over the previous | Profiles in `.env` |
-| --- | --- | --- |
-| `minimal` | db, the API, metrics and search-keeper; the memory cache, no search by meaning | none |
-| `standard` | the shared Redis read cache | `cache` |
-| `full` | search by meaning through a local model | `cache,meaning` |
+```bash
+docker compose -f compose.setup.yml run --rm setup
+docker compose up -d --build
+```
 
-| | Run it | Develop it |
+The first command asks a few questions — what for, which preset, the
+superuser's email and password, and, to run it, the address people open and
+whether to allow managed services — and writes `.env`. Every secret is
+generated; one already in `.env` is never replaced. Before writing it lists
+every line it changes. Running it again later changes the mode or preset of
+the same installation. The second command starts what `.env` now names, and
+so does every later `docker compose` command.
+
+| Preset | Starts | Adds |
 | --- | --- | --- |
-| Mode in `.env` | `compose.yml,compose.prod.yml` | `compose.yml,compose.override.yml` (the default) |
-| You need | Docker, Python | Docker, Python, [Bun](https://bun.sh) and Node.js |
+| `minimal` | db, the API, metrics and search-keeper | — |
+| `standard` | and a Redis | a read cache shared by the processes |
+| `full` | and a local model | search by meaning; the model is downloaded on the first start |
+
+| | Run it (`prod`) | Develop it (`dev`) |
+| --- | --- | --- |
+| You need | Docker | Docker, [Bun](https://bun.sh) and Node.js |
 | Interface | built into the image, on `APP_PORT` (8000) | Vite dev server on 5173, reloading on every edit |
 | Data at the start | the first superuser only | sample databases, files and references |
-| Extras | none; restarted after a reboot | the Docker socket for managed services; Adminer, Mailcatcher, a test Redis and SSH server on request with `docker compose --profile tools up -d` |
+| Default preset | `minimal` | `full` |
 
-### 1. Set up
-
-```bash
-cp .env.example .env
-docker compose --profile setup run --build --rm setup && docker compose up -d --build
-```
-
-With no flags the script walks through every choice step by step — mode,
-preset, superuser email and password (generated or your own), the address
-people open, and managed services — then writes `.env` and starts the stack
-with a bare `docker compose up -d --build`: files and profiles come from
-`.env` itself, so every later compose command follows them. Secrets are
-filled where `.env` still holds the `changethis` placeholder; anything
-already chosen is left alone. Nothing is written before the final
-confirmation, a backup lands in `.env.bak`, and `--no-run` writes the files
-without starting anything. Flags (`--preset`, `--mode`, `--enable-services`,
-`--yes`) skip the questions for repeat runs and CI; `--mode dev` also creates
-`frontend/.env` and defaults to `--preset full`, so everything runs at once.
-Flags go after the service name, before the `&&`:
+Without a terminal, or with `--yes`, it asks nothing and takes its flags:
+`--mode`, `--preset`, `--superuser EMAIL`, `--enable-services` or
+`--disable-services`. They go after the service name:
 
 ```bash
-docker compose --profile setup run --build --rm setup python scripts/setup.py --preset standard --mode prod --yes && docker compose up -d --build
+docker compose -f compose.setup.yml run --rm setup python scripts/setup.py --mode prod --preset standard --yes
 ```
 
-Managed services stay off in every preset. Adding `--enable-services` turns
-them on deliberately: in development the Docker socket is already mounted,
-while a running installation additionally reads `compose.services.yml`.
+`python scripts/setup.py` does the same where Python is installed.
 
-### 2a. Run it
+### Run it
 
-Open the address in `FRONTEND_HOST` (http://localhost:8000 by default) and sign
-in as `FIRST_SUPERUSER` with the generated `FIRST_SUPERUSER_PASSWORD` from
-`.env`. The port speaks plain HTTP: to reach DataPlayer from outside this
-machine, put a reverse proxy that terminates HTTPS in front of it (Caddy,
-Traefik, nginx) and set `FRONTEND_HOST` to its address. Back up the Docker
-volume `dataplayer_app-db-data`; it holds everything DataPlayer keeps.
+Open the address the setup printed and sign in as the superuser; a generated
+password is printed once and stays in `.env` as `FIRST_SUPERUSER_PASSWORD`.
+The port speaks plain HTTP: to reach DataPlayer from outside this machine, put
+a reverse proxy that terminates HTTPS in front of it (Caddy, Traefik, nginx)
+and give its address to the setup. Back up the Docker volume
+`dataplayer_app-db-data`; it holds everything DataPlayer keeps.
 
-### 2b. Develop it
+### Develop it
+
+```bash
+cd frontend && bun install && bun run dev
+```
 
 The interface is at http://localhost:5173, the API at http://localhost:8000
 and its interactive docs at http://localhost:8000/docs. To fill the connections
 panel with examples — the bundled PostgreSQL under several names, file storage
-and Redis — run `bun run seed:connectors` from the repository root. A bare
-`docker compose up -d` starts only what the interface talks to; the helpers
-(Adminer, Mailcatcher, a test Redis and SSH server) start on request with
+and Redis — run `bun run seed:connectors` from the repository root. Adminer
+and the test Redis and SSH server start on request:
 `docker compose --profile tools up -d`.
 
 The backend cannot run natively on Windows: psycopg 3 in async mode is

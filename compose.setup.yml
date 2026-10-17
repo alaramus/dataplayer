@@ -1,0 +1,20 @@
+# The first-run setup, for a machine with Docker alone:
+#   docker compose -f compose.setup.yml run --rm setup
+#   docker compose up -d --build
+#
+# A file of its own rather than a service of compose.yml: that one cannot be
+# read before `.env` exists, and this one needs nothing but the checkout. The
+# script is the standard library alone, so a stock Python image runs it
+# without building anything. It writes `.env` and starts nothing.
+
+name: dataplayer-setup
+
+services:
+  setup:
+    image: python:3.14-alpine
+    command: ["python", "scripts/setup.py"]
+    working_dir: /work
+    volumes:
+      - .:/work
+    stdin_open: true
+    tty: true

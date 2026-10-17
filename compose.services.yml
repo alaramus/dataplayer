@@ -1,11 +1,10 @@
-# Deliberate opt-in for managed services in a running installation (D82, D86).
-# Used only together with `--enable-services` of the setup command, which also
-# sets SERVICES_ENABLED, SERVICE_NETWORK and SERVICE_STORAGE_VOLUME in .env:
-#   docker compose --profile setup run --build --rm setup python scripts/setup.py --preset standard --mode prod --enable-services && docker compose up -d --build
+# Managed services in a running installation (D82, D86), added to COMPOSE_FILE
+# by `scripts/setup.py --mode prod --enable-services` together with
+# SERVICES_ENABLED, SERVICE_NETWORK and SERVICE_STORAGE_VOLUME.
 #
 # A process that can reach this socket can do to the host whatever the runtime
 # can, so no preset includes this file. Development mounts the socket in
-# compose.override.yml instead and needs nothing here.
+# compose.override.yml and needs nothing here.
 
 services:
   backend:

@@ -120,11 +120,8 @@ services:
 
   mailcatcher:
     image: schickling/mailcatcher
-    # Behind the `tools` profile: the backend sends mail through it when it
-    # runs (`SMTP_HOST: mailcatcher` above), and its absence otherwise only
-    # means mail is not caught locally. Also in `e2e`, which the playwright
-    # service below depends on.
-    profiles: ["tools", "e2e"]
+    # Not behind `tools` like the other helpers: the backend above sends its
+    # mail here, and without it every message sent is an error.
     ports:
       - "1080:1080"
       - "1025:1025"

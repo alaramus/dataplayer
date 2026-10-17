@@ -15,11 +15,6 @@ services:
   db:
     restart: unless-stopped
 
-  # A development convenience, kept out of a running installation: a browser
-  # on the database is one more thing to secure.
-  adminer:
-    profiles: ["tools"]
-
   redis-cache:
     restart: unless-stopped
 

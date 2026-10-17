@@ -41,9 +41,7 @@ x-backend-environment: &backend-environment
   LOG_FILE_MAX_BYTES: ${LOG_FILE_MAX_BYTES:-10485760}
   LOG_FILE_COUNT: ${LOG_FILE_COUNT:-5}
   # The local model the search finds meaning with (D220). Empty switches it
-  # off; the `full` preset sets it to the embedder service, which is started
-  # on request with `docker compose --profile meaning up -d embedder`.
-  # The search then does without.
+  # off; the `full` preset points it at the embedder below.
   EMBEDDINGS_URL: ${EMBEDDINGS_URL:-}
 
 services:
@@ -65,22 +63,19 @@ services:
 
   adminer:
     image: adminer
-    # A development helper behind the `tools` profile: a bare `up` never
-    # starts it, `docker compose --profile tools up -d` (or naming it
-    # explicitly) does. compose.prod.yml keeps it out of a running
-    # installation the same way.
+    # Started on request alone, `docker compose --profile tools up -d`: a
+    # browser on the database is one more thing to secure.
     profiles: ["tools"]
     depends_on:
       - db
     environment:
       - ADMINER_DESIGN=pepa-linha-dark
 
-  # The shared read cache, started on request with `--profile cache` (the
-  # `standard` and `full` presets). Disposable by construction:
-  # no volume, no persistence, and nothing in it that the database does not
-  # already hold. Whether the backend actually uses it is still a question for
-  # DATA_CACHE_BACKEND, which the same preset answers with `redis` (D103).
-  # Without the profile the backend runs on its process-local memory cache.
+  # The shared read cache, started by the `cache` profile of the `standard`
+  # and `full` presets. Disposable by construction: no volume, no persistence,
+  # and nothing in it that the database does not already hold. Whether the
+  # backend uses it is DATA_CACHE_BACKEND's question, which the same preset
+  # answers with `redis` (D103).
   redis-cache:
     image: redis:8
     profiles: ["cache"]
@@ -134,8 +129,8 @@ services:
       # Waited for rather than merely started: a cache that is not answering
       # yet is a cache miss, so the first reads after a restart would go to
       # the source and the accelerator would look broken at exactly the moment
-      # somebody is watching it. Not required: the `minimal` preset starts no
-      # cache at all, and the backend runs on memory then.
+      # somebody is watching it. Not required: `minimal` starts no cache and
+      # the backend reads through memory.
       redis-cache:
         condition: service_healthy
         required: false
@@ -200,10 +195,10 @@ services:
       context: .
       dockerfile: backend/Dockerfile
 
-  # The local model the search finds meaning with (D220), started on request:
-  # `docker compose --profile meaning up -d embedder`. It downloads its model
-  # from Hugging Face on the first start into its volume; HF_TOKEN, when set,
-  # spares that download the queue an anonymous one may wait in.
+  # The local model the search finds meaning with (D220), started by the
+  # `meaning` profile of the `full` preset. It downloads its model from Hugging
+  # Face on the first start into its volume; HF_TOKEN, when set, spares that
+  # download the queue an anonymous one may wait in.
   embedder:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.8
     profiles: ["meaning"]
@@ -213,26 +208,6 @@ services:
     volumes:
       - embedder-models:/data
     restart: unless-stopped
-
-  # First-run setup for a host with Docker alone: the wizard runs here and
-  # writes `.env` on the mounted checkout, and the stack itself is started on
-  # the host afterwards (`SETUP_CONTAINER` keeps it from starting anything
-  # inside). Started on request alone, never by a plain `up`:
-  # `docker compose --profile setup run --rm setup`.
-  setup:
-    image: backend:latest
-    profiles: ["setup"]
-    command: ["python", "scripts/setup.py"]
-    working_dir: /work
-    volumes:
-      - .:/work
-    environment:
-      SETUP_CONTAINER: "1"
-    stdin_open: true
-    tty: true
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
 
 volumes:
   app-db-data:

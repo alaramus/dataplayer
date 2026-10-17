@@ -76,67 +76,42 @@ backend/app/
 
 ## Two ways to start it, in three presets
 
-The one entry point is the setup command, which runs the wizard in a
-container and starts the stack on the host:
-
-```bash
-docker compose --profile setup run --build --rm setup && docker compose up -d --build
-```
-
-With no flags it asks every first-run question step by step, and with flags
-(after the service name) it runs silently. Either way it fills the generated
-secrets in `.env` where the `changethis` placeholder still stands, aligns
-the file with the preset and the mode, and starts the stack with a bare
-`docker compose up -d --build`. Files and profiles come
-from `.env` itself — `COMPOSE_FILE` carries the mode, `COMPOSE_PROFILES` the
-preset — so every later compose command follows them without flags. A secret
-once chosen is never overwritten, nothing is written before the final
-confirmation, and a backup lands in `.env.bak`.
-
-A host with Docker alone runs the same wizard in the `setup` service, which
-is behind its own profile so a plain `up` never starts it: the container
-writes `.env` on the mounted checkout and never starts anything itself
-(`SETUP_CONTAINER`), and the stack is started on the host afterwards with a
-bare `docker compose up -d --build` — one pasted line with `&&` between the
-two, since declining the wizard exits non-zero and stops the chain.
-
-- **`minimal`** — no compose profile: `db`, `prestart`, the backend,
-  `metrics` and `search-keeper`. The read cache is the process-local memory
-  one, and `EMBEDDINGS_URL` stays empty, so search by meaning is off.
-- **`standard`** — adds `--profile cache`: the shared Redis read cache, and
-  `DATA_CACHE_BACKEND=redis` with both cache secrets filled in (D103).
-- **`full`** — adds `--profile cache --profile meaning`: the local model the
-  search finds meaning with, and `EMBEDDINGS_URL` pointing at it (D220).
-
-`COMPOSE_FILE` in `.env` still names the files `docker compose` reads, so
-bare commands follow the mode the setup chose; the setup passes the same
-files with `-f` when it starts the stack itself:
+`.env` decides what `docker compose` starts, so every command follows it
+without flags: `COMPOSE_FILE` carries the mode, `COMPOSE_PROFILES` the preset.
+`scripts/setup.py` writes both, and every secret where `.env` holds nothing or
+`changethis`; a secret already there is never replaced, and the lines it
+changes are listed before it writes. It runs from `compose.setup.yml` on a
+stock Python image, because `compose.yml` cannot be read before `.env`
+exists and the script needs nothing but the standard library. It writes and
+starts nothing; `docker compose up -d --build` follows.
 
 - **`compose.yml,compose.override.yml`** — development: `fastapi dev`, sample
-  data from `prestart-dev.sh`, the Docker socket, the interface from the Vite
-  dev server. A bare `up` starts only what the interface talks to; Adminer,
-  Mailcatcher, a test Redis and SSH server and the E2E runner stay behind the
-  `tools`/`e2e` profiles and start on request
-  (`docker compose --profile tools up -d`, or by naming the service). The
-  default preset is `full`, so everything the presets cover runs at once.
+  data from `prestart-dev.sh`, the Docker socket, Mailcatcher, the interface
+  from the Vite dev server. Adminer and the test Redis and SSH server are
+  behind the `tools` profile, the E2E runner behind `e2e`; naming a service
+  starts it as well.
 - **`compose.yml,compose.prod.yml`** — running it for use: the image's own
   `fastapi run`, `prestart.sh` alone, the built interface served by the backend
   on `APP_PORT`, `restart: unless-stopped`, and no helpers. `FASTAPI_ENV` is
   unset, so a placeholder secret stops the start and the private routes do not
-  exist. The default preset is `minimal`.
+  exist.
 
-Managed services belong to no preset. `--enable-services` turns them on
-deliberately (D82, D86): in development the socket is already mounted by the
-override, while a running installation additionally reads
-`compose.services.yml`, which mounts the Docker socket into the backend.
-The development helpers (Adminer, Mailcatcher, the test Redis and SSH
-server, the E2E runner) belong to no preset either: the `tools`/`e2e`
-profiles start them on request.
+- **`minimal`** — no profile: `db`, `prestart`, the backend, `metrics` and
+  `search-keeper`, the memory read cache, `EMBEDDINGS_URL` empty.
+- **`standard`** — `cache`: the `redis-cache` service and
+  `DATA_CACHE_BACKEND=redis` (D103). The backend's dependency on it is
+  `required: false`, so `minimal` starts without it.
+- **`full`** — `cache,meaning`: the `embedder` service and `EMBEDDINGS_URL`
+  pointing at it (D220).
+
+Managed services belong to no preset (D82, D86). Development mounts the socket
+in the override; a running installation has `compose.services.yml` added to
+`COMPOSE_FILE` by `--enable-services`.
 
 What development adds lives only in the override; `compose.prod.yml` adds
 what running needs rather than undoing anything. `FRONTEND_HOST` reaches every
 backend container, because e-mail links and the one CORS origin are made from
-it.
+it; the setup moves it to the Vite origin and back when the mode changes.
 
 ## API
 
