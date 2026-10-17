@@ -289,6 +289,7 @@ async function deleteQuery(documentId: string) {
       <AppEmptyState
         v-else-if="runs.length === 0"
         :text="search ? t('queries.library.no_run_matches') : t('queries.library.nothing_run')"
+        inset
         data-testid="history-empty"
       />
       <template v-else>
@@ -353,6 +354,7 @@ async function deleteQuery(documentId: string) {
       <AppEmptyState
         v-else-if="rows.length === 0"
         :text="search ? t('queries.library.no_query_matches') : t('queries.library.no_favorites')"
+        inset
         data-testid="queries-empty"
       />
       <template v-else>

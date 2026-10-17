@@ -494,6 +494,11 @@ function removeSavedEntry(name: string) {
           icon="inbox"
           text="Nothing to show"
         />
+        <AppEmptyState
+          icon="inbox"
+          text="Nothing to show, inset as in a tool's body"
+          inset
+        />
       </AppSection>
       <AppSection divided>
         <AppSpinner />

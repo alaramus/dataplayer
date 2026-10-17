@@ -5,6 +5,7 @@ import { defineComponent, h, ref } from "vue"
 
 import { ConnectorsService } from "@/client"
 import { sourceFeaturesKey } from "@/features/connectors/features"
+import { applyLanguage } from "@/shared/i18n"
 import { at, first } from "@/shared/testing/collections"
 import { useCatalogLevel } from "./useCatalogLevel"
 import type { CatalogLevel } from "./useCatalogLevel"
@@ -99,6 +100,26 @@ describe("walking a catalog", () => {
 
       expect(level.items.value.map((node) => node.label)).toEqual(["orders"])
       expect(level.error.value).toBe("")
+    })
+  })
+
+  it("reads the level again when the language changes", async () => {
+    const report = (name: string) => ({ ...schema("pg_dataplayer"), kind: "report", name })
+    // Every later read answers in Russian: hosts mounted by earlier tests are
+    // never unmounted, and their levels read again on the same change.
+    vi.spyOn(ConnectorsService, "readCatalog")
+      .mockResolvedValueOnce({ data: [report("System")] } as never)
+      .mockResolvedValue({ data: [report("Система")] } as never)
+
+    await withLevel(async (level) => {
+      await level.load()
+      expect(level.items.value.map((node) => node.label)).toEqual(["System"])
+
+      await applyLanguage("ru")
+      await vi.waitFor(() => {
+        expect(level.items.value.map((node) => node.label)).toEqual(["Система"])
+      })
+      await applyLanguage("en")
     })
   })
 

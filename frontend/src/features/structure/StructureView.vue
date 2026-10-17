@@ -873,9 +873,12 @@ async function changeDefault(action: "set" | "drop", value?: string) {
 .structure-view__heading .structure-view__title {
   margin-bottom: 0;
 }
+/* Inset on the right by the columns table's cell padding, so the delete of a
+   constraint or an index stands under the delete of a column, 11px out
+   of line before. */
 .structure-view__list {
   margin: 0;
-  padding-left: var(--dp-space-4);
+  padding: 0 var(--dp-space-4);
 }
 /* The table fills the panel rather than standing on it as a card, so the
    column held at the edge has a ground to hide the scrolled cells under. */

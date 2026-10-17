@@ -208,6 +208,7 @@ async function forget(service: ServicePublic) {
       v-if="rows.length === 0"
       icon="dns"
       :text="t('services.managed.empty')"
+      inset
     />
     <div
       v-for="service in rows"

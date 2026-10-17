@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, ref, watch } from "vue"
+import { computed, onScopeDispose, ref, watch } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
 import type { NodeReplacement } from "@/client"
@@ -13,7 +13,7 @@ import { foundNodes } from "@/features/catalog/search"
 import type { FoundNodes } from "@/features/catalog/search"
 import { sourceFeaturesKey } from "@/features/connectors/features"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
-import { t } from "@/shared/i18n"
+import { onLanguageChange, t } from "@/shared/i18n"
 import type { CatalogPage } from "@/features/catalog/api"
 import type { Freshness } from "@/shared/freshness/freshness"
 
@@ -160,6 +160,18 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     if (root !== undefined) root.label = label
   })
 
+  // Trap: the level copies its answers into refs, so the invalidation main.ts
+  // makes on a change of language never reached them, and a schema's caption
+  // stayed in the old language until a reload (D226). The level is read again.
+  let read = false
+  const stopListening = onLanguageChange(() => {
+    if (!read) return
+    void queryClient
+      .invalidateQueries({ queryKey: ["catalog", connectorId.value] })
+      .then(() => show(currentId.value))
+  })
+  onScopeDispose(stopListening)
+
   async function childrenOf(
     nodeId: string | null,
     group?: string,
@@ -232,6 +244,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   }
 
   async function show(nodeId: string | null, groupIds?: string[], refresh = false) {
+    read = true
     checked.value = []
     filter.value = ""
     // Any change of level ends a search: what is on screen is a level again,

@@ -1259,9 +1259,10 @@ onBeforeUnmount(() => {
 .query-panel__remember-button {
   width: 8rem;
 }
+/* Wide enough for "Запрос без названия", which 120px cut to "Запрос без назван". */
 .query-panel__title {
   flex: 0 1 200px;
-  min-width: 120px;
+  min-width: 152px;
 }
 .query-panel__context,
 .query-panel__knowledge,

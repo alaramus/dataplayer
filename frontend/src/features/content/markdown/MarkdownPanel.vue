@@ -803,7 +803,6 @@ onBeforeUnmount(() => {
 /* A control's own size rather than a caption's: the box picks a setting. */
 .markdown-panel__remote :deep(.q-checkbox__label) {
   font-size: var(--dp-font-size);
-  font-weight: 600;
   line-height: var(--dp-line-height);
 }
 .markdown-panel__remote-note {
