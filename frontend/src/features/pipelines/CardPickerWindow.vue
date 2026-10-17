@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 
 import type { CardRow } from "@/client"
 import { useCatalogLoader } from "@/features/catalog/api"
@@ -81,11 +81,25 @@ async function show(nodeId: string | null): Promise<boolean> {
 
 // Read as the connection is now: a pipeline's run may have written into it a
 // moment ago, and the levels another screen keeps would still be fresh.
-onMounted(() => {
+function readTop() {
   void queryClient
     .invalidateQueries({ queryKey: ["catalog", props.connectorId], refetchType: "none" })
     .then(() => show(null))
-})
+}
+onMounted(readTop)
+
+// The window stays open when another connection is clicked and is handed the
+// new one; it renamed itself over the first connection's levels until it
+// started again from the top here. A key on it would close it instead.
+watch(
+  () => props.connectorId,
+  () => {
+    trail.value = []
+    chosen.value = [...(props.rows ?? [])]
+    refusal.value = ""
+    readTop()
+  }
+)
 
 function apply(result: CardRow[] | string) {
   if (typeof result === "string") {

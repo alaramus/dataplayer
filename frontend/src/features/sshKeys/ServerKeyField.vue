@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, inject, ref, watch } from "vue"
 
 import type { ServerKey } from "@/client"
 import { useServerKey } from "@/features/sshKeys/api"
@@ -7,6 +7,7 @@ import { codeParts, codePlaces } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
 import { AppBanner, AppButton } from "@/shared/ui"
+import { formLayoutKey } from "@/shared/ui/formLayout"
 
 /**
  * The key a server proves itself with, trusted by a person rather than typed
@@ -27,6 +28,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
 
+const formLayout = inject(formLayoutKey, false)
 const describe = useServerKey()
 const pinned = ref<ServerKey | null>(null)
 const presented = ref<ServerKey | null>(null)
@@ -89,90 +91,111 @@ function trust() {
 <template>
   <div
     class="server-key"
+    :class="{ 'server-key--form': formLayout }"
     data-testid="server-key"
   >
     <span class="server-key__label">{{ t('ssh_keys.server_key.label') }}</span>
-    <span
-      v-if="pinned"
-      class="server-key__line"
-      data-testid="server-key-pinned"
-    >
-      {{ t('ssh_keys.server_key.trusted', { algorithm: pinned.algorithm, fingerprint: pinned.fingerprint }) }}
-    </span>
-    <span
-      v-else
-      class="server-key__line"
-    >
-      {{ t('ssh_keys.server_key.none') }}
-    </span>
-
-    <div
-      v-if="presented"
-      class="server-key__presented"
-      data-testid="server-key-presented"
-    >
-      <span class="server-key__line">
-        {{ t('ssh_keys.server_key.presents', { algorithm: presented.algorithm, fingerprint: presented.fingerprint }) }}
-      </span>
-      <span class="server-key__hint">
-        <template
-          v-for="(part, index) in compareParts"
-          :key="index"
-        >
-          <code v-if="part.code">{{ part.text }}</code>
-          <span v-else>{{ part.text }}</span>
-        </template>
-      </span>
-      <AppBanner
-        v-if="matches === false"
-        tone="warning"
-      >
-        {{ t('ssh_keys.server_key.changed') }}
-      </AppBanner>
+    <div class="server-key__body">
       <span
-        v-else-if="matches === true"
+        v-if="pinned"
+        class="server-key__line"
+        data-testid="server-key-pinned"
+      >
+        {{ t('ssh_keys.server_key.trusted', { algorithm: pinned.algorithm, fingerprint: pinned.fingerprint }) }}
+      </span>
+      <span
+        v-else
         class="server-key__line"
       >
-        {{ t('ssh_keys.server_key.same') }}
+        {{ t('ssh_keys.server_key.none') }}
       </span>
-    </div>
 
-    <span
-      v-if="error"
-      class="server-key__error"
-    >{{ error }}</span>
+      <div
+        v-if="presented"
+        class="server-key__presented"
+        data-testid="server-key-presented"
+      >
+        <span class="server-key__line">
+          {{ t('ssh_keys.server_key.presents', { algorithm: presented.algorithm, fingerprint: presented.fingerprint }) }}
+        </span>
+        <span class="server-key__hint">
+          <template
+            v-for="(part, index) in compareParts"
+            :key="index"
+          >
+            <code v-if="part.code">{{ part.text }}</code>
+            <span v-else>{{ part.text }}</span>
+          </template>
+        </span>
+        <AppBanner
+          v-if="matches === false"
+          tone="warning"
+        >
+          {{ t('ssh_keys.server_key.changed') }}
+        </AppBanner>
+        <span
+          v-else-if="matches === true"
+          class="server-key__line"
+        >
+          {{ t('ssh_keys.server_key.same') }}
+        </span>
+      </div>
 
-    <div class="server-key__buttons">
-      <AppButton
-        variant="secondary"
-        size="sm"
-        :label="t('ssh_keys.server_key.fetch')"
-        :disable="disable || !hasAddress"
-        :loading="describe.isPending.value"
-        data-testid="server-key-fetch"
-        @click="fetchPresented"
-      />
-      <AppButton
-        v-if="presented && matches !== true"
-        size="sm"
-        :label="pinned ? t('ssh_keys.server_key.trust_new') : t('ssh_keys.server_key.trust')"
-        :disable="disable"
-        data-testid="server-key-trust"
-        @click="trust"
-      />
+      <span
+        v-if="error"
+        class="server-key__error"
+      >{{ error }}</span>
+
+      <div class="server-key__buttons">
+        <AppButton
+          variant="secondary"
+          size="sm"
+          :label="t('ssh_keys.server_key.fetch')"
+          :disable="disable || !hasAddress"
+          :loading="describe.isPending.value"
+          data-testid="server-key-fetch"
+          @click="fetchPresented"
+        />
+        <AppButton
+          v-if="presented && matches !== true"
+          size="sm"
+          :label="pinned ? t('ssh_keys.server_key.trust_new') : t('ssh_keys.server_key.trust')"
+          :disable="disable"
+          data-testid="server-key-trust"
+          @click="trust"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.server-key {
+.server-key,
+.server-key__body {
   display: flex;
   flex-direction: column;
   gap: var(--dp-space-2);
+  min-width: 0;
+}
+/* In a form the key stands in the label and control columns like every
+   field beside it; it was a 12px grey heading over a block the form's full
+   width, the one row of the SSH form that did not line up. */
+.server-key--form {
+  display: grid;
+  grid-template-columns: var(--dp-form-label-width) minmax(0, 1fr);
+  column-gap: 0;
+}
+@container app-form (max-width: 480px) {
+  .server-key--form {
+    display: flex;
+  }
 }
 .server-key__label {
-  font-size: var(--dp-font-size-sm);
-  color: var(--dp-text-muted);
+  font-size: var(--dp-font-size);
+  line-height: var(--dp-line-height);
+}
+.server-key__line {
+  line-height: var(--dp-line-height);
 }
 .server-key__line {
   font-size: var(--dp-font-size);
@@ -185,10 +208,12 @@ function trust() {
 }
 .server-key__hint {
   font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
   color: var(--dp-text-muted);
 }
 .server-key__error {
   font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
   color: var(--dp-content-error);
 }
 .server-key__buttons {

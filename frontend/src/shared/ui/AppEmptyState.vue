@@ -28,9 +28,9 @@ withDefaults(defineProps<{ text: string; icon?: string; inset?: boolean }>(), {
   gap: var(--dp-space-2);
   color: var(--dp-text-muted);
 }
-/* Standing alone in a panel's body with nothing around it to set its place:
-   the inset a tool's list has, so the Services, Queries, Search index and
-   chats panels say "nothing here" from the same spot. */
+/* Standing alone in a tool's body with nothing around it to set its place:
+   the inset that tool's list has, so Services, Queries and Search index say
+   "nothing here" from the same spot. A side list pads its own, 8px. */
 .app-empty-state--inset {
   padding: var(--dp-space-2) var(--dp-space-3);
 }
