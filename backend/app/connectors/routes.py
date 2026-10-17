@@ -236,6 +236,7 @@ from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message, get_datetime_utc
+from app.core.translation import say, say_if, say_schema
 from app.realtime.topics import TopicsDep
 from app.users import storage
 from app.users.deps import CurrentUser, get_current_user
@@ -459,7 +460,7 @@ async def download_action_result(
     )
     allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
-        raise Problem(415, "actions.no_download", action=action.title)
+        raise Problem(415, "actions.no_download", action=say(action.title))
     prepared = await perform(
         lambda: action.download(claims.node_ids, claims.params)
     )
@@ -2752,7 +2753,7 @@ class ActionSetRequest(BaseModel):
 def _describe(action: Action[Any], availability: ActionAvailability) -> ActionInfo:
     return ActionInfo(
         name=action.name,
-        title=action.title,
+        title=say(action.title),
         destructive=action.destructive,
         takes_file=isinstance(action, TakesFile),
         takes_many_files=action.many_files,
@@ -2770,9 +2771,9 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         offers_hints=isinstance(action, OffersFieldHints),
         applicable=availability.applicable,
         available_node_ids=availability.available_node_ids,
-        unavailable_reason=availability.unavailable_reason,
-        question=action.question,
-        params_schema=action.params_schema(),
+        unavailable_reason=say_if(availability.unavailable_reason),
+        question=say_if(action.question),
+        params_schema=say_schema(action.params_schema()),
     )
 
 
@@ -2788,7 +2789,7 @@ async def _action_for_nodes(
     if action is None:
         raise Problem(422, "actions.no_node")
     if len(node_ids) > 1 and not action.bulk:
-        raise Problem(422, "actions.not_bulk", action=action.title)
+        raise Problem(422, "actions.not_bulk", action=say(action.title))
     return action
 
 
@@ -2859,7 +2860,7 @@ async def prepare_connector_action(
     )
     allowed_or_403(action, access)
     if not isinstance(action, PreparesConnector):
-        raise Problem(415, "actions.no_connector", action=action.title)
+        raise Problem(415, "actions.no_connector", action=say(action.title))
     return await perform(lambda: action.prepare_connector(body.node_id, body.params))
 
 
@@ -2896,7 +2897,7 @@ async def run_action(
             names=names,
         )
     if not isinstance(action, TakesParams):
-        raise Problem(415, "actions.other_transport", action=action.title)
+        raise Problem(415, "actions.other_transport", action=say(action.title))
     return await _invalidate_after(
         lambda: perform(lambda: action.perform(body.node_id, body.params)),
         data_cache,
@@ -2935,7 +2936,7 @@ async def preview_action(
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
     if not isinstance(action, Previews):
-        raise Problem(501, "actions.no_preview_first", error_kind="config", action=action.title)
+        raise Problem(501, "actions.no_preview_first", error_kind="config", action=say(action.title))
     return await perform(lambda: action.preview(target, body.params))
 
 
@@ -2965,7 +2966,7 @@ async def action_field_hints(
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
     if not isinstance(action, OffersFieldHints):
-        raise Problem(501, "actions.no_hints", error_kind="config", action=action.title)
+        raise Problem(501, "actions.no_hints", error_kind="config", action=say(action.title))
     return await perform(lambda: action.field_hints(target))
 
 
@@ -2997,7 +2998,7 @@ async def run_action_on_set(
     )
     allowed_or_403(action, access)
     if not isinstance(action, TakesNodeSet):
-        raise Problem(415, "actions.one_node_at_a_time", action=action.title)
+        raise Problem(415, "actions.one_node_at_a_time", action=say(action.title))
     return await _invalidate_after(
         lambda: perform(lambda: action.perform_on_set(body.node_ids, body.params)),
         data_cache,
@@ -3028,7 +3029,7 @@ async def preview_action_on_set(
     )
     allowed_or_403(action, access)
     if not isinstance(action, PreviewsSet):
-        raise Problem(415, "actions.no_preview", action=action.title)
+        raise Problem(415, "actions.no_preview", action=say(action.title))
     return await perform(lambda: action.preview_on_set(body.node_ids, body.params))
 
 
@@ -3053,7 +3054,7 @@ async def prepare_action_download(
     )
     allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
-        raise Problem(415, "actions.no_download", action=action.title)
+        raise Problem(415, "actions.no_download", action=say(action.title))
     ticket = action_downloads.issue_action_download_ticket(
         user_id=current_user.id,
         connector_id=connector_id,
@@ -3094,7 +3095,7 @@ async def run_action_with_file(
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
     if not isinstance(action, TakesFile):
-        raise Problem(415, "actions.no_file", action=action.title)
+        raise Problem(415, "actions.no_file", action=say(action.title))
 
     try:
         given = json.loads(params)

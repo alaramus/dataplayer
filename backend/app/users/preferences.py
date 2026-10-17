@@ -7,11 +7,13 @@ answer for everybody who never opened the screen.
 """
 
 import uuid
-from typing import Literal, get_args
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app.core.translation import Language, as_language
 
 # How often this user's connections are probed, as a closed set rather than a
 # number somebody types. A free field here is a field somebody puts 1 in, and
@@ -36,10 +38,6 @@ CHECK_SECONDS: dict[CheckInterval, float | None] = {
 
 DEFAULT_CHECK_INTERVAL: CheckInterval = "15s"
 
-# The languages the interface is translated into (D224). No choice — None — is
-# a choice too: the browser's language, whatever machine the account opens on.
-Language = Literal["en", "ru"]
-LANGUAGES: tuple[Language, ...] = get_args(Language)
 
 
 def as_interval(value: str) -> CheckInterval:
@@ -57,15 +55,6 @@ def as_interval(value: str) -> CheckInterval:
 
 def check_seconds(value: str) -> float | None:
     return CHECK_SECONDS[as_interval(value)]
-
-
-def as_language(value: str | None) -> Language | None:
-    """A stored language read back, the way `as_interval` reads an interval: one
-    this version does not offer any more is the browser's."""
-    for choice in LANGUAGES:
-        if choice == value:
-            return choice
-    return None
 
 
 class UserPreferences(SQLModel, table=True):

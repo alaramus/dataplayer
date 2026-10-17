@@ -22,6 +22,7 @@ from app.adapters.actions import (
 from app.adapters.protocol import AdapterError, DataAdapter, NodeNotFound
 from app.core.access import Access, at_least
 from app.core.problems import Problem, ProblemCode
+from app.core.translation import say
 
 # One code per level rather than the level as a parameter: a parameter is
 # data, and "write" inside a translated sentence would stay English (D225).
@@ -89,7 +90,7 @@ async def action_for_node(
     if action.name not in {offered.name for offered in available.actions}:
         reason = available.reason_for(action.name)
         if not reason:
-            raise Problem(422, "actions.not_for_node", action=action.title)
+            raise Problem(422, "actions.not_for_node", action=say(action.title))
         raise HTTPException(status_code=422, detail={"message": reason})
     return action
 
@@ -102,7 +103,7 @@ def allowed_or_403(action: Action[Any], access: Access) -> None:
     404 for the name would be a different lie: the action exists.
     """
     if not at_least(access, action.requires):
-        raise Problem(403, ACTION_NEEDS[action.requires], action=action.title)
+        raise Problem(403, ACTION_NEEDS[action.requires], action=say(action.title))
 
 
 async def perform[T](run: Callable[[], Awaitable[T]]) -> T:

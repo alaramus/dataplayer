@@ -4,6 +4,7 @@ import { AxiosError } from "axios"
 import { client } from "@/client/client.gen"
 import { router } from "@/router"
 import { shouldRetry } from "@/shared/api/retry"
+import { currentLanguage } from "@/shared/i18n"
 import { useAuthStore } from "@/stores/auth"
 import { serverContext } from "@/shared/servers/context"
 
@@ -16,6 +17,12 @@ export function configureApiClient() {
     baseURL: serverContext().active.url,
     // The client applies the Bearer scheme itself, per the OpenAPI security.
     auth: () => useAuthStore().token ?? "",
+  })
+  // What a source writes is worded on the server, in the language asked for
+  // (D226) — the interface's, not the browser's.
+  client.instance.interceptors.request.use((config) => {
+    config.headers.set("Accept-Language", currentLanguage())
+    return config
   })
 }
 

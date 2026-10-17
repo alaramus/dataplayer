@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.adapters import options, registry
 from app.adapters.cache import SourceCacheWindows
+from app.core.translation import say, say_schema
 from app.guide import reader as guide
 from app.users.deps import get_current_user
 
@@ -67,15 +68,15 @@ def info(adapter_type: registry.AdapterType) -> AdapterTypeInfo:
     markdown = page.markdown if page is not None else ""
     return AdapterTypeInfo(
         name=adapter_type.name,
-        title=adapter_type.title,
+        title=say(adapter_type.title),
         category=adapter_type.category,
-        category_title=registry.category_title(adapter_type.category),
+        category_title=say(registry.category_title(adapter_type.category)),
         catalog_shape=adapter_type.catalog_shape,
-        description=adapter_type.description,
+        description=say(adapter_type.description),
         capabilities=registry.capabilities_of(adapter_type),
         guide=key,
         can_see=guide.bullets(markdown, guide.CAN_SEE),
         can_change=guide.bullets(markdown, guide.CAN_CHANGE),
         cache_windows=registry.cache_windows_of(adapter_type),
-        options_schema=options.json_schema(adapter_type.options_schema),
+        options_schema=say_schema(options.json_schema(adapter_type.options_schema)),
     )

@@ -1,6 +1,6 @@
 import type { BestLine, CellLine, EndLine, PlanLine, SearchRequest } from "@/client"
 import { router } from "@/router"
-import { problemMessage, t } from "@/shared/i18n"
+import { currentLanguage, problemMessage, t } from "@/shared/i18n"
 import { serverUrl } from "@/shared/servers/context"
 import { useAuthStore } from "@/stores/auth"
 
@@ -109,6 +109,7 @@ export async function* askSearch(
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${auth.token ?? ""}`,
+      "Accept-Language": currentLanguage(),
     },
     body: JSON.stringify(request),
     signal,

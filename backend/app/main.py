@@ -24,6 +24,7 @@ from app.connectors.health import unreachable_of
 from app.core import logs
 from app.core.config import settings
 from app.core.failures import RecordFailures
+from app.core.translation import RequestLanguage
 from app.jobs.recovery import settle_stranded
 from app.jobs.runner import JobRunner
 from app.metrics.holder import StoreHolder
@@ -232,6 +233,8 @@ app = FastAPI(
 # Added first, so it runs inside CORS and its answer carries CORS headers: the
 # middleware added last is the outermost.
 app.add_middleware(RecordFailures)
+# Outside RecordFailures, so what it answers is in the request's language too.
+app.add_middleware(RequestLanguage)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.FRONTEND_HOST],

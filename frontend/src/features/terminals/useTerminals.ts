@@ -6,6 +6,7 @@ import type { Raw } from "vue"
 import { t } from "@/shared/i18n"
 import { serverUrl } from "@/shared/servers/context"
 import { useAuthStore } from "@/stores/auth"
+import { currentLanguage } from "@/shared/i18n"
 
 import { openTerminalLink } from "./terminalLink"
 import type { LinkState, TerminalLink } from "./terminalLink"
@@ -39,6 +40,8 @@ let opened = 0
 function socketUrl(): string {
   const url = new URL(serverUrl("/api/v1/terminals"))
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+  // A browser cannot set a socket's headers, so the language travels here (D226).
+  url.searchParams.set("lang", currentLanguage())
   return url.toString()
 }
 

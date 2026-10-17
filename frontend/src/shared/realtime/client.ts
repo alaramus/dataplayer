@@ -2,6 +2,7 @@ import { createRealtimeSocket } from "@/shared/realtime/socket"
 import type { RealtimeSocket } from "@/shared/realtime/socket"
 import { useAuthStore } from "@/stores/auth"
 import { serverUrl } from "@/shared/servers/context"
+import { currentLanguage } from "@/shared/i18n"
 
 /**
  * The application's one socket.
@@ -17,6 +18,8 @@ let socket: RealtimeSocket | null = null
 function socketUrl(): string {
   const url = new URL(serverUrl("/api/v1/ws"))
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+  // A browser cannot set a socket's headers, so the language travels here (D226).
+  url.searchParams.set("lang", currentLanguage())
   return url.toString()
 }
 

@@ -299,6 +299,8 @@ files. IDs are stable because specs and commits refer to them.
 | D223 | [ai](docs/architecture/ai.md) |
 | D224 | [localization](docs/architecture/localization.md) |
 | D225 | [localization](docs/architecture/localization.md) |
+| D226 | [localization](docs/architecture/localization.md) |
+| D227 | [localization](docs/architecture/localization.md) |
 
 ## Working rules
 

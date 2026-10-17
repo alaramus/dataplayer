@@ -172,6 +172,20 @@ export async function applyLanguage(chosen: Language | null): Promise<void> {
   i18n.global.setLocaleMessage(language, bundle.messages)
   problemDictionaries[language] = bundle.problems
   Lang.set(bundle.quasar)
+  const changed = i18n.global.locale.value !== language
   i18n.global.locale.value = language
   document.documentElement.lang = language
+  if (changed) for (const listener of listeners) listener(language)
+}
+
+const listeners = new Set<(language: Language) => void>()
+
+/**
+ * Be told when the interface changes language. What the server worded
+ * (D226) — an action's title, a form's labels — was cached in the old one and
+ * is asked for again.
+ */
+export function onLanguageChange(listener: (language: Language) => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
 }

@@ -4,7 +4,7 @@ The language the interface speaks, and how what the server refuses with reaches
 the reader in it. Read this before writing any text a person sees, adding a
 language, or adding a refusal to a route.
 
-Decisions here: D224, D225.
+Decisions here: D224, D225, D226, D227.
 
 ```
 frontend/src/shared/i18n/
@@ -19,6 +19,8 @@ frontend/src/features/preferences/
 └── AccountLanguage.vue  puts the account's choice on the interface
 
 backend/app/core/problems.py   every refusal code and its English
+backend/app/core/translation.py   the request's language; say, N_, say_schema
+backend/app/<package>/locales/ru.py   a package's own words in Russian
 backend/app/users/preferences.py   `language` on the account
 ```
 
@@ -124,3 +126,55 @@ word passed to one.
   not a code.
 
 Spec: [Localization](../decisions/2026-10-11-localization-design.md)
+
+## D226. What a source writes is worded on the server, in the language asked for
+
+An action's title and question, the fields of its form, a preview, a result,
+why something is unavailable, a job's step: an adapter writes these, and a new
+source type is a new package (D2), so its words come with it rather than into
+the browser's dictionaries. Each package keeps `locales/ru.py`, English to
+Russian, and registers it as it is imported. The key is the English itself:
+the adapter keeps writing English, the agent's tools still read English, and a
+language that lacks a sentence shows the English.
+
+The browser names the interface's language on every request —
+`Accept-Language` on HTTP, `?lang=` on a socket, which cannot carry headers —
+and `RequestLanguage` sets `current_language` for everything the request
+does. `say(text, **params)` words a sentence; `N_(text)` marks English read
+later where it is shown, as a class's `title` is read when actions are
+listed. Routes word what they pass on: `say(action.title)`, and
+`say_schema(...)` over a form, which translates `title`, `description` and the
+labels of `x-ui-choices` and leaves names, defaults and enum values as data.
+When the interface changes language, cached server answers are read again.
+
+`tests/core/test_translation_catalogs.py` fails, in the packages it lists, on a
+worded class attribute or `Field` argument not marked `N_`, on a literal or an
+f-string with words passed as `message=`, `reason=`, `summary=` and their
+like, on marked English without a translation, and on a translation whose
+`{name}` parameters differ from the English. The list grows until it is every
+package that writes for a person. A sentence returned or raised any other way
+rests on review.
+
+### Known deviations
+
+- Only the packages the test lists are moved; the rest still write English.
+- Text a job or a pipeline run stores — its steps and messages — is worded
+  when it is written, in the language of whoever started it, rather than kept
+  as English and worded when read.
+- A socket's language is the one it connected in; what it carries after a
+  switch is in the old language until it reconnects.
+
+Spec: [Words a source writes](../decisions/2026-10-17-source-words-design.md)
+
+## D227. Dates, numbers, the agent, the guide and a database's own errors
+
+Dates and numbers are formatted in the interface's language, not the
+browser's. The agent is told the account's language and answers in it unless
+it is written to in another. The user's guide (D183) keeps a page per language
+and shows the English where a page has no translation. A database's own error
+text — PostgreSQL's `relation "x" does not exist` — is passed on as the
+database wrote it: its language is the server's setting, and the English is
+what a person searches for.
+
+Spec: [Words a source writes](../decisions/2026-10-17-source-words-design.md)
+
