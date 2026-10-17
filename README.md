@@ -107,7 +107,8 @@ so does every later `docker compose` command.
 
 Without a terminal, or with `--yes`, it asks nothing and takes its flags:
 `--mode`, `--preset`, `--superuser EMAIL`, `--enable-services` or
-`--disable-services`. They go after the service name:
+`--disable-services`, and for an `https://` address `--https caddy` or
+`--https own`. They go after the service name:
 
 ```bash
 docker compose -f compose.setup.yml run --rm setup python scripts/setup.py --mode prod --preset standard --yes
@@ -119,10 +120,10 @@ docker compose -f compose.setup.yml run --rm setup python scripts/setup.py --mod
 
 Open the address the setup printed and sign in as the superuser; a generated
 password is printed once and stays in `.env` as `FIRST_SUPERUSER_PASSWORD`.
-The port speaks plain HTTP: to reach DataPlayer from outside this machine, give
-it HTTPS — the bundled Caddy behind the `https` profile, or a proxy you already
-run. [docs/deployment.md](docs/deployment.md) has both, with nginx and Traefik
-examples. Back up the Docker volume
+The port speaks plain HTTP. Give the setup an `https://` address and it asks
+who serves HTTPS: the bundled Caddy, which gets the certificate itself, or a
+proxy you already run. [docs/deployment.md](docs/deployment.md) has both, with
+nginx and Traefik examples. Back up the Docker volume
 `dataplayer_app-db-data`; it holds everything DataPlayer keeps.
 
 ### Develop it

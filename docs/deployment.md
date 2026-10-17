@@ -46,7 +46,9 @@ without configuration.
 You need a domain whose DNS record points at this machine, and ports 80 and
 443 open to the internet: Let's Encrypt checks the domain over port 80.
 
-In `.env`:
+The setup does it: give it `https://data.example.com` as the address people
+open and choose `caddy` when it asks who serves HTTPS, or pass
+`--https caddy`. It writes the same three lines you would write by hand:
 
 ```dotenv
 FRONTEND_HOST=https://data.example.com
@@ -65,14 +67,14 @@ docker compose logs -f caddy
 
 The log shows the certificate being obtained. The configuration is
 [deploy/Caddyfile](../deploy/Caddyfile); certificates are kept in the
-`dataplayer_caddy-data` volume. Running the setup again keeps the `https`
-profile.
+`dataplayer_caddy-data` volume. Running the setup again keeps the choice until
+the address stops being `https://` or `own` is chosen instead.
 
 ## Option 2: a proxy you already run
 
 When nginx, Traefik, a Caddy of your own or a cloud load balancer already holds
-ports 80 and 443, leave the `https` profile off and point that proxy at
-DataPlayer. Whatever the proxy, it must:
+ports 80 and 443, choose `own` in the setup (`--https own`), so no Caddy
+starts, and point that proxy at DataPlayer. Whatever the proxy, it must:
 
 1. **Pass every path to the backend.** The interface, `/api/` and the
    WebSockets live on the same port; there is nothing to split.

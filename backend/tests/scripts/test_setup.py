@@ -156,15 +156,93 @@ def test_a_rerun_without_flags_keeps_mode_and_preset(
     assert dev.preset == "full"
 
 
-def test_a_rerun_keeps_the_https_front_only_while_running_it(
+def test_caddy_serves_https_and_keeps_the_plain_port_local(
     setup: ModuleType, example: object
 ) -> None:
-    example.set("COMPOSE_PROFILES", "cache,https")  # type: ignore[attr-defined]
-    setup.configure(example, setup.Choices("prod", "full", False))
+    host = "https://data.example.com"
+    setup.configure(example, setup.Choices("prod", "full", False, host=host, front="caddy"))
     assert example.get("COMPOSE_PROFILES") == "cache,meaning,https"  # type: ignore[attr-defined]
+    assert example.get("APP_PORT") == "127.0.0.1:8000"  # type: ignore[attr-defined]
     assert setup.current_preset(example) == "full"
+    # A rerun without a choice keeps it, and so does one that only changes the preset.
+    setup.configure(example, setup.Choices("prod", "minimal", False))
+    assert example.get("COMPOSE_PROFILES") == "https"  # type: ignore[attr-defined]
+    assert setup.defaults_from(example, setup.parse_args([])).front == "caddy"
     setup.configure(example, setup.Choices("dev", "minimal", False))
     assert example.get("COMPOSE_PROFILES") == ""  # type: ignore[attr-defined]
+
+
+def test_a_proxy_of_ones_own_starts_no_caddy(setup: ModuleType, example: object) -> None:
+    host = "https://data.example.com"
+    setup.configure(example, setup.Choices("prod", "minimal", False, host=host, front="caddy"))
+    setup.configure(example, setup.Choices("prod", "minimal", False, front="own"))
+    assert example.get("COMPOSE_PROFILES") == ""  # type: ignore[attr-defined]
+    # The proxy may sit on this machine, so the port stays where it was.
+    assert example.get("APP_PORT") == "127.0.0.1:8000"  # type: ignore[attr-defined]
+    assert setup.current_front(example) == "own"
+
+
+def test_an_address_without_https_has_no_front(setup: ModuleType, example: object) -> None:
+    setup.configure(
+        example,
+        setup.Choices("prod", "minimal", False, host="https://data.example.com", front="caddy"),
+    )
+    setup.configure(
+        example, setup.Choices("prod", "minimal", False, host="http://192.168.1.10:8000")
+    )
+    assert example.get("COMPOSE_PROFILES") == ""  # type: ignore[attr-defined]
+    # People open the port itself again, so it is no longer bound to this machine.
+    assert example.get("APP_PORT") == "8000"  # type: ignore[attr-defined]
+    setup.configure(
+        example, setup.Choices("prod", "minimal", False, host="https://localhost", front="caddy")
+    )
+    assert example.get("COMPOSE_PROFILES") == ""  # type: ignore[attr-defined]
+
+
+def test_the_wizard_offers_caddy_for_an_https_address(
+    setup: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    # mode prod, preset minimal, email, generated password, address, Caddy by
+    # Enter, no services, write.
+    answer(monkeypatch, "1", "1", "owner@example.com", "1", "https://data.example.com", "", "n", "y")
+    assert run(setup, tmp_path) == 0
+    env = setup.EnvFile.load(tmp_path / ".env")
+    assert env.get("COMPOSE_PROFILES") == "https"
+    assert env.get("APP_PORT") == "127.0.0.1:8000"
+    output = capsys.readouterr().out
+    assert "who serves HTTPS" in output
+    assert "ports 80 and 443" in output
+
+
+def test_the_wizard_does_not_ask_about_https_for_a_local_address(
+    setup: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    answer(monkeypatch, "1", "1", "owner@example.com", "1", "http://localhost:8000", "n", "y")
+    assert run(setup, tmp_path) == 0
+    assert "who serves HTTPS" not in capsys.readouterr().out
+
+
+def test_the_https_flag_chooses_without_asking(setup: ModuleType, tmp_path: Path) -> None:
+    (tmp_path / ".env").write_text(
+        EXAMPLE.read_text(encoding="utf-8").replace(
+            "FRONTEND_HOST=http://localhost:5173", "FRONTEND_HOST=https://data.example.com"
+        ),
+        encoding="utf-8",
+    )
+    assert run(setup, tmp_path, "--mode", "prod", "--https", "caddy", "--yes") == 0
+    env = setup.EnvFile.load(tmp_path / ".env")
+    assert env.get("COMPOSE_PROFILES") == "https"
+    assert run(setup, tmp_path, "--https", "own", "--yes") == 0
+    assert setup.EnvFile.load(tmp_path / ".env").get("COMPOSE_PROFILES") == ""
 
 
 def test_a_rerun_keeps_a_compose_file_of_the_installations_own(
@@ -235,7 +313,8 @@ def test_the_wizard_asks_and_writes_after_a_yes(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    # mode prod, preset standard, email, type a password, address, no services, write.
+    # mode prod, preset standard, email, type a password, address, a proxy of
+    # one's own, no services, write.
     answer(
         monkeypatch,
         "1",
@@ -243,6 +322,7 @@ def test_the_wizard_asks_and_writes_after_a_yes(
         "owner@example.com",
         "2",
         "https://data.example.com/",
+        "2",
         "n",
         "y",
     )

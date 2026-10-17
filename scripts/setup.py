@@ -46,10 +46,10 @@ PLACEHOLDER = "changethis"
 MODES = ("prod", "dev")
 PRESETS = ("minimal", "standard", "full")
 PROFILES = {"minimal": (), "standard": ("cache",), "full": ("cache", "meaning")}
-# Switched on by hand rather than by a preset (compose.prod.yml's Caddy), so a
-# rerun keeps it in a running installation instead of dropping the HTTPS front.
-# A Compose file of the installation's own (a proxy's labels) is kept the same way.
+# compose.prod.yml's Caddy. Not a preset: whether it runs depends on the
+# address and on what else holds ports 80 and 443, which only the person knows.
 HTTPS_PROFILE = "https"
+FRONTS = ("caddy", "own")
 COMPOSE_FILES = {
     "dev": ("compose.yml", "compose.override.yml"),
     "prod": ("compose.yml", "compose.prod.yml"),
@@ -85,6 +85,10 @@ PRESET_HELP = {
     "minimal": "the application alone",
     "standard": "plus a shared read cache in Redis",
     "full": "plus search by meaning; downloads a model once",
+}
+FRONT_HELP = {
+    "caddy": "DataPlayer gets and renews the certificate itself",
+    "own": "a proxy already on this machine or network does it",
 }
 MODE_HELP = {
     "prod": "run it: the interface on one port, no samples",
@@ -244,6 +248,8 @@ class Choices:
     email: str | None = None
     password: str | None = None
     host: str | None = None
+    # Who serves HTTPS; None keeps what `.env` already says.
+    front: str | None = None
 
 
 def current_mode(env: EnvFile) -> str | None:
@@ -274,6 +280,25 @@ def own_compose_files(env: EnvFile) -> list[str]:
     ours = {name for names in COMPOSE_FILES.values() for name in names} | {SERVICES_FILE}
     named = [name.strip() for name in (env.get("COMPOSE_FILE") or "").split(",")]
     return [name for name in named if name and name not in ours]
+
+
+def needs_front(host: str) -> bool:
+    """Whether people open the address over HTTPS on a name of its own."""
+    parts = urlsplit(host)
+    return parts.scheme == "https" and parts.hostname not in LOCAL_HOSTS
+
+
+def current_front(env: EnvFile) -> str | None:
+    profiles = {p.strip() for p in (env.get("COMPOSE_PROFILES") or "").split(",")}
+    if HTTPS_PROFILE in profiles:
+        return "caddy"
+    return "own" if needs_front(env.get("FRONTEND_HOST") or "") else None
+
+
+def loopback_port(env: EnvFile) -> str:
+    """APP_PORT on this machine alone, so nothing goes around the proxy."""
+    port = (env.get("APP_PORT") or "").rsplit(":", 1)[-1] or "8000"
+    return f"127.0.0.1:{port}"
 
 
 def default_preset(mode: str) -> str:
@@ -315,8 +340,14 @@ def configure(env: EnvFile, choices: Choices) -> None:
         env.set("FIRST_SUPERUSER", choices.email)
 
     profiles = PROFILES[choices.preset]
-    running = {p.strip() for p in (env.get("COMPOSE_PROFILES") or "").split(",")}
-    kept = (HTTPS_PROFILE,) if choices.mode == "prod" and HTTPS_PROFILE in running else ()
+    host = choices.host
+    if host is None:
+        stored = env.get("FRONTEND_HOST")
+        host = stored if stored and not is_dev_origin(stored) else PROD_HOST
+    front = choices.front or current_front(env)
+    caddy = choices.mode == "prod" and needs_front(host) and front == "caddy"
+    if caddy:
+        profiles += (HTTPS_PROFILE,)
     files = list(COMPOSE_FILES[choices.mode])
     if choices.mode == "prod" and choices.services:
         files.append(SERVICES_FILE)
@@ -324,7 +355,7 @@ def configure(env: EnvFile, choices: Choices) -> None:
         files.extend(own_compose_files(env))
     env.set("COMPOSE_PATH_SEPARATOR", ",")
     env.set("COMPOSE_FILE", ",".join(files))
-    env.set("COMPOSE_PROFILES", ",".join(profiles + kept))
+    env.set("COMPOSE_PROFILES", ",".join(profiles))
     env.set("DATA_CACHE_BACKEND", "redis" if "cache" in profiles else "memory")
     if "meaning" not in profiles:
         # Search never aims at a model that is not running.
@@ -343,14 +374,15 @@ def configure(env: EnvFile, choices: Choices) -> None:
 
     # Without FASTAPI_ENV a placeholder secret stops the start.
     env.comment_out("FASTAPI_ENV")
-    host = choices.host
-    if host is None:
-        stored = env.get("FRONTEND_HOST")
-        host = stored if stored and not is_dev_origin(stored) else PROD_HOST
     env.set("FRONTEND_HOST", host)
     port = local_port(host)
     if port is not None:
         env.set("APP_PORT", str(port))
+    elif caddy:
+        env.set("APP_PORT", loopback_port(env))
+    elif not needs_front(host) and (env.get("APP_PORT") or "").startswith("127.0.0.1:"):
+        # Caddy is gone and people open the port itself again.
+        env.set("APP_PORT", loopback_port(env).removeprefix("127.0.0.1:"))
     if env.get("DATA_CACHE_DEPLOYMENT") in {None, "", "development"}:
         env.set("DATA_CACHE_DEPLOYMENT", "production")
     env.set("SERVICES_ENABLED", "true" if choices.services else "false")
@@ -478,6 +510,7 @@ def run_wizard(env: EnvFile, defaults: Choices) -> Choices:
     password = ask_password() if env.is_unset("FIRST_SUPERUSER_PASSWORD") else None
 
     host = None
+    front = None
     services = False
     if mode == "prod":
         stored = env.get("FRONTEND_HOST")
@@ -489,10 +522,17 @@ def run_wizard(env: EnvFile, defaults: Choices) -> Choices:
             if valid_host(host):
                 break
             print(red("an address like http://localhost:8000 or https://data.example.com."))
+        front = None
+        if needs_front(host):
+            front = ask_choice(
+                "who serves HTTPS", FRONTS, defaults.front or "caddy", FRONT_HELP
+            )
         print(dim("Managed services let the server start databases in containers of its own."))
         print(dim("Whatever reaches the container runtime reaches the whole host."))
         services = ask_confirm("allow managed services", default_yes=defaults.services)
-    return Choices(mode, preset, services, email=email, password=password, host=host)
+    return Choices(
+        mode, preset, services, email=email, password=password, host=host, front=front
+    )
 
 
 # --- Running -----------------------------------------------------------------
@@ -512,6 +552,12 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         help="let a running installation start containers (D82, D86).",
     )
     services.add_argument("--disable-services", dest="services", action="store_false")
+    parser.add_argument(
+        "--https",
+        dest="front",
+        choices=FRONTS,
+        help="for an https:// address: caddy gets the certificate, own is a proxy of yours.",
+    )
     parser.add_argument("--yes", action="store_true", help="ask nothing, write at once.")
     return parser.parse_args(argv)
 
@@ -521,7 +567,8 @@ def defaults_from(env: EnvFile | None, args: argparse.Namespace) -> Choices:
     mode = args.mode or (env and current_mode(env)) or "prod"
     preset = args.preset or (env and current_preset(env)) or default_preset(mode)
     services = args.services if args.services is not None else bool(env and current_services(env))
-    return Choices(mode, preset, services, email=args.superuser)
+    front = args.front or (env and current_front(env)) or None
+    return Choices(mode, preset, services, email=args.superuser, front=front)
 
 
 def describe(choices: Choices, changed: list[Change], notes: list[str]) -> None:
@@ -568,14 +615,37 @@ def next_steps(choices: Choices, env: EnvFile, password_shown: bool) -> None:
         print(dim("examples for the connections panel: bun run seed:connectors"))
         print(dim("Adminer, Mailcatcher, a test Redis and SSH: docker compose --profile tools up -d"))
     else:
-        print(f"then open {env.get('FRONTEND_HOST')}, sign in as {env.get('FIRST_SUPERUSER')}")
-        print(dim("The port speaks plain HTTP: from outside this machine, put a reverse"))
-        print(dim("proxy that terminates HTTPS in front of it."))
+        host = env.get("FRONTEND_HOST") or ""
+        print(f"then open {host}, sign in as {env.get('FIRST_SUPERUSER')}")
+        for line in front_notes(host, current_front(env), env.get("APP_PORT") or "8000"):
+            print(dim(line))
     if password_shown:
         print("password: " + bold(env.get("FIRST_SUPERUSER_PASSWORD") or "") + dim("  (also in .env)"))
     if choices.preset == "full":
         print(dim("The first start downloads the model search by meaning uses."))
     print(dim("Every docker compose command follows .env; run setup again to change it."))
+
+
+def front_notes(host: str, front: str | None, port: str) -> list[str]:
+    """What the machine must provide for the address to open."""
+    name = urlsplit(host).hostname
+    if front == "caddy":
+        return [
+            f"Caddy gets the certificate for {name} on the first start: the domain",
+            "must point at this machine and ports 80 and 443 be open to the internet.",
+            "Watch it with: docker compose logs -f caddy",
+        ]
+    if front == "own":
+        return [
+            f"Point your proxy at port {port.rsplit(':', 1)[-1]}, WebSockets included;",
+            "docs/deployment.md has nginx and Traefik examples.",
+        ]
+    if name in LOCAL_HOSTS:
+        return []
+    return [
+        "The port speaks plain HTTP: passwords typed into DataPlayer cross the",
+        "network as text. docs/deployment.md says how to put HTTPS in front.",
+    ]
 
 
 def main(
