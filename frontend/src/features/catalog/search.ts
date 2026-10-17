@@ -1,6 +1,7 @@
 import type { NodeSearchResult } from "@/client"
 import { toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
+import { t } from "@/shared/i18n"
 
 /**
  * What a search left on the screen.
@@ -54,8 +55,8 @@ export function foundNodes(query: string, result: NodeSearchResult): FoundNodes 
  */
 export function searchSummary(found: FoundNodes): string {
   const count = found.rows.length
-  if (count === 0) return `Nothing matches “${found.query}”`
-  const noun = count === 1 ? "match" : "matches"
-  if (found.complete) return `${String(count)} ${noun} for “${found.query}”`
-  return `First ${String(count)} ${noun} for “${found.query}”`
+  const query = found.query
+  if (count === 0) return t("catalog.search.nothing", { query })
+  if (found.complete) return t("catalog.search.matches", { n: count, query }, count)
+  return t("catalog.search.first_matches", { n: count, query }, count)
 }

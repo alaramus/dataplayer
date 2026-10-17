@@ -6,6 +6,7 @@ import { GRANT_OPTIONS } from "@/features/connectors/access"
 import type { Grant } from "@/features/connectors/access"
 import { useGrants, useRevokeGrant, useWriteGrant } from "@/features/connectors/grants"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppEmptyState,
   AppForm,
@@ -37,7 +38,7 @@ async function change(userId: string, level: Grant) {
   try {
     await writeGrant.mutateAsync({ user_id: userId, access: level })
   } catch (error) {
-    toast.error(messageOf(error, "That access could not be changed"))
+    toast.error(messageOf(error, t("shares.grants.change_failed")))
   }
 }
 
@@ -45,7 +46,7 @@ async function revoke(userId: string) {
   try {
     await revokeGrant.mutateAsync(userId)
   } catch (error) {
-    toast.error(messageOf(error, "That access could not be taken away"))
+    toast.error(messageOf(error, t("shares.grants.revoke_failed")))
   }
 }
 </script>
@@ -55,7 +56,7 @@ async function revoke(userId: string) {
 
   <AppEmptyState
     v-else-if="held.length === 0"
-    text="Nobody else can reach this connection"
+    :text="t('shares.grants.nobody')"
   />
 
   <ul
@@ -90,7 +91,7 @@ async function revoke(userId: string) {
       <AppIconButton
         :icon="appIcons.close"
         variant="danger-quiet"
-        tooltip="Take this access away"
+        :tooltip="t('shares.grants.revoke')"
         :data-testid="`share-revoke-${grant.email}`"
         @click="revoke(grant.user_id)"
       />

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
+
 const props = withDefaults(defineProps<{
   label: string
   /** A fraction of measured work, or null when its size is unknown. */
@@ -20,7 +22,7 @@ const fraction = computed(() => props.value === null ? null : Math.min(1, Math.m
     :aria-valuemin="0"
     :aria-valuemax="100"
     :aria-valuenow="fraction === null ? undefined : Math.round(fraction * 100)"
-    :aria-valuetext="paused ? 'Paused' : undefined"
+    :aria-valuetext="paused ? t('kit.progress.paused') : undefined"
   >
     <span
       class="app-progress__fill"

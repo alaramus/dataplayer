@@ -1,3 +1,5 @@
+import { t } from "@/shared/i18n"
+
 /** Presentation data only. Producers own the meaning and actions of a graph. */
 export interface GraphRow {
   id: string
@@ -71,20 +73,20 @@ export const GRAPH_LIMITS = { nodes: 300, rows: 5_000, edges: 1_000 } as const
 export function graphProblem(graph: GraphDocument): string | null {
   if (graph.nodes.length > GRAPH_LIMITS.nodes || graph.edges.length > GRAPH_LIMITS.edges ||
     graph.nodes.reduce((count, node) => count + node.rows.length, 0) > GRAPH_LIMITS.rows) {
-    return "This graph is too large. Select fewer objects."
+    return t("graph.problems.too_large")
   }
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]))
   if (nodes.size !== graph.nodes.length || new Set(graph.edges.map((edge) => edge.id)).size !== graph.edges.length) {
-    return "This graph contains duplicate identities."
+    return t("graph.problems.duplicate_ids")
   }
   for (const node of graph.nodes) {
-    if (new Set(node.rows.map((row) => row.id)).size !== node.rows.length) return "A node contains duplicate ports."
+    if (new Set(node.rows.map((row) => row.id)).size !== node.rows.length) return t("graph.problems.duplicate_ports")
   }
   for (const edge of graph.edges) {
     for (const endpoint of [edge.source, edge.target]) {
       const node = nodes.get(endpoint.nodeId)
       if (!node || endpoint.portIds?.some((id) => !node.rows.some((row) => row.id === id))) {
-        return "A connection points to an object or port that is missing."
+        return t("graph.problems.missing_end")
       }
     }
   }

@@ -39,6 +39,7 @@ from app.ai.models import (
 from app.ai.providers import ChatModels
 from app.core import crypto
 from app.core.schemas import get_datetime_utc
+from app.core.translation import say
 
 logger = logging.getLogger(__name__)
 
@@ -128,19 +129,19 @@ async def check_auto_choice(
     every provider it may be any keyed model, within one it must be of it.
     """
     if fallback is None:
-        raise SettingsRefused("Choose a fallback model first")
+        raise SettingsRefused(say("Choose a fallback model first"))
     if auto_provider == "all":
         if await key_for(session, user_id, fallback.provider) is None:
             raise SettingsRefused(
-                f"Set the {PROVIDER_TITLES[fallback.provider]} API key first"
+                say("Set the {provider} API key first", provider=PROVIDER_TITLES[fallback.provider])
             )
     else:
         if fallback.provider != auto_provider:
-            raise SettingsRefused("Choose a fallback model from this provider")
+            raise SettingsRefused(say("Choose a fallback model from this provider"))
         if await key_for(session, user_id, auto_provider) is None:
-            raise SettingsRefused("Set this model provider's API key first")
+            raise SettingsRefused(say("Set this model provider's API key first"))
     if await key_for(session, user_id, "typesafe") is None:
-        raise SettingsRefused("Set a Jev API key first")
+        raise SettingsRefused(say("Set a Jev API key first"))
 
 
 async def update_settings(
@@ -152,7 +153,7 @@ async def update_settings(
     stored = await _stored(session, user_id)
     if "model_key" in update.model_fields_set:
         if update.model_key is not None and models.find(update.model_key) is None:
-            raise SettingsRefused("That model is not in the list")
+            raise SettingsRefused(say("That model is not in the list"))
         stored.model_key = update.model_key
         if "auto_provider" not in update.model_fields_set:
             stored.auto_provider = None
@@ -279,7 +280,7 @@ async def check_key(
     """
     key = candidate if candidate is not None else await key_for(session, user_id, provider)
     if key is None:
-        return ProviderKeyCheck(ok=False, message="No key is set for this provider")
+        return ProviderKeyCheck(ok=False, message=say("No key is set for this provider"))
     if provider == "typesafe":
         try:
             async with asyncio.timeout(CHECK_TIMEOUT_SECONDS):
@@ -290,10 +291,10 @@ async def check_key(
                     }
                 )
             if "ready" in answer.nouls:
-                return ProviderKeyCheck(ok=True, message="The Jev key works")
+                return ProviderKeyCheck(ok=True, message=say("The Jev key works"))
         except Exception as error:  # noqa: BLE001 - provider text must stay private
             logger.info("A Jev key check failed: %s", type(error).__name__)
-        return ProviderKeyCheck(ok=False, message="The Jev key could not be verified")
+        return ProviderKeyCheck(ok=False, message=say("The Jev key could not be verified"))
     chosen = await chosen_model(session, user_id, models)
     model = (
         chosen
@@ -301,7 +302,7 @@ async def check_key(
         else next((m for m in models.models if m.provider == provider), None)
     )
     if model is None:
-        return ProviderKeyCheck(ok=False, message="The list has no model of this provider")
+        return ProviderKeyCheck(ok=False, message=say("The list has no model of this provider"))
     chat = chat_models.build(model, key, max_output_tokens=CHECK_OUTPUT_TOKENS)
     try:
         async with asyncio.timeout(CHECK_TIMEOUT_SECONDS):
@@ -309,14 +310,15 @@ async def check_key(
                 "Call the ping tool to check the connection."
             )
     except TimeoutError:
-        return ProviderKeyCheck(ok=False, message="The provider did not answer in time")
+        return ProviderKeyCheck(ok=False, message=say("The provider did not answer in time"))
     except Exception as error:  # noqa: BLE001 - reduced to a sentence below
         # By type only: a provider's text may carry the request it failed on.
         logger.info("A key check failed: %s", type(error).__name__)
-        return ProviderKeyCheck(ok=False, message=chat_models.sentence(model, error))
+        sentence = chat_models.sentence(model, error)
+        return ProviderKeyCheck(ok=False, message=say(sentence))
     if not getattr(chat_answer, "tool_calls", None):
         return ProviderKeyCheck(
             ok=True,
-            message=f"The key works, but {model.name} did not call a tool when asked",
+            message=say("The key works, but {model} did not call a tool when asked", model=model.name),
         )
-    return ProviderKeyCheck(ok=True, message=f"The key works with {model.name}")
+    return ProviderKeyCheck(ok=True, message=say("The key works with {model}", model=model.name))

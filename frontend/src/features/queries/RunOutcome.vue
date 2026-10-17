@@ -3,7 +3,9 @@ import { appIcons } from "@/shared/ui"
 import { computed, ref, watch } from "vue"
 
 import type { RunPublic, StatementPublic } from "@/client"
+import { statusWord } from "@/features/queries/console"
 import ResultTable from "@/features/queries/ResultTable.vue"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppEmptyState, AppIconButton } from "@/shared/ui"
 
 /**
@@ -53,7 +55,7 @@ function promoteSelected() {
 const messages = computed(() => [
   ...(props.run.error === null || props.run.error === undefined
     ? []
-    : [{ ordinal: -1, severity: "RUN", message: props.run.error, failed: true }]),
+    : [{ ordinal: -1, severity: t("queries.outcome.run_severity"), message: props.run.error, failed: true }]),
   ...statements.value.flatMap((statement) => [
     ...(statement.notices ?? []).map((notice) => ({
       ordinal: statement.ordinal,
@@ -89,13 +91,13 @@ watch(
 )
 
 function label(statement: StatementPublic): string {
-  return `${statement.ordinal + 1}. ${statement.kind}`
+  return `${statement.ordinal + 1}. ${t(`queries.statement_kind.${statement.kind}`)}`
 }
 
 function duration(statement: StatementPublic): string {
   return statement.duration_ms === null || statement.duration_ms === undefined
     ? ""
-    : `${statement.duration_ms} ms`
+    : t("queries.duration.ms", { n: statement.duration_ms })
 }
 </script>
 
@@ -127,7 +129,7 @@ function duration(statement: StatementPublic): string {
         @click="chosen = statement.ordinal"
       >
         <span class="run-outcome__label">{{ label(statement) }}</span>
-        <span class="run-outcome__status">{{ statement.status }}</span>
+        <span class="run-outcome__status">{{ statusWord(statement.status) }}</span>
         <span class="run-outcome__duration">{{ duration(statement) }}</span>
       </button>
       <button
@@ -137,7 +139,7 @@ function duration(statement: StatementPublic): string {
         data-testid="run-messages-tab"
         @click="showMessages = !showMessages"
       >
-        <span class="run-outcome__label">Messages</span>
+        <span class="run-outcome__label">{{ t("queries.outcome.messages") }}</span>
         <span class="run-outcome__status">{{ messages.length }}</span>
       </button>
     </div>
@@ -150,7 +152,7 @@ function duration(statement: StatementPublic): string {
       >
         <AppEmptyState
           v-if="messages.length === 0"
-          text="Nothing was said"
+          :text="t('queries.outcome.nothing_said')"
         />
         <p
           v-for="(message, index) in messages"
@@ -192,13 +194,13 @@ function duration(statement: StatementPublic): string {
             <template #commands-end>
               <AppIconButton
                 :icon="appIcons.pushPin"
-                tooltip="Keep this result when the next run finishes"
+                :tooltip="t('queries.outcome.pin')"
                 data-testid="run-pin"
                 @click="emit('toggle-pin')"
               />
               <AppIconButton
                 :icon="appIcons.openInNew"
-                tooltip="Open this result in the workspace"
+                :tooltip="t('queries.outcome.promote')"
                 data-testid="run-promote"
                 @click="promoteSelected"
               />
@@ -209,8 +211,8 @@ function duration(statement: StatementPublic): string {
           v-else-if="!selected.diagnostic"
           :text="
             selected.status === 'not_run'
-              ? 'This statement was not run'
-              : selected.command_tag ?? 'This statement returned no rows'
+              ? t('queries.outcome.not_run')
+              : selected.command_tag ?? t('queries.outcome.no_rows')
           "
           data-testid="run-no-rows"
         />

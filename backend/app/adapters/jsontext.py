@@ -14,6 +14,8 @@ crossed the boundary (D23).
 import json
 from typing import Any
 
+from app.core.translation import say
+
 
 class NonStandardJson(ValueError):
     """A token Python accepts as an extension but JSON does not."""
@@ -44,7 +46,7 @@ def load(text: str) -> Any:
 def _reject_constant(token: str) -> None:
     # Python accepts NaN and infinities by default; RFC JSON does not. Raising
     # our own error avoids inventing a source position the decoder did not give.
-    raise NonStandardJson(f"{token} is not a JSON number")
+    raise NonStandardJson(say("{token} is not a JSON number", token=token))
 
 
 def encode(value: Any) -> str:

@@ -75,4 +75,4 @@ async def test_an_action_naming_no_hints_answers_501(
         json={"node_id": schema, "params": {}},
     )
     assert response.status_code == 501
-    assert "offers no hints" in response.json()["detail"]["message"]
+    assert response.json()["detail"]["code"] == "actions.no_hints"

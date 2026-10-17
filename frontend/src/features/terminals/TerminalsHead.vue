@@ -4,6 +4,7 @@ import { computed } from "vue"
 
 import { adapterIcon } from "@/features/connectors/adapters"
 import { connectorColorOf, connectorNameOf, useConnectors } from "@/features/connectors/api"
+import { t } from "@/shared/i18n"
 import { AppIconButton, AppMenu, AppTaskbar, AppTaskbarItem } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
@@ -30,9 +31,9 @@ const menu = computed<MenuItem[]>(() =>
     ? [
         {
           name: "none",
-          label: "No connection of yours has a terminal",
+          label: t("terminals.none_menu"),
           disable: true,
-          hint: "An SSH connection does",
+          hint: t("terminals.none_menu_hint"),
         },
       ]
     : candidates.value.map((connector) => ({
@@ -57,7 +58,7 @@ function open(connectorId: string) {
     v-if="terminals.sessions.value.length > 0"
     class="terminals-head"
   >
-    <AppTaskbar label="Terminals">
+    <AppTaskbar :label="t('terminals.terminals')">
       <AppTaskbarItem
         v-for="terminal in terminals.sessions.value"
         :key="terminal.id"
@@ -65,7 +66,7 @@ function open(connectorId: string) {
         :icon="appIcons.terminal"
         :color="connectorColorOf(connectors.data.value, terminal.connectorId)"
         :front="terminal.id === terminals.active.value?.id"
-        close-label="Close this terminal"
+        :close-label="t('terminals.close')"
         :close-test-id="`terminal-close-${terminal.id}`"
         :data-testid="`terminal-tab-${terminal.id}`"
         @open="terminals.select(terminal.id)"
@@ -75,7 +76,7 @@ function open(connectorId: string) {
     <span class="terminals-head__new">
       <AppIconButton
         :icon="appIcons.add"
-        tooltip="Open a terminal"
+        :tooltip="t('terminals.open')"
         data-testid="terminal-new"
       />
       <AppMenu

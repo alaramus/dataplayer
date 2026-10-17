@@ -40,6 +40,7 @@ from app.adapters.row_commands import (
     RowCommandResult,
 )
 from app.core.access import Access
+from app.core.translation import N_, say
 
 # The column of the Tablespaces report that names one, and the one saying it
 # is pg_default or pg_global, which nothing here renames, hands over or drops.
@@ -54,20 +55,20 @@ MAX_REMOVED = 20
 TABLESPACE_REFUSALS: Mapping[str, str] = {
     # insufficient_privilege: CREATE TABLESPACE takes a superuser, and the
     # server answers the same code when it may not write to the directory.
-    "42501": "This connection may not do that here, or PostgreSQL may not write to that directory",
-    "42710": "A tablespace with that name already exists",
-    "42939": "Names beginning with pg_ are reserved by PostgreSQL",
+    "42501": N_("This connection may not do that here, or PostgreSQL may not write to that directory"),
+    "42710": N_("A tablespace with that name already exists"),
+    "42939": N_("Names beginning with pg_ are reserved by PostgreSQL"),
     # undefined_file: the directory is not there.
-    "58P01": "There is no such directory on the database server",
+    "58P01": N_("There is no such directory on the database server"),
     # object_not_in_prerequisite_state: in use already, or not empty.
-    "55000": "That directory is not empty or is already used by a tablespace",
+    "55000": N_("That directory is not empty or is already used by a tablespace"),
     # invalid_object_definition: not absolute, or too long.
-    "42P17": "The location must be an absolute path on the database server",
+    "42P17": N_("The location must be an absolute path on the database server"),
     # undefined_object: the tablespace, or the role named as owner, went
     # after the form was filled.
-    "42704": "That tablespace or role does not exist any more",
+    "42704": N_("That tablespace or role does not exist any more"),
 }
-_NOT_EMPTY = "Something is still stored in it, in this database or another; move it out first"
+_NOT_EMPTY = N_("Something is still stored in it, in this database or another; move it out first")
 _DROP_REFUSALS: Mapping[str, str] = {**TABLESPACE_REFUSALS, "55000": _NOT_EMPTY}
 
 _ROLES = """
@@ -81,7 +82,9 @@ WHERE spcname = %s AND spcname NOT IN ('pg_default', 'pg_global')
 
 def _not_reserved(value: str) -> str:
     if value.lower().startswith(RESERVED_PREFIX):
-        raise ValueError(f'Names beginning with "{RESERVED_PREFIX}" are reserved by PostgreSQL')
+        raise ValueError(
+            say('Names beginning with "{prefix}" are reserved by PostgreSQL', prefix=RESERVED_PREFIX)
+        )
     return value
 
 
@@ -90,16 +93,18 @@ def _blank_is_none(value: object) -> object:
 
 
 class CreateTablespaceParams(BaseModel):
-    name: str = Field(title="Name")
+    name: str = Field(title=N_("Name"))
     location: str = Field(
-        title="Location", min_length=1, max_length=1024,
-        description=(
+        title=N_("Location"), min_length=1, max_length=1024,
+        description=N_(
             "An absolute path on the database server. The directory must exist, be empty and "
             "belong to the operating-system user PostgreSQL runs as"
         ),
         examples=["/var/lib/postgresql/fast"],
     )
-    owner: str | None = Field(default=None, title="Owner", description="Leave empty to own it yourself")
+    owner: str | None = Field(
+        default=None, title=N_("Owner"), description=N_("Leave empty to own it yourself")
+    )
 
     _check = field_validator("name")(name_check("tablespace"))
     _reserved = field_validator("name")(_not_reserved)
@@ -108,7 +113,7 @@ class CreateTablespaceParams(BaseModel):
 
 class RenameTablespaceParams(BaseModel):
     tablespace: str = Field(min_length=1, json_schema_extra={"x-ui-hidden": True})
-    new_name: str = Field(title="New name")
+    new_name: str = Field(title=N_("New name"))
 
     _check = field_validator("new_name")(name_check("tablespace"))
     _reserved = field_validator("new_name")(_not_reserved)
@@ -116,7 +121,7 @@ class RenameTablespaceParams(BaseModel):
 
 class TablespaceOwnerParams(BaseModel):
     tablespace: str = Field(min_length=1, json_schema_extra={"x-ui-hidden": True})
-    owner: str = Field(min_length=1, title="Owner")
+    owner: str = Field(min_length=1, title=N_("Owner"))
 
 
 class _TablespaceAction[P: BaseModel](JsonAction[P]):
@@ -130,13 +135,18 @@ class _TablespaceAction[P: BaseModel](JsonAction[P]):
 
     def _here(self, node_id: str | None) -> None:
         if node_id != TABLESPACES_REPORT_ID:
-            raise ActionRefused("not_applicable", "Tablespaces are changed from the Tablespaces report")
+            raise ActionRefused(
+                "not_applicable", say("Tablespaces are changed from the Tablespaces report")
+            )
 
     async def _named(self, typed: str) -> str:
         """The server's own spelling of a tablespace that is not built in."""
         rows = await self._session.query(_TABLESPACE, (typed,))
         if not rows:
-            raise ActionRefused("not_applicable", f'There is no tablespace "{typed}" that can be changed')
+            raise ActionRefused(
+                "not_applicable",
+                say('There is no tablespace "{name}" that can be changed', name=typed),
+            )
         return str(rows[0]["name"])
 
     async def field_hints(self, node_id: str | None) -> FieldHints:
@@ -148,7 +158,7 @@ class CreateTablespace(_TablespaceAction[CreateTablespaceParams]):
     """CREATE TABLESPACE, sent with no transaction, which it refuses."""
 
     name: ClassVar[str] = "create_tablespace"
-    title: ClassVar[str] = "New tablespace"
+    title: ClassVar[str] = N_("New tablespace")
     # Above the list of tablespaces, like New role over the list of roles (D79).
     offered_in: ClassVar[OfferedIn] = "rows"
     icon: ClassVar[str] = "create_new_folder"
@@ -156,7 +166,7 @@ class CreateTablespace(_TablespaceAction[CreateTablespaceParams]):
 
     async def field_hints(self, node_id: str | None) -> FieldHints:
         hints = await super().field_hints(node_id)
-        return FieldHints(choices={"owner": [FieldChoice(value="", label="You"), *hints.choices["owner"]]})
+        return FieldHints(choices={"owner": [FieldChoice(value="", label=say("You")), *hints.choices["owner"]]})
 
     async def run(self, node_id: str | None, params: CreateTablespaceParams) -> ActionResult:
         self._here(node_id)
@@ -166,7 +176,14 @@ class CreateTablespace(_TablespaceAction[CreateTablespaceParams]):
             sql.Literal(params.location),
         )
         await self._refused_as_said(statement)
-        return ActionResult(message=f"Tablespace {params.name} created at {params.location}", reload_node_ids=[])
+        return ActionResult(
+            message=say(
+                "Tablespace {name} created at {location}",
+                name=params.name,
+                location=params.location,
+            ),
+            reload_node_ids=[],
+        )
 
     async def _refused_as_said(self, statement: sql.Composed) -> None:
         try:
@@ -177,7 +194,7 @@ class CreateTablespace(_TablespaceAction[CreateTablespaceParams]):
 
 class RenameTablespace(_TablespaceAction[RenameTablespaceParams]):
     name: ClassVar[str] = "rename_tablespace"
-    title: ClassVar[str] = "Rename tablespace"
+    title: ClassVar[str] = N_("Rename tablespace")
     offered_in: ClassVar[OfferedIn] = "picked"
     icon: ClassVar[str] = "edit"
     params_model = RenameTablespaceParams
@@ -194,12 +211,17 @@ class RenameTablespace(_TablespaceAction[RenameTablespaceParams]):
             )
         except ValueError as refusal:
             raise ActionRefused("not_applicable", str(refusal)) from None
-        return ActionResult(message=f"Tablespace {named} renamed to {params.new_name}", reload_node_ids=[])
+        return ActionResult(
+            message=say(
+                "Tablespace {name} renamed to {new_name}", name=named, new_name=params.new_name
+            ),
+            reload_node_ids=[],
+        )
 
 
 class ChangeTablespaceOwner(_TablespaceAction[TablespaceOwnerParams]):
     name: ClassVar[str] = "change_tablespace_owner"
-    title: ClassVar[str] = "Change tablespace owner"
+    title: ClassVar[str] = N_("Change tablespace owner")
     offered_in: ClassVar[OfferedIn] = "picked"
     icon: ClassVar[str] = "manage_accounts"
     params_model = TablespaceOwnerParams
@@ -216,16 +238,21 @@ class ChangeTablespaceOwner(_TablespaceAction[TablespaceOwnerParams]):
             )
         except ValueError as refusal:
             raise ActionRefused("not_applicable", str(refusal)) from None
-        return ActionResult(message=f"Tablespace {named} now belongs to {params.owner}", reload_node_ids=[])
+        return ActionResult(
+            message=say(
+                "Tablespace {name} now belongs to {owner}", name=named, owner=params.owner
+            ),
+            reload_node_ids=[],
+        )
 
 
 TABLESPACE_ACTION_TYPES = (CreateTablespace, RenameTablespace, ChangeTablespaceOwner)
 
 DROP_TABLESPACE = RowCommand(
     name="drop_tablespace",
-    title="Remove",
+    title=N_("Remove"),
     icon="delete",
-    description=(
+    description=N_(
         "Remove this tablespace from the server. PostgreSQL refuses while anything, "
         "in any database, is still stored in it."
     ),
@@ -237,7 +264,7 @@ DROP_TABLESPACE = RowCommand(
 
 PICKED: tuple[PickedRowsAction, ...] = tuple(
     PickedRowsAction(
-        action=kind.name, title=f"{kind.title}…", icon=kind.icon or "edit",
+        action=kind.name, title=kind.title, icon=kind.icon or "edit",
         requires=kind.requires, identified_by=[NAME_COLUMN],
     )
     for kind in (RenameTablespace, ChangeTablespaceOwner)
@@ -245,7 +272,12 @@ PICKED: tuple[PickedRowsAction, ...] = tuple(
 
 
 def picked_actions(node_id: str) -> list[PickedRowsAction]:
-    return list(PICKED) if node_id == TABLESPACES_REPORT_ID else []
+    if node_id != TABLESPACES_REPORT_ID:
+        return []
+    return [
+        picked.model_copy(update={"title": f"{say(picked.title)}…"})
+        for picked in PICKED
+    ]
 
 
 async def resolve_picked(
@@ -253,12 +285,15 @@ async def resolve_picked(
 ) -> PickedRowsTarget:
     """One picked tablespace, set in the form of the action that changes it."""
     if node_id != TABLESPACES_REPORT_ID or action not in {offered.action for offered in PICKED}:
-        raise ActionRefused("not_applicable", "This is not offered over these rows")
+        raise ActionRefused("not_applicable", say("This is not offered over these rows"))
     if len(keys) != 1 or len(keys[0]) != 1:
-        raise ActionRefused("not_applicable", "Pick one tablespace")
+        raise ActionRefused("not_applicable", say("Pick one tablespace"))
     rows = await session.query(_TABLESPACE, (keys[0][0],))
     if not rows:
-        raise ActionRefused("not_applicable", "pg_default and pg_global are PostgreSQL's own and are left as they are")
+        raise ActionRefused(
+            "not_applicable",
+            say("pg_default and pg_global are PostgreSQL's own and are left as they are"),
+        )
     named = str(rows[0]["name"])
     return PickedRowsTarget(node_id=node_id, node_label=named, params={"tablespace": named})
 
@@ -266,13 +301,13 @@ async def resolve_picked(
 async def drop(session: PostgresSession, keys: Sequence[str]) -> RowCommandResult:
     """Each named tablespace dropped on its own, each refusal said for its own name."""
     if len(keys) > MAX_REMOVED:
-        raise ValueError(f"At most {MAX_REMOVED} tablespaces at a time")
+        raise ValueError(say("At most {count} tablespaces at a time", count=MAX_REMOVED))
     done: list[str] = []
     refused: list[str] = []
     for typed in keys:
         rows = await session.query(_TABLESPACE, (typed,))
         if not rows:
-            refused.append(f'"{typed}" is not a tablespace that can be removed')
+            refused.append(say('"{name}" is not a tablespace that can be removed', name=typed))
             continue
         named = str(rows[0]["name"])
         try:
@@ -284,8 +319,11 @@ async def drop(session: PostgresSession, keys: Sequence[str]) -> RowCommandResul
             refused.append(f"{named}: {refusal}")
             continue
         done.append(named)
-    subject = "tablespace" if len(keys) == 1 else "tablespaces"
-    message = f"{len(done)} {subject} removed" if len(done) == len(keys) else (
-        f"{len(done)} of {len(keys)} {subject} removed"
-    )
+    count, asked = len(done), len(keys)
+    if asked == 1:
+        message = say("1 tablespace removed") if count == 1 else say("0 of 1 tablespace removed")
+    elif count == asked:
+        message = say("{count} tablespaces removed", count=count)
+    else:
+        message = say("{count} of {asked} tablespaces removed", count=count, asked=asked)
     return RowCommandResult(message=message, done=len(done), refused=refused)

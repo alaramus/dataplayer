@@ -1,4 +1,6 @@
 import type { AttachmentRules } from "@/client"
+import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 
 export type AttachmentKind = "image" | "text"
 
@@ -34,14 +36,16 @@ export function acceptFor(rules: AttachmentRules, readsImages: boolean): string 
 }
 
 function size(bytes: number): string {
-  return bytes >= 1024 * 1024 ? `${String(Math.floor(bytes / (1024 * 1024)))} MB` : `${String(Math.floor(bytes / 1024))} KB`
+  return bytes >= 1024 * 1024
+    ? t("catalog.size.mb", { n: Math.floor(bytes / (1024 * 1024)) })
+    : t("catalog.size.kb", { n: Math.floor(bytes / 1024) })
 }
 
 /** A file's size as the chip beside it says it. */
 export function shownSize(bytes: number): string {
-  if (bytes < 1024) return `${String(bytes)} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes < 1024) return t("catalog.size.b", { n: bytes })
+  if (bytes < 1024 * 1024) return t("catalog.size.kb", { n: formatFixed(bytes / 1024, bytes < 10 * 1024 ? 1 : 0) })
+  return t("catalog.size.mb", { n: formatFixed(bytes / (1024 * 1024), 1) })
 }
 
 /**
@@ -62,28 +66,28 @@ export function admit(
   let total = held.reduce((sum, file) => sum + file.size, 0)
   for (const file of picked) {
     if (held.length + taken.length >= rules.max_files) {
-      refused.push(`A message carries at most ${String(rules.max_files)} files`)
+      refused.push(t("ai.attachments.max_files", { n: rules.max_files }, rules.max_files))
       break
     }
     const kind = kindOf(file, rules)
     if (kind === "image" && !model.readsImages) {
-      refused.push(`${model.name} does not read images`)
+      refused.push(t("ai.attachments.no_images", { model: model.name }))
       continue
     }
     if (kind === "image" && file.size > rules.max_image_bytes) {
-      refused.push(`${file.name} is larger than ${size(rules.max_image_bytes)}`)
+      refused.push(t("ai.attachments.image_too_large", { name: file.name, size: size(rules.max_image_bytes) }))
       continue
     }
     if (kind === "text" && !readsAsText(file)) {
-      refused.push(`${file.name} is neither text nor a PNG, JPEG, WebP or GIF image`)
+      refused.push(t("ai.attachments.not_text", { name: file.name }))
       continue
     }
     if (kind === "text" && file.size > rules.max_text_bytes) {
-      refused.push(`${file.name} is larger than ${size(rules.max_text_bytes)} of text`)
+      refused.push(t("ai.attachments.text_too_large", { name: file.name, size: size(rules.max_text_bytes) }))
       continue
     }
     if (total + file.size > rules.max_total_bytes) {
-      refused.push(`The files of one message come to more than ${size(rules.max_total_bytes)}`)
+      refused.push(t("ai.attachments.total_too_large", { size: size(rules.max_total_bytes) }))
       continue
     }
     total += file.size

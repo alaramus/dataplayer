@@ -1,5 +1,6 @@
 import type { JobPublic } from "@/client"
 import { sourceFeaturesKey } from "@/features/connectors/features"
+import { t } from "@/shared/i18n"
 
 /**
  * A source operation as its job records it (app/source_operations/models.py,
@@ -37,9 +38,6 @@ const SETTLED: ReadonlySet<TargetOutcome> = new Set<TargetOutcome>([
 const NEEDS_A_LOOK: ReadonlySet<TargetOutcome> = new Set<TargetOutcome>([
   "refused", "rolled_back", "unknown",
 ])
-const OBSERVED_WORDS: Record<ObservedState, string> = {
-  as_requested: "now as requested", unchanged: "now unchanged", gone: "no longer there",
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -101,13 +99,13 @@ function qualified(target: OperationTargetRecord): string {
 export function operationLines(operation: SourceOperationRecord, active: boolean): string[] {
   if (active) {
     const running = operation.targets.find((target) => target.outcome === "running")
-    return running === undefined ? [] : [`Now: ${qualified(running)}`]
+    return running === undefined ? [] : [t("activity.operations.now", { name: qualified(running) })]
   }
   return operation.targets
     .filter((target) => NEEDS_A_LOOK.has(target.outcome))
     .map((target) => {
       const said = target.message ?? target.outcome
-      const seen = target.observed === null ? "" : ` (${OBSERVED_WORDS[target.observed]})`
+      const seen = target.observed === null ? "" : ` (${t(`activity.operations.${target.observed}`)})`
       return `${qualified(target)}: ${said}${seen}`
     })
 }

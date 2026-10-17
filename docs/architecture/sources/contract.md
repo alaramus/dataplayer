@@ -83,6 +83,9 @@ is what they will be able to see and change, in their words.
 - `GET /guide/` lists the pages and `GET /guide/{key}` answers one. A key is a
   file's stem, looked up among the pages read at start and never joined onto a
   path (D8).
+- A translation is `pages/<language>/<key>.md` under the same key; the
+  request's language is served where it has a page, the English otherwise, and
+  the short lists come from the page served (D227).
 - **Guide** in the catalog's panel opens one guide window on the type's page.
   Links between pages are `other-page.md` and turn the same window; a second
   **Guide** turns it too. It is a floating window, so it stays while the

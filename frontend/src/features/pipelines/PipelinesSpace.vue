@@ -9,6 +9,7 @@ import ConnectorsHead from "@/features/workspace/panels/ConnectorsHead.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 import {
   AppButton,
@@ -68,7 +69,7 @@ watch(current, (pipeline) => {
 function sayIfMissing(asked: string) {
   const said = (list: readonly { id: string }[] | undefined) => {
     if (list === undefined) return false
-    if (!list.some((one) => one.id === asked)) toast.error("That pipeline no longer exists")
+    if (!list.some((one) => one.id === asked)) toast.error(t("pipelines.space.missing"))
     return true
   }
   if (said(pipelines.data.value)) return
@@ -94,7 +95,7 @@ async function createPipeline() {
     const made = await creating.mutateAsync(newPipelineName((pipelines.data.value ?? []).length))
     selectedId.value = made.id
   } catch (cause) {
-    toast.error(messageOf(cause, "The pipeline could not be created"))
+    toast.error(messageOf(cause, t("pipelines.space.create_failed")))
   }
 }
 
@@ -114,7 +115,7 @@ useReloadable("connectors", async () => {
 
 function place(connector: ConnectorPublic) {
   if (current.value === null) {
-    toast.info("Create a pipeline first, then place connections on it")
+    toast.info(t("pipelines.space.create_first"))
     return
   }
   view.value?.place(connector.id)
@@ -161,7 +162,7 @@ defineExpose({
         <AppCardHead class="pipelines__narrow-head">
           <AppIconButton
             :icon="appIcons.add"
-            tooltip="New connection"
+            :tooltip="t('pipelines.space.new_connection')"
             data-testid="add-connector"
             @click="workspace.editConnector(null)"
           />
@@ -195,7 +196,7 @@ defineExpose({
           <ConnectorList
             :rows="shownRows"
             :loading="connectors.isLoading.value"
-            :empty-text="workspace.connectorNameFilter.value.trim() ? 'No matching connections' : undefined"
+            :empty-text="workspace.connectorNameFilter.value.trim() ? t('pipelines.space.no_matching') : undefined"
             :drag-type="CONNECTION_DRAG"
             @open="place"
             @edit="workspace.editConnector($event.id)"
@@ -227,7 +228,7 @@ defineExpose({
         @deleted="selectedId = null"
       />
       <template v-else>
-        <AppCardHead title="Pipelines" />
+        <AppCardHead :title="t('pipelines.space.title')" />
         <div
           v-if="pipelines.isPending.value"
           class="pipelines__center"
@@ -240,17 +241,17 @@ defineExpose({
         >
           <AppEmptyState
             icon="error"
-            :text="messageOf(pipelines.error.value, 'Pipelines could not be read')"
+            :text="messageOf(pipelines.error.value, t('pipelines.space.read_failed'))"
           />
         </div>
         <div
           v-else
           class="pipelines__center pipelines__center--stacked"
         >
-          <span>No pipelines yet.</span>
+          <span>{{ t('pipelines.space.none_yet') }}</span>
           <AppButton
             :icon="appIcons.add"
-            label="Create a pipeline"
+            :label="t('pipelines.space.create')"
             :loading="creating.isPending.value"
             data-testid="pipeline-create-first"
             @click="createPipeline"

@@ -7,6 +7,7 @@ import type { PasteOffer } from "@/client"
 import CrossPaste from "@/features/catalog/CrossPaste.vue"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import type { CrossPasteIntent } from "@/features/catalog/pasteOffers"
+import { t } from "@/shared/i18n"
 import { AppButton } from "@/shared/ui"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 
@@ -107,19 +108,19 @@ function settle(outcome: ActionOutcome | null) {
       v-if="answer.isPending.value"
       class="pair-bar__note"
     >
-      Checking what can be done
+      {{ t('workspace.pair.checking') }}
     </div>
     <div
       v-else-if="answer.isError.value"
       class="pair-bar__note"
     >
-      Could not check these two connections
+      {{ t('workspace.pair.check_failed') }}
     </div>
     <div
       v-else-if="items.length === 0"
       class="pair-bar__note"
     >
-      Nothing goes this way. Swap sides to go the other way.
+      {{ t('workspace.pair.nothing') }}
     </div>
     <div
       v-for="entry in items"

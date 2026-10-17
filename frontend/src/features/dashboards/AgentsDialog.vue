@@ -6,6 +6,7 @@ import type { AgentHost, AgentKey, AgentPublic, ConnectorReporting } from "@/cli
 import { adapterIcon } from "@/features/connectors/adapters"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import { serverUrl } from "@/shared/servers/context"
 import {
   AppButton,
@@ -54,8 +55,8 @@ import {
 const open = defineModel<boolean>({ required: true })
 
 const VIEWS = [
-  { value: "agents", label: "Agents" },
-  { value: "connections", label: "Connections" },
+  { value: "agents", get label() { return t("dashboards.agents.agents") } },
+  { value: "connections", get label() { return t("dashboards.agents.connections") } },
 ] as const
 const view = ref<(typeof VIEWS)[number]["value"]>("agents")
 const viewTabs = useTemplateRef<HTMLElement>("viewTabs")
@@ -79,33 +80,33 @@ const hosts = useHosts(open)
 // One agent key may report several hosts, and two agents one host name.
 const hostRows = computed(() => (hosts.data.value ?? []).map((host) => ({ ...host, key: `${host.agent_id}/${host.host}` })))
 
-const hostColumns: TableColumns = [
-  { name: "host", label: "Host", field: "host", align: "left" },
-  { name: "agent", label: "Agent", field: "agent_name", align: "left" },
-  { name: "system", label: "System", field: (row: AgentHost) => systemWording(row), align: "left" },
-  { name: "hardware", label: "Hardware", field: (row: AgentHost) => hardwareWording(row), align: "left" },
-  { name: "up", label: "Up for", field: "booted_at", align: "left" },
-  { name: "heard", label: "Last heard", field: "last_seen", align: "left" },
-]
+const hostColumns = computed<TableColumns>(() => [
+  { name: "host", label: t("dashboards.agents.host"), field: "host", align: "left" },
+  { name: "agent", label: t("dashboards.agents.agent"), field: "agent_name", align: "left" },
+  { name: "system", label: t("dashboards.agents.system"), field: (row: AgentHost) => systemWording(row), align: "left" },
+  { name: "hardware", label: t("dashboards.agents.hardware"), field: (row: AgentHost) => hardwareWording(row), align: "left" },
+  { name: "up", label: t("dashboards.agents.up_for"), field: "booted_at", align: "left" },
+  { name: "heard", label: t("dashboards.agents.last_heard"), field: "last_seen", align: "left" },
+])
 
 const reporting = useReporting(open)
 const updating = useUpdateReporting()
 const purgingConnector = usePurgeConnector()
 
-const INTERVALS: { value: ConnectorReporting["interval_seconds"]; label: string }[] = [
-  { value: 15, label: "Every 15 s" },
-  { value: 30, label: "Every 30 s" },
-  { value: 60, label: "Every minute" },
-  { value: 300, label: "Every 5 minutes" },
+const INTERVALS: { value: ConnectorReporting["interval_seconds"]; readonly label: string }[] = [
+  { value: 15, get label() { return t("dashboards.agents.every_15_s") } },
+  { value: 30, get label() { return t("dashboards.agents.every_30_s") } },
+  { value: 60, get label() { return t("dashboards.agents.every_minute") } },
+  { value: 300, get label() { return t("dashboards.agents.every_5_minutes") } },
 ]
 
-const connectionColumns: TableColumns = [
-  { name: "name", label: "Connection", field: "name", align: "left" },
-  { name: "reports", label: "Reports", field: "enabled", align: "left" },
-  { name: "interval", label: "How often", field: "interval_seconds", align: "left" },
-  { name: "heard", label: "Last reported", field: "last_heard_at", align: "left" },
+const connectionColumns = computed<TableColumns>(() => [
+  { name: "name", label: t("dashboards.agents.connection"), field: "name", align: "left" },
+  { name: "reports", label: t("dashboards.agents.reports"), field: "enabled", align: "left" },
+  { name: "interval", label: t("dashboards.agents.how_often"), field: "interval_seconds", align: "left" },
+  { name: "heard", label: t("dashboards.agents.last_reported"), field: "last_heard_at", align: "left" },
   { name: "actions", label: "", field: "connector_id", align: "right" },
-]
+])
 
 async function report(row: ConnectorReporting, patch: Partial<Pick<ConnectorReporting, "enabled" | "interval_seconds">>) {
   try {
@@ -114,22 +115,22 @@ async function report(row: ConnectorReporting, patch: Partial<Pick<ConnectorRepo
       body: { enabled: patch.enabled ?? row.enabled, interval_seconds: patch.interval_seconds ?? row.interval_seconds },
     })
   } catch (cause) {
-    toast.error(messageOf(cause, "Reporting could not be changed"))
+    toast.error(messageOf(cause, t("dashboards.agents.reporting_failed")))
   }
 }
 
 async function purgeConnector(row: ConnectorReporting) {
   const sure = await confirm({
-    title: "Delete every sample?",
-    message: `Everything ${row.name} has reported about itself will be deleted. Reporting stays as it is.`,
-    confirmLabel: "Delete samples",
+    title: t("dashboards.common.delete_samples_title"),
+    message: t("dashboards.agents.purge_connector", { name: row.name }),
+    confirmLabel: t("dashboards.common.delete_samples"),
     danger: true,
   })
   if (!sure) return
   try {
     toast.success((await purgingConnector.mutateAsync(row.connector_id)).message)
   } catch (cause) {
-    toast.error(messageOf(cause, "The samples could not be deleted"))
+    toast.error(messageOf(cause, t("dashboards.common.samples_not_deleted")))
   }
 }
 
@@ -144,11 +145,11 @@ watch(open, (isOpen) => {
   now.value = Date.now()
 })
 
-const columns: TableColumns = [
-  { name: "name", label: "Agent", field: "name", align: "left" },
-  { name: "heard", label: "Last heard", field: "last_heard_at", align: "left" },
+const columns = computed<TableColumns>(() => [
+  { name: "name", label: t("dashboards.agents.agent"), field: "name", align: "left" },
+  { name: "heard", label: t("dashboards.agents.last_heard"), field: "last_heard_at", align: "left" },
   { name: "actions", label: "", field: "id", align: "right" },
-]
+])
 
 const rows = computed(() => agents.data.value ?? [])
 
@@ -182,7 +183,7 @@ async function register() {
     show(await creating.mutateAsync(name))
     newName.value = ""
   } catch (cause) {
-    toast.error(messageOf(cause, "The agent could not be registered"))
+    toast.error(messageOf(cause, t("dashboards.agents.register_failed")))
   }
 }
 
@@ -190,44 +191,44 @@ async function showKey(agent: AgentPublic) {
   try {
     show(await readAgentKey(agent.id))
   } catch (cause) {
-    toast.error(messageOf(cause, "The key could not be read"))
+    toast.error(messageOf(cause, t("dashboards.agents.key_failed")))
   }
 }
 
 async function rotate(agent: AgentPublic) {
   const sure = await confirm({
-    title: "Issue a new key?",
-    message: `What ${agent.name} sends signed with its current key will be dropped from now on.`,
-    confirmLabel: "Issue a new key",
+    title: t("dashboards.agents.rotate_title"),
+    message: t("dashboards.agents.rotate_message", { name: agent.name }),
+    confirmLabel: t("dashboards.agents.rotate"),
   })
   if (!sure) return
   try {
     show(await rotating.mutateAsync(agent.id))
   } catch (cause) {
-    toast.error(messageOf(cause, "A new key could not be issued"))
+    toast.error(messageOf(cause, t("dashboards.agents.rotate_failed")))
   }
 }
 
 async function purge(agent: AgentPublic) {
   const sure = await confirm({
-    title: "Delete every sample?",
-    message: `Everything ${agent.name} has reported will be deleted. The agent stays registered.`,
-    confirmLabel: "Delete samples",
+    title: t("dashboards.common.delete_samples_title"),
+    message: t("dashboards.agents.purge_agent", { name: agent.name }),
+    confirmLabel: t("dashboards.common.delete_samples"),
     danger: true,
   })
   if (!sure) return
   try {
     toast.success((await purging.mutateAsync(agent.id)).message)
   } catch (cause) {
-    toast.error(messageOf(cause, "The samples could not be deleted"))
+    toast.error(messageOf(cause, t("dashboards.common.samples_not_deleted")))
   }
 }
 
 async function remove(agent: AgentPublic) {
   const sure = await confirm({
-    title: "Remove this agent?",
-    message: `What is sent signed with its key will be dropped. What ${agent.name} already reported stays until it expires.`,
-    confirmLabel: "Remove",
+    title: t("dashboards.agents.remove_title"),
+    message: t("dashboards.agents.remove_message", { name: agent.name }),
+    confirmLabel: t("dashboards.agents.remove"),
     danger: true,
   })
   if (!sure) return
@@ -235,16 +236,16 @@ async function remove(agent: AgentPublic) {
     await deleting.mutateAsync(agent.id)
     if (shown.value?.agent.id === agent.id) shown.value = null
   } catch (cause) {
-    toast.error(messageOf(cause, "The agent could not be removed"))
+    toast.error(messageOf(cause, t("dashboards.agents.remove_failed")))
   }
 }
 
 async function copy(text: string, what: string) {
   try {
     await copyText(text)
-    toast.success(`${what} copied`)
+    toast.success(t("dashboards.agents.copied", { what }))
   } catch {
-    toast.error(`${what} could not be copied`)
+    toast.error(t("dashboards.agents.copy_failed", { what }))
   }
 }
 </script>
@@ -252,8 +253,8 @@ async function copy(text: string, what: string) {
 <template>
   <WindowDialog
     v-model="open"
-    title="Sources"
-    subtitle="Agents that report a host, and connections that report about themselves"
+    :title="t('dashboards.agents.title')"
+    :subtitle="t('dashboards.agents.subtitle')"
     size="wide-form"
     sizing="stable"
     data-testid="agents-dialog"
@@ -263,7 +264,7 @@ async function copy(text: string, what: string) {
         ref="viewTabs"
         class="agents__views"
         role="tablist"
-        aria-label="What reports"
+        :aria-label="t('dashboards.agents.views')"
         data-testid="agents-views"
       >
         <AppButton
@@ -291,18 +292,18 @@ async function copy(text: string, what: string) {
           class="agents__register"
           data-testid="agent-register-row"
         >
-          <span>Agent name</span>
+          <span>{{ t('dashboards.agents.agent_name') }}</span>
           <AppForm class="agents__register-field">
             <AppInput
               v-model="newName"
-              aria-label="Agent name"
+              :aria-label="t('dashboards.agents.agent_name')"
               compact
               data-testid="agent-name"
               @keydown.enter="register"
             />
           </AppForm>
           <AppButton
-            label="Register"
+            :label="t('dashboards.agents.register')"
             :icon="appIcons.add"
             :loading="creating.isPending.value"
             :disable="newName.trim() === ''"
@@ -316,7 +317,7 @@ async function copy(text: string, what: string) {
           :columns="columns"
           row-key="id"
           :loading="agents.isLoading.value"
-          empty-text="No agents yet"
+          :empty-text="t('dashboards.agents.no_agents')"
           compact
           :paged="false"
           data-testid="agents-table"
@@ -330,24 +331,24 @@ async function copy(text: string, what: string) {
             <q-td :props="cellProps">
               <AppIconButton
                 :icon="appIcons.key"
-                tooltip="Show the key and how to start the agent"
+                :tooltip="t('dashboards.agents.show_key')"
                 :data-testid="`agent-key-${cellProps.row.name}`"
                 @click="showKey(cellProps.row)"
               />
               <AppIconButton
                 :icon="appIcons.autorenew"
-                tooltip="Issue a new key"
+                :tooltip="t('dashboards.agents.rotate')"
                 @click="rotate(cellProps.row)"
               />
               <AppIconButton
                 :icon="appIcons.deleteSweep"
-                tooltip="Delete every sample it reported"
+                :tooltip="t('dashboards.common.delete_reported')"
                 variant="danger-quiet"
                 @click="purge(cellProps.row)"
               />
               <AppIconButton
                 :icon="appIcons.delete"
-                tooltip="Remove this agent"
+                :tooltip="t('dashboards.agents.remove_agent')"
                 variant="danger-quiet"
                 @click="remove(cellProps.row)"
               />
@@ -363,18 +364,18 @@ async function copy(text: string, what: string) {
         data-testid="agent-key-panel"
       >
         <div class="agents__key">
-          <span>Key of {{ shown.agent.name }}</span>
+          <span>{{ t('dashboards.agents.key_of', { name: shown.agent.name }) }}</span>
           <code data-testid="agent-key">{{ shown.key }}</code>
           <AppCopyButton
-            tooltip="Copy the key"
-            @click="copy(shown.key, 'The key')"
+            :tooltip="t('dashboards.agents.copy_key')"
+            @click="copy(shown.key, t('dashboards.agents.the_key'))"
           />
         </div>
         <AppForm layout="section">
           <AppInput
             v-model="hostname"
-            label="Reported host name"
-            hint="Empty: the name the host has"
+            :label="t('dashboards.agents.reported_host')"
+            :hint="t('dashboards.agents.reported_host_hint')"
             compact
           />
         </AppForm>
@@ -384,8 +385,8 @@ async function copy(text: string, what: string) {
             data-testid="agent-snippet"
           >{{ snippet }}</pre>
           <AppCopyButton
-            tooltip="Copy the Compose file"
-            @click="copy(snippet, 'The Compose file')"
+            :tooltip="t('dashboards.agents.copy_compose')"
+            @click="copy(snippet, t('dashboards.agents.the_compose'))"
           />
         </div>
       </AppSection>
@@ -394,13 +395,13 @@ async function copy(text: string, what: string) {
         divided
         gutter
       >
-        <span>Hosts</span>
+        <span>{{ t('dashboards.agents.hosts') }}</span>
         <AppTable
           :rows="hostRows"
           :columns="hostColumns"
           row-key="key"
           :loading="hosts.isLoading.value"
-          empty-text="No agent has reported a host yet"
+          :empty-text="t('dashboards.agents.no_hosts')"
           compact
           :paged="false"
           data-testid="hosts-table"
@@ -434,7 +435,7 @@ async function copy(text: string, what: string) {
         :columns="connectionColumns"
         row-key="connector_id"
         :loading="reporting.isLoading.value"
-        empty-text="No connection you can see reports metrics"
+        :empty-text="t('dashboards.agents.no_connections')"
         compact
         :paged="false"
         data-testid="reporting-table"
@@ -454,11 +455,13 @@ async function copy(text: string, what: string) {
               <AppToggle
                 :model-value="cellProps.row.enabled"
                 :disable="!cellProps.row.may_change || updating.isPending.value"
-                :aria-label="`Report metrics of ${cellProps.row.name}`"
+                :aria-label="t('dashboards.agents.report_metrics', { name: cellProps.row.name })"
                 :data-testid="`reporting-${cellProps.row.name}`"
                 @update:model-value="(value) => report(cellProps.row, { enabled: value })"
               />
-              <AppTooltip v-if="!cellProps.row.may_change">Only the owner of this connection switches its reporting on</AppTooltip>
+              <AppTooltip v-if="!cellProps.row.may_change">
+                {{ t('dashboards.agents.owner_only') }}
+              </AppTooltip>
             </span>
           </q-td>
         </template>
@@ -469,7 +472,7 @@ async function copy(text: string, what: string) {
               :options="INTERVALS"
               :disable="!cellProps.row.may_change"
               compact
-              aria-label="How often"
+              :aria-label="t('dashboards.agents.how_often')"
               @update:model-value="(value) => report(cellProps.row, { interval_seconds: value as ConnectorReporting['interval_seconds'] })"
             />
           </q-td>
@@ -483,7 +486,7 @@ async function copy(text: string, what: string) {
           <q-td :props="cellProps">
             <AppIconButton
               :icon="appIcons.deleteSweep"
-              tooltip="Delete every sample it reported"
+              :tooltip="t('dashboards.common.delete_reported')"
               variant="danger-quiet"
               :disable="!cellProps.row.may_change"
               :data-testid="`reporting-purge-${cellProps.row.name}`"
@@ -497,7 +500,7 @@ async function copy(text: string, what: string) {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('dashboards.common.close')"
         @click="open = false"
       />
     </template>

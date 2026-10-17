@@ -6,6 +6,7 @@ import { buildStart, canStart, passwordProblem } from "@/features/services/start
 import type { StartForm, StartRequest } from "@/features/services/starts"
 import { useSshKeys } from "@/features/sshKeys/api"
 import { keyChoiceLabel } from "@/features/sshKeys/keys"
+import { t } from "@/shared/i18n"
 import {
   AppButton,
   AppCheckbox,
@@ -59,10 +60,10 @@ const sshKeys = useSshKeys(computed(() => keySignIn.value && mode.value === "cho
 const keyChoices = computed(() =>
   (sshKeys.data.value ?? []).map((key) => ({ label: keyChoiceLabel(key), value: key.id }))
 )
-const signIns = [
-  { label: "A password", value: "password" },
-  { label: "One of my SSH keys", value: "key" },
-]
+const signIns = computed(() => [
+  { label: t("services.start.sign_in_password"), value: "password" },
+  { label: t("services.start.sign_in_key"), value: "key" },
+])
 
 // Opened on a template, it starts over: the last service somebody made is not
 // a draft of the next one.
@@ -115,10 +116,10 @@ function start() {
   emit("update:template", null)
 }
 
-const modes = [
-  { label: "Set it up for me", value: "automatic" },
-  { label: "Let me choose", value: "chosen" },
-]
+const modes = computed(() => [
+  { label: t("services.start.automatic"), value: "automatic" },
+  { label: t("services.start.chosen"), value: "chosen" },
+])
 </script>
 
 <template>
@@ -126,15 +127,15 @@ const modes = [
     :model-value="template !== null"
     size="long-form"
     sizing="stable"
-    :title="`Start ${template?.title ?? ''} here`"
-    subtitle="This server runs it and saves the connection for you."
+    :title="t('services.start.title', { name: template?.title ?? '' })"
+    :subtitle="t('services.start.subtitle')"
     data-testid="start-service-dialog"
     @update:model-value="emit('update:template', null)"
   >
     <AppForm layout="section">
       <AppSelect
         v-model="mode"
-        label="How"
+        :label="t('services.start.how')"
         :options="modes"
         data-testid="service-mode"
       />
@@ -144,18 +145,17 @@ const modes = [
         class="start-service__what"
         data-testid="service-automatic-summary"
       >
-        Runs <code>{{ template?.image }}</code> on this server, names the
-        connection for you, and gives it a password nobody has to choose. It
-        will tell you where to reach it from your own tools.
+        {{ t('services.start.runs') }} <code>{{ template?.image }}</code>
+        {{ t('services.start.automatic_rest') }}
         <template v-if="offersSampleData">
-          It comes filled with sample data, so there is something to look at.
+          {{ t('services.start.sample_note') }}
         </template>
       </p>
 
       <template v-else>
         <AppInput
           v-model="name"
-          label="Name"
+          :label="t('services.start.name')"
           autocomplete="off"
           data-testid="service-name"
           @keydown.enter="start"
@@ -163,23 +163,23 @@ const modes = [
         <AppInput
           v-if="asksFor.includes('user')"
           v-model="user"
-          label="User"
-          placeholder="Optional"
+          :label="t('services.start.user')"
+          :placeholder="t('services.start.optional')"
           autocomplete="off"
           data-testid="service-user"
         />
         <AppInput
           v-if="asksFor.includes('database')"
           v-model="database"
-          label="Database"
-          placeholder="Optional"
+          :label="t('services.start.database')"
+          :placeholder="t('services.start.optional')"
           autocomplete="off"
           data-testid="service-database"
         />
         <AppNumberInput
           v-model="port"
-          label="Port"
-          hint="On this machine; 0 lets this server pick a free one"
+          :label="t('services.start.port')"
+          :hint="t('services.start.port_hint')"
           data-testid="service-port"
         />
         <!-- Only where running without one is a configuration rather than a
@@ -188,7 +188,7 @@ const modes = [
         <AppCheckbox
           v-if="optionalPassword"
           v-model="wantsPassword"
-          label="Ask for a password"
+          :label="t('services.start.ask_password')"
           data-testid="service-wants-password"
         />
         <!-- A server one signs into, rather than a database: its owner's own
@@ -196,19 +196,19 @@ const modes = [
         <AppSelect
           v-if="keySignIn"
           v-model="signIn"
-          label="Sign in with"
+          :label="t('services.start.sign_in')"
           :options="signIns"
           data-testid="service-sign-in"
         />
         <AppSelect
           v-if="withKey"
           v-model="keyId"
-          label="Your SSH key"
+          :label="t('services.start.your_key')"
           :options="keyChoices"
           :hint="
             keyChoices.length === 0
-              ? 'You have no SSH keys yet; make one on the Preferences page'
-              : 'The server trusts its public half and takes no password'
+              ? t('services.start.no_keys')
+              : t('services.start.key_hint')
           "
           data-testid="service-key"
         />
@@ -216,8 +216,8 @@ const modes = [
           v-if="!withKey && asksFor.includes('password') && (wantsPassword || !optionalPassword)"
           v-model="password"
           type="password"
-          label="Password"
-          hint="Leave it empty and one is made up here"
+          :label="t('services.start.password')"
+          :hint="t('services.start.password_hint')"
           :error="passwordSays"
           autocomplete="new-password"
           data-testid="service-password"
@@ -225,18 +225,17 @@ const modes = [
         <AppCheckbox
           v-if="offersSampleData"
           v-model="sampleData"
-          label="Fill it with sample data"
+          :label="t('services.start.sample')"
           data-testid="service-sample-data"
         />
         <p class="start-service__what">
-          Runs <code>{{ template?.image }}</code> on this server, reachable
-          from this machine and from nowhere else.
+          {{ t('services.start.runs') }} <code>{{ template?.image }}</code>
+          {{ t('services.start.chosen_rest') }}
           <template v-if="withKey">
-            It is signed into with your key, from here and from your own tools.
+            {{ t('services.start.key_note') }}
           </template>
           <template v-else>
-            A password made up here is never shown afterwards, so type one if
-            you mean to use it elsewhere.
+            {{ t('services.start.password_note') }}
           </template>
         </p>
       </template>
@@ -245,11 +244,11 @@ const modes = [
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('update:template', null)"
       />
       <AppButton
-        label="Start"
+        :label="t('services.start.start')"
         :disable="!ready"
         data-testid="start-service-confirm"
         @click="start"

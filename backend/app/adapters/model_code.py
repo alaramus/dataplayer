@@ -28,6 +28,7 @@ from app.adapters.relation import (
     RelationModel,
     UniqueConstraint,
 )
+from app.core.translation import N_, say
 
 CodeDialect = Literal["sqlalchemy", "django", "dbml"]
 
@@ -38,9 +39,9 @@ DIALECT_SUFFIX: dict[CodeDialect, str] = {
 }
 
 DIALECT_TITLE: dict[CodeDialect, str] = {
-    "sqlalchemy": "SQLAlchemy",
-    "django": "Django",
-    "dbml": "DBML (dbdiagram.io)",
+    "sqlalchemy": N_("SQLAlchemy"),
+    "django": N_("Django"),
+    "dbml": N_("DBML (dbdiagram.io)"),
 }
 
 # How many relations one document may describe. A schema of five hundred
@@ -51,7 +52,7 @@ MAX_RELATIONS = 200
 def render(models: list[RelationModel], dialect: CodeDialect) -> str:
     """One document describing every relation given, in the chosen dialect."""
     if len(models) > MAX_RELATIONS:
-        raise ValueError(f"At most {MAX_RELATIONS} relations in one document")
+        raise ValueError(say("At most {count} relations in one document", count=MAX_RELATIONS))
     # What is in the document, so a key can be written by the name of what it
     # points at rather than by an opaque id.
     known = {model.node_id: model for model in models}

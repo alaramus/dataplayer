@@ -5,9 +5,11 @@ import { useRoute, useRouter } from "vue-router"
 import { ConnectorsService, SharesService } from "@/client"
 import { useNodePathLoader } from "@/features/catalog/api"
 import { useRequestAccess } from "@/features/shares/api"
+import { emphasized, strong } from "@/features/shares/emphasis"
 import { setShareIntent } from "@/features/shares/intent"
 import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppCard, AppSection, AppSpinner, useToast } from "@/shared/ui"
 
 /**
@@ -32,7 +34,7 @@ type Landing =
   | { kind: "old" }
   | { kind: "gone"; connector: string; node: string }
   | { kind: "disabled"; connector: string }
-  | { kind: "failed"; message: string }
+  | { kind: "failed" }
 
 const route = useRoute()
 const router = useRouter()
@@ -60,7 +62,7 @@ async function ask() {
     await requestAccess.mutateAsync(token)
     landing.value = { ...waiting, requested: true }
   } catch (error) {
-    toast.error(messageOf(error, "That request could not be sent"))
+    toast.error(messageOf(error, t("shares.landing.request_failed")))
   }
 }
 
@@ -83,7 +85,7 @@ async function resolve() {
         ? { kind: "missing" }
         : status === 409
           ? { kind: "old" }
-          : { kind: "failed", message: "This link could not be opened" }
+          : { kind: "failed" }
     return
   }
 
@@ -164,7 +166,7 @@ useAccessRequestEvents({
   <div class="share-landing-page">
     <AppCard
       size="sm"
-      title="Shared view"
+      :title="t('shares.landing.title')"
       data-testid="share-landing"
     >
       <AppSection>
@@ -172,8 +174,17 @@ useAccessRequestEvents({
 
         <template v-else-if="landing.kind === 'barred'">
           <p data-testid="share-no-access">
-            {{ landing.sharedBy }} shared <strong>{{ landing.node }}</strong> from the
-            connection <strong>{{ landing.connector }}</strong>. You have no access to it yet.
+            <template
+              v-for="(part, index) in emphasized(t('shares.landing.no_access', {
+                person: landing.sharedBy,
+                node: strong(landing.node),
+                connector: strong(landing.connector),
+              }))"
+              :key="index"
+            >
+              <strong v-if="part.strong">{{ part.text }}</strong>
+              <span v-else>{{ part.text }}</span>
+            </template>
           </p>
           <p
             v-if="answered"
@@ -185,8 +196,7 @@ useAccessRequestEvents({
             v-else-if="landing.requested"
             data-testid="share-requested"
           >
-            The owner of {{ landing.connector }} has been asked. You will be told
-            when they answer.
+            {{ t('shares.landing.requested', { connector: landing.connector }) }}
           </p>
         </template>
 
@@ -194,52 +204,66 @@ useAccessRequestEvents({
           v-else-if="landing.kind === 'missing'"
           data-testid="share-missing"
         >
-          This link does not exist, or it was deleted.
+          {{ t('shares.landing.missing') }}
         </p>
 
         <p
           v-else-if="landing.kind === 'old'"
           data-testid="share-old"
         >
-          This link was made by an earlier version of the application and can no
-          longer be opened.
+          {{ t('shares.landing.old') }}
         </p>
 
         <p
           v-else-if="landing.kind === 'gone'"
           data-testid="share-gone"
         >
-          <strong>{{ landing.node }}</strong> is no longer in
-          <strong>{{ landing.connector }}</strong>. Open the connection to see what is there now.
+          <template
+            v-for="(part, index) in emphasized(t('shares.landing.gone', {
+              node: strong(landing.node),
+              connector: strong(landing.connector),
+            }))"
+            :key="index"
+          >
+            <strong v-if="part.strong">{{ part.text }}</strong>
+            <span v-else>{{ part.text }}</span>
+          </template>
         </p>
 
         <p
           v-else-if="landing.kind === 'disabled'"
           data-testid="share-disabled"
         >
-          <strong>{{ landing.connector }}</strong> is switched off, so nothing can be
-          read from it.
+          <template
+            v-for="(part, index) in emphasized(t('shares.landing.disabled', {
+              connector: strong(landing.connector),
+            }))"
+            :key="index"
+          >
+            <strong v-if="part.strong">{{ part.text }}</strong>
+            <span v-else>{{ part.text }}</span>
+          </template>
         </p>
 
         <p
           v-else
           data-testid="share-failed"
         >
-          {{ landing.message }}
+          {{ t('shares.landing.open_failed') }}
         </p>
       </AppSection>
 
       <AppSection v-if="landing.kind !== 'loading'">
         <AppButton
           v-if="landing.kind === 'barred' && !landing.requested"
-          label="Request access"
+          :label="t('shares.landing.request_access')"
           data-testid="share-request"
           :loading="requestAccess.isPending.value"
           @click="ask"
         />
         <AppButton
           variant="quiet"
-          label="Go to the workspace"
+          :label="t('shares.landing.to_workspace')"
           data-testid="share-to-workspace"
           @click="toWorkspace"
         />

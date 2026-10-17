@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { computed, nextTick, onActivated, onDeactivated, provide, readonly, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 import {
   AppButton,
@@ -131,7 +132,7 @@ function sayIfMissing(asked: string) {
   const said = (list: readonly { id: string }[] | undefined) => {
     if (list === undefined) return false
     if (!list.some((one) => one.id === asked)) {
-      toast.error("That dashboard does not exist, or it has not been shared with you")
+      toast.error(t("dashboards.space.missing"))
     }
     return true
   }
@@ -166,15 +167,17 @@ async function createDashboard() {
   const listed = dashboards.data.value ?? []
   const count = listed.length
   try {
-    const created = await creating.mutateAsync(count === 0 ? "My dashboard" : `Dashboard ${String(count + 1)}`)
+    const created = await creating.mutateAsync(
+      count === 0 ? t("dashboards.space.first_name") : t("dashboards.space.nth_name", { n: count + 1 })
+    )
     selectedId.value = created.id
     // The server gives back an empty dashboard the person already has rather
     // than making a second (D129).
     if (listed.some((one) => one.id === created.id)) {
-      toast.info(`"${created.name}" is still empty. Add something to it before starting another dashboard.`)
+      toast.info(t("dashboards.space.still_empty", { name: created.name }))
     }
   } catch (cause) {
-    toast.error(messageOf(cause, "The dashboard could not be created"))
+    toast.error(messageOf(cause, t("dashboards.space.create_failed")))
   }
 }
 
@@ -214,7 +217,7 @@ defineExpose({
       tag="section"
       class="dashboards__main"
     >
-      <AppCardHead title="Dashboards" />
+      <AppCardHead :title="t('dashboards.space.title')" />
       <div class="dashboards__center">
         <AppSpinner />
       </div>
@@ -225,11 +228,11 @@ defineExpose({
       tag="section"
       class="dashboards__main"
     >
-      <AppCardHead title="Dashboards" />
+      <AppCardHead :title="t('dashboards.space.title')" />
       <div class="dashboards__center">
         <AppEmptyState
           icon="error"
-          :text="messageOf(status.error.value, 'Dashboards could not be read')"
+          :text="messageOf(status.error.value, t('dashboards.space.read_failed'))"
         />
       </div>
     </AppCardFrame>
@@ -239,7 +242,7 @@ defineExpose({
       tag="section"
       class="dashboards__main"
     >
-      <AppCardHead title="Dashboards" />
+      <AppCardHead :title="t('dashboards.space.title')" />
       <div class="dashboards__scroll">
         <StoreSetup
           :status="status.data.value"
@@ -277,15 +280,15 @@ defineExpose({
               ref="dashboardFilterField"
               v-model="dashboardNameFilter"
               compact
-              placeholder="Filter dashboards"
-              aria-label="Filter dashboards by name"
+              :placeholder="t('dashboards.space.filter')"
+              :aria-label="t('dashboards.space.filter_by_name')"
               autocomplete="off"
               data-testid="dashboards-name-filter"
             />
             <template #actions>
               <AppIconButton
                 :icon="appIcons.close"
-                tooltip="Close dashboard filter"
+                :tooltip="t('dashboards.space.close_filter')"
                 data-testid="dashboards-filter-close"
                 @click="closeDashboardFilter"
               />
@@ -293,33 +296,33 @@ defineExpose({
           </AppCardHead>
           <AppCardHead
             v-else
-            title="Dashboards"
+            :title="t('dashboards.space.title')"
           >
             <template #actions>
               <!-- The header button collapses this rail; no chevron of its own. -->
               <AppIconButton
                 :icon="appIcons.add"
-                tooltip="New dashboard"
+                :tooltip="t('dashboards.space.new_dashboard')"
                 :loading="creating.isPending.value"
                 data-testid="dashboard-new"
                 @click="createDashboard"
               />
               <AppIconButton
                 :icon="appIcons.search"
-                tooltip="Filter dashboards by name"
+                :tooltip="t('dashboards.space.filter_by_name')"
                 data-testid="dashboards-filter-open"
                 @click="openDashboardFilter"
               />
               <AppIconButton
                 :icon="appIcons.sensors"
-                tooltip="Sources"
+                :tooltip="t('dashboards.common.sources')"
                 data-testid="agents-open"
                 @click="agentsOpen = true"
               />
               <AppIconButton
                 v-if="status.data.value?.may_set_up"
                 :icon="appIcons.storage"
-                tooltip="The metrics store"
+                :tooltip="t('dashboards.space.store')"
                 data-testid="store-open"
                 @click="storeOpen = true"
               />
@@ -363,7 +366,7 @@ defineExpose({
                 class="dashboards__heading"
                 :class="{ 'dashboards__heading--divided': rules.beforeShared }"
               >
-                <span>Shared with you</span>
+                <span>{{ t('dashboards.space.shared_with_you') }}</span>
               </div>
               <div
                 class="dashboards__list"
@@ -386,7 +389,9 @@ defineExpose({
                   :data-testid="`dashboard-${dashboard.name}`"
                   @click="selectedId = dashboard.id"
                 >
-                  <AppTooltip>{{ dashboard.name }}, shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
+                  <AppTooltip>
+                    {{ t('dashboards.common.shared_by', { name: dashboard.name, owner: dashboard.owner ?? t('dashboards.common.somebody') }) }}
+                  </AppTooltip>
                 </AppButton>
               </div>
             </template>
@@ -394,7 +399,7 @@ defineExpose({
             <AppEmptyState
               v-if="!dashboards.isPending.value && shownDashboards.own.length === 0 && shownDashboards.shared.length === 0"
               class="dashboards__empty"
-              :text="dashboardNameFilter.trim() ? 'No matching dashboards' : 'No dashboards yet'"
+              :text="dashboardNameFilter.trim() ? t('dashboards.space.no_matching') : t('dashboards.space.none_yet')"
             />
           </div>
 
@@ -409,7 +414,7 @@ defineExpose({
               data-testid="dashboards-sources-toggle"
               @click="toggleSources"
             >
-              <span>Sources</span>
+              <span>{{ t('dashboards.common.sources') }}</span>
               <q-icon
                 :name="sourcesOpen ? appIcons.keyboardArrowDown : appIcons.keyboardArrowUp"
                 size="var(--dp-icon-md)"
@@ -422,7 +427,7 @@ defineExpose({
             >
               <AppEmptyState
                 v-if="sources.length === 0"
-                text="Nothing reports yet"
+                :text="t('dashboards.space.nothing_reports')"
               />
               <AppTree
                 v-else
@@ -473,10 +478,10 @@ defineExpose({
             v-else
             class="dashboards__center dashboards__center--stacked"
           >
-            <span>No dashboards yet.</span>
+            <span>{{ t('dashboards.space.none_yet_sentence') }}</span>
             <AppButton
               :icon="appIcons.add"
-              label="Create a dashboard"
+              :label="t('dashboards.space.create')"
               data-testid="dashboard-create-first"
               @click="createDashboard"
             />

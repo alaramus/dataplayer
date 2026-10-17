@@ -14,9 +14,11 @@ import {
   appIcons,
 } from "@/shared/ui"
 
+import { t } from "@/shared/i18n"
+
 import { useDesign } from "./design"
 import { INTEGER_TIME_CODES, asHypertable, hypertableMissing, retimedHypertable } from "./draft"
-import type { DraftAge, DurationUnit, LengthUnit, NowTemplate } from "./draft"
+import type { DraftAge, DurationUnit, NowTemplate } from "./draft"
 
 const props = defineProps<{ designId: string }>()
 
@@ -25,18 +27,8 @@ const offer = computed(() => design.options.value?.hypertable ?? null)
 const hyper = computed(() => design.draft.hypertable)
 const missing = computed(() => hypertableMissing(design.draft.hypertable))
 
-const UNIT_LABELS: Record<LengthUnit, string> = {
-  integer: "values",
-  second: "seconds",
-  minute: "minutes",
-  hour: "hours",
-  day: "days",
-  week: "weeks",
-  month: "months",
-  year: "years",
-}
 const units = (list: readonly DurationUnit[] | undefined) =>
-  (list ?? []).map((unit) => ({ label: UNIT_LABELS[unit], value: unit }))
+  (list ?? []).map((unit) => ({ label: t(`hypertable_design.units.${unit}`), value: unit }))
 const intervalUnits = computed(() => units(offer.value?.interval_units))
 const policyUnits = computed(() => units(offer.value?.policy_units))
 
@@ -51,7 +43,7 @@ const temporal = computed(() =>
           (INTEGER_TIME_CODES.includes(column.typeCode) &&
             integerTypes.value.some((item) => item.type === column.typeCode)))
     )
-    .map((column) => ({ label: column.name || "(unnamed)", value: column.id }))
+    .map((column) => ({ label: column.name || t("table_design.unnamed"), value: column.id }))
 )
 const timeType = computed(
   () => design.draft.columns.find((column) => column.id === hyper.value?.timeColumnId)?.typeCode ?? ""
@@ -79,13 +71,11 @@ watch(
   { immediate: true }
 )
 
-const TEMPLATE_LABELS: Record<NowTemplate, string> = {
-  epoch_seconds: "Seconds since 1970",
-  epoch_milliseconds: "Milliseconds since 1970",
-  epoch_microseconds: "Microseconds since 1970",
-}
 const templates = computed(() =>
-  (integerType.value?.now_templates ?? []).map((value) => ({ label: TEMPLATE_LABELS[value], value }))
+  (integerType.value?.now_templates ?? []).map((value: NowTemplate) => ({
+    label: t(`hypertable_design.templates.${value}`),
+    value,
+  }))
 )
 const clocks = computed(() =>
   (offer.value?.now_functions ?? [])
@@ -95,37 +85,33 @@ const clocks = computed(() =>
       value: JSON.stringify([item.schema_name, item.name]),
     }))
 )
-const sparseModes = [
-  { label: "Chosen by TimescaleDB", value: "default" },
-  { label: "None", value: "none" },
-  { label: "These columns", value: "columns" },
-]
+const sparseModes = computed(() => [
+  { label: t("hypertable_design.chosen_by_timescale"), value: "default" },
+  { label: t("hypertable_design.none"), value: "none" },
+  { label: t("hypertable_design.these_columns"), value: "columns" },
+])
 const sparseKinds = [
   { label: "minmax", value: "minmax" },
   { label: "bloom", value: "bloom" },
 ]
 
 const nowModes = computed(() => [
-  { label: "None", value: "none" },
-  { label: "A function of this database", value: "existing" },
-  ...(templates.value.length > 0 ? [{ label: "A new function from a template", value: "template" }] : []),
+  { label: t("hypertable_design.none"), value: "none" },
+  { label: t("hypertable_design.existing_function"), value: "existing" },
+  ...(templates.value.length > 0 ? [{ label: t("hypertable_design.template_function"), value: "template" }] : []),
 ])
 const others = computed(() =>
   design.columnChoices.value.filter((choice) => choice.value !== hyper.value?.timeColumnId)
 )
 const indexes = computed(() => [
-  { label: "None", value: "" },
-  ...design.draft.indexes.map((index) => ({ label: index.name || "Automatic index name", value: index.id })),
+  { label: t("hypertable_design.none"), value: "" },
+  ...design.draft.indexes.map((index) => ({ label: index.name || t("table_design.automatic_index_name"), value: index.id })),
 ])
-const segmentModes = [
-  { label: "Chosen by TimescaleDB", value: "default" },
-  { label: "None", value: "none" },
-  { label: "These columns", value: "columns" },
-]
-const orderModes = [
-  { label: "Chosen by TimescaleDB", value: "default" },
-  { label: "These columns", value: "columns" },
-]
+const segmentModes = sparseModes
+const orderModes = computed(() => [
+  { label: t("hypertable_design.chosen_by_timescale"), value: "default" },
+  { label: t("hypertable_design.these_columns"), value: "columns" },
+])
 
 function toggle(on: boolean) {
   if (!on) {
@@ -140,10 +126,10 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
   const current = hyper.value
   if (current === null) return []
   return [
-    { key: "retention", label: "Drop chunks older than", age: current.retention, disabled: false },
+    { key: "retention", label: t("hypertable_design.drop_older"), age: current.retention, disabled: false },
     {
       key: "columnstore-policy",
-      label: "Compress chunks older than",
+      label: t("hypertable_design.compress_older"),
       age: current.columnstorePolicy,
       disabled: !current.columnstore,
     },
@@ -164,7 +150,7 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
     </AppBanner>
     <AppToggle
       :model-value="hyper !== null"
-      label="Create as a hypertable"
+      :label="t('table_design.hypertable.create')"
       :disable="!offer?.available"
       data-testid="table-hypertable"
       @update:model-value="toggle"
@@ -177,29 +163,27 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
         {{ missing }}
       </AppBanner>
       <p class="inspector__note">
-        TimescaleDB adds no index of its own: the time index, newest first, is one of the table's
-        indexes and can be removed like any other. Keys must hold the time column and every hash
-        column.
+        {{ t('table_design.hypertable.note') }}
       </p>
 
       <section class="inspector__group">
         <AppSelect
           v-model="hyper.timeColumnId"
           :options="temporal"
-          label="Time column"
+          :label="t('hypertable_design.chunks.time_column')"
           data-testid="hypertable-time-column"
         />
         <div class="inspector__pair">
           <AppNumberInput
             v-model="hyper.intervalAmount"
-            :label="integer ? 'Each chunk covers, in values' : 'Each chunk covers'"
+            :label="integer ? t('hypertable_design.chunks.covers_values') : t('hypertable_design.chunks.covers')"
             data-testid="hypertable-interval"
           />
           <AppSelect
             v-if="!integer"
             v-model="hyper.intervalUnit"
             :options="intervalUnits"
-            label="Unit"
+            :label="t('hypertable_design.chunks.unit')"
           />
         </div>
         <div
@@ -210,16 +194,16 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
           <AppSelect
             v-model="item.columnId"
             :options="others"
-            label="Hash column"
+            :label="t('hypertable_design.chunks.hash_column')"
           />
           <AppNumberInput
             v-model="item.partitions"
-            label="Partitions"
+            :label="t('hypertable_design.chunks.partitions')"
           />
           <span class="inspector__cell">
             <AppIconButton
               :icon="appIcons.deleteOutline"
-              tooltip="Remove this hash dimension"
+              :tooltip="t('hypertable_design.chunks.remove_hash')"
               @click="hyper.hash.splice(at, 1)"
             />
           </span>
@@ -228,7 +212,7 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
           <AppButton
             variant="quiet"
             :icon="appIcons.add"
-            label="Hash dimension"
+            :label="t('hypertable_design.chunks.hash_dimension')"
             @click="hyper.hash.push({ columnId: '', partitions: 4 })"
           />
         </div>
@@ -237,26 +221,26 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
       <section class="inspector__group">
         <AppToggle
           v-model="hyper.columnstore"
-          label="Columnstore"
+          :label="t('hypertable_design.columnstore.title')"
           data-testid="hypertable-columnstore"
         />
         <template v-if="hyper.columnstore">
           <AppRadioGroup
             v-model="hyper.segmentMode"
             :options="segmentModes"
-            label="Segment by"
+            :label="t('hypertable_design.columnstore.segment_by')"
           />
           <AppSelect
             v-if="hyper.segmentMode === 'columns'"
             v-model="hyper.segmentColumnIds"
             :options="others"
-            label="Segment columns"
+            :label="t('hypertable_design.columnstore.segment_columns')"
             multiple
           />
           <AppRadioGroup
             v-model="hyper.orderMode"
             :options="orderModes"
-            label="Order by"
+            :label="t('hypertable_design.columnstore.order_by')"
           />
           <template v-if="hyper.orderMode === 'columns'">
             <div
@@ -267,24 +251,24 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
               <AppSelect
                 v-model="key.columnId"
                 :options="design.columnChoices.value"
-                label="Column"
+                :label="t('table_design.column_label')"
               />
               <span class="inspector__cell">
                 <AppCheckbox
                   v-model="key.descending"
-                  label="Descending"
+                  :label="t('hypertable_design.columnstore.descending')"
                 />
               </span>
               <span class="inspector__cell">
                 <AppCheckbox
                   v-model="key.nullsFirst"
-                  label="Nulls first"
+                  :label="t('hypertable_design.columnstore.nulls_first')"
                 />
               </span>
               <span class="inspector__cell">
                 <AppIconButton
                   :icon="appIcons.deleteOutline"
-                  tooltip="Remove this order column"
+                  :tooltip="t('hypertable_design.columnstore.remove_order')"
                   @click="hyper.orderKeys.splice(at, 1)"
                 />
               </span>
@@ -293,7 +277,7 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
               <AppButton
                 variant="quiet"
                 :icon="appIcons.add"
-                label="Order column"
+                :label="t('hypertable_design.columnstore.order_column')"
                 @click="hyper.orderKeys.push({ columnId: '', descending: false, nullsFirst: false })"
               />
             </div>
@@ -302,7 +286,7 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
             <AppRadioGroup
               v-model="hyper.sparseMode"
               :options="sparseModes"
-              label="Sparse indexes"
+              :label="t('hypertable_design.columnstore.sparse_indexes')"
               data-testid="hypertable-sparse-mode"
             />
             <template v-if="hyper.sparseMode === 'columns'">
@@ -314,17 +298,17 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
                 <AppSelect
                   v-model="item.columnId"
                   :options="design.columnChoices.value"
-                  label="Column"
+                  :label="t('table_design.column_label')"
                 />
                 <AppSelect
                   v-model="item.kind"
                   :options="sparseKinds"
-                  label="Kind"
+                  :label="t('hypertable_design.columnstore.kind')"
                 />
                 <span class="inspector__cell">
                   <AppIconButton
                     :icon="appIcons.deleteOutline"
-                    tooltip="Remove this sparse index"
+                    :tooltip="t('hypertable_design.columnstore.remove_sparse')"
                     @click="hyper.sparseIndexes.splice(at, 1)"
                   />
                 </span>
@@ -333,7 +317,7 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
                 <AppButton
                   variant="quiet"
                   :icon="appIcons.add"
-                  label="Sparse index"
+                  :label="t('hypertable_design.columnstore.sparse_index')"
                   @click="hyper.sparseIndexes.push({ columnId: '', kind: 'minmax' })"
                 />
               </div>
@@ -342,7 +326,7 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
           <AppCheckbox
             v-if="!integer"
             v-model="hyper.merge.on"
-            label="Merge chunks as they are compressed"
+            :label="t('hypertable_design.columnstore.merge')"
           />
           <div
             v-if="hyper.merge.on && !integer"
@@ -350,12 +334,12 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
           >
             <AppNumberInput
               v-model="hyper.merge.amount"
-              label="Into chunks of"
+              :label="t('hypertable_design.columnstore.merge_into')"
             />
             <AppSelect
               v-model="hyper.merge.unit"
               :options="intervalUnits"
-              label="Unit"
+              :label="t('hypertable_design.chunks.unit')"
             />
           </div>
         </template>
@@ -368,15 +352,15 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
         <AppSelect
           v-model="hyper.now.mode"
           :options="nowModes"
-          label="integer_now"
-          hint="Age policies on an integer column need a function that says what the current value is"
+          :label="t('hypertable_design.now.label')"
+          :hint="t('table_design.hypertable.now_hint')"
           data-testid="hypertable-now-mode"
         />
         <AppSelect
           v-if="hyper.now.mode === 'existing'"
           v-model="hyper.now.existing"
           :options="clocks"
-          label="Function"
+          :label="t('table_design.function')"
           data-testid="hypertable-now-function"
         />
         <div
@@ -386,13 +370,13 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
           <AppSelect
             v-model="hyper.now.template"
             :options="templates"
-            label="Counts"
+            :label="t('hypertable_design.now.counts')"
             data-testid="hypertable-now-template"
           />
           <AppInput
             v-model="hyper.now.name"
-            label="Function name"
-            hint="Created in the table's schema"
+            :label="t('hypertable_design.now.name')"
+            :hint="t('table_design.hypertable.name_hint')"
             data-testid="hypertable-now-name"
           />
         </div>
@@ -415,28 +399,28 @@ const ages = computed<{ key: string; label: string; age: DraftAge; disabled: boo
           >
             <AppNumberInput
               v-model="item.age.amount"
-              :label="integer ? 'Age, in values' : 'Age'"
+              :label="integer ? t('hypertable_design.policies.age_values') : t('hypertable_design.policies.age')"
               :data-testid="`hypertable-${item.key}-amount`"
             />
             <AppSelect
               v-if="!integer"
               v-model="item.age.unit"
               :options="policyUnits"
-              label="Unit"
+              :label="t('hypertable_design.chunks.unit')"
             />
           </div>
         </template>
         <AppCheckbox
           v-if="offer?.compaction"
           v-model="hyper.compaction"
-          label="Compaction policy: merge small compressed chunks"
+          :label="t('hypertable_design.policies.compaction')"
           :disable="!hyper.columnstore"
           data-testid="hypertable-compaction"
         />
         <AppSelect
           v-model="hyper.reorderIndexId"
           :options="indexes"
-          label="Reorder chunks by index"
+          :label="t('table_design.hypertable.reorder')"
         />
       </section>
     </template>

@@ -11,7 +11,7 @@ from collections.abc import Sequence
 import psycopg
 from psycopg import sql
 
-from app.adapters.actions import ActionRefused, RefusalReason
+from app.adapters.actions import ActionRefused
 from app.adapters.operations import ObservedState, OperationTarget, UnitOutcome
 from app.adapters.postgres.inspection import InspectionReader, PostgresReader
 from app.adapters.postgres.session import PostgresSession
@@ -21,6 +21,7 @@ from app.adapters.postgres.timescale.chunk_storage_plan import (
 )
 from app.adapters.postgres.timescale.plans import ChunkStorage, ChunkStorageUnit
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 # The chunk's live membership in its parent, re-resolved by name for every unit.
 _MEMBER = """
@@ -48,16 +49,20 @@ WHERE chunk.hypertable_schema = %s AND chunk.hypertable_name = %s
 
 # A chunk the source cannot lock quickly is refused rather than waited for; one
 # taking longer than the statement timeout is rolled back and stops the job.
-_REFUSED: dict[str, tuple[RefusalReason, str]] = {
-    "55P03": ("conflict", "This chunk is in use; nothing was converted"),
-    "40P01": ("conflict", "This chunk is in use; nothing was converted"),
-    "57014": (
-        "not_applicable",
-        "The source cancelled converting this chunk after its fifteen minutes; it was rolled back",
-    ),
-    "42501": ("not_applicable", "This connection may not convert this chunk"),
-}
-_UNCONFIRMED = "The connection was lost while this chunk was being converted; its outcome is unknown"
+def _refused(state: str) -> ActionRefused | None:
+    if state in {"55P03", "40P01"}:
+        return ActionRefused("conflict", say("This chunk is in use; nothing was converted"))
+    if state == "57014":
+        return ActionRefused("not_applicable", say(
+            "The source cancelled converting this chunk after its fifteen minutes; it was rolled back",
+        ))
+    if state == "42501":
+        return ActionRefused("not_applicable", say("This connection may not convert this chunk"))
+    return None
+
+
+def _unconfirmed() -> str:
+    return say("The connection was lost while this chunk was being converted; its outcome is unknown")
 
 
 async def convert_chunk(
@@ -90,8 +95,8 @@ async def convert_chunk(
         raise _failure(exc.sqlstate, dispatched) from None
     except AdapterError:
         if dispatched:
-            raise AdapterError("unknown", _UNCONFIRMED) from None
-        raise ActionRefused("not_applicable", "The source could not be reached; nothing was converted") from None
+            raise AdapterError("unknown", _unconfirmed()) from None
+        raise ActionRefused("not_applicable", say("The source could not be reached; nothing was converted")) from None
 
 
 async def member(
@@ -107,40 +112,40 @@ async def member(
             ), inspection=True)
     except TimeoutError:
         raise ActionRefused(
-            "conflict", "The hypertable could not be checked in time; nothing was converted",
+            "conflict", say("The hypertable could not be checked in time; nothing was converted"),
         ) from None
     except (AdapterError, ValueError):
         raise ActionRefused(
-            "not_applicable", "The hypertable could not be checked safely; nothing was converted",
+            "not_applicable", say("The hypertable could not be checked safely; nothing was converted"),
         ) from None
     try:
         unit.require_unchanged(unit_fingerprint)
     except ActionRefused:
         raise ActionRefused(
             "conflict",
-            "The hypertable or its TimescaleDB API changed after review; nothing was converted",
+            say("The hypertable or its TimescaleDB API changed after review; nothing was converted"),
         ) from None
     relation_oid = rows[0].get("relation_oid") if len(rows) == 1 else None
     compressed = rows[0].get("is_compressed") if len(rows) == 1 else None
     if not isinstance(relation_oid, str) or not isinstance(compressed, bool):
-        raise ActionRefused("not_applicable", "This chunk is no longer part of the hypertable")
+        raise ActionRefused("not_applicable", say("This chunk is no longer part of the hypertable"))
     return unit, relation_oid, compressed
 
 
 def _failure(sqlstate: str | None, dispatched: bool) -> Exception:
     state = sqlstate or ""
-    if state in _REFUSED:
-        reason, message = _REFUSED[state]
-        return ActionRefused(reason, message)
+    refused = _refused(state)
+    if refused is not None:
+        return refused
     if not dispatched:
         return ActionRefused(
-            "not_applicable", "The source could not be reached or prepared; nothing was converted",
+            "not_applicable", say("The source could not be reached or prepared; nothing was converted"),
         )
     # Whatever the server itself refused rolled the transaction back; only a
     # lost connection can have lost the answer to COMMIT.
     if not state or state[:2] in {"08", "57", "58"}:
-        return AdapterError("unknown", _UNCONFIRMED)
-    return ActionRefused("not_applicable", "The source refused to convert this chunk")
+        return AdapterError("unknown", _unconfirmed())
+    return ActionRefused("not_applicable", say("The source refused to convert this chunk"))
 
 
 async def observe_chunks(

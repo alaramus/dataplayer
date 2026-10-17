@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import UploadFile
 
 from app.ai.models import AttachmentKind, AttachmentRules
+from app.core.translation import say
 
 MAX_FILES = 5
 # The strictest provider's ceiling for one image (Anthropic's); a larger one
@@ -89,7 +90,9 @@ def _reads_as_text(data: bytes) -> bool:
 
 
 def _size(count: int) -> str:
-    return f"{count // (1024 * 1024)} MB" if count >= 1024 * 1024 else f"{count // 1024} KB"
+    if count >= 1024 * 1024:
+        return say("{count} MB", count=count // (1024 * 1024))
+    return say("{count} KB", count=count // 1024)
 
 
 def accept(raw_name: str | None, data: bytes) -> NewAttachment:
@@ -98,12 +101,18 @@ def accept(raw_name: str | None, data: bytes) -> NewAttachment:
     media_type = image_type(data)
     if media_type is not None:
         if len(data) > MAX_IMAGE_BYTES:
-            raise AttachmentRefused(f"{name} is larger than {_size(MAX_IMAGE_BYTES)}")
+            raise AttachmentRefused(
+                say("{name} is larger than {size}", name=name, size=_size(MAX_IMAGE_BYTES))
+            )
         return NewAttachment(name, "image", media_type, data)
     if len(data) > MAX_TEXT_BYTES:
-        raise AttachmentRefused(f"{name} is larger than {_size(MAX_TEXT_BYTES)} of text")
+        raise AttachmentRefused(
+            say("{name} is larger than {size} of text", name=name, size=_size(MAX_TEXT_BYTES))
+        )
     if not _reads_as_text(data):
-        raise AttachmentRefused(f"{name} is neither text nor a PNG, JPEG, WebP or GIF image")
+        raise AttachmentRefused(
+            say("{name} is neither text nor a PNG, JPEG, WebP or GIF image", name=name)
+        )
     return NewAttachment(name, "text", "text/plain", data)
 
 
@@ -111,7 +120,7 @@ async def read_uploads(files: Sequence[UploadFile]) -> list[NewAttachment]:
     """Every file of one message, each read no further than the largest a file
     may be, so a huge one is refused without being held whole."""
     if len(files) > MAX_FILES:
-        raise AttachmentRefused(f"A message carries at most {MAX_FILES} files")
+        raise AttachmentRefused(say("A message carries at most {count} files", count=MAX_FILES))
     accepted: list[NewAttachment] = []
     total = 0
     for upload in files:
@@ -119,7 +128,10 @@ async def read_uploads(files: Sequence[UploadFile]) -> list[NewAttachment]:
         total += len(data)
         if total > MAX_TOTAL_BYTES:
             raise AttachmentRefused(
-                f"The files of one message come to more than {_size(MAX_TOTAL_BYTES)}"
+                say(
+                    "The files of one message come to more than {size}",
+                    size=_size(MAX_TOTAL_BYTES),
+                )
             )
         accepted.append(accept(upload.filename, data))
     return accepted

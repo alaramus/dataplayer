@@ -234,7 +234,7 @@ test("indexes a column, refuses a unique one that repeats, and drops it again", 
   await page.getByTestId("structure-index-unique").click()
   await page.getByTestId("structure-index-save").click()
   await expect(page.getByTestId("structure-index-blocked")).toContainText(
-    "appear more than once"
+    "more than once"
   )
 
   // The same columns without uniqueness go through, under a name the source
@@ -287,7 +287,7 @@ test("promises uniqueness, refuses what repeats, and points at another table", a
   await page.keyboard.press("Escape")
   await page.getByTestId("structure-constraint-save").click()
   await expect(page.getByTestId("structure-constraint-blocked")).toContainText(
-    "appear more than once"
+    "more than once"
   )
 
   // The same columns as a foreign key: the target says which of its keys may

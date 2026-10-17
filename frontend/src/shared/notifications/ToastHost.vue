@@ -7,6 +7,7 @@ import { computed } from "vue"
 import AppButton from "@/shared/ui/AppButton.vue"
 import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import { bannerLook, toneText } from "@/shared/ui/tokens"
+import { t } from "@/shared/i18n"
 import { notices } from "./notices"
 
 /**
@@ -40,7 +41,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
         key="hidden"
         class="toasts__more"
       >
-        {{ store.hidden.value }} more in Activity
+        {{ t('notifications.toasts.more', { n: store.hidden.value }) }}
       </div>
       <article
         v-for="notice in store.cards.value"
@@ -69,7 +70,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
         />
         <AppIconButton
           :icon="appIcons.close"
-          tooltip="Dismiss"
+          :tooltip="t('notifications.toasts.dismiss')"
           compact
           @click="store.dismiss(notice.id)"
         />

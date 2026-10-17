@@ -4,6 +4,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from "vue"
 import ProseBlock from "@/features/content/markdown/ProseBlock.vue"
 import { renderProse } from "@/features/content/markdown/render"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppIconButton, AppSelect, AppSpinner, appIcons, useToast } from "@/shared/ui"
 
 import { useGuidePage, useGuidePages } from "./api"
@@ -54,7 +55,7 @@ function follow(event: MouseEvent) {
   event.preventDefault()
   const key = pageOfLink(link.dataset.relativeLink ?? "")
   if (key === null) {
-    toast.info("That link does not lead to a page of the guide")
+    toast.info(t("onboarding.guide.not_a_page"))
     return
   }
   shownGuidePage.value = key
@@ -69,7 +70,7 @@ function follow(event: MouseEvent) {
     <div class="guide-window__bar">
       <AppIconButton
         :icon="appIcons.arrowBack"
-        tooltip="Back"
+        :tooltip="t('catalog.common.back')"
         :disable="history.length === 0"
         data-testid="guide-back"
         @click="back"
@@ -93,7 +94,7 @@ function follow(event: MouseEvent) {
         v-else-if="page.isError.value"
         tone="error"
       >
-        {{ messageOf(page.error.value, "This page of the guide could not be read") }}
+        {{ messageOf(page.error.value, t('onboarding.guide.read_failed')) }}
       </AppBanner>
       <ProseBlock
         v-else

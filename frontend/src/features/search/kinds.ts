@@ -1,4 +1,5 @@
 import type { ObjectTarget } from "@/client"
+import { t } from "@/shared/i18n"
 import { appIcons } from "@/shared/ui/icons"
 
 /**
@@ -24,22 +25,11 @@ export const OBJECT_ICONS: Record<ObjectType, string> = {
   tab_group: appIcons.bookmarks,
 }
 
-export const OBJECT_LABELS: Record<ObjectType, string> = {
-  saved_query: "Saved query",
-  pipeline: "Pipeline",
-  dashboard: "Dashboard",
-  conversation: "Conversation",
-  quick_chat: "Quick chat",
-  project: "Project",
-  service: "Service",
-  ssh_key: "SSH key",
-  guide_page: "Guide page",
-  source_type: "Source type",
-  tab: "Tab",
-  tab_group: "Tab group",
+export function objectLabel(type: ObjectType): string {
+  return t(`search.kinds.${type}`)
 }
 
 /** Whether a fact's kind is one of the application's own. */
 export function isObjectType(kind: string): kind is ObjectType {
-  return Object.hasOwn(OBJECT_LABELS, kind)
+  return Object.hasOwn(OBJECT_ICONS, kind)
 }

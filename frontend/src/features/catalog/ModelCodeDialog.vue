@@ -6,6 +6,7 @@ import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useDownloadAction } from "@/features/catalog/api"
 import { drawnBy } from "@/features/catalog/modelCode"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { client } from "@/client/client.gen"
 import { copyText } from "@/shared/clipboard"
 import { filenameFromDisposition, saveBrowserDownload } from "@/shared/download"
@@ -58,7 +59,7 @@ const drawnAt = computed(() => drawnBy(dialect.value))
 async function write() {
   const targets = props.nodeIds.filter((id): id is string => id !== null && id !== "")
   if (targets.length === 0) {
-    failure.value = "Choose what to describe"
+    failure.value = t("catalog.model_code.choose")
     return
   }
   loading.value = true
@@ -72,7 +73,7 @@ async function write() {
       params: { dialect: wanted },
     })
     const answer = await fetch(client.buildUrl({ url: ready.download_url }))
-    if (!answer.ok) throw new Error(`The source answered ${String(answer.status)}`)
+    if (!answer.ok) throw new Error(t("catalog.model_code.source_answered", { status: answer.status }))
     const body = await answer.text()
     // A dialect chosen while this was in flight wins: the answer that arrives
     // last is not the answer somebody is looking at.
@@ -85,7 +86,7 @@ async function write() {
   } catch (cause) {
     if (wanted !== dialect.value) return
     text.value = ""
-    failure.value = messageOf(cause, "The model could not be written")
+    failure.value = messageOf(cause, t("catalog.model_code.failed"))
   } finally {
     loading.value = false
   }
@@ -101,7 +102,7 @@ watch(
 
 async function copy() {
   await copyText(text.value)
-  toast.success(`${filename.value} copied`)
+  toast.success(t("catalog.model_code.copied", { name: filename.value }))
 }
 
 function save() {
@@ -128,7 +129,7 @@ function close() {
     :model-value="modelValue"
     size="wide-form"
     sizing="stable"
-    :title="`Model as code — ${label}`"
+    :title="t('catalog.model_code.title', { name: label })"
     data-testid="model-code-dialog"
     @update:model-value="close"
   >
@@ -138,7 +139,7 @@ function close() {
       <div
         class="model-code__dialects"
         role="tablist"
-        aria-label="Model dialect"
+        :aria-label="t('catalog.model_code.dialect')"
         data-testid="model-code-dialects"
       >
         <AppButton
@@ -198,20 +199,20 @@ function close() {
       />
       <AppButton
         variant="secondary"
-        label="Copy"
+        :label="t('catalog.actions.copy')"
         :disable="text === ''"
         data-testid="model-code-copy"
         @click="copy"
       />
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('catalog.common.close')"
         data-testid="model-code-close"
         @click="close"
       />
       <AppButton
         variant="primary"
-        label="Save"
+        :label="t('catalog.common.save')"
         :disable="text === ''"
         data-testid="model-code-save"
         @click="save"

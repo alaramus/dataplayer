@@ -5,6 +5,7 @@ import type { JobPublic } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
 import { jobsKey } from "@/features/activity/api"
 import { backupsKey, servicesKey } from "@/features/services/api"
+import { t } from "@/shared/i18n"
 import { realtime } from "@/shared/realtime/client"
 
 /**
@@ -102,9 +103,13 @@ export function progressOf(job: {
   message: string | null
 } | null | undefined): string {
   if (job === null || job === undefined) return ""
-  if (TERMINAL.has(job.state)) return job.message ?? job.state
-  if (job.step === null) return "Starting"
-  return `${job.step} (${job.step_index} of ${job.step_count})`
+  if (TERMINAL.has(job.state)) return job.message ?? stateWord(job.state)
+  if (job.step === null) return t("services.jobs.starting")
+  return t("services.jobs.step", { step: job.step, index: job.step_index, count: job.step_count })
+}
+
+function stateWord(state: string): string {
+  return STATES.has(state) ? t(`services.jobs.states.${state as JobPublic["state"]}`) : state
 }
 
 export function isWorking(job: { state: string } | null | undefined): boolean {

@@ -329,7 +329,7 @@ async def test_a_read_grant_does_not_edit_rows(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "write"
+    assert response.json()["detail"]["code"] == "access.needs_write"
 
 
 async def test_a_write_grant_does_not_change_the_shape(
@@ -354,7 +354,7 @@ async def test_a_write_grant_does_not_change_the_shape(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "structure"
+    assert response.json()["detail"]["code"] == "access.needs_structure"
 
 
 async def test_a_write_grant_is_told_the_shape_is_not_theirs(
@@ -441,7 +441,7 @@ async def test_a_write_grant_may_not_change_nullability(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "structure"
+    assert response.json()["detail"]["code"] == "access.needs_structure"
 
 
 async def test_a_write_grant_may_not_change_a_column_type(
@@ -461,7 +461,7 @@ async def test_a_write_grant_may_not_change_a_column_type(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "structure"
+    assert response.json()["detail"]["code"] == "access.needs_structure"
 
 
 async def test_a_write_grant_may_not_index_a_relation(
@@ -486,7 +486,7 @@ async def test_a_write_grant_may_not_index_a_relation(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "structure"
+    assert response.json()["detail"]["code"] == "access.needs_structure"
 
 
 async def test_a_write_grant_is_not_offered_index_methods(
@@ -531,7 +531,7 @@ async def test_a_write_grant_may_not_constrain_a_relation(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "structure"
+    assert response.json()["detail"]["code"] == "access.needs_structure"
 
 
 async def test_no_grant_reaches_the_connection_itself(
@@ -595,7 +595,7 @@ async def test_no_grant_sends_the_owners_password_to_another_host(
     assert trap.passwords == []
     assert trap.connections == 0
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "own"
+    assert response.json()["detail"]["code"] == "access.needs_own"
 
 
 async def test_a_read_grant_checks_the_connection_as_stored(
@@ -708,7 +708,7 @@ async def test_a_read_grant_cannot_run_a_file_action(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "write"
+    assert response.json()["detail"]["code"] == "actions.needs_write"
 
 
 async def test_a_read_grant_can_run_the_download_action(
@@ -779,7 +779,7 @@ async def test_a_read_grant_can_copy_a_file_out_but_not_move_it(
     assert not offer["available"]
     assert offer["reason"] == "This needs write access to the copied connection"
     assert moved.status_code == 403
-    assert moved.json()["detail"]["required"] == "write"
+    assert moved.json()["detail"]["code"] == "access.needs_write"
     # The refused move left the source where it was, so the copy finds it.
     assert copied.status_code == 200, copied.text
     job = copied.json()["job"]
@@ -883,7 +883,7 @@ async def test_a_write_grant_adds_rows_but_cannot_create_a_table(
     assert create["reason"] == "This needs structure access to this connection"
     assert into["available"]
     assert created.status_code == 403
-    assert created.json()["detail"]["required"] == "structure"
+    assert created.json()["detail"]["code"] == "access.needs_structure"
     assert added.status_code == 200, added.text
     assert added.json()["message"] == "1 row added"
 
@@ -905,7 +905,7 @@ async def test_renaming_a_relation_needs_structure(
     )
 
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "structure"
+    assert response.json()["detail"]["code"] == "actions.needs_structure"
 
 
 async def test_loading_a_csv_needs_structure(
@@ -933,7 +933,7 @@ async def test_loading_a_csv_needs_structure(
 
     assert "load_csv" not in {action["name"] for action in offered.json()}
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "structure"
+    assert response.json()["detail"]["code"] == "actions.needs_structure"
 
 
 async def test_dropping_a_relation_needs_structure(
@@ -959,7 +959,7 @@ async def test_dropping_a_relation_needs_structure(
     )
 
     assert dropped.status_code == 403
-    assert dropped.json()["detail"]["required"] == "structure"
+    assert dropped.json()["detail"]["code"] == "actions.needs_structure"
     assert asked.status_code == 403
 
 
@@ -993,7 +993,7 @@ async def test_making_a_role_is_not_offered_to_anybody_who_was_granted_anything(
 
     assert "create_role" not in {action["name"] for action in offered.json()}
     assert response.status_code == 403
-    assert response.json()["detail"]["required"] == "own"
+    assert response.json()["detail"]["code"] == "actions.needs_own"
 
 
 # --- managing the grants themselves ---------------------------------------

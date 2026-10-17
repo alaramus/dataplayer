@@ -1,5 +1,7 @@
 import type { ContentsScopeState, KeepState, Outcome, PlannedCell } from "@/client"
 import { ageLabel } from "@/shared/freshness/freshness"
+import { t } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 
 /**
  * What a kept list of names is said to be (D212). Plain functions, so what a
@@ -8,48 +10,53 @@ import { ageLabel } from "@/shared/freshness/freshness"
 
 export type KeepWindow = NonNullable<KeepState["window_seconds"]>
 
+// Labels are getters, read in the language shown when they are drawn.
 export const KEEP_WINDOWS: readonly { value: KeepWindow; label: string }[] = [
-  { value: 3600, label: "1 hour" },
-  { value: 21600, label: "6 hours" },
-  { value: 86400, label: "1 day" },
-  { value: 604800, label: "1 week" },
+  { value: 3600, get label() { return t("search_index.windows.hour") } },
+  { value: 21600, get label() { return t("search_index.windows.six_hours") } },
+  { value: 86400, get label() { return t("search_index.windows.day") } },
+  { value: 604800, get label() { return t("search_index.windows.week") } },
 ]
 
 export const DEFAULT_WINDOW: KeepWindow = 86400
 
 export function windowName(seconds: number | undefined): string {
-  return KEEP_WINDOWS.find((one) => one.value === seconds)?.label ?? "1 day"
+  return KEEP_WINDOWS.find((one) => one.value === seconds)?.label ?? t("search_index.windows.day")
 }
 
 function count(names: number | undefined): string {
   const many = names ?? 0
-  return `${many.toLocaleString("en-US")} ${many === 1 ? "name" : "names"}`
+  return t("search_index.state.names", { n: formatNumber(many) }, many)
 }
 
 function since(moment: string | null | undefined, now: number): string | null {
   if (!moment) return null
-  return `${ageLabel(now - Date.parse(moment))} ago`
+  return t("search_index.state.ago", { age: ageLabel(now - Date.parse(moment)) })
 }
 
 /** One line: what the list holds, how old it is, and what happened last. */
 export function statusLine(state: KeepState, now: number = Date.now()): string {
   const read = since(state.kept_at, now)
-  const held = read === null ? null : `${count(state.names)}, read ${read}`
+  const held = read === null ? null : t("search_index.state.held", { names: count(state.names), ago: read })
   switch (state.status) {
     case "off":
-      return "Not kept"
+      return t("search_index.state.off")
     case "waiting":
-      return "Waiting for its first reading"
+      return t("search_index.state.waiting")
     case "reading":
-      return held === null ? "Reading names…" : `Reading names again… ${held}`
+      return held === null
+        ? t("search_index.state.reading")
+        : t("search_index.state.reading_again", { held })
     case "kept":
-      return state.stale ? `${held ?? ""} · changed since, reading again soon` : held ?? ""
+      return state.stale ? t("search_index.state.stale", { held: held ?? "" }) : held ?? ""
     case "partial":
       return [held, state.notice].filter(Boolean).join(" · ")
-    case "failed":
+    case "failed": {
+      const reason = state.notice ?? t("search_index.state.unknown_reason")
       return held === null
-        ? `Reading failed: ${state.notice ?? "unknown reason"}`
-        : `Last reading failed: ${state.notice ?? "unknown reason"}. Still using ${held}`
+        ? t("search_index.state.failed", { reason })
+        : t("search_index.state.failed_last", { reason, held })
+    }
   }
 }
 
@@ -96,19 +103,22 @@ export function offersKeeping(
 
 /** A folder whose text is kept, by its path; the empty one is everything. */
 export function folderName(nodeId: string): string {
-  return nodeId === "" ? "The whole connection" : nodeId
+  return nodeId === "" ? t("search_index.state.whole_connection") : nodeId
 }
 
 /** What is kept of one folder's files, and what the rule left out. */
 export function contentsLine(scope: ContentsScopeState, now: number = Date.now()): string {
-  if (!scope.read_at) return "Waiting for its first reading"
+  if (!scope.read_at) return t("search_index.state.waiting")
   const files = scope.files ?? 0
   const parts = [
-    `${files.toLocaleString("en-US")} ${files === 1 ? "file" : "files"}, read ${since(scope.read_at, now) ?? ""}`,
+    t("search_index.state.files_read", {
+      files: t("search_index.state.files", { n: formatNumber(files) }, files),
+      ago: since(scope.read_at, now) ?? "",
+    }),
   ]
   const unread = scope.unread ?? 0
   if (unread > 0) {
-    parts.push(`${unread.toLocaleString("en-US")} not text or too large`)
+    parts.push(t("search_index.state.unread", { n: formatNumber(unread) }))
   }
   if (scope.notice) parts.push(scope.notice)
   return parts.join(" · ")
@@ -120,16 +130,24 @@ export function summaryLine(state: KeepState, now: number = Date.now()): string 
   const names = statusLine(state, now)
   if (scopes.length === 0) return names
   const files = scopes.reduce((total, scope) => total + (scope.files ?? 0), 0)
-  const folders = `${scopes.length.toLocaleString("en-US")} ${scopes.length === 1 ? "folder" : "folders"}`
-  return `${names} · text of ${files.toLocaleString("en-US")} ${files === 1 ? "file" : "files"} in ${folders}`
+  return t("search_index.state.summary", {
+    names,
+    files: t("search_index.state.summary_files", { n: formatNumber(files) }, files),
+    folders: t("search_index.state.summary_folders", { n: formatNumber(scopes.length) }, scopes.length),
+  })
 }
 
 /** How much of what is kept the model has read, or that no model runs (D220). */
 export function meaningLine(state: KeepState): string {
   const meaning = state.meaning
-  if (!meaning) return "Search by meaning is not running on this server"
-  const passages = meaning.passages.toLocaleString("en-US")
-  if (meaning.passages === 0) return `By meaning: nothing to read yet · ${meaning.model}`
-  if (meaning.vectors >= meaning.passages) return `By meaning: all ${passages} passages read · ${meaning.model}`
-  return `By meaning: ${meaning.vectors.toLocaleString("en-US")} of ${passages} passages read · ${meaning.model}`
+  if (!meaning) return t("search_index.state.meaning_off")
+  const passages = formatNumber(meaning.passages)
+  const model = meaning.model
+  if (meaning.passages === 0) return t("search_index.state.meaning_nothing", { model })
+  if (meaning.vectors >= meaning.passages) return t("search_index.state.meaning_all", { n: passages, model })
+  return t(
+    "search_index.state.meaning_some",
+    { vectors: formatNumber(meaning.vectors), n: passages, model },
+    meaning.passages
+  )
 }

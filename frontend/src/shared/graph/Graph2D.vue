@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useId } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppTooltip } from "@/shared/ui"
 
 import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, labelSpots, portAnchors, zoomAt } from "./layout"
 import { accentIndex, edgesOf, neighborsOf } from "./model"
 import type { Camera2, GraphDocument, GraphEdge, GraphPort, GraphSelection, Point2 } from "./model"
+
+// Out of the template: no-raw-text reads the empty string there as a word.
+const separator = (edge: GraphEdge) => (edge.badge && edge.label ? " · " : "")
 
 const props = withDefaults(defineProps<{
   graph: GraphDocument
@@ -204,7 +208,7 @@ defineExpose({ fit, zoom, focus })
     :class="{ 'graph-2d--dragging': dragging, 'graph-2d--linkable': linkable }"
     data-testid="graph-2d"
     tabindex="0"
-    aria-label="Graph canvas. Drag the background to pan, scroll to zoom."
+    :aria-label="t('graph.canvas_2d')"
     @wheel.prevent="wheel"
     @pointerdown="start($event)"
     @pointermove="move"
@@ -221,7 +225,7 @@ defineExpose({ fit, zoom, focus })
         class="graph-2d__edges"
         width="1"
         height="1"
-        aria-label="Connections"
+        :aria-label="t('graph.edges')"
       >
         <!-- One arrowhead per colour a line takes: a marker does not take
              the colour of the line it ends. -->
@@ -288,8 +292,7 @@ defineExpose({ fit, zoom, focus })
           class="graph-2d__badge"
           :class="{ 'graph-2d__badge--caution': item.edge.caution }"
           :data-testid="`graph-edge-badge-${item.edge.id}`"
-        >{{ item.edge.badge }}<AppTooltip v-if="item.edge.caution">{{ item.edge.caution }}</AppTooltip></span>{{
-          item.edge.badge && item.edge.label ? " · " : "" }}{{ item.edge.label }}</span>
+        >{{ item.edge.badge }}<AppTooltip v-if="item.edge.caution">{{ item.edge.caution }}</AppTooltip></span>{{ separator(item.edge) }}{{ item.edge.label }}</span>
       </template>
       <article
         v-for="node in graph.nodes"
@@ -312,7 +315,7 @@ defineExpose({ fit, zoom, focus })
         >
           <div class="graph-node__title">
             <strong :title="node.label">{{ node.label }}</strong>
-            <span :title="node.caption">{{ node.caption || `${node.rows.length} fields` }}</span>
+            <span :title="node.caption">{{ node.caption || t('catalog.count.field', { n: node.rows.length }, node.rows.length) }}</span>
           </div>
           <!-- A producer's commands for its card. Out of the head's gestures:
                a press here neither drags the card nor selects it. -->

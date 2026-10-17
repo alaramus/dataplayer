@@ -178,7 +178,7 @@ async def test_a_service_that_already_works_is_not_retried(
     )
 
     assert again.status_code == 409
-    assert "remove it instead" in again.json()["detail"]["message"]
+    assert again.json()["detail"]["code"] == "services.already_made"
 
 
 @pytest.mark.usefixtures("engine")
@@ -203,7 +203,7 @@ async def test_a_service_whose_connection_was_deleted_is_not_retried_either(
     )
 
     assert again.status_code == 409
-    assert "remove it instead" in again.json()["detail"]["message"]
+    assert again.json()["detail"]["code"] == "services.already_made"
 
 
 # --- stopping --------------------------------------------------------------
@@ -515,7 +515,7 @@ async def test_one_person_may_hold_only_so_many_services(
         await _wait(second["job"]["id"])
 
     assert third.status_code == 409
-    assert "remove one before starting another" in third.json()["detail"]["message"]
+    assert third.json()["detail"]["code"] == "services.too_many"
 
 
 @pytest.mark.usefixtures("engine")

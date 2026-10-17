@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppForm, AppRadioGroup } from "@/shared/ui"
 import type { RadioOption } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -30,18 +31,25 @@ const scope = ref<DownloadScope>("page")
 
 const scopes = computed<RadioOption[]>(() => [
   {
-    label: "Current page",
+    label: t("grid.download.page"),
     value: "page",
-    description: `${props.pageRange} · ${props.columnCount} visible columns`,
+    description: t("grid.download.page_description", {
+      range: props.pageRange,
+      columns: t("grid.download.visible_columns", { n: props.columnCount }, props.columnCount),
+    }),
   },
   {
-    label: "All matching rows",
+    label: t("grid.download.all"),
     value: "all",
     description: !props.allSupported
-      ? props.allReason ?? "This source cannot export all matching rows"
+      ? props.allReason ?? t("grid.download.all_unsupported")
       : props.allDescription ??
-        `${props.filterCount === 0 ? "The whole relation" : `${props.filterCount} active filters`}` +
-          " · streamed rather than held in memory",
+        t("grid.download.all_description", {
+          what:
+            props.filterCount === 0
+              ? t("grid.download.whole_relation")
+              : t("grid.download.active_filters", { n: props.filterCount }, props.filterCount),
+        }),
     disable: !props.allSupported,
   },
 ])
@@ -61,8 +69,8 @@ watch(
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Download CSV"
-    subtitle="The visible columns stay in their current order"
+    :title="t('grid.download.title')"
+    :subtitle="t('grid.download.subtitle')"
     size="md"
     sizing="content"
     data-testid="grid-download-dialog"
@@ -71,7 +79,7 @@ watch(
     <AppForm layout="section">
       <AppRadioGroup
         :model-value="scope"
-        aria-label="Rows"
+        :aria-label="t('grid.download.rows')"
         :options="scopes"
         data-testid="download-scope"
         @update:model-value="chooseScope"
@@ -79,7 +87,7 @@ watch(
     </AppForm>
     <template #actions>
       <AppButton
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         variant="quiet"
         :disable="running"
         @click="emit('update:modelValue', false)"
@@ -87,14 +95,14 @@ watch(
       <!-- Two buttons rather than one, because they are two different things
            to want: the file, or a copy of it among your own files. -->
       <AppButton
-        label="Save to my files"
+        :label="t('grid.download.save_to_files')"
         variant="secondary"
         :loading="running"
         data-testid="grid-download-keep"
         @click="emit('run', scope, 'files')"
       />
       <AppButton
-        label="Download"
+        :label="t('grid.download.run')"
         :loading="running"
         data-testid="grid-download-run"
         @click="emit('run', scope, 'browser')"

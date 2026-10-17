@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue"
 
 import type { MetricsCatalog } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppEmptyState, AppSpinner, AppTree } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -75,9 +76,9 @@ function addPreset(widgets: Widget[]) {
 
 const summary = computed(() => {
   const count = drafts.value.length
-  if (count === 0) return "Tick the series to draw"
-  const widgets = `${String(count)} widget${count === 1 ? "" : "s"}`
-  return count > props.room ? `${widgets}; ${String(props.room)} fit on this dashboard` : widgets
+  if (count === 0) return t("dashboards.add.tick")
+  const widgets = t("dashboards.add.widgets", { n: count }, count)
+  return count > props.room ? t("dashboards.add.widgets_fit", { widgets, room: props.room }) : widgets
 })
 
 function add() {
@@ -89,7 +90,7 @@ function add() {
 <template>
   <WindowDialog
     v-model="open"
-    title="Add widgets"
+    :title="t('dashboards.add.title')"
     size="wide-form"
     sizing="stable"
     data-testid="add-widgets"
@@ -100,7 +101,7 @@ function add() {
       <AppEmptyState
         v-if="nodes.length === 0 || nodes.every((source) => (source.children ?? []).length === 0)"
         icon="sensors_off"
-        text="Nothing has reported anything yet. Register an agent, or switch a connection's reporting on, in Sources."
+        :text="t('dashboards.add.nothing_reported')"
       />
       <div
         v-else
@@ -110,12 +111,12 @@ function add() {
         <span
           v-if="target === null"
           class="add-widgets__hint"
-        >Select a host or a connection to see its ready-made layouts, or tick what to draw.</span>
+        >{{ t('dashboards.add.select_hint') }}</span>
         <AppSpinner v-else-if="presets.isPending.value" />
         <span
           v-else-if="presets.isError.value"
           class="add-widgets__hint"
-        >{{ messageOf(presets.error.value, "The layouts could not be read") }}</span>
+        >{{ messageOf(presets.error.value, t('dashboards.add.layouts_failed')) }}</span>
         <template v-else>
           <div
             v-for="preset in presets.data.value ?? []"
@@ -123,14 +124,20 @@ function add() {
             class="add-widgets__preset"
           >
             <div class="add-widgets__preset-text">
-              <span>{{ preset.name }} for {{ target.label }}</span>
-              <span class="add-widgets__hint">{{ preset.description }} {{ preset.widgets.length }} of {{ preset.total }} widgets.</span>
+              <span>{{ t('dashboards.add.preset_for', { name: preset.name, target: target.label }) }}</span>
+              <span class="add-widgets__hint">{{
+                t('dashboards.add.preset_count', {
+                  description: preset.description,
+                  n: preset.widgets.length,
+                  total: preset.total,
+                }, preset.total)
+              }}</span>
             </div>
             <AppButton
               variant="secondary"
               size="sm"
               :icon="appIcons.dashboardCustomize"
-              label="Add layout"
+              :label="t('dashboards.add.add_layout')"
               :disable="preset.widgets.length === 0 || room === 0"
               :data-testid="`add-preset-${preset.key}`"
               @click="addPreset(preset.widgets)"
@@ -162,17 +169,17 @@ function add() {
       <span class="add-widgets__summary">{{ summary }}</span>
       <AppButton
         variant="quiet"
-        label="Sources"
+        :label="t('dashboards.common.sources')"
         :icon="appIcons.sensors"
         @click="emit('agents')"
       />
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('dashboards.common.cancel')"
         @click="open = false"
       />
       <AppButton
-        label="Add"
+        :label="t('dashboards.add.add')"
         :disable="drafts.length === 0 || room === 0"
         data-testid="add-widgets-confirm"
         @click="add"

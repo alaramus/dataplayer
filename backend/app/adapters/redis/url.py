@@ -14,6 +14,8 @@ directions against each other.
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
+from app.core.translation import say
+
 SCHEME = "redis"
 # The scheme for a TLS connection. Recognised so that pasting one gets an
 # answer about what is missing rather than a silent plaintext connection.
@@ -75,17 +77,17 @@ def options_from_url(url: str) -> dict[str, Any]:
     """
     parsed = urlsplit(url.strip())
     if parsed.scheme == TLS_SCHEME:
-        raise ValueError("This connection does not do TLS yet")
+        raise ValueError(say("This connection does not do TLS yet"))
     if parsed.scheme != SCHEME:
-        raise ValueError("That is not a Redis connection string")
+        raise ValueError(say("That is not a Redis connection string"))
     if not parsed.hostname:
-        raise ValueError("The connection string names no host")
+        raise ValueError(say("The connection string names no host"))
 
     options: dict[str, Any] = {"host": parsed.hostname}
     try:
         port = parsed.port
     except ValueError:
-        raise ValueError("The connection string names no usable port") from None
+        raise ValueError(say("The connection string names no usable port")) from None
     options["port"] = port if port is not None else DEFAULT_PORT
     options["database"] = _database_of(parsed.path, parsed.query)
 
@@ -117,7 +119,7 @@ def _database_of(path: str, query: str) -> int:
     try:
         database = int(written)
     except ValueError:
-        raise ValueError("The connection string names no usable database") from None
+        raise ValueError(say("The connection string names no usable database")) from None
     if not 0 <= database <= MAX_DATABASE:
-        raise ValueError(f"A database number is between 0 and {MAX_DATABASE}")
+        raise ValueError(say("A database number is between 0 and {top}", top=MAX_DATABASE))
     return database

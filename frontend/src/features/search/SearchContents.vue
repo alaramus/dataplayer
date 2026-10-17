@@ -7,6 +7,7 @@ import { startedInThisTab } from "@/features/activity/transfers"
 import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useCancelJob } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppCheckbox, AppOption, useConfirm, useToast } from "@/shared/ui"
 
 import { placeSentence, rememberContentsWords } from "./contents"
@@ -60,12 +61,10 @@ function pick(connectorId: string, on: boolean) {
 async function agreedToRead(): Promise<boolean> {
   if (!shouldAsk(localStorage)) return true
   return await confirm({
-    title: "Search inside files",
-    message:
-      "Every file in the chosen connections will be opened and read, which can " +
-      "take minutes. Binary files and files over 8 MB (1 MB over SSH) are skipped.",
-    confirmLabel: "Search inside",
-    rememberLabel: "Do not ask again",
+    title: t("search.contents.confirm_title"),
+    message: t("search.contents.confirm_message"),
+    confirmLabel: t("search.contents.confirm"),
+    rememberLabel: t("search.contents.remember"),
     onRemember: () => {
       rememberAnswer(localStorage, false)
     },
@@ -86,7 +85,7 @@ async function begin() {
     jobId.value = job.id
     choosing.value = false
   } catch (cause) {
-    toast.error(messageOf(cause, "The search inside files could not be started"))
+    toast.error(messageOf(cause, t("search.contents.start_failed")))
   } finally {
     starting.value = false
   }
@@ -106,17 +105,25 @@ const expired = computed(() => answer.value !== null && !answer.value.held)
 
 const summary = computed(() => {
   const shown = answer.value
-  if (shown === null) return found.isError.value ? "The matches could not be read" : ""
-  if (!shown.held) return "These matches are no longer held"
+  if (shown === null) return found.isError.value ? t("search.contents.read_failed") : ""
+  if (!shown.held) return t("search.contents.expired")
   const count = shown.hits.length
-  const what = count === 0 ? "Nothing found" : count === 1 ? "1 match" : `${String(count)} matches`
-  return running.value ? `Searching inside files… ${what} so far` : `${what} inside files`
+  if (running.value) {
+    return count === 0
+      ? t("search.contents.running_nothing")
+      : t("search.contents.running_matches", { n: count }, count)
+  }
+  return count === 0
+    ? t("search.contents.done_nothing")
+    : t("search.contents.done_matches", { n: count }, count)
 })
 
 const places = computed(() =>
   (answer.value?.places ?? []).flatMap((place) => {
     const said = placeSentence(place)
-    return said === null ? [] : [{ key: place.connector_id, text: `${place.name}: ${said}` }]
+    return said === null
+      ? []
+      : [{ key: place.connector_id, text: t("search.contents.place", { name: place.name, said }) }]
   })
 )
 
@@ -125,7 +132,7 @@ async function stop() {
   try {
     await cancel.mutateAsync(jobId.value)
   } catch (cause) {
-    toast.error(messageOf(cause, "The search could not be stopped"))
+    toast.error(messageOf(cause, t("search.contents.stop_failed")))
   }
 }
 
@@ -141,16 +148,16 @@ const offered = computed(() => props.choices.length > 0 && props.words !== "")
   <section
     v-if="offered || jobId !== null"
     class="search-contents"
-    aria-label="Inside files"
+    :aria-label="t('search.contents.section')"
     data-testid="search-contents"
   >
     <h3 class="search-contents__title">
-      <span>Inside files</span>
+      <span>{{ t('search.contents.section') }}</span>
       <AppButton
         v-if="offered && jobId === null && !choosing"
         variant="quiet"
         size="sm"
-        label="Search inside files"
+        :label="t('search.contents.offer')"
         data-testid="search-contents-offer"
         @click="choosing = true"
       />
@@ -158,7 +165,7 @@ const offered = computed(() => props.choices.length > 0 && props.words !== "")
         v-if="running"
         variant="quiet"
         size="sm"
-        label="Stop"
+        :label="t('search.contents.stop')"
         :loading="cancel.isPending.value"
         data-testid="search-contents-stop"
         @click="stop"
@@ -167,7 +174,7 @@ const offered = computed(() => props.choices.length > 0 && props.words !== "")
         v-if="offered && jobId !== null && !running"
         variant="quiet"
         size="sm"
-        label="Search again"
+        :label="t('search.contents.again')"
         data-testid="search-contents-again"
         @click="again"
       />
@@ -191,7 +198,7 @@ const offered = computed(() => props.choices.length > 0 && props.words !== "")
         <AppButton
           variant="primary"
           size="sm"
-          label="Search inside"
+          :label="t('search.contents.confirm')"
           :disabled="picked.size === 0"
           :loading="starting"
           data-testid="search-contents-start"
@@ -200,7 +207,7 @@ const offered = computed(() => props.choices.length > 0 && props.words !== "")
         <AppButton
           variant="quiet"
           size="sm"
-          label="Cancel"
+          :label="t('catalog.common.cancel')"
           @click="choosing = false"
         />
       </span>

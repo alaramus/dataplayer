@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
 from app.connectors.service import split_options
+from app.core.translation import N_
 from app.jobs.models import JobKind
 from app.jobs.runner import JobHandler
 from app.metrics import crud
@@ -24,12 +25,12 @@ from app.services.readiness import ReadinessProbe, wait_until_ready
 class CreateMetricsStore(CreateService):
     kind: ClassVar[JobKind] = "metrics.store.create"
     steps: ClassVar[tuple[str, ...]] = (
-        "clearing an earlier attempt",
-        "pulling the image",
-        "creating the container",
-        "starting the container",
-        "waiting for it to answer",
-        "saving the metrics store",
+        N_("clearing an earlier attempt"),
+        N_("pulling the image"),
+        N_("creating the container"),
+        N_("starting the container"),
+        N_("waiting for it to answer"),
+        N_("saving the metrics store"),
     )
 
     async def _deliver(

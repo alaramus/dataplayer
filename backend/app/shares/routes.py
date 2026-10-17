@@ -8,7 +8,7 @@ one asks for nothing, and answers what the follower's own standing allows.
 import uuid
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -16,7 +16,9 @@ from app.connectors import crud as connector_crud
 from app.connectors.access import get_or_404, resolve
 from app.connectors.models import Connector
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.realtime.topics import TopicsDep
 from app.shares import crud, topic
 from app.shares.models import (
@@ -51,10 +53,7 @@ def _body_of(share: Share) -> SharedView:
     try:
         return SharedView.model_validate(share.view)
     except ValidationError:
-        raise HTTPException(
-            status_code=409,
-            detail="This link was made by an earlier version of the application",
-        ) from None
+        raise Problem(409, "shares.link_outdated") from None
 
 
 async def _named(
@@ -224,13 +223,13 @@ async def _answerable(
     """
     asked = await crud.request_by_id(session, request_id=request_id)
     if asked is None or asked.state != "pending":
-        raise HTTPException(status_code=404, detail="Request not found")
+        raise Problem(404, "shares.request_not_found")
     connector = await get_or_404(
         session, asked.connector_id, current_user, requires="own"
     )
     requester = await session.get(User, asked.requester_id)
     if requester is None:
-        raise HTTPException(status_code=404, detail="Request not found")
+        raise Problem(404, "shares.request_not_found")
     return asked, requester, connector
 
 
@@ -341,11 +340,11 @@ async def cancel_request(
     """Take back an ask. The person who made it, and nobody else."""
     asked = await crud.request_by_id(session, request_id=request_id)
     if asked is None or asked.state != "pending":
-        raise HTTPException(status_code=404, detail="Request not found")
+        raise Problem(404, "shares.request_not_found")
     if asked.requester_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Request not found")
+        raise Problem(404, "shares.request_not_found")
     await crud.close_request(session, asked=asked, state="cancelled")
-    return Message(message="Request withdrawn")
+    return Message(message=say("Request withdrawn"))
 
 
 @router.post("/{token}/request", response_model=AccessRequestPublic)
@@ -363,19 +362,17 @@ async def request_access(
     """
     share = await crud.by_token(session, token=token)
     if share is None:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise Problem(404, "shares.link_not_found")
     connector = await session.get(Connector, share.connector_id)
     if connector is None:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise Problem(404, "shares.link_not_found")
     held = await connector_crud.get_with_access(
         session, connector_id=share.connector_id, user=current_user
     )
     if held is not None:
         # There is nothing to ask for. The screen resolves the link again and
         # walks in rather than explaining this.
-        raise HTTPException(
-            status_code=409, detail="You already have access to this connection"
-        )
+        raise Problem(409, "shares.already_have_access")
     asked, opened = await crud.open_request(
         session,
         connector_id=share.connector_id,
@@ -410,7 +407,7 @@ async def resolve_share(
     """
     share = await crud.by_token(session, token=token)
     if share is None:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise Problem(404, "shares.link_not_found")
     author = await session.get(User, share.author_id)
     found = await connector_crud.get_with_access(
         session, connector_id=share.connector_id, user=current_user
@@ -454,8 +451,8 @@ async def delete_share(
     """
     share = await crud.by_id(session, share_id=share_id)
     if share is None:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise Problem(404, "shares.link_not_found")
     if share.author_id != current_user.id:
         await get_or_404(session, share.connector_id, current_user, requires="own")
     await crud.delete(session, share=share)
-    return Message(message="Link deleted")
+    return Message(message=say("Link deleted"))

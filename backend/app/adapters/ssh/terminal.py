@@ -13,6 +13,7 @@ import asyncssh
 from app.adapters.protocol import AdapterError
 from app.adapters.ssh.session import SshSession, reduced
 from app.adapters.terminal import TerminalSize
+from app.core.translation import say
 
 # What the browser's terminal understands, and so what `TERM` is on the far
 # side: colours, cursor movement and the alternate screen an editor draws on.
@@ -51,7 +52,7 @@ class SshTerminal:
             connection.close()
             if isinstance(failure, asyncssh.ChannelOpenError):
                 raise AdapterError(
-                    "unknown", "The server did not open a shell for this account"
+                    "unknown", say("The server did not open a shell for this account")
                 ) from None
             if isinstance(failure, asyncssh.Error | OSError):
                 raise reduced(failure) from None

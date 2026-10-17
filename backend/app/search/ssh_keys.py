@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from sqlmodel import col, select
 
 from app.connectors.ssh_keys import SshKey
+from app.core.translation import N_, say
 from app.search.models import (
     Facts,
     Hit,
@@ -37,7 +38,7 @@ MAX_KEYS = 1000
 
 class SshKeys:
     place = ObjectsPlace(provider="ssh_keys")
-    title = "SSH keys"
+    title = N_("SSH keys")
     offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"ssh_key"})
 
@@ -75,7 +76,7 @@ def _hit(key: SshKey, match: Match) -> Hit:
         key=target_key(target),
         target=target,
         title=key.name,
-        detail=f"SSH key · {key.algorithm}",
+        detail=say("SSH key · {algorithm}", algorithm=key.algorithm),
         # No time it changed: a key is renamed in place, so when it was made
         # is not when it last changed.
         facts=Facts(kind="ssh_key"),

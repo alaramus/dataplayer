@@ -21,8 +21,18 @@ from app.connectors import crud, service
 from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys
 from app.core.access import Access, at_least
+from app.core.problems import Problem, ProblemCode
+from app.core.translation import say
 from app.users import storage
 from app.users.models import User
+
+# A code per level, not the level as a parameter (D225).
+NEEDS: dict[Access, ProblemCode] = {
+    "read": "access.needs_read",
+    "write": "access.needs_write",
+    "structure": "access.needs_structure",
+    "own": "access.needs_own",
+}
 
 
 async def resolve(
@@ -48,17 +58,10 @@ async def resolve(
         session, connector_id=connector_id, user=current_user
     )
     if found is None:
-        raise HTTPException(status_code=404, detail="Connector not found")
+        raise Problem(404, "connectors.not_found")
     connector, access = found
     if not at_least(access, requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"This needs {requires} access to the connection",
-                "required": requires,
-                "held": access,
-            },
-        )
+        raise Problem(403, NEEDS[requires])
     return connector, access
 
 
@@ -84,7 +87,7 @@ def adapter_type_or_422(adapter_type: str) -> AdapterType:
             detail=[
                 {
                     "loc": ["body", "adapter_type"],
-                    "msg": f"Unknown adapter type: {adapter_type}",
+                    "msg": say("Unknown adapter type: {name}", name=adapter_type),
                     "type": "value_error",
                 }
             ],
@@ -152,7 +155,7 @@ async def resolve_source(
         # 409 rather than 404: the connector exists and the caller can see it.
         # Nor 403: they hold the level this route asked for, and what is
         # missing is not a right but a switch its owner turned off.
-        raise HTTPException(status_code=409, detail="Connector is disabled")
+        raise Problem(409, "connectors.disabled")
     adapter_type = adapter_type_or_422(connector.adapter_type)
     options = service.merge_options(connector.config, connector.secrets)
     pooling = (

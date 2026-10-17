@@ -16,6 +16,7 @@ from app.adapters.timescale_metadata import (
     TimescaleStatistics,
     UnavailableTimescaleFacts,
 )
+from app.core.translation import say
 
 _FUNCTION = """
 SELECT namespace.nspname AS function_schema
@@ -95,17 +96,17 @@ async def inspect_statistics(
         if isinstance(facts, ContinuousAggregateFacts) else target
     )
     size: TimescaleSize | UnavailableTimescaleFacts = UnavailableTimescaleFacts(
-        reason="TimescaleDB size inspection timed out",
+        reason=say("TimescaleDB size inspection timed out"),
     )
     compression: TimescaleCompression | UnavailableTimescaleFacts = UnavailableTimescaleFacts(
-        reason="TimescaleDB compression inspection timed out",
+        reason=say("TimescaleDB compression inspection timed out"),
     )
     try:
         async with asyncio.timeout(5):
             try:
                 size = await _read(session, ("hypertable_detailed_size",), TimescaleSize, target)
             except (AdapterError, ValueError):
-                size = UnavailableTimescaleFacts(reason="TimescaleDB size could not be inspected safely")
+                size = UnavailableTimescaleFacts(reason=say("TimescaleDB size could not be inspected safely"))
             try:
                 compression = await _read(
                     session, ("hypertable_columnstore_stats", "hypertable_compression_stats"),
@@ -113,7 +114,7 @@ async def inspect_statistics(
                 )
             except (AdapterError, ValueError):
                 compression = UnavailableTimescaleFacts(
-                    reason="TimescaleDB compression statistics could not be inspected safely",
+                    reason=say("TimescaleDB compression statistics could not be inspected safely"),
                 )
     except TimeoutError:
         pass

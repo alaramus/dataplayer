@@ -4,6 +4,7 @@ from pathlib import PurePosixPath
 from typing import Literal
 
 from app.adapters.content import NodeRepresentation
+from app.core.translation import N_, say
 
 DELIMITED_EXTENSIONS: frozenset[str] = frozenset({".csv", ".tsv"})
 JSON_EXTENSIONS: frozenset[str] = frozenset({".json"})
@@ -93,15 +94,21 @@ FileFormat = Literal[
     "opaque",
 ]
 
-TABLE = NodeRepresentation(kind="table", title="View as table")
-TEXT = NodeRepresentation(kind="text", title="View as text")
-JSON = NodeRepresentation(kind="json", title="View JSON")
-JSON_LINES = NodeRepresentation(kind="jsonl", title="View JSON lines")
-IMAGE = NodeRepresentation(kind="image", title="View image")
-MARKDOWN = NodeRepresentation(kind="markdown", title="View as document")
-AUDIO = NodeRepresentation(kind="audio", title="Play")
-VIDEO = NodeRepresentation(kind="video", title="Play")
-PDF = NodeRepresentation(kind="pdf", title="Read")
+# English, kept so and worded where a node is handed out: `worded` (D226).
+TABLE = NodeRepresentation(kind="table", title=N_("View as table"))
+TEXT = NodeRepresentation(kind="text", title=N_("View as text"))
+JSON = NodeRepresentation(kind="json", title=N_("View JSON"))
+JSON_LINES = NodeRepresentation(kind="jsonl", title=N_("View JSON lines"))
+IMAGE = NodeRepresentation(kind="image", title=N_("View image"))
+MARKDOWN = NodeRepresentation(kind="markdown", title=N_("View as document"))
+AUDIO = NodeRepresentation(kind="audio", title=N_("Play"))
+VIDEO = NodeRepresentation(kind="video", title=N_("Play"))
+PDF = NodeRepresentation(kind="pdf", title=N_("Read"))
+
+
+def worded(items: list[NodeRepresentation]) -> list[NodeRepresentation]:
+    """Representations as a node carries them, titled in the request's language."""
+    return [item.model_copy(update={"title": say(item.title)}) for item in items]
 
 
 def format_of(name: str) -> FileFormat:

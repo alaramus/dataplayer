@@ -8,6 +8,7 @@ feature (D197). A dashboard shared with the person names its owner.
 from collections.abc import Sequence
 
 from app.core.access import Access
+from app.core.translation import N_, say
 from app.metrics import crud
 from app.metrics.dashboards import Dashboard, owner_named
 from app.search.models import (
@@ -37,7 +38,7 @@ MAX_DASHBOARDS = 1000
 
 class DashboardNames:
     place = ObjectsPlace(provider="dashboards")
-    title = "Dashboards"
+    title = N_("Dashboards")
     # One shared with the person is somebody else's (D199).
     offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"dashboard"})
@@ -75,7 +76,11 @@ def _hit(dashboard: Dashboard, held: Access, owner: User | None, match: Match) -
         key=target_key(target),
         target=target,
         title=dashboard.name,
-        detail="Dashboard" if shared_by is None else f"Dashboard · shared by {shared_by}",
+        detail=(
+            say("Dashboard")
+            if shared_by is None
+            else say("Dashboard · shared by {owner}", owner=shared_by)
+        ),
         facts=Facts(kind="dashboard", changed_at=dashboard.updated_at, owner=shared_by),
         match=match,
         access=held,

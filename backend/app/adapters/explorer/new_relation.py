@@ -28,11 +28,12 @@ from app.adapters.relation_changes import (
     NewRelationOptions,
     RelationCreated,
 )
+from app.core.translation import N_, say
 
 # One entry, and it is not a choice: a delimited file states no types and every
 # value read out of one comes back as text (D45). Published all the same,
 # because the screen asks the container what it accepts rather than knowing.
-TEXT_COLUMN = ColumnTypeOption(code="text", title="Text", sql="text")
+TEXT_COLUMN = ColumnTypeOption(code="text", title=N_("Text"), sql="text")
 
 # What a name with no delimited extension of its own is given. A file that is
 # not named as one would be written as a table and read back as a document.
@@ -62,22 +63,29 @@ class ExplorerNewRelations:
             raise NodeNotFound(parent_node_id)
         if not found.is_directory:
             return NewRelationOptions(
-                supported=False, reason="A table is written into a folder"
+                supported=False, reason=say("A table is written into a folder")
             )
-        return NewRelationOptions(supported=True, column_type_options=[TEXT_COLUMN])
+        return NewRelationOptions(
+            supported=True,
+            column_type_options=[
+                TEXT_COLUMN.model_copy(update={"title": say(TEXT_COLUMN.title)})
+            ],
+        )
 
     def _create(self, request: CreateRelationRequest) -> CreateRelationResult:
         options = self._options(request.parent_node_id)
         if not options.supported:
-            raise ValueError(options.reason or "This node cannot hold a relation")
+            raise ValueError(options.reason or say("This node cannot hold a relation"))
         for column in request.columns:
             if column.type_code != TEXT_COLUMN.code:
-                raise ValueError(f'Unknown column type "{column.type_code}"')
+                raise ValueError(
+                    say('Unknown column type "{code}"', code=column.type_code)
+                )
 
         name = filename_for(request.name)
         target = self._storage.child(self._storage.place(request.parent_node_id), name)
         if self._storage.entry(target) is not None:
-            raise ValueError(f"{name} is already there")
+            raise ValueError(say("{name} is already there", name=name))
 
         self._write(
             target,
@@ -86,7 +94,7 @@ class ExplorerNewRelations:
         )
         written = self._storage.entry(target)
         if written is None:  # pragma: no cover - the file was just written here
-            raise AdapterError("unknown", "The new file could not be described")
+            raise AdapterError("unknown", say("The new file could not be described"))
         return RelationCreated(
             node=node_of(self._storage, written), inserted=len(request.rows)
         )
@@ -112,7 +120,9 @@ class ExplorerNewRelations:
             try:
                 self._storage.publish(staged, target)
             except FileExistsError:
-                raise ValueError(f"{target.name} is already there") from None
+                raise ValueError(
+                    say("{name} is already there", name=target.name)
+                ) from None
 
 
 def filename_for(name: str) -> str:
@@ -124,7 +134,7 @@ def filename_for(name: str) -> str:
     """
     plain = name.strip()
     if not is_plain_name(plain):
-        raise ValueError("A name must be a single plain name, without separators")
+        raise ValueError(say("A name must be a single plain name, without separators"))
     if format_of(plain) == "delimited":
         return plain
     return f"{plain}{DEFAULT_SUFFIX}"

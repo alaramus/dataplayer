@@ -13,6 +13,7 @@ from app.adapters.explorer.binary import bytes_look_binary
 from app.adapters.explorer.formats import FileFormat, format_of
 from app.adapters.explorer.readers import LogReader
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 # Arrow input lives outside DuckDB's memory limit. These ceilings apply across
 # all logs in one run, before result limits have anything to count.
@@ -74,7 +75,7 @@ class FileReaders:
     def _log(self, path: Path) -> duckdb.DuckDBPyRelation:
         data = self._snapshot(path)
         if bytes_look_binary(data):
-            raise AdapterError("config", "This log contains binary data")
+            raise AdapterError("config", say("This log contains binary data"))
         try:
             page = LogReader().read_snapshot(
                 data,
@@ -86,13 +87,15 @@ class FileReaders:
             # These are the projection's own safe refusals, never driver text.
             raise AdapterError("config", str(exc)) from None
         if page.has_more:
-            raise AdapterError("config", "The logs exceed the SQL input row limit")
+            raise AdapterError("config", say("The logs exceed the SQL input row limit"))
         self._rows += len(page.rows)
         self._cells += len(page.rows) * len(page.columns)
         if self._cells > MAX_LOG_CELLS:
-            raise AdapterError("config", "The logs exceed the SQL input cell limit")
+            raise AdapterError(
+                "config", say("The logs exceed the SQL input cell limit")
+            )
         if not page.columns:
-            raise AdapterError("config", "This log has no columns SQL can read")
+            raise AdapterError("config", say("This log has no columns SQL can read"))
         try:
             for column in page.columns:
                 column.name.encode("utf-8")
@@ -103,11 +106,13 @@ class FileReaders:
                     for cell in row
                 ):
                     raise AdapterError(
-                        "config", "A log value exceeds the SQL input cell size limit"
+                        "config",
+                        say("A log value exceeds the SQL input cell size limit"),
                     )
         except UnicodeEncodeError:
             raise AdapterError(
-                "config", "This log contains text that cannot be represented in UTF-8"
+                "config",
+                say("This log contains text that cannot be represented in UTF-8"),
             ) from None
 
         arrays = []
@@ -132,13 +137,13 @@ class FileReaders:
                     self._bytes += len(chunk)
                     if self._bytes > MAX_LOG_BYTES:
                         raise AdapterError(
-                            "config", "The logs exceed the SQL input byte limit"
+                            "config", say("The logs exceed the SQL input byte limit")
                         )
                     if not chunk:
                         break
                     data.extend(chunk)
         except OSError:
-            raise AdapterError("config", "This log could not be read") from None
+            raise AdapterError("config", say("This log could not be read")) from None
         return bytes(data)
 
 

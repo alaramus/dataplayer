@@ -16,6 +16,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { syntaxColours } from "@/features/content/highlight"
 import { languageFor } from "@/features/content/language"
+import { t } from "@/shared/i18n"
 
 const props = withDefaults(
   defineProps<{
@@ -102,7 +103,7 @@ function jsonLinesDiagnostics(editor: EditorView): Diagnostic[] {
         to: line.to,
         severity: "error",
         source: "JSONL",
-        message: cause instanceof SyntaxError ? cause.message : "Invalid JSON value",
+        message: cause instanceof SyntaxError ? cause.message : t("content.editor.invalid_json"),
       })
     }
   }
@@ -163,7 +164,7 @@ function completionExtension(): Extension {
       options.push(
         ...answered.options.map((option) => ({
           label: option.label,
-          detail: option.detail ?? "keyword",
+          detail: option.detail ?? t("content.editor.keyword"),
         }))
       )
     }
@@ -224,7 +225,7 @@ onMounted(() => {
         completionSlot.of(completionExtension()),
         marksSlot.of(marksExtension()),
         EditorView.contentAttributes.of({
-          "aria-label": `${props.filename} source`,
+          "aria-label": t("content.editor.source_aria", { name: props.filename }),
           spellcheck: "false",
         }),
         // Above basicSetup: Mod-Enter is `insertBlankLine` in the default

@@ -4,6 +4,7 @@ import { computed } from "vue"
 import ProseBlock from "@/features/content/markdown/ProseBlock.vue"
 import { renderProse } from "@/features/content/markdown/render"
 import RichBlock from "@/features/content/markdown/RichBlock.vue"
+import { t } from "@/shared/i18n"
 
 import { splitStreamingDocument } from "./streaming"
 
@@ -32,7 +33,7 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
         class="chat-markdown__pending"
         data-testid="ai-open-fence"
       >
-        Waiting for the {{ block.language || "code" }} block…
+        {{ block.language ? t('ai.markdown.waiting', { language: block.language }) : t('ai.markdown.waiting_code') }}
       </div>
       <RichBlock
         v-else

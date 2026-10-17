@@ -7,12 +7,13 @@ it, stops keeping it or asks for it to be read now.
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.connectors.access import resolve
 from app.connectors.models import Connector
 from app.core.access import Access
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.search import kept
 from app.search.keep import ContentsAdd, KeepOverview, KeepState, KeepUpdate, SearchName
 from app.users.deps import CurrentUser
@@ -47,9 +48,7 @@ async def change_keep(
     the list is a plaintext copy of their names (D212)."""
     connector, access = await resolve(session, connector_id, current_user, requires="own")
     if body.keep and not kept.can_keep(connector.adapter_type):
-        raise HTTPException(
-            501, detail={"message": "This kind of source cannot keep its names"}
-        )
+        raise Problem(501, "search.cannot_keep_names")
     await kept.change(session, connector, body)
     return await _state(session, connector, access)
 
@@ -62,9 +61,7 @@ async def refresh_keep(
     connector, access = await resolve(session, connector_id, current_user, requires="own")
     row = await kept.row_of(session, connector.id)
     if row is None:
-        raise HTTPException(
-            409, detail={"message": "The names of this connection are not kept"}
-        )
+        raise Problem(409, "search.names_not_kept")
     await kept.ask_refresh(session, row)
     return await _state(session, connector, access)
 
@@ -80,22 +77,16 @@ async def add_contents(
     The owner's alone, like the names it is read through (D217)."""
     connector, access = await resolve(session, connector_id, current_user, requires="own")
     if not kept.can_keep_contents(connector.adapter_type):
-        raise HTTPException(
-            501, detail={"message": "This kind of source cannot keep what its files hold"}
-        )
+        raise Problem(501, "search.cannot_keep_contents")
     row = await kept.row_of(session, connector.id)
     if row is None:
-        raise HTTPException(
-            409, detail={"message": "Keep the names of this connection first"}
-        )
+        raise Problem(409, "search.keep_names_first")
     node_id = body.node_id or ""
     if node_id:
         # A folder whose name is kept: the scope is read from those names.
         found = await session.get(SearchName, (connector.id, node_id))
         if found is None or found.kind != "directory":
-            raise HTTPException(
-                422, detail={"message": "Choose a folder whose name is kept"}
-            )
+            raise Problem(422, "search.folder_not_kept")
     await kept.add_contents(session, row, node_id)
     return await _state(session, connector, access)
 

@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue"
 import { AppIconButton, AppSelect, appIcons, useConfirm, useToast } from "@/shared/ui"
 import type { SelectOption } from "@/shared/ui"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 
 import AiKeyDialog from "./AiKeyDialog.vue"
@@ -147,16 +148,16 @@ async function choose(value: unknown) {
       try { skipWarning = localStorage.getItem(warningKey) === "true" } catch { /* Ask when unavailable. */ }
     }
     if (!skipWarning && !(await confirm({
-      title: "Let Jev choose the model?",
+      title: t("ai.model.jev_title"),
       message: isAll || !provider
-        ? "Jev will choose from every model with a configured API key for each answer. Models may differ in cost and capabilities. Your request will be sent to TypeSafe to make the choice."
-        : `Jev will choose from every ${providerLabel(models.data.value ?? [], provider)} model for each answer. Models may differ in cost and capabilities. Your request will be sent to TypeSafe to make the choice.`,
-      confirmLabel: "Use Jev",
-      rememberLabel: "Don't show again",
+        ? t("ai.model.jev_every")
+        : t("ai.model.jev_every_of", { provider: providerLabel(models.data.value ?? [], provider) }),
+      confirmLabel: t("ai.model.use_jev"),
+      rememberLabel: t("ai.model.dont_show"),
       onRemember: () => {
         if (!warningKey) return
         try { localStorage.setItem(warningKey, "true") }
-        catch { toast.error("The browser could not remember this preference.") }
+        catch { toast.error(t("ai.model.remember_failed")) }
       },
     }))) return
   }
@@ -176,10 +177,10 @@ async function choose(value: unknown) {
       :compact="compact"
       :disable="disable"
       :loading="models.isPending.value"
-      label="Model"
+      :label="t('ai.model.label')"
       :label-hidden="compact"
       :framed="compact"
-      placeholder="Choose a model"
+      :placeholder="t('ai.model.placeholder')"
       @update:model-value="choose"
       @option-action="manageOptionKey"
     >
@@ -190,7 +191,7 @@ async function choose(value: unknown) {
         <AppIconButton
           :icon="selectedKeySet ? appIcons.key : appIcons.keyOff"
           :active="selectedKeySet"
-          tooltip="Manage the selected model provider key"
+          :tooltip="t('ai.model.manage_selected_key')"
           :disable="selectedProvider === null"
           data-testid="ai-selected-model-key"
           @click="manageSelectedKey"

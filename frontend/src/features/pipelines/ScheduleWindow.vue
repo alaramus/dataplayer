@@ -3,6 +3,7 @@ import { computed, ref } from "vue"
 
 import type { ScheduleSettings } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -20,7 +21,7 @@ import {
 import { WindowDialog } from "@/shared/windows"
 
 import { useSaveSchedule } from "./api"
-import { browserZone, firstSettings, intervalParts, MAX_TIMES, minutesOf } from "./schedule"
+import { browserZone, dayNames, firstSettings, intervalParts, MAX_TIMES, minutesOf } from "./schedule"
 import type { IntervalUnit } from "./schedule"
 
 /**
@@ -47,20 +48,27 @@ const times = ref<string[]>([...(start.times ?? ["03:00"])])
 const days = ref<Set<number>>(new Set(start.days ?? []))
 const failure = ref("")
 
-const KINDS = [
-  { label: "Every so long", value: "interval", description: "Counted from when it is saved" },
-  { label: "At times of the day", value: "times", description: "On the days ticked below" },
-]
 // Kept while switched off, so switching back on finds them, but out of reach:
 // a time set under a switched-off schedule looked like a schedule.
 const off = computed(() => !enabled.value)
-const kinds = computed(() => KINDS.map((one) => ({ ...one, disable: off.value })))
-const UNITS = [
-  { label: "minutes", value: "minutes" },
-  { label: "hours", value: "hours" },
-  { label: "days", value: "days" },
-]
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+const kinds = computed(() => [
+  {
+    label: t("pipelines.schedule.window.interval"),
+    value: "interval",
+    description: t("pipelines.schedule.window.interval_description"),
+    disable: off.value,
+  },
+  {
+    label: t("pipelines.schedule.window.times"),
+    value: "times",
+    description: t("pipelines.schedule.window.times_description"),
+    disable: off.value,
+  },
+])
+const units = computed(() =>
+  (["minutes", "hours", "days"] as const).map((value) => ({ label: t(`pipelines.schedule.window.units.${value}`), value }))
+)
+const dayLabels = computed(() => dayNames())
 
 const chosen = computed<ScheduleSettings>(() => ({
   enabled: enabled.value,
@@ -89,7 +97,7 @@ async function save() {
     await saving.mutateAsync({ pipelineId: props.pipelineId, settings: chosen.value })
     emit("close")
   } catch (cause) {
-    failure.value = messageOf(cause, "The schedule could not be kept")
+    failure.value = messageOf(cause, t("pipelines.schedule.window.save_failed"))
   }
 }
 </script>
@@ -97,8 +105,8 @@ async function save() {
 <template>
   <WindowDialog
     :model-value="true"
-    title="Schedule"
-    :subtitle="`When ${pipelineName} runs by itself`"
+    :title="t('pipelines.schedule.window.title')"
+    :subtitle="t('pipelines.schedule.window.subtitle', { name: pipelineName })"
     size="form"
     sizing="stable"
     data-testid="schedule-window"
@@ -110,26 +118,26 @@ async function save() {
     >
       <AppToggle
         v-model="enabled"
-        label="Run by itself"
+        :label="t('pipelines.schedule.window.enabled')"
         data-testid="schedule-enabled"
       />
       <AppRadioGroup
         v-model="kind"
         :options="kinds"
-        label="When"
+        :label="t('pipelines.schedule.window.when')"
         data-testid="schedule-kind"
       />
       <template v-if="kind === 'interval'">
         <AppNumberInput
           v-model="count"
-          label="Every"
+          :label="t('pipelines.schedule.window.every')"
           :disable="off"
           data-testid="schedule-every"
         />
         <AppSelect
           v-model="unit"
-          :options="UNITS"
-          label="Of"
+          :options="units"
+          :label="t('pipelines.schedule.window.of')"
           :disable="off"
           data-testid="schedule-unit"
         />
@@ -142,7 +150,7 @@ async function save() {
           :key="index"
           :model-value="time"
           type="time"
-          :label="index === 0 ? 'At' : 'And at'"
+          :label="index === 0 ? t('pipelines.schedule.window.at') : t('pipelines.schedule.window.and_at')"
           :disable="off"
           :data-testid="`schedule-time-${index}`"
           @update:model-value="setTime(index, $event)"
@@ -153,7 +161,7 @@ async function save() {
           >
             <AppIconButton
               :icon="appIcons.close"
-              tooltip="Remove this time"
+              :tooltip="t('pipelines.schedule.window.remove_time')"
               :disable="off"
               :data-testid="`schedule-time-remove-${index}`"
               @click="times = times.filter((_, at) => at !== index)"
@@ -165,7 +173,7 @@ async function save() {
             variant="quiet"
             size="sm"
             :icon="appIcons.add"
-            label="Add a time"
+            :label="t('pipelines.schedule.window.add_time')"
             :disable="off || times.length >= MAX_TIMES"
             data-testid="schedule-add-time"
             @click="times = [...times, '12:00']"
@@ -174,8 +182,8 @@ async function save() {
         <AppFormControl>
           <div class="schedule-window__days">
             <AppCheckbox
-              v-for="(day, index) in DAYS"
-              :key="day"
+              v-for="(day, index) in dayLabels"
+              :key="index"
               :model-value="days.has(index)"
               class="schedule-window__day"
               :label="day"
@@ -188,7 +196,7 @@ async function save() {
         </AppFormControl>
       </template>
       <AppFormControl>
-        <span class="schedule-window__zone">Times are this browser's clock: {{ zone }}</span>
+        <span class="schedule-window__zone">{{ t('pipelines.schedule.window.zone', { zone }) }}</span>
       </AppFormControl>
       <AppBanner
         v-if="failure"
@@ -200,11 +208,11 @@ async function save() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('close')"
       />
       <AppButton
-        label="Save"
+        :label="t('catalog.common.save')"
         :loading="saving.isPending.value"
         data-testid="schedule-save"
         @click="save"

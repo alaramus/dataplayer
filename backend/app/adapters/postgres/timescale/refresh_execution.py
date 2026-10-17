@@ -24,7 +24,7 @@ async def execute_refresh(
     async def replan(reader: PostgresReader) -> RefreshPlan:
         return await plan_refresh(reader, schema_name, view_name, window)
 
-    return await run_reviewed(session, replan, _locks, _apply, reviewed_fingerprint, "refresh policy change")
+    return await run_reviewed(session, replan, _locks, _apply, reviewed_fingerprint)
 
 
 def _locks(plan: RefreshPlan) -> list[sql.SQL | sql.Composed]:

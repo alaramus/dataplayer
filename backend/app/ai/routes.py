@@ -19,6 +19,7 @@ from sqlmodel import col, update
 from app.ai import attachments, conversations, preferences, quick_chat
 from app.ai.catalog import Provider, catalog
 from app.ai.content import opened, opened_bytes, sealed
+from app.ai.conversations import NEW_CHAT
 from app.ai.models import (
     TERMINAL,
     AgentAnswer,
@@ -44,14 +45,13 @@ from app.ai.models import (
 from app.ai.runner import AgentRunnerDep, RunRefused
 from app.connectors.content_tickets import content_disposition
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/ai", tags=["ai"])
-
-NOT_FOUND = {"message": "No such conversation"}
-
 
 @router.get("/quick-chats", response_model=list[quick_chat.QuickChatSummary])
 async def list_quick_chats(
@@ -66,7 +66,7 @@ async def list_quick_chats(
 )
 async def create_quick_chat(session: SessionDep, current_user: CurrentUser) -> Any:
     chat = quick_chat.QuickConversation(
-        owner_id=current_user.id, title=sealed("New chat")
+        owner_id=current_user.id, title=sealed(NEW_CHAT)
     )
     session.add(chat)
     await session.commit()
@@ -78,7 +78,7 @@ async def delete_archived_quick_chats(
     session: SessionDep, current_user: CurrentUser
 ) -> Any:
     count = await quick_chat.delete_archived_for_owner(session, current_user.id)
-    return Message(message=f"{count} quick chats deleted")
+    return Message(message=say("{count} quick chats deleted", count=count))
 
 
 @router.get("/quick-chats/{chat_id}", response_model=quick_chat.QuickChatPublic)
@@ -87,7 +87,7 @@ async def read_quick_chat(
 ) -> Any:
     chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
     if chat is None:
-        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+        raise Problem(404, "ai.quick_chat_not_found")
     return await quick_chat.public(session, chat)
 
 
@@ -100,11 +100,11 @@ async def update_quick_chat(
 ) -> Any:
     chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
     if chat is None:
-        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+        raise Problem(404, "ai.quick_chat_not_found")
     if "project_id" in body.model_fields_set and body.project_id is not None:
         project = await conversations.project_for_owner(session, body.project_id, current_user.id)
         if project is None:
-            raise HTTPException(status_code=404, detail=NO_PROJECT)
+            raise Problem(404, "ai.project_not_found")
     try:
         place = conversations.placement(
             body.pinned, "project_id" in body.model_fields_set, body.project_id
@@ -113,7 +113,7 @@ async def update_quick_chat(
         raise HTTPException(status_code=422, detail={"message": str(refused)}) from refused
     if body.title is not None:
         if not body.title.strip():
-            raise HTTPException(status_code=422, detail={"message": "Write a chat title first"})
+            raise Problem(422, "ai.title_required")
         chat.title = sealed(body.title.strip())
     if place.pinned is not None:
         chat.pinned = place.pinned
@@ -132,10 +132,10 @@ async def delete_quick_chat(
 ) -> Any:
     chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
     if chat is None:
-        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+        raise Problem(404, "ai.quick_chat_not_found")
     await session.delete(chat)
     await session.commit()
-    return Message(message="Quick chat deleted")
+    return Message(message=say("Quick chat deleted"))
 
 
 @router.post("/quick-chats/{chat_id}/messages", response_model=quick_chat.QuickChatPublic)
@@ -149,9 +149,9 @@ async def send_quick_chat_message(
 ) -> Any:
     chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
     if chat is None:
-        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+        raise Problem(404, "ai.quick_chat_not_found")
     if body.model_key is not None and catalog().find(body.model_key) is None:
-        raise HTTPException(status_code=422, detail={"message": "That model is not in the list"})
+        raise Problem(422, "ai.unknown_model")
     try:
         return await quick_chat.send(
             session, chat, current_user.id, body, catalog(), runner.chat_models, topics,
@@ -172,8 +172,8 @@ async def stop_quick_chat_answer(
     Not an error when nothing is being written: Stop pressed as the answer
     ends is the same press, a moment late."""
     if runner.quick_answers.stop(chat_id, current_user.id):
-        return Message(message="Stopped")
-    return Message(message="Nothing is being written")
+        return Message(message=say("Stopped"))
+    return Message(message=say("Nothing is being written"))
 
 
 @router.post("/quick-chats/{chat_id}/browser-turns", response_model=quick_chat.BrowserTurn)
@@ -186,7 +186,7 @@ async def ask_quick_chat_in_browser(
     """Keeps a question the browser's own model will answer (D223)."""
     chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
     if chat is None:
-        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+        raise Problem(404, "ai.quick_chat_not_found")
     try:
         return await quick_chat.ask_in_browser(session, chat, body)
     except ValueError as refused:
@@ -204,7 +204,7 @@ async def keep_quick_chat_browser_answer(
 ) -> Any:
     chat = await quick_chat.get_for_owner(session, chat_id, current_user.id)
     if chat is None:
-        raise HTTPException(status_code=404, detail={"message": "No such quick chat"})
+        raise Problem(404, "ai.quick_chat_not_found")
     try:
         return await quick_chat.answer_from_browser(session, chat, body)
     except ValueError as refused:
@@ -288,9 +288,6 @@ async def check_key(
     )
 
 
-NO_PROJECT = {"message": "No such project"}
-
-
 @router.get("/projects", response_model=ChatProjectsPublic)
 async def read_projects(session: SessionDep, current_user: CurrentUser) -> Any:
     """The folders a person sorted their conversations into (D141)."""
@@ -318,7 +315,7 @@ async def rename_project(
 ) -> Any:
     project = await conversations.project_for_owner(session, project_id, current_user.id)
     if project is None:
-        raise HTTPException(status_code=404, detail=NO_PROJECT)
+        raise Problem(404, "ai.project_not_found")
     renamed = await conversations.rename_project(session, project, body.name.strip())
     return ChatProjectPublic(id=renamed.id, name=body.name.strip())
 
@@ -334,7 +331,7 @@ async def delete_project(
     in the history, or in the archive when `chats` says so."""
     project = await conversations.project_for_owner(session, project_id, current_user.id)
     if project is None:
-        raise HTTPException(status_code=404, detail=NO_PROJECT)
+        raise Problem(404, "ai.project_not_found")
     archive = chats == "archive"
     await session.exec(
         update(quick_chat.QuickConversation)
@@ -342,7 +339,7 @@ async def delete_project(
         .values(project_id=None, **({"archived": True} if archive else {}))
     )
     await conversations.delete_project(session, project, archive=archive)
-    return Message(message="Project deleted")
+    return Message(message=say("Project deleted"))
 
 
 @router.get("/conversations", response_model=ConversationsPublic)
@@ -379,7 +376,7 @@ async def delete_archived_conversations(
     ids = await conversations.archived_ids_for_owner(session, current_user.id)
     await runner.forget(ids)
     await conversations.delete_rows(session, ids)
-    return Message(message=f"{len(ids)} conversations deleted")
+    return Message(message=say("{count} conversations deleted", count=len(ids)))
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationPublic)
@@ -393,7 +390,7 @@ async def read_conversation(
         session, conversation_id, current_user.id
     )
     if conversation is None:
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
+        raise Problem(404, "ai.conversation_not_found")
     return await conversations.conversation_public(
         session, conversation, runner.partial_answers()
     )
@@ -411,11 +408,9 @@ async def update_conversation(
         session, conversation_id, current_user.id
     )
     if conversation is None:
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
+        raise Problem(404, "ai.conversation_not_found")
     if body.model_key is not None and catalog().find(body.model_key) is None:
-        raise HTTPException(
-            status_code=422, detail={"message": "That model is not in the list"}
-        )
+        raise Problem(422, "ai.unknown_model")
     model_key = body.model_key
     if "auto_provider" in body.model_fields_set:
         # The fallback is what answers when Jev cannot: the model sent with
@@ -441,7 +436,7 @@ async def update_conversation(
     if body.change_policy == "jev" and await preferences.key_for(
         session, current_user.id, "typesafe"
     ) is None:
-        raise HTTPException(status_code=422, detail={"message": "Set a Jev API key first"})
+        raise Problem(422, "ai.jev_key_required")
     # A folder is named as sent, so that `null` can take a conversation out of
     # one; somebody else's folder is not found, like everything else here.
     move = "project_id" in body.model_fields_set
@@ -450,7 +445,7 @@ async def update_conversation(
             session, body.project_id, current_user.id
         )
         if project is None:
-            raise HTTPException(status_code=404, detail=NO_PROJECT)
+            raise Problem(404, "ai.project_not_found")
     try:
         place = conversations.placement(body.pinned, move, body.project_id)
     except ValueError as refused:
@@ -491,10 +486,10 @@ async def delete_conversation(
         session, conversation_id, current_user.id
     )
     if conversation is None:
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
+        raise Problem(404, "ai.conversation_not_found")
     await runner.forget([conversation_id])
     await conversations.delete_rows(session, [conversation_id])
-    return Message(message="Conversation deleted")
+    return Message(message=say("Conversation deleted"))
 
 
 @router.post(
@@ -523,24 +518,19 @@ async def send_message(
         session, conversation_id, current_user.id
     )
     if conversation is None:
-        raise HTTPException(status_code=404, detail=NOT_FOUND)
+        raise Problem(404, "ai.conversation_not_found")
     try:
         body = ConversationMessageCreate(
             text=text, contexts=contexts.root if contexts is not None else []
         )
     except ValidationError as refused:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": "The message or the tabs attached to it could not be read"},
-        ) from refused
+        raise Problem(422, "ai.message_unreadable") from refused
     try:
         attached = await attachments.read_uploads(files or [])
     except attachments.AttachmentRefused as refused:
         raise HTTPException(status_code=422, detail={"message": refused.message}) from refused
     if not body.text.strip() and not attached:
-        raise HTTPException(
-            status_code=422, detail={"message": "Write a message or attach a file"}
-        )
+        raise Problem(422, "ai.message_empty")
     try:
         run = await runner.start(
             session, owner_id=current_user.id, conversation=conversation,
@@ -573,7 +563,7 @@ async def read_attachment(
         session, conversation_id, attachment_id, current_user.id
     )
     if found is None:
-        raise HTTPException(status_code=404, detail={"message": "No such file"})
+        raise Problem(404, "ai.file_not_found")
     return Response(
         content=opened_bytes(found.content),
         media_type=found.media_type if found.kind == "image" else "text/plain; charset=utf-8",
@@ -590,7 +580,7 @@ async def _owned_run(
 ) -> AgentRun:
     run = await session.get(AgentRun, run_id)
     if run is None or run.owner_id != owner_id:
-        raise HTTPException(status_code=404, detail={"message": "No such answer"})
+        raise Problem(404, "ai.answer_not_found")
     return run
 
 
@@ -643,9 +633,6 @@ async def cancel_run(
         await session.refresh(run)
         return await conversations.run_public(session, run)
     if not await runner.cancel(run_id):
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "This answer is not being written by this server"},
-        )
+        raise Problem(409, "ai.answer_elsewhere")
     await session.refresh(run)
     return await conversations.run_public(session, run)

@@ -9,6 +9,7 @@ from app.adapters.file.options import FileOptions
 from app.adapters.file.storage import LocalStorage
 from app.adapters.registry import AdapterContext, register
 from app.adapters.search import SourceCost
+from app.core.translation import N_
 
 
 class FileAdapter(Explorer):
@@ -32,9 +33,9 @@ class FileAdapter(Explorer):
 
 @register(
     name="file",
-    title="Files",
+    title=N_("Files"),
     category="files",
-    description=(
+    description=N_(
         "Your personal storage on this server. Browse folders and open files "
         "through representations appropriate to their content."
     ),

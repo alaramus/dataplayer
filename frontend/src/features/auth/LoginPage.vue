@@ -6,6 +6,7 @@ import { useLogin } from "@/features/auth/api"
 import { requiredCredentialErrors } from "./validation"
 import { useActiveServerCheck } from "@/features/servers/api"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
+import { t } from "@/shared/i18n"
 import { safeLocalPath } from "@/shared/servers/profiles"
 import { useServersStore } from "@/stores/servers"
 import { AppBanner, AppButton, AppCard, AppForm, AppInput } from "@/shared/ui"
@@ -58,7 +59,7 @@ async function submit() {
   <div class="login-page">
     <AppCard
       size="xs"
-      title="Sign in"
+      :title="t('auth.sign_in')"
     >
       <q-form @submit.prevent="submit">
         <AppForm layout="section">
@@ -72,7 +73,7 @@ async function submit() {
             v-if="serverStatus.isPending.value"
             class="login-server-url"
           >
-            Checking server…
+            {{ t('auth.checking_server') }}
           </div>
           <AppBanner
             v-if="serverStatus.isError.value"
@@ -80,7 +81,7 @@ async function submit() {
           >
             {{ serverStatus.error.value?.message }}
             <AppButton
-              label="Retry connection"
+              :label="t('auth.retry_connection')"
               variant="quiet"
               :loading="serverStatus.isFetching.value"
               @click="serverStatus.refetch()"
@@ -88,7 +89,7 @@ async function submit() {
           </AppBanner>
           <AppInput
             v-model="username"
-            label="Email"
+            :label="t('auth.email')"
             type="email"
             autocomplete="username"
             aria-required="true"
@@ -97,7 +98,7 @@ async function submit() {
           />
           <AppInput
             v-model="password"
-            label="Password"
+            :label="t('auth.password')"
             type="password"
             autocomplete="current-password"
             aria-required="true"
@@ -109,13 +110,13 @@ async function submit() {
             tone="error"
             data-testid="login-error"
           >
-            Could not sign in. Check the email and password.
+            {{ t('auth.sign_in_failed') }}
           </AppBanner>
           <!-- In the form's own column, so its edges are the fields' edges:
                in the card's actions it stood 8px past them on each side. -->
           <AppButton
             type="submit"
-            label="Sign in"
+            :label="t('auth.sign_in')"
             data-testid="login-submit"
             :loading="login.isPending.value"
             :disable="!serverStatus.isSuccess.value"

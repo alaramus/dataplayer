@@ -1,0 +1,48 @@
+"""What dashboards and the metrics store say, in Russian (D226). Terms follow the screens' glossary."""
+
+MESSAGES: dict[str, str] = {
+    # The preset an agent's host fills.
+    "Linux host": "Хост Linux",
+    "CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.": "Процессор, память, сеть, диски, файловые системы, соединения, контейнеры и самые загруженные процессы одной машины.",
+    "CPU by mode": "Процессор по режимам",
+    "CPU per core": "Процессор по ядрам",
+    "Uptime": "Время работы",
+    "Memory": "Память",
+    "Load average": "Средняя нагрузка",
+    "Memory in use": "Занятая память",
+    "Network": "Сеть",
+    "Disk I/O": "Ввод-вывод дисков",
+    "File systems in use": "Заполненность файловых систем",
+    "TCP connections by state": "TCP-соединения по состояниям",
+    "Containers: CPU": "Контейнеры: процессор",
+    "Containers: memory": "Контейнеры: память",
+    "Top processes": "Самые загруженные процессы",
+    # Setting the store up.
+    "clearing an earlier attempt": "очистка предыдущей попытки",
+    "pulling the image": "загрузка образа",
+    "creating the container": "создание контейнера",
+    "starting the container": "запуск контейнера",
+    "waiting for it to answer": "ожидание ответа",
+    "saving the metrics store": "сохранение хранилища метрик",
+    "The metrics store is not answering": "Хранилище метрик не отвечает",
+    "Dashboards are not set up yet": "Дашборды ещё не настроены",
+    "Dashboards are already set up": "Дашборды уже настроены",
+    "This server cannot run services": "Этот сервер не может запускать сервисы",
+    "TimescaleDB cannot be used there": "Там нельзя использовать TimescaleDB",
+    "TimescaleDB could not be prepared in that database: it is not installed there, or this role may not create it": "Не удалось подготовить TimescaleDB в этой базе данных: расширение не установлено или этой роли нельзя его создать",
+    "The metrics store is being removed with every sample in it": "Хранилище метрик удаляется вместе со всеми замерами",
+    "Dashboards no longer use that database. It did not answer, so the tables they kept there are still in it": "Дашборды больше не используют эту базу данных. Она не ответила, поэтому их таблицы остались в ней",
+    "Dashboards no longer use that database, and the tables they kept there were dropped": "Дашборды больше не используют эту базу данных, их таблицы в ней удалены",
+    # Agents, samples and dashboards.
+    "{name} was removed": "{name}: удалено",
+    "The samples of {name} were deleted": "{name}: замеры удалены",
+    "You already own this dashboard": "Этот дашборд уже ваш",
+    "No such user": "Такого пользователя нет",
+    "Access revoked": "Доступ закрыт",
+    "A range is at least {count} seconds": "Диапазон — не меньше чем {count} с",
+    "A range is at most a year": "Диапазон — не больше года",
+    # Search.
+    "Dashboards": "Дашборды",
+    "Dashboard": "Дашборд",
+    "Dashboard · shared by {owner}": "Дашборд · владелец: {owner}",
+}

@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from anyio import to_thread
 
 from app.adapters import registry
+from app.core.translation import N_, say
 from app.guide import reader as guide
 from app.search.models import (
     Facts,
@@ -55,7 +56,7 @@ class _Described:
 
 class SourceTypes:
     place = ObjectsPlace(provider="source_types")
-    title = "Source types"
+    title = N_("Source types")
     offered_to_agent = True
     recalls: frozenset[ObjectType] = frozenset({"source_type"})
 
@@ -95,19 +96,20 @@ class SourceTypes:
             page = guide.page(guide.source_page_key(adapter_type.name))
             markdown = page.markdown if page is not None else ""
             services = [one for one in startable if one.adapter_type == adapter_type.name]
-            category = registry.category_title(adapter_type.category)
+            category_title = registry.category_title(adapter_type.category)
+            category = say(category_title)
             found.append(
                 _Described(
                     name=adapter_type.name,
-                    title=adapter_type.title,
+                    title=say(adapter_type.title),
                     category=category,
-                    details=" · ".join([category, *(one.title for one in services)]),
+                    details=" · ".join([category, *(say(one.title) for one in services)]),
                     body=" ".join(
                         [
-                            adapter_type.description,
+                            say(adapter_type.description),
                             *guide.bullets(markdown, guide.CAN_SEE),
                             *guide.bullets(markdown, guide.CAN_CHANGE),
-                            *(one.description for one in services),
+                            *(say(one.description) for one in services),
                         ]
                     ),
                 )

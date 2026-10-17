@@ -48,6 +48,7 @@ from app.adapters.search import (
     out_of_time,
     words_of,
 )
+from app.core.translation import say
 
 # How many entries one search may look at. A personal directory is not a
 # filesystem, and this is fifty times what one level may hold.
@@ -136,7 +137,7 @@ class ExplorerSearch:
             except OSError:
                 if first:
                     raise AdapterError(
-                        "config", "The directory of this connector does not exist"
+                        "config", say("The directory of this connector does not exist")
                     ) from None
                 yield NameBatch(unread=[scope])
                 continue
@@ -157,7 +158,10 @@ class ExplorerSearch:
                 if read >= limit:
                     yield NameBatch(
                         names=names,
-                        notice=f"More than {limit:,} entries; the first {limit:,} are kept",
+                        notice=say(
+                            "More than {count:,} entries; the first {count:,} are kept",
+                            count=limit,
+                        ),
                     )
                     return
                 read += 1
@@ -190,15 +194,15 @@ class ExplorerSearch:
             # connector being wrong, a node missing is a node being gone.
             if request.node_id is None:
                 raise AdapterError(
-                    "config", "The directory of this connector does not exist"
+                    "config", say("The directory of this connector does not exist")
                 )
             raise NodeNotFound(request.node_id)
         if not found.is_directory:
-            raise ValueError("A search starts in a folder")
+            raise ValueError(say("A search starts in a folder"))
 
         words = words_of(request.query)
         if not words:
-            raise ValueError("A search needs something to look for")
+            raise ValueError(say("A search needs something to look for"))
 
         # A match carries the folder it sits in twice over: the opaque id the
         # client sends back to stand there, and the same thing as this source
@@ -220,9 +224,9 @@ class ExplorerSearch:
         def answer(complete: bool = True, notice: str | None = None) -> NodeSearchResult:
             if kept.dropped and complete:
                 complete = False
-                notice = notice or (
-                    f"More than {request.limit} matched; the best {request.limit} "
-                    "are shown"
+                notice = notice or say(
+                    "More than {count} matched; the best {count} are shown",
+                    count=request.limit,
                 )
             return NodeSearchResult(
                 matches=kept.items(), complete=complete, notice=notice, extent=scanned
@@ -248,8 +252,11 @@ class ExplorerSearch:
                 if scanned > MAX_SCANNED:
                     return answer(
                         False,
-                        f"More than {MAX_SCANNED:,} entries were looked "
-                        "at; the search stopped there",
+                        say(
+                            "More than {count:,} entries were looked "
+                            "at; the search stopped there",
+                            count=MAX_SCANNED,
+                        ),
                     )
 
                 match_class: MatchClass | None = None
@@ -259,8 +266,10 @@ class ExplorerSearch:
                     if read_bytes > limits.total_bytes:
                         return answer(
                             False,
-                            f"More than {_megabytes(limits.total_bytes)} MB "
-                            "was read; the search stopped there",
+                            say(
+                                "More than {megabytes} MB was read; the search stopped there",
+                                megabytes=_megabytes(limits.total_bytes),
+                            ),
                         )
                     try:
                         looked = self._look_inside(entry, words)
@@ -294,7 +303,10 @@ class ExplorerSearch:
                     if kept.settled(best):
                         return answer(
                             False,
-                            f"The first {request.limit} matches; there may be more",
+                            say(
+                                "The first {count} matches; there may be more",
+                                count=request.limit,
+                            ),
                         )
 
                 if not _walkable(entry):
@@ -313,7 +325,10 @@ class ExplorerSearch:
         if deepest:
             return answer(
                 False,
-                f"Folders deeper than {MAX_DEPTH} levels were not looked at",
+                say(
+                    "Folders deeper than {depth} levels were not looked at",
+                    depth=MAX_DEPTH,
+                ),
             )
         if unread:
             # Complete about what it read, and honest about what it did not: a
@@ -321,8 +336,12 @@ class ExplorerSearch:
             # what stops "no matches" from meaning "not in this folder".
             return answer(
                 True,
-                f"{unread} files were not read: they are binary or larger "
-                f"than {_megabytes(limits.file_bytes)} MB",
+                say(
+                    "{count} files were not read: they are binary or larger "
+                    "than {megabytes} MB",
+                    count=unread,
+                    megabytes=_megabytes(limits.file_bytes),
+                ),
             )
         return answer()
 

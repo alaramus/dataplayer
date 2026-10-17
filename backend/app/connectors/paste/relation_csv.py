@@ -31,7 +31,7 @@ from app.connectors.paste.files import (
     place_for,
     storage_of,
 )
-from app.connectors.paste.kinds import counted, offered, refused, text_column
+from app.connectors.paste.kinds import offered, refused, text_column
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
@@ -53,12 +53,13 @@ from app.connectors.paste.transfer import (
     TransferStopped,
 )
 from app.core.access import Access
+from app.core.translation import N_, say
 
-NOT_A_RELATION = "Copy a table or a view"
-GONE = "The copied table no longer exists"
+NOT_A_RELATION = N_("Copy a table or a view")
+GONE = N_("The copied table no longer exists")
 # Each one is described at every change of a tick; a hundred bounds that.
 MAX_TABLES = 100
-TOO_LARGE = "The tables exceed 10 GB as CSV"
+TOO_LARGE = N_("The tables exceed 10 GB as CSV")
 
 
 def suggested_name(relation: str) -> str:
@@ -74,17 +75,17 @@ def csv_name(typed: str) -> str:
     name = typed.strip()
     if not is_plain_name(name):
         raise ActionRefused(
-            "not_applicable", "A name must be a single plain name, without separators"
+            "not_applicable", say("A name must be a single plain name, without separators")
         )
     return name if name.lower().endswith(".csv") else f"{name}.csv"
 
 
 class RelationCsv:
     name: PasteKindName = "relation_csv"
-    title = "Save as CSV"
-    needs = "Tick a table or a view"
-    doing = "Saving as CSV"
-    done = "saved"
+    title = N_("Save as CSV")
+    needs = N_("Tick a table or a view")
+    doing = N_("Saving as CSV")
+    done = N_("saved")
     mode: ClipboardMode = "copy"
     workflow: PasteWorkflow = "file-name"
     converts = True
@@ -162,10 +163,10 @@ class RelationCsv:
     ) -> PasteOffer:
         if isinstance(source_end, Foreseen):
             if source_end.kind != "table":
-                return refused(self, NOT_A_RELATION)
+                return refused(self, say(NOT_A_RELATION))
             relation = source_end.name
         elif source_end is None or not isinstance(source, SupportsRelationModel):
-            return refused(self, NOT_A_RELATION)
+            return refused(self, say(NOT_A_RELATION))
         else:
             found = await _relation(source, source_end, gone=GONE)
             if isinstance(found, str):
@@ -174,7 +175,7 @@ class RelationCsv:
         suggested = suggested_name(relation)
         if isinstance(target_end, Foreseen):
             if target_end.kind != "folder":
-                return refused(self, "Choose a destination folder")
+                return refused(self, say("Choose a destination folder"))
             # A folder a link has yet to make holds no name to be taken.
             return offered(self, available=True, suggested_name=suggested)
         taken = await _taken_in(destination, target_end, [suggested])
@@ -190,7 +191,7 @@ class RelationCsv:
             raise ActionRefused("not_applicable", found)
         empty = next((model for model in found if not model.columns), None)
         if empty is not None:
-            raise ActionRefused("not_applicable", f"{empty.name} has no columns")
+            raise ActionRefused("not_applicable", say("{name} has no columns", name=empty.name))
         one = len(found) == 1
         names = (
             [csv_name(request.name or suggested_name(found[0].name))]
@@ -203,7 +204,9 @@ class RelationCsv:
                 _checked, storage, request.destination_node_id, names, request.conflict
             )
         except (OSError, ValueError):
-            raise ActionRefused("not_applicable", "The destination is unavailable") from None
+            raise ActionRefused(
+                "not_applicable", say("The destination is unavailable")
+            ) from None
         return TransferPlan(
             items=[
                 TransferItem(node_id=node_id, name=model.name[:255])
@@ -232,7 +235,10 @@ class RelationCsv:
                 await _saved(source, storage, transfer, item, report, written)
             except asyncio.CancelledError:
                 item.outcome = "stopped"
-                item.message = f"{_file_of(transfer, item)} was stopped while it was being written; no file was left"
+                item.message = say(
+                    "{name} was stopped while it was being written; no file was left",
+                    name=_file_of(transfer, item),
+                )
                 raise
             except TransferStopped as stop:
                 item.outcome, item.failed = "failed", 1
@@ -246,10 +252,10 @@ class RelationCsv:
                 item.message = _about(transfer, item, failure.message)
             except FileExistsError:
                 item.outcome = "failed"
-                item.message = f"{_file_of(transfer, item)} is already there"
+                item.message = say("{name} is already there", name=_file_of(transfer, item))
             except (OSError, ValueError):
                 item.outcome = "failed"
-                item.message = _about(transfer, item, "The file could not be written")
+                item.message = _about(transfer, item, say("The file could not be written"))
             if item.outcome == "failed":
                 item.failed = 1
             await report.progressed()
@@ -257,31 +263,36 @@ class RelationCsv:
 
     def told(self, transfer: Transfer, stopped: str | None = None) -> str:
         items = transfer.items
+        place = transfer.place_label
         if len(items) == 1:
             item = items[0]
             if item.outcome == "done":
-                return (
-                    f"{item.published_as} saved in {transfer.place_label} "
-                    f"with {counted(item.rows or 0, 'row')}"
-                )
+                said = {"name": item.published_as, "place": place, "count": item.rows or 0}
+                if said["count"] == 1:
+                    return say("{name} saved in {place} with {count} row", **said)
+                return say("{name} saved in {place} with {count} rows", **said)
             if item.outcome == "stopped":
-                return f"{transfer.name} was not saved: it was stopped"
+                return say("{name} was not saved: it was stopped", name=transfer.name)
             if item.message is not None:
                 return item.message
-            return f"{transfer.name} was not saved: {stopped or 'it failed'}"
+            if stopped is None:
+                return say("{name} was not saved: it failed", name=transfer.name)
+            return say("{name} was not saved: {reason}", name=transfer.name, reason=stopped)
         saved = sum(1 for item in items if item.outcome == "done")
-        where = f"in {transfer.place_label}"
+        # Several were asked for, so the count of them is never one.
         if saved == len(items):
-            return f"{counted(saved, 'file')} saved {where}"
+            return say("{count} files saved in {place}", count=saved, place=place)
         failed = sum(1 for item in items if item.outcome == "failed")
         halted = any(item.outcome == "stopped" for item in items)
         missing = sum(1 for item in items if item.outcome in ("pending", "running"))
         parts = [
-            *([f"{failed} failed"] if failed else []),
-            *(["stopped"] if halted else []),
-            *([f"{missing} not attempted"] if missing else []),
+            *([say("{count} failed", count=failed)] if failed else []),
+            *([say("stopped")] if halted else []),
+            *([say("{count} not attempted", count=missing)] if missing else []),
         ]
-        sentence = f"{saved} of {counted(len(items), 'file')} saved {where}"
+        sentence = say(
+            "{done} of {count} files saved in {place}", done=saved, count=len(items), place=place
+        )
         if parts:
             sentence += f"; {', '.join(parts)}"
         return sentence if stopped is None else f"{sentence}. {stopped}"
@@ -292,11 +303,11 @@ async def _relations(
 ) -> list[RelationModel] | str:
     """Each relation on the clipboard, or why they cannot all be saved."""
     if not isinstance(source, SupportsRelationModel):
-        return NOT_A_RELATION
+        return say(NOT_A_RELATION)
     if len(node_ids) > MAX_TABLES:
-        return f"Save at most {MAX_TABLES} tables at a time"
+        return say("Save at most {count} tables at a time", count=MAX_TABLES)
     if len(set(node_ids)) != len(node_ids):
-        return "The selection contains a table twice"
+        return say("The selection contains a table twice")
     found: list[RelationModel] = []
     for node_id in node_ids:
         one = await _relation(source, node_id, gone=gone)
@@ -312,11 +323,11 @@ async def _relation(
     try:
         return await source.relation_model(node_id)
     except NodeNotFound:
-        return gone
+        return say(gone)
     except ValueError:
-        return NOT_A_RELATION
+        return say(NOT_A_RELATION)
     except AdapterError:
-        return "The copied connection is unavailable"
+        return say("The copied connection is unavailable")
 
 
 async def _taken_in(
@@ -328,7 +339,7 @@ async def _taken_in(
     except ActionRefused as refusal:
         return refusal.message
     except (OSError, ValueError):
-        return "The destination is unavailable"
+        return say("The destination is unavailable")
 
 
 def _taken(storage: Storage, folder_id: str | None, names: list[str]) -> list[str]:
@@ -342,8 +353,11 @@ def _already_there(taken: list[str]) -> str | None:
     if not taken:
         return None
     if len(taken) == 1:
-        return f"{taken[0]} is already there"
-    return f"{taken[0]} and {counted(len(taken) - 1, 'other file')} are already there"
+        return say("{name} is already there", name=taken[0])
+    others = len(taken) - 1
+    if others == 1:
+        return say("{name} and {count} other file are already there", name=taken[0], count=1)
+    return say("{name} and {count} other files are already there", name=taken[0], count=others)
 
 
 def _checked(
@@ -379,7 +393,11 @@ def _file_of(transfer: Transfer, item: TransferItem) -> str:
 
 def _about(transfer: Transfer, item: TransferItem, reason: str) -> str:
     """Why one file was not saved, in a sentence that names it."""
-    return f"{_file_of(transfer, item)} was not saved: {reason[:1].lower()}{reason[1:]}"
+    return say(
+        "{name} was not saved: {reason}",
+        name=_file_of(transfer, item),
+        reason=f"{reason[:1].lower()}{reason[1:]}",
+    )
 
 
 async def _saved(
@@ -394,13 +412,13 @@ async def _saved(
     if not isinstance(source, SupportsExport) or not isinstance(
         source, SupportsRelationModel
     ):
-        raise ActionRefused("not_applicable", "This connection cannot export rows")
+        raise ActionRefused("not_applicable", say("This connection cannot export rows"))
     found = await _relation(source, item.node_id, gone=GONE)
     if isinstance(found, str):
         raise ActionRefused("not_applicable", found)
     columns = [column.name for column in found.columns]
     if not columns:
-        raise ActionRefused("not_applicable", "The table has no columns")
+        raise ActionRefused("not_applicable", say("The table has no columns"))
     name = _file_of(transfer, item)
     target = await report.in_thread(
         partial(
@@ -421,7 +439,7 @@ async def _saved(
         try:
             async for piece, count in pieces:
                 if transfer.bytes_done + len(piece) > MAX_TRANSFER_BYTES:
-                    raise TransferStopped(TOO_LARGE)
+                    raise TransferStopped(say(TOO_LARGE))
                 await report.in_thread(partial(arriving.write, piece))
                 transfer.bytes_done += len(piece)
                 rows += count

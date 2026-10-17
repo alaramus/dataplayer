@@ -20,8 +20,10 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.content import opened
+from app.ai.conversations import shown_title as conversation_title
 from app.ai.models import ChatProject, Conversation
 from app.ai.quick_chat import QuickConversation, shown_title
+from app.core.translation import N_, say
 from app.search.models import (
     Facts,
     Hit,
@@ -56,7 +58,7 @@ class _Sealed:
 
 class ChatTitles:
     place = ObjectsPlace(provider="conversations")
-    title = "Conversations"
+    title = N_("Conversations")
     # Never to the agent (D133).
     offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"conversation", "quick_chat", "project"})
@@ -80,9 +82,9 @@ class ChatTitles:
         cut = ordered([_hit(row, title, match) for row, title, match in found], asked.limit)
         if not read_all or left_out:
             notice = (
-                "Stopped before every title was read"
+                say("Stopped before every title was read")
                 if not read_all
-                else f"Only the newest {NEWEST_TITLES} chats of each kind are searched"
+                else say("Only the newest {count} chats of each kind are searched", count=NEWEST_TITLES)
             )
             return Found(hits=cut.hits, complete=False, notice=notice, more=cut.more)
         return cut
@@ -159,9 +161,9 @@ class _Kind:
 
 
 _KINDS: dict[ObjectType, _Kind] = {
-    "conversation": _Kind("Conversation", _conversations),
-    "quick_chat": _Kind("Quick chat", _quick_chats, shown_title),
-    "project": _Kind("Chat project", _projects),
+    "conversation": _Kind(N_("Conversation"), _conversations, conversation_title),
+    "quick_chat": _Kind(N_("Quick chat"), _quick_chats, shown_title),
+    "project": _Kind(N_("Chat project"), _projects),
 }
 
 
@@ -198,7 +200,7 @@ def _hit(row: _Sealed, title: str, match: Match) -> Hit:
         key=target_key(target),
         target=target,
         title=title,
-        detail=_KINDS[row.object_type].words,
+        detail=say(_KINDS[row.object_type].words),
         facts=Facts(kind=row.object_type, changed_at=row.changed_at),
         match=match,
         open=row.object_type,

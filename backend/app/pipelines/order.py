@@ -10,15 +10,19 @@ and the run goes by them.
 import uuid
 from dataclasses import dataclass
 
+from app.core.translation import N_, say
 from app.pipelines.models import Card, Link, PipelineContent
 
 # Why a link goes first where the arrows say nothing, in the order the
-# position key compares them.
+# position key compares them: each the whole sentence, the cards' names put in.
 _BECAUSE = (
-    "its card is furthest left",
-    "its card is highest",
-    "it starts from the highest row",
-    "it was drawn first",
+    N_("{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left"),
+    N_("{names} write into each other, so the arrows give no first link: this one goes first because its card is highest"),
+    N_("{names} write into each other, so the arrows give no first link: this one goes first because it starts from the highest row"),
+    N_("{names} write into each other, so the arrows give no first link: this one goes first because it was drawn first"),
+)
+_WAIT_OUTSIDE = N_(
+    "{names} write into each other, so the arrows give no first link: this one goes first because the others wait for links outside them as well"
 )
 
 
@@ -53,7 +57,9 @@ def _reaching(start: uuid.UUID, edges: dict[uuid.UUID, set[uuid.UUID]]) -> set[u
 
 def _names(links: list[Link], cards: dict[uuid.UUID, Card]) -> str:
     names = list(dict.fromkeys(cards[link.source.card_id].connector_name for link in links))
-    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    return names[0] if len(names) == 1 else say(
+        "{names} and {last}", names=", ".join(names[:-1]), last=names[-1]
+    )
 
 
 def ordered(content: PipelineContent) -> list[Placed]:
@@ -130,9 +136,6 @@ def _broken(
             if mine != theirs
         )
     else:
-        because = "the others wait for links outside them as well"
+        because = _WAIT_OUTSIDE
     named = _names(sorted((links[one] for one in circle), key=lambda link: keys[link.id]), cards)
-    return chosen, (
-        f"{named} write into each other, so the arrows give no first link: "
-        f"this one goes first because {because}"
-    )
+    return chosen, say(because, names=named)

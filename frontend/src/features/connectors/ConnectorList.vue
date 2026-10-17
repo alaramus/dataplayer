@@ -3,6 +3,7 @@ import { computed } from "vue"
 
 import type { ConnectorPublic } from "@/client"
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
+import { t } from "@/shared/i18n"
 import { AppEmptyState, AppSpinner } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
@@ -57,7 +58,7 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
   <AppEmptyState
     v-else-if="rows.length === 0"
     class="connector-list__empty"
-    :text="emptyText ?? 'No connections yet'"
+    :text="emptyText ?? t('connectors.list.empty')"
   />
 
   <div
@@ -95,7 +96,7 @@ function startDrag(event: DragEvent, connector: ConnectorPublic) {
           :name="connector.name"
           :adapter-type="connector.adapter_type"
           :enabled="connector.enabled"
-          tooltip="Edit connection"
+          :tooltip="t('connectors.list.edit')"
           :testid="`connector-edit-${connector.name}`"
           @click="emit('edit', connector)"
         />

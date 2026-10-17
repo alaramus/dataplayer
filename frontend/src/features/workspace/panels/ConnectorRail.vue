@@ -5,6 +5,7 @@ import { computed } from "vue"
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
 import { useConnectors } from "@/features/connectors/api"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { t } from "@/shared/i18n"
 import { AppCardHead, AppIconButton, AppScrollArea } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
@@ -35,7 +36,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
     <AppCardHead class="connector-rail__head">
       <AppIconButton
         :icon="appIcons.add"
-        tooltip="New connection"
+        :tooltip="t('workspace.connectors.new')"
         data-testid="add-connector"
         @click="workspace.editConnector(null)"
       />

@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { useBottomPanel } from "@/features/workspace/useBottomPanel"
+import { t } from "@/shared/i18n"
 import { AppButton, AppTooltip, appIcons } from "@/shared/ui"
 
 /**
@@ -22,13 +23,13 @@ const shown = computed(() => panel.open.value === "search-index")
       :variant="shown ? 'chosen' : 'quiet'"
       size="sm"
       :icon="appIcons.manageSearch"
-      label="Search index"
+      :label="t('search_index.command.label')"
       :icon-only="iconOnly"
       :aria-pressed="shown"
       data-testid="command-search-index"
       @click="panel.toggle('search-index')"
     />
-    <AppTooltip>Connections whose names are kept for search</AppTooltip>
+    <AppTooltip>{{ t('search_index.command.tooltip') }}</AppTooltip>
   </span>
 </template>
 

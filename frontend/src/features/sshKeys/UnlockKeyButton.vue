@@ -3,6 +3,7 @@ import { ref } from "vue"
 
 import type { SshKeyPublic } from "@/client"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
+import { t } from "@/shared/i18n"
 import { AppButton } from "@/shared/ui"
 
 /**
@@ -28,7 +29,7 @@ const unlocking = ref<SshKeyPublic | null>(null)
   <AppButton
     :variant="variant"
     :size="size"
-    label="Unlock the key"
+    :label="t('ssh_keys.unlock_button')"
     data-testid="unlock-key"
     @click="unlocking = sshKey"
   />

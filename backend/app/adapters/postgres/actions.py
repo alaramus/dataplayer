@@ -61,6 +61,7 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.table_design import DesignRefused, TableDefinition
 from app.core.access import Access
+from app.core.translation import N_, say
 
 _relation_name = name_check("relation")
 _schema_name = name_check("schema")
@@ -68,9 +69,9 @@ _schema_name = name_check("schema")
 
 SCHEMA_CHANGE_REFUSALS = {
     # insufficient_privilege.
-    "42501": "This connection may not change schemas",
+    "42501": N_("This connection may not change schemas"),
     # reserved_name: PostgreSQL reserves pg_ for its own schemas.
-    "42939": "That schema name is reserved by PostgreSQL",
+    "42939": N_("That schema name is reserved by PostgreSQL"),
 }
 
 
@@ -84,13 +85,15 @@ async def _existing_schema(session: PostgresSession, name: str) -> str | None:
 
 
 async def _schema_target(
-    catalog: PostgresCatalog, node_id: str | None, *, action: str, refused_as: str
+    catalog: PostgresCatalog, node_id: str | None, *, choose: str, refused: str
 ) -> SchemaNode:
+    """The schema an action is on; `choose` and `refused` are its own
+    sentences, already worded, for no schema and for one it cannot touch."""
     if node_id is None:
-        raise ActionRefused("not_applicable", f"Choose a schema to {action}")
+        raise ActionRefused("not_applicable", choose)
     node = (await catalog.path_to(node_id))[-1]
     if not isinstance(node, SchemaNode) or node.is_system:
-        raise ActionRefused("not_applicable", f"This schema cannot be {refused_as}")
+        raise ActionRefused("not_applicable", refused)
     reason = await catalog.schema_action_reason(node.name)
     if reason is None:
         reason = await catalog.cascade_reason(node.name)
@@ -108,7 +111,7 @@ async def _guard_relation_action(
 
 
 class CreateSchemaParams(BaseModel):
-    name: str = Field(title="Name")
+    name: str = Field(title=N_("Name"))
 
     _check = field_validator("name")(_schema_name)
 
@@ -117,7 +120,7 @@ class CreateSchema(JsonAction[CreateSchemaParams]):
     """Create a grouping at the current catalog level, not inside one."""
 
     name: ClassVar[str] = "create_schema"
-    title: ClassVar[str] = "New schema"
+    title: ClassVar[str] = N_("New schema")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset()
     acts_on: ClassVar[ActsOn] = "level"
     requires: ClassVar[Access] = "structure"
@@ -131,22 +134,22 @@ class CreateSchema(JsonAction[CreateSchemaParams]):
     ) -> ActionResult:
         if node_id is not None:
             raise ActionRefused(
-                "not_applicable", "Schemas are created at the top of the connection"
+                "not_applicable", say("Schemas are created at the top of the connection")
             )
         if is_system_schema(params.name):
             raise ActionRefused(
-                "not_applicable", "That schema name belongs to the server"
+                "not_applicable", say("That schema name belongs to the server")
             )
         if await _existing_schema(self._session, params.name) is not None:
             raise ActionRefused(
-                "conflict", f'Schema "{params.name}" already exists'
+                "conflict", say('Schema "{name}" already exists', name=params.name)
             )
         statement = sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(params.name))
         await self._session.schema_change(
             statement.as_string(), refusals=SCHEMA_CHANGE_REFUSALS
         )
         return ActionResult(
-            message=f"Schema {params.name} created",
+            message=say("Schema {name} created", name=params.name),
             # Clear a branch left under the same opaque id by an earlier drop,
             # as well as the root that gained this grouping.
             reload_node_ids=[None, params.name],
@@ -155,7 +158,7 @@ class CreateSchema(JsonAction[CreateSchemaParams]):
 
 class RenameSchemaParams(BaseModel):
     new_name: str = Field(
-        title="New name", json_schema_extra={"x-ui-purpose": "node-name"}
+        title=N_("New name"), json_schema_extra={"x-ui-purpose": "node-name"}
     )
 
     _check = field_validator("new_name")(_schema_name)
@@ -163,7 +166,7 @@ class RenameSchemaParams(BaseModel):
 
 class RenameSchema(JsonAction[RenameSchemaParams]):
     name: ClassVar[str] = "rename_schema"
-    title: ClassVar[str] = "Rename schema"
+    title: ClassVar[str] = N_("Rename schema")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
     acts_on: ClassVar[ActsOn] = "group"
     requires: ClassVar[Access] = "structure"
@@ -177,17 +180,20 @@ class RenameSchema(JsonAction[RenameSchemaParams]):
         self, node_id: str | None, params: RenameSchemaParams
     ) -> ActionResult:
         node = await _schema_target(
-            self._catalog, node_id, action="rename", refused_as="renamed"
+            self._catalog,
+            node_id,
+            choose=say("Choose a schema to rename"),
+            refused=say("This schema cannot be renamed"),
         )
         if params.new_name == node.name:
-            raise ActionRefused("conflict", "The schema already has that name")
+            raise ActionRefused("conflict", say("The schema already has that name"))
         if is_system_schema(params.new_name):
             raise ActionRefused(
-                "not_applicable", "That schema name belongs to the server"
+                "not_applicable", say("That schema name belongs to the server")
             )
         if await _existing_schema(self._session, params.new_name) is not None:
             raise ActionRefused(
-                "conflict", f'Schema "{params.new_name}" already exists'
+                "conflict", say('Schema "{name}" already exists', name=params.new_name)
             )
         statement = sql.SQL("ALTER SCHEMA {} RENAME TO {}").format(
             sql.Identifier(node.name), sql.Identifier(params.new_name)
@@ -196,7 +202,11 @@ class RenameSchema(JsonAction[RenameSchemaParams]):
             statement.as_string(), refusals=SCHEMA_CHANGE_REFUSALS
         )
         return ActionResult(
-            message=f"Schema {node.name} renamed to {params.new_name}",
+            message=say(
+                "Schema {name} renamed to {new_name}",
+                name=node.name,
+                new_name=params.new_name,
+            ),
             reload_node_ids=[None, node.name, params.new_name],
             replacement=NodeReplacement(
                 old_node_id=node.name,
@@ -208,7 +218,7 @@ class RenameSchema(JsonAction[RenameSchemaParams]):
 
 class RenameRelationParams(BaseModel):
     new_name: str = Field(
-        title="New name", json_schema_extra={"x-ui-purpose": "node-name"}
+        title=N_("New name"), json_schema_extra={"x-ui-purpose": "node-name"}
     )
 
     _check = field_validator("new_name")(_relation_name)
@@ -216,7 +226,7 @@ class RenameRelationParams(BaseModel):
 
 class RenameRelation(JsonAction[RenameRelationParams]):
     name: ClassVar[str] = "rename_relation"
-    title: ClassVar[str] = "Rename"
+    title: ClassVar[str] = N_("Rename")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table", "view"})
     acts_on: ClassVar[ActsOn] = "node"
     # Renaming a relation is DDL, and it is the shape of the source that
@@ -232,20 +242,25 @@ class RenameRelation(JsonAction[RenameRelationParams]):
         self, node_id: str | None, params: RenameRelationParams
     ) -> ActionResult:
         if node_id is None:
-            raise ActionRefused("not_applicable", "Choose a relation to rename")
+            raise ActionRefused("not_applicable", say("Choose a relation to rename"))
         path = await self._catalog.path_to(node_id)
         node = path[-1]
         if not isinstance(node, (TableNode, ViewNode)) or node.is_system:
-            raise ActionRefused("not_applicable", "This relation cannot be renamed")
+            raise ActionRefused("not_applicable", say("This relation cannot be renamed"))
         if params.new_name == node.name:
-            raise ActionRefused("conflict", "The relation already has that name")
+            raise ActionRefused("conflict", say("The relation already has that name"))
 
         schema = path[0].name
         await _guard_relation_action(self._catalog, schema, node)
         siblings = await self._catalog.list_children(schema)
         if params.new_name in {sibling.name for sibling in siblings}:
             raise ActionRefused(
-                "conflict", f'{schema} already has a relation named "{params.new_name}"'
+                "conflict",
+                say(
+                    '{schema} already has a relation named "{name}"',
+                    schema=schema,
+                    name=params.new_name,
+                ),
             )
 
         if isinstance(node, TableNode):
@@ -262,7 +277,7 @@ class RenameRelation(JsonAction[RenameRelationParams]):
         await self._session.schema_change(statement.as_string())
         new_node_id = f"{schema}.{params.new_name}"
         return ActionResult(
-            message=f"Renamed to {params.new_name}",
+            message=say("Renamed to {name}", name=params.new_name),
             reload_node_ids=[schema],
             replacement=NodeReplacement(
                 old_node_id=node_id,
@@ -278,7 +293,7 @@ class MoveRelationParams(BaseModel):
     # offers what this connection actually has instead of asking for a name
     # that has to be spelled exactly right to be accepted.
     target_schema: str = Field(
-        title="Target schema", json_schema_extra={"x-ui-purpose": "grouping"}
+        title=N_("Target schema"), json_schema_extra={"x-ui-purpose": "grouping"}
     )
 
     _check = field_validator("target_schema")(_schema_name)
@@ -288,7 +303,7 @@ class MoveRelation(JsonAction[MoveRelationParams]):
     """Move one source-issued relation and name both changed branches."""
 
     name: ClassVar[str] = "move_relation"
-    title: ClassVar[str] = "Move to schema"
+    title: ClassVar[str] = N_("Move to schema")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table", "view"})
     acts_on: ClassVar[ActsOn] = "node"
     bulk: ClassVar[bool] = True
@@ -303,27 +318,27 @@ class MoveRelation(JsonAction[MoveRelationParams]):
         self, node_id: str | None, params: MoveRelationParams
     ) -> ActionResult:
         if node_id is None:
-            raise ActionRefused("not_applicable", "Choose a relation to move")
+            raise ActionRefused("not_applicable", say("Choose a relation to move"))
         path = await self._catalog.path_to(node_id)
         node = path[-1]
         if not isinstance(node, TableNode | ViewNode) or node.is_system:
-            raise ActionRefused("not_applicable", "This relation cannot be moved")
+            raise ActionRefused("not_applicable", say("This relation cannot be moved"))
 
         source_schema = path[0].name
         await _guard_relation_action(self._catalog, source_schema, node)
         if params.target_schema == source_schema:
             raise ActionRefused(
-                "conflict", f"The relation is already in {source_schema}"
+                "conflict", say("The relation is already in {schema}", schema=source_schema)
             )
         target_name = await _existing_schema(self._session, params.target_schema)
         if target_name is None:
             raise ActionRefused(
                 "not_applicable",
-                f'Schema "{params.target_schema}" does not exist',
+                say('Schema "{name}" does not exist', name=params.target_schema),
             )
         if is_system_schema(target_name):
             raise ActionRefused(
-                "not_applicable", "Relations cannot be moved into a system schema"
+                "not_applicable", say("Relations cannot be moved into a system schema")
             )
         reason = await self._catalog.schema_action_reason(
             target_name, include_relations=False
@@ -334,7 +349,11 @@ class MoveRelation(JsonAction[MoveRelationParams]):
         if node.name in {sibling.name for sibling in siblings}:
             raise ActionRefused(
                 "conflict",
-                f'{target_name} already has a relation named "{node.name}"',
+                say(
+                    '{schema} already has a relation named "{name}"',
+                    schema=target_name,
+                    name=node.name,
+                ),
             )
 
         if isinstance(node, TableNode):
@@ -350,11 +369,11 @@ class MoveRelation(JsonAction[MoveRelationParams]):
         )
         await self._session.schema_change(
             statement.as_string(),
-            refusals={"42501": "This connection may not move that relation"},
+            refusals={"42501": say("This connection may not move that relation")},
         )
         new_node_id = f"{target_name}.{node.name}"
         return ActionResult(
-            message=f"{node.name} moved to {target_name}",
+            message=say("{name} moved to {schema}", name=node.name, schema=target_name),
             reload_node_ids=[source_schema, target_name],
             replacement=NodeReplacement(
                 old_node_id=node_id,
@@ -402,7 +421,7 @@ class CreateTable(JsonAction[CreateTableParams]):
     """
 
     name: ClassVar[str] = "create_table"
-    title: ClassVar[str] = "Create table"
+    title: ClassVar[str] = N_("Create table")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
     # It makes something inside the schema rather than changing the schema, as
     # loading a file does.
@@ -420,7 +439,7 @@ class CreateTable(JsonAction[CreateTableParams]):
         self, node_id: str | None, params: CreateTableParams
     ) -> ActionResult:
         if node_id is None:
-            raise ActionRefused("not_applicable", "Choose a schema to create it in")
+            raise ActionRefused("not_applicable", say("Choose a schema to create it in"))
         try:
             node = await self._design.create_table(
                 node_id, params.definition, params.fingerprint
@@ -431,7 +450,7 @@ class CreateTable(JsonAction[CreateTableParams]):
                 refused.problem.message,
             ) from None
         return ActionResult(
-            message=f"{params.definition.name} created",
+            message=say("{name} created", name=params.definition.name),
             reload_node_ids=[node_id],
             created_node_id=node.id,
         )
@@ -461,11 +480,11 @@ class LoadCsvParams(BaseModel):
 
     name: str = Field(
         default="",
-        title="Table name",
-        description="Leave empty to name the table after the file",
+        title=N_("Table name"),
+        description=N_("Leave empty to name the table after the file"),
         json_schema_extra={"x-ui-purpose": "filename-stem"},
     )
-    schema_name: str = Field(default="", title="Schema")
+    schema_name: str = Field(default="", title=N_("Schema"))
     create_schema: bool = False
     columns: list[LoadCsvColumn] | None = Field(default=None, max_length=100)
 
@@ -480,9 +499,9 @@ class LoadCsvParams(BaseModel):
         sources = [column.source for column in columns]
         targets = [column.target for column in columns]
         if len(sources) != len(set(sources)):
-            raise ValueError("A source column may be selected only once")
+            raise ValueError(say("A source column may be selected only once"))
         if len(targets) != len(set(targets)):
-            raise ValueError("A target column may be named only once")
+            raise ValueError(say("A target column may be named only once"))
         return self
 
 
@@ -496,7 +515,7 @@ class LoadCsv(FileAction[LoadCsvParams]):
     """
 
     name: ClassVar[str] = "load_csv"
-    title: ClassVar[str] = "Load from CSV"
+    title: ClassVar[str] = N_("Load from CSV")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
     # It makes something inside the schema rather than changing the schema, so
     # it belongs to the place being looked at rather than to what is ticked.
@@ -517,35 +536,40 @@ class LoadCsv(FileAction[LoadCsvParams]):
         self, node_id: str | None, params: LoadCsvParams, payload: FilePayload
     ) -> ActionResult:
         if node_id is None:
-            raise ActionRefused("not_applicable", "Choose a schema to load into")
+            raise ActionRefused("not_applicable", say("Choose a schema to load into"))
         schema = params.schema_name or node_id
         if params.create_schema:
             await self._create_schema(schema)
         else:
             schemas = await self._catalog.list_children(None)
             if schema not in {node.id for node in schemas if isinstance(node, SchemaNode)}:
-                raise ActionRefused("not_applicable", f'Schema "{schema}" does not exist')
+                raise ActionRefused(
+                    "not_applicable", say('Schema "{name}" does not exist', name=schema)
+                )
 
         name = params.name or _stem(payload.filename or "")
         if name.strip() == "":
             raise ActionRefused(
-                "not_applicable", "The file has no name to use; type one"
+                "not_applicable", say("The file has no name to use; type one")
             )
         _relation_name(name)
 
         siblings = await self._catalog.list_children(schema)
         if name in {sibling.name for sibling in siblings}:
-            raise ActionRefused("conflict", f"{name} is already there")
+            raise ActionRefused("conflict", say("{name} is already there", name=name))
 
         table = await self._read(payload)
         if not table.columns:
             raise ActionRefused(
-                "not_applicable", "That file has no first line to name columns"
+                "not_applicable", say("That file has no first line to name columns")
             )
         if table.more:
             raise ActionRefused(
                 "too_large",
-                f"A file loaded this way may hold at most {CSV_ROW_CEILING} rows",
+                say(
+                    "A file loaded this way may hold at most {count} rows",
+                    count=CSV_ROW_CEILING,
+                ),
             )
 
         selected = (
@@ -557,11 +581,12 @@ class LoadCsv(FileAction[LoadCsvParams]):
         for column in selected:
             if column.source not in positions:
                 raise ActionRefused(
-                    "not_applicable", f'The file has no column "{column.source}"'
+                    "not_applicable",
+                    say('The file has no column "{column}"', column=column.source),
                 )
             _relation_name(column.target)
         if not selected:
-            raise ActionRefused("not_applicable", "Choose at least one column")
+            raise ActionRefused("not_applicable", say("Choose at least one column"))
 
         result = await self._relations.create_relation(
             CreateRelationRequest(
@@ -588,10 +613,16 @@ class LoadCsv(FileAction[LoadCsvParams]):
             cell = result.cells[0]
             raise ActionRefused(
                 "not_applicable",
-                f"Row {cell.row + 1}, column {cell.column}: that value cannot be read",
+                say(
+                    "Row {row}, column {column}: that value cannot be read",
+                    row=cell.row + 1,
+                    column=cell.column,
+                ),
             )
         return ActionResult(
-            message=f"{name} created with {result.inserted} rows",
+            message=say(
+                "{name} created with {count} rows", name=name, count=result.inserted
+            ),
             # A new schema itself is a child of the root. Existing schemas only
             # gain the relation below them.
             reload_node_ids=[None, schema] if params.create_schema else [schema],
@@ -601,10 +632,12 @@ class LoadCsv(FileAction[LoadCsvParams]):
         _schema_name(schema)
         schemas = await self._catalog.list_children(None)
         if schema in {node.id for node in schemas if isinstance(node, SchemaNode)}:
-            raise ActionRefused("conflict", f'Schema "{schema}" already exists')
+            raise ActionRefused(
+                "conflict", say('Schema "{name}" already exists', name=schema)
+            )
         await self._session.schema_change(
             sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)).as_string(),
-            refusals={"42501": "This connection may not create schemas"},
+            refusals={"42501": say("This connection may not create schemas")},
         )
 
     async def _read(self, payload: FilePayload) -> DelimitedTable:
@@ -621,8 +654,10 @@ class LoadCsv(FileAction[LoadCsvParams]):
             if size > CSV_MAX_BYTES:
                 raise ActionRefused(
                     "too_large",
-                    "A file loaded this way must be under "
-                    f"{CSV_MAX_BYTES // (1024 * 1024)} MB",
+                    say(
+                        "A file loaded this way must be under {size} MB",
+                        size=CSV_MAX_BYTES // (1024 * 1024),
+                    ),
                 )
             chunks.append(chunk)
         # errors="replace" for the reason the file source reads that way: one
@@ -636,28 +671,38 @@ class LoadCsv(FileAction[LoadCsvParams]):
 # What a refused drop means, by SQLSTATE. The code is safe to look at and the
 # message beside it is not, so the wording is ours; the DETAIL of the first of
 # them is the list of what stands in the way, and that is passed on.
-def drop_refusals(subject: str) -> dict[str, str]:
+def drop_refusals(targets: Sequence[tuple[str, TableNode | ViewNode]]) -> dict[str, str]:
     """The same three refusals, about whatever is being dropped.
 
     Written per call rather than as one constant because the subject is a
     relation when one is selected and a count when several are: "something
     else is built on this relation" is the wrong sentence about five of them.
     """
+    name = _one_name(targets)
+    if name is not None:
+        return {
+            # dependent_objects_still_exist.
+            "2BP01": say("Something else is built on {name}", name=name),
+            # lock_not_available: somebody is reading or writing it right now.
+            "55P03": say("Something is using {name}; try again in a moment", name=name),
+            # insufficient_privilege.
+            "42501": say("This connection may not drop {name}", name=name),
+        }
+    count = len(targets)
     return {
-        # dependent_objects_still_exist.
-        "2BP01": f"Something else is built on {subject}",
-        # lock_not_available: somebody is reading or writing it right now.
-        "55P03": f"Something is using {subject}; try again in a moment",
-        # insufficient_privilege.
-        "42501": f"This connection may not drop {subject}",
+        "2BP01": say("Something else is built on {count} relations", count=count),
+        "55P03": say(
+            "Something is using {count} relations; try again in a moment", count=count
+        ),
+        "42501": say("This connection may not drop {count} relations", count=count),
     }
 
 
 class DropRelationParams(BaseModel):
     cascade: bool = Field(
         default=False,
-        title="Also drop everything built on it",
-        description="Required when a view or a reference depends on this relation",
+        title=N_("Also drop everything built on it"),
+        description=N_("Required when a view or a reference depends on this relation"),
     )
 
 
@@ -686,7 +731,7 @@ class DropRelation(JsonAction[DropRelationParams]):
     """
 
     name: ClassVar[str] = "drop_relation"
-    title: ClassVar[str] = "Drop"
+    title: ClassVar[str] = N_("Drop")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table", "view"})
     acts_on: ClassVar[ActsOn] = "node"
     destructive: ClassVar[bool] = True
@@ -724,17 +769,21 @@ class DropRelation(JsonAction[DropRelationParams]):
         targets = await self._targets(node_ids)
         await self._guard_cascades(targets, cascade=params.cascade)
         statements = self._statements(targets, cascade=params.cascade)
-        subject = _subject(targets)
         # One transaction, so a selection that cannot be dropped whole leaves
         # every relation in it standing. Half a drop is not a partial success,
         # it is a schema nobody asked for.
         async with self._session.transaction(
-            refusals=drop_refusals(subject)
+            refusals=drop_refusals(targets)
         ) as change:
             for statement in statements:
                 await change.schema_change(statement)
+        name = _one_name(targets)
         return ActionResult(
-            message=f"{subject} dropped",
+            message=(
+                say("{name} dropped", name=name)
+                if name is not None
+                else say("{count} relations dropped", count=len(targets))
+            ),
             reload_node_ids=[*sorted({schema for schema, _ in targets})],
         )
 
@@ -750,10 +799,9 @@ class DropRelation(JsonAction[DropRelationParams]):
         """
         targets = await self._targets(node_ids)
         await self._guard_cascades(targets, cascade=params.cascade)
-        subject = _subject(targets)
         rehearsal = await self._session.rehearse(
             *self._statements(targets, cascade=params.cascade),
-            refusals=drop_refusals(subject),
+            refusals=drop_refusals(targets),
         )
         if rehearsal.refused is not None:
             # An answer rather than a failure: the question was "what would
@@ -761,12 +809,25 @@ class DropRelation(JsonAction[DropRelationParams]):
             return ActionPreview(
                 summary=rehearsal.refused, items=rehearsal.said, blocked=True
             )
+        name = _one_name(targets)
+        count = len(targets)
         if not rehearsal.said:
-            return ActionPreview(summary=f"Nothing else depends on {subject}")
+            return ActionPreview(
+                summary=(
+                    say("Nothing else depends on {name}", name=name)
+                    if name is not None
+                    else say("Nothing else depends on {count} relations", count=count)
+                )
+            )
         # The lines are the server's own sentences, so the summary leaves room
         # for them to say what they say rather than repeating half of it.
         return ActionPreview(
-            summary=f"What dropping {subject} would do:", items=rehearsal.said
+            summary=(
+                say("What dropping {name} would do:", name=name)
+                if name is not None
+                else say("What dropping {count} relations would do:", count=count)
+            ),
+            items=rehearsal.said,
         )
 
     async def _guard_cascades(
@@ -784,17 +845,17 @@ class DropRelation(JsonAction[DropRelationParams]):
     ) -> list[tuple[str, TableNode | ViewNode]]:
         if len(set(node_ids)) != len(node_ids):
             raise ActionRefused(
-                "not_applicable", "A relation may be dropped only once"
+                "not_applicable", say("A relation may be dropped only once")
             )
         return [await self._target(node_id) for node_id in node_ids]
 
     async def _target(self, node_id: str | None) -> tuple[str, TableNode | ViewNode]:
         if node_id is None:
-            raise ActionRefused("not_applicable", "Choose a relation to drop")
+            raise ActionRefused("not_applicable", say("Choose a relation to drop"))
         path = await self._catalog.path_to(node_id)
         node = path[-1]
         if not isinstance(node, TableNode | ViewNode) or node.is_system:
-            raise ActionRefused("not_applicable", "This relation cannot be dropped")
+            raise ActionRefused("not_applicable", say("This relation cannot be dropped"))
         await _guard_relation_action(self._catalog, path[0].name, node)
         return path[0].name, node
 
@@ -834,8 +895,8 @@ def _kind_of(node: TableNode | ViewNode) -> str:
     return "materialized view" if node.is_materialized else "view"
 
 
-def _subject(targets: Sequence[tuple[str, TableNode | ViewNode]]) -> str:
-    """What a message about this drop is about, named once.
+def _one_name(targets: Sequence[tuple[str, TableNode | ViewNode]]) -> str | None:
+    """The name a message about this drop is about, or None when it counts.
 
     One relation is called by its name, because that is what the person is
     looking at. Several are counted: five names in a toast is a list nobody
@@ -843,24 +904,24 @@ def _subject(targets: Sequence[tuple[str, TableNode | ViewNode]]) -> str:
     """
     if len(targets) == 1:
         return targets[0][1].name
-    return f"{len(targets)} relations"
+    return None
 
 
 DROP_SCHEMA_REFUSALS = {
     # dependent_objects_still_exist.
-    "2BP01": "The schema is not empty",
+    "2BP01": N_("The schema is not empty"),
     # lock_not_available.
-    "55P03": "Something is using this schema; try again in a moment",
+    "55P03": N_("Something is using this schema; try again in a moment"),
     # insufficient_privilege.
-    "42501": "This connection may not drop that schema",
+    "42501": N_("This connection may not drop that schema"),
 }
 
 
 class DropSchemaParams(BaseModel):
     cascade: bool = Field(
         default=False,
-        title="Also drop everything in it",
-        description="Required when the schema still contains objects",
+        title=N_("Also drop everything in it"),
+        description=N_("Required when the schema still contains objects"),
     )
 
 
@@ -868,7 +929,7 @@ class DropSchema(JsonAction[DropSchemaParams]):
     """Drop one user schema after rehearsing PostgreSQL's exact statement."""
 
     name: ClassVar[str] = "drop_schema"
-    title: ClassVar[str] = "Drop schema"
+    title: ClassVar[str] = N_("Drop schema")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
     acts_on: ClassVar[ActsOn] = "group"
     destructive: ClassVar[bool] = True
@@ -883,7 +944,10 @@ class DropSchema(JsonAction[DropSchemaParams]):
         self, node_id: str | None, params: DropSchemaParams
     ) -> ActionResult:
         node = await _schema_target(
-            self._catalog, node_id, action="drop", refused_as="dropped"
+            self._catalog,
+            node_id,
+            choose=say("Choose a schema to drop"),
+            refused=say("This schema cannot be dropped"),
         )
         await self._guard_cascade(node.name, cascade=params.cascade)
         await self._session.schema_change(
@@ -891,7 +955,7 @@ class DropSchema(JsonAction[DropSchemaParams]):
             refusals=DROP_SCHEMA_REFUSALS,
         )
         return ActionResult(
-            message=f"Schema {node.name} dropped",
+            message=say("Schema {name} dropped", name=node.name),
             reload_node_ids=[None, node.name],
         )
 
@@ -900,7 +964,10 @@ class DropSchema(JsonAction[DropSchemaParams]):
     ) -> ActionPreview:
         params = self._validated(raw)
         node = await _schema_target(
-            self._catalog, node_id, action="drop", refused_as="dropped"
+            self._catalog,
+            node_id,
+            choose=say("Choose a schema to drop"),
+            refused=say("This schema cannot be dropped"),
         )
         await self._guard_cascade(node.name, cascade=params.cascade)
         rehearsal = await self._session.rehearse(
@@ -912,9 +979,10 @@ class DropSchema(JsonAction[DropSchemaParams]):
                 summary=rehearsal.refused, items=rehearsal.said, blocked=True
             )
         if not rehearsal.said:
-            return ActionPreview(summary=f"Schema {node.name} is empty")
+            return ActionPreview(summary=say("Schema {name} is empty", name=node.name))
         return ActionPreview(
-            summary=f"What dropping {node.name} would do:", items=rehearsal.said
+            summary=say("What dropping {name} would do:", name=node.name),
+            items=rehearsal.said,
         )
 
     async def _guard_cascade(self, schema: str, *, cascade: bool) -> None:
@@ -941,8 +1009,8 @@ class DescribeModelParams(BaseModel):
 
     dialect: CodeDialect = Field(
         default="dbml",
-        title="Written as",
-        description="What the file is for: an ORM, or a diagram",
+        title=N_("Written as"),
+        description=N_("What the file is for: an ORM, or a diagram"),
         # The names are the source's, so the three buttons say what a person
         # recognises rather than the value behind them.
         json_schema_extra={
@@ -968,7 +1036,7 @@ class DescribeModel(Action[DescribeModelParams]):
     """
 
     name: ClassVar[str] = "describe_model"
-    title: ClassVar[str] = "Model as code"
+    title: ClassVar[str] = N_("Model as code")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset(
         {"schema", "table", "view"}
     )
@@ -988,7 +1056,7 @@ class DescribeModel(Action[DescribeModelParams]):
         models = await self._models(node_ids)
         if not models:
             raise ActionRefused(
-                "not_applicable", "There is nothing here to describe"
+                "not_applicable", say("There is nothing here to describe")
             )
         try:
             text = render(models, params.dialect)
@@ -1023,7 +1091,8 @@ class DescribeModel(Action[DescribeModelParams]):
                 continue
             if not isinstance(node, TableNode | ViewNode):
                 raise ActionRefused(
-                    "not_applicable", f"{node.name} has no model to write out"
+                    "not_applicable",
+                    say("{name} has no model to write out", name=node.name),
                 )
             await _guard_relation_action(self._catalog, path[0].name, node)
             model = await self._relation.relation_model(node_id)

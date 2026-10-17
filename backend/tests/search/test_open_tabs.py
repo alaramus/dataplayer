@@ -81,3 +81,16 @@ async def test_no_tab_is_found_when_the_browser_names_none(
     lines = await search(client, normal_user_token_headers, "orders")
 
     assert hits(lines, "objects:open_tabs") == []
+
+
+async def test_a_russian_search_names_its_group_and_what_a_hit_is_in_russian(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    russian = {**normal_user_token_headers, "Accept-Language": "ru"}
+    lines = await search(client, russian, "month end", browser=BROWSER)
+
+    [plan] = [line for line in lines if line["type"] == "plan"]
+    [tabs] = [cell for cell in plan["cells"] if cell["key"] == "objects:open_tabs/names"]
+    assert tabs["group"]["title"] == "Открытые вкладки"
+    [found] = hits(lines, "objects:open_tabs")
+    assert found["detail"] == "Группа вкладок"

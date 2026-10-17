@@ -4,6 +4,7 @@ import { useRoute } from "vue-router"
 
 import { useActiveServerCheck } from "./api"
 import ServerSwitcher from "./ServerSwitcher.vue"
+import { t } from "@/shared/i18n"
 import AppBanner from "@/shared/ui/AppBanner.vue"
 import AppButton from "@/shared/ui/AppButton.vue"
 import AppCard from "@/shared/ui/AppCard.vue"
@@ -38,7 +39,7 @@ watch(status.data, (value) => { if (value === true) admitted.value = true }, { i
   >
     <AppCard
       size="sm"
-      title="Connect to DataPlayer"
+      :title="t('servers.boundary.title')"
     >
       <AppSection gutter>
         <ServerSwitcher />
@@ -52,7 +53,7 @@ watch(status.data, (value) => { if (value === true) admitted.value = true }, { i
           {{ status.error.value?.message }}
         </AppBanner>
         <AppButton
-          label="Retry connection"
+          :label="t('auth.retry_connection')"
           :loading="status.isFetching.value"
           @click="status.refetch()"
         />

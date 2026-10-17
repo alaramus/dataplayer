@@ -18,6 +18,7 @@ from typing import Annotated, Literal, Protocol, runtime_checkable
 from fastapi import Depends, Request
 
 from app.core.config import settings
+from app.core.translation import N_, say
 from app.jobs.runner import JobFailed
 from app.services.plan import ContainerSpec
 from app.services.tools import ToolResult, ToolRun
@@ -119,8 +120,11 @@ class ServiceEngine(Protocol):
     async def run_once(self, run: ToolRun) -> ToolResult: ...
 
 
-NO_ENGINE_MESSAGE = "This server has no container runtime, so it cannot run services"
-SWITCHED_OFF_MESSAGE = "Managed services are switched off on this server"
+# Chosen at assembly, where no request is: English, worded where it is said.
+NO_ENGINE_MESSAGE = N_(
+    "This server has no container runtime, so it cannot run services"
+)
+SWITCHED_OFF_MESSAGE = N_("Managed services are switched off on this server")
 
 
 class NoEngine:
@@ -139,37 +143,37 @@ class NoEngine:
         self._reason = reason
 
     async def availability(self) -> Availability:
-        return Availability(available=False, reason=self._reason)
+        return Availability(available=False, reason=say(self._reason))
 
     async def pull(self, image: str) -> None:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def create(self, spec: ContainerSpec) -> None:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def start(self, container: str) -> None:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def stop(self, container: str) -> None:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def restart(self, container: str) -> None:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def remove(self, container: str, *, volume: str | None) -> None:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def status(self, container: str) -> ContainerStatus:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def managed(self) -> list[ContainerStatus]:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def logs(self, container: str, *, tail: int) -> LogLines:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
     async def run_once(self, run: ToolRun) -> ToolResult:
-        raise EngineUnavailable(self._reason)
+        raise EngineUnavailable(say(self._reason))
 
 
 def get_engine(request: Request) -> ServiceEngine:
@@ -191,7 +195,7 @@ ServiceEngineDep = Annotated[ServiceEngine, Depends(get_engine)]
 # What a server without a network can say. Reaching a service is reaching a
 # container by name, and a name resolves only on a network they share, so a
 # service that could be started and not reached is not offered at all.
-NO_NETWORK_MESSAGE = "This server has no network to put a service on"
+NO_NETWORK_MESSAGE = N_("This server has no network to put a service on")
 
 
 async def service_offer(engine: ServiceEngine) -> Availability:
@@ -205,5 +209,5 @@ async def service_offer(engine: ServiceEngine) -> Availability:
     if not runtime.available:
         return runtime
     if not settings.SERVICE_NETWORK:
-        return Availability(available=False, reason=NO_NETWORK_MESSAGE)
+        return Availability(available=False, reason=say(NO_NETWORK_MESSAGE))
     return runtime

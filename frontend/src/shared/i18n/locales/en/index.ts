@@ -1,0 +1,51 @@
+/**
+ * The interface in English: the source every other language is typed against
+ * (D224). A key missing from another language, or one it has and this does
+ * not, fails `bun run type-check`.
+ *
+ * One module per area, so an area moves over without touching another's
+ * file; `common` is only for words that mean the same thing wherever they
+ * stand.
+ */
+import { activity } from "./activity"
+import { admin } from "./admin"
+import { ai } from "./ai"
+import { auth, common, language, theme } from "./app"
+import { catalog } from "./catalog"
+import { charts } from "./charts"
+import { connectors } from "./connectors"
+import { content } from "./content"
+import { dashboards } from "./dashboards"
+import { declared } from "./declared"
+import { freshness } from "./freshness"
+import { graph } from "./graph"
+import { grid } from "./grid"
+import { hypertable_design } from "./hypertable_design"
+import { kit } from "./kit"
+import { layout } from "./layout"
+import { logs } from "./logs"
+import { notifications } from "./notifications"
+import { onboarding } from "./onboarding"
+import { pipelines } from "./pipelines"
+import { preferences } from "./preferences"
+import { queries } from "./queries"
+import { record } from "./record"
+import { relationships } from "./relationships"
+import { schema_form } from "./schema_form"
+import { search } from "./search"
+import { search_index } from "./search_index"
+import { servers } from "./servers"
+import { services } from "./services"
+import { shares } from "./shares"
+import { shell } from "./shell"
+import { ssh_keys } from "./ssh_keys"
+import { structure } from "./structure"
+import { summary } from "./summary"
+import { table_design } from "./table_design"
+import { terminals } from "./terminals"
+import { windows } from "./windows"
+import { workspace } from "./workspace"
+
+export const en = { common, language, auth, theme, preferences, workspace, layout, catalog, kit, grid, dashboards, ai, content, queries, connectors, servers, ssh_keys, table_design, hypertable_design, structure, pipelines, services, search, search_index, activity, notifications, shares, terminals, admin, logs, onboarding, charts, summary, relationships, declared, record, graph, windows, freshness, schema_form, shell }
+
+export type Messages = typeof en

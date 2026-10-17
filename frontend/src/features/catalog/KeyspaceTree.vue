@@ -8,6 +8,7 @@ import type { TreeRow } from "@/features/catalog/keyspaceRows"
 import { toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppEmptyState, AppSpinner, AppTree } from "@/shared/ui"
 import type { TreeLazyLoad } from "@/shared/ui"
 
@@ -64,7 +65,7 @@ async function load(refresh = false) {
     expanded.value = []
     selected.value = null
   } catch (cause) {
-    error.value = messageOf(cause, "Could not read the catalog")
+    error.value = messageOf(cause, t("catalog.level.read_failed"))
     rows.value = []
   } finally {
     loading.value = false
@@ -94,7 +95,7 @@ async function expand({ node, done, fail }: TreeLazyLoad) {
     else foundRows.value = withChildren(foundRows.value, row.id, children)
     done(children)
   } catch (cause) {
-    error.value = messageOf(cause, `Could not open ${row.node.label}`)
+    error.value = messageOf(cause, t("catalog.keyspace.open_failed", { name: row.node.label }))
     fail()
   }
 }
@@ -173,7 +174,9 @@ function onClick(row: TreeRow) {
 
 const empty = computed(() => !loading.value && shown.value.length === 0)
 const emptyText = computed(() =>
-  foundRows.value !== null || filtered.value.rows !== rows.value ? "Nothing matches" : "Nothing here yet"
+  foundRows.value !== null || filtered.value.rows !== rows.value
+    ? t("catalog.keyspace.nothing_matches")
+    : t("catalog.keyspace.nothing_yet")
 )
 
 function reload(): Promise<void> {

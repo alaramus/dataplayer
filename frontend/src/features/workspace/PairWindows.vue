@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineComponent, h, inject, onBeforeUnmount, provide, watch } from "vue"
 
+import { t } from "@/shared/i18n"
 import { appIcons } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import { panelTargetsKey, workspaceKey } from "@/shared/workspace"
@@ -61,7 +62,7 @@ if (targets !== undefined) {
           component,
           actions: [{
             icon: appIcons.swapSides,
-            tooltip: "Swap sides",
+            get tooltip() { return t("workspace.pair.swap") },
             testid: "pair-swap",
             run: () => { props.pairs.swap(pairId) },
           }],

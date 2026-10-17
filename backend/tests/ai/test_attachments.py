@@ -279,7 +279,7 @@ async def test_what_is_refused_is_refused_before_anything_runs(
     assert binary.json()["detail"]["message"] == (
         "data.bin is neither text nor a PNG, JPEG, WebP or GIF image"
     )
-    assert empty.json()["detail"]["message"] == "Write a message or attach a file"
+    assert empty.json()["detail"]["code"] == "ai.message_empty"
     assert many.json()["detail"]["message"] == f"A message carries at most {MAX_FILES} files"
     assert {binary.status_code, empty.status_code, many.status_code} == {422}
     conversation = (await client.get(f"{AI}/conversations/{conversation_id}", headers=headers)).json()

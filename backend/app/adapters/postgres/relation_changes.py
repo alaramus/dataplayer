@@ -1,5 +1,7 @@
 """Creating a PostgreSQL relation from validated parts, with its first rows."""
 
+from typing import Literal
+
 from psycopg import sql
 
 from app.adapters.catalog import CatalogNode
@@ -10,6 +12,7 @@ from app.adapters.postgres.column_types import (
 )
 from app.adapters.postgres.counting import unreadable_values
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.words import worded_titles
 from app.adapters.relation import ColumnTypeOption
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -18,21 +21,22 @@ from app.adapters.relation_changes import (
     RelationCreated,
 )
 from app.adapters.update import RejectedValue, ValuesRejected
+from app.core.translation import N_, say
 
 # What a refused creation means, by SQLSTATE. The code is safe to look at and
 # the message beside it is not: PostgreSQL writes the schema and the statement
 # into the text of these.
 CREATE_REFUSALS = {
     # duplicate_table: the name is taken by a table, view, index or sequence.
-    "42P07": "Something with that name is already there",
+    "42P07": N_("Something with that name is already there"),
     # duplicate_column: two columns of one relation cannot share a name.
-    "42701": "Two columns cannot have the same name",
+    "42701": N_("Two columns cannot have the same name"),
     # insufficient_privilege.
-    "42501": "This connection may not create a relation in that schema",
+    "42501": N_("This connection may not create a relation in that schema"),
     # invalid_schema_name: the schema went away between the check and the DDL.
-    "3F000": "That schema is no longer there",
+    "3F000": N_("That schema is no longer there"),
     # too_many_columns.
-    "54011": "That is more columns than the source accepts",
+    "54011": N_("That is more columns than the source accepts"),
 }
 
 # The longest identifier PostgreSQL stores. A longer one is not refused by the
@@ -58,12 +62,12 @@ class PostgresRelationChanges:
         node = await self._container(parent_node_id)
         if node.kind != "schema":
             return NewRelationOptions(
-                supported=False, reason="A table is created in a schema"
+                supported=False, reason=say("A table is created in a schema")
             )
         if node.is_system:
             return NewRelationOptions(
                 supported=False,
-                reason=f'"{node.name}" belongs to the server',
+                reason=say('"{schema}" belongs to the server', schema=node.name),
             )
         reason = await self._catalog.schema_action_reason(
             node.name, include_relations=False
@@ -71,7 +75,8 @@ class PostgresRelationChanges:
         if reason is not None:
             return NewRelationOptions(supported=False, reason=reason)
         return NewRelationOptions(
-            supported=True, column_type_options=POSTGRES_COLUMN_TYPE_OPTIONS
+            supported=True,
+            column_type_options=worded_titles(POSTGRES_COLUMN_TYPE_OPTIONS),
         )
 
     async def create_relation(
@@ -79,12 +84,12 @@ class PostgresRelationChanges:
     ) -> CreateRelationResult:
         options = await self.new_relation_options(request.parent_node_id)
         if not options.supported:
-            raise ValueError(options.reason or "This node cannot hold a relation")
+            raise ValueError(options.reason or say("This node cannot hold a relation"))
         schema = request.parent_node_id
-        _check_identifier(request.name, "relation name")
+        _check_identifier(request.name, "relation")
         chosen: list[tuple[sql.SQL, ColumnTypeOption]] = []
         for column in request.columns:
-            _check_identifier(column.name, "column name")
+            _check_identifier(column.name, "column")
             type_sql = POSTGRES_COLUMN_TYPES.get(column.type_code)
             option = next(
                 (
@@ -95,7 +100,9 @@ class PostgresRelationChanges:
                 None,
             )
             if type_sql is None or option is None:
-                raise ValueError(f'Unknown column type "{column.type_code}"')
+                raise ValueError(
+                    say('Unknown column type "{code}"', code=column.type_code)
+                )
             chosen.append((type_sql, option))
 
         rejected = await self._unreadable(request, [option for _, option in chosen])
@@ -175,8 +182,16 @@ class PostgresRelationChanges:
         )
 
 
-def _check_identifier(name: str, what: str) -> None:
+def _check_identifier(name: str, what: Literal["relation", "column"]) -> None:
     if len(name.encode("utf-8")) > MAX_IDENTIFIER_BYTES:
         raise ValueError(
-            f"A PostgreSQL {what} cannot exceed {MAX_IDENTIFIER_BYTES} bytes"
+            say(
+                "A PostgreSQL relation name cannot exceed {limit} bytes",
+                limit=MAX_IDENTIFIER_BYTES,
+            )
+            if what == "relation"
+            else say(
+                "A PostgreSQL column name cannot exceed {limit} bytes",
+                limit=MAX_IDENTIFIER_BYTES,
+            )
         )

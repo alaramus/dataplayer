@@ -1,7 +1,7 @@
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core import security
 from app.core.config import settings
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.users.models import TokenPayload, User
 
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -26,7 +27,7 @@ def _subject(token: str) -> TokenPayload | None:
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         return TokenPayload(**payload)
-    except (InvalidTokenError, ValidationError):
+    except InvalidTokenError, ValidationError:
         return None
 
 
@@ -59,24 +60,24 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     """
     claim = _subject(token)
     if claim is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+        raise Problem(
+            status.HTTP_401_UNAUTHORIZED,
+            "auth.not_signed_in",
             headers={"WWW-Authenticate": "Bearer"},
         )
     user = await session.get(User, claim.sub)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+        raise Problem(
+            status.HTTP_401_UNAUTHORIZED,
+            "auth.not_signed_in",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_active:
         # Also 401: the account exists and cannot be used, so the session it
         # is holding is over.
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Inactive user",
+        raise Problem(
+            status.HTTP_401_UNAUTHORIZED,
+            "auth.inactive_user",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
@@ -87,7 +88,5 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 def get_current_active_superuser(current_user: CurrentUser) -> User:
     if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=403, detail="The user doesn't have enough privileges"
-        )
+        raise Problem(403, "auth.not_enough_privileges")
     return current_user

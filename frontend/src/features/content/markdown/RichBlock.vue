@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from "vue"
 
+import { t } from "@/shared/i18n"
+
 import AgentBlock from "./AgentBlock.vue"
 import type { RichDocumentBlock } from "./blocks"
 import DeferredBlock from "./DeferredBlock.vue"
@@ -62,7 +64,7 @@ const SvgBlock = defineAsyncComponent(() => import("./SvgBlock.vue"))
     class="rich-block__oversized"
     data-testid="markdown-oversized"
   >
-    This {{ block.language }} block is too large to draw.
+    {{ t("content.markdown.oversized", { language: block.language }) }}
   </p>
 </template>
 

@@ -9,6 +9,7 @@ from app.connectors.paste.routes import router as paste_router
 from app.connectors.routes import router as connectors_router
 from app.connectors.ssh_key_routes import router as ssh_keys_router
 from app.core.config import settings
+from app.core.problems import ProblemResponse
 from app.guide.routes import router as guide_router
 from app.jobs.routes import router as jobs_router
 from app.metrics import live as metrics_live
@@ -30,7 +31,12 @@ from app.users.auth_routes import router as auth_router
 from app.users.private_routes import router as private_router
 from app.users.routes import router as users_router
 
-api_router = APIRouter()
+# Every route may refuse with a coded problem (D225). Declared here once so the
+# schema and its closed set of codes reach the generated client, whose
+# dictionaries are typed against them.
+api_router = APIRouter(
+    responses={"4XX": {"model": ProblemResponse, "description": "A coded refusal"}}
+)
 api_router.include_router(auth_router)
 api_router.include_router(users_router)
 api_router.include_router(utils_router)

@@ -1,4 +1,6 @@
 import type { PreparedScript, PreparedStatement, RunParameter } from "@/client"
+import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 
 /**
  * What Run means, worked out from what the source said and where the caret is.
@@ -174,11 +176,30 @@ export function ready(entries: ParameterEntry[]): boolean {
   return entries.every((entry) => entry.isNull || entry.value !== "")
 }
 
+const STATUSES = [
+  "pending",
+  "accepted",
+  "running",
+  "cancelling",
+  "cancelled",
+  "succeeded",
+  "failed",
+  "timed_out",
+  "interrupted",
+  "not_run",
+] as const
+
+/** A run's or a statement's status as a word; one this build does not know stays as sent. */
+export function statusWord(status: string): string {
+  const known = STATUSES.find((one) => one === status)
+  return known === undefined ? status : t(`queries.status.${known}`)
+}
+
 /** How long a run has been going, as a person reads it. */
 export function elapsed(milliseconds: number): string {
-  if (milliseconds < 1000) return `${milliseconds} ms`
+  if (milliseconds < 1000) return t("queries.duration.ms", { n: milliseconds })
   const seconds = milliseconds / 1000
-  if (seconds < 60) return `${seconds.toFixed(1)} s`
+  if (seconds < 60) return t("queries.duration.seconds_fraction", { n: formatFixed(seconds, 1) })
   const minutes = Math.floor(seconds / 60)
-  return `${minutes}m ${Math.floor(seconds % 60)}s`
+  return t("queries.duration.minutes_seconds", { m: minutes, s: Math.floor(seconds % 60) })
 }

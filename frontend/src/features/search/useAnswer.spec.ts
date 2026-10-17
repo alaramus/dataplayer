@@ -4,7 +4,7 @@ import { effectScope, nextTick, ref } from "vue"
 
 import type { SearchRequest } from "@/client"
 
-import { pendingOf, STOPPED_BEFORE_ANSWER } from "./answer"
+import { pendingOf, stoppedBeforeAnswer } from "./answer"
 import { useFieldAnswer, useTabAnswer } from "./useAnswer"
 import type { Ask, FieldContext } from "./useAnswer"
 import type { SearchLine } from "./stream"
@@ -280,7 +280,7 @@ describe("the tab's answer", () => {
     tab.stop()
     await flushPromises()
     expect(pendingOf(tab.state.value)).toEqual([])
-    expect(tab.state.value.cells[0]?.outcome?.message).toBe(STOPPED_BEFORE_ANSWER)
+    expect(tab.state.value.cells[0]?.outcome?.message).toBe(stoppedBeforeAnswer())
     expect(tab.searching.value).toBe(false)
     scope.stop()
   })

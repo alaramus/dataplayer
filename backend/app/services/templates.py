@@ -14,6 +14,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, get_args
 
+from app.core.translation import N_
+
 # What may stand where a value is expected, in two kinds. A credential belongs
 # to one service and is settled before it starts; a placement is settled when
 # the service is put somewhere. A client supplies neither.
@@ -168,8 +170,8 @@ class ServiceTemplate:
 
 POSTGRES = ServiceTemplate(
     key="postgres",
-    title="PostgreSQL",
-    description=(
+    title=N_("PostgreSQL"),
+    description=N_(
         "A PostgreSQL server of its own, started on this machine with "
         "credentials nobody has to choose."
     ),
@@ -213,8 +215,8 @@ POSTGRES = ServiceTemplate(
 
 TIMESCALE = ServiceTemplate(
     key="timescaledb",
-    title="TimescaleDB",
-    description=(
+    title=N_("TimescaleDB"),
+    description=N_(
         "A PostgreSQL server with TimescaleDB already installed in its "
         "database, started on this machine with credentials nobody has to "
         "choose."
@@ -274,8 +276,8 @@ TIMESCALE = ServiceTemplate(
 # down.
 REDIS = ServiceTemplate(
     key="redis",
-    title="Redis",
-    description=(
+    title=N_("Redis"),
+    description=N_(
         "An in-memory key-value server of its own, started on this machine "
         "with a password nobody has to choose."
     ),
@@ -317,8 +319,8 @@ REDIS = ServiceTemplate(
 
 SSH = ServiceTemplate(
     key="ssh",
-    title="SSH server",
-    description=(
+    title=N_("SSH server"),
+    description=N_(
         "A Linux machine of its own to reach over SSH, started on this machine "
         "with a password nobody has to choose: its files open in the explorer, "
         "and a terminal opens on it."

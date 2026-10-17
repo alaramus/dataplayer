@@ -18,7 +18,8 @@ the same field, stated where it belongs, not a second definition of it.
 
 The `title` on each variant is not decoration: it becomes the title of the
 entry in `$defs`, which is the wording of the item in the pick list. Without
-it the user would be offered class names.
+it the user would be offered class names. Every title is marked `N_` and
+worded by the route that hands the schema out (D226).
 """
 
 from typing import Annotated, Any, Literal
@@ -26,18 +27,19 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.core.translation import N_
 
 
 def _database_field() -> Any:
-    return Field(title="Database", min_length=1, json_schema_extra=layout())
+    return Field(title=N_("Database"), min_length=1, json_schema_extra=layout())
 
 
 def _user_field() -> Any:
-    return Field(title="User", min_length=1, json_schema_extra=layout())
+    return Field(title=N_("User"), min_length=1, json_schema_extra=layout())
 
 
 def _auth_method_field(method: str) -> Any:
-    return Field(default=method, title="Authentication", json_schema_extra=layout())
+    return Field(default=method, title=N_("Authentication"), json_schema_extra=layout())
 
 
 class _PostgresBase(BaseModel):
@@ -53,13 +55,13 @@ class _PostgresBase(BaseModel):
     # more than a field that always has to be filled in.
     host: str = Field(
         default="localhost",
-        title="Host",
+        title=N_("Host"),
         min_length=1,
         json_schema_extra=layout(row="address"),
     )
     port: int = Field(
         default=5432,
-        title="Port",
+        title=N_("Port"),
         ge=1,
         le=65535,
         json_schema_extra=layout(row="address"),
@@ -67,12 +69,12 @@ class _PostgresBase(BaseModel):
 
 
 class PostgresUserPassword(_PostgresBase):
-    model_config = ConfigDict(title="User & Password")
+    model_config = ConfigDict(title=N_("User & Password"))
 
     auth_method: Literal["user_password"] = _auth_method_field("user_password")
     database: str = _database_field()
     user: str = _user_field()
-    password: SecretStr = Field(title="Password", json_schema_extra=layout())
+    password: SecretStr = Field(title=N_("Password"), json_schema_extra=layout())
 
 
 class PostgresNoAuth(_PostgresBase):
@@ -83,7 +85,7 @@ class PostgresNoAuth(_PostgresBase):
     empty one.
     """
 
-    model_config = ConfigDict(title="No auth")
+    model_config = ConfigDict(title=N_("No auth"))
 
     auth_method: Literal["no_auth"] = _auth_method_field("no_auth")
     database: str = _database_field()

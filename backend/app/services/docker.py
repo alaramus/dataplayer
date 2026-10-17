@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 
 from app.core.config import settings
+from app.core.translation import N_, say
 from app.services.engine import (
     Availability,
     ContainerState,
@@ -57,13 +58,14 @@ RESTART_POLICY = "unless-stopped"
 # situation rather than the machine. The daemon's message names image
 # digests, socket paths and directories of the host; none of it crosses.
 _REFUSALS: Mapping[int, str] = {
-    304: "It is already in that state",
-    400: "The container runtime would not accept that request",
-    403: "The container runtime refused: this server may not do that",
-    404: "It is not there any more",
-    409: "It is busy, or something with that name already exists",
-    500: "The container runtime failed while doing it",
+    304: N_("It is already in that state"),
+    400: N_("The container runtime would not accept that request"),
+    403: N_("The container runtime refused: this server may not do that"),
+    404: N_("It is not there any more"),
+    409: N_("It is busy, or something with that name already exists"),
+    500: N_("The container runtime failed while doing it"),
 }
+_REFUSED = N_("The container runtime refused")
 
 
 # How many lines of a container's output are ever fetched at once. A tail is
@@ -136,12 +138,12 @@ class DockerEngine:
         except httpx.HTTPError:
             return Availability(
                 available=False,
-                reason="This server cannot reach a container runtime",
+                reason=say("This server cannot reach a container runtime"),
             )
         if response.status_code != 200:
             return Availability(
                 available=False,
-                reason="The container runtime did not answer as one",
+                reason=say("The container runtime did not answer as one"),
             )
         version = response.json().get("Version")
         return Availability(available=True, version=str(version) if version else None)
@@ -217,9 +219,7 @@ class DockerEngine:
         """
         found = await self.status(container)
         if found.state != "missing" and found.service_id is None:
-            raise EngineError(
-                "That container was not made by this application"
-            )
+            raise EngineError(say("That container was not made by this application"))
         await self._request(
             "DELETE",
             f"/containers/{container}",
@@ -474,16 +474,17 @@ def _refuse_if_the_stream_says_so(line: str) -> None:
         return
     if isinstance(message, dict) and ("error" in message or "errorDetail" in message):
         logger.warning("Docker pull failed: %s", str(message)[:500])
-        raise EngineError("The image could not be fetched")
+        raise EngineError(say("The image could not be fetched"))
 
 
 def _refusal(status: int) -> EngineError:
-    return EngineError(_REFUSALS.get(status, "The container runtime refused"))
+    wording = _REFUSALS.get(status, _REFUSED)
+    return EngineError(say(wording))
 
 
 def _unreachable(failure: httpx.HTTPError) -> EngineUnavailable:
     logger.warning("Docker is unreachable: %s", failure)
-    return EngineUnavailable("This server cannot reach a container runtime")
+    return EngineUnavailable(say("This server cannot reach a container runtime"))
 
 
 def _state_of(state: Mapping[str, Any]) -> ContainerState:

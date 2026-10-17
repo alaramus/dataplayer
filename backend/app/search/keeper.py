@@ -28,6 +28,7 @@ from app.core.config import settings
 from app.core.db import async_session_maker, loop_factory
 from app.core.logs import record_failure
 from app.core.schemas import get_datetime_utc
+from app.core.translation import N_, say
 from app.search.embedder import Embedder
 from app.search.keep import SearchKeep, SearchName
 from app.search.kept import reading, stale, window_of
@@ -52,7 +53,9 @@ PASSES = 2
 # How long a failed pass waits before it is tried again, at most.
 RETRY_SECONDS = 600
 
-_LOCKED = (
+# No request starts a pass, so what it writes is English (D226); the screens
+# word a sentence without parameters as they read it.
+_LOCKED = N_(
     "The SSH key's passphrase is held only while its owner is signed in, "
     "so the names cannot be read in the background"
 )
@@ -116,7 +119,7 @@ async def run_pass(connector: Connector) -> None:
         await _ended(
             connector.id,
             outcome="failed",
-            notice=f"The names could not be read (ref {ref})",
+            notice=say("The names could not be read (ref {ref})", ref=ref),
             error_kind="unknown",
         )
         return
@@ -138,7 +141,10 @@ async def run_pass(connector: Connector) -> None:
         ).one()
         await session.commit()
     if notice is None and unread:
-        notice = f"{len(unread):,} folders could not be read; what was kept in them stays"
+        notice = say(
+            "{count} folders could not be read; what was kept in them stays",
+            count=f"{len(unread):,}",
+        )
     # The text below the chosen folders, from the names just kept (D218). Its
     # failure is said on its scopes and never undoes the names.
     try:
@@ -173,7 +179,7 @@ async def _read(
 ) -> tuple[str | None, list[str]]:
     """Every batch written as it arrives; the source's notice and what it could not read."""
     if not isinstance(adapter, EnumeratesNames):
-        raise AdapterError("config", "This kind of source cannot keep its names")
+        raise AdapterError("config", say("This kind of source cannot keep its names"))
     bounds = SearchBounds.within(settings.SEARCH_KEPT_PASS_SECONDS)
     notice: str | None = None
     unread: list[str] = []
@@ -290,7 +296,7 @@ async def settle_interrupted() -> None:
             .values(
                 pass_ended_at=get_datetime_utc(),
                 outcome="failed",
-                notice="The pass was interrupted",
+                notice=N_("The pass was interrupted"),
                 error_kind="unknown",
             )
         )

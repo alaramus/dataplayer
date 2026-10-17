@@ -19,6 +19,8 @@ from sqlmodel.sql.expression import SelectOfScalar
 from app.connectors.paste.models import PasteRun
 from app.connectors.paste.registry import kind_named
 from app.core.config import settings
+from app.core.problems import Problem
+from app.core.translation import N_, say
 from app.jobs import crud as job_crud
 from app.jobs.models import TERMINAL, Job, JobKind, JobState
 from app.jobs.runner import JobRunner
@@ -37,12 +39,9 @@ KEPT_RUNS = 100
 # What a link lacks before it can run, by the window its kind opens; the other
 # workflows run with what they have.
 _NEEDS = {
-    "new-relation": "needs its table named and its columns chosen",
-    "into-relation": "needs its columns paired",
+    "new-relation": N_("{number} · {title} needs its table named and its columns chosen"),
+    "into-relation": N_("{number} · {title} needs its columns paired"),
 }
-
-_SPELLED = ("Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine")
-
 
 class LinkRun(BaseModel):
     """What one link did in a run."""
@@ -75,7 +74,8 @@ class LastRun(BaseModel):
 
 
 def missing(link: Link) -> str | None:
-    """What running the link still needs chosen, asked of its kind alone."""
+    """What running the link still needs chosen, asked of its kind alone: a
+    sentence to fill with the link's number and title."""
     workflow = kind_named(link.kind).workflow
     if workflow == "new-relation" and (link.name is None or not link.columns):
         return _NEEDS[workflow]
@@ -87,9 +87,9 @@ def missing(link: Link) -> str | None:
 def _named(card: Card, end: LinkEnd, foresight: Foresight) -> str:
     if end.made_by is not None:
         made = foresight.made(end.made_by)
-        return f"{card.connector_name} · {made.name if made is not None else 'a result'}"
+        return f"{card.connector_name} · {made.name if made is not None else say('a result')}"
     if end.node_id is None:
-        return f"{card.connector_name} (top)"
+        return say("{connection} (top)", connection=card.connector_name)
     row = next((one for one in card.rows if one.node_id == end.node_id), None)
     return f"{card.connector_name} · {row.label if row is not None else end.node_id}"
 
@@ -99,7 +99,7 @@ def _step(content: PipelineContent, link: Link, foresight: Foresight) -> RunStep
     target = content.card(link.target.card_id)
     # Validated with the content; said again for the types.
     if source is None or target is None:
-        raise HTTPException(422, detail={"message": "A link of this pipeline no longer joins two rows"})
+        raise Problem(422, "pipelines.link_broken")
     kind = kind_named(link.kind)
     # A result's node is known only once its maker has run: named here by the
     # maker, and put in by the step when it starts (D178).
@@ -143,15 +143,17 @@ async def start_run(
     """Every link, in order, as one job — or nothing, and why. A schedule
     starts it the same way, saying when it came (D179)."""
     if not content.links:
-        raise HTTPException(422, detail={"message": "Draw a link first"})
+        raise Problem(422, "pipelines.no_links")
     order = ordered(content)
     lacking = [(placed, needs) for placed in order if (needs := missing(placed.link))]
     if lacking:
-        said = "; ".join(f"{placed.number} · {placed.link.title} {needs}" for placed, needs in lacking)
+        said = "; ".join(
+            say(needs, number=placed.number, title=placed.link.title) for placed, needs in lacking
+        )
         raise HTTPException(
             422,
             detail={
-                "message": f"Nothing ran: {said}",
+                "message": say("Nothing ran: {needs}", needs=said),
                 "link_ids": [str(placed.link.id) for placed, _ in lacking],
             },
         )
@@ -174,14 +176,10 @@ async def start_run(
             alone=True,
         )
     except job_crud.SubjectBusy:
-        raise HTTPException(
-            409, detail={"message": "This pipeline is running; wait for it to finish"}
-        ) from None
+        raise Problem(409, "pipelines.running") from None
     except job_crud.TooManyActive:
-        limit = settings.PIPELINE_MAX_ACTIVE
-        count = _SPELLED[limit] if limit < len(_SPELLED) else str(limit)
-        raise HTTPException(
-            429, detail={"message": f"{count} pipelines are running — wait for one to finish"}
+        raise Problem(
+            429, "pipelines.too_many_running", count=settings.PIPELINE_MAX_ACTIVE
         ) from None
     await runner.launch(job, topics)
     await job_crud.forget_finished(session, kind=KIND, subject_id=pipeline.id, keep=KEPT_RUNS)
@@ -259,5 +257,5 @@ async def run_of(
     still drawn only, so one taken away since is not there to show."""
     job = (await session.exec(runs_of(pipeline).where(Job.id == job_id))).first()
     if job is None:
-        raise HTTPException(404, detail={"message": "No such run"})
+        raise Problem(404, "pipelines.run_not_found")
     return _public(job, content)

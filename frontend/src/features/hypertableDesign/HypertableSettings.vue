@@ -4,6 +4,8 @@ import { computed, onBeforeUnmount, ref, toRef, watch } from "vue"
 import type { ActionPreview, HypertableDesign } from "@/client"
 import { usePreviewAction } from "@/features/catalog/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 import {
   AppBanner,
   AppButton,
@@ -86,7 +88,7 @@ async function askPlan(design: HypertableDesign) {
   } catch (cause) {
     if (mine !== asked) return
     preview.value = null
-    planFailed.value = messageOf(cause, "Could not plan this change")
+    planFailed.value = messageOf(cause, t("hypertable_design.plan_failed"))
   } finally {
     if (mine === asked) planning.value = false
   }
@@ -133,7 +135,11 @@ const ready = computed(
 
 const asJob = computed(() => preview.value?.runs_as_job === true)
 const applyLabel = computed(() =>
-  asJob.value ? "Start conversion" : converting.value ? "Convert" : "Apply"
+  asJob.value
+    ? t("hypertable_design.apply.start")
+    : converting.value
+      ? t("hypertable_design.apply.convert")
+      : t("hypertable_design.apply.apply")
 )
 
 async function apply() {
@@ -147,12 +153,9 @@ async function apply() {
   if (
     converting.value &&
     !(await confirm({
-      title: "Convert to a hypertable?",
-      message: job
-        ? "The table is locked against reads and writes while its rows move into chunks, and " +
-          "DataPlayer cannot turn it back into an ordinary table."
-        : "DataPlayer cannot turn a hypertable back into an ordinary table.",
-      confirmLabel: job ? "Start conversion" : "Convert",
+      title: t("hypertable_design.confirm.title"),
+      message: job ? t("hypertable_design.confirm.job") : t("hypertable_design.confirm.instant"),
+      confirmLabel: job ? t("hypertable_design.apply.start") : t("hypertable_design.apply.convert"),
       danger: true,
     }))
   ) {
@@ -179,13 +182,11 @@ function chooseTime(name: unknown) {
   if (draft.value && column && facts.value) draft.value = retimed(draft.value, column, facts.value)
 }
 
-const TEMPLATE_LABELS: Record<NowTemplate, string> = {
-  epoch_seconds: "Seconds since 1970",
-  epoch_milliseconds: "Milliseconds since 1970",
-  epoch_microseconds: "Microseconds since 1970",
-}
 const templates = computed(() =>
-  (timeColumn.value?.now_templates ?? []).map((value) => ({ label: TEMPLATE_LABELS[value], value }))
+  (timeColumn.value?.now_templates ?? []).map((value: NowTemplate) => ({
+    label: t(`hypertable_design.templates.${value}`),
+    value,
+  }))
 )
 const clocks = computed(() =>
   clocksFor(facts.value?.now_functions, timeColumn.value?.type).map((item) => ({
@@ -196,31 +197,29 @@ const clocks = computed(() =>
 const nowModes = computed(() => {
   const current = facts.value?.design?.integer_now
   return [
-    ...(current ? [] : [{ label: "None", value: "none" }]),
+    ...(current ? [] : [{ label: t("hypertable_design.none"), value: "none" }]),
     ...(current?.kind === "current"
-      ? [{ label: `Keep ${facts.value?.integer_now_name ?? "the current function"}()`, value: "current" }]
+      ? [
+          {
+            label: facts.value?.integer_now_name
+              ? t("hypertable_design.keep_function", { name: facts.value.integer_now_name })
+              : t("hypertable_design.keep_current_function"),
+            value: "current",
+          },
+        ]
       : []),
-    { label: "A function of this database", value: "existing" },
-    ...(templates.value.length > 0 ? [{ label: "A new function from a template", value: "template" }] : []),
+    { label: t("hypertable_design.existing_function"), value: "existing" },
+    ...(templates.value.length > 0 ? [{ label: t("hypertable_design.template_function"), value: "template" }] : []),
   ]
 })
-const estimate = computed(() => {
+const ordinaryNote = computed(() => {
   const rows = facts.value?.row_estimate
-  if (rows === null || rows === undefined) return "an unknown number of rows"
-  return `about ${rows.toLocaleString()} rows`
+  if (rows === null || rows === undefined) return t("hypertable_design.chunks.ordinary_unknown")
+  return t("hypertable_design.chunks.ordinary_estimate", { n: formatNumber(rows) }, rows)
 })
 
-const UNIT_LABELS: Record<DurationUnit, string> = {
-  second: "seconds",
-  minute: "minutes",
-  hour: "hours",
-  day: "days",
-  week: "weeks",
-  month: "months",
-  year: "years",
-}
 const units = (list: readonly DurationUnit[] | undefined) =>
-  (list ?? []).map((unit) => ({ label: UNIT_LABELS[unit], value: unit }))
+  (list ?? []).map((unit) => ({ label: t(`hypertable_design.units.${unit}`), value: unit }))
 const intervalUnits = computed(() => units(facts.value?.interval_units))
 const policyUnits = computed(() => units(facts.value?.policy_units))
 const mergeUnits = computed(() => units(facts.value?.merge_units))
@@ -236,31 +235,33 @@ const hashable = computed(() =>
 
 const segmentModes = computed(() => [
   ...(facts.value?.per_chunk_defaults === true || !enabledNow.value
-    ? [{ label: "Chosen by TimescaleDB", value: "default" }]
+    ? [{ label: t("hypertable_design.chosen_by_timescale"), value: "default" }]
     : []),
-  { label: "None", value: "none" },
-  { label: "These columns", value: "columns" },
+  { label: t("hypertable_design.none"), value: "none" },
+  { label: t("hypertable_design.these_columns"), value: "columns" },
 ])
 const orderModes = computed(() => [
   ...(facts.value?.per_chunk_defaults === true || !enabledNow.value
-    ? [{ label: "Chosen by TimescaleDB", value: "default" }]
+    ? [{ label: t("hypertable_design.chosen_by_timescale"), value: "default" }]
     : []),
-  { label: "These columns", value: "columns" },
+  { label: t("hypertable_design.these_columns"), value: "columns" },
 ])
 
-function policyModes(current: string | undefined, verb: string) {
+function policyModes(current: string | undefined, olderThan: string) {
   return [
-    { label: "None", value: "none" },
-    { label: `${verb} chunks older than`, value: "older_than" },
-    ...(current ? [{ label: `Keep as it is · ${current}`, value: "current" }] : []),
+    { label: t("hypertable_design.none"), value: "none" },
+    { label: olderThan, value: "older_than" },
+    ...(current ? [{ label: t("hypertable_design.keep_policy", { current }), value: "current" }] : []),
   ]
 }
-const retentionModes = computed(() => policyModes(facts.value?.retention?.description, "Drop"))
+const retentionModes = computed(() =>
+  policyModes(facts.value?.retention?.description, t("hypertable_design.drop_older"))
+)
 const columnstorePolicyModes = computed(() =>
-  policyModes(facts.value?.columnstore_policy?.description, "Compress")
+  policyModes(facts.value?.columnstore_policy?.description, t("hypertable_design.compress_older"))
 )
 const indexes = computed(() => [
-  { label: "None", value: "" },
+  { label: t("hypertable_design.none"), value: "" },
   ...(facts.value?.indexes ?? []).map((name) => ({ label: name, value: name })),
 ])
 const tablespaces = computed(() =>
@@ -275,10 +276,10 @@ function addHash() {
 function addSparse() {
   draft.value?.sparseIndexes.push({ column: "", kind: "minmax" })
 }
-const sparseKinds = [
-  { label: "minmax: the smallest and largest value", value: "minmax" },
-  { label: "bloom: whether a value is there", value: "bloom" },
-]
+const sparseKinds = computed(() => [
+  { label: t("hypertable_design.sparse_kinds.minmax"), value: "minmax" },
+  { label: t("hypertable_design.sparse_kinds.bloom"), value: "bloom" },
+])
 const columns = computed(() =>
   (facts.value?.columns ?? []).map((column) => ({ label: `${column.name} · ${column.type}`, value: column.name }))
 )
@@ -296,7 +297,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
     :model-value="modelValue"
     size="xl"
     sizing="stable"
-    :title="`${converting ? 'Convert to hypertable' : 'Hypertable settings'} — ${nodeLabel}`"
+    :title="converting ? t('hypertable_design.title_convert', { name: nodeLabel }) : t('hypertable_design.title_settings', { name: nodeLabel })"
     data-testid="hypertable-settings"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -318,7 +319,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
         v-else-if="state.error.value"
         tone="error"
       >
-        {{ messageOf(state.error.value, "Could not read the hypertable") }}
+        {{ messageOf(state.error.value, t('hypertable_design.read_failed')) }}
       </AppBanner>
       <AppBanner
         v-else-if="reason"
@@ -338,40 +339,38 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
           <AppForm layout="section">
             <section class="settings__group">
               <h3 class="dp-section-title settings__title">
-                Chunks
+                {{ t('hypertable_design.chunks.title') }}
               </h3>
               <template v-if="converting">
                 <AppFormControl>
                   <p class="settings__note">
-                    An ordinary table with {{ estimate }}. Choose the column it is partitioned by;
-                    TimescaleDB cannot change it afterwards.
+                    {{ ordinaryNote }}
                   </p>
                 </AppFormControl>
                 <AppSelect
                   :model-value="draft.timeColumn"
                   :options="timeColumns"
-                  label="Time column"
+                  :label="t('hypertable_design.chunks.time_column')"
                   data-testid="time-column"
                   @update:model-value="chooseTime"
                 />
               </template>
               <AppFormControl v-else>
                 <p class="settings__note">
-                  Partitioned by time on {{ facts?.time_column }} ({{ facts?.time_column_type }}).
-                  TimescaleDB cannot change the time column.
+                  {{ t('hypertable_design.chunks.partitioned', { column: facts?.time_column ?? '', type: facts?.time_column_type ?? '' }) }}
                 </p>
               </AppFormControl>
               <div class="settings__amount">
                 <AppNumberInput
                   v-model="draft.chunkInterval.amount"
-                  :label="integer ? 'Each chunk covers, in values' : 'Each chunk covers'"
+                  :label="integer ? t('hypertable_design.chunks.covers_values') : t('hypertable_design.chunks.covers')"
                   data-testid="chunk-interval-amount"
                 />
                 <AppSelect
                   v-if="!integer"
                   v-model="draft.chunkInterval.unit"
                   :options="intervalUnits"
-                  label="Unit"
+                  :label="t('hypertable_design.chunks.unit')"
                   label-hidden
                   data-testid="chunk-interval-unit"
                 />
@@ -391,18 +390,18 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                     <AppSelect
                       v-model="item.column"
                       :options="hashable"
-                      label="Hash column"
+                      :label="t('hypertable_design.chunks.hash_column')"
                       :disable="item.existing"
                     />
                     <AppNumberInput
                       v-model="item.partitions"
-                      label="Partitions"
+                      :label="t('hypertable_design.chunks.partitions')"
                     />
                     <span class="settings__cell">
                       <AppIconButton
                         v-if="!item.existing"
                         :icon="appIcons.deleteOutline"
-                        tooltip="Remove this hash dimension"
+                        :tooltip="t('hypertable_design.chunks.remove_hash')"
                         @click="draft.hash.splice(at, 1)"
                       />
                     </span>
@@ -412,7 +411,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                   <AppButton
                     variant="quiet"
                     :icon="appIcons.add"
-                    label="Hash dimension"
+                    :label="t('hypertable_design.chunks.hash_dimension')"
                     :disable="facts?.has_chunks === true"
                     data-testid="add-hash-dimension"
                     @click="addHash"
@@ -420,47 +419,47 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                   <span
                     v-if="facts?.has_chunks"
                     class="settings__note"
-                  >Only while the {{ converting ? "table holds no rows" : "hypertable holds no chunks" }}.</span>
+                  >{{ converting ? t('hypertable_design.chunks.only_empty_table') : t('hypertable_design.chunks.only_no_chunks') }}</span>
                 </div>
               </AppFormControl>
             </section>
 
             <section class="settings__group">
               <h3 class="dp-section-title settings__title">
-                Columnstore
+                {{ t('hypertable_design.columnstore.title') }}
               </h3>
               <AppFormControl>
                 <AppToggle
                   v-model="draft.columnstore"
-                  label="Compress chunks into columns"
+                  :label="t('hypertable_design.columnstore.enabled')"
                   data-testid="columnstore-enabled"
                 />
                 <p
                   v-if="facts?.compressed_chunks && draft.columnstore"
                   class="settings__note"
                 >
-                  Some chunks are compressed, so the columnstore stays on until they are decompressed.
+                  {{ t('hypertable_design.columnstore.stays_on') }}
                 </p>
               </AppFormControl>
               <template v-if="draft.columnstore">
                 <AppRadioGroup
                   v-model="draft.segmentMode"
                   :options="segmentModes"
-                  label="Segment by"
+                  :label="t('hypertable_design.columnstore.segment_by')"
                   data-testid="segment-mode"
                 />
                 <AppSelect
                   v-if="draft.segmentMode === 'columns'"
                   v-model="draft.segmentColumns"
                   :options="orderable"
-                  label="Segment columns"
+                  :label="t('hypertable_design.columnstore.segment_columns')"
                   multiple
                   data-testid="segment-columns"
                 />
                 <AppRadioGroup
                   v-model="draft.orderMode"
                   :options="orderModes"
-                  label="Order by"
+                  :label="t('hypertable_design.columnstore.order_by')"
                   data-testid="order-mode"
                 />
                 <AppFormControl v-if="draft.orderMode === 'columns'">
@@ -478,24 +477,24 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                       <AppSelect
                         v-model="key.column"
                         :options="orderable"
-                        label="Column"
+                        :label="t('hypertable_design.columnstore.column')"
                       />
                       <span class="settings__cell">
                         <AppCheckbox
                           v-model="key.descending"
-                          label="Descending"
+                          :label="t('hypertable_design.columnstore.descending')"
                         />
                       </span>
                       <span class="settings__cell">
                         <AppCheckbox
                           v-model="key.nullsFirst"
-                          label="Nulls first"
+                          :label="t('hypertable_design.columnstore.nulls_first')"
                         />
                       </span>
                       <span class="settings__cell">
                         <AppIconButton
                           :icon="appIcons.deleteOutline"
-                          tooltip="Remove this order column"
+                          :tooltip="t('hypertable_design.columnstore.remove_order')"
                           @click="draft.orderColumns.splice(at, 1)"
                         />
                       </span>
@@ -505,18 +504,18 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                     <AppButton
                       variant="quiet"
                       :icon="appIcons.add"
-                      label="Order column"
+                      :label="t('hypertable_design.columnstore.order_column')"
                       data-testid="add-order-column"
                       @click="addOrder"
                     />
-                    <span class="settings__note">The time column is added last, descending, unless it is listed.</span>
+                    <span class="settings__note">{{ t('hypertable_design.columnstore.time_last') }}</span>
                   </div>
                 </AppFormControl>
                 <template v-if="facts?.sparse_indexes_supported">
                   <AppRadioGroup
                     v-model="draft.sparseMode"
                     :options="segmentModes"
-                    label="Sparse indexes"
+                    :label="t('hypertable_design.columnstore.sparse_indexes')"
                     data-testid="sparse-mode"
                   />
                   <AppFormControl v-if="draft.sparseMode === 'columns'">
@@ -534,17 +533,17 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                         <AppSelect
                           v-model="item.column"
                           :options="columns"
-                          label="Column"
+                          :label="t('hypertable_design.columnstore.column')"
                         />
                         <AppSelect
                           v-model="item.kind"
                           :options="sparseKinds"
-                          label="Kind"
+                          :label="t('hypertable_design.columnstore.kind')"
                         />
                         <span class="settings__cell">
                           <AppIconButton
                             :icon="appIcons.deleteOutline"
-                            tooltip="Remove this sparse index"
+                            :tooltip="t('hypertable_design.columnstore.remove_sparse')"
                             @click="draft.sparseIndexes.splice(at, 1)"
                           />
                         </span>
@@ -554,18 +553,18 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                       <AppButton
                         variant="quiet"
                         :icon="appIcons.add"
-                        label="Sparse index"
+                        :label="t('hypertable_design.columnstore.sparse_index')"
                         data-testid="add-sparse-index"
                         @click="addSparse"
                       />
-                      <span class="settings__note">TimescaleDB keeps sparse indexes only beside named order columns.</span>
+                      <span class="settings__note">{{ t('hypertable_design.columnstore.sparse_note') }}</span>
                     </div>
                   </AppFormControl>
                 </template>
                 <AppCheckbox
                   v-if="!integer"
                   v-model="draft.merge"
-                  label="Merge chunks as they are compressed"
+                  :label="t('hypertable_design.columnstore.merge')"
                   data-testid="merge-enabled"
                 />
                 <div
@@ -574,14 +573,14 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
                 >
                   <AppNumberInput
                     v-model="draft.mergeInterval.amount"
-                    label="Into chunks of"
-                    hint="A whole multiple of the chunk interval"
+                    :label="t('hypertable_design.columnstore.merge_into')"
+                    :hint="t('hypertable_design.columnstore.merge_hint')"
                     data-testid="merge-amount"
                   />
                   <AppSelect
                     v-model="draft.mergeInterval.unit"
                     :options="mergeUnits"
-                    label="Unit"
+                    :label="t('hypertable_design.chunks.unit')"
                     label-hidden
                   />
                 </div>
@@ -594,39 +593,38 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
               data-testid="integer-now"
             >
               <h3 class="dp-section-title settings__title">
-                Current value
+                {{ t('hypertable_design.now.title') }}
               </h3>
               <AppFormControl>
                 <p class="settings__note">
-                  Age policies on an integer column need a function that says what the current value is:
-                  TimescaleDB calls it integer_now.
+                  {{ t('hypertable_design.now.note') }}
                 </p>
               </AppFormControl>
               <AppSelect
                 v-model="draft.now.mode"
                 :options="nowModes"
-                label="integer_now"
+                :label="t('hypertable_design.now.label')"
                 data-testid="integer-now-mode"
               />
               <AppSelect
                 v-if="draft.now.mode === 'existing'"
                 v-model="draft.now.existing"
                 :options="clocks"
-                label="Function"
-                hint="No arguments, stable, returning the column's type"
+                :label="t('hypertable_design.now.function')"
+                :hint="t('hypertable_design.now.function_hint')"
                 data-testid="integer-now-function"
               />
               <template v-if="draft.now.mode === 'template'">
                 <AppSelect
                   v-model="draft.now.template"
                   :options="templates"
-                  label="Counts"
+                  :label="t('hypertable_design.now.counts')"
                   data-testid="integer-now-template"
                 />
                 <AppInput
                   v-model="draft.now.name"
-                  label="Function name"
-                  :hint="`Created in schema ${facts?.schema_name ?? ''}`"
+                  :label="t('hypertable_design.now.name')"
+                  :hint="t('hypertable_design.now.name_hint', { schema: facts?.schema_name ?? '' })"
                   data-testid="integer-now-name"
                 />
               </template>
@@ -634,12 +632,12 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
 
             <section class="settings__group">
               <h3 class="dp-section-title settings__title">
-                Policies
+                {{ t('hypertable_design.policies.title') }}
               </h3>
               <AppSelect
                 :model-value="draft.retention.mode"
                 :options="retentionModes"
-                label="Retention"
+                :label="t('hypertable_design.policies.retention')"
                 data-testid="retention-mode"
                 @update:model-value="setPolicy('retention', String($event))"
               />
@@ -649,21 +647,21 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
               >
                 <AppNumberInput
                   v-model="draft.retention.duration.amount"
-                  :label="integer ? 'Age, in values' : 'Age'"
+                  :label="integer ? t('hypertable_design.policies.age_values') : t('hypertable_design.policies.age')"
                   data-testid="retention-amount"
                 />
                 <AppSelect
                   v-if="!integer"
                   v-model="draft.retention.duration.unit"
                   :options="policyUnits"
-                  label="Unit"
+                  :label="t('hypertable_design.chunks.unit')"
                   label-hidden
                 />
               </div>
               <AppSelect
                 :model-value="draft.columnstorePolicy.mode"
                 :options="columnstorePolicyModes"
-                label="Columnstore policy"
+                :label="t('hypertable_design.policies.columnstore')"
                 :disable="!draft.columnstore"
                 data-testid="columnstore-policy-mode"
                 @update:model-value="setPolicy('columnstorePolicy', String($event))"
@@ -674,28 +672,28 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
               >
                 <AppNumberInput
                   v-model="draft.columnstorePolicy.duration.amount"
-                  :label="integer ? 'Age, in values' : 'Age'"
+                  :label="integer ? t('hypertable_design.policies.age_values') : t('hypertable_design.policies.age')"
                   data-testid="columnstore-policy-amount"
                 />
                 <AppSelect
                   v-if="!integer"
                   v-model="draft.columnstorePolicy.duration.unit"
                   :options="policyUnits"
-                  label="Unit"
+                  :label="t('hypertable_design.chunks.unit')"
                   label-hidden
                 />
               </div>
               <AppCheckbox
                 v-if="facts?.compaction_supported"
                 v-model="draft.compaction"
-                label="Compaction policy: merge small compressed chunks"
+                :label="t('hypertable_design.policies.compaction')"
                 :disable="!draft.columnstore"
                 data-testid="compaction-policy"
               />
               <AppSelect
                 v-model="draft.reorderIndex"
                 :options="indexes"
-                label="Reorder by index"
+                :label="t('hypertable_design.policies.reorder')"
                 :hint="facts?.reorder?.description"
                 data-testid="reorder-index"
               />
@@ -703,13 +701,13 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
 
             <section class="settings__group">
               <h3 class="dp-section-title settings__title">
-                Tablespaces
+                {{ t('hypertable_design.tablespaces.title') }}
               </h3>
               <AppSelect
                 v-model="draft.tablespaces"
                 :options="tablespaces"
-                label="New chunks in"
-                hint="Existing chunks stay where they are"
+                :label="t('hypertable_design.tablespaces.new_chunks')"
+                :hint="t('hypertable_design.tablespaces.hint')"
                 multiple
                 data-testid="tablespaces"
               />
@@ -718,11 +716,11 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
         </main>
         <aside
           class="settings__plan"
-          aria-label="Plan"
+          :aria-label="t('hypertable_design.plan.title')"
           data-testid="hypertable-plan"
           :aria-busy="planning"
         >
-          <strong>Plan</strong>
+          <strong>{{ t('hypertable_design.plan.title') }}</strong>
           <p
             v-if="missing"
             class="settings__note"
@@ -740,7 +738,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
             v-else-if="planning && preview === null"
             class="settings__note"
           >
-            Planning…
+            {{ t('hypertable_design.plan.planning') }}
           </p>
           <template v-else-if="preview">
             <AppBanner
@@ -772,7 +770,7 @@ function setPolicy(target: "retention" | "columnstorePolicy", mode: string) {
       </div>
     </div>
     <template #actions>
-      <span class="settings__status">Nothing changes until it is applied</span>
+      <span class="settings__status">{{ t('hypertable_design.plan.nothing_until_applied') }}</span>
       <AppButton
         :label="applyLabel"
         :loading="running"

@@ -6,6 +6,7 @@ from psycopg import sql
 
 from app.adapters.postgres.system_reports import SECTION_ID, SystemReport
 from app.adapters.postgres.timescale.policy_projection import policy_columns
+from app.core.translation import N_
 
 TIMESCALE_SECTION_ID = f"{SECTION_ID}.timescale.v1"
 
@@ -40,8 +41,8 @@ def _view_report(
 
 _VIEW_REPORTS = (
     _view_report(
-        "hypertables", "Hypertables",
-        "Hypertable owners, dimension/chunk counts and compression configuration",
+        "hypertables", N_("Hypertables"),
+        N_("Hypertable owners, dimension/chunk counts and compression configuration"),
         "hypertables",
         (
             "hypertable_schema", "hypertable_name", "owner", "num_dimensions",
@@ -50,8 +51,8 @@ _VIEW_REPORTS = (
         ("hypertable_schema", "hypertable_name"),
     ),
     _view_report(
-        "continuous_aggregates", "Continuous aggregates",
-        "Aggregate owners, source/materialization identities and configuration",
+        "continuous_aggregates", N_("Continuous aggregates"),
+        N_("Aggregate owners, source/materialization identities and configuration"),
         "continuous_aggregates",
         (
             "view_schema", "view_name", "view_owner", "hypertable_schema",
@@ -62,8 +63,8 @@ _VIEW_REPORTS = (
         ("view_schema", "view_name"),
     ),
     _view_report(
-        "chunks", "Chunks",
-        "Chunk identities, primary-dimension boundaries and compression status",
+        "chunks", N_("Chunks"),
+        N_("Chunk identities, primary-dimension boundaries and compression status"),
         "chunks",
         (
             "hypertable_schema", "hypertable_name", "chunk_schema", "chunk_name",
@@ -75,8 +76,8 @@ _VIEW_REPORTS = (
         text_columns=frozenset({"primary_dimension_type"}),
     ),
     _view_report(
-        "dimensions", "Dimensions",
-        "Time, integer and space dimensions of each hypertable",
+        "dimensions", N_("Dimensions"),
+        N_("Time, integer and space dimensions of each hypertable"),
         "dimensions",
         (
             "hypertable_schema", "hypertable_name", "dimension_number", "column_name",
@@ -87,8 +88,8 @@ _VIEW_REPORTS = (
         text_columns=frozenset({"column_type", "time_interval", "integer_now_func"}),
     ),
     _view_report(
-        "jobs", "Policies and jobs",
-        "Native TimescaleDB jobs, including policies and their schedules",
+        "jobs", N_("Policies and jobs"),
+        N_("Native TimescaleDB jobs, including policies and their schedules"),
         "jobs",
         (
             "job_id", "application_name", "hypertable_schema", "hypertable_name",
@@ -100,8 +101,8 @@ _VIEW_REPORTS = (
         policies=True,
     ),
     _view_report(
-        "job_stats", "Job statistics",
-        "Recorded native job runs, outcomes and counters; unrun jobs may be absent",
+        "job_stats", N_("Job statistics"),
+        N_("Recorded native job runs, outcomes and counters; unrun jobs may be absent"),
         "job_stats",
         (
             "hypertable_schema", "hypertable_name", "job_id",
@@ -122,8 +123,8 @@ _VIEW_REPORTS = (
 # since the private catalogs that would know are not read (D121, D208): it
 # offers a table to attach and asserts nothing about where it came from.
 DETACHED_CHUNKS = TimescaleReport(
-    key="timescale.v1.detached_chunks", title="Detached chunks",
-    description="Tables named like a chunk that no hypertable holds; Attach chunk takes one back",
+    key="timescale.v1.detached_chunks", title=N_("Detached chunks"),
+    description=N_("Tables named like a chunk that no hypertable holds; Attach chunk takes one back"),
     statement=sql.SQL("""
         SELECT namespace.nspname AS table_schema, relation.relname AS table_name,
                pg_catalog.pg_get_userbyid(relation.relowner) AS owner,

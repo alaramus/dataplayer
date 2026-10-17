@@ -73,6 +73,8 @@ import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useClosable } from "@/features/workspace/closable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import {
   AppBanner,
@@ -167,7 +169,7 @@ const server = computed(() => document.data.value)
 const remembered = computed(() => props.documentId !== undefined)
 useServerLeaveGuard(async () => {
   if (save.isPending.value || create.isPending.value) {
-    toast.info("Wait for the query to finish saving before switching servers")
+    toast.info(t("queries.console.wait_for_save"))
     return false
   }
   if (!remembered.value && props.draftId !== undefined) {
@@ -175,9 +177,9 @@ useServerLeaveGuard(async () => {
     const stored = readDraft(props.draftId)
     if (stored?.body === draft.value.body && stored.title === draft.value.title) return true
     return await confirm({
-      title: "Leave this query behind?",
-      message: "Browser storage could not keep this draft. Copy its text before switching if you want to keep it.",
-      confirmLabel: "Discard draft",
+      title: t("queries.console.leave_draft_title"),
+      message: t("queries.console.leave_draft_message"),
+      confirmLabel: t("queries.console.discard_draft"),
       danger: true,
     })
   }
@@ -185,9 +187,9 @@ useServerLeaveGuard(async () => {
   // A shadow cannot promise recovery after a remote revision changes. Ask
   // explicitly instead of silently treating it as a durable saved document.
   return await confirm({
-    title: "Leave unsaved query changes?",
-    message: "Save this query or resolve its conflict before switching to keep your changes. Unsaved edits may not be recoverable after switching.",
-    confirmLabel: "Switch anyway",
+    title: t("queries.console.leave_unsaved_title"),
+    message: t("queries.console.leave_unsaved_message"),
+    confirmLabel: t("queries.console.switch_anyway"),
     danger: true,
   })
 })
@@ -267,19 +269,22 @@ const connectorLabel = computed(() => {
 const searchPath = computed(() => server.value?.search_path ?? [])
 const error = computed(() =>
   document.isError.value
-    ? messageOf(document.error.value, "Could not open this query")
+    ? messageOf(document.error.value, t("queries.console.open_failed"))
     : ""
 )
 /** Only states needing attention appear beside the editor commands. */
-const STATE_LABELS: Record<SaveState, string> = {
-  unremembered: "",
-  saved: "",
-  dirty: "Unsaved changes",
-  saving: "Saving…",
-  conflict: "Changed elsewhere",
-  unsynchronised: "Not synchronised",
+const STATE_LABELS: Record<SaveState, MessageKey | null> = {
+  unremembered: null,
+  saved: null,
+  dirty: "queries.console.state.dirty",
+  saving: "queries.console.state.saving",
+  conflict: "queries.console.state.conflict",
+  unsynchronised: "queries.console.state.unsynchronised",
 }
-const stateLabel = computed(() => STATE_LABELS[state.value])
+const stateLabel = computed(() => {
+  const key = STATE_LABELS[state.value]
+  return key === null ? "" : t(key)
+})
 
 const runnable = computed(
   () => connectorId.value !== null && profile.data.value !== undefined
@@ -351,12 +356,10 @@ watch(
 useClosable(props.panelId, async () => {
   if (transactionId.value === null) return true
   const leaving = await confirm({
-    title: "Roll back the open transaction?",
-    message:
-      "This console is holding a transaction open. Closing it rolls back " +
-      "everything it has done. Commit it first if you want to keep it.",
-    confirmLabel: "Roll back and close",
-    cancelLabel: "Keep it open",
+    title: t("queries.console.close_title"),
+    message: t("queries.console.close_message"),
+    confirmLabel: t("queries.console.roll_back_and_close"),
+    cancelLabel: t("queries.console.keep_open"),
     danger: true,
   })
   if (!leaving) return false
@@ -510,7 +513,7 @@ async function autosave() {
     // The server could not be reached. The text stays on screen, is marked as
     // unsynchronised and is kept in this tab so a reload does not lose it.
     state.value = "unsynchronised"
-    failure.value = messageOf(cause, "Could not save this query")
+    failure.value = messageOf(cause, t("queries.console.save_failed"))
     writeShadow({
       documentId: loaded.id,
       revision: loaded.revision,
@@ -548,7 +551,7 @@ async function settle(
     if (target.enclosing === undefined || !unreadable(script)) return { target, script }
     return await settle(target.enclosing, connector)
   } catch (cause) {
-    toast.error(messageOf(cause, "This query could not be prepared"))
+    toast.error(messageOf(cause, t("queries.console.prepare_failed")))
     return null
   }
 }
@@ -561,7 +564,7 @@ async function go(target: RunTarget | null) {
   // in the history exactly like one they have (D63).
   if (target === null || connector === null) return
   if (!ready(parameters.value)) {
-    toast.info("Fill in the parameters this query asks for")
+    toast.info(t("queries.console.fill_parameters"))
     return
   }
   const settled = await settle(target, connector)
@@ -581,16 +584,19 @@ async function go(target: RunTarget | null) {
     const tried =
       rehearsed === null || rehearsed === ""
         ? ""
-        : "\n\nTried out on the source, then undone:\n" + rehearsed
+        : `\n\n${t("queries.console.tried_out")}\n${rehearsed}`
     const accepted = await confirm({
-      title: risky ? "Run something that cannot be undone?" : "Confirm this write?",
+      title: risky ? t("queries.console.risky_title") : t("queries.console.write_title"),
       message:
-        `This changes ${connectorLabel.value ?? "the source"}. ` +
+        (connectorLabel.value === null
+          ? t("queries.console.changes_source")
+          : t("queries.console.changes_named", { name: connectorLabel.value })) +
+        " " +
         (mode === "manual"
-          ? "You can roll back the open transaction before committing it."
-          : "Auto-commit applies the change when the run succeeds.") +
+          ? t("queries.console.manual_note")
+          : t("queries.console.auto_note")) +
         tried,
-      confirmLabel: "Run it",
+      confirmLabel: t("queries.console.run_it"),
       danger: true,
     })
     if (!accepted) return
@@ -605,7 +611,7 @@ async function go(target: RunTarget | null) {
       })
       transactionId.value = opened.id
     } catch (cause) {
-      toast.error(messageOf(cause, "Could not open a transaction"))
+      toast.error(messageOf(cause, t("queries.console.open_transaction_failed")))
       return
     }
   }
@@ -633,7 +639,7 @@ async function go(target: RunTarget | null) {
     now.value = Date.now()
     await rememberValues()
   } catch (cause) {
-    toast.error(messageOf(cause, "This query was not run"))
+    toast.error(messageOf(cause, t("queries.console.not_run")))
   }
 }
 
@@ -681,7 +687,7 @@ async function explain() {
       },
     })
   } catch (cause) {
-    toast.error(messageOf(cause, "This statement could not be planned"))
+    toast.error(messageOf(cause, t("queries.console.plan_failed")))
   }
 }
 
@@ -716,7 +722,7 @@ async function format(scope: "document" | "selection") {
             draft.value.body.slice(selected.to),
     }
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not format this query"))
+    toast.error(messageOf(cause, t("queries.console.format_failed")))
   }
 }
 
@@ -734,7 +740,7 @@ async function endTheTransaction(commit: boolean) {
     if (connector !== null) await forgetStale(connector, answer.effect)
     if (run.data.value !== undefined) await run.refetch()
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not end this transaction"))
+    toast.error(messageOf(cause, t("queries.console.end_failed")))
   }
 }
 
@@ -768,7 +774,7 @@ async function tryItOut(target: RunTarget): Promise<string | "blocked" | null> {
     // The rehearsal is what the person reads before answering, not a gate:
     // the checks that decide whether this may run are the server's, and they
     // are about to be made again by the run itself.
-    toast.info(messageOf(cause, "This change could not be tried out first"))
+    toast.info(messageOf(cause, t("queries.console.try_failed")))
     return null
   }
 }
@@ -779,7 +785,7 @@ async function stop() {
   try {
     await cancelRun.mutateAsync(active.id)
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not stop this query"))
+    toast.error(messageOf(cause, t("queries.console.stop_failed")))
   }
 }
 
@@ -788,7 +794,7 @@ function promote(statement: StatementPublic) {
   workspace.openQueryResult({
     resultId: statement.result_id,
     connectorId: shown.value?.connector_id ?? undefined,
-    title: draft.value.title ?? "Query result",
+    title: draft.value.title ?? t("queries.console.result_title"),
   })
 }
 
@@ -806,7 +812,7 @@ async function resolveKeepMine() {
     workspace.renameQueryDocument(saved.id, saved.title)
   } catch (cause) {
     state.value = "conflict"
-    failure.value = messageOf(cause, "Could not save this query")
+    failure.value = messageOf(cause, t("queries.console.save_failed"))
   }
 }
 
@@ -847,10 +853,10 @@ async function remember() {
       title: kept.title,
       connectorName: kept.connector_label,
     })
-    toast.success("Kept in your queries")
+    toast.success(t("queries.console.kept"))
   } catch (cause) {
     state.value = "unremembered"
-    failure.value = messageOf(cause, "Could not keep this query")
+    failure.value = messageOf(cause, t("queries.console.keep_failed"))
   }
 }
 
@@ -872,9 +878,9 @@ async function resolveSaveACopy() {
       title: copy.title,
       connectorName: copy.connector_label,
     })
-    toast.success("Your text was kept as a copy")
+    toast.success(t("queries.console.copy_kept"))
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not keep your text as a copy"))
+    toast.error(messageOf(cause, t("queries.console.copy_failed")))
   }
 }
 
@@ -929,7 +935,7 @@ onBeforeUnmount(() => {
     >
       <AppInput
         :model-value="draft.title ?? ''"
-        placeholder="Untitled query"
+        :placeholder="t('queries.common.untitled')"
         compact
         class="query-panel__title"
         data-testid="query-title"
@@ -939,7 +945,7 @@ onBeforeUnmount(() => {
         class="query-panel__context"
         data-testid="query-context"
       >
-        {{ connectorLabel ?? "Connection unavailable" }}
+        {{ connectorLabel ?? t("queries.common.connection_unavailable") }}
         <template v-if="searchPath.length > 0"> · {{ searchPath.join(", ") }}</template>
       </span>
       <span
@@ -969,7 +975,7 @@ onBeforeUnmount(() => {
           :variant="manualTransaction ? 'current' : 'quiet'"
           layout="toolbar"
           size="sm"
-          :label="manualTransaction ? 'Manual: On' : 'Manual: Off'"
+          :label="manualTransaction ? t('queries.console.manual_on') : t('queries.console.manual_off')"
           :aria-pressed="manualTransaction"
           :disable="transactionId !== null"
           class="query-panel__manual-button"
@@ -977,14 +983,18 @@ onBeforeUnmount(() => {
           @click="manualTransaction = !manualTransaction"
         >
           <AppTooltip>
-            {{ manualTransaction ? "Changes wait for Commit or Roll back" : "Changes commit after each run" }}
+            {{
+              manualTransaction
+                ? t("queries.console.manual_on_hint")
+                : t("queries.console.manual_off_hint")
+            }}
           </AppTooltip>
         </AppButton>
         <AppButton
           v-if="going"
           variant="secondary"
           size="sm"
-          label="Cancel"
+          :label="t('queries.common.cancel')"
           data-testid="query-cancel"
           @click="stop"
         />
@@ -992,7 +1002,7 @@ onBeforeUnmount(() => {
           <AppButton
             variant="primary"
             size="sm"
-            label="Run"
+            :label="t('queries.console.run')"
             :disable="!canRun"
             data-testid="query-run"
             @click="runHere"
@@ -1001,7 +1011,7 @@ onBeforeUnmount(() => {
             v-if="profile.data.value?.supports_explain === true"
             variant="secondary"
             size="sm"
-            label="Explain"
+            :label="t('queries.console.explain')"
             :disable="!canRun || explaining.isPending.value"
             data-testid="query-explain"
             @click="explain"
@@ -1009,7 +1019,7 @@ onBeforeUnmount(() => {
           <AppButton
             variant="secondary"
             size="sm"
-            label="Run script"
+            :label="t('queries.console.run_script')"
             :disable="!canRun"
             data-testid="query-run-script"
             @click="runEverything"
@@ -1020,7 +1030,9 @@ onBeforeUnmount(() => {
           v-if="profile.data.value?.supports_formatting === true"
           :icon="appIcons.formatAlignLeft"
           :tooltip="
-            selection.to > selection.from ? 'Format the selection' : 'Format the document'
+            selection.to > selection.from
+              ? t('queries.console.format_selection')
+              : t('queries.console.format_document')
           "
           :disable="formatting.isPending.value"
           data-testid="query-format"
@@ -1028,7 +1040,7 @@ onBeforeUnmount(() => {
         />
         <AppIconButton
           :icon="appIcons.wrapText"
-          tooltip="Wrap long lines"
+          :tooltip="t('queries.console.wrap')"
           :aria-pressed="draft.wrap"
           data-testid="query-wrap"
           @click="draft.wrap = !draft.wrap"
@@ -1041,7 +1053,7 @@ onBeforeUnmount(() => {
           layout="toolbar"
           size="sm"
           :icon="appIcons.bookmarkAdd"
-          :label="remembered ? 'Remembered' : 'Remember'"
+          :label="remembered ? t('queries.console.remembered') : t('queries.console.remember')"
           :disable="remembered || connectorId === null || create.isPending.value"
           class="query-panel__remember-button"
           data-testid="query-remember"
@@ -1067,26 +1079,26 @@ onBeforeUnmount(() => {
       data-testid="query-conflict"
     >
       <div class="query-panel__resolve">
-        <span>This query changed elsewhere. Which text should stay?</span>
+        <span>{{ t("queries.console.conflict") }}</span>
         <div class="query-panel__choices">
           <AppButton
             variant="secondary"
             size="sm"
-            label="Keep mine"
+            :label="t('queries.console.keep_mine')"
             data-testid="conflict-keep-mine"
             @click="resolveKeepMine"
           />
           <AppButton
             variant="secondary"
             size="sm"
-            label="Use theirs"
+            :label="t('queries.console.use_theirs')"
             data-testid="conflict-use-remote"
             @click="resolveUseRemote"
           />
           <AppButton
             variant="secondary"
             size="sm"
-            label="Save mine as a copy"
+            :label="t('queries.console.save_copy')"
             data-testid="conflict-save-a-copy"
             @click="resolveSaveACopy"
           />
@@ -1100,7 +1112,7 @@ onBeforeUnmount(() => {
       class="query-panel__banner"
       data-testid="query-unsynchronised"
     >
-      {{ failure }} Your text is kept in this browser tab until it saves.
+      {{ failure }} {{ t("queries.console.kept_in_tab") }}
     </AppBanner>
 
     <AppBanner
@@ -1110,19 +1122,19 @@ onBeforeUnmount(() => {
       data-testid="query-shadow"
     >
       <div class="query-panel__resolve">
-        <span>This tab holds text that was never saved.</span>
+        <span>{{ t("queries.console.shadow") }}</span>
         <div class="query-panel__choices">
           <AppButton
             variant="secondary"
             size="sm"
-            label="Put it back"
+            :label="t('queries.console.put_back')"
             data-testid="shadow-restore"
             @click="takeShadow"
           />
           <AppButton
             variant="quiet"
             size="sm"
-            label="Discard"
+            :label="t('queries.common.discard')"
             data-testid="shadow-discard"
             @click="dropShadow"
           />
@@ -1203,7 +1215,7 @@ onBeforeUnmount(() => {
           class="query-panel__nothing"
           data-testid="query-nothing-run"
         >
-          Ctrl+Enter runs the statement under the caret.
+          {{ t("queries.console.nothing_run") }}
         </div>
       </div>
     </div>

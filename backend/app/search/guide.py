@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from anyio import to_thread
 
+from app.core.translation import N_, say
 from app.guide import reader
 from app.search.models import (
     Facts,
@@ -49,7 +50,7 @@ def _headings(markdown: str) -> str:
 
 class GuidePages:
     place = ObjectsPlace(provider="guide")
-    title = "Guide"
+    title = N_("Guide")
     offered_to_agent = True
     recalls: frozenset[ObjectType] = frozenset({"guide_page"})
 
@@ -57,8 +58,9 @@ class GuidePages:
         return (ProviderCell(field="names", cost="instant"),)
 
     async def search(self, asked: Asked) -> Found:
-        # Read from disk once per process, on a thread the first time.
-        pages = await to_thread.run_sync(reader.pages, limiter=asked.bounds.limiter)
+        # Read from disk once per process, on a thread the first time; in the
+        # request's language where a page has a translation (D227).
+        pages = await to_thread.run_sync(reader.pages_in, limiter=asked.bounds.limiter)
         hits: list[Hit] = []
         for page in pages.values():
             match = best_of(
@@ -74,7 +76,7 @@ class GuidePages:
     async def recall(
         self, asked: Asked, object_type: ObjectType, ids: Sequence[str]
     ) -> list[Hit]:
-        pages = await to_thread.run_sync(reader.pages, limiter=asked.bounds.limiter)
+        pages = await to_thread.run_sync(reader.pages_in, limiter=asked.bounds.limiter)
         return [
             _hit(key, pages[key].title, recalled(pages[key].title))
             for key in ids
@@ -88,7 +90,7 @@ def _hit(key: str, title: str, match: Match) -> Hit:
         key=target_key(target),
         target=target,
         title=title,
-        detail="Guide",
+        detail=say("Guide"),
         facts=Facts(kind="guide_page"),
         match=match,
         open="guide_page",

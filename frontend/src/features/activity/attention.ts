@@ -2,6 +2,8 @@ import { computed } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
 import type { JobPublic } from "@/client"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
 import type { AttentionItem } from "@/shared/notifications"
 
 /**
@@ -17,11 +19,11 @@ export function isOutstanding(job: JobPublic): boolean {
   return job.state === "failed" || job.state === "interrupted"
 }
 
-const WORDING: Record<"failed" | "interrupted", string> = {
-  failed: "could not be completed",
+const WORDING: Record<"failed" | "interrupted", MessageKey> = {
+  failed: "activity.attention.failed",
   // What a restart leaves behind. Nothing replays it, and until now nothing
   // said so either (D81).
-  interrupted: "stopped when the server restarted",
+  interrupted: "activity.attention.interrupted",
 }
 
 /** What a job is called, and the lines of its row beyond its message. */
@@ -38,8 +40,8 @@ export function jobItem(
   return {
     id: `job:${job.id}`,
     tone: job.state === "failed" ? "error" : "warning",
-    title: `${described.label} ${WORDING[job.state]}`,
-    detail: job.message ?? `Last step: ${job.step ?? "none recorded"}`,
+    title: t(WORDING[job.state], { label: described.label }),
+    detail: job.message ?? t("activity.attention.last_step", { step: job.step ?? t("activity.attention.none_recorded") }),
     // Where the row of the working section used to say them: an ended job
     // has left that section, and this is the one entry it has (D181).
     lines: described.lines,

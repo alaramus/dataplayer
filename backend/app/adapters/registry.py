@@ -34,6 +34,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.resources import Pooling
 from app.adapters.terminal import SupportsTerminal
+from app.core.translation import N_, say
 
 
 class UnknownAdapterType(Exception):
@@ -71,15 +72,15 @@ Category = Literal["sql", "keyvalue", "files"]
 
 # The wording lives beside the set it names, on the server, so the client is
 # never a second place where a category is called something.
-_CATEGORY_TITLES: dict[Category, str] = {
-    "sql": "SQL Databases",
-    "keyvalue": "Key-Value Stores",
-    "files": "Files & Storage",
+CATEGORY_TITLES: dict[Category, str] = {
+    "sql": N_("SQL Databases"),
+    "keyvalue": N_("Key-Value Stores"),
+    "files": N_("Files & Storage"),
 }
 
 
 def category_title(category: Category) -> str:
-    return _CATEGORY_TITLES[category]
+    return CATEGORY_TITLES[category]
 
 
 # How a source's catalog is best shown. Not a decoration: a catalog walked one
@@ -235,42 +236,42 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     found: list[Capability] = []
 
     if issubclass(driver, SupportsCatalog):
-        found.append(Capability(group="explore", title="Browse the catalog"))
+        found.append(Capability(group="explore", title=say("Browse the catalog")))
     if issubclass(driver, SupportsNodePath):
-        found.append(Capability(group="explore", title="Locate a node"))
+        found.append(Capability(group="explore", title=say("Locate a node")))
     if searches_its_catalog(driver):
         found.append(
-            Capability(group="explore", title="Search by name", code="search")
+            Capability(group="explore", title=say("Search by name"), code="search")
         )
     if issubclass(driver, SearchesContents):
         found.append(
             Capability(
                 group="explore",
-                title="Search inside files",
+                title=say("Search inside files"),
                 code="content_search",
             )
         )
     if issubclass(driver, SupportsContent):
-        found.append(Capability(group="explore", title="View content"))
+        found.append(Capability(group="explore", title=say("View content")))
     if issubclass(driver, SupportsContentEdit):
-        found.append(Capability(group="manage", title="Edit content"))
+        found.append(Capability(group="manage", title=say("Edit content")))
     if issubclass(driver, SupportsFetch):
-        found.append(Capability(group="explore", title="Read rows"))
+        found.append(Capability(group="explore", title=say("Read rows")))
         if issubclass(driver, SupportsNodePath):
             found.append(
                 Capability(
                     group="explore",
-                    title="Declared references",
+                    title=say("Declared references"),
                     code="declared_references",
                 )
             )
     if issubclass(driver, SupportsExport):
-        found.append(Capability(group="explore", title="Export all matching rows"))
+        found.append(Capability(group="explore", title=say("Export all matching rows")))
     if issubclass(driver, SupportsRelationModel):
         found.append(
             Capability(
                 group="explore",
-                title="Describe a relation",
+                title=say("Describe a relation"),
                 code="relation_model",
             )
         )
@@ -278,29 +279,29 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
             found.append(
                 Capability(
                     group="explore",
-                    title="Draw relationships",
+                    title=say("Draw relationships"),
                     code="relationship_graph",
                 )
             )
     if issubclass(driver, SupportsReferences):
-        found.append(Capability(group="explore", title="Follow references"))
+        found.append(Capability(group="explore", title=say("Follow references")))
     if issubclass(driver, SupportsArrivingReferences):
-        found.append(Capability(group="explore", title="Find what points here"))
+        found.append(Capability(group="explore", title=say("Find what points here")))
     if issubclass(driver, SupportsAddColumn):
-        found.append(Capability(group="manage", title="Add columns"))
+        found.append(Capability(group="manage", title=say("Add columns")))
     if issubclass(driver, SupportsDropColumn):
-        found.append(Capability(group="manage", title="Drop columns"))
+        found.append(Capability(group="manage", title=say("Drop columns")))
     if issubclass(driver, SupportsUpdate):
-        found.append(Capability(group="manage", title="Edit rows"))
+        found.append(Capability(group="manage", title=say("Edit rows")))
     if issubclass(driver, SupportsInsert):
-        found.append(Capability(group="manage", title="Insert rows"))
+        found.append(Capability(group="manage", title=say("Insert rows")))
     if issubclass(driver, SupportsDelete):
-        found.append(Capability(group="manage", title="Delete rows"))
+        found.append(Capability(group="manage", title=say("Delete rows")))
     if issubclass(driver, SupportsCreateRelation):
         found.append(
             Capability(
                 group="manage",
-                title="Create a relation from rows",
+                title=say("Create a relation from rows"),
                 code="create_relation",
             )
         )
@@ -308,7 +309,7 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(
             Capability(
                 group="explore",
-                title="Report its own metrics to dashboards",
+                title=say("Report its own metrics to dashboards"),
                 code="metrics",
             )
         )
@@ -316,23 +317,30 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(
             Capability(
                 group="manage",
-                title="Copy the whole database out",
+                title=say("Copy the whole database out"),
                 code="backup",
             )
         )
     if issubclass(driver, SupportsTerminal):
         found.append(
-            Capability(group="manage", title="Open a terminal", code="terminal")
+            Capability(group="manage", title=say("Open a terminal"), code="terminal")
         )
     if issubclass(driver, DeclaresActions):
         for action_type in driver.action_types():
-            title = action_type.title
-            if action_type.feature_requirements:
-                features = " and ".join(
-                    FEATURE_TITLES[code] for code in action_type.feature_requirements
+            title = say(action_type.title)
+            required = action_type.feature_requirements
+            if len(required) == 1:
+                title = say(
+                    "{action} (when {feature} is installed)",
+                    action=title,
+                    feature=FEATURE_TITLES[required[0]],
                 )
-                verb = "is" if len(action_type.feature_requirements) == 1 else "are"
-                title += f" (when {features} {verb} installed)"
+            elif required:
+                title = say(
+                    "{action} (when {features} are installed)",
+                    action=title,
+                    features=", ".join(FEATURE_TITLES[code] for code in required),
+                )
             found.append(
                 Capability(
                     group="explore" if action_type.requires == "read" else "manage",

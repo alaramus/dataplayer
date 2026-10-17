@@ -11,6 +11,8 @@
  *   ticking several is for.
  */
 
+import { t } from "@/shared/i18n"
+
 import { seriesName } from "./catalog"
 import type { HostRef, SeriesEntry } from "./catalog"
 
@@ -50,7 +52,7 @@ export function draftsFor(entries: readonly SeriesEntry[], processes: readonly H
     const first = group[0]
     if (first === undefined) continue
     const hosts = new Set(group.map((entry) => entry.host))
-    const where = hosts.size === 1 ? first.host : `${String(hosts.size)} hosts`
+    const where = hosts.size === 1 ? first.host : t("dashboards.drafts.hosts", { n: hosts.size }, hosts.size)
     const split = (unitsPerMetric.get(first.metric)?.size ?? 0) > 1 && first.unit !== ""
     const title = `${first.metric}${split ? ` (${first.unit})` : ""} · ${where}`
     for (let start = 0; start < group.length; start += MAX_SERIES_PER_WIDGET) {
@@ -62,7 +64,7 @@ export function draftsFor(entries: readonly SeriesEntry[], processes: readonly H
     }
   }
   for (const ref of processes) {
-    drafts.push({ type: "processes", title: `Processes · ${ref.host}`, agentId: ref.agentId, host: ref.host })
+    drafts.push({ type: "processes", title: t("dashboards.drafts.processes", { host: ref.host }), agentId: ref.agentId, host: ref.host })
   }
   return drafts
 }

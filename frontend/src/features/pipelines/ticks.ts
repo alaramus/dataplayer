@@ -8,6 +8,7 @@
 
 import type { CardRow } from "@/client"
 import type { ListNode } from "@/features/catalog/nodes"
+import { t } from "@/shared/i18n"
 
 import { rowId } from "./model"
 
@@ -17,7 +18,10 @@ import { rowId } from "./model"
  */
 export const MAX_CARD_ROWS = 100
 
-export const TOO_MANY = `A card holds at most ${String(MAX_CARD_ROWS)} rows`
+/** Why one more tick is refused. */
+export function tooMany(): string {
+  return t("pipelines.card_picker.too_many", { n: MAX_CARD_ROWS })
+}
 
 export function isTicked(rows: readonly CardRow[], nodeId: string | null): boolean {
   const id = rowId(nodeId)
@@ -37,7 +41,7 @@ export function ticked(rows: readonly CardRow[], row: CardRow, on: boolean): Car
   const id = rowId(row.node_id)
   const without = rows.filter((one) => rowId(one.node_id) !== id)
   if (!on) return without
-  if (without.length >= MAX_CARD_ROWS) return TOO_MANY
+  if (without.length >= MAX_CARD_ROWS) return tooMany()
   return [...without, row]
 }
 
@@ -57,7 +61,7 @@ export function tickedAll(
   }
   const held = new Set(rows.map((row) => rowId(row.node_id)))
   const all = [...rows, ...nodes.filter((node) => !held.has(rowId(node.id))).map((node) => rowFor(node, trail))]
-  return all.length > MAX_CARD_ROWS ? TOO_MANY : all
+  return all.length > MAX_CARD_ROWS ? tooMany() : all
 }
 
 /** Where a ticked row lives, for the list of what is ticked. */

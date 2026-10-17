@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.relation import RefAction
+from app.core.translation import say
 
 
 class UniqueConstraintSpec(BaseModel):
@@ -23,7 +24,7 @@ class UniqueConstraintSpec(BaseModel):
     @model_validator(mode="after")
     def distinct_columns(self) -> UniqueConstraintSpec:
         if len(self.columns) != len(set(self.columns)):
-            raise ValueError("A column may appear in a constraint only once")
+            raise ValueError(say("A column may appear in a constraint only once"))
         return self
 
 
@@ -47,9 +48,9 @@ class ForeignKeySpec(BaseModel):
     @model_validator(mode="after")
     def distinct_and_paired(self) -> ForeignKeySpec:
         if len(self.columns) != len(set(self.columns)):
-            raise ValueError("A column may appear in a constraint only once")
+            raise ValueError(say("A column may appear in a constraint only once"))
         if len(self.columns) != len(self.target_columns):
-            raise ValueError("A foreign key names as many columns as it points at")
+            raise ValueError(say("A foreign key names as many columns as it points at"))
         return self
 
 

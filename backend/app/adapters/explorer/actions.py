@@ -59,30 +59,31 @@ from app.adapters.explorer.storage import (
 )
 from app.core.access import Access
 from app.core.config import settings
+from app.core.translation import N_, say
 
 
 def _plain_name(value: str) -> str:
     name = value.strip()
     if not is_plain_name(name):
-        raise ValueError("A name must be a single plain name, without separators")
+        raise ValueError(say("A name must be a single plain name, without separators"))
     return name
 
 
 class NameParams(BaseModel):
-    name: str = Field(default="new folder", title="Name")
+    name: str = Field(default="new folder", title=N_("Name"))
 
     _check = field_validator("name")(_plain_name)
 
 
 class FileNameParams(BaseModel):
-    name: str = Field(default="new file", title="Name")
+    name: str = Field(default="new file", title=N_("Name"))
 
     _check = field_validator("name")(_plain_name)
 
 
 class RenameParams(BaseModel):
     new_name: str = Field(
-        title="New name", json_schema_extra={"x-ui-purpose": "node-name"}
+        title=N_("New name"), json_schema_extra={"x-ui-purpose": "node-name"}
     )
 
     _check = field_validator("new_name")(_plain_name)
@@ -99,7 +100,7 @@ class ConnectFolderParams(BaseModel):
 class UploadParams(BaseModel):
     conflict: Literal["refuse", "replace", "rename"] = Field(
         default="refuse",
-        title="File conflict",
+        title=N_("File conflict"),
         json_schema_extra={"x-ui-purpose": "file-conflict", "x-ui-hidden": True},
     )
 
@@ -111,10 +112,10 @@ class DownloadParams(BaseModel):
 
 
 class ArchiveParams(BaseModel):
-    name: str = Field(default="archive", title="Name")
+    name: str = Field(default="archive", title=N_("Name"))
     # The suffix follows from this rather than from what is typed: a person
     # choosing tar.gz and writing "backup.zip" meant tar.gz.
-    format: PackFormat = Field(default="zip", title="Format")
+    format: PackFormat = Field(default="zip", title=N_("Format"))
 
     _check = field_validator("name")(_plain_name)
 
@@ -129,17 +130,17 @@ class PasteParams(BaseModel):
 
     sources: list[str] = Field(
         default_factory=list,
-        title="What to put here",
+        title=N_("What to put here"),
         json_schema_extra={"x-ui-purpose": "clipboard-nodes", "x-ui-hidden": True},
     )
     mode: Literal["copy", "move"] = Field(
         default="copy",
-        title="Copy or move",
+        title=N_("Copy or move"),
         json_schema_extra={"x-ui-purpose": "clipboard-mode", "x-ui-hidden": True},
     )
     conflict: Literal["refuse", "replace", "rename"] = Field(
         default="refuse",
-        title="Name conflict",
+        title=N_("Name conflict"),
         json_schema_extra={"x-ui-purpose": "file-conflict", "x-ui-hidden": True},
     )
 
@@ -147,8 +148,8 @@ class PasteParams(BaseModel):
 class ExtractParams(BaseModel):
     into_folder: bool = Field(
         default=True,
-        title="Into a folder of its own",
-        description=(
+        title=N_("Into a folder of its own"),
+        description=N_(
             "Off puts the contents beside the archive, which is what an "
             "archive of one file usually wants"
         ),
@@ -165,7 +166,7 @@ class _Bound:
         place = self._storage.place(node_id)
         found = self._storage.entry(place)
         if found is None or not found.is_directory:
-            raise ValueError(f"Not a directory: {node_id}")
+            raise ValueError(say("Not a directory: {node_id}", node_id=node_id))
         return place
 
 
@@ -184,16 +185,16 @@ class _ActsOnNode(_Bound):
         place = self._storage.place(node_id)
         if place == ROOT or node_id in (None, ""):
             raise ActionRefused(
-                "not_applicable", "The root folder of a connector cannot be changed"
+                "not_applicable", say("The root folder of a connector cannot be changed")
             )
         if self._storage.entry(place) is None:
-            raise ValueError(f"No such node: {node_id}")
+            raise ValueError(say("No such node: {node_id}", node_id=node_id))
         return place
 
 
 class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
     name: ClassVar[str] = "connect_folder"
-    title: ClassVar[str] = "Connect folder"
+    title: ClassVar[str] = N_("Connect folder")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
     # A new file connection is rooted in its creator's home. A grantee cannot
     # turn access to somebody else's folder into an independently owned source.
@@ -210,10 +211,10 @@ class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
         place = self._target(node_id)
         found = self._storage.entry(place)
         if found is None or not found.is_directory:
-            raise ActionRefused("not_applicable", "Choose a folder to connect")
+            raise ActionRefused("not_applicable", say("Choose a folder to connect"))
         if not isinstance(self._storage, DraftsConnections):
             raise ActionRefused(
-                "not_applicable", "A folder of this source cannot become a connection"
+                "not_applicable", say("A folder of this source cannot become a connection")
             )
         draft = self._storage.connection_for(place)
         # Named as the person named the folder, which a link inside the root
@@ -223,7 +224,7 @@ class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
 
 class CreateFolder(_Bound, JsonAction[NameParams]):
     name: ClassVar[str] = "create_folder"
-    title: ClassVar[str] = "New folder"
+    title: ClassVar[str] = N_("New folder")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
     acts_on: ClassVar[ActsOn] = "children"
     params_model = NameParams
@@ -231,7 +232,7 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
     async def run(self, node_id: str | None, params: NameParams) -> ActionResult:
         made = await to_thread.run_sync(self._make, node_id, params.name)
         return ActionResult(
-            message=f"Folder {made.name} created",
+            message=say("Folder {name} created", name=made.name),
             reload_node_ids=[node_id or None],
         )
 
@@ -240,7 +241,9 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
         try:
             self._storage.make_directory(target)
         except FileExistsError:
-            raise ActionRefused("conflict", f"{target.name} is already there") from None
+            raise ActionRefused(
+                "conflict", say("{name} is already there", name=target.name)
+            ) from None
         return target
 
 
@@ -254,7 +257,7 @@ class CreateFile(_Bound, JsonAction[FileNameParams]):
     """
 
     name: ClassVar[str] = "create_file"
-    title: ClassVar[str] = "New file"
+    title: ClassVar[str] = N_("New file")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
     acts_on: ClassVar[ActsOn] = "children"
     params_model = FileNameParams
@@ -262,7 +265,8 @@ class CreateFile(_Bound, JsonAction[FileNameParams]):
     async def run(self, node_id: str | None, params: FileNameParams) -> ActionResult:
         made = await to_thread.run_sync(self._make, node_id, params.name)
         return ActionResult(
-            message=f"{made.name} created", reload_node_ids=[node_id or None]
+            message=say("{name} created", name=made.name),
+            reload_node_ids=[node_id or None],
         )
 
     def _make(self, node_id: str | None, name: str) -> Place:
@@ -270,20 +274,23 @@ class CreateFile(_Bound, JsonAction[FileNameParams]):
         try:
             self._storage.make_file(target)
         except FileExistsError:
-            raise ActionRefused("conflict", f"{target.name} is already there") from None
+            raise ActionRefused(
+                "conflict", say("{name} is already there", name=target.name)
+            ) from None
         return target
 
 
 class Rename(_ActsOnNode, JsonAction[RenameParams]):
     name: ClassVar[str] = "rename"
-    title: ClassVar[str] = "Rename"
+    title: ClassVar[str] = N_("Rename")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
     params_model = RenameParams
 
     async def run(self, node_id: str | None, params: RenameParams) -> ActionResult:
         parent_id = await to_thread.run_sync(self._rename, node_id, params.new_name)
         return ActionResult(
-            message=f"Renamed to {params.new_name}", reload_node_ids=[parent_id]
+            message=say("Renamed to {name}", name=params.new_name),
+            reload_node_ids=[parent_id],
         )
 
     def _rename(self, node_id: str | None, new_name: str) -> str | None:
@@ -292,13 +299,15 @@ class Rename(_ActsOnNode, JsonAction[RenameParams]):
         try:
             self._storage.rename(place, self._storage.child(parent, new_name))
         except FileExistsError:
-            raise ActionRefused("conflict", f"{new_name} is already there") from None
+            raise ActionRefused(
+                "conflict", say("{name} is already there", name=new_name)
+            ) from None
         return node_id_of(parent)
 
 
 class Delete(_ActsOnNode, JsonAction[DeleteParams]):
     name: ClassVar[str] = "delete"
-    title: ClassVar[str] = "Delete"
+    title: ClassVar[str] = N_("Delete")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
     destructive: ClassVar[bool] = True
     # One form, many files: the parameters of a delete say nothing about which
@@ -308,7 +317,9 @@ class Delete(_ActsOnNode, JsonAction[DeleteParams]):
 
     async def run(self, node_id: str | None, params: DeleteParams) -> ActionResult:
         name, parent_id = await to_thread.run_sync(self._remove, node_id)
-        return ActionResult(message=f"{name} deleted", reload_node_ids=[parent_id])
+        return ActionResult(
+            message=say("{name} deleted", name=name), reload_node_ids=[parent_id]
+        )
 
     def _remove(self, node_id: str | None) -> tuple[str, str | None]:
         place = self._target(node_id)
@@ -320,7 +331,7 @@ class Download(_ActsOnNode, Action[DownloadParams]):
     """Return one original file, or archive the whole selected set."""
 
     name: ClassVar[str] = "download"
-    title: ClassVar[str] = "Download"
+    title: ClassVar[str] = N_("Download")
     # An entry too, because a file inside an archive is exactly what a reader
     # wants out of it (D53); everything that changes a node keeps to the two
     # kinds that exist in the storage.
@@ -341,7 +352,7 @@ class Download(_ActsOnNode, Action[DownloadParams]):
             if len(node_ids) > 1:
                 raise ActionRefused(
                     "not_applicable",
-                    "A file inside an archive is downloaded on its own",
+                    say("A file inside an archive is downloaded on its own"),
                 )
             return await ExplorerDownload(self._storage).entry(entries[0])
         return await ExplorerDownload(self._storage).prepare(node_ids)
@@ -371,7 +382,7 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
     """
 
     name: ClassVar[str] = "paste"
-    title: ClassVar[str] = "Paste"
+    title: ClassVar[str] = N_("Paste")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
     acts_on: ClassVar[ActsOn] = "children"
     requires: ClassVar[Access] = "write"
@@ -379,7 +390,7 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
 
     async def run(self, node_id: str | None, params: PasteParams) -> ActionResult:
         if not params.sources:
-            raise ActionRefused("not_applicable", "Copy or cut something first")
+            raise ActionRefused("not_applicable", say("Copy or cut something first"))
         count, left = await to_thread.run_sync(self._paste, node_id, params)
         # Both ends change: the folder that gained the nodes, and — for a move
         # — every folder that lost one. Named by the server, because deriving
@@ -389,8 +400,9 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
             for parent in left:
                 if parent not in changed:
                     changed.append(parent)
-        verb = "copied" if params.mode == "copy" else "moved"
-        return ActionResult(message=f"{_counted(count)} {verb}", reload_node_ids=changed)
+        return ActionResult(
+            message=_pasted(count, params.mode), reload_node_ids=changed
+        )
 
     def _paste(
         self, node_id: str | None, params: PasteParams
@@ -411,7 +423,9 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
             target = self._storage.child(destination, source.name)
             if self._storage.entry(target) is not None:
                 if params.conflict == "refuse":
-                    raise ActionRefused("conflict", f"{source.name} is already there")
+                    raise ActionRefused(
+                        "conflict", say("{name} is already there", name=source.name)
+                    )
                 if params.conflict == "rename":
                     target = _available(self._storage, destination, source.name)
                 else:
@@ -426,10 +440,10 @@ class PasteHere(_Bound, JsonAction[PasteParams]):
         place = self._storage.place(node_id)
         if place == ROOT:
             raise ActionRefused(
-                "not_applicable", "The root folder of a connector cannot be moved"
+                "not_applicable", say("The root folder of a connector cannot be moved")
             )
         if self._storage.entry(place) is None:
-            raise ValueError(f"No such node: {node_id}")
+            raise ValueError(say("No such node: {node_id}", node_id=node_id))
         return place
 
 
@@ -442,12 +456,21 @@ def _may_go_into(storage: Storage, source: Place, destination: Place) -> None:
     """
     if storage.contains(source, destination):
         raise ActionRefused(
-            "not_applicable", f"{source.name} cannot be put inside itself"
+            "not_applicable",
+            say("{name} cannot be put inside itself", name=source.name),
         )
 
 
-def _counted(number: int) -> str:
-    return "1 item" if number == 1 else f"{number} items"
+def _pasted(count: int, mode: Literal["copy", "move"]) -> str:
+    """Whole sentences, one per count and verb, so each language words its
+    own agreement."""
+    if mode == "copy":
+        if count == 1:
+            return say("1 item copied")
+        return say("{count} items copied", count=count)
+    if count == 1:
+        return say("1 item moved")
+    return say("{count} items moved", count=count)
 
 
 def _within_bounds(storage: Storage, sources: Sequence[Place]) -> None:
@@ -462,15 +485,15 @@ def _within_bounds(storage: Storage, sources: Sequence[Place]) -> None:
         for entry in walk_iterator(storage, source):
             entries += 1
             if entries > MAX_ENTRIES:
-                raise ActionRefused("too_large", "That is too many files to move")
+                raise ActionRefused("too_large", say("That is too many files to move"))
             if not entry.is_directory:
                 total += entry.size_bytes
         if total > MAX_BYTES:
-            raise ActionRefused("too_large", "That is too much data to move")
+            raise ActionRefused("too_large", say("That is too much data to move"))
     if entries > MAX_ENTRIES:
-        raise ActionRefused("too_large", "That is too many files to move")
+        raise ActionRefused("too_large", say("That is too many files to move"))
     if total > MAX_BYTES:
-        raise ActionRefused("too_large", "That is too much data to move")
+        raise ActionRefused("too_large", say("That is too much data to move"))
 
 
 class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
@@ -481,7 +504,7 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
     """
 
     name: ClassVar[str] = "create_archive"
-    title: ClassVar[str] = "Archive"
+    title: ClassVar[str] = N_("Archive")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
     requires: ClassVar[Access] = "write"
     bulk: ClassVar[bool] = True
@@ -509,7 +532,7 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
                 self._storage.unlinked_place(node_id)
             except ValueError:
                 raise ActionRefused(
-                    "not_applicable", "Symbolic links are not archived"
+                    "not_applicable", say("Symbolic links are not archived")
                 ) from None
         return target
 
@@ -517,7 +540,9 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
         self, node_ids: Sequence[str | None], params: ArchiveParams
     ) -> ActionResult:
         name, parent_id = await to_thread.run_sync(self._pack, node_ids, params)
-        return ActionResult(message=f"{name} created", reload_node_ids=[parent_id])
+        return ActionResult(
+            message=say("{name} created", name=name), reload_node_ids=[parent_id]
+        )
 
     def _pack(
         self, node_ids: Sequence[str | None], params: ArchiveParams
@@ -526,7 +551,7 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
         parents = {self._storage.parent(target) for target in targets}
         if len(parents) != 1:
             raise ActionRefused(
-                "not_applicable", "One archive is made of one folder's contents"
+                "not_applicable", say("One archive is made of one folder's contents")
             )
         parent = parents.pop()
         into = _available(self._storage, parent, _archive_filename(params))
@@ -537,9 +562,11 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
                     pack(local, staged, params.format)
                     self._storage.publish(staged, into)
         except FileExistsError:
-            raise ActionRefused("conflict", f"{into.name} is already there") from None
+            raise ActionRefused(
+                "conflict", say("{name} is already there", name=into.name)
+            ) from None
         except OSError:
-            raise ValueError("The archive could not be written") from None
+            raise ValueError(say("The archive could not be written")) from None
         return into.name, node_id_of(parent)
 
 
@@ -551,7 +578,7 @@ class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
     """
 
     name: ClassVar[str] = "extract_archive"
-    title: ClassVar[str] = "Extract"
+    title: ClassVar[str] = N_("Extract")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"file"})
     requires: ClassVar[Access] = "write"
     bulk: ClassVar[bool] = True
@@ -570,7 +597,8 @@ class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
         parent = self._storage.parent(place)
         if not is_unpackable(place.name):
             raise ActionRefused(
-                "not_applicable", f"{place.name} is not an archive this source opens"
+                "not_applicable",
+                say("{name} is not an archive this source opens", name=place.name),
             )
         made: Place | None = None
         if params.into_folder:
@@ -578,7 +606,9 @@ class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
             try:
                 self._storage.make_directory(made)
             except FileExistsError:
-                raise ActionRefused("conflict", f"{made.name} is already there") from None
+                raise ActionRefused(
+                    "conflict", say("{name} is already there", name=made.name)
+                ) from None
         destination = made or parent
         try:
             with (
@@ -618,13 +648,19 @@ def _archive_filename(params: ArchiveParams) -> str:
 
 
 def _extracted(entries: int, made: Place | None) -> str:
-    what = "1 file" if entries == 1 else f"{entries} files"
-    return f"{what} extracted" + ("" if made is None else f" into {made.name}")
+    """Whole sentences, so each language words its own agreement."""
+    if made is None:
+        if entries == 1:
+            return say("1 file extracted")
+        return say("{count} files extracted", count=entries)
+    if entries == 1:
+        return say("1 file extracted into {name}", name=made.name)
+    return say("{count} files extracted into {name}", count=entries, name=made.name)
 
 
 class Upload(_Bound, FileAction[UploadParams]):
     name: ClassVar[str] = "upload"
-    title: ClassVar[str] = "Upload files"
+    title: ClassVar[str] = N_("Upload files")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
     acts_on: ClassVar[ActsOn] = "children"
     # A folder takes as many files as are handed to it, and each one is a
@@ -650,7 +686,8 @@ class Upload(_Bound, FileAction[UploadParams]):
         finally:
             await to_thread.run_sync(staging.__exit__, None, None, None)
         return ActionResult(
-            message=f"{published.name} uploaded", reload_node_ids=[node_id or None]
+            message=say("{name} uploaded", name=published.name),
+            reload_node_ids=[node_id or None],
         )
 
     def _target(
@@ -658,7 +695,9 @@ class Upload(_Bound, FileAction[UploadParams]):
     ) -> Place:
         target = self._storage.child(self._directory(node_id), filename)
         if params.conflict == "refuse" and self._storage.entry(target) is not None:
-            raise ActionRefused("conflict", f"{filename} is already there")
+            raise ActionRefused(
+                "conflict", say("{name} is already there", name=filename)
+            )
         return target
 
     def _publish(
@@ -675,7 +714,9 @@ class Upload(_Bound, FileAction[UploadParams]):
             try:
                 self._storage.publish(staged, target)
             except FileExistsError:
-                raise ActionRefused("conflict", f"{target.name} is already there") from None
+                raise ActionRefused(
+                    "conflict", say("{name} is already there", name=target.name)
+                ) from None
             return target
         parent = self._storage.parent(target)
         number = 1
@@ -702,7 +743,7 @@ async def _stream_into(staged: Path, payload: FilePayload) -> None:
             written += len(chunk)
             if written > settings.MAX_UPLOAD_BYTES:
                 raise ActionRefused(
-                    "too_large", "The file is larger than this server accepts"
+                    "too_large", say("The file is larger than this server accepts")
                 )
             await to_thread.run_sync(handle.write, chunk)
     finally:
@@ -813,5 +854,5 @@ class ExplorerActions:
             )
             return resolved.place, kind
         if resolved.entry is None:
-            raise ValueError(f"No such node: {node_id}")
+            raise ValueError(say("No such node: {node_id}", node_id=node_id))
         return resolved.place, "directory" if resolved.entry.is_directory else "file"

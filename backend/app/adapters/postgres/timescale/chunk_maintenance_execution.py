@@ -14,7 +14,7 @@ from typing import Any
 import psycopg
 from psycopg import sql
 
-from app.adapters.actions import ActionRefused, RefusalReason
+from app.adapters.actions import ActionRefused
 from app.adapters.operations import ObservedState, OperationTarget, UnitOutcome
 from app.adapters.postgres.inspection import InspectionReader, PostgresReader
 from app.adapters.postgres.session import PostgresSession
@@ -26,6 +26,7 @@ from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     column_cast,
 )
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 # A chunk's live membership in its parent and where it is stored now.
 _MEMBERS = """
@@ -62,13 +63,23 @@ JOIN pg_catalog.pg_class AS index_class ON index_class.oid = table_index.indexre
 WHERE table_index.indrelid = %s::pg_catalog.oid AND index_class.relname = %s
 """
 
-_REFUSED: dict[str, tuple[RefusalReason, str]] = {
-    "55P03": ("conflict", "This chunk is in use; nothing was changed"),
-    "40P01": ("conflict", "This chunk is in use; nothing was changed"),
-    "57014": ("not_applicable", "The source cancelled this unit after its fifteen minutes; it was rolled back"),
-    "42501": ("not_applicable", "This connection may not change this chunk"),
-}
-_UNCONFIRMED = "The connection was lost while this unit was running; its outcome is unknown"
+
+def _refused(state: str) -> ActionRefused | None:
+    if state in {"55P03", "40P01"}:
+        return ActionRefused("conflict", say("This chunk is in use; nothing was changed"))
+    if state == "57014":
+        return ActionRefused(
+            "not_applicable", say("The source cancelled this unit after its fifteen minutes; it was rolled back"),
+        )
+    if state == "42501":
+        return ActionRefused("not_applicable", say("This connection may not change this chunk"))
+    return None
+
+
+def _unconfirmed() -> str:
+    return say("The connection was lost while this unit was running; its outcome is unknown")
+
+
 _VERBS: dict[Maintenance, str] = {
     "drop": "dropped", "move": "moved", "reorder": "reordered", "detach": "detached",
     "merge": "merged", "merge_concurrently": "merged", "split": "split", "attach": "attached",
@@ -93,20 +104,20 @@ async def _checked(reader: PostgresReader, reviewed: Reviewed, unit_fingerprint:
         async with asyncio.timeout(5):
             unit = await reviewed(reader)
     except TimeoutError:
-        raise ActionRefused("conflict", "The hypertable could not be checked in time; nothing was changed") from None
+        raise ActionRefused("conflict", say("The hypertable could not be checked in time; nothing was changed")) from None
     except ActionRefused:
         raise ActionRefused(
-            "conflict", "The hypertable or its chunks changed after review; nothing was changed",
+            "conflict", say("The hypertable or its chunks changed after review; nothing was changed"),
         ) from None
     except (AdapterError, ValueError):
         raise ActionRefused(
-            "not_applicable", "The hypertable could not be checked safely; nothing was changed",
+            "not_applicable", say("The hypertable could not be checked safely; nothing was changed"),
         ) from None
     try:
         unit.require_unchanged(unit_fingerprint)
     except ActionRefused:
         raise ActionRefused(
-            "conflict", "The hypertable or its chunks changed after review; nothing was changed",
+            "conflict", say("The hypertable or its chunks changed after review; nothing was changed"),
         ) from None
     return unit
 
@@ -144,8 +155,8 @@ async def run_unit(
         raise _failure(exc.sqlstate, dispatched) from None
     except AdapterError:
         if dispatched:
-            raise AdapterError("unknown", _UNCONFIRMED) from None
-        raise ActionRefused("not_applicable", "The source could not be reached; nothing was changed") from None
+            raise AdapterError("unknown", _unconfirmed()) from None
+        raise ActionRefused("not_applicable", say("The source could not be reached; nothing was changed")) from None
 
 
 async def _without_transaction(
@@ -175,7 +186,7 @@ async def _statement(
     if unit.maintenance == "attach":
         table = await reader.query(_TABLE, (target.schema_name, target.name), inspection=True)
         if len(table) != 1:
-            raise ActionRefused("not_applicable", "The table to attach is gone; nothing was changed")
+            raise ActionRefused("not_applicable", say("The table to attach is gone; nothing was changed"))
         return (
             sql.SQL("CALL {}(%s::pg_catalog.regclass, %s::pg_catalog.regclass, %s::pg_catalog.jsonb)").format(
                 _routine(unit),
@@ -186,7 +197,7 @@ async def _statement(
     found = await _members(reader, unit, [OperationTarget(schema_name=c.schema_name, name=c.name) for c in chunks])
     rows = [found.get((chunk.schema_name, chunk.name)) for chunk in chunks]
     if any(row is None for row in rows):
-        raise ActionRefused("not_applicable", "This chunk is no longer part of the hypertable")
+        raise ActionRefused("not_applicable", say("This chunk is no longer part of the hypertable"))
     live = [row for row in rows if row is not None]
     member = live[0]
     oid = member["relation_oid"]
@@ -208,7 +219,7 @@ async def _statement(
         case "reorder":
             index_oid = await _index_oid(reader, unit)
             if member["is_compressed"] is True:
-                raise ActionRefused("not_applicable", "This chunk was compressed after review; it was left as it is")
+                raise ActionRefused("not_applicable", say("This chunk was compressed after review; it was left as it is"))
             # reorder_chunk takes the hypertable's index and finds the chunk's own.
             return (
                 sql.SQL("SELECT {}(%s::pg_catalog.regclass, %s::pg_catalog.regclass)").format(_routine(unit)),
@@ -216,13 +227,13 @@ async def _statement(
             )
         case "detach":
             if member["is_compressed"] is True:
-                raise ActionRefused("not_applicable", "This chunk was compressed after review; it was left as it is")
+                raise ActionRefused("not_applicable", say("This chunk was compressed after review; it was left as it is"))
             return sql.SQL("CALL {}(%s::pg_catalog.regclass)").format(_routine(unit)), (oid,)
         case "merge" | "merge_concurrently":
             if [(row["range_start"], row["range_end"]) for row in live] != [
                 (chunk.range_start, chunk.range_end) for chunk in unit.group
             ]:
-                raise ActionRefused("conflict", "These chunks changed after review; nothing was merged")
+                raise ActionRefused("conflict", say("These chunks changed after review; nothing was merged"))
             return (
                 sql.SQL("CALL {}(%s::pg_catalog.regclass[])").format(_routine(unit)),
                 ([row["relation_oid"] for row in live],),
@@ -240,20 +251,20 @@ async def _statement(
 async def _index_oid(reader: PostgresReader, unit: MaintenanceUnit) -> str:
     index = await reader.query(_INDEX, (unit.target.relation_oid, unit.arguments.index), inspection=True)
     if len(index) != 1:
-        raise ActionRefused("not_applicable", "The index to order rows by is gone; nothing was changed")
+        raise ActionRefused("not_applicable", say("The index to order rows by is gone; nothing was changed"))
     return str(index[0]["index_oid"])
 
 
 def _failure(sqlstate: str | None, dispatched: bool) -> Exception:
     state = sqlstate or ""
-    if state in _REFUSED:
-        reason, message = _REFUSED[state]
-        return ActionRefused(reason, message)
+    refused = _refused(state)
+    if refused is not None:
+        return refused
     if not dispatched:
-        return ActionRefused("not_applicable", "The source could not be reached or prepared; nothing was changed")
+        return ActionRefused("not_applicable", say("The source could not be reached or prepared; nothing was changed"))
     if not state or state[:2] in {"08", "57", "58"}:
-        return AdapterError("unknown", _UNCONFIRMED)
-    return ActionRefused("not_applicable", "The source refused this unit; nothing was changed")
+        return AdapterError("unknown", _unconfirmed())
+    return ActionRefused("not_applicable", say("The source refused this unit; nothing was changed"))
 
 
 async def observe(

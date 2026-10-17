@@ -24,6 +24,7 @@ from sqlmodel import col, select
 
 from app.adapters.search import holds_every_word
 from app.core.config import settings
+from app.core.translation import N_, say
 from app.queries import crud
 from app.queries.content import body_of, preview_of
 from app.queries.models import QueryDocument
@@ -47,7 +48,7 @@ from app.search.providers import (
     uuids_of,
 )
 
-UNTITLED = "Untitled query"
+UNTITLED = N_("Untitled query")
 
 # Far above what one person keeps; a bound so that the query is bounded too.
 MAX_TITLES = 1000
@@ -104,7 +105,7 @@ class _Turns:
 
 class SavedQueries:
     place = ObjectsPlace(provider="saved_queries")
-    title = "Favorites"
+    title = N_("Favorites")
     # The query library never travels (D133).
     offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"saved_query"})
@@ -158,9 +159,9 @@ class SavedQueries:
             return Found(
                 hits=cut.hits,
                 complete=False,
-                notice=(
-                    f"Only the newest {MAX_TITLES} saved queries are searched"
-                    " by their title"
+                notice=say(
+                    "Only the newest {count} saved queries are searched by their title",
+                    count=MAX_TITLES,
                 ),
                 more=cut.more,
             )
@@ -194,16 +195,16 @@ class SavedQueries:
             return Found(
                 hits=cut.hits,
                 complete=False,
-                notice="Stopped before every saved query was read",
+                notice=say("Stopped before every saved query was read"),
                 more=cut.more,
             )
         if left_out:
             return Found(
                 hits=cut.hits,
                 complete=False,
-                notice=(
-                    f"Only the newest {settings.QUERY_SEARCH_MAX_DOCUMENTS} saved"
-                    " queries are searched by their text"
+                notice=say(
+                    "Only the newest {count} saved queries are searched by their text",
+                    count=settings.QUERY_SEARCH_MAX_DOCUMENTS,
                 ),
                 more=cut.more,
             )
@@ -267,7 +268,7 @@ def _holding(
         found.append(
             _Found(
                 document_id=document.id,
-                title=document.title or preview_of(body) or UNTITLED,
+                title=document.title or preview_of(body) or say(UNTITLED),
                 connector_id=document.connector_id,
                 changed_at=document.updated_at,
                 match=Match(
@@ -295,7 +296,7 @@ def _line_of(body: str, words: Sequence[str]) -> tuple[int, str]:
 
 def _title_of(document: QueryDocument) -> str:
     """Blocking for a draft: its first line is read from the body."""
-    return document.title or preview_of(body_of(document)) or UNTITLED
+    return document.title or preview_of(body_of(document)) or say(UNTITLED)
 
 
 def _connection_names(asked: Asked) -> Mapping[uuid.UUID, str]:
@@ -318,7 +319,11 @@ def _hit(
         key=target_key(target),
         target=target,
         title=title,
-        detail="Saved query" if connection is None else f"Saved query · {connection}",
+        detail=(
+            say("Saved query")
+            if connection is None
+            else say("Saved query · {connection}", connection=connection)
+        ),
         facts=Facts(kind="saved_query", changed_at=changed_at),
         match=match,
         open="saved_query",

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -93,7 +94,7 @@ onMounted(async () => {
       schemaName.value = schemas.value[0]?.value ?? ""
     }
   } catch (cause) {
-    trouble.value = messageOf(cause, "Could not read the schemas")
+    trouble.value = messageOf(cause, t("catalog.file_to_relation.schemas_failed"))
   }
 })
 
@@ -112,7 +113,7 @@ watch(file, async (chosen) => {
   } catch (cause) {
     mappings.value = []
     preview.value = []
-    trouble.value = cause instanceof Error ? cause.message : "Could not read that file"
+    trouble.value = cause instanceof Error ? cause.message : t("catalog.file_to_relation.file_failed")
   }
 })
 
@@ -141,8 +142,8 @@ function run() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Create table from file"
-    subtitle="Choose the destination and the columns before anything is created"
+    :title="t('catalog.file_to_relation.title')"
+    :subtitle="t('catalog.file_to_relation.subtitle')"
     size="wide-form"
     sizing="stable"
     data-testid="file-to-relation-dialog"
@@ -163,38 +164,38 @@ function run() {
       </AppBanner>
       <AppFileInput
         v-model="file"
-        label="File"
-        hint="CSV or TSV, its first line naming the columns"
+        :label="t('catalog.action_dialog.file')"
+        :hint="t('catalog.file_to_relation.file_hint')"
         accept=".csv,.tsv,text/csv,text/tab-separated-values"
         data-testid="load-file"
       />
       <AppSelect
         v-model="schemaMode"
-        label="Schema choice"
+        :label="t('catalog.file_to_relation.schema_choice')"
         :options="[
-          { label: 'Existing schema', value: 'existing' },
-          { label: 'Create new schema', value: 'new' },
+          { label: t('catalog.file_to_relation.existing_schema'), value: 'existing' },
+          { label: t('catalog.file_to_relation.new_schema_option'), value: 'new' },
         ]"
         data-testid="load-schema-mode"
       />
       <AppSelect
         v-if="schemaMode === 'existing'"
         v-model="schemaName"
-        label="Schema"
+        :label="t('catalog.file_to_relation.schema')"
         :options="schemas"
         data-testid="load-schema"
       />
       <AppInput
         v-else
         v-model="schemaName"
-        label="New schema"
-        hint="The database may refuse this if the connection is not allowed to create schemas"
+        :label="t('catalog.file_to_relation.new_schema')"
+        :hint="t('catalog.file_to_relation.new_schema_hint')"
         autocomplete="off"
         data-testid="load-new-schema"
       />
       <AppInput
         v-model="tableName"
-        label="Table name"
+        :label="t('catalog.file_to_relation.table_name')"
         autocomplete="off"
         data-testid="field-name"
       />
@@ -203,10 +204,10 @@ function run() {
         data-testid="load-columns"
       >
         <template #from>
-          In the file
+          {{ t("catalog.file_to_relation.in_file") }}
         </template>
         <template #to>
-          Column in the new table
+          {{ t("catalog.file_to_relation.new_column") }}
         </template>
         <template #aside>
           <span
@@ -233,7 +234,7 @@ function run() {
           <template #to>
             <AppInput
               v-model="mapping.target"
-              :aria-label="`Name in the table for ${mapping.source}`"
+              :aria-label="t('catalog.file_to_relation.name_for', { column: mapping.source })"
               :disable="!mapping.include"
               autocomplete="off"
               compact
@@ -253,11 +254,11 @@ function run() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Create table"
+        :label="t('catalog.file_to_relation.create')"
         :disable="!ready"
         :loading="running"
         data-testid="load-create"

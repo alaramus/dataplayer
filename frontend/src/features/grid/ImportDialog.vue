@@ -6,6 +6,7 @@ import type { ColumnPair, FetchColumn, ImportPreview } from "@/client"
 import NodePicker from "@/features/catalog/NodePicker.vue"
 import type { PickedNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppForm, AppPairs, AppPairsRow, AppSelect, AppTable } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -109,8 +110,8 @@ const ready = computed(() => chosen.value !== null && columnPairs.value.length >
  */
 const tally = computed(() => {
   const filled = columnPairs.value.length
-  if (filled === 0) return "nothing paired yet"
-  return `${filled} of ${props.targetColumns.length} filled`
+  if (filled === 0) return t("grid.import.nothing_paired")
+  return t("grid.import.filled", { filled, total: props.targetColumns.length })
 })
 
 async function showPreview() {
@@ -128,7 +129,7 @@ async function showPreview() {
     })
     preview.value = answer.data
   } catch (error) {
-    trouble.value = messageOf(error, "Could not read those rows")
+    trouble.value = messageOf(error, t("grid.import.preview_failed"))
   }
 }
 
@@ -147,11 +148,11 @@ function run() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Bring rows in"
+    :title="t('grid.toolbar.commands.import')"
     :subtitle="
       source
-        ? `From ${source.label}, into ${targetLabel ?? 'this relation'}`
-        : 'From another source of yours, into this relation'
+        ? t('grid.import.subtitle_from', { source: source.label, target: targetLabel ?? t('grid.import.this_relation') })
+        : t('grid.import.subtitle')
     "
     size="wide-form"
     sizing="stable"
@@ -190,11 +191,11 @@ function run() {
         data-testid="grid-import-columns"
       >
         <template #from>
-          Column in this relation
+          {{ t('grid.import.target_column') }}
         </template>
         <template #to>
-          Filled from
-          <span class="import__source">{{ chosen?.name ?? "the other source" }}</span>
+          {{ t('grid.import.filled_from') }}
+          <span class="import__source">{{ chosen?.name ?? t('grid.import.other_source') }}</span>
         </template>
         <template #aside>
           <span data-testid="grid-import-tally">{{ tally }}</span>
@@ -213,10 +214,10 @@ function run() {
             <AppSelect
               :model-value="pairs[column.name] ?? ''"
               :options="[
-                { label: 'Left as it is', value: '' },
+                { label: t('grid.import.left_as_is'), value: '' },
                 ...sourceColumns.map((item) => ({ label: item.name, value: item.name })),
               ]"
-              :aria-label="`Column that fills ${column.name}`"
+              :aria-label="t('grid.import.pair_aria', { column: column.name })"
               compact
               :data-testid="`grid-import-pair-${column.name}`"
               @update:model-value="pairs[column.name] = String($event)"
@@ -227,7 +228,7 @@ function run() {
 
       <template v-if="preview !== null">
         <div class="import__title dp-overline">
-          The first rows, as they would arrive
+          {{ t('grid.import.preview_title') }}
         </div>
         <AppTable
           :rows="preview.rows.map((row, index) => ({ index, ...Object.fromEntries(preview!.columns.map((name, at) => [name, row[at]])) }))"
@@ -235,32 +236,32 @@ function run() {
           row-key="index"
           compact
           :paged="false"
-          empty-text="No rows"
+          :empty-text="t('grid.no_rows')"
         />
         <div
           v-if="preview.more"
           class="import__more"
         >
-          The source holds more than these.
+          {{ t('grid.import.more') }}
         </div>
       </template>
     </AppForm>
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="running"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
         variant="secondary"
-        label="Preview"
+        :label="t('grid.import.preview')"
         :disable="!ready || running"
         data-testid="grid-import-preview"
         @click="showPreview"
       />
       <AppButton
-        :label="actionLabel ?? 'Bring in'"
+        :label="actionLabel ?? t('grid.import.run')"
         :disable="!ready"
         :loading="running"
         data-testid="grid-import-run"

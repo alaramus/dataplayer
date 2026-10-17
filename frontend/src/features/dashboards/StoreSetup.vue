@@ -6,6 +6,7 @@ import { computed, ref, watch } from "vue"
 import type { StoreStatus } from "@/client"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { readSchema } from "@/shared/SchemaForm/jsonSchema"
 import type { JsonSchema } from "@/shared/SchemaForm/jsonSchema"
@@ -35,7 +36,7 @@ async function start() {
   try {
     await starting.mutateAsync()
   } catch (cause) {
-    toast.error(messageOf(cause, "TimescaleDB could not be started"))
+    toast.error(messageOf(cause, t("dashboards.setup.start_failed")))
   }
 }
 
@@ -69,7 +70,7 @@ async function connect() {
       form.applyServerErrors(detail as ServerError[])
       return
     }
-    toast.error(messageOf(cause, "That database could not be used"))
+    toast.error(messageOf(cause, t("dashboards.setup.database_failed")))
   }
 }
 </script>
@@ -81,17 +82,16 @@ async function connect() {
   >
     <template v-if="stage.kind === 'offer'">
       <h2 class="dp-page-title">
-        Dashboards need a metrics store
+        {{ t('dashboards.setup.offer_title') }}
       </h2>
       <p class="store-setup__text">
-        Samples are kept in a TimescaleDB of their own, set up once for everybody on
-        this server. Nobody reads it as a connection.
+        {{ t('dashboards.setup.offer_text') }}
       </p>
       <div class="store-setup__actions">
         <span class="store-setup__slot">
           <AppButton
             :icon="appIcons.playArrow"
-            label="Start TimescaleDB on this server"
+            :label="t('dashboards.setup.start')"
             :disable="!stage.canStart"
             :loading="starting.isPending.value"
             data-testid="store-start"
@@ -102,7 +102,7 @@ async function connect() {
         <AppButton
           variant="secondary"
           :icon="appIcons.link"
-          label="Connect an existing TimescaleDB"
+          :label="t('dashboards.setup.connect_existing')"
           data-testid="store-connect"
           @click="connectOpen = true"
         />
@@ -111,16 +111,16 @@ async function connect() {
 
     <template v-else-if="stage.kind === 'wait'">
       <h2 class="dp-page-title">
-        Dashboards are not set up yet
+        {{ t('dashboards.setup.wait_title') }}
       </h2>
       <p class="store-setup__text">
-        An administrator of this server sets up the store dashboards keep their samples in.
+        {{ t('dashboards.setup.wait_text') }}
       </p>
     </template>
 
     <template v-else-if="stage.kind === 'starting'">
       <h2 class="dp-page-title">
-        Starting the metrics store
+        {{ t('dashboards.setup.starting_title') }}
       </h2>
       <AppProgress
         :label="stage.step"
@@ -137,21 +137,21 @@ async function connect() {
         <AppButton
           v-if="stage.canStart"
           :icon="appIcons.replay"
-          label="Start it again"
+          :label="t('dashboards.setup.start_again')"
           :loading="starting.isPending.value"
           @click="start"
         />
         <AppButton
           variant="secondary"
           :icon="appIcons.refresh"
-          label="Ask again"
+          :label="t('dashboards.setup.ask_again')"
           @click="emit('retry')"
         />
         <AppButton
           v-if="stage.canRemove"
           variant="danger-quiet"
           :icon="appIcons.deleteForever"
-          label="Remove the store"
+          :label="t('dashboards.common.remove_store')"
           data-testid="store-open-removal"
           @click="storeOpen = true"
         />
@@ -161,8 +161,8 @@ async function connect() {
 
     <WindowDialog
       v-model="connectOpen"
-      title="Connect an existing TimescaleDB"
-      subtitle="It is checked, and prepared with the schema metrics are kept in."
+      :title="t('dashboards.setup.connect_existing')"
+      :subtitle="t('dashboards.setup.connect_subtitle')"
       size="form"
       sizing="stable"
       data-testid="store-connect-dialog"
@@ -177,11 +177,11 @@ async function connect() {
       <template #actions>
         <AppButton
           variant="quiet"
-          label="Cancel"
+          :label="t('dashboards.common.cancel')"
           @click="connectOpen = false"
         />
         <AppButton
-          label="Connect"
+          :label="t('dashboards.setup.connect')"
           :loading="connecting.isPending.value"
           data-testid="store-connect-confirm"
           @click="connect"

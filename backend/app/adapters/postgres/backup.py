@@ -15,6 +15,7 @@ from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.restore_inventory import validate_inventory
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
+from app.core.translation import say
 
 # The oldest image family this will ask for. A server older than this is a
 # server whose dump belongs to somebody with the right tools, not to a guess.
@@ -38,12 +39,12 @@ class PostgresBackup:
         except (ValueError, AdapterError):
             return BackupAvailability(
                 available=False,
-                reason="Installed extensions could not be inspected for backup or restore",
+                reason=say("Installed extensions could not be inspected for backup or restore"),
             )
         if installed:
             return BackupAvailability(
                 available=False,
-                reason="TimescaleDB backup and restore are not supported in this version",
+                reason=say("TimescaleDB backup and restore are not supported in this version"),
             )
         return BackupAvailability(available=True)
 
@@ -118,8 +119,7 @@ class PostgresBackup:
         major = number // 10000
         if major < OLDEST_SUPPORTED_MAJOR:
             raise ValueError(
-                "This server is older than any version this application can "
-                "back up"
+                say("This server is older than any version this application can back up")
             )
         return f"postgres:{major}"
 

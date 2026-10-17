@@ -39,6 +39,7 @@ from app.adapters.explorer.formats import (
     format_of,
     representations_inside_archive,
     representations_of,
+    worded,
 )
 from app.adapters.explorer.members import ResolvedNode, resolve_node
 from app.adapters.explorer.storage import Entry, Storage
@@ -59,6 +60,7 @@ from app.adapters.summary import (
     VideoContents,
     WorkbookContents,
 )
+from app.core.translation import N_, say
 
 # What is read to count lines or rows. Well above the 4 MB a document is edited
 # whole at (D48) and far below what a log directory holds: the point is that a
@@ -71,10 +73,7 @@ COUNT_CHUNK_BYTES = 256 * 1024
 # terminator rather than two.
 _TERMINATOR = re.compile(rb"\r\n|\n|\r")
 
-_TOO_LARGE = (
-    f"This file is larger than {MAX_COUNTED_BYTES // (1024 * 1024)} MB "
-    "and was not read through"
-)
+_TOO_LARGE = N_("This file is larger than {megabytes} MB and was not read through")
 
 
 class ExplorerSummaries:
@@ -107,7 +106,7 @@ def _file(storage: Storage, entry: Entry, node_id: str) -> NodeSummary:
         node_id=node_id,
         name=entry.name,
         kind="file",
-        representations=representations_of(entry.name),
+        representations=worded(representations_of(entry.name)),
         size_bytes=entry.size_bytes,
         modified_at=entry.modified_at,
         accessed_at=entry.accessed_at,
@@ -155,7 +154,9 @@ def _entry(resolved: ResolvedNode, path: Path, node_id: str) -> NodeSummary:
         name=entry.name,
         kind="entry",
         representations=(
-            representations_inside_archive(entry.name) if entry.readable else []
+            worded(representations_inside_archive(entry.name))
+            if entry.readable
+            else []
         ),
         size_bytes=None if entry.is_directory else entry.size_bytes,
         modified_at=entry.modified_at,
@@ -187,7 +188,7 @@ def _worksheet(resolved: ResolvedNode, path: Path, node_id: str) -> NodeSummary:
         node_id=node_id,
         name=facts.title,
         kind="dataset",
-        representations=[TABLE],
+        representations=worded([TABLE]),
         # A sheet has no bytes and no times of its own; the workbook has both,
         # and answering with the workbook's would be answering about the wrong
         # node.
@@ -215,7 +216,7 @@ def _contents(storage: Storage, entry: Entry) -> tuple[NodeContents | None, str 
     except ValueError as exc:
         return None, str(exc)
     except OSError:
-        return None, "This file could not be read"
+        return None, say("This file could not be read")
 
 
 def _read_contents(storage: Storage, entry: Entry) -> NodeContents | None:
@@ -311,7 +312,7 @@ def _delimited_contents(
         # The file is still a file, and its own facts still stand.
         return DelimitedContents(
             encoding=scan.encoding,
-            not_counted="This file could not be read as delimited rows",
+            not_counted=say("This file could not be read as delimited rows"),
         )
     return DelimitedContents(
         delimiter=delimiter_name(delimiter),
@@ -372,11 +373,11 @@ def _image_contents(handle: BinaryIO) -> ImageContents:
             media_type = IMAGE_MEDIA_TYPES.get(image.format or "")
             width, height = image.size
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError):
-        raise ValueError("This file is not a valid PNG or JPEG image") from None
+        raise ValueError(say("This file is not a valid PNG or JPEG image")) from None
     if media_type is None:
-        raise ValueError("Only PNG and JPEG images are described here")
+        raise ValueError(say("Only PNG and JPEG images are described here"))
     if width < 1 or height < 1:
-        raise ValueError("This image states no size")
+        raise ValueError(say("This image states no size"))
     return ImageContents(media_type=media_type, width=width, height=height)
 
 
@@ -392,10 +393,10 @@ def _directory_contents(storage: Storage, folder: Entry) -> DirectoryContents:
     try:
         entries = storage.entries(folder.place)
     except OSError:
-        return DirectoryContents(not_counted="This folder could not be read")
+        return DirectoryContents(not_counted=say("This folder could not be read"))
     if len(entries) > MAX_ENTRIES:
         return DirectoryContents(
-            not_counted=f"This folder holds more than {MAX_ENTRIES} entries"
+            not_counted=say("This folder holds more than {count} entries", count=MAX_ENTRIES)
         )
     directories = sum(1 for entry in entries if entry.is_directory)
     return DirectoryContents(
@@ -411,7 +412,10 @@ def _scan(size_bytes: int, opened: Callable[[], BinaryIO]) -> _TextScan:
     because "which of them is in this file" is one of the things being asked.
     """
     if size_bytes > MAX_COUNTED_BYTES:
-        return _TextScan(encoding=_encoding_of_prefix(opened), not_counted=_TOO_LARGE)
+        return _TextScan(
+            encoding=_encoding_of_prefix(opened),
+            not_counted=say(_TOO_LARGE, megabytes=MAX_COUNTED_BYTES // (1024 * 1024)),
+        )
 
     decoder = codecs.getincrementaldecoder("utf-8")()
     valid = True

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { t } from "@/shared/i18n"
 import AppTaskbar from "@/shared/ui/AppTaskbar.vue"
 import AppTaskbarItem from "@/shared/ui/AppTaskbarItem.vue"
 
@@ -22,7 +23,7 @@ defineProps<{ context: WorkspaceContext }>()
 <template>
   <AppTaskbar
     v-if="context.aside.value.length"
-    label="Sections put aside"
+    :label="t('layout.taskbar.label')"
     data-testid="workspace-taskbar"
   >
     <AppTaskbarItem
@@ -31,7 +32,7 @@ defineProps<{ context: WorkspaceContext }>()
       :title="`${section.title} · ${section.panels}`"
       :icon="section.icon"
       aside
-      :tooltip="`Bring back ${section.title}`"
+      :tooltip="t('layout.taskbar.bring_back', { title: section.title })"
       :data-testid="`workspace-aside-${section.id}`"
       @open="context.bringBack(section.id)"
     />

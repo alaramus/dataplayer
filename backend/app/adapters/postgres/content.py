@@ -19,6 +19,7 @@ from app.adapters.postgres.report_registry import resolve_report
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import SystemReport
 from app.adapters.protocol import NodeNotFound
+from app.core.translation import say
 
 MAX_DDL_BYTES = 256 * 1024
 # A single catalog expression is clipped before it crosses the connection.
@@ -115,8 +116,7 @@ class PostgresContent:
     async def read_content(self, request: ContentRequest) -> ContentResult:
         if request.representation != "sql":
             raise ValueError(
-                f'This PostgreSQL source does not offer the "{request.representation}" '
-                "content representation"
+                say('This PostgreSQL source does not offer the "{representation}" content representation', representation=request.representation)
             )
         report = await resolve_report(self._session, request.node_id)
         if report is not None:
@@ -125,13 +125,13 @@ class PostgresContent:
         schema, separator, relation = request.node_id.partition(".")
         if not separator or not schema or not relation:
             raise ValueError(
-                f'"{request.node_id}" is not a relation: expected schema.relation'
+                say('"{node_id}" is not a relation: expected schema.relation', node_id=request.node_id)
             )
 
         context = await self._relation_context.schema(schema, relation)
         refused = context.structured_operations_reason(relation)
         if refused is not None:
-            raise ValueError(f"{refused}; reconstructed DDL is unavailable")
+            raise ValueError(say("{refused}; reconstructed DDL is unavailable", refused=refused))
 
         rows = await self._session.query(
             _RELATION,
@@ -175,7 +175,7 @@ class PostgresContent:
             text=text,
             truncated=truncated,
             notice=(
-                "This DDL is larger than 256 KB; only its beginning is shown."
+                say("This DDL is larger than 256 KB; only its beginning is shown.")
                 if truncated
                 else None
             ),

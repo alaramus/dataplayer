@@ -6,6 +6,7 @@ Pure, so the rule can be read without the store around it.
 from dataclasses import dataclass
 from typing import Literal
 
+from app.core.translation import say
 from app.metrics.models import MAX_RANGE_SECONDS, MIN_RANGE_SECONDS
 
 # Widths a person reads without arithmetic. The first one wide enough wins.
@@ -47,9 +48,9 @@ class RangeRefused(ValueError):
 def check_range(start: int, end: int) -> None:
     span = end - start
     if span < MIN_RANGE_SECONDS:
-        raise RangeRefused(f"A range is at least {MIN_RANGE_SECONDS} seconds")
+        raise RangeRefused(say("A range is at least {count} seconds", count=MIN_RANGE_SECONDS))
     if span > MAX_RANGE_SECONDS:
-        raise RangeRefused("A range is at most a year")
+        raise RangeRefused(say("A range is at most a year"))
 
 
 def raw_reaches(start: int, now: int) -> bool:

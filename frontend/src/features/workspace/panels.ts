@@ -23,6 +23,7 @@ import RecordPanelView from "@/features/workspace/panels/RecordPanel.vue"
 import StructurePanelView from "@/features/workspace/panels/StructurePanel.vue"
 import SummaryPanelView from "@/features/workspace/panels/SummaryPanel.vue"
 import WorkspaceSceneView from "@/features/workspace/panels/WorkspaceScene.vue"
+import { t } from "@/shared/i18n"
 import type { PanelLook } from "@/shared/workspace"
 import { MAX_RELATIONS } from "@/features/relationships/model"
 
@@ -429,9 +430,9 @@ export function emptyOf(accepts: string | null): Component | null {
 export function sectionLook(accepts: string | null): { title: string; icon: string } | null {
   switch (accepts) {
     case "navigate":
-      return { title: "Navigation", icon: appIcons.accountTree }
+      return { title: t("workspace.sections.navigation"), icon: appIcons.accountTree }
     case "work":
-      return { title: "Data", icon: appIcons.tableChart }
+      return { title: t("workspace.sections.data"), icon: appIcons.tableChart }
     default:
       return null
   }
@@ -499,19 +500,23 @@ function baseLookOf(panel: Panel): PanelLook {
   switch (panel.kind) {
     case "relationships":
       return {
-        title: `Relationships · ${panel.connectorName}`,
+        title: t("workspace.look.relationships", { name: panel.connectorName }),
         icon: appIcons.hub,
-        iconTooltip: `${panel.nodes.length} tables · ${panel.connectorName}`,
-        reloadTooltip: "Re-read these relationships",
+        iconTooltip: t(
+          "workspace.look.relationships_tables",
+          { n: panel.nodes.length, name: panel.connectorName },
+          panel.nodes.length
+        ),
+        reloadTooltip: t("workspace.look.reread_relationships"),
       }
     case "connectors":
       // Not closable: it has no parameters, so a closed one leaves a column
       // with nothing to say about how to bring it back. See T3.
       return {
-        title: "Connections",
+        title: t("workspace.look.connections"),
         icon: appIcons.lan,
         closable: false,
-        reloadTooltip: "Reload the list of connections",
+        reloadTooltip: t("workspace.look.reload_connections"),
       }
     case "catalog":
       // The one tab whose icon is still a button: the connection behind a
@@ -519,9 +524,9 @@ function baseLookOf(panel: Panel): PanelLook {
       return {
         title: panel.title,
         icon: adapterIcon(panel.adapterType),
-        iconTooltip: "Edit connection",
+        iconTooltip: t("workspace.look.edit_connection"),
         iconCommand: true,
-        reloadTooltip: "Re-read this level",
+        reloadTooltip: t("workspace.look.reread_level"),
       }
     case "rows":
       // Drawn the way the catalog drew the node, where the node said how; a
@@ -534,7 +539,7 @@ function baseLookOf(panel: Panel): PanelLook {
         title: panel.title,
         icon: rowsIcon(panel),
         iconTooltip: panel.connectorName,
-        reloadTooltip: "Re-read this table",
+        reloadTooltip: t("workspace.look.reread_table"),
       }
     case "content":
       return {
@@ -542,53 +547,55 @@ function baseLookOf(panel: Panel): PanelLook {
         icon: REPRESENTATION_ICONS[panel.representation],
         iconTooltip: panel.connectorName,
         reloadTooltip:
-          panel.representation === "sql" ? "Re-read this DDL" : "Re-read this file",
+          panel.representation === "sql"
+            ? t("workspace.look.reread_ddl")
+            : t("workspace.look.reread_file"),
       }
     case "structure":
       return {
         title: panel.title,
         icon: appIcons.accountTree,
         iconTooltip: panel.connectorName,
-        reloadTooltip: "Re-read the structure",
+        reloadTooltip: t("workspace.look.reread_structure"),
       }
     case "summary":
       return {
         title: panel.title,
         icon: appIcons.info,
         iconTooltip: panel.connectorName,
-        reloadTooltip: "Re-read these details",
+        reloadTooltip: t("workspace.look.reread_details"),
       }
     case "record":
       return {
-        title: `${panel.title} row`,
+        title: t("workspace.look.record", { title: panel.title }),
         icon: appIcons.tableRows,
         iconTooltip: panel.connectorName,
-        reloadTooltip: "Re-read this row",
+        reloadTooltip: t("workspace.look.reread_row"),
       }
     case "chart":
       return {
-        title: `${panel.title} chart`,
+        title: t("workspace.look.chart", { title: panel.title }),
         icon: appIcons.insertChart,
         iconTooltip: panel.connectorName,
-        reloadTooltip: "Re-read this chart page",
+        reloadTooltip: t("workspace.look.reread_chart"),
       }
     case "query":
       // A document with no name says so on its tab rather than showing an
       // empty one: a draft is the ordinary state of a console, not a fault.
       return {
-        title: panel.title ?? "Untitled query",
+        title: panel.title ?? t("workspace.look.untitled_query"),
         icon: appIcons.terminal,
         iconTooltip:
           panel.connectorName === null
-            ? "This connection is no longer available"
+            ? t("workspace.look.connection_gone")
             : panel.connectorName,
       }
     case "result":
       return {
         title: panel.title,
         icon: appIcons.tableView,
-        iconTooltip: "A captured result",
-        reloadTooltip: "Re-read this captured result",
+        iconTooltip: t("workspace.look.captured_result"),
+        reloadTooltip: t("workspace.look.reread_result"),
       }
     case "widget":
       // Named as the window it was lifted from was: the widget's own title and
@@ -596,20 +603,20 @@ function baseLookOf(panel: Panel): PanelLook {
       return {
         title: panel.widget.title,
         icon: appIcons.dashboard,
-        iconTooltip: "A widget lifted out of its dashboard",
-        reloadTooltip: "Re-read these readings",
+        iconTooltip: t("workspace.look.widget"),
+        reloadTooltip: t("workspace.look.reread_readings"),
       }
     case "service-logs":
       return {
-        title: `Output of ${panel.serviceName}`,
+        title: t("workspace.look.service_output", { name: panel.serviceName }),
         icon: appIcons.notes,
-        reloadTooltip: "Re-read what it printed",
+        reloadTooltip: t("workspace.look.reread_output"),
       }
     case "search":
       return {
-        title: "Search",
+        title: t("workspace.look.search"),
         icon: appIcons.search,
-        reloadTooltip: "Search again",
+        reloadTooltip: t("workspace.look.search_again"),
       }
   }
 }

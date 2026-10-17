@@ -10,6 +10,7 @@ no feature (D197).
 
 from collections.abc import Sequence
 
+from app.core.translation import N_, say
 from app.search.models import (
     Facts,
     Hit,
@@ -51,7 +52,7 @@ def startable() -> list[Startable]:
 
 class ServiceNames:
     place = ObjectsPlace(provider="services")
-    title = "Services"
+    title = N_("Services")
     offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"service"})
 
@@ -87,7 +88,7 @@ class ServiceNames:
 
 def _kind_of(service: ManagedService) -> str:
     try:
-        return templates.template_for(service.template_key).title
+        return say(templates.template_for(service.template_key).title)
     except templates.UnknownServiceTemplate:
         return service.template_key
 
@@ -98,7 +99,7 @@ def _hit(service: ManagedService, name: str, match: Match) -> Hit:
         key=target_key(target),
         target=target,
         title=name,
-        detail=f"Service · {_kind_of(service)}",
+        detail=say("Service · {kind}", kind=_kind_of(service)),
         facts=Facts(kind=service.template_key, changed_at=service.updated_at),
         match=match,
         open="service",

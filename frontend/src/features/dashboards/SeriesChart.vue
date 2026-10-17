@@ -6,7 +6,9 @@ import type { EChartsType } from "echarts/core"
 import { SVGRenderer } from "echarts/renderers"
 import { onBeforeUnmount, onMounted, ref, watch } from "vue"
 
+import { currentLanguage } from "@/shared/i18n"
 import { useThemeStore } from "@/stores/theme"
+import { chartLocale } from "@/shared/i18n/echarts"
 
 import { timeseriesOption } from "./chartOption"
 import type { ChartSeries } from "./chartOption"
@@ -41,7 +43,7 @@ function draw() {
 onMounted(() => {
   const element = host.value
   if (element === null) return
-  chart = init(element, undefined, { renderer: "svg" })
+  chart = init(element, undefined, { renderer: "svg", locale: chartLocale() })
   draw()
   observer = new ResizeObserver(() => chart?.resize())
   observer.observe(element)
@@ -56,6 +58,8 @@ onBeforeUnmount(() => {
 watch(() => props.series, draw, { deep: true })
 // The palette is read off the theme, so a switch of theme is a redraw.
 watch(() => theme.dark, () => requestAnimationFrame(draw))
+// So are the unit words on the scale, which are the language's.
+watch(currentLanguage, draw)
 </script>
 
 <template>

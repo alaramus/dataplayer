@@ -19,6 +19,7 @@ from app.adapters.explorer.arrow import column_type, encoder
 from app.adapters.explorer.readers import Page, matcher, select
 from app.adapters.fetch import FetchColumn, Filter
 from app.adapters.relation import Column
+from app.core.translation import say
 
 # The same ceiling the workbook reader has, for the same reason: a page of a
 # thousand rows across an unbounded number of columns is bounded by nothing.
@@ -124,7 +125,7 @@ def _opened(path: Path) -> Iterator[Any]:
         try:
             file = pq.ParquetFile(handle)
         except Exception:
-            raise NotParquet("This file is not a Parquet file") from None
+            raise NotParquet(say("This file is not a Parquet file")) from None
         yield file
 
 
@@ -191,8 +192,11 @@ def _fetch_columns(schema: Any) -> list[FetchColumn]:
 def _guard_width(schema: Any) -> None:
     if len(schema) > MAX_COLUMNS:
         raise ValueError(
-            f"This file has more than {MAX_COLUMNS} columns, "
-            "which is more than one page may carry"
+            say(
+                "This file has more than {count} columns, "
+                "which is more than one page may carry",
+                count=MAX_COLUMNS,
+            )
         )
 
 

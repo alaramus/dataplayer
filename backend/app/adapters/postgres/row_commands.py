@@ -14,7 +14,7 @@ an array parameter, and an extension name selects a row of the server's own
 catalog whose spelling is what reaches the statement.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from psycopg import sql
@@ -32,6 +32,7 @@ from app.adapters.row_commands import (
     RowCommandResult,
     UnknownRowCommand,
 )
+from app.core.translation import N_, say, say_if
 
 # The column of the Processes report that names a backend, and the column of
 # the Extensions report that names an extension.
@@ -56,17 +57,18 @@ class _Runnable:
 
     command: RowCommand
     function: sql.Identifier
-    # What to say afterwards. Written per command because "cancelled" and
-    # "closed" are different things and the difference is the whole point.
-    done_wording: str
+    # What to say afterwards, given what was done and what was asked. Written
+    # per command because "cancelled" and "closed" are different things and
+    # the difference is the whole point.
+    said: Callable[[int, int], str]
 
 
 CANCEL = _Runnable(
     command=RowCommand(
         name="cancel_query",
-        title="Cancel query",
+        title=N_("Cancel query"),
         icon="cancel",
-        description=(
+        description=N_(
             "Ask the backend to stop the statement it is running. "
             "The connection stays open."
         ),
@@ -77,15 +79,22 @@ CANCEL = _Runnable(
         identified_by=PID_COLUMN,
     ),
     function=sql.Identifier("pg_catalog", "pg_cancel_backend"),
-    done_wording="asked to stop",
+    said=lambda done, asked: _tally(
+        done,
+        asked,
+        one=say("1 process asked to stop"),
+        one_short=say("0 of 1 process asked to stop"),
+        every=say("{done} processes asked to stop", done=done),
+        short=say("{done} of {asked} processes asked to stop", done=done, asked=asked),
+    ),
 )
 
 TERMINATE = _Runnable(
     command=RowCommand(
         name="terminate_backend",
-        title="Terminate",
+        title=N_("Terminate"),
         icon="power_settings_new",
-        description=(
+        description=N_(
             "Close the connection, rolling back whatever it was doing. "
             "Use it when cancelling was not enough."
         ),
@@ -94,7 +103,14 @@ TERMINATE = _Runnable(
         identified_by=PID_COLUMN,
     ),
     function=sql.Identifier("pg_catalog", "pg_terminate_backend"),
-    done_wording="closed",
+    said=lambda done, asked: _tally(
+        done,
+        asked,
+        one=say("1 process closed"),
+        one_short=say("0 of 1 process closed"),
+        every=say("{done} processes closed", done=done),
+        short=say("{done} of {asked} processes closed", done=done, asked=asked),
+    ),
 )
 
 _RUNNABLE = {runnable.command.name: runnable for runnable in (CANCEL, TERMINATE)}
@@ -106,23 +122,23 @@ EXTENSION_REFUSALS = {
     # duplicate_object: a backstop. Installing one already installed is
     # refused by name before the statement runs, but two callers can still
     # race, and the second must read like a refusal rather than a fault.
-    "42710": "it is already installed",
+    "42710": N_("it is already installed"),
     # dependent_objects_still_exist.
-    "2BP01": "something in this database is built on it",
+    "2BP01": N_("something in this database is built on it"),
     # insufficient_privilege: installing one usually needs a superuser.
-    "42501": "this connection may not change the extensions of this server",
+    "42501": N_("this connection may not change the extensions of this server"),
     # undefined_file: the extension is listed but its files are not installed.
-    "58P01": "the server lists it but cannot find its files",
+    "58P01": N_("the server lists it but cannot find its files"),
     # undefined_object: it is built on an extension that is not there, which
     # CASCADE normally settles — so this is a server that refuses that too.
-    "42704": "it needs another extension that is not installed",
+    "42704": N_("it needs another extension that is not installed"),
 }
 
 INSTALL_EXTENSION = RowCommand(
     name="install_extension",
-    title="Install",
+    title=N_("Install"),
     icon="add",
-    description=(
+    description=N_(
         "Install this on the server. Anything it is built on is installed "
         "with it."
     ),
@@ -137,9 +153,9 @@ INSTALL_EXTENSION = RowCommand(
 
 DROP_EXTENSION = RowCommand(
     name="drop_extension",
-    title="Remove",
+    title=N_("Remove"),
     icon="delete",
-    description=(
+    description=N_(
         "Remove this from the server. Whatever was built on it is kept and "
         "the server refuses instead, rather than the removal taking it too."
     ),
@@ -176,7 +192,12 @@ class PostgresRowCommands:
         this module that can carry them out: a report that named a command
         nobody implements would be a promise with nothing behind it.
         """
-        return list(_OFFERED.get(node_id, ()))
+        return [
+            command.model_copy(
+                update={"title": say(command.title), "description": say_if(command.description)}
+            )
+            for command in _OFFERED.get(node_id, ())
+        ]
 
     async def run(
         self, node_id: str, name: str, keys: Sequence[str]
@@ -190,11 +211,11 @@ class PostgresRowCommands:
             return await tablespaces.drop(self._session, keys)
         runnable = _RUNNABLE[name]
         if len(keys) > MAX_KEYS:
-            raise ValueError(f"At most {MAX_KEYS} processes at a time")
+            raise ValueError(say("At most {count} processes at a time", count=MAX_KEYS))
 
         pids, unreadable = _pids(keys)
         acted: list[int] = []
-        refused = [f"{key} is not a process id" for key in unreadable]
+        refused = [say("{key} is not a process id", key=key) for key in unreadable]
         if pids:
             rows = await self._session.query(
                 sql.SQL("""
@@ -212,12 +233,12 @@ class PostgresRowCommands:
                 if row["acted"] is True:
                     acted.append(pid)
                 elif row["acted"] is None:
-                    refused.append(f"{pid} is this connection")
+                    refused.append(say("{pid} is this connection", pid=pid))
                 else:
-                    refused.append(f"{pid} is no longer running")
+                    refused.append(say("{pid} is no longer running", pid=pid))
 
         return RowCommandResult(
-            message=_said(runnable, done=len(acted), asked=len(keys)),
+            message=runnable.said(len(acted), len(keys)),
             done=len(acted),
             refused=refused,
         )
@@ -232,7 +253,7 @@ class PostgresRowCommands:
         not do.
         """
         if len(keys) > MAX_EXTENSIONS:
-            raise ValueError(f"At most {MAX_EXTENSIONS} extensions at a time")
+            raise ValueError(say("At most {count} extensions at a time", count=MAX_EXTENSIONS))
         installing = name == INSTALL_EXTENSION.name
         done: list[str] = []
         refused: list[str] = []
@@ -240,13 +261,13 @@ class PostgresRowCommands:
             named = await self._extension_named(typed, installing=installing)
             if named is None:
                 refused.append(
-                    f'"{typed}" is not offered by this server'
+                    say('"{name}" is not offered by this server', name=typed)
                     if installing
-                    else f'"{typed}" is not installed'
+                    else say('"{name}" is not installed', name=typed)
                 )
                 continue
             if not installing and named == "timescaledb":
-                refused.append("TimescaleDB removal is not supported by structured operations")
+                refused.append(say("TimescaleDB removal is not supported by structured operations"))
                 continue
             statement = (
                 # CASCADE here means "install what this one is built on", which
@@ -265,10 +286,10 @@ class PostgresRowCommands:
                 continue
             done.append(named)
         return RowCommandResult(
-            message=_extension_said(
-                done=len(done),
-                asked=len(keys),
-                verb="installed" if installing else "removed",
+            message=(
+                _installed_said(len(done), len(keys))
+                if installing
+                else _removed_said(len(done), len(keys))
             ),
             done=len(done),
             refused=refused,
@@ -298,11 +319,26 @@ class PostgresRowCommands:
         return str(rows[0]["name"]) if rows else None
 
 
-def _extension_said(*, done: int, asked: int, verb: str) -> str:
-    subject = "extension" if asked == 1 else "extensions"
-    if done == asked:
-        return f"{done} {subject} {verb}"
-    return f"{done} of {asked} {subject} {verb}"
+def _installed_said(done: int, asked: int) -> str:
+    return _tally(
+        done,
+        asked,
+        one=say("1 extension installed"),
+        one_short=say("0 of 1 extension installed"),
+        every=say("{done} extensions installed", done=done),
+        short=say("{done} of {asked} extensions installed", done=done, asked=asked),
+    )
+
+
+def _removed_said(done: int, asked: int) -> str:
+    return _tally(
+        done,
+        asked,
+        one=say("1 extension removed"),
+        one_short=say("0 of 1 extension removed"),
+        every=say("{done} extensions removed", done=done),
+        short=say("{done} of {asked} extensions removed", done=done, asked=asked),
+    )
 
 
 def _pids(keys: Sequence[str]) -> tuple[list[int], list[str]]:
@@ -322,13 +358,14 @@ def _pids(keys: Sequence[str]) -> tuple[list[int], list[str]]:
     return pids, unreadable
 
 
-def _said(runnable: _Runnable, *, done: int, asked: int) -> str:
-    """One line about the whole request.
+def _tally(done: int, asked: int, *, one: str, one_short: str, every: str, short: str) -> str:
+    """One line about the whole request, from its four whole sentences.
 
     The count of what was asked stays in it even when everything worked: a
-    person who ticked four rows wants to read that four happened.
+    person who ticked four rows wants to read that four happened. One row and
+    several are separate sentences, because a count is not a word to glue a
+    noun to (D226).
     """
-    subject = "process" if asked == 1 else "processes"
-    if done == asked:
-        return f"{done} {subject} {runnable.done_wording}"
-    return f"{done} of {asked} {subject} {runnable.done_wording}"
+    if asked == 1:
+        return one if done == 1 else one_short
+    return every if done == asked else short

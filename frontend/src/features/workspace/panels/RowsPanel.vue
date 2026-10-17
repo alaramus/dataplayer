@@ -12,6 +12,7 @@ import { useWorkspaceActions } from "@/features/workspace/state"
 import { useSiblingTables } from "@/features/catalog/api"
 import { messageOf } from "@/shared/api/errors"
 import type { Freshness } from "@/shared/freshness/freshness"
+import { t } from "@/shared/i18n"
 import { useToast } from "@/shared/ui"
 
 /**
@@ -137,7 +138,7 @@ async function openAsQuery() {
       title: props.title,
     })
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not open this table as a query"))
+    toast.error(messageOf(cause, t("workspace.rows.query_failed")))
   }
 }
 

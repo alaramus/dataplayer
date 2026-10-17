@@ -6,6 +6,7 @@ import type { DeclaredReferencePublic } from "@/client"
 import { useDeclaredReferences, useUndeclareReference } from "@/features/declared/api"
 import { farLabel, sidesFrom } from "@/features/declared/model"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -74,11 +75,9 @@ const drawn = computed<Drawn[]>(() =>
  */
 async function remove(reference: Drawn) {
   const accepted = await confirm({
-    title: "Remove this reference?",
-    message:
-      `${reference.from} → ${reference.to} stops being offered here and at ` +
-      "the other end. Neither source is changed.",
-    confirmLabel: "Remove",
+    title: t("declared.remove.title"),
+    message: t("declared.remove.message", { from: reference.from, to: reference.to }),
+    confirmLabel: t("declared.remove.confirm"),
     danger: true,
   })
   if (!accepted) return
@@ -88,9 +87,9 @@ async function remove(reference: Drawn) {
       referenceId: reference.id,
       connectorIds: reference.connectorIds,
     })
-    toast.success("Declared reference removed")
+    toast.success(t("declared.remove.done"))
   } catch (error) {
-    toast.error(messageOf(error, "Could not remove this reference"))
+    toast.error(messageOf(error, t("declared.remove.failed")))
   } finally {
     removing.value = null
   }
@@ -101,10 +100,10 @@ async function remove(reference: Drawn) {
   <AppSection divided>
     <div class="declared__heading">
       <div class="declared__title">
-        Declared references
+        {{ t("declared.title") }}
       </div>
       <AppButton
-        label="Declare a reference"
+        :label="t('declared.declare_one')"
         variant="secondary"
         size="sm"
         data-testid="structure-declare-reference"
@@ -118,12 +117,12 @@ async function remove(reference: Drawn) {
       tone="error"
       data-testid="declared-error"
     >
-      {{ messageOf(query.error.value, "Could not read the references drawn from this node") }}
+      {{ messageOf(query.error.value, t("declared.read_failed")) }}
     </AppBanner>
     <AppSpinner v-if="query.isPending.value" />
     <AppEmptyState
       v-else-if="drawn.length === 0"
-      text="None"
+      :text="t('declared.none')"
     />
     <ul
       v-else
@@ -139,7 +138,7 @@ async function remove(reference: Drawn) {
         <span>{{ reference.from }} → {{ reference.to }}</span>
         <AppIconButton
           :icon="appIcons.deleteOutline"
-          tooltip="Remove this reference"
+          :tooltip="t('declared.remove_tooltip')"
           variant="danger-quiet"
           :loading="removing === reference.id"
           :data-testid="`declared-remove-${reference.id}`"

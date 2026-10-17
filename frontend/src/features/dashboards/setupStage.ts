@@ -4,6 +4,7 @@
  */
 
 import type { StoreStatus } from "@/client"
+import { t } from "@/shared/i18n"
 
 export type SetupStage =
   | { kind: "offer"; canStart: boolean; startReason: string | null }
@@ -18,14 +19,16 @@ export function setupStage(status: StoreStatus): SetupStage {
     const count = job?.step_count ?? 0
     return {
       kind: "starting",
-      step: job?.step ? `Now ${job.step}` : "Waiting to begin",
+      step: job?.step ? t("dashboards.setup.now", { step: job.step }) : t("dashboards.setup.waiting"),
       progress: count > 0 ? (job?.step_index ?? 0) / count : null,
     }
   }
   if (status.state === "failed") {
     return {
       kind: "trouble",
-      message: `The metrics store could not be started: ${status.message ?? "the job failed"}`,
+      message: t("dashboards.setup.start_failed_message", {
+        message: status.message ?? t("dashboards.setup.job_failed"),
+      }),
       canStart,
       canRemove: false,
     }
@@ -33,7 +36,7 @@ export function setupStage(status: StoreStatus): SetupStage {
   if (status.state === "unreachable") {
     return {
       kind: "trouble",
-      message: status.message ?? "The metrics store is not answering",
+      message: status.message ?? t("dashboards.setup.not_answering"),
       canStart: false,
       // A store gone for good is taken away the way a working one is.
       canRemove: status.may_set_up,
@@ -43,6 +46,6 @@ export function setupStage(status: StoreStatus): SetupStage {
   return {
     kind: "offer",
     canStart,
-    startReason: canStart ? null : (status.start?.reason ?? "Services cannot be started here"),
+    startReason: canStart ? null : (status.start?.reason ?? t("dashboards.setup.cannot_start")),
   }
 }

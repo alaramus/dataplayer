@@ -41,6 +41,10 @@ export default defineConfig({
       "echarts/charts",
       "echarts/components",
       "echarts/renderers",
+      // Quasar's language packs, loaded only when a language is applied (D224):
+      // found late, the reload lands on the sign-in page itself.
+      "quasar/lang/en-US.js",
+      "quasar/lang/ru.js",
     ],
   },
   server: {

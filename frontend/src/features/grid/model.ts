@@ -1,4 +1,5 @@
 import type { ColumnType, FetchResult } from "@/client"
+import { t } from "@/shared/i18n"
 
 import type { GridRow } from "./types"
 
@@ -56,30 +57,30 @@ export function cellPresentation(
 export function inputHint(type: ColumnType): string {
   switch (type.category) {
     case "number":
-      return "a number"
+      return t("grid.input_hint.number")
     case "boolean":
-      return "true or false"
+      return t("grid.input_hint.boolean")
     case "datetime":
-      return "a date and time, as the source writes it"
+      return t("grid.input_hint.datetime")
     case "enum":
-      return `one of: ${(type.enum_values ?? []).join(", ")}`
+      return t("grid.input_hint.enum", { values: (type.enum_values ?? []).join(", ") })
     case "json":
       return "JSON"
     case "array":
-      return "an array literal, as the source writes it"
+      return t("grid.input_hint.array")
     case "uuid":
-      return "a UUID"
+      return t("grid.input_hint.uuid")
     case "binary":
-      return "binary data in the form the source shows it"
+      return t("grid.input_hint.binary")
     case "network":
-      return "an address, as the source writes it"
+      return t("grid.input_hint.network")
     case "string":
-      return "any text"
+      return t("grid.input_hint.string")
     case "geometric":
     case "range":
     case "composite":
     case "other":
-      return "a value of this type, as the source writes it"
+      return t("grid.input_hint.other")
     default:
       return assertNever(type.category)
   }

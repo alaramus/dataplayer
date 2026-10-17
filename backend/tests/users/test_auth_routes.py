@@ -125,7 +125,7 @@ async def test_reset_password_invalid_token(
 
     assert "detail" in response
     assert r.status_code == 400
-    assert response["detail"] == "Invalid token"
+    assert response["detail"]["code"] == "auth.invalid_token"
 
 
 async def test_login_with_bcrypt_password_upgrades_to_argon2(

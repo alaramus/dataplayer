@@ -1,4 +1,5 @@
 import type { PreferencesPublic } from "@/client"
+import { t } from "@/shared/i18n"
 
 /**
  * How often the server probes this user's connections, in the words the
@@ -6,22 +7,6 @@ import type { PreferencesPublic } from "@/client"
  * its own; only the wording is decided here.
  */
 export type CheckInterval = PreferencesPublic["connector_checks"]
-
-/**
- * What each choice is called.
- *
- * A complete record rather than a lookup with a fallback: a choice the server
- * gains and this forgets to name is then a type error here instead of a blank
- * line in the menu.
- */
-const LABELS: Record<CheckInterval, string> = {
-  off: "Never — only when I press check",
-  "15s": "Every 15 seconds",
-  "30s": "Every 30 seconds",
-  "1m": "Every minute",
-  "5m": "Every 5 minutes",
-  "15m": "Every 15 minutes",
-}
 
 /** The order they are offered in: never first, then longest to shortest wait. */
 export const CHECK_INTERVALS: readonly CheckInterval[] = [
@@ -33,8 +18,13 @@ export const CHECK_INTERVALS: readonly CheckInterval[] = [
   "15m",
 ]
 
+/**
+ * What a choice is called. The dictionary's `interval` group is typed by the
+ * same keys, so a choice the server gains and nobody names fails to compile
+ * rather than showing a blank line in the menu.
+ */
 export function checkIntervalLabel(interval: CheckInterval): string {
-  return LABELS[interval]
+  return t(`preferences.interval.${interval}`)
 }
 
 export function checkIntervalOptions(): { label: string; value: CheckInterval }[] {

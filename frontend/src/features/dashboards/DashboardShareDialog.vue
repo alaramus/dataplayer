@@ -6,6 +6,7 @@ import type { DashboardPublic } from "@/client"
 import { offerable, useDirectory } from "@/features/connectors/grants"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import { serverContext } from "@/shared/servers/context"
 import {
   AppButton,
@@ -64,9 +65,9 @@ const candidates = computed(() =>
 async function copyLink() {
   try {
     await copyText(link.value)
-    toast.success("Link copied")
+    toast.success(t("dashboards.share.link_copied"))
   } catch {
-    toast.error("This browser would not let the link be copied")
+    toast.error(t("dashboards.share.link_copy_refused"))
   }
 }
 
@@ -77,7 +78,7 @@ async function give() {
     pickedUser.value = null
     pickedLevel.value = "read"
   } catch (cause) {
-    toast.error(messageOf(cause, "That access could not be given"))
+    toast.error(messageOf(cause, t("dashboards.share.give_failed")))
   }
 }
 
@@ -85,7 +86,7 @@ async function change(userId: string, level: unknown) {
   try {
     await writing.mutateAsync({ user_id: userId, access: level as DashboardLevel })
   } catch (cause) {
-    toast.error(messageOf(cause, "That access could not be changed"))
+    toast.error(messageOf(cause, t("dashboards.share.change_failed")))
   }
 }
 
@@ -93,7 +94,7 @@ async function revoke(userId: string) {
   try {
     await revoking.mutateAsync(userId)
   } catch (cause) {
-    toast.error(messageOf(cause, "That access could not be taken away"))
+    toast.error(messageOf(cause, t("dashboards.share.revoke_failed")))
   }
 }
 </script>
@@ -101,7 +102,7 @@ async function revoke(userId: string) {
 <template>
   <WindowDialog
     v-model="open"
-    :title="`Share — ${dashboard.name}`"
+    :title="t('dashboards.share.title', { name: dashboard.name })"
     size="form"
     sizing="stable"
     data-testid="dashboard-share-dialog"
@@ -110,20 +111,19 @@ async function revoke(userId: string) {
       <AppForm class="dashboard-share__form">
         <AppInput
           :model-value="link"
-          label="Link to this dashboard"
+          :label="t('dashboards.share.link')"
           readonly
           data-testid="dashboard-share-link"
         >
           <template #after>
             <AppCopyButton
-              tooltip="Copy this link"
+              :tooltip="t('dashboards.share.copy_link')"
               @click="copyLink"
             />
           </template>
         </AppInput>
         <p class="dashboard-share__note">
-          It opens the dashboard for anybody who has been given access to it, and
-          for nobody else.
+          {{ t('dashboards.share.link_note') }}
         </p>
       </AppForm>
 
@@ -131,20 +131,20 @@ async function revoke(userId: string) {
         <AppForm class="dashboard-share__form">
           <AppSelect
             v-model="pickedUser"
-            label="Person"
+            :label="t('dashboards.share.person')"
             :options="candidates"
             :disable="!directory.isSuccess.value || candidates.length === 0"
             data-testid="dashboard-share-user"
           />
           <AppSelect
             v-model="pickedLevel"
-            label="May"
+            :label="t('dashboards.share.may')"
             :options="DASHBOARD_LEVELS"
             data-testid="dashboard-share-level"
           >
             <template #after>
               <AppButton
-                label="Give access"
+                :label="t('dashboards.share.give')"
                 :disable="pickedUser === null"
                 :loading="writing.isPending.value"
                 data-testid="dashboard-share-submit"
@@ -156,17 +156,14 @@ async function revoke(userId: string) {
             class="dashboard-share__note"
             data-testid="dashboard-share-warning"
           >
-            Whoever is given access sees every series on this dashboard, your agents'
-            hosts included, which they cannot see any other way. They do not see your
-            other dashboards, agents or connections. Somebody who can edit adds only
-            series they can read themselves.
+            {{ t('dashboards.share.warning') }}
           </p>
         </AppForm>
 
         <AppSpinner v-if="grants.isLoading.value" />
         <AppEmptyState
           v-else-if="held.length === 0"
-          text="Nobody else can see this dashboard"
+          :text="t('dashboards.share.nobody')"
         />
         <ul
           v-else
@@ -185,14 +182,14 @@ async function revoke(userId: string) {
               class="dashboard-share__level"
               :options="DASHBOARD_LEVELS"
               compact
-              :aria-label="`What ${grant.email} may do`"
+              :aria-label="t('dashboards.share.what_may', { email: grant.email })"
               :data-testid="`dashboard-grant-level-${grant.email}`"
               @update:model-value="(level) => change(grant.user_id, level)"
             />
             <AppIconButton
               :icon="appIcons.close"
               variant="danger-quiet"
-              :tooltip="`Take access away from ${grant.email}`"
+              :tooltip="t('dashboards.share.take_away', { email: grant.email })"
               :data-testid="`dashboard-grant-revoke-${grant.email}`"
               @click="revoke(grant.user_id)"
             />
@@ -204,15 +201,14 @@ async function revoke(userId: string) {
         v-else
         class="dashboard-share__note"
       >
-        {{ dashboard.owner ?? "Its owner" }} shared this dashboard with you. Only they
-        give access to it.
+        {{ t('dashboards.share.shared_note', { owner: dashboard.owner ?? t('dashboards.share.its_owner') }) }}
       </p>
     </div>
 
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('dashboards.common.close')"
         data-testid="dashboard-share-close"
         @click="open = false"
       />

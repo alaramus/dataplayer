@@ -15,6 +15,7 @@ import { GRID_COMMANDS, NOT_IN_A_RESULT, tipOf } from "@/features/grid/toolbar"
 import type { Filter, GridRow, PageSize } from "@/features/grid/types"
 import { useDownloadResult, useKeepResult, useResultPage } from "@/features/queries/runs"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppIconButton, useToast } from "@/shared/ui"
 
 /**
@@ -75,7 +76,7 @@ const total = computed(() => snapshot.data.value?.total_rows ?? 0)
 const hasMore = computed(() => (page.value + 1) * pageSize.value < total.value)
 const error = computed(() =>
   snapshot.isError.value
-    ? messageOf(snapshot.error.value, "This result is no longer available")
+    ? messageOf(snapshot.error.value, t("queries.result.unavailable"))
     : ""
 )
 
@@ -166,13 +167,20 @@ const MISSING_WRITE: Missing[] = ["paste", "import", "insert", "remove"]
 
 const pageRange = computed(() =>
   rows.value.length === 0
-    ? "Rows 0"
-    : `Rows ${page.value * pageSize.value + 1}–${page.value * pageSize.value + rows.value.length}`
+    ? t("queries.result.rows_none")
+    : t("queries.result.rows_range", {
+        from: page.value * pageSize.value + 1,
+        to: page.value * pageSize.value + rows.value.length,
+      })
 )
 const allDescription = computed(() =>
   filters.value.length === 0
-    ? `Every one of the ${total.value} captured rows`
-    : `${filters.value.length} active filters over ${total.value} captured rows`
+    ? t("queries.result.all_rows", { n: total.value }, total.value)
+    : t(
+        "queries.result.filtered",
+        { n: filters.value.length, total: total.value },
+        filters.value.length
+      )
 )
 
 function openDownload(columns: TabularVisibleColumn[]) {
@@ -198,7 +206,13 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
     if (destination === "files") {
       const kept = await keep.mutateAsync({ resultId: props.resultId, body })
       downloadOpen.value = false
-      toast.success(`${kept.row_count} rows saved to your files as ${kept.filename}`)
+      toast.success(
+        t(
+          "queries.result.saved_to_files",
+          { n: kept.row_count, filename: kept.filename },
+          kept.row_count
+        )
+      )
       return
     }
     const saved = await download.mutateAsync({ resultId: props.resultId, body })
@@ -207,9 +221,11 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
       filenameFromDisposition(saved.disposition ?? "", `${props.title}.csv`)
     )
     downloadOpen.value = false
-    toast.success(scope === "all" ? "Every captured row downloaded" : "Page downloaded")
+    toast.success(
+      scope === "all" ? t("queries.result.downloaded_all") : t("queries.result.downloaded_page")
+    )
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not save this result"))
+    toast.error(messageOf(cause, t("queries.result.save_failed")))
   }
 }
 </script>
@@ -221,12 +237,17 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
   >
     <div class="result-table__chart-bar">
       <span class="result-table__note">
-        This page · rows {{ page * pageSize + 1 }}–{{ page * pageSize + chartRows.length }}
-        of {{ total }} captured
+        {{
+          t("queries.result.chart_note", {
+            from: page * pageSize + 1,
+            to: page * pageSize + chartRows.length,
+            total,
+          })
+        }}
       </span>
       <AppIconButton
         :icon="appIcons.tableRows"
-        tooltip="Back to the rows"
+        :tooltip="t('queries.result.back_to_rows')"
         data-testid="result-chart-close"
         @click="charting = false"
       />
@@ -254,7 +275,7 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
     :refreshing="snapshot.isFetching.value && snapshot.data.value !== undefined"
     :error="error"
     :show-reset="false"
-    empty-text="No rows in this result"
+    :empty-text="t('queries.result.empty')"
     @update:page-size="changePageSize"
     @update:filters="changeFilters"
     @update:sort="changeSort"
@@ -273,7 +294,7 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
       />
       <AppIconButton
         :icon="GRID_COMMANDS.chart.icon"
-        tooltip="Chart this page"
+        :tooltip="t('queries.result.chart')"
         data-testid="result-chart"
         @click="charting = true"
       />
@@ -344,12 +365,12 @@ async function save(scope: DownloadScope, destination: DownloadDestination) {
         v-if="stale"
         class="result-table__stale"
         data-testid="result-previous"
-      >Previous result</span>
+      >{{ t("queries.result.previous") }}</span>
       <span
         v-if="snapshot.data.value?.truncated"
         class="result-table__truncated"
         data-testid="result-truncated"
-      >Capped at {{ total }} rows</span>
+      >{{ t("queries.result.capped", { n: total }, total) }}</span>
     </template>
   </TabularGrid>
 </template>

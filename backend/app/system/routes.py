@@ -8,6 +8,7 @@ from starlette.concurrency import run_in_threadpool
 from app.adapters.cache import CacheHealth, DataCacheDep
 from app.core.email import generate_test_email, send_email
 from app.core.schemas import Message
+from app.core.translation import current_language, say
 from app.users.deps import get_current_active_superuser
 
 router = APIRouter(prefix="/utils", tags=["utils"])
@@ -22,7 +23,7 @@ async def test_email(email_to: EmailStr) -> Message:
     """
     Test emails.
     """
-    email_data = generate_test_email(email_to=email_to)
+    email_data = generate_test_email(email_to=email_to, language=current_language.get())
     # send_email blocks on SMTP: calling it directly from an async handler
     # would stall the whole event loop.
     await run_in_threadpool(
@@ -31,7 +32,7 @@ async def test_email(email_to: EmailStr) -> Message:
         subject=email_data.subject,
         html_content=email_data.html_content,
     )
-    return Message(message="Test email sent")
+    return Message(message=say("Test email sent"))
 
 
 @router.get("/health-check/")

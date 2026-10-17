@@ -5,6 +5,7 @@ import { computed } from "vue"
 import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { useOpenGuide } from "@/features/guide/windows"
+import { t } from "@/shared/i18n"
 import { AppButton, AppEmptyState, AppTooltip } from "@/shared/ui"
 
 /**
@@ -45,8 +46,8 @@ const openGuide = useOpenGuide()
  */
 const groups = computed(() =>
   [
-    { id: "see", title: "What you can see", icon: appIcons.visibility, items: props.type?.can_see ?? [] },
-    { id: "change", title: "What you can change", icon: appIcons.edit, items: props.type?.can_change ?? [] },
+    { id: "see", title: t("connectors.panel.can_see"), icon: appIcons.visibility, items: props.type?.can_see ?? [] },
+    { id: "change", title: t("connectors.panel.can_change"), icon: appIcons.edit, items: props.type?.can_change ?? [] },
   ].filter((group) => group.items.length > 0)
 )
 </script>
@@ -103,7 +104,7 @@ const groups = computed(() =>
       <AppEmptyState
         v-if="groups.length === 0"
         icon="help"
-        text="This type only checks that it can reach the source."
+        :text="t('connectors.panel.only_checks')"
       />
     </div>
 
@@ -125,7 +126,7 @@ const groups = computed(() =>
       >
         <AppButton
           variant="secondary"
-          :label="`Start ${offer.title} here`"
+          :label="t('connectors.panel.start', { title: offer.title })"
           :disable="!offer.available"
           :data-testid="`start-service-${offer.key}`"
           @click="emit('start', offer)"
@@ -133,8 +134,8 @@ const groups = computed(() =>
         <AppTooltip>
           {{
             offer.available
-              ? `Runs ${offer.image} on this server and saves the connection for you.`
-              : offer.unavailable_reason ?? "This server cannot start it"
+              ? t('connectors.panel.runs', { image: offer.image })
+              : offer.unavailable_reason ?? t('connectors.panel.cannot_start')
           }}
         </AppTooltip>
       </div>
@@ -142,13 +143,13 @@ const groups = computed(() =>
         <AppButton
           variant="secondary"
           :icon="appIcons.menuBook"
-          label="Guide"
+          :label="t('connectors.panel.guide')"
           data-testid="adapter-guide"
           @click="openGuide(type.guide)"
         />
         <AppButton
           class="adapter-panel__create"
-          label="Create connection"
+          :label="t('connectors.panel.create')"
           data-testid="create-from-catalog"
           @click="emit('create')"
         />
@@ -162,7 +163,7 @@ const groups = computed(() =>
   >
     <AppEmptyState
       icon="touch_app"
-      text="Pick a source type to see what it can do."
+      :text="t('connectors.panel.pick')"
     />
   </div>
 </template>

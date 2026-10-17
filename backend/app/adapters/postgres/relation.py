@@ -16,6 +16,7 @@ from app.adapters.postgres.relation_context import (
     SchemaRelationContext,
 )
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.words import worded_titles
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.relation import (
     CandidateKey,
@@ -36,6 +37,7 @@ from app.adapters.relation import (
     Storage,
     UniqueConstraint,
 )
+from app.core.translation import say
 
 _KINDS: dict[str, RelationKind] = {
     "r": "table",
@@ -185,7 +187,7 @@ def schema_of(model: RelationModel) -> str:
     rather than narrowed at every statement.
     """
     if model.schema_name is None:
-        raise AdapterError("unknown", "This relation is not in a schema")
+        raise AdapterError("unknown", say("This relation is not in a schema"))
     return model.schema_name
 
 
@@ -208,7 +210,7 @@ class PostgresRelation:
     async def relation_model(self, node_id: str) -> RelationModel:
         schema, _, relation = node_id.partition(".")
         if not relation:
-            raise ValueError(f'"{node_id}" is not a relation: expected schema.relation')
+            raise ValueError(say('"{node_id}" is not a relation: expected schema.relation', node_id=node_id))
         models = await self._models(schema, relation)
         if not models:
             raise NodeNotFound(node_id)
@@ -431,15 +433,15 @@ def _relation_model(
     # the DDL itself, but a refusal the source states is a capability the
     # screen can read, where a driver message is only an error (D54).
     server_owned = is_system_schema(schema)
-    owned_reason = f'"{schema}" belongs to the server'
+    owned_reason = say('"{schema}" belongs to the server', schema=schema)
     if server_owned:
         column_changes_reason = owned_reason
     elif timescale_reason is not None:
         column_changes_reason = timescale_reason
     elif partition_of is not None:
-        column_changes_reason = "Change columns on the partitioned parent"
+        column_changes_reason = say("Change columns on the partitioned parent")
     elif kind not in {"table", "partitioned_table"}:
-        column_changes_reason = "Only tables can change columns"
+        column_changes_reason = say("Only tables can change columns")
     else:
         column_changes_reason = None
     # A different question from the one above: a materialized view has no
@@ -452,7 +454,7 @@ def _relation_model(
     elif kind in {"table", "partitioned_table", "materialized_view"}:
         index_changes_reason = None
     else:
-        index_changes_reason = "Only tables and materialized views can be indexed"
+        index_changes_reason = say("Only tables and materialized views can be indexed")
     # And a third question again: a materialized view is indexable and holds no
     # constraints, while a child partition holds its own even though its
     # columns belong to its parent.
@@ -463,7 +465,7 @@ def _relation_model(
     elif kind in {"table", "partitioned_table"}:
         constraint_changes_reason = None
     else:
-        constraint_changes_reason = "Only tables can have constraints"
+        constraint_changes_reason = say("Only tables can have constraints")
     return RelationModel(
         node_id=f"{schema}.{name}",
         schema_name=schema,
@@ -492,7 +494,7 @@ def _relation_model(
             else []
         ),
         column_type_options=(
-            POSTGRES_COLUMN_TYPE_OPTIONS if column_changes_reason is None else []
+            worded_titles(POSTGRES_COLUMN_TYPE_OPTIONS) if column_changes_reason is None else []
         ),
         index_changes_supported=index_changes_reason is None,
         index_changes_reason=index_changes_reason,

@@ -4,6 +4,7 @@ import type { ComputedRef } from "vue"
 
 import { SharesService } from "@/client"
 import type { AccessRequestPublic } from "@/client"
+import { t } from "@/shared/i18n"
 import type { AttentionItem } from "@/shared/notifications"
 
 /**
@@ -35,13 +36,13 @@ export function requestItem(
   return {
     id: `access:${asked.id}`,
     tone: "info",
-    title: `${who} is asking for access to ${asked.connector_label}`,
+    title: t("shares.requests.asked", { person: who, connector: asked.connector_label }),
     detail: asked.node_label === null || asked.node_label === undefined
-      ? "Through a link to the connection"
-      : `Through a link to ${asked.node_label}`,
+      ? t("shares.attention.through_connection")
+      : t("shares.attention.through_node", { node: asked.node_label }),
     at: Date.parse(asked.created_at ?? "") || Date.now(),
     // Answered where grants are given, not here (D61, D113).
-    action: { label: "Open", run: () => { answer(asked.connector_id) } },
+    action: { label: t("shares.attention.open"), run: () => { answer(asked.connector_id) } },
     dismiss: null,
   }
 }

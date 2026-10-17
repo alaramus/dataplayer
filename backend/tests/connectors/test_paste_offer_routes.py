@@ -252,9 +252,7 @@ async def test_a_fourth_transfer_is_refused_while_three_run(
             await session.commit()
 
     assert refused.status_code == 429
-    assert refused.json()["detail"]["message"] == (
-        "Three transfers are running — wait for one to finish"
-    )
+    assert refused.json()["detail"]["code"] == "transfers.too_many_running"
     assert not (home / "reports" / filename).exists()
 
 
@@ -609,4 +607,4 @@ async def test_a_pair_is_two_connections(
     )
 
     assert answer.status_code == 422
-    assert answer.json()["detail"]["message"] == "Pair two different connections"
+    assert answer.json()["detail"]["code"] == "paste.same_connection"

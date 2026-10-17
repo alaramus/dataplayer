@@ -24,6 +24,7 @@ from app.connectors.paste.kinds import PastesAsJob, PastesNow
 from app.connectors.paste.registry import kind_named
 from app.core.access import Access
 from app.core.db import async_session_maker
+from app.core.translation import N_, say
 from app.jobs.models import TERMINAL, Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
 from app.pipelines.record import STEP_SAYS, RunRecord, RunStep, clipped
@@ -32,13 +33,20 @@ from app.transfers.handler import WAITING, RunTransfer
 from app.transfers.run import paste_now, planned
 from app.users.models import User
 
-RUNNING = "running its links"
+RUNNING = N_("running its links")
 
 # An end the owner can no longer open, by what the one door answered.
 _REFUSED = {
-    404: "{name} is gone, or no longer shared with you",
-    403: "You no longer have {requires} access to {name}",
-    409: "{name} is switched off",
+    404: N_("{name} is gone, or no longer shared with you"),
+    409: N_("{name} is switched off"),
+}
+_CANNOT_OPEN = N_("{name} can no longer be opened")
+# The access is a word, so each level is a sentence of its own.
+_LOST_ACCESS: dict[Access, str] = {
+    "read": N_("You no longer have read access to {name}"),
+    "write": N_("You no longer have write access to {name}"),
+    "structure": N_("You no longer have structure access to {name}"),
+    "own": N_("You no longer have own access to {name}"),
 }
 
 
@@ -52,7 +60,7 @@ def _said(refused: HTTPException) -> str:
     detail = refused.detail
     if isinstance(detail, dict) and isinstance(detail.get("message"), str):
         return str(detail["message"])
-    return "The link could not run"
+    return say("The link could not run")
 
 
 def _now() -> datetime:
@@ -81,7 +89,9 @@ class RunPipeline:
                 if unmade is not None:
                     # Never what an earlier run left under that name.
                     step.outcome, step.finished_at = "not_run", _now()
-                    step.message = clipped(f"{unmade} made nothing in this run", STEP_SAYS)
+                    step.message = clipped(
+                        say("{link} made nothing in this run", link=unmade), STEP_SAYS
+                    )
                     await _kept(job, record, progress, RUNNING)
                     continue
                 step.outcome, step.started_at = "running", _now()
@@ -121,7 +131,7 @@ class RunPipeline:
         async with async_session_maker() as session:
             owner = await session.get(User, job.owner_id)
             if owner is None:
-                raise _StepFailed("Its owner is no longer here")
+                raise _StepFailed(say("Its owner is no longer here"))
             source = await self._end(
                 session, owner, step.paste.source_connector_id, kind.source_requires,
                 step.source_connection,
@@ -131,7 +141,9 @@ class RunPipeline:
                 step.destination_connection,
             )
             if not kind.serves(source, destination):
-                raise _StepFailed(f"{kind.title} is not possible between these connections")
+                raise _StepFailed(
+                    say("{kind} is not possible between these connections", kind=say(kind.title))
+                )
             if isinstance(kind, PastesAsJob):
                 try:
                     step.transfer = await planned(
@@ -164,7 +176,7 @@ class RunPipeline:
             if result.made_node_id is not None:
                 step.made, step.made_name = result.made_node_id, result.name
             return result.message
-        raise _StepFailed(f"{kind.title} cannot run")
+        raise _StepFailed(say("{kind} cannot run", kind=say(kind.title)))
 
     async def _end(
         self,
@@ -178,10 +190,12 @@ class RunPipeline:
         try:
             return await adapter_for(session, connector_id, owner, self._resources, requires=requires)
         except HTTPException as refused:
-            wording = _REFUSED.get(refused.status_code, "{name} can no longer be opened")
-            raise _StepFailed(wording.format(name=name, requires=requires)) from None
+            if refused.status_code == 403:
+                raise _StepFailed(say(_LOST_ACCESS[requires], name=name)) from None
+            wording = _REFUSED.get(refused.status_code, _CANNOT_OPEN)
+            raise _StepFailed(say(wording, name=name)) from None
         except (ValueError, AdapterError):
-            raise _StepFailed(f"{name} can no longer be opened") from None
+            raise _StepFailed(say(_CANNOT_OPEN, name=name)) from None
 
 
 class _StepKeeper:
@@ -212,7 +226,7 @@ def _fed(record: RunRecord, step: RunStep) -> str | None:
             continue
         maker = record.step_of(maker_id)
         if maker is None or maker.made is None:
-            return maker.title if maker is not None else "The link it reads"
+            return maker.title if maker is not None else say("The link it reads")
         update = (
             {"destination_node_id": maker.made, "target_node_id": maker.made}
             if into
@@ -227,7 +241,7 @@ def _stopped_words(step: RunStep) -> str:
         kind = kind_named(step.transfer.kind)
         if isinstance(kind, PastesAsJob):
             return kind.told(step.transfer)
-    return "Stopped before it finished"
+    return say("Stopped before it finished")
 
 
 async def _kept(job: Job, record: RunRecord, progress: Progress, at: str) -> None:
@@ -239,7 +253,7 @@ def _loaded(job: Job) -> RunRecord:
     try:
         return RunRecord.model_validate(job.parameters)
     except ValidationError:
-        raise JobFailed("This run could not be read; nothing ran") from None
+        raise JobFailed(say("This run could not be read; nothing ran")) from None
 
 
 async def _abandoned(job_id: uuid.UUID, record: RunRecord) -> None:

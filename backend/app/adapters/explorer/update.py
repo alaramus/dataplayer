@@ -34,6 +34,7 @@ from app.adapters.update import (
     UpdatedRow,
 )
 from app.core.config import settings
+from app.core.translation import say
 
 
 @dataclass
@@ -55,7 +56,7 @@ def decode_handle(value: str) -> tuple[int, str]:
         padded = value + "=" * (-len(value) % 4)
         decoded = json.loads(base64.urlsafe_b64decode(padded).decode())
     except (ValueError, TypeError, json.JSONDecodeError) as exc:
-        raise ValueError("The row handle is not valid for this file") from exc
+        raise ValueError(say("The row handle is not valid for this file")) from exc
     if (
         not isinstance(decoded, list)
         or len(decoded) != 2
@@ -63,7 +64,7 @@ def decode_handle(value: str) -> tuple[int, str]:
         or decoded[0] < 0
         or not isinstance(decoded[1], str)
     ):
-        raise ValueError("The row handle is not valid for this file")
+        raise ValueError(say("The row handle is not valid for this file"))
     return decoded[0], decoded[1]
 
 
@@ -100,11 +101,11 @@ class ExplorerTableChanges:
     def _place(self, node_id: str) -> Place:
         resolved = resolve_node(self._storage, node_id)
         if resolved.member is not None or format_of(resolved.name) != "delimited":
-            raise ValueError("Only a CSV or TSV file on disk can be edited as rows")
+            raise ValueError(say("Only a CSV or TSV file on disk can be edited as rows"))
         if resolved.entry is None or resolved.entry.is_directory:
-            raise ValueError(f"No such file: {node_id}")
+            raise ValueError(say("No such file: {node_id}", node_id=node_id))
         if resolved.entry.size_bytes > settings.MAX_UPLOAD_BYTES:
-            raise ValueError("This file is too large to rewrite safely")
+            raise ValueError(say("This file is too large to rewrite safely"))
         return resolved.place
 
     def _read(self, node_id: str) -> tuple[Place, CsvTable]:
@@ -132,7 +133,7 @@ class ExplorerTableChanges:
         try:
             return table.names.index(name)
         except ValueError:
-            raise ValueError(f'File has no column "{name}"') from None
+            raise ValueError(say('File has no column "{name}"', name=name)) from None
 
     @staticmethod
     def _row(table: CsvTable, handle: str) -> int:
@@ -192,7 +193,7 @@ class ExplorerTableChanges:
         place, table = self._read(request.node_id)
         rows = [self._row(table, handle) for handle in request.row_handles]
         if len(rows) != len(set(rows)):
-            raise ValueError("A row may be deleted only once")
+            raise ValueError(say("A row may be deleted only once"))
         for row in sorted(rows, reverse=True):
             table.rows.pop(row)
         self._write(place, table)
@@ -201,9 +202,11 @@ class ExplorerTableChanges:
     def _add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
         place, table = self._read(request.node_id)
         if request.type_code != "text":
-            raise ValueError("A delimited file can add only a text column")
+            raise ValueError(say("A delimited file can add only a text column"))
         if request.name in table.names:
-            raise ValueError(f'File already has a column named "{request.name}"')
+            raise ValueError(
+                say('File already has a column named "{name}"', name=request.name)
+            )
         table.header.append(request.name)
         table.names.append(request.name)
         for row in table.rows:
@@ -214,7 +217,7 @@ class ExplorerTableChanges:
     def _drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
         place, table = self._read(request.node_id)
         if len(table.names) == 1:
-            raise ValueError("A delimited file must keep at least one column")
+            raise ValueError(say("A delimited file must keep at least one column"))
         position = self._column(table, request.name)
         table.header.pop(position)
         table.names.pop(position)
@@ -226,7 +229,9 @@ class ExplorerTableChanges:
     def _rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
         place, table = self._read(request.node_id)
         if request.new_name in table.names:
-            raise ValueError(f'File already has a column named "{request.new_name}"')
+            raise ValueError(
+                say('File already has a column named "{name}"', name=request.new_name)
+            )
         position = self._column(table, request.name)
         table.header[position] = request.new_name
         table.names[position] = request.new_name

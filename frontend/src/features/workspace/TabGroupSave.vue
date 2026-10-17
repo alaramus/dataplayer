@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppTooltip } from "@/shared/ui"
 import { useSpaceStore } from "@/stores/space"
 
@@ -38,17 +39,21 @@ function save() {
       variant="quiet"
       size="sm"
       :icon="appIcons.bookmarkAdd"
-      aria-label="Save group"
+      :aria-label="t('workspace.groups.save')"
       :disable="busy || !groups.canSave.value || unavailable !== null"
       data-testid="save-tab-group"
       @click="ask"
     />
-    <AppTooltip>{{ unavailable === null ? "Save group" : `Save group — ${unavailable}` }}</AppTooltip>
+    <AppTooltip>
+      {{ unavailable === null
+        ? t('workspace.groups.save')
+        : t('workspace.groups.save_unavailable', { reason: unavailable }) }}
+    </AppTooltip>
   </span>
   <TabGroupNameDialog
     v-model="saving"
     v-model:name="name"
-    title="Save tab group"
+    :title="t('workspace.groups.save_title')"
     :problem="problem"
     :busy="busy"
     @confirm="save"

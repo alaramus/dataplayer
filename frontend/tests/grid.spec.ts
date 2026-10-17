@@ -282,8 +282,9 @@ test("streams every matching row into a CSV download", async ({ page }) => {
   const download = await started
 
   expect(download.suggestedFilename()).toMatch(/^projects-.*\.csv$/)
+  // Counted, so one row is "1 row downloaded".
   await expect(
-    toast(page, "rows downloaded")
+    toast(page, /\d+ rows? downloaded/)
   ).toBeVisible()
 
   await deleteConnector(page, name)

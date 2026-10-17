@@ -9,6 +9,7 @@ import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppSpinner } from "@/shared/ui"
 
 const props = defineProps<{
@@ -41,7 +42,7 @@ const streamUrl = computed(() => {
 const details = computed(() => (media.value === null ? "" : mediaDetails(media.value)))
 const error = computed(() =>
   content.isError.value
-    ? messageOf(content.error.value, "Could not open this file")
+    ? messageOf(content.error.value, t("content.common.could_not_open_file"))
     : ""
 )
 
@@ -86,8 +87,7 @@ useReloadable(() => props.panelId, reload)
         tone="warning"
         data-testid="media-error"
       >
-        This browser could not play the file. Its container is what the source
-        verified; the codecs inside it are the player's own business.
+        {{ t("content.media.playback_failed") }}
       </AppBanner>
       <div class="media-panel__stage dp-panel-scroll">
         <video
@@ -115,7 +115,7 @@ useReloadable(() => props.panelId, reload)
       tone="error"
       data-testid="media-error"
     >
-      The stream could not be opened. Reload this tab to ask for a new one.
+      {{ t("content.media.stream_failed") }}
     </AppBanner>
   </div>
 </template>

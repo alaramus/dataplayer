@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 
 /**
@@ -29,9 +30,8 @@ const refreshSecondsSchema = z.union([
 
 /** How an interval is written on the button and in the menu. */
 export function refreshLabel(seconds: RefreshSeconds): string {
-  if (seconds < 60) return `${String(seconds)} s`
-  const minutes = seconds / 60
-  return `${String(minutes)} min`
+  if (seconds < 60) return t("grid.refresh.seconds", { n: seconds })
+  return t("grid.refresh.minutes", { n: seconds / 60 })
 }
 
 /** The name a menu item is reported by, and what a test addresses it as. */
@@ -75,11 +75,11 @@ export interface RefreshHold {
  * land at once when the editor closes.
  */
 export function refreshHeldBy(hold: RefreshHold): string | null {
-  if (hold.editing) return "while a cell is being edited"
-  if (hold.inserting) return "while a row is being written"
-  if (hold.selecting) return "while rows are selected"
-  if (hold.away) return "while this tab is not on screen"
-  if (hold.fetching) return "while the last read is still running"
+  if (hold.editing) return t("grid.refresh.held.editing")
+  if (hold.inserting) return t("grid.refresh.held.inserting")
+  if (hold.selecting) return t("grid.refresh.held.selecting")
+  if (hold.away) return t("grid.refresh.held.away")
+  if (hold.fetching) return t("grid.refresh.held.fetching")
   return null
 }
 
@@ -87,9 +87,9 @@ export function refreshTooltip(
   seconds: RefreshSeconds | null,
   held: string | null
 ): string {
-  if (seconds === null) return "Refresh automatically"
-  const every = `Refreshing every ${refreshLabel(seconds)}`
-  return held === null ? every : `${every}, paused ${held}`
+  if (seconds === null) return t("grid.refresh.off")
+  const every = t("grid.refresh.every", { interval: refreshLabel(seconds) })
+  return held === null ? every : t("grid.refresh.paused", { every, held })
 }
 
 const KEY_PREFIX = "dataplayer:grid:refresh"

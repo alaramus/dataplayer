@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppSpinner } from "@/shared/ui"
 
 import { useHistory } from "./api"
@@ -34,7 +35,7 @@ const series = computed<ChartSeries[]>(() => {
     const entry = entries[position]
     return {
       id,
-      name: entry === undefined ? `series ${String(id)} (unavailable)` : seriesName(entry, hosts.size > 1),
+      name: entry === undefined ? t("dashboards.widget.unavailable", { id }) : seriesName(entry, hosts.size > 1),
       unit: entry?.unit ?? "",
       points: points.get(id) ?? [],
     }
@@ -42,7 +43,7 @@ const series = computed<ChartSeries[]>(() => {
 })
 
 const failure = computed(() =>
-  history.isError.value ? messageOf(history.error.value, "The history could not be read") : null
+  history.isError.value ? messageOf(history.error.value, t("dashboards.common.history_failed")) : null
 )
 const empty = computed(
   () => history.isSuccess.value && series.value.every((one) => one.points.length === 0)
@@ -68,7 +69,7 @@ const empty = computed(
       v-else-if="empty"
       class="timeseries-widget__note"
     >
-      Nothing reported in this range
+      {{ t('dashboards.common.nothing_in_range') }}
     </div>
     <SeriesChart
       v-else

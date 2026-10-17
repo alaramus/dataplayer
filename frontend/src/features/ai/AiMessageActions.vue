@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { AppIconButton, appIcons, useToast } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 
 import ReadAloudButton from "@/features/speech/ReadAloudButton.vue"
 
@@ -13,12 +14,12 @@ const props = defineProps<{ text: string; role: "user" | "assistant" }>()
 const toast = useToast()
 
 async function copy() {
-  const what = props.role === "user" ? "Message" : "Answer"
+  const user = props.role === "user"
   try {
     await navigator.clipboard.writeText(props.text)
-    toast.success(`${what} copied`)
+    toast.success(user ? t("ai.message.message_copied") : t("ai.message.answer_copied"))
   } catch {
-    toast.error(`The ${what.toLowerCase()} could not be copied`)
+    toast.error(user ? t("ai.message.message_copy_failed") : t("ai.message.answer_copy_failed"))
   }
 }
 </script>
@@ -27,14 +28,14 @@ async function copy() {
   <div class="ai-message-actions">
     <AppIconButton
       :icon="appIcons.copy"
-      :tooltip="role === 'user' ? 'Copy message' : 'Copy answer'"
+      :tooltip="role === 'user' ? t('ai.message.copy_message') : t('ai.message.copy_answer')"
       data-testid="ai-message-copy"
       @click="copy"
     />
     <ReadAloudButton
       :text="text"
       strip-markdown
-      :listen-label="role === 'user' ? 'Listen to message' : 'Listen to answer'"
+      :listen-label="role === 'user' ? t('ai.message.listen_message') : t('ai.message.listen_answer')"
       testid="ai-message-listen"
     />
   </div>

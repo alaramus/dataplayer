@@ -8,6 +8,7 @@ import { iconOf, isReadableNode, roleOf } from "@/features/catalog/nodes"
 import type { CatalogNode, PickedNode } from "@/features/catalog/nodes"
 import { useConnectors } from "@/features/connectors/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppButton, AppEmptyState, AppFormControl, AppSelect, AppSpinner } from "@/shared/ui"
 
 /**
@@ -58,7 +59,7 @@ async function openLevel(node: CatalogNode | null): Promise<boolean> {
     nodes.value = answer.data
     return true
   } catch (error) {
-    emit("trouble", messageOf(error, "Could not read that source"))
+    emit("trouble", messageOf(error, t("catalog.node_picker.read_failed")))
     return false
   } finally {
     browsing.value = false
@@ -110,7 +111,7 @@ async function choose(node: CatalogNode) {
     })
     columns = answer.data.columns
   } catch (error) {
-    emit("trouble", messageOf(error, "Could not read that source as rows"))
+    emit("trouble", messageOf(error, t("catalog.node_picker.rows_failed")))
   }
   emit("pick", {
     connectorId: source.id,
@@ -123,7 +124,7 @@ async function choose(node: CatalogNode) {
 
 const here = computed(() => {
   const path = chosen.value === null ? trail.value : [...trail.value, chosen.value]
-  return path.length === 0 ? "Pick a node" : path.map((node) => node.name).join(" / ")
+  return path.length === 0 ? t("catalog.node_picker.pick") : path.map((node) => node.name).join(" / ")
 })
 </script>
 
@@ -131,8 +132,8 @@ const here = computed(() => {
   <AppSelect
     :model-value="sourceId"
     :options="sources"
-    :label="props.label ?? 'Source'"
-    :hint="sourceId === '' ? 'The connection the rows come from' : undefined"
+    :label="props.label ?? t('catalog.node_picker.source')"
+    :hint="sourceId === '' ? t('catalog.node_picker.source_hint') : undefined"
     :loading="connectors.isFetching.value"
     :data-testid="`${props.testid}-source`"
     @update:model-value="sourceId = String($event)"
@@ -145,7 +146,7 @@ const here = computed(() => {
     <div class="node-picker__where">
       <AppButton
         v-if="trail.length > 0 || chosen !== null"
-        label="Back"
+        :label="t('catalog.common.back')"
         variant="quiet"
         size="sm"
         :icon="appIcons.arrowBack"
@@ -177,7 +178,7 @@ const here = computed(() => {
     </ul>
     <AppEmptyState
       v-if="!browsing && chosen === null && nodes.length === 0"
-      text="Nothing here"
+      :text="t('catalog.list.empty')"
     />
   </AppFormControl>
 </template>

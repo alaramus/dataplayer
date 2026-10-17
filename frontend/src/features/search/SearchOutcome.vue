@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useLockedKey } from "@/features/sshKeys/api"
 import UnlockKeyButton from "@/features/sshKeys/UnlockKeyButton.vue"
+import { t } from "@/shared/i18n"
 import { AppButton } from "@/shared/ui"
 
 import type { Said } from "./outcomes"
@@ -58,7 +59,7 @@ const lockedKey = useLockedKey(
       v-if="offerKeep"
       variant="quiet"
       size="sm"
-      label="Keep names"
+      :label="t('search.tab.keep_names')"
       data-testid="search-keep-names"
       @click="emit('keep')"
     />

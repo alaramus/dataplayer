@@ -8,6 +8,7 @@ import { useSearchIndexWindow } from "@/features/searchIndex/searchIndexWindow"
 import { isKept, offersKeeping } from "@/features/searchIndex/state"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { t } from "@/shared/i18n"
 import type { SearchScope } from "@/features/workspace/state"
 import {
   AppButton,
@@ -26,8 +27,7 @@ import { foundSavedQueryText, nothingFound, pendingOf } from "./answer"
 import { contentsChoices, contentsWordsOf } from "./contents"
 import { contextOf, hintsOf, placeOf } from "./context"
 import { useHitActions, useRecentlyOpened } from "./openers"
-import { followOf, nothingFoundSentence, stillSearching } from "./outcomes"
-import type { Gesture } from "./outcomes"
+import { followOf, nothingFoundSentence, RETRY, stillSearching } from "./outcomes"
 import { hitOption } from "./rows"
 import SearchContents from "./SearchContents.vue"
 import SearchOutcome from "./SearchOutcome.vue"
@@ -126,8 +126,6 @@ function everywhere() {
   search()
 }
 
-const TRY_AGAIN: Gesture = { kind: "retry", label: "Try again" }
-
 // A slow or stopped connection of one's own can keep its names (D212).
 const connectors = useConnectors()
 const keptLists = useKeptLists()
@@ -171,7 +169,7 @@ function take(one: SaidCell) {
     return
   }
   // Unlocked where it was said: the place is asked again.
-  const request = followOf(gesture.kind === "unlock" ? TRY_AGAIN : gesture, asked.value, one.cell.planned, answer.value.cells)
+  const request = followOf(gesture.kind === "unlock" ? RETRY : gesture, asked.value, one.cell.planned, answer.value.cells)
   if (request === null || (request.only?.length ?? 0) === 0) return
   void tab.follow({ ...request, ...around() })
 }
@@ -190,11 +188,11 @@ const insideChoices = computed(() => contentsChoices(answer.value))
 
 const summary = computed(() => {
   if (tab.error.value !== null) return tab.error.value
-  if (!hasAnswer.value) return tab.searching.value ? "Searching…" : ""
+  if (!hasAnswer.value) return tab.searching.value ? t("search.tab.searching") : ""
   if (pending.value > 0) return stillSearching(pending.value)
   if (nothing.value) return ""
   const count = foundCount(answer.value)
-  return count === 1 ? "1 found" : `${String(count)} found`
+  return t("search.tab.found", { n: count })
 })
 
 const ALL = ""
@@ -203,9 +201,9 @@ function choicesWith(all: string, options: SelectOption[]): SelectOption[] {
   return [{ label: all, value: ALL }, ...options]
 }
 
-const groupOptions = computed(() => choicesWith("Any group", choices.value.groups))
-const connectionOptions = computed(() => choicesWith("Any connection", choices.value.connections))
-const kindOptions = computed(() => choicesWith("Any kind", choices.value.kinds))
+const groupOptions = computed(() => choicesWith(t("search.tab.any_group"), choices.value.groups))
+const connectionOptions = computed(() => choicesWith(t("search.tab.any_connection"), choices.value.connections))
+const kindOptions = computed(() => choicesWith(t("search.tab.any_kind"), choices.value.kinds))
 
 function setFilter(key: "group" | "connection" | "kind", value: unknown) {
   filters.value = { ...filters.value, [key]: value === ALL || typeof value !== "string" ? null : value }
@@ -228,8 +226,8 @@ function setChanged(value: unknown) {
         compact
         clearable
         autocomplete="off"
-        placeholder="Search everything"
-        aria-label="Search everything"
+        :placeholder="t('search.tab.placeholder')"
+        :aria-label="t('search.tab.placeholder')"
         :prepend-icon="appIcons.search"
         data-testid="search-tab-words"
         @keyup.enter="search"
@@ -239,10 +237,10 @@ function setChanged(value: unknown) {
         class="search-tab__scope"
         data-testid="search-tab-scope"
       >
-        <span class="search-tab__scope-label">in {{ scope.label }}</span>
+        <span class="search-tab__scope-label">{{ t('search.tab.in_scope', { name: scope.label }) }}</span>
         <AppIconButton
           :icon="appIcons.close"
-          tooltip="Search everywhere"
+          :tooltip="t('search.tab.everywhere')"
           @click="everywhere"
         />
       </span>
@@ -250,7 +248,7 @@ function setChanged(value: unknown) {
         v-if="tab.searching.value"
         variant="quiet"
         size="sm"
-        label="Stop"
+        :label="t('search.tab.stop')"
         data-testid="search-tab-stop"
         @click="tab.stop()"
       />
@@ -265,7 +263,7 @@ function setChanged(value: unknown) {
         :options="groupOptions"
         compact
         label-hidden
-        label="Group"
+        :label="t('search.tab.group')"
         data-testid="search-filter-group"
         @update:model-value="setFilter('group', $event)"
       />
@@ -274,7 +272,7 @@ function setChanged(value: unknown) {
         :options="connectionOptions"
         compact
         label-hidden
-        label="Connection"
+        :label="t('search.tab.connection')"
         data-testid="search-filter-connection"
         @update:model-value="setFilter('connection', $event)"
       />
@@ -283,7 +281,7 @@ function setChanged(value: unknown) {
         :options="kindOptions"
         compact
         label-hidden
-        label="Kind"
+        :label="t('search.tab.kind')"
         data-testid="search-filter-kind"
         @update:model-value="setFilter('kind', $event)"
       />
@@ -292,7 +290,7 @@ function setChanged(value: unknown) {
         :options="CHANGED_OPTIONS"
         compact
         label-hidden
-        label="Changed"
+        :label="t('search.tab.changed')"
         data-testid="search-filter-changed"
         @update:model-value="setChanged($event)"
       />
@@ -322,7 +320,7 @@ function setChanged(value: unknown) {
       <AppEmptyState
         v-else-if="!hasAnswer && !tab.searching.value"
         :icon="appIcons.search"
-        text="Type words and press Enter to search everything"
+        :text="t('search.tab.empty')"
       />
       <section
         v-for="group in groups"
@@ -336,7 +334,7 @@ function setChanged(value: unknown) {
           <span
             v-if="group.pending"
             class="search-tab__pending"
-          >Searching…</span>
+          >{{ t('search.tab.searching') }}</span>
         </h3>
         <SearchOutcome
           v-for="one in group.said"

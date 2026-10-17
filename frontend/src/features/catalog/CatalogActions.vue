@@ -37,6 +37,7 @@ import { useKeptLists } from "@/features/searchIndex/api"
 import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
+import { t } from "@/shared/i18n"
 import { AppIconButton, AppMenu, AppToolbarRule, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
@@ -230,10 +231,10 @@ const backups = useBackupSupport(() => props.adapterType)
 const kept = useKeptLists()
 const searchIndex = computed(() => {
   const types = kept.data.value?.types
-  if (types === undefined) return { enabled: false, reason: "Checking this kind of source" }
+  if (types === undefined) return { enabled: false, reason: t("catalog.catalog_actions.checking_kind") }
   return types.includes(props.adapterType)
     ? { enabled: true }
-    : { enabled: false, reason: "This kind of source cannot keep its names" }
+    : { enabled: false, reason: t("catalog.catalog_actions.cannot_keep_names") }
 })
 
 /**
@@ -262,7 +263,7 @@ const items = computed<MenuItem[]>(() => withSubmenus([
   }),
   ...(crossHeld.value === null ? [] : [{
     name: "client:cross-paste",
-    label: "Paste",
+    label: t("catalog.catalog_actions.paste"),
     disable: crossUsable.value.length === 0,
     hint: pasteHint({
       checking: crossOffers.isPending.value,
@@ -286,7 +287,7 @@ const items = computed<MenuItem[]>(() => withSubmenus([
       danger: command.destructive,
       disable: !command.enabled || empty,
       hint: empty
-        ? "Copy or cut something first"
+        ? t("catalog.catalog_actions.clipboard_empty")
         : command.enabled ? undefined : command.reason ?? undefined,
       group: command.menuGroup,
     }
@@ -323,9 +324,13 @@ function run(command: ClientCommand) {
   )
   // Said aloud, because the ticks go: they were the only sign that anything
   // had been taken, and Paste aims at a ticked node.
-  const what = props.checkedIds.length === 1 ? `“${props.checkedLabel}”` : props.checkedLabel
+  const what = props.checkedIds.length === 1
+    ? t("catalog.catalog_actions.quoted", { name: props.checkedLabel })
+    : props.checkedLabel
   toast.success(
-    `${command === "copy" ? "Copied" : "Cut"} ${what} — paste it from the actions menu where it should go`
+    command === "copy"
+      ? t("catalog.catalog_actions.copied", { what })
+      : t("catalog.catalog_actions.cut", { what })
   )
   emit("untick")
 }
@@ -406,7 +411,7 @@ async function pick(name: string) {
     crossPasting.value = {
       sourceConnectorId: source.connectorId,
       sourceNodeIds: [...source.nodeIds],
-      sourceLabel: source.label ?? "The copied selection",
+      sourceLabel: source.label ?? t("catalog.catalog_actions.copied_selection"),
       mode: source.mode,
       destinationConnectorId: props.connectorId,
       destinationNodeId: crossPlace.value,
@@ -438,7 +443,7 @@ async function pick(name: string) {
       })
       emit("connector", draft)
     } catch (cause) {
-      toast.error(messageOf(cause, "The connector form could not be prepared"))
+      toast.error(messageOf(cause, t("catalog.catalog_actions.connector_failed")))
     }
     return
   }
@@ -466,7 +471,7 @@ async function pick(name: string) {
     saveNativeDownload(ready.download_url)
     emit("untick")
   } catch (cause) {
-    toast.error(messageOf(cause, "The download could not be prepared"))
+    toast.error(messageOf(cause, t("catalog.action_dialog.download_failed")))
   }
 }
 </script>
@@ -485,7 +490,7 @@ async function pick(name: string) {
     <span>
       <AppIconButton
         :icon="appIcons.moreVert"
-        tooltip="Actions"
+        :tooltip="t('catalog.catalog_actions.actions')"
         data-testid="catalog-actions"
         :loading="prepareConnector.isPending.value"
       />

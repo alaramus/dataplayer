@@ -12,6 +12,7 @@ import type {
 } from "@/client"
 import { ICONS } from "@/features/catalog/nodes"
 import { ageLabel } from "@/shared/freshness/freshness"
+import { t } from "@/shared/i18n"
 import type { GraphEdge, GraphEdgeTone, GraphPort } from "@/shared/graph/model"
 
 import { rowId } from "./model"
@@ -99,12 +100,12 @@ export function linkBetween(links: readonly Link[], from: LinkEnd, to: LinkEnd):
 export function joinProblem(cards: readonly Card[], from: LinkEnd, to: LinkEnd): string | null {
   const source = cards.find((card) => card.id === from.card_id)
   const target = cards.find((card) => card.id === to.card_id)
-  if (source === undefined || target === undefined) return "That card is no longer on the canvas"
+  if (source === undefined || target === undefined) return t("pipelines.links.card_gone")
   if (from.node_id == null && from.made_by == null) {
-    return "The top of a connection is a place things arrive in, not something to take"
+    return t("pipelines.links.top_not_source")
   }
   if (source.connector_id === target.connector_id) {
-    return "Both ends are in one connection: use Paste in its catalog for that"
+    return t("pipelines.links.same_connection")
   }
   return null
 }
@@ -116,7 +117,7 @@ export function usable(offers: readonly PasteOffer[]): PasteOffer[] {
 
 /** Why no link was drawn: the first reason the offers give. */
 export function refusal(offers: readonly PasteOffer[]): string {
-  return offers.find((offer) => offer.reason)?.reason ?? "Nothing can go from that row into this one"
+  return offers.find((offer) => offer.reason)?.reason ?? t("pipelines.links.nothing_fits")
 }
 
 /** A new link doing what this offer does, with no choice made yet. */
@@ -180,7 +181,7 @@ export function madeRows(
       row: {
         id: `${MADE}${link.id}`,
         label: result.name,
-        detail: place === undefined ? "to be made" : `← ${String(place.number)}`,
+        detail: place === undefined ? t("pipelines.links.to_be_made") : `← ${String(place.number)}`,
         icon: ICONS[result.kind],
         made: true,
       },
@@ -230,14 +231,16 @@ export function isRunning(run: PipelineRunPublic | null | undefined): boolean {
 
 /** Why Run is off, or nothing when it can be pressed. */
 export function runProblem(links: readonly Link[], run: PipelineRunPublic | null | undefined): string | null {
-  if (links.length === 0) return "Draw a link first"
-  if (isRunning(run)) return "This pipeline is running; Stop is in the activity below"
+  if (links.length === 0) return t("pipelines.links.draw_first")
+  if (isRunning(run)) return t("pipelines.links.running")
   return null
 }
 
-function ago(at: string | null | undefined, now: number): string {
+/** "Done", or "Done 3m ago" when it is known when. */
+function outcome(plain: "done" | "failed", at: string | null | undefined, now: number): string {
   const time = Date.parse(at ?? "")
-  return Number.isNaN(time) ? "" : ` ${ageLabel(now - time)} ago`
+  if (Number.isNaN(time)) return t(`pipelines.links.${plain}`)
+  return t(`pipelines.links.${plain}_ago`, { age: ageLabel(now - time) })
 }
 
 /**
@@ -247,20 +250,22 @@ function ago(at: string | null | undefined, now: number): string {
 export function runWords(
   linkRun: LinkRun | undefined, run: PipelineRunPublic | null | undefined, now: number, past = false
 ): string {
-  if (run == null) return "Not run yet"
-  if (linkRun === undefined) return past ? "Drawn since this run" : "Drawn since the last run"
-  const said = linkRun.message ? `: ${linkRun.message}` : ""
+  if (run == null) return t("pipelines.links.not_run_yet")
+  if (linkRun === undefined) return t(past ? "pipelines.links.drawn_since_this" : "pipelines.links.drawn_since_last")
+  const said = (head: string) =>
+    linkRun.message ? t("pipelines.links.with_message", { outcome: head, message: linkRun.message }) : head
   switch (linkRun.outcome) {
-    case "waiting": return "Waiting for the links before it"
-    case "running": return "Running"
-    case "not_run": return "Not run: the run stopped before it"
-    case "done": return `Done${ago(linkRun.finished_at, now)}${said}`
-    case "failed": return `Failed${ago(linkRun.finished_at, now)}${said}`
+    case "waiting": return t("pipelines.links.waiting")
+    case "running": return t("pipelines.links.running_now")
+    case "not_run": return t("pipelines.links.not_run")
+    case "done": return said(outcome("done", linkRun.finished_at, now))
+    case "failed": return said(outcome("failed", linkRun.finished_at, now))
   }
 }
 
+// Words in getters: the list is built once, and read in whatever language is current.
 export const CONFLICT_CHOICES = [
-  { label: "Stop and say so", value: "refuse" },
-  { label: "Keep both", value: "rename" },
-  { label: "Replace it", value: "replace" },
+  { get label() { return t("pipelines.links.conflict.refuse") }, value: "refuse" },
+  { get label() { return t("pipelines.links.conflict.rename") }, value: "rename" },
+  { get label() { return t("pipelines.links.conflict.replace") }, value: "replace" },
 ] as const

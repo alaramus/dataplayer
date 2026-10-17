@@ -5,6 +5,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.translation import say
+
 
 @dataclass(frozen=True)
 class PostgresRowHandle:
@@ -30,5 +32,5 @@ def decode_row_handle(value: str) -> PostgresRowHandle:
         ):
             raise ValueError
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
-        raise ValueError("The row handle is not valid") from None
+        raise ValueError(say("The row handle is not valid")) from None
     return PostgresRowHandle(keys=keys, version=version)

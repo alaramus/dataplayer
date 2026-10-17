@@ -20,7 +20,9 @@ import {
 } from "@/features/content/markdown/charts"
 import BlockChrome from "@/features/content/markdown/BlockChrome.vue"
 import { useThemeStore } from "@/stores/theme"
+import { t } from "@/shared/i18n"
 import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
+import { chartLocale } from "@/shared/i18n/echarts"
 
 registerDocumentCharts()
 
@@ -37,15 +39,15 @@ const parsed = computed<{ option: EChartsOption } | { failure: string }>(() => {
   try {
     value = JSON.parse(props.code)
   } catch {
-    return { failure: "This chart is not valid JSON" }
+    return { failure: t("content.markdown.chart.not_json") }
   }
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { failure: "A chart must be a JSON object of ECharts options" }
+    return { failure: t("content.markdown.chart.not_object") }
   }
   const unsupported = unsupportedSeries(value as Record<string, unknown>)
   if (unsupported.length > 0) {
     return {
-      failure: `This document asks for a ${unsupported.join(", ")} chart, which this viewer cannot draw`,
+      failure: t("content.markdown.chart.unsupported", { series: unsupported.join(", ") }),
     }
   }
   return { option: normalizeLayout(value as Record<string, unknown>) as EChartsOption }
@@ -59,7 +61,7 @@ function draw() {
   const answer = parsed.value
   if (element === null || "failure" in answer) return
   chart?.dispose()
-  chart = init(element, theme.dark ? "dark" : undefined, { renderer: "svg" })
+  chart = init(element, theme.dark ? "dark" : undefined, { renderer: "svg", locale: chartLocale() })
   try {
     chart.setOption({ ...answer.option, backgroundColor: "transparent" }, true)
     failure.value = ""
@@ -69,20 +71,20 @@ function draw() {
     chart.dispose()
     chart = null
     failure.value =
-      cause instanceof Error ? cause.message : "This chart could not be drawn here"
+      cause instanceof Error ? cause.message : t("content.markdown.chart.not_drawn")
   }
 }
 
 async function copy() {
   await copySource(props.code)
-  toast.success("Chart source copied")
+  toast.success(t("content.markdown.chart.copied"))
 }
 
 function download() {
   if (chart === null) return
   const svg = svgFromDataUrl(chart.getDataURL({ type: "svg" }))
   if (svg === "") {
-    toast.error("This chart could not be saved")
+    toast.error(t("content.markdown.chart.not_saved"))
     return
   }
   saveSvg(svg, "chart.svg")
@@ -106,17 +108,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <BlockChrome label="chart">
+  <BlockChrome :label="t('content.markdown.chart.label')">
     <template #actions>
       <AppIconButton
         v-if="drawn"
         :icon="appIcons.download"
-        tooltip="Save this chart as SVG"
+        :tooltip="t('content.markdown.chart.save')"
         data-testid="echarts-download"
         @click="download"
       />
       <AppCopyButton
-        tooltip="Copy the chart source"
+        :tooltip="t('content.markdown.chart.copy')"
         data-testid="echarts-copy"
         @click="copy"
       />

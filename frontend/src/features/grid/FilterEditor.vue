@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed, ref } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppIconButton, AppInput, AppSelect, AppTooltip } from "@/shared/ui"
 
 import {
@@ -120,13 +121,13 @@ function removeFilter(index: number) {
         <span>{{ describeFilter(filter) }}</span>
         <AppIconButton
           :icon="appIcons.close"
-          :tooltip="`Delete filter ${index + 1}`"
+          :tooltip="t('grid.filter.delete', { n: index + 1 })"
           :data-testid="`grid-filter-delete-${index}`"
           @click="removeFilter(index)"
         />
       </div>
       <AppButton
-        label="Clear all"
+        :label="t('grid.clear_all')"
         variant="quiet"
         size="sm"
         data-testid="grid-filter-clear"
@@ -139,7 +140,7 @@ function removeFilter(index: number) {
         class="filter-editor__field"
         :model-value="draft.column"
         :options="columnOptions"
-        label="Column"
+        :label="t('grid.column')"
         compact
         @update:model-value="selectColumn"
       />
@@ -147,7 +148,7 @@ function removeFilter(index: number) {
         class="filter-editor__field"
         :model-value="draft.op"
         :options="operatorSelectOptions"
-        label="Operator"
+        :label="t('grid.filter.operator')"
         compact
         @update:model-value="selectOperator"
       />
@@ -156,12 +157,12 @@ function removeFilter(index: number) {
         <AppInput
           v-model="pendingItem"
           class="filter-editor__field"
-          label="Value"
+          :label="t('grid.cell_editor.value')"
           compact
           @keyup.enter="addItemAndApply"
         />
         <AppButton
-          label="Add"
+          :label="t('grid.add')"
           variant="quiet"
           size="sm"
           @click="addItem"
@@ -180,7 +181,7 @@ function removeFilter(index: number) {
         class="filter-editor__field"
         :model-value="draft.value"
         :options="explicitValueOptions"
-        label="Value"
+        :label="t('grid.cell_editor.value')"
         compact
         @update:model-value="setValue"
       />
@@ -188,7 +189,7 @@ function removeFilter(index: number) {
         v-else-if="!isNullary"
         class="filter-editor__field"
         :model-value="draft.value"
-        label="Value"
+        :label="t('grid.cell_editor.value')"
         compact
         data-testid="grid-filter-value"
         @update:model-value="setValue"
@@ -200,7 +201,7 @@ function removeFilter(index: number) {
            thing worth reading there. -->
       <span>
         <AppButton
-          label="Apply"
+          :label="t('grid.filter.apply')"
           size="sm"
           :disable="problem !== null"
           :aria-description="problem ?? undefined"

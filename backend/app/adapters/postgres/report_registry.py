@@ -6,6 +6,7 @@ from app.adapters.postgres.timescale.profile import discover
 from app.adapters.postgres.timescale.report_access import require_report
 from app.adapters.postgres.timescale.reports import BY_ID, TIMESCALE_SECTION_ID
 from app.adapters.protocol import NodeNotFound
+from app.core.translation import say
 
 
 async def require_timescale(session: PostgresSession) -> None:
@@ -13,7 +14,7 @@ async def require_timescale(session: PostgresSession) -> None:
     if profile.feature.state == "absent":
         raise NodeNotFound(TIMESCALE_SECTION_ID)
     if not profile.available:
-        raise ValueError(profile.feature.reason or "TimescaleDB inspection is unavailable")
+        raise ValueError(profile.feature.reason or say("TimescaleDB inspection is unavailable"))
 
 
 async def resolve_report(

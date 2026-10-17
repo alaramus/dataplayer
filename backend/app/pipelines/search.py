@@ -11,6 +11,7 @@ from datetime import datetime
 
 from sqlmodel import col, select
 
+from app.core.translation import N_, say
 from app.pipelines.models import MAX_PIPELINES, Pipeline
 from app.search.models import (
     Facts,
@@ -34,7 +35,7 @@ from app.search.providers import (
 
 class PipelineNames:
     place = ObjectsPlace(provider="pipelines")
-    title = "Pipelines"
+    title = N_("Pipelines")
     offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"pipeline"})
 
@@ -77,7 +78,7 @@ def _hit(pipeline_id: uuid.UUID, name: str, changed_at: datetime, match: Match) 
         key=target_key(target),
         target=target,
         title=name,
-        detail="Pipeline",
+        detail=say("Pipeline"),
         facts=Facts(kind="pipeline", changed_at=changed_at),
         match=match,
         open="pipeline",

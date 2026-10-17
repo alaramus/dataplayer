@@ -39,6 +39,10 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+
+    /* The interface opens in the browser's language (D224), and the scenarios
+       read English. Without this a machine set to Russian runs them in Russian. */
+    locale: 'en-US',
   },
 
   /* Configure projects for major browsers */

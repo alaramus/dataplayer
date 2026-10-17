@@ -28,23 +28,24 @@ from app.adapters.postgres.counting import (
 from app.adapters.postgres.relation import PostgresRelation, qualified, schema_of
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Column, PrimaryKey, RelationModel
+from app.core.translation import N_, say
 
 # What a refused type change means, by SQLSTATE. The code is safe to look at
 # and the message beside it is not: PostgreSQL writes the offending value into
 # the text of exactly these errors.
 TYPE_CHANGE_REFUSALS = {
     # cannot_coerce: no conversion exists between the two types at all.
-    "42846": "PostgreSQL has no conversion between these two types",
+    "42846": N_("PostgreSQL has no conversion between these two types"),
     # datatype_mismatch: the column's default cannot be cast to the new type.
-    "42804": "Remove the column's default before changing its type",
+    "42804": N_("Remove the column's default before changing its type"),
     # feature_not_supported: a view or rule is built on this column.
-    "0A000": "A view or rule uses this column, so its type cannot change",
+    "0A000": N_("A view or rule uses this column, so its type cannot change"),
     # invalid_text_representation.
-    "22P02": "Some values cannot be read as the new type",
+    "22P02": N_("Some values cannot be read as the new type"),
     # numeric_value_out_of_range.
-    "22003": "Some values are out of range for the new type",
+    "22003": N_("Some values are out of range for the new type"),
     # string_data_right_truncation.
-    "22001": "Some values are too long for the new type",
+    "22001": N_("Some values are too long for the new type"),
 }
 
 
@@ -57,12 +58,12 @@ class PostgresColumns:
         model = await self._relation.relation_model(request.node_id)
         self._check_supported(model)
         if request.name in {column.name for column in model.columns}:
-            raise ValueError(f'Relation already has a column "{request.name}"')
+            raise ValueError(say('Relation already has a column "{name}"', name=request.name))
         if len(request.name.encode("utf-8")) > 63:
-            raise ValueError("A PostgreSQL column name cannot exceed 63 bytes")
+            raise ValueError(say("A PostgreSQL column name cannot exceed {limit} bytes", limit=63))
         type_sql = POSTGRES_COLUMN_TYPES.get(request.type_code)
         if type_sql is None:
-            raise ValueError(f'Unknown column type "{request.type_code}"')
+            raise ValueError(say('Unknown column type "{code}"', code=request.type_code))
         statement = sql.SQL("ALTER TABLE {} ADD COLUMN {} {}").format(
             qualified(model),
             sql.Identifier(request.name),
@@ -77,7 +78,7 @@ class PostgresColumns:
         model = await self._relation.relation_model(request.node_id)
         self._check_supported(model)
         if request.name not in {column.name for column in model.columns}:
-            raise ValueError(f'Relation has no column "{request.name}"')
+            raise ValueError(say('Relation has no column "{column}"', column=request.name))
         statement = sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
             qualified(model),
             sql.Identifier(request.name),
@@ -90,11 +91,11 @@ class PostgresColumns:
         self._check_supported(model)
         names = {column.name for column in model.columns}
         if request.name not in names:
-            raise ValueError(f'Relation has no column "{request.name}"')
+            raise ValueError(say('Relation has no column "{column}"', column=request.name))
         if request.new_name in names:
-            raise ValueError(f'Relation already has a column "{request.new_name}"')
+            raise ValueError(say('Relation already has a column "{name}"', name=request.new_name))
         if len(request.new_name.encode("utf-8")) > 63:
-            raise ValueError("A PostgreSQL column name cannot exceed 63 bytes")
+            raise ValueError(say("A PostgreSQL column name cannot exceed {limit} bytes", limit=63))
         statement = sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
             qualified(model),
             sql.Identifier(request.name),
@@ -110,14 +111,14 @@ class PostgresColumns:
         self._check_supported(model)
         column = next((item for item in model.columns if item.name == request.name), None)
         if column is None:
-            raise ValueError(f'Relation has no column "{request.name}"')
+            raise ValueError(say('Relation has no column "{column}"', column=request.name))
         if column.generated is not None:
-            raise ValueError("A generated column cannot have a default")
+            raise ValueError(say("A generated column cannot have a default"))
         if request.value is not None and "\x00" in request.value:
             # Composing the literal is what would fail, and it fails with a
             # driver error rather than with a rejected value. Said here, it is
             # a bad request like any other unusable default.
-            raise ValueError("A default value cannot contain a NUL character")
+            raise ValueError(say("A default value cannot contain a NUL character"))
         statement = sql.SQL("ALTER TABLE {} ALTER COLUMN {} ").format(
             qualified(model),
             sql.Identifier(request.name),
@@ -140,12 +141,12 @@ class PostgresColumns:
             (item for item in model.columns if item.name == request.name), None
         )
         if column is None:
-            raise ValueError(f'Relation has no column "{request.name}"')
+            raise ValueError(say('Relation has no column "{column}"', column=request.name))
         if column.nullable == request.nullable:
             raise ValueError(
-                "The column already accepts rows with no value"
+                say("The column already accepts rows with no value")
                 if request.nullable
-                else "The column already requires a value in every row"
+                else say("The column already requires a value in every row")
             )
         if request.nullable:
             self._check_may_stop_requiring(model, column.name, column.identity)
@@ -181,11 +182,11 @@ class PostgresColumns:
             (item for item in model.columns if item.name == request.name), None
         )
         if column is None:
-            raise ValueError(f'Relation has no column "{request.name}"')
+            raise ValueError(say('Relation has no column "{column}"', column=request.name))
         if column.generated is not None:
-            raise ValueError("A generated column takes its type from its expression")
+            raise ValueError(say("A generated column takes its type from its expression"))
         if column.identity is not None:
-            raise ValueError("An identity column cannot change its type here")
+            raise ValueError(say("An identity column cannot change its type here"))
         type_sql = POSTGRES_COLUMN_TYPES.get(request.type_code)
         option = next(
             (
@@ -196,9 +197,9 @@ class PostgresColumns:
             None,
         )
         if type_sql is None or option is None:
-            raise ValueError(f'Unknown column type "{request.type_code}"')
+            raise ValueError(say('Unknown column type "{code}"', code=request.type_code))
         if column.type.sql == option.sql:
-            raise ValueError(f'The column already has type "{option.sql}"')
+            raise ValueError(say('The column already has type "{sql}"', sql=option.sql))
 
         await self._check_conversion_exists(model, column.name, type_sql)
         blocking, exact = await self._rows_the_target_cannot_read(
@@ -280,7 +281,7 @@ class PostgresColumns:
         an unattributable rejection.
         """
         if identity is not None:
-            raise ValueError("An identity column always has a value")
+            raise ValueError(say("An identity column always has a value"))
         key = next(
             (
                 constraint
@@ -290,11 +291,13 @@ class PostgresColumns:
             None,
         )
         if key is not None:
-            raise ValueError(f'Column "{name}" is part of primary key "{key.name}"')
+            raise ValueError(
+                say('Column "{name}" is part of primary key "{key}"', name=name, key=key.name)
+            )
 
     @staticmethod
     def _check_supported(model: RelationModel) -> None:
         if not model.column_changes_supported:
             raise ValueError(
-                model.column_changes_reason or "This relation cannot change columns"
+                model.column_changes_reason or say("This relation cannot change columns")
             )

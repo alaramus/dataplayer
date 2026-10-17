@@ -7,7 +7,7 @@ it is `app.transfers`', which may start a job (D168).
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.adapters.protocol import DataAdapter
 from app.adapters.resources import ResourcesDep
@@ -29,7 +29,17 @@ from app.connectors.paste.registry import KINDS, outranked, short_of
 from app.connectors.paste.tables import TablesPreview, TablesPreviewRequest, preview
 from app.core.access import Access, at_least
 from app.core.db import SessionDep
+from app.core.problems import Problem
+from app.core.translation import N_, say
 from app.users.deps import CurrentUser
+
+# One sentence per level, since the level is a word in it (D226).
+NEEDS_ACCESS: dict[Access, str] = {
+    "read": N_("This needs read access"),
+    "write": N_("This needs write access"),
+    "structure": N_("This needs structure access"),
+    "own": N_("This needs own access"),
+}
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 
@@ -98,9 +108,7 @@ async def pair_offers(
     sides swapped, as the window asks it.
     """
     if request.source.connector_id == request.destination.connector_id:
-        raise HTTPException(
-            status_code=422, detail={"message": "Pair two different connections"}
-        )
+        raise Problem(422, "paste.same_connection")
     source, source_access = await resolve_adapter(
         session, request.source.connector_id, current_user, resources, requires="read"
     )
@@ -188,14 +196,17 @@ async def _can_hold(
     if not kinds:
         return None
     if not node_ids:
-        return Availability(available=False, reason="Tick a row to use this")
+        return Availability(available=False, reason=say("Tick a row to use this"))
     reasons: list[str] = []
     for kind in kinds:
         if not at_least(access, kind.source_requires):
-            reasons.append(f"This needs {kind.source_requires} access")
+            reasons.append(say(NEEDS_ACCESS[kind.source_requires]))
             continue
         answer = await kind.supply(source, node_ids)
         if answer.available:
             return answer
-        reasons.append(answer.reason or f"{kind.title} does not take this selection")
+        reasons.append(
+            answer.reason
+            or say("{kind} does not take this selection", kind=say(kind.title))
+        )
     return Availability(available=False, reason=reasons[0])

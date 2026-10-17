@@ -28,6 +28,7 @@ from app.connectors.models import Connector
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
+from app.core.translation import current_language, say
 from app.realtime.topics import Subscriber, TopicSet, UnknownTopic, register
 from app.users import preferences
 
@@ -203,6 +204,10 @@ class HealthTopic:
             # changing how often their connections are probed is looking at
             # the dots while they do it.
             base = preferences.check_seconds(chosen.connector_checks)
+            # What a probe says is worded in the account's language; with none
+            # chosen, in the one of the socket that started the watch (D226).
+            if chosen.language is not None:
+                current_language.set(chosen.language)
 
             live = {connector.id for connector in connectors}
             for gone in set(probes) - live:
@@ -296,16 +301,20 @@ async def _probe(connector: Connector) -> ConnectionCheckResult:
             return await _adapter(connector).check_connection()
     except TimeoutError:
         return ConnectionCheckResult(
-            ok=False, message="The source did not answer in time", error_kind="timeout"
+            ok=False,
+            message=say("The source did not answer in time"),
+            error_kind="timeout",
         )
     except UnknownAdapterType:
         return ConnectionCheckResult(
-            ok=False, message="This source type is no longer available"
+            ok=False, message=say("This source type is no longer available")
         )
     except Exception:
         # Deliberately without the text: a driver message carries the
         # connection string, password included.
-        return ConnectionCheckResult(ok=False, message="The check could not be made")
+        return ConnectionCheckResult(
+            ok=False, message=say("The check could not be made")
+        )
 
 
 async def announce_check(

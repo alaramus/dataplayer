@@ -1,4 +1,5 @@
 import type { CatalogNode } from "@/features/catalog/nodes"
+import { t } from "@/shared/i18n"
 
 export interface RelativeTarget {
   node: CatalogNode
@@ -14,18 +15,18 @@ interface ParsedReference {
   fragment: string
 }
 
-function decodePart(value: string, label: string): string {
+function decodePart(value: string, part: "fragment" | "path"): string {
   try {
     return decodeURIComponent(value)
   } catch {
-    throw new Error(`This relative ${label} has invalid percent encoding`)
+    throw new Error(t(`content.markdown.relative.${part}_encoding`))
   }
 }
 
 function parseReference(reference: string): ParsedReference {
   const value = reference.trim()
   if (/^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith("//")) {
-    throw new Error("This is not a relative source reference")
+    throw new Error(t("content.markdown.relative.not_relative"))
   }
   const hashAt = value.indexOf("#")
   const beforeFragment = hashAt < 0 ? value : value.slice(0, hashAt)
@@ -35,11 +36,11 @@ function parseReference(reference: string): ParsedReference {
   const absolute = path.startsWith("/")
   const rawSegments = path.slice(absolute ? 1 : 0).split("/")
   if (rawSegments.some((part, index) => part === "" && index < rawSegments.length - 1)) {
-    throw new Error("This relative path contains an empty segment")
+    throw new Error(t("content.markdown.relative.empty_segment"))
   }
   const segments = rawSegments.filter((part) => part !== "").map((part) => decodePart(part, "path"))
   if (segments.some((part) => part.includes("/") || part.includes("\\") || part.includes("\0"))) {
-    throw new Error("This relative path contains an invalid segment")
+    throw new Error(t("content.markdown.relative.invalid_segment"))
   }
   return { absolute, segments, fragment }
 }
@@ -61,7 +62,7 @@ export async function resolveRelativeTarget(
   const currentPath = await loadPath(connectorId, currentNodeId)
   const current = currentPath.at(-1)
   if (current === undefined || current.id !== currentNodeId) {
-    throw new Error("The open document no longer has a source path")
+    throw new Error(t("content.markdown.relative.no_source_path"))
   }
   if (parsed.segments.length === 0 && !parsed.absolute) {
     return { node: current, fragment: parsed.fragment }
@@ -73,7 +74,7 @@ export async function resolveRelativeTarget(
     if (segment === ".") continue
     if (segment === "..") {
       if (ancestors.length === 0) {
-        throw new Error("This relative path leaves the connection root")
+        throw new Error(t("content.markdown.relative.leaves_root"))
       }
       target = ancestors.pop()
       continue
@@ -82,16 +83,16 @@ export async function resolveRelativeTarget(
     const matches = (await loadChildren(connectorId, parent)).filter(
       (node) => node.name === segment
     )
-    if (matches.length === 0) throw new Error(`No node named ${segment} exists here`)
-    if (matches.length > 1) throw new Error(`More than one node is named ${segment} here`)
+    if (matches.length === 0) throw new Error(t("content.markdown.relative.no_node", { name: segment }))
+    if (matches.length > 1) throw new Error(t("content.markdown.relative.ambiguous", { name: segment }))
     target = matches[0]
-    if (target === undefined) throw new Error(`No node named ${segment} exists here`)
+    if (target === undefined) throw new Error(t("content.markdown.relative.no_node", { name: segment }))
     ancestors.push(target)
   }
 
   target ??= ancestors.at(-1)
   if (target === undefined) {
-    throw new Error("The connection root is not a document node")
+    throw new Error(t("content.markdown.relative.root_not_document"))
   }
   return { node: target, fragment: parsed.fragment }
 }

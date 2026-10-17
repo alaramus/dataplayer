@@ -197,7 +197,8 @@ async def test_a_second_command_while_one_is_running_is_refused(
 
     await _wait(accepted["job"]["id"])
     assert second.status_code == 409
-    assert second.json()["detail"]["job_id"] == accepted["job"]["id"]
+    assert second.json()["detail"]["code"] == "services.busy"
+    assert second.json()["detail"]["params"]["job_id"] == accepted["job"]["id"]
 
 
 @pytest.mark.usefixtures("engine")

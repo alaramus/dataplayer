@@ -5,6 +5,8 @@ import type { FieldSpec } from "@/shared/SchemaForm/jsonSchema"
 
 import {
   MAX_KEY_FILE_BYTES,
+  codeParts,
+  codePlaces,
   keyState,
   keyUsedBy,
   passphraseModeLabel,
@@ -97,5 +99,26 @@ describe("a key file, read in the browser", () => {
     const huge = new File([new Uint8Array(MAX_KEY_FILE_BYTES + 1)], "disk.img")
 
     await expect(readKeyFile(huge)).rejects.toThrow("far larger than an SSH key")
+  })
+})
+
+describe("a sentence with code in it", () => {
+  it("cuts the sentence where each code stands, keeping the code untranslated", () => {
+    const codes = { command: "ssh-keygen -lf", folder: "/etc/ssh" }
+    expect(codePlaces(codes)).toEqual({ command: "{command}", folder: "{folder}" })
+    expect(codeParts("Run {command} in {folder}.", codes)).toEqual([
+      { text: "Run ", code: false },
+      { text: "ssh-keygen -lf", code: true },
+      { text: " in ", code: false },
+      { text: "/etc/ssh", code: true },
+      { text: ".", code: false },
+    ])
+  })
+
+  it("leaves no empty piece where a code opens the sentence", () => {
+    expect(codeParts("{pub} last", { pub: ".pub" })).toEqual([
+      { text: ".pub", code: true },
+      { text: " last", code: false },
+    ])
   })
 })

@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { t } from "@/shared/i18n"
+
 export interface JsonSchemaProperty {
   type?: string
   title?: string
@@ -327,17 +329,23 @@ function zodForField(field: FieldSpec): z.ZodType {
     case "select":
       return z.enum(
         (field.choices ?? []).map((choice) => choice.value) as [string, ...string[]],
-        { error: `Choose ${field.label}` }
+        { error: t("schema_form.choose", { label: field.label }) }
       )
     case "boolean":
       return z.boolean()
     case "number": {
-      let schema = z.number({ error: `${field.label} is a number` })
+      let schema = z.number({ error: t("schema_form.is_number", { label: field.label }) })
       if (field.minimum !== undefined) {
-        schema = schema.min(field.minimum, `${field.label} is at least ${String(field.minimum)}`)
+        schema = schema.min(
+          field.minimum,
+          t("schema_form.at_least", { label: field.label, n: field.minimum })
+        )
       }
       if (field.maximum !== undefined) {
-        schema = schema.max(field.maximum, `${field.label} is at most ${String(field.maximum)}`)
+        schema = schema.max(
+          field.maximum,
+          t("schema_form.at_most", { label: field.label, n: field.maximum })
+        )
       }
       return schema
     }
@@ -351,8 +359,8 @@ function zodForField(field: FieldSpec): z.ZodType {
         schema = schema.min(
           minLength,
           minLength === 1
-            ? `${field.label} is required`
-            : `${field.label} takes at least ${String(minLength)} characters`
+            ? t("schema_form.required", { label: field.label })
+            : t("schema_form.min_length", { label: field.label, n: minLength }, minLength)
         )
       }
       return schema

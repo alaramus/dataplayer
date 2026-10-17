@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppBanner } from "@/shared/ui"
 import type { Camera3, GraphDocument, GraphSelection, Point3 } from "./model"
 import { GraphScene } from "./scene3d"
@@ -47,7 +48,7 @@ defineExpose({ fit: () => scene?.fit(), zoom: (factor: number) => scene?.zoom(fa
       tone="warning"
       data-testid="graph-3d-unavailable"
     >
-      3D rendering is unavailable in this browser. You can continue in 2D.
+      {{ t("graph.unavailable_3d") }}
     </AppBanner>
     <div
       v-show="!unavailable"

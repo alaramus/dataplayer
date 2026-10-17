@@ -27,6 +27,7 @@ import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { saveBrowserDownload } from "@/shared/download"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -72,10 +73,10 @@ const searchMatchCount = ref(0)
 const activeSection = ref("")
 const exporting = ref(false)
 
-const exportItems: MenuItem[] = [
-  { name: "html", label: "Rendered HTML", icon: appIcons.html },
-  { name: "pdf", label: "Print or save as PDF", icon: appIcons.print },
-]
+const exportItems = computed<MenuItem[]>(() => [
+  { name: "html", label: t("content.markdown.export_html"), icon: appIcons.html },
+  { name: "pdf", label: t("content.markdown.export_pdf"), icon: appIcons.print },
+])
 
 function showSource() {
   workspace.openRepresentation({
@@ -84,7 +85,7 @@ function showSource() {
     title: props.title,
     connectorName: props.connectorName,
     adapterType: props.adapterType,
-    representations: [{ kind: "text", title: props.sourceTitle ?? "View as text" }],
+    representations: [{ kind: "text", title: props.sourceTitle ?? t("content.markdown.view_as_text") }],
     describable: false,
   })
 }
@@ -138,7 +139,7 @@ const blockedImages = computed(() =>
  */
 const hasSidePanel = computed(() => headings.value.length > 0 || blockedImages.value > 0 || allowRemoteImages.value)
 const error = computed(() =>
-  content.isError.value ? messageOf(content.error.value, "Could not open this document") : ""
+  content.isError.value ? messageOf(content.error.value, t("content.common.could_not_open_document")) : ""
 )
 const searchPosition = computed(() =>
   searchMatchCount.value === 0
@@ -329,14 +330,14 @@ function resolveRelativeImage(image: HTMLImageElement, epoch: number): Promise<v
     try {
       const target = await resolveTarget(reference)
       if (!target.node.representations.some((item) => item.kind === "image")) {
-        throw new Error(`${target.node.name} does not declare an image viewer`)
+        throw new Error(t("content.markdown.no_image_viewer", { name: target.node.name }))
       }
       const result = await loadContent(props.connectorId, {
         node_id: target.node.id,
         representation: "image",
       })
       if (result.kind !== "image" || !result.preview_url) {
-        throw new Error("The source did not return a verified image preview")
+        throw new Error(t("content.markdown.no_verified_preview"))
       }
       if (epoch !== resourceEpoch || article.value?.contains(image) !== true) return
       image.onload = () => {
@@ -347,7 +348,7 @@ function resolveRelativeImage(image: HTMLImageElement, epoch: number): Promise<v
         if (article.value?.contains(image) !== true) return
         image.removeAttribute("src")
         image.dataset.relativeError = ""
-        image.title = "The verified preview could not be loaded"
+        image.title = t("content.markdown.preview_failed")
       }
       image.src = client.buildUrl({ url: result.preview_url })
       image.dataset.relativeReference = reference
@@ -355,7 +356,7 @@ function resolveRelativeImage(image: HTMLImageElement, epoch: number): Promise<v
       delete image.dataset.relativeLoading
     } catch (cause) {
       if (epoch !== resourceEpoch || article.value?.contains(image) !== true) return
-      const failure = cause instanceof Error ? cause.message : "This image could not be resolved"
+      const failure = cause instanceof Error ? cause.message : t("content.markdown.image_unresolved")
       delete image.dataset.relativeSource
       delete image.dataset.relativeLoading
       image.dataset.relativeError = ""
@@ -409,10 +410,10 @@ async function onDocumentClick(event: MouseEvent): Promise<void> {
     try {
       fragment = decodeURIComponent(href.slice(1))
     } catch {
-      toast.error("This document fragment has invalid percent encoding")
+      toast.error(t("content.markdown.fragment_encoding"))
       return
     }
-    if (!scrollToAnchor(fragment)) toast.info(`No section named ${fragment} is in this document`)
+    if (!scrollToAnchor(fragment)) toast.info(t("content.markdown.no_section", { name: fragment }))
     return
   }
   const reference = link.dataset.relativeLink
@@ -424,7 +425,7 @@ async function onDocumentClick(event: MouseEvent): Promise<void> {
     const target = await resolveTarget(reference)
     if (target.node.id === props.nodeId && target.fragment) {
       if (!scrollToAnchor(target.fragment)) {
-        toast.info(`No section named ${target.fragment} is in this document`)
+        toast.info(t("content.markdown.no_section", { name: target.fragment }))
       }
       return
     }
@@ -443,7 +444,7 @@ async function onDocumentClick(event: MouseEvent): Promise<void> {
       ...(target.fragment === "" ? {} : { fragment: target.fragment }),
     })
   } catch (cause) {
-    toast.error(cause instanceof Error ? cause.message : "This relative link could not be opened")
+    toast.error(cause instanceof Error ? cause.message : t("content.markdown.link_failed"))
   } finally {
     delete link.dataset.relativeLoading
   }
@@ -455,7 +456,7 @@ async function consumeDocumentTarget(): Promise<void> {
   if (target === null || target === undefined) return
   await nextTick()
   if (!scrollToAnchor(target.fragment)) {
-    toast.info(`No section named ${target.fragment} is in this document`)
+    toast.info(t("content.markdown.no_section", { name: target.fragment }))
   }
 }
 
@@ -473,12 +474,12 @@ async function exportDocument(kind: "html" | "pdf"): Promise<void> {
         new Blob([html], { type: "text/html;charset=utf-8" }),
         createHtmlFileName(props.title)
       )
-      toast.success("Rendered HTML exported")
+      toast.success(t("content.markdown.html_exported"))
     } else {
       printRenderedHtml(html)
     }
   } catch {
-    toast.error("This rendered document could not be exported")
+    toast.error(t("content.markdown.export_failed"))
   } finally {
     exporting.value = false
   }
@@ -540,7 +541,7 @@ onBeforeUnmount(() => {
             variant="quiet"
             size="sm"
             :icon="appIcons.toc"
-            :label="headings.length > 0 ? `Contents (${String(headings.length)})` : 'Contents'"
+            :label="headings.length > 0 ? t('content.markdown.contents_count', { n: headings.length }) : t('content.markdown.contents')"
             :aria-pressed="outlineOpen"
             layout="toolbar"
             data-testid="markdown-toggle-contents"
@@ -548,7 +549,7 @@ onBeforeUnmount(() => {
           />
           <AppIconButton
             :icon="appIcons.search"
-            :tooltip="searchOpen ? 'Close search' : 'Search document'"
+            :tooltip="searchOpen ? t('content.markdown.close_search') : t('content.markdown.search')"
             :aria-pressed="searchOpen"
             data-testid="markdown-search-toggle"
             @click="toggleSearch"
@@ -558,8 +559,8 @@ onBeforeUnmount(() => {
               v-model="searchQuery"
               compact
               clearable
-              placeholder="Search document"
-              aria-label="Search document"
+              :placeholder="t('content.markdown.search')"
+              :aria-label="t('content.markdown.search')"
               class="markdown-panel__search"
               data-testid="markdown-search"
               @keydown.esc.stop="closeSearch"
@@ -572,14 +573,14 @@ onBeforeUnmount(() => {
             </span>
             <AppIconButton
               :icon="appIcons.keyboardArrowUp"
-              tooltip="Previous match"
+              :tooltip="t('content.markdown.previous_match')"
               :disable="searchMatchCount === 0"
               data-testid="markdown-search-previous"
               @click="stepSearch(-1)"
             />
             <AppIconButton
               :icon="appIcons.keyboardArrowDown"
-              tooltip="Next match"
+              :tooltip="t('content.markdown.next_match')"
               :disable="searchMatchCount === 0"
               data-testid="markdown-search-next"
               @click="stepSearch(1)"
@@ -592,14 +593,14 @@ onBeforeUnmount(() => {
           <ReadAloudButton
             :text="contentDocument.text"
             strip-markdown
-            listen-label="Listen to document"
+            :listen-label="t('content.markdown.listen')"
             testid="markdown-listen"
           />
           <AppButton
             variant="quiet"
             size="sm"
             :icon="appIcons.download"
-            label="Export"
+            :label="t('content.markdown.export')"
             layout="toolbar"
             :loading="exporting"
             data-testid="markdown-export"
@@ -613,7 +614,7 @@ onBeforeUnmount(() => {
             variant="quiet"
             size="sm"
             :icon="appIcons.code"
-            :label="sourceTitle ?? 'View as text'"
+            :label="sourceTitle ?? t('content.markdown.view_as_text')"
             layout="toolbar"
             data-testid="markdown-view-source"
             @click="showSource"
@@ -641,8 +642,7 @@ onBeforeUnmount(() => {
         tone="warning"
         data-testid="markdown-truncated"
       >
-        This document is larger than the rendering limit, so only its beginning is shown. Its whole
-        source opens in the editor.
+        {{ t("content.markdown.truncated") }}
       </AppBanner>
       <AppBanner
         v-if="contentDocument.notice"
@@ -655,12 +655,12 @@ onBeforeUnmount(() => {
         <aside
           v-if="outlineOpen && hasSidePanel"
           class="markdown-panel__outline"
-          aria-label="Table of contents"
+          :aria-label="t('content.markdown.table_of_contents')"
           data-testid="markdown-contents"
         >
           <template v-if="headings.length > 0">
             <div class="markdown-panel__outline-title dp-overline">
-              On this page
+              {{ t("content.markdown.on_this_page") }}
             </div>
             <div class="markdown-panel__outline-list">
               <AppButton
@@ -691,14 +691,14 @@ onBeforeUnmount(() => {
             <AppCheckbox
               v-model="allowRemoteImages"
               dense
-              label="Load images from other sites"
+              :label="t('content.markdown.load_remote_images')"
               data-testid="markdown-allow-remote"
             />
             <span
               v-if="!allowRemoteImages"
               class="markdown-panel__remote-note"
             >
-              {{ blockedImages }} image(s) in this document are hosted elsewhere and were not requested.
+              {{ t("content.markdown.remote_images_blocked", { n: blockedImages }, blockedImages) }}
             </span>
           </div>
         </aside>

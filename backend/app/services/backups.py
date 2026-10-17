@@ -25,6 +25,7 @@ from app.connectors.access import context_for
 from app.connectors.models import Connector
 from app.connectors.service import build_adapter, merge_options
 from app.core.config import settings
+from app.core.translation import N_, say
 from app.jobs.models import Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
 from app.services.engine import ServiceEngine
@@ -61,7 +62,7 @@ def storage_volume_reason() -> str | None:
     away is worse than a refusal.
     """
     if not settings.SERVICE_STORAGE_VOLUME:
-        return "This server has nowhere to write a backup"
+        return say("This server has nowhere to write a backup")
     return None
 
 
@@ -87,7 +88,7 @@ def backup_source(connector: Connector) -> SupportsBackup:
         context_for(connector.owner_id),
     )
     if not isinstance(adapter, SupportsBackup):
-        raise ValueError("This kind of connection cannot be backed up")
+        raise ValueError(say("This kind of connection cannot be backed up"))
     return adapter
 
 
@@ -99,15 +100,15 @@ class _BackupJob:
 
     async def _connector(self, session: AsyncSession, job: Job) -> Connector:
         if job.subject_id is None:
-            raise JobFailed("This job names no connection")
+            raise JobFailed(say("This job names no connection"))
         connector = await session.get(Connector, job.subject_id)
         if connector is None:
-            raise JobFailed("That connection is no longer here")
+            raise JobFailed(say("That connection is no longer here"))
         await session.refresh(connector)
         if connector.owner_id != job.owner_id:
-            raise JobFailed("This connection no longer belongs to the job owner")
+            raise JobFailed(say("This connection no longer belongs to the job owner"))
         if not connector.enabled:
-            raise JobFailed("This connection is disabled")
+            raise JobFailed(say("This connection is disabled"))
         return connector
 
     def _source(self, connector: Connector) -> SupportsBackup:
@@ -162,9 +163,9 @@ class BackUpConnector(_BackupJob):
 
     kind: ClassVar[JobKind] = "backup.create"
     steps: ClassVar[tuple[str, ...]] = (
-        "asking the source what would copy it",
-        "fetching the tool",
-        "copying the database out",
+        N_("asking the source what would copy it"),
+        N_("fetching the tool"),
+        N_("copying the database out"),
     )
 
     async def carry_out(self, job: Job, progress: Progress) -> str:
@@ -191,17 +192,17 @@ class BackUpConnector(_BackupJob):
         except ValueError as exc:
             raise JobFailed(str(exc)) from None
         if current != program:
-            raise JobFailed("The connection changed while the backup tool was being prepared")
+            raise JobFailed(say("The connection changed while the backup tool was being prepared"))
         await progress.reached("copying the database out")
         result = await self._run(
             program, owner_id=connector.owner_id, what="backup", writes=True
         )
         if not result.ok:
-            raise JobFailed(_why(result, "The database could not be copied out"))
+            raise JobFailed(_why(result, say("The database could not be copied out")))
         written = folder / filename
         if not await to_thread.run_sync(written.exists):
-            raise JobFailed("The program finished but wrote nothing")
-        return f"{filename} written to {BACKUP_FOLDER}"
+            raise JobFailed(say("The program finished but wrote nothing"))
+        return say("{file} written to {folder}", file=filename, folder=BACKUP_FOLDER)
 
 class RestoreConnector(_BackupJob):
     """Put a backup back into a source, over what is there.
@@ -215,10 +216,10 @@ class RestoreConnector(_BackupJob):
 
     kind: ClassVar[JobKind] = "backup.restore"
     steps: ClassVar[tuple[str, ...]] = (
-        "asking the source what would restore it",
-        "fetching the tool",
-        "inspecting the backup archive",
-        "writing the database back",
+        N_("asking the source what would restore it"),
+        N_("fetching the tool"),
+        N_("inspecting the backup archive"),
+        N_("writing the database back"),
     )
 
     async def carry_out(self, job: Job, progress: Progress) -> str:
@@ -244,7 +245,7 @@ class RestoreConnector(_BackupJob):
         except ValueError as exc:
             raise JobFailed(str(exc)) from None
         if inspection.image != program.image:
-            raise JobFailed("The connection changed while the archive tools were being prepared")
+            raise JobFailed(say("The connection changed while the archive tools were being prepared"))
         await progress.reached("fetching the tool")
         await self._engine.pull(program.image)
         await progress.reached("inspecting the backup archive")
@@ -253,7 +254,7 @@ class RestoreConnector(_BackupJob):
             writes=False, inventory=True,
         )
         if not inventory.ok or inventory.truncated:
-            raise JobFailed("The backup inventory could not be read completely")
+            raise JobFailed(say("The backup inventory could not be read completely"))
         try:
             source.validate_restore_inventory(inventory.output)
         except ValueError as exc:
@@ -264,14 +265,14 @@ class RestoreConnector(_BackupJob):
         except ValueError as exc:
             raise JobFailed(str(exc)) from None
         if current != program:
-            raise JobFailed("The connection changed while the restore tool was being prepared")
+            raise JobFailed(say("The connection changed while the restore tool was being prepared"))
         await progress.reached("writing the database back")
         result = await self._run(
             program, owner_id=connector.owner_id, what="restore", writes=False
         )
         if not result.ok:
-            raise JobFailed(_why(result, "The backup could not be written back"))
-        return f"{connector.name} was restored from {name}"
+            raise JobFailed(_why(result, say("The backup could not be written back")))
+        return say("{name} was restored from {file}", name=connector.name, file=name)
 
 
 def _make_folder(folder: Path) -> None:
@@ -282,7 +283,7 @@ def _restore_filename(job: Job) -> str:
     """Which backup this job is about, out of what it was asked for."""
     name = (job.parameters or {}).get("filename")
     if not isinstance(name, str) or not name:
-        raise JobFailed("This job does not say which backup to write back")
+        raise JobFailed(say("This job does not say which backup to write back"))
     return name
 
 

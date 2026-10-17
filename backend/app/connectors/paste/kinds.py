@@ -20,6 +20,7 @@ from app.connectors.paste.models import (
 )
 from app.connectors.paste.transfer import Transfer, TransferPlan, TransferReport
 from app.core.access import Access
+from app.core.translation import say, say_if
 
 
 class PasteKind(Protocol):
@@ -192,10 +193,12 @@ def offered(
     """
     return PasteOffer(
         kind=kind.name,
-        title=kind.title,
+        title=say(kind.title),
         mode=kind.mode,
         available=available,
-        reason=reason,
+        # Worded here as well as where it is written: a kind's `needs` arrives
+        # as the English it was declared in (D226).
+        reason=say_if(reason),
         name_conflict=name_conflict,
         converts=kind.converts,
         can_replace=kind.can_replace if can_replace is None else can_replace,
@@ -215,7 +218,3 @@ def refused(kind: PasteKind, reason: str) -> PasteOffer:
 def text_column(name: str) -> FetchColumn:
     """A column as a delimited file holds it: named, and text."""
     return FetchColumn(name=name, type=ColumnType(sql="text", category="string"))
-
-
-def counted(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"

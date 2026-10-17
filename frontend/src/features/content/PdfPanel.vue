@@ -12,6 +12,7 @@ import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppSpinner } from "@/shared/ui"
 
 // The renderer runs in a worker, which is where a document is parsed. Named
@@ -55,12 +56,15 @@ const pdf = computed(() => {
 const details = computed(() => {
   const value = pdf.value
   if (value === null) return ""
-  const pages = pageCount.value === 0 ? "" : ` · ${String(pageCount.value)} pages`
+  const pages =
+    pageCount.value === 0
+      ? ""
+      : ` · ${t("content.pdf.pages", { n: pageCount.value }, pageCount.value)}`
   return `PDF ${value.version}${pages} · ${formatSize(value.size_bytes)}`
 })
 const error = computed(() =>
   content.isError.value
-    ? messageOf(content.error.value, "Could not open this document")
+    ? messageOf(content.error.value, t("content.common.could_not_open_document"))
     : renderError.value
 )
 
@@ -89,7 +93,7 @@ async function open(url: string) {
     watchWidth()
     await layOutPages(loaded)
   } catch (cause) {
-    renderError.value = messageOf(cause, "This document could not be drawn")
+    renderError.value = messageOf(cause, t("content.pdf.could_not_draw"))
   } finally {
     rendering.value = false
   }
@@ -176,7 +180,7 @@ async function drawPage(loaded: PDFDocumentProxy, number: number, slot: HTMLElem
     })
     await text.render()
   } catch (cause) {
-    renderError.value = messageOf(cause, `Page ${String(number)} could not be drawn`)
+    renderError.value = messageOf(cause, t("content.pdf.page_could_not_draw", { n: number }))
   }
 }
 

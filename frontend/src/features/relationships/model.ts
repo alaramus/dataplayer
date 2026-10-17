@@ -1,5 +1,6 @@
 import type { DeclaredReferencePublic, ReferenceEndPublic, RelationModel } from "@/client"
 import { badgesFor } from "@/features/structure/model"
+import { t } from "@/shared/i18n"
 import type { GraphDocument, GraphEdge, GraphNode, GraphRow } from "@/shared/graph/model"
 
 export const MAX_RELATIONS = 100
@@ -74,10 +75,14 @@ function rowsOf(model: RelationModel): GraphRow[] {
   }))
 }
 
+function kindOf(model: RelationModel): string {
+  return t(`relationships.kinds.${model.kind}`)
+}
+
 function detailsOf(model: RelationModel) {
   return [
-    ...(model.comment ? [{ label: "Description", value: model.comment }] : []),
-    ...(model.owner ? [{ label: "Owner", value: model.owner }] : []),
+    ...(model.comment ? [{ label: t("relationships.description"), value: model.comment }] : []),
+    ...(model.owner ? [{ label: t("relationships.owner"), value: model.owner }] : []),
   ]
 }
 
@@ -92,15 +97,15 @@ export function relationGraph(source: RelationGraphSource): GraphDocument {
     if (!model) {
       const failure = source.failures.find((item) => item.id === requested.id)
       nodes.set(requested.id, {
-        id: requested.id, label: requested.label, caption: "Structure unavailable", rows: [], placeholder: true,
-        details: [{ label: "Read error", value: failure?.message ?? "This structure could not be read." }],
+        id: requested.id, label: requested.label, caption: t("relationships.unavailable"), rows: [], placeholder: true,
+        details: [{ label: t("relationships.read_error"), value: failure?.message ?? t("relationships.not_read") }],
       })
       continue
     }
     const groupId = requested.group ?? (model.schema_name || undefined)
     if (groupId) groups.set(groupId, groupId)
     nodes.set(model.node_id, {
-      id: model.node_id, label: model.name, caption: [groupId, model.kind.replaceAll("_", " ")].filter(Boolean).join(" · "), groupId,
+      id: model.node_id, label: model.name, caption: [groupId, kindOf(model)].filter(Boolean).join(" · "), groupId,
       rows: rowsOf(model), details: detailsOf(model),
     })
   }
@@ -115,12 +120,12 @@ export function relationGraph(source: RelationGraphSource): GraphDocument {
     nodes.set(id, far.model
       ? {
           id, label: far.model.name, groupId,
-          caption: [elsewhere ? far.connectorName : far.model.schema_name, far.model.kind.replaceAll("_", " ")].filter(Boolean).join(" · "),
+          caption: [elsewhere ? far.connectorName : far.model.schema_name, kindOf(far.model)].filter(Boolean).join(" · "),
           rows: rowsOf(far.model), details: detailsOf(far.model),
         }
       : {
-          id, label: far.label, groupId, caption: "Structure unavailable", rows: [], placeholder: true,
-          details: [{ label: "Read error", value: far.message ?? "This structure could not be read." }],
+          id, label: far.label, groupId, caption: t("relationships.unavailable"), rows: [], placeholder: true,
+          details: [{ label: t("relationships.read_error"), value: far.message ?? t("relationships.not_read") }],
         })
   }
   for (const model of source.models) {
@@ -128,8 +133,8 @@ export function relationGraph(source: RelationGraphSource): GraphDocument {
       if (key.kind !== "foreign_key") continue
       if (!nodes.has(key.target_node_id)) {
         nodes.set(key.target_node_id, {
-          id: key.target_node_id, label: key.target_node_id, caption: "Outside selection", rows: [], placeholder: true,
-          details: [{ label: "Scope", value: "This table is referenced by the selection. Its structure has not been loaded." }],
+          id: key.target_node_id, label: key.target_node_id, caption: t("relationships.outside"), rows: [], placeholder: true,
+          details: [{ label: t("relationships.scope"), value: t("relationships.outside_detail") }],
         })
       }
       const sourceRows = nodes.get(model.node_id)!.rows
@@ -142,10 +147,10 @@ export function relationGraph(source: RelationGraphSource): GraphDocument {
         target: { nodeId: key.target_node_id, portIds: targetPorts },
         directed: true, dashed: key.validated === false || !models.has(key.target_node_id),
         details: [
-          { label: "Columns", value: key.columns.map((name, index) => `${name} → ${key.target_columns[index] ?? "?"}`).join("\n") },
-          { label: "On update", value: (key.on_update ?? "no_action").replaceAll("_", " ") },
-          { label: "On delete", value: (key.on_delete ?? "no_action").replaceAll("_", " ") },
-          { label: "Validated", value: key.validated === false ? "No" : "Yes" },
+          { label: t("relationships.columns"), value: key.columns.map((name, index) => `${name} → ${key.target_columns[index] ?? "?"}`).join("\n") },
+          { label: t("relationships.on_update"), value: t(`relationships.actions.${key.on_update ?? "no_action"}`) },
+          { label: t("relationships.on_delete"), value: t(`relationships.actions.${key.on_delete ?? "no_action"}`) },
+          { label: t("relationships.validated"), value: key.validated === false ? t("relationships.no") : t("relationships.yes") },
         ],
       })
     }
@@ -162,11 +167,11 @@ export function relationGraph(source: RelationGraphSource): GraphDocument {
     const to = endpoint(b)
     if (!nodes.has(from.nodeId) || !nodes.has(to.nodeId)) continue
     edges.push({
-      id: JSON.stringify(["declared", reference.id]), label: "declared",
+      id: JSON.stringify(["declared", reference.id]), label: t("relationships.declared"),
       source: from, target: to, directed: false, tone: "secondary",
       details: [
-        { label: "Columns", value: `${a.node_label}.${a.column} ↔ ${b.node_label}.${b.column}` },
-        { label: "Kind", value: "Declared reference: drawn by you, not kept by either source" },
+        { label: t("relationships.columns"), value: `${a.node_label}.${a.column} ↔ ${b.node_label}.${b.column}` },
+        { label: t("relationships.kind"), value: t("relationships.declared_kind") },
       ],
     })
   }

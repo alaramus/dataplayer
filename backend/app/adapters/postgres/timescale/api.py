@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.actions import ActionRefused
 from app.adapters.postgres.inspection import PostgresReader
+from app.core.translation import say
 
 
 @dataclass(frozen=True)
@@ -123,9 +124,9 @@ async def extension_routine(
         len(leading), len(leading) - 1, leading, len(leading), shape.exclusive,
     ), inspection=True)
     if len(rows) != 1:
-        raise ActionRefused(
-            "not_applicable", f"The TimescaleDB {shape.name} API is not usable by this connection",
-        )
+        raise ActionRefused("not_applicable", say(
+            "The TimescaleDB {routine} API is not usable by this connection", routine=shape.name,
+        ))
     return ExtensionRoutine.model_validate(rows[0])
 
 
@@ -133,7 +134,9 @@ async def extension_type(reader: PostgresReader, version: str, schema_name: str,
     """The OID of one extension-owned type this role may use."""
     rows = await reader.query(_TYPE, (version, schema_name, type_name), inspection=True)
     if len(rows) != 1:
-        raise ActionRefused("not_applicable", f"The TimescaleDB {type_name} type is not usable by this connection")
+        raise ActionRefused("not_applicable", say(
+            "The TimescaleDB {type} type is not usable by this connection", type=type_name,
+        ))
     return ExtensionObject.model_validate(rows[0]).oid
 
 
@@ -141,5 +144,5 @@ async def lockable_view(reader: PostgresReader, version: str, view: str) -> str:
     """The OID of a public view this role may lock in any mode (UPDATE, DELETE or TRUNCATE)."""
     rows = await reader.query(_LOCKABLE_VIEW, (version, view), inspection=True)
     if len(rows) != 1:
-        raise ActionRefused("not_applicable", "This connection may not lock TimescaleDB public metadata")
+        raise ActionRefused("not_applicable", say("This connection may not lock TimescaleDB public metadata"))
     return ExtensionObject.model_validate(rows[0]).oid

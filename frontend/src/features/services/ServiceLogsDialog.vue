@@ -3,6 +3,7 @@ import { computed, inject } from "vue"
 
 import ServiceLogs from "@/features/services/ServiceLogs.vue"
 import { workspaceActionsKey } from "@/features/workspace/state"
+import { t } from "@/shared/i18n"
 import { openAsTabAction, WindowDialog } from "@/shared/windows"
 
 /**
@@ -40,7 +41,7 @@ const actions = computed(() => {
     :model-value="service !== null"
     size="wide-form"
     sizing="stable"
-    :title="`Output of ${service?.connector_name ?? ''}`"
+    :title="t('services.logs.title', { name: service?.connector_name ?? '' })"
     :actions="actions"
     data-testid="service-logs"
     @update:model-value="emit('update:service', null)"

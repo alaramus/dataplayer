@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
 import { AppIconButton, AppTooltip } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 
 import { shownSize } from "./attachments"
 import type { AttachmentKind } from "./attachments"
@@ -35,7 +36,7 @@ const emit = defineEmits<{ open: []; remove: [] }>()
     <button
       type="button"
       class="ai-file-chip__open"
-      :aria-label="`Open ${name}`"
+      :aria-label="t('ai.file.open', { name })"
       @click="emit('open')"
     >
       <img
@@ -59,7 +60,7 @@ const emit = defineEmits<{ open: []; remove: [] }>()
     <AppIconButton
       v-if="removable"
       :icon="appIcons.close"
-      :tooltip="`Remove ${name}`"
+      :tooltip="t('ai.common.remove', { name })"
       compact
       @click="emit('remove')"
     />

@@ -8,6 +8,7 @@ here and never text from the request.
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from psycopg import sql
 
@@ -59,6 +60,7 @@ from app.adapters.postgres.timescale.design_plan import (
     SetIntegerNow,
     add_dimension_shape,
     by_hash_shape,
+    counted_in,
     length_from,
     plan_steps,
     require_new_functions,
@@ -87,6 +89,7 @@ from app.adapters.table_design import (
     IntegerTimeOption,
     TableHypertable,
 )
+from app.core.translation import say
 
 # The designer's codes for the types a time dimension may have, as PostgreSQL names them.
 TIME_TYPES = {
@@ -102,7 +105,8 @@ TIME_TYPES = {
 # the plan carries the name and the statements cast it.
 _UNBORN = "1"
 _ADD_POLICY = {"retention": "add_retention_policy", "compression": "add_compression_policy"}
-_TITLES = {"retention": "Retention policy", "compression": "Columnstore policy"}
+# What names a column of the draft, each said in its own refusal.
+Naming = Literal["segment", "order", "sparse", "time", "hash"]
 
 
 @dataclass(frozen=True)
@@ -157,10 +161,20 @@ async def hypertable_offer(reader: PostgresReader) -> HypertableOffer:
     )
 
 
-def _name(columns: dict[str, DraftColumn], draft_id: str, what: str) -> str:
+def _name(columns: dict[str, DraftColumn], draft_id: str, what: Naming) -> str:
     column = columns.get(draft_id)
     if column is None:
-        raise CreationProblem(f"The {what} names a column that is not there")
+        match what:
+            case "segment":
+                raise CreationProblem(say("The segment list names a column that is not there"))
+            case "order":
+                raise CreationProblem(say("The order list names a column that is not there"))
+            case "sparse":
+                raise CreationProblem(say("The sparse index names a column that is not there"))
+            case "time":
+                raise CreationProblem(say("The time dimension names a column that is not there"))
+            case "hash":
+                raise CreationProblem(say("The hash dimension names a column that is not there"))
     return column.name
 
 
@@ -172,14 +186,14 @@ def _design(
         segment = NoColumns()
     elif hyper.segment_mode == "columns":
         if not hyper.segment_column_ids:
-            raise CreationProblem("Choose the columns to segment by")
-        segment = SegmentColumns(columns=[_name(columns, item, "segment list") for item in hyper.segment_column_ids])
+            raise CreationProblem(say("Choose the columns to segment by"))
+        segment = SegmentColumns(columns=[_name(columns, item, "segment") for item in hyper.segment_column_ids])
     order: OrderBy = ChosenByTimescale()
     if hyper.order_mode == "columns":
         if not hyper.order_keys:
-            raise CreationProblem("Choose the columns to order by")
+            raise CreationProblem(say("Choose the columns to order by"))
         order = OrderColumns(columns=[
-            OrderKey(column=_name(columns, key.column_id, "order list"),
+            OrderKey(column=_name(columns, key.column_id, "order"),
                      descending=key.descending, nulls_first=key.nulls_first)
             for key in hyper.order_keys
         ])
@@ -188,21 +202,21 @@ def _design(
         sparse = NoColumns()
     elif hyper.sparse_mode == "columns":
         if not hyper.sparse_indexes:
-            raise CreationProblem("Choose the columns of the sparse indexes")
+            raise CreationProblem(say("Choose the columns of the sparse indexes"))
         sparse = SparseColumns(indexes=[
-            SparseIndex(column=_name(columns, item.column_id, "sparse index"), kind=item.kind)
+            SparseIndex(column=_name(columns, item.column_id, "sparse"), kind=item.kind)
             for item in hyper.sparse_indexes
         ])
     reorder = None
     if hyper.reorder_index_id is not None:
         reorder = index_names.get(hyper.reorder_index_id)
         if reorder is None:
-            raise CreationProblem("The reorder policy names an index that is not there")
+            raise CreationProblem(say("The reorder policy names an index that is not there"))
     return HypertableDesign(
-        time_column=_name(columns, hyper.time_column_id, "time dimension"),
+        time_column=_name(columns, hyper.time_column_id, "time"),
         chunk_interval=hyper.chunk_interval,
         hash_dimensions=[
-            HashDesign(column=_name(columns, item.column_id, "hash dimension"), partitions=item.partitions)
+            HashDesign(column=_name(columns, item.column_id, "hash"), partitions=item.partitions)
             for item in hyper.hash_dimensions
         ],
         columnstore=ColumnstoreDesign(
@@ -226,7 +240,7 @@ def _unborn(
     interval = design.chunk_interval
     column_type = TIME_TYPES[column.type_code]
     if interval is None:
-        raise CreationProblem("Choose the chunk interval", field="chunk_interval")
+        raise CreationProblem(say("Choose the chunk interval"), field="chunk_interval")
     try:
         length = span_length(column_type, interval)
     except ActionRefused as refusal:
@@ -268,7 +282,7 @@ async def _schema(reader: PostgresReader, version: str, steps: tuple[DesignStep,
         shapes.extend((add_dimension_shape(dimension_info), by_hash_shape(dimension_info)))
     schemas = {(await extension_routine(reader, version, shape)).schema_name for shape in dict.fromkeys(shapes)}
     if len(schemas) != 1:
-        raise CreationProblem("The TimescaleDB API is split across schemas")
+        raise CreationProblem(say("The TimescaleDB API is split across schemas"))
     return schemas.pop()
 
 
@@ -284,33 +298,36 @@ def _render(schema: str, table: sql.Identifier, step: DesignStep) -> list[Creati
     relation = sql.SQL("{}::pg_catalog.regclass").format(sql.Literal(table.as_string()))
     match step:
         case AddHashDimension(column=column, partitions=partitions):
-            return [CreationStatement(f"Hash dimension {column}", sql.SQL(
+            return [CreationStatement(say("Hash dimension {column}", column=column), sql.SQL(
                 "SELECT dimension_id FROM {}({}, {}({}::pg_catalog.name, {}::pg_catalog.int4), false)"
             ).format(
                 sql.Identifier(schema, "add_dimension"), relation, sql.Identifier(schema, "by_hash"),
                 sql.Literal(column), sql.Literal(partitions),
             ).as_string())]
         case ConfigureColumnstore():
-            return [CreationStatement("Columnstore", item.as_string()) for item in columnstore_statements(table, step)]
+            return [
+                CreationStatement(say("Columnstore"), item.as_string()) for item in columnstore_statements(table, step)
+            ]
         case AddAgePolicy(kind=kind, older_than=older_than):
-            return [CreationStatement(_TITLES[kind], _call(schema, _ADD_POLICY[kind], sql.SQL(
+            title = say("Retention policy") if kind == "retention" else say("Columnstore policy")
+            return [CreationStatement(title, _call(schema, _ADD_POLICY[kind], sql.SQL(
                 "{}, {}, false"
             ).format(relation, _length(older_than))))]
         case CreateNowFunction():
-            return [CreationStatement(f"Function {step.name}", now_function_statement(step).as_string())]
+            return [CreationStatement(say("Function {name}", name=step.name), now_function_statement(step).as_string())]
         case SetIntegerNow(schema_name=schema_name, name=name):
-            return [CreationStatement("Integer now", _call(schema, "set_integer_now_func", sql.SQL(
+            return [CreationStatement(say("Integer now"), _call(schema, "set_integer_now_func", sql.SQL(
                 "{}, {}::pg_catalog.regprocedure::pg_catalog.oid::pg_catalog.regproc, false"
             ).format(relation, sql.Literal(routine_signature(schema_name, name)))))]
         case AddCompactionPolicy():
-            return [CreationStatement("Compaction policy", _call(schema, "add_compaction_policy", sql.SQL(
+            return [CreationStatement(say("Compaction policy"), _call(schema, "add_compaction_policy", sql.SQL(
                 "{}, false"
             ).format(relation)))]
         case AddReorderPolicy(index=index):
-            return [CreationStatement("Reorder policy", _call(schema, "add_reorder_policy", sql.SQL(
+            return [CreationStatement(say("Reorder policy"), _call(schema, "add_reorder_policy", sql.SQL(
                 "{}, {}::pg_catalog.name, false"
             ).format(relation, sql.Literal(index))))]
-    raise CreationProblem("This setting cannot be made while the table is created")
+    raise CreationProblem(say("This setting cannot be made while the table is created"))
 
 
 async def creation_statements(
@@ -324,21 +341,22 @@ async def creation_statements(
         raise CreationProblem(refusal.message) from None
     time_column = columns.get(hyper.time_column_id)
     if time_column is None:
-        raise CreationProblem("The time dimension names a column that is not there", field="time_column_id")
+        raise CreationProblem(say("The time dimension names a column that is not there"), field="time_column_id")
     if time_column.type_code not in TIME_TYPES or time_column.array:
         raise CreationProblem(
-            f'"{time_column.name}" cannot partition a hypertable; choose a timestamp or date column',
+            say('"{column}" cannot partition a hypertable; choose a timestamp or date column', column=time_column.name),
             field="time_column_id",
         )
     if not time_column.not_null:
         raise CreationProblem(
-            f'"{time_column.name}" partitions the hypertable, so it must have a value',
+            say('"{column}" partitions the hypertable, so it must have a value', column=time_column.name),
             object_id=hyper.time_column_id, field="not_null",
         )
     offered = await capabilities(reader, version)
     if time_column.type_code == "uuid" and not offered.uuid_time:
         raise CreationProblem(
-            f"TimescaleDB {version} partitions by UUIDv7 only partly; choose a timestamp column", field="time_column_id",
+            say("TimescaleDB {version} partitions by UUIDv7 only partly; choose a timestamp column", version=version),
+            field="time_column_id",
         )
     design = _design(hyper, columns, index_names)
     functions = await now_functions(reader) if TIME_TYPES[time_column.type_code] in INTEGER_TYPES else ()
@@ -347,8 +365,7 @@ async def creation_statements(
     )
     chunk = hyper.chunk_interval
     if isinstance(chunk, DesignDuration) and chunk.unit not in interval_units(current.target):
-        allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))
-        raise CreationProblem(f"A chunk interval of this column is counted in {allowed}", field="chunk_interval")
+        raise CreationProblem(counted_in(current, hypertable=False), field="chunk_interval")
     try:
         steps = plan_steps(current, design)
         await require_new_functions(reader, steps)
@@ -357,7 +374,7 @@ async def creation_statements(
         raise CreationProblem(refusal.message) from None
     table = sql.Identifier(schema, table_name)
     # No default indexes: the designer shows the time index as one of the table's own.
-    creation = CreationStatement("Hypertable", sql.SQL(
+    creation = CreationStatement(say("Hypertable"), sql.SQL(
         "SELECT hypertable_id FROM {}({}::pg_catalog.regclass, {}({}::pg_catalog.name, "
         "{}), false, false, false)"
     ).format(

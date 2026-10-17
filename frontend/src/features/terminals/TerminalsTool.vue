@@ -5,6 +5,7 @@ import type { SshKeyPublic } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
 import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
 import { useLockedKey } from "@/features/sshKeys/api"
+import { t } from "@/shared/i18n"
 import { AppBanner, AppButton, AppEmptyState } from "@/shared/ui"
 
 import TerminalView from "./TerminalView.vue"
@@ -69,7 +70,7 @@ function unlocked() {
         >
           <AppButton
             variant="quiet"
-            label="Open again"
+            :label="t('terminals.open_again')"
             data-testid="terminal-open-again"
             @click="again"
           />
@@ -82,7 +83,7 @@ function unlocked() {
         >
           <AppButton
             variant="quiet"
-            label="Unlock the key"
+            :label="t('terminals.unlock')"
             data-testid="terminal-unlock-key"
             @click="unlock"
           />
@@ -101,8 +102,8 @@ function unlocked() {
         icon="terminal"
         :text="
           candidates.length === 0
-            ? 'None of your connections has a terminal. An SSH connection does.'
-            : 'No terminal is open. Choose the connection to open one on:'
+            ? t('terminals.none')
+            : t('terminals.choose')
         "
       />
       <div class="terminals__candidates">

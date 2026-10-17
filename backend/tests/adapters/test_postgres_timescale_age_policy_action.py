@@ -38,6 +38,7 @@ from app.adapters.postgres.timescale.plans import (
 )
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.protocol import AdapterError
+from app.core.translation import current_language
 
 TARGET = TimeHypertable(
     database_oid="42", relation_oid="123", schema_name='odd"schema', table_name="events",
@@ -231,6 +232,23 @@ async def test_preview_renders_the_snapshot_plan(
     assert result.fingerprint == planned.fingerprint()
     assert not result.blocked
     session.rehearse.assert_not_called()
+
+
+async def test_a_russian_request_reads_the_preview_in_russian(monkeypatch: pytest.MonkeyPatch) -> None:
+    planned = plan(RETENTION, existing=None)
+    monkeypatch.setattr(age_policy_action, "plan_age_policy", AsyncMock(return_value=planned))
+    token = current_language.set("ru")
+    try:
+        result = await age_policy_action.preview_age_policy(
+            MagicMock(), RETENTION, "lab", "events", planned.older_than,
+        )
+    finally:
+        current_language.reset(token)
+    assert result.summary == 'Задать политику хранения для "odd""schema"."events"'
+    assert result.items[:3] == [
+        'Временное измерение: "time"', "Политики хранения пока нет",
+        "Новая политика: удалять чанки старше 10 г.",
+    ]
 
 
 @pytest.mark.parametrize("error", [

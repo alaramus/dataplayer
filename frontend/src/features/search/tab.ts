@@ -1,9 +1,10 @@
 import type { Hit } from "@/client"
+import { t } from "@/shared/i18n"
 import type { SelectOption } from "@/shared/ui"
 
 import { groupsOf } from "./answer"
 import type { AnswerState, CellState } from "./answer"
-import { isObjectType, OBJECT_LABELS } from "./kinds"
+import { isObjectType, objectLabel } from "./kinds"
 import { saidOf } from "./outcomes"
 import type { Said } from "./outcomes"
 
@@ -35,11 +36,13 @@ const WITHIN_MS: Record<Exclude<ChangedWithin, "any">, number> = {
 export const CHANGED_OPTIONS: SelectOption[] = [
   // Short enough for the four filters to share a line; the select's own name,
   // "Changed", says which date it is.
-  { label: "Any date", value: "any" },
-  { label: "Past day", value: "day" },
-  { label: "Past week", value: "week" },
-  { label: "Past month", value: "month" },
-  { label: "Past year", value: "year" },
+  // Labels are getters, read when the select draws them.
+  ...(["any", "day", "week", "month", "year"] as const).map((value) => ({
+    get label() {
+      return t(`search.changed.${value}`)
+    },
+    value,
+  })),
 ]
 
 /** The connection a hit is in, or is; nothing for what the application keeps. */
@@ -117,7 +120,7 @@ export function tabGroups(state: AnswerState, filters: TabFilters, now: number):
 
 /** "Postgres", "Saved query": a kind as a person reads it. */
 export function kindLabel(kind: string): string {
-  if (isObjectType(kind)) return OBJECT_LABELS[kind]
+  if (isObjectType(kind)) return objectLabel(kind)
   const spaced = kind.replace(/[_-]+/g, " ")
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }

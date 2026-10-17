@@ -3,6 +3,7 @@ import { ref } from "vue"
 import type { QuickTurnMessage } from "@/client"
 import { serverStorageKey } from "@/shared/servers/context"
 import type { SelectOption } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 
 /**
  * Gemini Nano, which Chrome runs on the person's own machine, for the quick
@@ -42,20 +43,13 @@ export async function readBrowserModelState(): Promise<BrowserModelState> {
 
 /** What the list says of the row, and whether it can be chosen. */
 export function browserModelOptions(state: BrowserModelState | null): SelectOption[] {
-  const description = {
-    unsupported: "Needs Chrome on a desktop computer",
-    unavailable: "This computer cannot run it: Chrome needs 22 GB free and a 4 GB graphics card or 16 GB of memory",
-    downloadable: "Runs on this computer once Chrome downloads it",
-    downloading: "Chrome is downloading it",
-    available: "Runs on this computer; nothing leaves it",
-  }
   return [
-    { label: "This browser", value: "browser:heading", group: true, separator: true },
+    { label: t("ai.browser.heading"), value: "browser:heading", group: true, separator: true },
     {
       label: BROWSER_MODEL_LABEL,
       value: BROWSER_MODEL_KEY,
       separator: true,
-      description: state === null ? undefined : description[state],
+      description: state === null ? undefined : t(`ai.browser.${state}`),
       disable: state === "unsupported" || state === "unavailable",
     },
   ]
@@ -109,7 +103,7 @@ export async function answerInBrowser(turn: {
   signal?: AbortSignal
 }): Promise<string> {
   const found = factory()
-  if (!found) throw new Error("This browser cannot run Gemini Nano")
+  if (!found) throw new Error(t("ai.browser.cannot_run"))
   turn.signal?.throwIfAborted()
   let initial: PromptMessage[] = [{ role: "system", content: turn.prompt }, ...turn.history]
   let session: PromptSession

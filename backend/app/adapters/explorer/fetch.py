@@ -26,6 +26,7 @@ from app.adapters.explorer.storage import Storage
 from app.adapters.explorer.update import encode_handle
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.core.config import settings
+from app.core.translation import say
 
 CSV_READER = CsvReader()
 TEXT_READER = TextReader()
@@ -44,7 +45,7 @@ class ExplorerFetch:
         # ordering the page rather than the file. Looking a value up is a scan
         # the source can do honestly, and does (D109).
         if request.sort:
-            raise ValueError("This source cannot sort rows")
+            raise ValueError(say("This source cannot sort rows"))
 
         # One hop into the worker thread, resolution included: deciding what a
         # node id names asks the filesystem, which blocks like the read does.
@@ -65,11 +66,11 @@ class ExplorerFetch:
                 else [None for _ in page.rows]
             ),
             update_supported=editable,
-            update_reason=None if editable else "This file representation is read-only",
+            update_reason=None if editable else say("This file representation is read-only"),
             insert_supported=editable,
-            insert_reason=None if editable else "This file representation is read-only",
+            insert_reason=None if editable else say("This file representation is read-only"),
             delete_supported=editable,
-            delete_reason=None if editable else "This file representation is read-only",
+            delete_reason=None if editable else say("This file representation is read-only"),
         )
 
     def _read(self, request: FetchRequest) -> tuple[Page, bool, str | None]:
@@ -88,9 +89,11 @@ class ExplorerFetch:
 
         found = resolved.entry
         if found is None:
-            raise ValueError(f"No such file: {request.node_id}")
+            raise ValueError(say("No such file: {node_id}", node_id=request.node_id))
         if found.is_directory:
-            raise ValueError(f"A directory cannot be read as rows: {request.node_id}")
+            raise ValueError(
+                say("A directory cannot be read as rows: {node_id}", node_id=request.node_id)
+            )
         place = resolved.place
         before = self._storage.version(place)
         with self._storage.local_file(place) as path:
@@ -102,7 +105,7 @@ class ExplorerFetch:
         )
         after = self._storage.version(place)
         if editable and before != after:
-            raise ValueError("The file changed while this page was being read; reload it")
+            raise ValueError(say("The file changed while this page was being read; reload it"))
         return page, editable, after if editable else None
 
     def _read_path(self, path: Path, request: FetchRequest, *, name: str) -> Page:
@@ -134,12 +137,16 @@ class ExplorerFetch:
             case "delimited" | "json" | "jsonl" | "log" | "text" as textual:
                 if looks_binary(path):
                     # Classification goes by name; the bytes get the last word.
-                    raise ValueError(f"This file is binary: {request.node_id}")
+                    raise ValueError(
+                        say("This file is binary: {node_id}", node_id=request.node_id)
+                    )
                 return _reader_for(textual).read(
                     path, request.limit, request.offset, request.filters
                 )
             case "markdown" | "image" | "audio" | "video" | "pdf" | "archive" | "opaque":
-                raise ValueError(f"This file cannot be read as rows: {request.node_id}")
+                raise ValueError(
+                    say("This file cannot be read as rows: {node_id}", node_id=request.node_id)
+                )
             case unreachable:
                 assert_never(unreachable)
 
@@ -149,7 +156,7 @@ class ExplorerFetch:
         """One page of one worksheet, named by the member part of the id."""
         member = resolved.member
         if member is None or not member.isdigit():
-            raise ValueError(f"No such sheet: {request.node_id}")
+            raise ValueError(say("No such sheet: {node_id}", node_id=request.node_id))
         return workbook.read_page(
             path, int(member), request.limit, request.offset, request.filters
         )
@@ -180,7 +187,7 @@ def _first_sheet(path: Path) -> int:
     """
     found = workbook.sheets(path)
     if not found:
-        raise ValueError(f"This workbook has no sheets: {path.name}")
+        raise ValueError(say("This workbook has no sheets: {name}", name=path.name))
     visible = [sheet for sheet in found if not sheet.hidden]
     return (visible or found)[0].position
 

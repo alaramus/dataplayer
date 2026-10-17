@@ -12,13 +12,14 @@ import { useBottomPanel } from "@/features/workspace/useBottomPanel"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import type { OpenHow } from "@/features/workspace/state"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { t } from "@/shared/i18n"
 import { forgetOpened, forgetOpenedHit, readOpened, rememberOpened } from "@/shared/search/opened"
 import { useToast } from "@/shared/ui"
 import { useSpaceStore } from "@/stores/space"
 
 import { openHit, showInCatalog } from "./intents"
 import type { Openers } from "./intents"
-import { OBJECT_LABELS } from "./kinds"
+import { objectLabel } from "./kinds"
 
 /**
  * What the registry's entries call on this screen: the workspace's own ways
@@ -83,8 +84,8 @@ export function useHitOpeners(): Openers {
       actions.openTabGroup(groupId)
     },
     unopenable: (hit: Hit) => {
-      const what = hit.target.kind === "object" ? OBJECT_LABELS[hit.target.object_type] : hit.title
-      toast.info(`${what} can't be opened from here`)
+      const what = hit.target.kind === "object" ? objectLabel(hit.target.object_type) : hit.title
+      toast.info(t("search.unopenable", { what }))
     },
   }
 }

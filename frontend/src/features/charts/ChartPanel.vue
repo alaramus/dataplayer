@@ -7,6 +7,7 @@ import SourceErrorBanner from "@/features/sshKeys/SourceErrorBanner.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { AppSpinner } from "@/shared/ui"
 
 import ChartView from "./ChartView.vue"
@@ -66,8 +67,8 @@ const offset = computed(() => props.request.offset ?? 0)
 
 const pageLabel = computed(() => {
   const count = result.value?.rows.length ?? 0
-  if (count === 0) return "Current page · Rows 0"
-  return `Current page · Rows ${String(offset.value + 1)}–${String(offset.value + count)}`
+  if (count === 0) return t("charts.page.none")
+  return t("charts.page.range", { first: offset.value + 1, last: offset.value + count })
 })
 </script>
 
@@ -90,7 +91,7 @@ const pageLabel = computed(() => {
       :error-kind="errorKindOf(rowsQuery.error.value)"
       data-testid="chart-error"
     >
-      {{ messageOf(rowsQuery.error.value, "Could not read the chart page") }}
+      {{ messageOf(rowsQuery.error.value, t("charts.read_failed")) }}
     </SourceErrorBanner>
 
     <div
@@ -103,8 +104,8 @@ const pageLabel = computed(() => {
     <template v-else>
       <div class="chart-panel__notice">
         <strong>{{ pageLabel }}</strong>
-        <span v-if="result?.has_more">Later rows are not included.</span>
-        <span v-else>The chart uses only this bounded result.</span>
+        <span v-if="result?.has_more">{{ t("charts.page.more") }}</span>
+        <span v-else>{{ t("charts.page.bounded") }}</span>
       </div>
 
       <ChartView

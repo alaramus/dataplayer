@@ -7,6 +7,7 @@ import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { placesIn } from "@/features/grid/relationPlaces"
 import type { Destination } from "@/features/grid/relationPlaces"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -102,10 +103,7 @@ const selected = computed(() => mappings.value.filter((mapping) => mapping.inclu
 const destination = computed<Destination>(
   () => schemas.value.find((place) => place.value === schemaId.value)?.kind ?? "schema"
 )
-const madeThing = computed(() => (destination.value === "folder" ? "file" : "table"))
-const placeLabel = computed(() =>
-  destination.value === "folder" ? "Folder" : "Schema"
-)
+const placeLabel = computed(() => t(`grid.create_table.place.${destination.value}`))
 const loading = computed(() => catalogLoading.value || optionsLoading.value)
 const typeChoices = computed(() =>
   (options.value?.column_type_options ?? []).map((choice) => ({
@@ -124,7 +122,7 @@ const ready = computed(
 )
 
 function defaultName(title: string): string {
-  return title.replace(/\.[^.]+$/, "") || "new table"
+  return title.replace(/\.[^.]+$/, "") || t("grid.create_table.default_name")
 }
 
 watch(
@@ -180,18 +178,18 @@ async function loadSchemas(id: string) {
     if (mine !== catalogAsked) return
     schemas.value = placesIn(
       answer.data,
-      targets.value.find((target) => target.value === id)?.label ?? "Top level"
+      targets.value.find((target) => target.value === id)?.label ?? t("grid.create_table.top_level")
     )
     const first = schemas.value[0]
     schemaId.value = first?.value ?? ""
     if (first === undefined) {
-      trouble.value = "This connection has nowhere to put a new table"
+      trouble.value = t("grid.create_table.nowhere")
       return
     }
     await loadOptions(schemaId.value)
   } catch (cause) {
     if (mine !== catalogAsked) return
-    trouble.value = messageOf(cause, "Could not read the destination schemas")
+    trouble.value = messageOf(cause, t("grid.create_table.schemas_failed"))
   } finally {
     if (mine === catalogAsked) catalogLoading.value = false
   }
@@ -236,7 +234,7 @@ async function loadOptions(id: string) {
     options.value = answer.data
     if (!answer.data.supported) {
       trouble.value =
-        answer.data.reason ?? `This place cannot accept a new ${madeThing.value}`
+        answer.data.reason ?? t(`grid.create_table.cannot_accept.${destination.value}`)
       return
     }
     const choices = answer.data.column_type_options ?? []
@@ -257,7 +255,7 @@ async function loadOptions(id: string) {
     })
   } catch (cause) {
     if (mine !== optionsAsked) return
-    trouble.value = messageOf(cause, "Could not read the table options")
+    trouble.value = messageOf(cause, t("grid.create_table.options_failed"))
   } finally {
     if (mine === optionsAsked) optionsLoading.value = false
   }
@@ -281,11 +279,11 @@ function run() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    :title="destination === 'folder' ? 'Save this data as a file' : 'Create table from this data'"
+    :title="t(`grid.create_table.title.${destination}`)"
     :subtitle="
       fixedDestination
-        ? `In ${fixedDestination.label}, with the columns you choose`
-        : `Choose where the new ${madeThing} goes and which columns it receives`
+        ? t('grid.create_table.fixed_subtitle', { place: fixedDestination.label })
+        : t(`grid.create_table.subtitle.${destination}`)
     "
     size="wide-form"
     sizing="stable"
@@ -310,7 +308,7 @@ function run() {
         v-if="!fixedDestination"
         v-model="connectorId"
         :options="targets"
-        label="Connection"
+        :label="t('grid.create_table.connection')"
         :loading="connectors.isFetching.value"
         data-testid="grid-create-table-connector"
       />
@@ -326,10 +324,10 @@ function run() {
       />
       <AppInput
         v-model="tableName"
-        :label="destination === 'folder' ? 'File name' : 'Table name'"
+        :label="t(`grid.create_table.name.${destination}`)"
         :hint="
           destination === 'folder'
-            ? 'Written as CSV unless the name says otherwise'
+            ? t('grid.create_table.csv_hint')
             : undefined
         "
         autocomplete="off"
@@ -341,10 +339,10 @@ function run() {
         data-testid="grid-create-table-columns"
       >
         <template #from>
-          In this data
+          {{ t('grid.create_table.from') }}
         </template>
         <template #to>
-          Column in the new {{ madeThing }}
+          {{ t(`grid.create_table.to.${destination}`) }}
         </template>
         <!-- Only where there is something to choose: every column of a
              delimited file is text, and a list of one is a control that does
@@ -353,7 +351,7 @@ function run() {
           v-if="typeChoices.length > 1"
           #extra
         >
-          Type
+          {{ t('grid.create_table.type') }}
         </template>
         <AppPairsRow
           v-for="mapping in mappings"
@@ -370,7 +368,7 @@ function run() {
           <template #to>
             <AppInput
               v-model="mapping.target"
-              :aria-label="`Name in the new ${madeThing} for ${mapping.source}`"
+              :aria-label="t(`grid.create_table.target_aria.${destination}`, { column: mapping.source })"
               :disable="!mapping.include"
               autocomplete="off"
               compact
@@ -382,7 +380,7 @@ function run() {
           >
             <AppSelect
               v-model="mapping.typeCode"
-              :aria-label="`Type of ${mapping.source}`"
+              :aria-label="t('grid.create_table.type_aria', { column: mapping.source })"
               :options="typeChoices"
               :disable="!mapping.include"
               compact
@@ -394,11 +392,11 @@ function run() {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        :label="actionLabel ?? (destination === 'folder' ? 'Create file' : 'Create table')"
+        :label="actionLabel ?? t(`grid.create_table.run.${destination}`)"
         :disable="!ready"
         :loading="running"
         data-testid="grid-create-table-run"

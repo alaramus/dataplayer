@@ -14,11 +14,12 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.adapters.catalog import CatalogNode
 from app.adapters.relation import ColumnTypeOption
 from app.adapters.update import ValuesRejected
+from app.core.translation import N_, say
 
 
-def _plain(name: str, what: str) -> str:
+def _plain(name: str, refusal: str) -> str:
     if name.strip() != name:
-        raise ValueError(f"A {what} cannot start or end with whitespace")
+        raise ValueError(say(refusal))
     return name
 
 
@@ -39,7 +40,7 @@ class NewColumn(BaseModel):
 
     @model_validator(mode="after")
     def plain_name(self) -> NewColumn:
-        _plain(self.name, "column name")
+        _plain(self.name, N_("A column name cannot start or end with whitespace"))
         return self
 
 
@@ -61,13 +62,13 @@ class CreateRelationRequest(BaseModel):
 
     @model_validator(mode="after")
     def named_once_and_rectangular(self) -> CreateRelationRequest:
-        _plain(self.name, "relation name")
+        _plain(self.name, N_("A relation name cannot start or end with whitespace"))
         names = [column.name for column in self.columns]
         if len(names) != len(set(names)):
-            raise ValueError("A column may be named only once")
+            raise ValueError(say("A column may be named only once"))
         width = len(self.columns)
         if any(len(row) != width for row in self.rows):
-            raise ValueError("Every row carries one value per column")
+            raise ValueError(say("Every row carries one value per column"))
         # No third ceiling on the product of the two: what a whole file may
         # weigh is a question for whoever supplies the rows, and the one place
         # that does today refuses a file over its own byte limit while it is

@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.core.config import settings
+from app.core.translation import say
 
 LARGEST_BYTES = 200 * 1024 * 1024
 CAPACITY_BYTES = 1024 * 1024 * 1024
@@ -36,8 +37,11 @@ class TooLargeToCopy(ValueError):
 
     def __init__(self, name: str) -> None:
         super().__init__(
-            f"{name} is larger than {LARGEST_BYTES // (1024 * 1024)} MB; "
-            "download it to open it"
+            say(
+                "{name} is larger than {megabytes} MB; download it to open it",
+                name=name,
+                megabytes=LARGEST_BYTES // (1024 * 1024),
+            )
         )
 
 

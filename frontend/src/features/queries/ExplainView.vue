@@ -4,6 +4,8 @@ import { computed, ref } from "vue"
 
 import type { ExplainResult } from "@/client"
 import { estimate, flatten, nodeById, share } from "@/features/queries/explain"
+import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 import { AppBanner, AppButton, AppIconButton } from "@/shared/ui"
 
 /**
@@ -37,20 +39,22 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
         :key="view"
         :variant="showing === view ? 'current' : 'quiet'"
         size="sm"
-        :label="view === 'raw' ? 'Raw plan' : view === 'tree' ? 'Tree' : 'Table'"
+        :label="t(`queries.explain.${view}`)"
         :data-testid="`explain-${view}`"
         @click="showing = view"
       />
       <span class="explain__note">
-        Estimated: nothing was run.
+        {{ t("queries.explain.estimated") }}
         <template v-if="plan.total_cost !== null">
-          Cost {{ plan.total_cost?.toFixed(2) }}
+          {{ t("queries.explain.total_cost", { n: plan.total_cost == null ? "" : formatFixed(plan.total_cost, 2) }) }}
         </template>
-        <template v-if="plan.rows !== null"> · {{ plan.rows }} rows</template>
+        <template v-if="plan.rows !== null && plan.rows !== undefined">
+          · {{ t("queries.explain.rows", { n: plan.rows }, plan.rows) }}
+        </template>
       </span>
       <AppIconButton
         :icon="appIcons.close"
-        tooltip="Back to the results"
+        :tooltip="t('queries.explain.back')"
         data-testid="explain-close"
         @click="emit('close')"
       />
@@ -62,7 +66,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
       class="explain__banner"
       data-testid="explain-truncated"
     >
-      This plan has more operations than are shown here.
+      {{ t("queries.explain.truncated") }}
     </AppBanner>
 
     <div class="explain__body">
@@ -112,7 +116,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
           v-if="details.length === 0"
           class="explain__detail"
         >
-          The source said nothing else about this operation.
+          {{ t("queries.explain.no_details") }}
         </p>
         <p
           v-for="[key, value] in details"

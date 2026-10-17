@@ -1,4 +1,5 @@
 import type { EndLine, Hit, Outcome, PlanLine, PlannedCell } from "@/client"
+import { t } from "@/shared/i18n"
 
 import type { SearchLine } from "./stream"
 
@@ -112,7 +113,9 @@ export function settleFollow(
 }
 
 /** What a cell says when the person stopped the search before it answered. */
-export const STOPPED_BEFORE_ANSWER = "Stopped before it answered"
+export function stoppedBeforeAnswer(): string {
+  return t("search.stopped_before_answer")
+}
 
 /**
  * The answer as it stood when the person stopped it: a cell still being asked
@@ -133,7 +136,7 @@ export function stopPending(state: AnswerState): AnswerState {
               reason: null,
               notice: null,
               error_kind: null,
-              message: STOPPED_BEFORE_ANSWER,
+              message: stoppedBeforeAnswer(),
               more: false,
               as_of: null,
               deadline_seconds: null,

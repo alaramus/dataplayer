@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue"
 
+import { t } from "@/shared/i18n"
+
 import AppActions from "@/shared/ui/AppActions.vue"
 import AppButton from "@/shared/ui/AppButton.vue"
 import AppCheckbox from "@/shared/ui/AppCheckbox.vue"
@@ -63,13 +65,13 @@ function accept() {
     <AppActions>
       <AppButton
         variant="quiet"
-        :label="request.cancelLabel ?? 'Cancel'"
+        :label="request.cancelLabel ?? t('catalog.common.cancel')"
         data-testid="confirm-cancel"
         @click="emit('answer', false)"
       />
       <AppButton
         :variant="request.danger === true ? 'danger' : 'primary'"
-        :label="request.confirmLabel ?? 'Confirm'"
+        :label="request.confirmLabel ?? t('windows.confirm')"
         data-testid="confirm-accept"
         @click="accept"
       />

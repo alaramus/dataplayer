@@ -32,6 +32,7 @@ from app.adapters.postgres.system_reports import (
 )
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType
+from app.core.translation import say
 
 # Every operator maps to a fixed SQL fragment. Nothing here is ever built from
 # client input: the client chooses an operator from a closed set, and that is
@@ -347,11 +348,11 @@ class PostgresFetch:
         # schema.table" about it would send the reader looking in the wrong
         # place.
         if node_id == SECTION_ID or node_id.startswith(f"{SECTION_ID}."):
-            raise ValueError(f'"{node_id}" is not a report of this source')
+            raise ValueError(say('"{node_id}" is not a report of this source', node_id=node_id))
 
         schema, _, table = node_id.partition(".")
         if not table:
-            raise ValueError(f'"{node_id}" is not a relation: expected schema.table')
+            raise ValueError(say('"{node_id}" is not a relation: expected schema.table', node_id=node_id))
         return (
             sql.Identifier(schema, table),
             (schema, table),
@@ -383,7 +384,9 @@ class PostgresFetch:
                     filter_operators=filter_operators,
                 )
             )
-        refused = f'"{report.title}" is a report and holds no rows of its own'
+        refused = say(
+            '"{title}" is a report and holds no rows of its own', title=say(report.title)
+        )
         return RelationFetchInfo(
             columns=columns,
             primary_key=[],
@@ -435,7 +438,7 @@ class PostgresFetch:
         known = {column.name: column for column in prepared.info.columns}
         unknown = [name for name in requested_columns if name not in known]
         if unknown:
-            raise ValueError(f'Unknown export column: "{unknown[0]}"')
+            raise ValueError(say('Unknown export column: "{column}"', column=unknown[0]))
         columns = [known[name] for name in requested_columns]
         params: list[Any] = []
         selected = sql.SQL(", ").join(select_expression(column) for column in columns)
@@ -487,7 +490,7 @@ class PostgresFetch:
         used += [item.column for item in request.sort]
         for column in used:
             if column not in known:
-                raise ValueError(f'Relation has no column "{column}"')
+                raise ValueError(say('Relation has no column "{column}"', column=column))
 
     @staticmethod
     def _validate_filters(
@@ -498,7 +501,7 @@ class PostgresFetch:
             column = known[filter_.column]
             if filter_.op not in column.filter_operators:
                 raise ValueError(
-                    f'Cannot filter column "{column.name}" with "{filter_.op}"'
+                    say('Cannot filter column "{name}" with "{op}"', name=column.name, op=filter_.op)
                 )
             match filter_:
                 case ScalarFilter(value=value):
@@ -506,7 +509,7 @@ class PostgresFetch:
                         coerced = coerce_filter_value(value, column.type)
                     except ValueError:
                         raise ValueError(
-                            f'Invalid value for column "{column.name}"'
+                            say('Invalid value for column "{name}"', name=column.name)
                         ) from None
                     validated.append(filter_.model_copy(update={"value": coerced}))
                 case InFilter(values=values):
@@ -516,7 +519,7 @@ class PostgresFetch:
                         ]
                     except ValueError:
                         raise ValueError(
-                            f'Invalid value for column "{column.name}"'
+                            say('Invalid value for column "{name}"', name=column.name)
                         ) from None
                     validated.append(filter_.model_copy(update={"values": coerced}))
                 case NullFilter():
@@ -531,7 +534,7 @@ class PostgresFetch:
     ) -> None:
         for sort in request.sort:
             if not known[sort.column].sortable:
-                raise ValueError(f'Cannot sort column "{sort.column}"')
+                raise ValueError(say('Cannot sort column "{column}"', column=sort.column))
 
     async def relation_info(self, schema: str, table: str) -> RelationFetchInfo:
         rows = await self._session.query(
@@ -573,7 +576,7 @@ class PostgresFetch:
             (schema, table),
         )
         if not rows:
-            raise AdapterError("config", f'Relation "{schema}.{table}" does not exist')
+            raise AdapterError("config", say('Relation "{schema}.{table}" does not exist', schema=schema, table=table))
         context = await self._relation_context.schema(schema, table)
         timescale_reason = context.structured_operations_reason(table)
         primary_key = [str(value) for value in (rows[0]["primary_key"] or [])]
@@ -599,7 +602,7 @@ class PostgresFetch:
         # new table in pg_catalog, now said for rows too (D54).
         server_owned = is_system_schema(schema)
         writable = table_kind and not server_owned and timescale_reason is None
-        owned = f'"{schema}" belongs to the server'
+        owned = say('"{schema}" belongs to the server', schema=schema)
 
         def refusal(not_a_table: str) -> str | None:
             if writable:
@@ -609,11 +612,11 @@ class PostgresFetch:
             return timescale_reason or not_a_table
 
         update_supported = writable
-        update_reason = refusal("Only tables can be edited")
+        update_reason = refusal(say("Only tables can be edited"))
         insert_supported = writable
-        insert_reason = refusal("Only tables accept inserted rows")
+        insert_reason = refusal(say("Only tables accept inserted rows"))
         delete_supported = writable
-        delete_reason = refusal("Only tables can delete rows")
+        delete_reason = refusal(say("Only tables can delete rows"))
         columns: list[FetchColumn] = []
         for row in rows:
             type_ = build_column_type(row)

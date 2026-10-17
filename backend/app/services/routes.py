@@ -23,7 +23,9 @@ from app.connectors.service import merge_options
 from app.core import crypto
 from app.core.config import settings
 from app.core.db import SessionDep, async_session_maker
+from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import N_, say
 from app.jobs import crud as job_crud
 from app.jobs.models import Job, JobKind
 from app.jobs.models import public as job_public
@@ -40,7 +42,6 @@ from app.services.engine import (
 )
 from app.services.models import (
     BUSY_STATES,
-    UNUSABLE_PASSWORD,
     ChosenPassword,
     ChosenStart,
     ContainerReport,
@@ -162,12 +163,12 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
     return [
         ServiceTemplateInfo(
             key=template.key,
-            title=template.title,
-            description=template.description,
+            title=say(template.title),
+            description=say(template.description),
             image=template.image,
             container_port=template.container_port,
             adapter_type=template.adapter_type,
-            adapter_title=registry.get(template.adapter_type).title,
+            adapter_title=say(registry.get(template.adapter_type).title),
             generated=list(templates.generated_slots(template)),
             choosable=list(templates.choosable_slots(template)),
             optional_password=templates.may_run_unprotected(template),
@@ -202,10 +203,7 @@ async def request_service(
     try:
         template = templates.template_for(body.template_key)
     except UnknownServiceTemplate:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": "This server does not offer that service"},
-        ) from None
+        raise Problem(422, "services.unknown_template") from None
     if body.request_id is not None:
         already = await crud.by_request(
             session, owner_id=current_user.id, request_id=body.request_id
@@ -301,14 +299,11 @@ async def remove_unclaimed(engine: ServiceEngineDep, container_name: str) -> Any
     """
     known = await _known_container_names()
     if container_name in known:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "A service still claims that container"},
-        )
+        raise Problem(409, "services.container_claimed")
     if container_name not in {one.name for one in (await _managed(engine) or [])}:
-        raise HTTPException(status_code=404, detail={"message": "No such container"})
+        raise Problem(404, "services.container_not_found")
     await engine.remove(container_name, volume=f"{container_name}-data")
-    return Message(message=f"{container_name} was removed")
+    return Message(message=say("{name} was removed", name=container_name))
 
 
 @router.get("/{service_id}", response_model=ServicePublic)
@@ -352,10 +347,7 @@ async def read_service_credentials(
     """
     service = await _own_or_404(session, service_id, current_user.id)
     if service.connected_at is None:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "This service has no connection yet"},
-        )
+        raise Problem(409, "services.no_connection_yet")
     return _credentials_of(service)
 
 
@@ -384,20 +376,9 @@ async def reveal_service_credentials(
     """
     service = await _own_or_404(session, service_id, current_user.id)
     if service.connected_at is None:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "This service has no connection yet"},
-        )
+        raise Problem(409, "services.no_connection_yet")
     if service.credentials_shown_at is not None:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": (
-                    "That was shown once already. Start another service if you "
-                    "need a password you can see."
-                )
-            },
-        )
+        raise Problem(409, "services.credentials_shown")
     answer = _revealed(service, await _password_of(session, service))
     service.credentials_shown_at = datetime.now(UTC)
     session.add(service)
@@ -456,10 +437,7 @@ async def retry_service(
     """
     service = await _own_or_404(session, service_id, current_user.id)
     if service.connected_at is not None:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "This service is already made; remove it instead"},
-        )
+        raise Problem(409, "services.already_made")
     await _refuse_if_working(session, service)
     _refuse_without_a_runtime(await service_offer(engine))
     await crud.set_state(session, service, "creating")
@@ -622,7 +600,7 @@ async def _own_or_404(
 ) -> ManagedService:
     service = await crud.get_for_owner(session, service_id, owner_id)
     if service is None:
-        raise HTTPException(status_code=404, detail={"message": "No such service"})
+        raise Problem(404, "services.not_found")
     return service
 
 
@@ -669,9 +647,9 @@ def _chosen_credentials(
         if value is None:
             continue
         if slot not in template.choosable:
-            raise HTTPException(
-                status_code=422,
-                detail={"message": f"This service has no {slot} to name"},
+            raise Problem(
+                422,
+                "services.no_user_to_name" if slot == "user" else "services.no_database_to_name",
             )
         chosen[slot] = value
     return chosen
@@ -698,33 +676,22 @@ def _password_choice(
     choice = start.password
     if isinstance(choice, NoPassword):
         if not templates.may_run_unprotected(template):
-            raise HTTPException(
-                status_code=422,
-                detail={"message": "This service cannot run without a password"},
-            )
+            raise Problem(422, "services.password_required")
         return "none", None
     if isinstance(choice, OwnKey):
         if not templates.may_sign_in_with_key(template):
-            raise HTTPException(
-                status_code=422,
-                detail={"message": "This service is not signed into with a key"},
-            )
+            raise Problem(422, "services.no_key_sign_in")
         return "key", None
     if isinstance(choice, ChosenPassword):
         if PASSWORD not in template.choosable:
-            raise HTTPException(
-                status_code=422,
-                detail={"message": "This service has no password to name"},
-            )
+            raise Problem(422, "services.no_password_to_name")
         plain = choice.value.get_secret_value()
         if not password_survives_where_it_goes(plain):
             # Refused here rather than by a constraint on the field: a failed
             # constraint puts the value it rejected into the validation error,
             # and a 422 body echoing somebody's password is the thing
             # `SecretStr` is there to prevent.
-            raise HTTPException(
-                status_code=422, detail={"message": UNUSABLE_PASSWORD}
-            )
+            raise Problem(422, "services.unusable_password")
         return "chosen", crypto.encrypt(plain.encode(), purpose="connector")
     return "generated", None
 
@@ -743,18 +710,9 @@ async def _key_to_sign_in_with(
         return {}
     key = await ssh_keys.get_own(session, start.password.key_id, owner_id)
     if key is None:
-        raise HTTPException(
-            status_code=422, detail={"message": "That SSH key is not one of yours"}
-        )
+        raise Problem(422, "services.ssh_key_not_own")
     if ssh_keys.is_locked(key):
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": f"The SSH key {key.name} is locked; unlock it first, "
-                "so the server can be signed into as soon as it answers",
-                "error_kind": "locked",
-            },
-        )
+        raise Problem(409, "services.ssh_key_locked", error_kind="locked", name=key.name)
     return {KEY_ID: str(key.id)}
 
 
@@ -793,10 +751,10 @@ def _refuse_without_a_runtime(runtime: Availability) -> None:
     away between this and the pull.
     """
     if not runtime.available:
-        raise HTTPException(
-            status_code=503,
-            detail={"message": runtime.reason or "This server cannot run services"},
-        )
+        if runtime.reason is None:
+            raise Problem(503, "services.no_runtime")
+        # The runtime's own sentence, passed on as it is.
+        raise HTTPException(status_code=503, detail={"message": runtime.reason})
 
 
 async def _refuse_if_at_the_ceiling(
@@ -810,22 +768,13 @@ async def _refuse_if_at_the_ceiling(
     """
     held = await crud.count_for_owner(session, owner_id)
     if held >= settings.SERVICE_MAX_PER_USER:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": (
-                    f"You already have {held} services on this server; "
-                    "remove one before starting another"
-                )
-            },
-        )
+        raise Problem(409, "services.too_many", count=held)
 
 
 def _refuse_if_busy(service: ManagedService) -> None:
     if service.state in BUSY_STATES:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": f"This service is {service.state}"},
+        raise Problem(
+            409, "services.creating" if service.state == "creating" else "services.removing"
         )
 
 
@@ -837,23 +786,14 @@ async def _refuse_if_working(session: AsyncSession, service: ManagedService) -> 
     """
     working = await job_crud.unfinished_for_subject(session, service.id)
     if working is not None:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "Something is already happening to this service",
-                "job_id": str(working.id),
-            },
-        )
+        raise Problem(409, "services.busy", job_id=str(working.id))
 
 
 async def _already(session: AsyncSession, service: ManagedService) -> ServiceAccepted:
     """The answer to a request that was already answered once."""
     job = await _latest_job(session, service)
     if job is None:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "That request made a service with no job"},
-        )
+        raise Problem(409, "services.no_job")
     return ServiceAccepted(service=_public(service, job, "unknown"), job=job_public(job))
 
 
@@ -932,7 +872,7 @@ def _public(
 PUBLISHED_HOST = "127.0.0.1"
 
 # Why there is nothing to paste, when there is nothing.
-NOT_PUBLISHED = (
+NOT_PUBLISHED = N_(
     "This service has no port on the host, so only this application can reach it"
 )
 
@@ -965,7 +905,7 @@ def _credentials_of(service: ManagedService) -> ServiceCredentials:
         )
         if published is not None
         else None,
-        unreachable_reason=None if published is not None else NOT_PUBLISHED,
+        unreachable_reason=None if published is not None else say(NOT_PUBLISHED),
     )
 
 
@@ -1076,6 +1016,6 @@ def _title_of(template_key: str) -> str:
     still running, and a screen still has to name it.
     """
     try:
-        return templates.template_for(template_key).title
+        return say(templates.template_for(template_key).title)
     except UnknownServiceTemplate:
         return template_key

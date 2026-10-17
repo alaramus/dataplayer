@@ -234,9 +234,7 @@ async def test_a_source_that_cannot_be_copied_out_answers_501(
 
     assert copied.status_code == 501
     assert put_back.status_code == 501
-    assert copied.json()["detail"]["message"] == (
-        "This kind of connection cannot be copied out"
-    )
+    assert copied.json()["detail"]["code"] == "backups.not_supported"
 
 
 def test_the_backup_capability_is_read_off_the_driver() -> None:
@@ -303,7 +301,7 @@ async def test_a_restore_must_say_that_it_is_meant(
     )
 
     assert refused.status_code == 422
-    assert "is meant" in refused.json()["detail"]["message"]
+    assert refused.json()["detail"]["code"] == "backups.restore_not_confirmed"
     assert engine.ran == []
 
 

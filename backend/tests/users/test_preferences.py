@@ -8,6 +8,7 @@ from app.users.preferences import (
     CHECK_SECONDS,
     DEFAULT_CHECK_INTERVAL,
     as_interval,
+    as_language,
     check_seconds,
 )
 from tests.utils.user import authentication_token_from_email
@@ -93,6 +94,55 @@ async def test_the_welcome_tour_is_seen_once_per_account(
     )
 
     assert done.status_code == 200
-    assert done.json() == {"connector_checks": "5m", "welcome_tour_done": True}
+    assert done.json() == {
+        "connector_checks": "5m",
+        "welcome_tour_done": True,
+        "language": None,
+    }
     read_back = await client.get(PREFERENCES, headers=headers)
     assert read_back.json()["welcome_tour_done"] is True
+
+
+async def test_a_language_is_kept_and_null_returns_to_the_browsers(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """None is a choice of its own (D224): the browser's language. Leaving the
+    field out must not be read as choosing it."""
+    before = await client.get(PREFERENCES, headers=normal_user_token_headers)
+    assert before.json()["language"] is None
+
+    chosen = await client.patch(
+        PREFERENCES, headers=normal_user_token_headers, json={"language": "ru"}
+    )
+    untouched = await client.patch(
+        PREFERENCES, headers=normal_user_token_headers, json={"connector_checks": "1m"}
+    )
+    cleared = await client.patch(
+        PREFERENCES, headers=normal_user_token_headers, json={"language": None}
+    )
+
+    assert chosen.json()["language"] == "ru"
+    assert untouched.json()["language"] == "ru"
+    assert cleared.json()["language"] is None
+
+    await client.patch(
+        PREFERENCES,
+        headers=normal_user_token_headers,
+        json={"connector_checks": DEFAULT_CHECK_INTERVAL},
+    )
+
+
+async def test_a_language_nobody_translated_is_refused(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.patch(
+        PREFERENCES, headers=normal_user_token_headers, json={"language": "xx"}
+    )
+
+    assert response.status_code == 422
+
+
+def test_a_stored_language_this_version_does_not_offer_reads_as_the_browsers() -> None:
+    assert as_language("ru") == "ru"
+    assert as_language("tlh") is None
+    assert as_language(None) is None

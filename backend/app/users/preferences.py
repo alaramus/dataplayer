@@ -13,6 +13,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.translation import Language, as_language, current_language
+
 # How often this user's connections are probed, as a closed set rather than a
 # number somebody types. A free field here is a field somebody puts 1 in, and
 # the cost of that lands on the servers being probed rather than on this one.
@@ -35,6 +37,7 @@ CHECK_SECONDS: dict[CheckInterval, float | None] = {
 }
 
 DEFAULT_CHECK_INTERVAL: CheckInterval = "15s"
+
 
 
 def as_interval(value: str) -> CheckInterval:
@@ -66,6 +69,7 @@ class UserPreferences(SQLModel, table=True):
     # The welcome tour was finished or skipped. On the account rather than in
     # a browser, so it opens once for each person, on whatever machine.
     welcome_tour_done: bool = Field(default=False)
+    language: str | None = Field(default=None, max_length=8)
 
 
 class PreferencesPublic(BaseModel):
@@ -73,6 +77,7 @@ class PreferencesPublic(BaseModel):
 
     connector_checks: CheckInterval
     welcome_tour_done: bool
+    language: Language | None
 
 
 class PreferencesUpdate(BaseModel):
@@ -87,16 +92,21 @@ class PreferencesUpdate(BaseModel):
 
     connector_checks: CheckInterval | None = None
     welcome_tour_done: bool | None = None
+    # Absent leaves it alone; null says "the browser's" and is a value to store.
+    language: Language | None = None
 
 
 def _public(stored: UserPreferences | None) -> PreferencesPublic:
     if stored is None:
         return PreferencesPublic(
-            connector_checks=DEFAULT_CHECK_INTERVAL, welcome_tour_done=False
+            connector_checks=DEFAULT_CHECK_INTERVAL,
+            welcome_tour_done=False,
+            language=None,
         )
     return PreferencesPublic(
         connector_checks=as_interval(stored.connector_checks),
         welcome_tour_done=stored.welcome_tour_done,
+        language=as_language(stored.language),
     )
 
 
@@ -122,6 +132,15 @@ async def set_for(
         stored.connector_checks = update.connector_checks
     if update.welcome_tour_done is not None:
         stored.welcome_tour_done = update.welcome_tour_done
+    if "language" in update.model_fields_set:
+        stored.language = update.language
     session.add(stored)
     await session.commit()
     return _public(stored)
+
+
+async def recipient_language(session: AsyncSession, user_id: uuid.UUID) -> Language:
+    """What an email to this person is written in (D227): the language they
+    chose, or the one the request that sends it was made in."""
+    return (await of(session, user_id)).language or current_language.get()
+

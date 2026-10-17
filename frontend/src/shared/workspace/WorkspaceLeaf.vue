@@ -2,6 +2,7 @@
 import { computed, inject, ref } from "vue"
 import type { CSSProperties } from "vue"
 
+import { t } from "@/shared/i18n"
 import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import AppTooltip from "@/shared/ui/AppTooltip.vue"
 import { appIcons } from "@/shared/ui/icons"
@@ -194,9 +195,10 @@ function onTabPointerDown(event: PointerEvent, panelId: string) {
 
 /** What a collapsed handle says it will bring back. */
 const collapsedTitle = computed(() => {
+  if (!props.leaf.collapsed) return t("layout.leaf.hide")
   const first = props.leaf.activePanel ?? props.leaf.panels[0] ?? null
   const title = first === null ? null : workspace.lookOf(first).title
-  return props.leaf.collapsed ? `Show ${title ?? "this section"}` : "Hide"
+  return title === null ? t("layout.leaf.show_this_section") : t("layout.leaf.show", { title })
 })
 
 /**
@@ -234,9 +236,10 @@ const hasCommands = computed(
 )
 
 /** What the bar will call this section once it is on it. */
-const asideTitle = computed(
-  () => workspace.sectionLookOf(props.leaf.accepts ?? null)?.title ?? "this section"
-)
+const asideTooltip = computed(() => {
+  const title = workspace.sectionLookOf(props.leaf.accepts ?? null)?.title
+  return title === undefined ? t("layout.leaf.put_this_section_aside") : t("layout.leaf.put_aside", { title })
+})
 
 /** What will be lit: where the panel ends up, not which zone the pointer is in. */
 const shape = computed(() => dropShape(zone.value, props.leaf.panels.length === 0))
@@ -300,7 +303,7 @@ const overlayStyle = computed((): CSSProperties => {
         v-else-if="!leaf.collapsed"
         class="workspace-leaf__tabs"
         role="tablist"
-        aria-label="Open tabs"
+        :aria-label="t('layout.leaf.open_tabs')"
         @keydown="walkTabs"
       >
         <template
@@ -377,7 +380,7 @@ const overlayStyle = computed((): CSSProperties => {
               :data-testid="`workspace-close-${panelId}`"
               role="button"
               :tabindex="panelId === active ? 0 : -1"
-              :aria-label="`Close ${workspace.lookOf(panelId).title}`"
+              :aria-label="t('layout.leaf.close', { title: workspace.lookOf(panelId).title })"
               @click.stop="workspace.requestClose(panelId)"
               @keydown.enter.stop.prevent="workspace.requestClose(panelId)"
               @keydown.space.stop.prevent="workspace.requestClose(panelId)"
@@ -411,7 +414,7 @@ const overlayStyle = computed((): CSSProperties => {
         <AppIconButton
           v-if="!leaf.collapsed && head === null"
           :icon="appIcons.clearAll"
-          tooltip="Close the other tabs"
+          :tooltip="t('layout.leaf.close_others')"
           :disable="closableOthers === 0"
           :data-testid="`workspace-close-others-${leaf.id}`"
           @click="workspace.closeOthers(leaf.id)"
@@ -429,7 +432,7 @@ const overlayStyle = computed((): CSSProperties => {
         <AppIconButton
           v-else-if="handle === 'aside'"
           :icon="appIcons.remove"
-          :tooltip="`Put ${asideTitle} aside`"
+          :tooltip="asideTooltip"
           :data-testid="`workspace-aside-${leaf.id}`"
           @click="workspace.putAside(leaf.id)"
         />

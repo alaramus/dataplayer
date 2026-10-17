@@ -101,6 +101,7 @@ import type {
   WorkspaceActions,
 } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { keysOf, keyshortcutsOf, onMac, registerShortcut } from "@/shared/keys/shortcuts"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
@@ -445,9 +446,9 @@ function openConnectorWindow(
       beforeClose: async () => {
         if (!unsaved.value.has(handle.id)) return true
         return await confirm({
-          title: "Discard changes?",
-          message: "This connection has changes that were never applied.",
-          confirmLabel: "Discard",
+          title: t("workspace.page.discard_title"),
+          message: t("workspace.page.discard_message"),
+          confirmLabel: t("workspace.page.discard"),
           danger: true,
         })
       },
@@ -522,7 +523,7 @@ async function startService(payload: {
     })
     justStarted.value = accepted.service.id
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be started"))
+    toast.error(messageOf(cause, t("workspace.page.start_failed")))
   }
 }
 
@@ -551,7 +552,7 @@ async function connectorOf(connectorId: string): Promise<ConnectorPublic | null>
  * were wrong.
  */
 function connectionGone() {
-  toast.info("That connection is no longer here")
+  toast.info(t("workspace.page.connection_gone"))
   void queryClient.invalidateQueries({ queryKey: connectorsKey })
   void queryClient.invalidateQueries({ queryKey: waitingKey })
 }
@@ -568,7 +569,7 @@ function editConnector(connectorId: string | null, startOn?: string) {
       if (found === null) connectionGone()
       else openConnectorWindow(found, null, startOn)
     } catch (cause) {
-      toast.error(messageOf(cause, "Could not read that connection"))
+      toast.error(messageOf(cause, t("workspace.page.connection_read_failed")))
     }
   })()
 }
@@ -579,7 +580,7 @@ function openCatalog(connector: ConnectorPublic) {
   // here — and the server refuses it too, so this only saves the round trip
   // and the empty panel.
   if (!connector.enabled) {
-    toast.info(`${connector.name} is switched off`)
+    toast.info(t("workspace.page.switched_off", { name: connector.name }))
     return
   }
   // The ordinary catalog keeps one stable identity per connection. Copies
@@ -661,7 +662,7 @@ function revealInCatalog(connectorId: string, nodeId: string, label: string) {
       if (connector === null) connectionGone()
       else revealIn(connector, { nodeId, label })
     } catch (cause) {
-      toast.error(messageOf(cause, "Could not read that connection"))
+      toast.error(messageOf(cause, t("workspace.page.connection_read_failed")))
     }
   })()
 }
@@ -687,7 +688,7 @@ async function openIntent(intent: OpenIntent, how: OpenHow) {
   try {
     connector = await connectorOf(intent.connectorId)
   } catch (cause) {
-    toast.error(messageOf(cause, "Could not read that connection"))
+    toast.error(messageOf(cause, t("workspace.page.connection_read_failed")))
     return
   }
   if (connector === null) {
@@ -719,7 +720,7 @@ function openSearch(target: SearchTarget, how: OpenHow) {
  */
 function openTab(panelId: string) {
   if (!workspace.panels.value.some((one) => one.id === panelId)) {
-    toast.info("That tab is no longer open")
+    toast.info(t("workspace.page.tab_gone"))
     return
   }
   if (!workspace.context.detached.value.some((one) => one.panelId === panelId)) space.show("data")
@@ -731,7 +732,7 @@ function openTabGroup(groupId: string) {
   const library = tabGroups.value
   const group = library?.groups.value.find((one) => one.id === groupId)
   if (library == null || group === undefined) {
-    toast.info("That tab group is no longer saved")
+    toast.info(t("workspace.page.group_gone"))
     return
   }
   void library.open(group)
@@ -804,7 +805,7 @@ function openPendingShare() {
     representations: intent.representations,
     view: intent.view,
   })
-  toast.info(`Opened what ${intent.sharedBy} shared`)
+  toast.info(t("workspace.page.opened_shared", { name: intent.sharedBy }))
 }
 
 // The layout is one per person per browser, like the tab groups and what the
@@ -1218,7 +1219,8 @@ const searchKeyshortcuts = keyshortcutsOf("k", onMac())
 const unregisterSearch = registerShortcut({
   id: "search",
   key: "k",
-  action: "Search everything",
+  // A getter, so the scene lists it in the language current when it is shown.
+  get action() { return t("workspace.page.search_everything") },
   run: openSearchField,
 })
 onBeforeUnmount(unregisterSearch)
@@ -1233,7 +1235,7 @@ onBeforeUnmount(unregisterSearch)
       <span class="workspace-header-collapse">
         <AppIconButton
           :icon="firstPanelCollapsed ? appIcons.panelOpen : appIcons.panelClose"
-          :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
+          :tooltip="firstPanelCollapsed ? t('workspace.page.show_first_panel') : t('workspace.page.hide_first_panel')"
           data-testid="app-toggle-first-panel"
           @click="toggleFirstPanel"
         />
@@ -1242,7 +1244,7 @@ onBeforeUnmount(unregisterSearch)
     </template>
     <template #header-center>
       <AppFieldButton
-        label="Search"
+        :label="t('workspace.page.search')"
         :icon="appIcons.search"
         :keys="searchKeys"
         :keyshortcuts="searchKeyshortcuts"

@@ -5285,16 +5285,6 @@ export type GuidePageInfo = {
 }
 
 /**
- * HTTPValidationError
- */
-export type HTTPValidationError = {
-  /**
-   * Detail
-   */
-  detail?: Array<ValidationError>
-}
-
-/**
  * HashDimensionDesign
  */
 export type HashDimensionDesign = {
@@ -8869,6 +8859,10 @@ export type PreferencesPublic = {
    * Welcome Tour Done
    */
   welcome_tour_done: boolean
+  /**
+   * Language
+   */
+  language: "en" | "ru" | null
 }
 
 /**
@@ -8889,6 +8883,10 @@ export type PreferencesUpdate = {
    * Welcome Tour Done
    */
   welcome_tour_done?: boolean | null
+  /**
+   * Language
+   */
+  language?: "en" | "ru" | null
 }
 
 /**
@@ -9025,6 +9023,241 @@ export type PrivateUserCreate = {
    * Is Verified
    */
   is_verified?: boolean
+}
+
+/**
+ * ProblemDetail
+ */
+export type ProblemDetail = {
+  /**
+   * Code
+   */
+  code:
+    | "auth.wrong_credentials"
+    | "auth.inactive_user"
+    | "auth.invalid_token"
+    | "auth.not_signed_in"
+    | "auth.not_enough_privileges"
+    | "auth.no_user_with_email"
+    | "users.email_taken"
+    | "users.not_found"
+    | "users.wrong_password"
+    | "users.same_password"
+    | "users.superuser_cannot_delete_self"
+    | "connectors.not_found"
+    | "connectors.disabled"
+    | "connectors.content_not_found"
+    | "connectors.download_not_found"
+    | "connectors.export_not_found"
+    | "connectors.range_not_satisfiable"
+    | "connectors.file_changed"
+    | "connectors.row_changed"
+    | "connectors.rows_changed"
+    | "connectors.import_too_many_rows"
+    | "access.needs_read"
+    | "access.needs_write"
+    | "access.needs_structure"
+    | "access.needs_own"
+    | "access.grant_not_found"
+    | "actions.unknown"
+    | "actions.not_for_node"
+    | "actions.needs_read"
+    | "actions.needs_write"
+    | "actions.needs_structure"
+    | "actions.needs_own"
+    | "actions.unknown_row_command"
+    | "actions.not_offered"
+    | "actions.node_repeated"
+    | "actions.no_node"
+    | "actions.not_bulk"
+    | "actions.one_node_at_a_time"
+    | "actions.no_connector"
+    | "actions.other_transport"
+    | "actions.no_preview"
+    | "actions.no_download"
+    | "actions.no_file"
+    | "actions.params_not_json"
+    | "actions.params_not_object"
+    | "actions.plan_not_reviewed"
+    | "declared.not_found"
+    | "ssh_keys.not_found"
+    | "ssh_keys.in_use"
+    | "ssh_keys.no_passphrase"
+    | "paste.same_connection"
+    | "connectors.no_content_previews"
+    | "connectors.no_content_stream"
+    | "connectors.no_connection_string"
+    | "connectors.no_server_key"
+    | "connectors.no_reading_rows"
+    | "connectors.no_content_viewers"
+    | "connectors.no_content_editing"
+    | "connectors.no_browsing"
+    | "connectors.no_runtime_features"
+    | "connectors.page_not_stored"
+    | "connectors.export_not_stored"
+    | "connectors.no_export_all"
+    | "connectors.no_row_editing"
+    | "connectors.no_row_changes"
+    | "connectors.no_row_inserts"
+    | "connectors.no_row_deletes"
+    | "connectors.source_not_rows"
+    | "connectors.no_row_import"
+    | "connectors.no_row_commands"
+    | "connectors.no_picked_row_actions"
+    | "connectors.no_relation_create"
+    | "connectors.no_references"
+    | "connectors.no_referrers"
+    | "connectors.no_relation_description"
+    | "connectors.no_search"
+    | "connectors.no_file_search"
+    | "connectors.no_node_description"
+    | "connectors.no_add_column"
+    | "connectors.no_drop_column"
+    | "connectors.no_rename_column"
+    | "connectors.no_column_default"
+    | "connectors.no_column_nullability"
+    | "connectors.no_column_type"
+    | "connectors.no_indexes"
+    | "connectors.no_table_design"
+    | "connectors.no_hypertables"
+    | "connectors.no_constraints"
+    | "connectors.no_node_location"
+    | "actions.not_supported"
+    | "actions.no_preview_first"
+    | "actions.no_hints"
+    | "queries.document_not_found"
+    | "queries.document_changed"
+    | "queries.no_queries"
+    | "queries.run_not_found"
+    | "queries.maintenance_not_rehearsed"
+    | "queries.transaction_not_found"
+    | "queries.transaction_other_connection"
+    | "queries.no_rehearsal"
+    | "queries.run_id_taken"
+    | "queries.no_read_mode"
+    | "queries.no_auto_commit_mode"
+    | "queries.no_manual_mode"
+    | "queries.document_busy"
+    | "queries.manual_needs_transaction"
+    | "queries.transaction_failed"
+    | "queries.too_many_runs"
+    | "queries.result_gone"
+    | "queries.result_not_stored"
+    | "queries.no_editor_metadata"
+    | "queries.no_explain"
+    | "queries.no_formatting"
+    | "queries.no_generated_query"
+    | "queries.transaction_already_open"
+    | "queries.too_many_transactions"
+    | "queries.no_transactions"
+    | "ai.quick_chat_not_found"
+    | "ai.project_not_found"
+    | "ai.conversation_not_found"
+    | "ai.title_required"
+    | "ai.unknown_model"
+    | "ai.jev_key_required"
+    | "ai.message_unreadable"
+    | "ai.message_empty"
+    | "ai.file_not_found"
+    | "ai.answer_not_found"
+    | "ai.answer_elsewhere"
+    | "metrics.no_metrics"
+    | "metrics.agent_not_found"
+    | "metrics.agent_or_connection_required"
+    | "metrics.series_not_found"
+    | "metrics.dashboard_changed"
+    | "metrics.widget_agent_unreadable"
+    | "metrics.widget_series_unreadable"
+    | "metrics.grant_not_found"
+    | "metrics.dashboard_not_found"
+    | "metrics.dashboard_needs_read"
+    | "metrics.dashboard_needs_write"
+    | "metrics.dashboard_needs_structure"
+    | "metrics.dashboard_needs_own"
+    | "metrics.not_set_up"
+    | "metrics.store_not_answering"
+    | "services.unknown_template"
+    | "services.container_claimed"
+    | "services.container_not_found"
+    | "services.no_connection_yet"
+    | "services.credentials_shown"
+    | "services.already_made"
+    | "services.not_found"
+    | "services.no_user_to_name"
+    | "services.no_database_to_name"
+    | "services.password_required"
+    | "services.no_key_sign_in"
+    | "services.no_password_to_name"
+    | "services.unusable_password"
+    | "services.ssh_key_not_own"
+    | "services.ssh_key_locked"
+    | "services.no_runtime"
+    | "services.too_many"
+    | "services.creating"
+    | "services.removing"
+    | "services.busy"
+    | "services.no_job"
+    | "backups.restore_not_confirmed"
+    | "backups.operation_running"
+    | "backups.not_found"
+    | "backups.no_runtime"
+    | "backups.connection_not_found"
+    | "backups.connection_disabled"
+    | "backups.not_supported"
+    | "pipelines.not_found"
+    | "pipelines.too_many"
+    | "pipelines.changed"
+    | "pipelines.card_unreadable"
+    | "pipelines.card_not_found"
+    | "pipelines.row_not_found"
+    | "pipelines.link_broken"
+    | "pipelines.no_links"
+    | "pipelines.running"
+    | "pipelines.too_many_running"
+    | "pipelines.run_not_found"
+    | "shares.link_outdated"
+    | "shares.request_not_found"
+    | "shares.link_not_found"
+    | "shares.already_have_access"
+    | "search.contents_busy"
+    | "search.cannot_keep_names"
+    | "search.names_not_kept"
+    | "search.cannot_keep_contents"
+    | "search.keep_names_first"
+    | "search.folder_not_kept"
+    | "transfers.wrong_clipboard"
+    | "transfers.not_possible"
+    | "transfers.cannot_run"
+    | "transfers.too_many_running"
+    | "jobs.not_found"
+    | "jobs.elsewhere"
+    | "actions.not_a_job"
+    | "actions.operation_running"
+    | "guide.page_not_found"
+  /**
+   * Params
+   */
+  params: {
+    [key: string]: string | number | number
+  }
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Error Kind
+   */
+  error_kind?: "auth" | "network" | "timeout" | "config" | "locked" | "unknown" | null
+}
+
+/**
+ * ProblemResponse
+ *
+ * What a refusal's body is: FastAPI puts an HTTPException's detail under
+ * `detail`.
+ */
+export type ProblemResponse = {
+  detail: ProblemDetail
 }
 
 /**
@@ -13765,34 +13998,6 @@ export type UsersPublic = {
 }
 
 /**
- * ValidationError
- */
-export type ValidationError = {
-  /**
-   * Location
-   */
-  loc: Array<string | number>
-  /**
-   * Message
-   */
-  msg: string
-  /**
-   * Error Type
-   */
-  type: string
-  /**
-   * Input
-   */
-  input?: unknown
-  /**
-   * Context
-   */
-  ctx?: {
-    [key: string]: unknown
-  }
-}
-
-/**
  * VideoContent
  *
  * Verified facts about one recording, and where its bytes are read.
@@ -14252,9 +14457,9 @@ export type loginLoginAccessTokenData = {
 
 export type loginLoginAccessTokenErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type loginLoginAccessTokenError =
@@ -14276,6 +14481,15 @@ export type loginTestTokenData = {
   query?: never
   url: "/api/v1/login/test-token"
 }
+
+export type loginTestTokenErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type loginTestTokenError = loginTestTokenErrors[keyof loginTestTokenErrors]
 
 export type loginTestTokenResponses = {
   /**
@@ -14300,9 +14514,9 @@ export type loginRecoverPasswordData = {
 
 export type loginRecoverPasswordErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type loginRecoverPasswordError = loginRecoverPasswordErrors[keyof loginRecoverPasswordErrors]
@@ -14326,9 +14540,9 @@ export type loginResetPasswordData = {
 
 export type loginResetPasswordErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type loginResetPasswordError = loginResetPasswordErrors[keyof loginResetPasswordErrors]
@@ -14357,9 +14571,9 @@ export type loginRecoverPasswordHtmlContentData = {
 
 export type loginRecoverPasswordHtmlContentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type loginRecoverPasswordHtmlContentError =
@@ -14393,9 +14607,9 @@ export type usersReadUsersData = {
 
 export type usersReadUsersErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersReadUsersError = usersReadUsersErrors[keyof usersReadUsersErrors]
@@ -14418,9 +14632,9 @@ export type usersCreateUserData = {
 
 export type usersCreateUserErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersCreateUserError = usersCreateUserErrors[keyof usersCreateUserErrors]
@@ -14441,6 +14655,15 @@ export type usersReadDirectoryData = {
   url: "/api/v1/users/directory"
 }
 
+export type usersReadDirectoryErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type usersReadDirectoryError = usersReadDirectoryErrors[keyof usersReadDirectoryErrors]
+
 export type usersReadDirectoryResponses = {
   /**
    * Successful Response
@@ -14458,6 +14681,15 @@ export type usersDeleteUserMeData = {
   url: "/api/v1/users/me"
 }
 
+export type usersDeleteUserMeErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type usersDeleteUserMeError = usersDeleteUserMeErrors[keyof usersDeleteUserMeErrors]
+
 export type usersDeleteUserMeResponses = {
   /**
    * Successful Response
@@ -14473,6 +14705,15 @@ export type usersReadUserMeData = {
   query?: never
   url: "/api/v1/users/me"
 }
+
+export type usersReadUserMeErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type usersReadUserMeError = usersReadUserMeErrors[keyof usersReadUserMeErrors]
 
 export type usersReadUserMeResponses = {
   /**
@@ -14492,9 +14733,9 @@ export type usersUpdateUserMeData = {
 
 export type usersUpdateUserMeErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersUpdateUserMeError = usersUpdateUserMeErrors[keyof usersUpdateUserMeErrors]
@@ -14517,9 +14758,9 @@ export type usersUpdatePasswordMeData = {
 
 export type usersUpdatePasswordMeErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersUpdatePasswordMeError =
@@ -14542,6 +14783,16 @@ export type usersReadMyPreferencesData = {
   url: "/api/v1/users/me/preferences"
 }
 
+export type usersReadMyPreferencesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type usersReadMyPreferencesError =
+  usersReadMyPreferencesErrors[keyof usersReadMyPreferencesErrors]
+
 export type usersReadMyPreferencesResponses = {
   /**
    * Successful Response
@@ -14561,9 +14812,9 @@ export type usersUpdateMyPreferencesData = {
 
 export type usersUpdateMyPreferencesErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersUpdateMyPreferencesError =
@@ -14588,9 +14839,9 @@ export type usersRegisterUserData = {
 
 export type usersRegisterUserErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersRegisterUserError = usersRegisterUserErrors[keyof usersRegisterUserErrors]
@@ -14618,9 +14869,9 @@ export type usersDeleteUserData = {
 
 export type usersDeleteUserErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersDeleteUserError = usersDeleteUserErrors[keyof usersDeleteUserErrors]
@@ -14648,9 +14899,9 @@ export type usersReadUserByIdData = {
 
 export type usersReadUserByIdErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersReadUserByIdError = usersReadUserByIdErrors[keyof usersReadUserByIdErrors]
@@ -14678,9 +14929,9 @@ export type usersUpdateUserData = {
 
 export type usersUpdateUserErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type usersUpdateUserError = usersUpdateUserErrors[keyof usersUpdateUserErrors]
@@ -14708,9 +14959,9 @@ export type utilsTestEmailData = {
 
 export type utilsTestEmailErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type utilsTestEmailError = utilsTestEmailErrors[keyof utilsTestEmailErrors]
@@ -14731,6 +14982,15 @@ export type utilsHealthCheckData = {
   url: "/api/v1/utils/health-check/"
 }
 
+export type utilsHealthCheckErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type utilsHealthCheckError = utilsHealthCheckErrors[keyof utilsHealthCheckErrors]
+
 export type utilsHealthCheckResponses = {
   /**
    * Response Utils-Health Check
@@ -14749,6 +15009,15 @@ export type utilsCacheHealthData = {
   url: "/api/v1/utils/cache-health/"
 }
 
+export type utilsCacheHealthErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type utilsCacheHealthError = utilsCacheHealthErrors[keyof utilsCacheHealthErrors]
+
 export type utilsCacheHealthResponses = {
   /**
    * Successful Response
@@ -14764,6 +15033,15 @@ export type utilsServerInfoData = {
   query?: never
   url: "/api/v1/utils/server-info"
 }
+
+export type utilsServerInfoErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type utilsServerInfoError = utilsServerInfoErrors[keyof utilsServerInfoErrors]
 
 export type utilsServerInfoResponses = {
   /**
@@ -14808,9 +15086,9 @@ export type logsReadLogsData = {
 
 export type logsReadLogsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type logsReadLogsError = logsReadLogsErrors[keyof logsReadLogsErrors]
@@ -14838,9 +15116,9 @@ export type connectorsDownloadFinishedExportData = {
 
 export type connectorsDownloadFinishedExportErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDownloadFinishedExportError =
@@ -14871,9 +15149,9 @@ export type connectorsReadConnectorsData = {
 
 export type connectorsReadConnectorsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadConnectorsError =
@@ -14898,9 +15176,9 @@ export type connectorsCreateConnectorData = {
 
 export type connectorsCreateConnectorErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsCreateConnectorError =
@@ -14930,9 +15208,9 @@ export type connectorsDeleteConnectorData = {
 
 export type connectorsDeleteConnectorErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDeleteConnectorError =
@@ -14962,9 +15240,9 @@ export type connectorsReadConnectorData = {
 
 export type connectorsReadConnectorErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadConnectorError =
@@ -14994,9 +15272,9 @@ export type connectorsUpdateConnectorData = {
 
 export type connectorsUpdateConnectorErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsUpdateConnectorError =
@@ -15021,9 +15299,9 @@ export type connectorsCheckDraftData = {
 
 export type connectorsCheckDraftErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsCheckDraftError = connectorsCheckDraftErrors[keyof connectorsCheckDraftErrors]
@@ -15047,9 +15325,9 @@ export type connectorsDescribeDraftData = {
 
 export type connectorsDescribeDraftErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDescribeDraftError =
@@ -15074,9 +15352,9 @@ export type connectorsDescribeServerKeyData = {
 
 export type connectorsDescribeServerKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDescribeServerKeyError =
@@ -15101,9 +15379,9 @@ export type connectorsParseUrlData = {
 
 export type connectorsParseUrlErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsParseUrlError = connectorsParseUrlErrors[keyof connectorsParseUrlErrors]
@@ -15132,9 +15410,9 @@ export type connectorsCheckConnectorData = {
 
 export type connectorsCheckConnectorErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsCheckConnectorError =
@@ -15169,9 +15447,9 @@ export type connectorsFetchRowsData = {
 
 export type connectorsFetchRowsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsFetchRowsError = connectorsFetchRowsErrors[keyof connectorsFetchRowsErrors]
@@ -15200,9 +15478,9 @@ export type connectorsReadContentData = {
 
 export type connectorsReadContentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadContentError =
@@ -15261,9 +15539,9 @@ export type connectorsUpdateContentData = {
 
 export type connectorsUpdateContentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsUpdateContentError =
@@ -15293,9 +15571,9 @@ export type connectorsReadEditorContentData = {
 
 export type connectorsReadEditorContentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadEditorContentError =
@@ -15334,9 +15612,9 @@ export type connectorsReadCatalogData = {
 
 export type connectorsReadCatalogErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadCatalogError =
@@ -15399,9 +15677,9 @@ export type connectorsReadSourceFeaturesData = {
 
 export type connectorsReadSourceFeaturesErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadSourceFeaturesError =
@@ -15431,9 +15709,9 @@ export type connectorsDownloadPageData = {
 
 export type connectorsDownloadPageErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDownloadPageError =
@@ -15463,9 +15741,9 @@ export type connectorsKeepPageData = {
 
 export type connectorsKeepPageErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsKeepPageError = connectorsKeepPageErrors[keyof connectorsKeepPageErrors]
@@ -15494,9 +15772,9 @@ export type connectorsExportAllRowsData = {
 
 export type connectorsExportAllRowsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsExportAllRowsError =
@@ -15526,9 +15804,9 @@ export type connectorsKeepAllRowsData = {
 
 export type connectorsKeepAllRowsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsKeepAllRowsError =
@@ -15558,9 +15836,9 @@ export type connectorsUpdateCellData = {
 
 export type connectorsUpdateCellErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsUpdateCellError = connectorsUpdateCellErrors[keyof connectorsUpdateCellErrors]
@@ -15589,9 +15867,9 @@ export type connectorsUpdateCellsData = {
 
 export type connectorsUpdateCellsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsUpdateCellsError =
@@ -15629,9 +15907,9 @@ export type connectorsDeleteRowsData = {
 
 export type connectorsDeleteRowsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDeleteRowsError = connectorsDeleteRowsErrors[keyof connectorsDeleteRowsErrors]
@@ -15660,9 +15938,9 @@ export type connectorsInsertRowData = {
 
 export type connectorsInsertRowErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsInsertRowError = connectorsInsertRowErrors[keyof connectorsInsertRowErrors]
@@ -15691,9 +15969,9 @@ export type connectorsPreviewImportData = {
 
 export type connectorsPreviewImportErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPreviewImportError =
@@ -15723,9 +16001,9 @@ export type connectorsImportRowsData = {
 
 export type connectorsImportRowsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsImportRowsError = connectorsImportRowsErrors[keyof connectorsImportRowsErrors]
@@ -15754,9 +16032,9 @@ export type connectorsRunRowCommandData = {
 
 export type connectorsRunRowCommandErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsRunRowCommandError =
@@ -15786,9 +16064,9 @@ export type connectorsResolvePickedRowsData = {
 
 export type connectorsResolvePickedRowsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsResolvePickedRowsError =
@@ -15818,9 +16096,9 @@ export type connectorsNewRelationOptionsData = {
 
 export type connectorsNewRelationOptionsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsNewRelationOptionsError =
@@ -15850,9 +16128,9 @@ export type connectorsCreateRelationFromSourceData = {
 
 export type connectorsCreateRelationFromSourceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsCreateRelationFromSourceError =
@@ -15882,9 +16160,9 @@ export type connectorsFollowReferenceData = {
 
 export type connectorsFollowReferenceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsFollowReferenceError =
@@ -15922,9 +16200,9 @@ export type connectorsArrivingReferencesData = {
 
 export type connectorsArrivingReferencesErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsArrivingReferencesError =
@@ -15961,9 +16239,9 @@ export type connectorsReadRelationModelData = {
 
 export type connectorsReadRelationModelErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadRelationModelError =
@@ -16006,9 +16284,9 @@ export type connectorsSearchCatalogData = {
 
 export type connectorsSearchCatalogErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsSearchCatalogError =
@@ -16051,9 +16329,9 @@ export type connectorsSearchCatalogContentsData = {
 
 export type connectorsSearchCatalogContentsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsSearchCatalogContentsError =
@@ -16088,9 +16366,9 @@ export type connectorsReadNodeSummaryData = {
 
 export type connectorsReadNodeSummaryErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadNodeSummaryError =
@@ -16120,9 +16398,9 @@ export type connectorsDropColumnData = {
 
 export type connectorsDropColumnErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDropColumnError = connectorsDropColumnErrors[keyof connectorsDropColumnErrors]
@@ -16151,9 +16429,9 @@ export type connectorsRenameColumnData = {
 
 export type connectorsRenameColumnErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsRenameColumnError =
@@ -16183,9 +16461,9 @@ export type connectorsAddColumnData = {
 
 export type connectorsAddColumnErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsAddColumnError = connectorsAddColumnErrors[keyof connectorsAddColumnErrors]
@@ -16214,9 +16492,9 @@ export type connectorsChangeColumnDefaultData = {
 
 export type connectorsChangeColumnDefaultErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsChangeColumnDefaultError =
@@ -16246,9 +16524,9 @@ export type connectorsChangeColumnNullabilityData = {
 
 export type connectorsChangeColumnNullabilityErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsChangeColumnNullabilityError =
@@ -16286,9 +16564,9 @@ export type connectorsChangeColumnTypeData = {
 
 export type connectorsChangeColumnTypeErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsChangeColumnTypeError =
@@ -16326,9 +16604,9 @@ export type connectorsDropIndexData = {
 
 export type connectorsDropIndexErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDropIndexError = connectorsDropIndexErrors[keyof connectorsDropIndexErrors]
@@ -16357,9 +16635,9 @@ export type connectorsCreateIndexData = {
 
 export type connectorsCreateIndexErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsCreateIndexError =
@@ -16397,9 +16675,9 @@ export type connectorsTableDesignOptionsData = {
 
 export type connectorsTableDesignOptionsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsTableDesignOptionsError =
@@ -16429,9 +16707,9 @@ export type connectorsPlanTableData = {
 
 export type connectorsPlanTableErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPlanTableError = connectorsPlanTableErrors[keyof connectorsPlanTableErrors]
@@ -16460,9 +16738,9 @@ export type connectorsHypertableDesignStateData = {
 
 export type connectorsHypertableDesignStateErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsHypertableDesignStateError =
@@ -16492,9 +16770,9 @@ export type connectorsDropConstraintData = {
 
 export type connectorsDropConstraintErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsDropConstraintError =
@@ -16524,9 +16802,9 @@ export type connectorsCreateConstraintData = {
 
 export type connectorsCreateConstraintErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsCreateConstraintError =
@@ -16572,9 +16850,9 @@ export type connectorsReadNodePathData = {
 
 export type connectorsReadNodePathErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadNodePathError =
@@ -16637,9 +16915,9 @@ export type connectorsReadActionsData = {
 
 export type connectorsReadActionsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadActionsError =
@@ -16675,9 +16953,9 @@ export type connectorsPrepareConnectorActionData = {
 
 export type connectorsPrepareConnectorActionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPrepareConnectorActionError =
@@ -16711,9 +16989,9 @@ export type connectorsRunActionData = {
 
 export type connectorsRunActionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsRunActionError = connectorsRunActionErrors[keyof connectorsRunActionErrors]
@@ -16746,9 +17024,9 @@ export type connectorsPreviewActionData = {
 
 export type connectorsPreviewActionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPreviewActionError =
@@ -16782,9 +17060,9 @@ export type connectorsActionFieldHintsData = {
 
 export type connectorsActionFieldHintsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsActionFieldHintsError =
@@ -16818,9 +17096,9 @@ export type connectorsRunActionOnSetData = {
 
 export type connectorsRunActionOnSetErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsRunActionOnSetError =
@@ -16854,9 +17132,9 @@ export type connectorsPreviewActionOnSetData = {
 
 export type connectorsPreviewActionOnSetErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPreviewActionOnSetError =
@@ -16890,9 +17168,9 @@ export type connectorsPrepareActionDownloadData = {
 
 export type connectorsPrepareActionDownloadErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPrepareActionDownloadError =
@@ -16926,9 +17204,9 @@ export type connectorsRunActionWithFileData = {
 
 export type connectorsRunActionWithFileErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsRunActionWithFileError =
@@ -16958,9 +17236,9 @@ export type connectorsReadGrantsData = {
 
 export type connectorsReadGrantsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsReadGrantsError = connectorsReadGrantsErrors[keyof connectorsReadGrantsErrors]
@@ -16989,9 +17267,9 @@ export type connectorsWriteGrantData = {
 
 export type connectorsWriteGrantErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsWriteGrantError = connectorsWriteGrantErrors[keyof connectorsWriteGrantErrors]
@@ -17024,9 +17302,9 @@ export type connectorsRevokeGrantData = {
 
 export type connectorsRevokeGrantErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsRevokeGrantError =
@@ -17060,9 +17338,9 @@ export type declaredReferencesListDeclaredReferencesData = {
 
 export type declaredReferencesListDeclaredReferencesErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type declaredReferencesListDeclaredReferencesError =
@@ -17089,9 +17367,9 @@ export type declaredReferencesDeclareReferenceData = {
 
 export type declaredReferencesDeclareReferenceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type declaredReferencesDeclareReferenceError =
@@ -17121,9 +17399,9 @@ export type declaredReferencesUndeclareReferenceData = {
 
 export type declaredReferencesUndeclareReferenceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type declaredReferencesUndeclareReferenceError =
@@ -17153,9 +17431,9 @@ export type connectorsPasteOffersData = {
 
 export type connectorsPasteOffersErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPasteOffersError =
@@ -17185,9 +17463,9 @@ export type connectorsPasteTablesPreviewData = {
 
 export type connectorsPasteTablesPreviewErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPasteTablesPreviewError =
@@ -17212,9 +17490,9 @@ export type connectorsPairOffersData = {
 
 export type connectorsPairOffersErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPairOffersError = connectorsPairOffersErrors[keyof connectorsPairOffersErrors]
@@ -17243,9 +17521,9 @@ export type connectorsClipboardOfferData = {
 
 export type connectorsClipboardOfferErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsClipboardOfferError =
@@ -17268,6 +17546,15 @@ export type sshKeysReadSshKeysData = {
   url: "/api/v1/ssh-keys/"
 }
 
+export type sshKeysReadSshKeysErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type sshKeysReadSshKeysError = sshKeysReadSshKeysErrors[keyof sshKeysReadSshKeysErrors]
+
 export type sshKeysReadSshKeysResponses = {
   /**
    * Response Ssh-Keys-Read Ssh Keys
@@ -17289,9 +17576,9 @@ export type sshKeysGenerateSshKeyData = {
 
 export type sshKeysGenerateSshKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sshKeysGenerateSshKeyError =
@@ -17316,9 +17603,9 @@ export type sshKeysImportSshKeyData = {
 
 export type sshKeysImportSshKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sshKeysImportSshKeyError = sshKeysImportSshKeyErrors[keyof sshKeysImportSshKeyErrors]
@@ -17347,9 +17634,9 @@ export type sshKeysDeleteSshKeyData = {
 
 export type sshKeysDeleteSshKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sshKeysDeleteSshKeyError = sshKeysDeleteSshKeyErrors[keyof sshKeysDeleteSshKeyErrors]
@@ -17378,9 +17665,9 @@ export type sshKeysRenameSshKeyData = {
 
 export type sshKeysRenameSshKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sshKeysRenameSshKeyError = sshKeysRenameSshKeyErrors[keyof sshKeysRenameSshKeyErrors]
@@ -17409,9 +17696,9 @@ export type sshKeysUnlockSshKeyData = {
 
 export type sshKeysUnlockSshKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sshKeysUnlockSshKeyError = sshKeysUnlockSshKeyErrors[keyof sshKeysUnlockSshKeyErrors]
@@ -17440,9 +17727,9 @@ export type sshKeysLockSshKeyData = {
 
 export type sshKeysLockSshKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sshKeysLockSshKeyError = sshKeysLockSshKeyErrors[keyof sshKeysLockSshKeyErrors]
@@ -17463,6 +17750,16 @@ export type adaptersReadAdapterTypesData = {
   url: "/api/v1/adapter-types/"
 }
 
+export type adaptersReadAdapterTypesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type adaptersReadAdapterTypesError =
+  adaptersReadAdapterTypesErrors[keyof adaptersReadAdapterTypesErrors]
+
 export type adaptersReadAdapterTypesResponses = {
   /**
    * Response Adapters-Read Adapter Types
@@ -17481,6 +17778,15 @@ export type guideReadGuidePagesData = {
   query?: never
   url: "/api/v1/guide/"
 }
+
+export type guideReadGuidePagesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type guideReadGuidePagesError = guideReadGuidePagesErrors[keyof guideReadGuidePagesErrors]
 
 export type guideReadGuidePagesResponses = {
   /**
@@ -17508,9 +17814,9 @@ export type guideReadGuidePageData = {
 
 export type guideReadGuidePageErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type guideReadGuidePageError = guideReadGuidePageErrors[keyof guideReadGuidePageErrors]
@@ -17532,6 +17838,16 @@ export type servicesReadServiceTemplatesData = {
   url: "/api/v1/services/templates"
 }
 
+export type servicesReadServiceTemplatesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type servicesReadServiceTemplatesError =
+  servicesReadServiceTemplatesErrors[keyof servicesReadServiceTemplatesErrors]
+
 export type servicesReadServiceTemplatesResponses = {
   /**
    * Response Services-Read Service Templates
@@ -17550,6 +17866,15 @@ export type servicesReadServicesData = {
   query?: never
   url: "/api/v1/services/"
 }
+
+export type servicesReadServicesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type servicesReadServicesError = servicesReadServicesErrors[keyof servicesReadServicesErrors]
 
 export type servicesReadServicesResponses = {
   /**
@@ -17572,9 +17897,9 @@ export type servicesRequestServiceData = {
 
 export type servicesRequestServiceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesRequestServiceError =
@@ -17596,6 +17921,16 @@ export type servicesReadUnclaimedData = {
   query?: never
   url: "/api/v1/services/unclaimed"
 }
+
+export type servicesReadUnclaimedErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type servicesReadUnclaimedError =
+  servicesReadUnclaimedErrors[keyof servicesReadUnclaimedErrors]
 
 export type servicesReadUnclaimedResponses = {
   /**
@@ -17623,9 +17958,9 @@ export type servicesRemoveUnclaimedData = {
 
 export type servicesRemoveUnclaimedErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesRemoveUnclaimedError =
@@ -17660,9 +17995,9 @@ export type servicesDeleteServiceData = {
 
 export type servicesDeleteServiceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesDeleteServiceError =
@@ -17692,9 +18027,9 @@ export type servicesReadServiceData = {
 
 export type servicesReadServiceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesReadServiceError = servicesReadServiceErrors[keyof servicesReadServiceErrors]
@@ -17723,9 +18058,9 @@ export type servicesReadServiceCredentialsData = {
 
 export type servicesReadServiceCredentialsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesReadServiceCredentialsError =
@@ -17755,9 +18090,9 @@ export type servicesRevealServiceCredentialsData = {
 
 export type servicesRevealServiceCredentialsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesRevealServiceCredentialsError =
@@ -17792,9 +18127,9 @@ export type servicesReadServiceLogsData = {
 
 export type servicesReadServiceLogsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesReadServiceLogsError =
@@ -17824,9 +18159,9 @@ export type servicesRetryServiceData = {
 
 export type servicesRetryServiceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesRetryServiceError = servicesRetryServiceErrors[keyof servicesRetryServiceErrors]
@@ -17855,9 +18190,9 @@ export type servicesStartServiceData = {
 
 export type servicesStartServiceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesStartServiceError = servicesStartServiceErrors[keyof servicesStartServiceErrors]
@@ -17886,9 +18221,9 @@ export type servicesStopServiceData = {
 
 export type servicesStopServiceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesStopServiceError = servicesStopServiceErrors[keyof servicesStopServiceErrors]
@@ -17917,9 +18252,9 @@ export type servicesRestartServiceData = {
 
 export type servicesRestartServiceErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type servicesRestartServiceError =
@@ -17942,6 +18277,15 @@ export type backupsReadBackupsData = {
   url: "/api/v1/backups/"
 }
 
+export type backupsReadBackupsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type backupsReadBackupsError = backupsReadBackupsErrors[keyof backupsReadBackupsErrors]
+
 export type backupsReadBackupsResponses = {
   /**
    * Response Backups-Read Backups
@@ -17963,9 +18307,9 @@ export type backupsBackUpData = {
 
 export type backupsBackUpErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type backupsBackUpError = backupsBackUpErrors[keyof backupsBackUpErrors]
@@ -17993,9 +18337,9 @@ export type backupsReadBackupOfferData = {
 
 export type backupsReadBackupOfferErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type backupsReadBackupOfferError =
@@ -18025,9 +18369,9 @@ export type backupsDeleteBackupData = {
 
 export type backupsDeleteBackupErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type backupsDeleteBackupError = backupsDeleteBackupErrors[keyof backupsDeleteBackupErrors]
@@ -18051,9 +18395,9 @@ export type backupsRestoreData = {
 
 export type backupsRestoreErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type backupsRestoreError = backupsRestoreErrors[keyof backupsRestoreErrors]
@@ -18085,9 +18429,9 @@ export type jobsReadJobsData = {
 
 export type jobsReadJobsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type jobsReadJobsError = jobsReadJobsErrors[keyof jobsReadJobsErrors]
@@ -18115,9 +18459,9 @@ export type jobsReadJobData = {
 
 export type jobsReadJobErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type jobsReadJobError = jobsReadJobErrors[keyof jobsReadJobErrors]
@@ -18145,9 +18489,9 @@ export type jobsCancelJobData = {
 
 export type jobsCancelJobErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type jobsCancelJobError = jobsCancelJobErrors[keyof jobsCancelJobErrors]
@@ -18179,9 +18523,9 @@ export type connectorsStartActionJobData = {
 
 export type connectorsStartActionJobErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsStartActionJobError =
@@ -18211,9 +18555,9 @@ export type connectorsPasteData = {
 
 export type connectorsPasteErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type connectorsPasteError = connectorsPasteErrors[keyof connectorsPasteErrors]
@@ -18242,6 +18586,16 @@ export type pipelinesReadPipelinesData = {
   url: "/api/v1/pipelines"
 }
 
+export type pipelinesReadPipelinesErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type pipelinesReadPipelinesError =
+  pipelinesReadPipelinesErrors[keyof pipelinesReadPipelinesErrors]
+
 export type pipelinesReadPipelinesResponses = {
   /**
    * Response Pipelines-Read Pipelines
@@ -18263,9 +18617,9 @@ export type pipelinesCreatePipelineData = {
 
 export type pipelinesCreatePipelineErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesCreatePipelineError =
@@ -18295,9 +18649,9 @@ export type pipelinesDeletePipelineData = {
 
 export type pipelinesDeletePipelineErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesDeletePipelineError =
@@ -18327,9 +18681,9 @@ export type pipelinesReadPipelineData = {
 
 export type pipelinesReadPipelineErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadPipelineError =
@@ -18359,9 +18713,9 @@ export type pipelinesSavePipelineData = {
 
 export type pipelinesSavePipelineErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesSavePipelineError =
@@ -18395,9 +18749,9 @@ export type pipelinesReadCardStateData = {
 
 export type pipelinesReadCardStateErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadCardStateError =
@@ -18427,9 +18781,9 @@ export type pipelinesReadLastRunData = {
 
 export type pipelinesReadLastRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadLastRunError = pipelinesReadLastRunErrors[keyof pipelinesReadLastRunErrors]
@@ -18458,9 +18812,9 @@ export type pipelinesRunPipelineData = {
 
 export type pipelinesRunPipelineErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesRunPipelineError = pipelinesRunPipelineErrors[keyof pipelinesRunPipelineErrors]
@@ -18489,9 +18843,9 @@ export type pipelinesReadHistoryData = {
 
 export type pipelinesReadHistoryErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadHistoryError = pipelinesReadHistoryErrors[keyof pipelinesReadHistoryErrors]
@@ -18524,9 +18878,9 @@ export type pipelinesReadRunData = {
 
 export type pipelinesReadRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadRunError = pipelinesReadRunErrors[keyof pipelinesReadRunErrors]
@@ -18554,9 +18908,9 @@ export type pipelinesReadScheduleData = {
 
 export type pipelinesReadScheduleErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadScheduleError =
@@ -18586,9 +18940,9 @@ export type pipelinesSetScheduleData = {
 
 export type pipelinesSetScheduleErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesSetScheduleError = pipelinesSetScheduleErrors[keyof pipelinesSetScheduleErrors]
@@ -18617,9 +18971,9 @@ export type pipelinesReadLinkOffersData = {
 
 export type pipelinesReadLinkOffersErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadLinkOffersError =
@@ -18649,9 +19003,9 @@ export type pipelinesReadHintData = {
 
 export type pipelinesReadHintErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type pipelinesReadHintError = pipelinesReadHintErrors[keyof pipelinesReadHintErrors]
@@ -18679,9 +19033,9 @@ export type sharesListSharesData = {
 
 export type sharesListSharesErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesListSharesError = sharesListSharesErrors[keyof sharesListSharesErrors]
@@ -18704,9 +19058,9 @@ export type sharesCreateShareData = {
 
 export type sharesCreateShareErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesCreateShareError = sharesCreateShareErrors[keyof sharesCreateShareErrors]
@@ -18734,9 +19088,9 @@ export type sharesListRequestsData = {
 
 export type sharesListRequestsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesListRequestsError = sharesListRequestsErrors[keyof sharesListRequestsErrors]
@@ -18765,9 +19119,9 @@ export type sharesApproveRequestData = {
 
 export type sharesApproveRequestErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesApproveRequestError = sharesApproveRequestErrors[keyof sharesApproveRequestErrors]
@@ -18796,9 +19150,9 @@ export type sharesDeclineRequestData = {
 
 export type sharesDeclineRequestErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesDeclineRequestError = sharesDeclineRequestErrors[keyof sharesDeclineRequestErrors]
@@ -18827,9 +19181,9 @@ export type sharesCancelRequestData = {
 
 export type sharesCancelRequestErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesCancelRequestError = sharesCancelRequestErrors[keyof sharesCancelRequestErrors]
@@ -18858,9 +19212,9 @@ export type sharesRequestAccessData = {
 
 export type sharesRequestAccessErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesRequestAccessError = sharesRequestAccessErrors[keyof sharesRequestAccessErrors]
@@ -18889,9 +19243,9 @@ export type sharesResolveShareData = {
 
 export type sharesResolveShareErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesResolveShareError = sharesResolveShareErrors[keyof sharesResolveShareErrors]
@@ -18928,9 +19282,9 @@ export type sharesDeleteShareData = {
 
 export type sharesDeleteShareErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type sharesDeleteShareError = sharesDeleteShareErrors[keyof sharesDeleteShareErrors]
@@ -18970,9 +19324,9 @@ export type queriesListDocumentsData = {
 
 export type queriesListDocumentsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesListDocumentsError = queriesListDocumentsErrors[keyof queriesListDocumentsErrors]
@@ -18996,9 +19350,9 @@ export type queriesCreateDocumentData = {
 
 export type queriesCreateDocumentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesCreateDocumentError =
@@ -19028,9 +19382,9 @@ export type queriesDeleteDocumentData = {
 
 export type queriesDeleteDocumentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesDeleteDocumentError =
@@ -19060,9 +19414,9 @@ export type queriesReadDocumentData = {
 
 export type queriesReadDocumentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadDocumentError = queriesReadDocumentErrors[keyof queriesReadDocumentErrors]
@@ -19091,9 +19445,9 @@ export type queriesUpdateDocumentData = {
 
 export type queriesUpdateDocumentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesUpdateDocumentError =
@@ -19123,9 +19477,9 @@ export type queriesReadProfileData = {
 
 export type queriesReadProfileErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadProfileError = queriesReadProfileErrors[keyof queriesReadProfileErrors]
@@ -19149,9 +19503,9 @@ export type queriesPrepareTextData = {
 
 export type queriesPrepareTextErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesPrepareTextError = queriesPrepareTextErrors[keyof queriesPrepareTextErrors]
@@ -19175,9 +19529,9 @@ export type queriesRehearseChangeData = {
 
 export type queriesRehearseChangeErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesRehearseChangeError =
@@ -19223,9 +19577,9 @@ export type queriesListRunsData = {
 
 export type queriesListRunsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesListRunsError = queriesListRunsErrors[keyof queriesListRunsErrors]
@@ -19248,9 +19602,9 @@ export type queriesStartRunData = {
 
 export type queriesStartRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesStartRunError = queriesStartRunErrors[keyof queriesStartRunErrors]
@@ -19278,9 +19632,9 @@ export type queriesReadRunData = {
 
 export type queriesReadRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadRunError = queriesReadRunErrors[keyof queriesReadRunErrors]
@@ -19308,9 +19662,9 @@ export type queriesCancelRunData = {
 
 export type queriesCancelRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesCancelRunError = queriesCancelRunErrors[keyof queriesCancelRunErrors]
@@ -19347,9 +19701,9 @@ export type queriesReadResultData = {
 
 export type queriesReadResultErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadResultError = queriesReadResultErrors[keyof queriesReadResultErrors]
@@ -19377,9 +19731,9 @@ export type queriesReadResultPageData = {
 
 export type queriesReadResultPageErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadResultPageError =
@@ -19409,9 +19763,9 @@ export type queriesDownloadResultData = {
 
 export type queriesDownloadResultErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesDownloadResultError =
@@ -19441,9 +19795,9 @@ export type queriesKeepResultData = {
 
 export type queriesKeepResultErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesKeepResultError = queriesKeepResultErrors[keyof queriesKeepResultErrors]
@@ -19471,9 +19825,9 @@ export type queriesReadRunTextData = {
 
 export type queriesReadRunTextErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadRunTextError = queriesReadRunTextErrors[keyof queriesReadRunTextErrors]
@@ -19509,9 +19863,9 @@ export type queriesDeleteRunsData = {
 
 export type queriesDeleteRunsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesDeleteRunsError = queriesDeleteRunsErrors[keyof queriesDeleteRunsErrors]
@@ -19532,6 +19886,15 @@ export type queriesReadRetentionData = {
   url: "/api/v1/queries/retention"
 }
 
+export type queriesReadRetentionErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type queriesReadRetentionError = queriesReadRetentionErrors[keyof queriesReadRetentionErrors]
+
 export type queriesReadRetentionResponses = {
   /**
    * Successful Response
@@ -19551,9 +19914,9 @@ export type queriesChooseRetentionData = {
 
 export type queriesChooseRetentionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesChooseRetentionError =
@@ -19588,9 +19951,9 @@ export type queriesReadMetadataData = {
 
 export type queriesReadMetadataErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadMetadataError = queriesReadMetadataErrors[keyof queriesReadMetadataErrors]
@@ -19619,9 +19982,9 @@ export type queriesExplainQueryData = {
 
 export type queriesExplainQueryErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesExplainQueryError = queriesExplainQueryErrors[keyof queriesExplainQueryErrors]
@@ -19650,9 +20013,9 @@ export type queriesFormatQueryData = {
 
 export type queriesFormatQueryErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesFormatQueryError = queriesFormatQueryErrors[keyof queriesFormatQueryErrors]
@@ -19681,9 +20044,9 @@ export type queriesGenerateQueryData = {
 
 export type queriesGenerateQueryErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesGenerateQueryError = queriesGenerateQueryErrors[keyof queriesGenerateQueryErrors]
@@ -19707,9 +20070,9 @@ export type queriesOpenTransactionData = {
 
 export type queriesOpenTransactionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesOpenTransactionError =
@@ -19739,9 +20102,9 @@ export type queriesReadTransactionData = {
 
 export type queriesReadTransactionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesReadTransactionError =
@@ -19771,9 +20134,9 @@ export type queriesCommitTransactionData = {
 
 export type queriesCommitTransactionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesCommitTransactionError =
@@ -19803,9 +20166,9 @@ export type queriesRollbackTransactionData = {
 
 export type queriesRollbackTransactionErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type queriesRollbackTransactionError =
@@ -19828,6 +20191,15 @@ export type metricsRemoveStoreData = {
   url: "/api/v1/metrics/store"
 }
 
+export type metricsRemoveStoreErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsRemoveStoreError = metricsRemoveStoreErrors[keyof metricsRemoveStoreErrors]
+
 export type metricsRemoveStoreResponses = {
   /**
    * Successful Response
@@ -19845,6 +20217,16 @@ export type metricsReadStoreStatusData = {
   url: "/api/v1/metrics/store"
 }
 
+export type metricsReadStoreStatusErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadStoreStatusError =
+  metricsReadStoreStatusErrors[keyof metricsReadStoreStatusErrors]
+
 export type metricsReadStoreStatusResponses = {
   /**
    * Successful Response
@@ -19861,6 +20243,15 @@ export type metricsStartStoreData = {
   query?: never
   url: "/api/v1/metrics/store/start"
 }
+
+export type metricsStartStoreErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsStartStoreError = metricsStartStoreErrors[keyof metricsStartStoreErrors]
 
 export type metricsStartStoreResponses = {
   /**
@@ -19880,9 +20271,9 @@ export type metricsConnectStoreData = {
 
 export type metricsConnectStoreErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsConnectStoreError = metricsConnectStoreErrors[keyof metricsConnectStoreErrors]
@@ -19904,6 +20295,16 @@ export type metricsReadStoreUsageData = {
   url: "/api/v1/metrics/store/usage"
 }
 
+export type metricsReadStoreUsageErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadStoreUsageError =
+  metricsReadStoreUsageErrors[keyof metricsReadStoreUsageErrors]
+
 export type metricsReadStoreUsageResponses = {
   /**
    * Successful Response
@@ -19920,6 +20321,15 @@ export type metricsReadRestartsData = {
   query?: never
   url: "/api/v1/metrics/restarts"
 }
+
+export type metricsReadRestartsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadRestartsError = metricsReadRestartsErrors[keyof metricsReadRestartsErrors]
 
 export type metricsReadRestartsResponses = {
   /**
@@ -19938,6 +20348,15 @@ export type metricsReadHostsData = {
   url: "/api/v1/metrics/hosts"
 }
 
+export type metricsReadHostsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadHostsError = metricsReadHostsErrors[keyof metricsReadHostsErrors]
+
 export type metricsReadHostsResponses = {
   /**
    * Response Metrics-Read Hosts
@@ -19955,6 +20374,15 @@ export type metricsReadAgentsData = {
   query?: never
   url: "/api/v1/metrics/agents"
 }
+
+export type metricsReadAgentsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadAgentsError = metricsReadAgentsErrors[keyof metricsReadAgentsErrors]
 
 export type metricsReadAgentsResponses = {
   /**
@@ -19976,9 +20404,9 @@ export type metricsCreateAgentData = {
 
 export type metricsCreateAgentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsCreateAgentError = metricsCreateAgentErrors[keyof metricsCreateAgentErrors]
@@ -20007,9 +20435,9 @@ export type metricsDeleteAgentData = {
 
 export type metricsDeleteAgentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsDeleteAgentError = metricsDeleteAgentErrors[keyof metricsDeleteAgentErrors]
@@ -20038,9 +20466,9 @@ export type metricsRenameAgentData = {
 
 export type metricsRenameAgentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsRenameAgentError = metricsRenameAgentErrors[keyof metricsRenameAgentErrors]
@@ -20069,9 +20497,9 @@ export type metricsReadAgentKeyData = {
 
 export type metricsReadAgentKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsReadAgentKeyError = metricsReadAgentKeyErrors[keyof metricsReadAgentKeyErrors]
@@ -20100,9 +20528,9 @@ export type metricsRotateAgentKeyData = {
 
 export type metricsRotateAgentKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsRotateAgentKeyError =
@@ -20132,9 +20560,9 @@ export type metricsPurgeAgentData = {
 
 export type metricsPurgeAgentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsPurgeAgentError = metricsPurgeAgentErrors[keyof metricsPurgeAgentErrors]
@@ -20155,6 +20583,15 @@ export type metricsReadCatalogData = {
   url: "/api/v1/metrics/catalog"
 }
 
+export type metricsReadCatalogErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadCatalogError = metricsReadCatalogErrors[keyof metricsReadCatalogErrors]
+
 export type metricsReadCatalogResponses = {
   /**
    * Successful Response
@@ -20171,6 +20608,15 @@ export type metricsReadReportingData = {
   query?: never
   url: "/api/v1/metrics/connectors"
 }
+
+export type metricsReadReportingErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadReportingError = metricsReadReportingErrors[keyof metricsReadReportingErrors]
 
 export type metricsReadReportingResponses = {
   /**
@@ -20198,9 +20644,9 @@ export type metricsUpdateReportingData = {
 
 export type metricsUpdateReportingErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsUpdateReportingError =
@@ -20230,9 +20676,9 @@ export type metricsPurgeConnectorData = {
 
 export type metricsPurgeConnectorErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsPurgeConnectorError =
@@ -20278,9 +20724,9 @@ export type metricsReadProcessesData = {
 
 export type metricsReadProcessesErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsReadProcessesError = metricsReadProcessesErrors[keyof metricsReadProcessesErrors]
@@ -20317,9 +20763,9 @@ export type metricsReadPresetsData = {
 
 export type metricsReadPresetsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsReadPresetsError = metricsReadPresetsErrors[keyof metricsReadPresetsErrors]
@@ -20345,9 +20791,9 @@ export type metricsReadHistoryData = {
 
 export type metricsReadHistoryErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsReadHistoryError = metricsReadHistoryErrors[keyof metricsReadHistoryErrors]
@@ -20368,6 +20814,16 @@ export type metricsReadDashboardsData = {
   query?: never
   url: "/api/v1/metrics/dashboards"
 }
+
+export type metricsReadDashboardsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type metricsReadDashboardsError =
+  metricsReadDashboardsErrors[keyof metricsReadDashboardsErrors]
 
 export type metricsReadDashboardsResponses = {
   /**
@@ -20390,9 +20846,9 @@ export type metricsCreateDashboardData = {
 
 export type metricsCreateDashboardErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsCreateDashboardError =
@@ -20422,9 +20878,9 @@ export type metricsDeleteDashboardData = {
 
 export type metricsDeleteDashboardErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsDeleteDashboardError =
@@ -20454,9 +20910,9 @@ export type metricsReadDashboardData = {
 
 export type metricsReadDashboardErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsReadDashboardError = metricsReadDashboardErrors[keyof metricsReadDashboardErrors]
@@ -20485,9 +20941,9 @@ export type metricsSaveDashboardData = {
 
 export type metricsSaveDashboardErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsSaveDashboardError = metricsSaveDashboardErrors[keyof metricsSaveDashboardErrors]
@@ -20516,9 +20972,9 @@ export type metricsReadDashboardCatalogData = {
 
 export type metricsReadDashboardCatalogErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsReadDashboardCatalogError =
@@ -20548,9 +21004,9 @@ export type metricsReadDashboardGrantsData = {
 
 export type metricsReadDashboardGrantsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsReadDashboardGrantsError =
@@ -20582,9 +21038,9 @@ export type metricsWriteDashboardGrantData = {
 
 export type metricsWriteDashboardGrantErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsWriteDashboardGrantError =
@@ -20618,9 +21074,9 @@ export type metricsRevokeDashboardGrantData = {
 
 export type metricsRevokeDashboardGrantErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type metricsRevokeDashboardGrantError =
@@ -20650,9 +21106,9 @@ export type aiListQuickChatsData = {
 
 export type aiListQuickChatsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiListQuickChatsError = aiListQuickChatsErrors[keyof aiListQuickChatsErrors]
@@ -20675,6 +21131,15 @@ export type aiCreateQuickChatData = {
   url: "/api/v1/ai/quick-chats"
 }
 
+export type aiCreateQuickChatErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiCreateQuickChatError = aiCreateQuickChatErrors[keyof aiCreateQuickChatErrors]
+
 export type aiCreateQuickChatResponses = {
   /**
    * Successful Response
@@ -20690,6 +21155,16 @@ export type aiDeleteArchivedQuickChatsData = {
   query?: never
   url: "/api/v1/ai/quick-chats/archived"
 }
+
+export type aiDeleteArchivedQuickChatsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiDeleteArchivedQuickChatsError =
+  aiDeleteArchivedQuickChatsErrors[keyof aiDeleteArchivedQuickChatsErrors]
 
 export type aiDeleteArchivedQuickChatsResponses = {
   /**
@@ -20715,9 +21190,9 @@ export type aiDeleteQuickChatData = {
 
 export type aiDeleteQuickChatErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiDeleteQuickChatError = aiDeleteQuickChatErrors[keyof aiDeleteQuickChatErrors]
@@ -20745,9 +21220,9 @@ export type aiReadQuickChatData = {
 
 export type aiReadQuickChatErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiReadQuickChatError = aiReadQuickChatErrors[keyof aiReadQuickChatErrors]
@@ -20775,9 +21250,9 @@ export type aiUpdateQuickChatData = {
 
 export type aiUpdateQuickChatErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiUpdateQuickChatError = aiUpdateQuickChatErrors[keyof aiUpdateQuickChatErrors]
@@ -20805,9 +21280,9 @@ export type aiSendQuickChatMessageData = {
 
 export type aiSendQuickChatMessageErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiSendQuickChatMessageError =
@@ -20837,9 +21312,9 @@ export type aiStopQuickChatAnswerData = {
 
 export type aiStopQuickChatAnswerErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiStopQuickChatAnswerError =
@@ -20869,9 +21344,9 @@ export type aiAskQuickChatInBrowserData = {
 
 export type aiAskQuickChatInBrowserErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiAskQuickChatInBrowserError =
@@ -20901,9 +21376,9 @@ export type aiKeepQuickChatBrowserAnswerData = {
 
 export type aiKeepQuickChatBrowserAnswerErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiKeepQuickChatBrowserAnswerError =
@@ -20926,6 +21401,15 @@ export type aiReadModelsData = {
   url: "/api/v1/ai/models"
 }
 
+export type aiReadModelsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiReadModelsError = aiReadModelsErrors[keyof aiReadModelsErrors]
+
 export type aiReadModelsResponses = {
   /**
    * Response Ai-Read Models
@@ -20943,6 +21427,15 @@ export type aiReadSettingsData = {
   query?: never
   url: "/api/v1/ai/settings"
 }
+
+export type aiReadSettingsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiReadSettingsError = aiReadSettingsErrors[keyof aiReadSettingsErrors]
 
 export type aiReadSettingsResponses = {
   /**
@@ -20962,9 +21455,9 @@ export type aiUpdateSettingsData = {
 
 export type aiUpdateSettingsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiUpdateSettingsError = aiUpdateSettingsErrors[keyof aiUpdateSettingsErrors]
@@ -20992,9 +21485,9 @@ export type aiRemoveKeyData = {
 
 export type aiRemoveKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiRemoveKeyError = aiRemoveKeyErrors[keyof aiRemoveKeyErrors]
@@ -21022,9 +21515,9 @@ export type aiWriteKeyData = {
 
 export type aiWriteKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiWriteKeyError = aiWriteKeyErrors[keyof aiWriteKeyErrors]
@@ -21055,9 +21548,9 @@ export type aiCheckKeyData = {
 
 export type aiCheckKeyErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiCheckKeyError = aiCheckKeyErrors[keyof aiCheckKeyErrors]
@@ -21078,6 +21571,15 @@ export type aiReadProjectsData = {
   url: "/api/v1/ai/projects"
 }
 
+export type aiReadProjectsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiReadProjectsError = aiReadProjectsErrors[keyof aiReadProjectsErrors]
+
 export type aiReadProjectsResponses = {
   /**
    * Successful Response
@@ -21096,9 +21598,9 @@ export type aiCreateProjectData = {
 
 export type aiCreateProjectErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiCreateProjectError = aiCreateProjectErrors[keyof aiCreateProjectErrors]
@@ -21131,9 +21633,9 @@ export type aiDeleteProjectData = {
 
 export type aiDeleteProjectErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiDeleteProjectError = aiDeleteProjectErrors[keyof aiDeleteProjectErrors]
@@ -21161,9 +21663,9 @@ export type aiRenameProjectData = {
 
 export type aiRenameProjectErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiRenameProjectError = aiRenameProjectErrors[keyof aiRenameProjectErrors]
@@ -21199,9 +21701,9 @@ export type aiReadConversationsData = {
 
 export type aiReadConversationsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiReadConversationsError = aiReadConversationsErrors[keyof aiReadConversationsErrors]
@@ -21223,6 +21725,15 @@ export type aiCreateConversationData = {
   url: "/api/v1/ai/conversations"
 }
 
+export type aiCreateConversationErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiCreateConversationError = aiCreateConversationErrors[keyof aiCreateConversationErrors]
+
 export type aiCreateConversationResponses = {
   /**
    * Successful Response
@@ -21239,6 +21750,16 @@ export type aiDeleteArchivedConversationsData = {
   query?: never
   url: "/api/v1/ai/conversations/archived"
 }
+
+export type aiDeleteArchivedConversationsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type aiDeleteArchivedConversationsError =
+  aiDeleteArchivedConversationsErrors[keyof aiDeleteArchivedConversationsErrors]
 
 export type aiDeleteArchivedConversationsResponses = {
   /**
@@ -21264,9 +21785,9 @@ export type aiDeleteConversationData = {
 
 export type aiDeleteConversationErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiDeleteConversationError = aiDeleteConversationErrors[keyof aiDeleteConversationErrors]
@@ -21295,9 +21816,9 @@ export type aiReadConversationData = {
 
 export type aiReadConversationErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiReadConversationError = aiReadConversationErrors[keyof aiReadConversationErrors]
@@ -21326,9 +21847,9 @@ export type aiUpdateConversationData = {
 
 export type aiUpdateConversationErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiUpdateConversationError = aiUpdateConversationErrors[keyof aiUpdateConversationErrors]
@@ -21357,9 +21878,9 @@ export type aiSendMessageData = {
 
 export type aiSendMessageErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiSendMessageError = aiSendMessageErrors[keyof aiSendMessageErrors]
@@ -21391,9 +21912,9 @@ export type aiReadAttachmentData = {
 
 export type aiReadAttachmentErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiReadAttachmentError = aiReadAttachmentErrors[keyof aiReadAttachmentErrors]
@@ -21421,9 +21942,9 @@ export type aiReadRunData = {
 
 export type aiReadRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiReadRunError = aiReadRunErrors[keyof aiReadRunErrors]
@@ -21451,9 +21972,9 @@ export type aiAnswerRunData = {
 
 export type aiAnswerRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiAnswerRunError = aiAnswerRunErrors[keyof aiAnswerRunErrors]
@@ -21481,9 +22002,9 @@ export type aiCancelRunData = {
 
 export type aiCancelRunErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type aiCancelRunError = aiCancelRunErrors[keyof aiCancelRunErrors]
@@ -21506,9 +22027,9 @@ export type searchSearchData = {
 
 export type searchSearchErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchSearchError = searchSearchErrors[keyof searchSearchErrors]
@@ -21529,9 +22050,9 @@ export type searchSearchContentsData = {
 
 export type searchSearchContentsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchSearchContentsError = searchSearchContentsErrors[keyof searchSearchContentsErrors]
@@ -21560,9 +22081,9 @@ export type searchReadSearchContentsData = {
 
 export type searchReadSearchContentsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchReadSearchContentsError =
@@ -21584,6 +22105,15 @@ export type searchReadKeptData = {
   query?: never
   url: "/api/v1/search/kept"
 }
+
+export type searchReadKeptErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type searchReadKeptError = searchReadKeptErrors[keyof searchReadKeptErrors]
 
 export type searchReadKeptResponses = {
   /**
@@ -21608,9 +22138,9 @@ export type searchReadKeepData = {
 
 export type searchReadKeepErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchReadKeepError = searchReadKeepErrors[keyof searchReadKeepErrors]
@@ -21638,9 +22168,9 @@ export type searchChangeKeepData = {
 
 export type searchChangeKeepErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchChangeKeepError = searchChangeKeepErrors[keyof searchChangeKeepErrors]
@@ -21668,9 +22198,9 @@ export type searchRefreshKeepData = {
 
 export type searchRefreshKeepErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchRefreshKeepError = searchRefreshKeepErrors[keyof searchRefreshKeepErrors]
@@ -21703,9 +22233,9 @@ export type searchRemoveContentsData = {
 
 export type searchRemoveContentsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchRemoveContentsError = searchRemoveContentsErrors[keyof searchRemoveContentsErrors]
@@ -21734,9 +22264,9 @@ export type searchAddContentsData = {
 
 export type searchAddContentsErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type searchAddContentsError = searchAddContentsErrors[keyof searchAddContentsErrors]
@@ -21759,9 +22289,9 @@ export type privateCreateUserData = {
 
 export type privateCreateUserErrors = {
   /**
-   * Validation Error
+   * A coded refusal
    */
-  422: HTTPValidationError
+  "4XX": ProblemResponse
 }
 
 export type privateCreateUserError = privateCreateUserErrors[keyof privateCreateUserErrors]

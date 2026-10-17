@@ -1,20 +1,8 @@
 import type { NodeRepresentation, ScreenContext } from "@/client"
 import { connectionNameOf, lookOf } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
+import { t } from "@/shared/i18n"
 
-const KIND_LABELS: Record<ScreenContext["kind"], string> = {
-  catalog: "Catalog",
-  rows: "Rows",
-  content: "Content",
-  structure: "Structure",
-  summary: "Summary",
-  record: "Record",
-  chart: "Chart",
-  queries: "Queries",
-  query: "Query",
-  result: "Result",
-  relationships: "Relationships",
-}
 
 export interface AiOpenIntent {
   connector_id: string
@@ -29,7 +17,7 @@ export interface AiOpenIntent {
 
 function contextLabel(panel: Exclude<Panel, { kind: "connectors" | "widget" | "service-logs" | "search" }>): string {
   const look = lookOf(panel)
-  const parts = [connectionNameOf(panel), look.title, KIND_LABELS[panel.kind]].filter(
+  const parts = [connectionNameOf(panel), look.title, t(`ai.context.kinds.${panel.kind}`)].filter(
     (part, index, all): part is string => Boolean(part) && all.indexOf(part) === index
   )
   return parts.join(" · ")

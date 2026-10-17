@@ -113,7 +113,7 @@ async def test_nothing_runs_while_a_link_lacks_its_choices(
     canvas = await Canvas(client, headers).make()
     csv = card(files, [(filename, filename, "file")])
     place = card(database, [(schema, schema, "schema")], x=400)
-    assert (await canvas.run()).json()["detail"]["message"] == "Draw a link first"
+    assert (await canvas.run()).json()["detail"]["code"] == "pipelines.no_links"
     bare = link(csv, filename, place, schema, "rows_new_relation")
     await canvas.save([csv, place], [bare])
 
@@ -151,10 +151,7 @@ async def test_one_run_of_a_pipeline_at_a_time_and_three_pipelines_a_person(
 
     await running(uuid.UUID(canvas.id))
     busy = await canvas.run()
-    assert (busy.status_code, busy.json()["detail"]["message"]) == (
-        409,
-        "This pipeline is running; wait for it to finish",
-    )
+    assert (busy.status_code, busy.json()["detail"]["code"]) == (409, "pipelines.running")
     async with async_session_maker() as session:
         mine = await session.exec(select(Job).where(col(Job.subject_id) == uuid.UUID(canvas.id)))
         for job in mine.all():
@@ -164,9 +161,9 @@ async def test_one_run_of_a_pipeline_at_a_time_and_three_pipelines_a_person(
     for _ in range(settings.PIPELINE_MAX_ACTIVE):
         await running(uuid.uuid4())
     over = await canvas.run()
-    assert (over.status_code, over.json()["detail"]["message"]) == (
+    assert (over.status_code, over.json()["detail"]["code"]) == (
         429,
-        "Three pipelines are running — wait for one to finish",
+        "pipelines.too_many_running",
     )
 
 

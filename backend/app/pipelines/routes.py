@@ -9,7 +9,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -18,7 +18,9 @@ from app.adapters.resources import ResourcesDep
 from app.connectors import crud as connector_crud
 from app.connectors.paste.models import PasteOffers
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.runner import JobRunnerDep
 from app.pipelines.check import card_state
@@ -61,7 +63,7 @@ router = APIRouter(prefix="/pipelines", tags=["pipelines"])
 async def _owned(session: AsyncSession, user: User, pipeline_id: uuid.UUID) -> Pipeline:
     pipeline = await session.get(Pipeline, pipeline_id)
     if pipeline is None or pipeline.owner_id != user.id:
-        raise HTTPException(404, detail={"message": "No such pipeline"})
+        raise Problem(404, "pipelines.not_found")
     return pipeline
 
 
@@ -112,9 +114,7 @@ async def create_pipeline(
         select(func.count()).select_from(Pipeline).where(Pipeline.owner_id == current_user.id)
     )
     if held.one() >= MAX_PIPELINES:
-        raise HTTPException(
-            422, detail={"message": f"A person keeps at most {MAX_PIPELINES} pipelines"}
-        )
+        raise Problem(422, "pipelines.too_many", limit=MAX_PIPELINES)
     pipeline = Pipeline(
         owner_id=current_user.id,
         name=body.name,
@@ -145,18 +145,14 @@ async def save_pipeline(
     """
     pipeline = await _owned(session, current_user, pipeline_id)
     if body.version != pipeline.version:
-        raise HTTPException(
-            409, detail={"message": "This pipeline was changed somewhere else; reload it"}
-        )
+        raise Problem(409, "pipelines.changed")
     stored = content_of(pipeline)
     known = set() if stored is None else {card.connector_id for card in stored.cards}
     for connector_id in {card.connector_id for card in body.cards} - known:
         if await connector_crud.get_with_access(
             session, connector_id=connector_id, user=current_user
         ) is None:
-            raise HTTPException(
-                422, detail={"message": "A card names a connection you cannot read"}
-            )
+            raise Problem(422, "pipelines.card_unreadable")
     content = PipelineContent(cards=body.cards, links=body.links)
     pipeline.name = body.name
     pipeline.content = content.model_dump(mode="json")
@@ -178,7 +174,7 @@ async def delete_pipeline(
     await job_crud.forget_finished(session, kind=KIND, subject_id=pipeline.id)
     await session.delete(pipeline)
     await session.commit()
-    return Message(message=f"{pipeline.name} was removed")
+    return Message(message=say("{name} was removed", name=pipeline.name))
 
 
 @router.get("/{pipeline_id}/cards/{card_id}/state", response_model=CardState)
@@ -197,7 +193,7 @@ async def read_card_state(
     _, content = await _content(session, current_user, pipeline_id)
     card = content.card(card_id)
     if card is None:
-        raise HTTPException(404, detail={"message": "No such card"})
+        raise Problem(404, "pipelines.card_not_found")
     return await card_state(session, current_user, resources, card)
 
 

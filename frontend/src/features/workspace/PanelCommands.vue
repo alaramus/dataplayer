@@ -5,6 +5,7 @@ import { computed, inject, ref } from "vue"
 import { freshnessTooltip, isLive } from "@/shared/freshness/freshness"
 import type { Freshness } from "@/shared/freshness/freshness"
 import { useNow } from "@/shared/freshness/useNow"
+import { t } from "@/shared/i18n"
 import { AppIconButton, AppTooltip } from "@/shared/ui"
 import { workspaceKey } from "@/shared/workspace"
 
@@ -140,7 +141,7 @@ function showInCatalog() {
         data-testid="panel-freshness"
         :data-live="live ? 'yes' : 'no'"
       >
-        <template v-if="live">Live</template>
+        <template v-if="live">{{ t('workspace.commands.live') }}</template>
         <q-icon
           v-else
           name="schedule"
@@ -152,15 +153,15 @@ function showInCatalog() {
     <AppIconButton
       v-if="reveal && actions"
       :icon="appIcons.myLocation"
-      tooltip="Show in catalog"
-      aria-label="Show in catalog"
+      :tooltip="t('workspace.commands.show_in_catalog')"
+      :aria-label="t('workspace.commands.show_in_catalog')"
       data-testid="panel-reveal"
       @click="showInCatalog"
     />
     <AppIconButton
       v-if="offersWindow"
       :icon="appIcons.window"
-      :tooltip="mayDetach ? 'Open in a window' : 'Open in a window — this tab stays in its column'"
+      :tooltip="mayDetach ? t('workspace.commands.open_window') : t('workspace.commands.open_window_refused')"
       :disable="!mayDetach"
       data-testid="panel-window"
       @click="openWindow"

@@ -22,6 +22,7 @@ from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.details import inspect_details
 from app.adapters.postgres.timescale.statistics import inspect_statistics
 from app.adapters.postgres.timescale.summary import related_views
+from app.adapters.postgres.words import worded_titles
 from app.adapters.relation import RelationKind, RelationModel
 from app.adapters.summary import NodeSummary, RelationContents
 
@@ -68,6 +69,7 @@ class PostgresSummaries:
         representations = [TABLE_REPRESENTATION]
         if model.specialization is None:
             representations.append(DDL_REPRESENTATION)
+        representations = worded_titles(representations)
         return NodeSummary(
             node_id=node_id,
             name=model.name,

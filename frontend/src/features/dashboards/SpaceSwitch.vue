@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from "vue"
+
+import { t } from "@/shared/i18n"
 import { appIcons } from "@/shared/ui"
 import { AppButton, AppTooltip } from "@/shared/ui"
 import { useSpaceStore } from "@/stores/space"
@@ -16,19 +19,29 @@ withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
 
 // Pipelines beside Data: both stand on the same list of connections, so the
 // switch between them keeps that card where it was.
-const choices: { value: Space; label: string; icon: string; tooltip: string }[] = [
-  { value: "data", label: "Data", icon: appIcons.tableChart, tooltip: "Connections, catalogs and the work opened from them" },
-  { value: "pipelines", label: "Pipelines", icon: appIcons.accountTree, tooltip: "What your connections give each other, laid out and run" },
-  { value: "dashboards", label: "Dashboards", icon: appIcons.dashboard, tooltip: "Metrics your agents report, drawn over time" },
-  { value: "ai", label: "AI", icon: appIcons.robot2, tooltip: "Conversations with the application agent" },
-]
+const choices = computed<{ value: Space; label: string; icon: string; tooltip: string }[]>(() => [
+  { value: "data", label: t("dashboards.switch.data"), icon: appIcons.tableChart, tooltip: t("dashboards.switch.data_hint") },
+  {
+    value: "pipelines",
+    label: t("dashboards.switch.pipelines"),
+    icon: appIcons.accountTree,
+    tooltip: t("dashboards.switch.pipelines_hint"),
+  },
+  {
+    value: "dashboards",
+    label: t("dashboards.switch.dashboards"),
+    icon: appIcons.dashboard,
+    tooltip: t("dashboards.switch.dashboards_hint"),
+  },
+  { value: "ai", label: t("dashboards.switch.ai"), icon: appIcons.robot2, tooltip: t("dashboards.switch.ai_hint") },
+])
 </script>
 
 <template>
   <div
     class="space-switch"
     role="group"
-    aria-label="Space"
+    :aria-label="t('dashboards.switch.label')"
   >
     <span
       v-for="choice in choices"

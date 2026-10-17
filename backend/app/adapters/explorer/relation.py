@@ -21,11 +21,12 @@ from app.adapters.explorer.readers import CsvReader
 from app.adapters.explorer.storage import Storage
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import Column, ColumnTypeOption, RelationModel
+from app.core.translation import N_, say
 
 # One reason for all three gates: nothing about the shape of a file dataset is
 # changed through this source, so the structure screen says so once per gate
 # rather than offering a command that would be refused (D2d).
-READ_ONLY = "This source reads a file dataset and cannot change its shape"
+READ_ONLY = N_("This source reads a file dataset and cannot change its shape")
 
 
 class ExplorerRelations:
@@ -46,7 +47,7 @@ class ExplorerRelations:
                 return _worksheet_model(resolved, path, node_id)
         file_format = format_of(resolved.name)
         if file_format not in {"delimited", "parquet"}:
-            raise ValueError("This node states no columns of its own")
+            raise ValueError(say("This node states no columns of its own"))
         with self._storage.local_file(resolved.place) as path:
             if file_format == "delimited":
                 return _delimited_model(path, node_id)
@@ -83,9 +84,11 @@ def _delimited_model(path: Path, node_id: str) -> RelationModel:
         ],
         column_changes_supported=True,
         column_operations=["add", "drop", "rename"],
-        column_type_options=[ColumnTypeOption(code="text", title="Text", sql="text")],
-        index_changes_reason="A delimited file has no indexes",
-        constraint_changes_reason="A delimited file has no constraints",
+        column_type_options=[
+            ColumnTypeOption(code="text", title=say("Text"), sql="text")
+        ],
+        index_changes_reason=say("A delimited file has no indexes"),
+        constraint_changes_reason=say("A delimited file has no constraints"),
     )
 
 
@@ -134,7 +137,7 @@ def _model(
         row_estimate=row_estimate,
         size_bytes=size_bytes,
         dataset=dataset,
-        column_changes_reason=READ_ONLY,
-        index_changes_reason=READ_ONLY,
-        constraint_changes_reason=READ_ONLY,
+        column_changes_reason=say(READ_ONLY),
+        index_changes_reason=say(READ_ONLY),
+        constraint_changes_reason=say(READ_ONLY),
     )

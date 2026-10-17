@@ -11,6 +11,7 @@ import { useRelationModel } from "@/features/structure/api"
 import { badgesFor } from "@/features/structure/model"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import {
   AppBadge,
   AppButton,
@@ -96,12 +97,14 @@ const { cellReferences, cellArriving, follow, followBack, isPending: jumping } =
     onFollow: (target) => emit("follow", target),
   })
 
-const COLUMNS = [
-  { name: "keys", label: "Key", field: "keys", align: "left" as const },
-  { name: "name", label: "Column", field: "name", align: "left" as const },
-  { name: "type", label: "Type", field: "type", align: "left" as const },
-  { name: "value", label: "Value", field: "value", align: "left" as const },
-]
+const COLUMNS = computed(() =>
+  (["keys", "name", "type", "value"] as const).map((name) => ({
+    name,
+    label: t(`record.columns.${name}`),
+    field: name,
+    align: "left" as const,
+  }))
+)
 
 // A type and not an interface: AppTable takes rows as
 // `Record<string, unknown>`, and only a type alias gets the implicit index
@@ -173,12 +176,12 @@ function step(by: 1 | -1) {
 
 async function copy(line: Line) {
   await copyText(line.value ?? "")
-  toast.success(`${line.name} copied`)
+  toast.success(t("record.copied", { name: line.name }))
 }
 
 const errorText = computed(() =>
   page.isError.value
-    ? messageOf(page.error.value, "Could not read this row")
+    ? messageOf(page.error.value, t("record.read_failed"))
     : ""
 )
 </script>
@@ -204,7 +207,7 @@ const errorText = computed(() =>
       <AppSpinner v-else-if="page.isPending.value" />
       <AppEmptyState
         v-else-if="lines.length === 0"
-        text="No row here"
+        :text="t('record.no_row')"
         data-testid="record-empty"
       />
       <AppTable
@@ -216,7 +219,7 @@ const errorText = computed(() =>
         compact
         :paged="false"
         sticky
-        empty-text="No columns"
+        :empty-text="t('record.no_columns')"
         data-testid="record-table"
       >
         <template #body-cell-keys="cellProps">
@@ -252,7 +255,7 @@ const errorText = computed(() =>
                   <AppIconButton
                     :icon="appIcons.arrowForward"
                     compact
-                    :tooltip="`Go to ${reference.target_title}`"
+                    :tooltip="t('grid.references.go_to', { target: reference.target_title })"
                     :disable="jumping"
                     :data-testid="`record-follow-${cellProps.row.name}`"
                   />
@@ -267,7 +270,7 @@ const errorText = computed(() =>
                   <AppIconButton
                     :icon="appIcons.arrowBack"
                     compact
-                    tooltip="What points at this row"
+                    :tooltip="t('grid.references.arriving')"
                     :disable="jumping"
                     :data-testid="`record-arriving-${cellProps.row.name}`"
                   />
@@ -294,7 +297,7 @@ const errorText = computed(() =>
                 <AppIconButton
                   :icon="appIcons.copy"
                   compact
-                  tooltip="Copy this value"
+                  :tooltip="t('record.copy_value')"
                   :data-testid="`record-copy-${cellProps.row.name}`"
                   @click="copy(cellProps.row)"
                 />
@@ -307,11 +310,11 @@ const errorText = computed(() =>
 
     <nav
       class="record-view__navigation"
-      aria-label="Row navigation"
+      :aria-label="t('record.navigation')"
       data-testid="record-navigation"
     >
       <AppButton
-        label="Previous"
+        :label="t('record.previous')"
         variant="secondary"
         size="sm"
         :icon="appIcons.chevronLeft"
@@ -320,7 +323,7 @@ const errorText = computed(() =>
         @click="step(-1)"
       />
       <AppButton
-        label="Next"
+        :label="t('record.next')"
         variant="secondary"
         size="sm"
         :icon-right="appIcons.chevronRight"

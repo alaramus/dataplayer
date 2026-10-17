@@ -13,6 +13,7 @@ import { foundNodes } from "@/features/catalog/search"
 import type { FoundNodes } from "@/features/catalog/search"
 import { sourceFeaturesKey } from "@/features/connectors/features"
 import { errorKindOf, messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import type { CatalogPage } from "@/features/catalog/api"
 import type { Freshness } from "@/shared/freshness/freshness"
 
@@ -251,7 +252,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
       plain.value = children.filter((node) => node.role !== "group")
       await fillRows(refresh)
     } catch (cause) {
-      error.value = messageOf(cause, "Could not read the catalog")
+      error.value = messageOf(cause, t("catalog.level.read_failed"))
       errorKind.value = errorKindOf(cause)
       groups.value = []
       selectedGroups.value = []
@@ -279,7 +280,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
       error.value = ""
       errorKind.value = null
     } catch (cause) {
-      error.value = messageOf(cause, "Could not read the catalog")
+      error.value = messageOf(cause, t("catalog.level.read_failed"))
       errorKind.value = errorKindOf(cause)
       rows.value = []
     } finally {
@@ -406,7 +407,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
       error.value = result.error_kind == null ? "" : result.notice ?? ""
       errorKind.value = result.error_kind ?? null
     } catch (cause) {
-      error.value = messageOf(cause, "Could not search this connection")
+      error.value = messageOf(cause, t("catalog.level.search_failed"))
       errorKind.value = errorKindOf(cause)
     } finally {
       searching.value = false

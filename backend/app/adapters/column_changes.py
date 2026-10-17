@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.translation import say
+
 
 class AddColumnRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -16,7 +18,7 @@ class AddColumnRequest(BaseModel):
     @model_validator(mode="after")
     def plain_name(self) -> AddColumnRequest:
         if self.name.strip() != self.name:
-            raise ValueError("A column name cannot start or end with whitespace")
+            raise ValueError(say("A column name cannot start or end with whitespace"))
         return self
 
 
@@ -37,9 +39,9 @@ class RenameColumnRequest(BaseModel):
     @model_validator(mode="after")
     def plain_and_changed_name(self) -> RenameColumnRequest:
         if self.new_name.strip() != self.new_name:
-            raise ValueError("A column name cannot start or end with whitespace")
+            raise ValueError(say("A column name cannot start or end with whitespace"))
         if self.name == self.new_name:
-            raise ValueError("The new column name must be different")
+            raise ValueError(say("The new column name must be different"))
         return self
 
 
@@ -56,9 +58,9 @@ class ColumnDefaultRequest(BaseModel):
     @model_validator(mode="after")
     def value_matches_action(self) -> ColumnDefaultRequest:
         if self.action == "set" and self.value is None:
-            raise ValueError("A literal value is required when setting a default")
+            raise ValueError(say("A literal value is required when setting a default"))
         if self.action == "drop" and self.value is not None:
-            raise ValueError("A value cannot be supplied when dropping a default")
+            raise ValueError(say("A value cannot be supplied when dropping a default"))
         return self
 
 

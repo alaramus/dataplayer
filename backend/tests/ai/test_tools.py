@@ -3,6 +3,7 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.tools import (
     MAX_RESULT_BYTES,
@@ -11,9 +12,15 @@ from app.ai.tools import (
     ToolRuntime,
     bounded_json,
     connector_ids_from_result,
+    for_person,
+    statement_substep,
     transfer_refusal,
 )
 from app.connectors.models import Connector
+from app.core.config import settings
+from app.core.translation import current_language, say
+from app.users import crud as user_crud
+from app.users.models import User
 
 
 def test_tool_results_are_bounded_with_an_explicit_size() -> None:
@@ -89,3 +96,48 @@ async def test_the_fifty_first_tool_call_is_refused_before_work_starts() -> None
 
     with pytest.raises(ToolLimitReached, match="50 tool calls"):
         await runtime.invoke("Too late", MagicMock())
+
+
+async def test_a_tool_works_in_english_and_words_for_the_person_in_theirs(
+    db: AsyncSession,
+) -> None:
+    """What a tool returns is read by the model, so it is English; what it
+    shows the person is in the language they asked in (D226)."""
+    owner = await user_crud.get_user_by_email(session=db, email=settings.FIRST_SUPERUSER)
+    assert owner is not None
+
+    async def ignored(*_args: object) -> None:
+        return None
+
+    async def work(_session: AsyncSession, _user: User) -> dict[str, str]:
+        return {
+            "model": say("Allow"),
+            "person": for_person(lambda: say("Allow")),
+            "substep": for_person(
+                lambda: statement_substep({"ordinal": 0, "status": "succeeded", "row_count": 3})
+            ),
+        }
+
+    runtime = ToolRuntime(
+        run_id=uuid.uuid4(),
+        owner_id=owner.id,
+        conversation_id=uuid.uuid4(),
+        resources=MagicMock(),
+        data_cache=MagicMock(),
+        say=ignored,
+        opened=ignored,
+        # A resumed step is not announced, so no run row is needed.
+        resume_ordinal=1,
+    )
+
+    token = current_language.set("ru")
+    try:
+        answered = json.loads(await runtime.invoke(say("Listing connections"), work))
+    finally:
+        current_language.reset(token)
+
+    assert answered == {
+        "model": "Allow",
+        "person": "Разрешить",
+        "substep": "Инструкция 1 · succeeded · строк: 3",
+    }

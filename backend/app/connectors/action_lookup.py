@@ -21,6 +21,17 @@ from app.adapters.actions import (
 )
 from app.adapters.protocol import AdapterError, DataAdapter, NodeNotFound
 from app.core.access import Access, at_least
+from app.core.problems import Problem, ProblemCode
+from app.core.translation import say
+
+# One code per level rather than the level as a parameter: a parameter is
+# data, and "write" inside a translated sentence would stay English (D225).
+ACTION_NEEDS: dict[Access, ProblemCode] = {
+    "read": "actions.needs_read",
+    "write": "actions.needs_write",
+    "structure": "actions.needs_structure",
+    "own": "actions.needs_own",
+}
 
 
 class ActionRequest(BaseModel):
@@ -40,13 +51,7 @@ REFUSAL_STATUS: dict[RefusalReason, int] = {
 
 def acting_or_501(adapter: DataAdapter) -> SupportsActions:
     if not isinstance(adapter, SupportsActions):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support actions",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "actions.not_supported", error_kind="config")
     return adapter
 
 
@@ -79,19 +84,14 @@ async def action_for_node(
     try:
         action = adapter.action(action_name)
     except UnknownAction as exc:
-        raise HTTPException(
-            status_code=404, detail={"message": f"Unknown action: {action_name}"}
-        ) from exc
+        raise Problem(404, "actions.unknown", name=action_name) from exc
 
     available = await available_or_422(adapter, node_id)
     if action.name not in {offered.name for offered in available.actions}:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "message": available.reason_for(action.name)
-                or f"{action.title} cannot be done to this node"
-            },
-        )
+        reason = available.reason_for(action.name)
+        if not reason:
+            raise Problem(422, "actions.not_for_node", action=say(action.title))
+        raise HTTPException(status_code=422, detail={"message": reason})
     return action
 
 
@@ -103,14 +103,7 @@ def allowed_or_403(action: Action[Any], access: Access) -> None:
     404 for the name would be a different lie: the action exists.
     """
     if not at_least(access, action.requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"{action.title} needs {action.requires} access",
-                "required": action.requires,
-                "held": access,
-            },
-        )
+        raise Problem(403, ACTION_NEEDS[action.requires], action=say(action.title))
 
 
 async def perform[T](run: Callable[[], Awaitable[T]]) -> T:

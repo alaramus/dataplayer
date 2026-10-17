@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.translation import say
+
 
 class UpdateCellRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -40,7 +42,7 @@ class RowEdit(BaseModel):
     def unique_columns(self) -> RowEdit:
         names = [cell.column for cell in self.cells]
         if len(names) != len(set(names)):
-            raise ValueError("A column may be set only once in a row")
+            raise ValueError(say("A column may be set only once in a row"))
         return self
 
 
@@ -61,9 +63,9 @@ class UpdateCellsRequest(BaseModel):
     def bounded_and_distinct(self) -> UpdateCellsRequest:
         handles = [row.row_handle for row in self.rows]
         if len(handles) != len(set(handles)):
-            raise ValueError("A row may be edited only once")
+            raise ValueError(say("A row may be edited only once"))
         if sum(len(row.cells) for row in self.rows) > 2000:
-            raise ValueError("A paste may carry at most 2000 cells")
+            raise ValueError(say("A paste may carry at most {count} cells", count=2000))
         return self
 
 
@@ -79,12 +81,14 @@ class InsertRowsRequest(BaseModel):
     @model_validator(mode="after")
     def rectangular_and_distinct(self) -> InsertRowsRequest:
         if len(self.columns) != len(set(self.columns)):
-            raise ValueError("A column may be filled only once")
+            raise ValueError(say("A column may be filled only once"))
         width = len(self.columns)
         if any(len(row) != width for row in self.rows):
-            raise ValueError("Every row carries one value per column")
+            raise ValueError(say("Every row carries one value per column"))
         if width * len(self.rows) > 50_000:
-            raise ValueError("A single move may carry at most 50000 values")
+            raise ValueError(
+                say("A single move may carry at most {count} values", count=50000)
+            )
         return self
 
 
@@ -186,7 +190,7 @@ class InsertRowRequest(BaseModel):
     def unique_columns(self) -> InsertRowRequest:
         names = [item.column for item in self.values]
         if len(names) != len(set(names)):
-            raise ValueError("An insert column may be supplied only once")
+            raise ValueError(say("An insert column may be supplied only once"))
         return self
 
 
@@ -206,7 +210,7 @@ class DeleteRowsRequest(BaseModel):
     @model_validator(mode="after")
     def unique_handles(self) -> DeleteRowsRequest:
         if len(self.row_handles) != len(set(self.row_handles)):
-            raise ValueError("A row may be deleted only once")
+            raise ValueError(say("A row may be deleted only once"))
         return self
 
 

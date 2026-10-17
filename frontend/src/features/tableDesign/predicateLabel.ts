@@ -1,3 +1,5 @@
+import { t } from "@/shared/i18n"
+
 import type { DraftColumn, DraftPredicate, DraftTerm } from "./draft"
 
 const operators: Record<DraftTerm["operator"], string> = {
@@ -17,7 +19,7 @@ const operators: Record<DraftTerm["operator"], string> = {
 export function predicateLabel(predicate: DraftPredicate, columns: DraftColumn[]): string {
   return predicate.terms
     .map((term) => {
-      const name = columns.find((column) => column.id === term.columnId)?.name || "Choose column"
+      const name = columns.find((column) => column.id === term.columnId)?.name || t("table_design.choose_column")
       const head = `${name} ${operators[term.operator]}`
       if (term.operator === "is_null" || term.operator === "is_not_null") return head
       const value = (text: string) =>

@@ -1,13 +1,15 @@
 import type { SshKeyPublic, SshKeyUnlockWritable } from "@/client"
+import { t } from "@/shared/i18n"
+import { formatTime } from "@/shared/i18n/format"
 import type { FieldSpec } from "@/shared/SchemaForm/jsonSchema"
 
 /** How long an asked-for passphrase is held. The set is the server's (D147). */
 export type UnlockMinutes = NonNullable<SshKeyUnlockWritable["minutes"]>
 
 const UNLOCK_LABELS: Record<UnlockMinutes, string> = {
-  15: "15 minutes",
-  60: "1 hour",
-  480: "8 hours",
+  get 15() { return t("ssh_keys.unlock_spans.m15") },
+  get 60() { return t("ssh_keys.unlock_spans.h1") },
+  get 480() { return t("ssh_keys.unlock_spans.h8") },
 }
 
 export function unlockOptions(): { label: string; value: UnlockMinutes }[] {
@@ -17,9 +19,9 @@ export function unlockOptions(): { label: string; value: UnlockMinutes }[] {
 export type PassphraseMode = SshKeyPublic["passphrase_mode"]
 
 const MODE_LABELS: Record<PassphraseMode, string> = {
-  none: "No passphrase",
-  stored: "Passphrase kept",
-  ask: "Asks for its passphrase",
+  get none() { return t("ssh_keys.modes.none") },
+  get stored() { return t("ssh_keys.modes.stored") },
+  get ask() { return t("ssh_keys.modes.ask") },
 }
 
 export function passphraseModeLabel(mode: PassphraseMode): string {
@@ -36,10 +38,10 @@ export function keyState(
   key: Pick<SshKeyPublic, "passphrase_mode" | "unlocked_until">
 ): { text: string; open: boolean } | null {
   if (key.passphrase_mode !== "ask") return null
-  if (!key.unlocked_until) return { text: "Locked", open: false }
+  if (!key.unlocked_until) return { text: t("ssh_keys.state.locked"), open: false }
   const until = new Date(key.unlocked_until)
-  const time = until.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  return { text: `Unlocked until ${time}`, open: true }
+  const time = formatTime(until, { hour: "2-digit", minute: "2-digit" })
+  return { text: t("ssh_keys.state.unlocked_until", { time }), open: true }
 }
 
 /** The tail of a fingerprint, which is what a person compares by eye. */
@@ -64,9 +66,29 @@ export const MAX_KEY_FILE_BYTES = 64 * 1024
  */
 export async function readKeyFile(file: File): Promise<string> {
   if (file.size > MAX_KEY_FILE_BYTES) {
-    throw new Error("This file is far larger than an SSH key; choose the key file itself")
+    throw new Error(t("ssh_keys.file_too_large"))
   }
   return await file.text()
+}
+
+/**
+ * A sentence with commands and paths in it, cut where each one stands so it
+ * can be drawn as code. The sentence is translated with every `{name}` left
+ * in place, and the code itself is never translated.
+ */
+export function codeParts(
+  sentence: string,
+  codes: Record<string, string>
+): { text: string; code: boolean }[] {
+  return sentence.split(/\{(\w+)\}/).flatMap((part, index): { text: string; code: boolean }[] => {
+    if (index % 2 === 1) return [{ text: codes[part] ?? part, code: true }]
+    return part === "" ? [] : [{ text: part, code: false }]
+  })
+}
+
+/** Every `{name}` of `codes` as itself, so `t` leaves the places for `codeParts`. */
+export function codePlaces(codes: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.keys(codes).map((name) => [name, `{${name}}`]))
 }
 
 /** How a key reads where one is chosen: its name, its kind and enough of its fingerprint. */

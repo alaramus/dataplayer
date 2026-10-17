@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref, watch } from "vue"
 
 import type { MessageAttachmentPublic } from "@/client"
+import { t } from "@/shared/i18n"
 import { useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
@@ -42,7 +43,7 @@ async function open(file: MessageAttachmentPublic) {
   try {
     window.open(await addressOf(file), "_blank", "noopener")
   } catch (cause) {
-    toast.error(messageOf(cause, `${file.name} could not be opened`))
+    toast.error(messageOf(cause, t("ai.file.open_failed", { name: file.name })))
   }
 }
 

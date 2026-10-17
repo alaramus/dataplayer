@@ -40,7 +40,7 @@ async def execute_age_policy(
                 (plan.target.relation_oid, plan.older_than.interval_value()),
             )
 
-    return await run_reviewed(session, replan, _locks, apply, reviewed_fingerprint, f"{spec.noun} change")
+    return await run_reviewed(session, replan, _locks, apply, reviewed_fingerprint)
 
 
 def _locks(plan: AgePolicyPlan) -> list[sql.SQL | sql.Composed]:

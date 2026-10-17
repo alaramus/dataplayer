@@ -21,6 +21,7 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 from app.adapters.explorer.storage import stays_inside_root
+from app.core.translation import say
 
 # The same number D49 refuses to build an archive past. Listing inflates
 # nothing, so this is about how many nodes the catalog would have to carry.
@@ -130,7 +131,7 @@ def entry_at(path: Path, inside: str) -> Entry:
     """One entry named by its path inside the archive. Blocking."""
     wanted = inside.strip("/")
     if wanted == "":
-        raise ValueError("An archive is not an entry of itself")
+        raise ValueError(say("An archive is not an entry of itself"))
     below = f"{wanted}/"
     implied = False
     for entry in _entries(path):
@@ -140,7 +141,7 @@ def entry_at(path: Path, inside: str) -> Entry:
     if implied:
         # A folder the archive never named, but which its entries imply.
         return _implied(wanted, PurePosixPath(wanted).name)
-    raise ValueError(f"No such entry in this archive: {inside}")
+    raise ValueError(say("No such entry in this archive: {inside}", inside=inside))
 
 
 def extract(path: Path, inside: str) -> Path:
@@ -154,14 +155,17 @@ def extract(path: Path, inside: str) -> Path:
     """
     entry = entry_at(path, inside)
     if entry.is_directory:
-        raise ValueError("A folder inside an archive cannot be read")
+        raise ValueError(say("A folder inside an archive cannot be read"))
     if entry.is_link:
-        raise ValueError("A link inside an archive is not followed")
+        raise ValueError(say("A link inside an archive is not followed"))
     if entry.is_encrypted:
-        raise ValueError("This entry is encrypted and cannot be read here")
+        raise ValueError(say("This entry is encrypted and cannot be read here"))
     if entry.size_bytes > MAX_ENTRY_BYTES:
         raise ValueError(
-            f"This entry is larger than {MAX_ENTRY_BYTES // (1024 * 1024)} MB"
+            say(
+                "This entry is larger than {megabytes} MB",
+                megabytes=MAX_ENTRY_BYTES // (1024 * 1024),
+            )
         )
 
     descriptor, temporary = tempfile.mkstemp(prefix="dataplayer-entry-")
@@ -174,11 +178,11 @@ def extract(path: Path, inside: str) -> Path:
                 while chunk := source.read(EXPAND_CHUNK_BYTES):
                     written += len(chunk)
                     if written > MAX_ENTRY_BYTES:
-                        raise ValueError("This entry expands to more than it declares")
+                        raise ValueError(say("This entry expands to more than it declares"))
                     sink.write(chunk)
     except zipfile.BadZipFile:
         target.unlink(missing_ok=True)
-        raise ValueError("This entry is damaged and could not be read") from None
+        raise ValueError(say("This entry is damaged and could not be read")) from None
     except BaseException:
         target.unlink(missing_ok=True)
         raise
@@ -201,7 +205,7 @@ def _entries(path: Path) -> list[Entry]:
         infos = archive.infolist()
         if len(infos) > MAX_ENTRIES:
             raise ValueError(
-                f"This archive holds more than {MAX_ENTRIES} entries"
+                say("This archive holds more than {count} entries", count=MAX_ENTRIES)
             )
         return [_entry(info) for info in infos]
 
@@ -211,7 +215,7 @@ def _entry(info: zipfile.ZipInfo) -> Entry:
     # The one containment rule, for a name written inside the file (D53).
     if not stays_inside_root(name):
         raise UnsafeArchive(
-            f"This archive holds an entry that leaves it: {info.filename}"
+            say("This archive holds an entry that leaves it: {name}", name=info.filename)
         )
     mode = info.external_attr >> 16
     return Entry(
@@ -257,7 +261,7 @@ def _opened(path: Path) -> Iterator[zipfile.ZipFile]:
     try:
         opened = zipfile.ZipFile(path)
     except zipfile.BadZipFile:
-        raise NotAnArchive("This file is not an archive") from None
+        raise NotAnArchive(say("This file is not an archive")) from None
     try:
         yield opened
     finally:

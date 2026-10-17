@@ -6,6 +6,7 @@ import { useConnectors } from "@/features/connectors/api"
 import { sceneStage } from "@/features/workspace/scene"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { shortcutList } from "@/shared/keys/shortcuts"
+import { t } from "@/shared/i18n"
 import { AppButton } from "@/shared/ui"
 
 /**
@@ -33,6 +34,9 @@ const stage = computed(() =>
  * draws no frame at all.
  */
 const shortcuts = shortcutList
+
+/** The product's name, which no language translates. */
+const PRODUCT = "DataPlayer"
 </script>
 
 <template>
@@ -47,18 +51,17 @@ const shortcuts = shortcutList
     >
       <template v-if="stage === 'no-connections'">
         <h1 class="scene__title">
-          DataPlayer
+          {{ PRODUCT }}
         </h1>
         <p class="scene__text">
-          Connect to a database or to your own files, walk through what is in it, and read it
-          here.
+          {{ t('workspace.scene.intro') }}
         </p>
         <div class="scene__actions">
           <!-- A real button, and not "press the plus on the left": sending
                somebody to look for a control elsewhere on the screen when it
                can be given here is worse than giving it. -->
           <AppButton
-            label="Add connection"
+            :label="t('workspace.scene.add_connection')"
             :icon="appIcons.add"
             data-testid="scene-add-connector"
             @click="workspace.editConnector(null)"
@@ -68,18 +71,18 @@ const shortcuts = shortcutList
 
       <template v-else-if="stage === 'pick-connection'">
         <p class="scene__text">
-          Pick a connection on the left to browse what is in it.
+          {{ t('workspace.scene.pick_connection') }}
         </p>
       </template>
 
       <template v-else>
         <p class="scene__text">
-          Pick a table or a file in the catalog to read it here.
+          {{ t('workspace.scene.pick_node') }}
         </p>
         <!-- About this level rather than about the application: what is worth
              saying is the thing the screen does not show until you find it. -->
         <p class="scene__hint">
-          Tick nodes in the catalog and the menu in its head says what can be done with them.
+          {{ t('workspace.scene.tick_hint') }}
         </p>
       </template>
 

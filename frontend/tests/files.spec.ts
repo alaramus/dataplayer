@@ -353,7 +353,7 @@ test("opens Markdown as a document, with its diagram, chart and source", async (
 
   // Nothing was fetched from another site, and the document says so.
   await expect(rendered.locator("img[data-remote-blocked]")).toHaveCount(1)
-  await expect(page.getByText(/image\(s\) in this document are hosted elsewhere/)).toBeVisible()
+  await expect(page.getByText(/1 image in this document is hosted elsewhere/)).toBeVisible()
 
   // Export is the rendered document alone, not the workspace around it.
   const download = page.waitForEvent("download")

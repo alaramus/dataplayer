@@ -20,6 +20,7 @@ from app.adapters.hypertable_design import (
     HypertableDesign,
     HypertableDesignState,
     NoColumns,
+    NowTemplate,
     OrderBy,
     SegmentBy,
     SparseIndexes,
@@ -37,7 +38,6 @@ from app.adapters.postgres.timescale.design_execution import (
     execute_design_job,
 )
 from app.adapters.postgres.timescale.design_plan import (
-    TEMPLATE_PHRASES,
     AddAgePolicy,
     AddCompactionPolicy,
     AddHashDimension,
@@ -71,21 +71,14 @@ from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.core.access import Access
 from app.core.config import settings
+from app.core.translation import N_, say
 
-_UNREADABLE = "The hypertable could not be inspected safely"
 _EXISTS = """
 SELECT 1 FROM pg_catalog.pg_class AS relation
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
 WHERE namespace.nspname = %s AND relation.relname = %s AND relation.relkind = 'r'
 """
-_POLICY_NOUNS = {
-    "retention": "retention policy", "compression": "columnstore policy", "reorder": "reorder policy",
-    "compaction": "compaction policy",
-}
-_RETENTION_WARNING = (
-    "TimescaleDB keeps dropping whole chunks past the retention age on its own schedule, "
-    "after this session ends"
-)
+
 
 
 class HypertableDesignParams(BaseModel):
@@ -96,10 +89,45 @@ class HypertableDesignParams(BaseModel):
     design: HypertableDesign
 
 
+def _unreadable() -> str:
+    return say("The hypertable could not be inspected safely")
+
+
 def _spoken(length: Length) -> str:
+    """A length as a person reads it, a number and its unit."""
     if isinstance(length, Count):
-        return f"{length.amount:,} {'value' if length.amount == 1 else 'values'}"
-    return f"{length.amount} {length.unit}{'' if length.amount == 1 else 's'}"
+        amount = f"{length.amount:,}"
+        return say("{amount} value", amount=amount) if length.amount == 1 else say("{amount} values", amount=amount)
+    amount = str(length.amount)
+    if length.amount == 1:
+        match length.unit:
+            case "second":
+                return say("{amount} second", amount=amount)
+            case "minute":
+                return say("{amount} minute", amount=amount)
+            case "hour":
+                return say("{amount} hour", amount=amount)
+            case "day":
+                return say("{amount} day", amount=amount)
+            case "week":
+                return say("{amount} week", amount=amount)
+            case "month":
+                return say("{amount} month", amount=amount)
+        return say("{amount} year", amount=amount)
+    match length.unit:
+        case "second":
+            return say("{amount} seconds", amount=amount)
+        case "minute":
+            return say("{amount} minutes", amount=amount)
+        case "hour":
+            return say("{amount} hours", amount=amount)
+        case "day":
+            return say("{amount} days", amount=amount)
+        case "week":
+            return say("{amount} weeks", amount=amount)
+        case "month":
+            return say("{amount} months", amount=amount)
+    return say("{amount} years", amount=amount)
 
 
 def _routine(schema_name: str, name: str) -> str:
@@ -107,10 +135,11 @@ def _routine(schema_name: str, name: str) -> str:
 
 
 def _columns(value: SegmentBy | OrderBy | None) -> str:
+    """The columns of a list, or what stands for them, worded to follow "segment by"."""
     if value is None or isinstance(value, ChosenByTimescale):
-        return "TimescaleDB's choice for each chunk"
+        return say("TimescaleDB's choice for each chunk")
     if isinstance(value, NoColumns):
-        return "none"
+        return say("none")
     parts: list[str] = []
     for item in value.columns:
         if isinstance(item, str):
@@ -121,75 +150,118 @@ def _columns(value: SegmentBy | OrderBy | None) -> str:
 
 
 def _columnstore_change(step: ConfigureColumnstore) -> str:
+    # Each change is a phrase of its own, listed after the lead the way a
+    # preview lists its lines; none takes its words from another.
     changes = []
     if step.segment_changed:
-        changes.append(f"segment by {_columns(step.segment_by)}")
+        changes.append(say("segment by {columns}", columns=_columns(step.segment_by)))
     if step.order_changed:
-        changes.append(f"order by {_columns(step.order_by)}")
+        changes.append(say("order by {columns}", columns=_columns(step.order_by)))
     if step.sparse_changed:
-        changes.append(f"sparse indexes {_sparse(step.sparse_indexes)}")
+        changes.append(say("sparse indexes {indexes}", indexes=_sparse(step.sparse_indexes)))
     if step.merge_changed:
         changes.append(
-            "no merging of chunks" if step.merge_interval is None
-            else f"merge chunks into {_spoken(step.merge_interval)} as they are compressed"
+            say("no merging of chunks") if step.merge_interval is None
+            else say("merge chunks into {length} as they are compressed", length=_spoken(step.merge_interval))
         )
-    lead = "Turn the columnstore on" if step.enable else "Columnstore settings for chunks compressed from now on"
-    return f"{lead}: " + "; ".join(changes)
+    listed = "; ".join(changes)
+    if step.enable:
+        return say("Turn the columnstore on: {changes}", changes=listed)
+    return say("Columnstore settings for chunks compressed from now on: {changes}", changes=listed)
 
 
 def _sparse(value: SparseIndexes) -> str:
     if isinstance(value, ChosenByTimescale):
-        return "TimescaleDB's choice"
+        return say("TimescaleDB's choice")
     if isinstance(value, NoColumns):
-        return "none"
-    return ", ".join(f"{index.kind} on {sql.Identifier(index.column).as_string()}" for index in value.indexes)
+        return say("none")
+    return ", ".join(
+        say("{kind} on {column}", kind=index.kind, column=sql.Identifier(index.column).as_string())
+        for index in value.indexes
+    )
 
 
 def _conversion(step: ConvertTable) -> str:
     column = sql.Identifier(step.column).as_string()
-    moved = "and move its rows into chunks" if step.migrate else "while it is empty"
-    return f"Convert the table into a hypertable by {column} ({step.column_type}), chunks of {_spoken(step.interval)}, {moved}"
+    length = _spoken(step.interval)
+    if step.migrate:
+        return say(
+            "Convert the table into a hypertable by {column} ({type}), chunks of {length}, "
+            "and move its rows into chunks",
+            column=column, type=step.column_type, length=length,
+        )
+    return say(
+        "Convert the table into a hypertable by {column} ({type}), chunks of {length}, while it is empty",
+        column=column, type=step.column_type, length=length,
+    )
 
 
 def _describe(step: DesignStep) -> str:
     match step:
         case ConvertTable():
             return _conversion(step)
-        case RemovePolicy(kind=kind, job_id=job_id):
-            return f"Remove the {_POLICY_NOUNS[kind]} (job {job_id})"
+        case RemovePolicy(kind="retention", job_id=job_id):
+            return say("Remove the retention policy (job {job})", job=job_id)
+        case RemovePolicy(kind="compression", job_id=job_id):
+            return say("Remove the columnstore policy (job {job})", job=job_id)
+        case RemovePolicy(kind="reorder", job_id=job_id):
+            return say("Remove the reorder policy (job {job})", job=job_id)
+        case RemovePolicy(job_id=job_id):
+            return say("Remove the compaction policy (job {job})", job=job_id)
         case AddAgePolicy(kind="retention", older_than=older_than):
-            return f"Add a retention policy: drop chunks older than {_spoken(older_than)}"
+            return say("Add a retention policy: drop chunks older than {length}", length=_spoken(older_than))
         case AddAgePolicy(older_than=older_than):
-            return f"Add a columnstore policy: compress chunks older than {_spoken(older_than)}"
+            return say("Add a columnstore policy: compress chunks older than {length}", length=_spoken(older_than))
         case AddCompactionPolicy():
-            return "Add a compaction policy: merge small compressed chunks on TimescaleDB's schedule"
+            return say("Add a compaction policy: merge small compressed chunks on TimescaleDB's schedule")
         case AddReorderPolicy(index=index):
-            return f"Add a reorder policy by index {sql.Identifier(index).as_string()}"
+            return say("Add a reorder policy by index {index}", index=sql.Identifier(index).as_string())
         case SetChunkInterval(interval=interval):
-            return f"New chunks cover {_spoken(interval)}; existing chunks keep their range"
+            return say("New chunks cover {length}; existing chunks keep their range", length=_spoken(interval))
         case SetPartitions(column=column, partitions=partitions):
-            return (
-                f"Hash {sql.Identifier(column).as_string()} into {partitions} partitions "
-                "for new chunks"
+            return say(
+                "Hash {column} into {partitions} partitions for new chunks",
+                column=sql.Identifier(column).as_string(), partitions=partitions,
             )
         case AddHashDimension(column=column, partitions=partitions):
-            return f"Add a hash dimension on {sql.Identifier(column).as_string()} with {partitions} partitions"
+            return say(
+                "Add a hash dimension on {column} with {partitions} partitions",
+                column=sql.Identifier(column).as_string(), partitions=partitions,
+            )
         case ConfigureColumnstore():
             return _columnstore_change(step)
         case DisableColumnstore():
-            return "Turn the columnstore off"
+            return say("Turn the columnstore off")
         case AttachTablespace(name=name):
-            return f"Place new chunks in tablespace {sql.Identifier(name).as_string()} too"
+            return say("Place new chunks in tablespace {tablespace} too", tablespace=sql.Identifier(name).as_string())
         case DetachTablespace(name=name):
-            return f"Stop placing new chunks in tablespace {sql.Identifier(name).as_string()}"
+            return say("Stop placing new chunks in tablespace {tablespace}", tablespace=sql.Identifier(name).as_string())
         case CreateNowFunction(schema_name=schema_name, name=name, template=template, column_type=column_type):
-            return (
-                f"Create function {_routine(schema_name, name)} returning the {TEMPLATE_PHRASES[template]} "
-                f"as {column_type}"
-            )
+            return _now_function(_routine(schema_name, name), template, column_type)
         case SetIntegerNow(schema_name=schema_name, name=name):
-            return f"Policies take the current value of the time column from {_routine(schema_name, name)}"
+            return say(
+                "Policies take the current value of the time column from {function}",
+                function=_routine(schema_name, name),
+            )
     raise AssertionError("every step is described")
+
+
+def _now_function(function: str, template: NowTemplate, column_type: str) -> str:
+    match template:
+        case "epoch_seconds":
+            return say(
+                "Create function {function} returning the seconds since 1970 as {type}",
+                function=function, type=column_type,
+            )
+        case "epoch_milliseconds":
+            return say(
+                "Create function {function} returning the milliseconds since 1970 as {type}",
+                function=function, type=column_type,
+            )
+    return say(
+        "Create function {function} returning the microseconds since 1970 as {type}",
+        function=function, type=column_type,
+    )
 
 
 def _conversion_notes(step: ConvertTable, row_estimate: int | None) -> list[str]:
@@ -197,22 +269,31 @@ def _conversion_notes(step: ConvertTable, row_estimate: int | None) -> list[str]
     notes = []
     if not step.column_not_null:
         notes.append(
-            f"{column} becomes NOT NULL"
-            + ("; a row without a time makes the conversion fail and roll back" if step.migrate else "")
+            say("{column} becomes NOT NULL; a row without a time makes the conversion fail and roll back", column=column)
+            if step.migrate else say("{column} becomes NOT NULL", column=column)
         )
     notes.append(
-        f"An index on {column} alone already exists, so TimescaleDB adds none" if step.time_index_exists
-        else f"TimescaleDB adds an index on {column}, newest first"
+        say("An index on {column} alone already exists, so TimescaleDB adds none", column=column)
+        if step.time_index_exists
+        else say("TimescaleDB adds an index on {column}, newest first", column=column)
     )
     if step.migrate:
-        estimate = "an unknown number of" if row_estimate is None else f"about {row_estimate:,}"
         notes.extend((
-            f"Moves {estimate} rows into chunks as a job in Activity; the table is locked against "
-            "reads and writes until it ends",
-            f"Rolled back whole if it fails, is cancelled or runs past "
-            f"{settings.TIMESCALE_CONVERSION_TIMEOUT_SECONDS} seconds; nothing is left half converted",
+            say(
+                "Moves an unknown number of rows into chunks as a job in Activity; the table is locked against "
+                "reads and writes until it ends"
+            ) if row_estimate is None else say(
+                "Moves about {count} rows into chunks as a job in Activity; the table is locked against "
+                "reads and writes until it ends",
+                count=f"{row_estimate:,}",
+            ),
+            say(
+                "Rolled back whole if it fails, is cancelled or runs past {seconds} seconds; "
+                "nothing is left half converted",
+                seconds=settings.TIMESCALE_CONVERSION_TIMEOUT_SECONDS,
+            ),
         ))
-    notes.append("DataPlayer cannot turn a hypertable back into an ordinary table")
+    notes.append(say("DataPlayer cannot turn a hypertable back into an ordinary table"))
     return notes
 
 
@@ -222,7 +303,10 @@ def _items(plan: HypertableDesignPlan, row_estimate: int | None = None) -> list[
         if isinstance(step, ConvertTable):
             items.extend(_conversion_notes(step, row_estimate))
     if any(isinstance(step, AddAgePolicy) and step.kind == "retention" for step in plan.steps):
-        items.append(_RETENTION_WARNING)
+        items.append(say(
+            "TimescaleDB keeps dropping whole chunks past the retention age on its own schedule, "
+            "after this session ends"
+        ))
     if not plan.migrates:
         items.append(plan.coordination)
     return items
@@ -238,13 +322,16 @@ async def preview_design(
     except ActionRefused as exc:
         return ActionPreview(summary=exc.message, blocked=True)
     except (AdapterError, ValueError, TimeoutError):
-        return ActionPreview(summary=_UNREADABLE, blocked=True)
+        return ActionPreview(summary=_unreadable(), blocked=True)
     target = sql.Identifier(plan.current.target.schema_name, plan.current.target.table_name).as_string()
     if not plan.steps:
-        return ActionPreview(summary=f"{target} already matches these settings", blocked=True)
+        return ActionPreview(summary=say("{target} already matches these settings", target=target), blocked=True)
     converts = any(isinstance(step, ConvertTable) for step in plan.steps)
     return ActionPreview(
-        summary=f"Convert {target} into a hypertable" if converts else f"Change {target}",
+        summary=(
+            say("Convert {target} into a hypertable", target=target) if converts
+            else say("Change {target}", target=target)
+        ),
         items=_items(plan, estimate), fingerprint=plan.fingerprint(), runs_as_job=plan.migrates,
     )
 
@@ -256,7 +343,7 @@ async def design_state(
         async with session.inspection() as reader:
             return await read_state(reader, node_id, schema_name, table_name)
     except (AdapterError, ValueError):
-        return HypertableDesignState(node_id=node_id, reason=_UNREADABLE)
+        return HypertableDesignState(node_id=node_id, reason=_unreadable())
 
 
 async def design_admission(session: PostgresSession, schema_name: str, table_name: str) -> str | None:
@@ -273,13 +360,13 @@ async def design_admission(session: PostgresSession, schema_name: str, table_nam
     except ActionRefused as exc:
         return exc.message
     except (AdapterError, ValueError, TimeoutError):
-        return _UNREADABLE
+        return _unreadable()
     return None
 
 
 class DesignHypertable(Action[HypertableDesignParams]):
     name: ClassVar[str] = "timescale_design_hypertable"
-    title: ClassVar[str] = "Hypertable settings"
+    title: ClassVar[str] = N_("Hypertable settings")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
@@ -314,7 +401,7 @@ class DesignHypertable(Action[HypertableDesignParams]):
         return await preview_design(self._session, schema.name, node.name, params.design)
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
-        raise ActionRefused("conflict", "Review the hypertable plan before applying it")
+        raise ActionRefused("conflict", say("Review the hypertable plan before applying it"))
 
     async def perform_reviewed(
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
@@ -324,13 +411,16 @@ class DesignHypertable(Action[HypertableDesignParams]):
         async with self._session.inspection() as reader:
             reviewed = await plan_design(reader, schema.name, node.name, params.design)
         if reviewed.migrates:
-            raise ActionRefused("conflict", "Moving rows into chunks runs as a job; start it from the plan")
+            raise ActionRefused("conflict", say("Moving rows into chunks runs as a job; start it from the plan"))
         plan = await execute_design(self._session, schema.name, node.name, params.design, fingerprint)
         count = len(plan.steps)
         converts = any(isinstance(step, ConvertTable) for step in plan.steps)
         return ActionResult(
-            message="Converted to a hypertable" if converts
-            else f"Hypertable changed: {count} {'change' if count == 1 else 'changes'} applied",
+            message=(
+                say("Converted to a hypertable") if converts
+                else say("Hypertable changed: 1 change applied") if count == 1
+                else say("Hypertable changed: {count} changes applied", count=count)
+            ),
             reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID],
         )
 
@@ -344,10 +434,10 @@ class DesignHypertable(Action[HypertableDesignParams]):
             plan = await plan_design(reader, schema.name, node.name, params.design)
         plan.require_unchanged(reviewed_fingerprint)
         if not plan.migrates:
-            raise ActionRefused("conflict", "This change is applied at once rather than as a job")
+            raise ActionRefused("conflict", say("This change is applied at once rather than as a job"))
         target = sql.Identifier(schema.name, node.name).as_string()
         return OperationPlan(
-            summary=f"Convert {target} into a hypertable",
+            summary=say("Convert {target} into a hypertable", target=target),
             unit_fingerprint=plan.fingerprint(),
             targets=(OperationTarget(schema_name=schema.name, name=node.name),),
         )
@@ -360,9 +450,9 @@ class DesignHypertable(Action[HypertableDesignParams]):
         try:
             schema, node = await self._target(node_id)
         except (AdapterError, NodeNotFound):
-            raise ActionRefused("not_applicable", "The table could not be found; nothing was converted") from None
+            raise ActionRefused("not_applicable", say("The table could not be found; nothing was converted")) from None
         if (schema.name, node.name) != (target.schema_name, target.name):
-            raise ActionRefused("conflict", "The table was renamed after review; nothing was converted")
+            raise ActionRefused("conflict", say("The table was renamed after review; nothing was converted"))
         await execute_design_job(self._session, schema.name, node.name, params.design, unit_fingerprint)
         return "completed"
 

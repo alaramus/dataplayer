@@ -38,28 +38,48 @@ from app.adapters.postgres.timescale.plans import (
     ChunkStorage,
     ChunkStoragePlan,
     ChunkWindow,
+    PlannedChunk,
 )
 from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.core.access import Access
+from app.core.translation import N_, say
 
 # How many chunks the preview names before it counts the rest.
 LISTED_CHUNKS = 10
-_UNREADABLE = "TimescaleDB chunk metadata could not be inspected safely"
+
+
+def unreadable_chunks() -> str:
+    return say("TimescaleDB chunk metadata could not be inspected safely")
+
+
+def chunk_lines(chunks: Sequence[PlannedChunk]) -> list[str]:
+    """The first chunks of a plan by name and range, and how many more there are."""
+    lines = [
+        say(
+            "{chunk}: {start} to {end}",
+            chunk=sql.Identifier(chunk.schema_name, chunk.name).as_string(),
+            start=chunk.range_start, end=chunk.range_end,
+        )
+        for chunk in chunks[:LISTED_CHUNKS]
+    ]
+    if len(chunks) > LISTED_CHUNKS:
+        lines.append(say("…and {count} more", count=len(chunks) - LISTED_CHUNKS))
+    return lines
 
 
 class ChunkWindowParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ends_by: AwareDatetime = Field(
-        title="Chunks ending at or before",
-        description="With its time zone; only chunks lying entirely inside the window are chosen",
+        title=N_("Chunks ending at or before"),
+        description=N_("With its time zone; only chunks lying entirely inside the window are chosen"),
         examples=["2026-01-15T00:00:00Z"],
     )
     starts_from: AwareDatetime | None = Field(
         default=None,
-        title="and starting at or after",
-        description="Leave empty for every earlier chunk",
+        title=N_("and starting at or after"),
+        description=N_("Leave empty for every earlier chunk"),
         examples=["2026-01-01T00:00:00Z"],
     )
 
@@ -72,7 +92,7 @@ class ChunkWindowParams(BaseModel):
     @model_validator(mode="after")
     def ordered(self) -> Self:
         if self.starts_from is not None and self.starts_from >= self.ends_by:
-            raise ValueError("The window must start before it ends")
+            raise ValueError(say("The window must start before it ends"))
         return self
 
     def window(self) -> ChunkWindow:
@@ -94,7 +114,7 @@ async def chunk_storage_admission(
                 else:
                     reasons[storage] = None
     except (AdapterError, ValueError, TimeoutError):
-        return dict.fromkeys(STORAGES, _UNREADABLE)
+        return dict.fromkeys(STORAGES, unreadable_chunks())
     return reasons
 
 
@@ -102,9 +122,6 @@ class ConvertChunks(Action[ChunkWindowParams]):
     """Rewrite whole chunks of one time hypertable, one source transaction each."""
 
     storage: ClassVar[ChunkStorage]
-    verb: ClassVar[str]
-    # What a chunk already stored as requested is called.
-    state: ClassVar[str]
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
@@ -124,7 +141,7 @@ class ConvertChunks(Action[ChunkWindowParams]):
         except ActionRefused as exc:
             return ActionPreview(summary=exc.message, blocked=True)
         except (AdapterError, TimeoutError):
-            return ActionPreview(summary=_UNREADABLE, blocked=True)
+            return ActionPreview(summary=unreadable_chunks(), blocked=True)
         return ActionPreview(
             summary=self._summary(plan), items=self._items(plan), fingerprint=plan.fingerprint(),
         )
@@ -154,7 +171,7 @@ class ConvertChunks(Action[ChunkWindowParams]):
             schema, node = await user_table(self._catalog, node_id)
         except (AdapterError, NodeNotFound):
             raise ActionRefused(
-                "not_applicable", "The hypertable could not be found; nothing was converted",
+                "not_applicable", say("The hypertable could not be found; nothing was converted"),
             ) from None
         return await convert_chunk(
             self._session, schema.name, node.name, self.storage, unit_fingerprint, target,
@@ -178,41 +195,46 @@ class ConvertChunks(Action[ChunkWindowParams]):
     def _summary(self, plan: ChunkStoragePlan) -> str:
         count = len(plan.chunks)
         target = sql.Identifier(plan.unit.target.schema_name, plan.unit.target.table_name).as_string()
-        return f"{self.verb} {count} {'chunk' if count == 1 else 'chunks'} of {target} as a job"
+        if self.storage == "columnstore":
+            if count == 1:
+                return say("Compress 1 chunk of {target} as a job", target=target)
+            return say("Compress {count} chunks of {target} as a job", count=count, target=target)
+        if count == 1:
+            return say("Decompress 1 chunk of {target} as a job", target=target)
+        return say("Decompress {count} chunks of {target} as a job", count=count, target=target)
 
     def _items(self, plan: ChunkStoragePlan) -> list[str]:
         window = plan.window
-        start = "the earliest chunk" if window.starts_from is None else window.starts_from.isoformat()
-        items = [f"Whole chunks from {start} to {window.ends_by.isoformat()}"]
-        items.extend(
-            f"{sql.Identifier(chunk.schema_name, chunk.name).as_string()}: "
-            f"{chunk.range_start} to {chunk.range_end}"
-            for chunk in plan.chunks[:LISTED_CHUNKS]
-        )
-        if len(plan.chunks) > LISTED_CHUNKS:
-            items.append(f"…and {len(plan.chunks) - LISTED_CHUNKS} more")
+        end = window.ends_by.isoformat()
+        items = [
+            say("Whole chunks from the earliest chunk to {end}", end=end) if window.starts_from is None
+            else say("Whole chunks from {start} to {end}", start=window.starts_from.isoformat(), end=end)
+        ]
+        items.extend(chunk_lines(plan.chunks))
         if plan.already:
-            items.append(f"Already {self.state} and left as they are: {plan.already}")
+            items.append(
+                say("Already compressed and left as they are: {count}", count=plan.already)
+                if self.storage == "columnstore"
+                else say("Already decompressed and left as they are: {count}", count=plan.already)
+            )
         items.extend((
             plan.impact,
-            plan.coordination,
-            "Runs in Activity, one such job per connection at a time; "
-            "access is checked again before every chunk",
+            plan.said_coordination,
+            say(
+                "Runs in Activity, one such job per connection at a time; "
+                "access is checked again before every chunk"
+            ),
         ))
         return items
 
 
 class CompressChunks(ConvertChunks):
     name: ClassVar[str] = "timescale_compress_chunks"
-    title: ClassVar[str] = "Compress chunks"
+    title: ClassVar[str] = N_("Compress chunks")
     storage: ClassVar[ChunkStorage] = "columnstore"
-    verb: ClassVar[str] = "Compress"
-    state: ClassVar[str] = "compressed"
 
 
 class DecompressChunks(ConvertChunks):
     name: ClassVar[str] = "timescale_decompress_chunks"
-    title: ClassVar[str] = "Decompress chunks"
+    title: ClassVar[str] = N_("Decompress chunks")
     storage: ClassVar[ChunkStorage] = "rowstore"
-    verb: ClassVar[str] = "Decompress"
-    state: ClassVar[str] = "decompressed"

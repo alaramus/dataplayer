@@ -16,6 +16,7 @@ from app.adapters.operations import (
     OperationTarget,
 )
 from app.core.access import Access
+from app.core.translation import N_, say
 
 TargetOutcome = Literal[
     "pending", "running", "completed", "already", "refused", "rolled_back", "unknown",
@@ -23,13 +24,13 @@ TargetOutcome = Literal[
 
 # How each outcome is counted in the one sentence a finished job says, in this order.
 _TOLD: tuple[tuple[TargetOutcome, str], ...] = (
-    ("completed", "done"),
-    ("already", "already as requested"),
-    ("refused", "refused"),
-    ("rolled_back", "rolled back"),
-    ("unknown", "outcome unknown"),
-    ("running", "in progress"),
-    ("pending", "not attempted"),
+    ("completed", N_("{count} done")),
+    ("already", N_("{count} already as requested")),
+    ("refused", N_("{count} refused")),
+    ("rolled_back", N_("{count} rolled back")),
+    ("unknown", N_("{count} outcome unknown")),
+    ("running", N_("{count} in progress")),
+    ("pending", N_("{count} not attempted")),
 )
 _MESSAGE_LIMIT = 500
 
@@ -64,6 +65,6 @@ class SourceOperation(BaseModel):
     def told(self, stopped: str | None = None) -> str:
         """One sentence for the job's message: what happened to how many."""
         counts = Counter(record.outcome for record in self.targets)
-        parts = ", ".join(f"{counts[outcome]} {words}" for outcome, words in _TOLD if counts[outcome])
+        parts = ", ".join(say(words, count=counts[outcome]) for outcome, words in _TOLD if counts[outcome])
         sentence = f"{self.summary}: {parts}" if stopped is None else f"{self.summary}: {parts}. {stopped}"
         return sentence if len(sentence) <= _MESSAGE_LIMIT else f"{sentence[:_MESSAGE_LIMIT - 1]}…"

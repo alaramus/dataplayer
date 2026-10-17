@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { AppBanner, AppButton, AppForm } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -21,16 +22,24 @@ const emit = defineEmits<{
 
 const state = computed(() =>
   props.nullable
-    ? `${props.name} accepts rows with no value.`
-    : `${props.name} requires a value in every row.`
+    ? t("structure.nullability_dialog.accepts", { name: props.name })
+    : t("structure.nullability_dialog.requires", { name: props.name })
 )
-const action = computed(() => (props.nullable ? "Require a value" : "Allow no value"))
+const action = computed(() => (
+  props.nullable
+    ? t("structure.nullability_dialog.require")
+    : t("structure.nullability_dialog.allow")
+))
 const blockedText = computed(() => {
   if (props.blocked === null) return ""
-  const rows = props.blocked.exact
-    ? `${props.blocked.rows} ${props.blocked.rows === 1 ? "row has" : "rows have"}`
-    : `More than ${props.blocked.rows} rows have`
-  return `${rows} no value in ${props.name}. Give them one, or delete them, before requiring a value.`
+  const n = props.blocked.rows
+  return t(
+    props.blocked.exact
+      ? "structure.nullability_dialog.blocked"
+      : "structure.nullability_dialog.blocked_more",
+    { n, name: props.name },
+    n
+  )
 })
 </script>
 
@@ -39,7 +48,7 @@ const blockedText = computed(() => {
     :model-value="modelValue"
     sizing="stable"
     size="compact-form"
-    :title="`Empty values — ${name}`"
+    :title="t('structure.nullability_dialog.title', { name })"
     data-testid="structure-nullability-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -65,7 +74,7 @@ const blockedText = computed(() => {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />

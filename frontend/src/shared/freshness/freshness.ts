@@ -7,6 +7,7 @@
  *
  * Plain functions, so what is drawn can be tested without mounting anything.
  */
+import { t } from "@/shared/i18n"
 
 /** What the server did with the read, as `X-Data-Cache` reports it. */
 export type CacheOutcome = "hit" | "miss" | "coalesced" | "refreshed" | "bypass"
@@ -53,11 +54,13 @@ export function isLive(freshness: Freshness, now: number = Date.now()): boolean 
 /** How long ago, in the shortest words that are still true. */
 export function ageLabel(milliseconds: number): string {
   const seconds = Math.max(Math.round(milliseconds / 1000), 0)
-  if (seconds < 60) return `${String(seconds)}s`
+  if (seconds < 60) return t("catalog.duration.seconds", { n: seconds })
   const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${String(minutes)}m`
+  if (minutes < 60) return t("catalog.duration.minutes", { n: minutes })
   const hours = Math.round(minutes / 60)
-  return hours < 24 ? `${String(hours)}h` : `${String(Math.round(hours / 24))}d`
+  return hours < 24
+    ? t("catalog.duration.hours", { n: hours })
+    : t("catalog.duration.days", { n: Math.round(hours / 24) })
 }
 
 /**
@@ -69,12 +72,12 @@ export function freshnessLabel(
   freshness: Freshness,
   now: number = Date.now()
 ): string {
-  return isLive(freshness, now) ? "Live" : ageLabel(now - freshness.readAt)
+  return isLive(freshness, now) ? t("freshness.live") : ageLabel(now - freshness.readAt)
 }
 
 /** How long this connection keeps an answer, in the same short words. */
 export function windowLabel(seconds: number): string {
-  if (seconds <= 0) return "nothing"
+  if (seconds <= 0) return t("freshness.nothing")
   return ageLabel(seconds * 1000)
 }
 
@@ -90,13 +93,13 @@ export function freshnessTooltip(
 ): string {
   const read =
     isLive(freshness, now)
-      ? "Read from the source just now."
-      : `Read from the source ${ageLabel(now - freshness.readAt)} ago.`
+      ? t("freshness.read_now")
+      : t("freshness.read_ago", { age: ageLabel(now - freshness.readAt) })
   const kept =
     cacheTtlSeconds === null || cacheTtlSeconds === undefined
-      ? "This connection keeps answers for as long as the source says."
+      ? t("freshness.keeps_as_source_says")
       : cacheTtlSeconds <= 0
-        ? "This connection keeps nothing: every read reaches the source."
-        : `This connection keeps answers for ${windowLabel(cacheTtlSeconds)}.`
+        ? t("freshness.keeps_nothing")
+        : t("freshness.keeps_for", { window: windowLabel(cacheTtlSeconds) })
   return `${read} ${kept}`
 }

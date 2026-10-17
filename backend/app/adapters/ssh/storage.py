@@ -44,6 +44,7 @@ from app.adapters.explorer.storage import (
 )
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.ssh.session import Remote, SshSession
+from app.core.translation import say
 
 T = TypeVar("T")
 
@@ -101,7 +102,7 @@ class SftpStorage(PathPlaces):
                 except _MISSING:
                     return
                 if _is_link(attrs):
-                    raise ValueError("Symbolic links are not downloaded")
+                    raise ValueError(say("Symbolic links are not downloaded"))
 
         self._ask(work)
         return place
@@ -274,7 +275,7 @@ class SftpStorage(PathPlaces):
             yield folder
             written = sum(path.stat().st_size for path in folder.rglob("*") if path.is_file())
             if written > copies().largest_bytes:
-                raise TooLargeToCopy(place.name or "What came out")
+                raise TooLargeToCopy(place.name or say("What came out"))
             for item in sorted(folder.iterdir()):
                 destination = self.child(place, item.name)
 
@@ -383,7 +384,7 @@ class SftpStorage(PathPlaces):
             for entry in walk_iterator(self, place):
                 if entry.is_link:
                     raise ActionRefused(
-                        "not_applicable", "A folder holding a symbolic link is not copied here"
+                        "not_applicable", say("A folder holding a symbolic link is not copied here")
                     )
                 if not entry.is_directory:
                     total += entry.size_bytes
@@ -440,7 +441,7 @@ class _RemoteFile(io.RawIOBase):
         try:
             chunk = await self._file.read(size, self._position)
         except (asyncssh.Error, TimeoutError):
-            raise OSError("The file could not be read from the server") from None
+            raise OSError(say("The file could not be read from the server")) from None
         return chunk if isinstance(chunk, bytes) else chunk.encode()
 
     def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
@@ -507,18 +508,18 @@ class _RemoteArriving:
             raise FileNotFoundError(self._folder.key) from None
         except (asyncssh.Error, TimeoutError):
             await self._stack.aclose()
-            raise OSError("The file could not be created on the server") from None
+            raise OSError(say("The file could not be created on the server")) from None
 
     def write(self, data: bytes) -> None:
         from_thread.run(self._write, data)
 
     async def _write(self, data: bytes) -> None:
         if self._file is None:
-            raise OSError("The file is no longer open")
+            raise OSError(say("The file is no longer open"))
         try:
             await self._file.write(data, self._offset)
         except (asyncssh.Error, TimeoutError):
-            raise OSError("The file could not be written on the server") from None
+            raise OSError(say("The file could not be written on the server")) from None
         self._offset += len(data)
 
     def publish(self, place: Place, *, replace: bool = False) -> None:
@@ -531,7 +532,7 @@ class _RemoteArriving:
     async def _publish(self, place: Place, replace: bool) -> None:
         remote, file = self._remote, self._file
         if remote is None or file is None:
-            raise OSError("The file is no longer open")
+            raise OSError(say("The file is no longer open"))
         self._file = None
         try:
             await file.close()
@@ -541,7 +542,7 @@ class _RemoteArriving:
             else:
                 await _claimed(remote, self._temporary, target, place)
         except (asyncssh.Error, TimeoutError):
-            raise OSError("The file could not be put in place on the server") from None
+            raise OSError(say("The file could not be put in place on the server")) from None
         self._published = True
 
     async def discarded(self) -> None:

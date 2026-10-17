@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppInput } from "@/shared/ui"
 
 import { useDesign } from "./design"
@@ -32,7 +33,7 @@ const label = computed(() => {
       :model-value="label"
       :label="props.label"
       readonly
-      :aria-label="`Edit ${props.label}`"
+      :aria-label="t('table_design.predicate.edit', { label: props.label })"
       :aria-expanded="expanded"
       :aria-controls="editorId"
       :data-testid="`${testid}-field`"
@@ -53,7 +54,7 @@ const label = computed(() => {
       />
       <AppButton
         variant="quiet"
-        label="Done"
+        :label="t('table_design.predicate.done')"
         @click="expanded = false"
       />
     </div>

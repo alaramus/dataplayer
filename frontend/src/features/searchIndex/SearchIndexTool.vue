@@ -6,6 +6,7 @@ import { useKeptLists, useRefreshKeep } from "@/features/searchIndex/api"
 import { useSearchIndexWindow } from "@/features/searchIndex/searchIndexWindow"
 import { summaryLine, windowName } from "@/features/searchIndex/state"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import {
   AppBanner,
   AppButton,
@@ -33,7 +34,7 @@ async function readAgain(state: KeepState) {
   try {
     await refresh.mutateAsync(state.connector_id)
   } catch (cause) {
-    toast.error(messageOf(cause, "The names could not be asked for again"))
+    toast.error(messageOf(cause, t("search_index.dialog.reread_failed")))
   }
 }
 </script>
@@ -48,12 +49,12 @@ async function readAgain(state: KeepState) {
       v-else-if="lists.isError.value"
       tone="warning"
     >
-      {{ messageOf(lists.error.value, "The search index could not be read") }}
+      {{ messageOf(lists.error.value, t('search_index.dialog.read_failed')) }}
     </AppBanner>
     <AppEmptyState
       v-else-if="rows.length === 0"
       :icon="appIcons.manageSearch"
-      text="No connection keeps its names yet. Choose Search index… in a catalog's Actions menu to find a large one by name at once."
+      :text="t('search_index.tool.empty')"
     />
     <ul
       v-else
@@ -72,7 +73,7 @@ async function readAgain(state: KeepState) {
           </span>
         </div>
         <span class="dp-helper search-index-tool__window">
-          Within {{ windowName(state.window_seconds) }}
+          {{ t('search_index.tool.within', { window: windowName(state.window_seconds) }) }}
         </span>
         <span class="dp-helper search-index-tool__owner">
           {{ state.owner_email ?? "" }}
@@ -81,13 +82,13 @@ async function readAgain(state: KeepState) {
           v-if="state.may_change"
           variant="secondary"
           size="sm"
-          label="Read now"
+          :label="t('search_index.tool.read_now')"
           :disable="state.status === 'reading' || state.refresh_asked === true"
           @click="readAgain(state)"
         />
         <AppIconButton
           :icon="appIcons.settings"
-          :tooltip="state.may_change ? 'Search index settings' : 'What is kept'"
+          :tooltip="state.may_change ? t('search_index.tool.settings') : t('search_index.tool.what_kept')"
           :data-testid="`search-index-open-${state.connector_id}`"
           @click="window.open({ id: state.connector_id, name: state.name })"
         />

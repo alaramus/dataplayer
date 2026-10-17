@@ -3,6 +3,7 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.adapters.fetch import Filter, Sort
+from app.core.translation import say
 
 EXPORT_BATCH_SIZE = 500
 
@@ -21,7 +22,7 @@ class ExportRequest(BaseModel):
     @classmethod
     def columns_are_unique(cls, value: list[str]) -> list[str]:
         if len(value) != len(set(value)):
-            raise ValueError("Export columns must be unique")
+            raise ValueError(say("Export columns must be unique"))
         return value
 
 

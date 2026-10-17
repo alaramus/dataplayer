@@ -2,6 +2,7 @@ import { getCurrentScope, onScopeDispose, ref, shallowRef, watch } from "vue"
 import type { Ref, ShallowRef } from "vue"
 
 import type { BrowserPlace, RecentTarget, SearchRequest } from "@/client"
+import { t } from "@/shared/i18n"
 
 import { hintsOf } from "./context"
 import { EMPTY_ANSWER, pendingOf, reduceAnswer, reduceFollow, settleFollow, stopPending } from "./answer"
@@ -15,9 +16,9 @@ export type Ask = (request: SearchRequest, signal: AbortSignal) => AsyncIterable
 
 function refusalOf(cause: unknown): string {
   if (cause instanceof SearchRefused) {
-    return cause.status === 404 ? "That connection can't be searched any more" : cause.message
+    return cause.status === 404 ? t("search.connection_gone") : cause.message
   }
-  return "The search could not be run"
+  return t("search.refused")
 }
 
 function stopWithOwner(stop: () => void) {

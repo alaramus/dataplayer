@@ -203,7 +203,7 @@ describe("the rendered document panel", () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="markdown-document"]').html()).not.toContain("example.test")
-    expect(wrapper.text()).toContain("2 image(s)")
+    expect(wrapper.text()).toContain("2 images in this document")
 
     await wrapper.get('[data-testid="markdown-allow-remote"]').trigger("click")
     await flushPromises()

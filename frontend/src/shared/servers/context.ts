@@ -3,6 +3,7 @@ import {
   normalizeServerUrl, parseProfile, parseProfiles, scopedServerKey,
 } from "./profiles"
 import type { ServerProfile } from "./profiles"
+import { t } from "@/shared/i18n"
 
 interface ServerContext {
   active: ServerProfile
@@ -19,7 +20,10 @@ function read(storage: Storage, key: string): string | null {
 function initialize(): ServerContext {
   const configured = import.meta.env.VITE_API_URL?.trim() || window.location.origin
   const defaultServer = {
-    name: "Default server",
+    // A getter: the context is built once, before the account's language is known.
+    get name() {
+      return t("shell.default_server")
+    },
     url: normalizeServerUrl(new URL(configured, window.location.origin).href),
   }
   const legacyUrl = read(localStorage, LEGACY_SERVER_KEY) ?? defaultServer.url

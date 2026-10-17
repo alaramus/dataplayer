@@ -5,6 +5,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRoute } from "vue-router"
 
 import { serverCheckOptions } from "@/features/servers/api"
+import { t } from "@/shared/i18n"
 import { switchServer } from "@/shared/servers/leaving"
 import { normalizeServerUrl, parseProfile, safeLocalPath } from "@/shared/servers/profiles"
 import type { ServerProfile } from "@/shared/servers/profiles"
@@ -56,7 +57,7 @@ async function perform(action: () => void | Promise<void>) {
   error.value = ""
   notice.value = ""
   try { await action() }
-  catch (cause) { error.value = cause instanceof Error ? cause.message : "Could not save the server in this browser." }
+  catch (cause) { error.value = cause instanceof Error ? cause.message : t("servers.switcher.save_failed") }
   finally { busy.value = false }
 }
 
@@ -67,7 +68,7 @@ async function check(url: string) {
 function checkForm() {
   void perform(async () => {
     await check(normalizeServerUrl(address.value))
-    notice.value = "Compatible DataPlayer server."
+    notice.value = t("servers.switcher.compatible")
   })
 }
 
@@ -79,7 +80,7 @@ function connect(profile: ServerProfile) {
   void perform(async () => {
     await check(profile.url)
     if (profile.url === servers.active.url) {
-      notice.value = "Compatible DataPlayer server."
+      notice.value = t("servers.switcher.compatible")
       return
     }
     await switchServer(profile.url, nextPath())
@@ -90,7 +91,7 @@ function save() {
   void perform(async () => {
     const url = normalizeServerUrl(address.value)
     const profile = parseProfile({ name: name.value, url })
-    if (profile === null) throw new Error("Enter a server name of 1 to 100 characters.")
+    if (profile === null) throw new Error(t("servers.name_invalid"))
     if (previousUrl.value === servers.active.url && url !== servers.active.url) {
       await check(url)
       await switchServer(url, nextPath(), () => servers.save(profile, previousUrl.value))
@@ -98,7 +99,7 @@ function save() {
     }
     servers.save(profile, previousUrl.value)
     editing.value = false
-    notice.value = "Server saved. Choose Connect to use it in this tab."
+    notice.value = t("servers.switcher.saved")
   })
 }
 
@@ -119,7 +120,7 @@ function remove(profile: ServerProfile) {
     layout="toolbar"
     :icon="appIcons.vpnLock"
     class="server-switcher"
-    aria-label="Choose server"
+    :aria-label="t('servers.switcher.choose')"
     data-testid="server-switcher"
     :aria-expanded="open"
     @click="open = !open; editing = false; error = ''; notice = ''"
@@ -141,37 +142,37 @@ function remove(profile: ServerProfile) {
         class="server-switcher__panel"
         :style="{ bottom: `calc(${windows.context.bottomInset.value}px + var(--dp-space-1))` }"
         role="complementary"
-        aria-label="Servers"
+        :aria-label="t('servers.switcher.servers')"
         data-testid="server-manager"
       >
         <header class="server-switcher__bar">
-          <strong>Servers</strong>
+          <strong>{{ t('servers.switcher.servers') }}</strong>
           <AppIconButton
             :icon="appIcons.close"
-            tooltip="Close"
+            :tooltip="t('catalog.common.close')"
             @click="open = false"
           />
         </header>
         <p class="server-switcher__intro">
-          Choose the server for this browser tab. Accounts are separate on each server.
+          {{ t('servers.switcher.intro') }}
         </p>
         <div class="server-switcher__body">
           <AppForm layout="section">
             <div class="server-switcher__current">
-              Current: {{ servers.active.name }} · {{ servers.active.url }}
+              {{ t('servers.switcher.current', { name: servers.active.name, url: servers.active.url }) }}
             </div>
             <template v-if="editing">
               <AppInput
                 v-model="name"
-                label="Server name"
+                :label="t('servers.name')"
                 :disable="busy"
                 data-testid="server-name"
                 maxlength="100"
               />
               <AppInput
                 v-model="address"
-                label="Server URL"
-                placeholder="https://data.example.com"
+                :label="t('servers.url')"
+                :placeholder="t('servers.url_example')"
                 :disable="busy"
                 data-testid="server-url"
               />
@@ -185,13 +186,13 @@ function remove(profile: ServerProfile) {
               >
                 <div class="server-switcher__details">
                   <strong>{{ profile.name }}</strong>
-                  <span v-if="profile.url === servers.active.url"> · Current</span>
+                  <span v-if="profile.url === servers.active.url">{{ t('servers.switcher.current_mark') }}</span>
                   <div class="server-switcher__url">
                     {{ profile.url }}
                   </div>
                 </div>
                 <AppButton
-                  :label="profile.url === servers.active.url ? 'Check' : 'Connect'"
+                  :label="profile.url === servers.active.url ? t('servers.switcher.check') : t('servers.switcher.connect')"
                   variant="quiet"
                   size="sm"
                   :disable="busy"
@@ -200,15 +201,15 @@ function remove(profile: ServerProfile) {
                 <template v-if="profile.url !== servers.defaultServer.url">
                   <AppIconButton
                     :icon="appIcons.edit"
-                    tooltip="Edit server"
-                    aria-label="Edit server"
+                    :tooltip="t('servers.switcher.edit')"
+                    :aria-label="t('servers.switcher.edit')"
                     :disable="busy"
                     @click="edit(profile)"
                   />
                   <AppIconButton
                     :icon="appIcons.delete"
-                    tooltip="Remove server"
-                    aria-label="Remove server"
+                    :tooltip="t('servers.switcher.remove')"
+                    :aria-label="t('servers.switcher.remove')"
                     variant="danger-quiet"
                     :disable="busy"
                     @click="remove(profile)"
@@ -217,7 +218,7 @@ function remove(profile: ServerProfile) {
               </div>
               <div>
                 <AppButton
-                  label="Add server"
+                  :label="t('servers.switcher.add')"
                   :icon="appIcons.add"
                   variant="secondary"
                   :disable="busy"
@@ -253,19 +254,19 @@ function remove(profile: ServerProfile) {
           </div>
           <template v-if="editing">
             <AppButton
-              label="Check connection"
+              :label="t('servers.switcher.check_connection')"
               variant="secondary"
               :disable="busy"
               @click="checkForm"
             />
             <AppButton
-              label="Cancel"
+              :label="t('catalog.common.cancel')"
               variant="quiet"
               :disable="busy"
               @click="editing = false; error = ''; notice = ''"
             />
             <AppButton
-              :label="savingActiveAddress ? 'Save and connect' : 'Save server'"
+              :label="savingActiveAddress ? t('servers.switcher.save_and_connect') : t('servers.switcher.save')"
               :loading="busy"
               data-testid="server-save"
               @click="save"

@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue"
 
 import type { ColumnTypeOption } from "@/client"
 import { AppBanner, AppButton, AppForm, AppSelect } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -33,10 +34,12 @@ watch(
 
 const blockedText = computed(() => {
   if (props.blocked === null) return ""
-  const rows = props.blocked.exact
-    ? `${props.blocked.rows} ${props.blocked.rows === 1 ? "row holds" : "rows hold"}`
-    : `More than ${props.blocked.rows} rows hold`
-  return `${rows} a value the chosen type cannot read. Correct or remove those values first.`
+  const n = props.blocked.rows
+  return t(
+    props.blocked.exact ? "structure.type_dialog.blocked" : "structure.type_dialog.blocked_more",
+    { n },
+    n
+  )
 })
 </script>
 
@@ -45,7 +48,7 @@ const blockedText = computed(() => {
     :model-value="modelValue"
     sizing="stable"
     size="compact-form"
-    :title="`Column type — ${name}`"
+    :title="t('structure.type_dialog.title', { name })"
     data-testid="structure-type-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -66,11 +69,11 @@ const blockedText = computed(() => {
       >
         {{ blockedText }}
       </AppBanner>
-      <div>Now: <code>{{ currentType }}</code></div>
+      <div>{{ t('structure.type_dialog.now') }} <code>{{ currentType }}</code></div>
       <AppSelect
         :model-value="typeCode"
         :options="types.map((type) => ({ label: `${type.title} · ${type.sql}`, value: type.code }))"
-        label="New type"
+        :label="t('structure.type_dialog.new_type')"
         :disable="saving"
         data-testid="structure-type-select"
         @update:model-value="typeCode = String($event)"
@@ -79,20 +82,19 @@ const blockedText = computed(() => {
            what is PostgreSQL's rule, and restating it here would be a second
            implementation of it. -->
       <AppBanner tone="info">
-        Every value is rewritten as the new type. A conversion can lose
-        information — a number is rounded, a time of day is dropped.
+        {{ t('structure.type_dialog.lossy') }}
       </AppBanner>
     </AppForm>
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
         variant="danger"
-        label="Change type"
+        :label="t('structure.type_dialog.change')"
         :disable="typeCode.length === 0"
         :loading="saving"
         data-testid="structure-type-save"

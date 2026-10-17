@@ -24,6 +24,7 @@ import type { CSSProperties } from "vue"
 
 import type { Sort } from "@/client"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import { onMac } from "@/shared/keys/shortcuts"
 import {
   AppBanner,
@@ -78,7 +79,7 @@ const props = withDefaults(
     loading: false,
     refreshing: false,
     error: "",
-    emptyText: "No rows",
+    emptyText: () => t("grid.no_rows"),
     updateReason: "",
     editableRowIds: () => [],
     showReset: true,
@@ -257,9 +258,9 @@ function selectPageSize(value: unknown) {
   }
 }
 const range = computed(() => {
-  if (props.loading && props.rows.length === 0) return "Reading…"
-  if (props.rows.length === 0) return "Rows 0"
-  return `Rows ${offset.value + 1}–${offset.value + props.rows.length}`
+  if (props.loading && props.rows.length === 0) return t("catalog.list.reading")
+  if (props.rows.length === 0) return t("grid.pager.none")
+  return t("grid.pager.range", { from: offset.value + 1, to: offset.value + props.rows.length })
 })
 
 function changeLayout(layout: ColumnLayoutState) {
@@ -299,7 +300,9 @@ function columnIsSortable(columnId: string): boolean {
 
 function pinTooltip(column: Column<GridFeatures, GridRow, unknown>): string {
   const label = columnOf(props.columns, column.id)?.label ?? column.id
-  return `${column.getIsPinned() === "start" ? "Unpin" : "Pin"} ${label}`
+  return column.getIsPinned() === "start"
+    ? t("grid.columns.unpin", { column: label })
+    : t("grid.columns.pin_short", { column: label })
 }
 
 function columnVariable(columnId: string): string {
@@ -474,7 +477,7 @@ async function copySelection() {
   try {
     await copyText(toTsv(matrix))
   } catch {
-    toast.error("Could not copy the selection")
+    toast.error(t("grid.copy_failed"))
   }
 }
 
@@ -556,8 +559,8 @@ function cellTitle(cell: Cell<GridFeatures, GridRow, unknown>): string | undefin
   if (!cellIsEditable(cell)) return props.updateReason || undefined
   const value = cell.getValue() as string | null
   return shouldOpenViewer(value, column.type)
-    ? "Double-click to view; Shift+double-click to edit"
-    : "Double-click to edit"
+    ? t("grid.cell.view_or_edit")
+    : t("grid.cell.edit")
 }
 
 function rowNumber(row: GridRow, index: number): number {
@@ -668,14 +671,14 @@ defineExpose({
           <AppButton
             v-if="showReset"
             variant="secondary"
-            label="Reset query"
+            :label="t('grid.reset_query')"
             size="sm"
             data-testid="grid-reset-query"
             @click="emit('reset')"
           />
           <AppButton
             variant="secondary"
-            label="Retry"
+            :label="t('grid.retry')"
             size="sm"
             data-testid="grid-retry"
             @click="emit('retry')"
@@ -699,7 +702,7 @@ defineExpose({
         v-if="loading"
         class="data-grid__skeleton"
         data-testid="grid-skeleton"
-        aria-label="Loading rows"
+        :aria-label="t('grid.loading_rows')"
       >
         <div
           v-for="index in 8"
@@ -723,7 +726,7 @@ defineExpose({
             >
               <AppIconButton
                 :icon="appIcons.selectAll"
-                tooltip="Select page"
+                :tooltip="t('grid.select.page')"
                 data-testid="grid-select-page"
                 @click="selectPage"
               />
@@ -743,7 +746,7 @@ defineExpose({
               <button
                 type="button"
                 class="data-grid__column-name"
-                :aria-label="`Select column ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
+                :aria-label="t('grid.select.column', { column: columnOf(columns, header.column.id)?.label ?? header.column.id })"
                 :data-testid="`grid-column-select-${header.column.id}`"
                 @click="selectColumn(header.column.id)"
               >
@@ -758,7 +761,7 @@ defineExpose({
                 <AppIconButton
                   v-if="columnIsSortable(header.column.id)"
                   :icon="sortIcon(header.column.id)"
-                  :tooltip="`Sort by ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
+                  :tooltip="t('grid.sort.by', { column: columnOf(columns, header.column.id)?.label ?? header.column.id })"
                   :data-direction="sortDirection(header.column.id)"
                   :data-testid="`grid-sort-direction-${header.column.id}`"
                   compact
@@ -777,7 +780,7 @@ defineExpose({
                 />
                 <AppIconButton
                   :icon="appIcons.visibilityOff"
-                  :tooltip="`Hide ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
+                  :tooltip="t('grid.columns.hide', { column: columnOf(columns, header.column.id)?.label ?? header.column.id })"
                   :data-testid="`grid-hide-${header.column.id}`"
                   compact
                   @click.stop="hideColumn(header.column)"
@@ -805,12 +808,12 @@ defineExpose({
                 type="button"
                 class="data-grid__row-selector"
                 :data-testid="`grid-select-row-${row.id}`"
-                :aria-label="`Select row ${rowNumber(row.original, rowIndex)}`"
+                :aria-label="t('grid.select.row', { n: rowNumber(row.original, rowIndex) })"
                 @click="selectRow(row.id, $event)"
               >
                 {{ rowNumber(row.original, rowIndex) }}
                 <AppTooltip v-if="pointedRow === row.id">
-                  Select row {{ rowNumber(row.original, rowIndex) }}. {{ addKey }}+click adds, Shift+click extends.
+                  {{ t('grid.select.row_hint', { n: rowNumber(row.original, rowIndex), key: addKey }) }}
                 </AppTooltip>
               </button>
               <!-- Whatever the screen offers about a whole row. Drawn on the
@@ -888,7 +891,7 @@ defineExpose({
       <AppSelect
         :model-value="pageSize"
         :options="pageSizeOptions"
-        label="Per page"
+        :label="t('grid.pager.per_page')"
         compact
         class="data-grid__page-size"
         data-testid="grid-page-size"
@@ -897,14 +900,14 @@ defineExpose({
       <span data-testid="grid-page-range">{{ range }}</span>
       <AppIconButton
         :icon="appIcons.chevronLeft"
-        tooltip="Previous page"
+        :tooltip="t('grid.pager.previous')"
         :disable="page === 0"
         data-testid="grid-prev"
         @click="emit('turn-page', -1)"
       />
       <AppIconButton
         :icon="appIcons.chevronRight"
-        tooltip="Next page"
+        :tooltip="t('grid.pager.next')"
         :disable="!hasMore"
         data-testid="grid-next"
         @click="emit('turn-page', 1)"

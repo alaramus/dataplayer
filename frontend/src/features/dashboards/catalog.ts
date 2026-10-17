@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n"
 import { appIcons } from "@/shared/ui/icons"
 
 /**
@@ -165,7 +166,7 @@ function agentNodes(catalog: MetricsCatalog | undefined): TreeNodes {
         children: seriesNodes(metric.series),
       })),
         ...(host.processes
-          ? [{ key: processesKey({ agentId: agent.agent_id, host: host.host }), label: "processes", icon: appIcons.list }]
+          ? [{ key: processesKey({ agentId: agent.agent_id, host: host.host }), label: t("dashboards.tree.processes"), icon: appIcons.list }]
           : []),
       ],
     })),

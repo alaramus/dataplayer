@@ -1,7 +1,7 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.adapters.operations import ProducesJob
 from app.adapters.resources import ResourcesDep
@@ -14,6 +14,8 @@ from app.connectors.action_lookup import (
     perform,
 )
 from app.core.db import SessionDep
+from app.core.problems import Problem
+from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.models import JobPublic, public
 from app.jobs.runner import JobRunnerDep
@@ -55,19 +57,15 @@ async def start_action_job(
     action = await action_for_node(acting_or_501(adapter), action_name, body.node_id)
     allowed_or_403(action, access)
     if not isinstance(action, ProducesJob):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} is not carried out as a job"},
-        )
+        raise Problem(415, "actions.not_a_job", action=action.title)
     fingerprint = body.reviewed_fingerprint
     if fingerprint is None:
-        raise HTTPException(
-            status_code=422, detail={"message": "Review the operation plan before running it"}
-        )
+        raise Problem(422, "actions.plan_not_reviewed")
     plan = await perform(lambda: action.plan_job(body.node_id, body.params, fingerprint))
     operation = SourceOperation(
         action=action.name,
-        title=action.title,
+        # Stored worded, in the language of whoever started it (D226).
+        title=say(action.title),
         node_id=body.node_id,
         params=body.params,
         requires=action.requires,
@@ -87,12 +85,6 @@ async def start_action_job(
             parameters=operation.model_dump(mode="json"),
         )
     except job_crud.SubjectBusy as busy:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "Another operation is already running on this connection",
-                "job_id": str(busy.job_id),
-            },
-        )
+        raise Problem(409, "actions.operation_running", job_id=str(busy.job_id)) from None
     await runner.launch(job, topics)
     return public(job)

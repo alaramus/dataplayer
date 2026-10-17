@@ -7,6 +7,7 @@ Nothing is written and nothing outside the database is asked.
 
 from app.adapters.metrics import MetricPreset, MetricRecipe, MetricSample
 from app.adapters.postgres.session import PostgresSession
+from app.core.translation import N_
 
 _DATABASE_SQL = """
 SELECT numbackends, xact_commit, xact_rollback, blks_read, blks_hit,
@@ -22,6 +23,10 @@ FROM pg_catalog.pg_stat_activity
 WHERE datname = current_database()
 GROUP BY 1
 """
+
+# The label of the series that counts every session: a key of the stored
+# series, which a dashboard shows as it is, rather than a word.
+_TOTAL = "total"
 
 # (metric, field, column, unit, counter)
 _COLUMNS: tuple[tuple[str, str, str, str, bool], ...] = (
@@ -59,7 +64,7 @@ class PostgresMetrics:
         sessions = await self._session.query(_SESSIONS_SQL, inspection=True)
         # Written for an empty answer too: a gap reads as "nobody asked".
         samples.append(
-            MetricSample("sessions", "count", float(sum(int(one["sessions"]) for one in sessions)), label="total")
+            MetricSample("sessions", "count", float(sum(int(one["sessions"]) for one in sessions)), label=_TOTAL)
         )
         for one in sessions:
             samples.append(
@@ -71,18 +76,18 @@ class PostgresMetrics:
 PRESETS: tuple[MetricPreset, ...] = (
     MetricPreset(
         key="postgres-database",
-        name="PostgreSQL database",
-        description="Sessions, transactions, tuple traffic, block I/O and size of one database.",
+        name=N_("PostgreSQL database"),
+        description=N_("Sessions, transactions, tuple traffic, block I/O and size of one database."),
         recipes=(
-            MetricRecipe("timeseries", "Sessions by state", (0, 0, 6, 5), "sessions", ("count",)),
-            MetricRecipe("timeseries", "Transactions per second", (6, 0, 6, 5), "transactions"),
-            MetricRecipe("timeseries", "Tuples read per second", (0, 5, 6, 5), "tuples", ("returned", "fetched")),
+            MetricRecipe("timeseries", N_("Sessions by state"), (0, 0, 6, 5), "sessions", ("count",)),
+            MetricRecipe("timeseries", N_("Transactions per second"), (6, 0, 6, 5), "transactions"),
+            MetricRecipe("timeseries", N_("Tuples read per second"), (0, 5, 6, 5), "tuples", ("returned", "fetched")),
             MetricRecipe(
-                "timeseries", "Tuples written per second", (6, 5, 6, 5), "tuples", ("inserted", "updated", "deleted")
+                "timeseries", N_("Tuples written per second"), (6, 5, 6, 5), "tuples", ("inserted", "updated", "deleted")
             ),
-            MetricRecipe("timeseries", "Blocks per second", (0, 10, 6, 5), "blocks"),
-            MetricRecipe("stat", "Database size", (6, 10, 3, 5), "database", ("size",)),
-            MetricRecipe("timeseries", "Conflicts and deadlocks", (9, 10, 3, 5), "problems"),
+            MetricRecipe("timeseries", N_("Blocks per second"), (0, 10, 6, 5), "blocks"),
+            MetricRecipe("stat", N_("Database size"), (6, 10, 3, 5), "database", ("size",)),
+            MetricRecipe("timeseries", N_("Conflicts and deadlocks"), (9, 10, 3, 5), "problems"),
         ),
     ),
 )

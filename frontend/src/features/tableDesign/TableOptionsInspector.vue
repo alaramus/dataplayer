@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppBanner, AppInput, AppSelect, AppTooltip } from "@/shared/ui"
 
 import { useDesign } from "./design"
@@ -16,7 +17,7 @@ const persistence = computed(() =>
   }))
 )
 const strategies = computed(() => [
-  { label: "None", value: "" },
+  { label: t("table_design.none"), value: "" },
   ...(design.options.value?.partition_strategies ?? []).map((choice) => ({
     label: choice.title,
     value: choice.code,
@@ -33,39 +34,39 @@ const strategies = computed(() => [
       <AppSelect
         v-model="design.draft.persistence"
         :options="persistence"
-        label="Persistence"
+        :label="t('table_design.options.persistence')"
         data-testid="table-persistence"
       />
       <AppInput
         model-value=""
-        label="Tablespace · optional"
+        :label="t('table_design.options.tablespace')"
         disable
         data-testid="table-tablespace"
       >
-        <AppTooltip>Tablespace selection is not supported by table creation yet.</AppTooltip>
+        <AppTooltip>{{ t('table_design.options.tablespace_later') }}</AppTooltip>
       </AppInput>
     </div>
 
     <div class="inspector__row">
       <AppInput
         model-value=""
-        label="Owner · optional"
+        :label="t('table_design.options.owner')"
         disable
         data-testid="table-owner"
       >
-        <AppTooltip>Owner selection is not supported by table creation yet.</AppTooltip>
+        <AppTooltip>{{ t('table_design.options.owner_later') }}</AppTooltip>
       </AppInput>
       <AppSelect
         v-model="design.draft.partitionStrategy"
         :options="strategies"
-        label="Partition by"
+        :label="t('table_design.options.partition_by')"
         data-testid="table-partition"
       />
       <AppSelect
         v-if="design.draft.partitionStrategy !== ''"
         v-model="design.draft.partitionColumnIds"
         :options="design.columnChoices.value"
-        label="Partition columns"
+        :label="t('table_design.options.partition_columns')"
         multiple
       />
     </div>
@@ -73,8 +74,7 @@ const strategies = computed(() => [
       v-if="design.draft.partitionStrategy !== ''"
       tone="info"
     >
-      This creates the parent. Rows go into partitions of it, which are made separately, and every
-      key of the table must hold its partition columns.
+      {{ t('table_design.options.partitioned') }}
     </AppBanner>
   </div>
 </template>

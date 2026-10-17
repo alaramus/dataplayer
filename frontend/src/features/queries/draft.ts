@@ -1,4 +1,5 @@
 import type { QueryDocumentPublic, QueryDocumentUpdate } from "@/client"
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 
 /**
@@ -104,7 +105,7 @@ export function keepMine(remote: QueryDocumentPublic, draft: DraftState): QueryD
  * from rather than nothing at all.
  */
 export function copyTitle(title: string | null): string {
-  return title === null ? "Unsaved copy" : `${title} (copy)`
+  return title === null ? t("queries.draft.unsaved_copy") : t("queries.draft.copy_title", { title })
 }
 
 /**

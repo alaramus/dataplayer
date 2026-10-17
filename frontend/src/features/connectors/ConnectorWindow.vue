@@ -2,7 +2,6 @@
 import { computed, ref, watch } from "vue"
 
 import type { ConnectionCheckReport, ConnectorDraft, ConnectorPublic, SshKeyPublic } from "@/client"
-import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
 import AccessRequests from "@/features/shares/AccessRequests.vue"
 import GrantList from "@/features/shares/GrantList.vue"
@@ -33,6 +32,7 @@ import { useSshKeys } from "@/features/sshKeys/api"
 import { withKeyChoices } from "@/features/sshKeys/keys"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
+import { t } from "@/shared/i18n"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import {
   DEFAULT_GROUP,
@@ -147,23 +147,16 @@ function chooseCacheWindow(value: unknown) {
 
 type ExecutionPolicy = ConnectorPublic["execution_policy"]
 const executionPolicy = ref<ExecutionPolicy>("confirm_writes")
-const POLICY_OPTIONS: { label: string; value: ExecutionPolicy }[] = [
-  { label: "Read only", value: "read_only" },
-  { label: "Ask before writing", value: "confirm_writes" },
-  { label: "Writing allowed", value: "allow_writes" },
-]
-
-/** What the chosen policy means, said under the choice as its help. */
-const policyNote = computed(() =>
-  executionPolicy.value === "read_only"
-    ? "Consoles on this connection can only read."
-    : executionPolicy.value === "allow_writes"
-      ? "Consoles on this connection can write."
-      : "Each write asks for confirmation before it runs."
+const POLICIES: readonly ExecutionPolicy[] = ["read_only", "confirm_writes", "allow_writes"]
+const policyOptions = computed(() =>
+  POLICIES.map((value) => ({ label: t(`connectors.window.policy.${value}`), value }))
 )
 
+/** What the chosen policy means, said under the choice as its help. */
+const policyNote = computed(() => t(`connectors.window.policy.note_${executionPolicy.value}`))
+
 function choosePolicy(value: unknown) {
-  if (POLICY_OPTIONS.some((option) => option.value === value)) {
+  if (POLICIES.some((policy) => policy === value)) {
     executionPolicy.value = value as ExecutionPolicy
   }
 }
@@ -508,7 +501,7 @@ function filledOptions(): Record<string, unknown> {
 }
 
 function validateName(): boolean {
-  nameError.value = name.value.trim() === "" ? "Name is required" : ""
+  nameError.value = name.value.trim() === "" ? t("connectors.window.name_required") : ""
   return nameError.value === ""
 }
 
@@ -540,7 +533,7 @@ async function check() {
   } catch (error) {
     const serverErrors = fieldErrorsFrom(error)
     if (serverErrors) applyServerErrors(serverErrors)
-    else toast.error(messageOf(error, "Could not reach the server"))
+    else toast.error(messageOf(error, t("connectors.window.unreachable")))
   }
 }
 
@@ -585,12 +578,12 @@ async function apply(): Promise<boolean> {
     }
     // Saved is the new baseline: what is on screen is what is stored.
     baseline.value = snapshot()
-    toast.success("Connection saved")
+    toast.success(t("connectors.window.saved"))
     return true
   } catch (error) {
     const serverErrors = fieldErrorsFrom(error)
     if (serverErrors) applyServerErrors(serverErrors)
-    else toast.error(messageOf(error, "Could not reach the server"))
+    else toast.error(messageOf(error, t("connectors.window.unreachable")))
     return false
   }
 }
@@ -608,13 +601,11 @@ async function remove() {
   // difference between a promise kept and a surprise (D84).
   const started = ownService.value
   const answer = await confirm({
-    title: "Delete connection",
+    title: t("connectors.window.delete_title"),
     message: started
-      ? `The connection "${connector.name}" will be deleted permanently. ` +
-        "The service this server started for it keeps running, with its data; " +
-        "remove the service itself to take that away."
-      : `The connection "${connector.name}" will be deleted permanently.`,
-    confirmLabel: "Delete",
+      ? t("connectors.window.delete_message_service", { name: connector.name })
+      : t("connectors.window.delete_message", { name: connector.name }),
+    confirmLabel: t("connectors.window.delete"),
     danger: true,
   })
   if (!answer) return
@@ -625,13 +616,13 @@ async function remove() {
   checks.forget(connector.id)
   // Nothing left to discard, so closing must not ask about it.
   baseline.value = snapshot()
-  toast.success("Connection deleted")
+  toast.success(t("connectors.window.deleted"))
   emit("close")
 }
 
 async function copyUrl() {
   await copyText(urlText.value)
-  toast.success("Connection string copied")
+  toast.success(t("connectors.window.url_copied"))
 }
 
 /**
@@ -678,7 +669,7 @@ async function parseTyped(text: string) {
     })
     urlError.value = ""
   } catch (error) {
-    urlError.value = messageOf(error, "That is not a connection string this source reads")
+    urlError.value = messageOf(error, t("connectors.window.url_unreadable"))
   }
 }
 </script>
@@ -693,7 +684,7 @@ async function parseTyped(text: string) {
           <AppInput
             v-model="name"
             class="connector-window__name"
-            label="Name"
+            :label="t('connectors.window.name')"
             data-testid="connector-name"
             :disable="readOnly"
             :error="nameError"
@@ -701,7 +692,7 @@ async function parseTyped(text: string) {
             <template #after>
               <AppColorPicker
                 v-model="tabColor"
-                label="Tab color"
+                :label="t('connectors.window.tab_color')"
                 data-testid="connector-tab-color"
                 :disable="readOnly"
               />
@@ -716,12 +707,12 @@ async function parseTyped(text: string) {
           >
             <AppToggle
               v-model="enabled"
-              label="In use"
+              :label="t('connectors.window.in_use')"
               data-testid="connector-enabled"
               :disable="readOnly"
             />
             <AppTooltip>
-              Switch off to keep this connection saved but unavailable for data access. Automatic health checks also stop.
+              {{ t('connectors.window.in_use_hint') }}
             </AppTooltip>
           </span>
         </div>
@@ -775,7 +766,7 @@ async function parseTyped(text: string) {
             class="connector-window__cache"
             :model-value="cacheWindowValue(cacheWindow)"
             :options="cacheWindowOptions(sourceWindows)"
-            label="Keep answers"
+            :label="t('connectors.window.keep_answers')"
             :hint="cacheWindowNote(cacheWindow, sourceWindows)"
             :disable="readOnly || !windowApplies(sourceWindows)"
             data-testid="connector-cache-window"
@@ -789,17 +780,19 @@ async function parseTyped(text: string) {
               class="dp-helper"
               data-testid="connector-search-index"
             >
-              Search index: {{
-                keepState.data.value.available
-                  ? statusLine(keepState.data.value)
-                  : "this kind of source cannot keep its names"
+              {{
+                t('connectors.window.search_index', {
+                  state: keepState.data.value.available
+                    ? statusLine(keepState.data.value)
+                    : t('connectors.window.cannot_keep'),
+                })
               }}
             </span>
             <AppButton
               v-if="keepState.data.value.available"
               variant="quiet"
               size="sm"
-              label="Search index…"
+              :label="t('catalog.actions.search_index')"
               @click="openSearchIndex"
             />
           </section>
@@ -810,24 +803,22 @@ async function parseTyped(text: string) {
                at it. -->
           <section class="connector-window__ssh-keys">
             <h3 class="connector-window__heading-3 dp-section-title">
-              SSH keys
+              {{ t('ssh_keys.section.title') }}
             </h3>
             <span class="dp-helper">
-              Keys your SSH connections sign in with, usable anywhere. A key
-              made here never leaves this server: copy its public key into
-              authorized_keys on the servers it should open.
+              {{ t('connectors.window.ssh_keys_hint') }}
             </span>
             <div class="connector-window__ssh-keys-buttons">
               <AppButton
                 :icon="appIcons.createSshKey"
-                label="New key"
+                :label="t('ssh_keys.section.new_key')"
                 data-testid="connector-ssh-key-new"
                 @click="makingKey = 'generate'"
               />
               <AppButton
                 variant="quiet"
                 :icon="appIcons.importSshKey"
-                label="Import"
+                :label="t('ssh_keys.section.import')"
                 data-testid="connector-ssh-key-import"
                 @click="makingKey = 'import'"
               />
@@ -854,8 +845,8 @@ async function parseTyped(text: string) {
                  size and a place of its own. -->
             <AppSelect
               :model-value="executionPolicy"
-              :options="POLICY_OPTIONS"
-              label="Consoles"
+              :options="policyOptions"
+              :label="t('connectors.window.consoles')"
               :hint="policyNote"
               class="connector-window__policy-select"
               data-testid="connector-policy"
@@ -869,12 +860,12 @@ async function parseTyped(text: string) {
           <div class="connector-window__policy">
             <AppToggle
               v-model="thirdPartyTransfer"
-              label="Allow sending data to third parties"
+              :label="t('connectors.window.third_party')"
               data-testid="connector-third-party"
               :disable="readOnly"
             />
             <span class="dp-helper">
-              Data read through this connection may be sent to outside services, such as an AI model provider.
+              {{ t('connectors.window.third_party_hint') }}
             </span>
           </div>
 
@@ -890,12 +881,12 @@ async function parseTyped(text: string) {
           >
             <header class="connector-window__grants-head">
               <h3 class="connector-window__heading-3 dp-overline">
-                Who else may reach it
+                {{ t('connectors.window.who_else') }}
               </h3>
               <AppButton
                 variant="secondary"
                 size="sm"
-                label="Share"
+                :label="t('connectors.window.share')"
                 data-testid="share-connector"
                 @click="sharing = true"
               />
@@ -913,8 +904,7 @@ async function parseTyped(text: string) {
             class="connector-window__shared"
             data-testid="connector-shared"
           >
-            Shared by {{ saved.owner_email }} — you may
-            {{ ACCESS_LABELS[access].toLowerCase() }}
+            {{ t(`connectors.window.shared_by.${access}`, { email: saved.owner_email ?? '' }) }}
           </div>
         </div>
       </div>
@@ -934,7 +924,7 @@ async function parseTyped(text: string) {
         <AppInput
           :model-value="urlText"
           class="connector-window__url-field"
-          label="URL"
+          :label="t('connectors.window.url')"
           data-testid="connector-url"
           :disable="readOnly"
           :error="urlError"
@@ -944,7 +934,7 @@ async function parseTyped(text: string) {
         >
           <template #after>
             <AppCopyButton
-              tooltip="Copy the connection string. The password is not part of it."
+              :tooltip="t('connectors.window.copy_url')"
               data-testid="copy-url"
               :disable="urlText === ''"
               @click="copyUrl"
@@ -958,7 +948,7 @@ async function parseTyped(text: string) {
           <span class="connector-window__check-anchor">
             <AppButton
               variant="secondary"
-              label="Test Connection"
+              :label="t('connectors.window.test')"
               data-testid="check-draft"
               :disable="!typeName"
               :loading="checking"
@@ -971,7 +961,7 @@ async function parseTyped(text: string) {
             >
               <ConnectionCheck
                 :result="checkResult"
-                :source-title="selectedType?.title ?? 'Server'"
+                :source-title="selectedType?.title ?? t('connectors.window.server')"
               >
                 <!-- The check said the key is shut, and opening it is the way on (D147). -->
                 <template
@@ -981,7 +971,7 @@ async function parseTyped(text: string) {
                   <AppButton
                     variant="secondary"
                     size="sm"
-                    label="Unlock the key"
+                    :label="t('ssh_keys.unlock_button')"
                     data-testid="unlock-form-key"
                     @click="unlocking = formKey"
                   />
@@ -992,7 +982,7 @@ async function parseTyped(text: string) {
           <AppButton
             v-if="isEdit && isOwner"
             variant="danger-quiet"
-            label="Delete"
+            :label="t('connectors.window.delete')"
             data-testid="delete-connector"
             :loading="removeConnector.isPending.value"
             @click="remove"
@@ -1004,13 +994,13 @@ async function parseTyped(text: string) {
             <AppButton
               v-if="!isEdit"
               variant="quiet"
-              label="Back"
+              :label="t('catalog.common.back')"
               data-testid="back-to-catalog"
               @click="emit('back')"
             />
             <AppButton
               variant="quiet"
-              label="Cancel"
+              :label="t('catalog.common.cancel')"
               data-testid="cancel-connector"
               @click="emit('close')"
             />
@@ -1019,7 +1009,7 @@ async function parseTyped(text: string) {
             <AppButton
               v-if="!readOnly"
               variant="secondary"
-              label="Apply"
+              :label="t('connectors.window.apply')"
               data-testid="apply-connector"
               :disable="!typeName"
               :loading="saving"
@@ -1027,7 +1017,7 @@ async function parseTyped(text: string) {
             />
             <AppButton
               v-if="!readOnly"
-              label="OK"
+              :label="t('connectors.window.ok')"
               data-testid="save-connector"
               :disable="!typeName"
               :loading="saving"

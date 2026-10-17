@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { QTableProps } from "quasar"
+import { computed } from "vue"
+
+import { t } from "@/shared/i18n"
 
 /** Quasar exports no column type of its own, so it is read off the props. */
 export type TableColumns = NonNullable<QTableProps["columns"]>
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     rows: readonly Record<string, unknown>[]
     columns: TableColumns
@@ -25,12 +28,15 @@ withDefaults(
   }>(),
   {
     loading: false,
-    emptyText: "Nothing to show",
+    emptyText: undefined,
     compact: false,
     paged: true,
     sticky: false,
   }
 )
+
+// A fallback rather than a default, so it is read in the current language.
+const shownEmptyText = computed(() => props.emptyText ?? t("kit.table.empty"))
 </script>
 
 <template>
@@ -44,7 +50,7 @@ withDefaults(
     :row-key="rowKey"
     :loading="loading"
     :dense="compact"
-    :no-data-label="emptyText"
+    :no-data-label="shownEmptyText"
     :hide-pagination="!paged"
     :rows-per-page-options="paged ? undefined : [0]"
   >

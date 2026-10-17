@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { defineComponent, h, inject, onBeforeUnmount, provide, ref, watch } from "vue"
 import type { Ref } from "vue"
 
+import { t } from "@/shared/i18n"
 import { windowsApiKey } from "@/shared/windows/useWindows"
 
 import type { WorkspaceContext } from "./context"
@@ -66,7 +67,7 @@ if (windows !== undefined && targets !== undefined) {
           // itself, rather than inside the panel it holds (D112).
           actions: [{
             icon: appIcons.tab,
-            tooltip: "Return to panel",
+            get tooltip() { return t("layout.return_to_panel") },
             testid: "dock-panel",
             run: () => { props.context.dock(panelId.value) },
           }],

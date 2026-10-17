@@ -3,6 +3,9 @@ import { formatSize } from "@/features/catalog/nodes"
 import { formatDuration, mediaTypeName } from "@/features/content/media"
 import { datasetFacts } from "@/features/structure/model"
 import { statisticsFacts } from "@/features/summary/timescaleStatistics"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
+import { formatDateTime } from "@/shared/i18n/format"
 
 /** What a format states about itself, as the source sent it (D75). */
 export type NodeContents = NonNullable<NodeSummary["contents"]>
@@ -21,46 +24,23 @@ export interface Described {
   notice: string | null
 }
 
-const KINDS: Record<NodeSummary["kind"], string> = {
-  schema: "Schema",
-  table: "Table",
-  view: "View",
-  directory: "Folder",
-  file: "File",
-  dataset: "Dataset",
-  entry: "Archive entry",
-  report: "Report",
-  database: "Database",
-  key: "Key",
-}
-
-const ENCODINGS: Record<"utf-8" | "utf-8-bom" | "not-utf-8", string> = {
-  "utf-8": "UTF-8",
-  "utf-8-bom": "UTF-8 with a byte order mark",
-  "not-utf-8": "Not UTF-8",
+const ENCODINGS: Record<"utf-8" | "utf-8-bom" | "not-utf-8", MessageKey> = {
+  "utf-8": "summary.encodings.utf_8",
+  "utf-8-bom": "summary.encodings.utf_8_bom",
+  "not-utf-8": "summary.encodings.not_utf_8",
 }
 
 /** A relation as stored, where that is not what the "Kind" line already says. */
 type RelationKind = Extract<NodeContents, { kind: "relation" }>["relation_kind"]
 
-const STORED_AS: Partial<Record<RelationKind, string>> = {
-  partitioned_table: "Partitioned table",
-  materialized_view: "Materialized view",
-  foreign_table: "Foreign table",
+const STORED_AS: Partial<Record<RelationKind, MessageKey>> = {
+  partitioned_table: "summary.stored_as.partitioned_table",
+  materialized_view: "summary.stored_as.materialized_view",
+  foreign_table: "summary.stored_as.foreign_table",
 }
 
-const PERSISTENCE: Record<"permanent" | "unlogged" | "temporary", string> = {
-  permanent: "Permanent",
-  unlogged: "Unlogged",
-  temporary: "Temporary",
-}
-
-const ENDINGS: Record<"lf" | "crlf" | "cr" | "mixed" | "none", string> = {
-  lf: "LF (Unix)",
-  crlf: "CRLF (Windows)",
-  cr: "CR (classic Mac)",
-  mixed: "Mixed",
-  none: "None",
+function yesNo(value: boolean): string {
+  return value ? t("summary.yes") : t("summary.no")
 }
 
 /**
@@ -81,23 +61,23 @@ export function describe(summary: NodeSummary): Described {
 }
 
 function nodeFacts(summary: NodeSummary): Fact[] {
-  const facts: Fact[] = [{ label: "Kind", value: KINDS[summary.kind] }]
+  const facts: Fact[] = [{ label: t("summary.facts.kind"), value: t(`summary.kinds.${summary.kind}`) }]
   if (summary.size_bytes !== null && summary.size_bytes !== undefined) {
-    facts.push({ label: "Size", value: formatSize(summary.size_bytes) })
+    facts.push({ label: t("summary.facts.size"), value: formatSize(summary.size_bytes) })
   }
-  addMoment(facts, "Modified", summary.modified_at)
-  addMoment(facts, "Created", summary.created_at)
-  addMoment(facts, "Opened", summary.accessed_at)
+  addMoment(facts, t("summary.facts.modified"), summary.modified_at)
+  addMoment(facts, t("summary.facts.created"), summary.created_at)
+  addMoment(facts, t("summary.facts.opened"), summary.accessed_at)
   if (summary.permissions !== null && summary.permissions !== undefined) {
-    facts.push({ label: "Permissions", value: summary.permissions })
+    facts.push({ label: t("summary.facts.permissions"), value: summary.permissions })
   }
   // A folder is walked into rather than opened, so it is not asked what it
   // opens as; anything else says so even when the answer is nothing.
   if (summary.kind !== "directory") {
     const opens = (summary.representations ?? []).map((item) => item.title)
     facts.push({
-      label: "Opens as",
-      value: opens.length > 0 ? opens.join(", ") : "Nothing this source can show",
+      label: t("summary.facts.opens_as"),
+      value: opens.length > 0 ? opens.join(", ") : t("summary.values.opens_nothing"),
     })
   }
   return facts
@@ -105,7 +85,7 @@ function nodeFacts(summary: NodeSummary): Fact[] {
 
 function addMoment(facts: Fact[], label: string, moment: string | null | undefined) {
   if (moment === null || moment === undefined) return
-  facts.push({ label, value: new Date(moment).toLocaleString() })
+  facts.push({ label, value: formatDateTime(moment) })
 }
 
 /**
@@ -121,117 +101,117 @@ function contentsFacts(contents: NodeContents): Fact[] {
   switch (contents.kind) {
     case "text": {
       const facts: Fact[] = [
-        { label: "Encoding", value: ENCODINGS[contents.encoding] },
+        { label: t("summary.facts.encoding"), value: t(ENCODINGS[contents.encoding]) },
       ]
-      addCount(facts, "Lines", contents.lines)
+      addCount(facts, t("summary.facts.lines"), contents.lines)
       if (contents.longest_line_bytes !== null && contents.longest_line_bytes !== undefined) {
         facts.push({
-          label: "Longest line",
+          label: t("summary.facts.longest_line"),
           value: formatSize(contents.longest_line_bytes),
         })
       }
       if (contents.line_endings !== null && contents.line_endings !== undefined) {
-        facts.push({ label: "Line endings", value: ENDINGS[contents.line_endings] })
+        facts.push({ label: t("summary.facts.line_endings"), value: t(`summary.endings.${contents.line_endings}`) })
       }
       return facts
     }
     case "delimited": {
       const facts: Fact[] = []
       if (contents.delimiter !== null && contents.delimiter !== undefined) {
-        facts.push({ label: "Separated by", value: contents.delimiter })
+        facts.push({ label: t("summary.facts.separated_by"), value: contents.delimiter })
       }
-      addCount(facts, "Columns", contents.columns)
-      addCount(facts, "Rows", contents.rows)
-      facts.push({ label: "Encoding", value: ENCODINGS[contents.encoding] })
+      addCount(facts, t("summary.facts.columns"), contents.columns)
+      addCount(facts, t("summary.facts.rows"), contents.rows)
+      facts.push({ label: t("summary.facts.encoding"), value: t(ENCODINGS[contents.encoding]) })
       return facts
     }
     case "parquet":
     case "worksheet":
       return datasetFacts(contents)
     case "workbook": {
-      const facts: Fact[] = [{ label: "Sheets", value: String(contents.sheets) }]
+      const facts: Fact[] = [{ label: t("summary.facts.sheets"), value: String(contents.sheets) }]
       if (contents.hidden_sheets > 0) {
-        facts.push({ label: "Hidden sheets", value: String(contents.hidden_sheets) })
+        facts.push({ label: t("summary.facts.hidden_sheets"), value: String(contents.hidden_sheets) })
       }
       return facts
     }
     case "archive": {
       const facts: Fact[] = [
-        { label: "Entries", value: String(contents.entries) },
-        { label: "Files", value: String(contents.files) },
-        { label: "Folders", value: String(contents.directories) },
-        { label: "Unpacked", value: formatSize(contents.size_bytes) },
-        { label: "Packed", value: formatSize(contents.compressed_bytes) },
+        { label: t("summary.facts.entries"), value: String(contents.entries) },
+        { label: t("summary.facts.files"), value: String(contents.files) },
+        { label: t("summary.facts.folders"), value: String(contents.directories) },
+        { label: t("summary.facts.unpacked"), value: formatSize(contents.size_bytes) },
+        { label: t("summary.facts.packed"), value: formatSize(contents.compressed_bytes) },
       ]
       if (contents.encrypted > 0) {
-        facts.push({ label: "Encrypted entries", value: String(contents.encrypted) })
+        facts.push({ label: t("summary.facts.encrypted_entries"), value: String(contents.encrypted) })
       }
       if (contents.links > 0) {
-        facts.push({ label: "Links", value: String(contents.links) })
+        facts.push({ label: t("summary.facts.links"), value: String(contents.links) })
       }
       return facts
     }
     case "entry": {
       const facts: Fact[] = []
       if (contents.compressed_bytes !== null && contents.compressed_bytes !== undefined) {
-        facts.push({ label: "Packed", value: formatSize(contents.compressed_bytes) })
+        facts.push({ label: t("summary.facts.packed"), value: formatSize(contents.compressed_bytes) })
       }
       // Both are why an entry cannot be read, so they are shown only when they
       // are the answer to that (D53).
-      if (contents.encrypted === true) facts.push({ label: "Encrypted", value: "Yes" })
-      if (contents.link === true) facts.push({ label: "Link", value: "Yes" })
+      if (contents.encrypted === true) facts.push({ label: t("summary.facts.encrypted"), value: yesNo(true) })
+      if (contents.link === true) facts.push({ label: t("summary.facts.link"), value: yesNo(true) })
       return facts
     }
     case "image":
       return [
-        { label: "Format", value: mediaTypeName(contents.media_type) },
-        { label: "Size", value: `${String(contents.width)} × ${String(contents.height)}` },
+        { label: t("summary.facts.format"), value: mediaTypeName(contents.media_type) },
+        { label: t("summary.facts.size"), value: `${String(contents.width)} × ${String(contents.height)}` },
       ]
     case "audio": {
       const facts: Fact[] = [
-        { label: "Format", value: mediaTypeName(contents.media_type) },
+        { label: t("summary.facts.format"), value: mediaTypeName(contents.media_type) },
       ]
       addDuration(facts, contents.duration_seconds)
-      addCount(facts, "Channels", contents.channels)
+      addCount(facts, t("summary.facts.channels"), contents.channels)
       if (contents.sample_rate !== null && contents.sample_rate !== undefined) {
         facts.push({
-          label: "Sample rate",
-          value: `${String(contents.sample_rate / 1000)} kHz`,
+          label: t("summary.facts.sample_rate"),
+          value: t("summary.values.khz", { n: contents.sample_rate / 1000 }),
         })
       }
       return facts
     }
     case "video": {
       const facts: Fact[] = [
-        { label: "Format", value: mediaTypeName(contents.media_type) },
+        { label: t("summary.facts.format"), value: mediaTypeName(contents.media_type) },
       ]
       addDuration(facts, contents.duration_seconds)
       if (contents.width && contents.height) {
         facts.push({
-          label: "Size",
+          label: t("summary.facts.size"),
           value: `${String(contents.width)} × ${String(contents.height)}`,
         })
       }
       return facts
     }
     case "pdf":
-      return [{ label: "Format", value: `PDF ${contents.version}` }]
+      return [{ label: t("summary.facts.format"), value: `PDF ${contents.version}` }]
     case "directory": {
       const facts: Fact[] = []
-      addCount(facts, "Entries", contents.entries)
-      addCount(facts, "Files", contents.files)
-      addCount(facts, "Folders", contents.directories)
+      addCount(facts, t("summary.facts.entries"), contents.entries)
+      addCount(facts, t("summary.facts.files"), contents.files)
+      addCount(facts, t("summary.facts.folders"), contents.directories)
       return facts
     }
     case "relation": {
       const facts: Fact[] = []
       if (contents.specialization) {
         facts.push({
-          label: "Specialization",
+          label: t("summary.facts.specialization"),
           value:
             contents.specialization.kind === "timescale_hypertable"
-              ? "TimescaleDB hypertable"
-              : "TimescaleDB continuous aggregate",
+              ? t("summary.values.hypertable")
+              : t("summary.values.continuous_aggregate"),
         })
       }
       if (contents.timescale) facts.push(...timescaleFacts(contents.timescale))
@@ -244,10 +224,10 @@ function contentsFacts(contents: NodeContents): Fact[] {
       // Only where it says something the "Kind" line above does not: there a
       // table is a table and a materialized view is only a view.
       const stored = STORED_AS[contents.relation_kind]
-      if (stored !== undefined) facts.push({ label: "Stored as", value: stored })
-      facts.push({ label: "Schema", value: contents.schema_name })
+      if (stored !== undefined) facts.push({ label: t("summary.facts.stored_as"), value: t(stored) })
+      facts.push({ label: t("summary.facts.schema"), value: contents.schema_name })
       if (contents.owner !== null && contents.owner !== undefined) {
-        facts.push({ label: "Owner", value: contents.owner })
+        facts.push({ label: t("summary.facts.owner"), value: contents.owner })
       }
       // A permanent table is every table, and a line saying so on all of them
       // would say nothing on any of them.
@@ -256,30 +236,30 @@ function contentsFacts(contents: NodeContents): Fact[] {
         contents.persistence !== undefined &&
         contents.persistence !== "permanent"
       ) {
-        facts.push({ label: "Storage", value: PERSISTENCE[contents.persistence] })
+        facts.push({ label: t("summary.facts.storage"), value: t(`summary.persistence.${contents.persistence}`) })
       }
-      addCount(facts, "Columns", contents.columns)
-      addCount(facts, "Indexes", contents.indexes)
-      addCount(facts, "Constraints", contents.constraints)
+      addCount(facts, t("summary.facts.columns"), contents.columns)
+      addCount(facts, t("summary.facts.indexes"), contents.indexes)
+      addCount(facts, t("summary.facts.constraints"), contents.constraints)
       // Said even when there is no number, as it is in the catalog: a missing
       // line reads as one nobody filled in rather than as a count nobody has.
       facts.push({
-        label: "Rows",
+        label: t("summary.facts.rows"),
         value:
           contents.row_estimate === null || contents.row_estimate === undefined
-            ? "Not estimated"
-            : `~${String(contents.row_estimate)}`,
+            ? t("summary.values.not_estimated")
+            : t("summary.values.estimate", { n: contents.row_estimate }),
       })
       if (contents.partitioned_by !== null && contents.partitioned_by !== undefined) {
-        facts.push({ label: "Partitioned by", value: contents.partitioned_by })
+        facts.push({ label: t("summary.facts.partitioned_by"), value: contents.partitioned_by })
       }
       if (contents.partition_of !== null && contents.partition_of !== undefined) {
-        facts.push({ label: "Partition of", value: contents.partition_of })
+        facts.push({ label: t("summary.facts.partition_of"), value: contents.partition_of })
       }
-      addMoment(facts, "Analysed", contents.analyzed_at)
-      addMoment(facts, "Vacuumed", contents.vacuumed_at)
+      addMoment(facts, t("summary.facts.analysed"), contents.analyzed_at)
+      addMoment(facts, t("summary.facts.vacuumed"), contents.vacuumed_at)
       if (contents.comment !== null && contents.comment !== undefined) {
-        facts.push({ label: "Comment", value: contents.comment })
+        facts.push({ label: t("summary.facts.comment"), value: contents.comment })
       }
       return facts
     }
@@ -303,7 +283,7 @@ function addCount(facts: Fact[], label: string, count: number | null | undefined
 
 function addDuration(facts: Fact[], seconds: number | null | undefined) {
   if (seconds === null || seconds === undefined) return
-  facts.push({ label: "Duration", value: formatDuration(seconds) })
+  facts.push({ label: t("summary.facts.duration"), value: formatDuration(seconds) })
 }
 
 function unknownContents(contents: never): never {
@@ -314,21 +294,21 @@ function timescaleFacts(details: NonNullable<RelationContents["timescale"]>): Fa
   switch (details.kind) {
     case "hypertable":
       return [
-        { label: "Dimensions", value: String(details.num_dimensions) },
-        { label: "Chunks", value: details.num_chunks },
-        { label: "Compression configured", value: details.compression_enabled ? "Yes" : "No" },
+        { label: t("summary.facts.dimensions"), value: String(details.num_dimensions) },
+        { label: t("summary.facts.chunks"), value: details.num_chunks },
+        { label: t("summary.facts.compression_configured"), value: yesNo(details.compression_enabled) },
       ]
     case "continuous_aggregate":
       return [
-        { label: "Source schema", value: details.hypertable_schema },
-        { label: "Source hypertable", value: details.hypertable_name },
-        { label: "Materialization schema", value: details.materialization_hypertable_schema },
-        { label: "Materialization hypertable", value: details.materialization_hypertable_name },
-        { label: "Materialized only", value: details.materialized_only ? "Yes" : "No" },
-        { label: "Compression configured", value: details.compression_enabled ? "Yes" : "No" },
+        { label: t("summary.facts.source_schema"), value: details.hypertable_schema },
+        { label: t("summary.facts.source_hypertable"), value: details.hypertable_name },
+        { label: t("summary.facts.materialization_schema"), value: details.materialization_hypertable_schema },
+        { label: t("summary.facts.materialization_hypertable"), value: details.materialization_hypertable_name },
+        { label: t("summary.facts.materialized_only"), value: yesNo(details.materialized_only) },
+        { label: t("summary.facts.compression_configured"), value: yesNo(details.compression_enabled) },
       ]
     case "unavailable":
-      return [{ label: "TimescaleDB metadata", value: details.reason }]
+      return [{ label: t("summary.facts.timescale_metadata"), value: details.reason }]
     default:
       return unknownContents(details)
   }

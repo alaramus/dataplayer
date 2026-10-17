@@ -35,10 +35,11 @@ from app.adapters.redis.shapes import (
     Shape,
     stream_fields,
 )
+from app.core.translation import N_, say
 
 type Rows = AsyncIterator[list[list[str | None]]]
 
-TOO_MANY_KEYS = "This folder holds more keys than can be listed"
+TOO_MANY_KEYS = N_("This folder holds more keys than can be listed")
 
 
 class RedisExport:
@@ -51,7 +52,7 @@ class RedisExport:
         names = [name for name, _, _ in shape]
         unknown = [column for column in request.columns if column not in names]
         if unknown:
-            raise ValueError(f"Unknown column: {unknown[0]}")
+            raise ValueError(say("Unknown column: {column}", column=unknown[0]))
         picked = [names.index(column) for column in request.columns]
         pending: list[list[str | None]] = []
         async for found in rows:
@@ -69,7 +70,7 @@ class RedisExport:
         """
         node_id = request.node_id
         if request.filters or request.sort:
-            raise ValueError("Redis rows cannot be filtered or sorted")
+            raise ValueError(say("Redis rows cannot be filtered or sorted"))
         if is_key(node_id):
             ref = key_ref(node_id)
             facts = await self._keyspace.facts_of(ref.database, ref.name)
@@ -89,7 +90,7 @@ class RedisExport:
         # Refused rather than saved short: a CSV that stopped at the ceiling
         # would look like the whole folder.
         if not complete or len(names) > SCAN_CEILING:
-            raise ValueError(TOO_MANY_KEYS)
+            raise ValueError(say(TOO_MANY_KEYS))
         direct = sorted(name for name in names if is_direct(name, place.prefix))
         return LISTING, self._listing(place.database, direct)
 

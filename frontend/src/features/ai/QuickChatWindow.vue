@@ -5,6 +5,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 import { AiService } from "@/client"
 import type { QuickChatPublic } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { realtime } from "@/shared/realtime/client"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppProgress, AppSpinner, appIcons, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -42,8 +43,8 @@ const dictation = useDictation(
   (heard) => { draft.value = `${spokenInto.value}${heard}` },
   (reason) => {
     toast.error(reason === "not-allowed"
-      ? "The microphone is not allowed for this page"
-      : "Dictation stopped")
+      ? t("ai.composer.mic_refused")
+      : t("ai.composer.dictation_stopped"))
   }
 )
 function dictate() {
@@ -77,13 +78,13 @@ async function chooseModel(value: string) {
   rememberBrowserModel(value === BROWSER_MODEL_KEY)
   if (value === BROWSER_MODEL_KEY) { await browser.refresh(); return }
   try { await updateSettings.mutateAsync({ model_key: value }) }
-  catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.composer.model_failed"))) }
 }
 async function downloadBrowserModel() {
   try { await browser.download() }
-  catch (cause) { toast.error(messageOf(cause, "Chrome could not download the model")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.quick.download_failed"))) }
 }
-const title = computed(() => chat.data.value?.id === selected.value ? chat.data.value.title : "New chat")
+const title = computed(() => chat.data.value?.id === selected.value ? chat.data.value.title : t("ai.common.new_chat"))
 watch(() => chat.data.value?.model_key, (key) => { if (key) modelKey.value = key })
 watch(() => settings.data.value?.model_key, (key) => {
   if (!modelKey.value && key) modelKey.value = key
@@ -156,7 +157,7 @@ async function stopAnswer() {
   if (answering.value === null || stopPending.value) return
   stopPending.value = true
   try { await AiService.stopQuickChatAnswer({ path: { chat_id: answering.value } }) }
-  catch (cause) { toast.error(messageOf(cause, "The answer could not be stopped")) }
+  catch (cause) { toast.error(messageOf(cause, t("ai.composer.stop_failed"))) }
   finally { stopPending.value = false }
 }
 onBeforeUnmount(() => stopping.value?.abort())
@@ -199,12 +200,12 @@ async function answerHere(id: string, text: string) {
   const written = answer.value
   if (!written.trim()) {
     if (controller.signal.aborted) return turn.chat
-    throw failure ?? new Error("The model returned an empty answer")
+    throw failure ?? new Error(t("ai.quick.empty_answer"))
   }
   const saved = (await AiService.keepQuickChatBrowserAnswer({ path: { chat_id: id }, body: { text: written } })).data
   if (failure !== null) {
     settle(id, saved)
-    throw new Error(`${messageOf(failure, "The model stopped answering")}. The answer so far is kept.`)
+    throw new Error(t("ai.quick.kept", { message: messageOf(failure, t("ai.quick.stopped_answering")) }))
   }
   return saved
 }
@@ -268,7 +269,7 @@ async function send(value = draft.value, title: string | null = null) {
       } catch { /* Keep the draft and chat ID when the server cannot confirm what was saved. */ }
     }
     if (!kept && typed && !draft.value) draft.value = value
-    toast.error(messageOf(cause, "The model could not answer"))
+    toast.error(messageOf(cause, t("ai.quick.answer_failed")))
   }
   finally {
     busy.value = false
@@ -306,7 +307,7 @@ function editorKeydown(event: KeyboardEvent) {
             v-else-if="chat.isError.value"
             tone="error"
           >
-            The chat could not be loaded.
+            {{ t('ai.quick.load_failed') }}
           </AppBanner>
           <div
             v-else-if="!chat.data.value?.messages.length && asked === null"
@@ -316,7 +317,7 @@ function editorKeydown(event: KeyboardEvent) {
               :name="appIcons.autoAwesome"
               size="var(--dp-icon-xl)"
             />
-            <span>What would you like to know?</span>
+            <span>{{ t('ai.composer.empty') }}</span>
           </div>
           <article
             v-for="message in chat.data.value?.messages ?? []"
@@ -372,24 +373,24 @@ function editorKeydown(event: KeyboardEvent) {
             data-testid="quick-chat-browser-model"
           >
             <template v-if="browser.state.value === 'downloadable'">
-              Gemini Nano runs on this computer. Chrome downloads it once; it takes a few gigabytes.
+              {{ t('ai.quick.downloadable') }}
             </template>
             <template v-else-if="browser.state.value === 'downloading'">
-              Chrome is downloading Gemini Nano.
+              {{ t('ai.quick.downloading') }}
               <AppProgress
-                label="Gemini Nano download"
+                :label="t('ai.quick.download_label')"
                 :value="browser.progress.value"
                 class="quick-chat__progress"
               />
             </template>
             <template v-else-if="browser.state.value === 'unavailable'">
-              This computer cannot run Gemini Nano: Chrome needs 22 GB of free space and a graphics card with 4 GB or 16 GB of memory.
+              {{ t('ai.quick.unavailable') }}
             </template>
             <template v-else-if="browser.state.value === 'unsupported'">
-              Gemini Nano runs only in Chrome on a desktop computer.
+              {{ t('ai.quick.unsupported') }}
             </template>
             <template v-else>
-              Checking whether Chrome has Gemini Nano…
+              {{ t('ai.quick.checking') }}
             </template>
             <template
               v-if="browser.state.value === 'downloadable'"
@@ -397,7 +398,7 @@ function editorKeydown(event: KeyboardEvent) {
             >
               <AppButton
                 :icon="appIcons.download"
-                label="Download"
+                :label="t('ai.quick.download')"
                 data-testid="quick-chat-browser-download"
                 @click="downloadBrowserModel"
               />
@@ -409,8 +410,8 @@ function editorKeydown(event: KeyboardEvent) {
               type="textarea"
               grow
               compact
-              placeholder="Message the model"
-              aria-label="Quick chat message"
+              :placeholder="t('ai.quick.placeholder')"
+              :aria-label="t('ai.quick.input')"
               data-testid="quick-chat-input"
               :disable="busy"
               @keydown="editorKeydown"
@@ -430,8 +431,8 @@ function editorKeydown(event: KeyboardEvent) {
                 :icon="dictation.listening.value ? appIcons.mic : appIcons.micNone"
                 :live="dictation.listening.value"
                 :tooltip="!dictation.supported
-                  ? 'This browser cannot listen'
-                  : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+                  ? t('ai.composer.cannot_listen')
+                  : dictation.listening.value ? t('ai.composer.stop_dictating') : t('ai.composer.dictate')"
                 :disable="!dictation.supported || busy"
                 data-testid="quick-chat-dictate"
                 @click="dictate"
@@ -441,7 +442,7 @@ function editorKeydown(event: KeyboardEvent) {
                 v-if="stopping || answering"
                 variant="danger-quiet"
                 :icon="appIcons.stop"
-                label="Stop"
+                :label="t('ai.composer.stop')"
                 :loading="stopPending"
                 data-testid="quick-chat-stop"
                 @click="stopAnswer"
@@ -449,7 +450,7 @@ function editorKeydown(event: KeyboardEvent) {
               <AppButton
                 v-else
                 :icon="appIcons.send"
-                label="Send"
+                :label="t('ai.composer.send')"
                 icon-only
                 :disable="busy || !draft.trim() || browserBlocked"
                 data-testid="quick-chat-send"

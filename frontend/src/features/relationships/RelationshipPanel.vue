@@ -8,6 +8,7 @@ import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { serverStorageKey } from "@/shared/servers/context"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import GraphViewer from "@/shared/graph/GraphViewer.vue"
@@ -51,7 +52,7 @@ const source = useQuery({
 })
 const graph = computed(() => source.data.value ? relationGraph(source.data.value) : null)
 const loadError = computed(() => source.error.value instanceof GraphLoadError
-  ? source.error.value.message : messageOf(source.error.value, "Could not load the diagram"))
+  ? source.error.value.message : messageOf(source.error.value, t("relationships.load_failed")))
 
 /** Where a card's relation lives: this connection, or the far end of a declared reference. */
 function placeOf(id: string) {
@@ -68,7 +69,7 @@ let storageReported = false
 function storageFailed() {
   if (storageReported) return
   storageReported = true
-  toast.error("The graph layout could not be saved in this browser")
+  toast.error(t("relationships.layout_not_saved"))
 }
 watch(storageKey, (key) => {
   if (saveTimer !== undefined) clearTimeout(saveTimer)
@@ -125,14 +126,14 @@ function openStructure(id: string) {
       class="relationship-panel__loading"
       role="status"
     >
-      <span>Reading structure {{ loaded }} / {{ total }}</span>
+      <span>{{ t("relationships.reading", { loaded, total }) }}</span>
       <AppProgress
-        label="Reading table structures"
+        :label="t('relationships.reading_label')"
         :value="total ? loaded / total : 0"
       />
       <AppIconButton
         :icon="appIcons.stop"
-        tooltip="Stop loading"
+        :tooltip="t('relationships.stop')"
         @click="cancel"
       />
     </div>
@@ -146,13 +147,13 @@ function openStructure(id: string) {
       v-if="cancelled"
       tone="info"
     >
-      Loading stopped. Reload to read the selection again.
+      {{ t("relationships.stopped") }}
     </AppBanner>
     <AppBanner
       v-if="source.data.value?.failures.length"
       tone="warning"
     >
-      {{ source.data.value.failures.length }} structures could not be read. Select a dashed node for details.
+      {{ t("relationships.failures", { n: source.data.value.failures.length }, source.data.value.failures.length) }}
     </AppBanner>
     <GraphViewer
       v-if="graph"
@@ -170,7 +171,7 @@ function openStructure(id: string) {
             variant="quiet"
             size="sm"
             :icon="appIcons.tableChart"
-            label="Open table"
+            :label="t('relationships.open_table')"
             data-testid="graph-open-table"
             @click="openTable(node.id)"
           />
@@ -178,7 +179,7 @@ function openStructure(id: string) {
             variant="quiet"
             size="sm"
             :icon="appIcons.accountTree"
-            label="Structure"
+            :label="t('relationships.structure')"
             @click="openStructure(node.id)"
           />
         </template>
@@ -187,7 +188,7 @@ function openStructure(id: string) {
           variant="quiet"
           size="sm"
           :icon="appIcons.myLocation"
-          label="Show in catalog"
+          :label="t('relationships.show_in_catalog')"
           @click="openTable(node.id)"
         />
       </template>

@@ -2,6 +2,7 @@
 import { ref, watch } from "vue"
 
 import { AppBanner, AppButton, AppInput, AppForm } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -30,7 +31,7 @@ watch(
     :model-value="modelValue"
     sizing="stable"
     size="compact-form"
-    :title="`Rename column — ${name}`"
+    :title="t('structure.rename_dialog.title', { name })"
     data-testid="structure-rename-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -44,7 +45,7 @@ watch(
       </AppBanner>
       <AppInput
         :model-value="newName"
-        label="New column name"
+        :label="t('structure.rename_dialog.new_name')"
         :disable="saving"
         data-testid="structure-rename-new-name"
         @update:model-value="newName = $event"
@@ -53,12 +54,12 @@ watch(
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="t('catalog.common.cancel')"
         :disable="saving"
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Rename"
+        :label="t('structure.rename_dialog.rename')"
         :disable="newName.length === 0 || newName === name"
         :loading="saving"
         data-testid="structure-rename-save"

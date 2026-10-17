@@ -15,6 +15,7 @@ import {
 import type { UserForm } from "@/features/admin/users"
 import { messageOf } from "@/shared/api/errors"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { t } from "@/shared/i18n"
 import {
   AppBadge,
   AppButton,
@@ -55,13 +56,13 @@ const errors = ref<Record<string, string>>({})
 const isNew = computed(() => editing.value === null)
 const saving = computed(() => createUser.isPending.value || updateUser.isPending.value)
 
-const columns: TableColumns = [
-  { name: "email", label: "Email", field: "email", align: "left", sortable: true },
-  { name: "full_name", label: "Name", field: "full_name", align: "left", sortable: true },
-  { name: "role", label: "Role", field: "id", align: "left" },
-  { name: "state", label: "State", field: "id", align: "left" },
+const columns = computed<TableColumns>(() => [
+  { name: "email", label: t("admin.users.columns.email"), field: "email", align: "left", sortable: true },
+  { name: "full_name", label: t("admin.users.columns.name"), field: "full_name", align: "left", sortable: true },
+  { name: "role", label: t("admin.users.columns.role"), field: "id", align: "left" },
+  { name: "state", label: t("admin.users.columns.state"), field: "id", align: "left" },
   { name: "actions", label: "", field: "id", align: "right" },
-]
+])
 
 const rows = computed(() => users.data.value?.data ?? [])
 
@@ -86,33 +87,33 @@ async function save() {
   try {
     if (editing.value === null) {
       await createUser.mutateAsync(toCreate(form.value))
-      toast.success("Account created")
+      toast.success(t("admin.users.created"))
     } else {
       await updateUser.mutateAsync({
         userId: editing.value.id,
         body: toUpdate(form.value),
       })
-      toast.success("Account updated")
+      toast.success(t("admin.users.updated"))
     }
     dialogOpen.value = false
   } catch (error) {
-    toast.error(messageOf(error, "That account could not be saved"))
+    toast.error(messageOf(error, t("admin.users.save_failed")))
   }
 }
 
 async function remove(user: UserPublic) {
   const ok = await confirm({
-    title: "Delete account",
-    message: `${user.email} and everything they own — their connections and their files — will be removed. This cannot be undone.`,
-    confirmLabel: "Delete",
+    title: t("admin.users.delete_title"),
+    message: t("admin.users.delete_message", { email: user.email }),
+    confirmLabel: t("admin.users.delete_confirm"),
     danger: true,
   })
   if (!ok) return
   try {
     await removeUser.mutateAsync(user.id)
-    toast.success("Account deleted")
+    toast.success(t("admin.users.deleted"))
   } catch (error) {
-    toast.error(messageOf(error, "That account could not be deleted"))
+    toast.error(messageOf(error, t("admin.users.delete_failed")))
   }
 }
 </script>
@@ -122,7 +123,7 @@ async function remove(user: UserPublic) {
     <div class="users-section__head">
       <AppButton
         v-if="isAdmin"
-        label="New user"
+        :label="t('admin.users.new_user')"
         data-testid="new-user"
         @click="openNew"
       />
@@ -132,7 +133,7 @@ async function remove(user: UserPublic) {
          screen shows an empty table and leaves the reason to be guessed. -->
     <AppEmptyState
       v-if="me.isFetched.value && !isAdmin"
-      text="Only an administrator manages accounts"
+      :text="t('admin.users.only_admin')"
     />
 
     <AppTable
@@ -141,24 +142,24 @@ async function remove(user: UserPublic) {
       :columns="columns"
       row-key="id"
       :loading="users.isLoading.value"
-      empty-text="No accounts yet"
+      :empty-text="t('admin.users.empty')"
       data-testid="users-table"
     >
       <template #body-cell-role="cellProps">
         <q-td :props="cellProps">
           <AppBadge
             v-if="cellProps.row.is_superuser"
-            label="Administrator"
+            :label="t('admin.users.administrator')"
             tone="info"
           />
-          <span v-else>User</span>
+          <span v-else>{{ t('admin.users.user') }}</span>
         </q-td>
       </template>
 
       <template #body-cell-state="cellProps">
         <q-td :props="cellProps">
           <AppBadge
-            :label="cellProps.row.is_active ? 'Active' : 'Switched off'"
+            :label="cellProps.row.is_active ? t('admin.users.active') : t('admin.users.switched_off')"
             :tone="cellProps.row.is_active ? 'success' : 'warning'"
           />
         </q-td>
@@ -168,7 +169,7 @@ async function remove(user: UserPublic) {
         <q-td :props="cellProps">
           <AppIconButton
             :icon="appIcons.edit"
-            tooltip="Edit this account"
+            :tooltip="t('admin.users.edit')"
             :data-testid="`edit-user-${cellProps.row.email}`"
             @click="openEdit(cellProps.row)"
           />
@@ -176,7 +177,7 @@ async function remove(user: UserPublic) {
             :icon="appIcons.delete"
             variant="danger-quiet"
             :tooltip="
-              undeletableReason(cellProps.row, myId) || 'Delete this account and all it owns'
+              undeletableReason(cellProps.row, myId) || t('admin.users.delete')
             "
             :disable="undeletableReason(cellProps.row, myId) !== ''"
             :data-testid="`delete-user-${cellProps.row.email}`"
@@ -188,7 +189,7 @@ async function remove(user: UserPublic) {
 
     <WindowDialog
       v-model="dialogOpen"
-      :title="isNew ? 'New user' : `Edit user — ${editing?.email ?? ''}`"
+      :title="isNew ? t('admin.users.new_user') : t('admin.users.edit_title', { email: editing?.email ?? '' })"
       size="medium-form"
       sizing="stable"
       data-testid="user-dialog"
@@ -196,7 +197,7 @@ async function remove(user: UserPublic) {
       <AppForm layout="section">
         <AppInput
           v-model="form.email"
-          label="Email"
+          :label="t('admin.users.email')"
           type="email"
           autocomplete="off"
           persistent-label
@@ -205,7 +206,7 @@ async function remove(user: UserPublic) {
         />
         <AppInput
           v-model="form.fullName"
-          label="Name"
+          :label="t('admin.users.name')"
           autocomplete="off"
           persistent-label
           data-testid="user-name"
@@ -215,19 +216,19 @@ async function remove(user: UserPublic) {
           type="password"
           autocomplete="new-password"
           persistent-label
-          :label="isNew ? 'Password' : 'New password'"
-          :hint="isNew ? undefined : 'Leave empty to keep the current password'"
+          :label="isNew ? t('admin.users.password') : t('admin.users.new_password')"
+          :hint="isNew ? undefined : t('admin.users.keep_password')"
           data-testid="user-password"
           :error="errors.password"
         />
         <AppCheckbox
           v-model="form.isActive"
-          label="Can sign in"
+          :label="t('admin.users.can_sign_in')"
           data-testid="user-active"
         />
         <AppCheckbox
           v-model="form.isSuperuser"
-          label="Administrator: manages accounts, not other people's data"
+          :label="t('admin.users.superuser')"
           data-testid="user-superuser"
         />
       </AppForm>
@@ -235,12 +236,12 @@ async function remove(user: UserPublic) {
       <template #actions>
         <AppButton
           variant="quiet"
-          label="Cancel"
+          :label="t('catalog.common.cancel')"
           data-testid="user-cancel"
           @click="dialogOpen = false"
         />
         <AppButton
-          label="Save"
+          :label="t('catalog.common.save')"
           data-testid="user-save"
           :loading="saving"
           @click="save"

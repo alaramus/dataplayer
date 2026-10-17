@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
+import { t } from "@/shared/i18n"
 import { AppButton, AppIconButton, AppMenu, AppTooltip, appIcons } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
@@ -47,7 +48,7 @@ function choose(connectorId: string) {
     <AppButton
       variant="secondary"
       size="sm"
-      label="Choose the second connection"
+      :label="t('workspace.pair.choose_second')"
       data-testid="pair-waiting-choose"
     >
       <AppMenu
@@ -57,7 +58,7 @@ function choose(connectorId: string) {
     </AppButton>
     <AppIconButton
       :icon="appIcons.close"
-      tooltip="Forget this pair"
+      :tooltip="t('workspace.pair.forget')"
       data-testid="pair-waiting-cancel"
       @click="pairs.cancel()"
     />

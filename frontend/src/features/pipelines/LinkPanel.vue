@@ -7,6 +7,7 @@ import CreateTableDialog from "@/features/grid/CreateTableDialog.vue"
 import ImportDialog from "@/features/grid/ImportDialog.vue"
 import { messageOf } from "@/shared/api/errors"
 import { useNow } from "@/shared/freshness/useNow"
+import { t } from "@/shared/i18n"
 import { AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, appIcons } from "@/shared/ui"
 
 import { linkOffersKey, readLinkOffers } from "./api"
@@ -73,7 +74,7 @@ const conflicts = computed(() =>
 // The operation is not open to this person any more, or not for these rows.
 const closed = computed(() =>
   offer.value !== undefined && !offer.value.available && offer.value.name_conflict !== true
-    ? offer.value.reason ?? "This cannot run between these rows now"
+    ? offer.value.reason ?? t("pipelines.link_panel.closed")
     : null
 )
 
@@ -116,16 +117,20 @@ function keepPairs(paired: { columns: ColumnPair[] }) {
 
 const columnsWord = computed(() => {
   const count = props.link.columns?.length ?? 0
-  if (count === 0) return workflow.value === "new-relation" ? "No table chosen yet" : "No columns paired yet"
-  const columns = `${String(count)} ${count === 1 ? "column" : "columns"}`
-  return workflow.value === "new-relation" ? `${props.link.name ?? "A new table"} with ${columns}` : `${columns} paired`
+  if (count === 0) {
+    return t(workflow.value === "new-relation" ? "pipelines.link_panel.no_table" : "pipelines.link_panel.no_columns")
+  }
+  const columns = t("catalog.count.column", { n: count }, count)
+  return workflow.value === "new-relation"
+    ? t("pipelines.link_panel.table_with", { table: props.link.name ?? t("pipelines.link_panel.new_table"), columns })
+    : t("pipelines.link_panel.paired", { columns })
 })
 </script>
 
 <template>
   <section
     class="link-panel"
-    aria-label="The selected link"
+    :aria-label="t('pipelines.link_panel.label')"
     data-testid="link-panel"
   >
     <div class="link-panel__head">
@@ -141,13 +146,13 @@ const columnsWord = computed(() => {
       >{{ sentence(link, name) }}</strong>
       <AppIconButton
         :icon="appIcons.delete"
-        tooltip="Remove this link"
+        :tooltip="t('pipelines.link_panel.remove')"
         data-testid="link-panel-remove"
         @click="emit('remove')"
       />
       <AppIconButton
         :icon="appIcons.close"
-        tooltip="Close"
+        :tooltip="t('catalog.common.close')"
         data-testid="link-panel-close"
         @click="emit('close')"
       />
@@ -158,7 +163,7 @@ const columnsWord = computed(() => {
       v-else-if="offers.isError.value"
       class="link-panel__problem"
     >
-      {{ messageOf(offers.error.value, "What this link can do could not be read") }}
+      {{ messageOf(offers.error.value, t('pipelines.link_panel.offers_failed')) }}
     </p>
     <div
       v-else
@@ -169,7 +174,7 @@ const columnsWord = computed(() => {
         class="link-panel__field"
         :model-value="link.kind"
         :options="operations"
-        label="Operation"
+        :label="t('pipelines.link_panel.operation')"
         compact
         data-testid="link-panel-operation"
         @update:model-value="chooseOperation"
@@ -178,7 +183,7 @@ const columnsWord = computed(() => {
         v-if="workflow === 'file-name'"
         class="link-panel__field"
         :model-value="link.name ?? ''"
-        label="File name"
+        :label="t('pipelines.link_panel.file_name')"
         :placeholder="offer?.suggested_name ?? undefined"
         compact
         autocomplete="off"
@@ -190,7 +195,7 @@ const columnsWord = computed(() => {
         class="link-panel__field"
         :model-value="link.conflict ?? 'refuse'"
         :options="conflicts"
-        label="If the name is taken"
+        :label="t('pipelines.link_panel.if_taken')"
         compact
         data-testid="link-panel-conflict"
         @update:model-value="emit('change', { ...link, conflict: $event as Link['conflict'] })"
@@ -203,7 +208,7 @@ const columnsWord = computed(() => {
         <AppButton
           variant="secondary"
           size="sm"
-          :label="workflow === 'new-relation' ? 'Choose the table' : 'Pair columns'"
+          :label="workflow === 'new-relation' ? t('pipelines.link_panel.choose_table') : t('pipelines.link_panel.pair_columns')"
           data-testid="link-panel-choose-columns"
           @click="workflow === 'new-relation' ? (tableOpen = true) : (pairsOpen = true)"
         />
@@ -229,7 +234,10 @@ const columnsWord = computed(() => {
       class="link-panel__result"
       data-testid="link-panel-made"
     >
-      {{ [linkRun?.read ? `Read ${linkRun.read}` : "", linkRun?.made ? `Made ${linkRun.made}` : ""].filter(Boolean).join(" · ") }}
+      {{ [
+        linkRun?.read ? t('pipelines.link_panel.read', { what: linkRun.read }) : "",
+        linkRun?.made ? t('pipelines.link_panel.made', { what: linkRun.made }) : "",
+      ].filter(Boolean).join(" · ") }}
     </p>
 
     <CreateTableDialog
@@ -241,7 +249,7 @@ const columnsWord = computed(() => {
       :running="false"
       error=""
       :kept="{ name: link.name ?? null, columns: link.columns ?? null }"
-      action-label="Keep"
+      :action-label="t('pipelines.link_panel.keep')"
       @update:model-value="tableOpen = false"
       @run="keepTable"
     />
@@ -263,7 +271,7 @@ const columnsWord = computed(() => {
       :running="false"
       error=""
       :kept="link.columns ?? null"
-      action-label="Keep"
+      :action-label="t('pipelines.link_panel.keep')"
       @update:model-value="pairsOpen = false"
       @run="keepPairs"
     />

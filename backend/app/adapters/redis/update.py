@@ -60,6 +60,7 @@ from app.adapters.update import (
     UpdatedRow,
     ValuesRejected,
 )
+from app.core.translation import N_, say, say_if
 
 # What a value written into a key may be. The same ceiling the reader shows a
 # string up to: a cell of a grid is not where a megabyte is typed, and a value
@@ -67,22 +68,29 @@ from app.adapters.update import (
 MAX_VALUE_BYTES = MAX_STRING_BYTES
 
 # Why each type refuses what it refuses, said once so the fetch result and the
-# refusal agree word for word.
+# refusal agree word for word. English, worded where it is shown (D226).
 NO_INSERT: Mapping[str, str] = {
-    "string": "A string key holds one value; there is no row to add",
-    "stream": "An entry of a stream is written by the server, not typed here",
+    "string": N_("A string key holds one value; there is no row to add"),
+    "stream": N_("An entry of a stream is written by the server, not typed here"),
 }
 NO_DELETE: Mapping[str, str] = {
-    "string": "Removing the value of a string key is removing the key",
-    "list": (
-        "An element of a list cannot be removed by position without rewriting "
-        "the list"
+    "string": N_("Removing the value of a string key is removing the key"),
+    "list": N_(
+        "An element of a list cannot be removed by position without rewriting the list"
     ),
-    "stream": "An entry of a stream is not removed here",
+    "stream": N_("An entry of a stream is not removed here"),
 }
 NO_UPDATE: Mapping[str, str] = {
-    "stream": "The entries of a stream are written once and not edited",
+    "stream": N_("The entries of a stream are written once and not edited"),
 }
+NO_NEW_ROWS = N_("This key takes no new rows")
+NOT_REMOVED_HERE = N_("Rows of this key are not removed here")
+NOT_EDITABLE = N_("This key cannot be edited")
+
+
+def refusal(table: Mapping[str, str], data_type: str) -> str | None:
+    """Why a key of this type refuses, in the language of the request."""
+    return say_if(table.get(data_type))
 
 
 class ElementWriter(ABC):
@@ -118,14 +126,12 @@ class ElementWriter(ABC):
     async def insert(
         self, client: redis.Redis, ref: KeyRef, values: Sequence[str]
     ) -> None:
-        raise ValueError(NO_INSERT.get(self.data_type, "This key takes no new rows"))
+        raise ValueError(refusal(NO_INSERT, self.data_type) or say(NO_NEW_ROWS))
 
     async def delete(
         self, client: redis.Redis, ref: KeyRef, identity: str
     ) -> None:
-        raise ValueError(
-            NO_DELETE.get(self.data_type, "Rows of this key are not removed here")
-        )
+        raise ValueError(refusal(NO_DELETE, self.data_type) or say(NOT_REMOVED_HERE))
 
 
 class _StringWriter(ElementWriter):
@@ -319,7 +325,7 @@ class _StreamWriter(ElementWriter):
         self, client: redis.Redis, ref: KeyRef, identity: str, values: Sequence[str]
     ) -> None:
         del client, ref, identity, values
-        raise ValueError(NO_UPDATE["stream"])
+        raise ValueError(say(NO_UPDATE["stream"]))
 
     def identity_of(self, values: Sequence[str]) -> str:
         return values[0]
@@ -469,23 +475,21 @@ class RedisUpdate:
         over.
         """
         if not is_key(node_id):
-            raise ValueError("Only what a key holds can be edited")
+            raise ValueError(say("Only what a key holds can be edited"))
         ref = key_of(node_id)
         facts = await self._keyspace.facts_of(ref.database, ref.name)
         if facts is None:
             raise NodeNotFound(node_id)
         writer = WRITERS.get(facts.data_type)
         if writer is None or not writer.editable:
-            raise ValueError(
-                NO_UPDATE.get(facts.data_type, "This key cannot be edited")
-            )
+            raise ValueError(refusal(NO_UPDATE, facts.data_type) or say(NOT_EDITABLE))
         return ref, writer
 
     def _must_be_editable(self, writer: ElementWriter, column: str) -> None:
         if column not in writer.columns:
-            raise ValueError(f'This key has no column "{column}"')
+            raise ValueError(say('This key has no column "{column}"', column=column))
         if column not in writer.editable:
-            raise ValueError(f'Column "{column}" cannot be edited')
+            raise ValueError(say('Column "{column}" cannot be edited', column=column))
 
     async def _as_read(
         self,
@@ -533,9 +537,9 @@ def _complete(
             continue
         value = supplied.get(column)
         if value is None or value == "":
-            raise ValueError(f'A new row needs a value for "{column}"')
+            raise ValueError(say('A new row needs a value for "{column}"', column=column))
         if not _readable(writer, column, value):
-            raise ValueError(f'"{column}" takes a number')
+            raise ValueError(say('"{column}" takes a number', column=column))
         values.append(value)
     return tuple(values)
 
@@ -543,7 +547,9 @@ def _complete(
 def _required(value: str | None, column: str) -> str:
     """Redis holds no nulls, so an emptied cell is a refusal rather than one."""
     if value is None:
-        raise ValueError(f'"{column}" cannot be emptied: Redis holds no nulls')
+        raise ValueError(
+            say('"{column}" cannot be emptied: Redis holds no nulls', column=column)
+        )
     return value
 
 
@@ -564,7 +570,7 @@ def _readable(writer: ElementWriter, column: str, value: str) -> bool:
 def _bounded(value: str) -> None:
     if len(value.encode("utf-8")) > MAX_VALUE_BYTES:
         raise ValueError(
-            f"A value written here is at most {MAX_VALUE_BYTES // 1024} KB"
+            say("A value written here is at most {size} KB", size=MAX_VALUE_BYTES // 1024)
         )
 
 
@@ -572,7 +578,7 @@ def _index(identity: str) -> int:
     try:
         return int(identity)
     except ValueError:
-        raise ValueError("The row handle is not valid") from None
+        raise ValueError(say("The row handle is not valid")) from None
 
 
 def _score(value: str) -> float:

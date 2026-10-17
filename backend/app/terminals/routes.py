@@ -21,6 +21,7 @@ from app.adapters.terminal import SupportsTerminal, Terminal, TerminalSize
 from app.connectors.access import adapter_for
 from app.core.config import settings
 from app.core.db import async_session_maker
+from app.core.translation import N_, say
 from app.terminals.messages import (
     ClientFrame,
     RefusalCode,
@@ -52,12 +53,12 @@ _GONE = (WebSocketDisconnect, RuntimeError)
 
 # What each refusal of the access check (D33) is to a terminal.
 _REFUSALS_BY_STATUS: dict[int, tuple[RefusalCode, str]] = {
-    404: ("not_found", "No such connection"),
-    403: ("forbidden", "A terminal opens only on a connection of your own"),
-    409: ("disabled", "This connection is switched off"),
-    422: ("unsupported", "This kind of connection has no terminal"),
+    404: ("not_found", N_("No such connection")),
+    403: ("forbidden", N_("A terminal opens only on a connection of your own")),
+    409: ("disabled", N_("This connection is switched off")),
+    422: ("unsupported", N_("This kind of connection has no terminal")),
 }
-_ANY_OTHER_REFUSAL: tuple[RefusalCode, str] = ("source", "The connection could not be opened")
+_ANY_OTHER_REFUSAL: tuple[RefusalCode, str] = ("source", N_("The connection could not be opened"))
 
 
 class _Refusal(Exception):
@@ -117,7 +118,7 @@ async def _opened(websocket: WebSocket, held: AsyncExitStack) -> Terminal:
     async with async_session_maker() as session:
         user = await user_for_token(session, opening.token)
         if user is None:
-            raise _Refusal("unauthenticated", "Sign in again to open a terminal")
+            raise _Refusal("unauthenticated", say("Sign in again to open a terminal"))
         try:
             # `own`: a terminal types into the server as the account the
             # connection signs in as, which is more than any grant gives (D149).
@@ -126,18 +127,18 @@ async def _opened(websocket: WebSocket, held: AsyncExitStack) -> Terminal:
             )
         except HTTPException as refusal:
             code, message = _REFUSALS_BY_STATUS.get(refusal.status_code, _ANY_OTHER_REFUSAL)
-            raise _Refusal(code, message) from None
+            raise _Refusal(code, say(message)) from None
         except (ValueError, ValidationError):
-            raise _Refusal("source", "The settings of this connection are not valid") from None
+            raise _Refusal("source", say("The settings of this connection are not valid")) from None
 
     if not isinstance(adapter, SupportsTerminal):
-        raise _Refusal("unsupported", "This kind of connection has no terminal")
+        raise _Refusal("unsupported", say("This kind of connection has no terminal"))
     try:
         held.enter_context(SLOTS.taken(user.id))
     except TooManyTerminals:
         raise _Refusal(
             "too_many",
-            f"You have {SLOTS.limit} terminals open already; close one first",
+            say("You have {count} terminals open already; close one first", count=SLOTS.limit),
         ) from None
     try:
         terminal = await adapter.open_terminal(
@@ -159,16 +160,16 @@ async def _opening(websocket: WebSocket) -> TerminalOpen:
         async with asyncio.timeout(settings.WS_AUTH_TIMEOUT_SECONDS):
             message = await websocket.receive()
     except TimeoutError:
-        raise _Refusal("unauthenticated", "Say who you are first") from None
+        raise _Refusal("unauthenticated", say("Say who you are first")) from None
     if message["type"] == "websocket.disconnect":
         raise WebSocketDisconnect(code=message.get("code", _NORMAL))
     text = message.get("text")
     try:
         frame = _frames.validate_json(text if isinstance(text, str) else "")
     except ValidationError:
-        raise _Refusal("malformed", "The first frame opens a terminal") from None
+        raise _Refusal("malformed", say("The first frame opens a terminal")) from None
     if not isinstance(frame, TerminalOpen):
-        raise _Refusal("malformed", "The first frame opens a terminal")
+        raise _Refusal("malformed", say("The first frame opens a terminal"))
     return frame
 
 
@@ -215,10 +216,10 @@ async def _typing(websocket: WebSocket, sender: _Sender, terminal: Terminal) -> 
         try:
             frame = _frames.validate_json(text)
         except ValidationError:
-            await sender.text(TerminalError(message="Frame not understood"))
+            await sender.text(TerminalError(message=say("Frame not understood")))
             continue
         if isinstance(frame, TerminalResize):
             terminal.resize(TerminalSize(cols=frame.cols, rows=frame.rows))
         else:
-            await sender.text(TerminalError(message="This terminal is already open"))
+            await sender.text(TerminalError(message=say("This terminal is already open")))
 

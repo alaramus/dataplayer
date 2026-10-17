@@ -18,6 +18,8 @@ import { isWorking, progressOf } from "@/features/services/jobs"
 import { lifecycleCommand } from "@/features/services/lifecycle"
 import type { LifecycleCommand } from "@/features/services/lifecycle"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
+import { formatDateTime } from "@/shared/i18n/format"
 import {
   AppBadge,
   AppEmptyState,
@@ -62,7 +64,7 @@ watch(
     if (id === null || listed === undefined) return
     takePointedService()
     if (!listed.some((row) => row.id === id)) {
-      toast.info("That service is no longer here")
+      toast.info(t("services.managed.gone"))
       return
     }
     point(id)
@@ -81,11 +83,14 @@ watch(
  */
 function saying(service: ServicePublic): string {
   if (isWorking(service.job)) return progressOf(service.job)
-  if (service.container_state === "missing") return `${service.state} · no container`
-  if (service.container_state === "unknown") return service.state
+  const state = t(`services.managed.states.${service.state}`)
+  if (service.container_state === "missing") return t("services.managed.no_container", { state })
+  if (service.container_state === "unknown") return state
   return service.container_state === service.state
-    ? service.state
-    : `${service.state} · ${service.container_state}`
+    ? state
+    : t("services.managed.both", {
+      state, container: t(`services.managed.container_states.${service.container_state}`),
+    })
 }
 
 function tone(service: ServicePublic): Tone {
@@ -100,7 +105,7 @@ function tone(service: ServicePublic): Tone {
 
 /** What a person would say about when it was made. */
 function madeOn(service: ServicePublic): string {
-  return new Date(service.created_at).toLocaleString()
+  return formatDateTime(service.created_at)
 }
 
 /**
@@ -117,28 +122,24 @@ function canRetry(service: ServicePublic): boolean {
 
 /** What the badge says about the connection this service made, if any. */
 function connection(service: ServicePublic): string {
-  if (service.connector_id !== null) return "connected"
-  return service.was_connected ? "connection deleted" : "no connection yet"
+  if (service.connector_id !== null) return t("services.managed.connected")
+  return t(service.was_connected ? "services.managed.connection_deleted" : "services.managed.no_connection")
 }
 
 async function retry(service: ServicePublic) {
   try {
     await retryService.mutateAsync(service.id)
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be started again"))
+    toast.error(messageOf(cause, t("services.managed.retry_failed")))
   }
 }
 
-const FAILURE: Record<LifecycleCommand, string> = {
-  start: "It could not be started",
-  stop: "It could not be stopped",
-}
 
 async function carryOut(service: ServicePublic, command: LifecycleCommand) {
   try {
     await serviceCommand.mutateAsync({ serviceId: service.id, command })
   } catch (cause) {
-    toast.error(messageOf(cause, FAILURE[command]))
+    toast.error(messageOf(cause, t(command === "start" ? "services.managed.start_failed" : "services.managed.stop_failed")))
   }
 }
 
@@ -154,9 +155,9 @@ async function cancel(service: ServicePublic) {
   if (!service.job) return
   try {
     await cancelJob.mutateAsync(service.job.id)
-    toast.info("Cancelling")
+    toast.info(t("services.managed.cancelling"))
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be cancelled"))
+    toast.error(messageOf(cause, t("services.managed.cancel_failed")))
   }
 }
 
@@ -175,12 +176,12 @@ async function forget(service: ServicePublic) {
   const name = service.connector_name
   let alsoTheConnection = service.connector_id !== null
   const sure = await confirm({
-    title: "Remove this service?",
-    message: `${name} and everything stored in it will be removed from this server.`,
-    confirmLabel: "Remove",
+    title: t("services.managed.remove_title"),
+    message: t("services.managed.remove_message", { name }),
+    confirmLabel: t("services.managed.remove"),
     danger: true,
     alsoLabel:
-      service.connector_id === null ? undefined : "Remove the connection as well",
+      service.connector_id === null ? undefined : t("services.managed.remove_connection"),
     alsoDefault: true,
     onAlso: (chosen) => {
       alsoTheConnection = chosen
@@ -193,7 +194,7 @@ async function forget(service: ServicePublic) {
       deleteConnector: alsoTheConnection,
     })
   } catch {
-    toast.error(`${name} could not be removed`)
+    toast.error(t("services.managed.remove_failed", { name }))
   }
 }
 </script>
@@ -206,7 +207,7 @@ async function forget(service: ServicePublic) {
     <AppEmptyState
       v-if="rows.length === 0"
       icon="dns"
-      text="This server is not running anything for you."
+      :text="t('services.managed.empty')"
     />
     <div
       v-for="service in rows"
@@ -248,14 +249,14 @@ async function forget(service: ServicePublic) {
       <AppIconButton
         v-if="isWorking(service.job)"
         :icon="appIcons.cancel"
-        tooltip="Cancel what is happening"
+        :tooltip="t('services.managed.cancel_job')"
         :data-testid="`cancel-service-${service.id}`"
         @click="cancel(service)"
       />
       <AppIconButton
         v-else-if="lifecycleCommand(service) === 'stop'"
         :icon="appIcons.stop"
-        tooltip="Stop it; what is stored in it stays"
+        :tooltip="t('services.managed.stop')"
         :loading="asking(service)"
         :data-testid="`stop-service-${service.id}`"
         @click="carryOut(service, 'stop')"
@@ -263,7 +264,7 @@ async function forget(service: ServicePublic) {
       <AppIconButton
         v-else-if="lifecycleCommand(service) === 'start'"
         :icon="appIcons.playArrow"
-        tooltip="Start it"
+        :tooltip="t('services.managed.start')"
         :loading="asking(service)"
         :data-testid="`start-service-${service.id}`"
         @click="carryOut(service, 'start')"
@@ -271,7 +272,7 @@ async function forget(service: ServicePublic) {
       <AppIconButton
         v-if="canRetry(service)"
         :icon="appIcons.restartAlt"
-        tooltip="Start over: the earlier attempt and its data are removed"
+        :tooltip="t('services.managed.retry')"
         :data-testid="`retry-service-${service.id}`"
         @click="retry(service)"
       />
@@ -281,19 +282,19 @@ async function forget(service: ServicePublic) {
       <AppIconButton
         v-if="service.was_connected"
         :icon="appIcons.vpnKey"
-        tooltip="Where it listens, for your own tools"
+        :tooltip="t('services.managed.credentials')"
         :data-testid="`credentials-service-${service.id}`"
         @click="revealing = { id: service.id, name: service.connector_name }"
       />
       <AppIconButton
         :icon="appIcons.notes"
-        tooltip="What it printed"
+        :tooltip="t('services.managed.logs')"
         :data-testid="`logs-service-${service.id}`"
         @click="reading = service"
       />
       <AppIconButton
         :icon="appIcons.deleteOutline"
-        tooltip="Remove this service"
+        :tooltip="t('services.managed.remove_tooltip')"
         variant="danger-quiet"
         :disable="isWorking(service.job)"
         :data-testid="`remove-service-${service.id}`"

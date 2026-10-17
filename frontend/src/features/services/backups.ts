@@ -3,6 +3,7 @@ import type { ComputedRef } from "vue"
 
 import { useAdapterTypes } from "@/features/connectors/api"
 import { useBackupOffer } from "@/features/services/api"
+import { t } from "@/shared/i18n"
 
 /**
  * Whether one connection could be copied out, which is two questions.
@@ -39,13 +40,13 @@ export function useBackupSupport(
           )
     if (!declared) return { offered: false, enabled: false }
     if (offer.isLoading.value) {
-      return { offered: true, enabled: false, reason: "Asking this server what it can do" }
+      return { offered: true, enabled: false, reason: t("services.support.asking") }
     }
     if (offer.data.value?.available !== true) {
       return {
         offered: true,
         enabled: false,
-        reason: offer.data.value?.reason ?? "This server cannot copy a database out",
+        reason: offer.data.value?.reason ?? t("services.support.cannot"),
       }
     }
     return { offered: true, enabled: true }

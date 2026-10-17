@@ -15,22 +15,23 @@ from app.adapters.postgres.index_methods import POSTGRES_INDEX_METHOD_SQL
 from app.adapters.postgres.relation import PostgresRelation, qualified, schema_of
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Index, PrimaryKey, RelationModel, UniqueConstraint
+from app.core.translation import N_, say
 
 # What a refused index command means, by SQLSTATE. The message beside the code
 # is not safe to pass on: PostgreSQL writes the duplicated key value into it.
 INDEX_REFUSALS = {
     # undefined_object: no default operator class for this type and method.
-    "42704": "That index method does not fit the type of these columns",
+    "42704": N_("That index method does not fit the type of these columns"),
     # unique_violation: values repeat, found by the build rather than the count.
-    "23505": "Some values repeat, so a unique index cannot be built",
+    "23505": N_("Some values repeat, so a unique index cannot be built"),
     # feature_not_supported. Whether a method can be unique or cover several
     # columns is checked from the published flags before the statement, so the
     # case that reaches here is the partitioned one.
-    "0A000": "A unique index on a partitioned table must include its partition key",
+    "0A000": N_("A unique index on a partitioned table must include its partition key"),
     # dependent_objects_still_exist.
-    "2BP01": "Something else depends on this index",
+    "2BP01": N_("Something else depends on this index"),
     # duplicate_table: a name clash the server resolves for us, normally.
-    "42P07": "An index of that name already exists",
+    "42P07": N_("An index of that name already exists"),
 }
 
 
@@ -45,20 +46,20 @@ class PostgresIndexes:
         known = {column.name for column in model.columns}
         for column in request.columns:
             if column not in known:
-                raise ValueError(f'Relation has no column "{column}"')
+                raise ValueError(say('Relation has no column "{column}"', column=column))
 
         method = next(
             (item for item in model.index_methods if item.code == request.method), None
         )
         method_sql = POSTGRES_INDEX_METHOD_SQL.get(request.method)
         if method is None or method_sql is None:
-            raise ValueError(f'Unknown index method "{request.method}"')
+            raise ValueError(say('Unknown index method "{method}"', method=request.method))
         # Both limits came from the server with the method, so refusing here
         # says the same thing the server would, one round trip earlier.
         if request.unique and not method.unique_supported:
-            raise ValueError(f"{method.title} cannot build a unique index")
+            raise ValueError(say("{title} cannot build a unique index", title=method.title))
         if len(request.columns) > 1 and not method.multi_column_supported:
-            raise ValueError(f"{method.title} cannot index more than one column")
+            raise ValueError(say("{title} cannot index more than one column", title=method.title))
 
         if request.unique:
             groups, exact = await repeating_groups(
@@ -93,7 +94,7 @@ class PostgresIndexes:
             (item for item in model.indexes if item.name == request.name), None
         )
         if index is None:
-            raise ValueError(f'Relation has no index "{request.name}"')
+            raise ValueError(say('Relation has no index "{name}"', name=request.name))
         self._check_free_of_constraints(model, index)
         # No CASCADE, the rule D27 set for a column: an outside dependency
         # stops the operation instead of disappearing under it.
@@ -130,7 +131,7 @@ class PostgresIndexes:
     def _check_supported(model: RelationModel) -> None:
         if not model.index_changes_supported:
             raise ValueError(
-                model.index_changes_reason or "This relation cannot change indexes"
+                model.index_changes_reason or say("This relation cannot change indexes")
             )
 
     @staticmethod
@@ -144,7 +145,7 @@ class PostgresIndexes:
         """
         if index.primary:
             raise ValueError(
-                f'Index "{index.name}" belongs to the primary key; drop that instead'
+                say('Index "{name}" belongs to the primary key; drop that instead', name=index.name)
             )
         owner = next(
             (
@@ -157,6 +158,9 @@ class PostgresIndexes:
         )
         if owner is not None:
             raise ValueError(
-                f'Index "{index.name}" belongs to constraint "{owner.name}"; '
-                "drop that instead"
+                say(
+                    'Index "{name}" belongs to constraint "{constraint}"; drop that instead',
+                    name=index.name,
+                    constraint=owner.name,
+                )
             )

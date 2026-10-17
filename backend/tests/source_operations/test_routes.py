@@ -72,7 +72,7 @@ async def test_a_job_needs_a_reviewed_fingerprint(
         json={**REQUEST, "reviewed_fingerprint": None},
     )
     assert response.status_code == 422
-    assert response.json()["detail"]["message"] == "Review the operation plan before running it"
+    assert response.json()["detail"]["code"] == "actions.plan_not_reviewed"
 
 
 async def test_a_reviewed_job_is_admitted_then_carried_out_by_the_server(
@@ -110,7 +110,8 @@ async def test_a_second_operation_on_the_connection_is_refused_with_the_running_
         )
     response = await client.post(_jobs(connector_id), headers=normal_user_token_headers, json=REQUEST)
     assert response.status_code == 409
-    assert response.json()["detail"]["job_id"] == str(running.id)
+    assert response.json()["detail"]["code"] == "actions.operation_running"
+    assert response.json()["detail"]["params"]["job_id"] == str(running.id)
 
 
 async def test_a_stale_review_is_refused_before_anything_is_recorded(

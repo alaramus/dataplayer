@@ -92,6 +92,7 @@ from app.adapters.update import (
     UpdateCellsRequest,
     UpdateCellsResult,
 )
+from app.core.translation import say
 
 
 class AdapterError(Exception):
@@ -119,7 +120,7 @@ class NodeNotFound(Exception):
     """
 
     def __init__(self, node_id: str) -> None:
-        super().__init__(f"No such node: {node_id}")
+        super().__init__(say("No such node: {node}", node=node_id))
         self.node_id = node_id
 
 

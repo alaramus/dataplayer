@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppBanner, AppCheckbox, AppInput, AppNumberInput, AppSelect } from "@/shared/ui"
 
 import { functionChoices, useDesign } from "./design"
@@ -21,18 +22,23 @@ const takes = computed(() => type.value?.parameters ?? [])
 
 const generationChoices = computed(() => {
   const choices = [
-    { label: "None", value: "none" },
-    { label: "Default value", value: "literal" },
-    { label: "Default function", value: "expression" },
-    { label: "Generated · stored", value: "generated" },
+    { label: t("table_design.column.generation.none"), value: "none" },
+    { label: t("table_design.column.generation.literal"), value: "literal" },
+    { label: t("table_design.column.generation.expression"), value: "expression" },
+    { label: t("table_design.column.generation.generated"), value: "generated" },
   ]
   // Only where the server says the type can carry one: PostgreSQL means
   // integers, and offering it on text would be offering a refusal.
   if (type.value?.identity_supported === true) {
-    choices.splice(3, 0, { label: "Identity", value: "identity" })
+    choices.splice(3, 0, { label: t("table_design.column.generation.identity"), value: "identity" })
   }
   return choices
 })
+
+const numberings = computed(() => [
+  { label: t("table_design.column.always"), value: "always" },
+  { label: t("table_design.column.by_default"), value: "by_default" },
+])
 
 const defaultFunctions = computed(() => functionChoices(design.functions.value, "default", 0))
 const computedFunctions = computed(() => functionChoices(design.functions.value, "generated", 1))
@@ -90,13 +96,13 @@ function changeDefault(value: string): void {
     <div class="inspector__row">
       <AppInput
         v-model="column.name"
-        label="Name"
+        :label="t('table_design.name')"
         data-testid="column-name"
       />
       <AppSelect
         v-model="column.typeCode"
         :options="design.typeChoices.value"
-        label="Data type"
+        :label="t('table_design.column.data_type')"
         data-testid="column-type"
       />
     </div>
@@ -105,14 +111,14 @@ function changeDefault(value: string): void {
       <AppSelect
         :model-value="column.generation.kind"
         :options="generationChoices"
-        label="Value generation"
+        :label="t('table_design.column.value_generation')"
         data-testid="column-generation"
         @update:model-value="changeGeneration(String($event))"
       />
       <AppInput
         v-if="column.generation.kind === 'literal' || column.generation.kind === 'none'"
         :model-value="column.generation.kind === 'literal' ? column.generation.value : ''"
-        label="Default value"
+        :label="t('table_design.column.default_value')"
         data-testid="column-default"
         @update:model-value="changeDefault"
       />
@@ -120,26 +126,23 @@ function changeDefault(value: string): void {
         v-else-if="column.generation.kind === 'expression'"
         v-model="column.generation.function"
         :options="defaultFunctions"
-        label="Function"
+        :label="t('table_design.function')"
         data-testid="column-default-function"
       />
       <template v-else-if="column.generation.kind === 'identity'">
         <AppSelect
           v-model="column.generation.generated"
-          :options="[
-            { label: 'Always', value: 'always' },
-            { label: 'Unless a value is given', value: 'by_default' },
-          ]"
-          label="Numbered"
+          :options="numberings"
+          :label="t('table_design.column.numbered')"
         />
         <AppNumberInput
           v-model="column.generation.start"
-          label="Starting at"
+          :label="t('table_design.column.starting_at')"
           placeholder="1"
         />
         <AppNumberInput
           v-model="column.generation.increment"
-          label="Step"
+          :label="t('table_design.column.step')"
           placeholder="1"
         />
       </template>
@@ -147,12 +150,12 @@ function changeDefault(value: string): void {
         <AppSelect
           v-model="column.generation.function"
           :options="computedFunctions"
-          label="Function"
+          :label="t('table_design.function')"
         />
         <AppSelect
           v-model="column.generation.columnId"
           :options="otherColumns"
-          label="Of column"
+          :label="t('table_design.column.of_column')"
         />
       </template>
     </div>
@@ -160,13 +163,13 @@ function changeDefault(value: string): void {
     <div class="inspector__row">
       <AppCheckbox
         v-model="column.notNull"
-        label="Not null"
+        :label="t('table_design.column.not_null')"
         dense
         data-testid="column-not-null"
       />
       <AppCheckbox
         :model-value="inKey"
-        label="Primary key"
+        :label="t('table_design.primary_key')"
         dense
         data-testid="column-in-key"
         @update:model-value="changeKeyMembership"
@@ -176,45 +179,45 @@ function changeDefault(value: string): void {
       v-if="inKey && !column.notNull && column.generation.kind !== 'identity'"
       tone="warning"
     >
-      A column of the primary key must have a value.
+      {{ t('table_design.column.key_needs_value') }}
     </AppBanner>
     <div class="inspector__row">
       <AppSelect
         v-model="column.collation"
         :options="collations"
-        label="Collation"
+        :label="t('table_design.column.collation')"
       />
       <AppInput
         v-model="column.comment"
-        label="Comment"
+        :label="t('table_design.comment')"
       />
     </div>
     <details
       v-if="takes.length || type?.array_supported"
       class="inspector__advanced dp-disclosure"
     >
-      <summary>Type parameters &amp; array</summary>
+      <summary>{{ t('table_design.column.type_parameters') }}</summary>
       <div class="inspector__row">
         <AppNumberInput
           v-if="takes.includes('length')"
           v-model="column.length"
-          label="Length"
+          :label="t('table_design.column.length')"
           data-testid="column-length"
         />
         <AppNumberInput
           v-if="takes.includes('precision')"
           v-model="column.precision"
-          label="Precision"
+          :label="t('table_design.column.precision')"
         />
         <AppNumberInput
           v-if="takes.includes('scale')"
           v-model="column.scale"
-          label="Scale"
+          :label="t('table_design.column.scale')"
         />
         <AppCheckbox
           v-if="type?.array_supported"
           :model-value="column.dimensions > 0"
-          label="Array"
+          :label="t('table_design.column.array')"
           dense
           @update:model-value="column.dimensions = $event ? 1 : 0"
         />

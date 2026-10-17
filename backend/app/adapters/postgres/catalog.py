@@ -28,15 +28,17 @@ from app.adapters.postgres.timescale.names import DEDICATED_SCHEMAS
 from app.adapters.postgres.timescale.profile import discover
 from app.adapters.postgres.timescale.reports import REPORTS as TIMESCALE_REPORTS
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
+from app.adapters.postgres.words import worded_titles
 from app.adapters.protocol import AdapterError, NodeNotFound
+from app.core.translation import N_, say
 
 _SYSTEM_SCHEMAS = ("information_schema",)
-TABLE_REPRESENTATION = NodeRepresentation(kind="table", title="View as table")
-DDL_REPRESENTATION = NodeRepresentation(kind="sql", title="View DDL")
+TABLE_REPRESENTATION = NodeRepresentation(kind="table", title=N_("View as table"))
+DDL_REPRESENTATION = NodeRepresentation(kind="sql", title=N_("View DDL"))
 # A report has no DDL — there is nothing on the server to recreate — but it
 # does have the statement it is made of, and that is the same question a
 # person asks of a table when they open its DDL: what is this, really.
-REPORT_SQL_REPRESENTATION = NodeRepresentation(kind="sql", title="View the statement")
+REPORT_SQL_REPRESENTATION = NodeRepresentation(kind="sql", title=N_("View the statement"))
 
 
 def is_system_schema(name: str) -> bool:
@@ -140,7 +142,7 @@ class PostgresCatalog:
             (schema,),
         )
         if not rows and not await self._schema_exists(schema):
-            raise AdapterError("config", f'Schema "{schema}" does not exist')
+            raise AdapterError("config", say('Schema "{name}" does not exist', name=schema))
 
         context = await self._relation_context.schema(schema)
         return [relation_of(schema, row["name"], row, context) for row in rows]
@@ -228,8 +230,8 @@ def _section_node() -> ReportNode:
     """
     return ReportNode(
         id=SECTION_ID,
-        name=SECTION_TITLE,
-        description=SECTION_DESCRIPTION,
+        name=say(SECTION_TITLE),
+        description=say(SECTION_DESCRIPTION),
         has_children=True,
         representations=[],
     )
@@ -239,7 +241,7 @@ def _timescale_section_node() -> ReportNode:
     return ReportNode(
         id=TIMESCALE_SECTION_ID,
         name="TimescaleDB",
-        description="Public TimescaleDB metadata",
+        description=say("Public TimescaleDB metadata"),
         has_children=True,
         representations=[],
     )
@@ -248,10 +250,10 @@ def _timescale_section_node() -> ReportNode:
 def report_node(report: SystemReport) -> ReportNode:
     return ReportNode(
         id=report.node_id,
-        name=report.title,
-        description=report.description,
+        name=say(report.title),
+        description=say(report.description),
         has_children=False,
-        representations=[TABLE_REPRESENTATION, REPORT_SQL_REPRESENTATION],
+        representations=worded_titles([TABLE_REPRESENTATION, REPORT_SQL_REPRESENTATION]),
     )
 
 
@@ -288,6 +290,7 @@ def relation_of(
     representations = [TABLE_REPRESENTATION]
     if context.structured_operations_reason(name) is None:
         representations.append(DDL_REPRESENTATION)
+    representations = worded_titles(representations)
     if row["kind"] in ("v", "m"):
         return ViewNode(
             id=f"{schema}.{name}",

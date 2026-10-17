@@ -85,7 +85,7 @@ async def test_get_non_existing_user_as_superuser(
         headers=superuser_token_headers,
     )
     assert r.status_code == 404
-    assert r.json() == {"detail": "User not found"}
+    assert r.json()["detail"]["code"] == "users.not_found"
 
 
 async def test_get_existing_user_current_user(client: AsyncClient, db: AsyncSession) -> None:
@@ -127,7 +127,7 @@ async def test_get_existing_user_permissions_error(
         headers=normal_user_token_headers,
     )
     assert r.status_code == 403
-    assert r.json() == {"detail": "The user doesn't have enough privileges"}
+    assert r.json()["detail"]["code"] == "auth.not_enough_privileges"
 
 
 async def test_get_non_existing_user_permissions_error(
@@ -141,7 +141,7 @@ async def test_get_non_existing_user_permissions_error(
         headers=normal_user_token_headers,
     )
     assert r.status_code == 403
-    assert r.json() == {"detail": "The user doesn't have enough privileges"}
+    assert r.json()["detail"]["code"] == "auth.not_enough_privileges"
 
 
 async def test_create_user_existing_username(
@@ -281,7 +281,7 @@ async def test_update_password_me_incorrect_password(
     )
     assert r.status_code == 400
     updated_user = r.json()
-    assert updated_user["detail"] == "Incorrect password"
+    assert updated_user["detail"]["code"] == "users.wrong_password"
 
 
 async def test_update_user_me_email_exists(
@@ -299,7 +299,7 @@ async def test_update_user_me_email_exists(
         json=data,
     )
     assert r.status_code == 409
-    assert r.json()["detail"] == "User with this email already exists"
+    assert r.json()["detail"]["code"] == "users.email_taken"
 
 
 async def test_update_password_me_same_password_error(
@@ -317,7 +317,7 @@ async def test_update_password_me_same_password_error(
     assert r.status_code == 400
     updated_user = r.json()
     assert (
-        updated_user["detail"] == "New password cannot be the same as the current one"
+        updated_user["detail"]["code"] == "users.same_password"
     )
 
 
@@ -357,7 +357,7 @@ async def test_register_user_already_exists_error(client: AsyncClient) -> None:
         json=data,
     )
     assert r.status_code == 400
-    assert r.json()["detail"] == "The user with this email already exists in the system"
+    assert r.json()["detail"]["code"] == "users.email_taken"
 
 
 async def test_update_user(
@@ -396,7 +396,7 @@ async def test_update_user_not_exists(
         json=data,
     )
     assert r.status_code == 404
-    assert r.json()["detail"] == "The user with this id does not exist in the system"
+    assert r.json()["detail"]["code"] == "users.not_found"
 
 
 async def test_update_user_email_exists(
@@ -419,7 +419,7 @@ async def test_update_user_email_exists(
         json=data,
     )
     assert r.status_code == 409
-    assert r.json()["detail"] == "User with this email already exists"
+    assert r.json()["detail"]["code"] == "users.email_taken"
 
 
 async def test_delete_user_me(client: AsyncClient, db: AsyncSession) -> None:
@@ -462,7 +462,7 @@ async def test_delete_user_me_as_superuser(
     )
     assert r.status_code == 403
     response = r.json()
-    assert response["detail"] == "Super users are not allowed to delete themselves"
+    assert response["detail"]["code"] == "users.superuser_cannot_delete_self"
 
 
 async def test_delete_user_super_user(
@@ -531,7 +531,7 @@ async def test_delete_user_not_found(
         headers=superuser_token_headers,
     )
     assert r.status_code == 404
-    assert r.json()["detail"] == "User not found"
+    assert r.json()["detail"]["code"] == "users.not_found"
 
 
 async def test_delete_user_current_super_user_error(
@@ -546,7 +546,7 @@ async def test_delete_user_current_super_user_error(
         headers=superuser_token_headers,
     )
     assert r.status_code == 403
-    assert r.json()["detail"] == "Super users are not allowed to delete themselves"
+    assert r.json()["detail"]["code"] == "users.superuser_cannot_delete_self"
 
 
 async def test_delete_user_without_privileges(
@@ -562,4 +562,4 @@ async def test_delete_user_without_privileges(
         headers=normal_user_token_headers,
     )
     assert r.status_code == 403
-    assert r.json()["detail"] == "The user doesn't have enough privileges"
+    assert r.json()["detail"]["code"] == "auth.not_enough_privileges"

@@ -3,6 +3,9 @@ import { ref } from "vue"
 import type { JobPublic } from "@/client"
 import { formatSize } from "@/features/catalog/nodes"
 import { isWorking } from "@/features/services/jobs"
+import { t } from "@/shared/i18n"
+import type { MessageKey } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 
 /**
  * A transfer between connections as its job records it
@@ -53,14 +56,14 @@ const OUTCOMES: ReadonlySet<string> = new Set<TransferOutcome>([
   "pending", "running", "done", "kept", "failed", "stopped",
 ])
 /** What an item that did not arrive says when its own sentence is missing. */
-const WORDS: Record<Exclude<TransferOutcome, "done">, string> = {
-  pending: "not attempted",
-  running: "interrupted",
-  kept: "kept at its source",
-  failed: "failed",
-  stopped: "stopped",
+const WORDS: Record<Exclude<TransferOutcome, "done">, MessageKey> = {
+  pending: "activity.transfers.pending",
+  running: "activity.transfers.running",
+  kept: "activity.transfers.kept",
+  failed: "activity.transfers.failed",
+  stopped: "activity.transfers.stopped",
 }
-/** The steps a transfer shows besides its work (app/transfers/handler.py). */
+/** The steps a transfer shows besides its work (app/transfers/handler.py): codes, not words. */
 export const WAITING = "waiting for a free transfer slot"
 const REMOVING = "removing the sources"
 /** Items, and files that did not arrive, listed under a finished transfer. */
@@ -80,7 +83,7 @@ function count(value: unknown): number | null {
 
 /** Counts as a person reads them: "4,211". */
 function counted(value: number): string {
-  return value.toLocaleString("en-US")
+  return formatNumber(value)
 }
 
 function itemOf(value: unknown): TransferItemRecord | null {
@@ -145,13 +148,18 @@ export function transferOf(job: Pick<JobPublic, "kind" | "parameters">): Transfe
 /** Bytes measured so far, and of how many when that is known: never estimated. */
 export function transferMeasure(transfer: TransferRecord): string {
   return transfer.bytesTotal === null
-    ? `${formatSize(transfer.bytesDone)} written`
-    : `${formatSize(Math.min(transfer.bytesDone, transfer.bytesTotal))} of ${formatSize(transfer.bytesTotal)}`
+    ? t("activity.transfers.written", { size: formatSize(transfer.bytesDone) })
+    : t("activity.transfers.of", {
+      done: formatSize(Math.min(transfer.bytesDone, transfer.bytesTotal)),
+      total: formatSize(transfer.bytesTotal),
+    })
 }
 
 /** What the footer says of it: "Copying to SSH server · 45 MB of 120 MB". */
 export function transferBrief(transfer: TransferRecord): string {
-  return `${transfer.doing} to ${transfer.destinationLabel} · ${transferMeasure(transfer)}`
+  return t("activity.transfers.brief", {
+    doing: transfer.doing, destination: transfer.destinationLabel, measure: transferMeasure(transfer),
+  })
 }
 
 function filesTotal(transfer: TransferRecord): number {
@@ -164,30 +172,38 @@ function folderLine(transfer: TransferRecord, item: TransferItemRecord): string 
   const arrived = moving ? item.removed : item.arrived
   const kept = moving ? item.arrived - item.removed : 0
   const parts = [
+    // The server's own word for what arrived ("copied"), not the dictionary's.
     `${counted(arrived)} ${transfer.done}`,
-    ...(kept > 0 ? [`${counted(kept)} kept at the source`] : []),
-    ...(item.failed > 0 ? [`${counted(item.failed)} failed`] : []),
-    ...(item.skipped > 0 ? [`${counted(item.skipped)} skipped`] : []),
+    ...(kept > 0 ? [t("activity.transfers.kept_at_source", { n: counted(kept) })] : []),
+    ...(item.failed > 0 ? [t("activity.transfers.failed_count", { n: counted(item.failed) })] : []),
+    ...(item.skipped > 0 ? [t("activity.transfers.skipped_count", { n: counted(item.skipped) })] : []),
   ]
+  return t("activity.transfers.line", { name: publishedName(item), what: parts.join(", ") })
+}
+
+/** The item's name, and the one it arrived under when that differs. */
+function publishedName(item: TransferItemRecord): string {
   const renamed = item.publishedAs !== null && item.publishedAs !== item.name
-  return `${item.name}${renamed ? ` as ${item.publishedAs ?? ""}` : ""} — ${parts.join(", ")}`
+  return renamed ? t("activity.transfers.as", { name: item.name, published: item.publishedAs ?? "" }) : item.name
 }
 
 function itemLine(transfer: TransferRecord, item: TransferItemRecord): string {
   if (item.outcome === "pending" || item.outcome === "running") {
-    return `${item.name} — ${WORDS[item.outcome]}`
+    return t("activity.transfers.line", { name: item.name, what: t(WORDS[item.outcome]) })
   }
   if (item.isFolder && item.outcome !== "stopped") return folderLine(transfer, item)
   if (item.outcome === "done") {
     const renamed = item.publishedAs !== null && item.publishedAs !== item.name
-    return `${item.name} — ${transfer.done}${renamed ? ` as ${item.publishedAs ?? ""}` : ""}`
+    return renamed
+      ? t("activity.transfers.done_as", { name: item.name, done: transfer.done, published: item.publishedAs ?? "" })
+      : t("activity.transfers.line", { name: item.name, what: transfer.done })
   }
-  return item.message ?? `${item.name} — ${WORDS[item.outcome]}`
+  return item.message ?? t("activity.transfers.line", { name: item.name, what: t(WORDS[item.outcome]) })
 }
 
 export function listed(lines: string[], more: number): string[] {
   const rest = lines.length - LISTED + more
-  return [...lines.slice(0, LISTED), ...(rest > 0 ? [`and ${counted(rest)} more`] : [])]
+  return [...lines.slice(0, LISTED), ...(rest > 0 ? [t("activity.transfers.more", { n: counted(rest) })] : [])]
 }
 
 /**
@@ -197,17 +213,19 @@ export function listed(lines: string[], more: number): string[] {
  */
 export function transferLines(job: JobPublic, transfer: TransferRecord): string[] {
   if (isWorking(job)) {
-    if (job.step === WAITING) return ["Waiting for a free transfer slot"]
-    if (job.step === REMOVING) return ["Removing the sources"]
+    if (job.step === WAITING) return [t("activity.transfers.waiting_slot")]
+    if (job.step === REMOVING) return [t("activity.transfers.removing")]
     const current = transfer.current
-    if (current === null) return [job.step ?? "Starting"]
+    if (current === null) return [job.step ?? t("activity.transfers.starting")]
     const total = filesTotal(transfer)
     if (total > 1) {
       const at = Math.min(transfer.filesDone + 1, total)
-      return [`${current} — ${counted(at)} of ${counted(total)}`]
+      return [t("activity.transfers.file_of", { name: current, at: counted(at), total: counted(total) })]
     }
     const rows = transfer.items[0]?.rows ?? null
-    return [rows === null ? current : `${current} · ${counted(rows)} rows`]
+    return [rows === null
+      ? current
+      : t("activity.transfers.rows", { name: current, rows: t("catalog.count.row", { n: counted(rows) }, rows) })]
   }
   return [
     ...(job.message === null ? [] : [job.message]),
@@ -219,8 +237,8 @@ export function transferLines(job: JobPublic, transfer: TransferRecord): string[
 /** What Stop will do, said before it is pressed. */
 export function transferStopHint(transfer: TransferRecord): string {
   return transfer.mode === "move"
-    ? "Stops at once; the sources stay until everything has arrived."
-    : "Stops at once; what already arrived stays."
+    ? t("activity.transfers.stop_move")
+    : t("activity.transfers.stop_copy")
 }
 
 /**

@@ -39,6 +39,7 @@ from app.connectors import crud
 from app.connectors.access import get_or_404, resolve_source
 from app.connectors.models import Connector
 from app.core.schemas import get_datetime_utc
+from app.core.translation import say
 from app.users.models import User
 
 # Which end of a reference something is. Not a direction and not a role: the
@@ -236,7 +237,7 @@ async def read_end(
     if not isinstance(adapter, SupportsFetch) or not isinstance(
         adapter, SupportsNodePath
     ):
-        raise ValueError("This source cannot be an end of a reference")
+        raise ValueError(say("This source cannot be an end of a reference"))
 
     # One row, for its columns: `fetch` is the only capability every source
     # states its filterable columns through, and the read cache absorbs the
@@ -244,11 +245,16 @@ async def read_end(
     page = await adapter.fetch(FetchRequest(node_id=end.node_id, limit=1))
     column = next((found for found in page.columns if found.name == end.column), None)
     if column is None:
-        raise ValueError(f'"{end.node_id}" has no column "{end.column}"')
+        raise ValueError(
+            say('"{node}" has no column "{column}"', node=end.node_id, column=end.column)
+        )
     if "eq" not in column.filter_operators:
         raise ValueError(
-            f'This source cannot look up "{end.column}" values '
-            f"of type {column.type.sql}"
+            say(
+                'This source cannot look up "{column}" values of type {type}',
+                column=end.column,
+                type=column.type.sql,
+            )
         )
     node = (await adapter.path_to(end.node_id))[-1]
     return EndReading(connector=connector, node=node, column=column)
@@ -417,19 +423,25 @@ async def follow(
         else await get_own(session, author=user, reference_id=parsed[0])
     )
     if parsed is None or reference is None:
-        raise ValueError(f'Relation has no reference "{request.reference}"')
+        raise ValueError(
+            say('Relation has no reference "{name}"', name=request.reference)
+        )
 
     near = end_of(reference, parsed[1])
     if near.connector_id != connector_id or near.node_id != request.node_id:
-        raise ValueError(f'Relation has no reference "{request.reference}"')
+        raise ValueError(
+            say('Relation has no reference "{name}"', name=request.reference)
+        )
 
     if len(request.values) != 1 or request.values[0].column != near.column:
-        raise ValueError(f'Reference "{request.reference}" is over {near.column}')
+        raise ValueError(
+            say('Reference "{name}" is over {column}', name=request.reference, column=near.column)
+        )
     value = request.values[0].value
     if value is None:
         # The same answer D36 gives a key with a missing value: this row names
         # nothing, which is a fact about the data rather than a failure.
-        return NoReferencedRows(reason="This row has no value for that reference")
+        return NoReferencedRows(reason=say("This row has no value for that reference"))
 
     far = end_of(reference, other(parsed[1]))
     end = ReferenceEnd(

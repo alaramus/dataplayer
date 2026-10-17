@@ -15,6 +15,7 @@ from typing import Literal
 import asyncssh
 
 from app.adapters.credentials import SigningKey
+from app.core.translation import say
 
 # What a key made here can be. ED25519 unless the server will not take it,
 # which is Coolify's rule and OpenSSH's own default; RSA for the old servers
@@ -107,7 +108,7 @@ def host_key_facts(public_key: str) -> KeyFacts:
     try:
         key = asyncssh.import_public_key(public_key)
     except (asyncssh.KeyImportError, ValueError):
-        raise ValueError("This is not a server key this application can read") from None
+        raise ValueError(say("This is not a server key this application can read")) from None
     return _facts(key)
 
 
@@ -120,13 +121,13 @@ def _opened(private_key: str, passphrase: str | None) -> asyncssh.SSHKey:
     try:
         return asyncssh.import_private_key(private_key, passphrase or None)
     except asyncssh.KeyEncryptionError:
-        raise ValueError("That passphrase does not open this key") from None
+        raise ValueError(say("That passphrase does not open this key")) from None
     except asyncssh.KeyImportError as failure:
         if "passphrase" in str(failure).lower():
             raise KeyNeedsPassphrase(
-                "This key is protected by a passphrase; enter it"
+                say("This key is protected by a passphrase; enter it")
             ) from None
-        raise ValueError("This is not a private key this application can read") from None
+        raise ValueError(say("This is not a private key this application can read")) from None
 
 
 def _prepared(key: asyncssh.SSHKey, passphrase: str | None) -> PreparedKey:

@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 
 import type { Hit } from "@/client"
 import { askTheAgent } from "@/features/ai/state"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { t } from "@/shared/i18n"
 import type { SearchScope } from "@/features/workspace/state"
 import { AppCombobox, appIcons } from "@/shared/ui"
 import type { SelectOption } from "@/shared/ui"
@@ -96,7 +97,7 @@ const hitsByKey = computed(() => {
 const offerRow = computed<SelectOption[]>(() =>
   props.offer === null || scope.value !== null
     ? []
-    : [{ label: `Search in ${props.offer.label}`, value: SCOPE_VALUE, icon: appIcons.search, offer: true }]
+    : [{ label: t("search.field.offer", { name: props.offer.label }), value: SCOPE_VALUE, icon: appIcons.search, offer: true }]
 )
 
 const options = computed<SelectOption[]>(() => [
@@ -115,7 +116,7 @@ const status = computed(() => {
   const live = field.live.value
   const waiting = pendingOf(live).length
   if (live.end === null && (live.mode === null || waiting > 0)) {
-    return live.mode === null ? "Searching…" : stillSearching(waiting)
+    return live.mode === null ? t("search.field.searching") : stillSearching(waiting)
   }
   const drawn = field.drawn.value
   if (drawn === null) return ""
@@ -272,12 +273,12 @@ defineExpose({ show })
         ref="box"
         v-model="words"
         v-model:open="listOpen"
-        label="Search everything"
-        placeholder="Search connections, tables, the guide…"
+        :label="t('search.field.label')"
+        :placeholder="t('search.field.placeholder')"
         :options="options"
         :status="status"
         :chip="scope ? scope.label : null"
-        :submit-label="asking ? 'Show all results' : undefined"
+        :submit-label="asking ? t('search.field.show_all') : undefined"
         :trailing="askRow"
         data-testid="search-combobox"
         @pick="pick"

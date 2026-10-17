@@ -1,5 +1,6 @@
 import { computed, ref, shallowRef } from "vue"
 
+import { t } from "@/shared/i18n"
 import type { ConfirmRequest, Toast } from "@/shared/ui"
 import type { WorkspaceApi } from "@/shared/workspace"
 
@@ -19,10 +20,10 @@ export function useTabGroups(
   const canSave = computed(() => workspace.panels.value.some((panel) => panel.kind !== "connectors"))
   try {
     const saved = parseGroups(storage.getItem(groupsKey(userId)))
-    if (saved === null) toast.error("The saved tab groups could not be read.")
+    if (saved === null) toast.error(t("workspace.groups.read_failed"))
     else groups.value = saved
   } catch {
-    toast.error("The browser could not read the saved tab groups.")
+    toast.error(t("workspace.groups.browser_read_failed"))
   }
 
   function write(next: TabGroup[]): boolean {
@@ -31,7 +32,7 @@ export function useTabGroups(
       groups.value = next
       return true
     } catch {
-      toast.error("The browser could not save the tab groups. Your saved groups have not changed.")
+      toast.error(t("workspace.groups.browser_save_failed"))
       return false
     }
   }
@@ -40,7 +41,7 @@ export function useTabGroups(
     if (busy.value || !canSave.value || groupNameProblem(name, groups.value)) return false
     const snapshot = workspace.snapshot()
     if (!validGroupSnapshot(snapshot)) {
-      toast.error("This layout could not be saved as a tab group.")
+      toast.error(t("workspace.groups.layout_not_saved"))
       return false
     }
     return write([...groups.value, { id: crypto.randomUUID(), name: name.trim(), snapshot }])
@@ -55,7 +56,7 @@ export function useTabGroups(
     if (busy.value || !canSave.value) return false
     const snapshot = workspace.snapshot()
     if (!validGroupSnapshot(snapshot)) {
-      toast.error("This layout could not be saved as a tab group.")
+      toast.error(t("workspace.groups.layout_not_saved"))
       return false
     }
     return write(groups.value.map((group) => group.id === id ? { ...group, snapshot } : group))
@@ -66,8 +67,9 @@ export function useTabGroups(
     busy.value = true
     try {
       if (await confirm({
-        title: "Delete tab group?", message: `Delete "${group.name}"? Your currently open tabs will stay open.`,
-        confirmLabel: "Delete", danger: true,
+        title: t("workspace.groups.delete_title"),
+        message: t("workspace.groups.delete_message", { name: group.name }),
+        confirmLabel: t("workspace.groups.delete"), danger: true,
       })) write(groups.value.filter((one) => one.id !== group.id))
     } finally {
       busy.value = false
@@ -81,20 +83,20 @@ export function useTabGroups(
       let skipWarning = false
       try { skipWarning = storage.getItem(groupWarningKey(userId)) === "true" } catch { /* Ask when unavailable. */ }
       if (!skipWarning && !(await confirm({
-        title: "Replace current tabs?",
-        message: `Opening "${group.name}" replaces the current tabs and column layout with this saved group. Tabs outside the group will disappear.`,
-        confirmLabel: "Open group",
-        rememberLabel: "Don't show again",
+        title: t("workspace.groups.replace_title"),
+        message: t("workspace.groups.replace_message", { name: group.name }),
+        confirmLabel: t("workspace.groups.open_group"),
+        rememberLabel: t("workspace.groups.dont_show_again"),
         onRemember: () => {
           try { storage.setItem(groupWarningKey(userId), "true") }
-          catch { toast.error("The browser could not remember this preference.") }
+          catch { toast.error(t("workspace.groups.remember_failed")) }
         },
       }))) return
       const outcome = await workspace.restore(group.snapshot)
-      if (outcome === "invalid") toast.error("This saved tab group cannot be restored.")
-      if (outcome === "changed") toast.info("The open tabs changed while confirming. Open the group again when ready.")
+      if (outcome === "invalid") toast.error(t("workspace.groups.cannot_restore"))
+      if (outcome === "changed") toast.info(t("workspace.groups.changed"))
     } catch {
-      toast.error("The tab group could not be opened.")
+      toast.error(t("workspace.groups.open_failed"))
     } finally {
       busy.value = false
     }

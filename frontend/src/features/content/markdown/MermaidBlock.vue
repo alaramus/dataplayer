@@ -12,9 +12,13 @@ import { renderDiagram } from "@/features/content/markdown/mermaid"
 import { sanitizeSvg } from "@/features/content/markdown/sanitize"
 import BlockChrome from "@/features/content/markdown/BlockChrome.vue"
 import { useThemeStore } from "@/stores/theme"
+import { t } from "@/shared/i18n"
 import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
 
 const props = defineProps<{ code: string }>()
+
+/** The format's name, which no language translates. */
+const label = "mermaid"
 
 const theme = useThemeStore()
 const toast = useToast()
@@ -30,18 +34,18 @@ async function draw() {
     if (current !== attempt) return
     const cleaned = sanitizeSvg(drawn.svg, { allowStyles: true })
     // An empty answer is a failure that would otherwise look like a blank box.
-    if (!cleaned.includes("<svg")) throw new Error("This diagram came back empty")
+    if (!cleaned.includes("<svg")) throw new Error(t("content.markdown.diagram.empty"))
     svg.value = cleaned
   } catch (cause) {
     if (current !== attempt) return
     svg.value = ""
-    failure.value = cause instanceof Error ? cause.message : "This diagram could not be drawn"
+    failure.value = cause instanceof Error ? cause.message : t("content.markdown.diagram.not_drawn")
   }
 }
 
 async function copy() {
   await copySource(props.code)
-  toast.success("Diagram source copied")
+  toast.success(t("content.markdown.diagram.copied"))
 }
 
 function download() {
@@ -59,17 +63,17 @@ onBeforeUnmount(() => {
   features/content/markdown/sanitize.ts, which exists for exactly this and is
   covered by sanitize.spec.ts. Rendering a document without v-html would mean
   building the DOM by hand from the same HTML. -->
-  <BlockChrome label="mermaid">
+  <BlockChrome :label="label">
     <template #actions>
       <AppIconButton
         v-if="!failure"
         :icon="appIcons.download"
-        tooltip="Save this diagram as SVG"
+        :tooltip="t('content.markdown.diagram.save')"
         data-testid="mermaid-download"
         @click="download"
       />
       <AppCopyButton
-        tooltip="Copy the diagram source"
+        :tooltip="t('content.markdown.diagram.copy')"
         data-testid="mermaid-copy"
         @click="copy"
       />

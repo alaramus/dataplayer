@@ -10,6 +10,7 @@ import {
 import { client } from "./client.gen"
 import type {
   adaptersReadAdapterTypesData,
+  adaptersReadAdapterTypesErrors,
   adaptersReadAdapterTypesResponses,
   aiAnswerRunData,
   aiAnswerRunErrors,
@@ -24,15 +25,19 @@ import type {
   aiCheckKeyErrors,
   aiCheckKeyResponses,
   aiCreateConversationData,
+  aiCreateConversationErrors,
   aiCreateConversationResponses,
   aiCreateProjectData,
   aiCreateProjectErrors,
   aiCreateProjectResponses,
   aiCreateQuickChatData,
+  aiCreateQuickChatErrors,
   aiCreateQuickChatResponses,
   aiDeleteArchivedConversationsData,
+  aiDeleteArchivedConversationsErrors,
   aiDeleteArchivedConversationsResponses,
   aiDeleteArchivedQuickChatsData,
+  aiDeleteArchivedQuickChatsErrors,
   aiDeleteArchivedQuickChatsResponses,
   aiDeleteConversationData,
   aiDeleteConversationErrors,
@@ -59,8 +64,10 @@ import type {
   aiReadConversationsErrors,
   aiReadConversationsResponses,
   aiReadModelsData,
+  aiReadModelsErrors,
   aiReadModelsResponses,
   aiReadProjectsData,
+  aiReadProjectsErrors,
   aiReadProjectsResponses,
   aiReadQuickChatData,
   aiReadQuickChatErrors,
@@ -69,6 +76,7 @@ import type {
   aiReadRunErrors,
   aiReadRunResponses,
   aiReadSettingsData,
+  aiReadSettingsErrors,
   aiReadSettingsResponses,
   aiRemoveKeyData,
   aiRemoveKeyErrors,
@@ -107,6 +115,7 @@ import type {
   backupsReadBackupOfferErrors,
   backupsReadBackupOfferResponses,
   backupsReadBackupsData,
+  backupsReadBackupsErrors,
   backupsReadBackupsResponses,
   backupsRestoreData,
   backupsRestoreErrors,
@@ -331,6 +340,7 @@ import type {
   guideReadGuidePageErrors,
   guideReadGuidePageResponses,
   guideReadGuidePagesData,
+  guideReadGuidePagesErrors,
   guideReadGuidePagesResponses,
   jobsCancelJobData,
   jobsCancelJobErrors,
@@ -354,6 +364,7 @@ import type {
   loginResetPasswordErrors,
   loginResetPasswordResponses,
   loginTestTokenData,
+  loginTestTokenErrors,
   loginTestTokenResponses,
   logsReadLogsData,
   logsReadLogsErrors,
@@ -383,8 +394,10 @@ import type {
   metricsReadAgentKeyErrors,
   metricsReadAgentKeyResponses,
   metricsReadAgentsData,
+  metricsReadAgentsErrors,
   metricsReadAgentsResponses,
   metricsReadCatalogData,
+  metricsReadCatalogErrors,
   metricsReadCatalogResponses,
   metricsReadDashboardCatalogData,
   metricsReadDashboardCatalogErrors,
@@ -396,11 +409,13 @@ import type {
   metricsReadDashboardGrantsResponses,
   metricsReadDashboardResponses,
   metricsReadDashboardsData,
+  metricsReadDashboardsErrors,
   metricsReadDashboardsResponses,
   metricsReadHistoryData,
   metricsReadHistoryErrors,
   metricsReadHistoryResponses,
   metricsReadHostsData,
+  metricsReadHostsErrors,
   metricsReadHostsResponses,
   metricsReadPresetsData,
   metricsReadPresetsErrors,
@@ -409,14 +424,19 @@ import type {
   metricsReadProcessesErrors,
   metricsReadProcessesResponses,
   metricsReadReportingData,
+  metricsReadReportingErrors,
   metricsReadReportingResponses,
   metricsReadRestartsData,
+  metricsReadRestartsErrors,
   metricsReadRestartsResponses,
   metricsReadStoreStatusData,
+  metricsReadStoreStatusErrors,
   metricsReadStoreStatusResponses,
   metricsReadStoreUsageData,
+  metricsReadStoreUsageErrors,
   metricsReadStoreUsageResponses,
   metricsRemoveStoreData,
+  metricsRemoveStoreErrors,
   metricsRemoveStoreResponses,
   metricsRenameAgentData,
   metricsRenameAgentErrors,
@@ -431,6 +451,7 @@ import type {
   metricsSaveDashboardErrors,
   metricsSaveDashboardResponses,
   metricsStartStoreData,
+  metricsStartStoreErrors,
   metricsStartStoreResponses,
   metricsUpdateReportingData,
   metricsUpdateReportingErrors,
@@ -463,6 +484,7 @@ import type {
   pipelinesReadPipelineErrors,
   pipelinesReadPipelineResponses,
   pipelinesReadPipelinesData,
+  pipelinesReadPipelinesErrors,
   pipelinesReadPipelinesResponses,
   pipelinesReadRunData,
   pipelinesReadRunErrors,
@@ -543,6 +565,7 @@ import type {
   queriesReadResultPageResponses,
   queriesReadResultResponses,
   queriesReadRetentionData,
+  queriesReadRetentionErrors,
   queriesReadRetentionResponses,
   queriesReadRunData,
   queriesReadRunErrors,
@@ -575,6 +598,7 @@ import type {
   searchReadKeepErrors,
   searchReadKeepResponses,
   searchReadKeptData,
+  searchReadKeptErrors,
   searchReadKeptResponses,
   searchReadSearchContentsData,
   searchReadSearchContentsErrors,
@@ -604,10 +628,13 @@ import type {
   servicesReadServiceLogsResponses,
   servicesReadServiceResponses,
   servicesReadServicesData,
+  servicesReadServicesErrors,
   servicesReadServicesResponses,
   servicesReadServiceTemplatesData,
+  servicesReadServiceTemplatesErrors,
   servicesReadServiceTemplatesResponses,
   servicesReadUnclaimedData,
+  servicesReadUnclaimedErrors,
   servicesReadUnclaimedResponses,
   servicesRemoveUnclaimedData,
   servicesRemoveUnclaimedErrors,
@@ -670,6 +697,7 @@ import type {
   sshKeysLockSshKeyErrors,
   sshKeysLockSshKeyResponses,
   sshKeysReadSshKeysData,
+  sshKeysReadSshKeysErrors,
   sshKeysReadSshKeysResponses,
   sshKeysRenameSshKeyData,
   sshKeysRenameSshKeyErrors,
@@ -683,16 +711,20 @@ import type {
   usersDeleteUserData,
   usersDeleteUserErrors,
   usersDeleteUserMeData,
+  usersDeleteUserMeErrors,
   usersDeleteUserMeResponses,
   usersDeleteUserResponses,
   usersReadDirectoryData,
+  usersReadDirectoryErrors,
   usersReadDirectoryResponses,
   usersReadMyPreferencesData,
+  usersReadMyPreferencesErrors,
   usersReadMyPreferencesResponses,
   usersReadUserByIdData,
   usersReadUserByIdErrors,
   usersReadUserByIdResponses,
   usersReadUserMeData,
+  usersReadUserMeErrors,
   usersReadUserMeResponses,
   usersReadUsersData,
   usersReadUsersErrors,
@@ -713,10 +745,13 @@ import type {
   usersUpdateUserMeResponses,
   usersUpdateUserResponses,
   utilsCacheHealthData,
+  utilsCacheHealthErrors,
   utilsCacheHealthResponses,
   utilsHealthCheckData,
+  utilsHealthCheckErrors,
   utilsHealthCheckResponses,
   utilsServerInfoData,
+  utilsServerInfoErrors,
   utilsServerInfoResponses,
   utilsTestEmailData,
   utilsTestEmailErrors,
@@ -774,7 +809,11 @@ export class LoginService {
   public static testToken<ThrowOnError extends boolean = true>(
     options?: Options<loginTestTokenData, ThrowOnError>
   ) {
-    return (options?.client ?? client).post<loginTestTokenResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<
+      loginTestTokenResponses,
+      loginTestTokenErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/login/test-token",
@@ -906,7 +945,11 @@ export class UsersService {
   public static readDirectory<ThrowOnError extends boolean = true>(
     options?: Options<usersReadDirectoryData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<usersReadDirectoryResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      usersReadDirectoryResponses,
+      usersReadDirectoryErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/users/directory",
@@ -922,7 +965,11 @@ export class UsersService {
   public static deleteUserMe<ThrowOnError extends boolean = true>(
     options?: Options<usersDeleteUserMeData, ThrowOnError>
   ) {
-    return (options?.client ?? client).delete<usersDeleteUserMeResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).delete<
+      usersDeleteUserMeResponses,
+      usersDeleteUserMeErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/users/me",
@@ -938,7 +985,11 @@ export class UsersService {
   public static readUserMe<ThrowOnError extends boolean = true>(
     options?: Options<usersReadUserMeData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<usersReadUserMeResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      usersReadUserMeResponses,
+      usersReadUserMeErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/users/me",
@@ -1002,7 +1053,11 @@ export class UsersService {
   public static readMyPreferences<ThrowOnError extends boolean = true>(
     options?: Options<usersReadMyPreferencesData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<usersReadMyPreferencesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      usersReadMyPreferencesResponses,
+      usersReadMyPreferencesErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/users/me/preferences",
@@ -1149,7 +1204,11 @@ export class UtilsService {
   public static healthCheck<ThrowOnError extends boolean = true>(
     options?: Options<utilsHealthCheckData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<utilsHealthCheckResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      utilsHealthCheckResponses,
+      utilsHealthCheckErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       url: "/api/v1/utils/health-check/",
       ...options,
@@ -1169,7 +1228,11 @@ export class UtilsService {
   public static cacheHealth<ThrowOnError extends boolean = true>(
     options?: Options<utilsCacheHealthData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<utilsCacheHealthResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      utilsCacheHealthResponses,
+      utilsCacheHealthErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/utils/cache-health/",
@@ -1185,7 +1248,11 @@ export class UtilsService {
   public static serverInfo<ThrowOnError extends boolean = true>(
     options?: Options<utilsServerInfoData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<utilsServerInfoResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      utilsServerInfoResponses,
+      utilsServerInfoErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       url: "/api/v1/utils/server-info",
       ...options,
@@ -3092,7 +3159,11 @@ export class SshKeysService {
   public static keysReadSshKeys<ThrowOnError extends boolean = true>(
     options?: Options<sshKeysReadSshKeysData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<sshKeysReadSshKeysResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      sshKeysReadSshKeysResponses,
+      sshKeysReadSshKeysErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ssh-keys/",
@@ -3262,7 +3333,7 @@ export class AdaptersService {
   ) {
     return (options?.client ?? client).get<
       adaptersReadAdapterTypesResponses,
-      unknown,
+      adaptersReadAdapterTypesErrors,
       ThrowOnError
     >({
       responseType: "json",
@@ -3282,7 +3353,11 @@ export class GuideService {
   public static readGuidePages<ThrowOnError extends boolean = true>(
     options?: Options<guideReadGuidePagesData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<guideReadGuidePagesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      guideReadGuidePagesResponses,
+      guideReadGuidePagesErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/guide/",
@@ -3327,7 +3402,7 @@ export class ServicesService {
   ) {
     return (options?.client ?? client).get<
       servicesReadServiceTemplatesResponses,
-      unknown,
+      servicesReadServiceTemplatesErrors,
       ThrowOnError
     >({
       responseType: "json",
@@ -3350,7 +3425,11 @@ export class ServicesService {
   public static readServices<ThrowOnError extends boolean = true>(
     options?: Options<servicesReadServicesData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<servicesReadServicesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      servicesReadServicesResponses,
+      servicesReadServicesErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/services/",
@@ -3399,7 +3478,11 @@ export class ServicesService {
   public static readUnclaimed<ThrowOnError extends boolean = true>(
     options?: Options<servicesReadUnclaimedData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<servicesReadUnclaimedResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      servicesReadUnclaimedResponses,
+      servicesReadUnclaimedErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/services/unclaimed",
@@ -3681,7 +3764,11 @@ export class BackupsService {
   public static readBackups<ThrowOnError extends boolean = true>(
     options?: Options<backupsReadBackupsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<backupsReadBackupsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      backupsReadBackupsResponses,
+      backupsReadBackupsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/backups/",
@@ -3875,7 +3962,11 @@ export class PipelinesService {
   public static readPipelines<ThrowOnError extends boolean = true>(
     options?: Options<pipelinesReadPipelinesData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<pipelinesReadPipelinesResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      pipelinesReadPipelinesResponses,
+      pipelinesReadPipelinesErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/pipelines",
@@ -4863,7 +4954,11 @@ export class QueriesService {
   public static readRetention<ThrowOnError extends boolean = true>(
     options?: Options<queriesReadRetentionData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<queriesReadRetentionResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      queriesReadRetentionResponses,
+      queriesReadRetentionErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/queries/retention",
@@ -5118,7 +5213,11 @@ export class MetricsService {
   public static removeStore<ThrowOnError extends boolean = true>(
     options?: Options<metricsRemoveStoreData, ThrowOnError>
   ) {
-    return (options?.client ?? client).delete<metricsRemoveStoreResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).delete<
+      metricsRemoveStoreResponses,
+      metricsRemoveStoreErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/store",
@@ -5134,7 +5233,11 @@ export class MetricsService {
   public static readStoreStatus<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadStoreStatusData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadStoreStatusResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadStoreStatusResponses,
+      metricsReadStoreStatusErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/store",
@@ -5150,7 +5253,11 @@ export class MetricsService {
   public static startStore<ThrowOnError extends boolean = true>(
     options?: Options<metricsStartStoreData, ThrowOnError>
   ) {
-    return (options?.client ?? client).post<metricsStartStoreResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<
+      metricsStartStoreResponses,
+      metricsStartStoreErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/store/start",
@@ -5190,7 +5297,11 @@ export class MetricsService {
   public static readStoreUsage<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadStoreUsageData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadStoreUsageResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadStoreUsageResponses,
+      metricsReadStoreUsageErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/store/usage",
@@ -5209,7 +5320,11 @@ export class MetricsService {
   public static readRestarts<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadRestartsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadRestartsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadRestartsResponses,
+      metricsReadRestartsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/restarts",
@@ -5225,7 +5340,11 @@ export class MetricsService {
   public static readHosts<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadHostsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadHostsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadHostsResponses,
+      metricsReadHostsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/hosts",
@@ -5239,7 +5358,11 @@ export class MetricsService {
   public static readAgents<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadAgentsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadAgentsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadAgentsResponses,
+      metricsReadAgentsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/agents",
@@ -5382,7 +5505,11 @@ export class MetricsService {
   public static readCatalog<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadCatalogData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadCatalogResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadCatalogResponses,
+      metricsReadCatalogErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/catalog",
@@ -5398,7 +5525,11 @@ export class MetricsService {
   public static readReporting<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadReportingData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadReportingResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadReportingResponses,
+      metricsReadReportingErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/connectors",
@@ -5528,7 +5659,11 @@ export class MetricsService {
   public static readDashboards<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadDashboardsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<metricsReadDashboardsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      metricsReadDashboardsResponses,
+      metricsReadDashboardsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/dashboards",
@@ -5742,7 +5877,11 @@ export class AiService {
   public static createQuickChat<ThrowOnError extends boolean = true>(
     options?: Options<aiCreateQuickChatData, ThrowOnError>
   ) {
-    return (options?.client ?? client).post<aiCreateQuickChatResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<
+      aiCreateQuickChatResponses,
+      aiCreateQuickChatErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/quick-chats",
@@ -5758,7 +5897,7 @@ export class AiService {
   ) {
     return (options?.client ?? client).delete<
       aiDeleteArchivedQuickChatsResponses,
-      unknown,
+      aiDeleteArchivedQuickChatsErrors,
       ThrowOnError
     >({
       responseType: "json",
@@ -5925,12 +6064,14 @@ export class AiService {
   public static readModels<ThrowOnError extends boolean = true>(
     options?: Options<aiReadModelsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<aiReadModelsResponses, unknown, ThrowOnError>({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/ai/models",
-      ...options,
-    })
+    return (options?.client ?? client).get<aiReadModelsResponses, aiReadModelsErrors, ThrowOnError>(
+      {
+        responseType: "json",
+        security: [{ scheme: "bearer", type: "http" }],
+        url: "/api/v1/ai/models",
+        ...options,
+      }
+    )
   }
 
   /**
@@ -5939,7 +6080,11 @@ export class AiService {
   public static readSettings<ThrowOnError extends boolean = true>(
     options?: Options<aiReadSettingsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<aiReadSettingsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      aiReadSettingsResponses,
+      aiReadSettingsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/settings",
@@ -6033,7 +6178,11 @@ export class AiService {
   public static readProjects<ThrowOnError extends boolean = true>(
     options?: Options<aiReadProjectsData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<aiReadProjectsResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      aiReadProjectsResponses,
+      aiReadProjectsErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/projects",
@@ -6132,7 +6281,11 @@ export class AiService {
   public static createConversation<ThrowOnError extends boolean = true>(
     options?: Options<aiCreateConversationData, ThrowOnError>
   ) {
-    return (options?.client ?? client).post<aiCreateConversationResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).post<
+      aiCreateConversationResponses,
+      aiCreateConversationErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/conversations",
@@ -6150,7 +6303,7 @@ export class AiService {
   ) {
     return (options?.client ?? client).delete<
       aiDeleteArchivedConversationsResponses,
-      unknown,
+      aiDeleteArchivedConversationsErrors,
       ThrowOnError
     >({
       responseType: "json",
@@ -6412,7 +6565,11 @@ export class SearchService {
   public static readKept<ThrowOnError extends boolean = true>(
     options?: Options<searchReadKeptData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<searchReadKeptResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      searchReadKeptResponses,
+      searchReadKeptErrors,
+      ThrowOnError
+    >({
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/search/kept",

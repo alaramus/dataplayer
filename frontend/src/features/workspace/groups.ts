@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { serverStorageKey } from "@/shared/servers/context"
+import { t } from "@/shared/i18n"
 import type { Space } from "@/stores/space"
 
 import { parseWorkspace } from "@/shared/workspace/persist"
@@ -7,9 +8,12 @@ import { leavesOf } from "@/shared/workspace/tree"
 
 import { isRetiredPanel, panelSchema, roleOf } from "./panels"
 
+/** The longest name a group may have, here and in the dialog. */
+export const NAME_MAX = 80
+
 const groupSchema = z.object({
   id: z.string().min(1),
-  name: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(NAME_MAX),
   snapshot: z.string(),
 })
 export type TabGroup = z.infer<typeof groupSchema>
@@ -22,7 +26,7 @@ export type TabGroup = z.infer<typeof groupSchema>
  * layout nobody is looking at.
  */
 export function groupsUnavailableIn(space: Space): string | null {
-  return space === "data" ? null : "tab groups keep the tabs of Data"
+  return space === "data" ? null : t("workspace.groups.unavailable")
 }
 
 export const groupsKey = (userId: string) => serverStorageKey(`dataplayer-tab-groups:${userId}`)
@@ -64,16 +68,13 @@ export function serializeGroups(groups: readonly TabGroup[]): string {
 
 export function groupNameProblem(name: string, groups: readonly TabGroup[], exceptId?: string): string {
   const trimmed = name.trim()
-  if (!trimmed) return "Enter a group name."
-  if (trimmed.length > 80) return "Use at most 80 characters."
+  if (!trimmed) return t("workspace.groups.name_required")
+  if (trimmed.length > NAME_MAX) return t("workspace.groups.name_too_long", { max: NAME_MAX })
   if (groups.some((group) => group.id !== exceptId && group.name.toLowerCase() === trimmed.toLowerCase())) {
-    return "A group with this name already exists."
+    return t("workspace.groups.name_taken")
   }
   return ""
 }
-
-/** What the dialog offers before anybody has typed a name of their own. */
-export const DEFAULT_GROUP_NAME = "new group"
 
 /**
  * The first name of that family which is free.
@@ -83,12 +84,14 @@ export const DEFAULT_GROUP_NAME = "new group"
  * rather than on a name it is about to refuse.
  */
 export function suggestedGroupName(groups: readonly TabGroup[]): string {
+  // What the dialog offers before anybody has typed a name of their own.
+  const base = t("workspace.groups.default_name")
   const taken = new Set(groups.map((group) => group.name.trim().toLowerCase()))
   const candidates = [
-    DEFAULT_GROUP_NAME,
-    ...groups.map((_, index) => `${DEFAULT_GROUP_NAME}(${index + 1})`),
+    base,
+    ...groups.map((_, index) => `${base}(${index + 1})`),
   ]
   // One candidate more than there are groups, so one of them is always free;
   // the fallback is there for the type and for nothing else.
-  return candidates.find((candidate) => !taken.has(candidate)) ?? DEFAULT_GROUP_NAME
+  return candidates.find((candidate) => !taken.has(candidate)) ?? base
 }

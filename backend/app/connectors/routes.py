@@ -212,6 +212,7 @@ from app.connectors.access import (
     resolve_source,
 )
 from app.connectors.action_lookup import (
+    ACTION_NEEDS,
     ActionRequest,
     acting_or_501,
     action_for_node,
@@ -233,7 +234,9 @@ from app.connectors.names import NamesChanged, NamesChangedDep
 from app.core.access import Access, at_least
 from app.core.config import settings
 from app.core.db import SessionDep
+from app.core.problems import Problem
 from app.core.schemas import Message, get_datetime_utc
+from app.core.translation import current_language, say, say_if, say_schema
 from app.realtime.topics import TopicsDep
 from app.users import storage
 from app.users.deps import CurrentUser, get_current_user
@@ -250,7 +253,7 @@ def _cache_key(
     area: CacheArea,
     request: str,
 ) -> CacheKey:
-    return CacheKey(current_user.id, connector_id, area, request)
+    return CacheKey(current_user.id, connector_id, area, request, current_language.get())
 
 
 async def _invalidate_after[T](
@@ -323,23 +326,17 @@ async def preview_content_file(
     # The purpose is checked, not merely the signature: a ticket minted for the
     # ranged route of D52 is not authority for bytes held whole.
     if not isinstance(claims, content_tickets.ImagePreviewClaims):
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
     user = await session.get(User, claims.user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
 
     adapter = await adapter_for(
         session, claims.connector_id, user, resources, requires="read"
     )
     try:
         if not isinstance(adapter, SupportsContentPreview):
-            raise HTTPException(
-                status_code=501,
-                detail={
-                    "message": "This source does not support content previews",
-                    "error_kind": "config",
-                },
-            )
+            raise Problem(501, "connectors.no_content_previews", error_kind="config")
         preview = await adapter.preview_content(
             ContentRequest(
                 node_id=claims.node_id,
@@ -358,7 +355,7 @@ async def preview_content_file(
             },
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Content not found") from exc
+        raise Problem(404, "connectors.content_not_found") from exc
     except AdapterError as exc:
         raise HTTPException(
             status_code=502,
@@ -383,22 +380,16 @@ async def stream_content_file(
     """
     claims = content_tickets.read_content_ticket(ticket)
     if not isinstance(claims, content_tickets.ContentStreamClaims):
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
     user = await session.get(User, claims.user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status_code=404, detail="Content not found")
+        raise Problem(404, "connectors.content_not_found")
 
     adapter = await adapter_for(
         session, claims.connector_id, user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsContentStream):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not stream content",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_content_stream", error_kind="config")
     try:
         stream = await adapter.open_content_stream(
             ContentRequest(
@@ -406,7 +397,7 @@ async def stream_content_file(
             )
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail="Content not found") from exc
+        raise Problem(404, "connectors.content_not_found") from exc
     except AdapterError as exc:
         raise HTTPException(
             status_code=502,
@@ -427,9 +418,7 @@ async def stream_content_file(
         )
     except ranges.UnsatisfiableRange:
         headers["Content-Range"] = f"bytes */{stream.size_bytes}"
-        raise HTTPException(
-            status_code=416, detail="Requested range not satisfiable", headers=headers
-        ) from None
+        raise Problem(416, "connectors.range_not_satisfiable", headers=headers) from None
 
     if wanted is None:
         return StreamingResponse(
@@ -458,10 +447,10 @@ async def download_action_result(
     """Redeem one source action ticket after rechecking access and targets."""
     claims = action_downloads.read_action_download_ticket(ticket)
     if claims is None:
-        raise HTTPException(status_code=404, detail="Download not found")
+        raise Problem(404, "connectors.download_not_found")
     user = await session.get(User, claims.user_id)
     if user is None or not user.is_active:
-        raise HTTPException(status_code=404, detail="Download not found")
+        raise Problem(404, "connectors.download_not_found")
 
     adapter, access = await resolve_adapter(
         session, claims.connector_id, user, resources, requires="read"
@@ -471,10 +460,7 @@ async def download_action_result(
     )
     allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not produce a download"},
-        )
+        raise Problem(415, "actions.no_download", action=say(action.title))
     prepared = await perform(
         lambda: action.download(claims.node_ids, claims.params)
     )
@@ -503,7 +489,7 @@ async def download_finished_export(ticket: str) -> FileResponse:
     """
     claims = downloads.read_export_ticket(ticket)
     if claims is None:
-        raise HTTPException(status_code=404, detail="Export not found")
+        raise Problem(404, "connectors.export_not_found")
     scratch = await to_thread.run_sync(
         lambda: downloads.scratch_export_path(claims)
     )
@@ -513,7 +499,7 @@ async def download_finished_export(ticket: str) -> FileResponse:
         )
     )
     if path is None:
-        raise HTTPException(status_code=404, detail="Export not found")
+        raise Problem(404, "connectors.export_not_found")
     return FileResponse(
         path,
         media_type="text/csv",
@@ -652,7 +638,7 @@ async def delete_connector(
     )
     await crud.delete(session, connector=connector)
     await data_cache.invalidate_connector(connector_id)
-    return Message(message="Connector deleted successfully")
+    return Message(message=say("Connector deleted successfully"))
 
 
 class ConnectionCheckRequest(BaseModel):
@@ -774,13 +760,7 @@ async def describe_draft(
     """
     driver = adapter_type_or_422(body.adapter_type).adapter_class
     if not issubclass(driver, SupportsConnectionString):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source is not addressed by a connection string",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_connection_string", error_kind="config")
     try:
         adapter = await _draft_adapter(session, current_user, body)
     except HTTPException as exc:
@@ -832,13 +812,7 @@ async def describe_server_key(body: ServerKeyRequest) -> Any:
     """
     driver = adapter_type_or_422(body.adapter_type).adapter_class
     if not issubclass(driver, PinsServerKey):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not pin a server key",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_server_key", error_kind="config")
     try:
         pinned = driver.pinned_server_key(body.options)
         presented = (
@@ -899,13 +873,7 @@ async def parse_url(body: ConnectionStringRequest) -> Any:
     adapter_type = adapter_type_or_422(body.adapter_type)
     driver = adapter_type.adapter_class
     if not issubclass(driver, ParsesConnectionString):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source is not addressed by a connection string",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_connection_string", error_kind="config")
     try:
         return ParsedOptions(options=driver.options_from_url(body.url))
     except ValueError as exc:
@@ -958,13 +926,7 @@ async def fetch_rows(
     )
     adapter, access = source.adapter, source.access
     if not isinstance(adapter, SupportsFetch):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support reading rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_reading_rows", error_kind="config")
     try:
         result = await cached_read(
             data_cache=data_cache,
@@ -997,7 +959,7 @@ async def fetch_rows(
                 "export_reason": (
                     None
                     if isinstance(adapter, SupportsExport)
-                    else "This source cannot export all matching rows"
+                    else say("This source cannot export all matching rows")
                 ),
                 # What this relation offers to do to selected rows. Asked of
                 # the composed adapter for the reason export is: a capability
@@ -1027,7 +989,7 @@ async def fetch_rows(
         # After the cache and not before it: the page a source produced is the
         # same page for everyone, and what one caller may do with it is not.
         if not at_least(access, "write"):
-            return as_read_only(result, "You have read-only access to this connection")
+            return as_read_only(result, say("You have read-only access to this connection"))
         return result
     except ValueError as exc:
         # A column the relation does not have. Caught before any SQL is built,
@@ -1056,24 +1018,12 @@ async def read_content(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsContent):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support content viewers",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_content_viewers", error_kind="config")
     try:
         result = await adapter.read_content(request)
         if isinstance(result, ImageContent):
             if not isinstance(adapter, SupportsContentPreview):
-                raise HTTPException(
-                    status_code=501,
-                    detail={
-                        "message": "This source does not support content previews",
-                        "error_kind": "config",
-                    },
-                )
+                raise Problem(501, "connectors.no_content_previews", error_kind="config")
             ticket = content_tickets.issue_content_ticket(
                 user_id=current_user.id,
                 connector_id=connector_id,
@@ -1084,13 +1034,7 @@ async def read_content(
             )
         if isinstance(result, STREAMED_CONTENT):
             if not isinstance(adapter, SupportsContentStream):
-                raise HTTPException(
-                    status_code=501,
-                    detail={
-                        "message": "This source does not stream content",
-                        "error_kind": "config",
-                    },
-                )
+                raise Problem(501, "connectors.no_content_stream", error_kind="config")
             stream_ticket = content_tickets.issue_stream_ticket(
                 representation=result.kind,
                 user_id=current_user.id,
@@ -1128,20 +1072,14 @@ async def read_editor_content(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsContentEdit):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support editing content",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_content_editing", error_kind="config")
     try:
         result = await adapter.read_editor_content(request)
         if not at_least(access, "write"):
             return result.model_copy(
                 update={
                     "writable": False,
-                    "reason": "You have read-only access to this connection",
+                    "reason": say("You have read-only access to this connection"),
                 }
             )
         return result
@@ -1172,13 +1110,7 @@ async def update_content(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsContentEdit):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support editing content",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_content_editing", error_kind="config")
     try:
         # A file written in place changes the text a connection may keep (D216).
         return await _invalidate_after(
@@ -1189,12 +1121,7 @@ async def update_content(
             renames=True,
         )
     except ContentConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "The file changed or was deleted; reload it and try again"
-            },
-        ) from None
+        raise Problem(409, "connectors.file_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1230,13 +1157,7 @@ async def read_catalog(
     if not isinstance(adapter, SupportsCatalog):
         # Browsing is an optional capability: a queue or a plain HTTP source
         # has no catalog to walk.
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support browsing",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_browsing", error_kind="config")
     try:
         return await cached_read(
             data_cache=data_cache,
@@ -1276,21 +1197,26 @@ async def read_source_features(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsSourceFeatures):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not report runtime features",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_runtime_features", error_kind="config")
     response.headers["Cache-Control"] = "no-store"
     try:
-        return await adapter.source_features()
+        observed = await adapter.source_features()
     except AdapterError as exc:
         raise HTTPException(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from exc
+    # A profile is cached per adapter, so its words are English until here (D226).
+    return observed.model_copy(
+        update={
+            "features": [
+                feature.model_copy(
+                    update={"title": say(feature.title), "reason": say_if(feature.reason)}
+                )
+                for feature in observed.features
+            ]
+        }
+    )
 
 
 @router.post(
@@ -1372,10 +1298,7 @@ async def keep_page(
             detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
         ) from None
     except OSError:
-        raise HTTPException(
-            status_code=507,
-            detail={"message": "The page could not be stored", "error_kind": "config"},
-        ) from None
+        raise Problem(507, "connectors.page_not_stored", error_kind="config") from None
     return downloads.KeptDownload(filename=path.name, row_count=len(result.rows))
 
 
@@ -1396,13 +1319,7 @@ async def _page_for_download(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsFetch):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support reading rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_reading_rows", error_kind="config")
     fetch_request = FetchRequest.model_validate(
         request.model_dump(exclude={"title", "columns"})
     )
@@ -1464,10 +1381,7 @@ async def export_all_rows(
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from None
     except OSError:
-        raise HTTPException(
-            status_code=507,
-            detail={"message": "The export could not be stored", "error_kind": "config"},
-        ) from None
+        raise Problem(507, "connectors.export_not_stored", error_kind="config") from None
 
     ticket = downloads.issue_export_ticket(
         user_id=current_user.id,
@@ -1521,22 +1435,13 @@ async def keep_all_rows(
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from None
     except OSError:
-        raise HTTPException(
-            status_code=507,
-            detail={"message": "The export could not be stored", "error_kind": "config"},
-        ) from None
+        raise Problem(507, "connectors.export_not_stored", error_kind="config") from None
     return downloads.KeptDownload(filename=path.name, row_count=row_count)
 
 
 def _exporting_adapter(adapter: object) -> SupportsExport:
     if not isinstance(adapter, SupportsExport):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support exporting all rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_export_all", error_kind="config")
     return adapter
 
 
@@ -1554,22 +1459,13 @@ async def update_cell(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsUpdate):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support editing rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_row_editing", error_kind="config")
     try:
         return await _invalidate_after(
             lambda: adapter.update_cell(request), data_cache, connector_id
         )
     except RowConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "The row changed or was deleted; reload it and try again"},
-        ) from None
+        raise Problem(409, "connectors.row_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1602,20 +1498,11 @@ async def update_cells(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsUpdate):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot change rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_row_changes", error_kind="config")
     try:
         result = await adapter.update_cells(request)
     except RowConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "A row changed or was deleted; reload and try again"},
-        ) from None
+        raise Problem(409, "connectors.rows_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1645,13 +1532,7 @@ async def insert_row(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsInsert):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support inserting rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_row_inserts", error_kind="config")
     try:
         return await _invalidate_after(
             lambda: adapter.insert_row(request), data_cache, connector_id
@@ -1682,24 +1563,13 @@ async def delete_rows(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsDelete):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support deleting rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_row_deletes", error_kind="config")
     try:
         return await _invalidate_after(
             lambda: adapter.delete_rows(request), data_cache, connector_id
         )
     except RowConflict:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": "One or more rows changed or were deleted; reload and try again"
-            },
-        ) from None
+        raise Problem(409, "connectors.rows_changed") from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1732,7 +1602,7 @@ async def _import_sides(
             detail=[
                 {
                     "loc": ["body", "source_connector_id"],
-                    "msg": "That is not a connector id",
+                    "msg": say("That is not a connector id"),
                     "type": "value_error",
                 }
             ],
@@ -1744,13 +1614,7 @@ async def _import_sides(
         session, source_id, current_user, resources, requires="read"
     )
     if not isinstance(source, SupportsFetch):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "That source cannot be read as rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.source_not_rows", error_kind="config")
     return target, source
 
 
@@ -1826,13 +1690,7 @@ async def import_rows(
         session, connector_id, request, current_user, resources
     )
     if not isinstance(target, SupportsInsert):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot accept rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_row_import", error_kind="config")
     result, truncated = await _shape_change(
         lambda: imports.insert_from_source(target, source, request)
     )
@@ -1845,7 +1703,7 @@ async def import_rows(
             detail=[
                 {
                     "loc": ["body", "rows", cell.row, cell.column],
-                    "msg": f"{cell.value!r} cannot be read by {cell.column}",
+                    "msg": say("{value} cannot be read by {column}", value=repr(cell.value), column=cell.column),
                     "type": "value_error",
                 }
                 for cell in result.cells
@@ -1890,31 +1748,15 @@ async def run_row_command(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsRowCommands):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source has no commands over rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_row_commands", error_kind="config")
     offered = {
         command.name: command for command in adapter.row_commands(body.node_id)
     }
     command = offered.get(body.name)
     if command is None:
-        raise HTTPException(
-            status_code=404,
-            detail={"message": f"Unknown row command: {body.name}"},
-        )
+        raise Problem(404, "actions.unknown_row_command", name=body.name)
     if not at_least(access, command.requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"{command.title} needs {command.requires} access",
-                "required": command.requires,
-                "held": access,
-            },
-        )
+        raise Problem(403, ACTION_NEEDS[command.requires], action=say(command.title))
     try:
         result = await adapter.run_row_command(body.node_id, body.name, body.keys)
     except UnknownRowCommand as exc:
@@ -1962,27 +1804,15 @@ async def resolve_picked_rows(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsPickedRows):
-        raise HTTPException(
-            status_code=501,
-            detail={"message": "This source offers nothing over picked rows", "error_kind": "config"},
-        )
+        raise Problem(501, "connectors.no_picked_row_actions", error_kind="config")
     offered = {
         item.action: item for item in adapter.picked_rows_actions(body.node_id)
     }
     found = offered.get(body.action)
     if found is None:
-        raise HTTPException(
-            status_code=404, detail={"message": f"Nothing called {body.action} is offered here"}
-        )
+        raise Problem(404, "actions.not_offered", name=body.action)
     if not at_least(access, found.requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"{found.title} needs {found.requires} access",
-                "required": found.requires,
-                "held": access,
-            },
-        )
+        raise Problem(403, ACTION_NEEDS[found.requires], action=say(found.title))
     return await perform(
         lambda: adapter.resolve_picked_rows(body.node_id, body.action, body.keys)
     )
@@ -2001,13 +1831,7 @@ async def new_relation_options(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(target, SupportsCreateRelation):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot create relations",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_relation_create", error_kind="config")
     return await _shape_change(
         lambda: target.new_relation_options(request.parent_node_id)
     )
@@ -2032,7 +1856,7 @@ async def create_relation_from_source(
             detail=[
                 {
                     "loc": ["body", "source_connector_id"],
-                    "msg": "That is not a connector id",
+                    "msg": say("That is not a connector id"),
                     "type": "value_error",
                 }
             ],
@@ -2044,32 +1868,16 @@ async def create_relation_from_source(
         session, source_id, current_user, resources, requires="read"
     )
     if not isinstance(target, SupportsCreateRelation):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot create relations",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_relation_create", error_kind="config")
     if not isinstance(source, SupportsFetch):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "That source cannot be read as rows",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.source_not_rows", error_kind="config")
     try:
         result = await _shape_change(
             lambda: imports.create_from_source(target, source, request)
         )
     except imports.SourceTooLarge:
-        raise HTTPException(
-            status_code=413,
-            detail={
-                "message": "A new table may be filled with at most "
-                f"{imports.IMPORT_CEILING} rows"
-            },
+        raise Problem(
+            413, "connectors.import_too_many_rows", limit=imports.IMPORT_CEILING
         ) from None
     if not isinstance(result, RelationCreated):
         raise HTTPException(
@@ -2077,7 +1885,7 @@ async def create_relation_from_source(
             detail=[
                 {
                     "loc": ["body", "rows", cell.row, cell.column],
-                    "msg": f"{cell.value!r} cannot be read by {cell.column}",
+                    "msg": say("{value} cannot be read by {column}", value=repr(cell.value), column=cell.column),
                     "type": "value_error",
                 }
                 for cell in result.cells
@@ -2146,23 +1954,11 @@ async def follow_reference(
                 connector,
             )
         if not isinstance(adapter, SupportsReferences):
-            raise HTTPException(
-                status_code=501,
-                detail={
-                    "message": "This source has no references to follow",
-                    "error_kind": "config",
-                },
-            )
+            raise Problem(501, "connectors.no_references", error_kind="config")
         if request.direction == "incoming" and not isinstance(
             adapter, SupportsArrivingReferences
         ):
-            raise HTTPException(
-                status_code=501,
-                detail={
-                    "message": "This source cannot say what points at a relation",
-                    "error_kind": "config",
-                },
-            )
+            raise Problem(501, "connectors.no_referrers", error_kind="config")
         return _in_connection(await adapter.follow_reference(request), connector)
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
@@ -2202,13 +1998,7 @@ async def arriving_references(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsArrivingReferences):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot say what points at a relation",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_referrers", error_kind="config")
     try:
         return await adapter.arriving_references(request.node_id)
     except NodeNotFound as exc:
@@ -2238,18 +2028,12 @@ async def read_relation_model(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsRelationModel):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not describe relations",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_relation_description", error_kind="config")
     try:
         model = await adapter.relation_model(node_id)
         if not at_least(access, "structure"):
             return without_structure_changes(
-                model, "You may not change the structure of this connection"
+                model, say("You may not change the structure of this connection")
             )
         return model
     except NodeNotFound as exc:
@@ -2325,13 +2109,7 @@ async def search_catalog(
     if not isinstance(adapter, SupportsNodeSearch) or not searches_its_catalog(
         type(adapter)
     ):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot be searched",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_search", error_kind="config")
     try:
         async with _until_gone(request) as gone:
             return await adapter.search_nodes(
@@ -2385,13 +2163,7 @@ async def search_catalog_contents(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SearchesContents):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot be searched inside its files",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_file_search", error_kind="config")
     try:
         return await adapter.search_contents(
             NodeSearchRequest(node_id=node_id, query=query, limit=limit)
@@ -2434,13 +2206,7 @@ async def read_node_summary(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsNodeSummary):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not describe its nodes",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_node_description", error_kind="config")
     try:
         return await adapter.node_summary(node_id)
     except NodeNotFound as exc:
@@ -2496,13 +2262,7 @@ async def add_column(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsAddColumn):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support adding columns",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_add_column", error_kind="config")
     return await _invalidate_after(
         lambda: _change_column(lambda: adapter.add_column(request)),
         data_cache,
@@ -2524,13 +2284,7 @@ async def drop_column(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsDropColumn):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support dropping columns",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_drop_column", error_kind="config")
     return await _invalidate_after(
         lambda: _change_column(lambda: adapter.drop_column(request)),
         data_cache,
@@ -2552,13 +2306,7 @@ async def rename_column(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsRenameColumn):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support renaming columns",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_rename_column", error_kind="config")
     return await _invalidate_after(
         lambda: _change_column(lambda: adapter.rename_column(request)),
         data_cache,
@@ -2580,13 +2328,7 @@ async def change_column_default(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsColumnDefault):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support changing column defaults",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_column_default", error_kind="config")
     return await _invalidate_after(
         lambda: _change_column(lambda: adapter.change_column_default(request)),
         data_cache,
@@ -2635,13 +2377,7 @@ async def change_column_nullability(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsColumnNullability):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support changing nullability",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_column_nullability", error_kind="config")
     result = await _change_column_nullability(adapter, request)
     if isinstance(result, NullabilityChanged):
         await data_cache.invalidate_connector(connector_id)
@@ -2687,13 +2423,7 @@ async def change_column_type(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsColumnType):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support changing column types",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_column_type", error_kind="config")
     result = await _change_column_type(adapter, request)
     if isinstance(result, ColumnTypeChanged):
         await data_cache.invalidate_connector(connector_id)
@@ -2728,13 +2458,7 @@ async def _indexing_adapter(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsIndexes):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support changing indexes",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_indexes", error_kind="config")
     return adapter
 
 
@@ -2789,13 +2513,7 @@ async def _designing_adapter(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsTableDesign):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot design a table",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_table_design", error_kind="config")
     return adapter
 
 
@@ -2861,13 +2579,7 @@ async def hypertable_design_state(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsHypertableDesign):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source has no hypertables to design",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_hypertables", error_kind="config")
     return await _shape_change(lambda: adapter.hypertable_design_state(request.node_id))
 
 
@@ -2881,13 +2593,7 @@ async def _constraining_adapter(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsConstraints):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support changing constraints",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_constraints", error_kind="config")
     return adapter
 
 
@@ -2958,13 +2664,7 @@ async def read_node_path(
     if not isinstance(adapter, SupportsNodePath):
         # A source may be able to list children without being able to walk
         # back up: its ids can be opaque handles from someone else's API.
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source cannot say where a node lives",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "connectors.no_node_location", error_kind="config")
     try:
         return await adapter.path_to(node_id)
     except NodeNotFound as exc:
@@ -3064,7 +2764,7 @@ class ActionSetRequest(BaseModel):
 def _describe(action: Action[Any], availability: ActionAvailability) -> ActionInfo:
     return ActionInfo(
         name=action.name,
-        title=action.title,
+        title=say(action.title),
         destructive=action.destructive,
         takes_file=isinstance(action, TakesFile),
         takes_many_files=action.many_files,
@@ -3082,9 +2782,9 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         offers_hints=isinstance(action, OffersFieldHints),
         applicable=availability.applicable,
         available_node_ids=availability.available_node_ids,
-        unavailable_reason=availability.unavailable_reason,
-        question=action.question,
-        params_schema=action.params_schema(),
+        unavailable_reason=say_if(availability.unavailable_reason),
+        question=say_if(action.question),
+        params_schema=say_schema(action.params_schema()),
     )
 
 
@@ -3093,19 +2793,14 @@ async def _action_for_nodes(
 ) -> Action[Any]:
     """One bulk action admitted by every selected node, checked together."""
     if len(set(node_ids)) != len(node_ids):
-        raise HTTPException(
-            status_code=422, detail={"message": "A node may be selected only once"}
-        )
+        raise Problem(422, "actions.node_repeated")
     action: Action[Any] | None = None
     for node_id in node_ids:
         action = await action_for_node(adapter, action_name, node_id)
     if action is None:
-        raise HTTPException(status_code=422, detail={"message": "Choose a node"})
+        raise Problem(422, "actions.no_node")
     if len(node_ids) > 1 and not action.bulk:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": f"{action.title} cannot be done in bulk"},
-        )
+        raise Problem(422, "actions.not_bulk", action=say(action.title))
     return action
 
 
@@ -3176,10 +2871,7 @@ async def prepare_connector_action(
     )
     allowed_or_403(action, access)
     if not isinstance(action, PreparesConnector):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not prepare a connector"},
-        )
+        raise Problem(415, "actions.no_connector", action=say(action.title))
     return await perform(lambda: action.prepare_connector(body.node_id, body.params))
 
 
@@ -3207,7 +2899,7 @@ async def run_action(
     if isinstance(action, RequiresReviewedPlan):
         fingerprint = body.reviewed_fingerprint
         if fingerprint is None:
-            raise HTTPException(status_code=422, detail={"message": "Review the operation plan before running it"})
+            raise Problem(422, "actions.plan_not_reviewed")
         return await _invalidate_after(
             lambda: perform(lambda: action.perform_reviewed(body.node_id, body.params, fingerprint)),
             data_cache,
@@ -3216,10 +2908,7 @@ async def run_action(
             names=names,
         )
     if not isinstance(action, TakesParams):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} uses a different request transport"},
-        )
+        raise Problem(415, "actions.other_transport", action=say(action.title))
     return await _invalidate_after(
         lambda: perform(lambda: action.perform(body.node_id, body.params)),
         data_cache,
@@ -3258,13 +2947,7 @@ async def preview_action(
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
     if not isinstance(action, Previews):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": f"{action.title} cannot say what it would do first",
-                "error_kind": "config",
-            },
-        )
+        raise Problem(501, "actions.no_preview_first", error_kind="config", action=say(action.title))
     return await perform(lambda: action.preview(target, body.params))
 
 
@@ -3294,10 +2977,7 @@ async def action_field_hints(
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
     if not isinstance(action, OffersFieldHints):
-        raise HTTPException(
-            status_code=501,
-            detail={"message": f"{action.title} offers no hints", "error_kind": "config"},
-        )
+        raise Problem(501, "actions.no_hints", error_kind="config", action=say(action.title))
     return await perform(lambda: action.field_hints(target))
 
 
@@ -3329,10 +3009,7 @@ async def run_action_on_set(
     )
     allowed_or_403(action, access)
     if not isinstance(action, TakesNodeSet):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} is done to one node at a time"},
-        )
+        raise Problem(415, "actions.one_node_at_a_time", action=say(action.title))
     return await _invalidate_after(
         lambda: perform(lambda: action.perform_on_set(body.node_ids, body.params)),
         data_cache,
@@ -3363,10 +3040,7 @@ async def preview_action_on_set(
     )
     allowed_or_403(action, access)
     if not isinstance(action, PreviewsSet):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} cannot say what it would do"},
-        )
+        raise Problem(415, "actions.no_preview", action=say(action.title))
     return await perform(lambda: action.preview_on_set(body.node_ids, body.params))
 
 
@@ -3391,10 +3065,7 @@ async def prepare_action_download(
     )
     allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not produce a download"},
-        )
+        raise Problem(415, "actions.no_download", action=say(action.title))
     ticket = action_downloads.issue_action_download_ticket(
         user_id=current_user.id,
         connector_id=connector_id,
@@ -3435,22 +3106,14 @@ async def run_action_with_file(
     action = await action_for_node(acting_or_501(adapter), action_name, target)
     allowed_or_403(action, access)
     if not isinstance(action, TakesFile):
-        raise HTTPException(
-            status_code=415,
-            detail={"message": f"{action.title} does not take a file"},
-        )
+        raise Problem(415, "actions.no_file", action=say(action.title))
 
     try:
         given = json.loads(params)
     except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={"message": "The params field is not valid JSON"},
-        ) from exc
+        raise Problem(422, "actions.params_not_json") from exc
     if not isinstance(given, dict):
-        raise HTTPException(
-            status_code=422, detail={"message": "The params field must be an object"}
-        )
+        raise Problem(422, "actions.params_not_object")
 
     return await _invalidate_after(
         lambda: perform(lambda: action.perform_with_file(target, given, file)),
@@ -3506,7 +3169,7 @@ async def write_grant(
             detail=[
                 {
                     "loc": ["body", "user_id"],
-                    "msg": "You already own this connection",
+                    "msg": say("You already own this connection"),
                     "type": "value_error",
                 }
             ],
@@ -3518,7 +3181,7 @@ async def write_grant(
             detail=[
                 {
                     "loc": ["body", "user_id"],
-                    "msg": "No such user",
+                    "msg": say("No such user"),
                     "type": "value_error",
                 }
             ],
@@ -3554,5 +3217,5 @@ async def revoke_grant(
     if not await crud.remove_grant(
         session, connector_id=connector_id, user_id=user_id
     ):
-        raise HTTPException(status_code=404, detail="Grant not found")
-    return Message(message="Access revoked")
+        raise Problem(404, "access.grant_not_found")
+    return Message(message=say("Access revoked"))

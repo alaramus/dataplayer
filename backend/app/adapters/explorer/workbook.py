@@ -22,6 +22,7 @@ from app.adapters.delimited import fit, usable_names
 from app.adapters.explorer.readers import Page, matcher, select
 from app.adapters.fetch import FetchColumn, Filter
 from app.adapters.relation import ColumnType
+from app.core.translation import say
 
 # A workbook is a zip, so its size on disk says nothing about what opening it
 # costs. Both ceilings are read from metadata: the file's own size, and the
@@ -91,7 +92,7 @@ def read_page(
         names = _header(rows)
         if names is None:
             if filters:
-                raise ValueError("This sheet has no columns to filter by")
+                raise ValueError(say("This sheet has no columns to filter by"))
             return Page(columns=[], rows=[], has_more=False, positions=[])
 
         match = matcher(filters, names)
@@ -150,8 +151,11 @@ def _header(rows: Iterator[Any]) -> list[str] | None:
         return None
     if len(first) > MAX_COLUMNS:
         raise ValueError(
-            f"This sheet has more than {MAX_COLUMNS} columns, "
-            "which is more than one page may carry"
+            say(
+                "This sheet has more than {count} columns, "
+                "which is more than one page may carry",
+                count=MAX_COLUMNS,
+            )
         )
     return usable_names([_header_text(value) for value in first])
 
@@ -191,7 +195,7 @@ def _worksheet(workbook: Workbook, position: int) -> Any:
     """
     worksheets = workbook.worksheets
     if position < 1 or position > len(worksheets):
-        raise ValueError(f"This workbook has no sheet {position}")
+        raise ValueError(say("This workbook has no sheet {position}", position=position))
     return worksheets[position - 1]
 
 
@@ -214,11 +218,11 @@ class _opened:
                 self._path, read_only=True, data_only=True
             )
         except zipfile.BadZipFile:
-            raise NotAWorkbook("This file is not a workbook") from None
+            raise NotAWorkbook(say("This file is not a workbook")) from None
         except (KeyError, ValueError, TypeError) as exc:
             # openpyxl raises whatever the malformed part of the package makes
             # it raise. The reason is ours, and never the library's text.
-            raise NotAWorkbook("This workbook could not be read") from exc
+            raise NotAWorkbook(say("This workbook could not be read")) from exc
         return self._workbook
 
     def __exit__(self, *_: object) -> None:
@@ -234,19 +238,26 @@ def _guard(path: Path) -> None:
     size = path.stat().st_size
     if size > MAX_WORKBOOK_BYTES:
         raise ValueError(
-            f"This workbook is larger than {MAX_WORKBOOK_BYTES // (1024 * 1024)} MB"
+            say(
+                "This workbook is larger than {megabytes} MB",
+                megabytes=MAX_WORKBOOK_BYTES // (1024 * 1024),
+            )
         )
     try:
         with zipfile.ZipFile(path) as archive:
             entries: Sequence[zipfile.ZipInfo] = archive.infolist()
     except zipfile.BadZipFile:
-        raise NotAWorkbook("This file is not a workbook") from None
+        raise NotAWorkbook(say("This file is not a workbook")) from None
 
     if len(entries) > MAX_ENTRIES:
-        raise ValueError(f"This workbook holds more than {MAX_ENTRIES} parts")
+        raise ValueError(
+            say("This workbook holds more than {count} parts", count=MAX_ENTRIES)
+        )
     declared = sum(entry.file_size for entry in entries)
     if declared > MAX_UNPACKED_BYTES:
         raise ValueError(
-            "This workbook unpacks to more than "
-            f"{MAX_UNPACKED_BYTES // (1024 * 1024)} MB"
+            say(
+                "This workbook unpacks to more than {megabytes} MB",
+                megabytes=MAX_UNPACKED_BYTES // (1024 * 1024),
+            )
         )

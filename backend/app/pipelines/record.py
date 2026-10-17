@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.connectors.paste.models import PasteRun
 from app.connectors.paste.transfer import Transfer
+from app.core.translation import say
 from app.pipelines.models import MAX_LABEL, MAX_LINKS, MAX_NAME
 
 # `waiting` has not started; `not_run` never will, the run having stopped
@@ -81,31 +82,45 @@ class RunRecord(_Strict):
 
     def _rest(self, said: str) -> str:
         rest = sum(1 for step in self.steps if step.outcome in ("waiting", "not_run"))
-        return clipped(said if rest == 0 else f"{said}; {rest} not run", JOB_SAYS)
+        return clipped(
+            said if rest == 0 else say("{said}; {count} not run", said=said, count=rest), JOB_SAYS
+        )
 
     def ran(self) -> str:
         """The run's sentence when no step failed."""
         done = sum(1 for step in self.steps if step.outcome == "done")
         if done < len(self.steps):
             # A link reading what another made nothing of in this run (D178).
-            return self._rest(f"{done} of {len(self.steps)} links ran")
+            return self._rest(say("{done} of {count} links ran", done=done, count=len(self.steps)))
         if len(self.steps) == 1:
-            return clipped(self.steps[0].message or "Its one link ran", JOB_SAYS)
-        return f"All {len(self.steps)} links ran"
+            return clipped(self.steps[0].message or say("Its one link ran"), JOB_SAYS)
+        return say("All {count} links ran", count=len(self.steps))
 
     def failed_at(self, index: int) -> str:
         """The run's sentence when the step at `index` failed."""
         step = self.steps[index]
-        said = f"Stopped at {index + 1} of {len(self.steps)}, {step.title}"
-        return self._rest(f"{said}: {step.message}" if step.message else said)
+        at, count, title = index + 1, len(self.steps), step.title
+        if step.message:
+            return self._rest(
+                say(
+                    "Stopped at {at} of {count}, {title}: {reason}",
+                    at=at, count=count, title=title, reason=step.message,
+                )
+            )
+        return self._rest(say("Stopped at {at} of {count}, {title}", at=at, count=count, title=title))
 
     def stopped(self) -> str:
         """The run's sentence when its owner stopped it."""
         count = len(self.steps)
         at = next((index for index, step in enumerate(self.steps) if step.outcome == "failed"), None)
         if at is not None:
-            return self._rest(f"Stopped on request at {at + 1} of {count}, {self.steps[at].title}")
+            return self._rest(
+                say(
+                    "Stopped on request at {at} of {count}, {title}",
+                    at=at + 1, count=count, title=self.steps[at].title,
+                )
+            )
         done = sum(1 for step in self.steps if step.outcome == "done")
         if done == 0:
-            return self._rest("Stopped on request before its first link")
-        return self._rest(f"Stopped on request after {done} of {count}")
+            return self._rest(say("Stopped on request before its first link"))
+        return self._rest(say("Stopped on request after {done} of {count}", done=done, count=count))

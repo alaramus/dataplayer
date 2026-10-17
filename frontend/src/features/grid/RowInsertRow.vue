@@ -4,6 +4,7 @@ import { reactive, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { FetchColumn, InsertValue } from "@/client"
+import { t } from "@/shared/i18n"
 import { AppIconButton, AppInput, AppSelect } from "@/shared/ui"
 
 export interface InsertGridColumn {
@@ -54,8 +55,8 @@ watch(
 function options(column: FetchColumn) {
   if (column.type.category === "boolean") {
     return [
-      { label: "True", value: "true" },
-      { label: "False", value: "false" },
+      { label: t("grid.cell_editor.true"), value: "true" },
+      { label: t("grid.cell_editor.false"), value: "false" },
     ]
   }
   return column.type.enum_values ?? []
@@ -147,7 +148,7 @@ function handleKey(event: KeyboardEvent) {
       <div class="row-insert__actions">
         <AppIconButton
           :icon="appIcons.check"
-          tooltip="Insert row"
+          :tooltip="t('grid.toolbar.commands.insert')"
           compact
           :loading="saving"
           data-testid="grid-insert-save"
@@ -155,7 +156,7 @@ function handleKey(event: KeyboardEvent) {
         />
         <AppIconButton
           :icon="appIcons.contentPaste"
-          tooltip="Fill these fields from a copied row"
+          :tooltip="t('grid.insert.paste')"
           compact
           :disable="saving"
           data-testid="grid-insert-paste"
@@ -163,7 +164,7 @@ function handleKey(event: KeyboardEvent) {
         />
         <AppIconButton
           :icon="appIcons.close"
-          tooltip="Cancel insertion"
+          :tooltip="t('grid.insert.cancel')"
           compact
           :disable="saving"
           data-testid="grid-insert-cancel"
@@ -202,7 +203,7 @@ function handleKey(event: KeyboardEvent) {
               ? '<null>'
               : included[entry.column.name] === true
                 ? ''
-                : '<default>'
+                : t('grid.insert.default_placeholder')
           "
           :disable="nulls[entry.column.name] === true || saving"
           compact
@@ -214,7 +215,7 @@ function handleKey(event: KeyboardEvent) {
           <AppIconButton
             v-if="entry.column.insert_required !== true && included[entry.column.name] === true"
             :icon="appIcons.restartAlt"
-            :tooltip="`Use the default for ${entry.column.name}`"
+            :tooltip="t('grid.insert.use_default', { column: entry.column.name })"
             :disable="saving"
             :data-testid="`grid-insert-default-${entry.column.name}`"
             @click="useDefault(entry.column)"
@@ -224,8 +225,8 @@ function handleKey(event: KeyboardEvent) {
             :icon="nulls[entry.column.name] === true ? appIcons.doNotDisturbOn : appIcons.block"
             :tooltip="
               nulls[entry.column.name] === true
-                ? `Enter a value for ${entry.column.name}`
-                : `Set ${entry.column.name} to SQL NULL`
+                ? t('grid.insert.enter_value', { column: entry.column.name })
+                : t('grid.insert.set_null', { column: entry.column.name })
             "
             :disable="saving"
             :data-testid="`grid-insert-null-${entry.column.name}`"

@@ -95,7 +95,7 @@ class CacheNamespace:
         request_digest = hashlib.sha256(key.request.encode()).hexdigest()
         return (
             f"{self._prefix}:user:{key.owner_id}:connector:{key.connector_id}:"
-            f"generation:{generation}:{key.area}:{request_digest}"
+            f"generation:{generation}:{key.area}:{key.language}:{request_digest}"
         )
 
     def associated_data(self, key: CacheKey, generation: int) -> bytes:

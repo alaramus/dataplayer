@@ -6,8 +6,9 @@
 
 import type { HistoryRun, PipelineHistory, PipelineRunPublic } from "@/client"
 import { elapsed } from "@/features/queries/console"
+import { t } from "@/shared/i18n"
 
-import { TIME } from "./schedule"
+import { clockOf, dayMonth } from "./schedule"
 
 export type HistoryRow = PipelineHistory["rows"][number]
 
@@ -22,33 +23,23 @@ export interface HistoryLine {
 }
 
 /** What a run that ended with no sentence of its own says instead. */
-const ENDED: Record<HistoryRun["state"], string> = {
-  queued: "Waiting to start",
-  running: "Running",
-  succeeded: "Done",
-  failed: "Failed",
-  cancelled: "Stopped",
-  interrupted: "Interrupted",
+function ended(state: HistoryRun["state"]): string {
+  return t(`pipelines.history.states.${state}`)
 }
-
-// Named here rather than by the locale: ICU versions shorten September as
-// "Sep" or as "Sept", so one browser would name a run differently from another.
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const
 
 /** A moment in this browser's clock, with the year only when it is not this one: "26 Sep 03:00". */
 export function momentWords(at: string, now: number): string {
   const moment = new Date(Date.parse(at))
-  const year = moment.getFullYear() === new Date(now).getFullYear() ? "" : ` ${String(moment.getFullYear())}`
-  const day = `${String(moment.getDate())} ${MONTHS[moment.getMonth()] ?? ""}${year}`
-  return `${day} ${moment.toLocaleTimeString("en-GB", TIME)}`
+  const thisYear = moment.getFullYear() === new Date(now).getFullYear()
+  return `${dayMonth(moment, !thisYear)} ${clockOf(moment)}`
 }
 
 function took(run: HistoryRun, now: number): string | null {
   const started = Date.parse(run.started_at)
   if (run.state === "queued") return null
-  if (run.state === "running") return `${elapsed(Math.max(0, now - started))} so far`
+  if (run.state === "running") return t("pipelines.history.so_far", { time: elapsed(Math.max(0, now - started)) })
   const finished = Date.parse(run.finished_at ?? "")
-  return Number.isNaN(finished) ? null : `took ${elapsed(Math.max(0, finished - started))}`
+  return Number.isNaN(finished) ? null : t("pipelines.history.took", { time: elapsed(Math.max(0, finished - started)) })
 }
 
 export function historyLine(row: HistoryRow, now: number): HistoryLine {
@@ -56,8 +47,8 @@ export function historyLine(row: HistoryRow, now: number): HistoryLine {
     return {
       key: `${row.kind}:${row.at}`,
       jobId: null,
-      said: `${row.kind === "skipped" ? "Skipped" : "Missed"}: ${row.reason}`,
-      detail: `${momentWords(row.at, now)} · by the schedule`,
+      said: t(row.kind === "skipped" ? "pipelines.history.skipped" : "pipelines.history.missed", { reason: row.reason }),
+      detail: `${momentWords(row.at, now)} · ${t("pipelines.history.by_schedule")}`,
       tone: "muted",
     }
   }
@@ -65,10 +56,10 @@ export function historyLine(row: HistoryRow, now: number): HistoryLine {
   return {
     key: row.job_id,
     jobId: row.job_id,
-    said: going ? ENDED[row.state] : row.message ?? ENDED[row.state],
+    said: going ? ended(row.state) : row.message ?? ended(row.state),
     detail: [
       momentWords(row.started_at, now),
-      row.scheduled ? "by the schedule" : "by hand",
+      t(row.scheduled ? "pipelines.history.by_schedule" : "pipelines.history.by_hand"),
       took(row, now),
     ].filter((part) => part !== null).join(" · "),
     tone: row.state === "failed" || row.state === "interrupted" ? "caution" : "plain",
@@ -77,5 +68,5 @@ export function historyLine(row: HistoryRow, now: number): HistoryLine {
 
 /** The strip over the canvas while an older run is shown: "Showing the run of 26 Sep 03:00". */
 export function shownWords(run: PipelineRunPublic, now: number): string {
-  return `Showing the run of ${momentWords(run.started_at, now)}`
+  return t("pipelines.history.showing", { when: momentWords(run.started_at, now) })
 }

@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppButton, AppCheckbox, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
 
 import { functionChoices, useDesign } from "./design"
@@ -35,7 +36,7 @@ const indexFunctions = computed(() => functionChoices(design.functions.value, "i
  * method, and offering GIN's to a B-tree index is offering a refusal.
  */
 const operatorClasses = computed(() => [
-  { label: "The usual one", value: "" },
+  { label: t("table_design.index.usual_class"), value: "" },
   ...(design.options.value?.operator_classes ?? [])
     .filter((option) => option.method === method.value?.sql)
     .map((option) => ({ label: option.title, value: option.code })),
@@ -45,6 +46,21 @@ const operatorClasses = computed(() => [
 // options rather than decided here: which methods take INCLUDE is a fact about
 // the server.
 const carries = computed(() => ["btree", "gist"].includes(index.value?.method ?? ""))
+
+const directions = computed(() => [
+  { label: t("table_design.index.default"), value: "" },
+  { label: "ASC", value: "asc" },
+  { label: "DESC", value: "desc" },
+])
+const nullsOrders = computed(() => [
+  { label: t("table_design.index.default"), value: "" },
+  { label: "FIRST", value: "first" },
+  { label: "LAST", value: "last" },
+])
+const keyKinds = computed(() => [
+  { label: t("table_design.column_label"), value: "column" },
+  { label: t("table_design.index.function_of_column"), value: "expression" },
+])
 
 const keyed = computed(() => new Set((index.value?.keys ?? []).map((key) => key.columnId)))
 const carriable = computed(() =>
@@ -90,20 +106,20 @@ function include(columnId: string, checked: boolean): void {
   >
     <AppInput
       v-model="index.name"
-      label="Index name"
-      placeholder="Automatic name"
+      :label="t('table_design.index.name')"
+      :placeholder="t('table_design.automatic_name')"
       data-testid="index-name"
     />
     <div class="inspector__row">
       <AppSelect
         v-model="index.method"
         :options="methods"
-        label="Access method"
+        :label="t('table_design.index.method')"
         data-testid="index-method"
       />
       <AppCheckbox
         v-model="index.unique"
-        label="Unique"
+        :label="t('table_design.unique')"
         dense
         :disable="method?.unique_supported === false"
         data-testid="index-unique"
@@ -111,12 +127,12 @@ function include(columnId: string, checked: boolean): void {
     </div>
     <div class="inspector__legend">
       <h3 class="dp-overline">
-        Index keys · in order
+        {{ t('table_design.index.keys') }}
       </h3>
       <AppButton
         variant="quiet"
         :icon="appIcons.add"
-        label="Key"
+        :label="t('table_design.index.key')"
         data-testid="index-add-key"
         @click="addKey"
       />
@@ -129,30 +145,22 @@ function include(columnId: string, checked: boolean): void {
       <AppSelect
         v-model="key.columnId"
         :options="design.columnChoices.value"
-        label="Column"
+        :label="t('table_design.column_label')"
         :data-testid="`index-key-column-${String(at)}`"
       />
       <AppSelect
         v-model="key.direction"
-        :options="[
-          { label: 'Default', value: '' },
-          { label: 'ASC', value: 'asc' },
-          { label: 'DESC', value: 'desc' },
-        ]"
-        label="Order"
+        :options="directions"
+        :label="t('table_design.index.order')"
       />
       <AppSelect
         v-model="key.nulls"
-        :options="[
-          { label: 'Default', value: '' },
-          { label: 'FIRST', value: 'first' },
-          { label: 'LAST', value: 'last' },
-        ]"
-        label="Nulls"
+        :options="nullsOrders"
+        :label="t('table_design.index.nulls')"
       />
       <AppIconButton
         :icon="appIcons.close"
-        :tooltip="`Remove index key ${at + 1}`"
+        :tooltip="t('table_design.index.remove_key', { n: at + 1 })"
         compact
         :disable="index.keys.length === 1"
         @click="removeKey(key)"
@@ -163,11 +171,11 @@ function include(columnId: string, checked: boolean): void {
       owner="index"
       :owner-id="index.id"
       testid="index-predicate"
-      label="Partial index · WHERE"
+      :label="t('table_design.index.partial')"
     />
     <template v-if="carries">
       <h3 class="dp-overline">
-        Included columns · INCLUDE
+        {{ t('table_design.index.included') }}
       </h3>
       <div class="inspector__badges">
         <AppCheckbox
@@ -181,41 +189,38 @@ function include(columnId: string, checked: boolean): void {
       </div>
     </template>
     <details class="inspector__advanced dp-disclosure">
-      <summary>Expression &amp; operator class</summary>
+      <summary>{{ t('table_design.index.advanced') }}</summary>
       <div
         v-for="(key, at) in index.keys"
         :key="key.id"
         class="inspector__advanced-key"
       >
         <h3 class="dp-overline">
-          Key {{ at + 1 }}
+          {{ t('table_design.index.key_n', { n: at + 1 }) }}
         </h3>
         <div class="inspector__row">
           <AppSelect
             v-model="key.kind"
             :data-testid="`index-key-kind-${String(at)}`"
-            :options="[
-              { label: 'Column', value: 'column' },
-              { label: 'Function of a column', value: 'expression' },
-            ]"
-            label="Expression"
+            :options="keyKinds"
+            :label="t('table_design.expression')"
           />
           <AppSelect
             v-if="key.kind === 'expression'"
             v-model="key.function"
             :options="indexFunctions"
-            label="Function"
+            :label="t('table_design.function')"
           />
           <AppSelect
             v-model="key.operatorClass"
             :options="operatorClasses"
-            label="Operator class · optional"
+            :label="t('table_design.index.operator_class')"
           />
         </div>
         <AppButton
           variant="quiet"
           :icon="appIcons.arrowUpward"
-          label="Move key up"
+          :label="t('table_design.index.move_key_up')"
           :disable="at === 0"
           @click="moveKey(key, -1)"
         />
@@ -226,7 +231,7 @@ function include(columnId: string, checked: boolean): void {
     v-else
     class="inspector__note"
   >
-    No additional indexes.
+    {{ t('table_design.index.none') }}
   </p>
 </template>
 

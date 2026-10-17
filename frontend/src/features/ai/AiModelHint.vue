@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { appIcons } from "@/shared/ui"
 import { AppIconButton, AppPopup } from "@/shared/ui"
+import { t } from "@/shared/i18n"
 
 /**
  * Where to choose a model when none is chosen yet.
@@ -28,16 +29,16 @@ const open = defineModel<boolean>({ default: false })
       data-testid="ai-model-hint"
     >
       <div class="ai-model-hint__head">
-        <strong>Choose a model</strong>
+        <strong>{{ t('ai.hint.title') }}</strong>
         <AppIconButton
           :icon="appIcons.close"
-          tooltip="Close"
+          :tooltip="t('catalog.common.close')"
           compact
           data-testid="ai-model-hint-close"
           @click="open = false"
         />
       </div>
-      <p>To start chatting, choose a model in this list. Each provider needs its own API key — open a model in the list and choose the key icon to set it.</p>
+      <p>{{ t('ai.hint.text') }}</p>
     </div>
   </AppPopup>
 </template>

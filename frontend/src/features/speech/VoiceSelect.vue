@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+import { t } from "@/shared/i18n"
 import { AppSelect } from "@/shared/ui"
 import { useVoiceStore } from "@/stores/voice"
 
@@ -22,7 +23,7 @@ defineProps<{
 const voice = useVoiceStore()
 const { voices } = useVoices()
 const options = computed(() => [
-  { label: "Browser default", value: "" },
+  { label: t("onboarding.speech.browser_default"), value: "" },
   ...voices.value.map((one) => ({ label: voiceLabel(one), value: one.voiceURI })),
 ])
 </script>

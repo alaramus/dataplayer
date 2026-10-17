@@ -1,4 +1,6 @@
 import type { Outcome, PlannedCell, SearchRequest } from "@/client"
+import { t } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 
 import type { CellState } from "./answer"
 
@@ -7,40 +9,41 @@ import type { CellState } from "./answer"
  *
  * Outcomes are words, never codes. Each sentence has at most one gesture, and
  * a gesture is either another ask — of that cell alone, or of the cells not
- * asked — or a way to somewhere the answer cannot go itself.
+ * asked — or a way to somewhere the answer cannot go itself. A label is a
+ * getter, so it is read in the language shown when it is drawn.
  */
 export type Gesture =
   /** Ask the cell again: it was late, or failed. */
-  | { kind: "retry"; label: "Try again" }
+  | { kind: "retry"; label: string }
   /** Ask a connection the health monitor last saw down, all the same. */
-  | { kind: "anyway"; label: "Search anyway" }
+  | { kind: "anyway"; label: string }
   /** Search everything: the field asks only what is cheap and near. */
-  | { kind: "enter"; label: "Press Enter" }
+  | { kind: "enter"; label: string }
   /** It stopped at a ceiling: ask it alone, with the whole of D76's. */
-  | { kind: "alone"; label: "Search only this connection" }
+  | { kind: "alone"; label: string }
   /** It found more than a group shows. */
-  | { kind: "more"; label: "More in this connection" }
+  | { kind: "more"; label: string }
   /** Ask every cell that was left out by the ceiling of connections. */
-  | { kind: "these"; label: "Search these too" }
+  | { kind: "these"; label: string }
   /** A key whose passphrase is not held, and the person owns it (D147). */
-  | { kind: "unlock"; label: "Unlock the SSH key" }
+  | { kind: "unlock"; label: string }
 
 export interface Said {
   sentence: string
   gesture: Gesture | null
 }
 
-const RETRY: Gesture = { kind: "retry", label: "Try again" }
-const ANYWAY: Gesture = { kind: "anyway", label: "Search anyway" }
-const ENTER: Gesture = { kind: "enter", label: "Press Enter" }
-const ALONE: Gesture = { kind: "alone", label: "Search only this connection" }
-const MORE: Gesture = { kind: "more", label: "More in this connection" }
-const THESE: Gesture = { kind: "these", label: "Search these too" }
-const UNLOCK: Gesture = { kind: "unlock", label: "Unlock the SSH key" }
+export const RETRY: Gesture = { kind: "retry", get label() { return t("search.gestures.retry") } }
+const ANYWAY: Gesture = { kind: "anyway", get label() { return t("search.gestures.anyway") } }
+const ENTER: Gesture = { kind: "enter", get label() { return t("search.gestures.enter") } }
+const ALONE: Gesture = { kind: "alone", get label() { return t("search.gestures.alone") } }
+const MORE: Gesture = { kind: "more", get label() { return t("search.gestures.more") } }
+const THESE: Gesture = { kind: "these", get label() { return t("search.gestures.these") } }
+const UNLOCK: Gesture = { kind: "unlock", get label() { return t("search.gestures.unlock") } }
 
 /** "2 s", "0.4 s": the deadline a cell was given, as it was set. */
 export function secondsOf(seconds: number): string {
-  return `${String(Number(seconds.toFixed(1)))} s`
+  return t("search.outcomes.seconds", { n: formatNumber(seconds, { maximumFractionDigits: 1, useGrouping: false }) })
 }
 
 /** "14:02", in the reader's own time. */
@@ -63,66 +66,64 @@ export function saidOf(outcome: Outcome, cell: PlannedCell): Said | null {
     case "complete":
       if (!outcome.more) return null
       return {
-        sentence: "Found more than is shown",
+        sentence: t("search.outcomes.found_more"),
         gesture: inConnection(cell) ? MORE : null,
       }
     case "stopped":
       return {
-        sentence: outcome.notice ?? "Stopped before looking everywhere",
+        sentence: outcome.notice ?? t("search.outcomes.stopped"),
         gesture: inConnection(cell) ? ALONE : null,
       }
     case "late":
       return {
         sentence:
           outcome.deadline_seconds === null
-            ? "Didn't answer in time"
-            : `Didn't answer in ${secondsOf(outcome.deadline_seconds)}`,
+            ? t("search.outcomes.late")
+            : t("search.outcomes.late_in", { seconds: secondsOf(outcome.deadline_seconds) }),
         gesture: RETRY,
       }
     case "failed":
       if (outcome.error_kind === "locked") {
         return outcome.owned
-          ? { sentence: "Locked", gesture: UNLOCK }
-          : { sentence: "Locked by its owner", gesture: null }
+          ? { sentence: t("search.outcomes.locked"), gesture: UNLOCK }
+          : { sentence: t("search.outcomes.locked_by_owner"), gesture: null }
       }
-      return { sentence: outcome.message ?? "Couldn't be searched", gesture: RETRY }
+      return { sentence: outcome.message ?? t("search.outcomes.failed"), gesture: RETRY }
     case "skipped":
       switch (outcome.reason) {
         case "switched_off":
-          return { sentence: "Switched off", gesture: null }
+          return { sentence: t("search.outcomes.switched_off"), gesture: null }
         case "cannot_search":
-          return { sentence: "Can't be searched by name", gesture: null }
+          return { sentence: t("search.outcomes.cannot_search"), gesture: null }
         case "unreachable":
           return {
             sentence:
               outcome.since === null
-                ? "Can't be reached"
-                : `Can't be reached since ${clockOf(outcome.since)}`,
+                ? t("search.outcomes.unreachable")
+                : t("search.outcomes.unreachable_since", { time: clockOf(outcome.since) }),
             gesture: ANYWAY,
           }
         case "too_costly":
         case "not_in_context":
-          return { sentence: "Not searched while typing", gesture: ENTER }
+          return { sentence: t("search.outcomes.not_while_typing"), gesture: ENTER }
         case "not_asked":
-          return { sentence: "Not searched", gesture: THESE }
+          return { sentence: t("search.outcomes.not_searched"), gesture: THESE }
         case null:
-          return { sentence: "Not searched", gesture: null }
+          return { sentence: t("search.outcomes.not_searched"), gesture: null }
       }
   }
 }
 
 /** "Nothing found in all 12 places", said only when every cell asked was complete. */
 export function nothingFoundSentence(asked: number): string {
-  return asked === 1 ? "Nothing found in the one place searched" : `Nothing found in all ${String(asked)} places`
-}
-
-function placesOf(count: number): string {
-  return count === 1 ? "1 place" : `${String(count)} places`
+  return asked === 1
+    ? t("search.outcomes.nothing_found_one")
+    : t("search.outcomes.nothing_found_all", { n: asked }, asked)
 }
 
 /** What the field's status line says while one is still being asked. */
 export function stillSearching(pending: number): string {
-  return `Still searching ${placesOf(pending)}`
+  return t("search.outcomes.still_searching", { n: pending }, pending)
 }
 
 /**
@@ -137,10 +138,10 @@ export function typingNote(cells: readonly CellState[]): string {
       (cell.outcome.reason === "not_in_context" || cell.outcome.reason === "too_costly")
   ).length
   const parts: string[] = []
-  if (late > 0) parts.push(`${placesOf(late)} didn't answer in time`)
-  if (waiting > 0) parts.push(`${placesOf(waiting)} not searched while typing`)
+  if (late > 0) parts.push(t("search.outcomes.typing_late", { n: late }, late))
+  if (waiting > 0) parts.push(t("search.outcomes.typing_waiting", { n: waiting }, waiting))
   if (parts.length === 0) return ""
-  return `${parts.join(" · ")} · Press Enter to search everything`
+  return t("search.outcomes.typing_enter", { parts: parts.join(" · ") })
 }
 
 /** The most a request may name in `only` (the server's MAX_CONTEXT). */

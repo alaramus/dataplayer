@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
 from app.core.access import Access
+from app.core.translation import N_
 
 
 class NodeReplacement(BaseModel):
@@ -470,14 +471,14 @@ def action_availability(
     reason = None
     if action.acts_on == "destination":
         if not available:
-            reason = "No available destination here"
+            reason = N_("No available destination here")
     elif not targets or len(available) != len(targets):
-        reason = "This action is not available for every selected target"
+        reason = N_("This action is not available for every selected target")
     elif len(targets) > 1 and not action.bulk:
         reason = (
-            "Select one grouping to use this"
+            N_("Select one grouping to use this")
             if action.acts_on == "group"
-            else "Select one target to use this"
+            else N_("Select one target to use this")
         )
     if reason is not None and refusals is not None:
         for offered, rejected in zip(offers, refusals, strict=True):

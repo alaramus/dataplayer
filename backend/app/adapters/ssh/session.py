@@ -37,6 +37,7 @@ from app.adapters.registry import AdapterContext
 from app.adapters.ssh import keys
 from app.adapters.ssh.options import SshKeyAuth, SshOptions, SshPassword
 from app.core.logs import record_failure, with_ref
+from app.core.translation import say
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class Remote:
             return self.root
         parts = node_id.split("/")
         if not all(map(is_plain_name, parts)):
-            raise ValueError(f"Not a path below this folder: {node_id}")
+            raise ValueError(say("Not a path below this folder: {path}", path=node_id))
         return posixpath.join(self.root, *parts)
 
 
@@ -181,7 +182,7 @@ class SshSession:
                 ok=False, message=failure.message, error_kind=failure.error_kind
             )
         elapsed = int((time.perf_counter() - started) * 1000)
-        return ConnectionCheckResult(ok=True, message="Connection successful", latency_ms=elapsed)
+        return ConnectionCheckResult(ok=True, message=say("Connection successful"), latency_ms=elapsed)
 
     async def signed_in(self) -> asyncssh.SSHClientConnection:
         """A connection of the caller's own, signed in afresh, closed by the caller.
@@ -200,7 +201,9 @@ class SshSession:
         if not isinstance(self._options, SshKeyAuth):
             return None
         if self._context.keys is None:
-            raise AdapterError("config", "This connection signs in with a key, and none is at hand")
+            raise AdapterError(
+                "config", say("This connection signs in with a key, and none is at hand")
+            )
         return await self._context.keys.signing_key(self._options.key_id)
 
 
@@ -210,16 +213,20 @@ async def connect(
     """Sign in to the server whose key the connection pinned, and to no other."""
     if options.host_key == "":
         raise AdapterError(
-            "config", "Fetch the server's key and confirm it before connecting"
+            "config", say("Fetch the server's key and confirm it before connecting")
         )
     try:
         trusted = asyncssh.import_public_key(options.host_key)
     except (asyncssh.KeyImportError, ValueError):
-        raise AdapterError("config", "The server key of this connection cannot be read") from None
+        raise AdapterError(
+            "config", say("The server key of this connection cannot be read")
+        ) from None
     try:
         client_keys = None if signing is None else [keys.client_key(signing)]
     except ValueError:
-        raise AdapterError("auth", "The SSH key could not be opened with its passphrase") from None
+        raise AdapterError(
+            "auth", say("The SSH key could not be opened with its passphrase")
+        ) from None
     password = options.password.get_secret_value() if isinstance(options, SshPassword) else None
     # The pinned key and nothing else: trusted keys, then empty lists of CA
     # keys, revoked keys and X.509 names. The library names this shape with a
@@ -263,7 +270,7 @@ async def server_key(host: str, port: int) -> str:
     except (asyncssh.Error, OSError, TimeoutError) as failure:
         raise reduced(failure) from None
     if key is None:
-        raise AdapterError("unknown", "The server did not present a key")
+        raise AdapterError("unknown", say("The server did not present a key"))
     return keys.public_line(key)
 
 
@@ -280,28 +287,30 @@ def reduced(failure: BaseException) -> AdapterError:
         logger.warning("SSH failed: %r", failure)
         return known
     ref = record_failure(logger, "SSH: an unexpected failure", failure)
-    return AdapterError("unknown", with_ref("The server could not do that", ref))
+    return AdapterError("unknown", with_ref(say("The server could not do that"), ref))
 
 
 def _known(failure: BaseException) -> AdapterError | None:
     if isinstance(failure, asyncssh.HostKeyNotVerifiable):
         return AdapterError(
             "config",
-            "The server presented a different key than the one this connection "
-            "trusts. If it was reinstalled, fetch its key again and compare it",
+            say(
+                "The server presented a different key than the one this connection "
+                "trusts. If it was reinstalled, fetch its key again and compare it"
+            ),
         )
     if isinstance(failure, asyncssh.PermissionDenied):
-        return AdapterError("auth", "The server refused these credentials")
+        return AdapterError("auth", say("The server refused these credentials"))
     if isinstance(failure, asyncssh.SFTPNoSuchFile | asyncssh.SFTPNoSuchPath):
-        return AdapterError("unknown", "That is no longer on the server")
+        return AdapterError("unknown", say("That is no longer on the server"))
     if isinstance(failure, asyncssh.SFTPPermissionDenied):
-        return AdapterError("unknown", "The server does not let this user do that")
+        return AdapterError("unknown", say("The server does not let this user do that"))
     if isinstance(failure, asyncssh.SFTPError):
-        return AdapterError("unknown", "The server could not do that")
+        return AdapterError("unknown", say("The server could not do that"))
     if isinstance(failure, TimeoutError):
-        return AdapterError("timeout", "The server did not answer in time")
+        return AdapterError("timeout", say("The server did not answer in time"))
     if isinstance(failure, asyncssh.DisconnectError | OSError):
-        return AdapterError("network", "Could not reach the server")
+        return AdapterError("network", say("Could not reach the server"))
     return None
 
 

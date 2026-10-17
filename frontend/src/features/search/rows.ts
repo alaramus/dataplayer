@@ -1,6 +1,7 @@
 import type { Hit } from "@/client"
 import { iconOf } from "@/features/catalog/nodes"
 import { adapterIcon } from "@/features/connectors/adapters"
+import { t } from "@/shared/i18n"
 import { appIcons } from "@/shared/ui/icons"
 import type { SelectOption, TextRun } from "@/shared/ui"
 
@@ -24,7 +25,13 @@ export function hitIcon(hit: Hit): string {
 }
 
 /** What a node's row offers beside opening it (D205). */
-export const SHOW_IN_CATALOG = "Show in catalog"
+export function showInCatalogLabel(): string {
+  return t("search.rows.show_in_catalog")
+}
+
+function lineRun(line: number): TextRun {
+  return { text: t("search.rows.line", { n: String(line) }), hit: false }
+}
 
 /**
  * A hit as a row: its title, and on the second line what it is — or, when it
@@ -39,7 +46,7 @@ export function hitOption(hit: Hit): SelectOption {
   const byName = hit.match.field === "name"
   // A line found inside a file says which line it is (S7).
   const line: TextRun[] = !byName && hit.match.line !== null
-    ? [{ text: `Line ${String(hit.match.line)}: `, hit: false }]
+    ? [lineRun(hit.match.line)]
     : []
   const runs: TextRun[] = [
     ...line,
@@ -55,17 +62,19 @@ export function hitOption(hit: Hit): SelectOption {
       : hit.detail
         ? { description: hit.detail }
         : {}),
-    ...(showsInCatalog(hit) ? { actionIcon: appIcons.myLocation, actionLabel: SHOW_IN_CATALOG } : {}),
+    ...(showsInCatalog(hit) ? { actionIcon: appIcons.myLocation, actionLabel: showInCatalogLabel() } : {}),
   }
 }
 
-export const BY_MEANING = "By meaning"
+export function byMeaning(): string {
+  return t("search.rows.by_meaning")
+}
 
 function meantOption(hit: Hit): SelectOption {
   const inside = hit.match.field !== "name"
   const what: TextRun[] = inside
     ? [
-        ...(hit.match.line !== null ? [{ text: `Line ${String(hit.match.line)}: `, hit: false }] : []),
+        ...(hit.match.line !== null ? [lineRun(hit.match.line)] : []),
         ...hit.match.excerpt.map((segment) => ({ text: segment.text, hit: false })),
       ]
     : hit.detail
@@ -75,8 +84,8 @@ function meantOption(hit: Hit): SelectOption {
     label: hit.title,
     value: hit.key,
     icon: hitIcon(hit),
-    descriptionRuns: [{ text: BY_MEANING, hit: false }, ...(what.length > 0 ? [{ text: " · ", hit: false }, ...what] : [])],
-    ...(showsInCatalog(hit) ? { actionIcon: appIcons.myLocation, actionLabel: SHOW_IN_CATALOG } : {}),
+    descriptionRuns: [{ text: byMeaning(), hit: false }, ...(what.length > 0 ? [{ text: " · ", hit: false }, ...what] : [])],
+    ...(showsInCatalog(hit) ? { actionIcon: appIcons.myLocation, actionLabel: showInCatalogLabel() } : {}),
   }
 }
 
@@ -90,7 +99,13 @@ export const ASK_VALUE = "ask:"
  * The popup's last row: the words put into a new chat's composer, unsent.
  * It does not repeat the words: a row found by its name is told by them.
  */
-export const ASK_OPTION: SelectOption = { label: "Ask the agent", value: ASK_VALUE, icon: appIcons.robot2 }
+export const ASK_OPTION: SelectOption = {
+  get label() {
+    return t("search.rows.ask_agent")
+  },
+  value: ASK_VALUE,
+  icon: appIcons.robot2,
+}
 
 /** How many rows a group shows in the field; the server sends no more (D200). */
 export const ROWS_IN_FIELD = 5
@@ -114,7 +129,7 @@ export function fieldOptions(state: AnswerState): SelectOption[] {
   const best = state.best ?? []
   const options: SelectOption[] = []
   if (best.length > 0) {
-    options.push({ label: "Best matches", value: "group:best", group: true })
+    options.push({ label: t("search.rows.best_matches"), value: "group:best", group: true })
     options.push(...best.map(hitOption))
   }
   for (const group of groupsOf(state, new Set(best.map((hit) => hit.key)))) {
@@ -125,11 +140,11 @@ export function fieldOptions(state: AnswerState): SelectOption[] {
       label: group.title,
       value: `group:${group.key}`,
       group: true,
-      ...(opened ? { removeLabel: "Clear recently opened" } : {}),
+      ...(opened ? { removeLabel: t("search.rows.clear_recently_opened") } : {}),
     })
     options.push(
       ...group.hits.slice(0, ROWS_IN_FIELD).map((hit) =>
-        opened ? { ...hitOption(hit), removeLabel: "Remove from recently opened" } : hitOption(hit)
+        opened ? { ...hitOption(hit), removeLabel: t("search.rows.remove_recently_opened") } : hitOption(hit)
       )
     )
   }
@@ -140,12 +155,17 @@ export function fieldOptions(state: AnswerState): SelectOption[] {
 export function recentOptions(entries: readonly string[]): SelectOption[] {
   if (entries.length === 0) return []
   return [
-    { label: "Recent searches", value: RECENT_SEARCHES_HEADING, group: true, removeLabel: "Clear recent searches" },
+    {
+      label: t("search.rows.recent_searches"),
+      value: RECENT_SEARCHES_HEADING,
+      group: true,
+      removeLabel: t("search.rows.clear_recent_searches"),
+    },
     ...entries.map((words) => ({
       label: words,
       value: `${RECENT_PREFIX}${words}`,
       icon: appIcons.history,
-      removeLabel: "Remove from recent searches",
+      removeLabel: t("search.rows.remove_recent_search"),
     })),
   ]
 }

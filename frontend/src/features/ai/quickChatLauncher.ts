@@ -1,5 +1,7 @@
 import { ref } from "vue"
 
+import { t } from "@/shared/i18n"
+
 export type QuickChatIntent =
   | { kind: "open" }
   | { kind: "chat"; id: string }
@@ -24,7 +26,7 @@ export function forgetQuickChat(id: string) {
  * so the chat is named by `explainTitle` rather than by that line.
  */
 export function explainRequest(text: string): string {
-  return `Explain in more detail:\n\n${quoteSelection(text)}`
+  return `${t("ai.quick.explain")}\n\n${quoteSelection(text)}`
 }
 
 const TITLE_CHARS = 60

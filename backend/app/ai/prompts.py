@@ -5,6 +5,8 @@ The fences and chart series named here are the ones the D50 renderer draws
 empty frame on screen, so the two lists change together (D138).
 """
 
+from app.core.translation import Language
+
 SYSTEM_PROMPT = """\
 You are the assistant inside DataPlayer, an application in which a person works \
 with the data sources they connected: databases, file storage and others.
@@ -39,3 +41,23 @@ Write a title for the conversation below: at most six words, in the language \
 the person wrote in, with no quotation marks and no punctuation at the end. \
 Reply with the title and nothing else.
 """
+
+# The model is told a language by its English name.
+LANGUAGE_NAMES: dict[Language, str] = {"en": "English", "ru": "Russian"}
+
+
+def language_line(language: Language) -> str:
+    """The account's language, which an answer is in unless the person writes in
+    another (D227). English needs no line: the prompt is written in it."""
+    if language == "en":
+        return ""
+    name = LANGUAGE_NAMES[language]
+    return (
+        f"The person's interface is in {name}. Answer in {name} unless they "
+        "write in another language."
+    )
+
+
+def system_prompt(language: Language) -> str:
+    line = language_line(language)
+    return f"{SYSTEM_PROMPT}\n{line}\n" if line else SYSTEM_PROMPT

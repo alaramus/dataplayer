@@ -33,6 +33,7 @@ from app.connectors.models import Connector
 from app.core import crypto
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
+from app.core.translation import say
 
 # Whether a key has a passphrase, and where it comes from when it does: kept
 # encrypted beside the key, or asked for and held in memory for a while (D147).
@@ -297,7 +298,7 @@ class OwnerKeys:
             if held is None:
                 raise AdapterError(
                     "locked",
-                    f"The SSH key {found.name} is locked; enter its passphrase to use it",
+                    say("The SSH key {name} is locked; enter its passphrase to use it", name=found.name),
                 )
             return SigningKey(private_key=found.private_key, passphrase=held)
         return SigningKey(private_key=found.private_key, passphrase=found.stored_passphrase)
@@ -308,7 +309,7 @@ class OwnerKeys:
         if row is None:
             raise AdapterError(
                 "config",
-                "The SSH key this connection signs in with is gone; choose another",
+                say("The SSH key this connection signs in with is gone; choose another"),
             )
         stored = (
             crypto.decrypt(row.passphrase, purpose="connector").decode()

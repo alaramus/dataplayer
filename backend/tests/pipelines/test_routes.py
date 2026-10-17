@@ -130,7 +130,7 @@ async def test_a_save_from_an_older_version_is_refused(client: AsyncClient, db: 
     stale = await _save(client, person, pipeline, [])
 
     assert stale.status_code == 409
-    assert stale.json()["detail"]["message"] == "This pipeline was changed somewhere else; reload it"
+    assert stale.json()["detail"]["code"] == "pipelines.changed"
 
 
 async def test_somebody_else_is_told_there_is_no_such_pipeline(
@@ -161,7 +161,8 @@ async def test_a_person_keeps_a_bounded_number_of_pipelines(
     refused = await client.post(BASE, headers=person.headers, json={"name": "one more"})
 
     assert refused.status_code == 422
-    assert refused.json()["detail"]["message"] == f"A person keeps at most {MAX_PIPELINES} pipelines"
+    assert refused.json()["detail"]["code"] == "pipelines.too_many"
+    assert refused.json()["detail"]["params"] == {"limit": MAX_PIPELINES}
 
 
 async def test_a_pipeline_is_bounded_and_says_nothing_twice(
@@ -194,7 +195,7 @@ async def test_a_card_is_added_only_for_a_connection_the_person_can_read(
     refused = await _save(client, stranger, pipeline, [_card(theirs, [_row("a.csv")])])
 
     assert refused.status_code == 422
-    assert refused.json()["detail"]["message"] == "A card names a connection you cannot read"
+    assert refused.json()["detail"]["code"] == "pipelines.card_unreadable"
 
 
 async def test_a_card_kept_stays_when_its_connection_goes(client: AsyncClient, db: AsyncSession) -> None:

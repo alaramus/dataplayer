@@ -100,7 +100,8 @@ async def _noted(
 
 
 def _why(refused: HTTPException) -> str:
-    """Why Run refused, as the schedule says it skipped."""
+    """Why Run refused, as the schedule says it skipped. No request starts a
+    scheduled run, so this and what the run writes are English (D226)."""
     if refused.status_code == 409:
         return "the previous run was still going"
     if refused.status_code == 429:

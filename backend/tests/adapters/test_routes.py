@@ -175,3 +175,17 @@ async def test_every_type_reads_its_short_lists_from_its_guide_page(
         assert item["can_see"], item["name"]
     postgres = next(item for item in response.json() if item["name"] == "postgres")
     assert "Table data and columns" in postgres["can_change"]
+
+
+async def test_a_russian_request_reads_the_types_in_russian(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The category and what a type can do are worded by the server (D226)."""
+    response = await client.get(
+        f"{BASE}/", headers={**normal_user_token_headers, "Accept-Language": "ru"}
+    )
+
+    types = {item["name"]: item for item in response.json()}
+    assert types["postgres"]["category_title"] == "SQL-базы данных"
+    titles = [c["title"] for c in types["postgres"]["capabilities"]]
+    assert "Просматривать каталог" in titles

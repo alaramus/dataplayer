@@ -10,6 +10,8 @@ import {
   useRestore,
 } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
+import { formatDateTime, formatFixed } from "@/shared/i18n/format"
 import {
   AppBanner,
   AppButton,
@@ -51,13 +53,13 @@ const available = computed(() =>
 )
 
 function readableSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes < 1024) return t("catalog.size.b", { n: bytes })
+  if (bytes < 1024 * 1024) return t("catalog.size.kb", { n: Math.round(bytes / 1024) })
+  return t("catalog.size.mb", { n: formatFixed(bytes / (1024 * 1024), 1) })
 }
 
 function readableTime(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleString()
+  return formatDateTime(seconds * 1000)
 }
 
 async function take() {
@@ -66,10 +68,10 @@ async function take() {
   working.value = true
   try {
     await backUp.mutateAsync(connector.id)
-    toast.info(`Copying ${connector.name} out`)
+    toast.info(t("services.backups.copying", { name: connector.name }))
     emit("update:connector", null)
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be copied out"))
+    toast.error(messageOf(cause, t("services.backups.copy_failed")))
   } finally {
     working.value = false
   }
@@ -92,18 +94,18 @@ async function take() {
  */
 async function remove(filename: string) {
   const sure = await confirm({
-    title: "Delete this backup?",
-    message: `${filename} will be removed from your storage. This cannot be undone.`,
-    confirmLabel: "Delete",
+    title: t("services.backups.delete_title"),
+    message: t("services.backups.delete_message", { name: filename }),
+    confirmLabel: t("services.backups.delete"),
     danger: true,
   })
   if (!sure) return
   working.value = true
   try {
     await forget.mutateAsync(filename)
-    toast.success(`${filename} was deleted`)
+    toast.success(t("services.backups.deleted", { name: filename }))
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be deleted"))
+    toast.error(messageOf(cause, t("services.backups.delete_failed")))
   } finally {
     working.value = false
   }
@@ -113,11 +115,9 @@ async function putBack(filename: string) {
   const connector = props.connector
   if (!connector) return
   const sure = await confirm({
-    title: "Write this backup back?",
-    message:
-      `Everything in ${connector.name} that is also in ${filename} will be ` +
-      "replaced by what the backup holds. This cannot be undone.",
-    confirmLabel: "Restore",
+    title: t("services.backups.restore_title"),
+    message: t("services.backups.restore_message", { connection: connector.name, file: filename }),
+    confirmLabel: t("services.backups.restore"),
     danger: true,
   })
   if (!sure) return
@@ -128,10 +128,10 @@ async function putBack(filename: string) {
       filename,
       understood: true,
     })
-    toast.info(`Writing ${filename} back into ${connector.name}`)
+    toast.info(t("services.backups.writing_back", { file: filename, connection: connector.name }))
     emit("update:connector", null)
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be written back"))
+    toast.error(messageOf(cause, t("services.backups.restore_failed")))
   } finally {
     working.value = false
   }
@@ -143,8 +143,8 @@ async function putBack(filename: string) {
     :model-value="connector !== null"
     size="medium-form"
     sizing="stable"
-    :title="`Backups of ${connector?.name ?? ''}`"
-    subtitle="A backup is a file in your own storage."
+    :title="t('services.backups.title', { name: connector?.name ?? '' })"
+    :subtitle="t('services.backups.subtitle')"
     data-testid="backups-dialog"
     @update:model-value="emit('update:connector', null)"
   >
@@ -153,20 +153,20 @@ async function putBack(filename: string) {
         v-if="offer.isError.value"
         tone="warning"
       >
-        {{ messageOf(offer.error.value, "Backup availability could not be checked") }}
+        {{ messageOf(offer.error.value, t('services.backups.check_failed')) }}
       </AppBanner>
       <AppBanner
         v-if="offer.data.value && !offer.data.value.available"
         tone="warning"
       >
-        {{ offer.data.value.reason ?? "This server cannot copy a database out" }}
+        {{ offer.data.value.reason ?? t('services.support.cannot') }}
       </AppBanner>
 
       <AppSpinner v-if="backups.isLoading.value" />
       <AppEmptyState
         v-else-if="files.length === 0"
         icon="inventory_2"
-        text="You have no backups yet."
+        :text="t('services.backups.empty')"
       />
       <ul
         v-else
@@ -186,7 +186,7 @@ async function putBack(filename: string) {
           </div>
           <AppButton
             variant="secondary"
-            label="Restore"
+            :label="t('services.backups.restore')"
             :disable="working || !available"
             :data-testid="`restore-${file.filename}`"
             @click="putBack(file.filename)"
@@ -195,7 +195,7 @@ async function putBack(filename: string) {
                it stays offered where restoring is not. -->
           <AppIconButton
             :icon="appIcons.deleteOutline"
-            tooltip="Delete this backup"
+            :tooltip="t('services.backups.delete_tooltip')"
             variant="danger-quiet"
             :disable="working"
             :data-testid="`delete-backup-${file.filename}`"
@@ -208,11 +208,11 @@ async function putBack(filename: string) {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Close"
+        :label="t('catalog.common.close')"
         @click="emit('update:connector', null)"
       />
       <AppButton
-        label="Copy this database out"
+        :label="t('services.backups.take')"
         :disable="working || !available"
         :loading="working"
         data-testid="take-backup"

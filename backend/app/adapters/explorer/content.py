@@ -59,6 +59,7 @@ from app.adapters.explorer.formats import (
 from app.adapters.explorer.media import audio_facts, pdf_facts, video_facts
 from app.adapters.explorer.members import ResolvedNode, resolve_node
 from app.adapters.explorer.storage import Place, Storage
+from app.core.translation import N_, say
 
 # A text viewer is a preview, not a download. Keeping the source path separate
 # lets a later download stream the original bytes without raising this bound.
@@ -155,8 +156,10 @@ class ExplorerContent:
             item.kind for item in representations_inside_archive(name)
         }:
             raise ValueError(
-                f'This entry does not offer the "{request.representation}" '
-                "representation"
+                say(
+                    'This entry does not offer the "{representation}" representation',
+                    representation=request.representation,
+                )
             )
         with (
             self._storage.local_file(entry.place) as container,
@@ -171,7 +174,7 @@ class ExplorerContent:
         """
         resolved = resolve_node(self._storage, node_id)
         if resolved.member is not None:
-            raise ValueError(f"No such file: {node_id}")
+            raise ValueError(say("No such file: {node_id}", node_id=node_id))
         return resolved.place
 
     async def read_editor_content(
@@ -203,7 +206,7 @@ class ExplorerContent:
             update={
                 "writable": False,
                 "version": None,
-                "reason": "A file inside an archive cannot be edited here",
+                "reason": say("A file inside an archive cannot be edited here"),
             }
         )
 
@@ -231,15 +234,20 @@ class ExplorerContent:
 
     def _read(self, source: _Source, request: ContentRequest) -> ContentResult:
         if not source.exists:
-            raise ValueError(f"No such file: {request.node_id}")
+            raise ValueError(say("No such file: {node_id}", node_id=request.node_id))
         if source.is_directory:
-            raise ValueError(f"A directory has no content viewer: {request.node_id}")
+            raise ValueError(
+                say("A directory has no content viewer: {node_id}", node_id=request.node_id)
+            )
 
         # The name decides the viewer, never the bytes.
         available = {item.kind for item in representations_of(source.name)}
         if request.representation not in available:
             raise ValueError(
-                f'This file does not offer the "{request.representation}" representation'
+                say(
+                    'This file does not offer the "{representation}" representation',
+                    representation=request.representation,
+                )
             )
 
         match request.representation:
@@ -262,7 +270,7 @@ class ExplorerContent:
             case "sql":
                 # The catalog guard above makes this unreachable for a file,
                 # but the closed content vocabulary includes source-issued SQL.
-                raise ValueError('A file does not offer the "sql" representation')
+                raise ValueError(say('A file does not offer the "sql" representation'))
             case unreachable:
                 assert_never(unreachable)
 
@@ -271,14 +279,21 @@ class ExplorerContent:
         return await to_thread.run_sync(self._open_stream, request)
 
     def _open_stream(self, request: ContentRequest) -> ContentStream:
-        _refuse_inside_archive(self._storage, request.node_id, "streamed")
+        _refuse_inside_archive(
+            self._storage,
+            request.node_id,
+            N_("A file inside an archive cannot be streamed"),
+        )
         place = self._file_place(request.node_id)
         # Asked again on every range a player requests: a header costs a few
         # blocks, and the file may have changed since the last one.
         result = self._read(_in_storage(self._storage, place), request)
         if not isinstance(result, AudioContent | VideoContent | PdfContent):
             raise ValueError(
-                f'The "{request.representation}" representation is not streamed'
+                say(
+                    'The "{representation}" representation is not streamed',
+                    representation=request.representation,
+                )
             )
         return ContentStream(
             media_type=result.media_type,
@@ -291,13 +306,15 @@ class ExplorerContent:
         self, source: _Source, request: ContentRequest
     ) -> BoundedContentPreview:
         if not source.exists:
-            raise ValueError(f"No such file: {request.node_id}")
+            raise ValueError(say("No such file: {node_id}", node_id=request.node_id))
         if source.is_directory:
-            raise ValueError(f"A directory has no image viewer: {request.node_id}")
+            raise ValueError(
+                say("A directory has no image viewer: {node_id}", node_id=request.node_id)
+            )
         if request.representation != "image" or "image" not in {
             item.kind for item in representations_of(source.name)
         }:
-            raise ValueError('This file does not offer the "image" representation')
+            raise ValueError(say('This file does not offer the "image" representation'))
         _refuse_large_image(source.size_bytes)
         # The whole of it, because the bytes verified are the bytes returned:
         # a file cannot change between checking and rendering (D49).
@@ -320,7 +337,9 @@ class ExplorerContent:
         _require_editable_file(source, request.node_id)
         language_hint, validation = _editor_language(named)
         raw, truncated = _byte_prefix(source, MAX_EDITOR_BYTES)
-        _refuse_binary(raw, "cannot be edited as text")
+        _refuse_binary(
+            raw, N_("This file contains binary data and cannot be edited as text")
+        )
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
@@ -329,7 +348,9 @@ class ExplorerContent:
                 filename=named,
                 writable=False,
                 truncated=truncated,
-                reason=f"This file is not valid UTF-8 at byte {exc.start + 1}.",
+                reason=say(
+                    "This file is not valid UTF-8 at byte {byte}.", byte=exc.start + 1
+                ),
                 language_hint=language_hint,
                 validation=validation,
             )
@@ -339,9 +360,10 @@ class ExplorerContent:
                 filename=named,
                 writable=False,
                 truncated=True,
-                reason=(
-                    f"Files larger than {MAX_EDITOR_BYTES // (1024 * 1024)} MB "
-                    "are shown as a preview and cannot be edited here."
+                reason=say(
+                    "Files larger than {megabytes} MB "
+                    "are shown as a preview and cannot be edited here.",
+                    megabytes=MAX_EDITOR_BYTES // (1024 * 1024),
                 ),
                 language_hint=language_hint,
                 validation=validation,
@@ -356,7 +378,11 @@ class ExplorerContent:
         )
 
     def _update(self, request: UpdateContentRequest) -> ContentUpdated:
-        _refuse_inside_archive(self._storage, request.node_id, "written")
+        _refuse_inside_archive(
+            self._storage,
+            request.node_id,
+            N_("A file inside an archive cannot be written"),
+        )
         place = self._file_place(request.node_id)
         source = _in_storage(self._storage, place)
         _require_editable_file(source, request.node_id)
@@ -367,22 +393,28 @@ class ExplorerContent:
         )
         if truncated:
             raise ValueError(
-                f"Files larger than {MAX_EDITOR_BYTES // (1024 * 1024)} MB "
-                "cannot be edited here"
+                say(
+                    "Files larger than {megabytes} MB cannot be edited here",
+                    megabytes=MAX_EDITOR_BYTES // (1024 * 1024),
+                )
             )
-        _refuse_binary(current, "cannot be edited as text")
+        _refuse_binary(
+            current, N_("This file contains binary data and cannot be edited as text")
+        )
         if _version(current) != request.version:
             raise ContentConflict
         try:
             current.decode("utf-8")
         except UnicodeDecodeError:
-            raise ValueError("This file is not valid UTF-8 and cannot be edited") from None
+            raise ValueError(say("This file is not valid UTF-8 and cannot be edited")) from None
 
         replacement = request.text.encode("utf-8")
         if len(replacement) > MAX_EDITOR_BYTES:
             raise ValueError(
-                f"The edited content is larger than "
-                f"{MAX_EDITOR_BYTES // (1024 * 1024)} MB"
+                say(
+                    "The edited content is larger than {megabytes} MB",
+                    megabytes=MAX_EDITOR_BYTES // (1024 * 1024),
+                )
             )
         _validate_replacement(place.name, request.text)
         with self._storage.staged(place, prefix=".edit-") as staged:
@@ -464,14 +496,14 @@ def _archive_entry(storage: Storage, node_id: str) -> ResolvedNode | None:
     return resolved
 
 
-def _refuse_inside_archive(storage: Storage, node_id: str, verb: str) -> None:
+def _refuse_inside_archive(storage: Storage, node_id: str, refusal: str) -> None:
     """What an archive does not admit, said before anything is opened.
 
     Editing writes and streaming seeks, and an entry is neither writable nor
     seekable: it is expanded whole or not read at all (D53).
     """
     if _archive_entry(storage, node_id) is not None:
-        raise ValueError(f"A file inside an archive cannot be {verb}")
+        raise ValueError(say(refusal))
 
 
 def _entry_name(member: str) -> str:
@@ -480,28 +512,30 @@ def _entry_name(member: str) -> str:
 
 def _read_text(source: _Source) -> TextContent:
     raw, truncated = _byte_prefix(source, MAX_TEXT_BYTES)
-    _refuse_binary(raw, "cannot be shown as text")
+    _refuse_binary(raw, N_("This file contains binary data and cannot be shown as text"))
     text, notice = _decoded(raw)
     return TextContent(text=text, truncated=truncated, notice=notice)
 
 
 def _read_markdown(source: _Source) -> MarkdownContent:
     raw, truncated = _byte_prefix(source, MAX_MARKDOWN_BYTES)
-    _refuse_binary(raw, "is not a document")
+    _refuse_binary(raw, N_("This file contains binary data and is not a document"))
     text, notice = _decoded(raw)
     return MarkdownContent(text=text, truncated=truncated, notice=notice)
 
 
-def _refuse_binary(raw: bytes, why: str) -> None:
+def _refuse_binary(raw: bytes, refusal: str) -> None:
     if bytes_look_binary(raw):
-        raise ValueError(f"This file contains binary data and {why}")
+        raise ValueError(say(refusal))
 
 
 def _refuse_large_image(size_bytes: int) -> None:
     if size_bytes > MAX_IMAGE_BYTES:
         raise ValueError(
-            f"Images larger than {MAX_IMAGE_BYTES // (1024 * 1024)} MB "
-            "cannot be previewed"
+            say(
+                "Images larger than {megabytes} MB cannot be previewed",
+                megabytes=MAX_IMAGE_BYTES // (1024 * 1024),
+            )
         )
 
 
@@ -517,20 +551,23 @@ def _image_facts(
         with Image.open(stream) as image:
             media_type = IMAGE_MEDIA_TYPES.get(image.format or "")
             if media_type is None:
-                raise ValueError("Only PNG and JPEG images can be previewed")
+                raise ValueError(say("Only PNG and JPEG images can be previewed"))
             width, height = image.size
             if width < 1 or height < 1:
-                raise ValueError("This image has invalid dimensions")
+                raise ValueError(say("This image has invalid dimensions"))
             if getattr(image, "n_frames", 1) != 1:
-                raise ValueError("Animated images are not supported by this viewer yet")
+                raise ValueError(say("Animated images are not supported by this viewer yet"))
             if width * height > MAX_IMAGE_PIXELS:
                 raise ValueError(
-                    f"Images larger than {MAX_IMAGE_PIXELS:,} pixels cannot be previewed"
+                    say(
+                        "Images larger than {pixels:,} pixels cannot be previewed",
+                        pixels=MAX_IMAGE_PIXELS,
+                    )
                 )
             if verify:
                 image.verify()
     except (Image.DecompressionBombError, UnidentifiedImageError, OSError):
-        raise ValueError("This file is not a valid PNG or JPEG image") from None
+        raise ValueError(say("This file is not a valid PNG or JPEG image")) from None
     return media_type, width, height
 
 
@@ -558,9 +595,10 @@ def _read_json(source: _Source) -> JsonContent:
     if truncated:
         head, head_truncated = _byte_prefix(source, MAX_TEXT_BYTES)
         text, decode_notice = _decoded(head)
-        notice = (
-            f"This file is larger than {MAX_JSON_BYTES // (1024 * 1024)} MB, "
-            "so it was not parsed as one JSON document."
+        notice = say(
+            "This file is larger than {megabytes} MB, "
+            "so it was not parsed as one JSON document.",
+            megabytes=MAX_JSON_BYTES // (1024 * 1024),
         )
         if decode_notice is not None:
             notice = f"{notice} {decode_notice}"
@@ -575,7 +613,9 @@ def _read_json(source: _Source) -> JsonContent:
     except UnicodeDecodeError as exc:
         return JsonContent(
             source_text=raw.decode("utf-8", errors="replace"),
-            notice=f"This file is not valid UTF-8 at byte {exc.start + 1}.",
+            notice=say(
+                "This file is not valid UTF-8 at byte {byte}.", byte=exc.start + 1
+            ),
         )
 
     try:
@@ -583,22 +623,24 @@ def _read_json(source: _Source) -> JsonContent:
     except JSONDecodeError as exc:
         return JsonContent(
             source_text=text,
-            notice=(
-                f"This file is not valid JSON ({exc.msg}, line {exc.lineno} "
-                f"column {exc.colno})."
+            notice=say(
+                "This file is not valid JSON ({problem}, line {line} column {column}).",
+                problem=exc.msg,
+                line=exc.lineno,
+                column=exc.colno,
             ),
         )
     except jsontext.NonStandardJson as exc:
         return JsonContent(
             source_text=text,
-            notice=f"This file is not valid JSON ({exc}).",
+            notice=say("This file is not valid JSON ({problem}).", problem=exc),
         )
     try:
         return JsonContent(value=_json_value(parsed))
     except RecursionError:
         return JsonContent(
             source_text=text,
-            notice="This JSON document is too deeply nested to show safely.",
+            notice=say("This JSON document is too deeply nested to show safely."),
         )
 
 
@@ -632,16 +674,21 @@ def _json_line(line_number: int, raw: bytes, truncated: bool) -> JsonLine:
             line_number=line_number,
             source_text=raw.decode("utf-8", errors="replace"),
             truncated=truncated,
-            notice=f"Line {line_number} is not valid UTF-8 at byte {exc.start + 1}.",
+            notice=say(
+                "Line {line} is not valid UTF-8 at byte {byte}.",
+                line=line_number,
+                byte=exc.start + 1,
+            ),
         )
     if truncated:
         return JsonLine(
             line_number=line_number,
             source_text=text,
             truncated=True,
-            notice=(
-                f"Line {line_number} is larger than "
-                f"{MAX_JSON_LINE_BYTES // (1024 * 1024)} MB and was not parsed."
+            notice=say(
+                "Line {line} is larger than {megabytes} MB and was not parsed.",
+                line=line_number,
+                megabytes=MAX_JSON_LINE_BYTES // (1024 * 1024),
             ),
         )
     try:
@@ -650,21 +697,28 @@ def _json_line(line_number: int, raw: bytes, truncated: bool) -> JsonLine:
         return JsonLine(
             line_number=line_number,
             source_text=text,
-            notice=(
-                f"Line {line_number} is not valid JSON ({exc.msg}, column {exc.colno})."
+            notice=say(
+                "Line {line} is not valid JSON ({problem}, column {column}).",
+                line=line_number,
+                problem=exc.msg,
+                column=exc.colno,
             ),
         )
     except jsontext.NonStandardJson as exc:
         return JsonLine(
             line_number=line_number,
             source_text=text,
-            notice=f"Line {line_number} is not valid JSON ({exc}).",
+            notice=say(
+                "Line {line} is not valid JSON ({problem}).", line=line_number, problem=exc
+            ),
         )
     except RecursionError:
         return JsonLine(
             line_number=line_number,
             source_text=text,
-            notice=f"Line {line_number} is too deeply nested to show safely.",
+            notice=say(
+                "Line {line} is too deeply nested to show safely.", line=line_number
+            ),
         )
 
 
@@ -693,7 +747,7 @@ def _decoded(raw: bytes) -> tuple[str, str | None]:
     except UnicodeDecodeError as exc:
         return (
             raw.decode("utf-8", errors="replace"),
-            f"This file is not valid UTF-8 at byte {exc.start + 1}.",
+            say("This file is not valid UTF-8 at byte {byte}.", byte=exc.start + 1),
         )
 
 
@@ -714,11 +768,11 @@ def _require_editable_file(source: _Source, node_id: str) -> None:
     bytes are refused by whoever reads them, so the file is opened once.
     """
     if not source.exists:
-        raise ValueError(f"No such file: {node_id}")
+        raise ValueError(say("No such file: {node_id}", node_id=node_id))
     if source.is_directory:
-        raise ValueError(f"A directory has no source editor: {node_id}")
+        raise ValueError(say("A directory has no source editor: {node_id}", node_id=node_id))
     if not offers_source(source.name):
-        raise ValueError("This file has no text to show")
+        raise ValueError(say("This file has no text to show"))
 
 
 def _editor_language(
@@ -745,10 +799,15 @@ def _validate_replacement(name: str, text: str) -> None:
             jsontext.load(text)
         except JSONDecodeError as exc:
             raise ValueError(
-                f"Invalid JSON ({exc.msg}, line {exc.lineno} column {exc.colno})"
+                say(
+                    "Invalid JSON ({problem}, line {line} column {column})",
+                    problem=exc.msg,
+                    line=exc.lineno,
+                    column=exc.colno,
+                )
             ) from None
         except jsontext.NonStandardJson as exc:
-            raise ValueError(f"Invalid JSON ({exc})") from None
+            raise ValueError(say("Invalid JSON ({problem})", problem=exc)) from None
         return
     if file_format == "jsonl":
         for line_number, line in enumerate(text.splitlines(), start=1):
@@ -758,12 +817,20 @@ def _validate_replacement(name: str, text: str) -> None:
                 jsontext.load(line)
             except JSONDecodeError as exc:
                 raise ValueError(
-                    f"Invalid JSON on line {line_number} ({exc.msg}, "
-                    f"column {exc.colno})"
+                    say(
+                        "Invalid JSON on line {line} ({problem}, column {column})",
+                        line=line_number,
+                        problem=exc.msg,
+                        column=exc.colno,
+                    )
                 ) from None
             except jsontext.NonStandardJson as exc:
                 raise ValueError(
-                    f"Invalid JSON on line {line_number} ({exc})"
+                    say(
+                        "Invalid JSON on line {line} ({problem})",
+                        line=line_number,
+                        problem=exc,
+                    )
                 ) from None
 
 

@@ -8,6 +8,8 @@
 import type { DashboardOptions, ProcessesWidget, StatWidget, TimeseriesWidget } from "@/client"
 import { z } from "zod"
 
+import { t } from "@/shared/i18n"
+
 import { compact, findFreeSpot, gridRows } from "./gridLayout"
 import type { Placed } from "./gridLayout"
 import type { WidgetDraft } from "./widgetSpecs"
@@ -61,13 +63,17 @@ export const widgetSchema: z.ZodType<Widget> = z.discriminatedUnion("type", [
 export type ProcessSort = NonNullable<ProcessesWidget["sort"]>
 export type ProcessLimit = NonNullable<ProcessesWidget["limit"]>
 
-export const PROCESS_SORTS: { value: ProcessSort; label: string }[] = [
-  { value: "pcpu", label: "By CPU" },
-  { value: "pmem", label: "By memory" },
-  { value: "pid", label: "By PID" },
+// Labels are getters: read at render, in the language current then (D224).
+export const PROCESS_SORTS: { value: ProcessSort; readonly label: string }[] = [
+  { value: "pcpu", get label() { return t("dashboards.processes.by_cpu") } },
+  { value: "pmem", get label() { return t("dashboards.processes.by_memory") } },
+  { value: "pid", get label() { return t("dashboards.processes.by_pid") } },
 ]
-export const PROCESS_LIMITS: { value: ProcessLimit; label: string }[] = [10, 20, 50, 100, 200].map(
-  (value) => ({ value: value as ProcessLimit, label: `${String(value)} rows` })
+export const PROCESS_LIMITS: { value: ProcessLimit; readonly label: string }[] = [10, 20, 50, 100, 200].map(
+  (value) => ({
+    value: value as ProcessLimit,
+    get label() { return t("dashboards.processes.limit", { n: value }, value) },
+  })
 )
 
 /** Mirrors MAX_WIDGETS in app/metrics/dashboards.py. */
@@ -80,22 +86,22 @@ const SIZE = { timeseries: { w: 6, h: 5 }, stat: { w: 3, h: 5 }, processes: { w:
 export type RangeSeconds = NonNullable<DashboardOptions["range_seconds"]>
 export type RefreshSeconds = NonNullable<DashboardOptions["refresh_seconds"]>
 
-export const RANGES: { value: RangeSeconds; label: string }[] = [
-  { value: 300, label: "Last 5 minutes" },
-  { value: 900, label: "Last 15 minutes" },
-  { value: 3600, label: "Last hour" },
-  { value: 21600, label: "Last 6 hours" },
-  { value: 86400, label: "Last 24 hours" },
-  { value: 604800, label: "Last 7 days" },
-  { value: 2592000, label: "Last 30 days" },
+export const RANGES: { value: RangeSeconds; readonly label: string }[] = [
+  { value: 300, get label() { return t("dashboards.ranges.last_5_minutes") } },
+  { value: 900, get label() { return t("dashboards.ranges.last_15_minutes") } },
+  { value: 3600, get label() { return t("dashboards.ranges.last_hour") } },
+  { value: 21600, get label() { return t("dashboards.ranges.last_6_hours") } },
+  { value: 86400, get label() { return t("dashboards.ranges.last_24_hours") } },
+  { value: 604800, get label() { return t("dashboards.ranges.last_7_days") } },
+  { value: 2592000, get label() { return t("dashboards.ranges.last_30_days") } },
 ]
 
-export const REFRESHES: { value: RefreshSeconds; label: string }[] = [
-  { value: 0, label: "Off" },
-  { value: 10, label: "10 s" },
-  { value: 30, label: "30 s" },
-  { value: 60, label: "1 min" },
-  { value: 300, label: "5 min" },
+export const REFRESHES: { value: RefreshSeconds; readonly label: string }[] = [
+  { value: 0, get label() { return t("dashboards.refreshes.off") } },
+  { value: 10, get label() { return t("dashboards.refreshes.every_10_s") } },
+  { value: 30, get label() { return t("dashboards.refreshes.every_30_s") } },
+  { value: 60, get label() { return t("dashboards.refreshes.every_1_min") } },
+  { value: 300, get label() { return t("dashboards.refreshes.every_5_min") } },
 ]
 
 export function seriesOfWidget(widget: Widget): number[] {

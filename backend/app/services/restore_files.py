@@ -8,6 +8,7 @@ from pathlib import Path
 from app.adapters.explorer.storage import is_plain_name
 from app.adapters.file.storage import LocalStorage
 from app.core.config import settings
+from app.core.translation import say
 from app.jobs.runner import JobFailed
 from app.users import storage
 
@@ -18,15 +19,15 @@ logger = logging.getLogger(__name__)
 
 def snapshot(owner_id: uuid.UUID, filename: str) -> Path:
     if not is_plain_name(filename):
-        raise JobFailed("The backup name is not a plain file name")
+        raise JobFailed(say("The backup name is not a plain file name"))
     try:
         home = LocalStorage(storage.home_dir(owner_id))
         source = home.path_of(home.unlinked_place(f"backups/{filename}"))
         if not source.is_file() or source.stat().st_size > MAX_RESTORE_BYTES:
-            raise JobFailed("The backup is missing or exceeds the 2 GiB restore limit")
+            raise JobFailed(say("The backup is missing or exceeds the 2 GiB restore limit"))
         with source.open("rb") as incoming:
             if incoming.read(5) != b"PGDMP":
-                raise JobFailed("Restore requires a PostgreSQL custom archive")
+                raise JobFailed(say("Restore requires a PostgreSQL custom archive"))
             incoming.seek(0)
             # A sibling of personal homes, inaccessible through their file sources.
             with tempfile.NamedTemporaryFile(
@@ -39,7 +40,7 @@ def snapshot(owner_id: uuid.UUID, filename: str) -> Path:
                     while block := incoming.read(1024 * 1024):
                         copied += len(block)
                         if copied > MAX_RESTORE_BYTES:
-                            raise JobFailed("The backup exceeds the 2 GiB restore limit")
+                            raise JobFailed(say("The backup exceeds the 2 GiB restore limit"))
                         outgoing.write(block)
                 except BaseException:
                     outgoing.close()
@@ -47,7 +48,7 @@ def snapshot(owner_id: uuid.UUID, filename: str) -> Path:
                     raise
         return staged
     except (OSError, ValueError):
-        raise JobFailed("The backup could not be read safely") from None
+        raise JobFailed(say("The backup could not be read safely")) from None
 
 
 def remove_stranded_snapshots() -> None:

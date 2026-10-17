@@ -2,19 +2,24 @@
 
 from typing import Any, Literal
 
+from app.core.translation import N_
+
 FailureKind = Literal["key_refused", "no_credits", "rate_limited", "not_found", "unavailable"]
 
 SENTENCES: dict[FailureKind, str] = {
-    "key_refused": "The provider refused the key",
-    "no_credits": "The provider reported insufficient credits or quota — add funds, check the plan, or try another model",
-    "rate_limited": "The provider is limiting requests; try again in a moment",
-    "not_found": "The provider does not offer this model to this key",
+    "key_refused": N_("The provider refused the key"),
+    "no_credits": N_(
+        "The provider reported insufficient credits or quota — add funds, check the plan, or try another model"
+    ),
+    "rate_limited": N_("The provider is limiting requests; try again in a moment"),
+    "not_found": N_("The provider does not offer this model to this key"),
     # A 5xx is an answer: the provider was reached and is down or overloaded
     # ("high demand" from Gemini), which "could not be reached" misstated.
-    "unavailable": "The provider is unavailable or overloaded right now; try again in a moment",
+    "unavailable": N_("The provider is unavailable or overloaded right now; try again in a moment"),
 }
 
-UNKNOWN_FAILURE = "The model could not answer"
+# English, worded where it is shown: callers tell the unknown one apart by it.
+UNKNOWN_FAILURE = N_("The model could not answer")
 
 # Words inside a provider's code, type or message that mean the account ran
 # out of money or quota rather than being throttled. Matched against the

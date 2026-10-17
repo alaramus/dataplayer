@@ -36,6 +36,7 @@ from app.connectors.models import Connector
 from app.core.access import Access
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
+from app.core.translation import say_if
 from app.search.keep import (
     DEFAULT_WINDOW,
     VECTOR,
@@ -130,7 +131,7 @@ def state_of(
                 files=scope.files,
                 unread=scope.unread,
                 read_at=scope.read_at,
-                notice=scope.notice,
+                notice=say_if(scope.notice),
             )
             for scope in sorted(scopes, key=lambda one: one.node_id)
         ],
@@ -148,7 +149,9 @@ def state_of(
         pass_ended_at=None if row is None else row.pass_ended_at,
         refresh_asked=row is not None and row.refresh_asked_at is not None,
         stale=row is not None and stale(row),
-        notice=None if row is None else row.notice,
+        # Written by the keeper, which no request starts: English, worded
+        # here where the sentence carries no parameters (D226).
+        notice=None if row is None else say_if(row.notice),
         error_kind=None if row is None else row.error_kind,
     )
 
@@ -252,7 +255,7 @@ async def usable(
         found[connector_id] = KeptList(
             kept_at=row.kept_at,
             complete=row.kept_notice is None,
-            notice=row.kept_notice,
+            notice=say_if(row.kept_notice),
             contents=any(scope.read_at is not None for scope in scopes.get(connector_id, [])),
         )
     return found

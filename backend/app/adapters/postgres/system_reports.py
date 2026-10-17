@@ -15,12 +15,14 @@ from dataclasses import dataclass
 
 from psycopg import sql
 
+from app.core.translation import N_
+
 # PostgreSQL refuses to create a schema whose name begins with "pg_", so this
 # id cannot collide with one a user could make. That is the server's guarantee,
 # not a convention this project hopes holds.
 SECTION_ID = "pg_dataplayer"
-SECTION_TITLE = "System"
-SECTION_DESCRIPTION = "What this server says about itself"
+SECTION_TITLE = N_("System")
+SECTION_DESCRIPTION = N_("What this server says about itself")
 
 
 @dataclass(frozen=True)
@@ -44,8 +46,8 @@ class SystemReport:
 REPORTS: tuple[SystemReport, ...] = (
     SystemReport(
         key="processes",
-        title="Processes",
-        description="Backends connected now, and what each is waiting for",
+        title=N_("Processes"),
+        description=N_("Backends connected now, and what each is waiting for"),
         # The one report whose whole subject is what is happening this second.
         # Five, because a page of it read every second is a page nobody can
         # read, and a minute is long enough for the statement to have finished.
@@ -72,8 +74,8 @@ REPORTS: tuple[SystemReport, ...] = (
     ),
     SystemReport(
         key="settings",
-        title="Settings",
-        description="Every server setting, its source, and what changing it takes",
+        title=N_("Settings"),
+        description=N_("Every server setting, its source, and what changing it takes"),
         # `context` is the useful column and is unreadable on its own, so the
         # server is asked to say what it means: once, on the server, rather
         # than in every screen that shows a setting.
@@ -103,8 +105,8 @@ REPORTS: tuple[SystemReport, ...] = (
     ),
     SystemReport(
         key="tablespaces",
-        title="Tablespaces",
-        description="Where the server keeps its files, with size and object count",
+        title=N_("Tablespaces"),
+        description=N_("Where the server keeps its files, with size and object count"),
         statement=sql.SQL("""
             SELECT t.spcname AS name,
                    pg_tablespace_location(t.oid) AS location,
@@ -122,8 +124,8 @@ REPORTS: tuple[SystemReport, ...] = (
     ),
     SystemReport(
         key="roles",
-        title="Roles",
-        description="Who may connect, and what each role is allowed to do",
+        title=N_("Roles"),
+        description=N_("Who may connect, and what each role is allowed to do"),
         statement=sql.SQL("""
             SELECT rolname AS name,
                    rolsuper AS superuser,
@@ -140,8 +142,8 @@ REPORTS: tuple[SystemReport, ...] = (
     ),
     SystemReport(
         key="routines",
-        title="Routines",
-        description="Functions and procedures defined outside the system schemas",
+        title=N_("Routines"),
+        description=N_("Functions and procedures defined outside the system schemas"),
         statement=sql.SQL("""
             SELECT n.nspname AS schema,
                    p.proname AS name,
@@ -165,11 +167,11 @@ REPORTS: tuple[SystemReport, ...] = (
     ),
     SystemReport(
         key="extensions",
-        title="Extensions",
+        title=N_("Extensions"),
         # One report rather than two: this view already
         # states the installed version, so "available" and "installed" are the
         # same question asked once.
-        description="Extensions this server offers, and which are installed",
+        description=N_("Extensions this server offers, and which are installed"),
         statement=sql.SQL("""
             SELECT name,
                    installed_version,

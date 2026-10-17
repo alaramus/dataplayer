@@ -3,13 +3,14 @@ import type { MaybeRefOrGetter } from "vue"
 
 import { UtilsService } from "@/client"
 import { createClient } from "@/client/client"
+import { t } from "@/shared/i18n"
 import { serverContext } from "@/shared/servers/context"
 import { normalizeServerUrl } from "@/shared/servers/profiles"
 
 export async function checkServer(address: string, signal?: AbortSignal): Promise<true> {
   const url = normalizeServerUrl(address)
   if (window.location.protocol === "https:" && new URL(url).protocol === "http:") {
-    throw new Error("This page uses HTTPS. Use an HTTPS server address.")
+    throw new Error(t("servers.check.https_only"))
   }
   // An isolated client: never the signed-in client's auth callback or interceptors.
   const anonymous = createClient({
@@ -25,12 +26,12 @@ export async function checkServer(address: string, signal?: AbortSignal): Promis
     const response = await UtilsService.serverInfo({ client: anonymous, signal })
     data = response.data
   } catch {
-    throw new Error("Could not reach a compatible DataPlayer server. Check the address, server version, certificate and allowed frontend origin (CORS).")
+    throw new Error(t("servers.check.unreachable"))
   }
   if (data === null || typeof data !== "object" ||
       !("product" in data) || data.product !== "dataplayer" ||
       !("client_api_version" in data) || data.client_api_version !== 1) {
-    throw new Error("This server is not compatible with this version of DataPlayer.")
+    throw new Error(t("servers.check.incompatible"))
   }
   return true
 }

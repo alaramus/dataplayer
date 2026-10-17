@@ -36,6 +36,7 @@ from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import maintained_hypertable
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 Maintenance = Literal["drop", "move", "reorder", "detach", "merge", "merge_concurrently", "split", "attach"]
 # Both take a group of adjacent chunks as one unit.
@@ -63,8 +64,11 @@ ROUTINES: dict[Maintenance, RoutineShape] = {
 MERGE_COMPRESSED = (2, 19, 0)
 # Each one rewrites or locks whole chunks, so one per job is a unit.
 PER_CHUNK: frozenset[Maintenance] = frozenset({"drop", "move", "reorder", "detach"})
-# What cannot be checked without knowing a chunk's hash partition, by what it does.
-NEEDS_PARTITION: dict[Maintenance, str] = {"merge": "merged", "merge_concurrently": "merged", "attach": "attached"}
+# What cannot be checked without knowing a chunk's hash partition.
+NEEDS_PARTITION: frozenset[Maintenance] = frozenset({"merge", "merge_concurrently", "attach"})
+# Why chunks a window or a pick holds are left out of the job: already in the
+# tablespace a move names, or compressed, which a reorder and a detach pass by.
+Skipped = Literal["in_tablespace", "compressed_reorder", "compressed_detach"]
 
 CHUNK_COLUMNS = (
     "hypertable_schema", "hypertable_name", "chunk_schema", "chunk_name",
@@ -245,12 +249,11 @@ def require_kind(target: MaintainedHypertable, *bounds: int | datetime | None) -
             continue
         if target.integer and isinstance(bound, datetime):
             raise _refuse(
-                f'This hypertable is partitioned by the integer column "{target.column_name}"; '
-                "give its values, not instants",
+                say('This hypertable is partitioned by the integer column "{column}"; give its values, not instants', column=target.column_name),
             )
         if not target.integer and not isinstance(bound, datetime):
             raise _refuse(
-                f'This hypertable is partitioned by time on "{target.column_name}"; give instants, not numbers',
+                say('This hypertable is partitioned by time on "{column}"; give instants, not numbers', column=target.column_name),
             )
 
 
@@ -304,7 +307,7 @@ class MaintenancePlan(ReviewedPlan):
     chunks: tuple[PlannedChunk, ...] = Field(default=(), max_length=MAX_OPERATION_TARGETS)
     # Chunks inside the window the operation leaves as they are, with why.
     skipped: int = Field(default=0, strict=True, ge=0)
-    skipped_because: str | None = None
+    skipped_because: Skipped | None = None
 
 
 def _refuse(message: str) -> ActionRefused:
@@ -320,11 +323,18 @@ async def inspect_unit(
     if target.hash_columns and maintenance in NEEDS_PARTITION:
         columns = ", ".join(f'"{column}"' for column in target.hash_columns)
         raise _refuse(
-            f"Chunks of a hypertable partitioned by hash on {columns} are not {NEEDS_PARTITION[maintenance]} "
-            "here: which partition a chunk is in is not public, so the result could not be checked first",
+            say(
+                "Chunks of a hypertable partitioned by hash on {columns} are not attached here: "
+                "which partition a chunk is in is not public, so the result could not be checked first",
+                columns=columns,
+            ) if maintenance == "attach" else say(
+                "Chunks of a hypertable partitioned by hash on {columns} are not merged here: "
+                "which partition a chunk is in is not public, so the result could not be checked first",
+                columns=columns,
+            ),
         )
     if target.hash_columns and maintenance == "split":
-        raise _refuse("TimescaleDB splits no chunk of a hypertable partitioned by hash as well as by time")
+        raise _refuse(say("TimescaleDB splits no chunk of a hypertable partitioned by hash as well as by time"))
     await require_public_view(reader, "chunks", CHUNK_COLUMNS)
     strategy = MaintenanceStrategy(extension_version=version)
     shape = ROUTINES.get(maintenance)
@@ -345,10 +355,10 @@ async def _window(
     ), inspection=True)
     if len(rows) > MAX_OPERATION_TARGETS:
         raise ActionRefused(
-            "too_large", f"More than {MAX_OPERATION_TARGETS} chunks lie inside this window; narrow it",
+            "too_large", say("More than {count} chunks lie inside this window; narrow it", count=MAX_OPERATION_TARGETS),
         )
     if not rows:
-        raise _refuse("No whole chunk lies inside this window")
+        raise _refuse(say("No whole chunk lies inside this window"))
     return rows
 
 
@@ -356,9 +366,9 @@ async def _picked(
     reader: PostgresReader, target: MaintainedHypertable, picked: tuple[ChunkRef, ...],
 ) -> list[dict[str, object]]:
     if not picked:
-        raise _refuse("Pick at least one chunk")
+        raise _refuse(say("Pick at least one chunk"))
     if len(picked) > MAX_OPERATION_TARGETS:
-        raise ActionRefused("too_large", f"Pick at most {MAX_OPERATION_TARGETS} chunks at a time")
+        raise ActionRefused("too_large", say("Pick at most {count} chunks at a time", count=MAX_OPERATION_TARGETS))
     rows = await reader.query(_ranged(_PICKED, target), (
         target.schema_name, target.table_name,
         [chunk.schema_name for chunk in picked], [chunk.name for chunk in picked],
@@ -366,7 +376,7 @@ async def _picked(
     found = {(row["schema_name"], row["name"]) for row in rows}
     gone = next((chunk for chunk in picked if (chunk.schema_name, chunk.name) not in found), None)
     if gone is not None:
-        raise _refuse(f'"{gone.name}" is not a chunk of this hypertable any more')
+        raise _refuse(say('"{name}" is not a chunk of this hypertable any more', name=gone.name))
     return rows
 
 
@@ -385,7 +395,7 @@ def _planned(row: dict[str, object]) -> PlannedChunk:
 
 async def _require_tablespace(reader: PostgresReader, name: str) -> None:
     if not await reader.query(_TABLESPACE, (name,), inspection=True):
-        raise _refuse(f'Tablespace "{name}" does not exist or this connection may not create in it')
+        raise _refuse(say('Tablespace "{name}" does not exist or this connection may not create in it', name=name))
 
 
 async def plan_window_maintenance(
@@ -403,7 +413,7 @@ async def plan_window_maintenance(
                 else await _picked(reader, target, selection if isinstance(selection, tuple) else ())
             )
             keep: list[dict[str, object]] = rows
-            because: str | None = None
+            because: Skipped | None = None
             match maintenance:
                 case "move":
                     tablespace = arguments.tablespace or ""
@@ -412,20 +422,19 @@ async def plan_window_maintenance(
                         await _require_tablespace(reader, arguments.index_tablespace)
                     arguments = await ordering_index(reader, target, arguments)
                     keep = [row for row in rows if row["tablespace"] != tablespace]
-                    because = f"already in {sql.Identifier(tablespace).as_string()}"
+                    because = "in_tablespace"
                 case "reorder":
                     if not await reader.query(_INDEX, (target.relation_oid, arguments.index), inspection=True):
-                        raise _refuse(f'This hypertable has no index "{arguments.index}"')
+                        raise _refuse(say('This hypertable has no index "{index}"', index=arguments.index))
                     keep = [row for row in rows if row["is_compressed"] is not True]
-                    because = "compressed, which reorder_chunk does not rewrite"
+                    because = "compressed_reorder"
                 case "detach":
                     keep = [row for row in rows if row["is_compressed"] is not True]
-                    because = "compressed; TimescaleDB detaches only uncompressed chunks"
+                    because = "compressed_detach"
                 case "merge" | "merge_concurrently":
                     _require_mergeable(rows, unit.strategy.extension_version)
             if not keep:
-                which = "whole chunk inside this window" if window is not None else "picked chunk"
-                raise _refuse(f"Every {which} is {because}")
+                raise _refuse(_all_skipped(because, window is not None, arguments.tablespace or ""))
             chunks = tuple(_planned(row) for row in keep)
             if maintenance in MERGES:
                 unit = unit.model_copy(update={"group": chunks})
@@ -435,9 +444,29 @@ async def plan_window_maintenance(
                 skipped=len(rows) - len(keep), skipped_because=because if len(rows) > len(keep) else None,
             )
     except TimeoutError:
-        raise _refuse("TimescaleDB chunk planning timed out") from None
+        raise _refuse(say("TimescaleDB chunk planning timed out")) from None
     except (AdapterError, ValueError):
-        raise _refuse("TimescaleDB chunk metadata could not be inspected safely") from None
+        raise _refuse(say("TimescaleDB chunk metadata could not be inspected safely")) from None
+
+
+def _all_skipped(because: Skipped | None, windowed: bool, tablespace: str) -> str:
+    space = sql.Identifier(tablespace).as_string()
+    match because, windowed:
+        case "in_tablespace", True:
+            return say("Every whole chunk inside this window is already in {tablespace}", tablespace=space)
+        case "in_tablespace", False:
+            return say("Every picked chunk is already in {tablespace}", tablespace=space)
+        case "compressed_reorder", True:
+            return say("Every whole chunk inside this window is compressed, which reorder_chunk does not rewrite")
+        case "compressed_reorder", False:
+            return say("Every picked chunk is compressed, which reorder_chunk does not rewrite")
+        case "compressed_detach", True:
+            return say(
+                "Every whole chunk inside this window is compressed; TimescaleDB detaches only uncompressed chunks"
+            )
+        case "compressed_detach", False:
+            return say("Every picked chunk is compressed; TimescaleDB detaches only uncompressed chunks")
+    raise AssertionError("only a skipping operation keeps no chunk")
 
 
 async def ordering_index(
@@ -445,11 +474,11 @@ async def ordering_index(
 ) -> MaintenanceArguments:
     if arguments.index is not None:
         if not await reader.query(_INDEX, (target.relation_oid, arguments.index), inspection=True):
-            raise _refuse(f'This hypertable has no index "{arguments.index}"')
+            raise _refuse(say('This hypertable has no index "{index}"', index=arguments.index))
         return arguments
     found = await reader.query(_TIME_INDEX, (target.relation_oid, target.column_name), inspection=True)
     if not found:
-        raise _refuse("Name an index: moving a chunk rewrites it in an index's order")
+        raise _refuse(say("Name an index: moving a chunk rewrites it in an index's order"))
     return arguments.model_copy(update={"index": str(found[0]["name"])})
 
 
@@ -469,15 +498,15 @@ async def window_count(reader: PostgresReader, target: MaintainedHypertable, win
 
 def _require_mergeable(rows: list[dict[str, object]], version: str) -> None:
     if len(rows) < 2:
-        raise _refuse("A merge needs at least two chunks")
+        raise _refuse(say("A merge needs at least two chunks"))
     for before, after in zip(rows, rows[1:], strict=False):
         if before["range_end"] != after["range_start"]:
-            raise _refuse(
-                f'Chunks "{before["name"]}" and "{after["name"]}" are not adjacent; '
-                "choose chunks that touch",
-            )
+            raise _refuse(say(
+                'Chunks "{before}" and "{after}" are not adjacent; choose chunks that touch',
+                before=before["name"], after=after["name"],
+            ))
     if any(row["is_compressed"] is True for row in rows) and release(version) < MERGE_COMPRESSED:
-        raise _refuse(f"TimescaleDB {version} cannot merge compressed chunks; decompress them first")
+        raise _refuse(say("TimescaleDB {version} cannot merge compressed chunks; decompress them first", version=version))
 
 
 async def plan_split(
@@ -497,7 +526,7 @@ async def plan_split(
                 _ranged(_HOLDING, target), (target.schema_name, target.table_name, at, at), inspection=True,
             )
             if len(rows) != 1:
-                raise _refuse("No chunk holds this point strictly inside its range")
+                raise _refuse(say("No chunk holds this point strictly inside its range"))
             chunk = _planned(rows[0])
             return MaintenancePlan(
                 unit=unit.model_copy(update={
@@ -506,9 +535,9 @@ async def plan_split(
                 chunks=(chunk,),
             )
     except TimeoutError:
-        raise _refuse("TimescaleDB chunk planning timed out") from None
+        raise _refuse(say("TimescaleDB chunk planning timed out")) from None
     except (AdapterError, ValueError):
-        raise _refuse("TimescaleDB chunk metadata could not be inspected safely") from None
+        raise _refuse(say("TimescaleDB chunk metadata could not be inspected safely")) from None
 
 
 async def plan_attach(
@@ -524,13 +553,13 @@ async def plan_attach(
             await require_public_view(reader, "hypertables", ("hypertable_schema", "hypertable_name"))
             facts = await reader.query(_ATTACHABLE, (table_schema, table), inspection=True)
             if len(facts) != 1:
-                raise _refuse(f'There is no table "{table_schema}"."{table}"')
+                raise _refuse(say('There is no table "{schema}"."{table}"', schema=table_schema, table=table))
             checks = (
-                (facts[0]["relkind"] != "r", "Only an ordinary table can become a chunk"),
-                (facts[0]["owned"] is not True, "Only the table's owner can attach it"),
-                (facts[0]["hypertable"] is True, "A hypertable cannot become a chunk"),
-                (facts[0]["chunk"] is True, "This table is already a chunk"),
-                (facts[0]["inherits"] is True, "A table that uses inheritance cannot become a chunk"),
+                (facts[0]["relkind"] != "r", say("Only an ordinary table can become a chunk")),
+                (facts[0]["owned"] is not True, say("Only the table's owner can attach it")),
+                (facts[0]["hypertable"] is True, say("A hypertable cannot become a chunk")),
+                (facts[0]["chunk"] is True, say("This table is already a chunk")),
+                (facts[0]["inherits"] is True, say("A table that uses inheritance cannot become a chunk")),
             )
             reason = next((message for failed, message in checks if failed), None)
             if reason is not None:
@@ -540,7 +569,7 @@ async def plan_attach(
                 inspection=True,
             )
             if overlap:
-                raise _refuse(f'Chunk "{overlap[0]["name"]}" already covers part of this range')
+                raise _refuse(say('Chunk "{name}" already covers part of this range', name=overlap[0]["name"]))
             bounds = await reader.query(
                 _ranged(
                     "SELECT (%s::{bound})::{cast}::text AS range_start, (%s::{bound})::{cast}::text AS range_end",
@@ -550,7 +579,7 @@ async def plan_attach(
             )
             start, end = str(bounds[0]["range_start"]), str(bounds[0]["range_end"])
             if start == end:
-                raise _refuse("The range is empty once read in the column's type")
+                raise _refuse(say("The range is empty once read in the column's type"))
             # The slices are composed here from the source's own text, keyed by
             # the column the source names; nothing in them is the request's.
             # An integer column's bounds are JSON numbers, a time column's its text.
@@ -565,6 +594,6 @@ async def plan_attach(
                 chunks=(planned,),
             )
     except TimeoutError:
-        raise _refuse("TimescaleDB chunk planning timed out") from None
+        raise _refuse(say("TimescaleDB chunk planning timed out")) from None
     except (AdapterError, ValueError):
-        raise _refuse("TimescaleDB chunk metadata could not be inspected safely") from None
+        raise _refuse(say("TimescaleDB chunk metadata could not be inspected safely")) from None

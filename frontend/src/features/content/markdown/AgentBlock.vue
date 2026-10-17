@@ -12,6 +12,7 @@ import type { AgentKind } from "@/features/content/markdown/agent"
 import { copySource } from "@/features/content/markdown/blockActions"
 import BlockChrome from "@/features/content/markdown/BlockChrome.vue"
 import { renderProse } from "@/features/content/markdown/render"
+import { t } from "@/shared/i18n"
 import { AppCopyButton, useToast } from "@/shared/ui"
 
 const props = defineProps<{ kind: AgentKind; code: string }>()
@@ -23,7 +24,7 @@ const body = computed(() => (content.value.body === "" ? "" : renderProse(conten
 
 async function copy() {
   await copySource(props.code)
-  toast.success("Callout copied")
+  toast.success(t("content.markdown.callout.copied"))
 }
 </script>
 
@@ -37,7 +38,7 @@ async function copy() {
   >
     <template #actions>
       <AppCopyButton
-        tooltip="Copy this callout"
+        :tooltip="t('content.markdown.callout.copy')"
         data-testid="agent-copy"
         @click="copy"
       />

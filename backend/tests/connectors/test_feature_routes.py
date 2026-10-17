@@ -173,7 +173,7 @@ async def test_feature_discovery_requires_current_read_access_and_enabled_connec
     assert disabled.status_code == 200
     response = await client.get(path, headers=owner)
     assert response.status_code == 409
-    assert response.json()["detail"] == "Connector is disabled"
+    assert response.json()["detail"]["code"] == "connectors.disabled"
     discovery.assert_not_awaited()
 
 
@@ -199,6 +199,8 @@ async def test_source_without_runtime_feature_capability_returns_501(
 
     assert response.status_code == 501
     assert response.json()["detail"] == {
+        "code": "connectors.no_runtime_features",
+        "params": {},
         "message": "This source does not report runtime features",
         "error_kind": "config",
     }

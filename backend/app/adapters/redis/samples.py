@@ -18,6 +18,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from app.adapters.redis.session import RedisSession
+from app.core.translation import say
 
 # How long the keys that have an expiry keep. Different values on purpose:
 # a column where every row says the same number says nothing about the column.
@@ -81,7 +82,11 @@ class RedisSamples:
             for command, arguments in _commands():
                 getattr(pipe, command)(*arguments)
             await pipe.execute()
-        return f"{len(key_names())} keys in {len(_NAMESPACES)} namespaces"
+        return say(
+            "{keys} keys in {namespaces} namespaces",
+            keys=len(key_names()),
+            namespaces=len(_NAMESPACES),
+        )
 
 
 # Which commands make a key rather than change one that already exists. Named

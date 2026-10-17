@@ -8,6 +8,7 @@ import UnlockKeyDialog from "@/features/sshKeys/UnlockKeyDialog.vue"
 import { useDeleteSshKey, useLockSshKey, useSshKeys } from "@/features/sshKeys/api"
 import { keyState, passphraseModeLabel } from "@/features/sshKeys/keys"
 import { messageOf } from "@/shared/api/errors"
+import { t } from "@/shared/i18n"
 import { copyText } from "@/shared/clipboard"
 import {
   AppBadge,
@@ -51,35 +52,35 @@ watch(
 const unlocking = ref<SshKeyPublic | null>(null)
 
 function usedBy(key: SshKeyPublic): string {
-  if (key.used_by.length === 0) return "No connection uses it"
-  return `Used by ${key.used_by.map((use) => use.name).join(", ")}`
+  if (key.used_by.length === 0) return t("ssh_keys.section.unused")
+  return t("ssh_keys.section.used_by", { names: key.used_by.map((use) => use.name).join(", ") })
 }
 
 async function copyPublic(key: SshKeyPublic) {
   await copyText(key.public_key)
-  toast.success("Public key copied. Add it to authorized_keys on the server")
+  toast.success(t("ssh_keys.section.public_copied"))
 }
 
 async function lock(key: SshKeyPublic) {
   try {
     await lockKey.mutateAsync(key.id)
   } catch (cause) {
-    toast.error(messageOf(cause, "The key could not be locked"))
+    toast.error(messageOf(cause, t("ssh_keys.section.lock_failed")))
   }
 }
 
 async function remove(key: SshKeyPublic) {
   const sure = await confirm({
-    title: "Delete this key?",
-    message: `${key.name} will be gone from this server. Servers that trust its public half keep trusting it until you remove that line.`,
-    confirmLabel: "Delete",
+    title: t("ssh_keys.section.delete_title"),
+    message: t("ssh_keys.section.delete_message", { name: key.name }),
+    confirmLabel: t("ssh_keys.section.delete"),
     danger: true,
   })
   if (!sure) return
   try {
     await removeKey.mutateAsync(key.id)
   } catch (cause) {
-    toast.error(messageOf(cause, "The key could not be deleted"))
+    toast.error(messageOf(cause, t("ssh_keys.section.delete_failed")))
   }
 }
 </script>
@@ -91,25 +92,22 @@ async function remove(key: SshKeyPublic) {
   >
     <div class="ssh-keys__head">
       <div class="ssh-keys__what">
-        <span class="ssh-keys__title">SSH keys</span>
+        <span class="ssh-keys__title">{{ t('ssh_keys.section.title') }}</span>
         <span class="dp-helper">
-          Keys your SSH connections sign in with. A key made here never leaves this
-          server: copy its public key into authorized_keys on the servers it should
-          open. A key that asks for its passphrase is kept locked, and opens for the
-          time you choose when you type it.
+          {{ t('ssh_keys.section.hint') }}
         </span>
       </div>
       <div class="ssh-keys__buttons">
         <AppButton
           :icon="appIcons.createSshKey"
-          label="New key"
+          :label="t('ssh_keys.section.new_key')"
           data-testid="ssh-key-new"
           @click="making = 'generate'"
         />
         <AppButton
           variant="quiet"
           :icon="appIcons.importSshKey"
-          label="Import"
+          :label="t('ssh_keys.section.import')"
           data-testid="ssh-key-import"
           @click="making = 'import'"
         />
@@ -120,7 +118,7 @@ async function remove(key: SshKeyPublic) {
     <AppEmptyState
       v-else-if="(keys.data.value ?? []).length === 0"
       :icon="appIcons.sshKey"
-      text="No SSH keys yet"
+      :text="t('ssh_keys.section.empty')"
     />
     <div
       v-for="key in keys.data.value ?? []"
@@ -146,27 +144,27 @@ async function remove(key: SshKeyPublic) {
         :tone="keyState(key)?.open ? 'success' : 'warning'"
       />
       <AppCopyButton
-        tooltip="Copy the public key"
+        :tooltip="t('ssh_keys.section.copy_public')"
         :data-testid="`ssh-key-copy-${key.name}`"
         @click="copyPublic(key)"
       />
       <AppIconButton
         v-if="keyState(key) && !keyState(key)?.open"
         :icon="appIcons.unlockSshKey"
-        tooltip="Unlock: type its passphrase"
+        :tooltip="t('ssh_keys.section.unlock')"
         :data-testid="`ssh-key-unlock-${key.name}`"
         @click="unlocking = key"
       />
       <AppIconButton
         v-else-if="keyState(key)?.open"
         :icon="appIcons.lockSshKey"
-        tooltip="Lock it now"
+        :tooltip="t('ssh_keys.section.lock')"
         :data-testid="`ssh-key-lock-${key.name}`"
         @click="lock(key)"
       />
       <AppIconButton
         :icon="appIcons.deleteSshKey"
-        :tooltip="key.used_by.length ? 'Point its connections at another key first' : 'Delete this key'"
+        :tooltip="key.used_by.length ? t('ssh_keys.section.delete_used') : t('ssh_keys.section.delete_key')"
         :disable="key.used_by.length > 0"
         :data-testid="`ssh-key-delete-${key.name}`"
         @click="remove(key)"

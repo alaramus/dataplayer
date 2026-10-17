@@ -1,15 +1,17 @@
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlmodel import col, func, select
 from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.email import generate_new_account_email, send_email
+from app.core.problems import Problem
 from app.core.schemas import Message
 from app.core.security import get_password_hash, verify_password
+from app.core.translation import current_language, say
 from app.users import crud, preferences
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import (
@@ -80,15 +82,16 @@ async def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     """
     user = await crud.get_user_by_email(session=session, email=user_in.email)
     if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists in the system.",
-        )
+        raise Problem(400, "users.email_taken")
 
     user = await crud.create_user(session=session, user_create=user_in)
     if settings.emails_enabled and user_in.email:
         email_data = generate_new_account_email(
-            email_to=user_in.email, username=user_in.email, password=user_in.password
+            email_to=user_in.email,
+            username=user_in.email,
+            password=user_in.password,
+            # Nobody has chosen for the new account yet: the language of whoever made it.
+            language=current_language.get(),
         )
         # send_email blocks on SMTP: calling it directly from an async handler
         # would stall the whole event loop.
@@ -114,9 +117,7 @@ async def update_user_me(
             session=session, email=user_in.email
         )
         if existing_user and existing_user.id != current_user.id:
-            raise HTTPException(
-                status_code=409, detail="User with this email already exists"
-            )
+            raise Problem(409, "users.email_taken")
     user_data = user_in.model_dump(exclude_unset=True)
     current_user.sqlmodel_update(user_data)
     session.add(current_user)
@@ -134,16 +135,14 @@ async def update_password_me(
     """
     verified, _ = verify_password(body.current_password, current_user.hashed_password)
     if not verified:
-        raise HTTPException(status_code=400, detail="Incorrect password")
+        raise Problem(400, "users.wrong_password")
     if body.current_password == body.new_password:
-        raise HTTPException(
-            status_code=400, detail="New password cannot be the same as the current one"
-        )
+        raise Problem(400, "users.same_password")
     hashed_password = get_password_hash(body.new_password)
     current_user.hashed_password = hashed_password
     session.add(current_user)
     await session.commit()
-    return Message(message="Password updated successfully")
+    return Message(message=say("Password updated successfully"))
 
 
 @router.get("/me", response_model=UserPublic)
@@ -155,9 +154,7 @@ async def read_user_me(current_user: CurrentUser) -> Any:
 
 
 @router.get("/me/preferences", response_model=preferences.PreferencesPublic)
-async def read_my_preferences(
-    session: SessionDep, current_user: CurrentUser
-) -> Any:
+async def read_my_preferences(session: SessionDep, current_user: CurrentUser) -> Any:
     """What this user chose, or the defaults they have not changed."""
     return await preferences.of(session, current_user.id)
 
@@ -178,11 +175,9 @@ async def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
     Delete own user.
     """
     if current_user.is_superuser:
-        raise HTTPException(
-            status_code=403, detail="Super users are not allowed to delete themselves"
-        )
+        raise Problem(403, "users.superuser_cannot_delete_self")
     await crud.delete_user(session=session, user=current_user)
-    return Message(message="User deleted successfully")
+    return Message(message=say("User deleted successfully"))
 
 
 @router.post("/signup", response_model=UserPublic)
@@ -192,10 +187,7 @@ async def register_user(session: SessionDep, user_in: UserRegister) -> Any:
     """
     user = await crud.get_user_by_email(session=session, email=user_in.email)
     if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists in the system",
-        )
+        raise Problem(400, "users.email_taken")
     user_create = UserCreate.model_validate(user_in)
     user = await crud.create_user(session=session, user_create=user_create)
     return user
@@ -212,12 +204,9 @@ async def read_user_by_id(
     if user == current_user:
         return user
     if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=403,
-            detail="The user doesn't have enough privileges",
-        )
+        raise Problem(403, "auth.not_enough_privileges")
     if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise Problem(404, "users.not_found")
     return user
 
 
@@ -238,18 +227,13 @@ async def update_user(
 
     db_user = await session.get(User, user_id)
     if not db_user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this id does not exist in the system",
-        )
+        raise Problem(404, "users.not_found")
     if user_in.email:
         existing_user = await crud.get_user_by_email(
             session=session, email=user_in.email
         )
         if existing_user and existing_user.id != user_id:
-            raise HTTPException(
-                status_code=409, detail="User with this email already exists"
-            )
+            raise Problem(409, "users.email_taken")
 
     db_user = await crud.update_user(session=session, db_user=db_user, user_in=user_in)
     return db_user
@@ -264,10 +248,8 @@ async def delete_user(
     """
     user = await session.get(User, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise Problem(404, "users.not_found")
     if user == current_user:
-        raise HTTPException(
-            status_code=403, detail="Super users are not allowed to delete themselves"
-        )
+        raise Problem(403, "users.superuser_cannot_delete_self")
     await crud.delete_user(session=session, user=user)
-    return Message(message="User deleted successfully")
+    return Message(message=say("User deleted successfully"))

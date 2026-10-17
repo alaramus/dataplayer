@@ -32,21 +32,24 @@ from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.protocol import AdapterError
 from app.core.access import Access
+from app.core.translation import N_, say
 
-_UNREADABLE = "TimescaleDB compression settings could not be inspected safely"
+
+def _unreadable() -> str:
+    return say("TimescaleDB compression settings could not be inspected safely")
 
 
 class CompressionSettingsParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     segment_by: str = Field(
-        default="", max_length=4096, title="Segment by",
-        description="One column per line; leave empty for none",
+        default="", max_length=4096, title=N_("Segment by"),
+        description=N_("One column per line; leave empty for none"),
         json_schema_extra=layout(multiline=True),
     )
     order_by: str = Field(
-        default="", max_length=4096, title="Order by",
-        description=(
+        default="", max_length=4096, title=N_("Order by"),
+        description=N_(
             "One column per line, optionally followed by ASC or DESC and NULLS FIRST or NULLS LAST; "
             "the time column is added descending when neither list names it"
         ),
@@ -63,31 +66,42 @@ async def preview_compression_settings(
     except ActionRefused as exc:
         return ActionPreview(summary=exc.message, blocked=True)
     except (AdapterError, ValueError, TimeoutError):
-        return ActionPreview(summary=_UNREADABLE, blocked=True)
+        return ActionPreview(summary=_unreadable(), blocked=True)
     target = sql.Identifier(plan.target.schema_name, plan.target.table_name).as_string()
     summary = (
-        f"Change the compression settings of {target}" if plan.enabled
-        else f"Enable compression on {target}"
+        say("Change the compression settings of {target}", target=target) if plan.enabled
+        else say("Enable compression on {target}", target=target)
     )
     return ActionPreview(summary=summary, items=_items(plan), fingerprint=plan.fingerprint())
 
 
 def _items(plan: CompressionSettingsPlan) -> list[str]:
-    items = [f"Time dimension: {sql.Identifier(plan.target.column_name).as_string()}"]
+    items = [say("Time dimension: {column}", column=sql.Identifier(plan.target.column_name).as_string())]
     if plan.enabled:
-        items.append(f"Current segment by: {plan.current_segment_by or 'none'}")
-        items.append(f"Current order by: {plan.current_order_by or 'none'}")
+        current_segment, current_order = plan.current_segment_by, plan.current_order_by
+        items.append(
+            say("Current segment by: {columns}", columns=current_segment) if current_segment
+            else say("Current segment by: none")
+        )
+        items.append(
+            say("Current order by: {columns}", columns=current_order) if current_order
+            else say("Current order by: none")
+        )
     else:
-        items.append("Compression is not enabled yet")
-    items.append(f"New segment by: {segment_option(plan.segment_by) or 'none'}")
-    items.append(f"New order by: {order_option(plan.order_by)}")
+        items.append(say("Compression is not enabled yet"))
+    segment = segment_option(plan.segment_by)
+    items.append(say("New segment by: {columns}", columns=segment) if segment else say("New segment by: none"))
+    items.append(say("New order by: {columns}", columns=order_option(plan.order_by)))
     if plan.any_compressed:
-        items.append("Already compressed chunks keep the settings they were compressed with")
+        items.append(say("Already compressed chunks keep the settings they were compressed with"))
     items.extend(
-        f"TimescaleDB recommends segmenting or ordering by the unique column {sql.Identifier(name).as_string()}"
+        say(
+            "TimescaleDB recommends segmenting or ordering by the unique column {column}",
+            column=sql.Identifier(name).as_string(),
+        )
         for name in plan.unsegmented_unique
     )
-    items.extend((plan.impact, plan.coordination))
+    items.extend((plan.impact, plan.said_coordination))
     return items
 
 
@@ -101,13 +115,13 @@ async def compression_settings_admission(
     except ActionRefused as exc:
         return exc.message
     except (AdapterError, ValueError, TimeoutError):
-        return _UNREADABLE
+        return _unreadable()
     return None
 
 
 class ConfigureCompression(Action[CompressionSettingsParams]):
     name: ClassVar[str] = "timescale_configure_compression"
-    title: ClassVar[str] = "Configure compression"
+    title: ClassVar[str] = N_("Configure compression")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
@@ -127,7 +141,7 @@ class ConfigureCompression(Action[CompressionSettingsParams]):
         )
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
-        raise ActionRefused("conflict", "Review the compression settings plan before applying it")
+        raise ActionRefused("conflict", say("Review the compression settings plan before applying it"))
 
     async def perform_reviewed(
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
@@ -138,7 +152,7 @@ class ConfigureCompression(Action[CompressionSettingsParams]):
             self._session, schema.name, node.name, params.segment_by, params.order_by, fingerprint,
         )
         message = (
-            "Compression settings changed; only chunks compressed from now on use them" if plan.enabled
-            else "Compression enabled; chunks are compressed by a compression policy or on request"
+            say("Compression settings changed; only chunks compressed from now on use them") if plan.enabled
+            else say("Compression enabled; chunks are compressed by a compression policy or on request")
         )
         return ActionResult(message=message, reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID])

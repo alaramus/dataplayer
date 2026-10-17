@@ -6,9 +6,13 @@ import { computed, ref } from "vue"
 import { copySource, saveSvg } from "@/features/content/markdown/blockActions"
 import { sanitizeSvg } from "@/features/content/markdown/sanitize"
 import BlockChrome from "@/features/content/markdown/BlockChrome.vue"
+import { t } from "@/shared/i18n"
 import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
 
 const props = defineProps<{ code: string }>()
+
+/** The format's name, which no language translates. */
+const label = "svg"
 
 const toast = useToast()
 const showSource = ref(false)
@@ -16,7 +20,7 @@ const svg = computed(() => sanitizeSvg(props.code))
 
 async function copy() {
   await copySource(props.code)
-  toast.success("SVG source copied")
+  toast.success(t("content.markdown.svg.copied"))
 }
 
 function download() {
@@ -30,22 +34,22 @@ function download() {
   features/content/markdown/sanitize.ts, which exists for exactly this and is
   covered by sanitize.spec.ts. Rendering a document without v-html would mean
   building the DOM by hand from the same HTML. -->
-  <BlockChrome label="svg">
+  <BlockChrome :label="label">
     <template #actions>
       <AppIconButton
         :icon="showSource ? appIcons.image : appIcons.code"
-        :tooltip="showSource ? 'Show the picture' : 'Show the source'"
+        :tooltip="showSource ? t('content.markdown.svg.show_picture') : t('content.markdown.svg.show_source')"
         data-testid="svg-source-toggle"
         @click="showSource = !showSource"
       />
       <AppIconButton
         :icon="appIcons.download"
-        tooltip="Save this picture as SVG"
+        :tooltip="t('content.markdown.svg.save')"
         data-testid="svg-download"
         @click="download"
       />
       <AppCopyButton
-        tooltip="Copy the SVG source"
+        :tooltip="t('content.markdown.svg.copy')"
         data-testid="svg-copy"
         @click="copy"
       />

@@ -1,4 +1,5 @@
 import type { ConversationMessagePublic } from "@/client"
+import { t } from "@/shared/i18n"
 
 /** One place in a conversation worth coming back to. */
 export interface OutlineMark {
@@ -11,7 +12,7 @@ const MAX_LABEL = 80
 
 function firstLine(content: string): string {
   const line = content.split("\n").map((part) => part.trim()).find(Boolean) ?? ""
-  if (line === "") return "Message"
+  if (line === "") return t("ai.outline.message")
   return line.length > MAX_LABEL ? `${line.slice(0, MAX_LABEL - 1)}…` : line
 }
 

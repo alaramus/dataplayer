@@ -4,11 +4,11 @@
  */
 
 import type { ScheduleSettings } from "@/client"
+import { currentLanguage, t } from "@/shared/i18n"
 
 export type IntervalUnit = "minutes" | "hours" | "days"
 
 const UNIT_MINUTES: Record<IntervalUnit, number> = { minutes: 1, hours: 60, days: 24 * 60 }
-const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
 export const WEEKDAYS = [0, 1, 2, 3, 4] as const
 export const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6] as const
 /** The server's bound on the times of a day, said before one is added. */
@@ -36,43 +36,86 @@ export function minutesOf(count: number, unit: IntervalUnit): number {
   return Math.round(count * UNIT_MINUTES[unit])
 }
 
-function counted(count: number, noun: string): string {
-  return count === 1 ? `${noun}` : `${String(count)} ${noun}s`
+// 1 January 2024 was a Monday, the first day of the server's week.
+const MONDAY = new Date(2024, 0, 1)
+
+/** The days of the week, Monday first, as the current language shortens them: "Mon", "пн". */
+export function dayNames(): string[] {
+  const format = new Intl.DateTimeFormat(currentLanguage(), { weekday: "short" })
+  return Array.from({ length: 7 }, (_, day) =>
+    format.format(new Date(MONDAY.getFullYear(), MONDAY.getMonth(), MONDAY.getDate() + day))
+  )
+}
+
+// Named by the dictionary rather than by the locale: ICU versions shorten
+// September as "Sep" or as "Sept", so one browser would name a day differently
+// from another.
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"] as const
+
+/**
+ * A day of a month, the year too when asked: "26 Sep", "31 Dec 2025". The
+ * order is the same in every language spoken so far, so only the month is a word.
+ */
+export function dayMonth(moment: Date, withYear = false): string {
+  const month = t(`pipelines.when.months.${MONTHS[moment.getMonth()] ?? "jan"}`)
+  const day = `${String(moment.getDate())} ${month}`
+  return withYear ? `${day} ${String(moment.getFullYear())}` : day
+}
+
+function counted(count: number, unit: IntervalUnit): string {
+  return count === 1
+    ? t(`pipelines.schedule.every_one.${unit}`)
+    : t(`pipelines.schedule.every_n.${unit}`, { n: count }, count)
 }
 
 function joined(parts: readonly string[]): string {
-  return parts.length <= 1 ? parts.join("") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1) ?? ""}`
+  if (parts.length <= 1) return parts.join("")
+  return t("pipelines.schedule.and", { list: parts.slice(0, -1).join(", "), last: parts.at(-1) ?? "" })
 }
 
 function daysWords(days: readonly number[]): string {
   const sorted = [...new Set(days)].sort((a, b) => a - b)
-  if (sorted.length === 7) return "Every day"
-  if (sorted.join() === WEEKDAYS.join()) return "Weekdays"
-  if (sorted.join() === "5,6") return "Weekends"
-  return sorted.map((day) => DAY_NAMES[day] ?? "").join(", ")
+  if (sorted.length === 7) return t("pipelines.schedule.every_day")
+  if (sorted.join() === WEEKDAYS.join()) return t("pipelines.schedule.weekdays")
+  if (sorted.join() === "5,6") return t("pipelines.schedule.weekends")
+  const names = dayNames()
+  return sorted.map((day) => names[day] ?? "").join(", ")
 }
 
 /** What the schedule does, in a line: "Every 5 minutes", "Weekdays at 09:00 and 18:00". */
 export function scheduleWords(settings: ScheduleSettings | null | undefined): string {
-  if (!settings?.enabled) return "Runs only when Run is pressed"
+  if (!settings?.enabled) return t("pipelines.schedule.manual")
   if (settings.kind === "interval") {
     const { count, unit } = intervalParts(settings.every_minutes ?? 60)
-    return `Every ${counted(count, unit.slice(0, -1))}`
+    return counted(count, unit)
   }
-  return `${daysWords(settings.days ?? [])} at ${joined([...(settings.times ?? [])].sort())}`
+  return t("pipelines.schedule.days_at", {
+    days: daysWords(settings.days ?? []),
+    times: joined([...(settings.times ?? [])].sort()),
+  })
 }
 
 export const TIME: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+
+/** A time of day in this browser's clock, always on twenty-four hours: "03:00". */
+export function clockOf(moment: Date): string {
+  // A fixed locale rather than the interface's (D227): HH:MM on twenty-four
+  // hours in every language, the way the schedule's own times are written.
+  return moment.toLocaleTimeString("en-GB", TIME)
+}
 
 /** When it runs next, in this browser's clock: "today 03:00", "tomorrow 03:00", "Mon 09:00". */
 export function nextRunWords(nextAt: string | null | undefined, now: number): string | null {
   const at = Date.parse(nextAt ?? "")
   if (Number.isNaN(at)) return null
   const moment = new Date(at)
-  const clock = moment.toLocaleTimeString("en-GB", TIME)
+  const clock = clockOf(moment)
   const day = (time: number) => new Date(time).toDateString()
-  if (day(at) === day(now)) return `today ${clock}`
-  if (day(at) === day(now + 24 * 60 * 60 * 1000)) return `tomorrow ${clock}`
-  if (at - now < 6 * 24 * 60 * 60 * 1000) return `${moment.toLocaleDateString("en-GB", { weekday: "short" })} ${clock}`
-  return `${moment.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${clock}`
+  if (day(at) === day(now)) return t("pipelines.when.today", { time: clock })
+  if (day(at) === day(now + 24 * 60 * 60 * 1000)) return t("pipelines.when.tomorrow", { time: clock })
+  if (at - now < 6 * 24 * 60 * 60 * 1000) {
+    const weekday = moment.toLocaleDateString(currentLanguage(), { weekday: "short" })
+    return `${weekday} ${clock}`
+  }
+  return `${dayMonth(moment)} ${clock}`
 }

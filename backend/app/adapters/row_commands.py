@@ -19,6 +19,7 @@ from typing import Protocol, runtime_checkable
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.access import Access
+from app.core.translation import say
 
 
 class RowCommandCondition(BaseModel):
@@ -89,7 +90,7 @@ class RowCommandResult(BaseModel):
 
 class UnknownRowCommand(Exception):
     def __init__(self, name: str) -> None:
-        super().__init__(f"Unknown row command: {name}")
+        super().__init__(say("Unknown row command: {name}", name=name))
         self.name = name
 
 
