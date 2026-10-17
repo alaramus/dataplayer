@@ -226,11 +226,11 @@ async function removeAll() {
 .ai-settings { flex: 1; min-height: 0; overflow: auto; }
 .ai-settings h3 { font-weight: 600; }
 .ai-settings__group { border-bottom: 1px solid var(--dp-border-faint); }
-.ai-settings__form { max-width: 640px; }
+.ai-settings__form { max-width: var(--dp-width-text); }
 /* A command under a toggle starts where the toggle does; stretched across
    the form, its label stood alone in the middle. */
 .ai-settings__jev { align-self: flex-start; }
-.ai-settings__archive { display: flex; flex-direction: column; gap: var(--dp-space-3); max-width: 640px; padding: var(--dp-space-4); }
+.ai-settings__archive { display: flex; flex-direction: column; gap: var(--dp-space-3); max-width: var(--dp-width-text); padding: var(--dp-space-4); }
 .ai-settings__archived-list { display: flex; flex-direction: column; }
 .ai-settings__delete-all { align-self: flex-start; }
 .ai-archived { display: flex; align-items: center; gap: var(--dp-space-1); min-width: 0; padding: var(--dp-space-2) 0; }

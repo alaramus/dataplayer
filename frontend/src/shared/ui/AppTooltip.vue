@@ -80,7 +80,7 @@ onBeforeUnmount(() => clearTimeout(pending))
   line-height: var(--dp-line-height-sm);
   padding: var(--dp-space-1) var(--dp-space-2);
   box-shadow: 0 2px 8px var(--dp-shadow-soft);
-  max-width: 240px;
+  max-width: var(--dp-width-note);
   white-space: normal;
   word-break: break-word;
 }
@@ -100,11 +100,11 @@ onBeforeUnmount(() => clearTimeout(pending))
    measured width when it nudges the tooltip to stay on screen (a rail icon
    at the very edge of the window): a fraction short of the true one-line
    width, it wrapped the text instead — "The server's" / "log",
-   "http://localhost:800" / "0". The kit's own 240px cap is restored, so a
+   "http://localhost:800" / "0". The kit's own cap (--dp-width-note) is restored, so a
    short tooltip is one line again; long text still wraps by design. */
 .q-tooltip.app-tooltip {
   overflow: hidden;
-  max-width: 240px !important;
+  max-width: var(--dp-width-note) !important;
   max-height: 65vh !important;
 }
 </style>

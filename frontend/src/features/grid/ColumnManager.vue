@@ -121,7 +121,7 @@ function togglePin(columnName: string) {
   gap: var(--dp-space-half);
   flex: 0 0 auto;
   min-width: 0;
-  max-width: 280px;
+  max-width: var(--dp-width-popover);
   min-height: var(--dp-row-height-dense);
 }
 .column-manager__visible {

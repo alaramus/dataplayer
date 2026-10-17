@@ -157,7 +157,7 @@ function rename() {
   flex-direction: column;
   gap: var(--dp-space-half);
   min-width: 220px;
-  max-width: 320px;
+  max-width: var(--dp-width-popover);
   padding: var(--dp-space-1);
 }
 .group-list__row {

@@ -1011,17 +1011,17 @@ function removeSavedEntry(name: string) {
   padding: var(--dp-space-2);
 }
 .ui-kit__combobox {
-  max-width: 420px;
+  max-width: var(--dp-width-popover);
 }
 .ui-kit__field-button {
-  max-width: 320px;
+  max-width: var(--dp-width-popover);
 }
 .ui-kit__narrow {
   display: flex;
   width: 120px;
 }
 .ui-kit__options {
-  max-width: 420px;
+  max-width: var(--dp-width-popover);
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);
 }
@@ -1042,7 +1042,7 @@ function removeSavedEntry(name: string) {
   gap: var(--dp-space-2);
 }
 .ui-kit__icon-filter {
-  max-width: 320px;
+  max-width: var(--dp-width-popover);
   margin-bottom: var(--dp-space-4);
 }
 .ui-kit__icon-grid small {

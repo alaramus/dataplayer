@@ -66,3 +66,27 @@ describe("how far something stands back", () => {
     expect(off.map((use) => `${use.path}: opacity: ${use.value}`)).toEqual([])
   })
 })
+
+/* How wide something may grow is one of four widths too (metrics.css): the
+   audit of 2026-10-17 found twenty-five between 110 and 850. A column a few
+   characters wide keeps its own under 120px; a breakpoint in a query is not a
+   declaration and is not read. */
+const MAX_WIDTH = /(?:^|[;{\s])max-width\s*:\s*([^;}]+)/g
+const maxWidths = Object.entries(SOURCES).flatMap(([path, text]) =>
+  [...text.matchAll(STYLE)].flatMap((style) =>
+    [...(style[1] ?? "").replace(COMMENT, "").matchAll(MAX_WIDTH)].map((match) => ({
+      path,
+      value: (match[1] ?? "").trim(),
+    }))
+  )
+)
+
+describe("how wide something may grow", () => {
+  it("is one of the widths in metrics.css", () => {
+    expect(maxWidths.length).toBeGreaterThan(20)
+    const off = maxWidths.filter((use) =>
+      [...use.value.matchAll(PIXELS)].some((found) => Number(found[1]) >= 120)
+    )
+    expect(off.map((use) => `${use.path}: max-width: ${use.value}`)).toEqual([])
+  })
+})

@@ -97,7 +97,7 @@ const tooltip = props.keys ? `${props.label} (${props.keys})` : props.label
   align-items: center;
   gap: var(--dp-space-2);
   width: 100%;
-  max-width: 320px;
+  max-width: var(--dp-width-popover);
   height: var(--dp-control-height);
   padding: 0 var(--dp-space-2);
   border: 1px solid var(--dp-field-border);

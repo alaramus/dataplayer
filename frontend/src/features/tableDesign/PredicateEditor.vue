@@ -193,7 +193,7 @@ function takesList(term: DraftTerm): boolean {
 }
 
 .predicate__join {
-  max-width: 180px;
+  max-width: var(--dp-width-name);
 }
 
 .predicate__values {

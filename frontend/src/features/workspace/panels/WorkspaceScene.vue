@@ -116,7 +116,7 @@ const PRODUCT = "DataPlayer"
   flex-direction: column;
   align-items: center;
   gap: var(--dp-space-2);
-  max-width: 380px;
+  max-width: var(--dp-width-popover);
   text-align: center;
 }
 .scene__title {

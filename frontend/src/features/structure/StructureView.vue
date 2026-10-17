@@ -886,7 +886,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
   background: var(--dp-surface);
 }
 .structure-view :deep(.structure-view__default) {
-  max-width: 200px;
+  max-width: var(--dp-width-name);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

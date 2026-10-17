@@ -351,7 +351,7 @@ function showReferenced(target: ReferencedRows) {
 }
 .rows-panel__sheet {
   flex: none;
-  max-width: 180px;
+  max-width: var(--dp-width-name);
   overflow: hidden;
   padding: var(--dp-space-half) var(--dp-space-2);
   border: none;

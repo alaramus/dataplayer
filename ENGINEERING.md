@@ -174,9 +174,10 @@ and a download ticket are masked in both log formats, a traceback included
 
 **Enforced:** five tests. Three read every `.vue` under `src` — where every
 component style lives — and fail on a `z-index` that is not `var(--dp-layer-…)`
-(`layers.spec.ts`), on a spacing or corner written as pixels
-or an opacity outside `--dp-opacity-…` (`metrics.spec.ts`), and on a colour reached for past the theme
-(`palette.spec.ts`), which reads the `.ts` modules as well. The fourth,
+(`layers.spec.ts`), on a spacing or corner written as pixels, an opacity
+outside `--dp-opacity-…` or a `max-width` of 120px or more outside
+`--dp-width-…` (`metrics.spec.ts`), and on a colour reached for past the
+theme (`palette.spec.ts`), which reads the `.ts` modules as well. The fourth,
 `declared.spec.ts`, fails on a token that is spent and declared nowhere, with or
 without a fallback — the shape of `var(--dp-radius)` and of
 `var(--dp-danger-text, #d32f2f)`, which the other three cannot see because they

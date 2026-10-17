@@ -72,6 +72,15 @@
   --dp-tab-height: 26px;
   /* A page of settings is read down one column; its head keeps to it. */
   --dp-page-max-width: 960px;
+  /* How wide something may grow before it wraps or is cut, by what it is:
+     a name cut to fit a row; a tooltip or a chip's note; a popover, a menu
+     or the text of an empty panel; a form or an explanation read as a block.
+     Twenty-five widths from 110 to 850 stood for these four. A column a few
+     characters wide (under 120px) keeps its own. */
+  --dp-width-name: 180px;
+  --dp-width-note: 240px;
+  --dp-width-popover: 320px;
+  --dp-width-text: 640px;
   /* Room for a label of three words at 13px beside its padding: at 108px
      "New literal value" and "Link to this dashboard" broke onto a second
      line that stood above the middle of the field (D187). */

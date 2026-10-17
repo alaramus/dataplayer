@@ -72,7 +72,7 @@ const emit = defineEmits<{ open: []; remove: [] }>()
   display: inline-flex;
   align-items: center;
   gap: var(--dp-space-1);
-  max-width: 240px;
+  max-width: var(--dp-width-note);
   padding: var(--dp-space-1);
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-control);

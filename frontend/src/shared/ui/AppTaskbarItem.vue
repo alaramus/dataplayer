@@ -96,7 +96,7 @@ defineOptions({ inheritAttrs: false })
   display: flex;
   align-items: center;
   min-width: 44px;
-  max-width: 150px;
+  max-width: var(--dp-width-name);
   max-height: 100%;
   overflow: hidden;
   /* Outline rather than border: a border takes room in the layout, so the

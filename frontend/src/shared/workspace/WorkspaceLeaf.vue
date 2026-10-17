@@ -636,7 +636,7 @@ const overlayStyle = computed((): CSSProperties => {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  max-width: var(--dp-width-name);
 }
 /* Whose tab this is. It goes first when the room runs out: the name of the
    node is what is being looked for, and this only tells two alike apart. */

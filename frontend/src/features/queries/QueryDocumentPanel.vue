@@ -1288,7 +1288,7 @@ onBeforeUnmount(() => {
 .query-panel__knowledge {
   flex: 0 0 auto;
   min-width: 0;
-  max-width: 180px;
+  max-width: var(--dp-width-name);
 }
 /* Outside the group of commands, and so does not carry them along as the
    count of digits in it changes. */

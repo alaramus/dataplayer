@@ -356,7 +356,7 @@ onBeforeUnmount(stopLayout)
 <style scoped>
 .graph-viewer { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .graph-viewer__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-1) var(--dp-space-2); border-bottom: 1px solid var(--dp-border); }
-.graph-viewer__group { min-width: 110px; max-width: 170px; }
+.graph-viewer__group { min-width: 110px; max-width: var(--dp-width-name); }
 .graph-viewer__search { position: relative; flex: 1; min-width: 150px; }
 .graph-viewer__matches { position: absolute; top: 100%; left: 0; right: 0; z-index: var(--dp-layer-popover); background: var(--dp-surface-raised); border: 1px solid var(--dp-border-strong); display: flex; flex-direction: column; max-height: 300px; overflow-y: auto; padding: var(--dp-space-2); }
 .graph-viewer__body { display: flex; flex: 1; min-height: 0; }

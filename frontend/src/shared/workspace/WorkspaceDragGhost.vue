@@ -44,7 +44,7 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   display: flex;
   align-items: center;
   gap: var(--dp-space-1);
-  max-width: 260px;
+  max-width: var(--dp-width-note);
   padding: var(--dp-space-1) var(--dp-space-2);
   border: 1px solid var(--dp-border-strong);
   border-radius: var(--dp-radius-control);
