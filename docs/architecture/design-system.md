@@ -143,13 +143,16 @@ Known deviations:
   passing `color="purple"` to the Quasar component underneath; only review does.
 - **`AppTree` wraps `q-tree`.** Its node and lazy-load types are read off
   Quasar's props, so replacing the tree would change what a screen passes it.
-- **The theme is chosen once per browser.** Light, Paper light, Dark, Paper
+- **The theme is the account's.** Light, Paper light, Dark, Paper
   dark, Midnight, Dark blue, Dark purple or System, listed once in
   `stores/theme.ts`; System is what nothing stored means and follows the
   operating system between Light and Dark as it changes. The named ones carry
   their own grounds, selected by a marker beside the dark class; Paper light
-  carries it without the dark class. The choice does not follow a user
-  elsewhere.
+  carries it without the dark class. The choice is kept on the account, as
+  the language is (D224), so two people in one browser each get their own;
+  the browser keeps the last account's, which paints the sign-in page and the
+  first frame. Which light and which dark theme the toggle returns to is still
+  the browser's.
 - **Every theme is measured** against contrast floors and one order of
   grounds by `contrast.spec.ts` (D196).
 

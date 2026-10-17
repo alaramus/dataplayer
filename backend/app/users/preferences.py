@@ -7,7 +7,7 @@ answer for everybody who never opened the screen.
 """
 
 import uuid
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, SQLModel, select
@@ -37,6 +37,19 @@ CHECK_SECONDS: dict[CheckInterval, float | None] = {
 }
 
 DEFAULT_CHECK_INTERVAL: CheckInterval = "15s"
+
+# The themes the interface draws (D196), as `stores/theme.ts` names them. None
+# is a choice of its own, as for the language: follow the operating system.
+Theme = Literal["light", "paper-light", "dark", "paper", "midnight", "dark-blue", "dark-purple"]
+THEMES: tuple[Theme, ...] = get_args(Theme)
+
+
+def as_theme(value: str | None) -> Theme | None:
+    """A stored theme read back: one this version no longer draws is the system's."""
+    for theme in THEMES:
+        if theme == value:
+            return theme
+    return None
 
 
 
@@ -70,6 +83,7 @@ class UserPreferences(SQLModel, table=True):
     # a browser, so it opens once for each person, on whatever machine.
     welcome_tour_done: bool = Field(default=False)
     language: str | None = Field(default=None, max_length=8)
+    theme: str | None = Field(default=None, max_length=16)
 
 
 class PreferencesPublic(BaseModel):
@@ -78,6 +92,7 @@ class PreferencesPublic(BaseModel):
     connector_checks: CheckInterval
     welcome_tour_done: bool
     language: Language | None
+    theme: Theme | None
 
 
 class PreferencesUpdate(BaseModel):
@@ -94,6 +109,8 @@ class PreferencesUpdate(BaseModel):
     welcome_tour_done: bool | None = None
     # Absent leaves it alone; null says "the browser's" and is a value to store.
     language: Language | None = None
+    # Absent leaves it alone; null says "the system's".
+    theme: Theme | None = None
 
 
 def _public(stored: UserPreferences | None) -> PreferencesPublic:
@@ -102,11 +119,13 @@ def _public(stored: UserPreferences | None) -> PreferencesPublic:
             connector_checks=DEFAULT_CHECK_INTERVAL,
             welcome_tour_done=False,
             language=None,
+            theme=None,
         )
     return PreferencesPublic(
         connector_checks=as_interval(stored.connector_checks),
         welcome_tour_done=stored.welcome_tour_done,
         language=as_language(stored.language),
+        theme=as_theme(stored.theme),
     )
 
 
@@ -134,6 +153,8 @@ async def set_for(
         stored.welcome_tour_done = update.welcome_tour_done
     if "language" in update.model_fields_set:
         stored.language = update.language
+    if "theme" in update.model_fields_set:
+        stored.theme = update.theme
     session.add(stored)
     await session.commit()
     return _public(stored)

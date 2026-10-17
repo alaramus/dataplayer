@@ -5,6 +5,15 @@ import type { Page } from "@playwright/test"
 import { openNode, pickSchema } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import {
+  COLLEAGUE_PASSWORD,
+  colleagueEmail,
+  createColleague,
+  removeColleague,
+  signInAs,
+  signOut,
+} from "./utils/people"
+import { setAccountTheme } from "./utils/theme"
 import { catalogTab, deleteConnector, openConnector } from "./utils/workspace"
 
 /**
@@ -305,3 +314,31 @@ test("a window's bar stands out from its frame in every dark ground", async ({ p
     await expect(chat).toHaveCount(0)
   }
 })
+
+test("two people in one browser each sign in to their own theme", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" })
+  const email = colleagueEmail()
+  await login(page)
+  await createColleague(page, email)
+
+  // The owner's is Midnight; the colleague never chose, so theirs is the
+  // system's — light here. The browser held the owner's when they signed out.
+  await setAccountTheme(page.request, "midnight")
+  await page.reload()
+  await expect(page.locator("body")).toHaveAttribute("data-dp-theme", "midnight")
+  await signOut(page)
+
+  await signInAs(page, email, COLLEAGUE_PASSWORD)
+  await expect(dark(page)).toHaveCount(0)
+  await expect(page.locator("body")).not.toHaveAttribute("data-dp-theme", /.+/)
+  await signOut(page)
+
+  await login(page)
+  await setAccountTheme(page.request, "midnight")
+  await page.reload()
+  await expect(page.locator("body")).toHaveAttribute("data-dp-theme", "midnight")
+  await setAccountTheme(page.request, null)
+  await page.reload()
+  await removeColleague(page, email)
+})
+

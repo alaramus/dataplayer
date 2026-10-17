@@ -159,6 +159,7 @@ def upgrade():
     sa.Column('connector_checks', sqlmodel.sql.sqltypes.AutoString(length=8), nullable=False),
     sa.Column('welcome_tour_done', sa.Boolean(), nullable=False),
     sa.Column('language', sqlmodel.sql.sqltypes.AutoString(length=8), nullable=True),
+    sa.Column('theme', sqlmodel.sql.sqltypes.AutoString(length=16), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_id')
     )

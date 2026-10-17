@@ -14,7 +14,7 @@ export const preferences = {
     "The language of the whole interface. Kept with the account, so it follows it to any browser; until one is chosen, the browser's own is used.",
   appearance: "Appearance",
   appearance_summary:
-    "A light or dark theme for the whole application, or Light and Dark as the operating system switches between them. Kept in this browser.",
+    "A light or dark theme for the whole application, or Light and Dark as the operating system switches between them. Kept with the account, so it follows it to any browser.",
   voice: "Reading voice",
   voice_summary:
     "The voice reading messages aloud, anywhere they are read. Voices are this browser's own. Kept in this browser.",

@@ -18,6 +18,7 @@ import {
 } from "./utils/search"
 import type { ScriptedLine } from "./utils/search"
 import { requireE2EService } from "./utils/services"
+import { chooseTheme, setAccountTheme } from "./utils/theme"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
 test.describe.configure({ timeout: 60_000 })
@@ -289,8 +290,7 @@ const THEMES = ["light", "paper-light", "dark", "paper", "midnight", "dark-blue"
 test("the header keeps the search on its one row at 1280 and 768 px in every theme", async ({ page }) => {
   await login(page)
   for (const theme of THEMES) {
-    await page.evaluate((value) => localStorage.setItem("dataplayer-theme", value), theme)
-    await page.reload()
+    await chooseTheme(page, theme)
     for (const width of [1280, 768]) {
       await page.setViewportSize({ width, height: 800 })
       const header = page.getByTestId("app-header")
@@ -328,7 +328,7 @@ test("the header keeps the search on its one row at 1280 and 768 px in every the
       expect(look, `${theme} at ${width}`).toEqual({ ground: true, words: true })
     }
   }
-  await page.evaluate(() => localStorage.setItem("dataplayer-theme", "light"))
+  await setAccountTheme(page.request, null)
 })
 
 // --- the Search tab ----------------------------------------------------------

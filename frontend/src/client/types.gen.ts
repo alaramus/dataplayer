@@ -8863,6 +8863,18 @@ export type PreferencesPublic = {
    * Language
    */
   language: "en" | "ru" | null
+  /**
+   * Theme
+   */
+  theme:
+    | "light"
+    | "paper-light"
+    | "dark"
+    | "paper"
+    | "midnight"
+    | "dark-blue"
+    | "dark-purple"
+    | null
 }
 
 /**
@@ -8887,6 +8899,18 @@ export type PreferencesUpdate = {
    * Language
    */
   language?: "en" | "ru" | null
+  /**
+   * Theme
+   */
+  theme?:
+    | "light"
+    | "paper-light"
+    | "dark"
+    | "paper"
+    | "midnight"
+    | "dark-blue"
+    | "dark-purple"
+    | null
 }
 
 /**

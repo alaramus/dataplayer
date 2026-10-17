@@ -11,11 +11,10 @@ import { THEME_CHOICES, useThemeStore } from "@/stores/theme"
 import type { ThemeMode } from "@/stores/theme"
 
 // What this account chose for itself, and what this browser holds for it.
-// The theme lives here, next to the account, rather than in the header. Kept
-// in this browser rather than on the server (D6).
-// The voice reading aloud lives here for the same reason: voices are this
-// browser's own. Nowhere to choose it where there is nothing to synthesise.
-// The language is the account's, so it follows the person to any browser (D224).
+// The language and the theme are the account's, so they follow the person to
+// any browser (D224); AccountPreferences keeps the theme on the account.
+// The voice reading aloud is this browser's: voices are the browser's own.
+// Nowhere to choose it where there is nothing to synthesise.
 const theme = useThemeStore()
 const speechOk = speechSupported()
 

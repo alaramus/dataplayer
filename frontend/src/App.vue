@@ -5,7 +5,7 @@ import { t } from "@/shared/i18n"
 import { createOperations, isActive, operationsKey } from "@/shared/operations"
 import ServerBoundary from "@/features/servers/ServerBoundary.vue"
 import QuickChatWindow from "@/features/ai/QuickChatWindow.vue"
-import AccountLanguage from "@/features/preferences/AccountLanguage.vue"
+import AccountPreferences from "@/features/preferences/AccountPreferences.vue"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { confirmInWindow, provideWindows, useWindows, WindowHost } from "@/shared/windows"
 import { useAuthStore } from "@/stores/auth"
@@ -41,6 +41,6 @@ useServerLeaveGuard(async () => {
     <router-view />
   </ServerBoundary>
   <QuickChatWindow v-if="auth.token" />
-  <AccountLanguage v-if="auth.token" />
+  <AccountPreferences v-if="auth.token" />
   <WindowHost :context="windows.context" />
 </template>

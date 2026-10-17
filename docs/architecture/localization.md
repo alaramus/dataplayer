@@ -17,7 +17,7 @@ frontend/src/shared/i18n/
 
 frontend/src/features/preferences/
 ├── GeneralSection.vue   the Language choice
-└── AccountLanguage.vue  puts the account's choice on the interface
+└── AccountPreferences.vue  puts the account's language and theme on the interface
 
 backend/app/core/problems.py   every refusal code and its English
 backend/app/core/translation.py   the request's language; say, N_, say_schema
@@ -43,8 +43,10 @@ language, or English when the browser asks for nothing the interface speaks.
 Before sign-in nothing is known about the account, so the browser remembers
 the last language applied (`dataplayer-language`) and the sign-in page opens in
 it; the application is mounted only once that language has loaded, so the
-first frame is not English. The theme stays in the browser (D6): it depends on
-the screen, and the language on the person.
+first frame is not English. The theme is kept the same way, on the account
+with the browser holding the last one: `AccountPreferences` applies both once
+the account is read and saves a theme chosen anywhere — Preferences, the
+welcome, the toggle — so two people sharing a browser each get their own.
 
 A string taken from `t` while a module loads is fixed in the language current
 then. Constants a screen reads — section lists, theme names — hold their words

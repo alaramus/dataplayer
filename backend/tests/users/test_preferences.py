@@ -9,6 +9,7 @@ from app.users.preferences import (
     DEFAULT_CHECK_INTERVAL,
     as_interval,
     as_language,
+    as_theme,
     check_seconds,
 )
 from tests.utils.user import authentication_token_from_email
@@ -98,6 +99,7 @@ async def test_the_welcome_tour_is_seen_once_per_account(
         "connector_checks": "5m",
         "welcome_tour_done": True,
         "language": None,
+        "theme": None,
     }
     read_back = await client.get(PREFERENCES, headers=headers)
     assert read_back.json()["welcome_tour_done"] is True
@@ -146,3 +148,42 @@ def test_a_stored_language_this_version_does_not_offer_reads_as_the_browsers() -
     assert as_language("ru") == "ru"
     assert as_language("tlh") is None
     assert as_language(None) is None
+
+
+async def test_a_theme_is_kept_on_the_account_and_null_returns_to_the_systems(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The theme follows the person, as the language does: two people in one
+    browser each get their own."""
+    chosen = await client.patch(
+        PREFERENCES, headers=normal_user_token_headers, json={"theme": "midnight"}
+    )
+    untouched = await client.patch(
+        PREFERENCES, headers=normal_user_token_headers, json={"language": "ru"}
+    )
+    cleared = await client.patch(
+        PREFERENCES,
+        headers=normal_user_token_headers,
+        json={"theme": None, "language": None},
+    )
+
+    assert chosen.json()["theme"] == "midnight"
+    assert untouched.json()["theme"] == "midnight"
+    assert cleared.json()["theme"] is None
+
+
+async def test_a_theme_nobody_draws_is_refused(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.patch(
+        PREFERENCES, headers=normal_user_token_headers, json={"theme": "neon"}
+    )
+
+    assert response.status_code == 422
+
+
+def test_a_stored_theme_this_version_no_longer_draws_reads_as_the_systems() -> None:
+    assert as_theme("paper") == "paper"
+    assert as_theme("sepia") is None
+    assert as_theme(None) is None
+
