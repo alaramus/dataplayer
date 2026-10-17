@@ -720,7 +720,7 @@ function moveColumn(by: number): void {
   color: var(--dp-text-muted);
 }
 .designer__sql--stale {
-  opacity: 0.5;
+  opacity: var(--dp-opacity-dim);
 }
 .designer__sql summary {
   padding: var(--dp-space-2) var(--dp-space-3);

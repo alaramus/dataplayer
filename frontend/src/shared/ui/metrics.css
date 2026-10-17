@@ -29,10 +29,15 @@
   --dp-line-height: 20px;
   --dp-line-height-page: 28px;
   --dp-line-height-mono: 18px;
+  --dp-line-height-xs: 12px; /* a badge's one line, which sets its height */
   /* Text that is read rather than scanned: a Markdown document, the agent's
      answer and the question it answers. The chrome around it stays at the
      size above. */
   --dp-prose-font-size: 15px;
+  /* One rhythm for every prose surface: chat, guide, a document and the
+     agent's steps had 1.5, 1.6 and 1.65 for the same paragraph. */
+  --dp-prose-line-height: 1.6;
+  --dp-prose-heading-line-height: 1.3;
   --dp-prose-code-font-size: 14px;
   --dp-prose-heading-1: 24px;
   --dp-prose-heading-2: 20px;
@@ -98,6 +103,12 @@
      The border they measure is in WorkspaceLeaf. */
   --dp-workspace-card-edges: 2px;
 
+  /* How far something stands back: put aside, switched off, out of date,
+     paused or waiting (dim); a node a graph points away from (faint); a thing
+     carried under the pointer (ghost). Six dims from .45 to .7 were one. */
+  --dp-opacity-dim: 0.55;
+  --dp-opacity-faint: 0.3;
+  --dp-opacity-ghost: 0.9;
   --dp-radius-control: 4px;
   --dp-radius-panel: 8px;
   --dp-radius-shell: 16px;

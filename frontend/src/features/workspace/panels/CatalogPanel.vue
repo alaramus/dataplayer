@@ -1333,16 +1333,13 @@ async function afterAction(outcome: ActionOutcome) {
    must not cost the column its only menu. */
 .catalog-panel__groups {
   flex: 1;
-  min-width: 0;
+  min-width: 96px;
 }
 /* A narrow column keeps the choice of schemas readable and gives up the two
    commands that open another catalog beside this one, which a narrow column
-   has no room for anyway: at 230px the choice had shrunk to its arrow. The
-   column is 326px at 1280 pixels of screen, and keeps both there. */
-@container catalog-bar (max-width: 260px) {
-  .catalog-panel__groups {
-    min-width: 96px;
-  }
+   has no room for anyway: at 276px the choice had shrunk to its arrow, the
+   commands taking 227px of the line. */
+@container catalog-bar (max-width: 340px) {
   .catalog-panel__beside {
     display: none;
   }

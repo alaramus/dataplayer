@@ -232,12 +232,16 @@ function start(template: ServiceTemplateInfo) {
   background: var(--dp-tab-current);
   font-weight: 500;
 }
+/* Two lines before an ellipsis: a category's Russian name is half again
+   the English one, and one line cut "Key–value stores" to its first word. */
 .adapter-catalog__category-name {
   flex: 1;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: var(--dp-line-height-sm);
 }
 .adapter-catalog__count {
   font-size: var(--dp-font-size-sm);

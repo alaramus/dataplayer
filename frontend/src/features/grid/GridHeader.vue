@@ -176,11 +176,14 @@ const groups = TOOLBAR_GROUPS
 
 /* Scrolls sideways rather than wrapping or folding anything away: every
    command keeps the place it was given, and a narrow panel reaches the far
-   ones by scrolling to them, with a shadow at the edge (`dp-scroll-edges`). */
+   ones by scrolling to them, with a shadow at the edge (`dp-scroll-edges`).
+   A scroll comes to rest on a group's edge: resting anywhere cut a label in
+   the middle of a word, which read as broken rather than out of view. */
 .grid-header__bar {
   display: flex;
   align-items: stretch;
   overflow-x: auto;
+  scroll-snap-type: x proximity;
   padding: var(--dp-space-1);
 }
 
@@ -188,6 +191,7 @@ const groups = TOOLBAR_GROUPS
   display: flex;
   align-items: stretch;
   flex: none;
+  scroll-snap-align: start;
 }
 
 .grid-header__group-body {
@@ -201,7 +205,7 @@ const groups = TOOLBAR_GROUPS
   padding-left: var(--dp-space-2);
   font-size: var(--dp-font-size);
   font-weight: 600;
-  line-height: 1.4;
+  line-height: var(--dp-line-height);
   color: var(--dp-text);
   white-space: nowrap;
   user-select: none;

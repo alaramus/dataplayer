@@ -150,7 +150,7 @@ function pick(name: string) {
   animation: ai-chat-working 1.2s ease-in-out infinite;
 }
 @keyframes ai-chat-working {
-  50% { opacity: 0.35; transform: scale(0.7); }
+  50% { opacity: var(--dp-opacity-faint); transform: scale(0.7); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ai-chat-row__state--working { animation: none; }

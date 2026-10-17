@@ -242,7 +242,7 @@ const groups = computed(() =>
   gap: var(--dp-space-1);
   margin: 0;
   padding-left: var(--dp-space-4);
-  line-height: 1.4;
+  line-height: var(--dp-line-height);
 }
 .adapter-panel__commands {
   display: flex;

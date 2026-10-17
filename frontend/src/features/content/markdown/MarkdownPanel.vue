@@ -860,7 +860,7 @@ onBeforeUnmount(() => {
   padding: var(--dp-space-4) var(--dp-space-5);
   color: var(--dp-text);
   font-size: var(--dp-prose-font-size);
-  line-height: 1.65;
+  line-height: var(--dp-prose-line-height);
 }
 .markdown-panel__document :deep(mark[data-search-highlight]) {
   border-radius: var(--dp-radius-control);

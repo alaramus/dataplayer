@@ -78,9 +78,11 @@ const emit = defineEmits<{ pick: []; open: [] }>()
 }
 .adapter-tile__category {
   font-size: var(--dp-font-size-xs);
+  line-height: var(--dp-line-height-sm);
   color: var(--dp-text-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

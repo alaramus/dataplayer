@@ -45,3 +45,24 @@ describe("the spacing and the corners", () => {
     expect(pixels.map((use) => `${use.path}: ${use.declaration}`)).toEqual([])
   })
 })
+
+/* How far something stands back is a meaning as well: the same audit found
+   .45, .5, .55, .6, .65 and .7 for one "dimmed". `0` and `1` are shown and
+   not shown, which a transition moves between. */
+const OPACITY = /(?:^|[;{\s])opacity\s*:\s*([^;}]+)/g
+const opacities = Object.entries(SOURCES).flatMap(([path, text]) =>
+  [...text.matchAll(STYLE)].flatMap((style) =>
+    [...(style[1] ?? "").replace(COMMENT, "").matchAll(OPACITY)].map((match) => ({
+      path,
+      value: (match[1] ?? "").trim(),
+    }))
+  )
+)
+
+describe("how far something stands back", () => {
+  it("is spent from metrics.css", () => {
+    expect(opacities.length).toBeGreaterThan(10)
+    const off = opacities.filter((use) => !/^(?:0|1|var\(--dp-opacity-[a-z]+\))$/.test(use.value))
+    expect(off.map((use) => `${use.path}: opacity: ${use.value}`)).toEqual([])
+  })
+})

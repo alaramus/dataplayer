@@ -21,6 +21,7 @@ const STYLE = /<style[^>]*>([\s\S]*?)<\/style>/g
 const COMMENT = /\/\*[\s\S]*?\*\//g
 const SIZE = /(?:^|[;{\s])font-size\s*:\s*([^;}]+)/g
 const WEIGHT = /(?:^|[;{\s])font-weight\s*:\s*([^;}]+)/g
+const LINE = /(?:^|[;{\s])line-height\s*:\s*([^;}]+)/g
 /* A `fontSize` or a `font-size` handed to an element or a library from a script. */
 const SCRIPTED = /(?:fontSize\s*:|font-size\s*:)\s*["'`]?(\d+(?:\.\d+)?(?:px|rem))/g
 
@@ -38,6 +39,13 @@ const weights = styles.flatMap(({ path, css }) =>
 /* An icon is a glyph of a font, so its size is a font-size too — one of the
    three icon sizes. */
 const ALLOWED_SIZE = /^(?:var\(--dp-(?:font-size(?:-[a-z]+)?|prose-[a-z0-9-]+|icon-[a-z]+)\)|inherit|1em)$/
+const lines = styles.flatMap(({ path, css }) =>
+  [...css.matchAll(LINE)].map((match) => ({ path, value: (match[1] ?? "").trim() }))
+)
+/* A line height is a role too: the audit of 2026-10-17 found 1.3, 1.4, 1.5,
+   1.6, 1.65 and 20px beside the tokens. `1` sits a glyph on its own box, and
+   `normal` hands a third-party layout (KaTeX) its own. */
+const ALLOWED_LINE = /^(?:var\(--dp-(?:line-height(?:-[a-z]+)?|prose-[a-z-]*line-height)\)|1|normal|inherit)$/
 const ALLOWED_WEIGHT = /^(?:400|500|600|normal|inherit)$/
 
 describe("the sizes and weights of text", () => {
@@ -52,6 +60,12 @@ describe("the sizes and weights of text", () => {
   it("are spent from the type scale and never as pixels", () => {
     const off = sizes.filter((use) => !ALLOWED_SIZE.test(use.value))
     expect(off.map((use) => `${use.path}: font-size: ${use.value}`)).toEqual([])
+  })
+
+  it("set their lines from the scale", () => {
+    expect(lines.length).toBeGreaterThan(20)
+    const off = lines.filter((use) => !ALLOWED_LINE.test(use.value))
+    expect(off.map((use) => `${use.path}: line-height: ${use.value}`)).toEqual([])
   })
 
   it("keep to the three weights", () => {

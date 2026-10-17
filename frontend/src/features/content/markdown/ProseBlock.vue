@@ -27,7 +27,7 @@ defineProps<{ html: string }>()
   margin: var(--dp-space-5) 0 var(--dp-space-2);
   font-size: 1em;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: var(--dp-prose-heading-line-height);
   letter-spacing: normal;
   scroll-margin-top: 12px;
 }
@@ -112,7 +112,7 @@ defineProps<{ html: string }>()
 }
 .prose-block :deep(a[data-relative-loading]) {
   cursor: wait;
-  opacity: 0.7;
+  opacity: var(--dp-opacity-dim);
 }
 .prose-block :deep(.katex) {
   display: inline-block;

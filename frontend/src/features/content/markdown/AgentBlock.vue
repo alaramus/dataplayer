@@ -87,7 +87,7 @@ async function copy() {
   overflow-wrap: anywhere;
 }
 .agent-block__body {
-  line-height: 1.6;
+  line-height: var(--dp-prose-line-height);
 }
 .agent-block__fields + .agent-block__body {
   margin-top: var(--dp-space-2);

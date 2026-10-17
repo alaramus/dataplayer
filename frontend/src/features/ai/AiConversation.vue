@@ -891,7 +891,7 @@ onBeforeUnmount(() => {
    A stacking context of its own, so nothing raised inside an answer is
    painted over the composer it passes under. */
 .ai-conversation__transcript { flex: 1 0 auto; padding: var(--dp-space-5) var(--dp-space-4) 0; isolation: isolate; }
-.ai-conversation__transcript > .ai-message, .ai-conversation__transcript > .app-banner { max-width: 960px; margin-left: auto; margin-right: auto; }
+.ai-conversation__transcript > .ai-message, .ai-conversation__transcript > .app-banner { max-width: var(--dp-page-max-width); margin-left: auto; margin-right: auto; }
 .ai-outline { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-1); padding: var(--dp-space-2) var(--dp-space-1); overflow: hidden; }
 /* The mark is two pixels of ink in a target a finger can hit. */
 .ai-outline__mark { display: grid; place-items: center; width: 20px; height: 12px; border: 0; padding: 0; background: transparent; cursor: pointer; }
@@ -905,12 +905,12 @@ onBeforeUnmount(() => {
 .ai-conversation__example { border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .ai-message { margin: 0 0 var(--dp-space-4); }
 .ai-message--user { display: flex; flex-direction: column; align-items: flex-end; }
-.ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); font-size: var(--dp-prose-font-size); line-height: 1.65; white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
+.ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); font-size: var(--dp-prose-font-size); line-height: var(--dp-prose-line-height); white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .ai-message__actions { display: flex; gap: var(--dp-space-1); margin-top: var(--dp-space-1); opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
 .ai-message:hover .ai-message__actions, .ai-message:focus-within .ai-message__actions { opacity: 1; pointer-events: auto; }
 @media (hover: none) { .ai-message__actions { opacity: 1; pointer-events: auto; } }
 .ai-message__error { margin-top: var(--dp-space-2); }
-.ai-steps { margin-bottom: var(--dp-space-3); color: var(--dp-text-muted); font-size: inherit; line-height: 1.5; }
+.ai-steps { margin-bottom: var(--dp-space-3); color: var(--dp-text-muted); font-size: inherit; line-height: var(--dp-prose-line-height); }
 .ai-steps__summary, .ai-step__reasoning { border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; }
 .ai-steps__summary { display: flex; align-items: center; gap: var(--dp-space-1); font-size: inherit; }
 .ai-steps__list { margin: var(--dp-space-1) 0 0 var(--dp-space-4); }
@@ -927,7 +927,7 @@ onBeforeUnmount(() => {
    composer. The card's ground fills in round the composer, so text passing
    under it does not show in the gaps. */
 .ai-conversation__dock { position: sticky; bottom: 0; flex: none; padding: var(--dp-space-2) var(--dp-space-4) var(--dp-space-3); background: linear-gradient(transparent, var(--dp-surface) var(--dp-space-2)); }
-.ai-conversation__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); width: 100%; max-width: 960px; margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
+.ai-conversation__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); width: 100%; max-width: var(--dp-page-max-width); margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .ai-conversation__contexts { display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-conversation__picker { display: none; }
 .ai-conversation__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dp-space-2); }

@@ -134,6 +134,6 @@ function follow(event: MouseEvent) {
 }
 .guide-window__text {
   font-size: var(--dp-prose-font-size);
-  line-height: 1.6;
+  line-height: var(--dp-prose-line-height);
 }
 </style>

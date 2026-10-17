@@ -17,7 +17,7 @@ frontend/src/
     ├── typography.css        roles: overline, helper, meta, section and page titles; tag resets
     ├── theme.css             colours, the text colours and the focus ring among them
     ├── contrast.spec.ts      fails on a theme below a contrast floor (D196)
-    └── typography.spec.ts    fails on a size or a weight spent past the scale
+    └── typography.spec.ts    fails on a size, weight or line past the scale
 ```
 
 ## D11. A screen asks the kit for meaning, not Quasar for a look
@@ -204,8 +204,9 @@ every `<h3>` of the chrome.
 - **One focus ring**: 2px of `--dp-focus-border` just outside the control.
 
 Enforced by `typography.spec.ts`, which fails on a `font-size` in a component
-that is not a type or icon token, on a weight other than 400/500/600, and on a
-pixel size handed to an element from a script. Verified by breaking each.
+that is not a type or icon token, on a weight other than 400/500/600, on a
+`line-height` that is not a line token (or `1`, `normal`), and on a pixel size
+handed to an element from a script. Verified by breaking each.
 
 Known deviations:
 

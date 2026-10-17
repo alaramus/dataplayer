@@ -83,6 +83,6 @@ const explained = computed(
 /* A switched-off connection is still listed and still editable, so it is
    dimmed rather than hidden. */
 .connector-icon--off {
-  opacity: 0.55;
+  opacity: var(--dp-opacity-dim);
 }
 </style>

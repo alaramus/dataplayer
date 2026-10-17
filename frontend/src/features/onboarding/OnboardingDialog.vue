@@ -224,10 +224,12 @@ function chooseTheme(value: string) {
   min-height: 0;
 }
 /* The one sentence the welcome is about: full size, in the primary text. */
+/* The window's subtitle, set as every window's is: at 15px it stood heavier
+   than the title above it. */
 .onboarding__intro {
   margin: 0;
-  color: var(--dp-text);
-  font-size: var(--dp-font-size-lg);
+  color: var(--dp-text-muted);
+  font-size: var(--dp-font-size);
   line-height: var(--dp-line-height);
 }
 .onboarding__head {

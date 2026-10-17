@@ -62,7 +62,10 @@ function closeFilter() {
       />
     </template>
     <template v-else>
-      <span class="connectors-head__title">{{ t('workspace.connectors.title') }}</span>
+      <span
+        class="connectors-head__title"
+        :title="t('workspace.connectors.title')"
+      >{{ t('workspace.connectors.title') }}</span>
       <AppIconButton
         :icon="appIcons.add"
         :tooltip="t('workspace.connectors.new')"
@@ -83,14 +86,16 @@ function closeFilter() {
 </template>
 
 <style scoped>
+/* No gap between the buttons: a 32px icon button carries its own air, and
+   the 12px three gaps took was what cut "Подключения" at the default width. */
 .connectors-head {
   display: flex;
   align-items: center;
-  gap: var(--dp-space-1);
 }
 .connectors-head__filter {
   flex: 1;
   min-width: 0;
+  margin-right: var(--dp-space-1);
   --dp-field-height: calc(var(--dp-tab-strip-height) - 1px);
 }
 /* Takes the room left and shortens with an ellipsis like every other head,
@@ -102,6 +107,7 @@ function closeFilter() {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+  margin-right: var(--dp-space-half);
 }
 .connectors-head__commands {
   display: flex;

@@ -43,7 +43,7 @@ const fill = computed(() => (props.corner ? toneFill(props.tone) : toneWash(prop
   min-width: 16px;
   padding: 1px var(--dp-space-1);
   font-size: var(--dp-font-size-xs);
-  line-height: 12px;
+  line-height: var(--dp-line-height-xs);
   justify-content: center;
 }
 </style>

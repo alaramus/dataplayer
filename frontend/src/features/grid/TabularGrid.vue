@@ -991,7 +991,7 @@ defineExpose({
 .data-grid__skeleton-row {
   height: 25px;
   background: var(--dp-surface-raised);
-  opacity: 0.65;
+  opacity: var(--dp-opacity-dim);
 }
 
 /**
@@ -1027,7 +1027,7 @@ defineExpose({
   border-bottom: 1px solid var(--dp-border-faint);
   text-align: left;
   white-space: nowrap;
-  line-height: 20px;
+  line-height: var(--dp-line-height);
 }
 
 /* The names stay while their own rows slide under them, the way the first
@@ -1208,9 +1208,11 @@ defineExpose({
 }
 /* The far end of the same row: what is about the whole page reads from the
    left, and the pager keeps the right where it has always been. */
-/* Its name stands beside the value now (D185), and needs room of its own. */
+/* Its name stands beside the value now (D185), and needs room of its own:
+   as wide as the name in the language shown, which 140px cut to "1…". */
 .data-grid__page-size {
-  width: 140px;
+  width: max-content;
+  min-width: 140px;
   flex: none;
 }
 

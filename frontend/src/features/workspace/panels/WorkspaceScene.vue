@@ -144,6 +144,16 @@ const PRODUCT = "DataPlayer"
   gap: var(--dp-space-half) var(--dp-space-2);
   margin: var(--dp-space-2) 0 0;
   font-size: var(--dp-font-size-sm);
+  line-height: var(--dp-line-height-sm);
   color: var(--dp-text-muted);
+}
+/* The browser indents a <dd> by 40px, which stood the action that far from
+   its keys. Keys to the right of their column, action to the left: a pair. */
+.scene__keys dt {
+  text-align: right;
+}
+.scene__keys dd {
+  margin: 0;
+  text-align: left;
 }
 </style>

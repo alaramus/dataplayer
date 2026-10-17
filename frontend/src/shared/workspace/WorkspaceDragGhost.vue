@@ -53,7 +53,7 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   box-shadow: 0 4px 14px var(--dp-shadow);
   font-size: var(--dp-font-size-sm);
   white-space: nowrap;
-  opacity: 0.9;
+  opacity: var(--dp-opacity-ghost);
 }
 .drag-ghost__title {
   overflow: hidden;

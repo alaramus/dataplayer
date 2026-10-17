@@ -50,7 +50,7 @@ const fraction = computed(() => props.value === null ? null : Math.min(1, Math.m
 }
 .app-progress--paused .app-progress__fill {
   animation-play-state: paused;
-  opacity: 0.6;
+  opacity: var(--dp-opacity-dim);
 }
 @keyframes progress-travel {
   from { transform: translateX(0); }

@@ -114,7 +114,7 @@ defineOptions({ inheritAttrs: false })
 }
 /* Put aside: still on the bar, and visibly not on screen. */
 .taskbar-item--aside {
-  opacity: 0.65;
+  opacity: var(--dp-opacity-dim);
 }
 .taskbar-item__open {
   flex: 1 1 auto;
