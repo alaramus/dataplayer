@@ -290,7 +290,10 @@ function remove(profile: ServerProfile) {
 .server-switcher__panel {
   top: calc(var(--dp-header-height) + var(--dp-space-1));
   left: var(--dp-space-1);
-  width: 420px;
+  /* Wide enough for the form's three commands on one row in Russian, the
+     longest being «Проверить подключение», «Отмена», «Сохранить и
+     подключиться»: at 420px the last went down a line on its own. */
+  width: 544px;
   max-width: calc(100vw - var(--dp-space-2));
   display: flex;
   flex-direction: column;
@@ -303,7 +306,8 @@ function remove(profile: ServerProfile) {
 }
 .server-switcher__bar { display: flex; align-items: center; gap: var(--dp-space-2); padding: var(--dp-space-2) var(--dp-space-2) var(--dp-space-2) var(--dp-space-3); border-bottom: 1px solid var(--dp-border); background: var(--dp-card-head); }
 .server-switcher__bar > strong { flex: 1; }
-.server-switcher__intro { margin: 0; padding: var(--dp-space-3) var(--dp-space-3) 0; color: var(--dp-text-muted); }
+/* The body's inset (16px) on both sides, so the intro, the fields and the commands under them share one left and one right edge. */
+.server-switcher__intro { margin: 0; padding: var(--dp-space-3) var(--dp-space-4) 0; color: var(--dp-text-muted); }
 .server-switcher__body { flex: 1; min-height: 0; overflow: auto; }
-.server-switcher__footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-2) var(--dp-space-3); border-top: 1px solid var(--dp-border); }
+.server-switcher__footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-2) var(--dp-space-4); border-top: 1px solid var(--dp-border); }
 </style>

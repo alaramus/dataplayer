@@ -6,6 +6,10 @@ export const kit = {
   color_picker: {
     reset: "Reset color",
   },
+  file: {
+    choose_one: "Choose a file",
+    choose_many: "Choose files",
+  },
   date_time: {
     pick: "Pick a day and time, in UTC",
   },

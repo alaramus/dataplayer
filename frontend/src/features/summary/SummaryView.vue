@@ -135,9 +135,12 @@ const errorText = computed(() =>
   font-weight: 600;
   margin-bottom: var(--dp-space-2);
 }
+/* The label column a form's is, so the facts and the contents below them
+   start their values at one edge: sized each by its own longest label, the
+   two lists put them 34px apart. A label longer still widens its list. */
 .summary-view__facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(var(--dp-form-label-width), max-content) 1fr;
   gap: var(--dp-space-1) var(--dp-space-4);
   margin: 0;
   font-size: var(--dp-font-size-sm);

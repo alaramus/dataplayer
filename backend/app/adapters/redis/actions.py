@@ -157,7 +157,6 @@ def _ttl_field() -> Any:
         le=MAX_TTL_SECONDS,
         title=N_("Expires in (seconds)"),
         description=N_("Leave empty to keep it until something removes it"),
-        json_schema_extra=layout(row="keeping"),
     )
 
 
@@ -167,7 +166,8 @@ def _overwrite_field() -> Any:
         # No description: a toggle's label is the whole statement, and the
         # form has nowhere to put a second line under one.
         title=N_("Replace it if it already exists"),
-        json_schema_extra=layout(row="keeping"),
+        # A row of its own: beside the expiry, the two Russian labels each
+        # wrapped onto a second line in the half they were left.
     )
 
 

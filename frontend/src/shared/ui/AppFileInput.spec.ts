@@ -16,6 +16,13 @@ function mountInput(props: Record<string, unknown>) {
 }
 
 describe("AppFileInput", () => {
+  // Empty, Quasar drew a blank input that read as a text field.
+  it("says a click picks a file while nothing is chosen", () => {
+    expect(mountInput({ modelValue: null }).getComponent(QFile).props("displayValue")).toBe("Choose a file")
+    expect(mountInput({ modelValue: [], multiple: true }).getComponent(QFile).props("displayValue")).toBe("Choose files")
+    expect(mountInput({ modelValue: file("a.csv") }).getComponent(QFile).props("displayValue")).toBeUndefined()
+  })
+
   // The upload form lists what was chosen with sizes and a way to take one
   // out; the field repeating the same names in one line said it twice.
   it("stays empty when the screen lists the choice itself", () => {

@@ -7,6 +7,10 @@ export const kit: Messages["kit"] = {
   color_picker: {
     reset: "Сбросить цвет",
   },
+  file: {
+    choose_one: "Выберите файл",
+    choose_many: "Выберите файлы",
+  },
   date_time: {
     pick: "Выбрать день и время, в UTC",
   },

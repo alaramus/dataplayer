@@ -1,7 +1,10 @@
 <script setup lang="ts" generic="Value extends File | File[] | null">
-import { inject } from "vue"
+import { computed, inject } from "vue"
+
+import { t } from "@/shared/i18n"
 
 import { formLayoutKey } from "./formLayout"
+import { appIcons } from "./icons"
 import { fieldLook } from "./tokens"
 
 const formLayout = inject(formLayoutKey, false)
@@ -23,6 +26,20 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ "update:modelValue": [value: Value] }>()
+
+/**
+ * What an empty field says. Quasar draws an empty file field as an empty
+ * input, which nothing told apart from a text field one could type a path
+ * into; the clip and these words say a click opens the picker.
+ */
+const empty = computed(() =>
+  props.listed === true ||
+  props.modelValue === null ||
+  (Array.isArray(props.modelValue) && props.modelValue.length === 0)
+)
+const hint = computed(() =>
+  props.multiple === true ? t("kit.file.choose_many") : t("kit.file.choose_one")
+)
 
 /**
  * What the picker gave back, in the shape this field was asked for.
@@ -52,7 +69,7 @@ function chosen(value: File | readonly File[] | null) {
 
 <template>
   <q-file
-    :class="{ 'app-form-field': formLayout }"
+    :class="{ 'app-form-field': formLayout, 'app-file-input--empty': empty }"
     v-bind="fieldLook(formLayout)"
     :model-value="listed ? null : modelValue"
     :label="label"
@@ -60,8 +77,15 @@ function chosen(value: File | readonly File[] | null) {
     :accept="accept"
     :multiple="multiple"
     :append="listed ? false : append"
+    :display-value="empty ? hint : undefined"
     @update:model-value="chosen"
   >
+    <template #prepend>
+      <q-icon
+        :name="appIcons.attachFile"
+        size="var(--dp-icon-sm)"
+      />
+    </template>
     <template
       v-if="formLayout && label"
       #before
@@ -76,3 +100,9 @@ function chosen(value: File | readonly File[] | null) {
     </template>
   </q-file>
 </template>
+
+<style scoped>
+.app-file-input--empty :deep(.q-field__native) {
+  color: var(--dp-text-muted);
+}
+</style>
