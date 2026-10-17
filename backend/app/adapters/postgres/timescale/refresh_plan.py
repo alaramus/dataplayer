@@ -35,6 +35,7 @@ from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import continuous_aggregate
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 # sql/policy_api.sql: the aggregate, both offsets, the schedule and if_not_exists.
 # Releases append further optional arguments (include_tiered_data, buckets_per_batch,
@@ -92,7 +93,7 @@ def setting_refusal(state: RefreshState) -> str | None:
     """What refuses any new window before one is chosen."""
     # A replacement is scheduled, so replacing a paused policy would resume it.
     if state.existing is not None and not state.existing.scheduled:
-        return "The existing refresh policy is paused; remove it before setting a new one"
+        return say("The existing refresh policy is paused; remove it before setting a new one")
     return None
 
 
@@ -101,10 +102,10 @@ async def _guarded[T](work: Awaitable[T]) -> T:
         async with asyncio.timeout(5):
             return await work
     except TimeoutError:
-        raise ActionRefused("not_applicable", "TimescaleDB refresh policy planning timed out") from None
+        raise ActionRefused("not_applicable", say("TimescaleDB refresh policy planning timed out")) from None
     except (AdapterError, ValueError):
         raise ActionRefused(
-            "not_applicable", "TimescaleDB refresh policy metadata could not be inspected safely",
+            "not_applicable", say("TimescaleDB refresh policy metadata could not be inspected safely"),
         ) from None
 
 
@@ -134,7 +135,7 @@ async def _read_refresh(reader: PostgresReader, target: ContinuousAggregateTarge
     ), inspection=True)
     if len(rows) > 1:
         raise ActionRefused(
-            "not_applicable", "This continuous aggregate has several refresh policy jobs; manage them with SQL",
+            "not_applicable", say("This continuous aggregate has several refresh policy jobs; manage them with SQL"),
         )
     if not rows:
         return None
@@ -142,7 +143,7 @@ async def _read_refresh(reader: PostgresReader, target: ContinuousAggregateTarge
         return RefreshPolicy.model_validate(_readable_offsets(rows[0]))
     except (ValidationError, ValueError):
         raise ActionRefused(
-            "not_applicable", "The existing refresh policy could not be read safely; manage it with SQL",
+            "not_applicable", say("The existing refresh policy could not be read safely; manage it with SQL"),
         ) from None
 
 
@@ -161,7 +162,7 @@ def _readable_offsets(row: dict[str, Any]) -> dict[str, Any]:
 async def _build(reader: PostgresReader, state: RefreshState, window: RefreshWindow | None) -> RefreshPlan:
     if window is None:
         if state.existing is None:
-            raise ActionRefused("not_applicable", "This continuous aggregate has no refresh policy")
+            raise ActionRefused("not_applicable", say("This continuous aggregate has no refresh policy"))
         return RefreshPlan(
             operation="remove_policy", target=state.target, existing=state.existing, window=None,
             source_retention=state.source_retention, strategy=state.strategy,
@@ -169,22 +170,22 @@ async def _build(reader: PostgresReader, state: RefreshState, window: RefreshWin
     if state.target.column_type == "date" and {
         window.start_offset.unit, window.end_offset.unit,
     } & _SUBDAY:
-        raise ActionRefused("not_applicable", "Date dimensions require offsets in whole days, weeks, months or years")
+        raise ActionRefused("not_applicable", say("Date dimensions require offsets in whole days, weeks, months or years"))
     refusal = setting_refusal(state)
     if refusal is not None:
         raise ActionRefused("not_applicable", refusal)
     # PostgreSQL compares the intervals, months counted as thirty days, so no rule is restated here.
     if not await _less(reader, window.end_offset.interval_value(), window.start_offset.interval_value()):
-        raise ActionRefused("not_applicable", "The window must start further back than it ends")
+        raise ActionRefused("not_applicable", say("The window must start further back than it ends"))
     retention = state.source_retention
     if retention is not None and retention.older_than is not None and not await _less(
         reader, window.start_offset.interval_value(), retention.older_than,
     ):
-        raise ActionRefused(
-            "not_applicable",
-            f"The window reaches data the source's retention policy drops (older than {retention.older_than}); "
+        raise ActionRefused("not_applicable", say(
+            "The window reaches data the source's retention policy drops (older than {age}); "
             "refreshing there would remove aggregated rows",
-        )
+            age=retention.older_than,
+        ))
     return RefreshPlan(
         operation="set_policy", target=state.target, existing=state.existing, window=window,
         source_retention=state.source_retention, strategy=state.strategy,

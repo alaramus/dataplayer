@@ -17,6 +17,7 @@ from app.ai import preferences
 from app.ai.catalog import ModelCatalog
 from app.ai.content import opened, sealed
 from app.ai.models import MAX_TITLE_CHARS, Role
+from app.ai.prompts import language_line
 from app.ai.providers import ChatModels
 from app.ai.providers.failures import UNKNOWN_FAILURE
 from app.ai.quick_answers import QuickAnswers
@@ -24,6 +25,7 @@ from app.ai.runner import DELTA_INTERVAL_SECONDS, split_text
 from app.ai.topic import QuickAnswerDelta, announce_quick
 from app.core.logs import record_failure, with_ref
 from app.core.schemas import get_datetime_utc
+from app.core.translation import Language, current_language
 from app.realtime.topics import TopicSet
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,12 @@ PROMPT = (
     "using Markdown. You have no access to application data or tools. "
     "Do not claim to have inspected data, files, or connections."
 )
+
+
+def quick_prompt(language: Language) -> str:
+    line = language_line(language)
+    return f"{PROMPT} {line}" if line else PROMPT
+
 # The model Chrome runs on the person's own machine (D223). It is in no
 # catalog: the server never calls it, and only stores what the browser wrote.
 BROWSER_MODEL_KEY = "browser:gemini-nano"
@@ -273,7 +281,7 @@ async def ask_in_browser(
         QuickMessage(conversation_id=chat.id, role="user", content=sealed(text)),
     ])
     await session.commit()
-    return BrowserTurn(chat=await public(session, chat), prompt=PROMPT, history=history)
+    return BrowserTurn(chat=await public(session, chat), prompt=quick_prompt(current_language.get()), history=history)
 
 
 async def answer_from_browser(
@@ -313,7 +321,7 @@ async def send(
     if not text:
         raise ValueError("Write a message first")
     history = await _history(session, chat)
-    messages: list[BaseMessage] = [SystemMessage(content=PROMPT)]
+    messages: list[BaseMessage] = [SystemMessage(content=quick_prompt(current_language.get()))]
     messages.extend(
         HumanMessage(content=one.content) if one.role == "user" else AIMessage(content=one.content)
         for one in history

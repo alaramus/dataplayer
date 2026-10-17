@@ -79,6 +79,7 @@ from app.adapters.postgres.timescale.plans import (
     TimeDuration,
 )
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 _OID = r"^[1-9][0-9]{0,9}$"
 PolicyKind = Literal["retention", "compression", "reorder", "compaction"]
@@ -92,11 +93,8 @@ ADD_REORDER = RoutineShape("add_reorder_policy", "f", "2205 19 16", 23)
 REMOVE_REORDER = RoutineShape("remove_reorder_policy", "f", "2205 16", 2278)
 # regproc 24.
 SET_NOW = RoutineShape("set_integer_now_func", "f", "2205 24 16", 2278)
-TEMPLATE_PHRASES: dict[NowTemplate, str] = {
-    "epoch_seconds": "seconds since 1970",
-    "epoch_milliseconds": "milliseconds since 1970",
-    "epoch_microseconds": "microseconds since 1970",
-}
+# What a column may be ordered for, each said in its own refusal.
+OrderableUse = Literal["hash", "sparse", "segment", "order"]
 
 
 def add_dimension_shape(dimension_info: str) -> RoutineShape:
@@ -329,15 +327,15 @@ class HypertableDesignPlan(ReviewedPlan):
     @property
     def coordination(self) -> str:
         if self.locks_table_exclusively:
-            return "Locks this hypertable exclusively while it changes; its reads and writes wait until it commits"
+            return say("Locks this hypertable exclusively while it changes; its reads and writes wait until it commits")
         if self.strategy.dimensions_view_oid is not None:
-            return "Briefly locks TimescaleDB metadata across this database; new chunk creation may wait"
+            return say("Briefly locks TimescaleDB metadata across this database; new chunk creation may wait")
         if any(isinstance(step, POLICY_STEPS) for step in self.steps):
-            return (
+            return say(
                 "Other policy changes made here in this database wait until it commits, "
                 "and so may a policy run starting meanwhile"
             )
-        return "Other changes to this hypertable's settings wait until it commits"
+        return say("Other changes to this hypertable's settings wait until it commits")
 
 
 def _refuse(message: str) -> ActionRefused:
@@ -369,17 +367,40 @@ def _chunk_interval(current: CurrentHypertable, requested: Span | None) -> list[
         span_length(current.target.column_type, requested)
         return [SetChunkInterval(interval=length_from(requested))]
     if isinstance(requested, IntegerSpan) or requested.unit not in interval_units(current.target):
-        allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))
-        raise _refuse(f"A chunk interval of this hypertable is counted in {allowed}")
+        raise _refuse(counted_in(current, hypertable=True))
     return [SetChunkInterval(interval=_duration(requested))]
 
 
-def _orderable(current: CurrentHypertable, name: str, use: str) -> None:
+def counted_in(current: CurrentHypertable, *, hypertable: bool) -> str:
+    """The units a chunk interval of this time column takes, as interval_units lists them."""
+    units = interval_units(current.target)
+    if not units:
+        return say("A chunk interval of an integer column is a number of its values")
+    if units == ["day", "week"]:
+        if hypertable:
+            return say("A chunk interval of this hypertable is counted in days or weeks")
+        return say("A chunk interval of this column is counted in days or weeks")
+    if hypertable:
+        return say("A chunk interval of this hypertable is counted in minutes or hours or days or weeks")
+    return say("A chunk interval of this column is counted in minutes or hours or days or weeks")
+
+
+def _orderable(current: CurrentHypertable, name: str, use: OrderableUse) -> None:
     column = current.column(name)
     if column is None:
-        raise _refuse(f'This hypertable has no column "{name}"')
+        raise _refuse(say('This hypertable has no column "{column}"', column=name))
     if not column.orderable:
-        raise _refuse(f'Column "{name}" has a type that cannot be used as {use}')
+        match use:
+            case "hash":
+                raise _refuse(say('Column "{column}" has a type that cannot be used as a hash dimension', column=name))
+            case "sparse":
+                raise _refuse(
+                    say('Column "{column}" has a type that cannot be used as a minmax sparse index', column=name),
+                )
+            case "segment":
+                raise _refuse(say('Column "{column}" has a type that cannot be used as a segment column', column=name))
+            case "order":
+                raise _refuse(say('Column "{column}" has a type that cannot be used as an order column', column=name))
 
 
 def _dimensions(current: CurrentHypertable, requested: HypertableDesign) -> list[DesignStep]:
@@ -387,7 +408,7 @@ def _dimensions(current: CurrentHypertable, requested: HypertableDesign) -> list
     wanted = {item.column: item.partitions for item in requested.hash_dimensions}
     removed = [name for name in existing if name not in wanted]
     if removed:
-        raise _refuse(f'TimescaleDB cannot remove the hash dimension on "{removed[0]}"')
+        raise _refuse(say('TimescaleDB cannot remove the hash dimension on "{column}"', column=removed[0]))
     steps: list[DesignStep] = []
     for item in requested.hash_dimensions:
         if item.column in existing:
@@ -395,15 +416,16 @@ def _dimensions(current: CurrentHypertable, requested: HypertableDesign) -> list
                 steps.append(SetPartitions(column=item.column, partitions=item.partitions))
             continue
         if current.has_chunks:
-            raise _refuse("A hash dimension can only be added while the hypertable holds no chunks")
+            raise _refuse(say("A hash dimension can only be added while the hypertable holds no chunks"))
         if item.column == current.target.column_name:
-            raise _refuse("The time column cannot also be a hash dimension")
-        _orderable(current, item.column, "a hash dimension")
+            raise _refuse(say("The time column cannot also be a hash dimension"))
+        _orderable(current, item.column, "hash")
         for key in current.unique_keys:
             if item.column not in key.columns:
-                raise _refuse(
-                    f'Unique key "{key.name}" must include "{item.column}" before it can be a hash dimension',
-                )
+                raise _refuse(say(
+                    'Unique key "{key}" must include "{column}" before it can be a hash dimension',
+                    key=key.name, column=item.column,
+                ))
         steps.append(AddHashDimension(column=item.column, partitions=item.partitions))
     return steps
 
@@ -412,17 +434,19 @@ def _validated_sparse(current: CurrentHypertable, requested: SparseIndexes) -> N
     if isinstance(requested, ChosenByTimescale):
         return
     if not current.sparse_indexes_supported:
-        raise _refuse(f"TimescaleDB {current.extension_version} has no sparse indexes; they arrived in 2.22")
+        raise _refuse(say(
+            "TimescaleDB {version} has no sparse indexes; they arrived in 2.22", version=current.extension_version,
+        ))
     if not isinstance(requested, SparseColumns):
         return
     seen: set[tuple[str, str]] = set()
     for index in requested.indexes:
         if current.column(index.column) is None:
-            raise _refuse(f'This hypertable has no column "{index.column}"')
+            raise _refuse(say('This hypertable has no column "{column}"', column=index.column))
         if index.kind == "minmax":
-            _orderable(current, index.column, "a minmax sparse index")
+            _orderable(current, index.column, "sparse")
         if (index.column, index.kind) in seen:
-            raise _refuse(f'Column "{index.column}" has the same sparse index twice')
+            raise _refuse(say('Column "{column}" has the same sparse index twice', column=index.column))
         seen.add((index.column, index.kind))
 
 
@@ -430,19 +454,19 @@ def _validated_columnstore(current: CurrentHypertable, requested: ColumnstoreDes
     _validated_sparse(current, requested.sparse_indexes)
     # Timescale's own rule, "cannot set sparse index option without orderby option".
     if not isinstance(requested.sparse_indexes, ChosenByTimescale) and not isinstance(requested.order_by, OrderColumns):
-        raise _refuse("Sparse indexes need the order to be named; choose the columns to order by")
+        raise _refuse(say("Sparse indexes need the order to be named; choose the columns to order by"))
     named: list[str] = []
     if isinstance(requested.segment_by, SegmentColumns):
         for name in requested.segment_by.columns:
-            _orderable(current, name, "a segment column")
+            _orderable(current, name, "segment")
             named.append(name)
     if isinstance(requested.order_by, OrderColumns):
         for key in requested.order_by.columns:
-            _orderable(current, key.column, "an order column")
+            _orderable(current, key.column, "order")
             named.append(key.column)
     repeated = next((name for name in named if named.count(name) > 1), None)
     if repeated is not None:
-        raise _refuse(f'Column "{repeated}" is listed more than once in the columnstore settings')
+        raise _refuse(say('Column "{column}" is listed more than once in the columnstore settings', column=repeated))
 
 
 def _effective_order(current: CurrentHypertable, segment: SegmentBy, order: OrderBy) -> OrderBy:
@@ -464,7 +488,7 @@ def _columnstore(current: CurrentHypertable, requested: HypertableDesign) -> lis
         if not now.enabled:
             return []
         if current.compressed_chunks:
-            raise _refuse("The columnstore cannot be turned off while chunks are compressed; decompress them first")
+            raise _refuse(say("The columnstore cannot be turned off while chunks are compressed; decompress them first"))
         return [DisableColumnstore()]
     _validated_columnstore(current, wanted)
     order = _effective_order(current, wanted.segment_by, wanted.order_by)
@@ -480,12 +504,12 @@ def _columnstore(current: CurrentHypertable, requested: HypertableDesign) -> lis
         or (order_changed and isinstance(order, ChosenByTimescale))
     )
     if back_to_default and not current.per_chunk_defaults:
-        raise _refuse(
-            f"TimescaleDB {current.extension_version} cannot return a setting to its own choice; "
-            "name the columns instead",
-        )
+        raise _refuse(say(
+            "TimescaleDB {version} cannot return a setting to its own choice; name the columns instead",
+            version=current.extension_version,
+        ))
     if wanted.merge_interval is not None and current.integer:
-        raise _refuse("Merging compressed chunks is set in time, which an integer column does not count in")
+        raise _refuse(say("Merging compressed chunks is set in time, which an integer column does not count in"))
     if wanted.merge_interval is not None and merge_changed:
         _merge_interval(current, requested, wanted.merge_interval)
     if now.enabled and not (segment_changed or order_changed or merge_changed or sparse_changed):
@@ -505,12 +529,12 @@ def _columnstore(current: CurrentHypertable, requested: HypertableDesign) -> lis
 
 def _merge_interval(current: CurrentHypertable, requested: HypertableDesign, merge: DesignDuration) -> None:
     if merge.unit not in interval_units(current.target):
-        raise _refuse("A merge interval is counted in the units of the chunk interval")
+        raise _refuse(say("A merge interval is counted in the units of the chunk interval"))
     chunk = requested.chunk_interval or current.design.chunk_interval
     merged = duration_microseconds(merge)
     single = duration_microseconds(chunk) if isinstance(chunk, DesignDuration) else None
     if merged is not None and single is not None and (merged <= single or merged % single != 0):
-        raise _refuse("The merge interval must be a whole multiple of the chunk interval, larger than it")
+        raise _refuse(say("The merge interval must be a whole multiple of the chunk interval, larger than it"))
 
 
 def _age_policy(
@@ -520,9 +544,13 @@ def _age_policy(
     """The removal and the addition one policy needs, each possibly empty."""
     if design is None:
         return ([RemovePolicy(kind=spec.kind, job_id=existing.job_id)] if existing else []), []
+    retention = spec.kind == "retention"
     if not isinstance(design, OlderThan):
         if existing is None:
-            raise _refuse(f"There is no {spec.noun} to keep")
+            raise _refuse(
+                say("There is no retention policy to keep") if retention
+                else say("There is no compression policy to keep")
+            )
         return [], []
     wanted = design.older_than
     if existing is not None and existing.scheduled and _same(_existing_age(existing), wanted):
@@ -530,17 +558,48 @@ def _age_policy(
     column_type = current.target.column_type
     if current.integer:
         if not isinstance(wanted, IntegerSpan):
-            raise _refuse(f"The {spec.noun} of an integer column is a number of its values")
+            raise _refuse(
+                say("The retention policy of an integer column is a number of its values") if retention
+                else say("The compression policy of an integer column is a number of its values")
+            )
         if int(wanted.amount) > INTEGER_MAX[column_type]:
-            raise _refuse(f"The {spec.noun} of a {column_type} column is at most {INTEGER_MAX[column_type]:,}")
+            most = f"{INTEGER_MAX[column_type]:,}"
+            raise _refuse(
+                say("The retention policy of a {type} column is at most {count}", type=column_type, count=most)
+                if retention
+                else say("The compression policy of a {type} column is at most {count}", type=column_type, count=most)
+            )
     elif isinstance(wanted, IntegerSpan) or wanted.unit not in policy_units(current.target):
-        unit = "plain numbers" if isinstance(wanted, IntegerSpan) else f"{wanted.unit}s"
-        raise _refuse(f"The {spec.noun} of a {column_type} column cannot count in {unit}")
+        raise _refuse(_uncountable(retention, column_type, None if isinstance(wanted, IntegerSpan) else wanted.unit))
     # A replacement is scheduled by default, so replacing a paused policy would resume it.
     if existing is not None and not existing.scheduled:
-        raise _refuse(f"The existing {spec.noun} is paused; remove it before setting a new one")
+        raise _refuse(
+            say("The existing retention policy is paused; remove it before setting a new one") if retention
+            else say("The existing compression policy is paused; remove it before setting a new one")
+        )
     removal: list[DesignStep] = [] if existing is None else [RemovePolicy(kind=spec.kind, job_id=existing.job_id)]
     return removal, [AddAgePolicy(kind=spec.kind, older_than=length_from(wanted))]
+
+
+def _uncountable(retention: bool, column_type: str, unit: str | None) -> str:
+    """An age policy's refusal of a unit its column's type does not count in: plain
+    numbers, or one shorter than policy_units allows (a second, a minute, an hour)."""
+    match retention, unit:
+        case True, None:
+            return say("The retention policy of a {type} column cannot count in plain numbers", type=column_type)
+        case False, None:
+            return say("The compression policy of a {type} column cannot count in plain numbers", type=column_type)
+        case True, "second":
+            return say("The retention policy of a {type} column cannot count in seconds", type=column_type)
+        case False, "second":
+            return say("The compression policy of a {type} column cannot count in seconds", type=column_type)
+        case True, "minute":
+            return say("The retention policy of a {type} column cannot count in minutes", type=column_type)
+        case False, "minute":
+            return say("The compression policy of a {type} column cannot count in minutes", type=column_type)
+        case True, _:
+            return say("The retention policy of a {type} column cannot count in hours", type=column_type)
+    return say("The compression policy of a {type} column cannot count in hours", type=column_type)
 
 
 def _existing_age(existing: AgePolicy) -> Span | None:
@@ -556,10 +615,10 @@ def _reorder(current: CurrentHypertable, requested: HypertableDesign) -> tuple[l
     if existing is not None and existing.index_name is not None and existing.index_name == wanted:
         return [], []
     if wanted is not None and wanted not in current.indexes:
-        raise _refuse(f'This hypertable has no index "{wanted}"')
+        raise _refuse(say('This hypertable has no index "{index}"', index=wanted))
     # A replacement is scheduled by default, so replacing a paused policy would resume it.
     if existing is not None and not existing.scheduled and wanted is not None:
-        raise _refuse("The existing reorder policy is paused; remove it before setting a new one")
+        raise _refuse(say("The existing reorder policy is paused; remove it before setting a new one"))
     removal: list[DesignStep] = [] if existing is None else [RemovePolicy(kind="reorder", job_id=existing.job_id)]
     return removal, ([] if wanted is None else [AddReorderPolicy(index=wanted)])
 
@@ -568,7 +627,7 @@ def _tablespaces(current: CurrentHypertable, requested: HypertableDesign) -> lis
     now, wanted = current.design.tablespaces, requested.tablespaces
     unknown = next((name for name in wanted if name not in now and name not in current.available_tablespaces), None)
     if unknown is not None:
-        raise _refuse(f'Tablespace "{unknown}" does not exist or this connection may not create in it')
+        raise _refuse(say('Tablespace "{name}" does not exist or this connection may not create in it', name=unknown))
     return [
         *(DetachTablespace(name=name) for name in now if name not in wanted),
         *(AttachTablespace(name=name) for name in wanted if name not in now),
@@ -579,16 +638,16 @@ def _integer_now(current: CurrentHypertable, requested: HypertableDesign) -> lis
     wanted, now = requested.integer_now, current.design.integer_now
     if not current.integer:
         if wanted is not None:
-            raise _refuse("Only a hypertable partitioned by an integer column takes an integer_now function")
+            raise _refuse(say("Only a hypertable partitioned by an integer column takes an integer_now function"))
         return []
     column_type = current.target.column_type
     if wanted is None:
         if now is not None:
-            raise _refuse("TimescaleDB cannot take an integer_now function away; keep it or choose another")
+            raise _refuse(say("TimescaleDB cannot take an integer_now function away; keep it or choose another"))
         return []
     if isinstance(wanted, KeptNow):
         if now is None:
-            raise _refuse("There is no integer_now function to keep")
+            raise _refuse(say("There is no integer_now function to keep"))
         return []
     if isinstance(wanted, ExistingNow):
         if wanted == now:
@@ -596,13 +655,13 @@ def _integer_now(current: CurrentHypertable, requested: HypertableDesign) -> lis
         if not any(
             item.schema_name == wanted.schema_name and item.name == wanted.name for item in current.now_functions
         ):
-            raise _refuse(
-                f'{_routine(wanted.schema_name, wanted.name)} is not a function TimescaleDB accepts as '
-                f"integer_now of a {column_type} column",
-            )
+            raise _refuse(say(
+                "{function} is not a function TimescaleDB accepts as integer_now of a {type} column",
+                function=_routine(wanted.schema_name, wanted.name), type=column_type,
+            ))
         return [SetIntegerNow(schema_name=wanted.schema_name, name=wanted.name, replace=now is not None)]
     if wanted.template not in NOW_TEMPLATES[column_type]:
-        raise _refuse(f"A {column_type} column cannot hold the {TEMPLATE_PHRASES[wanted.template]}")
+        raise _refuse(_cannot_hold(column_type, wanted.template))
     schema = current.target.schema_name
     return [
         CreateNowFunction(
@@ -611,6 +670,15 @@ def _integer_now(current: CurrentHypertable, requested: HypertableDesign) -> lis
         ),
         SetIntegerNow(schema_name=schema, name=wanted.name, replace=now is not None),
     ]
+
+
+def _cannot_hold(column_type: str, template: NowTemplate) -> str:
+    match template:
+        case "epoch_seconds":
+            return say("A {type} column cannot hold the seconds since 1970", type=column_type)
+        case "epoch_milliseconds":
+            return say("A {type} column cannot hold the milliseconds since 1970", type=column_type)
+    return say("A {type} column cannot hold the microseconds since 1970", type=column_type)
 
 
 def _routine(schema_name: str, name: str) -> str:
@@ -624,23 +692,25 @@ def _compaction(current: CurrentHypertable, requested: HypertableDesign) -> tupl
     if existing is not None:
         return [], []
     if not current.compaction_supported:
-        raise _refuse(f"TimescaleDB {current.extension_version} has no compaction policy; it arrived in 2.29")
+        raise _refuse(say(
+            "TimescaleDB {version} has no compaction policy; it arrived in 2.29", version=current.extension_version,
+        ))
     if not requested.columnstore.enabled:
-        raise _refuse("A compaction policy merges compressed chunks; turn the columnstore on")
+        raise _refuse(say("A compaction policy merges compressed chunks; turn the columnstore on"))
     return [], [AddCompactionPolicy()]
 
 
 def plan_steps(current: CurrentHypertable, requested: HypertableDesign) -> tuple[DesignStep, ...]:
     if requested.columnstore_policy is not None and not requested.columnstore.enabled:
-        raise _refuse("Remove the columnstore policy to turn the columnstore off")
+        raise _refuse(say("Remove the columnstore policy to turn the columnstore off"))
     if requested.compaction_policy and not requested.columnstore.enabled:
-        raise _refuse("Remove the compaction policy to turn the columnstore off")
+        raise _refuse(say("Remove the compaction policy to turn the columnstore off"))
     retention = _age_policy(RETENTION, current.retention, requested.retention, current)
     compression = _age_policy(COMPRESSION, current.compression, requested.columnstore_policy, current)
     reorder = _reorder(current, requested)
     compaction = _compaction(current, requested)
     if current.integer and requested.integer_now is None and (retention[1] or compression[1]):
-        raise _refuse("An age policy on an integer column needs an integer_now function to tell the current value")
+        raise _refuse(say("An age policy on an integer column needs an integer_now function to tell the current value"))
     return (
         *retention[0], *compression[0], *reorder[0], *compaction[0],
         *_dimensions(current, requested),
@@ -722,9 +792,9 @@ async def _strategy(
 def _conversion(candidate: TableCandidate, requested: HypertableDesign) -> tuple[CurrentHypertable, ConvertTable]:
     """The conversion step, and the hypertable it leaves for every other step to plan against."""
     if requested.time_column is None:
-        raise _refuse("Choose the time column the table is partitioned by")
+        raise _refuse(say("Choose the time column the table is partitioned by"))
     if requested.chunk_interval is None:
-        raise _refuse("Choose the chunk interval")
+        raise _refuse(say("Choose the chunk interval"))
     interval = requested.chunk_interval
     state = candidate.conversion
     column = conversion_column(state, requested.time_column)
@@ -733,18 +803,17 @@ def _conversion(candidate: TableCandidate, requested: HypertableDesign) -> tuple
     elif column.type == "uuid":
         # Partitioned by the time inside a UUIDv7, so its intervals are durations.
         if isinstance(interval, IntegerSpan) or duration_microseconds(interval) is None:
-            raise _refuse("A chunk interval is counted in minutes, hours, days or weeks")
+            raise _refuse(say("A chunk interval is counted in minutes, hours, days or weeks"))
         require_unique_indexes(state, column)
     else:
         if isinstance(interval, IntegerSpan) or duration_microseconds(interval) is None:
-            raise _refuse("A chunk interval is counted in minutes, hours, days or weeks")
+            raise _refuse(say("A chunk interval is counted in minutes, hours, days or weeks"))
         # The single-purpose conversion's own rules: the unit for the column's
         # type and every unique index holding it.
         conversion_plan(state, column.name, TimeDuration(amount=interval.amount, unit=interval.unit))
     current = converted(candidate, column, interval)
     if isinstance(interval, DesignDuration) and interval.unit not in interval_units(current.target):
-        allowed = " or ".join(f"{unit}s" for unit in interval_units(current.target))
-        raise _refuse(f"A chunk interval of this column is counted in {allowed}")
+        raise _refuse(counted_in(current, hypertable=False))
     return current, ConvertTable(
         column=column.name,
         column_type=column.type,
@@ -763,7 +832,7 @@ async def plan_design(
             if await is_hypertable(reader, schema_name, table_name):
                 current = await read_current(reader, schema_name, table_name)
                 if requested.time_column not in (None, current.target.column_name):
-                    raise _refuse("TimescaleDB cannot change the time column of a hypertable")
+                    raise _refuse(say("TimescaleDB cannot change the time column of a hypertable"))
                 steps = plan_steps(current, requested)
                 await require_new_functions(reader, steps)
                 strategy = await _strategy(reader, current, steps)
@@ -777,7 +846,7 @@ async def plan_design(
                 )
             return HypertableDesignPlan(current=current, requested=requested, steps=steps, strategy=strategy)
     except TimeoutError:
-        raise _refuse("Planning the hypertable change timed out") from None
+        raise _refuse(say("Planning the hypertable change timed out")) from None
     except (AdapterError, ValueError):
-        raise _refuse("The hypertable could not be inspected safely") from None
+        raise _refuse(say("The hypertable could not be inspected safely")) from None
 

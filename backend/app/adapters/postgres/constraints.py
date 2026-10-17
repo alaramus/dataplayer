@@ -17,6 +17,7 @@ from app.adapters.postgres.counting import repeating_groups, rows_pointing_nowhe
 from app.adapters.postgres.relation import PostgresRelation, qualified, schema_of
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Constraint, PrimaryKey, RefAction, RelationModel
+from app.core.translation import N_, say
 
 # The closed vocabulary of what happens to a referencing row. It is the same
 # set the relation model already reports, so nothing new is invented; each is
@@ -33,23 +34,22 @@ REF_ACTION_SQL: dict[RefAction, sql.SQL] = {
 # names the offending row or key value, so it is never passed on.
 CONSTRAINT_REFUSALS = {
     # invalid_foreign_key: the target has no key over exactly those columns.
-    "42830": "The target relation has no unique key over those columns",
+    "42830": N_("The target relation has no unique key over those columns"),
     # unique_violation: values repeat, found by the build rather than the count.
-    "23505": "Some values repeat, so this constraint cannot be added",
+    "23505": N_("Some values repeat, so this constraint cannot be added"),
     # foreign_key_violation: rows point at nothing, found by the scan.
-    "23503": "Some rows point at nothing in the target relation",
+    "23503": N_("Some rows point at nothing in the target relation"),
     # dependent_objects_still_exist.
-    "2BP01": "Another object depends on this constraint",
+    "2BP01": N_("Another object depends on this constraint"),
     # feature_not_supported: the partitioned case, as for an index.
-    "0A000": "A unique constraint on a partitioned table must include its "
-    "partition key",
+    "0A000": N_("A unique constraint on a partitioned table must include its partition key"),
     # duplicate_object: a name clash the server resolves for us, normally.
-    "42710": "A constraint of that name already exists",
+    "42710": N_("A constraint of that name already exists"),
     # datatype_mismatch and undefined_function: the two column lists cannot be
     # compared. Which of the two arrives depends on whether the comparison
     # fails at the constraint or at the count that precedes it.
-    "42804": "These columns and the ones they point at cannot be compared",
-    "42883": "These columns and the ones they point at cannot be compared",
+    "42804": N_("These columns and the ones they point at cannot be compared"),
+    "42883": N_("These columns and the ones they point at cannot be compared"),
 }
 
 
@@ -67,7 +67,7 @@ class PostgresConstraints:
         known = {column.name for column in model.columns}
         for column in spec.columns:
             if column not in known:
-                raise ValueError(f'Relation has no column "{column}"')
+                raise ValueError(say('Relation has no column "{column}"', column=column))
 
         before = {constraint.name for constraint in model.constraints}
         if isinstance(spec, UniqueConstraintSpec):
@@ -126,7 +126,7 @@ class PostgresConstraints:
             (item for item in model.constraints if item.name == request.name), None
         )
         if existing is None:
-            raise ValueError(f'Relation has no constraint "{request.name}"')
+            raise ValueError(say('Relation has no constraint "{name}"', name=request.name))
         self._check_droppable(existing)
         # No CASCADE, the rule D27 set for a column: an outside dependency
         # stops the operation instead of disappearing under it. A foreign key
@@ -154,8 +154,11 @@ class PostgresConstraints:
             key.columns == spec.target_columns for key in target.candidate_keys
         ):
             raise ValueError(
-                f'"{schema_of(target)}.{target.name}" has no unique key over '
-                f"those columns"
+                say(
+                    '"{schema}.{name}" has no unique key over those columns',
+                    schema=schema_of(target),
+                    name=target.name,
+                )
             )
         return target
 
@@ -186,8 +189,7 @@ class PostgresConstraints:
         """
         if isinstance(constraint, PrimaryKey):
             raise ValueError(
-                "A primary key cannot be dropped here: rows can only be edited "
-                "while one exists"
+                say("A primary key cannot be dropped here: rows can only be edited while one exists")
             )
 
     @staticmethod
@@ -195,7 +197,7 @@ class PostgresConstraints:
         if not model.constraint_changes_supported:
             raise ValueError(
                 model.constraint_changes_reason
-                or "This relation cannot change constraints"
+                or say("This relation cannot change constraints")
             )
 
 

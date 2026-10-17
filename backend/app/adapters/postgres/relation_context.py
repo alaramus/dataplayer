@@ -15,6 +15,7 @@ from app.adapters.specializations import (
     TimescaleContinuousAggregate,
     TimescaleHypertable,
 )
+from app.core.translation import say
 
 _CLASSIFY_SQL = """
 WITH target(schema_name, relation_name) AS (
@@ -102,21 +103,21 @@ class SchemaRelationContext:
 
     def structured_operations_reason(self, relation: str) -> str | None:
         if self.dedicated_schema or relation in self.internal_relations:
-            return "TimescaleDB internal relations are read-only"
+            return say("TimescaleDB internal relations are read-only")
         specialization = self.specialization_for(relation)
         if specialization is not None:
-            return "TimescaleDB relations are read-only in this version"
+            return say("TimescaleDB relations are read-only in this version")
         if not self.known:
-            return self.reason or "TimescaleDB relation status could not be established"
+            return self.reason or say("TimescaleDB relation status could not be established")
         return None
 
     def schema_operations_reason(self, *, include_relations: bool = True) -> str | None:
         if self.dedicated_schema:
-            return "This schema belongs to TimescaleDB"
+            return say("This schema belongs to TimescaleDB")
         if not self.known:
-            return self.reason or "TimescaleDB schema status could not be established"
+            return self.reason or say("TimescaleDB schema status could not be established")
         if include_relations and (self.specializations or self.internal_relations):
-            return "This schema contains protected TimescaleDB relations"
+            return say("This schema contains protected TimescaleDB relations")
         return None
 
 
@@ -147,7 +148,7 @@ class PostgresRelationContext:
             return SchemaRelationContext(
                 timescale_state="unavailable",
                 specializations=MappingProxyType({}),
-                reason="TimescaleDB relation metadata could not be inspected",
+                reason=say("TimescaleDB relation metadata could not be inspected"),
                 dedicated_schema=schema in DEDICATED_SCHEMAS,
             )
         found: dict[str, RelationSpecialization] = {}
@@ -171,7 +172,7 @@ class PostgresRelationContext:
                 return SchemaRelationContext(
                     timescale_state="unavailable",
                     specializations=MappingProxyType({}),
-                    reason="TimescaleDB returned conflicting relation metadata",
+                    reason=say("TimescaleDB returned conflicting relation metadata"),
                 )
             found[name] = specialization
         # Materialisation hypertables can occur in both public inventories.
@@ -184,22 +185,22 @@ class PostgresRelationContext:
         if feature.state == "absent":
             return None
         if feature.state != "available":
-            return feature.reason or "TimescaleDB dependency status is unknown"
+            return feature.reason or say("TimescaleDB dependency status is unknown")
         try:
             scope = await dependency_scope(self._session, schema, relation)
         except (ValueError, AdapterError):
-            return "The cascade dependency scope could not be inspected"
+            return say("The cascade dependency scope could not be inspected")
         if not scope.complete:
-            return "The cascade dependency scope exceeds the inspection limit or is unknown"
+            return say("The cascade dependency scope exceeds the inspection limit or is unknown")
         if scope.extension_owned:
-            return "This cascade affects TimescaleDB extension objects"
+            return say("This cascade affects TimescaleDB extension objects")
         by_schema: dict[str, set[str]] = {}
         for namespace, name in scope.relations:
             by_schema.setdefault(namespace, set()).add(name)
         for namespace, names in by_schema.items():
             context = await self.schema(namespace)
             if any(context.structured_operations_reason(name) for name in names):
-                return "This cascade affects protected or unclassified TimescaleDB relations"
+                return say("This cascade affects protected or unclassified TimescaleDB relations")
         return None
 
 
@@ -223,5 +224,5 @@ def _invalid_context() -> SchemaRelationContext:
     return SchemaRelationContext(
         timescale_state="unavailable",
         specializations=MappingProxyType({}),
-        reason="TimescaleDB returned invalid relation metadata",
+        reason=say("TimescaleDB returned invalid relation metadata"),
     )

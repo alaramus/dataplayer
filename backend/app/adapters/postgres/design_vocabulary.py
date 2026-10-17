@@ -22,6 +22,7 @@ from app.adapters.table_design import (
     FunctionOption,
     OperatorClassOption,
 )
+from app.core.translation import N_, say
 
 
 @dataclass(frozen=True)
@@ -61,10 +62,10 @@ def _type(
 POSTGRES_DESIGN_TYPES: dict[str, PostgresDesignType] = {
     item.option.code: item
     for item in (
-        _type("text", "Text", "text", sql.SQL("text"), category="text"),
+        _type("text", N_("Text"), "text", sql.SQL("text"), category="text"),
         _type(
             "varchar",
-            "Text, limited",
+            N_("Text, limited"),
             "varchar(n)",
             sql.SQL("varchar"),
             parameters=["length"],
@@ -72,70 +73,70 @@ POSTGRES_DESIGN_TYPES: dict[str, PostgresDesignType] = {
         ),
         _type(
             "char",
-            "Text, fixed",
+            N_("Text, fixed"),
             "char(n)",
             sql.SQL("char"),
             parameters=["length"],
             category="text",
         ),
         _type(
-            "smallint", "Small integer", "smallint", sql.SQL("smallint"),
+            "smallint", N_("Small integer"), "smallint", sql.SQL("smallint"),
             identity=True, category="number",
         ),
         _type(
-            "integer", "Integer", "integer", sql.SQL("integer"),
+            "integer", N_("Integer"), "integer", sql.SQL("integer"),
             identity=True, category="number",
         ),
         _type(
-            "bigint", "Big integer", "bigint", sql.SQL("bigint"),
+            "bigint", N_("Big integer"), "bigint", sql.SQL("bigint"),
             identity=True, category="number",
         ),
         _type(
             "numeric",
-            "Numeric",
+            N_("Numeric"),
             "numeric(p,s)",
             sql.SQL("numeric"),
             parameters=["precision", "scale"],
             category="number",
         ),
-        _type("real", "Real", "real", sql.SQL("real"), category="number"),
+        _type("real", N_("Real"), "real", sql.SQL("real"), category="number"),
         _type(
-            "double", "Double precision", "double precision",
+            "double", N_("Double precision"), "double precision",
             sql.SQL("double precision"), category="number",
         ),
-        _type("boolean", "Boolean", "boolean", sql.SQL("boolean"), category="boolean"),
-        _type("date", "Date", "date", sql.SQL("date"), category="temporal"),
-        _type("time", "Time", "time", sql.SQL("time"), category="temporal"),
+        _type("boolean", N_("Boolean"), "boolean", sql.SQL("boolean"), category="boolean"),
+        _type("date", N_("Date"), "date", sql.SQL("date"), category="temporal"),
+        _type("time", N_("Time"), "time", sql.SQL("time"), category="temporal"),
         _type(
-            "timestamp", "Timestamp", "timestamp", sql.SQL("timestamp"),
+            "timestamp", N_("Timestamp"), "timestamp", sql.SQL("timestamp"),
             category="temporal",
         ),
         _type(
             "timestamp_tz",
-            "Timestamp with time zone",
+            N_("Timestamp with time zone"),
             "timestamptz",
             sql.SQL("timestamp with time zone"),
             category="temporal",
         ),
         _type(
-            "interval", "Interval", "interval", sql.SQL("interval"),
+            "interval", N_("Interval"), "interval", sql.SQL("interval"),
             category="temporal",
         ),
-        _type("uuid", "UUID", "uuid", sql.SQL("uuid"), category="other"),
-        _type("jsonb", "JSON", "jsonb", sql.SQL("jsonb"), category="document"),
-        _type("bytea", "Bytes", "bytea", sql.SQL("bytea"), category="other"),
-        _type("inet", "IP address", "inet", sql.SQL("inet"), category="other"),
+        _type("uuid", N_("UUID"), "uuid", sql.SQL("uuid"), category="other"),
+        _type("jsonb", N_("JSON"), "jsonb", sql.SQL("jsonb"), category="document"),
+        _type("bytea", N_("Bytes"), "bytea", sql.SQL("bytea"), category="other"),
+        _type("inet", N_("IP address"), "inet", sql.SQL("inet"), category="other"),
         _type(
-            "daterange", "Date range", "daterange", sql.SQL("daterange"),
+            "daterange", N_("Date range"), "daterange", sql.SQL("daterange"),
             category="other",
         ),
         _type(
-            "int4range", "Integer range", "int4range", sql.SQL("int4range"),
+            "int4range", N_("Integer range"), "int4range", sql.SQL("int4range"),
             category="other",
         ),
         _type(
             "tstzrange",
-            "Timestamp range",
+            N_("Timestamp range"),
             "tstzrange",
             sql.SQL("tstzrange"),
             category="other",
@@ -153,22 +154,22 @@ def type_sql(chosen: DesignColumnType) -> sql.Composed:
     """
     known = POSTGRES_DESIGN_TYPES.get(chosen.code)
     if known is None:
-        raise ValueError(f'Unknown column type "{chosen.code}"')
+        raise ValueError(say('Unknown column type "{code}"', code=chosen.code))
     takes = known.option.parameters
     if chosen.length is not None and "length" not in takes:
-        raise ValueError(f"{known.option.title} takes no length")
+        raise ValueError(say("{title} takes no length", title=say(known.option.title)))
     if chosen.precision is not None and "precision" not in takes:
-        raise ValueError(f"{known.option.title} takes no precision")
+        raise ValueError(say("{title} takes no precision", title=say(known.option.title)))
     if chosen.scale is not None and "scale" not in takes:
-        raise ValueError(f"{known.option.title} takes no scale")
+        raise ValueError(say("{title} takes no scale", title=say(known.option.title)))
     if chosen.scale is not None and chosen.precision is None:
-        raise ValueError(f"{known.option.title} needs a precision before a scale")
+        raise ValueError(say("{title} needs a precision before a scale", title=say(known.option.title)))
     if (
         chosen.precision is not None
         and chosen.scale is not None
         and chosen.scale > chosen.precision
     ):
-        raise ValueError("A scale cannot exceed its precision")
+        raise ValueError(say("A scale cannot exceed its precision"))
 
     parts: list[sql.Composable] = [known.base]
     if chosen.length is not None:
@@ -232,10 +233,10 @@ _DEFAULT_ONLY: list[ExpressionContext] = ["default"]
 POSTGRES_DESIGN_FUNCTIONS: dict[str, PostgresFunction] = {
     item.option.code: item
     for item in (
-        _function("now", "Now", "now()", sql.SQL("now"), 0, _DEFAULT_ONLY),
+        _function("now", N_("Now"), "now()", sql.SQL("now"), 0, _DEFAULT_ONLY),
         _function(
             "current_date",
-            "Today",
+            N_("Today"),
             "current_date",
             sql.SQL("current_date"),
             0,
@@ -243,23 +244,23 @@ POSTGRES_DESIGN_FUNCTIONS: dict[str, PostgresFunction] = {
         ),
         _function(
             "gen_random_uuid",
-            "Random UUID",
+            N_("Random UUID"),
             "gen_random_uuid()",
             sql.SQL("gen_random_uuid"),
             0,
             _DEFAULT_ONLY,
         ),
-        _function("lower", "Lower case", "lower(x)", sql.SQL("lower"), 1, _EVERYWHERE),
-        _function("upper", "Upper case", "upper(x)", sql.SQL("upper"), 1, _EVERYWHERE),
-        _function("trim", "Trimmed", "btrim(x)", sql.SQL("btrim"), 1, _EVERYWHERE),
+        _function("lower", N_("Lower case"), "lower(x)", sql.SQL("lower"), 1, _EVERYWHERE),
+        _function("upper", N_("Upper case"), "upper(x)", sql.SQL("upper"), 1, _EVERYWHERE),
+        _function("trim", N_("Trimmed"), "btrim(x)", sql.SQL("btrim"), 1, _EVERYWHERE),
         _function(
-            "length", "Length", "length(x)", sql.SQL("length"), 1, _EVERYWHERE
+            "length", N_("Length"), "length(x)", sql.SQL("length"), 1, _EVERYWHERE
         ),
-        _function("abs", "Absolute", "abs(x)", sql.SQL("abs"), 1, _EVERYWHERE),
-        _function("round", "Rounded", "round(x)", sql.SQL("round"), 1, _EVERYWHERE),
+        _function("abs", N_("Absolute"), "abs(x)", sql.SQL("abs"), 1, _EVERYWHERE),
+        _function("round", N_("Rounded"), "round(x)", sql.SQL("round"), 1, _EVERYWHERE),
         _function(
             "coalesce",
-            "First value present",
+            N_("First value present"),
             "coalesce(x, y)",
             sql.SQL("coalesce"),
             2,
@@ -305,26 +306,26 @@ PARTITION_SQL: dict[str, sql.SQL] = {
 }
 
 REFERENCE_ACTION_CHOICES = [
-    DesignChoice(code="no_action", title="No action"),
-    DesignChoice(code="restrict", title="Restrict"),
-    DesignChoice(code="cascade", title="Cascade"),
-    DesignChoice(code="set_null", title="Set null"),
-    DesignChoice(code="set_default", title="Set default"),
+    DesignChoice(code="no_action", title=N_("No action")),
+    DesignChoice(code="restrict", title=N_("Restrict")),
+    DesignChoice(code="cascade", title=N_("Cascade")),
+    DesignChoice(code="set_null", title=N_("Set null")),
+    DesignChoice(code="set_default", title=N_("Set default")),
 ]
 MATCH_CHOICES = [
-    DesignChoice(code="simple", title="Match simple"),
-    DesignChoice(code="full", title="Match full"),
+    DesignChoice(code="simple", title=N_("Match simple")),
+    DesignChoice(code="full", title=N_("Match full")),
 ]
 # Temporary is missing on purpose: its lifetime is a database session, and a
 # pooled request cannot promise one.
 PERSISTENCE_CHOICES = [
-    DesignChoice(code="permanent", title="Permanent"),
-    DesignChoice(code="unlogged", title="Unlogged"),
+    DesignChoice(code="permanent", title=N_("Permanent")),
+    DesignChoice(code="unlogged", title=N_("Unlogged")),
 ]
 PARTITION_CHOICES = [
-    DesignChoice(code="range", title="Range"),
-    DesignChoice(code="list", title="List"),
-    DesignChoice(code="hash", title="Hash"),
+    DesignChoice(code="range", title=N_("Range")),
+    DesignChoice(code="list", title=N_("List")),
+    DesignChoice(code="hash", title=N_("Hash")),
 ]
 
 # Which methods take INCLUDE columns. PostgreSQL says B-tree and GiST, and it

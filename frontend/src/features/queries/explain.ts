@@ -1,5 +1,6 @@
 import type { ExplainNode } from "@/client"
 import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 
 /**
  * A plan read as a list.
@@ -40,7 +41,7 @@ export function nodeById(node: ExplainNode, id: string): ExplainNode | null {
 export function estimate(node: ExplainNode): string {
   const parts: string[] = []
   if (node.total_cost !== null && node.total_cost !== undefined) {
-    parts.push(t("queries.explain.cost", { n: node.total_cost.toFixed(2) }))
+    parts.push(t("queries.explain.cost", { n: formatFixed(node.total_cost, 2) }))
   }
   if (node.rows !== null && node.rows !== undefined) {
     parts.push(t("queries.explain.rows", { n: node.rows }, node.rows))

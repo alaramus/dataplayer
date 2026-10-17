@@ -20,6 +20,7 @@ from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
 from app.core.logs import record_failure, with_ref
+from app.core.translation import N_, say
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ _CONFIG_MARKERS = ("does not exist",)
 
 
 def classify(
-    exc: BaseException, *, fallback_message: str = "Connection failed"
+    exc: BaseException, *, fallback_message: str = N_("Connection failed")
 ) -> tuple[ErrorKind, str]:
     """Reduce a driver exception to a safe (kind, message) pair.
 
@@ -56,20 +57,21 @@ def classify(
     a parameter because "Connection failed" is misleading when the connection
     was fine and the query was not. That sentence says nothing of why, so the
     exception is written to the log in full — masked (D184) — and the sentence
-    carries the ref that finds it there.
+    carries the ref that finds it there. It is English marked `N_`: the log
+    keeps the English, and the caller is answered in its own language.
     """
     # ConnectionTimeout subclasses OperationalError, so it is checked first.
     if isinstance(exc, TimeoutError | psycopg.errors.ConnectionTimeout):
-        return "timeout", "Connection timed out"
+        return "timeout", say("Connection timed out")
     if isinstance(exc, psycopg.OperationalError):
         text = str(exc).lower()
         if any(marker in text for marker in _AUTH_MARKERS):
-            return "auth", "Authentication failed"
+            return "auth", say("Authentication failed")
         if any(marker in text for marker in _CONFIG_MARKERS):
-            return "config", "Database does not exist"
-        return "network", "Could not reach the database server"
+            return "config", say("Database does not exist")
+        return "network", say("Could not reach the database server")
     ref = record_failure(logger, f"PostgreSQL: {fallback_message}", exc)
-    return "unknown", with_ref(fallback_message, ref)
+    return "unknown", with_ref(say(fallback_message), ref)
 
 
 def named_refusal(
@@ -81,11 +83,13 @@ def named_refusal(
     writes the offending value into the text of exactly the errors worth
     explaining. So the code is matched here and the wording belongs to whoever
     asked — only the caller knows that `42804` means "remove the default" in
-    one command and something else in another.
+    one command and something else in another. A caller's table is English
+    marked `N_`, worded here, or sentences it already worded.
     """
     if refusals is None or not isinstance(exc, psycopg.Error):
         return None
-    return refusals.get(exc.sqlstate or "")
+    named = refusals.get(exc.sqlstate or "")
+    return None if named is None else say(named)
 
 
 def compose_url(
@@ -163,11 +167,11 @@ def options_from_url(url: str) -> dict[str, Any]:
     except psycopg.Error:
         # The driver's message quotes the string back, and the string may
         # carry a password.
-        raise ValueError("That is not a PostgreSQL connection string") from None
+        raise ValueError(say("That is not a PostgreSQL connection string")) from None
 
     host = parsed.get("host")
     if not isinstance(host, str) or host == "":
-        raise ValueError("The connection string names no host")
+        raise ValueError(say("The connection string names no host"))
 
     options: dict[str, Any] = {"host": host}
     for source, target in (("dbname", "database"), ("user", "user")):
@@ -180,7 +184,7 @@ def options_from_url(url: str) -> dict[str, Any]:
         try:
             options["port"] = int(port)
         except ValueError:
-            raise ValueError("The connection string names no usable port") from None
+            raise ValueError(say("The connection string names no usable port")) from None
 
     password = parsed.get("password")
     if isinstance(password, str) and password != "":
@@ -321,7 +325,7 @@ class Snapshot:
                 async for chunk in copy:
                     yield bytes(chunk)
         except psycopg.Error as exc:
-            error_kind, message = classify(exc, fallback_message="The rows could not be read")
+            error_kind, message = classify(exc, fallback_message=N_("The rows could not be read"))
             raise AdapterError(error_kind, message) from None
 
 
@@ -418,7 +422,7 @@ class PostgresSession:
             )
         latency_ms = int((time.perf_counter() - started) * 1000)
         return ConnectionCheckResult(
-            ok=True, message="Connection successful", latency_ms=latency_ms
+            ok=True, message=say("Connection successful"), latency_ms=latency_ms
         )
 
     @asynccontextmanager
@@ -488,7 +492,7 @@ class PostgresSession:
             named = named_refusal(exc, refusals)
             if named is not None:
                 raise ValueError(named) from None
-            error_kind, message = classify(exc, fallback_message="Query failed")
+            error_kind, message = classify(exc, fallback_message=N_("Query failed"))
             raise AdapterError(error_kind, message) from None
 
     async def bounded_query(
@@ -535,12 +539,12 @@ class PostgresSession:
             # Not `classify`, which takes any operational error for a server
             # out of reach: this one answered, and holds a lock for somebody.
             raise AdapterError(
-                "unknown", "Something the query reads is locked by somebody else"
+                "unknown", say("Something the query reads is locked by somebody else")
             ) from None
         except e.QueryCanceled:
-            raise AdapterError("timeout", "The server did not answer in time") from None
+            raise AdapterError("timeout", say("The server did not answer in time")) from None
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="Query failed")
+            error_kind, message = classify(exc, fallback_message=N_("Query failed"))
             raise AdapterError(error_kind, message) from None
 
     @asynccontextmanager
@@ -559,7 +563,7 @@ class PostgresSession:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
         except psycopg.Error as exc:
-            error_kind, message = classify(exc, fallback_message="Source inspection failed")
+            error_kind, message = classify(exc, fallback_message=N_("Source inspection failed"))
             raise AdapterError(error_kind, message) from None
 
     async def describe(self, sql: str) -> list[tuple[str, int]]:
@@ -581,7 +585,7 @@ class PostgresSession:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="Describe failed")
+            error_kind, message = classify(exc, fallback_message=N_("Describe failed"))
             raise AdapterError(error_kind, message) from None
 
     async def stream_query(
@@ -606,7 +610,7 @@ class PostgresSession:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="Export failed")
+            error_kind, message = classify(exc, fallback_message=N_("Export failed"))
             raise AdapterError(error_kind, message) from None
 
     @asynccontextmanager
@@ -627,7 +631,7 @@ class PostgresSession:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
         except psycopg.Error as exc:
-            error_kind, message = classify(exc, fallback_message="The rows could not be read")
+            error_kind, message = classify(exc, fallback_message=N_("The rows could not be read"))
             raise AdapterError(error_kind, message) from None
 
     async def change(
@@ -651,10 +655,10 @@ class PostgresSession:
             # Constraint and conversion messages may quote source data and
             # schema details. The status is useful; the driver text is not.
             raise ValueError(
-                named_refusal(exc, refusals) or "The source rejected the new value"
+                named_refusal(exc, refusals) or say("The source rejected the new value")
             ) from None
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="Update failed")
+            error_kind, message = classify(exc, fallback_message=N_("Update failed"))
             raise AdapterError(error_kind, message) from None
 
     @asynccontextmanager
@@ -686,13 +690,13 @@ class PostgresSession:
             psycopg.ProgrammingError,
         ) as exc:
             raise ValueError(
-                named_refusal(exc, refusals) or "The source rejected the change"
+                named_refusal(exc, refusals) or say("The source rejected the change")
             ) from None
         except psycopg.Error as exc:
             named = named_refusal(exc, refusals)
             if named is not None:
                 raise ValueError(named) from None
-            error_kind, message = classify(exc, fallback_message="Update failed")
+            error_kind, message = classify(exc, fallback_message=N_("Update failed"))
             raise AdapterError(error_kind, message) from None
 
     async def schema_change(
@@ -722,13 +726,13 @@ class PostgresSession:
             psycopg.ProgrammingError,
         ) as exc:
             raise ValueError(
-                named_refusal(exc, refusals) or "The source rejected the schema change"
+                named_refusal(exc, refusals) or say("The source rejected the schema change")
             ) from None
         except Exception as exc:
             named = named_refusal(exc, refusals)
             if named is not None:
                 raise ValueError(named) from None
-            error_kind, message = classify(exc, fallback_message="Schema change failed")
+            error_kind, message = classify(exc, fallback_message=N_("Schema change failed"))
             raise AdapterError(error_kind, message) from None
 
     async def rehearse(
@@ -792,7 +796,7 @@ class PostgresSession:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="Rehearsal failed")
+            error_kind, message = classify(exc, fallback_message=N_("Rehearsal failed"))
             raise AdapterError(error_kind, message) from None
         return Rehearsal(said=said, refused=refused)
 
@@ -813,10 +817,10 @@ class PostgresSession:
             async with connection:
                 pass
         except Exception as exc:
-            return classify(exc, fallback_message="Query failed")
+            return classify(exc, fallback_message=N_("Query failed"))
         # The server is reachable and the credentials work, so the wait was for
         # a free connection rather than for the server.
-        return "unknown", "All connections to this source are busy"
+        return "unknown", say("All connections to this source are busy")
 
 
 async def _without_a_transaction(connection: psycopg.AsyncConnection[Any], sql: str) -> None:

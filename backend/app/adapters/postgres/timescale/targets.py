@@ -11,6 +11,7 @@ from app.adapters.postgres.timescale.plans import (
     TimeHypertable,
 )
 from app.adapters.postgres.timescale.report_access import require_public_view
+from app.core.translation import say
 
 _DIMENSION_COLUMNS = (
     "hypertable_schema", "hypertable_name", "dimension_number", "column_name",
@@ -135,7 +136,7 @@ async def user_table(catalog: PostgresCatalog, node_id: str | None) -> tuple[Sch
                 and isinstance(node, TableNode) and not node.is_system
             ):
                 return schema, node
-    raise ActionRefused("not_applicable", "Choose one user hypertable")
+    raise ActionRefused("not_applicable", say("Choose one user hypertable"))
 
 
 async def user_view(catalog: PostgresCatalog, node_id: str | None) -> tuple[SchemaNode, ViewNode]:
@@ -148,7 +149,7 @@ async def user_view(catalog: PostgresCatalog, node_id: str | None) -> tuple[Sche
                 and isinstance(node, ViewNode) and not node.is_system
             ):
                 return schema, node
-    raise ActionRefused("not_applicable", "Choose one user continuous aggregate")
+    raise ActionRefused("not_applicable", say("Choose one user continuous aggregate"))
 
 
 async def time_hypertable(reader: PostgresReader, schema_name: str, table_name: str) -> TimeHypertable:
@@ -157,9 +158,9 @@ async def time_hypertable(reader: PostgresReader, schema_name: str, table_name: 
         await require_public_view(reader, view, columns)
     rows = await reader.query(_TIME_HYPERTABLE, (schema_name, table_name), inspection=True)
     if len(rows) != 1:
-        raise ActionRefused("not_applicable", "Choose an owned hypertable with one time dimension")
+        raise ActionRefused("not_applicable", say("Choose an owned hypertable with one time dimension"))
     if rows[0].get("column_type") not in _TIME_COLUMN_TYPES:
-        raise ActionRefused("not_applicable", "Only timestamp and date dimensions are supported here")
+        raise ActionRefused("not_applicable", say("Only timestamp and date dimensions are supported here"))
     return TimeHypertable.model_validate(rows[0])
 
 
@@ -169,12 +170,12 @@ async def maintained_hypertable(reader: PostgresReader, schema_name: str, table_
         await require_public_view(reader, view, columns)
     rows = await reader.query(_MAINTAINED_HYPERTABLE, (schema_name, table_name), inspection=True)
     if len(rows) != 1:
-        raise ActionRefused("not_applicable", "Choose an owned hypertable partitioned by time")
+        raise ActionRefused("not_applicable", say("Choose an owned hypertable partitioned by time"))
     row = dict(rows[0])
     if int(str(row.pop("num_dimensions"))) != 1 + len(row["hash_columns"]):
-        raise ActionRefused("not_applicable", "Only a hypertable with one range dimension is maintained here")
+        raise ActionRefused("not_applicable", say("Only a hypertable with one range dimension is maintained here"))
     if row.get("column_type") not in _TIME_COLUMN_TYPES | INTEGER_COLUMN_TYPES:
-        raise ActionRefused("not_applicable", "Only timestamp, date and integer dimensions are supported here")
+        raise ActionRefused("not_applicable", say("Only timestamp, date and integer dimensions are supported here"))
     return MaintainedHypertable.model_validate(row)
 
 
@@ -186,7 +187,7 @@ async def continuous_aggregate(
         await require_public_view(reader, view, columns)
     rows = await reader.query(_CONTINUOUS_AGGREGATE, (schema_name, view_name), inspection=True)
     if len(rows) != 1:
-        raise ActionRefused("not_applicable", "Choose an owned continuous aggregate")
+        raise ActionRefused("not_applicable", say("Choose an owned continuous aggregate"))
     if rows[0].get("column_type") not in _TIME_COLUMN_TYPES:
-        raise ActionRefused("not_applicable", "Only aggregates over timestamp and date dimensions are supported here")
+        raise ActionRefused("not_applicable", say("Only aggregates over timestamp and date dimensions are supported here"))
     return ContinuousAggregateTarget.model_validate(rows[0])

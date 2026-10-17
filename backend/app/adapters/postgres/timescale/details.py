@@ -15,6 +15,7 @@ from app.adapters.timescale_metadata import (
     TimescaleFacts,
     UnavailableTimescaleFacts,
 )
+from app.core.translation import say
 
 
 @dataclass(frozen=True)
@@ -62,12 +63,12 @@ async def inspect_details(
             )
             if len(rows) != 1:
                 return UnavailableTimescaleFacts(
-                    reason="TimescaleDB metadata no longer identifies this relation uniquely",
+                    reason=say("TimescaleDB metadata no longer identifies this relation uniquely"),
                 )
             return reader.facts_type.model_validate(rows[0])
     except TimeoutError:
-        return UnavailableTimescaleFacts(reason="TimescaleDB metadata inspection timed out")
+        return UnavailableTimescaleFacts(reason=say("TimescaleDB metadata inspection timed out"))
     except (AdapterError, ValueError):
         return UnavailableTimescaleFacts(
-            reason="TimescaleDB metadata could not be inspected safely",
+            reason=say("TimescaleDB metadata could not be inspected safely"),
         )

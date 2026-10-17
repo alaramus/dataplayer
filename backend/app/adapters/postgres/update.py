@@ -35,6 +35,7 @@ from app.adapters.update import (
     UpdatedRow,
     ValuesRejected,
 )
+from app.core.translation import say
 
 
 def _returning(info: RelationFetchInfo) -> sql.Composed:
@@ -62,17 +63,17 @@ class PostgresUpdate:
         schema, table = self._relation_name(request.node_id)
         info = await self._fetch.relation_info(schema, table)
         if not info.update_supported:
-            raise ValueError(info.update_reason or "This relation cannot be edited")
+            raise ValueError(info.update_reason or say("This relation cannot be edited"))
         known = {column.name: column for column in info.columns}
         column = known.get(request.column)
         if column is None:
-            raise ValueError(f'Relation has no column "{request.column}"')
+            raise ValueError(say('Relation has no column "{column}"', column=request.column))
         if not column.editable:
-            raise ValueError(f'Column "{request.column}" cannot be edited')
+            raise ValueError(say('Column "{column}" cannot be edited', column=request.column))
 
         handle = decode_row_handle(request.row_handle)
         if len(handle.keys) != len(row_match(info)):
-            raise ValueError("The row handle is not valid for this relation")
+            raise ValueError(say("The row handle is not valid for this relation"))
 
         assignments = sql.SQL("{} = %s").format(sql.Identifier(request.column))
         conditions: list[sql.Composable] = [*row_match(info), sql.SQL("xmin::text = %s")]
@@ -91,7 +92,7 @@ class PostgresUpdate:
             )
             if rejected:
                 raise ValueError(
-                    f'That value cannot be read as {column.type.sql}'
+                    say("That value cannot be read as {sql}", sql=column.type.sql)
                 )
         params: list[object] = [request.value, *handle.keys, handle.version]
         rows = await self._session.change(
@@ -111,7 +112,7 @@ class PostgresUpdate:
         schema, table = self._relation_name(request.node_id)
         info = await self._fetch.relation_info(schema, table)
         if not info.update_supported:
-            raise ValueError(info.update_reason or "This relation cannot be edited")
+            raise ValueError(info.update_reason or say("This relation cannot be edited"))
         known = {column.name: column for column in info.columns}
 
         handles = []
@@ -120,14 +121,14 @@ class PostgresUpdate:
         for index, row in enumerate(request.rows):
             handle = decode_row_handle(row.row_handle)
             if len(handle.keys) != len(row_match(info)):
-                raise ValueError("The row handle is not valid for this relation")
+                raise ValueError(say("The row handle is not valid for this relation"))
             handles.append(handle)
             for cell in row.cells:
                 column = known.get(cell.column)
                 if column is None:
-                    raise ValueError(f'Relation has no column "{cell.column}"')
+                    raise ValueError(say('Relation has no column "{column}"', column=cell.column))
                 if not column.editable:
-                    raise ValueError(f'Column "{cell.column}" cannot be edited')
+                    raise ValueError(say('Column "{column}" cannot be edited', column=cell.column))
                 if cell.value is not None:
                     checked.append((cell.value, column.type.sql))
                     places.append((index, cell.column))
@@ -180,23 +181,25 @@ class PostgresUpdate:
         schema, table = self._relation_name(request.node_id)
         info = await self._fetch.relation_info(schema, table)
         if not info.insert_supported:
-            raise ValueError(info.insert_reason or "This relation cannot accept rows")
+            raise ValueError(info.insert_reason or say("This relation cannot accept rows"))
 
         known = {column.name: column for column in info.columns}
         supplied = {item.column for item in request.values}
         for item in request.values:
             column = known.get(item.column)
             if column is None:
-                raise ValueError(f'Relation has no column "{item.column}"')
+                raise ValueError(say('Relation has no column "{column}"', column=item.column))
             if not column.insertable:
-                raise ValueError(f'Column "{item.column}" cannot be inserted')
+                raise ValueError(say('Column "{column}" cannot be inserted', column=item.column))
         missing = [
             column.name
             for column in info.columns
             if column.insert_required and column.name not in supplied
         ]
         if missing:
-            raise ValueError(f"Required columns were not supplied: {', '.join(missing)}")
+            raise ValueError(
+                say("Required columns were not supplied: {columns}", columns=", ".join(missing))
+            )
 
         returning = _returning(info)
         if request.values:
@@ -223,15 +226,15 @@ class PostgresUpdate:
         schema, table = self._relation_name(request.node_id)
         info = await self._fetch.relation_info(schema, table)
         if not info.insert_supported:
-            raise ValueError(info.insert_reason or "This relation cannot accept rows")
+            raise ValueError(info.insert_reason or say("This relation cannot accept rows"))
         known = {column.name: column for column in info.columns}
         targets = []
         for name in request.columns:
             column = known.get(name)
             if column is None:
-                raise ValueError(f'Relation has no column "{name}"')
+                raise ValueError(say('Relation has no column "{column}"', column=name))
             if not column.insertable:
-                raise ValueError(f'Column "{name}" cannot be inserted')
+                raise ValueError(say('Column "{column}" cannot be inserted', column=name))
             targets.append(column)
 
         # Everything unreadable is named before anything is written, so a move
@@ -272,15 +275,15 @@ class PostgresUpdate:
         schema, table = self._relation_name(request.node_id)
         info = await self._fetch.relation_info(schema, table)
         if not info.delete_supported:
-            raise ValueError(info.delete_reason or "This relation cannot delete rows")
+            raise ValueError(info.delete_reason or say("This relation cannot delete rows"))
 
         handles = [decode_row_handle(value) for value in request.row_handles]
         for handle in handles:
             if len(handle.keys) != len(row_match(info)):
-                raise ValueError("The row handle is not valid for this relation")
+                raise ValueError(say("The row handle is not valid for this relation"))
         identities = {(tuple(handle.keys), handle.version) for handle in handles}
         if len(identities) != len(handles):
-            raise ValueError("A row may be deleted only once")
+            raise ValueError(say("A row may be deleted only once"))
 
         one_row = sql.SQL(" AND ").join(
             [*row_match(info), sql.SQL("xmin::text = %s")]
@@ -310,7 +313,7 @@ class PostgresUpdate:
     def _relation_name(node_id: str) -> tuple[str, str]:
         schema, _, table = node_id.partition(".")
         if not table:
-            raise ValueError(f'"{node_id}" is not a relation: expected schema.table')
+            raise ValueError(say('"{node_id}" is not a relation: expected schema.table', node_id=node_id))
         return schema, table
 
     @staticmethod

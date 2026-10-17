@@ -29,6 +29,7 @@ from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import time_hypertable
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 
 @dataclass(frozen=True)
@@ -109,16 +110,19 @@ async def read_age_policy(
 ) -> AgePolicy | None:
     """The one extension-owned job of this kind; the caller has checked the jobs view."""
     policies = await reader.query(_EXISTING[spec.kind], (schema_name, table_name), inspection=True)
+    retention = spec.kind == "retention"
     if len(policies) > 1:
-        raise ActionRefused(
-            "not_applicable", f"This hypertable has several {spec.noun} jobs; manage them with SQL",
-        )
+        raise ActionRefused("not_applicable", (
+            say("This hypertable has several retention policy jobs; manage them with SQL") if retention
+            else say("This hypertable has several compression policy jobs; manage them with SQL")
+        ))
     try:
         return AgePolicy.model_validate(policies[0]) if policies else None
     except ValidationError:
-        raise ActionRefused(
-            "not_applicable", f"The existing {spec.noun} could not be read safely; manage it with SQL",
-        ) from None
+        raise ActionRefused("not_applicable", (
+            say("The existing retention policy could not be read safely; manage it with SQL") if retention
+            else say("The existing compression policy could not be read safely; manage it with SQL")
+        )) from None
 
 
 async def inspect_age_policy(
@@ -143,11 +147,18 @@ async def inspect_age_policy(
             })
             return AgePolicyState(target=target, existing=existing, strategy=strategy)
     except TimeoutError:
-        raise ActionRefused("not_applicable", f"TimescaleDB {spec.noun} planning timed out") from None
+        raise ActionRefused("not_applicable", (
+            say("TimescaleDB retention policy planning timed out") if spec.kind == "retention"
+            else say("TimescaleDB compression policy planning timed out")
+        )) from None
     except (AdapterError, ValueError):
-        raise ActionRefused(
-            "not_applicable", f"TimescaleDB {spec.noun} metadata could not be inspected safely",
-        ) from None
+        raise ActionRefused("not_applicable", unreadable(spec)) from None
+
+
+def unreadable(spec: AgePolicySpec) -> str:
+    if spec.kind == "retention":
+        return say("TimescaleDB retention policy metadata could not be inspected safely")
+    return say("TimescaleDB compression policy metadata could not be inspected safely")
 
 
 async def require_compression(reader: PostgresReader, target: TimeHypertable) -> None:
@@ -158,27 +169,32 @@ async def require_compression(reader: PostgresReader, target: TimeHypertable) ->
         _COMPRESSION_ENABLED, (target.schema_name, target.table_name), inspection=True,
     )
     if len(rows) != 1 or rows[0].get("compression_enabled") is not True:
-        raise ActionRefused("not_applicable", "Enable compression on this hypertable first")
+        raise ActionRefused("not_applicable", say("Enable compression on this hypertable first"))
 
 
 def age_policy_plan(
     spec: AgePolicySpec, state: AgePolicyState, older_than: TimeDuration | None,
 ) -> AgePolicyPlan:
     """Setting when a threshold is given, removing otherwise; replacement is explicit in the plan."""
+    retention = spec.kind == "retention"
     if older_than is None:
         if state.existing is None:
-            raise ActionRefused("not_applicable", f"This hypertable has no {spec.noun}")
+            raise ActionRefused("not_applicable", (
+                say("This hypertable has no retention policy") if retention
+                else say("This hypertable has no compression policy")
+            ))
         return AgePolicyPlan(
             operation="remove_policy", kind=spec.kind, target=state.target,
             existing=state.existing, older_than=None, strategy=state.strategy,
         )
     if state.target.column_type == "date" and older_than.unit in _SUBDAY:
-        raise ActionRefused("not_applicable", "Date dimensions require whole days, weeks, months or years")
+        raise ActionRefused("not_applicable", say("Date dimensions require whole days, weeks, months or years"))
     # A replacement is scheduled by default, so replacing a paused policy would resume it.
     if state.existing is not None and not state.existing.scheduled:
-        raise ActionRefused(
-            "not_applicable", f"The existing {spec.noun} is paused; remove it before setting a new one",
-        )
+        raise ActionRefused("not_applicable", (
+            say("The existing retention policy is paused; remove it before setting a new one") if retention
+            else say("The existing compression policy is paused; remove it before setting a new one")
+        ))
     return AgePolicyPlan(
         operation="set_policy", kind=spec.kind, target=state.target,
         existing=state.existing, older_than=older_than, strategy=state.strategy,

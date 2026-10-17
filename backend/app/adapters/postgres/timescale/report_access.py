@@ -7,6 +7,7 @@ from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import SystemReport
 from app.adapters.postgres.timescale.reports import TimescaleReport
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 _COLUMNS = """
 SELECT attribute.attname AS column_name
@@ -32,7 +33,6 @@ LIMIT %s
 async def require_report(session: PostgresSession, report: SystemReport) -> None:
     if not isinstance(report, TimescaleReport):
         return
-    refused = f'The "{report.title}" report cannot be inspected by this connection'
     try:
         await require_public_view(session, report.public_view, report.required_columns)
         await session.query(
@@ -43,7 +43,9 @@ async def require_report(session: PostgresSession, report: SystemReport) -> None
     except AdapterError as exc:
         if exc.error_kind in {"auth", "network", "timeout"}:
             raise
-        raise ValueError(refused) from None
+        # Without the report's title, a word that would stay English inside
+        # the sentence; the refusal is shown where the report is opened.
+        raise ValueError(say("This report cannot be inspected by this connection")) from None
 
 
 async def require_public_view(
@@ -54,4 +56,4 @@ async def require_public_view(
         inspection=True,
     )
     if {row["column_name"] for row in columns} != set(required_columns):
-        raise ValueError("The installed TimescaleDB lacks the public API for this view")
+        raise ValueError(say("The installed TimescaleDB lacks the public API for this view"))

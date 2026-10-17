@@ -74,6 +74,7 @@ from app.adapters.postgres.timescale.design_create import (
     hypertable_offer,
 )
 from app.adapters.postgres.timescale.design_state import UniqueKey
+from app.adapters.postgres.words import worded_titles
 from app.adapters.relation import IndexMethodOption, RefAction, RelationModel
 from app.adapters.specializations import TimescaleHypertable
 from app.adapters.table_design import (
@@ -99,6 +100,7 @@ from app.adapters.table_design import (
     TablePlan,
     TablePlanRequest,
 )
+from app.core.translation import N_, say
 
 _relation_name = name_check("relation")
 _object_name = name_check("object")
@@ -108,31 +110,31 @@ _column_name_rule = name_check("column")
 # statement and the connection string, so none of it is passed on.
 CREATE_TABLE_REFUSALS = {
     # duplicate_table: the name is taken by a table, view, index or sequence.
-    "42P07": "Something with that name is already there",
+    "42P07": N_("Something with that name is already there"),
     # duplicate_object: an index or a constraint name is taken.
-    "42710": "Something with that name is already there",
+    "42710": N_("Something with that name is already there"),
     # duplicate_column.
-    "42701": "Two columns cannot have the same name",
+    "42701": N_("Two columns cannot have the same name"),
     # insufficient_privilege.
-    "42501": "This connection may not create a table in that schema",
+    "42501": N_("This connection may not create a table in that schema"),
     # invalid_schema_name: the schema went away between the plan and the DDL.
-    "3F000": "That schema is no longer there",
+    "3F000": N_("That schema is no longer there"),
     # undefined_object: no default operator class for a type and method.
-    "42704": "That index method does not fit the type of these columns",
+    "42704": N_("That index method does not fit the type of these columns"),
     # invalid_foreign_key: the target has no unique key over those columns.
-    "42830": "The target relation has no unique key over those columns",
+    "42830": N_("The target relation has no unique key over those columns"),
     # datatype_mismatch: a default, a check or a key that does not fit.
-    "42804": "A value or a key does not fit the type of its column",
+    "42804": N_("A value or a key does not fit the type of its column"),
     # invalid_object_definition, and feature_not_supported, which is where a
     # partitioned table refuses a key that leaves out its partition columns.
-    "42P17": "The server refused that definition",
-    "0A000": "The server does not support that combination",
+    "42P17": N_("The server refused that definition"),
+    "0A000": N_("The server does not support that combination"),
     # too_many_columns.
-    "54011": "That is more columns than the source accepts",
+    "54011": N_("That is more columns than the source accepts"),
     # syntax_error is never expected: every fragment is composed here. Named so
     # that a mistake in this module reads as one rather than as a source
     # failure.
-    "42601": "The composed statement was refused by the server",
+    "42601": N_("The composed statement was refused by the server"),
 }
 
 # PostgreSQL 15 is where a unique constraint learned to treat nulls as equal.
@@ -270,11 +272,11 @@ class PostgresTableDesign:
         node = await self._destination(node_id)
         if node is None:
             return TableDesignOptions(
-                supported=False, reason="A table is created in a schema"
+                supported=False, reason=say("A table is created in a schema")
             )
         if node.is_system:
             return TableDesignOptions(
-                supported=False, reason=f'"{node.name}" belongs to the server'
+                supported=False, reason=say('"{schema}" belongs to the server', schema=node.name)
             )
         reason = await self._catalog.schema_action_reason(
             node.name, include_relations=False
@@ -287,17 +289,17 @@ class PostgresTableDesign:
         return TableDesignOptions(
             supported=True,
             schema_label=node.name,
-            types=[item.option for item in POSTGRES_DESIGN_TYPES.values()],
+            types=worded_titles(item.option for item in POSTGRES_DESIGN_TYPES.values()),
             index_methods=methods,
-            functions=[item.option for item in POSTGRES_DESIGN_FUNCTIONS.values()],
+            functions=worded_titles(item.option for item in POSTGRES_DESIGN_FUNCTIONS.values()),
             operator_classes=operator_class_options(
                 classes, {method.sql for method in methods}
             ),
             collations=[str(row["name"]) for row in collations],
-            reference_actions=REFERENCE_ACTION_CHOICES,
-            match_modes=MATCH_CHOICES,
-            persistence_options=PERSISTENCE_CHOICES,
-            partition_strategies=PARTITION_CHOICES,
+            reference_actions=worded_titles(REFERENCE_ACTION_CHOICES),
+            match_modes=worded_titles(MATCH_CHOICES),
+            persistence_options=worded_titles(PERSISTENCE_CHOICES),
+            partition_strategies=worded_titles(PARTITION_CHOICES),
             nulls_not_distinct_supported=await self._nulls_not_distinct(),
             hypertable=await hypertable_offer(self._session),
             limits=DesignLimits(),
@@ -343,7 +345,7 @@ class PostgresTableDesign:
             raise DesignRefused(
                 PlanProblem(
                     kind="conflict",
-                    message="The plan changed since it was reviewed; look at it again",
+                    message=say("The plan changed since it was reviewed; look at it again"),
                 )
             )
         async with self._session.transaction(refusals=CREATE_TABLE_REFUSALS) as work:
@@ -377,9 +379,9 @@ class PostgresTableDesign:
         """
         node = await self._destination(node_id)
         if node is None:
-            raise ValueError("A table is created in a schema")
+            raise ValueError(say("A table is created in a schema"))
         if node.is_system:
-            raise ValueError(f'"{node.name}" belongs to the server')
+            raise ValueError(say('"{schema}" belongs to the server', schema=node.name))
         reason = await self._catalog.schema_action_reason(
             node.name, include_relations=False
         )
@@ -424,7 +426,7 @@ class PostgresTableDesign:
         _check_name(draft, definition.name, _relation_name, object_id=None)
         if definition.name in draft.taken:
             draft.note(
-                f'Something called "{definition.name}" is already in that schema',
+                say('Something called "{name}" is already in that schema', name=definition.name),
                 object_id=None,
                 field_name="name",
                 kind="conflict",
@@ -454,7 +456,7 @@ class PostgresTableDesign:
         statements = [
             PlannedStatement(
                 object_id=None,
-                title=f"Table {definition.name}",
+                title=say("Table {name}", name=definition.name),
                 sql=sql.Composed(parts).as_string(),
             )
         ]
@@ -497,7 +499,7 @@ class PostgresTableDesign:
         key = definition.primary_key
         if key is not None:
             try:
-                columns = _column_list(draft, key.column_ids, unique_in="primary key")
+                columns = _column_list(draft, key.column_ids, unique_in="primary_key")
                 _requires_value(draft, key.column_ids)
                 clauses.append(
                     sql.SQL("CONSTRAINT {} PRIMARY KEY ({})").format(
@@ -533,11 +535,11 @@ class PostgresTableDesign:
         self, draft: _Draft, foreign: DesignForeignKey
     ) -> sql.Composable | None:
         try:
-            local = _column_list(draft, foreign.column_ids, unique_in="foreign key")
+            local = _column_list(draft, foreign.column_ids, unique_in="foreign_key")
             target = await self._target(foreign)
             if draft.definition.hypertable is not None and isinstance(target.specialization, TimescaleHypertable):
                 raise DesignProblem(
-                    "TimescaleDB does not allow a foreign key between two hypertables",
+                    say("TimescaleDB does not allow a foreign key between two hypertables"),
                     field_name="target_node_id",
                 )
             _check_candidate_key(foreign, target)
@@ -611,8 +613,11 @@ class PostgresTableDesign:
             if bool(row["known"]) and not bool(row["comparable"]):
                 at = int(row["at"])
                 raise DesignProblem(
-                    f'"{_column_name(draft, foreign.column_ids[at])}" and '
-                    f'"{foreign.target_columns[at]}" cannot be compared',
+                    say(
+                        '"{column}" and "{target}" cannot be compared',
+                        column=_column_name(draft, foreign.column_ids[at]),
+                        target=foreign.target_columns[at],
+                    ),
                     field_name="target_columns",
                 )
 
@@ -684,18 +689,19 @@ def _names_of(definition: TableDefinition, column_ids: Sequence[str]) -> list[st
 def _check_candidate_key(foreign: DesignForeignKey, target: RelationModel) -> None:
     if len(foreign.column_ids) != len(foreign.target_columns):
         raise DesignProblem(
-            "A foreign key names as many columns as it points at",
+            say("A foreign key names as many columns as it points at"),
             field_name="target_columns",
         )
     if len(set(foreign.target_columns)) != len(foreign.target_columns):
         raise DesignProblem(
-            "A column may be pointed at only once", field_name="target_columns"
+            say("A column may be pointed at only once"), field_name="target_columns"
         )
     known = {column.name for column in target.columns}
     for name in foreign.target_columns:
         if name not in known:
             raise DesignProblem(
-                f'"{target.name}" has no column "{name}"', field_name="target_columns"
+                say('"{table}" has no column "{column}"', table=target.name, column=name),
+                field_name="target_columns",
             )
     # The target says which of its columns may be pointed at; a column called
     # `id` is not itself evidence of a key (D22).
@@ -704,7 +710,7 @@ def _check_candidate_key(foreign: DesignForeignKey, target: RelationModel) -> No
         for key in target.candidate_keys
     ):
         raise DesignProblem(
-            f'"{target.name}" has no unique key over exactly those columns',
+            say('"{name}" has no unique key over exactly those columns', name=target.name),
             field_name="target_columns",
         )
 
@@ -729,21 +735,21 @@ def _check_ref_actions(draft: _Draft, foreign: DesignForeignKey) -> None:
                 continue
             if action == "set_null" and column.not_null:
                 raise DesignProblem(
-                    f'"{column.name}" must have a value, so it cannot be set to null',
+                    say('"{name}" must have a value, so it cannot be set to null', name=column.name),
                     field_name=where,
                 )
             if action == "set_default" and isinstance(column.generation, NoGeneration):
                 draft.warnings.append(
-                    f'"{column.name}" has no default, so setting it to one leaves null'
+                    say('"{name}" has no default, so setting it to one leaves null', name=column.name)
                 )
 
 
 def _unique_clause(draft: _Draft, unique: DesignUnique) -> sql.Composable | None:
     try:
-        columns = _column_list(draft, unique.column_ids, unique_in="unique constraint")
+        columns = _column_list(draft, unique.column_ids, unique_in="unique")
         if unique.nulls_not_distinct and not draft.nulls_not_distinct:
             raise DesignProblem(
-                "This server cannot treat nulls as equal in a unique constraint",
+                say("This server cannot treat nulls as equal in a unique constraint"),
                 field_name="nulls_not_distinct",
             )
         name = _derive(
@@ -818,7 +824,7 @@ def _column_clause(draft: _Draft, column: DesignColumn) -> sql.Composable:
     if column.collation is not None:
         if column.collation not in draft.collations:
             raise DesignProblem(
-                f'This server has no collation "{column.collation}"',
+                say('This server has no collation "{collation}"', collation=column.collation),
                 field_name="collation",
             )
         parts.append(sql.SQL(" COLLATE {}").format(sql.Identifier(column.collation)))
@@ -853,7 +859,7 @@ def _identity_clause(
 ) -> sql.Composable:
     if not _type_option(column).identity_supported:
         raise DesignProblem(
-            "Only an integer column can be an identity column", field_name="generation"
+            say("Only an integer column can be an identity column"), field_name="generation"
         )
     options: list[sql.Composable] = []
     if identity.start is not None:
@@ -883,12 +889,12 @@ def _stored_clause(
     referenced = referenced_columns(expression)
     if column.id in referenced:
         raise DesignProblem(
-            "A generated column cannot be computed from itself", field_name="generation"
+            say("A generated column cannot be computed from itself"), field_name="generation"
         )
     for other in draft.definition.columns:
         if other.id in referenced and isinstance(other.generation, StoredGeneration):
             raise DesignProblem(
-                f'A generated column cannot read "{other.name}", which is generated too',
+                say('A generated column cannot read "{name}", which is generated too', name=other.name),
                 field_name="generation",
             )
     return sql.SQL(" GENERATED ALWAYS AS ({}) STORED").format(body)
@@ -898,7 +904,7 @@ def _type_option(column: DesignColumn) -> DesignTypeOption:
     known = POSTGRES_DESIGN_TYPES.get(column.type.code)
     if known is None:
         raise DesignProblem(
-            f'Unknown column type "{column.type.code}"', field_name="type"
+            say('Unknown column type "{code}"', code=column.type.code), field_name="type"
         )
     return known.option
 
@@ -925,15 +931,15 @@ def _index_statement(
     method_sql = POSTGRES_INDEX_METHOD_SQL.get(index.method)
     if method is None or method_sql is None:
         raise DesignProblem(
-            f'Unknown index method "{index.method}"', field_name="method"
+            say('Unknown index method "{method}"', method=index.method), field_name="method"
         )
     if index.unique and not method.unique_supported:
         raise DesignProblem(
-            f"{method.title} cannot build a unique index", field_name="unique"
+            say("{title} cannot build a unique index", title=method.title), field_name="unique"
         )
     if len(index.keys) > 1 and not method.multi_column_supported:
         raise DesignProblem(
-            f"{method.title} cannot index more than one column", field_name="keys"
+            say("{title} cannot index more than one column", title=method.title), field_name="keys"
         )
     _check_index_is_not_a_key(draft, index)
 
@@ -961,7 +967,7 @@ def _index_statement(
     if index.include_column_ids:
         if index.method not in INCLUDE_METHODS:
             raise DesignProblem(
-                f"{method.title} cannot carry extra columns in an index",
+                say("{title} cannot carry extra columns in an index", title=method.title),
                 field_name="include_column_ids",
             )
         covered = {
@@ -969,7 +975,7 @@ def _index_statement(
         }
         if covered & set(index.include_column_ids):
             raise DesignProblem(
-                "A column is either a key of the index or carried by it, not both",
+                say("A column is either a key of the index or carried by it, not both"),
                 field_name="include_column_ids",
             )
         parts.append(
@@ -985,7 +991,7 @@ def _index_statement(
         )
     draft.index_names[index.id] = name
     return PlannedStatement(
-        object_id=index.id, title=f"Index {name}", sql=sql.Composed(parts).as_string()
+        object_id=index.id, title=say("Index {name}", name=name), sql=sql.Composed(parts).as_string()
     )
 
 
@@ -1004,12 +1010,12 @@ def _check_index_is_not_a_key(draft: _Draft, index: DesignIndex) -> None:
     key = draft.definition.primary_key
     if key is not None and list(key.column_ids) == plain:
         raise DesignProblem(
-            "The primary key already indexes those columns", field_name="keys"
+            say("The primary key already indexes those columns"), field_name="keys"
         )
     for unique in draft.definition.unique_constraints:
         if list(unique.column_ids) == plain:
             raise DesignProblem(
-                "A unique constraint already indexes those columns", field_name="keys"
+                say("A unique constraint already indexes those columns"), field_name="keys"
             )
 
 
@@ -1028,7 +1034,7 @@ def _index_key(
     if key.operator_class is not None:
         if key.operator_class not in draft.operator_classes.get(method.sql, set()):
             raise DesignProblem(
-                f'"{key.operator_class}" is not an operator class of {method.title}',
+                say('"{operator_class}" is not an operator class of {title}', operator_class=key.operator_class, title=method.title),
                 field_name="operator_class",
             )
         parts.append(sql.SQL(" {}").format(sql.Identifier(key.operator_class)))
@@ -1046,7 +1052,7 @@ def _comment_statements(draft: _Draft, table: sql.Composable) -> list[PlannedSta
         statements.append(
             PlannedStatement(
                 object_id=None,
-                title="Table comment",
+                title=say("Table comment"),
                 sql=sql.SQL("COMMENT ON TABLE {} IS {}")
                 .format(table, sql.Literal(definition.comment))
                 .as_string(),
@@ -1058,7 +1064,7 @@ def _comment_statements(draft: _Draft, table: sql.Composable) -> list[PlannedSta
         statements.append(
             PlannedStatement(
                 object_id=column.id,
-                title=f"Comment on {column.name}",
+                title=say("Comment on {name}", name=column.name),
                 sql=sql.SQL("COMMENT ON COLUMN {}.{} IS {}")
                 .format(table, sql.Identifier(column.name), sql.Literal(column.comment))
                 .as_string(),
@@ -1073,7 +1079,7 @@ def _check_columns(draft: _Draft) -> None:
         _check_name(draft, column.name, _column_name_rule, object_id=column.id)
         if column.name in names:
             draft.note(
-                f'Two columns cannot both be called "{column.name}"',
+                say('Two columns cannot both be called "{name}"', name=column.name),
                 object_id=column.id,
                 field_name="name",
             )
@@ -1096,29 +1102,29 @@ def _check_hypertable(draft: _Draft) -> None:
         return
     if draft.definition.partition is not None:
         draft.note(
-            "A hypertable partitions itself; choose it or declarative partitioning, not both",
+            say("A hypertable partitions itself; choose it or declarative partitioning, not both"),
             object_id=None, field_name="partition",
         )
     if draft.definition.persistence == "unlogged":
-        draft.note("A hypertable cannot be unlogged", object_id=None, field_name="persistence")
+        draft.note(say("A hypertable cannot be unlogged"), object_id=None, field_name="persistence")
     wanted = [hyper.time_column_id, *(item.column_id for item in hyper.hash_dimensions)]
     key = draft.definition.primary_key
     if key is not None and not set(wanted) <= set(key.column_ids):
         draft.note(
-            "The primary key of a hypertable must hold its time column and every hash column",
+            say("The primary key of a hypertable must hold its time column and every hash column"),
             object_id=None, field_name="primary_key",
         )
     for unique in draft.definition.unique_constraints:
         if not set(wanted) <= set(unique.column_ids):
             draft.note(
-                "A unique constraint on a hypertable must hold its time column and every hash column",
+                say("A unique constraint on a hypertable must hold its time column and every hash column"),
                 object_id=unique.id, field_name="column_ids",
             )
     for index in draft.definition.indexes:
         held = {key.column_id for key in index.keys if isinstance(key, IndexColumnKey)}
         if index.unique and not set(wanted) <= held:
             draft.note(
-                "A unique index on a hypertable must hold its time column and every hash column",
+                say("A unique index on a hypertable must hold its time column and every hash column"),
                 object_id=index.id, field_name="keys",
             )
 
@@ -1146,7 +1152,7 @@ def _check_partition_keys(draft: _Draft) -> None:
     for column_id in partition.column_ids:
         if column_id not in draft.columns:
             draft.note(
-                "The partition key names a column that is not there",
+                say("The partition key names a column that is not there"),
                 object_id=None,
                 field_name="partition",
             )
@@ -1155,15 +1161,14 @@ def _check_partition_keys(draft: _Draft) -> None:
     key = draft.definition.primary_key
     if key is not None and not wanted <= set(key.column_ids):
         draft.note(
-            "The primary key of a partitioned table must hold every partition column",
+            say("The primary key of a partitioned table must hold every partition column"),
             object_id=None,
             field_name="primary_key",
         )
     for unique in draft.definition.unique_constraints:
         if not wanted <= set(unique.column_ids):
             draft.note(
-                "A unique constraint on a partitioned table must hold every "
-                "partition column",
+                say("A unique constraint on a partitioned table must hold every partition column"),
                 object_id=unique.id,
                 field_name="column_ids",
             )
@@ -1182,7 +1187,7 @@ def _requires_value(draft: _Draft, column_ids: Sequence[str]) -> None:
             continue
         if not column.not_null:
             raise DesignProblem(
-                f'"{column.name}" is part of the primary key, so it must have a value',
+                say('"{name}" is part of the primary key, so it must have a value', name=column.name),
                 field_name="not_null",
                 object_id=column.id,
             )
@@ -1204,18 +1209,31 @@ def _check_name(
 def _column_name(draft: _Draft, column_id: str) -> str:
     column = draft.columns.get(column_id)
     if column is None:
-        raise DesignProblem("That names a column which is not there")
+        raise DesignProblem(say("That names a column which is not there"))
     return column.name
 
 
 def _column_list(
-    draft: _Draft, column_ids: Sequence[str], *, unique_in: str | None = None
+    draft: _Draft,
+    column_ids: Sequence[str],
+    *,
+    unique_in: Literal["primary_key", "foreign_key", "unique", "index"] | None = None,
 ) -> sql.Composable:
     if unique_in is not None and len(set(column_ids)) != len(column_ids):
-        raise DesignProblem(f"A column may appear in a {unique_in} only once")
+        raise DesignProblem(_repeated_column(unique_in))
     return sql.SQL(", ").join(
         sql.Identifier(_column_name(draft, column_id)) for column_id in column_ids
     )
+
+
+def _repeated_column(within: Literal["primary_key", "foreign_key", "unique", "index"]) -> str:
+    if within == "primary_key":
+        return say("A column may appear in a primary key only once")
+    if within == "foreign_key":
+        return say("A column may appear in a foreign key only once")
+    if within == "unique":
+        return say("A column may appear in a unique constraint only once")
+    return say("A column may appear in an index only once")
 
 
 _REF_ACTION_SQL: dict[RefAction, sql.SQL] = {
@@ -1235,7 +1253,7 @@ def _action_clause(keyword: sql.SQL, action: RefAction) -> sql.Composable:
 def _deferrable(deferrable: bool, initially_deferred: bool) -> sql.Composable:
     if initially_deferred and not deferrable:
         raise DesignProblem(
-            "A constraint can only start deferred if it is deferrable",
+            say("A constraint can only start deferred if it is deferrable"),
             field_name="initially_deferred",
         )
     if not deferrable:
@@ -1269,7 +1287,7 @@ def _composed(
         case ColumnReference():
             if context == "default":
                 raise DesignProblem(
-                    "A default cannot read a column of the row being written",
+                    say("A default cannot read a column of the row being written"),
                     field_name="expression",
                 )
             return sql.Identifier(_column_name(draft, node.column_id))
@@ -1312,7 +1330,7 @@ def _composed(
 def _cast(draft: _Draft, node: Cast, context: ExpressionContext) -> sql.Composable:
     known = POSTGRES_DESIGN_TYPES.get(node.type_code)
     if known is None:
-        raise DesignProblem(f'Unknown type "{node.type_code}"', field_name="expression")
+        raise DesignProblem(say('Unknown type "{type_code}"', type_code=node.type_code), field_name="expression")
     return sql.SQL("CAST({} AS {})").format(
         _composed(draft, node.operand, context), known.base
     )
@@ -1324,15 +1342,15 @@ def _call(
     known = POSTGRES_DESIGN_FUNCTIONS.get(node.function)
     if known is None:
         raise DesignProblem(
-            f'Unknown function "{node.function}"', field_name="expression"
+            say('Unknown function "{function}"', function=node.function), field_name="expression"
         )
     if context not in known.option.contexts:
         raise DesignProblem(
-            f"{known.option.title} cannot be used there", field_name="expression"
+            say("{title} cannot be used there", title=say(known.option.title)), field_name="expression"
         )
     if len(node.arguments) != known.option.arity:
         raise DesignProblem(
-            f"{known.option.signature} takes {known.option.arity} arguments",
+            say("{signature} takes {arity} arguments", signature=known.option.signature, arity=known.option.arity),
             field_name="expression",
         )
     if node.function in BARE_FUNCTIONS:
@@ -1353,7 +1371,7 @@ def _literal(node: LiteralValue) -> sql.Composable:
         case "boolean":
             if node.text not in ("true", "false"):
                 raise DesignProblem(
-                    "A boolean is true or false", field_name="expression"
+                    say("A boolean is true or false"), field_name="expression"
                 )
             return sql.Literal(node.text == "true")
         case "number":
@@ -1361,14 +1379,14 @@ def _literal(node: LiteralValue) -> sql.Composable:
                 return sql.Literal(Decimal(node.text))
             except (InvalidOperation, ValueError):
                 raise DesignProblem(
-                    f'"{node.text}" is not a number', field_name="expression"
+                    say('"{text}" is not a number', text=node.text), field_name="expression"
                 ) from None
         case "json":
             try:
                 json.loads(node.text)
             except ValueError:
                 raise DesignProblem(
-                    "That is not a JSON document", field_name="expression"
+                    say("That is not a JSON document"), field_name="expression"
                 ) from None
             return sql.SQL("{}::jsonb").format(sql.Literal(node.text))
         case "text":
@@ -1394,13 +1412,13 @@ def _derive(
         _object_name(given)
         if given in draft.taken:
             raise DesignProblem(
-                f'Something called "{given}" is already there',
+                say('Something called "{given}" is already there', given=given),
                 field_name="name",
                 kind="conflict",
             )
         if given in draft.used:
             raise DesignProblem(
-                f'This definition already calls something "{given}"', field_name="name"
+                say('This definition already calls something "{given}"', given=given), field_name="name"
             )
         draft.used.add(given)
         return given

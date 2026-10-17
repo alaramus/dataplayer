@@ -152,7 +152,7 @@ async def test_failed_plan_has_no_review_fingerprint(monkeypatch: pytest.MonkeyP
     (None, None),
     (ActionRefused("not_applicable", "Only logged tables can become hypertables"),
      "Only logged tables can become hypertables"),
-    (AdapterError("network", "secret password"), conversion_action._UNREADABLE),
+    (AdapterError("network", "secret password"), conversion_action._unreadable()),
 ])
 async def test_admission_asks_only_column_independent_questions(
     monkeypatch: pytest.MonkeyPatch, outcome: Exception | None, reason: str | None,

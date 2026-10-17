@@ -1,6 +1,7 @@
 import type { ContentsPlace, JobPublic } from "@/client"
 import { t } from "@/shared/i18n"
 import type { MessageKey } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 
 import type { AnswerState } from "./answer"
 
@@ -65,8 +66,8 @@ export function contentsMeasure(counts: Counts): string {
     "search.contents.measure",
     {
       searched: String(counts.searched),
-      n: counts.connections.toLocaleString(),
-      found: counts.found.toLocaleString(),
+      n: formatNumber(counts.connections),
+      found: formatNumber(counts.found),
     },
     counts.connections
   )

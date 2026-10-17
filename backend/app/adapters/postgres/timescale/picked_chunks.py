@@ -25,27 +25,24 @@ from app.adapters.postgres.timescale.chunk_maintenance_action import (
 from app.adapters.postgres.timescale.reports import REPORTS
 from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.row_commands import PickedRowsAction, PickedRowsTarget
+from app.core.translation import say
 
 CHUNKS_REPORT_ID = next(report.node_id for report in REPORTS if report.key == "timescale.v1.chunks")
 _KEY = ["chunk_schema", "chunk_name"]
 
 # What each action is drawn as in the grid's toolbar. A split takes a point and
 # an attach a table that is not a chunk, so neither is a set of picked chunks.
-_OFFERED: tuple[tuple[type[MaintainChunks[Any]], str], ...] = (
-    (DropChunks, "delete"),
-    (MoveChunks, "drive_file_move"),
-    (ReorderChunks, "sort"),
-    (DetachChunks, "link_off"),
-    (MergeChunks, "merge"),
-    (MergeChunksConcurrently, "call_merge"),
-)
-PICKED_ACTIONS: tuple[PickedRowsAction, ...] = tuple(
-    PickedRowsAction(
-        action=kind.name, title=f"{kind.title}…", icon=icon, destructive=kind.destructive,
-        requires=kind.requires, identified_by=_KEY,
+def _offered() -> tuple[tuple[type[MaintainChunks[Any]], str, str], ...]:
+    # Each action's title with the ellipsis of a command that opens a form,
+    # worded per request: a title is English until it is shown (D226).
+    return (
+        (DropChunks, "delete", say("Drop chunks…")),
+        (MoveChunks, "drive_file_move", say("Move chunks to a tablespace…")),
+        (ReorderChunks, "sort", say("Reorder chunks by an index…")),
+        (DetachChunks, "link_off", say("Detach chunks…")),
+        (MergeChunks, "merge", say("Merge chunks…")),
+        (MergeChunksConcurrently, "call_merge", say("Merge chunks, reads going on…")),
     )
-    for kind, icon in _OFFERED
-)
 
 _OWNERS = """
 SELECT chunk.hypertable_schema::text AS schema_name, chunk.hypertable_name::text AS table_name
@@ -57,18 +54,26 @@ WHERE (chunk.chunk_schema::text, chunk.chunk_name::text) IN (
 
 
 def picked_actions(node_id: str) -> list[PickedRowsAction]:
-    return list(PICKED_ACTIONS) if node_id == CHUNKS_REPORT_ID else []
+    if node_id != CHUNKS_REPORT_ID:
+        return []
+    return [
+        PickedRowsAction(
+            action=kind.name, title=title, icon=icon, destructive=kind.destructive,
+            requires=kind.requires, identified_by=_KEY,
+        )
+        for kind, icon, title in _offered()
+    ]
 
 
 async def resolve(
     session: PostgresSession, catalog: PostgresCatalog, node_id: str, action: str, keys: Sequence[Sequence[str]],
 ) -> PickedRowsTarget:
-    if action not in {offered.action for offered in picked_actions(node_id)}:
-        raise ActionRefused("not_applicable", "This is not offered over these rows")
+    if node_id != CHUNKS_REPORT_ID or action not in {kind.name for kind, _, _ in _offered()}:
+        raise ActionRefused("not_applicable", say("This is not offered over these rows"))
     if len(keys) > MAX_OPERATION_TARGETS:
-        raise ActionRefused("too_large", f"Pick at most {MAX_OPERATION_TARGETS} chunks at a time")
+        raise ActionRefused("too_large", say("Pick at most {count} chunks at a time", count=MAX_OPERATION_TARGETS))
     if any(len(key) != len(_KEY) for key in keys):
-        raise ActionRefused("not_applicable", "A chunk is named by its schema and its name")
+        raise ActionRefused("not_applicable", say("A chunk is named by its schema and its name"))
     picked = list(dict.fromkeys((key[0], key[1]) for key in keys))
     async with session.inspection() as reader:
         rows = await reader.query(
@@ -76,11 +81,11 @@ async def resolve(
         )
     hypertables = {(str(row["schema_name"]), str(row["table_name"])) for row in rows}
     if len(hypertables) > 1:
-        raise ActionRefused(
-            "not_applicable", f"The picked chunks belong to {len(hypertables)} hypertables; pick chunks of one",
-        )
+        raise ActionRefused("not_applicable", say(
+            "The picked chunks belong to {count} hypertables; pick chunks of one", count=len(hypertables),
+        ))
     if len(rows) != len(picked):
-        raise ActionRefused("conflict", "Some picked rows are not chunks any more; read the report again")
+        raise ActionRefused("conflict", say("Some picked rows are not chunks any more; read the report again"))
     ((schema_name, table_name),) = hypertables
     _, table = await user_table(catalog, f"{schema_name}.{table_name}")
     return PickedRowsTarget(

@@ -19,6 +19,7 @@ import { lifecycleCommand } from "@/features/services/lifecycle"
 import type { LifecycleCommand } from "@/features/services/lifecycle"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
+import { formatDateTime } from "@/shared/i18n/format"
 import {
   AppBadge,
   AppEmptyState,
@@ -104,7 +105,7 @@ function tone(service: ServicePublic): Tone {
 
 /** What a person would say about when it was made. */
 function madeOn(service: ServicePublic): string {
-  return new Date(service.created_at).toLocaleString()
+  return formatDateTime(service.created_at)
 }
 
 /**

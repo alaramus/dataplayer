@@ -8,6 +8,7 @@
 
 import { t } from "@/shared/i18n"
 import type { MessageKey } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 
 /** The words of each step, worded when a value is; the units a series is stored with stay data. */
 const BYTE_STEPS: MessageKey[] = [
@@ -29,9 +30,9 @@ const BYTES_PER: Record<string, number> = { B: 1, kB: 1024, MB: 1024 ** 2, GB: 1
 
 function short(value: number): string {
   const magnitude = Math.abs(value)
-  if (magnitude >= 100 || Number.isInteger(value)) return value.toFixed(0)
-  if (magnitude >= 10) return value.toFixed(1)
-  return value.toFixed(2)
+  if (magnitude >= 100 || Number.isInteger(value)) return formatFixed(value, 0)
+  if (magnitude >= 10) return formatFixed(value, 1)
+  return formatFixed(value, 2)
 }
 
 function stepped(value: number, steps: readonly MessageKey[]): string {
@@ -74,7 +75,7 @@ export function formatValue(value: number, unit: string): string {
   const bytes = BYTES_PER[unit]
   if (bytes !== undefined) return stepped(value * bytes, BYTE_STEPS)
   if (unit === "b/s") return stepped(value, BIT_STEPS)
-  if (unit === "%") return `${value.toFixed(1)} %`
+  if (unit === "%") return `${formatFixed(value, 1)} %`
   if (unit === "s") return duration(value)
   if (unit === "") return short(value)
   return `${short(value)} ${unit}`

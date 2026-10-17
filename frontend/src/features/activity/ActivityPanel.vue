@@ -3,6 +3,7 @@ import { appIcons } from "@/shared/ui"
 import { onBeforeUnmount, onMounted } from "vue"
 
 import { t } from "@/shared/i18n"
+import { formatTime } from "@/shared/i18n/format"
 import { notices } from "@/shared/notifications"
 import type { AttentionItem } from "@/shared/notifications"
 import { AppButton, AppEmptyState, AppIconButton, AppToggle, bannerLook, toneText } from "@/shared/ui"
@@ -226,7 +227,7 @@ function follow(run: () => void) {
               <time
                 class="sheet__when"
                 :datetime="new Date(notice.at).toISOString()"
-              >{{ new Date(notice.at).toLocaleTimeString() }}</time>
+              >{{ formatTime(notice.at) }}</time>
             </div>
             <AppButton
               v-if="notice.action"

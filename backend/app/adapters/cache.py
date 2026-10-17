@@ -136,6 +136,9 @@ class CacheKey:
     connector_id: uuid.UUID
     area: CacheArea
     request: str
+    # What a source writes is worded in the reader's language (D226), so a
+    # Russian answer is not handed to somebody reading English.
+    language: str = "en"
 
 
 @dataclass(frozen=True)

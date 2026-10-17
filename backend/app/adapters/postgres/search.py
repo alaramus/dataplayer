@@ -54,6 +54,7 @@ from app.adapters.search import (
     class_rank,
     words_of,
 )
+from app.core.translation import say
 
 # What a search is given when its caller gives it no clock: what an inspection
 # of the catalog is given.
@@ -289,7 +290,7 @@ class PostgresSearch:
             await require_timescale(self._session)
             return _reports(TIMESCALE_REPORTS, words, request.limit, node_id, "TimescaleDB")
         if node_id is not None and is_section(node_id):
-            return _reports(REPORTS, words, request.limit, node_id, SECTION_TITLE)
+            return _reports(REPORTS, words, request.limit, node_id, say(SECTION_TITLE))
         schema = _schema(node_id)
 
         async def names(ends: float) -> NodeSearchResult:
@@ -334,13 +335,13 @@ class PostgresSearch:
         """
         seconds = bounds.left()
         if seconds <= 0:
-            yield NameBatch(notice="Time ran out before the server was asked")
+            yield NameBatch(notice=say("Time ran out before the server was asked"))
             return
         rows = await self._session.bounded_query(
             _ALL_NAMES, {"limit": limit + 1}, seconds=seconds
         )
         notice = (
-            f"More than {limit:,} names; the first {limit:,} are kept"
+            say("More than {limit} names; the first {limit} are kept", limit=f"{limit:,}")
             if len(rows) > limit
             else None
         )
@@ -400,14 +401,14 @@ class PostgresSearch:
         return NodeSearchResult(
             matches=[_match(row, contexts, evidence=evidence) for row in rows],
             complete=complete,
-            notice=None if complete else f"The first {limit} matches; there may be more",
+            notice=None if complete else say("The first {limit} matches; there may be more", limit=limit),
         )
 
 
 def _words(request: NodeSearchRequest) -> tuple[str, ...]:
     words = words_of(request.query)
     if not words:
-        raise ValueError("A search needs something to look for")
+        raise ValueError(say("A search needs something to look for"))
     return words
 
 
@@ -417,7 +418,7 @@ def _schema(node_id: str | None) -> str | None:
         return None
     schema, _, relation = node_id.partition(".")
     if relation or node_id.startswith(f"{SECTION_ID}."):
-        raise ValueError("A search starts at the top, in a schema or among the reports")
+        raise ValueError(say("A search starts at the top, in a schema or among the reports"))
     return schema
 
 
@@ -470,11 +471,12 @@ def _reports(
     section_id: str,
     section_title: str,
 ) -> NodeSearchResult:
-    """The reports of one section, by title: they are written here, not asked."""
+    """The reports of one section, by title: they are written here, not asked,
+    and found by the title a person reads, in the language of the request."""
     found = [
-        (class_rank(match_class), report.title, report)
+        (class_rank(match_class), title, report)
         for report in reports
-        if (match_class := class_of_name(words, report.title)) is not None
+        if (match_class := class_of_name(words, title := say(report.title))) is not None
     ]
     found.sort(key=lambda one: (one[0], one[1]))
     return NodeSearchResult(
@@ -499,10 +501,10 @@ async def _within(
     seconds = OWN_SECONDS if bounds is None else bounds.left()
     if seconds <= 0 or (bounds is not None and bounds.stopped()):
         return NodeSearchResult(
-            complete=False, notice="Time ran out before the server was asked"
+            complete=False, notice=say("Time ran out before the server was asked")
         )
     try:
         async with asyncio.timeout(seconds):
             return await work(time.monotonic() + seconds)
     except TimeoutError:
-        raise AdapterError("timeout", "The server did not answer in time") from None
+        raise AdapterError("timeout", say("The server did not answer in time")) from None

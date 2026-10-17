@@ -18,6 +18,8 @@ APP = Path(__file__).resolve().parents[2] / "app"
 
 MOVED: list[str] = [
     # "adapters/postgres" — moving now
+    "adapters/postgres/*.py",
+    "adapters/postgres/timescale",
 ]
 
 # Class attributes and Field arguments that are words a person reads. Each is
@@ -45,8 +47,13 @@ WORDED_ARGUMENTS = {
 
 
 def _files() -> Iterator[Path]:
+    """A directory is everything below it; a pattern is just what it matches,
+    so a package can move a part at a time."""
     for package in MOVED:
-        yield from sorted((APP / package).rglob("*.py"))
+        if "*" in package:
+            yield from sorted(APP.glob(package))
+        else:
+            yield from sorted((APP / package).rglob("*.py"))
 
 
 def _is_call(node: ast.AST, *names: str) -> bool:
@@ -86,11 +93,15 @@ def _findings() -> tuple[set[str], list[str]]:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if _is_call(node, "N_", "say") and isinstance(node, ast.Call) and node.args:
-                text = _literal(node.args[0])
-                if text is None:
-                    problems.append(f"{where}:{node.lineno} the first argument of N_/say must be a literal")
-                else:
+                first = node.args[0]
+                text = _literal(first)
+                if text is not None:
                     marked.add(text)
+                elif _is_call(node, "say") and isinstance(first, ast.Name | ast.Attribute | ast.Subscript):
+                    # English marked N_ where it was declared, worded where shown.
+                    pass
+                else:
+                    problems.append(f"{where}:{node.lineno} N_ takes a literal, say a literal or a marked constant")
             if (
                 isinstance(node, ast.Call)
                 and not _is_call(node, "Field", "N_", "say")

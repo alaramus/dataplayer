@@ -21,6 +21,7 @@ from app.adapters.postgres.timescale.plans import TimeDuration
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
 from app.core.access import Access
+from app.core.translation import N_, say
 
 
 class ChunkIntervalParams(TimeDuration):
@@ -29,7 +30,7 @@ class ChunkIntervalParams(TimeDuration):
 
 class SetChunkInterval(Action[ChunkIntervalParams]):
     name: ClassVar[str] = "timescale_set_chunk_interval"
-    title: ClassVar[str] = "Change chunk interval"
+    title: ClassVar[str] = N_("Change chunk interval")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
@@ -47,7 +48,7 @@ class SetChunkInterval(Action[ChunkIntervalParams]):
         return await preview_chunk_interval(self._session, schema.name, node.name, interval)
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
-        raise ActionRefused("conflict", "Review the interval plan before applying it")
+        raise ActionRefused("conflict", say("Review the interval plan before applying it"))
 
     async def perform_reviewed(
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
@@ -56,6 +57,6 @@ class SetChunkInterval(Action[ChunkIntervalParams]):
         schema, node = await user_table(self._catalog, node_id)
         await execute_chunk_interval(self._session, schema.name, node.name, interval, fingerprint)
         return ActionResult(
-            message="Future chunk interval changed; existing chunks were not repartitioned",
+            message=say("Future chunk interval changed; existing chunks were not repartitioned"),
             reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID],
         )

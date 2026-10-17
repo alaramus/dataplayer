@@ -16,6 +16,7 @@ from app.adapters.references import (
     ReferencedRows,
     ReferenceTarget,
 )
+from app.core.translation import say
 
 
 class PostgresReferences:
@@ -88,10 +89,14 @@ class PostgresReferences:
         held = [column for column, _ in pairs]
         supplied = {value.column: value.value for value in request.values}
         if len(supplied) != len(request.values):
-            raise ValueError("A reference column may be supplied only once")
+            raise ValueError(say("A reference column may be supplied only once"))
         if set(supplied) != set(held):
             raise ValueError(
-                f'Reference "{request.reference}" is over {", ".join(held)}'
+                say(
+                    'Reference "{reference}" is over {columns}',
+                    reference=request.reference,
+                    columns=", ".join(held),
+                )
             )
 
         # MATCH SIMPLE and MATCH FULL agree here: a key with a missing value
@@ -101,7 +106,7 @@ class PostgresReferences:
             name: value for name, value in supplied.items() if value is not None
         }
         if len(present) != len(supplied):
-            return NoReferencedRows(reason="This row has no value for that reference")
+            return NoReferencedRows(reason=say("This row has no value for that reference"))
 
         target = await self._target_node(node_id)
         target_schema, _, target_table = target.id.partition(".")
@@ -125,7 +130,7 @@ class PostgresReferences:
     def _relation(self, node_id: str) -> tuple[str, str]:
         schema, _, table = node_id.partition(".")
         if not table:
-            raise ValueError(f'"{node_id}" is not a relation: expected schema.table')
+            raise ValueError(say('"{node_id}" is not a relation: expected schema.table', node_id=node_id))
         return schema, table
 
     async def _reference(
@@ -140,7 +145,7 @@ class PostgresReferences:
         for found in await self._fetch.references(schema, table):
             if found.name == name:
                 return found
-        raise ValueError(f'Relation has no reference "{name}"')
+        raise ValueError(say('Relation has no reference "{name}"', name=name))
 
     async def _arriving(
         self, schema: str, table: str, name: str
@@ -156,7 +161,7 @@ class PostgresReferences:
         for found in await self._fetch.arriving(schema, table):
             if _handle(found) == name:
                 return found
-        raise ValueError(f'Nothing named "{name}" points at this relation')
+        raise ValueError(say('Nothing named "{name}" points at this relation', name=name))
 
     async def _target_node(self, node_id: str) -> CatalogNode:
         """The relation pointed at, described exactly as the catalog does.
@@ -199,7 +204,8 @@ def _cannot_match(column: FetchColumn) -> str | None:
     """
     if "eq" in column.filter_operators:
         return None
-    return (
-        f'This source cannot look up "{column.name}" values '
-        f"of type {column.type.sql}"
+    return say(
+        'This source cannot look up "{column}" values of type {type}',
+        column=column.name,
+        type=column.type.sql,
     )

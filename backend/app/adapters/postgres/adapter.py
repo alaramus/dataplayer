@@ -147,6 +147,7 @@ from app.adapters.update import (
     UpdateCellsRequest,
     UpdateCellsResult,
 )
+from app.core.translation import N_
 
 
 def _as_text(value: Any) -> str:
@@ -522,9 +523,9 @@ class PostgresAdapter:
 
 @register(
     name="postgres",
-    title="PostgreSQL",
+    title=N_("PostgreSQL"),
     category="sql",
-    description=(
+    description=N_(
         "Relational database. Browse schemas, tables and views, and read "
         "rows a page at a time with sorting and filtering done by the server."
     ),

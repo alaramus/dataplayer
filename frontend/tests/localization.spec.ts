@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test"
 import type { APIRequestContext, Page } from "@playwright/test"
 
 import { firstSuperuser, firstSuperuserPassword } from "./config"
+import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { deleteConnector, openConnector } from "./utils/workspace"
 
 /**
  * The language of the interface (D224): the browser's until the account
@@ -13,13 +15,17 @@ const api = `${process.env.VITE_API_URL ?? "http://localhost:8000"}/api/v1`
 
 /** Put the account back on the browser's language, whatever a scenario left. */
 async function forgetLanguage(request: APIRequestContext) {
+  await setLanguage(request, null)
+}
+
+async function setLanguage(request: APIRequestContext, language: "ru" | null) {
   const signedIn = await request.post(`${api}/login/access-token`, {
     form: { username: firstSuperuser, password: firstSuperuserPassword },
   })
   const { access_token: token } = (await signedIn.json()) as { access_token: string }
   const saved = await request.patch(`${api}/users/me/preferences`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: { language: null },
+    data: { language },
   })
   expect(saved.ok()).toBe(true)
 }
@@ -79,3 +85,23 @@ test("an account's language is kept by the server and follows it", async ({ page
   await page.reload()
   await expect(page.getByRole("heading", { name: "Preferences" })).toBeVisible()
 })
+
+test("what a source writes reaches a Russian reader in Russian", async ({ page, request }) => {
+  const name = `e2e-words-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+
+  // The title is the adapter's, worded by the server in the language the
+  // interface names (D226) — not in the browser's dictionaries.
+  await setLanguage(request, "ru")
+  await page.reload()
+  await openConnector(page, name)
+  await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-create_schema")).toContainText("Новая схема")
+  await page.keyboard.press("Escape")
+
+  await setLanguage(request, null)
+  await page.reload()
+  await deleteConnector(page, name)
+})
+

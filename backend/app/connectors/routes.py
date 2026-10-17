@@ -236,7 +236,7 @@ from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message, get_datetime_utc
-from app.core.translation import say, say_if, say_schema
+from app.core.translation import current_language, say, say_if, say_schema
 from app.realtime.topics import TopicsDep
 from app.users import storage
 from app.users.deps import CurrentUser, get_current_user
@@ -253,7 +253,7 @@ def _cache_key(
     area: CacheArea,
     request: str,
 ) -> CacheKey:
-    return CacheKey(current_user.id, connector_id, area, request)
+    return CacheKey(current_user.id, connector_id, area, request, current_language.get())
 
 
 async def _invalidate_after[T](
@@ -1200,12 +1200,23 @@ async def read_source_features(
         raise Problem(501, "connectors.no_runtime_features", error_kind="config")
     response.headers["Cache-Control"] = "no-store"
     try:
-        return await adapter.source_features()
+        observed = await adapter.source_features()
     except AdapterError as exc:
         raise HTTPException(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from exc
+    # A profile is cached per adapter, so its words are English until here (D226).
+    return observed.model_copy(
+        update={
+            "features": [
+                feature.model_copy(
+                    update={"title": say(feature.title), "reason": say_if(feature.reason)}
+                )
+                for feature in observed.features
+            ]
+        }
+    )
 
 
 @router.post(

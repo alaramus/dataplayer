@@ -5,6 +5,7 @@ import { formatSize } from "@/features/catalog/nodes"
 import { isWorking } from "@/features/services/jobs"
 import { t } from "@/shared/i18n"
 import type { MessageKey } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 
 /**
  * A transfer between connections as its job records it
@@ -82,7 +83,7 @@ function count(value: unknown): number | null {
 
 /** Counts as a person reads them: "4,211". */
 function counted(value: number): string {
-  return value.toLocaleString("en-US")
+  return formatNumber(value)
 }
 
 function itemOf(value: unknown): TransferItemRecord | null {

@@ -153,7 +153,7 @@ async def test_failed_plan_has_no_review_fingerprint(monkeypatch: pytest.MonkeyP
     (plan(), None),
     (ActionRefused("not_applicable", "Choose an owned hypertable with one time dimension"),
      "Choose an owned hypertable with one time dimension"),
-    (AdapterError("network", "secret password"), compression_settings_action._UNREADABLE),
+    (AdapterError("network", "secret password"), compression_settings_action._unreadable()),
 ])
 async def test_admission_plans_the_default_settings(
     monkeypatch: pytest.MonkeyPatch, outcome: object, reason: str | None,

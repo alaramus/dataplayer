@@ -41,29 +41,28 @@ from app.adapters.table_copy import (
     TypeKind,
     is_one_fragment,
 )
+from app.core.translation import N_, say
 
 DIALECT = "postgresql"
 
 # What a refused copy means, by SQLSTATE. The text PostgreSQL writes beside
 # these names tables and quotes rows, and none of it is passed on.
 COPY_REFUSALS = {
-    "42P07": "Something with one of these names is already there",
-    "42710": "A constraint, index or type with one of these names is already there",
-    "42704": "A type, collation or other object the tables use is not in this database",
-    "42883": "A default, check or index uses a function this database does not have",
-    "42P01": "A table a link points at is not in this database",
-    "42501": "This connection may not create tables here",
-    "3F000": "That schema is no longer there",
-    "55P03": "A table the copy needs is locked by somebody else",
-    "23505": "The copied rows repeat a value a unique key forbids",
-    "23503": "Some copied rows point at rows the copy does not have",
-    "23514": "Some copied rows break a check",
-    "23502": "Some copied rows leave a required column empty",
-    "22P02": "A copied value cannot be read by its column",
-    "42830": "A link needs a key on the table it points at",
+    "42P07": N_("Something with one of these names is already there"),
+    "42710": N_("A constraint, index or type with one of these names is already there"),
+    "42704": N_("A type, collation or other object the tables use is not in this database"),
+    "42883": N_("A default, check or index uses a function this database does not have"),
+    "42P01": N_("A table a link points at is not in this database"),
+    "42501": N_("This connection may not create tables here"),
+    "3F000": N_("That schema is no longer there"),
+    "55P03": N_("A table the copy needs is locked by somebody else"),
+    "23505": N_("The copied rows repeat a value a unique key forbids"),
+    "23503": N_("Some copied rows point at rows the copy does not have"),
+    "23514": N_("Some copied rows break a check"),
+    "23502": N_("Some copied rows leave a required column empty"),
+    "22P02": N_("A copied value cannot be read by its column"),
+    "42830": N_("A link needs a key on the table it points at"),
 }
-# What the session says about a refusal no code above names.
-_UNNAMED = "The source rejected the change"
 
 _REF_ACTIONS: dict[str, RefAction] = {
     "a": "no_action",
@@ -101,10 +100,10 @@ _CONSTRAINT_OPENING = {
     "exclude": "EXCLUDE",
 }
 _CONSTRAINT_TITLE = {
-    "primary_key": "Primary key",
-    "unique": "Unique key",
-    "check": "Check",
-    "exclude": "Exclusion constraint",
+    "primary_key": N_("Primary key {name}"),
+    "unique": N_("Unique key {name}"),
+    "check": N_("Check {name}"),
+    "exclude": N_("Exclusion constraint {name}"),
 }
 
 # A type as `format_type` spells one: a name, qualified or quoted or both, a
@@ -382,7 +381,7 @@ class PostgresTableCopy:
         plan = await self.plan_table_copy(request)
         if plan.problems:
             raise ValueError(plan.problems[0].message)
-        step = "Preparing the copy"
+        step = say("Preparing the copy")
         try:
             async with self._session.transaction(refusals=COPY_REFUSALS) as work:
                 # Links to the originals lock them; a busy one is a refusal
@@ -393,7 +392,7 @@ class PostgresTableCopy:
                         step = statement.title
                         await work.schema_change(statement.sql)
                 for load in plan.loads:
-                    step = f"Rows of {load.target_label}"
+                    step = say("Rows of {table}", table=load.target_label)
                     await work.copy_in(
                         sql.SQL("COPY {} ({}) FROM STDIN")
                         .format(
@@ -409,8 +408,9 @@ class PostgresTableCopy:
                         await work.schema_change(statement.sql)
         except ValueError as refusal:
             said = str(refusal)
-            if said == _UNNAMED:
-                said = "This database refused it"
+            # What the session says about a refusal no code above names.
+            if said == say("The source rejected the change"):
+                said = say("This database refused it")
             raise ValueError(f"{step}: {said[:1].lower()}{said[1:]}") from None
 
     async def _taken(self, schema: str) -> set[str]:
@@ -469,7 +469,7 @@ class _Planner:
     async def plan(self) -> TableCopyPlan:
         request = self._request
         if request.dialect != DIALECT:
-            self._problem(None, "These tables are described in another dialect")
+            self._problem(None, say("These tables are described in another dialect"))
             return self._plan
         if not await self._place_ok():
             return self._plan
@@ -491,10 +491,10 @@ class _Planner:
         try:
             options = await self._copy._relations.new_relation_options(self._schema)
         except NodeNotFound:
-            self._problem(None, "That schema is no longer there")
+            self._problem(None, say("That schema is no longer there"))
             return False
         if not options.supported:
-            self._problem(None, options.reason or "Tables cannot be made here")
+            self._problem(None, options.reason or say("Tables cannot be made here"))
             return False
         return True
 
@@ -507,18 +507,18 @@ class _Planner:
                 continue
             name = target.name
             if name == "" or name != name.strip():
-                self._problem(table.node_id, "A table name cannot be empty or start or end with spaces")
+                self._problem(table.node_id, say("A table name cannot be empty or start or end with spaces"))
             elif len(name.encode("utf-8")) > NAME_LIMIT_BYTES:
-                self._problem(table.node_id, f"{name} is longer than PostgreSQL allows")
+                self._problem(table.node_id, say("{name} is longer than PostgreSQL allows", name=name))
             elif name in seen:
-                self._problem(table.node_id, f"Two tables cannot both be called {name}")
+                self._problem(table.node_id, say("Two tables cannot both be called {name}", name=name))
             elif name in self._taken:
                 self._problem(
-                    table.node_id, f"{self._schema}.{name} is already there", kind="conflict"
+                    table.node_id, say("{schema}.{name} is already there", schema=self._schema, name=name), kind="conflict"
                 )
             seen.add(name)
         if len(self._request.tables) > MAX_COPIED_TABLES:
-            self._problem(None, f"Copy at most {MAX_COPIED_TABLES} tables at a time")
+            self._problem(None, say("Copy at most {count} tables at a time", count=MAX_COPIED_TABLES))
 
     async def _types(self) -> list[CopyStatement]:
         """The types of the source's own that the columns use, made where missing.
@@ -565,14 +565,13 @@ class _Planner:
                     if extension not in available:
                         self._problem(
                             node_id,
-                            f"Type {wanted.schema_name}.{wanted.name} comes with the extension "
-                            f"{extension}, which this server does not have",
+                            say("Type {schema_name}.{name} comes with the extension {extension}, which this server does not have", schema_name=wanted.schema_name, name=wanted.name, extension=extension),
                         )
                         continue
                     installed[extension] = schema
                     made.append(
                         CopyStatement(
-                            title=f"Install the extension {extension}",
+                            title=say("Install the extension {extension}", extension=extension),
                             sql=sql.SQL("CREATE EXTENSION IF NOT EXISTS {} WITH SCHEMA {}")
                             .format(sql.Identifier(extension), sql.Identifier(schema))
                             .as_string(),
@@ -586,7 +585,7 @@ class _Planner:
             if existing is not None:
                 if wanted.kind == "enum" and list(existing.get("labels") or []) != wanted.labels:
                     self._problem(
-                        node_id, f"Type {schema}.{wanted.name} is here with other values"
+                        node_id, say("Type {schema}.{name} is here with other values", schema=schema, name=wanted.name)
                     )
                 continue
             statement = self._made_type(wanted, schema, node_id)
@@ -604,7 +603,7 @@ class _Planner:
         label = f"{schema}.{wanted.name}"
         if wanted.kind == "enum":
             return CopyStatement(
-                title=f"Create type {label}",
+                title=say("Create type {label}", label=label),
                 sql=sql.SQL("CREATE TYPE {} AS ENUM ({})")
                 .format(identifier, sql.SQL(", ").join(sql.Literal(one) for one in wanted.labels))
                 .as_string(),
@@ -614,13 +613,13 @@ class _Planner:
             for attribute in wanted.attributes:
                 spelled = self._moved(attribute.type_sql)
                 if not _TYPE_SPELLING.match(spelled):
-                    self._problem(node_id, f"Type {label} could not be read")
+                    self._problem(node_id, say("Type {label} could not be read", label=label))
                     return None
                 attributes.append(
                     sql.SQL("{} {}").format(sql.Identifier(attribute.name), sql.SQL(spelled))
                 )
             return CopyStatement(
-                title=f"Create type {label}",
+                title=say("Create type {label}", label=label),
                 sql=sql.SQL("CREATE TYPE {} AS ({})")
                 .format(identifier, sql.SQL(", ").join(attributes))
                 .as_string(),
@@ -634,7 +633,7 @@ class _Planner:
                 or (default is not None and not is_one_fragment(default))
                 or not all(is_one_fragment(one) and one.startswith("CHECK") for one in checks)
             ):
-                self._problem(node_id, f"Domain {label} could not be read")
+                self._problem(node_id, say("Domain {label} could not be read", label=label))
                 return None
             parts: list[sql.Composable] = [
                 sql.SQL("CREATE DOMAIN {} AS {}").format(identifier, sql.SQL(base))
@@ -645,9 +644,9 @@ class _Planner:
                 parts.append(sql.SQL("NOT NULL"))
             parts.extend(sql.SQL(one) for one in checks)
             return CopyStatement(
-                title=f"Create domain {label}", sql=sql.SQL(" ").join(parts).as_string()
+                title=say("Create domain {label}", label=label), sql=sql.SQL(" ").join(parts).as_string()
             )
-        self._problem(node_id, f"Type {wanted.schema_name}.{wanted.name} is not in this database")
+        self._problem(node_id, say("Type {schema_name}.{name} is not in this database", schema_name=wanted.schema_name, name=wanted.name))
         return None
 
     def _table(self, target: TableCopyTarget, new_names: dict[str, str]) -> None:
@@ -671,7 +670,7 @@ class _Planner:
             if not is_one_fragment(definition) or not definition.startswith(
                 _CONSTRAINT_OPENING[constraint.kind]
             ):
-                self._warn(f"{table.label}: {constraint.name} could not be read, and is not copied")
+                self._warn(say("{label}: {name} could not be read, and is not copied", label=table.label, name=constraint.name))
                 continue
             if constraint.kind == "check" and constraint.validated:
                 # Checked as the rows arrive, which is what a check is for.
@@ -685,7 +684,7 @@ class _Planner:
             after.append(
                 CopyStatement(
                     node_id=node_id,
-                    title=f"{_CONSTRAINT_TITLE[constraint.kind]} {name}",
+                    title=say(_CONSTRAINT_TITLE[constraint.kind], name=name),
                     sql=sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} {}")
                     .format(identifier, sql.Identifier(name), sql.SQL(definition))
                     .as_string(),
@@ -695,14 +694,14 @@ class _Planner:
         for index in table.indexes:
             body = self._moved(index.body)
             if not is_one_fragment(body) or not _METHOD_BODY.match(body):
-                self._warn(f"{table.label}: index {index.name} could not be read, and is not copied")
+                self._warn(say("{label}: index {name} could not be read, and is not copied", label=table.label, name=index.name))
                 continue
             name = _free(_renamed(index.name, table.name, target.name, set()), self._taken)
             self._taken.add(name)
             after.append(
                 CopyStatement(
                     node_id=node_id,
-                    title=f"Index {name}",
+                    title=say("Index {name}", name=name),
                     sql=sql.SQL("CREATE {}INDEX {} ON {} USING {}")
                     .format(
                         sql.SQL("UNIQUE " if index.unique else ""),
@@ -726,7 +725,7 @@ class _Planner:
         self._plan.statements.append(
             CopyStatement(
                 node_id=node_id,
-                title=f"Create table {label}",
+                title=say("Create table {label}", label=label),
                 # A column to a line: the statement is reviewed before it runs.
                 sql=sql.SQL("CREATE {}TABLE {} (\n    {}\n)")
                 .format(
@@ -753,7 +752,7 @@ class _Planner:
         type_sql = self._moved(column.type_sql)
         if not _TYPE_SPELLING.match(type_sql):
             self._problem(
-                table.node_id, f"{table.label}: the type of {column.name} could not be read"
+                table.node_id, say("{label}: the type of {name} could not be read", label=table.label, name=column.name)
             )
             return None
         parts: list[sql.Composable] = [
@@ -773,8 +772,7 @@ class _Planner:
                 parts.append(sql.SQL("GENERATED ALWAYS AS ({}) STORED").format(sql.SQL(generated)))
             else:
                 self._warn(
-                    f"{table.label}: {column.name} is copied as a plain column, "
-                    "its generation could not be read"
+                    say("{label}: {name} is copied as a plain column, its generation could not be read", label=table.label, name=column.name)
                 )
         elif column.identity is not None:
             parts.append(
@@ -787,13 +785,12 @@ class _Planner:
         elif default is not None and column.serial is None:
             if column.shared_sequence is not None and not self._request.same_database:
                 self._warn(
-                    f"{table.label}: {column.name} takes its default from "
-                    f"{column.shared_sequence}, which is not copied; it has no default here"
+                    say("{label}: {name} takes its default from {shared_sequence}, which is not copied; it has no default here", label=table.label, name=column.name, shared_sequence=column.shared_sequence)
                 )
             elif is_one_fragment(default):
                 parts.append(sql.SQL("DEFAULT {}").format(sql.SQL(default)))
             else:
-                self._warn(f"{table.label}: the default of {column.name} could not be read, and is not copied")
+                self._warn(say("{label}: the default of {name} could not be read, and is not copied", label=table.label, name=column.name))
         if column.not_null:
             parts.append(sql.SQL("NOT NULL"))
         return sql.SQL(" ").join(parts)
@@ -841,7 +838,7 @@ class _Planner:
             clauses.append(sql.SQL("NOT VALID"))
         return CopyStatement(
             node_id=table.node_id,
-            title=f"Link {name} to {label}",
+            title=say("Link {name} to {label}", name=name, label=label),
             sql=sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} {}")
             .format(
                 sql.Identifier(self._schema, target.name),
@@ -921,7 +918,7 @@ def _continued(
     """The column's sequence set past its largest copied value."""
     return CopyStatement(
         node_id=node_id,
-        title=f"Continue the numbering of {table}.{column}",
+        title=say("Continue the numbering of {table}.{column}", table=table, column=column),
         sql=sql.SQL(
             "SELECT setval(pg_get_serial_sequence({}, {}), m) "
             "FROM (SELECT max({}) AS m FROM {}) AS copied WHERE m IS NOT NULL"
@@ -943,7 +940,7 @@ def _comments(
     if table.comment is not None:
         yield CopyStatement(
             node_id=node_id,
-            title=f"Comment on {label}",
+            title=say("Comment on {label}", label=label),
             sql=sql.SQL("COMMENT ON TABLE {} IS {}")
             .format(identifier, sql.Literal(table.comment))
             .as_string(),
@@ -952,7 +949,7 @@ def _comments(
         if column.comment is not None:
             yield CopyStatement(
                 node_id=node_id,
-                title=f"Comment on {label}.{column.name}",
+                title=say("Comment on {label}.{name}", label=label, name=column.name),
                 sql=sql.SQL("COMMENT ON COLUMN {}.{} IS {}")
                 .format(identifier, sql.Identifier(column.name), sql.Literal(column.comment))
                 .as_string(),
@@ -962,7 +959,7 @@ def _comments(
 def _split(node_id: str) -> tuple[str, str]:
     schema, _, name = node_id.partition(".")
     if not schema or not name:
-        raise ValueError(f'"{node_id}" is not a table: expected schema.table')
+        raise ValueError(say('"{node_id}" is not a table: expected schema.table', node_id=node_id))
     return schema, name
 
 
@@ -998,10 +995,6 @@ def _renamed(name: str, old: str, new: str, local: set[str]) -> str:
     return candidate
 
 
-def _counted_phrase(count: int, noun: str) -> str:
-    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
-
-
 def _table(
     node_id: str,
     row: dict[str, Any],
@@ -1018,17 +1011,24 @@ def _table(
     if refusal is not None:
         return base.model_copy(update={"refusal": refusal})
     left_behind: list[str] = []
-    if int(row["triggers"]):
-        left_behind.append(_counted_phrase(int(row["triggers"]), "trigger"))
+    triggers = int(row["triggers"])
+    if triggers:
+        left_behind.append(
+            say("1 trigger") if triggers == 1 else say("{count} triggers", count=triggers)
+        )
     if bool(row["relrowsecurity"]) or int(row["policies"]):
         policies = int(row["policies"])
-        left_behind.append(
-            "row security" + (f" and {_counted_phrase(policies, 'policy')}" if policies else "")
-        )
-    if int(row["rules"]):
-        left_behind.append(_counted_phrase(int(row["rules"]), "rule"))
+        if policies == 0:
+            left_behind.append(say("row security"))
+        elif policies == 1:
+            left_behind.append(say("row security and 1 policy"))
+        else:
+            left_behind.append(say("row security and {count} policies", count=policies))
+    rules = int(row["rules"])
+    if rules:
+        left_behind.append(say("1 rule") if rules == 1 else say("{count} rules", count=rules))
     if int(row["parents"]):
-        left_behind.append("inheritance from its parent table")
+        left_behind.append(say("inheritance from its parent table"))
     estimate = float(row["reltuples"])
     links = [_link_of(one) for one in constraints if one["contype"] == "f"]
     return base.model_copy(
@@ -1058,15 +1058,15 @@ def _table(
 
 def _refusal(schema: str, row: dict[str, Any]) -> str | None:
     if is_system_schema(schema):
-        return f'"{schema}" belongs to the server'
+        return say('"{schema}" belongs to the server', schema=schema)
     if row["relkind"] == "p":
-        return "partitioned tables are not copied yet"
+        return say("partitioned tables are not copied yet")
     if bool(row["relispartition"]):
-        return "partitions are not copied yet"
+        return say("partitions are not copied yet")
     if row["relkind"] != "r":
-        return "only tables are copied with their structure"
+        return say("only tables are copied with their structure")
     if row["relpersistence"] == "t":
-        return "a temporary table lives only in its own session"
+        return say("a temporary table lives only in its own session")
     return None
 
 

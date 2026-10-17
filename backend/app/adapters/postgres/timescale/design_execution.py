@@ -97,7 +97,7 @@ async def execute_design(
     async def replan(reader: PostgresReader) -> HypertableDesignPlan:
         return await plan_design(reader, schema_name, table_name, requested)
 
-    return await run_reviewed(session, replan, _locks, _apply, reviewed_fingerprint, "hypertable change")
+    return await run_reviewed(session, replan, _locks, _apply, reviewed_fingerprint)
 
 
 async def execute_design_job(
@@ -109,7 +109,7 @@ async def execute_design_job(
         return await plan_design(reader, schema_name, table_name, requested)
 
     return await run_reviewed(
-        session, replan, _locks, _apply, unit_fingerprint, "conversion",
+        session, replan, _locks, _apply, unit_fingerprint,
         seconds=settings.TIMESCALE_CONVERSION_TIMEOUT_SECONDS, lock_seconds=5,
     )
 

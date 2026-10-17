@@ -1,7 +1,7 @@
 """Chunk maintenance as reviewed jobs over a fixed set of chunks (D208, D123)."""
 
 from collections.abc import Mapping, Sequence
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Literal, Self
 
 from psycopg import sql
 from pydantic import (
@@ -54,12 +54,16 @@ from app.adapters.postgres.timescale.chunk_maintenance_plan import (
     tablespace_names,
     window_count,
 )
-from app.adapters.postgres.timescale.chunk_storage_action import LISTED_CHUNKS
+from app.adapters.postgres.timescale.chunk_storage_action import (
+    chunk_lines,
+    unreadable_chunks,
+)
 from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import (
     BoundWindow,
     ChunkBound,
     ChunkRef,
+    MaintainedHypertable,
     bound_text,
     require_ordered,
 )
@@ -67,9 +71,31 @@ from app.adapters.postgres.timescale.reports import DETACHED_CHUNKS
 from app.adapters.postgres.timescale.targets import maintained_hypertable, user_table
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.core.access import Access
+from app.core.translation import N_, say
 
-_UNREADABLE = "TimescaleDB chunk metadata could not be inspected safely"
-_JOB = "Runs in Activity, one such job per connection at a time; access is checked again before every unit"
+# What a field holding a point of an integer time column adds to its description.
+IntegerHint = Literal["plain", "earlier", "split"]
+
+
+def _job() -> str:
+    return say("Runs in Activity, one such job per connection at a time; access is checked again before every unit")
+
+
+def _integer_hint(target: MaintainedHypertable, hint: IntegerHint) -> str:
+    column, column_type = target.column_name, target.column_type
+    if hint == "earlier":
+        return say(
+            'A value of "{column}", the {type} column the hypertable is partitioned by; '
+            "leave empty for every earlier chunk",
+            column=column, type=column_type,
+        )
+    if hint == "split":
+        return say(
+            'A value of "{column}", the {type} column the hypertable is partitioned by; '
+            "the chunk holding it is split at it",
+            column=column, type=column_type,
+        )
+    return say('A value of "{column}", the {type} column the hypertable is partitioned by', column=column, type=column_type)
 
 
 def _choices(names: list[str]) -> list[FieldChoice]:
@@ -91,14 +117,14 @@ class WindowParams(BaseModel):
 
     ends_by: ChunkBound | None = Field(
         default=None,
-        title="Chunks ending at or before",
-        description="With its time zone; only chunks lying entirely inside the window are chosen",
+        title=N_("Chunks ending at or before"),
+        description=N_("With its time zone; only chunks lying entirely inside the window are chosen"),
         examples=["2026-01-15T00:00:00Z"],
     )
     starts_from: ChunkBound | None = Field(
         default=None,
-        title="and starting at or after",
-        description="Leave empty for every earlier chunk",
+        title=N_("and starting at or after"),
+        description=N_("Leave empty for every earlier chunk"),
         examples=["2026-01-01T00:00:00Z"],
     )
     # Exactly these chunks instead of a window, picked in the Chunks report (D209).
@@ -117,10 +143,10 @@ class WindowParams(BaseModel):
     def ordered(self) -> Self:
         if self.chunks is not None:
             if self.ends_by is not None or self.starts_from is not None:
-                raise ValueError("Either a window or picked chunks, not both")
+                raise ValueError(say("Either a window or picked chunks, not both"))
             return self
         if self.ends_by is None:
-            raise ValueError("Give where the window ends")
+            raise ValueError(say("Give where the window ends"))
         if self.starts_from is not None:
             require_ordered(self.starts_from, self.ends_by)
         return self
@@ -135,12 +161,12 @@ class WindowParams(BaseModel):
 
 class MoveParams(WindowParams):
     tablespace: str = Field(
-        min_length=1, max_length=63, title="Tablespace",
-        description="An existing tablespace this connection may create in",
+        min_length=1, max_length=63, title=N_("Tablespace"),
+        description=N_("An existing tablespace this connection may create in"),
     )
     index: str | None = Field(
-        default=None, min_length=1, max_length=63, title="Order rows by index",
-        description="Leave empty for the index on the time column",
+        default=None, min_length=1, max_length=63, title=N_("Order rows by index"),
+        description=N_("Leave empty for the index on the time column"),
     )
 
     @field_validator("index_tablespace", "index", mode="before")
@@ -149,14 +175,14 @@ class MoveParams(WindowParams):
         # A choice of "the default" travels as an empty string.
         return None if isinstance(value, str) and not value.strip() else value
     index_tablespace: str | None = Field(
-        default=None, min_length=1, max_length=63, title="Index tablespace",
-        description="Leave empty to move the indexes with the chunk",
+        default=None, min_length=1, max_length=63, title=N_("Index tablespace"),
+        description=N_("Leave empty to move the indexes with the chunk"),
     )
 
 
 class ReorderParams(WindowParams):
     index: str = Field(
-        min_length=1, max_length=63, title="Index", description="An index of this hypertable to order rows by",
+        min_length=1, max_length=63, title=N_("Index"), description=N_("An index of this hypertable to order rows by"),
     )
 
 
@@ -164,7 +190,7 @@ class SplitParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     at: ChunkBound = Field(
-        title="Split at", description="With its time zone; the chunk holding this instant is split at it",
+        title=N_("Split at"), description=N_("With its time zone; the chunk holding this instant is split at it"),
         examples=["2026-01-15T12:00:00Z"],
     )
 
@@ -172,13 +198,13 @@ class SplitParams(BaseModel):
 class AttachParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    table_schema: str = Field(min_length=1, max_length=63, title="Schema of the table")
+    table_schema: str = Field(min_length=1, max_length=63, title=N_("Schema of the table"))
     table_name: str = Field(
-        min_length=1, max_length=63, title="Table",
-        description="A table with the hypertable's columns, such as a detached chunk",
+        min_length=1, max_length=63, title=N_("Table"),
+        description=N_("A table with the hypertable's columns, such as a detached chunk"),
     )
-    starts_from: ChunkBound = Field(title="Covering from", examples=["2026-01-01T00:00:00Z"])
-    ends_by: ChunkBound = Field(title="Until", examples=["2026-01-08T00:00:00Z"])
+    starts_from: ChunkBound = Field(title=N_("Covering from"), examples=["2026-01-01T00:00:00Z"])
+    ends_by: ChunkBound = Field(title=N_("Until"), examples=["2026-01-08T00:00:00Z"])
 
     @model_validator(mode="after")
     def ordered(self) -> Self:
@@ -201,7 +227,7 @@ async def maintenance_admission(
                 else:
                     reasons[operation] = None
     except (AdapterError, ValueError, TimeoutError):
-        return dict.fromkeys(operations, _UNREADABLE)
+        return dict.fromkeys(operations, unreadable_chunks())
     return reasons
 
 
@@ -213,9 +239,6 @@ class MaintainChunks[P: BaseModel](Action[P]):
     """One reviewed job; per chunk for most operations, one unit for the rest."""
 
     maintenance: ClassVar[Maintenance]
-    verb: ClassVar[str]
-    # What the operation does to the rows, said in the preview before it is reviewed.
-    impact: ClassVar[str]
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
@@ -223,7 +246,7 @@ class MaintainChunks[P: BaseModel](Action[P]):
     menu_group: ClassVar[str | None] = TIMESCALE_MENU
     # The fields holding a point of the time column, with what each adds when
     # that column is an integer one.
-    bound_fields: ClassVar[dict[str, str]]
+    bound_fields: ClassVar[dict[str, IntegerHint]]
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
         self._session = session
@@ -240,10 +263,13 @@ class MaintainChunks[P: BaseModel](Action[P]):
                 return FieldHints(choices=choices)
         if not target.integer:
             return FieldHints(choices=choices)
-        what = f'A value of "{target.column_name}", the {target.column_type} column the hypertable is partitioned by'
         return FieldHints(
-            choices=choices, integers={field: what + extra for field, extra in self.bound_fields.items()},
+            choices=choices, integers={field: _integer_hint(target, hint) for field, hint in self.bound_fields.items()},
         )
+
+    def impact(self) -> str:
+        """What the operation does to the rows, said in the preview before it is reviewed."""
+        raise NotImplementedError
 
     async def _choices(
         self, reader: PostgresReader, schema_name: str, table_name: str,
@@ -265,7 +291,7 @@ class MaintainChunks[P: BaseModel](Action[P]):
         except ActionRefused as exc:
             return ActionPreview(summary=exc.message, blocked=True)
         except (AdapterError, TimeoutError):
-            return ActionPreview(summary=_UNREADABLE, blocked=True)
+            return ActionPreview(summary=unreadable_chunks(), blocked=True)
         return ActionPreview(summary=self._summary(plan), items=self._items(plan), fingerprint=plan.fingerprint())
 
     async def plan_job(
@@ -291,7 +317,7 @@ class MaintainChunks[P: BaseModel](Action[P]):
         try:
             schema, node = await user_table(self._catalog, node_id)
         except (AdapterError, NodeNotFound):
-            raise ActionRefused("not_applicable", "The hypertable could not be found; nothing was changed") from None
+            raise ActionRefused("not_applicable", say("The hypertable could not be found; nothing was changed")) from None
 
         async def reviewed(reader: PostgresReader) -> MaintenanceUnit:
             return await self._reviewed_unit(reader, schema.name, node.name, params)
@@ -315,30 +341,63 @@ class MaintainChunks[P: BaseModel](Action[P]):
     def _summary(self, plan: MaintenancePlan) -> str:
         count = len(plan.chunks)
         target = _chunk(plan.unit.target.schema_name, plan.unit.target.table_name)
-        return f"{self.verb} {count} {'chunk' if count == 1 else 'chunks'} of {target} as a job"
+        one = count == 1
+        match self.maintenance:
+            case "drop":
+                if one:
+                    return say("Drop 1 chunk of {target} as a job", target=target)
+                return say("Drop {count} chunks of {target} as a job", count=count, target=target)
+            case "move":
+                if one:
+                    return say("Move 1 chunk of {target} as a job", target=target)
+                return say("Move {count} chunks of {target} as a job", count=count, target=target)
+            case "reorder":
+                if one:
+                    return say("Reorder 1 chunk of {target} as a job", target=target)
+                return say("Reorder {count} chunks of {target} as a job", count=count, target=target)
+            case "detach":
+                if one:
+                    return say("Detach 1 chunk of {target} as a job", target=target)
+                return say("Detach {count} chunks of {target} as a job", count=count, target=target)
+        raise AssertionError("an operation without a count of its own says its summary itself")
 
     def _items(self, plan: MaintenancePlan) -> list[str]:
         items: list[str] = []
         if plan.window is not None:
             window = plan.window
-            start = "the earliest chunk" if window.starts_from is None else bound_text(window.starts_from)
-            items.append(f"Whole chunks from {start} to {bound_text(window.ends_by)}")
+            end = bound_text(window.ends_by)
+            items.append(
+                say("Whole chunks from the earliest chunk to {end}", end=end) if window.starts_from is None
+                else say("Whole chunks from {start} to {end}", start=bound_text(window.starts_from), end=end)
+            )
         if plan.picked:
-            items.append("Exactly the chunks picked in the Chunks report, each read again by name")
-        items.extend(
-            f"{_chunk(chunk.schema_name, chunk.name)}: {chunk.range_start} to {chunk.range_end}"
-            for chunk in plan.chunks[:LISTED_CHUNKS]
-        )
-        if len(plan.chunks) > LISTED_CHUNKS:
-            items.append(f"…and {len(plan.chunks) - LISTED_CHUNKS} more")
+            items.append(say("Exactly the chunks picked in the Chunks report, each read again by name"))
+        items.extend(chunk_lines(plan.chunks))
         if plan.skipped:
-            items.append(f"Left as they are, {plan.skipped_because}: {plan.skipped}")
-        items.extend((self.impact, _JOB))
+            items.append(_skipped(plan))
+        items.extend((self.impact(), _job()))
         return items
 
 
+def _skipped(plan: MaintenancePlan) -> str:
+    count = plan.skipped
+    match plan.skipped_because:
+        case "in_tablespace":
+            return say(
+                "Left as they are, already in {tablespace}: {count}",
+                tablespace=sql.Identifier(plan.unit.arguments.tablespace or "").as_string(), count=count,
+            )
+        case "compressed_reorder":
+            return say("Left as they are, compressed, which reorder_chunk does not rewrite: {count}", count=count)
+        case "compressed_detach":
+            return say(
+                "Left as they are, compressed; TimescaleDB detaches only uncompressed chunks: {count}", count=count,
+            )
+    return say("Left as they are: {count}", count=count)
+
+
 class WindowMaintenance[W: WindowParams](MaintainChunks[W]):
-    bound_fields: ClassVar[dict[str, str]] = {"ends_by": "", "starts_from": "; leave empty for every earlier chunk"}
+    bound_fields: ClassVar[dict[str, IntegerHint]] = {"ends_by": "plain", "starts_from": "earlier"}
 
     def _arguments(self, params: W) -> MaintenanceArguments:
         return MaintenanceArguments()
@@ -373,39 +432,42 @@ class WindowMaintenance[W: WindowParams](MaintainChunks[W]):
 class DropChunks(WindowMaintenance[WindowParams]):
     params_model = WindowParams
     name: ClassVar[str] = "timescale_drop_chunks"
-    title: ClassVar[str] = "Drop chunks"
+    title: ClassVar[str] = N_("Drop chunks")
     maintenance: ClassVar[Maintenance] = "drop"
-    verb: ClassVar[str] = "Drop"
     destructive: ClassVar[bool] = True
-    question: ClassVar[str | None] = "Drop these chunks and every row in them? This cannot be undone."
-    impact: ClassVar[str] = (
-        "Every row in these chunks is deleted; each chunk is dropped by name, never by an age read when the job runs"
-    )
+    question: ClassVar[str | None] = N_("Drop these chunks and every row in them? This cannot be undone.")
+
+    def impact(self) -> str:
+        return say(
+            "Every row in these chunks is deleted; each chunk is dropped by name, never by an age read when the job runs"
+        )
 
 
 class DetachChunks(WindowMaintenance[WindowParams]):
     params_model = WindowParams
     name: ClassVar[str] = "timescale_detach_chunks"
-    title: ClassVar[str] = "Detach chunks"
+    title: ClassVar[str] = N_("Detach chunks")
     maintenance: ClassVar[Maintenance] = "detach"
-    verb: ClassVar[str] = "Detach"
-    impact: ClassVar[str] = (
-        "Each chunk becomes an ordinary table under its own name and leaves the hypertable's queries; "
-        "Detached chunks lists it, and Attach chunk brings it back"
-    )
+
+    def impact(self) -> str:
+        return say(
+            "Each chunk becomes an ordinary table under its own name and leaves the hypertable's queries; "
+            "Detached chunks lists it, and Attach chunk brings it back"
+        )
 
 
 class MergeChunks(WindowMaintenance[WindowParams]):
     params_model = WindowParams
     name: ClassVar[str] = "timescale_merge_chunks"
-    title: ClassVar[str] = "Merge chunks"
+    title: ClassVar[str] = N_("Merge chunks")
     maintenance: ClassVar[Maintenance] = "merge"
-    verb: ClassVar[str] = "Merge"
-    impact: ClassVar[str] = "The chunks become one, covering their whole range; the table is locked while they merge"
+
+    def impact(self) -> str:
+        return say("The chunks become one, covering their whole range; the table is locked while they merge")
 
     def _summary(self, plan: MaintenancePlan) -> str:
         target = _chunk(plan.unit.target.schema_name, plan.unit.target.table_name)
-        return f"Merge {len(plan.chunks)} chunks of {target} into one as a job"
+        return say("Merge {count} chunks of {target} into one as a job", count=len(plan.chunks), target=target)
 
     async def observe(
         self, node_id: str | None, raw: Mapping[str, Any], targets: Sequence[OperationTarget],
@@ -428,22 +490,23 @@ class MergeChunks(WindowMaintenance[WindowParams]):
 
 class MergeChunksConcurrently(MergeChunks):
     name: ClassVar[str] = "timescale_merge_chunks_concurrently"
-    title: ClassVar[str] = "Merge chunks, reads going on"
+    title: ClassVar[str] = N_("Merge chunks, reads going on")
     maintenance: ClassVar[Maintenance] = "merge_concurrently"
-    impact: ClassVar[str] = (
-        "The chunks become one, covering their whole range; reads go on meanwhile, writes to them wait"
-    )
+
+    def impact(self) -> str:
+        return say("The chunks become one, covering their whole range; reads go on meanwhile, writes to them wait")
 
 
 class MoveChunks(WindowMaintenance[MoveParams]):
     name: ClassVar[str] = "timescale_move_chunks"
-    title: ClassVar[str] = "Move chunks to a tablespace"
+    title: ClassVar[str] = N_("Move chunks to a tablespace")
     maintenance: ClassVar[Maintenance] = "move"
-    verb: ClassVar[str] = "Move"
-    impact: ClassVar[str] = (
-        "Each chunk is copied to the tablespace and the old copy removed; reads and writes to it wait meanwhile"
-    )
     params_model = MoveParams
+
+    def impact(self) -> str:
+        return say(
+            "Each chunk is copied to the tablespace and the old copy removed; reads and writes to it wait meanwhile"
+        )
 
     async def _choices(
         self, reader: PostgresReader, schema_name: str, table_name: str,
@@ -452,8 +515,8 @@ class MoveChunks(WindowMaintenance[MoveParams]):
         indexes = await index_names(reader, schema_name, table_name)
         return {
             "tablespace": _choices(spaces),
-            "index_tablespace": [FieldChoice(value="", label="With the chunk"), *_choices(spaces)],
-            "index": [FieldChoice(value="", label="The index on the time column"), *_choices(indexes)],
+            "index_tablespace": [FieldChoice(value="", label=say("With the chunk")), *_choices(spaces)],
+            "index": [FieldChoice(value="", label=say("The index on the time column")), *_choices(indexes)],
         }
 
     def _arguments(self, params: MoveParams) -> MaintenanceArguments:
@@ -464,13 +527,14 @@ class MoveChunks(WindowMaintenance[MoveParams]):
 
 class ReorderChunks(WindowMaintenance[ReorderParams]):
     name: ClassVar[str] = "timescale_reorder_chunks"
-    title: ClassVar[str] = "Reorder chunks by an index"
+    title: ClassVar[str] = N_("Reorder chunks by an index")
     maintenance: ClassVar[Maintenance] = "reorder"
-    verb: ClassVar[str] = "Reorder"
-    impact: ClassVar[str] = (
-        "Each chunk is rewritten in the index's order, which speeds reads along it; reads and writes wait meanwhile"
-    )
     params_model = ReorderParams
+
+    def impact(self) -> str:
+        return say(
+            "Each chunk is rewritten in the index's order, which speeds reads along it; reads and writes wait meanwhile"
+        )
 
     async def _choices(
         self, reader: PostgresReader, schema_name: str, table_name: str,
@@ -483,12 +547,13 @@ class ReorderChunks(WindowMaintenance[ReorderParams]):
 
 class SplitChunk(MaintainChunks[SplitParams]):
     name: ClassVar[str] = "timescale_split_chunk"
-    title: ClassVar[str] = "Split a chunk"
+    title: ClassVar[str] = N_("Split a chunk")
     maintenance: ClassVar[Maintenance] = "split"
-    verb: ClassVar[str] = "Split"
-    impact: ClassVar[str] = "The chunk becomes two, divided at this point; the table is locked while it splits"
     params_model = SplitParams
-    bound_fields: ClassVar[dict[str, str]] = {"at": "; the chunk holding it is split at it"}
+    bound_fields: ClassVar[dict[str, IntegerHint]] = {"at": "split"}
+
+    def impact(self) -> str:
+        return say("The chunk becomes two, divided at this point; the table is locked while it splits")
 
     async def _plan_with(
         self, reader: PostgresReader, schema_name: str, table_name: str, params: SplitParams,
@@ -497,7 +562,10 @@ class SplitChunk(MaintainChunks[SplitParams]):
 
     def _summary(self, plan: MaintenancePlan) -> str:
         (chunk,) = plan.chunks
-        return f"Split {_chunk(chunk.schema_name, chunk.name)} at {plan.unit.arguments.split_at} as a job"
+        return say(
+            "Split {chunk} at {point} as a job",
+            chunk=_chunk(chunk.schema_name, chunk.name), point=plan.unit.arguments.split_at,
+        )
 
     async def observe(
         self, node_id: str | None, raw: Mapping[str, Any], targets: Sequence[OperationTarget],
@@ -516,14 +584,15 @@ class SplitChunk(MaintainChunks[SplitParams]):
 
 class AttachChunk(MaintainChunks[AttachParams]):
     name: ClassVar[str] = "timescale_attach_chunk"
-    title: ClassVar[str] = "Attach a table as a chunk"
+    title: ClassVar[str] = N_("Attach a table as a chunk")
     maintenance: ClassVar[Maintenance] = "attach"
-    verb: ClassVar[str] = "Attach"
-    impact: ClassVar[str] = (
-        "Its rows join the hypertable's queries; TimescaleDB refuses a table whose columns or rows do not fit"
-    )
     params_model = AttachParams
-    bound_fields: ClassVar[dict[str, str]] = {"starts_from": "", "ends_by": ""}
+    bound_fields: ClassVar[dict[str, IntegerHint]] = {"starts_from": "plain", "ends_by": "plain"}
+
+    def impact(self) -> str:
+        return say(
+            "Its rows join the hypertable's queries; TimescaleDB refuses a table whose columns or rows do not fit"
+        )
 
     async def _plan_with(
         self, reader: PostgresReader, schema_name: str, table_name: str, params: AttachParams,
@@ -536,7 +605,9 @@ class AttachChunk(MaintainChunks[AttachParams]):
     def _summary(self, plan: MaintenancePlan) -> str:
         (chunk,) = plan.chunks
         target = _chunk(plan.unit.target.schema_name, plan.unit.target.table_name)
-        return f"Attach {_chunk(chunk.schema_name, chunk.name)} to {target} as a chunk as a job"
+        return say(
+            "Attach {table} to {target} as a chunk as a job", table=_chunk(chunk.schema_name, chunk.name), target=target,
+        )
 
     async def _choices(
         self, reader: PostgresReader, schema_name: str, table_name: str,

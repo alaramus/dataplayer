@@ -1,5 +1,6 @@
 import type { AttachmentRules } from "@/client"
 import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 
 export type AttachmentKind = "image" | "text"
 
@@ -43,8 +44,8 @@ function size(bytes: number): string {
 /** A file's size as the chip beside it says it. */
 export function shownSize(bytes: number): string {
   if (bytes < 1024) return t("catalog.size.b", { n: bytes })
-  if (bytes < 1024 * 1024) return t("catalog.size.kb", { n: (bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0) })
-  return t("catalog.size.mb", { n: (bytes / (1024 * 1024)).toFixed(1) })
+  if (bytes < 1024 * 1024) return t("catalog.size.kb", { n: formatFixed(bytes / 1024, bytes < 10 * 1024 ? 1 : 0) })
+  return t("catalog.size.mb", { n: formatFixed(bytes / (1024 * 1024), 1) })
 }
 
 /**

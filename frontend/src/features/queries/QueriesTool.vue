@@ -17,6 +17,7 @@ import {
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
+import { formatDateTime } from "@/shared/i18n/format"
 import {
   AppBanner,
   AppEmptyState,
@@ -151,7 +152,7 @@ const runs = computed(() =>
 function when(moment: string | null | undefined): string {
   return moment === null || moment === undefined
     ? ""
-    : new Date(moment).toLocaleString()
+    : formatDateTime(moment)
 }
 
 /**

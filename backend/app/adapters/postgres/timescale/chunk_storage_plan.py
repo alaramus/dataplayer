@@ -19,6 +19,7 @@ from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import time_hypertable
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 STORAGES: tuple[ChunkStorage, ...] = ("columnstore", "rowstore")
 
@@ -59,11 +60,6 @@ WHERE chunk.hypertable_schema = %s AND chunk.hypertable_name = %s
   AND (%s::pg_catalog.timestamptz IS NULL OR chunk.range_start >= %s::pg_catalog.timestamptz)
 """
 
-_NOTHING_LEFT: dict[ChunkStorage, str] = {
-    "columnstore": "Every whole chunk inside this window is already compressed",
-    "rowstore": "No whole chunk inside this window is compressed",
-}
-
 
 async def inspect_chunk_unit(
     reader: PostgresReader, schema_name: str, table_name: str, storage: ChunkStorage,
@@ -103,23 +99,27 @@ async def plan_chunk_storage(
             )
             already = counted[0].get("already") if len(counted) == 1 else None
             if not isinstance(already, int) or isinstance(already, bool):
-                raise ActionRefused("not_applicable", "TimescaleDB chunk metadata could not be read")
+                raise ActionRefused("not_applicable", say("TimescaleDB chunk metadata could not be read"))
             if len(chunks) > MAX_OPERATION_TARGETS:
-                raise ActionRefused(
-                    "too_large",
-                    f"More than {MAX_OPERATION_TARGETS} chunks lie inside this window; narrow it",
-                )
+                raise ActionRefused("too_large", say(
+                    "More than {count} chunks lie inside this window; narrow it", count=MAX_OPERATION_TARGETS,
+                ))
             if not chunks:
-                raise ActionRefused(
-                    "not_applicable",
-                    _NOTHING_LEFT[storage] if already else "No whole chunk lies inside this window",
-                )
+                raise ActionRefused("not_applicable", _nothing_left(storage, already))
             return ChunkStoragePlan.model_validate({
                 "unit": unit, "window": window, "chunks": chunks, "already": already,
             })
     except TimeoutError:
-        raise ActionRefused("not_applicable", "TimescaleDB chunk planning timed out") from None
+        raise ActionRefused("not_applicable", say("TimescaleDB chunk planning timed out")) from None
     except (AdapterError, ValueError):
         raise ActionRefused(
-            "not_applicable", "TimescaleDB chunk metadata could not be inspected safely",
+            "not_applicable", say("TimescaleDB chunk metadata could not be inspected safely"),
         ) from None
+
+
+def _nothing_left(storage: ChunkStorage, already: int) -> str:
+    if not already:
+        return say("No whole chunk lies inside this window")
+    if storage == "columnstore":
+        return say("Every whole chunk inside this window is already compressed")
+    return say("No whole chunk inside this window is compressed")

@@ -11,11 +11,11 @@ from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.interval_plan import plan_chunk_interval
 from app.adapters.postgres.timescale.plans import ChunkIntervalPlan, TimeDuration
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 _METADATA_LOCK = (
     'LOCK TABLE ONLY "timescaledb_information"."dimensions" IN SHARE ROW EXCLUSIVE MODE'
 )
-_UNCONFIRMED = "The interval change could not be confirmed; reload the source before reviewing again"
 
 
 async def execute_chunk_interval(
@@ -53,13 +53,17 @@ async def execute_chunk_interval(
         return current
     except TimeoutError:
         if mutation_started:
-            raise AdapterError("unknown", _UNCONFIRMED) from None
-        raise ActionRefused("conflict", "Interval validation timed out; review the plan again") from None
+            raise AdapterError("unknown", _unconfirmed()) from None
+        raise ActionRefused("conflict", say("Interval validation timed out; review the plan again")) from None
     except psycopg.Error as exc:
         if exc.sqlstate in {"55P03", "40P01", "40001", "42P01", "42704"}:
-            raise ActionRefused("conflict", "The source changed or is busy; review the plan again") from None
+            raise ActionRefused("conflict", say("The source changed or is busy; review the plan again")) from None
         if exc.sqlstate == "42501":
-            raise ActionRefused("not_applicable", "This connection may not change the interval or lock its metadata") from None
+            raise ActionRefused("not_applicable", say("This connection may not change the interval or lock its metadata")) from None
         if exc.sqlstate and exc.sqlstate[:2] not in {"08", "57", "58"}:
-            raise ActionRefused("not_applicable", "The source refused the interval change") from None
-        raise AdapterError("unknown", _UNCONFIRMED) from None
+            raise ActionRefused("not_applicable", say("The source refused the interval change")) from None
+        raise AdapterError("unknown", _unconfirmed()) from None
+
+
+def _unconfirmed() -> str:
+    return say("The interval change could not be confirmed; reload the source before reviewing again")

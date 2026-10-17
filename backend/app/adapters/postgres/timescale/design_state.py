@@ -65,11 +65,16 @@ from app.adapters.postgres.timescale.conversion_plan import (
     ConversionState,
     inspect_conversion,
 )
-from app.adapters.postgres.timescale.plans import AgePolicy, ConversionColumn
+from app.adapters.postgres.timescale.plans import (
+    AgePolicy,
+    AgePolicyKind,
+    ConversionColumn,
+)
 from app.adapters.postgres.timescale.policy_projection import OWNED_POLICY_ROUTINE
 from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 _OID = r"^[1-9][0-9]{0,9}$"
 PER_CHUNK_DEFAULTS = (2, 22, 1)
@@ -497,14 +502,40 @@ def _policy_design(policy: AgePolicy | None) -> AgePolicyDesign | None:
     return KeptAsItIs()
 
 
-def _describe(noun: str, policy: AgePolicy | None) -> CurrentPolicy | None:
+def _describe(kind: AgePolicyKind, policy: AgePolicy | None) -> CurrentPolicy | None:
     if policy is None:
         return None
-    paused = "" if policy.scheduled else "; paused"
-    return CurrentPolicy(
-        job_id=policy.job_id,
-        description=f"Job {policy.job_id} {noun} chunks {policy.threshold()}, every {policy.schedule_interval}{paused}",
-    )
+    job, chunks, every = policy.job_id, policy.threshold(), policy.schedule_interval
+    if kind == "retention":
+        description = (
+            say("Job {job} drops chunks {chunks}, every {every}", job=job, chunks=chunks, every=every)
+            if policy.scheduled
+            else say("Job {job} drops chunks {chunks}, every {every}; paused", job=job, chunks=chunks, every=every)
+        )
+    else:
+        description = (
+            say("Job {job} compresses chunks {chunks}, every {every}", job=job, chunks=chunks, every=every)
+            if policy.scheduled
+            else say(
+                "Job {job} compresses chunks {chunks}, every {every}; paused", job=job, chunks=chunks, every=every,
+            )
+        )
+    return CurrentPolicy(job_id=policy.job_id, description=description)
+
+
+def _describe_reorder(reorder: ReorderPolicy) -> CurrentPolicy:
+    job, index = reorder.job_id, reorder.index_name
+    if index is None:
+        description = (
+            say("Job {job} reorders chunks by an index this editor cannot read", job=job) if reorder.scheduled
+            else say("Job {job} reorders chunks by an index this editor cannot read; paused", job=job)
+        )
+    else:
+        description = (
+            say("Job {job} reorders chunks by {index}", job=job, index=index) if reorder.scheduled
+            else say("Job {job} reorders chunks by {index}; paused", job=job, index=index)
+        )
+    return CurrentPolicy(job_id=job, description=description)
 
 
 def _segment_by(raw: object, listed: list[str], per_chunk_defaults: bool) -> SegmentBy:
@@ -523,7 +554,7 @@ def sparse_indexes(raw: object) -> SparseIndexes:
         return ChosenByTimescale()
     entries = json.loads(raw)
     if not isinstance(entries, list):
-        raise ActionRefused("not_applicable", "The current sparse indexes could not be read")
+        raise ActionRefused("not_applicable", say("The current sparse indexes could not be read"))
     configured = [item for item in entries if isinstance(item, dict) and item.get("source") == "config"]
     if not configured:
         return ChosenByTimescale()
@@ -533,7 +564,7 @@ def sparse_indexes(raw: object) -> SparseIndexes:
         return NoColumns()
     if any(item.get("type") not in _SPARSE_KINDS or not isinstance(item.get("column"), str) for item in typed):
         raise ActionRefused(
-            "not_applicable", "This hypertable has a sparse index of a kind this editor does not know; manage it with SQL",
+            "not_applicable", say("This hypertable has a sparse index of a kind this editor does not know; manage it with SQL"),
         )
     return SparseColumns(indexes=[SparseIndex(column=item["column"], kind=item["type"]) for item in typed])
 
@@ -550,7 +581,7 @@ async def _columnstore(
 ) -> ColumnstoreDesign:
     settings = await reader.query(_SETTINGS, (target.relation_oid,), inspection=True)
     if len(settings) != 1:
-        raise ActionRefused("not_applicable", "The current columnstore settings could not be read")
+        raise ActionRefused("not_applicable", say("The current columnstore settings could not be read"))
     rows = await reader.query(_SETTING_COLUMNS, (target.schema_name, target.table_name), inspection=True)
     segment = sorted(
         (row for row in rows if row.get("segmentby_column_index") is not None),
@@ -565,7 +596,7 @@ async def _columnstore(
     # there means seconds nobody chose; the editor offers none and changes none.
     if integer and merge is not None:
         raise ActionRefused(
-            "not_applicable", "This hypertable merges compressed chunks by a time interval; manage it with SQL",
+            "not_applicable", say("This hypertable merges compressed chunks by a time interval; manage it with SQL"),
         )
     return ColumnstoreDesign(
         enabled=enabled,
@@ -588,14 +619,14 @@ async def _sparse(reader: PostgresReader, target: DesignTarget) -> SparseIndexes
 async def _compaction(reader: PostgresReader, target: DesignTarget) -> CompactionPolicy | None:
     rows = await reader.query(_COMPACTION, (target.schema_name, target.table_name), inspection=True)
     if len(rows) > 1:
-        raise ActionRefused("not_applicable", "This hypertable has several compaction policy jobs; manage them with SQL")
+        raise ActionRefused("not_applicable", say("This hypertable has several compaction policy jobs; manage them with SQL"))
     return CompactionPolicy.model_validate(rows[0]) if rows else None
 
 
 async def _reorder(reader: PostgresReader, target: DesignTarget) -> ReorderPolicy | None:
     rows = await reader.query(_REORDER, (target.schema_name, target.table_name), inspection=True)
     if len(rows) > 1:
-        raise ActionRefused("not_applicable", "This hypertable has several reorder policy jobs; manage them with SQL")
+        raise ActionRefused("not_applicable", say("This hypertable has several reorder policy jobs; manage them with SQL"))
     if not rows:
         return None
     try:
@@ -605,7 +636,7 @@ async def _reorder(reader: PostgresReader, target: DesignTarget) -> ReorderPolic
     # Shown as no policy, an unreadable one would be removed by the next unrelated change.
     if policy is None or policy.index_name is None:
         raise ActionRefused(
-            "not_applicable", "The existing reorder policy could not be read safely; manage it with SQL",
+            "not_applicable", say("The existing reorder policy could not be read safely; manage it with SQL"),
         )
     return policy
 
@@ -640,27 +671,27 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
         await require_public_view(reader, view, columns)
     rows = await reader.query(_TARGET, (schema_name, table_name), inspection=True)
     if len(rows) != 1:
-        raise ActionRefused("not_applicable", "Choose an owned hypertable")
+        raise ActionRefused("not_applicable", say("Choose an owned hypertable"))
     row = rows[0]
     column_type = row.get("column_type")
     integer = column_type in INTEGER_TYPES
     offered = await capabilities(reader, version)
     if column_type == "uuid" and not offered.uuid_time:
         raise ActionRefused(
-            "not_applicable", f"TimescaleDB {version} partitions by UUIDv7 only partly; it is edited here from 2.25",
+            "not_applicable", say("TimescaleDB {version} partitions by UUIDv7 only partly; it is edited here from 2.25", version=version),
         )
     if not integer and column_type not in (*_TIME_TYPES, "uuid"):
-        raise ActionRefused("not_applicable", "Only timestamp, date, UUIDv7 and integer time dimensions are edited here")
+        raise ActionRefused("not_applicable", say("Only timestamp, date, UUIDv7 and integer time dimensions are edited here"))
     interval = row.get("integer_interval" if integer else "interval_microseconds")
     if not isinstance(interval, int) or interval <= 0:
-        raise ActionRefused("not_applicable", "The current chunk interval could not be read")
+        raise ActionRefused("not_applicable", say("The current chunk interval could not be read"))
     target = DesignTarget.model_validate({key: row[key] for key in DesignTarget.model_fields})
     identity = (target.schema_name, target.table_name)
 
     space = await reader.query(_SPACE, identity, inspection=True)
     if any(item.get("dimension_type") != "Space" or not isinstance(item.get("num_partitions"), int)
            for item in space):
-        raise ActionRefused("not_applicable", "Only hash dimensions beside the time dimension are edited here")
+        raise ActionRefused("not_applicable", say("Only hash dimensions beside the time dimension are edited here"))
     per_chunk_defaults = release(version) >= PER_CHUNK_DEFAULTS
     enabled = row.get("compression_enabled") is True
     columnstore = await _columnstore(reader, target, enabled, per_chunk_defaults, integer, offered.sparse_indexes)
@@ -674,7 +705,7 @@ async def read_current(reader: PostgresReader, schema_name: str, table_name: str
     attached = await reader.query(_ATTACHED, identity, inspection=True)
     chunks = await reader.query(_CHUNKS, identity, inspection=True)
     if len(attached) != 1 or len(chunks) != 1:
-        raise ActionRefused("not_applicable", "The hypertable's chunks and tablespaces could not be read")
+        raise ActionRefused("not_applicable", say("The hypertable's chunks and tablespaces could not be read"))
 
     design = HypertableDesign(
         time_column=target.column_name,
@@ -738,10 +769,10 @@ async def require_new_function(reader: PostgresReader, schema_name: str, name: s
     """Refuse a template function whose name is taken, or a schema this role cannot create in."""
     rows = await reader.query(_NAME_FREE, (name, schema_name, schema_name), inspection=True)
     if len(rows) != 1 or rows[0].get("creatable") is not True:
-        raise ActionRefused("not_applicable", f'This connection may not create functions in schema "{schema_name}"')
+        raise ActionRefused("not_applicable", say('This connection may not create functions in schema "{schema}"', schema=schema_name))
     if rows[0].get("free") is not True:
         raise ActionRefused(
-            "not_applicable", f'A function named "{name}" already exists; choose it from the list or another name',
+            "not_applicable", say('A function named "{name}" already exists; choose it from the list or another name', name=name),
         )
 
 
@@ -804,15 +835,16 @@ def span_length(column_type: str, interval: Span) -> int:
     """The interval as Timescale stores it for this column; refuses a unit the column cannot take."""
     if column_type in INTEGER_TYPES:
         if not isinstance(interval, IntegerSpan):
-            raise ActionRefused("not_applicable", "A chunk interval of an integer column is a number of its values")
+            raise ActionRefused("not_applicable", say("A chunk interval of an integer column is a number of its values"))
         if int(interval.amount) > INTEGER_MAX[column_type]:
-            raise ActionRefused(
-                "not_applicable", f"A chunk interval of a {column_type} column is at most {INTEGER_MAX[column_type]:,}",
-            )
+            raise ActionRefused("not_applicable", say(
+                "A chunk interval of a {type} column is at most {count}",
+                type=column_type, count=f"{INTEGER_MAX[column_type]:,}",
+            ))
         return int(interval.amount)
     microseconds = None if isinstance(interval, IntegerSpan) else duration_microseconds(interval)
     if microseconds is None:
-        raise ActionRefused("not_applicable", "A chunk interval is counted in minutes, hours, days or weeks")
+        raise ActionRefused("not_applicable", say("A chunk interval is counted in minutes, hours, days or weeks"))
     return microseconds
 
 
@@ -936,16 +968,9 @@ def state_of(node_id: str, current: CurrentHypertable) -> HypertableDesignState:
         per_chunk_defaults=current.per_chunk_defaults,
         has_chunks=current.has_chunks,
         compressed_chunks=current.compressed_chunks,
-        retention=_describe("drops", current.retention),
-        columnstore_policy=_describe("compresses", current.compression),
-        reorder=None if reorder is None else CurrentPolicy(
-            job_id=reorder.job_id,
-            description=(
-                f"Job {reorder.job_id} reorders chunks by "
-                f"{reorder.index_name or 'an index this editor cannot read'}"
-                + ("" if reorder.scheduled else "; paused")
-            ),
-        ),
+        retention=_describe("retention", current.retention),
+        columnstore_policy=_describe("compression", current.compression),
+        reorder=None if reorder is None else _describe_reorder(reorder),
         now_functions=list(current.now_functions),
         integer_now_name=current.integer_now_name,
         schema_name=current.target.schema_name,
@@ -963,6 +988,6 @@ async def read_state(reader: PostgresReader, node_id: str, schema_name: str, tab
     except ActionRefused as exc:
         return HypertableDesignState(node_id=node_id, reason=exc.message)
     except TimeoutError:
-        return HypertableDesignState(node_id=node_id, reason="Reading the hypertable timed out")
+        return HypertableDesignState(node_id=node_id, reason=say("Reading the hypertable timed out"))
     except (AdapterError, ValueError):
-        return HypertableDesignState(node_id=node_id, reason="The hypertable could not be inspected safely")
+        return HypertableDesignState(node_id=node_id, reason=say("The hypertable could not be inspected safely"))

@@ -32,6 +32,7 @@ import psycopg
 from anyio import to_thread
 
 from app.adapters.postgres.session import PostgresSession
+from app.core.translation import say
 
 # In the only order in which they are valid: the schema, then the rows.
 SCRIPT_NAMES = (
@@ -96,11 +97,20 @@ class PostgresSamples:
                 await connection.execute(script)
             tables = await self._count_tables(connection)
             hypertables = await self._count_hypertables(connection) if holds_timescale else 0
-        counted = f"{SAMPLE_SCHEMA}: {tables} tables"
         if hypertables == 0:
-            return counted
-        subject = "hypertable" if hypertables == 1 else "hypertables"
-        return f"{counted}, including {hypertables} {subject}"
+            return say("{schema}: {tables} tables", schema=SAMPLE_SCHEMA, tables=tables)
+        if hypertables == 1:
+            return say(
+                "{schema}: {tables} tables, including 1 hypertable",
+                schema=SAMPLE_SCHEMA,
+                tables=tables,
+            )
+        return say(
+            "{schema}: {tables} tables, including {hypertables} hypertables",
+            schema=SAMPLE_SCHEMA,
+            tables=tables,
+            hypertables=hypertables,
+        )
 
     async def _has_timescale(self, connection: psycopg.AsyncConnection[Any]) -> bool:
         """Whether this database holds the extension, asked of the database.

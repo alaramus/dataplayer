@@ -3,6 +3,7 @@ import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
+import { formatTime } from "@/shared/i18n/format"
 import { AppSelect, AppSpinner, AppTable, AppTooltip } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui"
 
@@ -60,7 +61,7 @@ const rows = computed(() => table.data.value?.rows ?? [])
 const taken = computed(() => {
   const answer = table.data.value
   if (answer?.ts === null || answer?.ts === undefined) return null
-  const at = t("dashboards.processes.as_of", { time: new Date(answer.ts * 1000).toLocaleTimeString() })
+  const at = t("dashboards.processes.as_of", { time: formatTime(answer.ts * 1000) })
   return answer.total === null || answer.total === undefined
     ? at
     : t("dashboards.processes.on_host", { at, n: answer.total }, answer.total)

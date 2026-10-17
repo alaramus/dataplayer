@@ -20,7 +20,7 @@ def read_guide_pages() -> Any:
     """Every page of the user's guide, by key and title."""
     return [
         reader.GuidePageInfo(key=one.key, title=one.title)
-        for one in reader.pages().values()
+        for one in reader.pages_in().values()
     ]
 
 

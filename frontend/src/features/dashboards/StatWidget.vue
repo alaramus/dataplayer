@@ -3,6 +3,7 @@ import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
+import { formatDateTime } from "@/shared/i18n/format"
 import { AppSpinner } from "@/shared/ui"
 
 import { useHistory } from "./api"
@@ -57,7 +58,7 @@ const failure = computed(() =>
       <span
         v-if="reading.since !== null"
         class="stat-widget__note"
-      >{{ t('dashboards.stat.since', { when: new Date(reading.since * 1000).toLocaleString() }) }}</span>
+      >{{ t('dashboards.stat.since', { when: formatDateTime(reading.since * 1000) }) }}</span>
       <span
         v-if="reading.restarted"
         class="stat-widget__note"

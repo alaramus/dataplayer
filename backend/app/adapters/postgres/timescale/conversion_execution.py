@@ -19,7 +19,7 @@ async def execute_conversion(
     async def replan(reader: PostgresReader) -> ConversionPlan:
         return await plan_conversion(reader, schema_name, table_name, column_name, interval)
 
-    return await run_reviewed(session, replan, _locks, _apply, reviewed_fingerprint, "hypertable conversion")
+    return await run_reviewed(session, replan, _locks, _apply, reviewed_fingerprint)
 
 
 def _locks(plan: ConversionPlan) -> list[sql.SQL | sql.Composed]:

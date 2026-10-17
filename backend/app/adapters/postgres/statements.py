@@ -33,6 +33,7 @@ from sqlglot.errors import ParseError, TokenError
 from sqlglot.tokens import Token, TokenType  # type: ignore[attr-defined]
 
 from app.adapters.query import PreparedScript, PreparedStatement, StatementClass
+from app.core.translation import N_, say_if
 
 # sqlglot logs the statement it could not parse, at warning level. D64 keeps
 # SQL out of application logs, so this logger is silenced here rather than
@@ -118,7 +119,7 @@ _OBJECT_SUBJECTS: dict[ObjectType, str] = {
     ObjectType.OBJECT_SEQUENCE: "SEQUENCE",
 }
 
-_PERMISSIONS = "Permissions are not administered from the query editor"
+_PERMISSIONS = N_("Permissions are not administered from the query editor")
 
 # The closed vocabulary of structure changes this source will carry out (D66).
 # Schemas, tables, views and indexes, their comments, and emptying a table.
@@ -136,19 +137,19 @@ _ALLOWED_COMMENT_KINDS = frozenset({"TABLE", "VIEW", "SCHEMA", "INDEX", "COLUMN"
 # Each of these needs a permission model, a job or a screen this application
 # has not designed, and a text box is not the place to invent one (D66).
 _OUTSIDE = {
-    "DATABASE": "Databases are not created or dropped from the query editor",
-    "ROLE": "Roles and permissions are not administered from the query editor",
-    "USER": "Roles and permissions are not administered from the query editor",
-    "TABLESPACE": "Tablespaces are not managed from the query editor",
-    "EXTENSION": "Extensions are not installed from the query editor",
-    "FUNCTION": "Functions and procedures are not changed from the query editor",
-    "PROCEDURE": "Functions and procedures are not changed from the query editor",
-    "TRIGGER": "Triggers are not changed from the query editor",
-    "TYPE": "Types are not changed from the query editor",
-    "SEQUENCE": "Sequences are not changed from the query editor",
+    "DATABASE": N_("Databases are not created or dropped from the query editor"),
+    "ROLE": N_("Roles and permissions are not administered from the query editor"),
+    "USER": N_("Roles and permissions are not administered from the query editor"),
+    "TABLESPACE": N_("Tablespaces are not managed from the query editor"),
+    "EXTENSION": N_("Extensions are not installed from the query editor"),
+    "FUNCTION": N_("Functions and procedures are not changed from the query editor"),
+    "PROCEDURE": N_("Functions and procedures are not changed from the query editor"),
+    "TRIGGER": N_("Triggers are not changed from the query editor"),
+    "TYPE": N_("Types are not changed from the query editor"),
+    "SEQUENCE": N_("Sequences are not changed from the query editor"),
 }
 
-_GENERAL_REFUSAL = (
+_GENERAL_REFUSAL = N_(
     "The query editor changes schemas, tables, views and indexes; "
     "this is something else"
 )
@@ -673,7 +674,7 @@ def prepare(text: str) -> PreparedScript:
                 kind=kind,
                 risk="high" if _risky(node, kind) else "low",
                 destructive=_destructive(node),
-                refused=_refusal(node, kind),
+                refused=say_if(_refusal(node, kind)),
                 parameters=found,
                 targets=_targets(node),
             )

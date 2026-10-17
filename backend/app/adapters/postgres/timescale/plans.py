@@ -22,6 +22,7 @@ from pydantic import (
 
 from app.adapters.actions import ActionRefused
 from app.adapters.operations import MAX_OPERATION_TARGETS
+from app.core.translation import say
 
 _OID = r"^[1-9][0-9]{0,9}$"
 
@@ -42,6 +43,25 @@ class TimeDuration(BaseModel):
 
     def interval_value(self) -> str:
         return f"{self.amount} {self.unit}"
+
+    def label(self) -> str:
+        """The duration as a person reads it; `interval_value` is what the source reads."""
+        amount = self.amount
+        match self.unit:
+            case "second":
+                return say("{amount} second", amount=amount)
+            case "minute":
+                return say("{amount} minute", amount=amount)
+            case "hour":
+                return say("{amount} hour", amount=amount)
+            case "day":
+                return say("{amount} day", amount=amount)
+            case "week":
+                return say("{amount} week", amount=amount)
+            case "month":
+                return say("{amount} month", amount=amount)
+            case "year":
+                return say("{amount} year", amount=amount)
 
 
 class IntervalTarget(BaseModel):
@@ -82,7 +102,7 @@ class ReviewedPlan(BaseModel):
             or any(char not in "0123456789abcdef" for char in reviewed_fingerprint)
             or not hmac.compare_digest(self.fingerprint(), reviewed_fingerprint)
         ):
-            raise ActionRefused("conflict", "The operation plan changed; review it again")
+            raise ActionRefused("conflict", say("The operation plan changed; review it again"))
 
 
 class ChunkIntervalPlan(ReviewedPlan):
@@ -96,6 +116,14 @@ class ChunkIntervalPlan(ReviewedPlan):
     coordination: Literal[
         "Briefly locks TimescaleDB metadata across this database; new chunk creation may wait"
     ] = "Briefly locks TimescaleDB metadata across this database; new chunk creation may wait"
+
+    @property
+    def said_impact(self) -> str:
+        return say("Only future chunks use the new interval; existing chunks are not repartitioned")
+
+    @property
+    def said_coordination(self) -> str:
+        return say("Briefly locks TimescaleDB metadata across this database; new chunk creation may wait")
 
 
 class TimeHypertable(BaseModel):
@@ -132,11 +160,12 @@ class AgePolicy(BaseModel):
         return self
 
     def threshold(self) -> str:
+        """Which chunks the job acts on, worded to follow "chunks" in a sentence."""
         if self.older_than is not None:
-            return f"older than {self.older_than}"
+            return say("older than {age}", age=self.older_than)
         if self.older_than_count is not None:
-            return f"older than {int(self.older_than_count):,}"
-        return f"created more than {self.created_before} ago"
+            return say("older than {age}", age=f"{int(self.older_than_count):,}")
+        return say("created more than {age} ago", age=self.created_before)
 
 
 class AgePolicyStrategy(BaseModel):
@@ -150,22 +179,13 @@ class AgePolicyStrategy(BaseModel):
     remove_function_oid: str = Field(pattern=_OID)
 
 
-_IMPACT: dict[tuple[AgePolicyKind, bool], str] = {
-    ("retention", True): (
-        "TimescaleDB keeps dropping whole chunks older than this on its own schedule, "
-        "after this session ends"
-    ),
-    ("retention", False): (
-        "TimescaleDB stops dropping old chunks automatically; chunks already dropped do not return"
-    ),
-    ("compression", True): (
-        "TimescaleDB keeps compressing chunks older than this on its own schedule; "
-        "compressed chunks stay readable"
-    ),
-    ("compression", False): (
-        "TimescaleDB stops compressing chunks automatically; chunks already compressed stay compressed"
-    ),
-}
+# A Literal sentence of a plan is fingerprinted English; what a preview shows is
+# its `said_` property, the same English worded, since say() takes a literal (D226).
+def _said_policy_coordination() -> str:
+    return say(
+        "Other policy changes made here in this database wait until it commits, "
+        "and so may a policy run starting meanwhile"
+    )
 
 
 class AgePolicyPlan(ReviewedPlan):
@@ -195,7 +215,24 @@ class AgePolicyPlan(ReviewedPlan):
 
     @property
     def impact(self) -> str:
-        return _IMPACT[self.kind, self.operation == "set_policy"]
+        setting = self.operation == "set_policy"
+        if self.kind == "retention":
+            if setting:
+                return say(
+                    "TimescaleDB keeps dropping whole chunks older than this on its own schedule, "
+                    "after this session ends"
+                )
+            return say("TimescaleDB stops dropping old chunks automatically; chunks already dropped do not return")
+        if setting:
+            return say(
+                "TimescaleDB keeps compressing chunks older than this on its own schedule; "
+                "compressed chunks stay readable"
+            )
+        return say("TimescaleDB stops compressing chunks automatically; chunks already compressed stay compressed")
+
+    @property
+    def said_coordination(self) -> str:
+        return _said_policy_coordination()
 
 
 class ContinuousAggregateTarget(BaseModel):
@@ -224,9 +261,15 @@ class RefreshPolicy(BaseModel):
     end_offset: str | None = Field(default=None, min_length=1, max_length=100)
 
     def window(self) -> str:
-        start = "the earliest data" if self.start_offset is None else f"{self.start_offset} ago"
-        end = "the latest data" if self.end_offset is None else f"{self.end_offset} ago"
-        return f"from {start} to {end}"
+        """The refreshed window, worded to follow "refreshes" in a sentence."""
+        start, end = self.start_offset, self.end_offset
+        if start is None and end is None:
+            return say("from the earliest data to the latest data")
+        if start is None:
+            return say("from the earliest data to {end} ago", end=end)
+        if end is None:
+            return say("from {start} ago to the latest data", start=start)
+        return say("from {start} ago to {end} ago", start=start, end=end)
 
 
 class RefreshWindow(BaseModel):
@@ -276,8 +319,14 @@ class RefreshPlan(ReviewedPlan):
     @property
     def impact(self) -> str:
         if self.operation == "remove_policy":
-            return "TimescaleDB stops refreshing this aggregate automatically; its materialized rows stay as they are"
-        return "TimescaleDB keeps refreshing this window on its own schedule, after this session ends"
+            return say(
+                "TimescaleDB stops refreshing this aggregate automatically; its materialized rows stay as they are"
+            )
+        return say("TimescaleDB keeps refreshing this window on its own schedule, after this session ends")
+
+    @property
+    def said_coordination(self) -> str:
+        return _said_policy_coordination()
 
 
 class OrderColumn(BaseModel):
@@ -316,8 +365,16 @@ class CompressionSettingsPlan(ReviewedPlan):
     @property
     def impact(self) -> str:
         if not self.enabled:
-            return "Nothing is compressed now; chunks are compressed later by a compression policy or on request"
-        return "Only chunks compressed from now on use these settings; already compressed chunks keep theirs"
+            return say(
+                "Nothing is compressed now; chunks are compressed later by a compression policy or on request"
+            )
+        return say("Only chunks compressed from now on use these settings; already compressed chunks keep theirs")
+
+    @property
+    def said_coordination(self) -> str:
+        return say(
+            "Locks this hypertable exclusively while the settings change; its reads and writes wait until it commits"
+        )
 
 
 class ConversionTarget(BaseModel):
@@ -370,6 +427,17 @@ class ConversionPlan(ReviewedPlan):
         "Locks this table exclusively for the conversion; its reads and writes wait until it commits"
     ] = "Locks this table exclusively for the conversion; its reads and writes wait until it commits"
 
+    @property
+    def said_impact(self) -> str:
+        return say(
+            "The table keeps its name and identity and becomes a hypertable; "
+            "DataPlayer cannot turn it back into an ordinary table"
+        )
+
+    @property
+    def said_coordination(self) -> str:
+        return say("Locks this table exclusively for the conversion; its reads and writes wait until it commits")
+
 
 ChunkStorage = Literal["columnstore", "rowstore"]
 
@@ -403,7 +471,6 @@ class ChunkWindow(BaseModel):
 
 _INSTANT: TypeAdapter[datetime] = TypeAdapter(AwareDatetime)
 _BIGINT = range(-(2**63), 2**63)
-_NOT_A_BOUND = "Give an instant with its time zone, such as 2026-01-15T00:00:00Z, or a whole number"
 
 
 def _bound(value: object) -> int | datetime:
@@ -413,14 +480,14 @@ def _bound(value: object) -> int | datetime:
         value = int(value)
     if isinstance(value, int) and not isinstance(value, bool):
         if value not in _BIGINT:
-            raise ValueError("The number is outside the range of a bigint")
+            raise ValueError(say("The number is outside the range of a bigint"))
         return value
     if isinstance(value, str | datetime):
         try:
             return _INSTANT.validate_python(value)
         except ValidationError:
             pass
-    raise ValueError(_NOT_A_BOUND)
+    raise ValueError(say("Give an instant with its time zone, such as 2026-01-15T00:00:00Z, or a whole number"))
 
 
 # An instant, or a value of an integer time column. Declared to a form as an
@@ -445,9 +512,9 @@ def require_ordered(start: int | datetime, end: int | datetime) -> None:
     elif isinstance(start, int) and isinstance(end, int):
         ordered = start < end
     else:
-        raise ValueError("Both ends are instants, or both are numbers")
+        raise ValueError(say("Both ends are instants, or both are numbers"))
     if not ordered:
-        raise ValueError("The range must start before it ends")
+        raise ValueError(say("The range must start before it ends"))
 
 
 class BoundWindow(BaseModel):
@@ -507,16 +574,6 @@ class PlannedChunk(BaseModel):
     range_end: str = Field(min_length=1, max_length=100)
 
 
-_STORAGE_IMPACT: dict[ChunkStorage, str] = {
-    "columnstore": (
-        "Compressed chunks stay readable; queries and writes touching a chunk may wait while it is rewritten"
-    ),
-    "rowstore": (
-        "Decompressed chunks take more space; a compression policy may compress them again on its own schedule"
-    ),
-}
-
-
 class ChunkStoragePlan(ReviewedPlan):
     unit: ChunkStorageUnit
     window: ChunkWindow
@@ -530,4 +587,14 @@ class ChunkStoragePlan(ReviewedPlan):
 
     @property
     def impact(self) -> str:
-        return _STORAGE_IMPACT[self.unit.strategy.storage]
+        if self.unit.strategy.storage == "columnstore":
+            return say(
+                "Compressed chunks stay readable; queries and writes touching a chunk may wait while it is rewritten"
+            )
+        return say(
+            "Decompressed chunks take more space; a compression policy may compress them again on its own schedule"
+        )
+
+    @property
+    def said_coordination(self) -> str:
+        return say("Each chunk is converted in its own transaction; cancelling keeps the chunks already converted")

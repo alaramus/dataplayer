@@ -11,6 +11,7 @@ import {
 } from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
+import { formatDateTime, formatFixed } from "@/shared/i18n/format"
 import {
   AppBanner,
   AppButton,
@@ -54,11 +55,11 @@ const available = computed(() =>
 function readableSize(bytes: number): string {
   if (bytes < 1024) return t("catalog.size.b", { n: bytes })
   if (bytes < 1024 * 1024) return t("catalog.size.kb", { n: Math.round(bytes / 1024) })
-  return t("catalog.size.mb", { n: (bytes / (1024 * 1024)).toFixed(1) })
+  return t("catalog.size.mb", { n: formatFixed(bytes / (1024 * 1024), 1) })
 }
 
 function readableTime(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleString()
+  return formatDateTime(seconds * 1000)
 }
 
 async function take() {

@@ -39,10 +39,10 @@ from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.protocol import AdapterError
 from app.core.access import Access
+from app.core.translation import N_, say
 
 Direction = Literal["enable", "disable"]
 _OID = r"^[1-9][0-9]{0,9}$"
-_UNREADABLE = "The hypertable could not be inspected safely"
 # sql/ddl_api.sql from 2.16: regclass 2205, name 19, boolean 16; record 2249.
 SHAPES: dict[Direction, RoutineShape] = {
     "enable": RoutineShape("enable_chunk_skipping", "f", "2205 19 16", 2249, returns_set=True),
@@ -83,8 +83,8 @@ class ChunkSkippingParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     column: str = Field(
-        min_length=1, max_length=63, title="Column",
-        description="An integer, date or timestamp column queries filter on",
+        min_length=1, max_length=63, title=N_("Column"),
+        description=N_("An integer, date or timestamp column queries filter on"),
     )
 
 
@@ -118,24 +118,28 @@ async def plan_skipping(
             routine = await extension_routine(reader, version, SHAPES[direction])
             rows = await reader.query(_TARGET, (column, schema_name, table_name), inspection=True)
             if len(rows) != 1:
-                raise ActionRefused("not_applicable", "Choose an owned hypertable")
+                raise ActionRefused("not_applicable", say("Choose an owned hypertable"))
             column_type = rows[0].get("column_type")
             if column_type is None:
-                raise ActionRefused("not_applicable", f'This hypertable has no column "{column}"')
+                raise ActionRefused("not_applicable", say('This hypertable has no column "{column}"', column=column))
             if direction == "enable" and column_type not in _RANGED:
-                raise ActionRefused(
-                    "not_applicable", f"TimescaleDB keeps ranges only of integer, date and timestamp columns, "
-                    f'not of "{column}" ({column_type})',
-                )
+                raise ActionRefused("not_applicable", say(
+                    'TimescaleDB keeps ranges only of integer, date and timestamp columns, not of "{column}" ({type})',
+                    column=column, type=column_type,
+                ))
             return ChunkSkippingPlan(
                 direction=direction, schema_name=schema_name, table_name=table_name,
                 relation_oid=rows[0]["relation_oid"], column=column,
                 function_schema=routine.schema_name, function_oid=routine.oid, setting=str(rows[0]["setting"]),
             )
     except TimeoutError:
-        raise ActionRefused("not_applicable", "Planning chunk skipping timed out") from None
+        raise ActionRefused("not_applicable", say("Planning chunk skipping timed out")) from None
     except (AdapterError, ValueError):
-        raise ActionRefused("not_applicable", _UNREADABLE) from None
+        raise ActionRefused("not_applicable", _unreadable()) from None
+
+
+def _unreadable() -> str:
+    return say("The hypertable could not be inspected safely")
 
 
 async def skipping_admission(session: PostgresSession) -> dict[Direction, str | None]:
@@ -151,7 +155,7 @@ async def skipping_admission(session: PostgresSession) -> dict[Direction, str | 
                 else:
                     reasons[direction] = None
     except (AdapterError, ValueError, TimeoutError):
-        return dict.fromkeys(SHAPES, _UNREADABLE)
+        return dict.fromkeys(SHAPES, _unreadable())
     return reasons
 
 
@@ -171,18 +175,23 @@ class ChunkSkipping(Action[ChunkSkippingParams]):
     def _items(self, plan: ChunkSkippingPlan) -> list[str]:
         column = sql.Identifier(plan.column).as_string()
         items = [
-            f"Chunks record the range of {column} as they are compressed, and a query filtering on it "
-            "skips the chunks outside"
+            say(
+                "Chunks record the range of {column} as they are compressed, and a query filtering on it "
+                "skips the chunks outside",
+                column=column,
+            )
             if plan.direction == "enable"
-            else f"Chunks stop recording the range of {column}, if they did",
-            "Changes nothing if it already holds: TimescaleDB keeps which columns record ranges where "
-            "this application does not read",
+            else say("Chunks stop recording the range of {column}, if they did", column=column),
+            say(
+                "Changes nothing if it already holds: TimescaleDB keeps which columns record ranges where "
+                "this application does not read"
+            ),
         ]
         if plan.direction == "enable" and plan.setting != "on":
-            items.append(
+            items.append(say(
                 "timescaledb.enable_chunk_skipping is off for this connection; queries use the ranges only "
-                "in sessions that turn it on",
-            )
+                "in sessions that turn it on"
+            ))
         return items
 
     async def field_hints(self, node_id: str | None) -> FieldHints:
@@ -204,16 +213,20 @@ class ChunkSkipping(Action[ChunkSkippingParams]):
         except ActionRefused as exc:
             return ActionPreview(summary=exc.message, blocked=True)
         except (AdapterError, TimeoutError):
-            return ActionPreview(summary=_UNREADABLE, blocked=True)
+            return ActionPreview(summary=_unreadable(), blocked=True)
         target = sql.Identifier(schema.name, node.name).as_string()
-        verb = "Skip chunks by" if self.direction == "enable" else "Stop skipping chunks by"
+        column = sql.Identifier(params.column).as_string()
         return ActionPreview(
-            summary=f"{verb} {sql.Identifier(params.column).as_string()} on {target}",
+            summary=(
+                say("Skip chunks by {column} on {target}", column=column, target=target)
+                if self.direction == "enable"
+                else say("Stop skipping chunks by {column} on {target}", column=column, target=target)
+            ),
             items=self._items(plan), fingerprint=plan.fingerprint(),
         )
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
-        raise ActionRefused("conflict", "Review the chunk skipping plan before applying it")
+        raise ActionRefused("conflict", say("Review the chunk skipping plan before applying it"))
 
     async def perform_reviewed(
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
@@ -240,20 +253,20 @@ class ChunkSkipping(Action[ChunkSkippingParams]):
                 (plan.relation_oid, plan.column),
             )
 
-        await run_reviewed(self._session, replan, locks, apply, fingerprint, "chunk skipping change")
+        await run_reviewed(self._session, replan, locks, apply, fingerprint)
         return ActionResult(
-            message="Chunk skipping turned on" if direction == "enable" else "Chunk skipping turned off",
+            message=say("Chunk skipping turned on") if direction == "enable" else say("Chunk skipping turned off"),
             reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID],
         )
 
 
 class EnableChunkSkipping(ChunkSkipping):
     name: ClassVar[str] = "timescale_enable_chunk_skipping"
-    title: ClassVar[str] = "Skip chunks by a column"
+    title: ClassVar[str] = N_("Skip chunks by a column")
     direction: ClassVar[Direction] = "enable"
 
 
 class DisableChunkSkipping(ChunkSkipping):
     name: ClassVar[str] = "timescale_disable_chunk_skipping"
-    title: ClassVar[str] = "Stop skipping chunks by a column"
+    title: ClassVar[str] = N_("Stop skipping chunks by a column")
     direction: ClassVar[Direction] = "disable"

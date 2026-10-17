@@ -22,6 +22,7 @@ from app.adapters.query import (
     QueryMetadataRequest,
     RelationSummary,
 )
+from app.core.translation import say
 
 # How much one answer may carry. A schema with more relations than this is
 # answered with what fits and `complete=False`, which the editor shows as a
@@ -189,20 +190,20 @@ class PostgresGeneration:
             # from, and wrapping it in one would hide what it is.
             if request.kind != "select":
                 raise ValueError(
-                    f'"{request.node_id}" is a report and has no name to write'
+                    say('"{node_id}" is a report and has no name to write', node_id=request.node_id)
                 )
             return GeneratedQuery(
                 text=textwrap.dedent(report.statement.as_string()).strip()
             )
         parts = _split(request.node_id)
         if parts is None:
-            raise ValueError(f'"{request.node_id}" is not a relation of this source')
+            raise ValueError(say('"{node_id}" is not a relation of this source', node_id=request.node_id))
         schema, relation = parts
         columns = (await self._metadata.metadata(
             QueryMetadataRequest(relations=[request.node_id])
         )).columns.get(request.node_id, [])
         if not columns:
-            raise ValueError(f'"{request.node_id}" is not a relation of this source')
+            raise ValueError(say('"{node_id}" is not a relation of this source', node_id=request.node_id))
         qualified = sql.Identifier(schema, relation)
         names = sql.SQL(", ").join(sql.Identifier(column.name) for column in columns)
         if request.kind == "name":

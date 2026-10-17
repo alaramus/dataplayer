@@ -21,6 +21,7 @@ from app.adapters.postgres.session import PostgresSession, classify
 from app.adapters.postgres.statements import bind, prepare
 from app.adapters.protocol import AdapterError
 from app.adapters.query import ExplainNode, ExplainRequest, ExplainResult
+from app.core.translation import N_, say
 
 # A plan of this many operations is already beyond reading; what is kept says
 # it was cut short rather than pretending to be the whole tree.
@@ -54,12 +55,14 @@ class PostgresExplain:
         script = prepare(request.text)
         statements = script.statements
         if len(statements) != 1:
-            raise ValueError("Explain takes one statement")
+            raise ValueError(say("Explain takes one statement"))
         statement = statements[0]
         if statement.kind == "explain":
-            raise ValueError("This is already an Explain")
+            raise ValueError(say("This is already an Explain"))
         if statement.kind != "read":
-            raise ValueError(f"A {statement.kind} statement is not planned here")
+            raise ValueError(
+                say("A {kind} statement is not planned here", kind=statement.kind)
+            )
 
         values = (
             {
@@ -96,14 +99,14 @@ class PostgresExplain:
                 finally:
                     await connection.set_read_only(None)
         except PoolTimeout:
-            raise AdapterError("timeout", "No connection was free for this query") from None
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
         except psycopg.Error as exc:
             # A plan that cannot be made is the source's answer about the
             # statement, reduced the same way a failed run's is (D64).
             diagnostic = diagnostic_of(exc, cancelled=False)
             raise ValueError(diagnostic.message) from None
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="The plan could not be read")
+            error_kind, message = classify(exc, fallback_message=N_("The plan could not be read"))
             raise AdapterError(error_kind, message) from None
 
         counted = _Counter()
@@ -129,11 +132,11 @@ class PostgresExplain:
         if isinstance(answered, str):
             answered = json.loads(answered)
         if not isinstance(answered, list) or not answered:
-            raise ValueError("The source answered with no plan")
+            raise ValueError(say("The source answered with no plan"))
         first = answered[0]
         plan = first.get("Plan") if isinstance(first, dict) else None
         if not isinstance(plan, dict):
-            raise ValueError("The source answered with no plan")
+            raise ValueError(say("The source answered with no plan"))
         return plan
 
     async def _printed(

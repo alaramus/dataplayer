@@ -24,6 +24,7 @@ from app.adapters.postgres.timescale.plans import (
 from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 _SUBDAY = frozenset({"second", "minute", "hour"})
 _TIME_TYPES = frozenset({"timestamp without time zone", "timestamp with time zone", "date"})
@@ -160,31 +161,33 @@ async def inspect_conversion(
             await require_public_view(reader, "hypertables", ("hypertable_schema", "hypertable_name"))
             relations = await reader.query(_RELATION, (schema_name, table_name), inspection=True)
             if len(relations) != 1:
-                raise ActionRefused("not_applicable", "Choose an existing ordinary table")
+                raise ActionRefused("not_applicable", say("Choose an existing ordinary table"))
             _refuse_unconvertible(relations[0])
             target = ConversionTarget.model_validate({
                 key: relations[0][key] for key in ("database_oid", "relation_oid", "schema_name", "table_name")
             })
             identity = (target.schema_name, target.table_name)
             if await _flag(reader, _HYPERTABLE, identity, "converted"):
-                raise ActionRefused("not_applicable", "This table is already a hypertable")
+                raise ActionRefused("not_applicable", say("This table is already a hypertable"))
             if await _flag(reader, _HYPERTABLE_REFERENCE, (target.relation_oid,) * 2, "references_hypertable"):
                 raise ActionRefused(
-                    "not_applicable", "Foreign keys between this table and a hypertable are not supported",
+                    "not_applicable", say("Foreign keys between this table and a hypertable are not supported"),
                 )
             columns = tuple(
                 ConversionColumn.model_validate(row)
                 for row in await reader.query(_TIME_COLUMNS, (target.relation_oid, allow_integer, allow_uuid), inspection=True)
             )
             if not columns:
-                kinds = "timestamp, date or integer" if allow_integer else "timestamp or date"
-                raise ActionRefused("not_applicable", f"This table has no {kinds} column to partition by")
+                raise ActionRefused("not_applicable", (
+                    say("This table has no timestamp, date or integer column to partition by") if allow_integer
+                    else say("This table has no timestamp or date column to partition by")
+                ))
             empty = await _flag(reader, _empty_statement(target), None, "empty")
             if not empty and not allow_rows:
-                raise ActionRefused("not_applicable", "This table is not empty; only empty tables are converted here")
+                raise ActionRefused("not_applicable", say("This table is not empty; only empty tables are converted here"))
             indexes = await reader.query(_INDEXES, (target.relation_oid, _INDEX_CEILING + 1), inspection=True)
             if len(indexes) > _INDEX_CEILING:
-                raise ActionRefused("not_applicable", "This table has too many indexes to inspect")
+                raise ActionRefused("not_applicable", say("This table has too many indexes to inspect"))
             dimension_info = await extension_type(reader, version, "_timescaledb_internal", "dimension_info")
             create = await extension_routine(reader, version, create_shape(dimension_info))
             by_range = await extension_routine(reader, version, by_range_shape(dimension_info))
@@ -196,7 +199,7 @@ async def inspect_conversion(
                 "dimension_info_oid": dimension_info,
             })
             if by_range.schema_name != create.schema_name:
-                raise ActionRefused("not_applicable", "The TimescaleDB conversion API is split across schemas")
+                raise ActionRefused("not_applicable", say("The TimescaleDB conversion API is split across schemas"))
             return ConversionState(
                 target=target, columns=columns,
                 indexes=tuple(
@@ -207,24 +210,24 @@ async def inspect_conversion(
                 empty=empty,
             )
     except TimeoutError:
-        raise ActionRefused("not_applicable", "TimescaleDB conversion planning timed out") from None
+        raise ActionRefused("not_applicable", say("TimescaleDB conversion planning timed out")) from None
     except (AdapterError, ValueError):
         raise ActionRefused(
-            "not_applicable", "The table could not be inspected safely for conversion",
+            "not_applicable", say("The table could not be inspected safely for conversion"),
         ) from None
 
 
 def _refuse_unconvertible(facts: Mapping[str, Any]) -> None:
     # The source's own refusals, in its order, so the review names the first it would raise.
     checks = (
-        (facts.get("owned") is not True, "Only the table's owner can convert it"),
-        (facts.get("readable") is not True, "This connection may not read the table"),
-        (facts.get("relkind") == "p", "Partitioned tables cannot become hypertables"),
-        (facts.get("relkind") != "r", "Choose an ordinary table"),
-        (facts.get("no_inherit_constraint") is not False, "Tables with NO INHERIT constraints cannot become hypertables"),
-        (facts.get("inherits") is not False, "Tables that use inheritance cannot become hypertables"),
-        (facts.get("persistence") != "p", "Only logged tables can become hypertables"),
-        (facts.get("has_rules") is not False, "Tables with rules cannot become hypertables"),
+        (facts.get("owned") is not True, say("Only the table's owner can convert it")),
+        (facts.get("readable") is not True, say("This connection may not read the table")),
+        (facts.get("relkind") == "p", say("Partitioned tables cannot become hypertables")),
+        (facts.get("relkind") != "r", say("Choose an ordinary table")),
+        (facts.get("no_inherit_constraint") is not False, say("Tables with NO INHERIT constraints cannot become hypertables")),
+        (facts.get("inherits") is not False, say("Tables that use inheritance cannot become hypertables")),
+        (facts.get("persistence") != "p", say("Only logged tables can become hypertables")),
+        (facts.get("has_rules") is not False, say("Tables with rules cannot become hypertables")),
     )
     reason = next((message for failed, message in checks if failed), None)
     if reason is not None:
@@ -243,7 +246,7 @@ async def _flag(
     rows = await reader.query(statement, params, inspection=True)
     value = rows[0].get(column) if len(rows) == 1 else None
     if not isinstance(value, bool):
-        raise ActionRefused("not_applicable", "The table could not be inspected safely for conversion")
+        raise ActionRefused("not_applicable", say("The table could not be inspected safely for conversion"))
     return value
 
 
@@ -251,7 +254,7 @@ def conversion_column(state: ConversionState, column_name: str) -> ConversionCol
     column = next((item for item in state.columns if item.name == column_name), None)
     if column is None:
         choices = ", ".join(item.name for item in state.columns)
-        raise ActionRefused("not_applicable", f"Choose a column this table can be partitioned by: {choices}")
+        raise ActionRefused("not_applicable", say("Choose a column this table can be partitioned by: {choices}", choices=choices))
     return column
 
 
@@ -260,9 +263,10 @@ def require_unique_indexes(state: ConversionState, column: ConversionColumn) -> 
         (index.name for index in state.indexes if index.constrains and column.name not in index.columns), None,
     )
     if missing is not None:
-        raise ActionRefused(
-            "not_applicable", f'Unique index "{missing}" must include "{column.name}", which partitions the table',
-        )
+        raise ActionRefused("not_applicable", say(
+            'Unique index "{index}" must include "{column}", which partitions the table',
+            index=missing, column=column.name,
+        ))
 
 
 def time_index_exists(state: ConversionState, column: ConversionColumn) -> bool:
@@ -273,11 +277,11 @@ def time_index_exists(state: ConversionState, column: ConversionColumn) -> bool:
 def conversion_plan(state: ConversionState, column_name: str, interval: TimeDuration) -> ConversionPlan:
     column = conversion_column(state, column_name)
     if column.type not in _TIME_TYPES:
-        raise ActionRefused("not_applicable", "An integer or UUID column is converted from Hypertable settings")
+        raise ActionRefused("not_applicable", say("An integer or UUID column is converted from Hypertable settings"))
     if interval.unit in {"month", "year"}:
-        raise ActionRefused("not_applicable", "Calendar chunk intervals are not supported by this strategy")
+        raise ActionRefused("not_applicable", say("Calendar chunk intervals are not supported by this strategy"))
     if column.type == "date" and interval.unit in _SUBDAY:
-        raise ActionRefused("not_applicable", "Date columns require whole days or weeks")
+        raise ActionRefused("not_applicable", say("Date columns require whole days or weeks"))
     require_unique_indexes(state, column)
     return ConversionPlan(
         target=state.target, column=column, interval=interval,

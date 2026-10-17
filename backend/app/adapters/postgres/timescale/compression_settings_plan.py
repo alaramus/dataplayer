@@ -3,6 +3,7 @@
 import asyncio
 import re
 from collections.abc import Sequence
+from typing import Literal
 
 from psycopg import sql
 
@@ -17,6 +18,7 @@ from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import time_hypertable
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 MAX_COLUMNS = 32
 # A column name, then optional sort words; the name is checked against the table afterwards.
@@ -78,22 +80,25 @@ def resolve_settings(
     named = [*segment_by, *(item.column for item in order_by)]
     repeated = next((name for name in named if named.count(name) > 1), None)
     if repeated is not None:
-        raise ActionRefused("not_applicable", f'Column "{repeated}" is listed more than once')
+        raise ActionRefused("not_applicable", say('Column "{column}" is listed more than once', column=repeated))
     return segment_by, order_by
 
 
-def _lines(text: str, label: str) -> list[str]:
+def _lines(text: str, label: Literal["segment-by", "order-by"]) -> list[str]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if len(lines) > MAX_COLUMNS:
-        raise ActionRefused("not_applicable", f"List at most {MAX_COLUMNS} {label} columns")
+        raise ActionRefused("not_applicable", (
+            say("List at most {count} segment-by columns", count=MAX_COLUMNS) if label == "segment-by"
+            else say("List at most {count} order-by columns", count=MAX_COLUMNS)
+        ))
     if any(len(line) > 100 for line in lines):
-        raise ActionRefused("not_applicable", "Each line names one column")
+        raise ActionRefused("not_applicable", say("Each line names one column"))
     return lines
 
 
 def _known(name: str, known: set[str]) -> str:
     if name not in known:
-        raise ActionRefused("not_applicable", f'This hypertable has no column "{name}"')
+        raise ActionRefused("not_applicable", say('This hypertable has no column "{column}"', column=name))
     return name
 
 
@@ -103,7 +108,7 @@ def _order_column(line: str, known: set[str]) -> OrderColumn:
         return OrderColumn(column=line, descending=False, nulls_first=False)
     match = _ORDER_LINE.match(line)
     if match is None:
-        raise ActionRefused("not_applicable", "Each line names one column")
+        raise ActionRefused("not_applicable", say("Each line names one column"))
     descending = (match["direction"] or "asc").lower() == "desc"
     # PostgreSQL's defaults: NULLS LAST ascending, NULLS FIRST descending.
     nulls_first = descending if match["nulls"] is None else match["nulls"].lower() == "first"
@@ -149,7 +154,7 @@ async def plan_compression_settings(
             enabled = await _flag(reader, _ENABLED, identity, "compression_enabled")
             current = await reader.query(_CURRENT, (target.relation_oid,), inspection=True)
             if len(current) != 1:
-                raise ActionRefused("not_applicable", "The current compression settings could not be read")
+                raise ActionRefused("not_applicable", say("The current compression settings could not be read"))
             any_compressed = await _flag(reader, _COMPRESSED, identity, "any_compressed")
             effective = effective_order_by(target, segment_by, order_by)
             listed = {*segment_by, *(item.column for item in effective)}
@@ -168,10 +173,10 @@ async def plan_compression_settings(
                 "strategy": {"extension_version": version},
             })
     except TimeoutError:
-        raise ActionRefused("not_applicable", "TimescaleDB compression settings planning timed out") from None
+        raise ActionRefused("not_applicable", say("TimescaleDB compression settings planning timed out")) from None
     except (AdapterError, ValueError):
         raise ActionRefused(
-            "not_applicable", "TimescaleDB compression settings could not be inspected safely",
+            "not_applicable", say("TimescaleDB compression settings could not be inspected safely"),
         ) from None
 
 
@@ -179,5 +184,5 @@ async def _flag(reader: PostgresReader, statement: str, params: tuple[str, str],
     rows = await reader.query(statement, params, inspection=True)
     value = rows[0].get(column) if len(rows) == 1 else None
     if not isinstance(value, bool):
-        raise ActionRefused("not_applicable", "The current compression settings could not be read")
+        raise ActionRefused("not_applicable", say("The current compression settings could not be read"))
     return value

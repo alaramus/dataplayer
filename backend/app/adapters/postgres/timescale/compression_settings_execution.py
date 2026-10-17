@@ -24,7 +24,7 @@ async def execute_compression_settings(
         return await plan_compression_settings(reader, schema_name, table_name, segment_text, order_text)
 
     return await run_reviewed(
-        session, replan, _locks, _apply, reviewed_fingerprint, "compression settings change",
+        session, replan, _locks, _apply, reviewed_fingerprint,
     )
 
 

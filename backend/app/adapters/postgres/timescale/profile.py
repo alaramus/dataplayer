@@ -6,6 +6,7 @@ from app.adapters.actions import ActionRefused
 from app.adapters.features import FEATURE_TITLES, SourceFeature
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.protocol import AdapterError
+from app.core.translation import N_, say
 
 _EXTENSION_SQL = """
 SELECT oid, extversion AS version
@@ -101,11 +102,37 @@ def require_available(profile: TimescaleProfile) -> str:
     if profile.available and version is not None:
         return version
     if profile.feature.state == "absent":
-        raise ActionRefused("not_applicable", "TimescaleDB is not installed on this database")
+        raise ActionRefused("not_applicable", say("TimescaleDB is not installed on this database"))
     # A state that is neither available nor absent always carries a reason.
-    raise ActionRefused(
-        "not_applicable", profile.feature.reason or "This source has no usable TimescaleDB API",
-    )
+    raise ActionRefused("not_applicable", said_reason(profile.feature.reason))
+
+
+def said_reason(reason: str | None) -> str:
+    """A reason discovery gave, in the request's language.
+
+    The profile is kept for the session and so holds the English, marked N_
+    below; it is worded here, one branch a sentence, as say() takes a literal.
+    """
+    match reason:
+        case "This connection may not inspect installed extensions":
+            return say("This connection may not inspect installed extensions")
+        case "Installed extensions could not be inspected":
+            return say("Installed extensions could not be inspected")
+        case "The installed TimescaleDB version could not be read":
+            return say("The installed TimescaleDB version could not be read")
+        case "TimescaleDB extension metadata could not be read":
+            return say("TimescaleDB extension metadata could not be read")
+        case "This TimescaleDB major version is not supported":
+            return say("This TimescaleDB major version is not supported")
+        case "This connection may not inspect TimescaleDB metadata":
+            return say("This connection may not inspect TimescaleDB metadata")
+        case "TimescaleDB metadata could not be inspected":
+            return say("TimescaleDB metadata could not be inspected")
+        case "The installed version lacks the supported inspection API":
+            return say("The installed version lacks the supported inspection API")
+        case str() if reason:
+            return reason
+    return say("This source has no usable TimescaleDB API")
 
 
 def _unavailable(reason: str, *, version: str | None = None) -> TimescaleProfile:
@@ -135,10 +162,10 @@ async def discover(session: PostgresReader) -> TimescaleProfile:
             inspection=True,
         )
     except ValueError:
-        return _unavailable("This connection may not inspect installed extensions")
+        return _unavailable(N_("This connection may not inspect installed extensions"))
     except AdapterError as exc:
         _raise_connection_failure(exc)
-        return _unavailable("Installed extensions could not be inspected")
+        return _unavailable(N_("Installed extensions could not be inspected"))
 
     if not installed:
         return TimescaleProfile(
@@ -153,10 +180,10 @@ async def discover(session: PostgresReader) -> TimescaleProfile:
     version = extension.get("version")
     extension_oid = extension.get("oid")
     if not isinstance(version, str) or not version:
-        return _unavailable("The installed TimescaleDB version could not be read")
+        return _unavailable(N_("The installed TimescaleDB version could not be read"))
     if not isinstance(extension_oid, int) or isinstance(extension_oid, bool):
         return _unavailable(
-            "TimescaleDB extension metadata could not be read", version=version
+            N_("TimescaleDB extension metadata could not be read"), version=version
         )
 
     if version.partition(".")[0] != "2":
@@ -166,7 +193,7 @@ async def discover(session: PostgresReader) -> TimescaleProfile:
                 title=FEATURE_TITLES["timescaledb"],
                 installed_version=version,
                 state="unsupported",
-                reason="This TimescaleDB major version is not supported",
+                reason=N_("This TimescaleDB major version is not supported"),
             )
         )
 
@@ -179,12 +206,12 @@ async def discover(session: PostgresReader) -> TimescaleProfile:
         )
     except ValueError:
         return _unavailable(
-            "This connection may not inspect TimescaleDB metadata", version=version
+            N_("This connection may not inspect TimescaleDB metadata"), version=version
         )
     except AdapterError as exc:
         _raise_connection_failure(exc)
         return _unavailable(
-            "TimescaleDB metadata could not be inspected", version=version
+            N_("TimescaleDB metadata could not be inspected"), version=version
         )
 
     found = {
@@ -200,7 +227,7 @@ async def discover(session: PostgresReader) -> TimescaleProfile:
                 title=FEATURE_TITLES["timescaledb"],
                 installed_version=version,
                 state="unsupported",
-                reason="The installed version lacks the supported inspection API",
+                reason=N_("The installed version lacks the supported inspection API"),
             )
         )
 
@@ -210,12 +237,12 @@ async def discover(session: PostgresReader) -> TimescaleProfile:
         )
     except ValueError:
         return _unavailable(
-            "This connection may not inspect TimescaleDB metadata", version=version
+            N_("This connection may not inspect TimescaleDB metadata"), version=version
         )
     except AdapterError as exc:
         _raise_connection_failure(exc)
         return _unavailable(
-            "TimescaleDB metadata could not be inspected", version=version
+            N_("TimescaleDB metadata could not be inspected"), version=version
         )
 
     return TimescaleProfile(

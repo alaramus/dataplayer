@@ -331,3 +331,22 @@ def test_the_windows_a_source_publishes_are_the_ones_it_may_be_re_timed_for() ->
     }
 
     assert described == overridable
+
+
+async def test_a_read_in_one_language_is_not_handed_to_another() -> None:
+    """What a source writes is worded in the reader's language (D226)."""
+    cache = MemoryDataCache(max_entries=8)
+    english = key()
+    russian = CacheKey(english.owner_id, english.connector_id, english.area, english.request, "ru")
+
+    async def tables() -> str:
+        return "Tables"
+
+    async def russian_tables() -> str:
+        return "Таблицы"
+
+    first = await cache.get_or_load(english, ttl_seconds=60, load=tables, cache_format=TEXT_FORMAT)
+    second = await cache.get_or_load(russian, ttl_seconds=60, load=russian_tables, cache_format=TEXT_FORMAT)
+
+    assert (first.value, second.value) == ("Tables", "Таблицы")
+    assert second.status == "miss"

@@ -1,6 +1,7 @@
 import type { connectorsReadCatalogResponses } from "@/client"
 import type { DetectedFramework, FetchColumn, NodeRepresentation } from "@/client"
 import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 
 /** One catalog node as the API returns it: a union discriminated by `kind`. */
 export type CatalogNode = connectorsReadCatalogResponses[200][number]
@@ -227,7 +228,7 @@ export function formatSize(bytes: number): string {
     size /= 1024
     unit += 1
   }
-  const rounded = unit === 0 ? String(size) : size.toFixed(1)
+  const rounded = unit === 0 ? String(size) : formatFixed(size, 1)
   return t(`catalog.size.${UNITS[unit] ?? "tb"}`, { n: rounded })
 }
 

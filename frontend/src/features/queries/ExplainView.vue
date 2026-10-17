@@ -5,6 +5,7 @@ import { computed, ref } from "vue"
 import type { ExplainResult } from "@/client"
 import { estimate, flatten, nodeById, share } from "@/features/queries/explain"
 import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 import { AppBanner, AppButton, AppIconButton } from "@/shared/ui"
 
 /**
@@ -45,7 +46,7 @@ const details = computed(() => Object.entries(selected.value?.details ?? {}))
       <span class="explain__note">
         {{ t("queries.explain.estimated") }}
         <template v-if="plan.total_cost !== null">
-          {{ t("queries.explain.total_cost", { n: plan.total_cost?.toFixed(2) ?? "" }) }}
+          {{ t("queries.explain.total_cost", { n: plan.total_cost == null ? "" : formatFixed(plan.total_cost, 2) }) }}
         </template>
         <template v-if="plan.rows !== null && plan.rows !== undefined">
           · {{ t("queries.explain.rows", { n: plan.rows }, plan.rows) }}

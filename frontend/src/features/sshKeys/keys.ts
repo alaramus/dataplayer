@@ -1,5 +1,6 @@
 import type { SshKeyPublic, SshKeyUnlockWritable } from "@/client"
 import { t } from "@/shared/i18n"
+import { formatTime } from "@/shared/i18n/format"
 import type { FieldSpec } from "@/shared/SchemaForm/jsonSchema"
 
 /** How long an asked-for passphrase is held. The set is the server's (D147). */
@@ -39,7 +40,7 @@ export function keyState(
   if (key.passphrase_mode !== "ask") return null
   if (!key.unlocked_until) return { text: t("ssh_keys.state.locked"), open: false }
   const until = new Date(key.unlocked_until)
-  const time = until.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  const time = formatTime(until, { hour: "2-digit", minute: "2-digit" })
   return { text: t("ssh_keys.state.unlocked_until", { time }), open: true }
 }
 

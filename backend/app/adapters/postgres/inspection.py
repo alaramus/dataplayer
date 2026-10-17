@@ -7,6 +7,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 
 class PostgresReader(Protocol):
@@ -29,5 +30,5 @@ class InspectionReader:
             return await cursor.fetchall()
         except psycopg.Error as exc:
             if refusals is not None and (message := refusals.get(exc.sqlstate or "")):
-                raise ValueError(message) from None
-            raise AdapterError("unknown", "Source metadata could not be inspected") from None
+                raise ValueError(say(message)) from None
+            raise AdapterError("unknown", say("Source metadata could not be inspected")) from None

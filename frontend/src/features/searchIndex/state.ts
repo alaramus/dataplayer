@@ -1,6 +1,7 @@
 import type { ContentsScopeState, KeepState, Outcome, PlannedCell } from "@/client"
 import { ageLabel } from "@/shared/freshness/freshness"
 import { t } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 
 /**
  * What a kept list of names is said to be (D212). Plain functions, so what a
@@ -25,7 +26,7 @@ export function windowName(seconds: number | undefined): string {
 
 function count(names: number | undefined): string {
   const many = names ?? 0
-  return t("search_index.state.names", { n: many.toLocaleString("en-US") }, many)
+  return t("search_index.state.names", { n: formatNumber(many) }, many)
 }
 
 function since(moment: string | null | undefined, now: number): string | null {
@@ -111,13 +112,13 @@ export function contentsLine(scope: ContentsScopeState, now: number = Date.now()
   const files = scope.files ?? 0
   const parts = [
     t("search_index.state.files_read", {
-      files: t("search_index.state.files", { n: files.toLocaleString("en-US") }, files),
+      files: t("search_index.state.files", { n: formatNumber(files) }, files),
       ago: since(scope.read_at, now) ?? "",
     }),
   ]
   const unread = scope.unread ?? 0
   if (unread > 0) {
-    parts.push(t("search_index.state.unread", { n: unread.toLocaleString("en-US") }))
+    parts.push(t("search_index.state.unread", { n: formatNumber(unread) }))
   }
   if (scope.notice) parts.push(scope.notice)
   return parts.join(" · ")
@@ -131,8 +132,8 @@ export function summaryLine(state: KeepState, now: number = Date.now()): string 
   const files = scopes.reduce((total, scope) => total + (scope.files ?? 0), 0)
   return t("search_index.state.summary", {
     names,
-    files: t("search_index.state.summary_files", { n: files.toLocaleString("en-US") }, files),
-    folders: t("search_index.state.summary_folders", { n: scopes.length.toLocaleString("en-US") }, scopes.length),
+    files: t("search_index.state.summary_files", { n: formatNumber(files) }, files),
+    folders: t("search_index.state.summary_folders", { n: formatNumber(scopes.length) }, scopes.length),
   })
 }
 
@@ -140,13 +141,13 @@ export function summaryLine(state: KeepState, now: number = Date.now()): string 
 export function meaningLine(state: KeepState): string {
   const meaning = state.meaning
   if (!meaning) return t("search_index.state.meaning_off")
-  const passages = meaning.passages.toLocaleString("en-US")
+  const passages = formatNumber(meaning.passages)
   const model = meaning.model
   if (meaning.passages === 0) return t("search_index.state.meaning_nothing", { model })
   if (meaning.vectors >= meaning.passages) return t("search_index.state.meaning_all", { n: passages, model })
   return t(
     "search_index.state.meaning_some",
-    { vectors: meaning.vectors.toLocaleString("en-US"), n: passages, model },
+    { vectors: formatNumber(meaning.vectors), n: passages, model },
     meaning.passages
   )
 }

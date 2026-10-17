@@ -31,6 +31,7 @@ from app.adapters.postgres.names import name_check
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import ROLES_REPORT_ID
 from app.core.access import Access
+from app.core.translation import N_, say
 
 # PostgreSQL keeps this prefix for the roles it ships with, and refuses one of
 # its own with 42939. Refused here as well as there, so that the answer is
@@ -41,14 +42,14 @@ RESERVED_PREFIX = "pg_"
 ROLE_REFUSALS: Mapping[str, str] = {
     # insufficient_privilege: CREATE ROLE needs CREATEROLE or a superuser, and
     # this application connects as whoever the connector says.
-    "42501": "This connection may not create roles on this server",
+    "42501": N_("This connection may not create roles on this server"),
     # duplicate_object: the name was free when it was checked and is not now.
-    "42710": "A role with that name already exists",
+    "42710": N_("A role with that name already exists"),
     # reserved_name.
-    "42939": "That role name is reserved by PostgreSQL",
+    "42939": N_("That role name is reserved by PostgreSQL"),
     # invalid_password: a server may hold a password policy of its own, and
     # what it objected to is not repeated here.
-    "28P01": "The server refused that password",
+    "28P01": N_("The server refused that password"),
 }
 
 # What a password may be. The same bounds the application's own accounts use:
@@ -58,9 +59,9 @@ PASSWORD_MAX = 128
 
 
 class CreateRoleParams(BaseModel):
-    name: str = Field(title="Name")
+    name: str = Field(title=N_("Name"))
     password: SecretStr = Field(
-        title="Password", min_length=PASSWORD_MIN, max_length=PASSWORD_MAX
+        title=N_("Password"), min_length=PASSWORD_MIN, max_length=PASSWORD_MAX
     )
     # The database is this connection's own and is never named by the client,
     # so the choice is whether to grant, not what to grant it on. Usually a
@@ -68,8 +69,8 @@ class CreateRoleParams(BaseModel):
     # what matters on a server where somebody has.
     may_connect: bool = Field(
         default=True,
-        title="May connect to this database",
-        description="Grants CONNECT on the database this connection is on",
+        title=N_("May connect to this database"),
+        description=N_("Grants CONNECT on the database this connection is on"),
     )
 
     _check = field_validator("name")(name_check("role"))
@@ -92,7 +93,7 @@ class CreateRole(JsonAction[CreateRoleParams]):
     """
 
     name: ClassVar[str] = "create_role"
-    title: ClassVar[str] = "New role"
+    title: ClassVar[str] = N_("New role")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"report"})
     acts_on: ClassVar[ActsOn] = "node"
     # Above the list of roles rather than in the catalog menu: the report this
@@ -109,19 +110,22 @@ class CreateRole(JsonAction[CreateRoleParams]):
     async def run(self, node_id: str | None, params: CreateRoleParams) -> ActionResult:
         if node_id != ROLES_REPORT_ID:
             raise ActionRefused(
-                "not_applicable", "Roles are made from the Roles report"
+                "not_applicable", say("Roles are made from the Roles report")
             )
         if params.name.lower().startswith(RESERVED_PREFIX):
             raise ActionRefused(
                 "not_applicable",
-                f'PostgreSQL keeps names beginning with "{RESERVED_PREFIX}" '
-                "for roles of its own",
+                say(
+                    'PostgreSQL keeps names beginning with "{prefix}" for roles of its own',
+                    prefix=RESERVED_PREFIX,
+                ),
             )
         if await self._taken(params.name):
             # A taken name is a conflict rather than a fault, the shape a taken
             # folder name and an installed extension already answer with.
             raise ActionRefused(
-                "conflict", f'A role called "{params.name}" already exists'
+                "conflict",
+                say('A role called "{name}" already exists', name=params.name),
             )
         database = await self._database()
         async with self._session.transaction(refusals=ROLE_REFUSALS) as transaction:
@@ -132,8 +136,13 @@ class CreateRole(JsonAction[CreateRoleParams]):
                 )
         return ActionResult(
             message=(
-                f"Role {params.name} created"
-                + (f", and may connect to {database}" if params.may_connect else "")
+                say(
+                    "Role {name} created, and may connect to {database}",
+                    name=params.name,
+                    database=database,
+                )
+                if params.may_connect
+                else say("Role {name} created", name=params.name)
             ),
             # Nothing in the catalog changed: a role is not a node, and the
             # report that lists them re-reads when it is read. Naming a branch

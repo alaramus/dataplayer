@@ -16,6 +16,7 @@ from collections.abc import Mapping
 from psycopg import sql
 
 from app.adapters.postgres.session import PostgresSession
+from app.core.translation import N_
 
 COUNT_CEILING = 1000
 
@@ -133,9 +134,9 @@ async def rows_pointing_nowhere(
 # and the sentence is all that can honestly be said when the check itself is
 # the thing that failed.
 VALUE_REFUSALS = {
-    "22P02": "Some values cannot be read as the column's type",
-    "22003": "Some values are out of range for the column's type",
-    "22001": "Some values are too long for the column's type",
+    "22P02": N_("Some values cannot be read as the column's type"),
+    "22003": N_("Some values are out of range for the column's type"),
+    "22001": N_("Some values are too long for the column's type"),
 }
 
 

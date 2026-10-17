@@ -8,6 +8,8 @@
 
 import type { EChartsOption } from "echarts"
 
+import { formatDateTime } from "@/shared/i18n/format"
+
 import { formatValue } from "./seriesFormat"
 
 export interface ChartSeries {
@@ -41,7 +43,7 @@ function tooltipLines(params: unknown, units: Map<string, string>): string {
     const record = item as { seriesName?: unknown; value?: unknown; marker?: unknown }
     const value = Array.isArray(record.value) ? record.value : []
     const [ts, reading] = value as [unknown, unknown]
-    if (typeof ts === "number" && when === "") when = new Date(ts).toLocaleString()
+    if (typeof ts === "number" && when === "") when = formatDateTime(ts)
     if (typeof reading !== "number" || typeof record.seriesName !== "string") continue
     const marker = typeof record.marker === "string" ? record.marker : ""
     lines.push(`${marker}${record.seriesName}: ${formatValue(reading, units.get(record.seriesName) ?? "")}`)

@@ -5,6 +5,7 @@ import type { ActionPreview, HypertableDesign } from "@/client"
 import { usePreviewAction } from "@/features/catalog/api"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 import {
   AppBanner,
   AppButton,
@@ -214,7 +215,7 @@ const nowModes = computed(() => {
 const ordinaryNote = computed(() => {
   const rows = facts.value?.row_estimate
   if (rows === null || rows === undefined) return t("hypertable_design.chunks.ordinary_unknown")
-  return t("hypertable_design.chunks.ordinary_estimate", { n: rows.toLocaleString() }, rows)
+  return t("hypertable_design.chunks.ordinary_estimate", { n: formatNumber(rows) }, rows)
 })
 
 const units = (list: readonly DurationUnit[] | undefined) =>

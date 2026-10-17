@@ -27,6 +27,7 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     age_policy_plan,
     inspect_age_policy,
     plan_age_policy,
+    unreadable,
 )
 from app.adapters.postgres.timescale.names import TIMESCALE_MENU
 from app.adapters.postgres.timescale.plans import (
@@ -38,17 +39,12 @@ from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.protocol import AdapterError
 from app.core.access import Access
-
-# What the job does to a chunk, as a present-tense verb and as an imperative.
-_VERBS: dict[AgePolicyKind, tuple[str, str]] = {
-    "retention": ("drops", "drop"),
-    "compression": ("compresses", "compress"),
-}
+from app.core.translation import N_, say
 
 
 class ThresholdParams(TimeDuration):
     unit: Literal["hour", "day", "week", "month", "year"] = Field(
-        title="Unit", json_schema_extra=layout(row="threshold"),
+        title=N_("Unit"), json_schema_extra=layout(row="threshold"),
     )
 
     def duration(self) -> TimeDuration:
@@ -57,24 +53,20 @@ class ThresholdParams(TimeDuration):
 
 class RetentionParams(ThresholdParams):
     amount: int = Field(
-        strict=True, gt=0, le=2_147_483_647, title="Drop chunks older than",
+        strict=True, gt=0, le=2_147_483_647, title=N_("Drop chunks older than"),
         json_schema_extra=layout(row="threshold"),
     )
 
 
 class CompressionParams(ThresholdParams):
     amount: int = Field(
-        strict=True, gt=0, le=2_147_483_647, title="Compress chunks older than",
+        strict=True, gt=0, le=2_147_483_647, title=N_("Compress chunks older than"),
         json_schema_extra=layout(row="threshold"),
     )
 
 
 class NoParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
-
-def _unreadable(spec: AgePolicySpec) -> str:
-    return f"TimescaleDB {spec.noun} metadata could not be inspected safely"
 
 
 async def preview_age_policy(
@@ -87,32 +79,51 @@ async def preview_age_policy(
     except ActionRefused as exc:
         return ActionPreview(summary=exc.message, blocked=True)
     except (AdapterError, ValueError, TimeoutError):
-        return ActionPreview(summary=_unreadable(spec), blocked=True)
+        return ActionPreview(summary=unreadable(spec), blocked=True)
+    return ActionPreview(summary=_summary(plan), items=_items(plan), fingerprint=plan.fingerprint())
+
+
+def _summary(plan: AgePolicyPlan) -> str:
     target = sql.Identifier(plan.target.schema_name, plan.target.table_name).as_string()
-    summary = (
-        f"Set the {spec.noun} for {target}" if plan.older_than is not None
-        else f"Remove the {spec.noun} from {target}"
-    )
-    return ActionPreview(summary=summary, items=_items(spec, plan), fingerprint=plan.fingerprint())
-
-
-def _items(spec: AgePolicySpec, plan: AgePolicyPlan) -> list[str]:
-    present, imperative = _VERBS[plan.kind]
-    items = [f"Time dimension: {sql.Identifier(plan.target.column_name).as_string()}"]
-    if plan.existing is None:
-        items.append(f"No {spec.noun} exists yet")
-    else:
-        verb = "Removes" if plan.older_than is None else "Replaces"
-        items.append(f"{verb} job {plan.existing.job_id}, which {present} chunks {plan.existing.threshold()}")
+    if plan.kind == "retention":
         if plan.older_than is not None:
-            items.append(
-                f"The current policy runs every {plan.existing.schedule_interval}; "
-                "its replacement uses TimescaleDB's default schedule"
-            )
+            return say("Set the retention policy for {target}", target=target)
+        return say("Remove the retention policy from {target}", target=target)
     if plan.older_than is not None:
-        items.append(f"New policy: {imperative} chunks older than {plan.older_than.interval_value()}")
-    items.extend((plan.impact, plan.coordination))
+        return say("Set the compression policy for {target}", target=target)
+    return say("Remove the compression policy from {target}", target=target)
+
+
+def _items(plan: AgePolicyPlan) -> list[str]:
+    retention = plan.kind == "retention"
+    items = [say("Time dimension: {column}", column=sql.Identifier(plan.target.column_name).as_string())]
+    if plan.existing is None:
+        items.append(say("No retention policy exists yet") if retention else say("No compression policy exists yet"))
+    else:
+        items.append(_existing(plan.kind, plan.existing.job_id, plan.existing.threshold(), plan.older_than is None))
+        if plan.older_than is not None:
+            items.append(say(
+                "The current policy runs every {every}; its replacement uses TimescaleDB's default schedule",
+                every=plan.existing.schedule_interval,
+            ))
+    if plan.older_than is not None:
+        age = plan.older_than.label()
+        items.append(
+            say("New policy: drop chunks older than {age}", age=age) if retention
+            else say("New policy: compress chunks older than {age}", age=age)
+        )
+    items.extend((plan.impact, plan.said_coordination))
     return items
+
+
+def _existing(kind: AgePolicyKind, job: str, chunks: str, removing: bool) -> str:
+    if kind == "retention":
+        if removing:
+            return say("Removes job {job}, which drops chunks {chunks}", job=job, chunks=chunks)
+        return say("Replaces job {job}, which drops chunks {chunks}", job=job, chunks=chunks)
+    if removing:
+        return say("Removes job {job}, which compresses chunks {chunks}", job=job, chunks=chunks)
+    return say("Replaces job {job}, which compresses chunks {chunks}", job=job, chunks=chunks)
 
 
 async def age_policy_admission(
@@ -125,7 +136,7 @@ async def age_policy_admission(
     except ActionRefused as exc:
         return exc.message, exc.message
     except (AdapterError, ValueError, TimeoutError):
-        return _unreadable(spec), _unreadable(spec)
+        return unreadable(spec), unreadable(spec)
     # One day admits date and timestamp dimensions without choosing the user's threshold.
     return _refusal(spec, state, TimeDuration(amount=1, unit="day")), _refusal(spec, state, None)
 
@@ -138,10 +149,14 @@ def _refusal(spec: AgePolicySpec, state: AgePolicyState, older_than: TimeDuratio
     return None
 
 
+def _review_first(spec: AgePolicySpec) -> ActionRefused:
+    if spec.kind == "retention":
+        return ActionRefused("conflict", say("Review the retention policy plan before applying it"))
+    return ActionRefused("conflict", say("Review the compression policy plan before applying it"))
+
+
 class SetAgePolicy[P: ThresholdParams](Action[P]):
     spec: ClassVar[AgePolicySpec]
-    # The result message, formatted with the requested threshold.
-    done: ClassVar[str]
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
@@ -158,7 +173,11 @@ class SetAgePolicy[P: ThresholdParams](Action[P]):
         return await preview_age_policy(self._session, self.spec, schema.name, node.name, params.duration())
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
-        raise ActionRefused("conflict", f"Review the {self.spec.noun} plan before applying it")
+        raise _review_first(self.spec)
+
+    def done(self, age: str) -> str:
+        """The result message, with the requested threshold."""
+        raise NotImplementedError
 
     async def perform_reviewed(
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
@@ -169,14 +188,13 @@ class SetAgePolicy[P: ThresholdParams](Action[P]):
             self._session, self.spec, schema.name, node.name, params.duration(), fingerprint,
         )
         return ActionResult(
-            message=self.done.format(params.interval_value()),
+            message=self.done(params.label()),
             reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID],
         )
 
 
 class RemoveAgePolicy(Action[NoParams]):
     spec: ClassVar[AgePolicySpec]
-    done: ClassVar[str]
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
@@ -194,7 +212,10 @@ class RemoveAgePolicy(Action[NoParams]):
         return await preview_age_policy(self._session, self.spec, schema.name, node.name, None)
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
-        raise ActionRefused("conflict", f"Review the {self.spec.noun} plan before applying it")
+        raise _review_first(self.spec)
+
+    def done(self) -> str:
+        raise NotImplementedError
 
     async def perform_reviewed(
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
@@ -202,39 +223,49 @@ class RemoveAgePolicy(Action[NoParams]):
         self._validated(raw)
         schema, node = await user_table(self._catalog, node_id)
         await execute_age_policy(self._session, self.spec, schema.name, node.name, None, fingerprint)
-        return ActionResult(message=self.done, reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID])
+        return ActionResult(message=self.done(), reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID])
 
 
 class SetRetentionPolicy(SetAgePolicy[RetentionParams]):
     name: ClassVar[str] = "timescale_set_retention_policy"
-    title: ClassVar[str] = "Set retention policy"
+    title: ClassVar[str] = N_("Set retention policy")
     destructive: ClassVar[bool] = True
-    question: ClassVar[str | None] = (
+    question: ClassVar[str | None] = N_(
         "TimescaleDB will keep dropping old chunks by itself, even after this session ends. "
         "Set this policy?"
     )
     spec: ClassVar[AgePolicySpec] = RETENTION
-    done: ClassVar[str] = "Retention policy set: TimescaleDB drops chunks older than {} on its own schedule"
     params_model = RetentionParams
+
+    def done(self, age: str) -> str:
+        return say("Retention policy set: TimescaleDB drops chunks older than {age} on its own schedule", age=age)
 
 
 class RemoveRetentionPolicy(RemoveAgePolicy):
     name: ClassVar[str] = "timescale_remove_retention_policy"
-    title: ClassVar[str] = "Remove retention policy"
+    title: ClassVar[str] = N_("Remove retention policy")
     spec: ClassVar[AgePolicySpec] = RETENTION
-    done: ClassVar[str] = "Retention policy removed; TimescaleDB no longer drops old chunks automatically"
+
+    def done(self) -> str:
+        return say("Retention policy removed; TimescaleDB no longer drops old chunks automatically")
 
 
 class SetCompressionPolicy(SetAgePolicy[CompressionParams]):
     name: ClassVar[str] = "timescale_set_compression_policy"
-    title: ClassVar[str] = "Set compression policy"
+    title: ClassVar[str] = N_("Set compression policy")
     spec: ClassVar[AgePolicySpec] = COMPRESSION
-    done: ClassVar[str] = "Compression policy set: TimescaleDB compresses chunks older than {} on its own schedule"
     params_model = CompressionParams
+
+    def done(self, age: str) -> str:
+        return say(
+            "Compression policy set: TimescaleDB compresses chunks older than {age} on its own schedule", age=age,
+        )
 
 
 class RemoveCompressionPolicy(RemoveAgePolicy):
     name: ClassVar[str] = "timescale_remove_compression_policy"
-    title: ClassVar[str] = "Remove compression policy"
+    title: ClassVar[str] = N_("Remove compression policy")
     spec: ClassVar[AgePolicySpec] = COMPRESSION
-    done: ClassVar[str] = "Compression policy removed; TimescaleDB no longer compresses chunks automatically"
+
+    def done(self) -> str:
+        return say("Compression policy removed; TimescaleDB no longer compresses chunks automatically")

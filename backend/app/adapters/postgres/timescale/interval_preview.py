@@ -7,6 +7,7 @@ from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.interval_plan import plan_chunk_interval
 from app.adapters.postgres.timescale.plans import TimeDuration
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 
 async def preview_chunk_interval(
@@ -19,19 +20,19 @@ async def preview_chunk_interval(
         return ActionPreview(summary=exc.message, blocked=True)
     except (AdapterError, ValueError, TimeoutError):
         return ActionPreview(
-            summary="TimescaleDB interval metadata could not be inspected safely", blocked=True,
+            summary=say("TimescaleDB interval metadata could not be inspected safely"), blocked=True,
         )
 
     target = sql.Identifier(plan.target.schema_name, plan.target.table_name).as_string()
     column = sql.Identifier(plan.target.column_name).as_string()
     return ActionPreview(
-        summary=f"Change the future chunk interval for {target}",
+        summary=say("Change the future chunk interval for {target}", target=target),
         items=[
-            f"Time dimension: {column}",
-            f"Current interval: {plan.target.current_interval}",
-            f"Requested interval: {plan.interval.interval_value()}",
-            plan.impact,
-            plan.coordination,
+            say("Time dimension: {column}", column=column),
+            say("Current interval: {interval}", interval=plan.target.current_interval),
+            say("Requested interval: {interval}", interval=plan.interval.label()),
+            plan.said_impact,
+            plan.said_coordination,
         ],
         fingerprint=plan.fingerprint(),
     )

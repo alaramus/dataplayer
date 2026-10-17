@@ -99,6 +99,8 @@ export const TIME: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-di
 
 /** A time of day in this browser's clock, always on twenty-four hours: "03:00". */
 export function clockOf(moment: Date): string {
+  // A fixed locale rather than the interface's (D227): HH:MM on twenty-four
+  // hours in every language, the way the schedule's own times are written.
   return moment.toLocaleTimeString("en-GB", TIME)
 }
 

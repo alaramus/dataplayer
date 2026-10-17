@@ -2,6 +2,7 @@
 import { appIcons } from "@/shared/ui"
 import { AppBadge, AppButton, AppEmptyState, AppProgress } from "@/shared/ui"
 import { t } from "@/shared/i18n"
+import { formatTime } from "@/shared/i18n/format"
 import type { ProcessRow } from "./presentation"
 
 defineProps<{
@@ -58,7 +59,7 @@ defineEmits<{
       />
       <div class="processes__meta">
         <span>{{ row.measurement }}</span>
-        <time :datetime="new Date(row.createdAt).toISOString()">{{ new Date(row.createdAt).toLocaleTimeString() }}</time>
+        <time :datetime="new Date(row.createdAt).toISOString()">{{ formatTime(row.createdAt) }}</time>
       </div>
       <div
         v-if="row.active"

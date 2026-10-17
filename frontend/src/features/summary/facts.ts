@@ -5,6 +5,7 @@ import { datasetFacts } from "@/features/structure/model"
 import { statisticsFacts } from "@/features/summary/timescaleStatistics"
 import { t } from "@/shared/i18n"
 import type { MessageKey } from "@/shared/i18n"
+import { formatDateTime } from "@/shared/i18n/format"
 
 /** What a format states about itself, as the source sent it (D75). */
 export type NodeContents = NonNullable<NodeSummary["contents"]>
@@ -84,7 +85,7 @@ function nodeFacts(summary: NodeSummary): Fact[] {
 
 function addMoment(facts: Fact[], label: string, moment: string | null | undefined) {
   if (moment === null || moment === undefined) return
-  facts.push({ label, value: new Date(moment).toLocaleString() })
+  facts.push({ label, value: formatDateTime(moment) })
 }
 
 /**

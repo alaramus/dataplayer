@@ -41,7 +41,7 @@ from app.ai.catalog import (
 )
 from app.ai.model_routing import choose as choose_model
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
-from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
+from app.ai.prompts import TITLE_PROMPT, system_prompt
 from app.ai.providers import ChatModels
 from app.ai.providers.failures import UNKNOWN_FAILURE
 from app.ai.quick_answers import QuickAnswers
@@ -65,6 +65,7 @@ from app.ai.topic import (
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
+from app.core.translation import Language, current_language
 from app.realtime.topics import TopicSet
 from app.search.engine import SearchEngine
 
@@ -243,6 +244,7 @@ class AgentRunner:
                     run.id, owner_id, conversation.id, model, key, text, contexts, first,
                     route_note=route_note,
                     attachments=attachments,
+                    language=current_language.get(),
                 )
             )
             self._active[run.id] = _Active(
@@ -332,6 +334,7 @@ class AgentRunner:
                     resume_answer=answer,
                     reasoning_seed=reasoning,
                     initial_tokens=(run.input_tokens, run.output_tokens),
+                    language=current_language.get(),
                 )
             )
             self._active[run.id] = _Active(
@@ -388,6 +391,7 @@ class AgentRunner:
         reasoning_seed: str = "",
         initial_tokens: tuple[int, int] = (0, 0),
         attachments: Sequence[NewAttachment] = (),
+        language: Language = "en",
     ) -> None:
         active = self._active[run_id]
         reasoning: list[str] = [reasoning_seed] if reasoning_seed else []
@@ -424,6 +428,7 @@ class AgentRunner:
                             )
                         ),
                         answer=active.answer, reasoning=reasoning, tokens=tokens,
+                        language=language,
                         attached=tuple(
                             dict.fromkeys(
                                 one.connector_id for one in contexts if one.connector_id is not None
@@ -501,6 +506,7 @@ class AgentRunner:
         answer: list[str],
         reasoning: list[str],
         tokens: list[int],
+        language: Language = "en",
         attached: tuple[uuid.UUID, ...] = (),
     ) -> None:
         chat = self.chat_models.build(
@@ -529,7 +535,7 @@ class AgentRunner:
         agent = create_agent(
             chat,
             tools=build_tools(runtime),
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=system_prompt(language),
             checkpointer=self._checkpointer,
             middleware=[
                 transfer_policy(runtime),

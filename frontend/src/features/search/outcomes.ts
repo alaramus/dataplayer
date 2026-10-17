@@ -1,5 +1,6 @@
 import type { Outcome, PlannedCell, SearchRequest } from "@/client"
 import { t } from "@/shared/i18n"
+import { formatNumber } from "@/shared/i18n/format"
 
 import type { CellState } from "./answer"
 
@@ -42,7 +43,7 @@ const UNLOCK: Gesture = { kind: "unlock", get label() { return t("search.gesture
 
 /** "2 s", "0.4 s": the deadline a cell was given, as it was set. */
 export function secondsOf(seconds: number): string {
-  return t("search.outcomes.seconds", { n: String(Number(seconds.toFixed(1))) })
+  return t("search.outcomes.seconds", { n: formatNumber(seconds, { maximumFractionDigits: 1, useGrouping: false }) })
 }
 
 /** "14:02", in the reader's own time. */

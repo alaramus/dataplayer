@@ -18,6 +18,7 @@ from app.adapters.postgres.timescale.plans import (
 from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.protocol import AdapterError
+from app.core.translation import say
 
 _VIEWS = {
     "hypertables": ("hypertable_schema", "hypertable_name", "num_dimensions"),
@@ -65,7 +66,7 @@ async def plan_chunk_interval(
     session: PostgresReader, schema_name: str, table_name: str, interval: TimeDuration,
 ) -> ChunkIntervalPlan:
     if interval.unit in {"month", "year"}:
-        raise ActionRefused("not_applicable", "Calendar chunk intervals are not supported by this strategy")
+        raise ActionRefused("not_applicable", say("Calendar chunk intervals are not supported by this strategy"))
     try:
         async with asyncio.timeout(5):
             version = require_available(await discover(session))
@@ -74,11 +75,11 @@ async def plan_chunk_interval(
             rows = await session.query(_TARGET, (schema_name, table_name), inspection=True)
             if len(rows) != 1:
                 raise ActionRefused(
-                    "not_applicable", "Choose an owned hypertable with one time dimension",
+                    "not_applicable", say("Choose an owned hypertable with one time dimension"),
                 )
             target = IntervalTarget.model_validate(rows[0])
             if target.column_type == "date" and interval.unit not in {"day", "week"}:
-                raise ActionRefused("not_applicable", "Date dimensions require whole days or weeks")
+                raise ActionRefused("not_applicable", say("Date dimensions require whole days or weeks"))
             setter = await extension_routine(session, version, SET_INTERVAL)
             strategy = IntervalStrategy.model_validate({
                 "extension_version": version,
@@ -88,6 +89,6 @@ async def plan_chunk_interval(
             })
             return ChunkIntervalPlan(target=target, interval=interval, strategy=strategy)
     except TimeoutError:
-        raise ActionRefused("not_applicable", "TimescaleDB interval planning timed out") from None
+        raise ActionRefused("not_applicable", say("TimescaleDB interval planning timed out")) from None
     except (AdapterError, ValueError):
-        raise ActionRefused("not_applicable", "TimescaleDB interval metadata could not be inspected safely") from None
+        raise ActionRefused("not_applicable", say("TimescaleDB interval metadata could not be inspected safely")) from None

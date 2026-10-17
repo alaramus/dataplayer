@@ -56,6 +56,7 @@ from app.adapters.specializations import (
     TimescaleContinuousAggregate,
     TimescaleHypertable,
 )
+from app.core.translation import say
 
 TIMESCALE_ACTION_TYPES: tuple[ActionType, ...] = (
     DesignHypertable, SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
@@ -99,7 +100,7 @@ class TimescaleActions:
         if profile.feature.state == "absent":
             return []
         if profile.feature.state == "unavailable":
-            raise AdapterError("unknown", "TimescaleDB action vocabulary could not be inspected")
+            raise AdapterError("unknown", say("TimescaleDB action vocabulary could not be inspected"))
         return list(self.registered)
 
     async def offers(self, path: list[CatalogNode]) -> ActionOffers:

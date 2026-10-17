@@ -1,5 +1,6 @@
 import type { PreparedScript, PreparedStatement, RunParameter } from "@/client"
 import { t } from "@/shared/i18n"
+import { formatFixed } from "@/shared/i18n/format"
 
 /**
  * What Run means, worked out from what the source said and where the caret is.
@@ -198,7 +199,7 @@ export function statusWord(status: string): string {
 export function elapsed(milliseconds: number): string {
   if (milliseconds < 1000) return t("queries.duration.ms", { n: milliseconds })
   const seconds = milliseconds / 1000
-  if (seconds < 60) return t("queries.duration.seconds_fraction", { n: seconds.toFixed(1) })
+  if (seconds < 60) return t("queries.duration.seconds_fraction", { n: formatFixed(seconds, 1) })
   const minutes = Math.floor(seconds / 60)
   return t("queries.duration.minutes_seconds", { m: minutes, s: Math.floor(seconds % 60) })
 }

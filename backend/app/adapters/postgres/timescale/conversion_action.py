@@ -29,21 +29,24 @@ from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.targets import user_table
 from app.adapters.protocol import AdapterError
 from app.core.access import Access
+from app.core.translation import N_, say
 
-_UNREADABLE = "The table could not be inspected safely for conversion"
+
+def _unreadable() -> str:
+    return say("The table could not be inspected safely for conversion")
 
 
 class ConversionParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     time_column: str = Field(
-        min_length=1, max_length=63, title="Time column",
-        description="A timestamp or date column of this table",
+        min_length=1, max_length=63, title=N_("Time column"),
+        description=N_("A timestamp or date column of this table"),
     )
     amount: int = Field(
-        strict=True, gt=0, le=100_000, title="Chunk interval", json_schema_extra=layout(row="interval"),
+        strict=True, gt=0, le=100_000, title=N_("Chunk interval"), json_schema_extra=layout(row="interval"),
     )
-    unit: Literal["hour", "day", "week"] = Field(title="Unit", json_schema_extra=layout(row="interval"))
+    unit: Literal["hour", "day", "week"] = Field(title=N_("Unit"), json_schema_extra=layout(row="interval"))
 
     def interval(self) -> TimeDuration:
         return TimeDuration(amount=self.amount, unit=self.unit)
@@ -58,27 +61,29 @@ async def preview_conversion(
     except ActionRefused as exc:
         return ActionPreview(summary=exc.message, blocked=True)
     except (AdapterError, ValueError, TimeoutError):
-        return ActionPreview(summary=_UNREADABLE, blocked=True)
+        return ActionPreview(summary=_unreadable(), blocked=True)
     target = sql.Identifier(plan.target.schema_name, plan.target.table_name).as_string()
     return ActionPreview(
-        summary=f"Convert {target} into a hypertable", items=_items(plan), fingerprint=plan.fingerprint(),
+        summary=say("Convert {target} into a hypertable", target=target),
+        items=_items(plan), fingerprint=plan.fingerprint(),
     )
 
 
 def _items(plan: ConversionPlan) -> list[str]:
     column = sql.Identifier(plan.column.name).as_string()
     items = [
-        f"Time column: {column} ({plan.column.type})",
-        f"Chunk interval: {plan.interval.interval_value()}",
-        "The table is empty, and the conversion refuses if a row arrives before it runs",
+        say("Time column: {column} ({type})", column=column, type=plan.column.type),
+        say("Chunk interval: {interval}", interval=plan.interval.label()),
+        say("The table is empty, and the conversion refuses if a row arrives before it runs"),
     ]
     if not plan.column.not_null:
-        items.append(f"{column} becomes NOT NULL")
+        items.append(say("{column} becomes NOT NULL", column=column))
     items.append(
-        f"An index on {column} alone already exists, so TimescaleDB adds none" if plan.time_index_exists
-        else f"TimescaleDB adds an index on {column}, newest first"
+        say("An index on {column} alone already exists, so TimescaleDB adds none", column=column)
+        if plan.time_index_exists
+        else say("TimescaleDB adds an index on {column}, newest first", column=column)
     )
-    items.extend((plan.impact, plan.coordination))
+    items.extend((plan.said_impact, plan.said_coordination))
     return items
 
 
@@ -90,18 +95,18 @@ async def conversion_admission(session: PostgresSession, schema_name: str, table
     except ActionRefused as exc:
         return exc.message
     except (AdapterError, ValueError, TimeoutError):
-        return _UNREADABLE
+        return _unreadable()
     return None
 
 
 class ConvertToHypertable(Action[ConversionParams]):
     name: ClassVar[str] = "timescale_convert_to_hypertable"
-    title: ClassVar[str] = "Convert to hypertable"
+    title: ClassVar[str] = N_("Convert to hypertable")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table"})
     acts_on: ClassVar[ActsOn] = "node"
     requires: ClassVar[Access] = "structure"
     destructive: ClassVar[bool] = True
-    question: ClassVar[str | None] = (
+    question: ClassVar[str | None] = N_(
         "The table becomes a hypertable, which DataPlayer cannot turn back into an ordinary table. Convert it?"
     )
     feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ("timescaledb",)
@@ -126,7 +131,7 @@ class ConvertToHypertable(Action[ConversionParams]):
         return await preview_conversion(self._session, schema.name, node.name, params.time_column, params.interval())
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
-        raise ActionRefused("conflict", "Review the conversion plan before applying it")
+        raise ActionRefused("conflict", say("Review the conversion plan before applying it"))
 
     async def perform_reviewed(
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
@@ -137,6 +142,6 @@ class ConvertToHypertable(Action[ConversionParams]):
             self._session, schema.name, node.name, params.time_column, params.interval(), fingerprint,
         )
         return ActionResult(
-            message="Converted to a hypertable; rows added from now on are stored in chunks",
+            message=say("Converted to a hypertable; rows added from now on are stored in chunks"),
             reload_node_ids=[schema.id, node.id, TIMESCALE_SECTION_ID],
         )

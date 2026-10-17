@@ -9,6 +9,7 @@ Decisions here: D224, D225, D226, D227.
 ```
 frontend/src/shared/i18n/
 ├── index.ts          the languages, `t`, loading one, which one opens first
+├── format.ts         dates and numbers in the interface's language
 ├── problems.ts       a coded refusal told apart and worded
 └── locales/
     ├── en/           the source, a module per area; every other language is typed against it
@@ -175,6 +176,26 @@ and shows the English where a page has no translation. A database's own error
 text — PostgreSQL's `relation "x" does not exist` — is passed on as the
 database wrote it: its language is the server's setting, and the English is
 what a person searches for.
+
+- A date or a number a person reads goes through `@/shared/i18n/format`:
+  `formatDateTime`, `formatDate`, `formatTime`, `formatNumber`, and
+  `formatFixed` in place of `toFixed`. A fixed locale is kept only where the
+  output must not change with the language, and says why.
+- The runner takes `current_language` when a run starts or resumes and passes
+  it to `system_prompt(language)`; quick chat words its prompt the same way.
+  English adds no line.
+- A translated guide page is `pages/<language>/<key>.md` (D183); a key English
+  lacks is refused when the pages are read.
+
+### Known deviations
+
+- ECharts writes its own axis labels and dates in its built-in English; no
+  ECharts locale is registered.
+- A grid cell is data and is shown as the source sent it, not reformatted.
+- The guide search reads the English pages only.
+- No guide page is translated yet, and nor are the short lists' headings: a
+  translated page finds its lists under the English heading or under its
+  `say` translation once one is registered.
 
 Spec: [Words a source writes](../decisions/2026-10-17-source-words-design.md)
 

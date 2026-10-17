@@ -46,6 +46,7 @@ from app.adapters.query import (
     TransactionState,
 )
 from app.adapters.relation import ColumnType
+from app.core.translation import N_, say, say_if
 
 # What a diagnostic's category is, by SQLSTATE. Everything unlisted is
 # "unknown", which is honest: a category invented per code would be a guess
@@ -126,23 +127,23 @@ def diagnostic_of(exc: psycopg.Error, *, cancelled: bool) -> QueryDiagnostic:
         except ValueError:
             position = None
     message = _safe_text(
-        getattr(diag, "message_primary", None), "The statement could not be run"
+        getattr(diag, "message_primary", None), say("The statement could not be run")
     )
     if sqlstate == "57014":
-        message = "Cancelled" if cancelled else "The statement ran out of time"
+        message = say("Cancelled") if cancelled else say("The statement ran out of time")
     return QueryDiagnostic(
         code=sqlstate or "unknown",
         category=category,  # type: ignore[arg-type]  # _category_of answers the union
         message=message,
         position=position,
-        hint=_HINTS.get(sqlstate or ""),
+        hint=say_if(_HINTS.get(sqlstate or "")),
     )
 
 
 # Vetted, and only where the server's own message leaves a person stuck. Not
 # a place to guess: an unhelpful hint is worse than none.
 _HINTS: dict[str, str] = {
-    "42P18": "Add a cast to the parameter, for example :name::date",
+    "42P18": N_("Add a cast to the parameter, for example :name::date"),
 }
 
 
@@ -181,7 +182,7 @@ local: bool = True,
     if missing:
         raise AdapterError(
             "config",
-            f"This connection has no schema called {missing[0]}",
+            say("This connection has no schema called {name}", name=missing[0]),
         )
     await connection.execute(
         sql.SQL("{} search_path TO {}").format(
@@ -340,9 +341,9 @@ class _Statements:
                     code="dp_not_admitted",
                     category="read_only",
                     message=(
-                        f"A {statement.kind} statement cannot run in a read"
+                        say("A {kind} statement cannot run in a read", kind=statement.kind)
                         if self._request.mode == "read"
-                        else f"A {statement.kind} statement is not run here"
+                        else say("A {kind} statement is not run here", kind=statement.kind)
                     ),
                 ),
             )
@@ -473,19 +474,22 @@ class _Statements:
                 size = 0 if cell is None else len(cell.encode())
                 if size > limits.max_cell_bytes:
                     raise ResultTooLarge(
-                        f"A value in {column.name} is larger than one cell may be"
+                        say(
+                            "A value in {column} is larger than one cell may be",
+                            column=column.name,
+                        )
                     )
                 used += size
                 if used > limits.max_result_bytes:
-                    raise ResultTooLarge("This result is larger than one result may be")
+                    raise ResultTooLarge(say("This result is larger than one result may be"))
                 row.append(cell)
             rows.append(row)
         self._run_bytes += used
         self._run_results += 1
         if self._run_results > limits.max_run_results:
-            raise ResultTooLarge("This run produced more results than one run may hold")
+            raise ResultTooLarge(say("This run produced more results than one run may hold"))
         if self._run_bytes > limits.max_run_bytes:
-            raise ResultTooLarge("This run produced more data than one run may hold")
+            raise ResultTooLarge(say("This run produced more data than one run may hold"))
         return MaterialisedResult(
             columns=columns, rows=rows, truncated=truncated, bytes_used=used
         )
@@ -521,7 +525,7 @@ class _Statements:
         self._notices.append(
             QueryNotice(
                 severity=_safe_text(diagnostic.severity, "NOTICE"),
-                message=_safe_text(diagnostic.message_primary, "A message was raised"),
+                message=_safe_text(diagnostic.message_primary, say("A message was raised")),
             )
         )
 
@@ -580,11 +584,11 @@ class PostgresExecution(_Statements):
         except _RollBack:
             return
         except PoolTimeout:
-            raise AdapterError("timeout", "No connection was free for this query") from None
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
         except AdapterError:
             raise
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="The query could not be run")
+            error_kind, message = classify(exc, fallback_message=N_("The query could not be run"))
             raise AdapterError(error_kind, message) from None
 
     async def _outside_transaction(
@@ -626,11 +630,11 @@ class PostgresExecution(_Statements):
                         # not put back: the pool discards a closed one.
                         await connection.close()
         except PoolTimeout:
-            raise AdapterError("timeout", "No connection was free for this query") from None
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
         except AdapterError:
             raise
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="The query could not be run")
+            error_kind, message = classify(exc, fallback_message=N_("The query could not be run"))
             raise AdapterError(error_kind, message) from None
 
 
@@ -652,7 +656,7 @@ class _BoundExecution(_Statements):
     async def _run(self) -> AsyncIterator[QueryEvent]:
         connection = self._connection
         if connection is None:
-            raise AdapterError("unknown", "This transaction is no longer open")
+            raise AdapterError("unknown", say("This transaction is no longer open"))
         limits = self._request.limits
         script = prepare(self._request.text)
         started = time.monotonic()
@@ -661,11 +665,11 @@ class _BoundExecution(_Statements):
             async for event in self._statements(connection, script, started, limits):
                 yield event
         except PoolTimeout:
-            raise AdapterError("timeout", "No connection was free for this query") from None
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
         except AdapterError:
             raise
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="The query could not be run")
+            error_kind, message = classify(exc, fallback_message=N_("The query could not be run"))
             raise AdapterError(error_kind, message) from None
         finally:
             connection.remove_notice_handler(self._note)
@@ -692,7 +696,7 @@ class _Rehearsal:
         self._notices.append(
             QueryNotice(
                 severity=_safe_text(diagnostic.severity, "NOTICE"),
-                message=_safe_text(diagnostic.message_primary, "A message was raised"),
+                message=_safe_text(diagnostic.message_primary, say("A message was raised")),
             )
         )
 
@@ -783,9 +787,7 @@ def _blocked_diagnostic(sqlstate: str | None) -> QueryDiagnostic:
     return QueryDiagnostic(
         code=sqlstate or _LOCK_NOT_AVAILABLE,
         category="resource",
-        message=(
-            "Something else is holding this open; the change was not rehearsed"
-        ),
+        message=say("Something else is holding this open; the change was not rehearsed"),
     )
 
 
@@ -835,14 +837,14 @@ class PostgresTransaction:
             )
         except PoolTimeout:
             await self._stack.aclose()
-            raise AdapterError("timeout", "No connection was free for this query") from None
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
         except AdapterError:
             await self._stack.aclose()
             raise
         except Exception as exc:
             await self._stack.aclose()
             error_kind, message = classify(
-                exc, fallback_message="The transaction could not be opened"
+                exc, fallback_message=N_("The transaction could not be opened")
             )
             raise AdapterError(error_kind, message) from None
         self._connection = connection
@@ -851,11 +853,11 @@ class PostgresTransaction:
     def execute(self, request: QueryRequest) -> _BoundExecution:
         connection = self._connection
         if connection is None or not self._open:
-            raise AdapterError("unknown", "This transaction is no longer open")
+            raise AdapterError("unknown", say("This transaction is no longer open"))
         if self._broken:
             raise AdapterError(
                 "unknown",
-                "This transaction failed and can only be rolled back",
+                say("This transaction failed and can only be rolled back"),
             )
         run = _BoundExecution(self._session, request, connection)
         self._pending = run
@@ -872,10 +874,10 @@ class PostgresTransaction:
         """
         connection = self._connection
         if connection is None or not self._open:
-            raise AdapterError("unknown", "This transaction is no longer open")
+            raise AdapterError("unknown", say("This transaction is no longer open"))
         if self._broken:
             raise AdapterError(
-                "unknown", "This transaction failed and can only be rolled back"
+                "unknown", say("This transaction failed and can only be rolled back")
             )
         rehearsal = _Rehearsal(request)
         connection.add_notice_handler(rehearsal.note)
@@ -887,12 +889,12 @@ class PostgresTransaction:
             except _RollBack:
                 pass
         except PoolTimeout:
-            raise AdapterError("timeout", "No connection was free for this query") from None
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
         except AdapterError:
             raise
         except Exception as exc:
             error_kind, message = classify(
-                exc, fallback_message="The change could not be rehearsed"
+                exc, fallback_message=N_("The change could not be rehearsed")
             )
             raise AdapterError(error_kind, message) from None
         finally:
@@ -934,7 +936,7 @@ class PostgresTransaction:
     async def commit(self) -> None:
         if self._broken:
             raise AdapterError(
-                "unknown", "This transaction failed and can only be rolled back"
+                "unknown", say("This transaction failed and can only be rolled back")
             )
         await self._end(commit=True)
 
@@ -961,7 +963,7 @@ class PostgresTransaction:
             return
         except Exception as exc:
             error_kind, message = classify(
-                exc, fallback_message="The transaction could not be ended"
+                exc, fallback_message=N_("The transaction could not be ended")
             )
             raise AdapterError(error_kind, message) from None
         finally:
@@ -1044,12 +1046,12 @@ class PostgresQuery:
                     connection.remove_notice_handler(rehearsal.note)
                     await connection.set_read_only(None)
         except PoolTimeout:
-            raise AdapterError("timeout", "No connection was free for this query") from None
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
         except AdapterError:
             raise
         except Exception as exc:
             error_kind, message = classify(
-                exc, fallback_message="The change could not be rehearsed"
+                exc, fallback_message=N_("The change could not be rehearsed")
             )
             raise AdapterError(error_kind, message) from None
         return rehearsal.rehearsal
