@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, SQLModel, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.translation import Language, as_language
+from app.core.translation import Language, as_language, current_language
 
 # How often this user's connections are probed, as a closed set rather than a
 # number somebody types. A free field here is a field somebody puts 1 in, and
@@ -137,3 +137,10 @@ async def set_for(
     session.add(stored)
     await session.commit()
     return _public(stored)
+
+
+async def recipient_language(session: AsyncSession, user_id: uuid.UUID) -> Language:
+    """What an email to this person is written in (D227): the language they
+    chose, or the one the request that sends it was made in."""
+    return (await of(session, user_id)).language or current_language.get()
+

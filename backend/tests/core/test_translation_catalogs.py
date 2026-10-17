@@ -1,6 +1,7 @@
 """Every word the server writes for a person has its translations (D226)."""
 
 import ast
+import re
 import string
 from collections.abc import Iterator
 from pathlib import Path
@@ -17,7 +18,7 @@ NOT_WORDED = {
     "alembic": "migrations write nothing a person reads",
     "api": "assembles routers and writes nothing",
     "core": "holds the translation itself, and refusals are codes the browser words (D225)",
-    "email-templates": "emails are not translated yet (D227)",
+    "email-templates": "templates, read below by EMAIL_SENTENCE rather than as Python",
     "frontend": "the built browser application",
 }
 
@@ -51,7 +52,24 @@ WORDED_ARGUMENTS = {
 }
 
 
+# The one module of core that writes for a person: the emails' subjects.
+WORDED_IN_CORE = ["core/email.py"]
+
+TEMPLATES = APP / "email-templates"
+# A sentence of an email template, `{{ say("…") }}`.
+EMAIL_SENTENCE = re.compile(r'say\("([^"]+)"')
+
+
+def _template_words() -> set[str]:
+    return {
+        text
+        for path in TEMPLATES.glob("*.html")
+        for text in EMAIL_SENTENCE.findall(path.read_text(encoding="utf-8"))
+    }
+
+
 def _files() -> Iterator[Path]:
+    yield from (APP / path for path in WORDED_IN_CORE)
     """A directory is everything below it; a pattern is just what it matches,
     so a package can move a part at a time."""
     for package in MOVED:
@@ -146,6 +164,7 @@ TRANSLATED: list[Language] = [language for language in LANGUAGES if language != 
 @pytest.mark.parametrize("language", TRANSLATED)
 def test_every_marked_word_has_its_translation(language: Language) -> None:
     marked, _ = _findings()
+    marked |= _template_words()
     translations = catalog(language)
 
     missing = sorted(text for text in marked if text not in translations)
@@ -173,4 +192,18 @@ def test_the_same_english_is_translated_the_same_way_everywhere() -> None:
     """The catalogs are merged, so two translations of one sentence would leave
     the choice to whichever package happened to register last."""
     assert disagreements() == []
+
+
+def test_an_email_template_writes_nothing_outside_say() -> None:
+    """A sentence typed into the markup would reach a Russian reader in
+    English; the year, a name and the address are not sentences."""
+    stray: list[str] = []
+    for path in TEMPLATES.glob("*.html"):
+        markup = re.sub(r"<style.*?</style>", "", path.read_text(encoding="utf-8"), flags=re.S)
+        for run in re.findall(r">([^<]*)<", markup):
+            bare = re.sub(r"\{\{.*?\}\}|&#x27;|&[a-z]+;", "", run)
+            if re.search(r"[A-Za-z]{2,}", bare):
+                stray.append(f"{path.name}: {run.strip()[:60]}")
+
+    assert stray == []
 

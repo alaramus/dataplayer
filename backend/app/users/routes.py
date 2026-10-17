@@ -11,7 +11,7 @@ from app.core.email import generate_new_account_email, send_email
 from app.core.problems import Problem
 from app.core.schemas import Message
 from app.core.security import get_password_hash, verify_password
-from app.core.translation import say
+from app.core.translation import current_language, say
 from app.users import crud, preferences
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import (
@@ -87,7 +87,11 @@ async def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     user = await crud.create_user(session=session, user_create=user_in)
     if settings.emails_enabled and user_in.email:
         email_data = generate_new_account_email(
-            email_to=user_in.email, username=user_in.email, password=user_in.password
+            email_to=user_in.email,
+            username=user_in.email,
+            password=user_in.password,
+            # Nobody has chosen for the new account yet: the language of whoever made it.
+            language=current_language.get(),
         )
         # send_email blocks on SMTP: calling it directly from an async handler
         # would stall the whole event loop.

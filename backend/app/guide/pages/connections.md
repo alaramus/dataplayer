@@ -110,7 +110,7 @@ A source that keeps nothing says so, and the field is switched off.
 
 ### Permissions
 
-- **Statements from a console** decides what a query console may do on this
+- **Consoles** decides what a query console may do on this
   connection: **Read only**, **Ask before writing** (the default) or
   **Writing allowed**. It applies to everybody the connection is shared with.
 - **Allow sending data to third parties** decides whether data read through

@@ -164,7 +164,7 @@ that table.
 - **Explain** shows the plan of a statement without running it.
 - Changes are committed at once, unless **Manual** is switched on. Then the
   console holds a transaction open until **Commit** or **Roll back**.
-- The connection's **Statements from a console** setting decides whether
+- The connection's **Consoles** setting decides whether
   changes are allowed, asked about each time, or refused.
 - Changing the structure (tables, views, indexes, schemas) is always asked
   about. A destructive change is tried inside a transaction first, and you are

@@ -198,15 +198,19 @@ what a person searches for.
 - A translated guide page is `pages/<language>/<key>.md` (D183); a key English
   lacks is refused when the pages are read.
 
+An email is written in its recipient's language: the one their account chose,
+or the language of the request that sends it — a new account's is its
+maker's. Each template is one file whose sentences are `{{ say("…") }}`,
+worded from `core/locales/ru.py` with the subject; the catalog test reads the
+templates and fails on a sentence typed into the markup.
+
 ### Known deviations
 
-- Emails — a new account, a password reset — are English only.
 - A chart takes ECharts' locale when it is drawn (`shared/i18n/echarts.ts`);
   one already on screen keeps its axis words until it is drawn again.
 - A grid cell is data and is shown as the source sent it, not reformatted.
-- No guide page is translated yet, and nor are the short lists' headings: a
-  translated page finds its lists under the English heading or under its
-  `say` translation once one is registered.
+- German, French and Chinese pages do not exist yet; a language without a
+  page shows the English.
 
 Spec: [Words a source writes](../decisions/2026-10-17-source-words-design.md)
 

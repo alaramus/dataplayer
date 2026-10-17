@@ -1,6 +1,8 @@
 """A page in the request's language, the English where it has none (D227)."""
 
+import re
 from collections.abc import Iterator
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -22,7 +24,7 @@ def _clear() -> None:
 @pytest.fixture
 def pages(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Two English pages and a Russian translation of one, in place of the
-    shipped ones — no real page is translated yet."""
+    shipped ones — the shipped ones would make these depend on their wording."""
     (tmp_path / "connections.md").write_text(
         "# Connections\n\nEnglish\n", encoding="utf-8"
     )
@@ -84,3 +86,14 @@ async def test_the_routes_answer_in_the_requests_language(
     types = await client.get(f"{ADAPTER_TYPES}/", headers=russian)
     postgres = next(one for one in types.json() if one["name"] == "postgres")
     assert postgres["can_see"] == ["Таблицы"]
+
+
+def test_the_shipped_russian_postgres_page_has_its_short_lists_in_russian() -> None:
+    _clear()
+    page = in_language("ru", lambda: reader.page("source-postgres"))
+    assert page is not None
+    for heading in (reader.CAN_SEE, reader.CAN_CHANGE):
+        items = in_language("ru", partial(reader.bullets, page.markdown, heading))
+        assert items
+        assert all(re.search("[а-яё]", item, re.IGNORECASE) for item in items)
+    _clear()

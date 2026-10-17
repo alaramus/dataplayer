@@ -16,6 +16,7 @@ from app.core.translation import say
 from app.users import crud
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import NewPassword, Token, UserPublic, UserUpdate
+from app.users.preferences import recipient_language
 from app.users.tokens import (
     generate_password_reset_token,
     verify_password_reset_token,
@@ -66,7 +67,10 @@ async def recover_password(email: str, session: SessionDep) -> Message:
     if user:
         password_reset_token = generate_password_reset_token(email=email)
         email_data = generate_reset_password_email(
-            email_to=user.email, email=email, token=password_reset_token
+            email_to=user.email,
+            email=email,
+            token=password_reset_token,
+            language=await recipient_language(session, user.id),
         )
         # send_email blocks on SMTP: calling it directly from an async handler
         # would stall the whole event loop.
@@ -119,7 +123,10 @@ async def recover_password_html_content(email: str, session: SessionDep) -> Any:
         raise Problem(404, "auth.no_user_with_email")
     password_reset_token = generate_password_reset_token(email=email)
     email_data = generate_reset_password_email(
-        email_to=user.email, email=email, token=password_reset_token
+        email_to=user.email,
+        email=email,
+        token=password_reset_token,
+        language=await recipient_language(session, user.id),
     )
 
     return HTMLResponse(
