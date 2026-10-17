@@ -16,6 +16,7 @@ from app.adapters.actions import ActionRefused
 from app.adapters.redis.actions import lines, pairs, scored
 from app.adapters.redis.adapter import RedisAdapter
 from app.adapters.redis.keyspace import database_id, folder_id, key_id
+from app.core.translation import current_language
 from tests.utils.keyspace import chosen_database, empty_keyspace, redis_options
 
 DB = chosen_database()
@@ -318,3 +319,21 @@ async def test_a_key_written_here_appears_in_the_catalog(
 
     assert [node.name for node in inside_database] == ["fresh:"]
     assert [node.name for node in inside_folder] == ["one"]
+
+
+async def test_a_result_and_a_refusal_are_written_in_russian(
+    adapter: RedisAdapter,
+) -> None:
+    """In the language of the request (D226), with the key's name kept as it is."""
+    # Set here rather than in a fixture: the event loop runs the test in a
+    # context of its own, which a fixture's setting would not reach.
+    token = current_language.set("ru")
+    try:
+        gone = await _perform(adapter, "delete_key", key_id(DB, "never:there"))
+        with pytest.raises(ValueError) as refused:
+            scored("ada=soon")
+    finally:
+        current_language.reset(token)
+
+    assert gone == "never:there: ключа уже не было"
+    assert str(refused.value) == "«soon» — не оценка: нужно число"

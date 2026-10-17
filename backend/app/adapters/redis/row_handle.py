@@ -17,6 +17,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.translation import say
+
 # What a fingerprint is: enough of a digest to tell one value from another,
 # and short enough that a page of five hundred handles is not a page of
 # hashes. Sixteen hex characters is 64 bits.
@@ -67,5 +69,5 @@ def decode_row_handle(value: str) -> RedisRowHandle:
         if not all(isinstance(one, str) for one in (data_type, identity, held)):
             raise ValueError
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
-        raise ValueError("The row handle is not valid") from None
+        raise ValueError(say("The row handle is not valid")) from None
     return RedisRowHandle(data_type=data_type, identity=identity, fingerprint=held)

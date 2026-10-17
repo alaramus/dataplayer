@@ -24,6 +24,7 @@ from app.connectors.ssh_keys import (
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/ssh-keys", tags=["ssh-keys"])
@@ -128,7 +129,7 @@ async def delete_ssh_key(
     KEYRING.lock(row.id)
     await session.delete(row)
     await session.commit()
-    return Message(message="Key deleted")
+    return Message(message=say("Key deleted"))
 
 
 @router.post("/{key_id}/unlock", response_model=SshKeyPublic)

@@ -22,6 +22,7 @@ import BlockChrome from "@/features/content/markdown/BlockChrome.vue"
 import { useThemeStore } from "@/stores/theme"
 import { t } from "@/shared/i18n"
 import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
+import { chartLocale } from "@/shared/i18n/echarts"
 
 registerDocumentCharts()
 
@@ -60,7 +61,7 @@ function draw() {
   const answer = parsed.value
   if (element === null || "failure" in answer) return
   chart?.dispose()
-  chart = init(element, theme.dark ? "dark" : undefined, { renderer: "svg" })
+  chart = init(element, theme.dark ? "dark" : undefined, { renderer: "svg", locale: chartLocale() })
   try {
     chart.setOption({ ...answer.option, backgroundColor: "transparent" }, true)
     failure.value = ""

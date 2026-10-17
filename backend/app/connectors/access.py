@@ -22,6 +22,7 @@ from app.connectors.models import Connector
 from app.connectors.ssh_keys import OwnerKeys
 from app.core.access import Access, at_least
 from app.core.problems import Problem, ProblemCode
+from app.core.translation import say
 from app.users import storage
 from app.users.models import User
 
@@ -86,7 +87,7 @@ def adapter_type_or_422(adapter_type: str) -> AdapterType:
             detail=[
                 {
                     "loc": ["body", "adapter_type"],
-                    "msg": f"Unknown adapter type: {adapter_type}",
+                    "msg": say("Unknown adapter type: {name}", name=adapter_type),
                     "type": "value_error",
                 }
             ],

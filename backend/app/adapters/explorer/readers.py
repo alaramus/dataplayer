@@ -11,6 +11,7 @@ from app.adapters.delimited import delimiter_of, fit, usable_names
 from app.adapters.explorer import logs, records
 from app.adapters.fetch import FetchColumn, Filter, ScalarFilter
 from app.adapters.relation import ColumnType
+from app.core.translation import say
 
 # What a file may be asked about a value, and the whole of it (D109). Sorting
 # stays refused, so this is the only vocabulary the file source publishes.
@@ -58,9 +59,11 @@ def matcher(filters: Sequence[Filter], names: Sequence[str]) -> RowMatch:
     tests: list[tuple[int, str]] = []
     for asked in filters:
         if not isinstance(asked, ScalarFilter) or asked.op != "eq":
-            raise ValueError("This source can only filter by an exact value")
+            raise ValueError(say("This source can only filter by an exact value"))
         if asked.column not in names:
-            raise ValueError(f'This file has no column "{asked.column}"')
+            raise ValueError(
+                say('This file has no column "{column}"', column=asked.column)
+            )
         tests.append((names.index(asked.column), asked.value))
     return RowMatch(tuple(tests))
 
@@ -113,7 +116,7 @@ class CsvReader:
             header = next(reader, None)
             if header is None:
                 if filters:
-                    raise ValueError("This file has no columns to filter by")
+                    raise ValueError(say("This file has no columns to filter by"))
                 return Page(columns=[], rows=[], has_more=False, positions=[])
 
             names = usable_names(header)
@@ -185,7 +188,7 @@ class LogReader:
                 try:
                     text = data.decode("utf-8")
                 except UnicodeDecodeError:
-                    raise ValueError("This log is not valid UTF-8 text") from None
+                    raise ValueError(say("This log is not valid UTF-8 text")) from None
                 checkpoint()
                 table = records.from_text(
                     text, one_per_line=True, max_cells=max_cells, checkpoint=checkpoint

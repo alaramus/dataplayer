@@ -11,6 +11,7 @@ from app.core.email import generate_new_account_email, send_email
 from app.core.problems import Problem
 from app.core.schemas import Message
 from app.core.security import get_password_hash, verify_password
+from app.core.translation import say
 from app.users import crud, preferences
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import (
@@ -137,7 +138,7 @@ async def update_password_me(
     current_user.hashed_password = hashed_password
     session.add(current_user)
     await session.commit()
-    return Message(message="Password updated successfully")
+    return Message(message=say("Password updated successfully"))
 
 
 @router.get("/me", response_model=UserPublic)
@@ -172,7 +173,7 @@ async def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
     if current_user.is_superuser:
         raise Problem(403, "users.superuser_cannot_delete_self")
     await crud.delete_user(session=session, user=current_user)
-    return Message(message="User deleted successfully")
+    return Message(message=say("User deleted successfully"))
 
 
 @router.post("/signup", response_model=UserPublic)
@@ -247,4 +248,4 @@ async def delete_user(
     if user == current_user:
         raise Problem(403, "users.superuser_cannot_delete_self")
     await crud.delete_user(session=session, user=user)
-    return Message(message="User deleted successfully")
+    return Message(message=say("User deleted successfully"))

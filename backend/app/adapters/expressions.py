@@ -17,6 +17,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.translation import say
+
 # Where an expression sits, because a valid default is not a valid predicate:
 # `now()` may fill a column and cannot decide a CHECK, and a column reference
 # means nothing in a default. The source publishes which functions belong to
@@ -221,9 +223,14 @@ def too_large(node: Expression) -> str | None:
     walk. Neither is the other's duplicate — one reads JSON, one reads a tree.
     """
     if depth_of(node) > MAX_EXPRESSION_DEPTH:
-        return f"An expression may nest at most {MAX_EXPRESSION_DEPTH} levels deep"
+        return say(
+            "An expression may nest at most {count} levels deep",
+            count=MAX_EXPRESSION_DEPTH,
+        )
     if sum(1 for _ in walk(node)) > MAX_EXPRESSION_NODES:
-        return f"An expression may hold at most {MAX_EXPRESSION_NODES} parts"
+        return say(
+            "An expression may hold at most {count} parts", count=MAX_EXPRESSION_NODES
+        )
     return None
 
 
@@ -251,8 +258,10 @@ def raw_shape_refusal(raw: Any) -> str | None:
             continue
         containers += 1
         if containers > MAX_RAW_CONTAINERS:
-            return "That definition holds more parts than can be planned"
+            return say("That definition holds more parts than can be planned")
         if level > MAX_RAW_DEPTH:
-            return f"A definition may nest at most {MAX_RAW_DEPTH} levels deep"
+            return say(
+                "A definition may nest at most {count} levels deep", count=MAX_RAW_DEPTH
+            )
         stack.extend((value, level + 1) for value in values)
     return None

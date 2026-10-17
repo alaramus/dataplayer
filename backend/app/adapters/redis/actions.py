@@ -46,6 +46,7 @@ from app.adapters.redis.keyspace import (
 )
 from app.adapters.redis.session import RedisSession, resolved
 from app.core.access import Access
+from app.core.translation import N_, say
 
 # What a key may be called. Anything but a newline is legal in Redis itself,
 # and almost anything is a bad idea: a name with a space or a control
@@ -67,8 +68,7 @@ MAX_VALUE_LENGTH = 1_000_000
 def _key_check(written: str) -> str:
     if not KEY_PATTERN.match(written):
         raise ValueError(
-            "A key name may hold letters, digits, colons, dots, dashes and "
-            "underscores"
+            say("A key name may hold letters, digits, colons, dots, dashes and underscores")
         )
     return written
 
@@ -93,7 +93,7 @@ def pairs(written: str) -> list[tuple[str, str]]:
     for line in lines(written):
         name, sign, value = line.partition("=")
         if sign == "" or name.strip() == "":
-            raise ValueError(f'Write each line as name=value, not "{line}"')
+            raise ValueError(say('Write each line as name=value, not "{line}"', line=line))
         found.append((name.strip(), value))
     return found
 
@@ -105,13 +105,15 @@ def scored(written: str) -> dict[str, float]:
         try:
             members[member] = float(score)
         except ValueError:
-            raise ValueError(f'"{score}" is not a score') from None
+            raise ValueError(say('"{score}" is not a score', score=score)) from None
     return members
 
 
-def _not_empty(parsed: Sequence[Any] | dict[str, Any], noun: str) -> None:
+def _not_empty(parsed: Sequence[Any] | dict[str, Any], refusal: str) -> None:
+    """`refusal` is a whole sentence marked `N_`: one per type, since a noun
+    glued into a sentence cannot be translated."""
     if len(parsed) == 0:
-        raise ValueError(f"A {noun} needs at least one line")
+        raise ValueError(say(refusal))
 
 
 # The shared fields, written once and used by each of the six models. Field
@@ -122,10 +124,9 @@ def _not_empty(parsed: Sequence[Any] | dict[str, Any], noun: str) -> None:
 
 def _name_field() -> Any:
     return Field(
-        title="Key",
-        description=(
-            "Made where the catalog is standing. A name with colons in it "
-            "makes the folders it needs."
+        title=N_("Key"),
+        description=N_(
+            "Made where the catalog is standing. A name with colons in it makes the folders it needs."
         ),
         examples=["cache:profile:ada"],
         json_schema_extra=layout(),
@@ -154,8 +155,8 @@ def _ttl_field() -> Any:
         default=None,
         ge=1,
         le=MAX_TTL_SECONDS,
-        title="Expires in (seconds)",
-        description="Leave empty to keep it until something removes it",
+        title=N_("Expires in (seconds)"),
+        description=N_("Leave empty to keep it until something removes it"),
         json_schema_extra=layout(row="keeping"),
     )
 
@@ -165,7 +166,7 @@ def _overwrite_field() -> Any:
         default=False,
         # No description: a toggle's label is the whole statement, and the
         # form has nowhere to put a second line under one.
-        title="Replace it if it already exists",
+        title=N_("Replace it if it already exists"),
         json_schema_extra=layout(row="keeping"),
     )
 
@@ -180,7 +181,7 @@ class KeyForm(BaseModel):
     """
 
     name: str = _name_field()
-    value: str = _value_field("Value", "What to store", "Ada Lovelace")
+    value: str = _value_field(N_("Value"), N_("What to store"), "Ada Lovelace")
     # Optional, and empty means "no deadline" rather than "zero seconds".
     ttl_seconds: int | None = _ttl_field()
     overwrite: bool = _overwrite_field()
@@ -190,79 +191,79 @@ class KeyForm(BaseModel):
 
 class NewStringParams(KeyForm):
     value: str = _value_field(
-        "Value",
-        "The text to store, however long",
+        N_("Value"),
+        N_("The text to store, however long"),
         '{"handle": "ada", "role": "analyst"}',
     )
 
 
 class NewHashParams(KeyForm):
     value: str = _value_field(
-        "Fields",
-        "One per line, written as field=value",
+        N_("Fields"),
+        N_("One per line, written as field=value"),
         "name=Ada Lovelace\nborn=1815\nrole=analyst",
     )
 
     @field_validator("value")
     @classmethod
     def _check(cls, written: str) -> str:
-        _not_empty(pairs(written), "hash")
+        _not_empty(pairs(written), N_("A hash needs at least one line"))
         return written
 
 
 class NewListParams(KeyForm):
     value: str = _value_field(
-        "Items",
-        "One per line, in the order they go in",
+        N_("Items"),
+        N_("One per line, in the order they go in"),
         "first\nsecond\nthird",
     )
 
     @field_validator("value")
     @classmethod
     def _check(cls, written: str) -> str:
-        _not_empty(lines(written), "list")
+        _not_empty(lines(written), N_("A list needs at least one line"))
         return written
 
 
 class NewSetParams(KeyForm):
     value: str = _value_field(
-        "Members",
-        "One per line; repeats count once",
+        N_("Members"),
+        N_("One per line; repeats count once"),
         "ada\nalan\ngrace",
     )
 
     @field_validator("value")
     @classmethod
     def _check(cls, written: str) -> str:
-        _not_empty(lines(written), "set")
+        _not_empty(lines(written), N_("A set needs at least one line"))
         return written
 
 
 class NewSortedSetParams(KeyForm):
     value: str = _value_field(
-        "Members",
-        "One per line, written as member=score",
+        N_("Members"),
+        N_("One per line, written as member=score"),
         "ada=3\nalan=1\ngrace=2",
     )
 
     @field_validator("value")
     @classmethod
     def _check(cls, written: str) -> str:
-        _not_empty(scored(written), "sorted set")
+        _not_empty(scored(written), N_("A sorted set needs at least one line"))
         return written
 
 
 class NewStreamParams(KeyForm):
     value: str = _value_field(
-        "First entry",
-        "The fields of one entry, written as field=value",
+        N_("First entry"),
+        N_("The fields of one entry, written as field=value"),
         "who=ada\nwhat=signed in",
     )
 
     @field_validator("value")
     @classmethod
     def _check(cls, written: str) -> str:
-        _not_empty(pairs(written), "stream")
+        _not_empty(pairs(written), N_("A stream needs at least one line"))
         return written
 
 
@@ -274,7 +275,7 @@ class ExpiryParams(BaseModel):
     seconds: int = Field(
         ge=1,
         le=MAX_TTL_SECONDS,
-        title="Expires in (seconds)",
+        title=N_("Expires in (seconds)"),
     )
 
 
@@ -293,16 +294,14 @@ class _KeyAction:
         try:
             return key_ref(node_id)
         except NotAKey:
-            raise ActionRefused(
-                "not_applicable", "That is not a key"
-            ) from None
+            raise ActionRefused("not_applicable", say("That is not a key")) from None
 
     def _place(self, node_id: str | None) -> PlaceRef:
         try:
             return place_ref(node_id)
         except NotAKey:
             raise ActionRefused(
-                "not_applicable", "A key is made in a database, not on a server"
+                "not_applicable", say("A key is made in a database, not on a server")
             ) from None
 
     def _branch_of(self, ref: KeyRef) -> str:
@@ -354,21 +353,21 @@ class _NewKey[P: KeyForm](_KeyAction, JsonAction[P]):
                     # A taken name is a conflict rather than a fault: the same
                     # shape a taken folder name answers with.
                     raise ActionRefused(
-                        "conflict", f'A key called "{name}" already exists'
+                        "conflict", say('A key called "{name}" already exists', name=name)
                     )
                 await resolved(client.delete(name))
             await self._write(client, name, params)
             if params.ttl_seconds is not None:
                 await resolved(client.expire(name, params.ttl_seconds))
         return ActionResult(
-            message=f"{name} written",
+            message=say("{name} written", name=name),
             reload_node_ids=[self._branch_of(KeyRef(place.database, name))],
         )
 
 
 class NewString(_NewKey[NewStringParams]):
     name: ClassVar[str] = "new_string"
-    title: ClassVar[str] = "New string"
+    title: ClassVar[str] = N_("New string")
     params_model = NewStringParams
 
     async def _write(self, client: Any, name: str, params: NewStringParams) -> None:
@@ -377,7 +376,7 @@ class NewString(_NewKey[NewStringParams]):
 
 class NewHash(_NewKey[NewHashParams]):
     name: ClassVar[str] = "new_hash"
-    title: ClassVar[str] = "New hash"
+    title: ClassVar[str] = N_("New hash")
     params_model = NewHashParams
 
     async def _write(self, client: Any, name: str, params: NewHashParams) -> None:
@@ -389,7 +388,7 @@ class NewHash(_NewKey[NewHashParams]):
 
 class NewList(_NewKey[NewListParams]):
     name: ClassVar[str] = "new_list"
-    title: ClassVar[str] = "New list"
+    title: ClassVar[str] = N_("New list")
     params_model = NewListParams
 
     async def _write(self, client: Any, name: str, params: NewListParams) -> None:
@@ -398,7 +397,7 @@ class NewList(_NewKey[NewListParams]):
 
 class NewSet(_NewKey[NewSetParams]):
     name: ClassVar[str] = "new_set"
-    title: ClassVar[str] = "New set"
+    title: ClassVar[str] = N_("New set")
     params_model = NewSetParams
 
     async def _write(self, client: Any, name: str, params: NewSetParams) -> None:
@@ -407,7 +406,7 @@ class NewSet(_NewKey[NewSetParams]):
 
 class NewSortedSet(_NewKey[NewSortedSetParams]):
     name: ClassVar[str] = "new_zset"
-    title: ClassVar[str] = "New sorted set"
+    title: ClassVar[str] = N_("New sorted set")
     params_model = NewSortedSetParams
 
     async def _write(
@@ -418,7 +417,7 @@ class NewSortedSet(_NewKey[NewSortedSetParams]):
 
 class NewStream(_NewKey[NewStreamParams]):
     name: ClassVar[str] = "new_stream"
-    title: ClassVar[str] = "New stream"
+    title: ClassVar[str] = N_("New stream")
     params_model = NewStreamParams
 
     async def _write(self, client: Any, name: str, params: NewStreamParams) -> None:
@@ -431,7 +430,7 @@ class NewStream(_NewKey[NewStreamParams]):
 
 class DeleteKey(_KeyAction, JsonAction[DeleteKeyParams]):
     name: ClassVar[str] = "delete_key"
-    title: ClassVar[str] = "Delete"
+    title: ClassVar[str] = N_("Delete")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"key"})
     acts_on: ClassVar[ActsOn] = "node"
     destructive: ClassVar[bool] = True
@@ -450,11 +449,12 @@ class DeleteKey(_KeyAction, JsonAction[DeleteKeyParams]):
             # exceptional: something with an expiry may go between the listing
             # and the click.
             return ActionResult(
-                message=f"{ref.name} was already gone",
+                message=say("{name} was already gone", name=ref.name),
                 reload_node_ids=[self._branch_of(ref)],
             )
         return ActionResult(
-            message=f"{ref.name} deleted", reload_node_ids=[self._branch_of(ref)]
+            message=say("{name} deleted", name=ref.name),
+            reload_node_ids=[self._branch_of(ref)],
         )
 
 
@@ -462,7 +462,7 @@ class SetExpiry(_KeyAction, JsonAction[ExpiryParams]):
     """Give a key a deadline, or move the one it has."""
 
     name: ClassVar[str] = "set_expiry"
-    title: ClassVar[str] = "Set expiry"
+    title: ClassVar[str] = N_("Set expiry")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"key"})
     acts_on: ClassVar[ActsOn] = "node"
     # Destructive: what it schedules is the key ceasing to exist, and a person
@@ -470,7 +470,7 @@ class SetExpiry(_KeyAction, JsonAction[ExpiryParams]):
     # not is a deletion, so it says what it does rather than letting the
     # client call it one.
     destructive: ClassVar[bool] = True
-    question: ClassVar[str | None] = (
+    question: ClassVar[str | None] = N_(
         "This key will be removed when the time is up. Set the expiry?"
     )
     bulk: ClassVar[bool] = True
@@ -481,9 +481,11 @@ class SetExpiry(_KeyAction, JsonAction[ExpiryParams]):
         async with self._session.connection(ref.database) as client:
             done = await resolved(client.expire(ref.name, params.seconds))
         if not done:
-            raise ActionRefused("conflict", f"{ref.name} is no longer there")
+            raise ActionRefused("conflict", say("{name} is no longer there", name=ref.name))
         return ActionResult(
-            message=f"{ref.name} expires in {params.seconds} seconds",
+            message=say(
+                "{name} expires in {seconds} seconds", name=ref.name, seconds=params.seconds
+            ),
             reload_node_ids=[self._branch_of(ref)],
         )
 
@@ -492,7 +494,7 @@ class RemoveExpiry(_KeyAction, JsonAction[PersistParams]):
     """Take the deadline off a key, so it stays until something removes it."""
 
     name: ClassVar[str] = "remove_expiry"
-    title: ClassVar[str] = "Remove expiry"
+    title: ClassVar[str] = N_("Remove expiry")
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"key"})
     acts_on: ClassVar[ActsOn] = "node"
     bulk: ClassVar[bool] = True
@@ -508,11 +510,11 @@ class RemoveExpiry(_KeyAction, JsonAction[PersistParams]):
             # Either it has no expiry or it is gone; neither is a failure, and
             # the state asked for is the state it is in.
             return ActionResult(
-                message=f"{ref.name} has no expiry",
+                message=say("{name} has no expiry", name=ref.name),
                 reload_node_ids=[self._branch_of(ref)],
             )
         return ActionResult(
-            message=f"{ref.name} will be kept",
+            message=say("{name} will be kept", name=ref.name),
             reload_node_ids=[self._branch_of(ref)],
         )
 

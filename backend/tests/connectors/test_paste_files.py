@@ -16,6 +16,7 @@ from app.connectors.paste import files
 from app.connectors.paste.files import FileCopy, FileMove, inspect_files
 from app.connectors.paste.models import PastePair, PasteRun
 from app.connectors.paste.transfer import Transfer, TransferStopped
+from app.core.translation import in_language
 from tests.utils.paste_sources import Explorer
 from tests.utils.transfers import Recorder, planned, transferred
 
@@ -125,6 +126,17 @@ async def test_copy_preserves_source_and_publishes_complete_file(sides: Sides) -
         left / "report.csv"
     ).read_bytes()
     assert FileCopy().told(done) == "Copied 1 file to incoming"
+
+
+async def test_what_a_copy_says_is_in_the_language_asked_for(sides: Sides) -> None:
+    """The sentence is whole in Russian, the count after a colon (D226)."""
+    source, destination = explorers(sides)
+
+    done = await transferred(FileCopy(), source, destination, run())
+
+    assert in_language("ru", lambda: FileCopy().told(done)) == (
+        "Скопировано в incoming, файлов: 1"
+    )
 
 
 async def test_a_taken_name_requires_an_explicit_choice(sides: Sides) -> None:

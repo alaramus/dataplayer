@@ -8,6 +8,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { currentLanguage } from "@/shared/i18n"
 import { useThemeStore } from "@/stores/theme"
+import { chartLocale } from "@/shared/i18n/echarts"
 
 import { timeseriesOption } from "./chartOption"
 import type { ChartSeries } from "./chartOption"
@@ -42,7 +43,7 @@ function draw() {
 onMounted(() => {
   const element = host.value
   if (element === null) return
-  chart = init(element, undefined, { renderer: "svg" })
+  chart = init(element, undefined, { renderer: "svg", locale: chartLocale() })
   draw()
   observer = new ResizeObserver(() => chart?.resize())
   observer.observe(element)

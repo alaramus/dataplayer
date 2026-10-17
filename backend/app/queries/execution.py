@@ -32,6 +32,7 @@ from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
 from app.core.schemas import get_datetime_utc
+from app.core.translation import N_, say
 from app.queries.content import encrypted
 from app.queries.results import QueryResults
 from app.queries.runs import (
@@ -111,24 +112,27 @@ def admit(
     happened yet, so this is a refusal and not an outcome (D62).
     """
     if not script.statements:
-        raise RunRefused(422, "There is nothing to run")
+        raise RunRefused(422, say("There is nothing to run"))
     if scope == "statement" and len(script.statements) > 1:
         # Ordinary Run is one statement. Several of them is the other command,
         # and falling back to it silently is how a selection nobody checked
         # becomes a script nobody meant to run (D65).
         raise RunRefused(
             422,
-            "This is more than one statement; run it as a script to run them all",
+            say("This is more than one statement; run it as a script to run them all"),
         )
     if len(script.statements) > bounds.max_statements:
         raise RunRefused(
-            422, f"A script may hold at most {bounds.max_statements} statements"
+            422, say("A script may hold at most {count} statements", count=bounds.max_statements)
         )
     for statement in script.statements:
         if len(statement.text.encode()) > bounds.max_statement_bytes:
             raise RunRefused(
                 422,
-                f"Statement {statement.ordinal + 1} is larger than one statement may be",
+                say(
+                    "Statement {at} is larger than one statement may be",
+                    at=statement.ordinal + 1,
+                ),
             )
     for statement in script.statements:
         # The source's own refusal, in the source's own words. The vocabulary
@@ -136,7 +140,12 @@ def admit(
         # is dialect knowledge this module deliberately does not hold (D66).
         if statement.refused is not None:
             raise RunRefused(
-                422, f"Statement {statement.ordinal + 1}: {statement.refused}"
+                422,
+                say(
+                    "Statement {at}: {refusal}",
+                    at=statement.ordinal + 1,
+                    refusal=statement.refused,
+                ),
             )
     if mode != "read" and any(one.kind == "maintenance" for one in script.statements):
         # Outside a transaction, so nothing shares its run: a failure after it
@@ -145,14 +154,18 @@ def admit(
         if mode == "manual":
             raise RunRefused(
                 422,
-                "Maintenance commands run outside a transaction; "
-                "turn the manual transaction off to run this",
+                say(
+                    "Maintenance commands run outside a transaction; "
+                    "turn the manual transaction off to run this"
+                ),
             )
         if len(script.statements) > 1:
             raise RunRefused(
                 422,
-                "A maintenance command runs outside a transaction, "
-                "so run it on its own",
+                say(
+                    "A maintenance command runs outside a transaction, "
+                    "so run it on its own"
+                ),
             )
     admitted = _ADMITTED.get(mode, frozenset({"read"}))
     for statement in script.statements:
@@ -160,11 +173,8 @@ def admit(
             continue
         raise RunRefused(
             422,
-            f"Statement {statement.ordinal + 1} is a {statement.kind} statement, "
-            + (
-                "and this run is a read"
-                if mode == "read"
-                else "and statements of that kind are not run here"
+            say(
+                _NOT_ADMITTED[mode == "read"], at=statement.ordinal + 1, kind=statement.kind
             ),
         )
     supplied = set(given)
@@ -174,9 +184,18 @@ def admit(
         # question, and answering it with SQL null on the user's behalf is a
         # different query from the one they meant.
         raise RunRefused(
-            422, f"No value was given for {', '.join(missing)}"
+            422, say("No value was given for {names}", names=", ".join(missing))
         )
     return [(statement.ordinal, statement.kind) for statement in script.statements]
+
+
+# Why a statement of a class a mode does not carry out is refused.
+_NOT_ADMITTED = {
+    True: N_("Statement {at} is a {kind} statement, and this run is a read"),
+    False: N_(
+        "Statement {at} is a {kind} statement, and statements of that kind are not run here"
+    ),
+}
 
 
 # What each mode will carry out, by class. Which structure changes are inside
@@ -373,7 +392,7 @@ class QueryRunner:
                     run_id,
                     status="failed",
                     finished=True,
-                    error=with_ref("This run could not be completed", ref),
+                    error=with_ref(say("This run could not be completed"), ref),
                 )
         finally:
             # What the run did belongs to the transaction it ran in, and the
@@ -438,7 +457,7 @@ def _no_room() -> Any:
     return QueryDiagnostic(
         code="result_store_full",
         category="resource",
-        message="There was no room to keep this result",
+        message=say("There was no room to keep this result"),
     )
 
 

@@ -25,6 +25,7 @@ from typing import IO, Literal, cast
 
 from app.adapters.actions import ActionRefused
 from app.adapters.explorer.storage import stays_inside_root
+from app.core.translation import say
 
 # The formats one may be made in. Every one of them is in the standard
 # library, and every one of them is something a person receives by email.
@@ -147,7 +148,9 @@ def unpack(source: Path, into: Path) -> Unpacked:
     """
     kind = unpack_kind(source.name)
     if kind is None:
-        raise NotUnpackable(f"{source.name} is not an archive this source opens")
+        raise NotUnpackable(
+            say("{name} is not an archive this source opens", name=source.name)
+        )
     if kind == "zip":
         return _unpack_zip(source, into)
     if kind == "tar":
@@ -181,19 +184,19 @@ class _Budget:
     def entry(self) -> None:
         self.entries += 1
         if self.entries > MAX_ENTRIES:
-            raise ActionRefused("too_large", "That is too many files to archive")
+            raise ActionRefused("too_large", say("That is too many files to archive"))
 
     def bytes(self, more: int) -> None:
         self.total += more
         if self.total > MAX_BYTES:
-            raise ActionRefused("too_large", "That is too much data to archive")
+            raise ActionRefused("too_large", say("That is too much data to archive"))
 
 
 def _add_to_zip(
     output: zipfile.ZipFile, target: Path, name: str, state: _Budget
 ) -> None:
     if target.is_symlink():
-        raise ActionRefused("not_applicable", "Symbolic links are not archived")
+        raise ActionRefused("not_applicable", say("Symbolic links are not archived"))
     state.entry()
     if target.is_dir():
         output.writestr(f"{name}/", b"")
@@ -201,7 +204,9 @@ def _add_to_zip(
             _add_to_zip(output, child, f"{name}/{child.name}", state)
         return
     if not target.is_file():
-        raise ActionRefused("not_applicable", f"{target.name} cannot be archived")
+        raise ActionRefused(
+            "not_applicable", say("{name} cannot be archived", name=target.name)
+        )
     with target.open("rb") as source, output.open(name, "w") as destination:
         while chunk := source.read(CHUNK_BYTES):
             state.bytes(len(chunk))
@@ -212,7 +217,7 @@ def _add_to_tar(
     output: tarfile.TarFile, target: Path, name: str, state: _Budget
 ) -> None:
     if target.is_symlink():
-        raise ActionRefused("not_applicable", "Symbolic links are not archived")
+        raise ActionRefused("not_applicable", say("Symbolic links are not archived"))
     state.entry()
     if target.is_dir():
         output.add(target, arcname=name, recursive=False)
@@ -220,7 +225,9 @@ def _add_to_tar(
             _add_to_tar(output, child, f"{name}/{child.name}", state)
         return
     if not target.is_file():
-        raise ActionRefused("not_applicable", f"{target.name} cannot be archived")
+        raise ActionRefused(
+            "not_applicable", say("{name} cannot be archived", name=target.name)
+        )
     state.bytes(target.stat().st_size)
     output.add(target, arcname=name, recursive=False)
 
@@ -235,7 +242,8 @@ def _safe_member(name: str) -> PurePosixPath:
     cleaned = name.replace("\\", "/").rstrip("/")
     if not cleaned or not stays_inside_root(cleaned):
         raise ActionRefused(
-            "not_applicable", f"The archive holds a name that leaves it: {name}"
+            "not_applicable",
+            say("The archive holds a name that leaves it: {name}", name=name),
         )
     return PurePosixPath(cleaned)
 
@@ -244,11 +252,11 @@ def _unpack_zip(source: Path, into: Path) -> Unpacked:
     with zipfile.ZipFile(source) as opened:
         infos = opened.infolist()
         if len(infos) > MAX_ENTRIES:
-            raise ActionRefused("too_large", "The archive holds too many files")
+            raise ActionRefused("too_large", say("The archive holds too many files"))
         planned = [(info, _safe_member(info.filename)) for info in infos]
         total = sum(info.file_size for info, _ in planned)
         if total > MAX_BYTES:
-            raise ActionRefused("too_large", "The archive expands to too much data")
+            raise ActionRefused("too_large", say("The archive expands to too much data"))
         written = 0
         for info, member in planned:
             target = into / member
@@ -267,22 +275,25 @@ def _unpack_tar(source: Path, into: Path) -> Unpacked:
     with tarfile.open(source) as opened:
         members = opened.getmembers()
         if len(members) > MAX_ENTRIES:
-            raise ActionRefused("too_large", "The archive holds too many files")
+            raise ActionRefused("too_large", say("The archive holds too many files"))
         total = 0
         for member in members:
             if member.islnk() or member.issym():
                 raise ActionRefused(
-                    "not_applicable", "The archive holds a link, which is not expanded"
+                    "not_applicable", say("The archive holds a link, which is not expanded")
                 )
             if not (member.isfile() or member.isdir()):
                 raise ActionRefused(
                     "not_applicable",
-                    f"The archive holds something that is not a file: {member.name}",
+                    say(
+                        "The archive holds something that is not a file: {name}",
+                        name=member.name,
+                    ),
                 )
             _safe_member(member.name)
             total += member.size
         if total > MAX_BYTES:
-            raise ActionRefused("too_large", "The archive expands to too much data")
+            raise ActionRefused("too_large", say("The archive expands to too much data"))
         # `data` refuses absolute paths, links and device files on its own; the
         # walk above is this source's own rule, and both run.
         opened.extractall(into, filter="data")
@@ -317,7 +328,7 @@ def _unpack_single(source: Path, into: Path, kind: str) -> Unpacked:
             if written > MAX_BYTES:
                 target.unlink(missing_ok=True)
                 raise ActionRefused(
-                    "too_large", "The archive expands to too much data"
+                    "too_large", say("The archive expands to too much data")
                 )
             writing.write(chunk)
     return Unpacked(entries=1, bytes_written=written)

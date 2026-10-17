@@ -8,6 +8,22 @@ from app.connectors.paste.relation_csv import RelationCsv
 from app.connectors.paste.rows import RowsIntoRelation, RowsNewRelation
 from app.connectors.paste.tables import TablesCopy
 from app.core.access import Access, at_least
+from app.core.translation import N_, say
+
+# Why a kind is refused for what it needs of each end, one sentence per level:
+# the level is a word in the sentence rather than a value (D226).
+NEEDS_HERE: dict[Access, str] = {
+    "read": N_("This needs read access to this connection"),
+    "write": N_("This needs write access to this connection"),
+    "structure": N_("This needs structure access to this connection"),
+    "own": N_("This needs own access to this connection"),
+}
+NEEDS_THERE: dict[Access, str] = {
+    "read": N_("This needs read access to the copied connection"),
+    "write": N_("This needs write access to the copied connection"),
+    "structure": N_("This needs structure access to the copied connection"),
+    "own": N_("This needs own access to the copied connection"),
+}
 
 KINDS: tuple[PasteKind, ...] = (
     FileCopy(),
@@ -58,11 +74,7 @@ def short_of(
 ) -> PasteOffer | None:
     """The kind refused for what it needs of each end beyond reading, or None."""
     if not at_least(destination_access, kind.destination_requires):
-        return refused(
-            kind, f"This needs {kind.destination_requires} access to this connection"
-        )
+        return refused(kind, say(NEEDS_HERE[kind.destination_requires]))
     if not at_least(source_access, kind.source_requires):
-        return refused(
-            kind, f"This needs {kind.source_requires} access to the copied connection"
-        )
+        return refused(kind, say(NEEDS_THERE[kind.source_requires]))
     return None

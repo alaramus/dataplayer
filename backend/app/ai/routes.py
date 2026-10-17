@@ -19,6 +19,7 @@ from sqlmodel import col, update
 from app.ai import attachments, conversations, preferences, quick_chat
 from app.ai.catalog import Provider, catalog
 from app.ai.content import opened, opened_bytes, sealed
+from app.ai.conversations import NEW_CHAT
 from app.ai.models import (
     TERMINAL,
     AgentAnswer,
@@ -46,6 +47,7 @@ from app.connectors.content_tickets import content_disposition
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 
@@ -64,7 +66,7 @@ async def list_quick_chats(
 )
 async def create_quick_chat(session: SessionDep, current_user: CurrentUser) -> Any:
     chat = quick_chat.QuickConversation(
-        owner_id=current_user.id, title=sealed("New chat")
+        owner_id=current_user.id, title=sealed(NEW_CHAT)
     )
     session.add(chat)
     await session.commit()
@@ -76,7 +78,7 @@ async def delete_archived_quick_chats(
     session: SessionDep, current_user: CurrentUser
 ) -> Any:
     count = await quick_chat.delete_archived_for_owner(session, current_user.id)
-    return Message(message=f"{count} quick chats deleted")
+    return Message(message=say("{count} quick chats deleted", count=count))
 
 
 @router.get("/quick-chats/{chat_id}", response_model=quick_chat.QuickChatPublic)
@@ -133,7 +135,7 @@ async def delete_quick_chat(
         raise Problem(404, "ai.quick_chat_not_found")
     await session.delete(chat)
     await session.commit()
-    return Message(message="Quick chat deleted")
+    return Message(message=say("Quick chat deleted"))
 
 
 @router.post("/quick-chats/{chat_id}/messages", response_model=quick_chat.QuickChatPublic)
@@ -170,8 +172,8 @@ async def stop_quick_chat_answer(
     Not an error when nothing is being written: Stop pressed as the answer
     ends is the same press, a moment late."""
     if runner.quick_answers.stop(chat_id, current_user.id):
-        return Message(message="Stopped")
-    return Message(message="Nothing is being written")
+        return Message(message=say("Stopped"))
+    return Message(message=say("Nothing is being written"))
 
 
 @router.post("/quick-chats/{chat_id}/browser-turns", response_model=quick_chat.BrowserTurn)
@@ -337,7 +339,7 @@ async def delete_project(
         .values(project_id=None, **({"archived": True} if archive else {}))
     )
     await conversations.delete_project(session, project, archive=archive)
-    return Message(message="Project deleted")
+    return Message(message=say("Project deleted"))
 
 
 @router.get("/conversations", response_model=ConversationsPublic)
@@ -374,7 +376,7 @@ async def delete_archived_conversations(
     ids = await conversations.archived_ids_for_owner(session, current_user.id)
     await runner.forget(ids)
     await conversations.delete_rows(session, ids)
-    return Message(message=f"{len(ids)} conversations deleted")
+    return Message(message=say("{count} conversations deleted", count=len(ids)))
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationPublic)
@@ -487,7 +489,7 @@ async def delete_conversation(
         raise Problem(404, "ai.conversation_not_found")
     await runner.forget([conversation_id])
     await conversations.delete_rows(session, [conversation_id])
-    return Message(message="Conversation deleted")
+    return Message(message=say("Conversation deleted"))
 
 
 @router.post(

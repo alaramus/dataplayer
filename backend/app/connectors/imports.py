@@ -17,6 +17,7 @@ from app.adapters.relation_changes import (
     RelationCreated,
 )
 from app.adapters.update import InsertRowsRequest, RowsInserted, ValuesRejected
+from app.core.translation import say
 
 # How many rows one move may carry. More than this is a durable job with
 # progress and cancellation, which is Phase 4; a larger number here would only
@@ -50,7 +51,7 @@ class ImportRowsRequest(BaseModel):
     def distinct_targets(self) -> ImportRowsRequest:
         targets = [pair.target for pair in self.columns]
         if len(targets) != len(set(targets)):
-            raise ValueError("A target column may be filled only once")
+            raise ValueError(say("A target column may be filled only once"))
         return self
 
 
@@ -96,9 +97,9 @@ class CreateRelationFromSourceRequest(BaseModel):
         sources = [column.source for column in self.columns]
         targets = [column.target for column in self.columns]
         if len(sources) != len(set(sources)):
-            raise ValueError("A source column may be selected only once")
+            raise ValueError(say("A source column may be selected only once"))
         if len(targets) != len(set(targets)):
-            raise ValueError("A new column may be named only once")
+            raise ValueError(say("A new column may be named only once"))
         return self
 
     def pairs(self) -> list[ColumnPair]:
@@ -143,7 +144,9 @@ def _pick(
     for pair in pairs:
         index = positions.get(pair.source)
         if index is None:
-            raise ValueError(f'The source has no column "{pair.source}"')
+            raise ValueError(
+                say('The source has no column "{column}"', column=pair.source)
+            )
         targets.append(pair.target)
         indexes.append(index)
     return targets, indexes

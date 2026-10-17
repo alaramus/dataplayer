@@ -12,6 +12,7 @@ from app.connectors.models import Connector
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.models import JobKind, JobPublic
 from app.jobs.models import public as job_public
@@ -101,7 +102,7 @@ async def read_backup_offer(
     if connector_id is not None:
         connector = await _own_connector_or_404(session, connector_id, current_user.id)
         if not connector.enabled:
-            return BackupOffer(available=False, reason="This connection is disabled")
+            return BackupOffer(available=False, reason=say("This connection is disabled"))
         _refuse_unless_the_source_can(connector)
         source_offer = await backup_source(connector).backup_availability()
         if not source_offer.available:
@@ -133,7 +134,7 @@ async def delete_backup(current_user: CurrentUser, filename: str) -> Any:
     name = await to_thread.run_sync(_one_of_their_own, current_user.id, filename)
     folder = storage.home_dir(current_user.id) / BACKUP_FOLDER
     await to_thread.run_sync((folder / name).unlink)
-    return Message(message=f"{name} was deleted")
+    return Message(message=say("{name} was deleted", name=name))
 
 
 @router.post("/", response_model=JobPublic)

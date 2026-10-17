@@ -23,6 +23,7 @@ from app.connectors import ssh_keys
 from app.connectors.service import split_options
 from app.connectors.ssh_keys import OwnerKeys
 from app.core import crypto
+from app.core.translation import N_, say
 from app.jobs.models import Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
 from app.services.engine import ServiceEngine
@@ -68,12 +69,12 @@ class _ServiceJob:
 
     async def _service(self, session: AsyncSession, job: Job) -> ManagedService:
         if job.subject_id is None:
-            raise JobFailed("This job names no service")
+            raise JobFailed(say("This job names no service"))
         service = await session.get(ManagedService, job.subject_id)
         if service is None:
             # The row went away while the job waited. Said as a failure rather
             # than as a crash: it is a thing that can happen, not a defect.
-            raise JobFailed("That service is no longer here")
+            raise JobFailed(say("That service is no longer here"))
         return service
 
     async def _settle(
@@ -103,13 +104,13 @@ class CreateService(_ServiceJob):
 
     kind: ClassVar[JobKind] = "service.create"
     steps: ClassVar[tuple[str, ...]] = (
-        "clearing an earlier attempt",
-        "pulling the image",
-        "creating the container",
-        "starting the container",
-        "waiting for it to answer",
-        "putting sample data in it",
-        "saving the connection",
+        N_("clearing an earlier attempt"),
+        N_("pulling the image"),
+        N_("creating the container"),
+        N_("starting the container"),
+        N_("waiting for it to answer"),
+        N_("putting sample data in it"),
+        N_("saving the connection"),
     )
 
     async def carry_out(self, job: Job, progress: Progress) -> str:
@@ -160,7 +161,7 @@ class CreateService(_ServiceJob):
             )
             if options is None:
                 raise JobFailed(
-                    f"{template.title} started but did not answer in time"
+                    say("{service} started but did not answer in time", service=say(template.title))
                 )
             await self._fill_it(service, template, options, progress, keys)
             await progress.reached(self.steps[-1])
@@ -169,7 +170,7 @@ class CreateService(_ServiceJob):
             await self._settle(session, service, "failed")
             raise
         await self._settle(session, service, "running")
-        return f"{template.title} is ready"
+        return say("{service} is ready", service=say(template.title))
 
     async def _deliver(
         self,
@@ -211,9 +212,11 @@ class CreateService(_ServiceJob):
             if service.requested_port is None:
                 raise
             raise JobFailed(
-                f"It could not start. Port {service.requested_port} may already "
-                "be in use on this machine; leave the port at 0 to have one "
-                "picked."
+                say(
+                    "It could not start. Port {port} may already be in use on this "
+                    "machine; leave the port at 0 to have one picked.",
+                    port=service.requested_port,
+                )
             ) from None
 
     async def _record_published_port(
@@ -268,7 +271,7 @@ class CreateService(_ServiceJob):
             # is missing. Said as a failure of the creation all the same,
             # because a person who asked for something to look at and got an
             # empty server would otherwise have to work out why themselves.
-            raise JobFailed("The sample data could not be loaded") from failure
+            raise JobFailed(say("The sample data could not be loaded")) from failure
 
     async def _clear_earlier_attempt(
         self, service: ManagedService, progress: Progress
@@ -359,8 +362,10 @@ async def _public_key_of(session: AsyncSession, service: ManagedService) -> str:
     )
     if key is None:
         raise JobFailed(
-            "The SSH key this server was to be signed into with is gone; "
-            "start it again with another"
+            say(
+                "The SSH key this server was to be signed into with is gone; "
+                "start it again with another"
+            )
         )
     return key.public_key
 
@@ -390,7 +395,7 @@ def _endpoint_of(plan: ServicePlan) -> Endpoint:
 
 class StartService(_ServiceJob):
     kind: ClassVar[JobKind] = "service.start"
-    steps: ClassVar[tuple[str, ...]] = ("starting the container",)
+    steps: ClassVar[tuple[str, ...]] = (N_("starting the container"),)
 
     async def carry_out(self, job: Job, progress: Progress) -> str:
         session = progress.session
@@ -402,12 +407,12 @@ class StartService(_ServiceJob):
             await self._settle(session, service, "failed")
             raise
         await self._settle(session, service, "running")
-        return f"{_template_of(service).title} is running"
+        return say("{service} is running", service=say(_template_of(service).title))
 
 
 class StopService(_ServiceJob):
     kind: ClassVar[JobKind] = "service.stop"
-    steps: ClassVar[tuple[str, ...]] = ("stopping the container",)
+    steps: ClassVar[tuple[str, ...]] = (N_("stopping the container"),)
 
     async def carry_out(self, job: Job, progress: Progress) -> str:
         session = progress.session
@@ -419,12 +424,12 @@ class StopService(_ServiceJob):
             await self._settle(session, service, "failed")
             raise
         await self._settle(session, service, "stopped")
-        return f"{_template_of(service).title} is stopped"
+        return say("{service} is stopped", service=say(_template_of(service).title))
 
 
 class RestartService(_ServiceJob):
     kind: ClassVar[JobKind] = "service.restart"
-    steps: ClassVar[tuple[str, ...]] = ("restarting the container",)
+    steps: ClassVar[tuple[str, ...]] = (N_("restarting the container"),)
 
     async def carry_out(self, job: Job, progress: Progress) -> str:
         session = progress.session
@@ -436,7 +441,7 @@ class RestartService(_ServiceJob):
             await self._settle(session, service, "failed")
             raise
         await self._settle(session, service, "running")
-        return f"{_template_of(service).title} was restarted"
+        return say("{service} was restarted", service=say(_template_of(service).title))
 
 
 class DeleteService(_ServiceJob):
@@ -454,14 +459,14 @@ class DeleteService(_ServiceJob):
 
     kind: ClassVar[JobKind] = "service.delete"
     steps: ClassVar[tuple[str, ...]] = (
-        "stopping the container",
-        "removing the container and its data",
+        N_("stopping the container"),
+        N_("removing the container and its data"),
     )
 
     async def carry_out(self, job: Job, progress: Progress) -> str:
         session = progress.session
         service = await self._service(session, job)
-        title = _template_of(service).title
+        title = say(_template_of(service).title)
         await progress.reached("stopping the container")
         # A container that will not stop may be one that is not running.
         # Removal is what decides, and it is asked next.
@@ -477,7 +482,7 @@ class DeleteService(_ServiceJob):
             raise
         await session.delete(service)
         await session.commit()
-        return f"{title} was removed"
+        return say("{service} was removed", service=title)
 
 
 def _template_of(service: ManagedService) -> ServiceTemplate:
@@ -491,7 +496,7 @@ def _template_of(service: ManagedService) -> ServiceTemplate:
         return template_for(service.template_key)
     except UnknownServiceTemplate:
         raise JobFailed(
-            "This service was made from something this server no longer offers"
+            say("This service was made from something this server no longer offers")
         ) from None
 
 

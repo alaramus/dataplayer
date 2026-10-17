@@ -18,6 +18,7 @@ from app.adapters.explorer.formats import (
     is_container,
     representations_inside_archive,
     representations_of,
+    worded,
 )
 from app.adapters.explorer.members import member_id, resolve_node
 from app.adapters.explorer.storage import (
@@ -29,6 +30,7 @@ from app.adapters.explorer.storage import (
     node_id_of,
 )
 from app.adapters.protocol import AdapterError, NodeNotFound
+from app.core.translation import say
 
 # A schema count is bounded, a directory is not. Beyond this the listing fails
 # rather than being cut short: pagination of catalog children does not exist
@@ -58,27 +60,30 @@ class ExplorerCatalog:
         if found is None:
             if node_id is None:
                 raise AdapterError(
-                    "config", "The directory of this connector does not exist"
+                    "config", say("The directory of this connector does not exist")
                 )
-            raise ValueError(f"No such directory: {node_id}")
+            raise ValueError(say("No such directory: {node_id}", node_id=node_id))
         if place != ROOT and not found.is_directory and is_container(place.name):
             # A container is opened once here, and what is inside it becomes
             # nodes of its own (D51, D53). This is the one place a file is read
             # while listing, and it happens because the user asked for it.
             return self._member_nodes(place, node_id or "", inside=None)
         if not found.is_directory:
-            raise ValueError(f"Not a directory: {node_id}")
+            raise ValueError(say("Not a directory: {node_id}", node_id=node_id))
 
         try:
             entries = self._storage.entries(place)
         except OSError:
-            raise AdapterError("unknown", "Could not read the directory") from None
+            raise AdapterError("unknown", say("Could not read the directory")) from None
 
         if len(entries) > MAX_ENTRIES:
             raise AdapterError(
                 "unknown",
-                f"The directory holds more than {MAX_ENTRIES} entries; "
-                "pagination of catalog children is not implemented yet",
+                say(
+                    "The directory holds more than {count} entries; "
+                    "pagination of catalog children is not implemented yet",
+                    count=MAX_ENTRIES,
+                ),
             )
 
         nodes = [node_of(self._storage, entry) for entry in entries]
@@ -168,7 +173,7 @@ class ExplorerCatalog:
                 DatasetNode(
                     id=member_id(node_id, str(facts.position)),
                     name=facts.title,
-                    representations=[TABLE],
+                    representations=worded([TABLE]),
                     describable=True,
                     summarizable=True,
                     row_count=facts.rows,
@@ -205,7 +210,7 @@ def node_of(storage: Storage, entry: Entry) -> CatalogNode:
         has_children=is_container(entry.name),
         size_bytes=entry.size_bytes,
         modified_at=entry.modified_at,
-        representations=representations_of(entry.name),
+        representations=worded(representations_of(entry.name)),
         # A delimited header is editable structure even though it carries no
         # source types beyond text.
         describable=format_of(entry.name) in {"parquet", "delimited"},
@@ -222,7 +227,9 @@ def _entry_node(container_id: str, entry: archive.Entry) -> CatalogNode:
         name=entry.name,
         has_children=entry.is_directory,
         representations=(
-            representations_inside_archive(entry.name) if entry.readable else []
+            worded(representations_inside_archive(entry.name))
+            if entry.readable
+            else []
         ),
         size_bytes=None if entry.is_directory else entry.size_bytes,
         compressed_bytes=None if entry.is_directory else entry.compressed_bytes,

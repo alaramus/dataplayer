@@ -10,6 +10,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import type { FetchColumn } from "@/client"
 import { t } from "@/shared/i18n"
 import { useThemeStore } from "@/stores/theme"
+import { chartLocale } from "@/shared/i18n/echarts"
 
 import { buildChart } from "./model"
 import type { ChartSpec } from "./types"
@@ -71,7 +72,7 @@ function mountChart(): void {
   const element = host.value
   if (element === null) return
   chart?.dispose()
-  chart = init(element, theme.dark ? "dark" : undefined, { renderer: "svg" })
+  chart = init(element, theme.dark ? "dark" : undefined, { renderer: "svg", locale: chartLocale() })
   draw()
 }
 

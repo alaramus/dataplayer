@@ -21,6 +21,7 @@ from app.adapters.search import SearchBounds, out_of_time
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
+from app.core.translation import say
 from app.search.keep import (
     SearchChunk,
     SearchContentFile,
@@ -160,9 +161,9 @@ async def _read(
                 state.notice = out_of_time(looked, "files")
                 return
             if state.read_bytes > settings.SEARCH_KEPT_CONTENTS_BYTES:
-                state.notice = (
-                    f"More than {settings.SEARCH_KEPT_CONTENTS_BYTES // 1_000_000:,} MB "
-                    "were read; the rest is read on the next pass"
+                state.notice = say(
+                    "More than {size} MB were read; the rest is read on the next pass",
+                    size=f"{settings.SEARCH_KEPT_CONTENTS_BYTES // 1_000_000:,}",
                 )
                 return
             try:

@@ -21,6 +21,7 @@ from typing import Any
 import duckdb
 
 from app.adapters.query import PreparedScript, PreparedStatement, StatementClass
+from app.core.translation import N_, say
 
 # What each of the engine's statement types is, in the platform's vocabulary.
 # Keyed by name rather than by enum member so that a type a later version of
@@ -57,32 +58,33 @@ _CLASSES: dict[str, StatementClass] = {
 
 # Why each class other than `read` will not run here. One sentence each, naming
 # the family rather than the statement, because the answer is about what this
-# source is and not about what somebody typed (D77).
+# source is and not about what somebody typed (D77). English, worded where a
+# statement is prepared (D226).
 REFUSALS: dict[StatementClass, str] = {
-    "dml": (
+    "dml": N_(
         "This source reads files and does not change them through SQL. "
         "A file's rows are edited in its grid"
     ),
-    "ddl": "A file has no structure that SQL could change here",
-    "copy": (
+    "ddl": N_("A file has no structure that SQL could change here"),
+    "copy": N_(
         "A COPY statement writes a file. Downloading a result is a command "
         "of its own"
     ),
-    "transaction": (
+    "transaction": N_(
         "The engine is opened for one run and thrown away, so there is no "
         "transaction to control"
     ),
-    "session": "This source does not accept session or extension commands",
-    "explain": "Explain is a command of its own here, beside Run",
-    "unknown": "This source could not establish what this statement is",
+    "session": N_("This source does not accept session or extension commands"),
+    "explain": N_("Explain is a command of its own here, beside Run"),
+    "unknown": N_("This source could not establish what this statement is"),
 }
 
-NOT_SERIALISABLE = "This source could not establish what this statement reads"
-TABLE_FUNCTION = (
+NOT_SERIALISABLE = N_("This source could not establish what this statement reads")
+TABLE_FUNCTION = N_(
     "A table function names a path. This source names its own files instead: "
     'write the file, as in FROM "sales.csv"'
 )
-QUALIFIED = "This source has no schemas, so a name cannot be qualified"
+QUALIFIED = N_("This source has no schemas, so a name cannot be qualified")
 
 
 @dataclass(frozen=True)
@@ -171,7 +173,7 @@ def prepare(text: str) -> PreparedScript:
                     end=len(text),
                     text=text,
                     kind="unknown",
-                    refused=REFUSALS["unknown"],
+                    refused=say(REFUSALS["unknown"]),
                 )
             ]
         )
@@ -237,17 +239,18 @@ def _prepared(
     start, end = span
     body = text[start:end].strip()
     kind = _CLASSES.get(statement.type.name, "unknown")
-    refused = REFUSALS.get(kind) if kind != "read" else None
+    refusal = REFUSALS.get(kind) if kind != "read" else None
+    refused = None if refusal is None else say(refusal)
     targets: list[str] = []
     if kind == "read":
         shape = shape_of(body)
         if not shape.serialised:
             kind = "unknown"
-            refused = NOT_SERIALISABLE
+            refused = say(NOT_SERIALISABLE)
         elif shape.table_function:
-            refused = TABLE_FUNCTION
+            refused = say(TABLE_FUNCTION)
         elif shape.qualified:
-            refused = QUALIFIED
+            refused = say(QUALIFIED)
         else:
             targets = shape.tables
     return PreparedStatement(

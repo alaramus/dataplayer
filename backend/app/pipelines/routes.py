@@ -20,6 +20,7 @@ from app.connectors.paste.models import PasteOffers
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.runner import JobRunnerDep
 from app.pipelines.check import card_state
@@ -173,7 +174,7 @@ async def delete_pipeline(
     await job_crud.forget_finished(session, kind=KIND, subject_id=pipeline.id)
     await session.delete(pipeline)
     await session.commit()
-    return Message(message=f"{pipeline.name} was removed")
+    return Message(message=say("{name} was removed", name=pipeline.name))
 
 
 @router.get("/{pipeline_id}/cards/{card_id}/state", response_model=CardState)

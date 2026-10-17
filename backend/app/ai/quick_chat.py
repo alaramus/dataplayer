@@ -16,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.ai import preferences
 from app.ai.catalog import ModelCatalog
 from app.ai.content import opened, sealed
+from app.ai.conversations import NEW_CHAT
 from app.ai.models import MAX_TITLE_CHARS, Role
 from app.ai.prompts import language_line
 from app.ai.providers import ChatModels
@@ -25,7 +26,7 @@ from app.ai.runner import DELTA_INTERVAL_SECONDS, split_text
 from app.ai.topic import QuickAnswerDelta, announce_quick
 from app.core.logs import record_failure, with_ref
 from app.core.schemas import get_datetime_utc
-from app.core.translation import Language, current_language
+from app.core.translation import N_, Language, current_language, say
 from app.realtime.topics import TopicSet
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ ANSWER_LIMIT = 100_000
 # long answers off while they were still arriving.
 QUIET_SECONDS = 60.0
 ANSWER_SECONDS = 300.0
-TOO_QUIET = "The model stopped answering"
+TOO_QUIET = N_("The model stopped answering")
 PROMPT = (
     "You are a plain chat assistant in DataPlayer. Answer in the user's language "
     "using Markdown. You have no access to application data or tools. "
@@ -162,7 +163,7 @@ class BrowserTurn(BaseModel):
 def shown_title(title: str) -> str:
     """The title a quick chat is listed and found by: an older untitled one was
     stored as "New quick chat"."""
-    return "New chat" if title == "New quick chat" else title
+    return say(NEW_CHAT) if title in (NEW_CHAT, "New quick chat") else title
 
 
 def summary(chat: QuickConversation) -> QuickChatSummary:
@@ -256,7 +257,7 @@ async def _last_message(session: AsyncSession, chat: QuickConversation) -> Quick
 
 async def _name_by_question(session: AsyncSession, chat: QuickConversation, text: str) -> None:
     if (
-        opened(chat.title) in {"New chat", "New quick chat"}
+        opened(chat.title) in {NEW_CHAT, "New quick chat"}
         and await _last_message(session, chat) is None
     ):
         chat.title = sealed(text.splitlines()[0][:80])
@@ -269,7 +270,7 @@ async def ask_in_browser(
     the browser what to answer it from (D223)."""
     text = body.text.strip()
     if not text:
-        raise ValueError("Write a message first")
+        raise ValueError(say("Write a message first"))
     history = await _history(session, chat)
     await _name_by_question(session, chat, text)
     # Not remembered as the person's choice: the settings name a model the
@@ -289,7 +290,7 @@ async def answer_from_browser(
 ) -> QuickChatPublic:
     last = await _last_message(session, chat)
     if last is None or last.role != "user":
-        raise ValueError("No question is waiting for an answer")
+        raise ValueError(say("No question is waiting for an answer"))
     chat.updated_at = get_datetime_utc()
     session.add_all([
         chat,
@@ -313,13 +314,13 @@ async def send(
     if model is None:
         model = await preferences.chosen_model(session, owner_id, catalog)
     if model is None:
-        raise ValueError("Choose a model in AI settings first")
+        raise ValueError(say("Choose a model in AI settings first"))
     key = await preferences.key_for(session, owner_id, model.provider)
     if key is None:
-        raise ValueError("Add this model provider's API key in AI settings first")
+        raise ValueError(say("Add this model provider's API key in AI settings first"))
     text = body.text.strip()
     if not text:
-        raise ValueError("Write a message first")
+        raise ValueError(say("Write a message first"))
     history = await _history(session, chat)
     messages: list[BaseMessage] = [SystemMessage(content=quick_prompt(current_language.get()))]
     messages.extend(
@@ -345,7 +346,7 @@ async def send(
     await session.commit()
     # Streamed to the window as it is written; what this returns is still the
     # authority, so an event the socket missed costs nothing.
-    async def say(text: str) -> None:
+    async def deliver(text: str) -> None:
         await announce_quick(topics, owner_id, QuickAnswerDelta(chat_id=chat.id, text=text))
 
     written: list[str] = []
@@ -366,10 +367,10 @@ async def send(
                 written.append(said)
                 unsent += said
                 if unsent and time.monotonic() - sent_at >= DELTA_INTERVAL_SECONDS:
-                    await say(unsent)
+                    await deliver(unsent)
                     unsent, sent_at = "", time.monotonic()
             if unsent:
-                await say(unsent)
+                await deliver(unsent)
 
     # A task of its own, so Stop can cancel the writing and leave this request
     # to keep what was written and answer as usual.
@@ -386,10 +387,11 @@ async def send(
                 stopped = True
     except TimeoutError:
         logger.warning("Quick chat answer stopped arriving")
-        failure = TOO_QUIET
+        failure = say(TOO_QUIET)
     except Exception as error:  # noqa: BLE001  # Provider errors may contain private text
-        failure = chat_models.sentence(model, error)
-        if failure == UNKNOWN_FAILURE:
+        sentence = chat_models.sentence(model, error)
+        failure = say(sentence)
+        if sentence == UNKNOWN_FAILURE:
             ref = record_failure(logger, "A quick chat answer failed", error, private=True)
         else:
             logger.warning("Quick chat answer failed: %s", type(error).__name__)
@@ -402,7 +404,7 @@ async def send(
     if not answer.strip():
         if stopped:
             return await public(session, chat)
-        raise RuntimeError(refused(failure or "The model returned an empty answer"))
+        raise RuntimeError(refused(failure or say("The model returned an empty answer")))
     # Kept even when the provider failed on the way: an answer that broke off
     # at its end is most of an answer, and it was already on the screen.
     chat.updated_at = get_datetime_utc()
@@ -412,5 +414,5 @@ async def send(
     ])
     await session.commit()
     if failure is not None:
-        raise RuntimeError(refused(f"{failure}. The answer so far is kept."))
+        raise RuntimeError(refused(say("{failure}. The answer so far is kept.", failure=failure)))
     return await public(session, chat)

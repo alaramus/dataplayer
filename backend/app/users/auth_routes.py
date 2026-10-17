@@ -12,6 +12,7 @@ from app.core.db import SessionDep
 from app.core.email import generate_reset_password_email, send_email
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.users import crud
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import NewPassword, Token, UserPublic, UserUpdate
@@ -76,7 +77,7 @@ async def recover_password(email: str, session: SessionDep) -> Message:
             html_content=email_data.html_content,
         )
     return Message(
-        message="If that email is registered, we sent a password recovery link"
+        message=say("If that email is registered, we sent a password recovery link")
     )
 
 
@@ -100,7 +101,7 @@ async def reset_password(session: SessionDep, body: NewPassword) -> Message:
         db_user=user,
         user_in=user_in_update,
     )
-    return Message(message="Password updated successfully")
+    return Message(message=say("Password updated successfully"))
 
 
 @router.post(

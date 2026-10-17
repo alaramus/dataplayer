@@ -67,6 +67,7 @@ from app.connectors.models import Connector
 from app.core.access import Access, at_least
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
+from app.core.translation import N_, Language, current_language, in_language, say
 from app.queries.execution import RunRefused as QueryRefused
 from app.queries.execution import admit, limits
 from app.queries.write_access import NEEDED
@@ -81,13 +82,18 @@ MAX_ROWS = 20
 MAX_NODES = 100
 MAX_RESULT_BYTES = 64 * 1024
 MAX_TOOL_CALLS = 50
-LIMIT_MESSAGE = f"This answer stopped after {MAX_TOOL_CALLS} tool calls. Ask a narrower question."
+# Shown to the person as the run's error, MAX_TOOL_CALLS put in.
+LIMIT_MESSAGE = N_("This answer stopped after {count} tool calls. Ask a narrower question.")
 TRANSFER_MARKER = "transfer_not_allowed"
 WITHHELD_RESULT = "[removed: connection no longer allows third-party transfer]"
-ALLOW_ONCE = "Allow once"
-ALLOW_CHAT = "Allow all changes in this chat"
-ALLOW_ALL = "Allow all changes in every chat"
+# What the person may answer, in order. An answer is told apart by its place
+# in the list: the words are in the person's language.
+ALLOW_ONCE = N_("Allow once")
+ALLOW_CHAT = N_("Allow all changes in this chat")
+ALLOW_ALL = N_("Allow all changes in every chat")
 CHANGE_CHOICES = [ALLOW_ONCE, ALLOW_CHAT, ALLOW_ALL]
+ALLOW_TRANSFER = N_("Allow")
+NOT_NOW = N_("Not now")
 # What a read-only conversation answers instead of asking. It says what to
 # do about it, because the agent has no way to change it itself.
 READ_ONLY_CHAT = (
@@ -95,6 +101,23 @@ READ_ONLY_CHAT = (
 )
 JEV_UNAVAILABLE = "Jev could not decide. No change was made. Check the Jev key in settings."
 JEV_DENIED = "Jev declined this change. No change was made."
+
+# The language of the person the agent answers. A tool's work runs in English,
+# because what it returns is read by the model; what the person reads of it —
+# a question, a preview, a step — is worded in theirs (D226).
+_PERSON: ContextVar[Language] = ContextVar("ai_person_language", default="en")
+
+
+def for_person[T](work: Callable[[], T]) -> T:
+    return in_language(_PERSON.get(), work)
+
+
+async def for_person_async[T](work: Callable[[], Awaitable[T]]) -> T:
+    token = current_language.set(_PERSON.get())
+    try:
+        return await work()
+    finally:
+        current_language.reset(token)
 
 
 class ToolLimitReached(Exception):
@@ -143,7 +166,7 @@ class ToolRuntime:
             else:
                 self.calls += 1
                 if self.calls > MAX_TOOL_CALLS:
-                    raise ToolLimitReached(LIMIT_MESSAGE)
+                    raise ToolLimitReached(LIMIT_MESSAGE.format(count=MAX_TOOL_CALLS))
                 ordinal = self.calls
                 announce_step = True
         async with async_session_maker() as session:
@@ -161,6 +184,8 @@ class ToolRuntime:
                 )
             status: StepStatus = "done"
             token = self._current_ordinal.set(ordinal)
+            person = _PERSON.set(current_language.get())
+            english = current_language.set("en")
             decisions = self._decision_substeps.set([])
             try:
                 user = await session.get(User, self.owner_id)
@@ -174,6 +199,8 @@ class ToolRuntime:
             finally:
                 decision_substeps = self._decision_substeps.get() or []
                 self._decision_substeps.reset(decisions)
+                current_language.reset(english)
+                _PERSON.reset(person)
                 self._current_ordinal.reset(token)
             detail = None
             if isinstance(result, ToolResult):
@@ -238,7 +265,7 @@ class ToolRuntime:
             # A conversation policy wins over the account-wide allow switch.
             key = await preferences.key_for(session, self.owner_id, "typesafe")
             if key is None:
-                self._record_jev("Jev · unavailable")
+                self._record_jev(for_person(lambda: say("Jev · unavailable")))
                 return JEV_UNAVAILABLE
             state: dict[str, Any] = {"action": question, "connection": connector.name}
             if preview is not None:
@@ -266,29 +293,33 @@ class ToolRuntime:
                     )
                 probability = answer.nouls["allow"].noul
             except Exception:  # noqa: BLE001 - fail closed; never expose provider text
-                self._record_jev("Jev · unavailable")
+                self._record_jev(for_person(lambda: say("Jev · unavailable")))
                 return JEV_UNAVAILABLE
             allowed = probability >= 0.5
-            self._record_jev("Jev · allowed" if allowed else "Jev · declined")
+            self._record_jev(
+                for_person(lambda: say("Jev · allowed") if allowed else say("Jev · declined"))
+            )
             return None if allowed else JEV_DENIED
         stored = await session.get(AgentPreferences, self.owner_id)
         if stored is not None and stored.allow_all_changes:
             return None
+        choices = for_person(lambda: [say(choice) for choice in CHANGE_CHOICES])
         decision = await self.pause(
             AgentQuestion(
                 kind="confirm_change",
                 question=question,
-                choices=CHANGE_CHOICES,
+                choices=choices,
                 connector_id=connector.id,
                 preview=preview,
             )
         )
-        if decision == ALLOW_CHAT and conversation is not None:
+        picked = CHANGE_CHOICES[choices.index(decision)] if decision in choices else ALLOW_ONCE
+        if picked == ALLOW_CHAT and conversation is not None:
             conversation.change_policy = "allow"
             conversation.updated_at = get_datetime_utc()
             session.add(conversation)
             await session.commit()
-        elif decision == ALLOW_ALL:
+        elif picked == ALLOW_ALL:
             if stored is None:
                 stored = AgentPreferences(user_id=self.owner_id)
             stored.allow_all_changes = True
@@ -326,17 +357,21 @@ class ToolRuntime:
             )
             return connector, source.adapter, held
         if held == "own":
+            choices = for_person(lambda: [say(ALLOW_TRANSFER), say(NOT_NOW)])
             answer = await self.pause(
                 AgentQuestion(
                     kind="allow_transfer",
-                    question=(
-                        f'Allow third-party transfer for "{connector.name}" so the agent can read it?'
+                    question=for_person(
+                        lambda: say(
+                            'Allow third-party transfer for "{name}" so the agent can read it?',
+                            name=connector.name,
+                        )
                     ),
-                    choices=["Allow", "Not now"],
+                    choices=choices,
                     connector_id=connector.id,
                 )
             )
-            if answer == "Allow":
+            if answer == choices[0]:
                 connector.allow_third_party_transfer = True
                 connector.updated_at = get_datetime_utc()
                 session.add(connector)
@@ -384,12 +419,18 @@ def write_refusal(
 
 
 def statement_substep(statement: dict[str, Any]) -> str:
-    base = f"Statement {statement['ordinal'] + 1} · {statement['status']}"
+    at, status = statement["ordinal"] + 1, statement["status"]
     if statement.get("affected_rows") is not None:
-        return f"{base} · {statement['affected_rows']} affected"
+        return say(
+            "Statement {at} · {status} · {count} affected",
+            at=at, status=status, count=statement["affected_rows"],
+        )
     if statement.get("row_count") is not None:
-        return f"{base} · {statement['row_count']} rows"
-    return base
+        return say(
+            "Statement {at} · {status} · {count} rows",
+            at=at, status=status, count=statement["row_count"],
+        )
+    return say("Statement {at} · {status}", at=at, status=status)
 
 
 async def change_preview(
@@ -416,22 +457,33 @@ async def change_preview(
         if outcome is None:
             lines.append(line)
         elif outcome.outcome == "ok":
-            suffix = "would succeed"
-            if outcome.affected_rows is not None:
-                suffix += f", {outcome.affected_rows} rows affected"
+            said = (
+                say("{statement} — would succeed", statement=line)
+                if outcome.affected_rows is None
+                else say(
+                    "{statement} — would succeed, {count} rows affected",
+                    statement=line, count=outcome.affected_rows,
+                )
+            )
             if outcome.notices:
-                suffix += "; " + "; ".join(note.message for note in outcome.notices)
-            lines.append(f"{line} — {suffix}")
+                said += "; " + "; ".join(note.message for note in outcome.notices)
+            lines.append(said)
         elif outcome.outcome == "blocked":
-            lines.append(f"{line} — blocked by another transaction; nothing was learnt")
+            lines.append(
+                say("{statement} — blocked by another transaction; nothing was learnt", statement=line)
+            )
         elif outcome.outcome == "failed":
-            detail = outcome.diagnostic.message if outcome.diagnostic else "the source refused it"
-            lines.append(f"{line} — would fail: {detail}")
+            detail = outcome.diagnostic.message if outcome.diagnostic else say("the source refused it")
+            lines.append(say("{statement} — would fail: {reason}", statement=line, reason=detail))
         else:
-            lines.append(f"{line} — not reached")
+            lines.append(say("{statement} — not reached", statement=line))
     total = len(prepared.statements)
     return ChangePreview(
-        summary=f"{total} statement{'s' if total > 1 else ''} would run",
+        summary=(
+            say("{count} statement would run", count=total)
+            if total == 1
+            else say("{count} statements would run", count=total)
+        ),
         lines=lines,
     )
 
@@ -551,7 +603,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 ],
                 "total": total,
             }
-        return await runtime.invoke("Listing connections", read)
+        return await runtime.invoke(say("Listing connections"), read)
 
     async def browse_catalog(
         connector_id: str, node_id: str | None = None, offset: int = 0
@@ -576,7 +628,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 "has_more": start + len(page) < len(nodes),
             }
         label = await runtime.connection_label(connector_id)
-        return await runtime.invoke(f'Browsing catalog in "{label}"', read)
+        return await runtime.invoke(say('Browsing catalog in "{connection}"', connection=label), read)
 
     async def describe_node(connector_id: str, node_id: str) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
@@ -599,7 +651,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             if not described:
                 result["error"] = "This node cannot be described"
             return result
-        return await runtime.invoke(f'Describing "{node_id}"', read)
+        return await runtime.invoke(say('Describing "{node}"', node=node_id), read)
 
     async def read_rows(connector_id: str, node_id: str, offset: int = 0) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
@@ -620,7 +672,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 "columns": [column.model_dump(mode="json") for column in page.columns],
                 "rows": page.rows,
             }
-        return await runtime.invoke(f'Reading rows from "{node_id}"', read)
+        return await runtime.invoke(say('Reading rows from "{node}"', node=node_id), read)
 
     async def open_in_workspace(
         connector_id: str,
@@ -659,7 +711,9 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 "node_id": node_id,
                 "view": view,
             }
-        return await runtime.invoke(f'Opening "{title or node_id or connector_id}"', read)
+        return await runtime.invoke(
+            say('Opening "{name}"', name=title or node_id or connector_id), read
+        )
 
     async def run_query(connector_id: str, sql: str) -> str:
         async def run(session: AsyncSession, user: User) -> Any:
@@ -685,14 +739,22 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             admit(prepared, bounds, mode=mode)
             request = QueryRequest(text=sql, mode=mode, limits=bounds)
             if changing:
-                preview = await change_preview(adapter, prepared, request)
+                preview = await for_person_async(
+                    lambda: change_preview(adapter, prepared, request)
+                )
                 refused = await runtime.confirm_change(
                     session,
                     connector=connector,
-                    question=(
-                        f'Run {len(changing)} statement{"s" if len(changing) > 1 else ""} '
-                        f'that {"change" if len(changing) > 1 else "changes"} data '
-                        f'on "{connector.name}"?'
+                    question=for_person(
+                        lambda: say(
+                            'Run {count} statement that changes data on "{connection}"?',
+                            count=len(changing), connection=connector.name,
+                        )
+                        if len(changing) == 1
+                        else say(
+                            'Run {count} statements that change data on "{connection}"?',
+                            count=len(changing), connection=connector.name,
+                        )
                     ),
                     preview=preview,
                 )
@@ -714,10 +776,10 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             }
             return ToolResult(
                 value=value,
-                substeps=[statement_substep(statement) for statement in statements],
+                substeps=for_person(lambda: [statement_substep(one) for one in statements]),
             )
         label = await runtime.connection_label(connector_id)
-        return await runtime.invoke(f'Running query on "{label}"', run)
+        return await runtime.invoke(say('Running query on "{connection}"', connection=label), run)
 
     async def run_action(
         connector_id: str,
@@ -741,12 +803,19 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             if action.requires != "read" or action.destructive:
                 preview = None
                 if isinstance(action, Previews):
-                    shown = await perform(lambda: action.preview(node_id, arguments))
+                    shown = await for_person_async(
+                        lambda: perform(lambda: action.preview(node_id, arguments))
+                    )
                     preview = ChangePreview(summary=shown.summary, lines=shown.items)
                 refused = await runtime.confirm_change(
                     session,
                     connector=connector,
-                    question=f'Run "{action.title}" on "{connector.name}"?',
+                    question=for_person(
+                        lambda: say(
+                            'Run "{action}" on "{connection}"?',
+                            action=say(action.title), connection=connector.name,
+                        )
+                    ),
                     preview=preview,
                 )
                 if refused is not None:
@@ -760,7 +829,10 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 "result": result.model_dump(mode="json"),
             }
         label = await runtime.connection_label(connector_id)
-        return await runtime.invoke(f'Running action "{action_name}" on "{label}"', run)
+        return await runtime.invoke(
+            say('Running action "{action}" on "{connection}"', action=action_name, connection=label),
+            run,
+        )
 
     async def list_actions(connector_id: str, node_id: str | None = None) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
@@ -790,7 +862,9 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 "node_id": node_id,
                 "actions": actions,
             }
-        return await runtime.invoke(f'Listing actions for "{node_id or connector_id}"', read)
+        return await runtime.invoke(
+            say('Listing actions for "{name}"', name=node_id or connector_id), read
+        )
 
     async def search(words: str, connector_ids: list[str] | None = None) -> str:
         async def find(session: AsyncSession, user: User) -> Any:
@@ -805,7 +879,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 attached=runtime.attached,
                 refusal=refusal_of,
             )
-        return await runtime.invoke(f'Searching for "{words.strip()[:80]}"', find)
+        return await runtime.invoke(say('Searching for "{words}"', words=words.strip()[:80]), find)
 
     async def ask_user(question: str, choices: list[str]) -> str:
         async def prepare(_session: AsyncSession, _user: User) -> Any:
@@ -815,7 +889,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                     AgentQuestion(kind="ask_user", question=question, choices=choices)
                 ),
             }
-        return await runtime.invoke("Waiting for your answer", prepare)
+        return await runtime.invoke(say("Waiting for your answer"), prepare)
 
     definitions: list[tuple[Callable[..., Awaitable[str]], str, str]] = [
         (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),

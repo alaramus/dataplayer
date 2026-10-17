@@ -41,6 +41,7 @@ from app.adapters.search import (
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
+from app.core.translation import N_, say
 from app.jobs import crud as job_crud
 from app.jobs.models import Job, JobKind, JobPublic, is_terminal, public
 from app.jobs.runner import JobFailed, JobHandler, JobRunner, Progress
@@ -55,7 +56,7 @@ from app.users.models import User
 logger = logging.getLogger(__name__)
 
 KIND: JobKind = "search.contents"
-SEARCHING = "searching inside files"
+SEARCHING = N_("searching inside files")
 
 # Connections one search may be asked to look in, as the field asks at most.
 MAX_CONNECTIONS = 20
@@ -66,7 +67,26 @@ TOTAL_MATCHES = MAX_MATCHES
 KEEP_FINISHED = 20
 
 # What a grantee reads of a key that is locked (D199).
-_LOCKED_BY_OWNER = "Locked by its owner"
+_LOCKED_BY_OWNER = N_("Locked by its owner")
+
+# The job's sentences, by whether one connection was searched and one match
+# found: English counts in the singular and the plural.
+_STOPPED = {
+    (True, True): N_("Stopped after {searched} of {places} connection; {found} match found"),
+    (True, False): N_("Stopped after {searched} of {places} connection; {found} matches found"),
+    (False, True): N_("Stopped after {searched} of {places} connections; {found} match found"),
+    (False, False): N_("Stopped after {searched} of {places} connections; {found} matches found"),
+}
+_FOUND = {
+    (True, True): N_("{found} match found in {places} connection"),
+    (True, False): N_("{found} matches found in {places} connection"),
+    (False, True): N_("{found} match found in {places} connections"),
+    (False, False): N_("{found} matches found in {places} connections"),
+}
+_NOTHING_FOUND = {
+    True: N_("Nothing found in {places} connection"),
+    False: N_("Nothing found in {places} connections"),
+}
 
 PlaceStatus = Literal["waiting", "complete", "stopped", "failed", "skipped"]
 
@@ -203,8 +223,8 @@ def _counts(held: _Held | None, connections_count: int, held_seconds: float) -> 
     }
 
 
-def _plural(count: int, one: str, many: str) -> str:
-    return f"{count:,} {one if count == 1 else many}"
+def _number(count: int) -> str:
+    return f"{count:,}"
 
 
 def _failed(kind: ErrorKind, message: str) -> NodeSearchResult:
@@ -226,7 +246,7 @@ class SearchContents:
     async def carry_out(self, job: Job, progress: Progress) -> str:
         held = self._memory.get(job.id)
         if held is None:
-            raise JobFailed("Its words are no longer held; search again")
+            raise JobFailed(say("Its words are no longer held; search again"))
         try:
             return await self._search(job, held, progress)
         except JobFailed:
@@ -236,7 +256,7 @@ class SearchContents:
             ref = record_failure(
                 logger, f"Search inside files {job.id} failed", failure, private=True
             )
-            raise JobFailed(with_ref("The search could not be completed", ref)) from None
+            raise JobFailed(with_ref(say("The search could not be completed"), ref)) from None
         finally:
             self._memory.ended(job.id)
 
@@ -246,9 +266,11 @@ class SearchContents:
             return None
         places = list(held.places.values())
         searched = sum(1 for place in places if place.status != "waiting")
-        return (
-            f"Stopped after {searched} of {_plural(len(places), 'connection', 'connections')}; "
-            f"{_plural(len(held.hits), 'match', 'matches')} found"
+        return say(
+            _STOPPED[(len(places) == 1, len(held.hits) == 1)],
+            searched=_number(searched),
+            places=_number(len(places)),
+            found=_number(len(held.hits)),
         )
 
     async def _search(self, job: Job, held: _Held, progress: Progress) -> str:
@@ -257,7 +279,7 @@ class SearchContents:
         async with async_session_maker() as session:
             owner = await session.get(User, job.owner_id)
             if owner is None:
-                raise JobFailed("Its owner is no longer here")
+                raise JobFailed(say("Its owner is no longer here"))
             # Read again: a grant may have gone since the search was started.
             visible = {one.id: one for one in await connections.visible(session, owner)}
         total = len(held.places)
@@ -265,7 +287,7 @@ class SearchContents:
             connection = visible.get(connector_id)
             room = TOTAL_MATCHES - len(held.hits)
             if connection is None:
-                place.status, place.message = "failed", "No longer yours to read"
+                place.status, place.message = "failed", say("No longer yours to read")
             elif not connection.enabled:
                 place.status, place.reason = "skipped", "switched_off"
             elif not searches_contents(connection):
@@ -273,8 +295,8 @@ class SearchContents:
             elif room <= 0 or time.monotonic() >= deadline:
                 place.status, place.reason = "skipped", "not_asked"
                 place.notice = (
-                    f"Not searched: {TOTAL_MATCHES} matches were already found"
-                    if room <= 0 else "Not searched: the search ran out of time"
+                    say("Not searched: {count} matches were already found", count=_number(TOTAL_MATCHES))
+                    if room <= 0 else say("Not searched: the search ran out of time")
                 )
             else:
                 result = await self._asked(connection, held, min(PER_CONNECTION, room), deadline)
@@ -300,9 +322,9 @@ class SearchContents:
                 adapter = adapter_of(connection, store)
             except Exception:
                 # Never the text: a validation error quotes the options.
-                return _failed("config", "The settings of this connection cannot be read")
+                return _failed("config", say("The settings of this connection cannot be read"))
             if not isinstance(adapter, SearchesContents):
-                return _failed("config", "This connection cannot be searched inside its files")
+                return _failed("config", say("This connection cannot be searched inside its files"))
             walk = asyncio.ensure_future(
                 adapter.search_contents(NodeSearchRequest(query=held.typed, limit=limit), bounds)
             )
@@ -316,7 +338,7 @@ class SearchContents:
                     pass
                 raise
         except NodeNotFound:
-            return _failed("config", "Where this search started is gone")
+            return _failed("config", say("Where this search started is gone"))
         except ValueError as refusal:
             return _failed("config", str(refusal))
         except AdapterError as failure:
@@ -354,27 +376,27 @@ def _record(
         place.status = "failed"
         place.error_kind = result.error_kind
         place.message = (
-            _LOCKED_BY_OWNER
+            say(_LOCKED_BY_OWNER)
             if result.error_kind == "locked" and connection.access != "own"
             else result.notice
         )
     else:
         place.status = "stopped" if stopped or not result.complete else "complete"
-        place.notice = "Stopped on request" if stopped else result.notice
+        place.notice = say("Stopped on request") if stopped else result.notice
 
 
 def _told(held: _Held) -> str:
     """The job's message: counts only, never the words."""
     places = list(held.places.values())
     found = len(held.hits)
-    where = _plural(len(places), "connection", "connections")
+    one = len(places) == 1
     said = (
-        f"{_plural(found, 'match', 'matches')} found in {where}"
-        if found else f"Nothing found in {where}"
+        say(_FOUND[(one, found == 1)], found=_number(found), places=_number(len(places)))
+        if found else say(_NOTHING_FOUND[one], places=_number(len(places)))
     )
     missed = sum(1 for place in places if place.status in ("failed", "skipped"))
     if missed:
-        said += f"; {missed} could not be searched"
+        said = say("{said}; {missed} could not be searched", said=said, missed=missed)
     return said
 
 

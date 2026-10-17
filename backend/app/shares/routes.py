@@ -18,6 +18,7 @@ from app.connectors.models import Connector
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.realtime.topics import TopicsDep
 from app.shares import crud, topic
 from app.shares.models import (
@@ -343,7 +344,7 @@ async def cancel_request(
     if asked.requester_id != current_user.id:
         raise Problem(404, "shares.request_not_found")
     await crud.close_request(session, asked=asked, state="cancelled")
-    return Message(message="Request withdrawn")
+    return Message(message=say("Request withdrawn"))
 
 
 @router.post("/{token}/request", response_model=AccessRequestPublic)
@@ -454,4 +455,4 @@ async def delete_share(
     if share.author_id != current_user.id:
         await get_or_404(session, share.connector_id, current_user, requires="own")
     await crud.delete(session, share=share)
-    return Message(message="Link deleted")
+    return Message(message=say("Link deleted"))

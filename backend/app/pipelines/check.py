@@ -10,6 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.protocol import AdapterError, NodeNotFound, SupportsNodePath
 from app.adapters.resources import ResourceStore
 from app.connectors.access import adapter_for
+from app.core.translation import N_, say
 from app.pipelines.models import Card, CardState
 from app.users.models import User
 
@@ -17,9 +18,10 @@ from app.users.models import User
 # without standing and a connection deleted are one answer, as they are
 # everywhere else (D33).
 _REFUSALS = {
-    404: "This connection is gone, or no longer shared with you",
-    409: "This connection is switched off",
+    404: N_("This connection is gone, or no longer shared with you"),
+    409: N_("This connection is switched off"),
 }
+_UNREADABLE = N_("This connection cannot be read")
 
 
 async def card_state(
@@ -30,8 +32,8 @@ async def card_state(
             session, card.connector_id, user, resources, requires="read"
         )
     except HTTPException as refused:
-        problem = _REFUSALS.get(refused.status_code, "This connection cannot be read")
-        return CardState(problem=problem, checked=False)
+        problem = _REFUSALS.get(refused.status_code, _UNREADABLE)
+        return CardState(problem=say(problem), checked=False)
     if not isinstance(adapter, SupportsNodePath):
         return CardState(checked=False)
     missing: list[str] = []

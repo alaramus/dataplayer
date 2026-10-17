@@ -39,6 +39,7 @@ from app.adapters.search import (
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
+from app.core.translation import say
 from app.search import connections, kept
 from app.search.models import (
     BestLine,
@@ -350,11 +351,11 @@ class SearchEngine:
 def _candidates_of(provider: ApplicationProvider) -> list[Candidate]:
     place = provider.place
     if isinstance(place, ConnectionsPlace):
-        group = Group(key="connections", title=provider.title, rank=CONNECTIONS_RANK)
+        group = Group(key="connections", title=say(provider.title), rank=CONNECTIONS_RANK)
     else:
         group = Group(
             key=f"objects:{place.provider}",
-            title=provider.title,
+            title=say(provider.title),
             rank=PROVIDER_RANKS[place.provider],
         )
     return [
@@ -652,7 +653,7 @@ class Answer:
             way="live",
             status="failed",
             error_kind="unknown",
-            message=with_ref("This could not be searched", ref),
+            message=with_ref(say("This could not be searched"), ref),
         )
 
     def _finish(self, planned: Planned, outcome: Outcome, hits: list[Hit] | None = None) -> None:

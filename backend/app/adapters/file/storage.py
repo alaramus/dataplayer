@@ -32,6 +32,7 @@ from app.adapters.explorer.storage import (
 )
 from app.adapters.file.options import FileOptions
 from app.adapters.protocol import ConnectionCheckResult
+from app.core.translation import say
 
 
 class LocalStorage(PathPlaces):
@@ -69,7 +70,9 @@ class LocalStorage(PathPlaces):
         # resolve() follows symlinks, so a link out of the root fails here
         # rather than needing a check of its own.
         if not candidate.is_relative_to(self.resolved_root):
-            raise ValueError(f"Path outside the connector root: {node_id}")
+            raise ValueError(
+                say("Path outside the connector root: {node_id}", node_id=node_id)
+            )
         below = candidate.relative_to(self.resolved_root)
         # A link inside the root may lead back to the root itself.
         return self.place_at(PurePosixPath(*below.parts))
@@ -80,7 +83,7 @@ class LocalStorage(PathPlaces):
         for part in relative.parts:
             candidate /= part
             if candidate.is_symlink():
-                raise ValueError("Symbolic links are not downloaded")
+                raise ValueError(say("Symbolic links are not downloaded"))
         return self.place(node_id)
 
     def check(self) -> ConnectionCheckResult:
@@ -90,12 +93,12 @@ class LocalStorage(PathPlaces):
         if not readable:
             return ConnectionCheckResult(
                 ok=False,
-                message="The directory does not exist or cannot be read",
+                message=say("The directory does not exist or cannot be read"),
                 error_kind="config",
                 latency_ms=latency_ms,
             )
         return ConnectionCheckResult(
-            ok=True, message="Directory is readable", latency_ms=latency_ms
+            ok=True, message=say("Directory is readable"), latency_ms=latency_ms
         )
 
     def _is_readable_directory(self) -> bool:
@@ -265,11 +268,13 @@ class LocalStorage(PathPlaces):
         try:
             relative = path.relative_to(self._home_dir.resolve()).as_posix()
         except ValueError:
-            raise ValueError("The folder must stay inside your personal storage") from None
+            raise ValueError(
+                say("The folder must stay inside your personal storage")
+            ) from None
         options = FileOptions(path=relative)
         if options.below_home != relative:
             raise ActionRefused(
-                "not_applicable", "A connection path cannot start or end with spaces"
+                "not_applicable", say("A connection path cannot start or end with spaces")
             )
         return ConnectorDraft(
             name=place.name,

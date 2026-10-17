@@ -41,6 +41,7 @@ from app.adapters.search import (
     out_of_time,
     words_of,
 )
+from app.core.translation import say
 
 # How many keys one search looks at, over every database it walks. A bound on
 # the walk rather than on the matches, so a rare word costs what a common one
@@ -60,9 +61,9 @@ class RedisSearch:
     ) -> NodeSearchResult:
         words = words_of(request.query)
         if not words:
-            raise ValueError("A search needs something to look for")
+            raise ValueError(say("A search needs something to look for"))
         if is_key(request.node_id):
-            raise ValueError("A search starts in a database or a folder")
+            raise ValueError(say("A search starts in a database or a folder"))
         place = None if request.node_id is None else place_of(request.node_id)
 
         async with self._session.connection() as client:
@@ -94,9 +95,9 @@ class RedisSearch:
                             notice = out_of_time(looked, "keys")
                             break
                         if looked >= MAX_LOOKED_AT:
-                            notice = (
-                                f"More than {MAX_LOOKED_AT:,} keys were looked at; "
-                                "the search stopped there"
+                            notice = say(
+                                "More than {count} keys were looked at; the search stopped there",
+                                count=f"{MAX_LOOKED_AT:,}",
                             )
                             break
                         cursor, batch = await client.scan(
@@ -138,7 +139,9 @@ class RedisSearch:
                 extent=extent,
             )
         if notice is None and kept.dropped:
-            notice = f"More than {request.limit} matched; the best {request.limit} are shown"
+            notice = say(
+                "More than {limit} matched; the best {limit} are shown", limit=request.limit
+            )
         return NodeSearchResult(
             matches=matches, complete=notice is None, notice=notice, extent=extent
         )
@@ -224,7 +227,10 @@ class RedisSearch:
                         if read >= limit and cursor != 0:
                             yield NameBatch(
                                 unread=[database_id(database)],
-                                notice=f"More than {limit:,} keys; the first {limit:,} are kept",
+                                notice=say(
+                                    "More than {limit} keys; the first {limit} are kept",
+                                    limit=f"{limit:,}",
+                                ),
                             )
                             return
                         if cursor == 0:

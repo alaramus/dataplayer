@@ -64,6 +64,7 @@ from app.connectors.access import context_for
 from app.connectors.health import delay_after
 from app.core.config import settings
 from app.core.schemas import get_datetime_utc
+from app.core.translation import N_, say
 from app.search import kept as kept_names
 from app.search.excerpts import segments
 from app.search.kept import KeptList
@@ -94,7 +95,7 @@ _REMEMBERED = 1000
 
 # What a grantee reads of a key that is locked: which key it is belongs to its
 # owner (D199), and only the owner can open it (D147).
-_LOCKED_BY_OWNER = "Locked by its owner"
+_LOCKED_BY_OWNER = N_("Locked by its owner")
 
 # A source's clock stops a little before the answer gives up on its cell, so a
 # walk stopped by time hands over what it found instead of being cut off with
@@ -415,7 +416,7 @@ class ConnectionSearch:
             except Exception:
                 # Never the text: a validation error quotes the options it
                 # refused, and a password may be among them.
-                return _failed("config", "The settings of this connection cannot be read")
+                return _failed("config", say("The settings of this connection cannot be read"))
             return await _asked_of(adapter, asked.field, request, bounds)
         except asyncio.CancelledError:
             # Set before the store closes under a walk still running on its
@@ -423,7 +424,7 @@ class ConnectionSearch:
             stop.set()
             raise
         except NodeNotFound:
-            return _failed("config", "Where this search started is gone")
+            return _failed("config", say("Where this search started is gone"))
         except ValueError as refusal:
             # The source's own refusal of where it was asked to start.
             return _failed("config", str(refusal))
@@ -549,7 +550,7 @@ async def _asked_of(
         return await adapter.search_columns(request, bounds)
     if searched == "names" and isinstance(adapter, SupportsNodeSearch):
         return await adapter.search_nodes(request, bounds)
-    raise ValueError("This connection cannot be searched this way")
+    raise ValueError(say("This connection cannot be searched this way"))
 
 
 # Closes still running for answers that have gone. Held here because the loop
@@ -582,7 +583,7 @@ def _found(
     message = result.notice if failed else None
     if result.error_kind == "locked" and not owned:
         # The source's sentence names the owner's key.
-        message = _LOCKED_BY_OWNER
+        message = say(_LOCKED_BY_OWNER)
     return Found(
         hits=found.hits,
         complete=result.complete and not failed,
@@ -736,7 +737,7 @@ async def from_text(connection: VisibleConnection, listed: KeptList, asked: Aske
         hits=found.hits,
         complete=not more,
         more=more,
-        notice=None if not more else f"The first {asked.limit} files; there may be more",
+        notice=None if not more else say("The first {count} files; there may be more", count=asked.limit),
         way="kept",
         as_of=listed.kept_at,
     )

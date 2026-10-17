@@ -12,10 +12,11 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.adapters.layout import layout
+from app.core.translation import N_
 
 
 def _auth_method_field(value: str) -> Any:
-    return Field(default=value, title="Authentication", json_schema_extra=layout())
+    return Field(default=value, title=N_("Authentication"), json_schema_extra=layout())
 
 
 class _RedisBase(BaseModel):
@@ -26,11 +27,11 @@ class _RedisBase(BaseModel):
     host: str = Field(
         default="localhost",
         min_length=1,
-        title="Host",
+        title=N_("Host"),
         json_schema_extra=layout(row="address"),
     )
     port: int = Field(
-        default=6379, ge=1, le=65535, title="Port", json_schema_extra=layout(row="address")
+        default=6379, ge=1, le=65535, title=N_("Port"), json_schema_extra=layout(row="address")
     )
     # Redis calls them databases and numbers them; there are sixteen by
     # default and they have no names, so this is a number rather than a name.
@@ -40,23 +41,23 @@ class _RedisBase(BaseModel):
         default=0,
         ge=0,
         le=15,
-        title="Database",
-        description="Where the catalog opens; every database is in the catalog",
+        title=N_("Database"),
+        description=N_("Where the catalog opens; every database is in the catalog"),
         json_schema_extra=layout(),
     )
 
 
 class RedisPassword(_RedisBase):
-    model_config = ConfigDict(title="Password")
+    model_config = ConfigDict(title=N_("Password"))
 
     auth_method: Literal["password"] = _auth_method_field("password")
-    password: SecretStr = Field(title="Password", json_schema_extra=layout())
+    password: SecretStr = Field(title=N_("Password"), json_schema_extra=layout())
 
 
 class RedisNoAuth(_RedisBase):
     """A server that asks for nothing, which is the default configuration."""
 
-    model_config = ConfigDict(title="No auth")
+    model_config = ConfigDict(title=N_("No auth"))
 
     auth_method: Literal["no_auth"] = _auth_method_field("no_auth")
 

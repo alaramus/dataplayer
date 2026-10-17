@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.registry import UnknownAdapterType
 from app.adapters.registry import get as adapter_type_of
 from app.connectors import crud
+from app.core.translation import N_, say
 from app.search.models import (
     ConnectionsPlace,
     ConnectionTarget,
@@ -61,7 +62,7 @@ async def visible(session: AsyncSession, user: User) -> list[VisibleConnection]:
 
 def type_title(adapter_type: str) -> str:
     try:
-        return adapter_type_of(adapter_type).title
+        return say(adapter_type_of(adapter_type).title)
     except UnknownAdapterType:
         return adapter_type
 
@@ -79,7 +80,7 @@ class ConnectionRows:
     """Connections found by their name, their source type, their host and database."""
 
     place = ConnectionsPlace()
-    title = "Connections"
+    title = N_("Connections")
     # Under D135: the engine hands the agent only connections that allow transfer.
     offered_to_agent = True
 
@@ -112,7 +113,7 @@ def connection_hit(connection: VisibleConnection, match: Match) -> Hit:
             part
             for part in (
                 type_title(connection.adapter_type),
-                None if connection.enabled else "Switched off",
+                None if connection.enabled else say("Switched off"),
                 connection.owner_email,
             )
             if part

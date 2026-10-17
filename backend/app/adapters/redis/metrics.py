@@ -4,6 +4,7 @@ import re
 
 from app.adapters.metrics import MetricPreset, MetricRecipe, MetricSample
 from app.adapters.redis.session import RedisSession
+from app.core.translation import N_
 
 _DATABASE_SECTION = re.compile(r"^db\d+$")
 
@@ -49,15 +50,15 @@ class RedisMetrics:
 PRESETS: tuple[MetricPreset, ...] = (
     MetricPreset(
         key="redis-server",
-        name="Redis server",
-        description="Clients, memory, commands, cache hits and keys of one server.",
+        name=N_("Redis server"),
+        description=N_("Clients, memory, commands, cache hits and keys of one server."),
         recipes=(
-            MetricRecipe("timeseries", "Commands per second", (0, 0, 8, 5), "commands"),
-            MetricRecipe("stat", "Memory used", (8, 0, 4, 5), "memory", ("used",)),
-            MetricRecipe("timeseries", "Memory", (0, 5, 6, 5), "memory"),
-            MetricRecipe("timeseries", "Clients", (6, 5, 6, 5), "clients"),
-            MetricRecipe("timeseries", "Hits and misses per second", (0, 10, 6, 5), "keyspace", ("hits", "misses")),
-            MetricRecipe("timeseries", "Keys per database", (6, 10, 6, 5), "databases", ("keys",)),
+            MetricRecipe("timeseries", N_("Commands per second"), (0, 0, 8, 5), "commands"),
+            MetricRecipe("stat", N_("Memory used"), (8, 0, 4, 5), "memory", ("used",)),
+            MetricRecipe("timeseries", N_("Memory"), (0, 5, 6, 5), "memory"),
+            MetricRecipe("timeseries", N_("Clients"), (6, 5, 6, 5), "clients"),
+            MetricRecipe("timeseries", N_("Hits and misses per second"), (0, 10, 6, 5), "keyspace", ("hits", "misses")),
+            MetricRecipe("timeseries", N_("Keys per database"), (6, 10, 6, 5), "databases", ("keys",)),
         ),
     ),
 )

@@ -87,6 +87,7 @@ from app.adapters.update import (
     UpdateCellsRequest,
     UpdateCellsResult,
 )
+from app.core.translation import say
 
 
 class Explorer:
@@ -137,7 +138,7 @@ class Explorer:
                 return sum(1 for _ in folder.iterdir())
 
         written = await to_thread.run_sync(fill)
-        return f"{written} sample files and folders"
+        return say("{count} sample files and folders", count=written)
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._catalog.list_children(node_id)

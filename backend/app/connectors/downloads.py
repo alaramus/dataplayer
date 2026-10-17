@@ -32,6 +32,7 @@ from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchResult
 from app.core import security
 from app.core.config import settings
+from app.core.translation import say
 
 # SQL NULL is an empty unquoted field and every other value is quoted, so the
 # empty string stays distinguishable from the absence of one. This is the
@@ -130,10 +131,10 @@ def page_csv(*, columns: list[str], result: FetchResult) -> bytes:
     """
     available = {column.name: index for index, column in enumerate(result.columns)}
     if len(columns) != len(set(columns)):
-        raise ValueError("Download columns must be unique")
+        raise ValueError(say("Download columns must be unique"))
     unknown = [column for column in columns if column not in available]
     if unknown:
-        raise ValueError(f"Unknown download column: {unknown[0]}")
+        raise ValueError(say("Unknown download column: {column}", column=unknown[0]))
 
     indexes = [available[column] for column in columns]
     output = io.StringIO(newline="")

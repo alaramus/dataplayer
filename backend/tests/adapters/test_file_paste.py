@@ -7,6 +7,7 @@ import pytest
 from app.adapters.actions import ActionRefused, ActionResult, TakesParams
 from app.adapters.explorer.actions import ExplorerActions
 from app.adapters.file.storage import LocalStorage
+from app.core.translation import current_language
 
 
 @pytest.fixture
@@ -163,3 +164,23 @@ async def test_the_form_names_the_two_fields_the_client_fills() -> None:
     assert properties["mode"]["x-ui-purpose"] == "clipboard-mode"
     assert properties["sources"]["x-ui-hidden"] is True
     assert properties["mode"]["x-ui-hidden"] is True
+
+
+async def test_a_russian_request_reads_what_was_pasted_in_russian(
+    actions: ExplorerActions, root: Path
+) -> None:
+    """A whole sentence per count, so the language words its own agreement (D226)."""
+    (root / "plan.txt").write_text("second\n", encoding="utf-8")
+    token = current_language.set("ru")
+    try:
+        moved = await _paste(
+            actions, "archive", sources=["notes.txt", "plan.txt"], mode="move"
+        )
+        (root / "notes.txt").write_text("again\n", encoding="utf-8")
+        with pytest.raises(ActionRefused) as refused:
+            await _paste(actions, "archive", sources=["notes.txt"], mode="copy")
+    finally:
+        current_language.reset(token)
+
+    assert moved.message == "Перемещено элементов: 2"
+    assert refused.value.message == "notes.txt уже существует"

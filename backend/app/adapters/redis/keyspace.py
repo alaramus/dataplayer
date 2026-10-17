@@ -38,6 +38,7 @@ from app.adapters.content import NodeRepresentation
 from app.adapters.protocol import NodeNotFound
 from app.adapters.redis.session import RedisSession, resolved, text
 from app.adapters.search import Ancestor
+from app.core.translation import N_, say
 
 # How keys are conventionally named, and therefore how they are grouped. Not
 # configurable: a source type whose tree shape is an option is a source type
@@ -86,7 +87,7 @@ DataType = Literal["string", "list", "set", "zset", "hash", "stream"]
 # What opening a key shows: what it holds, as rows. One representation, and
 # the same one for every type — a hash is fields and values, a list is
 # positions and values, and both are a grid.
-AS_ROWS = NodeRepresentation(kind="table", title="View what it holds")
+AS_ROWS = NodeRepresentation(kind="table", title=N_("View what it holds"))
 
 _TYPES: frozenset[str] = frozenset(
     {"string", "list", "set", "zset", "hash", "stream"}
@@ -484,7 +485,7 @@ def key_node(database: int, facts: KeyFacts) -> KeyNode:
         id=key_id(database, facts.name),
         name=facts.name.rsplit(SEPARATOR, 1)[-1] or facts.name,
         has_children=False,
-        representations=[AS_ROWS],
+        representations=[AS_ROWS.model_copy(update={"title": say(AS_ROWS.title)})],
         data_type=facts.data_type,
         ttl_seconds=facts.ttl_seconds,
         length=facts.length,

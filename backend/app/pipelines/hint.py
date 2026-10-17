@@ -14,6 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.resources import ResourceStore
 from app.connectors.paste.registry import open_kinds
+from app.core.translation import say
 from app.pipelines.models import Card, LinkEnd, PipelineContent
 from app.pipelines.offers import Asking
 from app.pipelines.results import Foresight
@@ -91,18 +92,21 @@ async def hint(
         if card_id is None:
             return Hint(
                 links=[],
-                notice="This canvas holds too many rows to hint at once: select a card first",
+                notice=say("This canvas holds too many rows to hint at once: select a card first"),
             )
         pairs = [pair for pair in pairs if card_id in (pair[0].id, pair[2].id)]
-        notice = "Only the links of the selected card are hinted"
+        notice = say("Only the links of the selected card are hinted")
         if len(pairs) > MAX_HINT_PAIRS:
             pairs = pairs[:MAX_HINT_PAIRS]
-            notice = f"Only the first {MAX_HINT_PAIRS} pairs of rows of the selected card are hinted"
+            notice = say(
+                "Only the first {count} pairs of rows of the selected card are hinted",
+                count=MAX_HINT_PAIRS,
+            )
     links: list[HintLink] = []
     for _source, start, _target, end in pairs:
         offers = await asking.offers(start, end)
         # A taken name is a choice the panel asks, not a reason against.
-        titles = [offer.title for offer in offers if offer.available or offer.name_conflict]
+        titles = [say(offer.title) for offer in offers if offer.available or offer.name_conflict]
         if titles:
             links.append(HintLink(source=start, target=end, titles=titles))
     return Hint(links=links, notice=notice)

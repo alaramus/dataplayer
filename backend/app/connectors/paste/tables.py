@@ -30,7 +30,7 @@ from app.adapters.table_copy import (
     TableCopyRequest,
     TableCopyTarget,
 )
-from app.connectors.paste.kinds import counted, offered, refused
+from app.connectors.paste.kinds import offered, refused
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
@@ -53,10 +53,11 @@ from app.connectors.paste.transfer import (
     TransferStopped,
 )
 from app.core.access import Access
+from app.core.translation import N_, say
 
-GONE = "A copied table no longer exists"
-UNAVAILABLE = "The copied connection is unavailable"
-CHANGED = "The tables changed since the copy was planned; paste again"
+GONE = N_("A copied table no longer exists")
+UNAVAILABLE = N_("The copied connection is unavailable")
+CHANGED = N_("The tables changed since the copy was planned; paste again")
 
 Origin = Literal["ticked", "linked", "added"]
 
@@ -142,7 +143,7 @@ class Resolved:
 
 def copying(adapter: DataAdapter) -> SupportsTableCopy:
     if not isinstance(adapter, SupportsTableCopy):
-        raise ActionRefused("not_applicable", "This connection cannot copy tables")
+        raise ActionRefused("not_applicable", say("This connection cannot copy tables"))
     return adapter
 
 
@@ -192,7 +193,11 @@ async def resolve(
             try:
                 await describe(fresh)
             except NodeNotFound as gone:
-                problems.append(CopyProblem(message=f"{gone} is linked to and no longer exists"))
+                problems.append(
+                    CopyProblem(
+                        message=say("{what} is linked to and no longer exists", what=str(gone))
+                    )
+                )
                 break
             origins.update(dict.fromkeys(fresh, "linked"))
             frontier = [
@@ -204,8 +209,10 @@ async def resolve(
     if len(members) > MAX_COPIED_TABLES:
         problems.append(
             CopyProblem(
-                message=f"The links bring in more than {MAX_COPIED_TABLES} tables; "
-                "drop the links or copy fewer"
+                message=say(
+                    "The links bring in more than {count} tables; drop the links or copy fewer",
+                    count=MAX_COPIED_TABLES,
+                )
             )
         )
         members = members[:MAX_COPIED_TABLES]
@@ -267,7 +274,7 @@ async def preview(
 ) -> TablesPreview:
     """What the window shows for these choices: the copy planned, not run."""
     if request.destination_node_id is None:
-        raise ActionRefused("not_applicable", "Paste into a schema")
+        raise ActionRefused("not_applicable", say("Paste into a schema"))
     resolved = await resolve(
         copying(source),
         copying(destination),
@@ -303,10 +310,10 @@ async def preview(
 
 class TablesCopy:
     name: PasteKindName = "tables_copy"
-    title = "Copy tables"
-    needs = "Tick a table"
-    doing = "Copying tables"
-    done = "copied"
+    title = N_("Copy tables")
+    needs = N_("Tick a table")
+    doing = N_("Copying tables")
+    done = N_("copied")
     mode: ClipboardMode = "copy"
     workflow: PasteWorkflow = "copy-tables"
     # Its window comes first: the names, the rows and the links are choices.
@@ -333,7 +340,7 @@ class TablesCopy:
         )
 
     async def supply(self, source: DataAdapter, node_ids: list[str]) -> Availability:
-        refusal = await _refusal(source, node_ids, gone="Tick a table")
+        refusal = await _refusal(source, node_ids, gone=N_("Tick a table"))
         if refusal is not None:
             return Availability(available=False, reason=refusal)
         return Availability(available=True)
@@ -363,13 +370,13 @@ class TablesCopy:
         target_end: PairEnd,
     ) -> PasteOffer:
         del source, destination, source_end, target_end
-        return refused(self, "Tables are copied from the catalog")
+        return refused(self, say("Tables are copied from the catalog"))
 
     async def plan(
         self, source: DataAdapter, destination: DataAdapter, request: PasteRun
     ) -> TransferPlan:
         if request.destination_node_id is None:
-            raise ActionRefused("not_applicable", "Paste into a schema")
+            raise ActionRefused("not_applicable", say("Paste into a schema"))
         resolved = await resolve(
             copying(source),
             copying(destination),
@@ -412,7 +419,7 @@ class TablesCopy:
                 transfer.tables or TablesChoice(),
             )
             if [target.table.node_id for target in resolved.request.tables] != list(items):
-                raise ActionRefused("not_applicable", CHANGED)
+                raise ActionRefused("not_applicable", say(CHANGED))
             _refuse(resolved.problems)
         except (ActionRefused, NodeNotFound, AdapterError, ValueError) as failure:
             raise _stopped(transfer, _said(failure)) from None
@@ -453,22 +460,32 @@ class TablesCopy:
 
     def told(self, transfer: Transfer, stopped: str | None = None) -> str:
         items = transfer.items
-        where = f"into {transfer.place_label}"
         if all(item.outcome == "done" for item in items):
-            copied = (
-                counted(len(items), "table")
-                if len(items) > 1
-                else f"{items[0].name} as {items[0].published_as}"
-            )
-            with_rows = (
-                f" with {counted(sum(item.rows or 0 for item in items), 'row')}"
-                if transfer.tables is None or transfer.tables.rows
-                else ", structure only"
-            )
-            return f"{copied} copied {where}{with_rows}"
+            rows = sum(item.rows or 0 for item in items)
+            with_rows = transfer.tables is None or transfer.tables.rows
+            said = {
+                "count": len(items),
+                "name": items[0].name,
+                "copy": items[0].published_as,
+                "place": transfer.place_label,
+                "rows": rows,
+            }
+            if len(items) > 1:
+                if not with_rows:
+                    return say("{count} tables copied into {place}, structure only", **said)
+                if rows == 1:
+                    return say("{count} tables copied into {place} with {rows} row", **said)
+                return say("{count} tables copied into {place} with {rows} rows", **said)
+            if not with_rows:
+                return say("{name} as {copy} copied into {place}, structure only", **said)
+            if rows == 1:
+                return say("{name} as {copy} copied into {place} with {rows} row", **said)
+            return say("{name} as {copy} copied into {place} with {rows} rows", **said)
         if any(item.outcome == "stopped" for item in items):
-            return "Nothing was copied: it was stopped"
-        return f"Nothing was copied: {stopped or 'it failed'}"
+            return say("Nothing was copied: it was stopped")
+        if stopped is None:
+            return say("Nothing was copied: it failed")
+        return say("Nothing was copied: {reason}", reason=stopped)
 
 
 def _refuse(problems: list[CopyProblem]) -> None:
@@ -483,7 +500,7 @@ def _said(failure: Exception) -> str:
     if isinstance(failure, ActionRefused | AdapterError):
         return failure.message
     if isinstance(failure, NodeNotFound):
-        return GONE
+        return say(GONE)
     return str(failure)
 
 
@@ -492,7 +509,11 @@ def _stopped(transfer: Transfer, message: str) -> TransferStopped:
     for item in transfer.items:
         item.outcome = "failed"
         item.failed = 1
-        item.message = f"{item.name} was not copied: {message[:1].lower()}{message[1:]}"[:600]
+        item.message = say(
+            "{name} was not copied: {reason}",
+            name=item.name,
+            reason=f"{message[:1].lower()}{message[1:]}",
+        )[:600]
     transfer.current = None
     return TransferStopped(message)
 
@@ -500,17 +521,17 @@ def _stopped(transfer: Transfer, message: str) -> TransferStopped:
 async def _refusal(source: DataAdapter, node_ids: list[str], *, gone: str) -> str | None:
     """Why these nodes cannot be copied as tables, or None."""
     if not isinstance(source, SupportsTableCopy):
-        return "This connection cannot copy tables"
+        return say("This connection cannot copy tables")
     if len(node_ids) > MAX_COPIED_TABLES:
-        return f"Copy at most {MAX_COPIED_TABLES} tables at a time"
+        return say("Copy at most {count} tables at a time", count=MAX_COPIED_TABLES)
     try:
         described = await source.describe_for_copy(list(dict.fromkeys(node_ids)))
     except NodeNotFound:
-        return gone
+        return say(gone)
     except ValueError:
-        return "Tick a table"
+        return say("Tick a table")
     except AdapterError:
-        return UNAVAILABLE
+        return say(UNAVAILABLE)
     refused_one = next((table for table in described if table.refusal is not None), None)
     if refused_one is not None:
         return f"{refused_one.label}: {refused_one.refusal}"

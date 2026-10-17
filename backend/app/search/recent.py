@@ -9,6 +9,7 @@ that is not theirs are dropped without a word (D199).
 import uuid
 from collections.abc import Sequence
 
+from app.core.translation import N_
 from app.search.connections import connection_hit
 from app.search.models import (
     ConnectionTarget,
@@ -36,7 +37,7 @@ class RecentlyOpened:
     """The whole of an empty search, in the order the things were opened."""
 
     place = ObjectsPlace(provider="recent")
-    title = "Recently opened"
+    title = N_("Recently opened")
     offered_to_agent = False
 
     def __init__(self, providers: Sequence[ApplicationProvider]) -> None:

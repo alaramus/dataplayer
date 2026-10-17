@@ -9,6 +9,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.translation import say
+
 
 class CreateIndexRequest(BaseModel):
     """Columns of this relation, a published method code, and uniqueness.
@@ -30,7 +32,7 @@ class CreateIndexRequest(BaseModel):
     @model_validator(mode="after")
     def distinct_columns(self) -> CreateIndexRequest:
         if len(self.columns) != len(set(self.columns)):
-            raise ValueError("A column may appear in an index only once")
+            raise ValueError(say("A column may appear in an index only once"))
         return self
 
 

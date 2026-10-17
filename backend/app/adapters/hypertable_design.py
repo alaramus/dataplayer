@@ -10,6 +10,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.translation import say
+
 MAX_DESIGN_COLUMNS = 32
 MAX_HASH_DIMENSIONS = 8
 MAX_TABLESPACES = 32
@@ -43,7 +45,7 @@ class IntegerSpan(BaseModel):
     @model_validator(mode="after")
     def within_bigint(self) -> Self:
         if int(self.amount) > BIGINT_MAX:
-            raise ValueError("A length is at most the largest bigint")
+            raise ValueError(say("A length is at most the largest bigint"))
         return self
 
 
@@ -217,9 +219,9 @@ class HypertableDesign(BaseModel):
     def distinct(self) -> Self:
         hashed = [item.column for item in self.hash_dimensions]
         if len(set(hashed)) != len(hashed):
-            raise ValueError("A column is hashed at most once")
+            raise ValueError(say("A column is hashed at most once"))
         if len(set(self.tablespaces)) != len(self.tablespaces):
-            raise ValueError("A tablespace is attached at most once")
+            raise ValueError(say("A tablespace is attached at most once"))
         return self
 
 

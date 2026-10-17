@@ -28,6 +28,7 @@ from typing import BinaryIO, Protocol, runtime_checkable
 
 from app.adapters.actions import ConnectorDraft
 from app.adapters.protocol import ConnectionCheckResult
+from app.core.translation import say
 
 
 @dataclass(frozen=True)
@@ -336,7 +337,9 @@ class PathPlaces:
         if node_id is None or node_id == "":
             return PurePosixPath()
         if not stays_inside_root(node_id):
-            raise ValueError(f"Path outside the connector root: {node_id}")
+            raise ValueError(
+                say("Path outside the connector root: {node_id}", node_id=node_id)
+            )
         return PurePosixPath(node_id)
 
     def parent(self, place: Place) -> Place:

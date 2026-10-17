@@ -28,6 +28,7 @@ from app.adapters.redis.cache_connection import (
     RedisCacheConnection,
     SharedCacheConnection,
 )
+from app.core.translation import say
 
 logger = logging.getLogger(__name__)
 
@@ -259,9 +260,9 @@ class RedisDataCache:
             status="healthy" if available else "degraded",
             shared=True,
             message=(
-                "Shared Redis cache is reachable"
+                say("Shared Redis cache is reachable")
                 if available
-                else "Shared Redis cache is unavailable; source reads are direct"
+                else say("Shared Redis cache is unavailable; source reads are direct")
             ),
             measurements=self._meter.snapshot(),
         )

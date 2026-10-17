@@ -638,7 +638,7 @@ async def delete_connector(
     )
     await crud.delete(session, connector=connector)
     await data_cache.invalidate_connector(connector_id)
-    return Message(message="Connector deleted successfully")
+    return Message(message=say("Connector deleted successfully"))
 
 
 class ConnectionCheckRequest(BaseModel):
@@ -959,7 +959,7 @@ async def fetch_rows(
                 "export_reason": (
                     None
                     if isinstance(adapter, SupportsExport)
-                    else "This source cannot export all matching rows"
+                    else say("This source cannot export all matching rows")
                 ),
                 # What this relation offers to do to selected rows. Asked of
                 # the composed adapter for the reason export is: a capability
@@ -989,7 +989,7 @@ async def fetch_rows(
         # After the cache and not before it: the page a source produced is the
         # same page for everyone, and what one caller may do with it is not.
         if not at_least(access, "write"):
-            return as_read_only(result, "You have read-only access to this connection")
+            return as_read_only(result, say("You have read-only access to this connection"))
         return result
     except ValueError as exc:
         # A column the relation does not have. Caught before any SQL is built,
@@ -1079,7 +1079,7 @@ async def read_editor_content(
             return result.model_copy(
                 update={
                     "writable": False,
-                    "reason": "You have read-only access to this connection",
+                    "reason": say("You have read-only access to this connection"),
                 }
             )
         return result
@@ -1602,7 +1602,7 @@ async def _import_sides(
             detail=[
                 {
                     "loc": ["body", "source_connector_id"],
-                    "msg": "That is not a connector id",
+                    "msg": say("That is not a connector id"),
                     "type": "value_error",
                 }
             ],
@@ -1703,7 +1703,7 @@ async def import_rows(
             detail=[
                 {
                     "loc": ["body", "rows", cell.row, cell.column],
-                    "msg": f"{cell.value!r} cannot be read by {cell.column}",
+                    "msg": say("{value} cannot be read by {column}", value=repr(cell.value), column=cell.column),
                     "type": "value_error",
                 }
                 for cell in result.cells
@@ -1756,7 +1756,7 @@ async def run_row_command(
     if command is None:
         raise Problem(404, "actions.unknown_row_command", name=body.name)
     if not at_least(access, command.requires):
-        raise Problem(403, ACTION_NEEDS[command.requires], action=command.title)
+        raise Problem(403, ACTION_NEEDS[command.requires], action=say(command.title))
     try:
         result = await adapter.run_row_command(body.node_id, body.name, body.keys)
     except UnknownRowCommand as exc:
@@ -1812,7 +1812,7 @@ async def resolve_picked_rows(
     if found is None:
         raise Problem(404, "actions.not_offered", name=body.action)
     if not at_least(access, found.requires):
-        raise Problem(403, ACTION_NEEDS[found.requires], action=found.title)
+        raise Problem(403, ACTION_NEEDS[found.requires], action=say(found.title))
     return await perform(
         lambda: adapter.resolve_picked_rows(body.node_id, body.action, body.keys)
     )
@@ -1856,7 +1856,7 @@ async def create_relation_from_source(
             detail=[
                 {
                     "loc": ["body", "source_connector_id"],
-                    "msg": "That is not a connector id",
+                    "msg": say("That is not a connector id"),
                     "type": "value_error",
                 }
             ],
@@ -1885,7 +1885,7 @@ async def create_relation_from_source(
             detail=[
                 {
                     "loc": ["body", "rows", cell.row, cell.column],
-                    "msg": f"{cell.value!r} cannot be read by {cell.column}",
+                    "msg": say("{value} cannot be read by {column}", value=repr(cell.value), column=cell.column),
                     "type": "value_error",
                 }
                 for cell in result.cells
@@ -2033,7 +2033,7 @@ async def read_relation_model(
         model = await adapter.relation_model(node_id)
         if not at_least(access, "structure"):
             return without_structure_changes(
-                model, "You may not change the structure of this connection"
+                model, say("You may not change the structure of this connection")
             )
         return model
     except NodeNotFound as exc:
@@ -3169,7 +3169,7 @@ async def write_grant(
             detail=[
                 {
                     "loc": ["body", "user_id"],
-                    "msg": "You already own this connection",
+                    "msg": say("You already own this connection"),
                     "type": "value_error",
                 }
             ],
@@ -3181,7 +3181,7 @@ async def write_grant(
             detail=[
                 {
                     "loc": ["body", "user_id"],
-                    "msg": "No such user",
+                    "msg": say("No such user"),
                     "type": "value_error",
                 }
             ],
@@ -3218,4 +3218,4 @@ async def revoke_grant(
         session, connector_id=connector_id, user_id=user_id
     ):
         raise Problem(404, "access.grant_not_found")
-    return Message(message="Access revoked")
+    return Message(message=say("Access revoked"))

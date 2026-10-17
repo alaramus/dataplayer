@@ -35,10 +35,25 @@ def as_language(value: str | None) -> Language | None:
     return None
 
 
+# English one package translates one way and another package another. The
+# catalogs are merged, so the last to register would win where nobody chose.
+_DISAGREEMENTS: list[tuple[Language, str, str, str]] = []
+
+
 def register(language: Language, messages: Mapping[str, str]) -> None:
     """Add a package's translations. Called by the package as it is imported,
     the way an adapter registers itself."""
-    _CATALOGS[language].update(messages)
+    known = _CATALOGS[language]
+    for english, translated in messages.items():
+        if english in known and known[english] != translated:
+            _DISAGREEMENTS.append((language, english, known[english], translated))
+    known.update(messages)
+
+
+def disagreements() -> list[tuple[Language, str, str, str]]:
+    """Each English two packages translate differently: the language, the
+    English, and both translations."""
+    return list(_DISAGREEMENTS)
 
 
 def catalog(language: Language) -> Mapping[str, str]:

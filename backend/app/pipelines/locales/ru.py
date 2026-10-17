@@ -1,0 +1,53 @@
+"""What a pipeline and its runs say, in Russian (D226). Terms follow the screens' glossary."""
+
+MESSAGES: dict[str, str] = {
+    # Carrying a run out.
+    "running its links": "выполнение связей",
+    "{name} is gone, or no longer shared with you": "{name}: подключение удалено или больше не доступно вам",
+    "{name} is switched off": "{name}: подключение отключено",
+    "{name} can no longer be opened": "{name}: больше не открывается",
+    "You no longer have read access to {name}": "{name}: больше нет доступа на чтение",
+    "You no longer have write access to {name}": "{name}: больше нет доступа на запись",
+    "You no longer have structure access to {name}": "{name}: больше нет доступа к структуре",
+    "You no longer have own access to {name}": "{name}: больше нет прав владельца",
+    "The link could not run": "Не удалось выполнить связь",
+    "{link} made nothing in this run": "«{link}»: в этом запуске ничего не создано",
+    "Its owner is no longer here": "Владельца больше нет",
+    "{kind} is not possible between these connections": "«{kind}»: невозможно между этими подключениями",
+    "{kind} cannot run": "«{kind}»: не может быть выполнено",
+    "The link it reads": "Связь, которую она читает",
+    "This run could not be read; nothing ran": "Не удалось прочитать этот запуск; ничего не выполнено",
+    # A run's sentence.
+    "{said}; {count} not run": "{said}; не выполнено: {count}",
+    "{done} of {count} links ran": "Выполнено связей: {done} из {count}",
+    "Its one link ran": "Единственная связь выполнена",
+    "All {count} links ran": "Выполнены все связи: {count}",
+    "Stopped at {at} of {count}, {title}: {reason}": "Остановлено на {at} из {count}, «{title}»: {reason}",
+    "Stopped at {at} of {count}, {title}": "Остановлено на {at} из {count}, «{title}»",
+    "Stopped on request at {at} of {count}, {title}": "Остановлено по запросу на {at} из {count}, «{title}»",
+    "Stopped on request before its first link": "Остановлено по запросу до первой связи",
+    "Stopped on request after {done} of {count}": "Остановлено по запросу после {done} из {count}",
+    # Starting a run.
+    "{number} · {title} needs its table named and its columns chosen": "{number} · «{title}»: нужно назвать таблицу и выбрать столбцы",
+    "{number} · {title} needs its columns paired": "{number} · «{title}»: нужно сопоставить столбцы",
+    "a result": "результат",
+    "{connection} (top)": "{connection} (верхний уровень)",
+    "Nothing ran: {needs}": "Ничего не выполнено: {needs}",
+    # The canvas.
+    "This connection is gone, or no longer shared with you": "Это подключение удалено или больше не доступно вам",
+    "This connection is switched off": "Это подключение отключено",
+    "This connection cannot be read": "Это подключение не читается",
+    "This canvas holds too many rows to hint at once: select a card first": "На холсте слишком много строк, чтобы подсказать все сразу: сначала выберите карточку",
+    "Only the links of the selected card are hinted": "Подсказаны только связи выбранной карточки",
+    "Only the first {count} pairs of rows of the selected card are hinted": "Подсказаны только первые пары строк выбранной карточки: {count}",
+    "{names} and {last}": "{names} и {last}",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} пишут друг в друга, поэтому стрелки не задают первую связь: эта идёт первой, потому что её карточка левее всех",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} пишут друг в друга, поэтому стрелки не задают первую связь: эта идёт первой, потому что её карточка выше всех",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it starts from the highest row": "{names} пишут друг в друга, поэтому стрелки не задают первую связь: эта идёт первой, потому что начинается с самой верхней строки",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it was drawn first": "{names} пишут друг в друга, поэтому стрелки не задают первую связь: эта идёт первой, потому что нарисована первой",
+    "{names} write into each other, so the arrows give no first link: this one goes first because the others wait for links outside them as well": "{names} пишут друг в друга, поэтому стрелки не задают первую связь: эта идёт первой, потому что остальные ждут ещё и связей вне круга",
+    "{name} was removed": "{name}: удалено",
+    # Search.
+    "Pipelines": "Конвейеры",
+    "Pipeline": "Конвейер",
+}

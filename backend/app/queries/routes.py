@@ -59,6 +59,7 @@ from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.problems import Problem, ProblemCode
 from app.core.schemas import Message
+from app.core.translation import N_, say
 from app.queries import crud, execution, history, snapshot
 from app.queries.content import (
     body_of,
@@ -112,6 +113,16 @@ from app.users.deps import CurrentUser
 from app.users.models import User
 
 router = APIRouter(prefix="/queries", tags=["queries"])
+
+# What ending a transaction says, by whether one statement changed anything.
+_COMMITTED = {
+    True: N_("Committed {count} changing statement, {rows} rows"),
+    False: N_("Committed {count} changing statements, {rows} rows"),
+}
+_ROLLED_BACK = {
+    True: N_("Rolled back {count} changing statement"),
+    False: N_("Rolled back {count} changing statements"),
+}
 QUERY_METADATA_CACHE_FORMAT: CacheFormat[QueryMetadata] = CacheFormat(QueryMetadata)
 
 MAX_PAGE = 200
@@ -323,7 +334,7 @@ async def delete_document(
     """Permanently delete one owned document (D160)."""
     document = await _owned_or_404(session, document_id, current_user)
     await crud.delete(session, document=document)
-    return Message(message="Document deleted")
+    return Message(message=say("Document deleted"))
 
 
 # --- runs -------------------------------------------------------------------
@@ -470,7 +481,9 @@ async def rehearse_change(
         if statement.refused is not None:
             raise HTTPException(
                 status_code=422,
-                detail=f"Statement {statement.ordinal + 1}: {statement.refused}",
+                detail=say(
+                    "Statement {at}: {refusal}", at=statement.ordinal + 1, refusal=statement.refused
+                ),
             )
         if statement.kind == "maintenance":
             # A rehearsal is a transaction rolled back, and maintenance runs
@@ -933,7 +946,7 @@ async def delete_runs(
 ) -> Message:
     """Delete one, several, everything older than a day, or the lot."""
     removed = await history.delete(session, current_user.id, body)
-    return Message(message=f"{removed} runs deleted")
+    return Message(message=say("{count} runs deleted", count=removed))
 
 
 @router.get("/retention", response_model=RetentionSettings)
@@ -1216,10 +1229,10 @@ async def commit_transaction(
         await data_cache.invalidate_connector(lease.connector_id)
         await names(lease.connector_id)
     return TransactionEnded(
-        message=(
-            f"Committed {state.mutating_statements} changing "
-            f"{'statement' if state.mutating_statements == 1 else 'statements'}, "
-            f"{state.affected_rows} rows"
+        message=say(
+            _COMMITTED[state.mutating_statements == 1],
+            count=state.mutating_statements,
+            rows=state.affected_rows,
         ),
         effect=state.effect if changed else None,
     )
@@ -1244,8 +1257,5 @@ async def rollback_transaction(
     await sessions.end(transaction_id, commit=False)
     await execution.settle(session, transaction_id=transaction_id, committed=False)
     return TransactionEnded(
-        message=(
-            f"Rolled back {state.mutating_statements} changing "
-            f"{'statement' if state.mutating_statements == 1 else 'statements'}"
-        )
+        message=say(_ROLLED_BACK[state.mutating_statements == 1], count=state.mutating_statements)
     )

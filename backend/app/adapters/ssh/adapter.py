@@ -29,6 +29,7 @@ from app.adapters.ssh.session import SshSession, identity_of, server_key
 from app.adapters.ssh.storage import SftpStorage
 from app.adapters.ssh.terminal import SshTerminal
 from app.adapters.terminal import Terminal, TerminalSize
+from app.core.translation import N_, say
 
 DEFAULT_PORT = 22
 
@@ -51,7 +52,7 @@ class SshAdapter(Explorer):
     def connection_string(self) -> str:
         value = self.draft_connection_string(self._session.options.model_dump(mode="python"))
         if value is None:  # pragma: no cover - validated options always have a host
-            raise ValueError("The SSH connection has no host")
+            raise ValueError(say("The SSH connection has no host"))
         return value
 
     async def check_connection(self) -> ConnectionCheckResult:
@@ -88,7 +89,7 @@ class SshAdapter(Explorer):
             parsed = urlsplit(url)
             port = parsed.port
         except ValueError:
-            raise ValueError("That is not an SSH URL") from None
+            raise ValueError(say("That is not an SSH URL")) from None
         if (
             parsed.scheme != "ssh"
             or parsed.hostname is None
@@ -97,7 +98,7 @@ class SshAdapter(Explorer):
             or parsed.query != ""
             or parsed.fragment != ""
         ):
-            raise ValueError("That is not an SSH URL")
+            raise ValueError(say("That is not an SSH URL"))
         return {
             "host": parsed.hostname,
             "port": port or DEFAULT_PORT,
@@ -117,7 +118,7 @@ class SshAdapter(Explorer):
     async def presented_server_key(cls, options: Mapping[str, Any]) -> ServerKey:
         host = options.get("host")
         if not isinstance(host, str) or host.strip() == "":
-            raise ValueError("Enter the host first")
+            raise ValueError(say("Enter the host first"))
         port = options.get("port")
         number = port if isinstance(port, int) and not isinstance(port, bool) else DEFAULT_PORT
         return _described(await server_key(host.strip(), number))
@@ -132,9 +133,9 @@ def _described(public_key: str) -> ServerKey:
 
 @register(
     name="ssh",
-    title="SSH",
+    title=N_("SSH"),
     category="files",
-    description=(
+    description=N_(
         "A server reached over SSH. Browse its folders from where you choose and "
         "work with its files as with your own: tables, SQL over files, the "
         "editor, archives, search, and a terminal. Signs in with a password or "

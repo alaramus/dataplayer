@@ -128,8 +128,8 @@ MESSAGES: dict[str, str] = {
     # References between rows.
     "A reference column may be supplied only once": "Столбец ссылки можно указать только один раз",
     'Reference "{reference}" is over {columns}': "Ссылка «{reference}» построена по столбцам {columns}",
-    "This row has no value for that reference": "У этой строки нет значения для этой ссылки",
-    'Relation has no reference "{name}"': "В отношении нет ссылки «{name}»",
+    "This row has no value for that reference": "В этой строке нет значения для этой ссылки",
+    'Relation has no reference "{name}"': "У отношения нет ссылки «{name}»",
     'Nothing named "{name}" points at this relation': "На это отношение не указывает ничего с именем «{name}»",
     'This source cannot look up "{column}" values of type {type}': "Этот источник не может искать значения «{column}» типа {type}",
     # Columns.
@@ -308,7 +308,7 @@ MESSAGES: dict[str, str] = {
     "Tablespace {name} now belongs to {owner}": "Владелец табличного пространства {name} теперь {owner}",
     "Remove": "Удалить",
     "Remove this tablespace from the server. PostgreSQL refuses while anything, in any database, is still stored in it.": "Удалить это табличное пространство с сервера. PostgreSQL откажет, пока в нём что-то хранится в любой базе данных.",
-    "This is not offered over these rows": "Для этих строк это не предлагается",
+    "This is not offered over these rows": "Для этих строк это действие недоступно",
     "Pick one tablespace": "Выберите одно табличное пространство",
     "pg_default and pg_global are PostgreSQL's own and are left as they are": "pg_default и pg_global принадлежат самому PostgreSQL и не меняются",
     "At most {count} tablespaces at a time": "Не больше {count} табличных пространств за раз",
@@ -393,7 +393,7 @@ MESSAGES: dict[str, str] = {
     "Time ran out before the server was asked": "Время истекло до обращения к серверу",
     "More than {limit} names; the first {limit} are kept": "Имён больше {limit}, сохранены первые {limit}",
     "The first {limit} matches; there may be more": "Первые совпадения ({limit}), могут быть и другие",
-    "A search needs something to look for": "Для поиска нужно, что искать",
+    "A search needs something to look for": "Укажите, что искать",
     "A search starts at the top, in a schema or among the reports": "Поиск начинается с верхнего уровня, в схеме или среди отчётов",
     # Backups.
     "Installed extensions could not be inspected for backup or restore": "Не удалось изучить установленные расширения для резервного копирования или восстановления",
@@ -477,7 +477,7 @@ MESSAGES: dict[str, str] = {
     "Comment on {name}": "Комментарий к {name}",
     "TimescaleDB does not allow a foreign key between two hypertables": "TimescaleDB не допускает внешний ключ между двумя гипертаблицами",
     '"{column}" and "{target}" cannot be compared': "«{column}» и «{target}» нельзя сравнить",
-    "A foreign key names as many columns as it points at": "Внешний ключ называет столько же столбцов, на сколько указывает",
+    "A foreign key names as many columns as it points at": "Внешний ключ называет столько же столбцов, сколько их там, куда он указывает",
     "A column may be pointed at only once": "На столбец можно указать только один раз",
     '"{table}" has no column "{column}"': "В «{table}» нет столбца «{column}»",
     '"{name}" has no unique key over exactly those columns': "У «{name}» нет уникального ключа ровно по этим столбцам",

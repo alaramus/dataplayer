@@ -30,17 +30,28 @@ from app.connectors.paste.transfer import Transfer, TransferStopped, in_worker
 from app.connectors.service import build_adapter, merge_options
 from app.core.access import Access, at_least
 from app.core.db import async_session_maker
+from app.core.translation import N_, say
 from app.jobs.models import TERMINAL, Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
 from app.users.models import User
 
 KIND: JobKind = "paste.transfer"
 
+# WAITING and REMOVING stay English: the browser recognises them by their
+# text and words them itself; the other two are worded as they are stored.
 WAITING = "waiting for a free transfer slot"
-CHECKING = "checking both connections"
-TRANSFERRING = "transferring"
+CHECKING = N_("checking both connections")
+TRANSFERRING = N_("transferring")
 # A move, once everything is copied (D169).
 REMOVING = "removing the sources"
+
+# The access a transfer needs is a word, so each level is a sentence of its own.
+_LOST_ACCESS: dict[Access, str] = {
+    "read": N_("You no longer have read access to {label}; nothing was transferred"),
+    "write": N_("You no longer have write access to {label}; nothing was transferred"),
+    "structure": N_("You no longer have structure access to {label}; nothing was transferred"),
+    "own": N_("You no longer have own access to {label}; nothing was transferred"),
+}
 
 # Transfers carried out at once across the server. Each has worker threads of
 # its own: a copy of gigabytes holding a thread of the shared pool for twenty
@@ -49,8 +60,6 @@ SLOTS = 8
 # How often the payload reaches the row while it runs; a Stop and the end go
 # at once. Ten thousand files written one by one would be gigabytes (D169).
 PROGRESS_SECONDS = 1.0
-
-NOTHING = "nothing was transferred"
 
 
 class RunTransfer:
@@ -145,7 +154,7 @@ class RunTransfer:
         async with async_session_maker() as session:
             owner = await session.get(User, job.owner_id)
             if owner is None:
-                raise JobFailed(f"Its owner is no longer here; {NOTHING}")
+                raise JobFailed(say("Its owner is no longer here; nothing was transferred"))
             source = await self._opened(
                 session,
                 owner,
@@ -174,12 +183,14 @@ class RunTransfer:
             session, connector_id=connector_id, user=owner
         )
         if found is None:
-            raise JobFailed(f"{label} is no longer available to you; {NOTHING}")
+            raise JobFailed(
+                say("{label} is no longer available to you; nothing was transferred", label=label)
+            )
         connector, access = found
         if not at_least(access, requires):
-            raise JobFailed(f"You no longer have {requires} access to {label}; {NOTHING}")
+            raise JobFailed(say(_LOST_ACCESS[requires], label=label))
         if not connector.enabled:
-            raise JobFailed(f"{label} was switched off; {NOTHING}")
+            raise JobFailed(say("{label} was switched off; nothing was transferred", label=label))
         pooling = (
             Pooling(store=self._resources, connector_id=connector.id)
             if self._resources is not None
@@ -192,7 +203,9 @@ class RunTransfer:
                 context_for(connector.owner_id, pooling=pooling),
             )
         except (UnknownAdapterType, ValueError, AdapterError):
-            raise JobFailed(f"{label} can no longer be opened; {NOTHING}") from None
+            raise JobFailed(
+                say("{label} can no longer be opened; nothing was transferred", label=label)
+            ) from None
 
 
 class Keeper(Protocol):
@@ -284,13 +297,13 @@ def _loaded(job: Job) -> Transfer:
     try:
         return Transfer.model_validate(job.parameters)
     except ValidationError:
-        raise JobFailed(f"This transfer could not be read; {NOTHING}") from None
+        raise JobFailed(say("This transfer could not be read; nothing was transferred")) from None
 
 
 def _kind(transfer: Transfer) -> PastesAsJob:
     kind = kind_named(transfer.kind)
     if not isinstance(kind, PastesAsJob):
-        raise JobFailed(f"This server no longer transfers that; {NOTHING}")
+        raise JobFailed(say("This server no longer transfers that; nothing was transferred"))
     return kind
 
 

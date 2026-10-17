@@ -47,6 +47,7 @@ from app.ai.providers.failures import UNKNOWN_FAILURE
 from app.ai.quick_answers import QuickAnswers
 from app.ai.tools import (
     LIMIT_MESSAGE,
+    MAX_TOOL_CALLS,
     ToolLimitReached,
     ToolRuntime,
     build_tools,
@@ -65,13 +66,13 @@ from app.ai.topic import (
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
-from app.core.translation import Language, current_language
+from app.core.translation import N_, Language, current_language, say
 from app.realtime.topics import TopicSet
 from app.search.engine import SearchEngine
 
 logger = logging.getLogger(__name__)
 
-THINKING = "Thinking"
+THINKING = N_("Thinking")
 # How often streamed text is sent: a frame per token is a frame per few
 # milliseconds, and the window redraws no faster than this anyway.
 DELTA_INTERVAL_SECONDS = 0.05
@@ -91,7 +92,10 @@ class RunRefused(Exception):
 
 
 def _no_key(provider: Provider) -> RunRefused:
-    return RunRefused(409, f"Add a key for {PROVIDER_TITLES[provider]} in the agent settings first")
+    return RunRefused(
+        409,
+        say("Add a key for {provider} in the agent settings first", provider=PROVIDER_TITLES[provider]),
+    )
 
 
 class RunPaused(Exception):
@@ -173,9 +177,9 @@ class AgentRunner:
             session, owner_id, conversation, self._catalog
         )
         if model is None:
-            raise RunRefused(409, "Choose a model in the agent settings first")
+            raise RunRefused(409, say("Choose a model in the agent settings first"))
         if await conversations.active_run(session, conversation.id) is not None:
-            raise RunRefused(409, "This conversation is already being answered")
+            raise RunRefused(409, say("This conversation is already being answered"))
         route_note = ""
         auto_provider = await preferences.auto_provider_for(session, owner_id, conversation)
         if auto_provider is None:
@@ -189,7 +193,7 @@ class AgentRunner:
                 if not providers:
                     raise RunRefused(
                         409,
-                        "Add a key for a chat model provider in the agent settings first",
+                        say("Add a key for a chat model provider in the agent settings first"),
                     )
             else:
                 if await preferences.key_for(session, owner_id, auto_provider) is None:
@@ -219,12 +223,14 @@ class AgentRunner:
         # The composer offers images only to a model that reads them (D142);
         # this is the same rule for a client that did not ask first.
         if any(one.kind == "image" for one in attachments) and not model.image_input:
-            raise RunRefused(422, f"{model.name} does not read images; choose a model that does")
+            raise RunRefused(
+                422, say("{model} does not read images; choose a model that does", model=model.name)
+            )
         async with self._lock:
             # Checked and recorded under one lock: two sends at once would
             # otherwise both find the conversation idle.
             if await conversations.active_run(session, conversation.id) is not None:
-                raise RunRefused(409, "This conversation is already being answered")
+                raise RunRefused(409, say("This conversation is already being answered"))
             # A conversation the person named never asks the model for a title.
             first = (
                 not conversation.title_is_custom
@@ -299,13 +305,13 @@ class AgentRunner:
         self, session: AsyncSession, *, run: AgentRun, answer: str
     ) -> AgentRun:
         if run.status != "awaiting_answer":
-            raise RunRefused(409, "This answer is not waiting for a response")
+            raise RunRefused(409, say("This answer is not waiting for a response"))
         pending = await conversations.pending_question(session, run.id)
         if pending is None or answer not in pending.choices:
-            raise RunRefused(422, "Choose one of the answers offered")
+            raise RunRefused(422, say("Choose one of the answers offered"))
         model = self._catalog.find(run.model_key)
         if model is None:
-            raise RunRefused(409, "Choose a model in the agent settings first")
+            raise RunRefused(409, say("Choose a model in the agent settings first"))
         key = await preferences.key_for(session, run.owner_id, model.provider)
         if key is None:
             raise _no_key(model.provider)
@@ -319,7 +325,7 @@ class AgentRunner:
         reasoning = await conversations.step_detail(session, run.id, 0)
         async with self._lock:
             if run.id in self._active:
-                raise RunRefused(409, "This answer is already being continued")
+                raise RunRefused(409, say("This answer is already being continued"))
             await conversations.set_run_status(session, run.id, "running")
             task = asyncio.create_task(
                 self._carry_out(
@@ -405,8 +411,8 @@ class AgentRunner:
                     if resume_answer is None:
                         step = await conversations.start_step(
                             session, run_id, 0, "thinking",
-                            f"{THINKING} · {route_note}"
-                            if route_note else THINKING,
+                            say("Thinking · {note}", note=say(route_note))
+                            if route_note else say(THINKING),
                         )
                         await self._say(
                             owner_id,
@@ -440,10 +446,13 @@ class AgentRunner:
                 except TimeoutError:
                     status = "failed"
                     minutes = round(settings.AI_RUN_TIMEOUT_SECONDS / 60)
-                    error = f"The answer took longer than {minutes} minutes and was stopped"
+                    error = say(
+                        "The answer took longer than {minutes} minutes and was stopped",
+                        minutes=minutes,
+                    )
                 except ToolLimitReached:
                     status = "failed"
-                    error = LIMIT_MESSAGE
+                    error = say(LIMIT_MESSAGE, count=MAX_TOOL_CALLS)
                 except asyncio.CancelledError:
                     if not active.stopping:
                         raise
@@ -455,8 +464,9 @@ class AgentRunner:
                     # By type and place only: a provider's text may carry the
                     # request. A failure no sentence explains carries a ref.
                     status = "failed"
-                    error = self.chat_models.sentence(model, failure)
-                    if error == UNKNOWN_FAILURE:
+                    sentence = self.chat_models.sentence(model, failure)
+                    error = say(sentence)
+                    if sentence == UNKNOWN_FAILURE:
                         ref = record_failure(logger, "An answer failed", failure, private=True)
                         error = with_ref(error, ref)
                     else:

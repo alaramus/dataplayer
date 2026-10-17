@@ -9,6 +9,7 @@ from langchain_typesafe import Choice, TypeSafeClassifier
 from pydantic import JsonValue
 
 from app.ai.catalog import ChatProvider, ModelCatalog, ModelInfo
+from app.core.translation import N_, say
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,13 @@ async def choose(
     ]
     if not candidates:
         if needs_images:
-            raise ValueError("No model with a configured key can read the attached image")
-        raise ValueError("No model with a configured key is available")
+            raise ValueError(say("No model with a configured key can read the attached image"))
+        raise ValueError(say("No model with a configured key is available"))
     safe_fallback = fallback if fallback in candidates else candidates[0]
     if jev_key is None:
-        return ModelRoute(safe_fallback, "Jev unavailable; using fallback")
+        return ModelRoute(safe_fallback, N_("Jev unavailable; using fallback"))
     if len(candidates) == 1:
-        return ModelRoute(candidates[0], "Only one compatible model available")
+        return ModelRoute(candidates[0], N_("Only one compatible model available"))
     criteria: dict[str, JsonValue] = {
         model.key: (
             f"{model.name}; context window {model.context_window} tokens; "
@@ -74,7 +75,7 @@ async def choose(
         selected = result.choices["model"].choice
         match = next((model for model in candidates if model.key == selected), None)
         if match is not None:
-            return ModelRoute(match, "Jev selected this model")
+            return ModelRoute(match, N_("Jev selected this model"))
     except Exception as error:  # noqa: BLE001 - provider text may contain request data
         logger.info("Jev model routing failed: %s", type(error).__name__)
-    return ModelRoute(safe_fallback, "Jev unavailable; using fallback")
+    return ModelRoute(safe_fallback, N_("Jev unavailable; using fallback"))

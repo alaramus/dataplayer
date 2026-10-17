@@ -148,20 +148,31 @@ listed. Routes word what they pass on: `say(action.title)`, and
 labels of `x-ui-choices` and leaves names, defaults and enum values as data.
 When the interface changes language, cached server answers are read again.
 
-`tests/core/test_translation_catalogs.py` fails, in the packages it lists, on a
+`tests/core/test_translation_catalogs.py` fails, in every package of `app` but
+the few it names with their reason, on a
 worded class attribute or `Field` argument not marked `N_`, on a literal or an
 f-string with words passed as `message=`, `reason=`, `summary=` and their
 like, on marked English without a translation, and on a translation whose
-`{name}` parameters differ from the English. The list grows until it is every
-package that writes for a person. A sentence returned or raised any other way
-rests on review.
+`{name}` parameters differ from the English, and on English two packages
+translate differently — the catalogs are merged, so the last to register
+would otherwise choose. A sentence returned or raised any other way rests on
+review.
 
 ### Known deviations
 
-- Only the packages the test lists are moved; the rest still write English.
 - Text a job or a pipeline run stores — its steps and messages — is worded
   when it is written, in the language of whoever started it, rather than kept
-  as English and worded when read.
+  as English and worded when read. Work no request started — a scheduled
+  pipeline run, recovery at start, the search keeper — writes English.
+- Two transfer steps, "waiting for a free transfer slot" and "removing the
+  sources", stay English: the browser recognises them by their text and words
+  them itself.
+- Pydantic's own validation messages, and a parser's or a database's text
+  passed on inside a sentence, are English.
+- Names the server makes up for a new thing — "Metrics store", "SSH server 1",
+  "New chat" — are stored in English; "New chat" is worded where it is shown.
+- The agent's prompts, tool descriptions and tool results stay English: the
+  model reads them. What its tools show the person is worded.
 - A socket's language is the one it connected in; what it carries after a
   switch is in the old language until it reconnects.
 
@@ -189,10 +200,10 @@ what a person searches for.
 
 ### Known deviations
 
-- ECharts writes its own axis labels and dates in its built-in English; no
-  ECharts locale is registered.
+- Emails — a new account, a password reset — are English only.
+- A chart takes ECharts' locale when it is drawn (`shared/i18n/echarts.ts`);
+  one already on screen keeps its axis words until it is drawn again.
 - A grid cell is data and is shown as the source sent it, not reformatted.
-- The guide search reads the English pages only.
 - No guide page is translated yet, and nor are the short lists' headings: a
   translated page finds its lists under the English heading or under its
   `say` translation once one is registered.

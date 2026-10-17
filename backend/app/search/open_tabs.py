@@ -7,6 +7,7 @@ stored.
 
 from collections.abc import Sequence
 
+from app.core.translation import N_, say
 from app.search.models import (
     BrowserPlace,
     Facts,
@@ -28,12 +29,12 @@ from app.search.providers import (
     text_match,
 )
 
-_KIND_WORDS = {"tab": "Open tab", "tab_group": "Tab group"}
+_KIND_WORDS = {"tab": N_("Open tab"), "tab_group": N_("Tab group")}
 
 
 class OpenTabs:
     place = ObjectsPlace(provider="open_tabs")
-    title = "Open tabs"
+    title = N_("Open tabs")
     # The browser's tabs: the agent sees a tab only when it is attached (D133).
     offered_to_agent = False
     recalls: frozenset[ObjectType] = frozenset({"tab", "tab_group"})
@@ -72,7 +73,7 @@ def _hit(place: BrowserPlace, match: Match) -> Hit:
         key=target_key(target),
         target=target,
         title=place.title,
-        detail=place.detail or _KIND_WORDS[place.object_type],
+        detail=place.detail or say(_KIND_WORDS[place.object_type]),
         facts=Facts(kind=place.object_type),
         match=match,
         open=place.object_type,

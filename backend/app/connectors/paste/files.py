@@ -44,12 +44,13 @@ from app.connectors.paste.transfer import (
     TransferStopped,
 )
 from app.core.access import Access
+from app.core.translation import N_, say
 
 # The ceiling D74 holds for a folder copied within one connection, and D168's.
 MAX_TRANSFER_ENTRIES = 10_000
 MAX_TRANSFER_BYTES = 10 * 1024 * 1024 * 1024
-TOO_MANY = "That is more than 10,000 files and folders"
-TOO_LARGE = "The selection exceeds 10 GB"
+TOO_MANY = N_("That is more than 10,000 files and folders")
+TOO_LARGE = N_("The selection exceeds 10 GB")
 
 
 @runtime_checkable
@@ -67,7 +68,7 @@ class OnThisDisk(Protocol):
 
 def storage_of(adapter: DataAdapter) -> Storage:
     if not isinstance(adapter, TransfersFiles):
-        raise ActionRefused("not_applicable", "This connection does not hold files")
+        raise ActionRefused("not_applicable", say("This connection does not hold files"))
     return adapter.storage
 
 
@@ -75,7 +76,7 @@ def destination_folder(storage: Storage, folder_id: str | None) -> Place:
     place = storage.place(folder_id)
     found = storage.entry(place)
     if found is None or not found.is_directory:
-        raise ActionRefused("not_applicable", "Choose a destination folder")
+        raise ActionRefused("not_applicable", say("Choose a destination folder"))
     return place
 
 
@@ -90,7 +91,7 @@ def free_place(storage: Storage, folder: Place, name: str) -> Place:
         )
         if storage.entry(candidate) is None:
             return candidate
-    raise ActionRefused("conflict", "No free name is available")
+    raise ActionRefused("conflict", say("No free name is available"))
 
 
 def place_for(storage: Storage, folder: Place, name: str, conflict: Conflict) -> Place:
@@ -100,9 +101,9 @@ def place_for(storage: Storage, folder: Place, name: str, conflict: Conflict) ->
     if existing is None:
         return target
     if existing.is_directory:
-        raise ActionRefused("not_applicable", f"{name} is a folder here")
+        raise ActionRefused("not_applicable", say("{name} is a folder here", name=name))
     if conflict == "refuse":
-        raise ActionRefused("conflict", f"{name} is already there")
+        raise ActionRefused("conflict", say("{name} is already there", name=name))
     if conflict == "replace":
         return target
     return free_place(storage, folder, name)
@@ -117,10 +118,11 @@ def folder_place_for(
     if storage.entry(target) is None:
         return target
     if conflict == "refuse":
-        raise ActionRefused("conflict", f"{name} is already there")
+        raise ActionRefused("conflict", say("{name} is already there", name=name))
     if conflict == "replace":
         raise ActionRefused(
-            "not_applicable", f"{name} is a folder, which is kept rather than replaced"
+            "not_applicable",
+            say("{name} is a folder, which is kept rather than replaced", name=name),
         )
     return free_place(storage, folder, name)
 
@@ -132,25 +134,25 @@ def source_files(source: Storage, node_ids: list[str]) -> list[Entry]:
     Paste is chosen.
     """
     if len(set(node_ids)) != len(node_ids):
-        raise ActionRefused("not_applicable", "The selection contains a file twice")
+        raise ActionRefused("not_applicable", say("The selection contains a file twice"))
     entries: list[Entry] = []
     names: set[str] = set()
     total = 0
     for node_id in node_ids:
         entry = source.entry(source.place(node_id))
         if entry is None:
-            raise ActionRefused("not_applicable", "A copied file no longer exists")
+            raise ActionRefused("not_applicable", say("A copied file no longer exists"))
         if entry.is_link:
             # Resolved, a link would carry the tree it points at (D169).
-            raise ActionRefused("not_applicable", "Copy files and folders, not links")
+            raise ActionRefused("not_applicable", say("Copy files and folders, not links"))
         if not is_plain_name(entry.name):
-            raise ActionRefused("not_applicable", "A file has an invalid name")
+            raise ActionRefused("not_applicable", say("A file has an invalid name"))
         if entry.name in names:
-            raise ActionRefused("not_applicable", "Two files have the same name")
+            raise ActionRefused("not_applicable", say("Two files have the same name"))
         if not entry.is_directory:
             total += entry.size_bytes
             if total > MAX_TRANSFER_BYTES:
-                raise ActionRefused("not_applicable", TOO_LARGE)
+                raise ActionRefused("not_applicable", say(TOO_LARGE))
         names.add(entry.name)
         entries.append(entry)
     return entries
@@ -184,7 +186,7 @@ def checked_files(
         if entry.is_directory or existing.is_directory:
             replaceable = False
     if taken is not None and conflict == "refuse":
-        raise ActionRefused("conflict", f"{taken} is already there")
+        raise ActionRefused("conflict", say("{name} is already there", name=taken))
     for entry in entries:
         if entry.is_directory:
             folder_place_for(destination, folder, entry.name, conflict)
@@ -206,7 +208,7 @@ def inspect_files(
     except ActionRefused as refusal:
         return refusal, _replaceable(source, destination, node_ids, folder_id)
     except (OSError, ValueError):
-        return ActionRefused("not_applicable", "A source or destination is unavailable"), True
+        return ActionRefused("not_applicable", say("A source or destination is unavailable")), True
     return None, checked.replaceable
 
 
@@ -252,7 +254,7 @@ def _measured(source: Storage, entries: list[Entry]) -> tuple[list[TransferItem]
             for _path, below in walk(source, entry.place):
                 counted += 1
                 if counted > MAX_TRANSFER_ENTRIES:
-                    raise ActionRefused("too_large", TOO_MANY)
+                    raise ActionRefused("too_large", say(TOO_MANY))
                 if not below.is_directory and not below.is_link:
                     files += 1
                     size += below.size_bytes
@@ -269,7 +271,7 @@ def _measured(source: Storage, entries: list[Entry]) -> tuple[list[TransferItem]
                 )
             )
         if counted > MAX_TRANSFER_ENTRIES:
-            raise ActionRefused("too_large", TOO_MANY)
+            raise ActionRefused("too_large", say(TOO_MANY))
         if total > MAX_TRANSFER_BYTES:
             raise ActionRefused("too_large", TOO_LARGE)
     return items, total
@@ -289,11 +291,11 @@ def taken_there(
     except ActionRefused as refusal:
         return refusal, True
     except (OSError, ValueError):
-        return ActionRefused("not_applicable", "A source or destination is unavailable"), True
+        return ActionRefused("not_applicable", say("A source or destination is unavailable")), True
     if existing is None:
         return None, True
     replaceable = not (is_folder or existing.is_directory)
-    return ActionRefused("conflict", f"{name} is already there"), replaceable
+    return ActionRefused("conflict", say("{name} is already there", name=name)), replaceable
 
 
 def _into_itself(source: Storage, destination: Storage, checked: Checked) -> None:
@@ -310,7 +312,9 @@ def _into_itself(source: Storage, destination: Storage, checked: Checked) -> Non
             continue
         folder = source.path_of(entry.place).resolve()
         if into == folder or folder in into.parents:
-            raise ActionRefused("not_applicable", f"{entry.name} cannot be put inside itself")
+            raise ActionRefused(
+                "not_applicable", say("{name} cannot be put inside itself", name=entry.name)
+            )
 
 
 def _planned(source: Storage, destination: Storage, request: PasteRun) -> TransferPlan:
@@ -326,7 +330,7 @@ def _planned(source: Storage, destination: Storage, request: PasteRun) -> Transf
         items, total = _measured(source, checked.entries)
     except (OSError, ValueError):
         raise ActionRefused(
-            "not_applicable", "A source or destination is unavailable"
+            "not_applicable", say("A source or destination is unavailable")
         ) from None
     # The ids as they were sent, which is how the job asks for them again.
     for item, node_id in zip(items, request.source_node_ids, strict=True):
@@ -364,9 +368,9 @@ class _Run:
             place = await self.report.in_thread(partial(self.source.place, item.node_id))
             entry = await self.report.in_thread(partial(self.source.entry, place))
             if entry is None:
-                raise _Failed(f"{item.name} no longer exists")
+                raise _Failed(say("{name} no longer exists", name=item.name))
             if entry.is_directory or entry.is_link:
-                raise _Failed(f"{item.name} is no longer a file")
+                raise _Failed(say("{name} is no longer a file", name=item.name))
             target = await self.report.in_thread(
                 partial(place_for, self.destination, folder, entry.name, self.transfer.conflict)
             )
@@ -391,7 +395,7 @@ class _Run:
         top = await self.report.in_thread(partial(self.source.entry, place))
         if top is None or not top.is_directory or top.is_link:
             item.failed = item.files or 1
-            item.message = f"{item.name} is no longer a folder"
+            item.message = say("{name} is no longer a folder", name=item.name)
             return
         try:
             target = await self.report.in_thread(
@@ -406,7 +410,7 @@ class _Run:
             return
         except FileExistsError:
             item.failed = item.files or 1
-            item.message = f"{item.name} is already there"
+            item.message = say("{name} is already there", name=item.name)
             return
         self.transfer.published += 1
         if target.name != item.name:
@@ -423,7 +427,7 @@ class _Run:
             path = "/".join((item.name, *below))
             if entry.is_link:
                 item.skipped += 1
-                self.transfer.problem(path, f"{path} is a link and was skipped")
+                self.transfer.problem(path, say("{path} is a link and was skipped", path=path))
                 continue
             if entry.is_directory:
                 made_here = await self._made(parent, entry.name, path)
@@ -456,7 +460,9 @@ class _Run:
             child = await self.report.in_thread(partial(self.destination.child, parent, name))
             await self.report.in_thread(partial(self.destination.make_directory, child))
         except (OSError, ValueError, ActionRefused):
-            self.transfer.problem(path, f"{path} could not be created, nor anything in it")
+            self.transfer.problem(
+                path, say("{path} could not be created, nor anything in it", path=path)
+            )
             return None
         self.transfer.published += 1
         return child
@@ -474,17 +480,17 @@ class _Run:
         except ActionRefused as refusal:
             return refusal.message
         except VersionChanged:
-            return f"{name} changed while it was being copied"
+            return say("{name} changed while it was being copied", name=name)
         except ValueError:
-            return f"{name} cannot be named there"
+            return say("{name} cannot be named there", name=name)
         except AdapterError as failure:
             raise TransferStopped(failure.message) from None
         except FileExistsError:
-            return f"{name} is already there"
+            return say("{name} is already there", name=name)
         except OSError:
             # One file, or everything after it? The folder answers.
             await _folder(self.report, self.destination, self.transfer.destination_node_id)
-            return f"{name} could not be copied"
+            return say("{name} could not be copied", name=name)
         return None
 
     async def _carry(self, place: Place, size: int, target: Place, *, replace: bool) -> str:
@@ -492,7 +498,9 @@ class _Run:
         in place whole."""
         report = self.report
         version = await report.in_thread(partial(self.source.version, place))
-        changed = _Failed(f"{self.transfer.current} changed while it was being copied")
+        changed = _Failed(
+            say("{name} changed while it was being copied", name=self.transfer.current)
+        )
         stack = ExitStack()
         try:
             arriving = await report.in_thread(
@@ -531,11 +539,14 @@ class _Run:
             try:
                 now = await report.in_thread(partial(self.source.version, arrival.place))
                 if now != arrival.version:
-                    self._kept(arrival, "its source changed after it was read and was kept")
+                    self._kept(
+                        arrival,
+                        N_("{path} was copied, but its source changed after it was read and was kept"),
+                    )
                     continue
                 await report.in_thread(partial(self.source.remove, arrival.place))
             except (OSError, AdapterError):
-                self._kept(arrival, "its source could not be removed")
+                self._kept(arrival, N_("{path} was copied, but its source could not be removed"))
                 continue
             arrival.item.removed += 1
             await report.progressed()
@@ -548,8 +559,8 @@ class _Run:
                 # file somebody added meanwhile.
                 continue
 
-    def _kept(self, arrival: _Arrival, why: str) -> None:
-        sentence = f"{arrival.path} was copied, but {why}"
+    def _kept(self, arrival: _Arrival, said: str) -> None:
+        sentence = say(said, path=arrival.path)
         if arrival.item.is_folder:
             self.transfer.problem(arrival.path, sentence)
         else:
@@ -599,7 +610,7 @@ class _Files:
         except ActionRefused as refusal:
             return Availability(available=False, reason=refusal.message)
         except (OSError, ValueError):
-            return Availability(available=False, reason="The selection is unavailable")
+            return Availability(available=False, reason=say("The selection is unavailable"))
         return Availability(available=True)
 
     async def offer(
@@ -640,7 +651,7 @@ class _Files:
             if source_end.kind == "table":
                 return refused(self, self.needs)
             if not is_plain_name(source_end.name):
-                return refused(self, "A file has an invalid name")
+                return refused(self, say("A file has an invalid name"))
             name, is_folder = source_end.name, source_end.kind == "folder"
         elif source_end is None:
             return refused(self, self.needs)
@@ -652,12 +663,12 @@ class _Files:
             except ActionRefused as refusal:
                 return refused(self, refusal.message)
             except (OSError, ValueError):
-                return refused(self, "The selection is unavailable")
+                return refused(self, say("The selection is unavailable"))
             name, is_folder = entries[0].name, entries[0].is_directory
         can_replace = self.can_replace and not is_folder
         if isinstance(target_end, Foreseen):
             if target_end.kind != "folder":
-                return refused(self, "Choose a destination folder")
+                return refused(self, say("Choose a destination folder"))
             # A folder a link has yet to make holds no name to be taken.
             return offered(self, available=True, can_replace=can_replace)
         problem, replaceable = await to_thread.run_sync(
@@ -679,7 +690,7 @@ class _Files:
     ) -> TransferPlan:
         if request.conflict == "replace" and not self.can_replace:
             raise ActionRefused(
-                "not_applicable", "A move between connections cannot replace a file"
+                "not_applicable", say("A move between connections cannot replace a file")
             )
         return await to_thread.run_sync(
             _planned, storage_of(source), storage_of(destination), request
@@ -706,10 +717,13 @@ class _Files:
             except asyncio.CancelledError:
                 item.outcome = "stopped"
                 item.message = (
-                    f"{item.name} was stopped partway; what arrived stays"
+                    say("{name} was stopped partway; what arrived stays", name=item.name)
                     if item.is_folder
-                    else f"{item.name} was stopped while it was being copied; "
-                    "nothing is left under its name"
+                    else say(
+                        "{name} was stopped while it was being copied; "
+                        "nothing is left under its name",
+                        name=item.name,
+                    )
                 )
                 raise
             except TransferStopped:
@@ -736,15 +750,37 @@ async def _folder(report: TransferReport, storage: Storage, folder_id: str | Non
     try:
         return await report.in_thread(partial(destination_folder, storage, folder_id))
     except ActionRefused:
-        raise TransferStopped("The destination folder is no longer there") from None
+        raise TransferStopped(say("The destination folder is no longer there")) from None
     except AdapterError as failure:
         raise TransferStopped(failure.message) from None
     except (OSError, ValueError):
-        raise TransferStopped("The destination folder could not be reached") from None
+        raise TransferStopped(say("The destination folder could not be reached")) from None
 
 
-def _many(count: int, noun: str) -> str:
-    return f"{count:,} {noun}" if count == 1 else f"{count:,} {noun}s"
+# Whole sentences for each mode and each count, since a verb and a plural are
+# words rather than values (D226). Keyed by mode and by whether one was counted.
+_ALL_FILES = {
+    ("copy", True): N_("Copied {count} file to {place}"),
+    ("copy", False): N_("Copied {count} files to {place}"),
+    ("move", True): N_("Moved {count} file to {place}"),
+    ("move", False): N_("Moved {count} files to {place}"),
+}
+_ALL_ITEMS = {
+    ("copy", True): N_("Copied {count} item to {place}"),
+    ("copy", False): N_("Copied {count} items to {place}"),
+    ("move", True): N_("Moved {count} item to {place}"),
+    ("move", False): N_("Moved {count} items to {place}"),
+}
+_SOME_FILES = {
+    ("copy", True): N_("Copied {done} of {count} file to {place}"),
+    ("copy", False): N_("Copied {done} of {count} files to {place}"),
+    ("move", True): N_("Moved {done} of {count} file to {place}"),
+    ("move", False): N_("Moved {done} of {count} files to {place}"),
+}
+_LINKS_SKIPPED = {
+    True: N_("{count} link skipped"),
+    False: N_("{count} links skipped"),
+}
 
 
 def told_files(transfer: Transfer, stopped: str | None = None) -> str:
@@ -759,24 +795,28 @@ def told_files(transfer: Transfer, stopped: str | None = None) -> str:
     kept = arrived - done if moving else 0
     halted = any(item.outcome == "stopped" for item in items)
     missing = max(total - arrived - failed, 0)
-    verb = transfer.done.capitalize()
-    where = f"to {transfer.place_label}"
-    links = f"{_many(skipped, 'link')} skipped" if skipped else None
+    mode = transfer.mode
+    place = transfer.place_label
+    links = (
+        say(_LINKS_SKIPPED[skipped == 1], count=f"{skipped:,}") if skipped else None
+    )
     if done == total and not (failed or kept or missing or halted or stopped):
         whole = (
-            f"{verb} {_many(total, 'file')} {where}"
+            say(_ALL_FILES[mode, total == 1], count=f"{total:,}", place=place)
             if total
-            else f"{verb} {_many(len(items), 'item')} {where}"
+            else say(_ALL_ITEMS[mode, len(items) == 1], count=f"{len(items):,}", place=place)
         )
         return f"{whole}; {links}" if links else whole
     parts = [
-        *([f"{kept:,} kept at the source"] if kept else []),
-        *([f"{failed:,} failed"] if failed else []),
-        *(["stopped"] if halted else []),
-        *([f"{missing:,} not attempted"] if missing else []),
+        *([say("{count} kept at the source", count=f"{kept:,}")] if kept else []),
+        *([say("{count} failed", count=f"{failed:,}")] if failed else []),
+        *([say("stopped")] if halted else []),
+        *([say("{count} not attempted", count=f"{missing:,}")] if missing else []),
         *([links] if links else []),
     ]
-    sentence = f"{verb} {done:,} of {_many(total, 'file')} {where}"
+    sentence = say(
+        _SOME_FILES[mode, total == 1], done=f"{done:,}", count=f"{total:,}", place=place
+    )
     if parts:
         sentence += f"; {', '.join(parts)}"
     return sentence if stopped is None else f"{sentence}. {stopped}"
@@ -784,10 +824,10 @@ def told_files(transfer: Transfer, stopped: str | None = None) -> str:
 
 class FileCopy(_Files):
     name: PasteKindName = "file_copy"
-    title = "Copy files"
-    needs = "Tick files or folders to copy"
-    doing = "Copying"
-    done = "copied"
+    title = N_("Copy files")
+    needs = N_("Tick files or folders to copy")
+    doing = N_("Copying")
+    done = N_("copied")
     mode: ClipboardMode = "copy"
     can_replace = True
     source_requires: Access = "read"
@@ -799,10 +839,10 @@ class FileMove(_Files):
     and replacing it before removing the source would remove the copy (D163)."""
 
     name: PasteKindName = "file_move"
-    title = "Move files"
-    needs = "Tick files or folders to move"
-    doing = "Moving"
-    done = "moved"
+    title = N_("Move files")
+    needs = N_("Tick files or folders to move")
+    doing = N_("Moving")
+    done = N_("moved")
     mode: ClipboardMode = "move"
     can_replace = False
     # Moving removes the source file, which is what writing there means.

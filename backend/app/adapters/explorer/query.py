@@ -57,6 +57,7 @@ from app.adapters.query import (
     StatementStarted,
     StatementStatus,
 )
+from app.core.translation import N_, say
 
 # What one statement may do, and what a person may ask for. Read-only work over
 # local files, so both are generous compared with a shared server's.
@@ -109,14 +110,14 @@ _CATEGORIES: dict[str, str] = {
 
 # What is said when the engine's own words cannot be shown.
 _FALLBACKS: dict[str, str] = {
-    "syntax": "This statement could not be read",
-    "missing_object": "This statement names something that is not there",
-    "permission": "This statement asked for something outside this connection",
-    "data": "A value in this statement could not be used as its type",
-    "resource": "This statement needed more memory than a query may take",
-    "cancelled": "Cancelled",
-    "timeout": "The statement ran out of time",
-    "unknown": "The statement could not be run",
+    "syntax": N_("This statement could not be read"),
+    "missing_object": N_("This statement names something that is not there"),
+    "permission": N_("This statement asked for something outside this connection"),
+    "data": N_("A value in this statement could not be used as its type"),
+    "resource": N_("This statement needed more memory than a query may take"),
+    "cancelled": N_("Cancelled"),
+    "timeout": N_("The statement ran out of time"),
+    "unknown": N_("The statement could not be run"),
 }
 
 
@@ -172,7 +173,7 @@ class _Engine:
     @property
     def connection(self) -> duckdb.DuckDBPyConnection:
         if self._connection is None:
-            raise AdapterError("unknown", "The query engine is not open")
+            raise AdapterError("unknown", say("The query engine is not open"))
         return self._connection
 
     def interrupt(self) -> None:
@@ -258,11 +259,11 @@ class ExplorerExecution:
         limits = request.limits
         if request.mode != "read":
             raise AdapterError(
-                "config", "This source reads files and runs nothing that writes"
+                "config", say("This source reads files and runs nothing that writes")
             )
         if request.search_path:
             raise AdapterError(
-                "config", "This source has no schemas, so it has no schema context"
+                "config", say("This source has no schemas, so it has no schema context")
             )
         script = prepare(request.text)
         places = await to_thread.run_sync(relations_of, self._storage, script)
@@ -336,7 +337,7 @@ class ExplorerExecution:
                 diagnostic=QueryDiagnostic(
                     code="dp_not_admitted",
                     category="read_only",
-                    message=statement.refused or REFUSALS["unknown"],
+                    message=statement.refused or say(REFUSALS["unknown"]),
                 ),
             )
         began = time.monotonic()
@@ -443,7 +444,7 @@ def resolve_relation(storage: Storage, name: str) -> Place:
     or an upload (D77). Blocking.
     """
     shown = name[:120]
-    missing = f"There is no file called {shown} in this connection"
+    missing = say("There is no file called {name} in this connection", name=shown)
     try:
         place = storage.place(name)
     except ValueError:
@@ -455,14 +456,20 @@ def resolve_relation(storage: Storage, name: str) -> Place:
     if found == "workbook":
         raise AdapterError(
             "config",
-            f"{shown} is a workbook, and a worksheet is not offered to SQL: "
-            "reading one needs an engine extension this source will not download",
+            say(
+                "{name} is a workbook, and a worksheet is not offered to SQL: "
+                "reading one needs an engine extension this source will not download",
+                name=shown,
+            ),
         )
     if found not in QUERY_FORMATS:
         raise AdapterError(
             "config",
-            "SQL here reads CSV, TSV, Parquet, JSON, JSON lines and logs, "
-            f"and {shown} is none of them",
+            say(
+                "SQL here reads CSV, TSV, Parquet, JSON, JSON lines and logs, "
+                "and {name} is none of them",
+                name=shown,
+            ),
         )
     return place
 
@@ -486,11 +493,10 @@ def diagnostic_of(
         category = "missing_object"
     elif subtype == "SYNTAX_ERROR":
         category = "syntax"
-    message = _safe_text(
-        detail.get("exception_message") or str(exc), root, _FALLBACKS[category]
-    )
+    fallback = say(_FALLBACKS[category])
+    message = _safe_text(detail.get("exception_message") or str(exc), root, fallback)
     if category in {"cancelled", "timeout"}:
-        message = _FALLBACKS[category]
+        message = fallback
     return QueryDiagnostic(
         code=name,
         category=category,  # type: ignore[arg-type]  # _CATEGORIES answers the union
@@ -607,21 +613,23 @@ def _materialise(
             size = 0 if cell is None else len(cell.encode())
             if size > limits.max_cell_bytes:
                 raise ResultTooLarge(
-                    f"A value in {columns[position].name} is larger than one "
-                    "cell may be"
+                    say(
+                        "A value in {column} is larger than one cell may be",
+                        column=columns[position].name,
+                    )
                 )
             used += size
             if used > limits.max_result_bytes:
-                raise ResultTooLarge("This result is larger than one result may be")
+                raise ResultTooLarge(say("This result is larger than one result may be"))
             row.append(cell)
         rows.append(row)
 
     state.bytes_used += used
     state.results += 1
     if state.results > limits.max_run_results:
-        raise ResultTooLarge("This run produced more results than one run may hold")
+        raise ResultTooLarge(say("This run produced more results than one run may hold"))
     if state.bytes_used > limits.max_run_bytes:
-        raise ResultTooLarge("This run produced more data than one run may hold")
+        raise ResultTooLarge(say("This run produced more data than one run may hold"))
     return MaterialisedResult(
         columns=columns, rows=rows, truncated=truncated, bytes_used=used
     )
@@ -755,19 +763,19 @@ class ExplorerQuery:
     def _column_names(self, node_id: str) -> list[str]:
         columns = self._columns(node_id)
         if not columns:
-            raise ValueError("This node states no columns SQL could read")
+            raise ValueError(say("This node states no columns SQL could read"))
         return [quoted(column.name) for column in columns]
 
     def _explain(self, request: ExplainRequest) -> ExplainResult:
         """The plan the engine would use, without running the statement."""
         script = prepare(request.text)
         if len(script.statements) != 1:
-            raise ValueError("Explain takes one statement")
+            raise ValueError(say("Explain takes one statement"))
         statement = script.statements[0]
         if statement.refused is not None:
             raise ValueError(statement.refused)
         if statement.kind != "read":
-            raise ValueError("Only a read is planned here")
+            raise ValueError(say("Only a read is planned here"))
 
         engine = _Engine(self._storage.local_root())
         held = ExitStack()
@@ -785,7 +793,9 @@ class ExplorerQuery:
                 f"EXPLAIN (FORMAT JSON) {statement.text}", values
             ).fetchall()
         except PreparationStopped:
-            raise AdapterError("timeout", "Preparing the log input ran out of time") from None
+            raise AdapterError(
+                "timeout", say("Preparing the log input ran out of time")
+            ) from None
         except duckdb.Error as exc:
             raise AdapterError(
                 "config",

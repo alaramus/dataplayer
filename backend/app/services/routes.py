@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.db import SessionDep, async_session_maker
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import N_, say
 from app.jobs import crud as job_crud
 from app.jobs.models import Job, JobKind
 from app.jobs.models import public as job_public
@@ -162,12 +163,12 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
     return [
         ServiceTemplateInfo(
             key=template.key,
-            title=template.title,
-            description=template.description,
+            title=say(template.title),
+            description=say(template.description),
             image=template.image,
             container_port=template.container_port,
             adapter_type=template.adapter_type,
-            adapter_title=registry.get(template.adapter_type).title,
+            adapter_title=say(registry.get(template.adapter_type).title),
             generated=list(templates.generated_slots(template)),
             choosable=list(templates.choosable_slots(template)),
             optional_password=templates.may_run_unprotected(template),
@@ -302,7 +303,7 @@ async def remove_unclaimed(engine: ServiceEngineDep, container_name: str) -> Any
     if container_name not in {one.name for one in (await _managed(engine) or [])}:
         raise Problem(404, "services.container_not_found")
     await engine.remove(container_name, volume=f"{container_name}-data")
-    return Message(message=f"{container_name} was removed")
+    return Message(message=say("{name} was removed", name=container_name))
 
 
 @router.get("/{service_id}", response_model=ServicePublic)
@@ -871,7 +872,7 @@ def _public(
 PUBLISHED_HOST = "127.0.0.1"
 
 # Why there is nothing to paste, when there is nothing.
-NOT_PUBLISHED = (
+NOT_PUBLISHED = N_(
     "This service has no port on the host, so only this application can reach it"
 )
 
@@ -904,7 +905,7 @@ def _credentials_of(service: ManagedService) -> ServiceCredentials:
         )
         if published is not None
         else None,
-        unreachable_reason=None if published is not None else NOT_PUBLISHED,
+        unreachable_reason=None if published is not None else say(NOT_PUBLISHED),
     )
 
 
@@ -1015,6 +1016,6 @@ def _title_of(template_key: str) -> str:
     still running, and a screen still has to name it.
     """
     try:
-        return templates.template_for(template_key).title
+        return say(templates.template_for(template_key).title)
     except UnknownServiceTemplate:
         return template_key

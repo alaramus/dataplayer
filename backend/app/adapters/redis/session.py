@@ -33,6 +33,7 @@ from redis.exceptions import (
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.redis.options import RedisOptions, RedisPassword
 from app.core.logs import record_failure, with_ref
+from app.core.translation import say
 
 logger = logging.getLogger(__name__)
 
@@ -128,18 +129,18 @@ class RedisSession:
         try:
             await client.ping()
         except AuthenticationError:
-            return _refused("auth", "Authentication failed")
+            return _refused("auth", say("Authentication failed"))
         except RedisTimeoutError:
-            return _refused("timeout", "Connection timed out")
+            return _refused("timeout", say("Connection timed out"))
         except RedisConnectionError:
-            return _refused("network", "Could not reach the Redis server")
+            return _refused("network", say("Could not reach the Redis server"))
         except RedisError:
-            return _refused("unknown", "The Redis server refused the connection")
+            return _refused("unknown", say("The Redis server refused the connection"))
         finally:
             await client.aclose()
         elapsed = int((time.perf_counter() - started) * 1000)
         return ConnectionCheckResult(
-            ok=True, message="Connection successful", latency_ms=elapsed
+            ok=True, message=say("Connection successful"), latency_ms=elapsed
         )
 
 
@@ -159,18 +160,20 @@ def _reduced(failure: RedisError) -> AdapterError:
         logger.warning("Redis failed: %s", failure)
         return known
     ref = record_failure(logger, "Redis: an unexpected failure", failure)
-    return AdapterError("unknown", with_ref("The Redis server could not do that", ref))
+    return AdapterError(
+        "unknown", with_ref(say("The Redis server could not do that"), ref)
+    )
 
 
 def _known(failure: RedisError) -> AdapterError | None:
     if isinstance(failure, AuthenticationError):
-        return AdapterError("auth", "This connection was refused by the server")
+        return AdapterError("auth", say("This connection was refused by the server"))
     if isinstance(failure, RedisTimeoutError):
-        return AdapterError("timeout", "The Redis server did not answer in time")
+        return AdapterError("timeout", say("The Redis server did not answer in time"))
     if isinstance(failure, RedisConnectionError):
-        return AdapterError("network", "Could not reach the Redis server")
+        return AdapterError("network", say("Could not reach the Redis server"))
     if isinstance(failure, ResponseError):
-        return AdapterError("unknown", "The Redis server refused that command")
+        return AdapterError("unknown", say("The Redis server refused that command"))
     return None
 
 

@@ -46,16 +46,25 @@ from app.ai.models import (
     StepStatus,
 )
 from app.core.schemas import get_datetime_utc
+from app.core.translation import N_, say
 
 # How many answers a conversation page carries with their steps. The messages
 # are all there; the runs are what explains the latest of them.
 RECENT_RUNS = 20
 
+# The title of a conversation nobody has named yet. Stored in English, since
+# it is how an untitled one is recognised, and worded where it is shown.
+NEW_CHAT = N_("New chat")
+
+
+def shown_title(title: str) -> str:
+    return say(NEW_CHAT) if title == NEW_CHAT else title
+
 
 def first_line_title(text: str) -> str:
     """The title a conversation has before a model writes one (D141)."""
     line = next((part.strip() for part in text.splitlines() if part.strip()), "")
-    return line[:MAX_TITLE_CHARS] or "New chat"
+    return line[:MAX_TITLE_CHARS] or NEW_CHAT
 
 
 def policy_of(value: str) -> ChangePolicy:
@@ -84,7 +93,7 @@ def summary_of(conversation: Conversation, latest: str | None) -> ConversationSu
     """
     return ConversationSummary(
         id=conversation.id,
-        title=opened(conversation.title),
+        title=shown_title(opened(conversation.title)),
         updated_at=conversation.updated_at,
         active=latest in ("running", "awaiting_answer"),
         waiting=latest == "awaiting_answer",
@@ -99,7 +108,7 @@ def summary_of(conversation: Conversation, latest: str | None) -> ConversationSu
 
 
 async def create(
-    session: AsyncSession, owner_id: uuid.UUID, title: str = "New chat"
+    session: AsyncSession, owner_id: uuid.UUID, title: str = NEW_CHAT
 ) -> Conversation:
     conversation = Conversation(owner_id=owner_id, title=sealed(title))
     session.add(conversation)
@@ -719,7 +728,7 @@ async def conversation_public(
     ).all()
     return ConversationPublic(
         id=conversation.id,
-        title=opened(conversation.title),
+        title=shown_title(opened(conversation.title)),
         title_is_custom=conversation.title_is_custom,
         model_key=conversation.model_key,
         auto_provider=auto_provider_of(conversation.auto_provider),

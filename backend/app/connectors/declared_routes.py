@@ -26,6 +26,7 @@ from app.connectors.declared import (
 from app.core.db import SessionDep
 from app.core.problems import Problem
 from app.core.schemas import Message
+from app.core.translation import say
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/declared-references", tags=["declared-references"])
@@ -75,7 +76,7 @@ async def declare_reference(
             detail=[
                 {
                     "loc": ["body", "ends"],
-                    "msg": "A column cannot reference itself",
+                    "msg": say("A column cannot reference itself"),
                     "type": "value_error",
                 }
             ],
@@ -127,4 +128,4 @@ async def undeclare_reference(
     if reference is None:
         raise Problem(404, "declared.not_found")
     await delete(session, reference)
-    return Message(message="Declared reference removed")
+    return Message(message=say("Declared reference removed"))

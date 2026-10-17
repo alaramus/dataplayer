@@ -18,7 +18,7 @@ from app.adapters.relation import ColumnType
 from app.adapters.update import ValuesRejected
 from app.connectors import imports
 from app.connectors.paste.files import TransfersFiles
-from app.connectors.paste.kinds import counted, offered, refused
+from app.connectors.paste.kinds import offered, refused
 from app.connectors.paste.models import (
     Availability,
     ClipboardMode,
@@ -33,37 +33,50 @@ from app.connectors.paste.models import (
     PasteWorkflow,
 )
 from app.core.access import Access
+from app.core.translation import N_, say
 
-NOT_ROWS = "This cannot be read as rows"
+NOT_ROWS = N_("This cannot be read as rows")
 
 
 async def columns_of(source: DataAdapter, node_ids: list[str]) -> list[FetchColumn] | str:
     """The columns of the one node on the clipboard, or why it has none."""
     if not isinstance(source, SupportsFetch):
-        return NOT_ROWS
+        return say(NOT_ROWS)
     if len(node_ids) != 1:
-        return "Paste one table at a time"
-    return await _columns(source, node_ids[0], gone="The copied node no longer exists")
+        return say("Paste one table at a time")
+    return await _columns(source, node_ids[0], gone=N_("The copied node no longer exists"))
 
 
 async def _columns(source: SupportsFetch, node_id: str, *, gone: str) -> list[FetchColumn] | str:
     try:
         page = await source.fetch(FetchRequest(node_id=node_id, limit=1))
     except NodeNotFound:
-        return gone
+        return say(gone)
     except ValueError:
-        return NOT_ROWS
+        return say(NOT_ROWS)
     except AdapterError:
-        return "The connection is unavailable"
-    return page.columns or NOT_ROWS
+        return say("The connection is unavailable")
+    return page.columns or say(NOT_ROWS)
 
 
 def rejected(result: ValuesRejected) -> str:
     """The first value that could not cross, and how many more there are."""
     first = result.cells[0]
     more = len(result.cells) - 1
-    said = f"{first.value!r} cannot be read by {first.column} (row {first.row + 1})"
-    return said if more == 0 else f"{said}, and {counted(more, 'other value')}"
+    found = {"value": repr(first.value), "column": first.column, "row": first.row + 1}
+    if more == 0:
+        return say("{value} cannot be read by {column} (row {row})", **found)
+    if more == 1:
+        return say(
+            "{value} cannot be read by {column} (row {row}), and {count} other value",
+            count=more,
+            **found,
+        )
+    return say(
+        "{value} cannot be read by {column} (row {row}), and {count} other values",
+        count=more,
+        **found,
+    )
 
 
 class _Rows:
@@ -74,7 +87,7 @@ class _Rows:
     name: PasteKindName
     title: str
     workflow: PasteWorkflow
-    needs = "Tick a file or a table readable as rows"
+    needs = N_("Tick a file or a table readable as rows")
     destination_requires: Access
     mode: ClipboardMode = "copy"
     converts = True
@@ -99,15 +112,15 @@ class _Rows:
     async def _read_from(self, source: DataAdapter, end: PairEnd) -> list[FetchColumn] | str:
         """The columns rows are read by, from a node or from what a link makes."""
         if isinstance(end, Foreseen):
-            return end.columns or NOT_ROWS
+            return end.columns or say(NOT_ROWS)
         if end is None:
-            return self.needs
+            return say(self.needs)
         return await columns_of(source, [end])
 
 
 class RowsNewRelation(_Rows):
     name: PasteKindName = "rows_new_relation"
-    title = "Create a table"
+    title = N_("Create a table")
     workflow: PasteWorkflow = "new-relation"
     # What D45 asks of the place the table is made in.
     destination_requires: Access = "structure"
@@ -134,7 +147,7 @@ class RowsNewRelation(_Rows):
         del source  # the table is what its window chose, whatever it was made from
         return Foreseen(
             kind="table",
-            name=name or "a new table",
+            name=name or say("a new table"),
             columns=[
                 FetchColumn(
                     name=column.target,
@@ -156,22 +169,22 @@ class RowsNewRelation(_Rows):
         if isinstance(columns, str):
             return refused(self, columns)
         if isinstance(target_end, Foreseen):
-            return refused(self, "Choose the schema the table goes in")
+            return refused(self, say("Choose the schema the table goes in"))
         return await self._into(destination, target_end, columns)
 
     async def _into(
         self, destination: DataAdapter, place: str | None, columns: list[FetchColumn]
     ) -> PasteOffer:
         if not isinstance(destination, SupportsCreateRelation):
-            return refused(self, "This connection cannot create tables")
+            return refused(self, say("This connection cannot create tables"))
         try:
             options = await destination.new_relation_options(place or "")
         except (NodeNotFound, ValueError):
-            return refused(self, "Choose the schema the table goes in")
+            return refused(self, say("Choose the schema the table goes in"))
         except AdapterError:
-            return refused(self, "The connection is unavailable")
+            return refused(self, say("The connection is unavailable"))
         if not options.supported:
-            return refused(self, options.reason or "This place cannot take a new table")
+            return refused(self, options.reason or say("This place cannot take a new table"))
         return offered(self, available=True, source_columns=columns)
 
     async def run(
@@ -180,13 +193,13 @@ class RowsNewRelation(_Rows):
         if not isinstance(source, SupportsFetch) or not isinstance(
             destination, SupportsCreateRelation
         ):
-            raise ActionRefused("not_applicable", "These connections cannot create a table")
+            raise ActionRefused("not_applicable", say("These connections cannot create a table"))
         if len(request.source_node_ids) != 1:
-            raise ActionRefused("not_applicable", "Paste one table at a time")
+            raise ActionRefused("not_applicable", say("Paste one table at a time"))
         if request.name is None or not request.columns:
-            raise ActionRefused("not_applicable", "Name the table and choose its columns")
+            raise ActionRefused("not_applicable", say("Name the table and choose its columns"))
         if any(column.type_code is None for column in request.columns):
-            raise ActionRefused("not_applicable", "Choose a type for every column")
+            raise ActionRefused("not_applicable", say("Choose a type for every column"))
         creation = imports.CreateRelationFromSourceRequest(
             parent_node_id=request.destination_node_id or "",
             name=request.name.strip(),
@@ -206,13 +219,24 @@ class RowsNewRelation(_Rows):
         except imports.SourceTooLarge:
             raise ActionRefused(
                 "too_large",
-                f"A new table may be filled with at most {imports.IMPORT_CEILING} rows",
+                say(
+                    "A new table may be filled with at most {count} rows",
+                    count=imports.IMPORT_CEILING,
+                ),
             ) from None
         if isinstance(result, ValuesRejected):
             raise ValueError(rejected(result))
         return PasteResult(
             kind=self.name,
-            message=f"{result.node.name} created with {counted(result.inserted, 'row')}",
+            message=(
+                say("{name} created with {count} row", name=result.node.name, count=1)
+                if result.inserted == 1
+                else say(
+                    "{name} created with {count} rows",
+                    name=result.node.name,
+                    count=result.inserted,
+                )
+            ),
             written=1,
             rows=result.inserted,
             name=result.node.name,
@@ -223,7 +247,7 @@ class RowsNewRelation(_Rows):
 
 class RowsIntoRelation(_Rows):
     name: PasteKindName = "rows_into_relation"
-    title = "Add rows to a table"
+    title = N_("Add rows to a table")
     workflow: PasteWorkflow = "into-relation"
     # What D43 asks of the relation written.
     destination_requires: Access = "write"
@@ -242,7 +266,7 @@ class RowsIntoRelation(_Rows):
         self, source: DataAdapter, destination: DataAdapter, pair: PastePair
     ) -> PasteOffer:
         if pair.target_node_id is None:
-            return refused(self, "Tick the table the rows go into")
+            return refused(self, say("Tick the table the rows go into"))
         columns = await columns_of(source, pair.source_node_ids)
         if isinstance(columns, str):
             return refused(self, columns)
@@ -262,7 +286,7 @@ class RowsIntoRelation(_Rows):
         target_end: PairEnd,
     ) -> PasteOffer:
         if target_end is None or (isinstance(target_end, Foreseen) and target_end.kind != "table"):
-            return refused(self, "Tick the table the rows go into")
+            return refused(self, say("Tick the table the rows go into"))
         columns = await self._read_from(source, source_end)
         if isinstance(columns, str):
             return refused(self, columns)
@@ -274,16 +298,16 @@ class RowsIntoRelation(_Rows):
         if isinstance(target_end, Foreseen):
             target: list[FetchColumn] | str = target_end.columns
         elif not isinstance(destination, SupportsFetch):
-            return refused(self, "This connection cannot take rows")
+            return refused(self, say("This connection cannot take rows"))
         else:
             target = await _columns(
-                destination, target_end, gone="The ticked table no longer exists"
+                destination, target_end, gone=N_("The ticked table no longer exists")
             )
         if isinstance(target, str):
-            return refused(self, "The ticked node cannot take rows")
+            return refused(self, say("The ticked node cannot take rows"))
         insertable = [column for column in target if column.insertable]
         if not insertable:
-            return refused(self, "The ticked table takes no rows")
+            return refused(self, say("The ticked table takes no rows"))
         return offered(
             self, available=True, source_columns=columns, target_columns=insertable
         )
@@ -294,13 +318,13 @@ class RowsIntoRelation(_Rows):
         if not isinstance(source, SupportsFetch) or not isinstance(
             destination, SupportsInsert
         ):
-            raise ActionRefused("not_applicable", "These connections cannot move rows")
+            raise ActionRefused("not_applicable", say("These connections cannot move rows"))
         if len(request.source_node_ids) != 1:
-            raise ActionRefused("not_applicable", "Paste one table at a time")
+            raise ActionRefused("not_applicable", say("Paste one table at a time"))
         if request.target_node_id is None:
-            raise ActionRefused("not_applicable", "Tick the table the rows go into")
+            raise ActionRefused("not_applicable", say("Tick the table the rows go into"))
         if not request.columns:
-            raise ActionRefused("not_applicable", "Pair at least one column")
+            raise ActionRefused("not_applicable", say("Pair at least one column"))
         importing = imports.ImportRowsRequest(
             node_id=request.target_node_id,
             source_connector_id=str(request.source_connector_id),
@@ -315,9 +339,16 @@ class RowsIntoRelation(_Rows):
         )
         if isinstance(result, ValuesRejected):
             raise ValueError(rejected(result))
-        message = f"{counted(result.inserted, 'row')} added"
         if truncated:
-            message += f", the first {imports.IMPORT_CEILING} of the source"
+            message = say(
+                "{count} rows added, the first {limit} of the source",
+                count=result.inserted,
+                limit=imports.IMPORT_CEILING,
+            )
+        elif result.inserted == 1:
+            message = say("{count} row added", count=1)
+        else:
+            message = say("{count} rows added", count=result.inserted)
         return PasteResult(
             kind=self.name,
             message=message,

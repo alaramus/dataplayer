@@ -26,6 +26,7 @@ from app.connectors.paste.registry import kind_named
 from app.connectors.paste.transfer import Transfer
 from app.core.config import settings
 from app.core.problems import Problem
+from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.models import JobPublic, public
 from app.jobs.runner import JobRunner
@@ -116,9 +117,10 @@ async def planned(
     destination_label = await _label(session, connector_id)
     return Transfer(
         kind=kind.name,
-        title=kind.title,
-        doing=kind.doing,
-        done=kind.done,
+        # Stored worded, in the language of whoever pasted (D226).
+        title=say(kind.title),
+        doing=say(kind.doing),
+        done=say(kind.done),
         mode=kind.mode,
         conflict=request.conflict,
         source_connector_id=request.source_connector_id,
@@ -160,4 +162,4 @@ async def _started(
 async def _label(session: AsyncSession, connector_id: uuid.UUID) -> str:
     # Already loaded by the access check, so this reads no row.
     connector = await session.get(Connector, connector_id)
-    return connector.name if connector is not None else "the connection"
+    return connector.name if connector is not None else say("the connection")

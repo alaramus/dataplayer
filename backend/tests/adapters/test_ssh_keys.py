@@ -4,6 +4,7 @@ import pytest
 
 from app.adapters.credentials import SigningKey
 from app.adapters.ssh import keys
+from app.core.translation import in_language
 
 
 def test_a_key_made_here_is_ed25519_and_says_what_added_it() -> None:
@@ -83,3 +84,15 @@ def test_neither_a_signing_key_nor_a_prepared_one_prints_its_secret() -> None:
     assert "correct horse" not in repr(signing)
     assert made.private_key not in repr(signing)
     assert made.private_key not in repr(made)
+
+
+def test_a_refusal_is_written_in_the_language_asked_for() -> None:
+    """D226: the sentence is this repository's, so it has a Russian of its own."""
+    pasted = "-----BEGIN OPENSSH PRIVATE KEY-----\nnot a key at all\n"
+
+    def refusal() -> str:
+        with pytest.raises(ValueError) as refused:
+            keys.imported(pasted, None)
+        return str(refused.value)
+
+    assert in_language("ru", refusal) == "Этот закрытый ключ не удаётся прочитать"

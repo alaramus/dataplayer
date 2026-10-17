@@ -16,3 +16,9 @@ declare module "markdown-it-task-lists" {
   const plugin: (parser: unknown, options?: { enabled?: boolean; label?: boolean }) => void
   export default plugin
 }
+
+// ECharts ships its locales as plain modules without declarations.
+declare module "echarts/lib/i18n/langRU.js" {
+  const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
+  export default locale
+}

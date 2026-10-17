@@ -12,6 +12,7 @@ from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import async_session_maker
+from app.core.translation import current_language, say
 from app.jobs import crud
 from app.jobs.models import Job, JobKind
 from app.jobs.runner import (
@@ -23,6 +24,7 @@ from app.jobs.runner import (
 )
 from app.jobs.topic import JobEvent, JobsTopic
 from app.realtime.topics import TopicSet
+from app.source_operations.handler import VALIDATING
 from app.users import crud as user_crud
 from app.users.models import User
 
@@ -284,6 +286,36 @@ async def test_a_kind_this_process_cannot_do_fails_rather_than_waits(
 
     settled = await _read(job.id)
     assert settled.state == "failed"
+
+
+async def test_a_job_writes_its_step_and_sentence_in_the_language_it_was_started_in(
+    owner: User,
+) -> None:
+    """The task copies the request's language when it is launched, and what
+    it stores is worded in it (D226)."""
+
+    class _Checking:
+        kind: ClassVar[JobKind] = "service.start"
+        steps: ClassVar[tuple[str, ...]] = (VALIDATING,)
+
+        async def carry_out(self, job: Job, progress: Progress) -> str:
+            await progress.reached(VALIDATING)
+            raise JobFailed(say("This job names no connection"))
+
+    runner = _runner(_Checking())
+    job = await _accepted(owner, runner, "service.start")
+    token = current_language.set("ru")
+    try:
+        await runner.launch(job)
+    finally:
+        current_language.reset(token)
+    await runner.wait_for(job.id)
+
+    settled = await _read(job.id)
+    assert (settled.step, settled.message) == (
+        "проверка подключения и просмотренного плана",
+        "В задаче не указано подключение",
+    )
 
 
 async def test_what_a_stopped_process_left_running_ends_as_interrupted(

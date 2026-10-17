@@ -1,8 +1,4 @@
-"""Every word a moved package writes has its translations (D226).
-
-The packages already moved are listed, the way ESLint's list of screens grew;
-it ends as every package that writes for a person.
-"""
+"""Every word the server writes for a person has its translations (D226)."""
 
 import ast
 import string
@@ -12,15 +8,24 @@ from pathlib import Path
 import pytest
 
 import app.main  # noqa: F401 — imports every package, so every catalog registers
-from app.core.translation import LANGUAGES, Language, catalog
+from app.core.translation import LANGUAGES, Language, catalog, disagreements
 
 APP = Path(__file__).resolve().parents[2] / "app"
 
-MOVED: list[str] = [
-    # "adapters/postgres" — moving now
-    "adapters/postgres/*.py",
-    "adapters/postgres/timescale",
-]
+# Every package that writes for a person, which is every package but these.
+NOT_WORDED = {
+    "alembic": "migrations write nothing a person reads",
+    "api": "assembles routers and writes nothing",
+    "core": "holds the translation itself, and refusals are codes the browser words (D225)",
+    "email-templates": "emails are not translated yet (D227)",
+    "frontend": "the built browser application",
+}
+
+MOVED: list[str] = sorted(
+    path.name
+    for path in APP.iterdir()
+    if path.is_dir() and not path.name.startswith("__") and path.name not in NOT_WORDED
+)
 
 # Class attributes and Field arguments that are words a person reads. Each is
 # read where it is shown, so it is written `N_("…")` to be found here.
@@ -162,3 +167,10 @@ def test_a_translation_keeps_the_parameters_of_its_english(language: Language) -
     ]
 
     assert wrong == []
+
+
+def test_the_same_english_is_translated_the_same_way_everywhere() -> None:
+    """The catalogs are merged, so two translations of one sentence would leave
+    the choice to whichever package happened to register last."""
+    assert disagreements() == []
+

@@ -6,6 +6,7 @@ from app.adapters.catalog import DirectoryNode, FileNode
 from app.adapters.explorer.catalog import MAX_ENTRIES, ExplorerCatalog
 from app.adapters.file.storage import LocalStorage
 from app.adapters.protocol import AdapterError, NodeNotFound
+from app.core.translation import current_language
 
 
 @pytest.fixture
@@ -180,3 +181,20 @@ async def test_path_to_a_node_outside_the_root_is_refused(
     """The same containment rule as everything else, not a second one."""
     with pytest.raises(ValueError):
         await catalog.path_to(node_id)
+
+
+async def test_a_russian_request_reads_how_a_file_opens_in_russian(
+    catalog: ExplorerCatalog,
+) -> None:
+    """Worded on the worker thread that lists the folder (D226)."""
+    token = current_language.set("ru")
+    try:
+        children = await catalog.list_children(None)
+    finally:
+        current_language.reset(token)
+    node = next(child for child in children if child.name == "people.json")
+
+    assert [item.title for item in node.representations] == [
+        "Открыть JSON",
+        "Открыть как таблицу",
+    ]

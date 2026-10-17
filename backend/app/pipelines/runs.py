@@ -20,6 +20,7 @@ from app.connectors.paste.models import PasteRun
 from app.connectors.paste.registry import kind_named
 from app.core.config import settings
 from app.core.problems import Problem
+from app.core.translation import N_, say
 from app.jobs import crud as job_crud
 from app.jobs.models import TERMINAL, Job, JobKind, JobState
 from app.jobs.runner import JobRunner
@@ -38,8 +39,8 @@ KEPT_RUNS = 100
 # What a link lacks before it can run, by the window its kind opens; the other
 # workflows run with what they have.
 _NEEDS = {
-    "new-relation": "needs its table named and its columns chosen",
-    "into-relation": "needs its columns paired",
+    "new-relation": N_("{number} · {title} needs its table named and its columns chosen"),
+    "into-relation": N_("{number} · {title} needs its columns paired"),
 }
 
 class LinkRun(BaseModel):
@@ -73,7 +74,8 @@ class LastRun(BaseModel):
 
 
 def missing(link: Link) -> str | None:
-    """What running the link still needs chosen, asked of its kind alone."""
+    """What running the link still needs chosen, asked of its kind alone: a
+    sentence to fill with the link's number and title."""
     workflow = kind_named(link.kind).workflow
     if workflow == "new-relation" and (link.name is None or not link.columns):
         return _NEEDS[workflow]
@@ -85,9 +87,9 @@ def missing(link: Link) -> str | None:
 def _named(card: Card, end: LinkEnd, foresight: Foresight) -> str:
     if end.made_by is not None:
         made = foresight.made(end.made_by)
-        return f"{card.connector_name} · {made.name if made is not None else 'a result'}"
+        return f"{card.connector_name} · {made.name if made is not None else say('a result')}"
     if end.node_id is None:
-        return f"{card.connector_name} (top)"
+        return say("{connection} (top)", connection=card.connector_name)
     row = next((one for one in card.rows if one.node_id == end.node_id), None)
     return f"{card.connector_name} · {row.label if row is not None else end.node_id}"
 
@@ -145,11 +147,13 @@ async def start_run(
     order = ordered(content)
     lacking = [(placed, needs) for placed in order if (needs := missing(placed.link))]
     if lacking:
-        said = "; ".join(f"{placed.number} · {placed.link.title} {needs}" for placed, needs in lacking)
+        said = "; ".join(
+            say(needs, number=placed.number, title=placed.link.title) for placed, needs in lacking
+        )
         raise HTTPException(
             422,
             detail={
-                "message": f"Nothing ran: {said}",
+                "message": say("Nothing ran: {needs}", needs=said),
                 "link_ids": [str(placed.link.id) for placed, _ in lacking],
             },
         )

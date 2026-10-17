@@ -70,7 +70,7 @@ def info(adapter_type: registry.AdapterType) -> AdapterTypeInfo:
         name=adapter_type.name,
         title=say(adapter_type.title),
         category=adapter_type.category,
-        category_title=say(registry.category_title(adapter_type.category)),
+        category_title=say(registry.CATEGORY_TITLES[adapter_type.category]),
         catalog_shape=adapter_type.catalog_shape,
         description=say(adapter_type.description),
         capabilities=registry.capabilities_of(adapter_type),

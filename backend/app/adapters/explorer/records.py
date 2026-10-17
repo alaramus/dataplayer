@@ -18,6 +18,7 @@ from app.adapters.delimited import usable_names
 from app.adapters.explorer.formats import JSON_LINES_EXTENSIONS
 from app.adapters.fetch import FetchColumn
 from app.adapters.relation import ColumnType
+from app.core.translation import say
 
 # One JSON document is only valid whole, so the reading cannot be cut short at
 # a page boundary the way a delimited file can. The ceiling is what keeps a
@@ -73,15 +74,18 @@ def read(path: Path, *, one_per_line: bool | None = None) -> Table | NotRecords:
     size_bytes = path.stat().st_size
     if size_bytes > MAX_RECORD_BYTES:
         return NotRecords(
-            f"This file is larger than {MAX_RECORD_BYTES // (1024 * 1024)} MB, "
-            "so it cannot be projected as one table."
+            say(
+                "This file is larger than {megabytes} MB, "
+                "so it cannot be projected as one table.",
+                megabytes=MAX_RECORD_BYTES // (1024 * 1024),
+            )
         )
 
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return NotRecords(
-            "This file is not valid UTF-8 text, so it cannot be projected as a table."
+            say("This file is not valid UTF-8 text, so it cannot be projected as a table.")
         )
 
     by_line = (
@@ -102,8 +106,11 @@ def from_text(
     """Project already bounded text using the file reader's lossless rules."""
     if len(text.encode("utf-8")) > MAX_RECORD_BYTES:
         return NotRecords(
-            f"This file is larger than {MAX_RECORD_BYTES // (1024 * 1024)} MB, "
-            "so it cannot be projected as one table."
+            say(
+                "This file is larger than {megabytes} MB, "
+                "so it cannot be projected as one table.",
+                megabytes=MAX_RECORD_BYTES // (1024 * 1024),
+            )
         )
     parsed = _lines(text, checkpoint) if one_per_line else _document(text)
     if isinstance(parsed, NotRecords):
@@ -111,7 +118,7 @@ def from_text(
     try:
         return _table(parsed, max_cells=max_cells, checkpoint=checkpoint)
     except RecursionError:
-        return NotRecords("This JSON is too deeply nested to project as a table.")
+        return NotRecords(say("This JSON is too deeply nested to project as a table."))
 
 
 def _document(text: str) -> list[Any] | NotRecords:
@@ -127,10 +134,10 @@ def _document(text: str) -> list[Any] | NotRecords:
     except JSONDecodeError as exc:
         return NotRecords(_decode_reason(exc))
     except jsontext.NonStandardJson as exc:
-        return NotRecords(f"This file is not valid JSON ({exc}).")
+        return NotRecords(say("This file is not valid JSON ({problem}).", problem=exc))
     except RecursionError:
         return NotRecords(
-            "This JSON document is too deeply nested to project as a table."
+            say("This JSON document is too deeply nested to project as a table.")
         )
     return value if isinstance(value, list) else [value]
 
@@ -151,17 +158,25 @@ def _lines(text: str, checkpoint: Callable[[], None] | None = None) -> list[Any]
             parsed.append(jsontext.load(line))
         except JSONDecodeError as exc:
             return NotRecords(
-                f"Line {number} is not valid JSON ({exc.msg}), so the records "
-                "of this file cannot be projected as a table."
+                say(
+                    "Line {line} is not valid JSON ({problem}), so the records "
+                    "of this file cannot be projected as a table.",
+                    line=number,
+                    problem=exc.msg,
+                )
             )
         except jsontext.NonStandardJson as exc:
             return NotRecords(
-                f"Line {number} is not valid JSON ({exc}), so the records "
-                "of this file cannot be projected as a table."
+                say(
+                    "Line {line} is not valid JSON ({problem}), so the records "
+                    "of this file cannot be projected as a table.",
+                    line=number,
+                    problem=exc,
+                )
             )
         except RecursionError:
             return NotRecords(
-                f"Line {number} is too deeply nested to project as a table."
+                say("Line {line} is too deeply nested to project as a table.", line=number)
             )
     return parsed
 
@@ -172,9 +187,12 @@ def _decode_reason(exc: JSONDecodeError) -> str:
     The message describes the text the reader wrote and nothing about the
     server, so it is the one driver message this source passes on.
     """
-    return (
-        f"This file is not valid JSON ({exc.msg}, line {exc.lineno} "
-        f"column {exc.colno}), so it cannot be projected as a table."
+    return say(
+        "This file is not valid JSON ({problem}, line {line} "
+        "column {column}), so it cannot be projected as a table.",
+        problem=exc.msg,
+        line=exc.lineno,
+        column=exc.colno,
     )
 
 
@@ -189,7 +207,7 @@ def _table(
         return Table(columns=[], rows=[])
     if not all(isinstance(record, dict) for record in records):
         if max_cells is not None and len(records) > max_cells:
-            return NotRecords("The log projection exceeds the SQL cell limit")
+            return NotRecords(say("The log projection exceeds the SQL cell limit"))
         return _flat_table(records)
 
     keys: list[str] = []
@@ -203,7 +221,7 @@ def _table(
                 keys.append(key)
 
     if max_cells is not None and len(keys) * len(records) > max_cells:
-        return NotRecords("The log projection exceeds the SQL cell limit")
+        return NotRecords(say("The log projection exceeds the SQL cell limit"))
     rows: list[list[str | None]] = []
     for record in records:
         if checkpoint is not None:

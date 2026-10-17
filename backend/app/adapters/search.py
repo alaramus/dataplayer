@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.catalog import CatalogNode
 from app.adapters.errors import ErrorKind
+from app.core.translation import N_, say
 
 # How well a name matched the words, best first (D202). One rule for every
 # place the words are looked for — a catalog, the application's own objects,
@@ -172,9 +173,17 @@ class SearchBounds:
         return cls(deadline=time.monotonic() + seconds)
 
 
-def out_of_time(looked_at: int, what: str) -> str:
+# One sentence per thing counted, since the noun is a word and not a value.
+_OUT_OF_TIME: dict[str, str] = {
+    "entries": N_("Time ran out after {count} entries were looked at; there may be more"),
+    "keys": N_("Time ran out after {count} keys were looked at; there may be more"),
+    "files": N_("Time ran out after {count} files were looked at; there may be more"),
+}
+
+
+def out_of_time(looked_at: int, what: Literal["entries", "keys", "files"]) -> str:
     """The notice of a search its clock stopped: the fourth bound, said (D76)."""
-    return f"Time ran out after {looked_at:,} {what} were looked at; there may be more"
+    return say(_OUT_OF_TIME[what], count=f"{looked_at:,}")
 
 
 # What a search may be asked for at most, and what it costs when nothing says.

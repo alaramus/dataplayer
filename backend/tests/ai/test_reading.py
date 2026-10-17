@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.prompts import SYSTEM_PROMPT
-from app.ai.tools import LIMIT_MESSAGE, MAX_NODES, WITHHELD_RESULT
+from app.ai.tools import LIMIT_MESSAGE, MAX_NODES, MAX_TOOL_CALLS, WITHHELD_RESULT
 from app.ai.topic import NAME, AgentTopic, WorkspaceOpened
 from app.core.config import settings
 from app.main import app
@@ -405,7 +405,7 @@ async def test_the_tool_call_limit_stops_the_run_with_its_sentence(
     finished = await settled(client, headers, run["id"], seconds=30.0)
 
     assert finished["status"] == "failed"
-    assert finished["error"] == LIMIT_MESSAGE
+    assert finished["error"] == LIMIT_MESSAGE.format(count=MAX_TOOL_CALLS)
     tool_steps = [step for step in finished["steps"] if step["kind"] == "tool"]
     assert len(tool_steps) == 50
 

@@ -13,13 +13,15 @@ from sqlmodel import col, select
 
 from app.adapters.cache import DataCache
 from app.core.db import async_session_maker
+from app.core.translation import N_
 from app.jobs.models import TERMINAL, Job
 from app.source_operations.handler import KIND
 from app.source_operations.models import SourceOperation
 
 logger = logging.getLogger(__name__)
 
-UNCONFIRMED = "The server stopped while this target was in progress; its outcome is unknown"
+# No request at startup: written in English (D226).
+UNCONFIRMED = N_("The server stopped while this target was in progress; its outcome is unknown")
 
 
 async def settle_interrupted_operations(cache: DataCache) -> int:

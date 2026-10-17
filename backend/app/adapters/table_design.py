@@ -37,6 +37,7 @@ from app.adapters.hypertable_design import (
     SparseKind,
 )
 from app.adapters.relation import IndexMethodOption, RefAction
+from app.core.translation import N_, say
 
 MAX_COLUMNS = 100
 MAX_INDEXES = 32
@@ -256,7 +257,7 @@ class IdentityGeneration(BaseModel):
     @model_validator(mode="after")
     def increment_is_not_zero(self) -> IdentityGeneration:
         if self.increment == 0:
-            raise ValueError("An identity column cannot increment by zero")
+            raise ValueError(say("An identity column cannot increment by zero"))
         return self
 
 
@@ -478,18 +479,18 @@ class TableDefinition(BaseModel):
     @model_validator(mode="after")
     def ids_are_distinct(self) -> TableDefinition:
         """One id per draft object, since everything else refers to them."""
-        for what, ids in (
-            ("column", [column.id for column in self.columns]),
-            ("index", [index.id for index in self.indexes]),
+        for refusal, ids in (
+            (N_("Two columns of one table cannot share an id"), [column.id for column in self.columns]),
+            (N_("Two indexes of one table cannot share an id"), [index.id for index in self.indexes]),
             (
-                "constraint",
+                N_("Two constraints of one table cannot share an id"),
                 [item.id for item in self.unique_constraints]
                 + [item.id for item in self.checks]
                 + [item.id for item in self.foreign_keys],
             ),
         ):
             if len(ids) != len(set(ids)):
-                raise ValueError(f"Two {what}s of one table cannot share an id")
+                raise ValueError(say(refusal))
         return self
 
 

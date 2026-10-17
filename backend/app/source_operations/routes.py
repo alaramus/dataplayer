@@ -15,6 +15,7 @@ from app.connectors.action_lookup import (
 )
 from app.core.db import SessionDep
 from app.core.problems import Problem
+from app.core.translation import say
 from app.jobs import crud as job_crud
 from app.jobs.models import JobPublic, public
 from app.jobs.runner import JobRunnerDep
@@ -63,7 +64,8 @@ async def start_action_job(
     plan = await perform(lambda: action.plan_job(body.node_id, body.params, fingerprint))
     operation = SourceOperation(
         action=action.name,
-        title=action.title,
+        # Stored worded, in the language of whoever started it (D226).
+        title=say(action.title),
         node_id=body.node_id,
         params=body.params,
         requires=action.requires,

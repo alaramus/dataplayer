@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.problems import Problem, ProblemCode
 from app.core.schemas import Message
+from app.core.translation import say
 from app.jobs.runner import JobRunnerDep
 from app.metrics import access, crud, history, keys, restarts, setup
 from app.metrics.dashboards import (
@@ -302,7 +303,7 @@ async def delete_agent(
     agent = await _own_agent(session, agent_id, current_user.id)
     await session.delete(agent)
     await session.commit()
-    return Message(message=f"{agent.name} was removed")
+    return Message(message=say("{name} was removed", name=agent.name))
 
 
 @router.post("/agents/{agent_id}/purge", response_model=Message)
@@ -319,7 +320,7 @@ async def purge_agent(
         await store.purge(Source(kind="agent", id=agent.id))
     except StoreUnavailable:
         raise _unavailable() from None
-    return Message(message=f"The samples of {agent.name} were deleted")
+    return Message(message=say("The samples of {name} were deleted", name=agent.name))
 
 
 @router.get("/catalog", response_model=MetricsCatalog)
@@ -411,7 +412,7 @@ async def purge_connector(
         await store.purge(Source(kind="connector", id=connector.id))
     except StoreUnavailable:
         raise _unavailable() from None
-    return Message(message=f"The samples of {connector.name} were deleted")
+    return Message(message=say("The samples of {name} were deleted", name=connector.name))
 
 
 @router.get("/processes", response_model=ProcessTable)
@@ -684,7 +685,7 @@ async def delete_dashboard(
     dashboard, _ = await _dashboard(session, current_user, dashboard_id, requires="own")
     await session.delete(dashboard)
     await session.commit()
-    return Message(message=f"{dashboard.name} was removed")
+    return Message(message=say("{name} was removed", name=dashboard.name))
 
 
 @router.get("/dashboards/{dashboard_id}/grants", response_model=list[DashboardGrantPublic])
@@ -712,12 +713,12 @@ async def write_dashboard_grant(
     if body.user_id == current_user.id:
         raise HTTPException(
             422,
-            detail=[{"loc": ["body", "user_id"], "msg": "You already own this dashboard", "type": "value_error"}],
+            detail=[{"loc": ["body", "user_id"], "msg": say("You already own this dashboard"), "type": "value_error"}],
         )
     user = await session.get(User, body.user_id)
     if user is None or not user.is_active:
         raise HTTPException(
-            422, detail=[{"loc": ["body", "user_id"], "msg": "No such user", "type": "value_error"}]
+            422, detail=[{"loc": ["body", "user_id"], "msg": say("No such user"), "type": "value_error"}]
         )
     grant = await crud.set_dashboard_grant(session, dashboard_id, user.id, body.access)
     return DashboardGrantPublic(user_id=user.id, email=user.email, full_name=user.full_name, access=grant.access)
@@ -732,7 +733,7 @@ async def revoke_dashboard_grant(
     await _dashboard(session, current_user, dashboard_id, requires="own")
     if not await crud.remove_dashboard_grant(session, dashboard_id, user_id):
         raise Problem(404, "metrics.grant_not_found")
-    return Message(message="Access revoked")
+    return Message(message=say("Access revoked"))
 
 
 async def _dashboard(

@@ -21,6 +21,7 @@ from app.adapters.explorer import archive
 from app.adapters.explorer.formats import format_of
 from app.adapters.explorer.members import ResolvedNode
 from app.adapters.explorer.storage import Place, Storage, node_id_of
+from app.core.translation import say
 
 DOWNLOAD_CHUNK_BYTES = 256 * 1024
 MAX_ARCHIVE_ENTRIES = 10_000
@@ -35,7 +36,7 @@ class ExplorerDownload:
 
     async def prepare(self, node_ids: Sequence[str]) -> ActionDownload:
         if not node_ids:
-            raise ValueError("Choose at least one node to download")
+            raise ValueError(say("Choose at least one node to download"))
         places = await to_thread.run_sync(self._places, node_ids)
         if len(places) == 1:
             found = await to_thread.run_sync(self._storage.entry, places[0])
@@ -65,7 +66,9 @@ class ExplorerDownload:
         """
         for place in places:
             if self._storage.entry(place) is None:
-                raise ValueError(f"No such node: {node_id_of(place) or ''}")
+                raise ValueError(
+                    say("No such node: {node_id}", node_id=node_id_of(place) or "")
+                )
         with ExitStack() as held:
             targets = [held.enter_context(self._storage.local_tree(place)) for place in places]
             return _build_archive(targets)
@@ -80,7 +83,7 @@ class ExplorerDownload:
         member = resolved.member or ""
         if format_of(resolved.name) != "archive":
             raise ActionRefused(
-                "not_applicable", "This node is not a file inside an archive"
+                "not_applicable", say("This node is not a file inside an archive")
             )
         prepared = await to_thread.run_sync(self._extract, resolved.place, member)
         size = await to_thread.run_sync(lambda: prepared.stat().st_size)
@@ -103,7 +106,9 @@ class ExplorerDownload:
         try:
             handle = await to_thread.run_sync(self._storage.open, place)
         except OSError:
-            raise ValueError(f"Could not open file: {node_id}") from None
+            raise ValueError(
+                say("Could not open file: {name}", name=node_id)
+            ) from None
         try:
             size = await to_thread.run_sync(_size_of, handle)
         except BaseException:
@@ -122,7 +127,7 @@ class ExplorerDownload:
 def _build_archive(targets: list[Path]) -> tuple[Path, str, int]:
     names = [target.name for target in targets]
     if len(set(names)) != len(names):
-        raise ActionRefused("conflict", "Two selected nodes have the same archive name")
+        raise ActionRefused("conflict", say("Two selected nodes have the same archive name"))
 
     descriptor, temporary = tempfile.mkstemp(
         prefix="dataplayer-download-", suffix=".zip"
@@ -157,12 +162,12 @@ def _add_target(
     total: int,
 ) -> tuple[int, int]:
     if target.is_symlink():
-        raise ActionRefused("not_applicable", "Symbolic links are not downloaded")
+        raise ActionRefused("not_applicable", say("Symbolic links are not downloaded"))
     if target.is_file():
         count = _next_entry(count)
         return count, _add_file(output, target, archive_name, total)
     if not target.is_dir():
-        raise ValueError(f"Cannot download {target.name}")
+        raise ValueError(say("Cannot download {name}", name=target.name))
 
     count = _next_entry(count)
     output.writestr(f"{archive_name.rstrip('/')}/", b"")
@@ -181,7 +186,7 @@ def _add_target(
 def _next_entry(count: int) -> int:
     count += 1
     if count > MAX_ARCHIVE_ENTRIES:
-        raise ActionRefused("too_large", "The selection contains too many archive entries")
+        raise ActionRefused("too_large", say("The selection contains too many archive entries"))
     return count
 
 
@@ -189,12 +194,12 @@ def _add_file(output: ZipFile, path: Path, archive_name: str, total: int) -> int
     try:
         source = path.open("rb")
     except OSError:
-        raise ValueError(f"Could not open file: {path.name}") from None
+        raise ValueError(say("Could not open file: {name}", name=path.name)) from None
     with source, output.open(archive_name, "w") as destination:
         while chunk := source.read(DOWNLOAD_CHUNK_BYTES):
             total += len(chunk)
             if total > MAX_ARCHIVE_BYTES:
-                raise ActionRefused("too_large", "The selection is too large to archive")
+                raise ActionRefused("too_large", say("The selection is too large to archive"))
             destination.write(chunk)
     return total
 

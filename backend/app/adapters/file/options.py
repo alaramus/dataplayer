@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.adapters.explorer.storage import stays_inside_root
 from app.adapters.layout import layout
+from app.core.translation import N_, say
 
 
 class FileOptions(BaseModel):
@@ -10,8 +11,8 @@ class FileOptions(BaseModel):
     # relative to that person's own storage.
     path: str = Field(
         default="/",
-        title="Path",
-        description="Path inside your personal storage",
+        title=N_("Path"),
+        description=N_("Path inside your personal storage"),
         json_schema_extra=layout(),
         # The default goes through the validator too, so a stored path has one
         # shape whatever the form sent.
@@ -30,7 +31,7 @@ class FileOptions(BaseModel):
         """
         below_home = value.strip().strip("/")
         if not stays_inside_root(below_home):
-            raise ValueError("The path must stay inside your personal storage")
+            raise ValueError(say("The path must stay inside your personal storage"))
         return f"/{below_home}"
 
     @property

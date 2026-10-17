@@ -19,6 +19,7 @@ from fastapi import Depends, Request, Response
 from pydantic import BaseModel
 
 from app.adapters.protocol import DataAdapter
+from app.core.translation import say
 
 if TYPE_CHECKING:
     from app.adapters.cache_serialization import CacheFormat
@@ -306,7 +307,7 @@ class MemoryDataCache:
             backend="memory",
             status="healthy",
             shared=False,
-            message="Process-local cache is ready",
+            message=say("Process-local cache is ready"),
             measurements=self._meter.snapshot(),
         )
 

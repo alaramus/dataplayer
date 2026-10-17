@@ -20,6 +20,7 @@ from typing import BinaryIO, assert_never
 
 from app.adapters.content import AudioMediaType, VideoMediaType
 from app.adapters.explorer.formats import format_of
+from app.core.translation import N_, say
 
 # A PDF reader looks for the header in the first kilobyte rather than at byte
 # zero, because generators put junk in front of it. This does the same.
@@ -85,7 +86,7 @@ def audio_facts(name: str, handle: BinaryIO) -> AudioFacts:
     """Verify one sound file and read what its header states. Blocking."""
     media_type = AUDIO_MEDIA_TYPES.get(_suffix(name))
     if media_type is None or format_of(name) != "audio":
-        raise NotPlayable("This file is not a sound file this source plays")
+        raise NotPlayable(say("This file is not a sound file this source plays"))
 
     match media_type:
         case "audio/wav":
@@ -96,7 +97,7 @@ def audio_facts(name: str, handle: BinaryIO) -> AudioFacts:
             _verify_mp3(handle)
             return AudioFacts(media_type=media_type)
         case "audio/ogg":
-            _verify_magic(handle, b"OggS", "an Ogg file")
+            _verify_magic(handle, b"OggS", N_("This file is not an Ogg file"))
             return AudioFacts(media_type=media_type)
         case "audio/mp4":
             duration, _ = _iso_base_media(handle)
@@ -109,7 +110,7 @@ def video_facts(name: str, handle: BinaryIO) -> VideoFacts:
     """Verify one recording and read what its header states. Blocking."""
     media_type = VIDEO_MEDIA_TYPES.get(_suffix(name))
     if media_type is None or format_of(name) != "video":
-        raise NotPlayable("This file is not a recording this source plays")
+        raise NotPlayable(say("This file is not a recording this source plays"))
 
     match media_type:
         case "video/mp4" | "video/quicktime":
@@ -125,7 +126,7 @@ def video_facts(name: str, handle: BinaryIO) -> VideoFacts:
             _verify_matroska(handle)
             return VideoFacts(media_type=media_type)
         case "video/ogg":
-            _verify_magic(handle, b"OggS", "an Ogg file")
+            _verify_magic(handle, b"OggS", N_("This file is not an Ogg file"))
             return VideoFacts(media_type=media_type)
         case unreachable:
             assert_never(unreachable)
@@ -134,14 +135,14 @@ def video_facts(name: str, handle: BinaryIO) -> VideoFacts:
 def pdf_facts(name: str, handle: BinaryIO) -> PdfFacts:
     """Verify one PDF and read the version it states. Blocking."""
     if format_of(name) != "pdf":
-        raise NotPlayable("This file is not a PDF")
+        raise NotPlayable(say("This file is not a PDF"))
     head = handle.read(PDF_HEADER_BYTES)
     position = head.find(b"%PDF-")
     if position < 0:
-        raise NotPlayable("This file is not a PDF")
+        raise NotPlayable(say("This file is not a PDF"))
     version = head[position + 5 : position + 8].decode("ascii", errors="replace")
     if len(version) < 3 or not version[0].isdigit() or version[1] != ".":
-        raise NotPlayable("This PDF does not state a version")
+        raise NotPlayable(say("This PDF does not state a version"))
     return PdfFacts(version=version)
 
 
@@ -149,9 +150,9 @@ def _suffix(name: str) -> str:
     return PurePosixPath(name).suffix.lower()
 
 
-def _verify_magic(handle: BinaryIO, magic: bytes, what: str) -> None:
+def _verify_magic(handle: BinaryIO, magic: bytes, refusal: str) -> None:
     if handle.read(len(magic)) != magic:
-        raise NotPlayable(f"This file is not {what}")
+        raise NotPlayable(say(refusal))
 
 
 def _verify_mp3(handle: BinaryIO) -> None:
@@ -161,7 +162,7 @@ def _verify_mp3(handle: BinaryIO) -> None:
         return
     if len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0:
         return
-    raise NotPlayable("This file is not an MP3")
+    raise NotPlayable(say("This file is not an MP3"))
 
 
 def _wav(handle: BinaryIO, media_type: AudioMediaType) -> AudioFacts:
@@ -172,7 +173,7 @@ def _wav(handle: BinaryIO, media_type: AudioMediaType) -> AudioFacts:
     """
     header = handle.read(12)
     if len(header) < 12 or header[:4] != b"RIFF" or header[8:12] != b"WAVE":
-        raise NotPlayable("This file is not a WAV file")
+        raise NotPlayable(say("This file is not a WAV file"))
 
     channels: int | None = None
     sample_rate: int | None = None
@@ -210,16 +211,16 @@ def _wav(handle: BinaryIO, media_type: AudioMediaType) -> AudioFacts:
 def _flac(handle: BinaryIO, media_type: AudioMediaType) -> AudioFacts:
     """`fLaC` and STREAMINFO, which states the exact number of samples."""
     if handle.read(4) != b"fLaC":
-        raise NotPlayable("This file is not a FLAC file")
+        raise NotPlayable(say("This file is not a FLAC file"))
     header = handle.read(4)
     if len(header) < 4:
-        raise NotPlayable("This FLAC file has no stream information")
+        raise NotPlayable(say("This FLAC file has no stream information"))
     if header[0] & 0x7F != 0:
         # STREAMINFO is required to be the first metadata block.
-        raise NotPlayable("This FLAC file has no stream information")
+        raise NotPlayable(say("This FLAC file has no stream information"))
     block = handle.read(int.from_bytes(header[1:4], "big"))
     if len(block) < 18:
-        raise NotPlayable("This FLAC file has no stream information")
+        raise NotPlayable(say("This FLAC file has no stream information"))
 
     packed = int.from_bytes(block[10:18], "big")
     sample_rate = (packed >> 44) & 0xFFFFF
@@ -244,7 +245,7 @@ def _iso_base_media(
     """
     header = handle.read(8)
     if len(header) < 8 or header[4:8] != b"ftyp":
-        raise NotPlayable("This file is not an MP4 container")
+        raise NotPlayable(say("This file is not an MP4 container"))
 
     end = handle.seek(0, 2)
     for kind, start, stop in _boxes(handle, 0, end):
@@ -336,19 +337,19 @@ def _boxes(
 def _verify_matroska(handle: BinaryIO) -> None:
     """The EBML header, read as far as its `DocType`."""
     if handle.read(4) != b"\x1a\x45\xdf\xa3":
-        raise NotPlayable("This file is not a WebM file")
+        raise NotPlayable(say("This file is not a WebM file"))
     length = _ebml_length(handle)
     if length is None:
-        raise NotPlayable("This file is not a WebM file")
+        raise NotPlayable(say("This file is not a WebM file"))
     header = handle.read(min(length, 4096))
     marker = header.find(b"\x42\x82")
     if marker < 0:
-        raise NotPlayable("This WebM file states no document type")
+        raise NotPlayable(say("This WebM file states no document type"))
     # The DocType element's own length is one byte for any name this short.
     size = header[marker + 2] & 0x7F
     doc_type = header[marker + 3 : marker + 3 + size].rstrip(b"\0")
     if doc_type not in (b"webm", b"matroska"):
-        raise NotPlayable("This file is not a WebM file")
+        raise NotPlayable(say("This file is not a WebM file"))
 
 
 def _ebml_length(handle: BinaryIO) -> int | None:

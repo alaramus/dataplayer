@@ -35,6 +35,7 @@ from app.adapters.redis.update import (
     NO_DELETE,
     NO_INSERT,
     NO_UPDATE,
+    refusal,
     row_handle_of,
     writer_for,
 )
@@ -203,9 +204,9 @@ def _writable(
             columns=columns,
             rows=rows,
             has_more=has_more,
-            update_reason=NO_UPDATE.get(data_type),
-            insert_reason=NO_INSERT.get(data_type),
-            delete_reason=NO_DELETE.get(data_type),
+            update_reason=refusal(NO_UPDATE, data_type),
+            insert_reason=refusal(NO_INSERT, data_type),
+            delete_reason=refusal(NO_DELETE, data_type),
             page_commands=["download", "share"],
         )
     return FetchResult(
@@ -220,9 +221,9 @@ def _writable(
         ],
         update_supported=True,
         insert_supported=data_type not in NO_INSERT,
-        insert_reason=NO_INSERT.get(data_type),
+        insert_reason=refusal(NO_INSERT, data_type),
         delete_supported=data_type not in NO_DELETE,
-        delete_reason=NO_DELETE.get(data_type),
+        delete_reason=refusal(NO_DELETE, data_type),
         page_commands=["download", "share"],
     )
 

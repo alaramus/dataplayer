@@ -20,6 +20,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import async_session_maker
 from app.core.logs import record_failure, with_ref
+from app.core.translation import N_, say
 from app.jobs.models import TERMINAL, Job, JobKind, JobState
 from app.jobs.topic import JobEvent, announce
 from app.realtime.topics import TopicSet
@@ -51,9 +52,10 @@ class JobHandler(Protocol):
     @property
     def kind(self) -> JobKind: ...
 
-    # The steps this kind of work goes through, in order, in the words a
-    # person reads. Declared so that progress is a position in a list somebody
-    # wrote rather than a number somebody made up.
+    # The steps this kind of work goes through, in order, in the English a
+    # person reads, worded as the row is written (D226). Declared so that
+    # progress is a position in a list somebody wrote rather than a number
+    # somebody made up.
     @property
     def steps(self) -> tuple[str, ...]: ...
 
@@ -104,7 +106,8 @@ class Progress:
         """
         if step not in self._steps:
             raise ValueError(f"{step!r} is not a step of {self._job.kind}")
-        self._job.step = step
+        # Stored worded, in the language of whoever started the job (D226).
+        self._job.step = say(step)
         self._job.step_index = self._steps.index(step) + 1
         self._job.step_count = len(self._steps)
         self.session.add(self._job)
@@ -245,7 +248,7 @@ class JobRunner:
             # Cancellation may have interrupted a database operation. Let
             # that session unwind, then settle through a fresh transaction.
             await self._finish_after_failure(
-                job_id, "cancelled", "Stopped before it finished", topics,
+                job_id, "cancelled", say("Stopped before it finished"), topics,
                 explains=self._handlers.get(kind),
             )
         except JobFailed as refusal:
@@ -253,7 +256,7 @@ class JobRunner:
         except Exception as failure:
             ref = record_failure(logger, f"Job {job_id} ({kind}) failed", failure)
             await self._finish_after_failure(
-                job_id, "failed", with_ref("The job could not be completed", ref), topics
+                job_id, "failed", with_ref(say("The job could not be completed"), ref), topics
             )
         finally:
             async with self._lock:
@@ -283,7 +286,7 @@ class JobRunner:
                 # Nothing can do this work in this process. Said as a failure
                 # rather than left queued for ever.
                 await self._settle(
-                    session, job, "failed", "This server cannot carry out that job",
+                    session, job, "failed", say("This server cannot carry out that job"),
                     topics,
                 )
                 return
@@ -347,7 +350,8 @@ async def recover_interrupted(session: AsyncSession) -> int:
         .where(col(Job.id).in_([job.id for job in stranded]))
         .values(
             state="interrupted",
-            message="The server stopped while this was running",
+            # No request at startup: written in English.
+            message=N_("The server stopped while this was running"),
             finished_at=datetime.now(UTC),
         )
     )

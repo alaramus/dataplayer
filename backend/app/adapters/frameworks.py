@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.translation import N_
+
 FrameworkId = Literal["django", "alembic", "liquibase", "wordpress"]
 
 
@@ -26,23 +28,23 @@ class FrameworkSignature:
 SIGNATURES = (
     FrameworkSignature(
         "django_content_type",
-        DetectedFramework(id="django", title="Django", table_filter="django_"),
+        DetectedFramework(id="django", title=N_("Django"), table_filter="django_"),
     ),
     FrameworkSignature(
         "alembic_version",
         DetectedFramework(
-            id="alembic", title="Alembic", table_filter="alembic_version"
+            id="alembic", title=N_("Alembic"), table_filter="alembic_version"
         ),
     ),
     FrameworkSignature(
         "databasechangelog",
         DetectedFramework(
-            id="liquibase", title="Liquibase", table_filter="databasechangelog"
+            id="liquibase", title=N_("Liquibase"), table_filter="databasechangelog"
         ),
     ),
     FrameworkSignature(
         "wp_options",
-        DetectedFramework(id="wordpress", title="WordPress", table_filter="wp_"),
+        DetectedFramework(id="wordpress", title=N_("WordPress"), table_filter="wp_"),
     ),
 )
 

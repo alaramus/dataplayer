@@ -69,6 +69,7 @@ from app.adapters.update import (
 )
 from app.core.config import settings
 from app.core.schemas import get_datetime_utc
+from app.core.translation import N_
 
 
 class RedisAdapter:
@@ -258,7 +259,7 @@ class RedisAdapter:
 
 @register(
     name="redis",
-    title="Redis",
+    title=N_("Redis"),
     # Not a SQL database and not a file store: no statements, no relations and
     # no schema — a key space with an expiry clock. It sat under "SQL
     # Databases" for one commit because that was the only group there was.
@@ -267,7 +268,7 @@ class RedisAdapter:
     # has a ceiling — and its leaves hold structure worth opening where it is,
     # which is what makes it a tree rather than a series of levels (D91).
     catalog_shape="tree",
-    description=(
+    description=N_(
         "An in-memory key-value server. Switch between its databases, walk a "
         "key space by the colons in the names, read what a key holds, write "
         "one of any type, and set or clear an expiry."
