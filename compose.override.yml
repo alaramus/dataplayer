@@ -120,8 +120,10 @@ services:
 
   mailcatcher:
     image: schickling/mailcatcher
-    # Not behind `tools` like the other helpers: the backend above sends its
-    # mail here, and without it every message sent is an error.
+    # Behind `tools` while DataPlayer sends no mail of its own; a message sent
+    # meanwhile fails, because SMTP_HOST above points here. `e2e` as well,
+    # because the playwright service depends on it.
+    profiles: ["tools", "e2e"]
     ports:
       - "1080:1080"
       - "1025:1025"

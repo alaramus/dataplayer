@@ -86,8 +86,8 @@ exists and the script needs nothing but the standard library. It writes and
 starts nothing; `docker compose up -d --build` follows.
 
 - **`compose.yml,compose.override.yml`** — development: `fastapi dev`, sample
-  data from `prestart-dev.sh`, the Docker socket, Mailcatcher, the interface
-  from the Vite dev server. Adminer and the test Redis and SSH server are
+  data from `prestart-dev.sh`, the Docker socket, the interface from the Vite
+  dev server. Adminer, Mailcatcher and the test Redis and SSH server are
   behind the `tools` profile, the E2E runner behind `e2e`; naming a service
   starts it as well.
 - **`compose.yml,compose.prod.yml`** — running it for use: the image's own

@@ -551,7 +551,7 @@ def next_steps(choices: Choices, env: EnvFile, password_shown: bool) -> None:
         print("then the interface: cd frontend && bun install && bun run dev")
         print("  http://localhost:5173, the API's docs at http://localhost:8000/docs")
         print(dim("examples for the connections panel: bun run seed:connectors"))
-        print(dim("Adminer and a test Redis and SSH server: docker compose --profile tools up -d"))
+        print(dim("Adminer, Mailcatcher, a test Redis and SSH: docker compose --profile tools up -d"))
     else:
         print(f"then open {env.get('FRONTEND_HOST')}, sign in as {env.get('FIRST_SUPERUSER')}")
         print(dim("The port speaks plain HTTP: from outside this machine, put a reverse"))

@@ -343,8 +343,8 @@ which reads `.env` and skips names that already exist.
 Kept lists for search are read by `search-keeper`, and search by meaning needs
 its model, which `docker compose up -d` starts only when `COMPOSE_PROFILES` in
 `.env` names `meaning` (D214, D220). A fresh checkout gets its `.env` from
-`docker compose -f compose.setup.yml run --rm setup`; Adminer and the test
-Redis and SSH server are behind `--profile tools`, and naming one starts it.
+`docker compose -f compose.setup.yml run --rm setup`; Adminer, Mailcatcher
+and the test Redis and SSH server are behind `--profile tools`, and naming one starts it.
 
 Backend checks, from `backend/`:
 

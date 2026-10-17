@@ -133,8 +133,8 @@ cd frontend && bun install && bun run dev
 The interface is at http://localhost:5173, the API at http://localhost:8000
 and its interactive docs at http://localhost:8000/docs. To fill the connections
 panel with examples — the bundled PostgreSQL under several names, file storage
-and Redis — run `bun run seed:connectors` from the repository root. Adminer
-and the test Redis and SSH server start on request:
+and Redis — run `bun run seed:connectors` from the repository root. Adminer,
+Mailcatcher and the test Redis and SSH server start on request:
 `docker compose --profile tools up -d`.
 
 The backend cannot run natively on Windows: psycopg 3 in async mode is
