@@ -277,4 +277,33 @@ describe("the controlled tabular grid", () => {
       vi.useRealTimers()
     }
   })
+
+  it("leaves a mark in the cell its own tooltip", async () => {
+    const wrapper = mount(TabularGrid, {
+      props: {
+        columns: COLUMNS,
+        rows: [{ id: "row-a", values: ["left", "right"] }],
+        page: 0,
+        pageSize: 100,
+        filters: [],
+        sort: [],
+        layout: defaultColumnLayout(COLUMNS),
+        editableRowIds: ["row-a"],
+      },
+      slots: {
+        "cell-overlay": () => h("button", { "data-testid": "mark" }),
+      },
+      global: { plugins: [Quasar] },
+    })
+    const cell = wrapper.get('[data-testid="grid-cell-row-a-0"]')
+    await wrapper.get('[data-testid="grid-row-row-a"]').trigger("mouseenter")
+    await cell.trigger("mouseover")
+    expect(cell.findComponent(AppTooltip).exists()).toBe(true)
+
+    await cell.get('[data-testid="mark"]').trigger("mouseover")
+    expect(cell.findComponent(AppTooltip).exists()).toBe(false)
+
+    await cell.get(".data-grid__value").trigger("mouseover")
+    expect(cell.findComponent(AppTooltip).exists()).toBe(true)
+  })
 })
