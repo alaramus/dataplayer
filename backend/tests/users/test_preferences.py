@@ -146,6 +146,7 @@ async def test_a_language_nobody_translated_is_refused(
 
 def test_a_stored_language_this_version_does_not_offer_reads_as_the_browsers() -> None:
     assert as_language("ru") == "ru"
+    assert as_language("de") == "de"
     assert as_language("tlh") is None
     assert as_language(None) is None
 

@@ -1,0 +1,48 @@
+/** Administration (features/admin). */
+import type { Messages } from "../en"
+
+export const admin: Messages["admin"] = {
+  title: "Administration",
+  only_admin: "Nur ein Administrator verwaltet diese Installation",
+  sections: {
+    users: "Benutzer",
+    users_summary: "Wer ein Konto hat und wer diese Installation verwaltet",
+  },
+  users: {
+    new_user: "Neuer Benutzer",
+    only_admin: "Nur ein Administrator verwaltet Konten",
+    empty: "Noch keine Konten",
+    columns: {
+      email: "E-Mail",
+      name: "Name",
+      role: "Rolle",
+      state: "Status",
+    },
+    administrator: "Administrator",
+    user: "Benutzer",
+    active: "Aktiv",
+    switched_off: "Ausgeschaltet",
+    edit: "Dieses Konto bearbeiten",
+    delete: "Dieses Konto und alles, was es besitzt, löschen",
+    cannot_delete_self: "Sie können Ihr eigenes Konto nicht löschen",
+    created: "Konto erstellt",
+    updated: "Konto aktualisiert",
+    save_failed: "Dieses Konto konnte nicht gespeichert werden",
+    delete_title: "Konto löschen",
+    delete_message: "{email} und alles, was es besitzt — seine Verbindungen und seine Dateien — werden entfernt. Dies kann nicht rückgängig gemacht werden.",
+    delete_confirm: "Löschen",
+    deleted: "Konto gelöscht",
+    delete_failed: "Dieses Konto konnte nicht gelöscht werden",
+    edit_title: "Benutzer bearbeiten — {email}",
+    email: "E-Mail",
+    name: "Name",
+    password: "Passwort",
+    new_password: "Neues Passwort",
+    keep_password: "Leer lassen, um das aktuelle Passwort zu behalten",
+    can_sign_in: "Kann sich anmelden",
+    superuser: "Administrator: verwaltet Konten, nicht die Daten anderer",
+    email_invalid: "Eine gültige E-Mail-Adresse ist erforderlich",
+    password_required: "Ein Passwort ist erforderlich",
+    password_short: "Mindestens {n} Zeichen | Mindestens {n} Zeichen",
+  },
+}

@@ -1,0 +1,57 @@
+"""Was SSH schreibt, auf Deutsch (D226). Die Begriffe folgen dem Glossar der Oberfläche.
+
+Die Dateiseite gehört dem Explorer und spricht für sich selbst; diese Wörter
+gelten dem Server, seinem Schlüssel und der Anmeldung.
+"""
+
+MESSAGES: dict[str, str] = {
+    # Die Quelle und ihr Verbindungsformular.
+    "SSH": "SSH",
+    "A server reached over SSH. Browse its folders from where you choose and work with its files as with your own: tables, SQL over files, the editor, archives, search, and a terminal. Signs in with a password or one of your SSH keys, and only to the server whose key you confirmed.": "Ein über SSH erreichbarer Server. Durchsuchen Sie seine Ordner ab dem gewählten Ort und arbeiten Sie mit seinen Dateien wie mit Ihren eigenen: Tabellen, SQL über Dateien, der Editor, Archive, die Suche und ein Terminal. Die Anmeldung erfolgt mit einem Passwort oder einem Ihrer SSH-Schlüssel und nur an dem Server, dessen Schlüssel Sie bestätigt haben.",
+    "Authentication": "Authentifizierung",
+    "Host": "Host",
+    "Port": "Port",
+    "User": "Benutzer",
+    "Folder": "Ordner",
+    "Where browsing starts; empty is the user's home folder": "Wo das Durchsuchen beginnt; leer steht für den Home-Ordner des Benutzers",
+    "Server key": "Serverschlüssel",
+    "What this server proves itself with; fetch it and compare": "Womit sich dieser Server ausweist; holen Sie ihn und vergleichen Sie",
+    "Key": "Schlüssel",
+    "One of your SSH keys; its public half goes to the server": "Einer Ihrer SSH-Schlüssel; sein öffentlicher Teil geht an den Server",
+    "Password": "Passwort",
+    # Adressen.
+    "The SSH connection has no host": "Die SSH-Verbindung hat keinen Host",
+    "That is not an SSH URL": "Das ist keine SSH-URL",
+    "Enter the host first": "Geben Sie zuerst den Host an",
+    # Schlüssel.
+    "This is not a server key this application can read": "Dies ist kein Serverschlüssel, den diese Anwendung lesen kann",
+    "That passphrase does not open this key": "Diese Passphrase öffnet diesen Schlüssel nicht",
+    "This key is protected by a passphrase; enter it": "Dieser Schlüssel ist durch eine Passphrase geschützt; geben Sie sie ein",
+    "This is not a private key this application can read": "Dies ist kein privater Schlüssel, den diese Anwendung lesen kann",
+    # Verbinden.
+    "Connection successful": "Verbindung hergestellt",
+    "This connection signs in with a key, and none is at hand": "Diese Verbindung meldet sich mit einem Schlüssel an, und keiner ist zur Hand",
+    "Fetch the server's key and confirm it before connecting": "Holen Sie den Schlüssel des Servers und bestätigen Sie ihn vor dem Verbinden",
+    "The server key of this connection cannot be read": "Der Serverschlüssel dieser Verbindung kann nicht gelesen werden",
+    "The SSH key could not be opened with its passphrase": "Der SSH-Schlüssel konnte nicht mit seiner Passphrase geöffnet werden",
+    "The server did not present a key": "Der Server hat keinen Schlüssel vorgelegt",
+    "The server presented a different key than the one this connection trusts. If it was reinstalled, fetch its key again and compare it": "Der Server hat einen anderen Schlüssel vorgelegt als den, dem diese Verbindung vertraut. Wenn er neu installiert wurde, holen Sie seinen Schlüssel erneut und vergleichen Sie ihn",
+    "The server refused these credentials": "Der Server hat diese Zugangsdaten abgelehnt",
+    "That is no longer on the server": "Das ist nicht mehr auf dem Server vorhanden",
+    "The server does not let this user do that": "Der Server erlaubt diesem Benutzer das nicht",
+    "The server could not do that": "Der Server konnte das nicht ausführen",
+    "The server did not answer in time": "Der Server hat nicht rechtzeitig geantwortet",
+    "Could not reach the server": "Der Server ist nicht erreichbar",
+    "Not a path below this folder: {path}": "Kein Pfad unterhalb dieses Ordners: {path}",
+    # Dateien über SFTP.
+    "Symbolic links are not downloaded": "Symbolische Links werden nicht heruntergeladen",
+    "A folder holding a symbolic link is not copied here": "Ein Ordner mit einem symbolischen Link wird hier nicht kopiert",
+    "What came out": "Ergebnis",
+    "The file is no longer open": "Die Datei ist nicht mehr geöffnet",
+    "The file could not be read from the server": "Die Datei konnte nicht vom Server gelesen werden",
+    "The file could not be created on the server": "Die Datei konnte auf dem Server nicht erstellt werden",
+    "The file could not be written on the server": "Die Datei konnte auf dem Server nicht geschrieben werden",
+    "The file could not be put in place on the server": "Die Datei konnte auf dem Server nicht an ihren Platz gebracht werden",
+    # Das Terminal.
+    "The server did not open a shell for this account": "Der Server hat für dieses Konto keine Shell geöffnet",
+}

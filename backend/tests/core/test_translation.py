@@ -17,7 +17,8 @@ register("ru", {"Drop table": "Удалить таблицу", "Drop {name}?": "
 
 
 def test_the_language_asked_for_is_the_first_one_spoken() -> None:
-    assert requested_language("de-DE,ru;q=0.8,en;q=0.5", None) == "ru"
+    assert requested_language("de-DE,ru;q=0.8,en;q=0.5", None) == "de"
+    assert requested_language("ru,de;q=0.8,en;q=0.5", None) == "ru"
     assert requested_language("RU", None) == "ru"
     assert requested_language("ja", None) == "en"
     assert requested_language(None, None) == "en"
