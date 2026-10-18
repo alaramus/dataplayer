@@ -31,8 +31,20 @@ def test_an_email_in_russian_is_russian_throughout() -> None:
     assert "secret" in email.html_content
 
 
+def test_an_email_in_german_is_german_throughout() -> None:
+    email = generate_new_account_email("d@example.com", "d@example.com", "secret", language="de")
+
+    assert email.subject == f"{settings.PROJECT_NAME} – Neues Konto für d@example.com"
+    assert 'lang="de"' in email.html_content
+    assert f"Willkommen bei {settings.PROJECT_NAME}!" in email.html_content
+    assert "Welcome" not in email.html_content
+    # What is data stays as it was given.
+    assert "d@example.com" in email.html_content
+    assert "secret" in email.html_content
+
+
 def test_every_email_renders_in_every_language() -> None:
-    for language in ("en", "ru"):
+    for language in ("en", "ru", "de"):
         for email in (
             generate_test_email("c@example.com", language=language),
             generate_reset_password_email("c@example.com", "c@example.com", "t", language=language),

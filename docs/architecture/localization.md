@@ -13,7 +13,8 @@ frontend/src/shared/i18n/
 ├── problems.ts       a coded refusal told apart and worded
 └── locales/
     ├── en/           the source, a module per area; every other language is typed against it
-    └── ru/           the same areas in Russian, the server's refusals, and glossary.md
+    ├── ru/           the same areas in Russian, the server's refusals, and glossary.md
+    └── de/           the same areas in German, the server's refusals, and glossary.md
 
 frontend/src/features/preferences/
 ├── GeneralSection.vue   the Language choice
@@ -21,11 +22,11 @@ frontend/src/features/preferences/
 
 backend/app/core/problems.py   every refusal code and its English
 backend/app/core/translation.py   the request's language; say, N_, say_schema
-backend/app/<package>/locales/ru.py   a package's own words in Russian
+backend/app/<package>/locales/ru.py   a package's own words in Russian (de.py in German)
 backend/app/users/preferences.py   `language` on the account
 ```
 
-English and Russian today; German, French and Chinese are planned.
+English, Russian and German today; French and Chinese are planned.
 
 ## D224. The interface speaks the account's language, from typed dictionaries
 
@@ -211,8 +212,8 @@ templates and fails on a sentence typed into the markup.
 - A chart takes ECharts' locale when it is drawn (`shared/i18n/echarts.ts`);
   one already on screen keeps its axis words until it is drawn again.
 - A grid cell is data and is shown as the source sent it, not reformatted.
-- German, French and Chinese pages do not exist yet; a language without a
-  page shows the English.
+- French and Chinese pages do not exist yet; a language without a page shows
+  the English. German pages exist (D227).
 
 Spec: [Words a source writes](../decisions/2026-10-17-source-words-design.md)
 

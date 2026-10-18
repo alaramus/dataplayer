@@ -97,3 +97,14 @@ def test_the_shipped_russian_postgres_page_has_its_short_lists_in_russian() -> N
         assert items
         assert all(re.search("[а-яё]", item, re.IGNORECASE) for item in items)
     _clear()
+
+
+def test_the_shipped_german_postgres_page_has_its_short_lists_in_german() -> None:
+    _clear()
+    page = in_language("de", lambda: reader.page("source-postgres"))
+    assert page is not None
+    for heading in (reader.CAN_SEE, reader.CAN_CHANGE):
+        items = in_language("de", partial(reader.bullets, page.markdown, heading))
+        assert items
+        assert all(re.search("[a-zäöüß]", item, re.IGNORECASE) for item in items)
+    _clear()

@@ -19,6 +19,7 @@ from tests.ai.conftest import (
 )
 
 RUSSIAN_LINE = "The person's interface is in Russian. Answer in Russian unless they write in another language."
+GERMAN_LINE = "The person's interface is in German. Answer in German unless they write in another language."
 
 
 def _system(call: list[BaseMessage]) -> str:
@@ -33,6 +34,7 @@ def test_every_language_has_a_name_the_model_reads() -> None:
     assert language_line("en") == ""
     assert system_prompt("en") == SYSTEM_PROMPT
     assert language_line("ru") == RUSSIAN_LINE
+    assert language_line("de") == GERMAN_LINE
 
 
 async def test_an_agent_run_started_in_russian_tells_the_model(

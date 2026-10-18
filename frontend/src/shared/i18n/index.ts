@@ -21,6 +21,7 @@ export type Language = NonNullable<PreferencesPublic["language"]>
 const NAMES: Record<Language, string> = {
   en: "English",
   ru: "Русский",
+  de: "Deutsch",
 }
 
 export const LANGUAGES: readonly Language[] = Object.keys(NAMES) as Language[]
@@ -47,6 +48,13 @@ const LOADERS: Record<Language, () => Promise<Bundle>> = {
     const [own, quasar] = await Promise.all([
       import("./locales/ru"),
       import("quasar/lang/ru.js"),
+    ])
+    return { messages: own.messages, problems: own.problems, quasar: quasar.default }
+  },
+  de: async () => {
+    const [own, quasar] = await Promise.all([
+      import("./locales/de"),
+      import("quasar/lang/de.js"),
     ])
     return { messages: own.messages, problems: own.problems, quasar: quasar.default }
   },

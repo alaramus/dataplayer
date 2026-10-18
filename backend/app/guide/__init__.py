@@ -6,6 +6,8 @@ meant to read the same pages later.
 """
 
 from app.core.translation import register
+from app.guide.locales.de import MESSAGES as DE
 from app.guide.locales.ru import MESSAGES as RU
 
+register("de", DE)
 register("ru", RU)

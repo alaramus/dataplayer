@@ -30,12 +30,23 @@ describe("format", () => {
     expect(formatTime(MOMENT, UTC)).toBe("15:04:05")
   })
 
+  it("writes dates in German when the interface speaks it", async () => {
+    await applyLanguage("de")
+    expect(formatDateTime(MOMENT, UTC)).toBe("17.10.2026, 15:04:05")
+    expect(formatDate(MOMENT, UTC)).toBe("17.10.2026")
+    expect(formatTime(MOMENT, UTC)).toBe("15:04:05")
+  })
+
   it("writes numbers in the interface's language", async () => {
     expect(formatNumber(4211.5)).toBe("4,211.5")
     expect(formatFixed(4.25, 1)).toBe("4.3")
     expect(formatFixed(12345.678, 2)).toBe("12345.68")
     await applyLanguage("ru")
     expect(spaced(formatNumber(4211.5))).toBe("4 211,5")
+    expect(formatFixed(4.2, 1)).toBe("4,2")
+    expect(formatFixed(12345.678, 2)).toBe("12345,68")
+    await applyLanguage("de")
+    expect(spaced(formatNumber(4211.5))).toBe("4.211,5")
     expect(formatFixed(4.2, 1)).toBe("4,2")
     expect(formatFixed(12345.678, 2)).toBe("12345,68")
   })
