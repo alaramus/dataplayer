@@ -9,7 +9,10 @@ transcript side is covered by the conversation tests.
 import httpx
 import openai
 from google.genai import errors as genai_errors
-from langchain_google_genai.chat_models import GoogleRateLimitError
+from langchain_google_genai.chat_models import (
+    GoogleInvalidRequestError,
+    GoogleRateLimitError,
+)
 
 from app.ai.catalog import ModelInfo
 from app.ai.providers import ProviderChatModels
@@ -126,3 +129,26 @@ def test_a_gemini_model_under_high_demand_is_said_to_be_overloaded() -> None:
 
     assert sentence == SENTENCES["unavailable"]
     assert "overloaded" in sentence
+
+
+def test_a_gemini_key_it_does_not_know_is_a_refused_key() -> None:
+    # Google answers a wrong key with 400 INVALID_ARGUMENT rather than 401, so
+    # the status alone said "could not answer" (2026-10-18, a real key).
+    body = {"error": {
+        "code": 400,
+        "status": "INVALID_ARGUMENT",
+        "message": "API key not valid. Please pass a valid API key.",
+        "details": [{"reason": "API_KEY_INVALID", "domain": "googleapis.com"}],
+    }}
+    wrapped = GoogleInvalidRequestError("Error calling model 'gemini-test' (INVALID_ARGUMENT)")
+    wrapped.__cause__ = genai_errors.ClientError(400, body)
+
+    assert ProviderChatModels().sentence(_gemini_model(), wrapped) == SENTENCES["key_refused"]
+
+
+def test_a_plain_bad_request_stays_unknown() -> None:
+    body = {"error": {"code": 400, "status": "INVALID_ARGUMENT", "message": "Request contains an invalid argument."}}
+
+    sentence = ProviderChatModels().sentence(_gemini_model(), genai_errors.ClientError(400, body))
+
+    assert sentence == UNKNOWN_FAILURE

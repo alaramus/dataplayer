@@ -37,6 +37,16 @@ _BILLING_HINTS = (
 )
 
 
+# A wrong key, where the provider says so with 400 instead of 401: Google
+# answers INVALID_ARGUMENT with the reason API_KEY_INVALID.
+_BAD_KEY_HINTS = ("api_key_invalid", "api key not valid", "invalid api key")
+
+
+def _mentions_bad_key(*values: object) -> bool:
+    haystack = " ".join(str(value).lower() for value in values if value)
+    return any(hint in haystack for hint in _BAD_KEY_HINTS)
+
+
 def _mentions_billing(*values: object) -> bool:
     haystack = " ".join(str(value).lower() for value in values if value)
     return any(hint in haystack for hint in _BILLING_HINTS)
@@ -60,6 +70,8 @@ def classify(
         status in (400, 403, 429) and _mentions_billing(code, error_type, message)
     ):
         return "no_credits"
+    if status == 400 and _mentions_bad_key(code, error_type, message):
+        return "key_refused"
     return by_status(status)
 
 
@@ -81,6 +93,9 @@ def from_parts(status: int | None, body: Any, message: object = None) -> Failure
         error_type = node.get("type", error_type)
         if text is None:
             text = node.get("message")
+        # Google names why in `details`, a reason such as API_KEY_INVALID.
+        if node.get("details"):
+            text = f"{text} {node.get('details')}"
     return classify(status, code, error_type, text)
 
 
