@@ -11,7 +11,7 @@ const RULES: AttachmentRules = {
   max_total_bytes: 6 * 1024 * 1024,
   image_types: ["image/png", "image/jpeg"],
 }
-const READER = { name: "Claude Sonnet 5", readsImages: true }
+const READER = { name: "Claude Sonnet 5.5", readsImages: true }
 const BLIND = { name: "DeepSeek V4 Flash", readsImages: false }
 
 function file(name: string, type: string, bytes: number): File {

@@ -162,7 +162,7 @@ async def test_auto_model_selection_needs_jev_and_a_fallback_in_its_provider(
     db: AsyncSession,
 ) -> None:
     headers = normal_user_token_headers
-    body = {"model_key": "anthropic:claude-sonnet-5", "auto_provider": "anthropic"}
+    body = {"model_key": "anthropic:claude-sonnet-5-5", "auto_provider": "anthropic"}
     without_key = await client.patch(f"{AI}/settings", headers=headers, json=body)
     assert without_key.status_code == 422
 
@@ -190,7 +190,7 @@ async def test_auto_model_selection_across_all_keyed_providers(
     headers = await authentication_token_from_email(
         client=client, email=random_email(), db=db
     )
-    body = {"model_key": "anthropic:claude-sonnet-5", "auto_provider": "all"}
+    body = {"model_key": "anthropic:claude-sonnet-5-5", "auto_provider": "all"}
     without_keys = await client.patch(f"{AI}/settings", headers=headers, json=body)
     assert without_keys.status_code == 422
 
@@ -253,7 +253,7 @@ async def test_checking_a_key_calls_the_model_with_a_tool(
 
     response = await client.post(f"{AI}/keys/anthropic/check", headers=headers)
 
-    assert response.json() == {"ok": True, "message": "The key works with Claude Sonnet 5"}
+    assert response.json() == {"ok": True, "message": "The key works with Claude Sonnet 5.5"}
     assert script.built[-1][:2] == (MODEL_KEY, KEY)
 
 

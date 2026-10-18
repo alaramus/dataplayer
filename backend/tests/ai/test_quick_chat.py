@@ -254,7 +254,7 @@ async def test_a_model_explicitly_sent_to_a_quick_chat_is_what_the_next_chat_sta
     """A model chosen in a quick chat becomes the person's choice too (D140)."""
     headers = normal_user_token_headers
     await ready_agent(client, headers)
-    other = "anthropic:claude-opus-5"
+    other = "anthropic:claude-opus-5-5"
     chat_id = (await client.post(f"{AI}/quick-chats", headers=headers)).json()["id"]
     script.turns.append(Turn(pieces=[text("A plain answer")]))
 

@@ -90,7 +90,7 @@ async def test_jev_selects_within_the_provider_and_records_the_actual_model(
     db: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    target = "anthropic:claude-opus-5"
+    target = "anthropic:claude-opus-5-5"
 
     class FakeClassifier:
         def __init__(self, *, api_key: str) -> None:
@@ -133,7 +133,7 @@ async def test_a_jev_choice_without_a_model_pins_the_fallback_it_was_judged_by(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A conversation reading the person's choice would otherwise ignore its own."""
-    target = "anthropic:claude-opus-5"
+    target = "anthropic:claude-opus-5-5"
 
     class FakeClassifier:
         def __init__(self, *, api_key: str) -> None:
@@ -169,7 +169,7 @@ async def test_jev_selects_across_keyed_providers_and_uses_the_routed_key(
 ) -> None:
     await preferences.set_key(db, await user_id_of(client, headers), "openai", "openai-key")
     await preferences.set_key(db, await user_id_of(client, headers), "typesafe", "jev-key")
-    target = "openai:gpt-5.6-luna"
+    target = "openai:gpt-6-luna"
 
     class FakeClassifier:
         def __init__(self, *, api_key: str) -> None:
@@ -505,7 +505,7 @@ async def test_a_message_needs_a_model_and_its_key(
     no_model = await client.post(
         f"{AI}/conversations/{conversation_id}/messages", headers=person, data={"text": "hi"}
     )
-    await client.patch(f"{AI}/settings", headers=person, json={"model_key": "openai:gpt-5.6-luna"})
+    await client.patch(f"{AI}/settings", headers=person, json={"model_key": "openai:gpt-6-luna"})
     no_key = await client.post(
         f"{AI}/conversations/{conversation_id}/messages", headers=person, data={"text": "hi"}
     )
@@ -615,7 +615,7 @@ async def test_a_conversation_is_answered_with_the_model_it_names(
     client: AsyncClient, headers: dict[str, str], script: Script
 ) -> None:
     """A chat chooses for itself, and its choice is what the next chat starts with (D140)."""
-    other = "anthropic:claude-opus-5"
+    other = "anthropic:claude-opus-5-5"
     script.turns += [Turn(pieces=[text("Answered")]), Turn(pieces=[text("A title")])]
     conversation_id = await new_conversation(client, headers)
 

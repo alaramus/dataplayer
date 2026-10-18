@@ -299,10 +299,10 @@ test("opens, restores and manages the application agent space", async ({ page })
   // The model is chosen in the chat itself and stays with it, and it is what
   // the next chat starts with: the settings show it too.
   await page.getByTestId("ai-chat-model").click()
-  await page.getByRole("option", { name: /^Claude Opus 5\b(?!\.5)/ }).click()
-  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
+  await page.getByRole("option", { name: /^Claude Sonnet 5\.5/ }).click()
+  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Sonnet 5.5")
   await page.reload()
-  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
+  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Sonnet 5.5")
 
   // The key on the provider heading opens the same key window the settings do.
   await page.getByTestId("ai-chat-model").click()
@@ -340,8 +340,8 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByRole("button", { name: "Remove notes.md" }).click()
   await expect(files).toHaveCount(0)
   await page.getByTestId("ai-chat-model").click()
-  await page.getByRole("option", { name: /^Claude Opus 5\b(?!\.5)/ }).click()
-  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
+  await page.getByRole("option", { name: /^Claude Sonnet 5\.5/ }).click()
+  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Sonnet 5.5")
 
   // What the agent may change belongs to the chat too, and read only is the
   // narrow end of the three.
@@ -369,7 +369,7 @@ test("opens, restores and manages the application agent space", async ({ page })
 
   await page.getByTestId("ai-open-settings").click()
   await expect(page.getByTestId("ai-settings")).toBeVisible()
-  await expect(page.getByTestId("ai-model")).toContainText("Claude Opus 5")
+  await expect(page.getByTestId("ai-model")).toContainText("Claude Sonnet 5.5")
   await expect(page.getByTestId("ai-allow-all")).toHaveAttribute("aria-checked", "true")
   await page.getByTestId("ai-allow-all").click()
   await expect(page.getByTestId("ai-allow-all")).toHaveAttribute("aria-checked", "false")

@@ -51,7 +51,7 @@ def test_the_shipped_list_is_valid_and_covers_every_provider() -> None:
         "deepseek",
         "gemini",
     }
-    assert catalog().find("anthropic:claude-sonnet-5") is not None
+    assert catalog().find("anthropic:claude-sonnet-5-5") is not None
     assert catalog().find("anthropic:claude-opus-5-5") is not None
     assert catalog().find("openai:gpt-6-astra") is not None
     assert catalog().find("openai:gpt-6-sol") is not None

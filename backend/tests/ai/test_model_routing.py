@@ -13,8 +13,8 @@ async def test_jev_can_choose_any_compatible_model_in_the_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     models = catalog()
-    fallback = next(model for model in models.models if model.key == "openai:gpt-5.6-sol")
-    target = next(model for model in models.models if model.key == "openai:gpt-5.6-luna")
+    fallback = next(model for model in models.models if model.key == "openai:gpt-6-sol")
+    target = next(model for model in models.models if model.key == "openai:gpt-6-luna")
 
     class FakeClassifier:
         def __init__(self, *, api_key: str) -> None:
@@ -42,7 +42,7 @@ async def test_jev_can_choose_across_providers_with_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     models = catalog()
-    fallback = next(model for model in models.models if model.key == "openai:gpt-5.6-sol")
+    fallback = next(model for model in models.models if model.key == "openai:gpt-6-sol")
     target = next(
         model for model in models.models
         if model.provider == "anthropic" and model.image_input
@@ -74,7 +74,7 @@ async def test_jev_failure_keeps_the_previously_selected_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     models = catalog()
-    fallback = next(model for model in models.models if model.key == "openai:gpt-5.6-sol")
+    fallback = next(model for model in models.models if model.key == "openai:gpt-6-sol")
 
     class FailingClassifier:
         def __init__(self, *, api_key: str) -> None:
@@ -97,13 +97,13 @@ async def test_jev_failure_keeps_the_previously_selected_model(
     )
     assert without_key.model == fallback
 
-    incompatible = next(model for model in models.models if model.key == "openai:gpt-5.4-nano-2026-03-17")
+    incompatible = next(model for model in models.models if model.key == "deepseek:deepseek-v4-pro")
     with_image = await model_routing.choose(
-        catalog=models, providers=("openai",), fallback=incompatible,
+        catalog=models, providers=("deepseek",), fallback=incompatible,
         text="Describe this", needs_images=True, jev_key=None,
     )
     assert with_image.model.image_input
-    assert with_image.model.provider == "openai"
+    assert with_image.model.provider == "deepseek"
 
 
 async def test_a_fallback_without_a_key_gives_way_to_a_keyed_provider(
@@ -111,7 +111,7 @@ async def test_a_fallback_without_a_key_gives_way_to_a_keyed_provider(
 ) -> None:
     models = catalog()
     # The fallback's provider has no key; only Anthropic does.
-    fallback = next(model for model in models.models if model.key == "openai:gpt-5.6-sol")
+    fallback = next(model for model in models.models if model.key == "openai:gpt-6-sol")
     first_keyed = next(
         model for model in models.models if model.provider == "anthropic"
     )

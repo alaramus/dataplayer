@@ -32,7 +32,7 @@ from app.core.config import settings
 from app.main import app
 
 AI = f"{settings.API_V1_STR}/ai"
-MODEL_KEY = "anthropic:claude-sonnet-5"
+MODEL_KEY = "anthropic:claude-sonnet-5-5"
 KEY = "sk-test-not-a-real-key-7f3a"
 
 
