@@ -17,6 +17,7 @@ import type { AttachmentKind } from "./attachments"
 import { useDictation } from "./dictation"
 import { useAiDraft } from "./draft"
 import { markAt, outlineMarks } from "./outline"
+import { unansweredEnds } from "./endedRuns"
 import { runDuration } from "./runDuration"
 import {
   useAiConversation,
@@ -126,10 +127,7 @@ const expandedReasoning = ref(new Set<string>())
 
 const runs = computed(() => new Map((conversation.data.value?.runs ?? []).map((run) => [run.id, run])))
 const activeRun = computed(() => (conversation.data.value?.runs ?? []).find((run) => ["running", "awaiting_answer"].includes(run.status)) ?? null)
-const unrepresentedRuns = computed(() => {
-  const represented = new Set((conversation.data.value?.messages ?? []).flatMap((message) => message.run_id ? [message.run_id] : []))
-  return (conversation.data.value?.runs ?? []).filter((run) => !represented.has(run.id) && !["running", "awaiting_answer", "succeeded"].includes(run.status))
-})
+const unrepresentedRuns = computed(() => unansweredEnds(conversation.data.value?.messages ?? [], conversation.data.value?.runs ?? []))
 
 // Files for the next message (D142): kept here until it is sent, each with an
 // address of this page to draw or open it from, released when it goes.
