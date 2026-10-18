@@ -290,10 +290,7 @@ function remove(profile: ServerProfile) {
 .server-switcher__panel {
   top: calc(var(--dp-header-height) + var(--dp-space-1));
   left: var(--dp-space-1);
-  /* Wide enough for the form's three commands on one row in Russian, the
-     longest being «Проверить подключение», «Отмена», «Сохранить и
-     подключиться»: at 420px the last went down a line on its own. */
-  width: 544px;
+  width: 420px;
   max-width: calc(100vw - var(--dp-space-2));
   display: flex;
   flex-direction: column;
