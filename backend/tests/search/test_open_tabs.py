@@ -67,7 +67,10 @@ async def test_a_long_title_is_cut_rather_than_refusing_the_search(
     detail = "Storage · " + "/".join(["folder"] * MAX_NODE_ID)
     browser = [{"object_type": "tab", "object_id": "panel-long", "title": title, "detail": detail}]
 
-    lines = await search(client, normal_user_token_headers, "quarterly orders", mode="typing", browser=browser)
+    # The search mode's budget rather than typing's 0.4 s: what is checked is
+    # the cut, and on a loaded CI runner the heaviest request here missed the
+    # typing deadline and came back with no hit at all.
+    lines = await search(client, normal_user_token_headers, "quarterly orders", mode="search", browser=browser)
 
     [found] = hits(lines, "objects:open_tabs")
     assert found["title"] == title[:MAX_NODE_NAME]

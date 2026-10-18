@@ -12,10 +12,10 @@ import logging
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import and_, delete, exists, func, not_, select
+from sqlalchemy import and_, delete, exists, func, not_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import Exists
-from sqlmodel import col
+from sqlmodel import col, select
 
 from app.adapters.search import SearchBounds
 from app.core.config import settings
@@ -64,7 +64,7 @@ async def name_passages(connector_id: uuid.UUID) -> None:
     """One passage per kept name; a name gone takes its passage."""
     async with async_session_maker() as session:
         names = (
-            await session.execute(
+            await session.exec(
                 select(col(SearchName.node_id), col(SearchName.name), col(SearchName.location)).where(
                     col(SearchName.connector_id) == connector_id
                 )
@@ -73,7 +73,7 @@ async def name_passages(connector_id: uuid.UUID) -> None:
         wanted = {
             node_id: _name_text(name, location) for node_id, name, location in names
         }
-        kept = await session.execute(
+        kept = await session.exec(
             select(col(SearchPassage.node_id), col(SearchPassage.digest)).where(
                 col(SearchPassage.connector_id) == connector_id,
                 col(SearchPassage.kind) == "name",
@@ -87,7 +87,7 @@ async def name_passages(connector_id: uuid.UUID) -> None:
             if have.get(node_id) != _digest(text)
         }
         for start in range(0, len(gone), 1000):
-            await session.execute(
+            await session.exec(
                 delete(SearchPassage).where(
                     col(SearchPassage.connector_id) == connector_id,
                     col(SearchPassage.kind) == "name",
@@ -108,7 +108,7 @@ async def name_passages(connector_id: uuid.UUID) -> None:
         ]
         for start in range(0, len(rows), 1000):
             statement = insert(SearchPassage).values(rows[start : start + 1000])
-            await session.execute(
+            await session.exec(
                 statement.on_conflict_do_update(
                     index_elements=["connector_id", "kind", "node_id", "seq"],
                     set_={"text": statement.excluded.text, "digest": statement.excluded.digest},
@@ -124,7 +124,7 @@ async def embed_missing(connector_id: uuid.UUID, model: Embedder, name: str) -> 
     while not bounds.over():
         async with async_session_maker() as session:
             batch = (
-                await session.execute(
+                await session.exec(
                     select(col(SearchPassage.digest), func.min(col(SearchPassage.text)))
                     .where(
                         col(SearchPassage.connector_id) == connector_id,
@@ -156,7 +156,7 @@ async def _store(name: str, digests: Sequence[str], vectors: Sequence[list[float
                 for digest, vector in zip(digests, vectors, strict=True)
             ]
         )
-        await session.execute(statement.on_conflict_do_nothing())
+        await session.exec(statement.on_conflict_do_nothing())
         await session.commit()
 
 
@@ -164,14 +164,14 @@ async def waiting_for_vectors(name: str, limit: int = 20) -> list[uuid.UUID]:
     """Connections the model has not read all of: it started after their lists
     were read, so their names have no passages yet, or some passages no vector."""
     async with async_session_maker() as session:
-        unread = await session.execute(
+        unread = await session.exec(
             select(col(SearchPassage.connector_id))
             .where(not_(_has_vector(name)))
             .group_by(col(SearchPassage.connector_id))
             .limit(limit)
         )
-        found = [row[0] for row in unread.all()]
-        unnamed = await session.execute(
+        found: list[uuid.UUID] = list(unread.all())
+        unnamed = await session.exec(
             select(col(SearchKeep.connector_id))
             .where(
                 col(SearchKeep.kept_at).is_not(None),
@@ -186,25 +186,25 @@ async def waiting_for_vectors(name: str, limit: int = 20) -> list[uuid.UUID]:
             )
             .limit(limit)
         )
-        found.extend(row[0] for row in unnamed.all() if row[0] not in found)
+        found.extend(one for one in unnamed.all() if one not in found)
         return found[:limit]
 
 
 async def prune(name: str) -> None:
     """Vectors no passage has any more, and another model's once this one's are whole."""
     async with async_session_maker() as session:
-        await session.execute(
+        await session.exec(
             delete(SearchVector).where(
                 not_(exists().where(col(SearchPassage.digest) == col(SearchVector.digest)))
             )
         )
         whole = not (
-            await session.execute(
+            await session.exec(
                 select(
                     exists(select(col(SearchPassage.digest)).where(not_(_has_vector(name))))
                 )
             )
-        ).scalar()
+        ).one()
         if whole:
-            await session.execute(delete(SearchVector).where(col(SearchVector.model) != name))
+            await session.exec(delete(SearchVector).where(col(SearchVector.model) != name))
         await session.commit()

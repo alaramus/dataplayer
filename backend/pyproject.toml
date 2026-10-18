@@ -139,3 +139,9 @@ asyncio_default_fixture_loop_scope = "session"
 # process; a loop per test would make a pool built in one test unusable in the
 # next, which is a property of the test harness rather than of the code.
 asyncio_default_test_loop_scope = "session"
+# google-genai's own types module, on Python 3.14, about a typing alias it
+# imports; nothing of ours, and nothing we can change but the library. Only
+# this message from only that module, so a warning of ours still shows.
+filterwarnings = [
+    "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning:google.genai.types",
+]
