@@ -24,6 +24,14 @@ function mountTable(props: Record<string, unknown> = {}, slots = {}) {
 }
 
 describe("AppTable", () => {
+  // Quasar's own empty line carries a warning triangle, which read as an error.
+  it("says it is empty without a warning", () => {
+    const table = mountTable({ rows: [], emptyText: "No agents yet" })
+    expect(table.text()).toContain("No agents yet")
+    expect(table.find(".app-table__empty").exists()).toBe(true)
+    expect(table.text()).not.toContain("warning")
+  })
+
   it("renders a row per record", () => {
     expect(mountTable().findAll("tbody tr")).toHaveLength(2)
   })

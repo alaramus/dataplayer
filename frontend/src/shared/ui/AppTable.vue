@@ -69,10 +69,22 @@ const shownEmptyText = computed(() => props.emptyText ?? t("kit.table.empty"))
         v-bind="slotProps ?? {}"
       />
     </template>
+    <!-- Quasar puts its warning triangle before an empty table's line, and
+         "No agents yet" read as an error. Said as the kit's empty states say
+         it, unless the screen brings its own. -->
+    <template
+      v-if="!$slots['no-data']"
+      #no-data="{ message }"
+    >
+      <span class="app-table__empty">{{ message }}</span>
+    </template>
   </q-table>
 </template>
 
 <style scoped>
+.app-table__empty {
+  color: var(--dp-text-muted);
+}
 /* A table's heading is a heading of the scale (D185): 600, in the small size
    Quasar already gives it; Quasar's own 500 was the one table in the
    application whose headings were not. */

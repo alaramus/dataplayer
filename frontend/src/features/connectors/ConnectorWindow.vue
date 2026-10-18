@@ -1104,9 +1104,15 @@ async function parseTyped(text: string) {
   flex-direction: column;
   gap: var(--dp-space-2);
 }
+/* Wrapped rather than squeezed, as in Preferences: a squeezed button stood
+   its icon above its label. */
 .connector-window__ssh-keys-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--dp-space-2);
+}
+.connector-window__ssh-keys-buttons > * {
+  flex: none;
 }
 .connector-window__grants {
   display: flex;

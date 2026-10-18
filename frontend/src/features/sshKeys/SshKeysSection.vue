@@ -221,9 +221,16 @@ async function remove(key: SshKeyPublic) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Wrapped rather than squeezed: in the 260px side column the two Russian
+   labels did not fit side by side, and a squeezed button stood its icon
+   above its label. */
 .ssh-keys__buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--dp-space-2);
+}
+.ssh-keys__buttons > * {
+  flex: none;
 }
 .ssh-keys__row {
   display: flex;

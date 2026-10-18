@@ -104,7 +104,7 @@ export const connectors = {
     url_copied: "Connection string copied",
     url_unreadable: "That is not a connection string this source reads",
     keep_answers: "Keep answers",
-    search_index: "Search index: {state}",
+    search_index: "Search index · {state}",
     cannot_keep: "this kind of source cannot keep its names",
     ssh_keys_hint:
       "Keys your SSH connections sign in with, usable anywhere. A key made here never leaves this server: copy its public key into authorized_keys on the servers it should open.",
