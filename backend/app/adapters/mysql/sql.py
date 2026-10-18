@@ -7,11 +7,16 @@ put into a statement. A value never is — it goes through a placeholder.
 
 from collections.abc import Iterable
 
-from app.adapters.mysql.session import identifier
+from app.adapters.mysql.session import identifier, quoted_name
 
 
 class Composable:
     def text(self) -> str:
+        """The statement as it is sent to the driver."""
+        raise NotImplementedError
+
+    def readable(self) -> str:
+        """The statement as a person reads and pastes it: see `identifier`."""
         raise NotImplementedError
 
     def __add__(self, other: Composable) -> Composed:
@@ -25,6 +30,9 @@ class SQL(Composable):
         self._literal = literal
 
     def text(self) -> str:
+        return self._literal
+
+    def readable(self) -> str:
         return self._literal
 
     def format(self, *parts: Composable) -> Composed:
@@ -54,6 +62,9 @@ class Identifier(Composable):
     def text(self) -> str:
         return identifier(*self._parts)
 
+    def readable(self) -> str:
+        return quoted_name(*self._parts)
+
 
 class Composed(Composable):
     def __init__(self, parts: list[Composable]) -> None:
@@ -61,3 +72,6 @@ class Composed(Composable):
 
     def text(self) -> str:
         return "".join(part.text() for part in self._parts)
+
+    def readable(self) -> str:
+        return "".join(part.readable() for part in self._parts)

@@ -297,6 +297,35 @@ class MysqlSession:
         async with pool.connection() as connection:
             yield connection
 
+    @asynccontextmanager
+    async def acquire(self) -> AsyncIterator[aiomysql.Connection]:
+        """One connection, for a caller that owns its transaction and settings."""
+        try:
+            async with self._connection() as connection:
+                yield connection
+        except PoolExhausted:
+            raise AdapterError("timeout", say("No connection was free for this query")) from None
+
+    async def kill_query(self, thread_id: int) -> None:
+        """Stop the statement one connection is running, from a second one.
+
+        The connection under the statement is busy reading its answer, so the
+        request cannot travel on it. Failing to kill is not reported: the
+        statement then ends by itself, and its own outcome says so.
+        """
+        try:
+            connection = await self._direct()
+        except Exception:
+            return
+        try:
+            async with connection.cursor() as cursor:
+                await cursor.execute("KILL QUERY %s", (int(thread_id),))
+        except Exception:
+            # The statement may have finished first, which is the outcome anyway.
+            pass
+        finally:
+            connection.close()
+
     async def profile(self) -> ServerProfile:
         """Which server this is; asked once per session and kept."""
         if self._profile is None:

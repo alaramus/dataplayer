@@ -18,6 +18,18 @@ export function needsRehearsal(script: PreparedScript | null): boolean {
 }
 
 /**
+ * Whether they should be tried out and this source cannot: MySQL commits a
+ * structure change at once, so there is no undoing it to describe it. Said in
+ * the question rather than tried and failed (D233).
+ */
+export function cannotBeTriedOut(
+  script: PreparedScript | null,
+  supportsRehearsal: boolean | undefined,
+): boolean {
+  return supportsRehearsal !== true && needsRehearsal(script)
+}
+
+/**
  * What the rehearsal found, as the sentence shown before the question.
  *
  * The source's own words, in the source's own order. Nothing is summarised

@@ -69,7 +69,10 @@ confirmed when the connection was made (D145, D146).
 (D228): databases as schemas, their tables and views with the server's row
 estimates (D229), a relation's columns, keys, checks and indexes, its summary
 and the server's own DDL, and rows paged, sorted and filtered on the server
-with every value as exact text (D230, D231). Read only for now.
+with every value as exact text (D230, D231). An SQL console read by sqlglot's
+MySQL dialect, where a structure change runs alone and is never rehearsed,
+because MySQL commits it at once (D232, D233). Rows and structure are not
+edited from the grid yet.
 
 ## Where the code is
 
@@ -119,7 +122,9 @@ backend/app/adapters/
 │                       profile), sql.py (composing a statement), ids.py,
 │                       inspection.py (information_schema, once), catalog.py,
 │                       relation.py, fetch.py, types.py (values as text),
-│                       content.py (SHOW CREATE), summary.py, adapter.py
+│                       content.py (SHOW CREATE), summary.py, statements.py
+│                       (classing SQL), query.py (runs, transactions, KILL
+│                       QUERY), explain.py, metadata.py, adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
 │                       what a key is), fetch.py (a key read as rows),

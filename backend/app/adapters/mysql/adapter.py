@@ -8,9 +8,12 @@ from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.mysql.catalog import MysqlCatalog
 from app.adapters.mysql.content import MysqlContent
+from app.adapters.mysql.explain import MysqlExplain
 from app.adapters.mysql.features import MysqlFeatures
 from app.adapters.mysql.fetch import MysqlFetch
+from app.adapters.mysql.metadata import MysqlGeneration, MysqlMetadata
 from app.adapters.mysql.options import MysqlOptions
+from app.adapters.mysql.query import MysqlExecution, MysqlQuery, MysqlTransaction
 from app.adapters.mysql.relation import MysqlRelation
 from app.adapters.mysql.session import (
     MysqlSession,
@@ -18,8 +21,21 @@ from app.adapters.mysql.session import (
     compose_url_with_password,
     options_from_url,
 )
+from app.adapters.mysql.statements import format_text
 from app.adapters.mysql.summary import MysqlSummaries
 from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.query import (
+    ExplainRequest,
+    ExplainResult,
+    GeneratedQuery,
+    GenerateQueryRequest,
+    PreparedScript,
+    QueryMetadata,
+    QueryMetadataRequest,
+    QueryProfile,
+    QueryRequest,
+    TransactionContext,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling
@@ -57,6 +73,10 @@ class MysqlAdapter:
         self._fetch = MysqlFetch(self._session, self._relation)
         self._content = MysqlContent(self._session, self._relation)
         self._summaries = MysqlSummaries(self._session, self._relation)
+        self._query = MysqlQuery(self._session)
+        self._explain = MysqlExplain(self._session)
+        self._metadata = MysqlMetadata(self._session)
+        self._generation = MysqlGeneration(self._session, self._metadata)
 
     @classmethod
     def cache_ttl(cls, area: CacheArea) -> float:
@@ -121,6 +141,32 @@ class MysqlAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    def query_profile(self) -> QueryProfile:
+        """What this source accepts as a complete statement (D62)."""
+        return self._query.profile()
+
+    def prepare_query(self, text: str) -> PreparedScript:
+        return self._query.prepare(text)
+
+    def open_query(self, request: QueryRequest) -> MysqlExecution:
+        return self._query.open(request)
+
+    async def begin_transaction(self, context: TransactionContext) -> MysqlTransaction:
+        """Hold a transaction open between requests (D66, D233)."""
+        return await self._query.begin(context)
+
+    async def explain_query(self, request: ExplainRequest) -> ExplainResult:
+        return await self._explain.explain(request)
+
+    async def query_metadata(self, request: QueryMetadataRequest) -> QueryMetadata:
+        return await self._metadata.metadata(request)
+
+    def format_query(self, text: str) -> str:
+        return format_text(text)
+
+    async def generate_query(self, request: GenerateQueryRequest) -> GeneratedQuery:
+        return await self._generation.generate(request)
 
 
 @register(

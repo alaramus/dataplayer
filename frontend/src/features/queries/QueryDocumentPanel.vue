@@ -68,6 +68,7 @@ import {
   blockedReason,
   needsRehearsal,
   rehearsalReport,
+  cannotBeTriedOut,
 } from "@/features/queries/structure"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useClosable } from "@/features/workspace/closable"
@@ -580,12 +581,17 @@ async function go(target: RunTarget | null) {
   // The connection's confirmation policy and dangerous changes ask at Run,
   // not through an independent permission switch in the editor (D160).
   if ((risky && supportsWrites.value) || policyConfirm) {
-    const rehearsed = risky && needsRehearsal(selectedScript) ? await tryItOut(target) : null
+    const triable = profile.data.value?.supports_rehearsal === true
+    const rehearsed = risky && triable && needsRehearsal(selectedScript) ? await tryItOut(target) : null
     if (rehearsed === "blocked") return
     const tried =
       rehearsed === null || rehearsed === ""
         ? ""
         : `\n\n${t("queries.console.tried_out")}\n${rehearsed}`
+    const untried =
+      risky && cannotBeTriedOut(selectedScript, profile.data.value?.supports_rehearsal)
+        ? `\n\n${t("queries.console.not_tried")}`
+        : ""
     const accepted = await confirm({
       title: risky ? t("queries.console.risky_title") : t("queries.console.write_title"),
       message:
@@ -596,7 +602,8 @@ async function go(target: RunTarget | null) {
         (mode === "manual"
           ? t("queries.console.manual_note")
           : t("queries.console.auto_note")) +
-        tried,
+        tried +
+        untried,
       confirmLabel: t("queries.console.run_it"),
       danger: true,
     })

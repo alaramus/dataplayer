@@ -449,6 +449,9 @@ Known deviations:
   checks a write goes through — policy, level and confirmation — and the
   console will not run a change whose rehearsal came back blocked, but a caller
   that never asked for one is not refused for that reason.
+- **A MySQL source rehearses nothing, and runs a structure change alone.** MySQL
+  commits DDL at once, so it can be neither undone nor held in a transaction;
+  the console says so in its question instead (D233).
 - **`DROP INDEX s.i` widens the invalidation to the whole connection.** The
   statement names the index and not the relation it was on, so nothing can name a
   node the source did not say. The same is true of any statement the dialect

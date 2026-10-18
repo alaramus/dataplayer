@@ -89,9 +89,9 @@ def test_it_claims_only_what_it_does() -> None:
         SupportsContent,
     ):
         assert isinstance(adapter, capability)
-    # Not yet: rows are read, and nothing writes or runs a console.
+    assert isinstance(adapter, SupportsQuery)
+    # Not yet: rows are read and not written from the grid.
     assert not isinstance(adapter, SupportsUpdate)
-    assert not isinstance(adapter, SupportsQuery)
 
 
 def test_a_server_is_read_as_its_flavour_and_number() -> None:

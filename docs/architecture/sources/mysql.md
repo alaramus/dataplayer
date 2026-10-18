@@ -1,11 +1,12 @@
 # MySQL and MariaDB
 
-What a MySQL source is, how it reads its catalog, and how its values and
-pages cross to the grid. The contract every source type follows is in
+What a MySQL source is, how it reads its catalog, how its values and pages
+cross to the grid, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
-[relations.md](relations.md). Read this before changing the `mysql` adapter.
+[relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
+before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231.
+Decisions here: D228, D229, D230, D231, D232, D233.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -88,3 +89,68 @@ gets no tiebreak, because there is nothing honest to add. There is no physical
 row address to fall back on as PostgreSQL's `ctid` is.
 
 Spec: [A MySQL source](../../decisions/2026-10-18-mysql-source-design.md)
+
+## D232. Statements are read by sqlglot's MySQL dialect
+
+The console (D62) reads MySQL text with sqlglot: its tokenizer draws the
+boundaries, so a semicolon in a string, a backtick name or a comment is not
+one, and its parser decides the class. `read` is granted to a SELECT, a set
+operation, SHOW, VALUES and DESCRIBE of a table, and to nothing else; EXPLAIN
+is `explain`. Where sqlglot falls back to a bare command, the keyword it kept
+decides for a few — REPLACE is a write, OPTIMIZE maintenance, CREATE, ALTER,
+RENAME, GRANT and REVOKE structure changes judged by the vocabulary — and
+everything else is `unknown` and not run: `FLUSH PRIVILEGES` and `TABLE t`
+parse as aliases, which is why a parse is not taken as a read by shape.
+`SELECT … INTO OUTFILE`, `LOAD DATA`, `CALL` and `HANDLER` are unknown.
+
+The vocabulary of structure changes is PostgreSQL's (D66) with databases in it,
+since a database is a schema here (D229): tables, views, indexes and databases.
+Altering a database, users, grants, routines, triggers and events are refused
+by name.
+
+Parameters are `:name`, the spelling PostgreSQL's console takes, read from
+tokens so that `:=` is an assignment. They are bound by the driver, which
+escapes each value for the server it is talking to; a literal `%` is doubled
+once anything is bound. A value is always a string, so `LIMIT :n` is refused
+by the server.
+
+Formatting lays a statement out again only when its class is known and the
+result parses back to the same tree: `FLUSH PRIVILEGES` has the same tree as
+`FLUSH AS PRIVILEGES`.
+
+Spec: [The MySQL console](../../decisions/2026-10-18-mysql-console-design.md)
+
+## D233. A structure change commits by itself, so it runs alone
+
+MySQL commits a structure change the moment it runs, together with whatever
+the transaction held before it, and cannot roll it back. Three rules follow.
+
+- In a run, a structure change or maintenance command is the only statement;
+  with others beside it the run is refused at its first statement, because
+  "the run is one transaction" (D66) would be false.
+- In a transaction somebody holds open, it is refused: it would end that
+  transaction behind their back.
+- There is no rehearsal. The source does not claim it, the console says in its
+  question that the change cannot be tried out first, and a held transaction
+  answers a rehearsal with that sentence.
+
+A failed statement does not end a MySQL transaction, so a held transaction
+stays usable after one; a deadlock does, since MySQL has already rolled it
+back, and the transaction is then marked as one that can only be rolled back.
+
+A read runs in `START TRANSACTION READ ONLY`, which refuses writes to tables
+but not a structure change; the class keeps those out of a read. The time
+limit is kept by the adapter rather than by `max_execution_time`, which bounds
+a SELECT only: past it, and on Stop, the statement is killed with
+`KILL QUERY` from a second connection. `SELECT SLEEP(n)` answers a kill by
+returning early rather than failing, so the outcome is what the adapter did,
+not what the server said.
+
+A document's database is the connection's default database, set with
+`COM_INIT_DB` after it is found on the server and put back before the pool has
+the connection again; a connection that named none is closed instead, since
+none cannot be selected again. Warnings the server leaves are the statement's
+notices. Results are read as rows of positions, so two columns called `id`
+stay two.
+
+Spec: [The MySQL console](../../decisions/2026-10-18-mysql-console-design.md)

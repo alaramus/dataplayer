@@ -1,7 +1,8 @@
 # MySQL
 
 A MySQL or MariaDB server. You browse its databases, read tables and views a
-page at a time, see how a table is built and read the server's own DDL for it.
+page at a time, see how a table is built, read the server's own DDL for it and
+run SQL in a console.
 How connections work in general is on the [Connections](connections.md) page.
 
 ## What you can see
@@ -10,10 +11,11 @@ How connections work in general is on the [Connections](connections.md) page.
 - A table's columns, keys, checks and indexes, and the tables it refers to
 - A relation's DDL, as the server writes it
 - How big a table is, and when it was created and last written to
+- The results of SQL you write, and the server's plan for a query
 
 ## What you can change
 
-- Nothing yet: rows and structure are read only for now
+- Data and structure, through SQL in the console
 
 ## Connecting
 
@@ -71,12 +73,34 @@ How values are shown:
 - geometry as text, such as `POINT(1 2)`;
 - binary columns in hexadecimal, such as `0x00FF`.
 
+## SQL console
+
+**New query** under **Queries** on the left rail starts one on the connection,
+and **Open as a query** above a table starts one on that table. It works as
+the PostgreSQL console does — reads, changes committed at once or held in a
+**Manual** transaction, **Explain**, completion and formatting — with these
+differences:
+
+- The database chosen above the editor is the default one, as `USE` would
+  make it; one database at a time.
+- Parameters are written `:name`. Every value is sent as text, so a number the
+  server needs as a number, such as after `LIMIT`, cannot be a parameter.
+- A structure change — `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME` — runs
+  on its own. MySQL commits it at once, together with anything before it, so
+  it cannot share a run with other statements, cannot run inside a transaction
+  you are holding, and cannot be tried out first. The console asks before it
+  runs one, and says that.
+- A statement that fails inside a transaction you hold leaves the transaction
+  open; a deadlock ends it.
+- **Stop** and the time limit end a statement with `KILL QUERY`.
+- Users, grants, routines, triggers and events are not changed from the
+  console. `LOAD DATA`, `SELECT … INTO OUTFILE` and `CALL` are not run.
+
 ## What MySQL does not have here yet
 
 - Rows cannot be edited, inserted or deleted.
 - Columns, indexes and keys cannot be changed, and tables cannot be created,
   renamed or dropped.
-- There is no SQL console.
 - A foreign key is shown in the table's structure, but a cell does not lead to
   the row it points at.
 - Only the page on screen can be downloaded, not every matching row.

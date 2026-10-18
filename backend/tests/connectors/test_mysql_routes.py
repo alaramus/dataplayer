@@ -5,6 +5,7 @@ same server reached the way the catalog, the grid and the details panel reach
 it, pooled and cached as they are.
 """
 
+import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -102,3 +103,40 @@ async def test_what_it_does_not_do_is_refused_as_not_implemented(
 
     # Rows are read only in this slice, and the capability is not claimed (D2).
     assert response.status_code == 501, response.text
+
+
+async def test_the_console_runs_and_says_what_it_cannot_do(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], target: Target
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, target)
+    queries = f"{settings.API_V1_STR}/queries"
+
+    profile = await client.get(f"{queries}/connectors/{connector}/profile", headers=headers)
+    assert profile.status_code == 200, profile.text
+    assert profile.json()["supports_explain"] is True
+    assert profile.json()["supports_rehearsal"] is False
+
+    started = await client.post(
+        f"{queries}/runs",
+        headers=headers,
+        json={
+            "run_id": str(uuid.uuid4()),
+            "connector_id": connector,
+            "text": "SELECT id, label FROM items ORDER BY id",
+        },
+    )
+    assert started.status_code == 200, started.text
+    run_id = started.json()["id"]
+    deadline = asyncio.get_running_loop().time() + 15
+    while True:
+        run = (await client.get(f"{queries}/runs/{run_id}", headers=headers)).json()
+        if run["status"] not in {"accepted", "running", "cancelling"}:
+            break
+        assert asyncio.get_running_loop().time() < deadline, run
+        await asyncio.sleep(0.05)
+
+    assert run["status"] == "succeeded", run
+    [statement] = run["statements"]
+    page = await client.get(f"{queries}/results/{statement['result_id']}", headers=headers)
+    assert page.json()["rows"][0] == ["1", "alpha"]
