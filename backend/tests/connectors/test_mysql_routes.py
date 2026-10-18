@@ -77,7 +77,7 @@ async def test_a_connection_is_checked_browsed_read_and_described(
     page = await post("fetch", {"node_id": ITEMS, "limit": 2})
     assert [row[0] for row in page["rows"]] == ["1", "2"]
     assert page["has_more"] is True
-    assert page["update_supported"] is False
+    assert page["update_supported"] is True
 
     model = await get("relation-model", node_id=ITEMS)
     assert model["kind"] == "table"
@@ -89,7 +89,7 @@ async def test_a_connection_is_checked_browsed_read_and_described(
     assert features["server_version"]
 
 
-async def test_what_it_does_not_do_is_refused_as_not_implemented(
+async def test_a_row_handle_the_source_did_not_issue_is_refused(
     client: AsyncClient, normal_user_token_headers: dict[str, str], target: Target
 ) -> None:
     connector = await _connector(client, normal_user_token_headers, target)
@@ -101,8 +101,7 @@ async def test_what_it_does_not_do_is_refused_as_not_implemented(
         json={"node_id": ITEMS, "row_handles": ["x"]},
     )
 
-    # Rows are read only in this slice, and the capability is not claimed (D2).
-    assert response.status_code == 501, response.text
+    assert response.status_code in (400, 422), response.text
 
 
 async def test_the_console_runs_and_says_what_it_cannot_do(

@@ -222,6 +222,65 @@ def identifier(*parts: str) -> str:
     return quoted_name(*parts).replace("%", "%%")
 
 
+# A value the column cannot hold, in strict mode: a wrong type, out of range,
+# too long, not a date, not JSON, not geometry, not an enum's label.
+VALUE_ERRORS = frozenset({1264, 1265, 1292, 1366, 1367, 1406, 1411, 1416, 3037, 3140, 4025})
+
+
+class Writing:
+    """Statements inside one transaction that changes rows (D234).
+
+    Strict for its duration: without STRICT_ALL_TABLES MySQL stores a value
+    its column cannot hold as the nearest one it can, and says so in a warning
+    nobody reads — `abc` written to an integer column becomes 0. The session's
+    own mode is put back before the pool has the connection.
+    """
+
+    def __init__(self, connection: aiomysql.Connection) -> None:
+        self._connection = connection
+
+    async def execute(self, sql: str, params: tuple[object, ...] = ()) -> tuple[int, int]:
+        """Run a change; answers the rows it touched and the id it made."""
+        async with self._connection.cursor() as cursor:
+            await cursor.execute(sql, params)
+            return int(cursor.rowcount), int(cursor.lastrowid or 0)
+
+    async def execute_many(self, sql: str, rows: list[tuple[object, ...]]) -> None:
+        async with self._connection.cursor() as cursor:
+            await cursor.executemany(sql, rows)
+
+    async def rows(self, sql: str, params: tuple[object, ...] = ()) -> list[dict[str, Any]]:
+        async with self._connection.cursor(aiomysql.DictCursor) as cursor:
+            await cursor.execute(sql, params)
+            return list(await cursor.fetchall())
+
+    async def answers(self, sql: str, params: tuple[object, ...]) -> Any:
+        """The one value a statement answers, or nothing for a value refused."""
+        try:
+            async with self._connection.cursor() as cursor:
+                await cursor.execute(sql, params)
+                row = await cursor.fetchone()
+        except pymysql.err.MySQLError as exc:
+            if exc.args and exc.args[0] in VALUE_ERRORS:
+                return None
+            raise
+        return None if row is None else row[0]
+
+    async def holds(self, sql: str, params: tuple[object, ...]) -> bool:
+        """Whether a statement is accepted; a value it cannot hold is a no.
+
+        A refused statement is undone by itself and leaves the transaction as
+        it was, so nothing else needs rolling back.
+        """
+        try:
+            await self.execute(sql, params)
+        except pymysql.err.MySQLError as exc:
+            if exc.args and exc.args[0] in VALUE_ERRORS:
+                return False
+            raise
+        return True
+
+
 class MysqlSession:
     """How to talk to one MySQL or MariaDB server."""
 
@@ -305,6 +364,46 @@ class MysqlSession:
                 yield connection
         except PoolExhausted:
             raise AdapterError("timeout", say("No connection was free for this query")) from None
+
+    @asynccontextmanager
+    async def writing(
+        self, *, refusals: Mapping[int, str] | None = None
+    ) -> AsyncIterator[Writing]:
+        """One strict transaction, committed when the block ends cleanly.
+
+        A value or a constraint the server refuses is the caller's to hear,
+        as a ValueError; anything else is the source failing.
+        """
+        try:
+            async with self.acquire() as connection:
+                async with connection.cursor() as cursor:
+                    await cursor.execute("SELECT @@SESSION.sql_mode", ())
+                    mode = (await cursor.fetchone())[0]
+                    await cursor.execute(
+                        "SET SESSION sql_mode = CONCAT_WS(',', @@SESSION.sql_mode, 'STRICT_ALL_TABLES')",
+                        (),
+                    )
+                try:
+                    await connection.begin()
+                    try:
+                        yield Writing(connection)
+                    except BaseException:
+                        await connection.rollback()
+                        raise
+                    await connection.commit()
+                finally:
+                    async with connection.cursor() as cursor:
+                        await cursor.execute("SET SESSION sql_mode = %s", (mode,))
+        except AdapterError:
+            raise
+        except pymysql.err.MySQLError as exc:
+            named = named_refusal(exc, refusals)
+            if named is not None:
+                raise ValueError(named) from None
+            if exc.args and isinstance(exc.args[0], int) and exc.args[0] < 2000:
+                raise ValueError(say("The source rejected the change")) from None
+            error_kind, message = classify(exc, fallback_message=N_("Update failed"))
+            raise AdapterError(error_kind, message) from None
 
     async def kill_query(self, thread_id: int) -> None:
         """Stop the statement one connection is running, from a second one.

@@ -112,6 +112,8 @@ Known deviations:
   keyset paging is a separate contract.
 - **`ctid` never leaves the handle.** It is not offered as a column to filter or
   sort by.
+- **A MySQL table without a usable key is not edited.** MySQL has no row
+  address to fall back on, so such a table takes inserted rows only (D234).
 
 Spec: [What identifies a row, and what order rows arrive in](../../decisions/2026-08-30-row-identity-and-order-design.md)
 
@@ -143,6 +145,8 @@ Known deviations:
 - **`xmin` is PostgreSQL-specific and finite.** It stays behind the opaque
   handle and is sufficient for the interval between reading and saving; an
   adapter with an explicit revision column can issue a different handle.
+- **A MySQL handle's version is a digest of the row as shown**, since MySQL
+  keeps no version a client can read; it is checked under `FOR UPDATE` (D234).
 
 Spec: [Editing data](../../decisions/2026-08-27-data-editing-design.md)
 

@@ -123,6 +123,8 @@ ignore = [
 # The schema the MySQL tests read, written as a person writes DDL, into a
 # database whose name is a constant of the same file.
 "tests/adapters/mysql_fixture.py" = ["S608"]
+# The same for the rows the editing tests make and change behind the adapter.
+"tests/adapters/test_mysql_update.py" = ["S608"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

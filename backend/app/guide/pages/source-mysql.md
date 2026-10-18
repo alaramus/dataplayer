@@ -9,12 +9,14 @@ How connections work in general is on the [Connections](connections.md) page.
 
 - Databases, tables and views, and their rows sorted and filtered on the server
 - A table's columns, keys, checks and indexes, and the tables it refers to
+- Where a row's foreign key leads, and what points at it
 - A relation's DDL, as the server writes it
 - How big a table is, and when it was created and last written to
 - The results of SQL you write, and the server's plan for a query
 
 ## What you can change
 
+- Table data: edit cells, paste blocks, insert and delete rows
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -73,6 +75,26 @@ How values are shown:
 - geometry as text, such as `POINT(1 2)`;
 - binary columns in hexadecimal, such as `0x00FF`.
 
+## Changing rows
+
+With **Edit rows** access, a table is edited in its grid as a PostgreSQL table
+is: double-click a cell, paste a block, **Insert row**, tick rows and
+**Delete selected rows**.
+
+- A row is found again by its primary key, or by a unique key over columns
+  that cannot be empty. A table with neither accepts new rows and cannot be
+  edited or have rows deleted from the grid; the grid says why.
+- If somebody changed a row after you read it, in any column, your change is
+  refused rather than written over theirs. Reload and try again.
+- A value the column cannot hold is refused before anything is written, and
+  the cells that hold such values are named. Nothing of a pasted block lands
+  until all of it can.
+- Write values the way the grid shows them: binary as `0x…`, geometry as WKT
+  such as `POINT(1 2)`, a `TIMESTAMP` with its offset.
+- A cell in a foreign key has an arrow that opens the row it points at, and
+  **What points at this row** opens the rows that point here, in this database
+  or another one on the server.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -98,11 +120,8 @@ differences:
 
 ## What MySQL does not have here yet
 
-- Rows cannot be edited, inserted or deleted.
 - Columns, indexes and keys cannot be changed, and tables cannot be created,
   renamed or dropped.
-- A foreign key is shown in the table's structure, but a cell does not lead to
-  the row it points at.
 - Only the page on screen can be downloaded, not every matching row.
 - Reports about the server, metrics, backups and copying tables between
   connections are not available.

@@ -71,8 +71,9 @@ estimates (D229), a relation's columns, keys, checks and indexes, its summary
 and the server's own DDL, and rows paged, sorted and filtered on the server
 with every value as exact text (D230, D231). An SQL console read by sqlglot's
 MySQL dialect, where a structure change runs alone and is never rehearsed,
-because MySQL commits it at once (D232, D233). Rows and structure are not
-edited from the grid yet.
+because MySQL commits it at once (D232, D233). Rows are edited, inserted and
+deleted in the grid against a digest of what was shown, and keys are followed
+both ways (D234). The structure is not changed from the grid yet.
 
 ## Where the code is
 
@@ -124,7 +125,9 @@ backend/app/adapters/
 │                       relation.py, fetch.py, types.py (values as text),
 │                       content.py (SHOW CREATE), summary.py, statements.py
 │                       (classing SQL), query.py (runs, transactions, KILL
-│                       QUERY), explain.py, metadata.py, adapter.py
+│                       QUERY), explain.py, metadata.py, rows.py (handles,
+│                       values written back), update.py, references.py,
+│                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
 │                       what a key is), fetch.py (a key read as rows),

@@ -31,7 +31,7 @@ documentation.
 | What a catalog shows of a node, searching it, a key space | [sources/catalog.md](docs/architecture/sources/catalog.md) |
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | SQL over files, the DuckDB sandbox behind it | [sources/file-sql.md](docs/architecture/sources/file-sql.md) |
-| MySQL and MariaDB, their catalog, values, pages and console | [sources/mysql.md](docs/architecture/sources/mysql.md) |
+| MySQL and MariaDB, their catalog, values, pages, row edits and console | [sources/mysql.md](docs/architecture/sources/mysql.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | A source action too long for a request: its plan, review and outcomes | [sources/operations.md](docs/architecture/sources/operations.md) |
@@ -308,6 +308,7 @@ files. IDs are stable because specs and commits refer to them.
 | D231 | [sources/mysql](docs/architecture/sources/mysql.md) |
 | D232 | [sources/mysql](docs/architecture/sources/mysql.md) |
 | D233 | [sources/mysql](docs/architecture/sources/mysql.md) |
+| D234 | [sources/mysql](docs/architecture/sources/mysql.md) |
 
 ## Working rules
 

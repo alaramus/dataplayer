@@ -200,6 +200,18 @@ class RelationFacts:
         return self.table_type in VIEW_TYPES
 
     @property
+    def foreign_keys(self) -> list[KeyFacts]:
+        """Keys pointing elsewhere whose two ends pair up column for column."""
+        return [
+            key
+            for key in self.keys
+            if key.kind == "FOREIGN KEY"
+            and key.target_table is not None
+            and key.columns
+            and len(key.columns) == len(key.target_columns)
+        ]
+
+    @property
     def primary_key(self) -> list[str]:
         return next((key.columns for key in self.keys if key.kind == "PRIMARY KEY"), [])
 

@@ -1,12 +1,13 @@
 # MySQL and MariaDB
 
 What a MySQL source is, how it reads its catalog, how its values and pages
-cross to the grid, and how its SQL console differs from PostgreSQL's. The contract every source type follows is in
+cross to the grid, how its rows are changed, and how its SQL console differs
+from PostgreSQL's. The contract every source type follows is in
 [contract.md](contract.md); reading a relation in general is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233.
+Decisions here: D228, D229, D230, D231, D232, D233, D234.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -154,3 +155,44 @@ notices. Results are read as rows of positions, so two columns called `id`
 stay two.
 
 Spec: [The MySQL console](../../decisions/2026-10-18-mysql-console-design.md)
+
+## D234. A row is named by its key and versioned by what it showed
+
+The grid edits a MySQL table as it edits a PostgreSQL one (D25, D26), within
+three things MySQL lacks.
+
+- **No row address.** A row is named by the key its pages follow (D231): the
+  primary key, or a unique key over columns that cannot be null. A table with
+  neither takes inserted rows and no edits or deletes, and says why; there is
+  no `ctid` to fall back on as D42 does.
+- **No row version.** The version in a handle is a digest of the row's values
+  as its page showed them. A change locks the row with `FOR UPDATE`, digests
+  it the same way, and goes ahead only when the two agree, so a change by
+  somebody else to any column refuses this one instead of being written over.
+- **No `RETURNING` on an UPDATE.** The row is read again by its key in the
+  same transaction — by its new key when a key column was among the cells
+  changed — and an inserted row by what was given or by `LAST_INSERT_ID()`.
+  A row of a keyless table comes back as what was given.
+
+Every change is one transaction with `STRICT_ALL_TABLES` added for its
+duration and the session's own mode put back after: without it MySQL stores
+the nearest value a column can hold and says so only in a warning. Values are
+checked before anything is written by putting each into a temporary table of
+the same column types, a refused batch halved until the refused values are
+found, so a block lands whole or the values that cannot are named (D37–D40's
+rule of naming rather than counting). A shape is checked on its own, because
+MariaDB answers WKT it cannot read with NULL rather than an error.
+
+A value is written back from the text it was shown as: hexadecimal through
+`UNHEX`, WKT through `ST_GeomFromText`, a TIMESTAMP's offset to UTC. Binary is
+never sent as bytes: aiomysql escapes bytes with a PyMySQL function that
+PyMySQL 1.2 replaced by a string. Constraint refusals — a duplicate, a missing
+or still referenced row, a required value, a check — are said in words by
+their error number.
+
+Following a key works as D110 states, with the target's database read from
+the catalog, since a key may point into another database; an arriving key's
+handle names the relation it comes from, because a constraint's name is unique
+only within its database.
+
+Spec: [Editing MySQL rows](../../decisions/2026-10-18-mysql-rows-design.md)

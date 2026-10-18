@@ -14,6 +14,7 @@ from app.adapters.mysql.fetch import MysqlFetch
 from app.adapters.mysql.metadata import MysqlGeneration, MysqlMetadata
 from app.adapters.mysql.options import MysqlOptions
 from app.adapters.mysql.query import MysqlExecution, MysqlQuery, MysqlTransaction
+from app.adapters.mysql.references import MysqlReferences
 from app.adapters.mysql.relation import MysqlRelation
 from app.adapters.mysql.session import (
     MysqlSession,
@@ -23,6 +24,7 @@ from app.adapters.mysql.session import (
 )
 from app.adapters.mysql.statements import format_text
 from app.adapters.mysql.summary import MysqlSummaries
+from app.adapters.mysql.update import MysqlUpdate
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.query import (
     ExplainRequest,
@@ -36,10 +38,27 @@ from app.adapters.query import (
     QueryRequest,
     TransactionContext,
 )
+from app.adapters.references import (
+    ArrivingReference,
+    FollowReferenceRequest,
+    ReferenceTarget,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 from app.core.translation import N_
 
 
@@ -74,6 +93,8 @@ class MysqlAdapter:
         self._content = MysqlContent(self._session, self._relation)
         self._summaries = MysqlSummaries(self._session, self._relation)
         self._query = MysqlQuery(self._session)
+        self._update = MysqlUpdate(self._session, self._relation)
+        self._references = MysqlReferences(self._session, self._catalog, self._relation)
         self._explain = MysqlExplain(self._session)
         self._metadata = MysqlMetadata(self._session)
         self._generation = MysqlGeneration(self._session, self._metadata)
@@ -141,6 +162,27 @@ class MysqlAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        return await self._update.delete_rows(request)
+
+    async def follow_reference(self, request: FollowReferenceRequest) -> ReferenceTarget:
+        return await self._references.follow_reference(request)
+
+    async def arriving_references(self, node_id: str) -> list[ArrivingReference]:
+        return await self._references.arriving_references(node_id)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62)."""

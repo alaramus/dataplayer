@@ -11,6 +11,7 @@ from typing import Any, assert_never
 
 from app.adapters.fetch import (
     FetchColumn,
+    FetchReference,
     FetchRequest,
     FetchResult,
     Filter,
@@ -19,8 +20,10 @@ from app.adapters.fetch import (
     NullFilter,
     ScalarFilter,
 )
+from app.adapters.mysql.catalog import is_system_database
 from app.adapters.mysql.inspection import RelationFacts
 from app.adapters.mysql.relation import MysqlRelation
+from app.adapters.mysql.rows import RowShape, handle_of
 from app.adapters.mysql.session import MysqlSession
 from app.adapters.mysql.sql import SQL, Composable, Composed, Identifier
 from app.adapters.mysql.types import read_cell
@@ -117,6 +120,60 @@ def select_expression(column: FetchColumn) -> Composable:
     return name
 
 
+# Tables a person's rows live in. A MariaDB sequence is a table of one row
+# the server keeps, and a view is not a table.
+_WRITABLE_TYPES = ("BASE TABLE", "SYSTEM VERSIONED")
+
+
+def shape_of(facts: RelationFacts) -> RowShape:
+    """The columns of a page and what may be done to its rows (D234)."""
+    key = facts.ordering_key
+    if is_system_database(facts.schema):
+        refused: str | None = say('"{schema}" belongs to the server', schema=facts.schema)
+        insert_refused: str | None = refused
+    elif facts.table_type not in _WRITABLE_TYPES:
+        refused = say("Only tables can be edited")
+        insert_refused = say("Only tables accept inserted rows")
+    else:
+        insert_refused = None
+        refused = (
+            None
+            if key
+            else say(
+                "This table has no primary key and no unique key over columns that "
+                "cannot be empty, so no row of it can be named"
+            )
+        )
+    columns: list[FetchColumn] = []
+    for column in facts.columns:
+        sortable, operators = column_capabilities(column.type)
+        stored = column.generated is None
+        insertable = insert_refused is None and stored
+        has_default = column.default is not None or column.auto_increment
+        columns.append(
+            FetchColumn(
+                name=column.name,
+                type=column.type,
+                sortable=sortable,
+                filter_operators=operators,
+                editable=refused is None and stored,
+                nullable=column.nullable,
+                insertable=insertable,
+                insert_required=insertable and not column.nullable and not has_default,
+                has_default=has_default,
+            )
+        )
+    return RowShape(columns=columns, key=key, update_reason=refused, insert_reason=insert_refused)
+
+
+def select_of(shape: RowShape) -> Composable:
+    return SQL(", ").join(select_expression(column) for column in shape.columns)
+
+
+def cells_of(row: dict[str, Any], shape: RowShape) -> list[str | None]:
+    return [read_cell(row[column.name], column.type) for column in shape.columns]
+
+
 class MysqlFetch:
     def __init__(self, session: MysqlSession, relation: MysqlRelation) -> None:
         self._session = session
@@ -124,7 +181,8 @@ class MysqlFetch:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         facts = await self._relation.facts(request.node_id, structure=False)
-        columns = _columns(facts)
+        shape = shape_of(facts)
+        columns = shape.columns
         known = {column.name: column for column in columns}
         for used in [item.column for item in request.filters] + [item.column for item in request.sort]:
             if used not in known:
@@ -136,8 +194,7 @@ class MysqlFetch:
         params: list[Any] = []
         conditions = [_condition(filter_, known, params) for filter_ in request.filters]
         statement: Composed = SQL("SELECT {} FROM {}").format(
-            SQL(", ").join(select_expression(column) for column in columns),
-            Identifier(facts.schema, facts.name),
+            select_of(shape), Identifier(facts.schema, facts.name)
         )
         if conditions:
             statement += SQL(" WHERE ") + SQL(" AND ").join(conditions)
@@ -154,34 +211,27 @@ class MysqlFetch:
         params.extend([request.limit + 1, request.offset])
 
         rows = await self._session.query(statement.text(), tuple(params))
-        page = rows[: request.limit]
-        refused = say("Changing rows of a MySQL relation is not supported yet")
+        cells = [cells_of(row, shape) for row in rows[: request.limit]]
         return FetchResult(
             columns=columns,
-            rows=[[read_cell(row[column.name], column.type) for column in columns] for row in page],
+            rows=cells,
             has_more=len(rows) > request.limit,
-            row_handles=[None] * len(page),
-            update_reason=refused,
-            insert_reason=refused,
-            delete_reason=refused,
+            row_handles=[handle_of(shape, row) for row in cells],
+            references=[
+                FetchReference(
+                    name=key.name,
+                    columns=key.columns,
+                    target_title=f"{key.target_schema or facts.schema}.{key.target_table}",
+                )
+                for key in facts.foreign_keys
+            ],
+            update_supported=shape.update_supported,
+            update_reason=shape.update_reason,
+            insert_supported=shape.insert_supported,
+            insert_reason=shape.insert_reason,
+            delete_supported=shape.update_supported,
+            delete_reason=shape.update_reason,
         )
-
-
-def _columns(facts: RelationFacts) -> list[FetchColumn]:
-    columns: list[FetchColumn] = []
-    for column in facts.columns:
-        sortable, operators = column_capabilities(column.type)
-        columns.append(
-            FetchColumn(
-                name=column.name,
-                type=column.type,
-                sortable=sortable,
-                filter_operators=operators,
-                nullable=column.nullable,
-                has_default=column.default is not None or column.auto_increment,
-            )
-        )
-    return columns
 
 
 def _condition(filter_: Filter, known: dict[str, FetchColumn], params: list[Any]) -> Composable:

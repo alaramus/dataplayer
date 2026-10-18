@@ -20,11 +20,13 @@ from app.adapters.mysql.session import options_from_url, read_profile
 from app.adapters.protocol import (
     DataAdapter,
     NodeNotFound,
+    SupportsAddColumn,
     SupportsCatalog,
     SupportsContent,
     SupportsFetch,
     SupportsNodePath,
     SupportsNodeSummary,
+    SupportsReferences,
     SupportsRelationModel,
     SupportsUpdate,
 )
@@ -90,8 +92,10 @@ def test_it_claims_only_what_it_does() -> None:
     ):
         assert isinstance(adapter, capability)
     assert isinstance(adapter, SupportsQuery)
-    # Not yet: rows are read and not written from the grid.
-    assert not isinstance(adapter, SupportsUpdate)
+    assert isinstance(adapter, SupportsUpdate)
+    assert isinstance(adapter, SupportsReferences)
+    # Not yet: the structure is read and not changed.
+    assert not isinstance(adapter, SupportsAddColumn)
 
 
 def test_a_server_is_read_as_its_flavour_and_number() -> None:
@@ -359,8 +363,8 @@ async def test_every_value_crosses_as_its_canonical_text(target: Target) -> None
     assert second["spent"] == "100:00:01"
     assert first["doubled"] == "10"
     assert second["100%"] is None
-    assert not result.update_supported and result.update_reason
-    assert not result.delete_supported
+    assert result.update_supported and result.delete_supported
+    assert all(handle is not None for handle in result.row_handles)
 
 
 async def test_pages_follow_the_key_and_say_when_there_is_more(target: Target) -> None:
