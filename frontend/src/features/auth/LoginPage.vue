@@ -9,13 +9,16 @@ import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { t } from "@/shared/i18n"
 import { safeLocalPath } from "@/shared/servers/profiles"
 import { useServersStore } from "@/stores/servers"
-import { AppBanner, AppButton, AppCard, AppForm, AppInput } from "@/shared/ui"
+import { AppBanner, AppButton, AppForm, AppInput } from "@/shared/ui"
 
 const router = useRouter()
 const route = useRoute()
 const login = useLogin()
 const servers = useServersStore()
 const serverStatus = useActiveServerCheck()
+
+/** The product's name, which no language translates. */
+const PRODUCT = "DataPlayer"
 
 /**
  * Where to go once signed in.
@@ -57,12 +60,36 @@ async function submit() {
 
 <template>
   <div class="login-page">
-    <AppCard
-      size="xs"
-      :title="t('auth.sign_in')"
+    <!-- The welcome half says what the product is before anyone has an
+         account; it is decoration, so the form is the page's one landmark. -->
+    <section
+      class="login-welcome"
+      aria-hidden="true"
     >
-      <q-form @submit.prevent="submit">
+      <div class="login-welcome-body">
+        <img
+          class="login-logo"
+          src="/icons/logodp.svg"
+          alt=""
+        >
+        <div class="login-product">
+          {{ PRODUCT }}
+        </div>
+        <p class="login-tagline">
+          {{ t('auth.welcome_tagline') }}
+        </p>
+      </div>
+    </section>
+    <main class="login-side">
+      <q-form
+        class="login-form"
+        @submit.prevent="submit"
+      >
         <AppForm layout="section">
+          <h1 class="dp-page-title login-title">
+            {{ t('auth.sign_in') }}
+          </h1>
+          <q-separator />
           <div class="login-server">
             <ServerSwitcher />
             <div class="login-server-url">
@@ -87,6 +114,7 @@ async function submit() {
               @click="serverStatus.refetch()"
             />
           </AppBanner>
+          <q-separator />
           <AppInput
             v-model="username"
             :label="t('auth.email')"
@@ -112,8 +140,6 @@ async function submit() {
           >
             {{ t('auth.sign_in_failed') }}
           </AppBanner>
-          <!-- In the form's own column, so its edges are the fields' edges:
-               in the card's actions it stood 8px past them on each side. -->
           <AppButton
             type="submit"
             :label="t('auth.sign_in')"
@@ -123,13 +149,20 @@ async function submit() {
           />
         </AppForm>
       </q-form>
-    </AppCard>
+    </main>
   </div>
 </template>
 
 <style scoped>
-/* The ground of the application's chrome, as behind every other card. */
-.login-page { min-height: 100vh; display: grid; place-items: center; padding: var(--dp-space-4); background: var(--dp-chrome-raised); }
+.login-page { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: var(--dp-surface); }
+.login-welcome { display: grid; place-items: center; padding: var(--dp-space-5); background: linear-gradient(160deg, var(--dp-chrome) 0%, var(--dp-chrome-raised) 100%); border-right: 1px solid var(--dp-border); }
+.login-welcome-body { display: flex; flex-direction: column; align-items: center; gap: var(--dp-space-3); max-width: var(--dp-width-text); text-align: center; }
+.login-logo { width: var(--dp-width-name); max-width: 50%; height: auto; margin-bottom: var(--dp-space-3); }
+.login-product { font-size: var(--dp-font-size-display); font-weight: 600; color: var(--dp-text); }
+.login-tagline { margin: 0; font-size: var(--dp-font-size-lg); color: var(--dp-text-muted); }
+.login-side { display: grid; place-items: center; padding: var(--dp-space-5); }
+.login-form { width: 100%; max-width: var(--dp-width-popover); }
+.login-title { text-align: center; }
 /* Content-sized and at the start of the column, not stretched across it with
    its icon and name floating in the middle. */
 .login-server { display: flex; flex-direction: column; align-items: flex-start; gap: var(--dp-space-1); }

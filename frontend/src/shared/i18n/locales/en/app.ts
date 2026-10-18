@@ -18,6 +18,7 @@ export const auth = {
   checking_server: "Checking server…",
   retry_connection: "Retry connection",
   sign_in_failed: "Could not sign in. Check the email and password.",
+  welcome_tagline: "One place for every data source you work with",
 }
 
 export const theme = {

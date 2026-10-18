@@ -19,6 +19,7 @@ export const auth: Messages["auth"] = {
   checking_server: "Проверка сервера…",
   retry_connection: "Повторить подключение",
   sign_in_failed: "Не удалось войти. Проверьте адрес эл. почты и пароль.",
+  welcome_tagline: "Одно место для всех ваших источников данных",
 }
 
 export const theme: Messages["theme"] = {
