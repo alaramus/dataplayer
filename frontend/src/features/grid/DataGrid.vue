@@ -1574,9 +1574,7 @@ defineExpose({
     <template #cell-overlay="{ row, column, value }">
       <!-- A corner mark rather than a button in the cell: a way out belongs to
            the value, and an icon the size of a button was drawn over the value
-           it belongs to. An empty `title` is not decoration — the cell carries the
-           browser's own hint about editing, and without an empty one here that
-           hint was drawn beside this tooltip whenever the mark was hovered. -->
+           it belongs to. -->
       <button
         v-for="(reference, index) in cellReferences(column.id, value)"
         :key="reference.name"
