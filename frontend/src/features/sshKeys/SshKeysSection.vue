@@ -99,12 +99,14 @@ async function remove(key: SshKeyPublic) {
       </div>
       <div class="ssh-keys__buttons">
         <AppButton
+          size="sm"
           :icon="appIcons.createSshKey"
           :label="t('ssh_keys.section.new_key')"
           data-testid="ssh-key-new"
           @click="making = 'generate'"
         />
         <AppButton
+          size="sm"
           variant="quiet"
           :icon="appIcons.importSshKey"
           :label="t('ssh_keys.section.import')"
@@ -221,9 +223,9 @@ async function remove(key: SshKeyPublic) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Wrapped rather than squeezed: in the 260px side column the two Russian
-   labels did not fit side by side, and a squeezed button stood its icon
-   above its label. */
+/* One row in every language: small buttons and short labels («Импорт») fit
+   the 260px side column. Should one ever not, it wraps rather than squeezes:
+   a squeezed button stood its icon above its label. */
 .ssh-keys__buttons {
   display: flex;
   flex-wrap: wrap;

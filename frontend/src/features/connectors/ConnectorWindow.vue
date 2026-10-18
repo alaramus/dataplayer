@@ -810,12 +810,14 @@ async function parseTyped(text: string) {
             </span>
             <div class="connector-window__ssh-keys-buttons">
               <AppButton
+                size="sm"
                 :icon="appIcons.createSshKey"
                 :label="t('ssh_keys.section.new_key')"
                 data-testid="connector-ssh-key-new"
                 @click="makingKey = 'generate'"
               />
               <AppButton
+                size="sm"
                 variant="quiet"
                 :icon="appIcons.importSshKey"
                 :label="t('ssh_keys.section.import')"
@@ -1104,8 +1106,8 @@ async function parseTyped(text: string) {
   flex-direction: column;
   gap: var(--dp-space-2);
 }
-/* Wrapped rather than squeezed, as in Preferences: a squeezed button stood
-   its icon above its label. */
+/* As in Preferences: one row, wrapping rather than squeezing should a
+   language not fit; a squeezed button stood its icon above its label. */
 .connector-window__ssh-keys-buttons {
   display: flex;
   flex-wrap: wrap;
