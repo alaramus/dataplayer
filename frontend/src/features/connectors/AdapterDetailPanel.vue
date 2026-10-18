@@ -148,6 +148,7 @@ const groups = computed(() =>
           @click="openGuide(type.guide)"
         />
         <AppButton
+          class="adapter-panel__create"
           :label="t('connectors.panel.create')"
           data-testid="create-from-catalog"
           @click="emit('create')"
@@ -243,15 +244,12 @@ const groups = computed(() =>
   padding-left: var(--dp-space-4);
   line-height: var(--dp-line-height);
 }
-/* One command a row: side by side, «Руководство» and «Создать подключение»
-   did not fit the panel, and the squeezed guide stood its icon above its
-   label. At the right edge and their own width, so the guide window, which
-   opens over the left of the panel, leaves Create in reach. */
 .adapter-panel__commands {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--dp-space-1);
+  gap: var(--dp-space-2);
+}
+.adapter-panel__create {
+  flex: 1;
 }
 .adapter-panel__foot {
   flex: none;
