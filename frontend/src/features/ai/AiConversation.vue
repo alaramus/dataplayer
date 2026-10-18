@@ -938,7 +938,6 @@ onBeforeUnmount(() => {
    to the send button at its end. */
 /* Wide enough for the name beside the value as well as the value. */
 .ai-conversation__model, .ai-conversation__policy { flex: 0 1 260px; min-width: 120px; }
-/* "Спрашивать перед изменениями" needs about 300px; it still gives way in a narrow chat. */
 .ai-conversation__policy { flex-basis: 304px; }
 .ai-context-chip { display: inline-flex; align-items: center; max-width: 100%; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text); }
 .ai-context-chip__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

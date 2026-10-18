@@ -223,9 +223,6 @@ async function remove(key: SshKeyPublic) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* One row in every language: small buttons and short labels («Импорт») fit
-   the 260px side column. Should one ever not, it wraps rather than squeezes:
-   a squeezed button stood its icon above its label. */
 .ssh-keys__buttons {
   display: flex;
   flex-wrap: wrap;

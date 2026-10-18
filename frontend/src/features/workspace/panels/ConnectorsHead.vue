@@ -86,8 +86,6 @@ function closeFilter() {
 </template>
 
 <style scoped>
-/* No gap between the buttons: a 32px icon button carries its own air, and
-   the 12px three gaps took was what cut "Подключения" at the default width. */
 .connectors-head {
   display: flex;
   align-items: center;
