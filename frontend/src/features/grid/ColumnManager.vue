@@ -43,7 +43,7 @@ function togglePin(columnName: string) {
   >
     <!-- One row, scrolling sideways: items keep their text width and never
          wrap, so narrowing the panel scrolls instead of restacking them. -->
-    <div class="column-manager__items">
+    <div class="column-manager__items dp-scroll-edges">
       <div
         v-for="(column, index) in orderedColumns"
         :key="column.id"

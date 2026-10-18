@@ -569,10 +569,13 @@ defineExpose({
 }
 
 /* Like a connection's row (ConnectorList): edge to edge and square, one row
-   tall — not a rounded entry inset by the list's padding. */
+   tall — not a rounded entry inset by the list's padding. Its name starts
+   where the heading's does, 8px in; a dense button's own 6px stood it 2px
+   to the left. */
 .dashboards__list .dashboards__entry {
   width: 100%;
   min-height: var(--dp-row-height);
+  padding-inline: var(--dp-space-2);
   border-radius: 0;
 }
 

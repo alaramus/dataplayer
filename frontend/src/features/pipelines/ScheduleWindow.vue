@@ -150,6 +150,7 @@ async function save() {
           :key="index"
           :model-value="time"
           type="time"
+          class="schedule-window__time"
           :label="index === 0 ? t('pipelines.schedule.window.at') : t('pipelines.schedule.window.and_at')"
           :disable="off"
           :data-testid="`schedule-time-${index}`"
@@ -227,6 +228,10 @@ async function save() {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--dp-space-2);
+}
+/* Five characters: across the whole window "03:00" read as a lost value. */
+.schedule-window__time {
+  max-width: var(--dp-width-name);
 }
 .schedule-window__zone {
   color: var(--dp-text-muted);

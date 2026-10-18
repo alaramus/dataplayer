@@ -194,4 +194,13 @@ function report(value: string | number | null) {
   padding-top: 0;
   padding-bottom: 0;
 }
+/* A line under a text field in a toolbar, as under the catalog's filter. A
+   select there shows its arrow; an empty text field showed only its
+   placeholder and read as a label — the grid's filter «Значение». */
+.app-input--compact.dp-toolbar-field:not(.q-textarea) :deep(.q-field__control) {
+  box-shadow: inset 0 -1px 0 var(--dp-border);
+}
+.app-input--compact.dp-toolbar-field.q-field--focused :deep(.q-field__control) {
+  box-shadow: inset 0 -1px 0 var(--dp-focus-border);
+}
 </style>
