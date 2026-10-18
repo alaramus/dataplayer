@@ -64,6 +64,15 @@
   },
   {
     "provider": "gemini",
+    "id": "gemini-4-argon",
+    "name": "Gemini 4 Argon",
+    "context_window": 1048576,
+    "max_output_tokens": 65536,
+    "reasoning": true,
+    "image_input": true
+  },
+  {
+    "provider": "gemini",
     "id": "gemini-3.1-pro-preview",
     "name": "Gemini 3.1 Pro",
     "context_window": 1048576,
