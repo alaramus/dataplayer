@@ -110,7 +110,12 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
-    :class="{ 'app-form-field': formLayout, 'app-input--monospace': monospace, 'app-input--compact': toolbar, 'dp-toolbar-field': toolbar }"
+    :class="{
+      'app-form-field': formLayout,
+      'app-input--monospace': monospace,
+      'app-input--compact': toolbar,
+      'dp-toolbar-field': toolbar,
+    }"
     v-bind="{ ...attrs, ...fieldLook(formLayout, compact) }"
     :model-value="modelValue"
     :label="formLayout || toolbar ? undefined : label"
@@ -126,33 +131,25 @@ function report(value: string | number | null) {
     :no-error-icon="toolbar"
     :aria-invalid="error ? 'true' : undefined"
     :aria-describedby="
-      [attrs['aria-describedby'], error ? errorId : undefined].filter(Boolean).join(' ') || undefined
+      [attrs['aria-describedby'], error ? errorId : undefined].filter(Boolean).join(' ') ||
+      undefined
     "
     @update:model-value="report"
     @focus="emit('focus')"
     @blur="emit('blur')"
   >
-    <template
-      v-if="formLayout && label"
-      #before
-    >
+    <template v-if="formLayout && label" #before>
       <span>{{ label }}</span>
     </template>
     <template #error>
-      <span
-        :id="errorId"
-        role="alert"
-      >{{ error }}</span>
+      <span :id="errorId" role="alert">{{ error }}</span>
     </template>
     <!-- Popups belong to the whole field, not to its trailing action area. -->
     <slot />
     <!-- Forwarded rather than left to fall through: a slot does not fall
          through at all, so a search field had no way to carry its magnifier
          except by going around the kit. -->
-    <template
-      v-if="$slots.prepend || prependIcon"
-      #prepend
-    >
+    <template v-if="$slots.prepend || prependIcon" #prepend>
       <slot name="prepend">
         <q-icon :name="prependIcon" />
       </slot>
@@ -161,10 +158,7 @@ function report(value: string | number | null) {
          area. It is centred against the 56px control there, while the 20px
          message area stays underneath; a flex row around the whole field
          otherwise puts the button one message line too low. -->
-    <template
-      v-if="$slots.after"
-      #after
-    >
+    <template v-if="$slots.after" #after>
       <slot name="after" />
     </template>
   </q-input>
@@ -196,7 +190,7 @@ function report(value: string | number | null) {
 }
 /* A line under a text field in a toolbar, as under the catalog's filter. A
    select there shows its arrow; an empty text field showed only its
-   placeholder and read as a label — the grid's filter «Значение». */
+   placeholder and read as a label — the grid's filter «Meaning». */
 .app-input--compact.dp-toolbar-field:not(.q-textarea) :deep(.q-field__control) {
   box-shadow: inset 0 -1px 0 var(--dp-border);
 }
