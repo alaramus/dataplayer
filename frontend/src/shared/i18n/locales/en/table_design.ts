@@ -85,7 +85,7 @@ export const table_design = {
   navigation: {
     aria: "Table definition",
     options: "Options",
-    constraints_row: "Primary / unique / checks",
+    constraints_row: "Keys and checks",
     storage: "Storage & partitioning",
     hypertable: "Hypertable",
     hypertable_off: "Hypertable · off",

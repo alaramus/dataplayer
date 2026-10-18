@@ -88,7 +88,7 @@ const strategies = computed(() => [
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--dp-space-3);
-  align-items: start;
+  align-items: end;
 }
 @container table-designer (max-width: 560px) {
   .inspector__row {

@@ -86,7 +86,7 @@ export const table_design: Messages["table_design"] = {
   navigation: {
     aria: "Определение таблицы",
     options: "Параметры",
-    constraints_row: "Первичный ключ / уникальность / проверки",
+    constraints_row: "Ключи и проверки",
     storage: "Хранение и секционирование",
     hypertable: "Гипертаблица",
     hypertable_off: "Гипертаблица · выкл.",

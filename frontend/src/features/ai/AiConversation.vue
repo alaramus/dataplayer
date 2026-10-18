@@ -928,7 +928,8 @@ onBeforeUnmount(() => {
 .ai-conversation__composer { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--dp-space-2); width: 100%; max-width: var(--dp-page-max-width); margin: 0 auto; padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface-raised); box-shadow: 0 8px 24px var(--dp-shadow-soft); }
 .ai-conversation__contexts { display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-conversation__picker { display: none; }
-.ai-conversation__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dp-space-2); }
+/* One row: the two choices give way before anything wraps. Wrapped, at 1024px the microphone went down a line on its own. */
+.ai-conversation__tools { display: flex; align-items: center; gap: var(--dp-space-2); }
 .ai-conversation__composer :deep(.q-field:not(.app-select--framed) .q-field__control) { background: transparent; }
 .ai-conversation__composer :deep(.q-field:not(.app-select--framed) .q-field__control::before) { border-color: transparent; }
 .ai-conversation__composer :deep(.q-field--focused .q-field__control::after) { border-color: var(--dp-field-border); }

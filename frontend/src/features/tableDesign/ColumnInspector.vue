@@ -236,7 +236,7 @@ function changeDefault(value: string): void {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--dp-space-3);
-  align-items: start;
+  align-items: end;
 }
 .inspector__row > * {
   min-width: 0;
