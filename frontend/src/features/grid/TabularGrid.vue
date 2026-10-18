@@ -397,6 +397,15 @@ watch(selectedRowIndexes, (indexes) => {
  * a cell is a component a cell, thousands on a full page.
  */
 const pointedRow = ref<string | null>(null)
+/**
+ * The cell whose overlay is under the pointer. A mark there carries its own
+ * tooltip, and the cell's hint about editing was drawn beside it.
+ */
+const pointedOverlay = ref<string | null>(null)
+function pointCell(cellId: string, event: MouseEvent): void {
+  const target = event.target as Element | null
+  pointedOverlay.value = target?.closest(".data-grid__overlay") ? cellId : null
+}
 /** What adds a row on this platform: Ctrl+click opens the menu on a Mac. */
 const addKey = onMac() ? "⌘" : "Ctrl"
 
@@ -861,10 +870,17 @@ defineExpose({
               @mousedown="startSelection(cell, $event)"
               @mouseenter="cell.getSelectionExtendHandler()($event)"
               @dblclick="openCell(cell, $event)"
+              @mouseover="pointCell(cell.id, $event)"
             >
               <!-- The kit tooltip rather than the browser's own `title`, on
                    the row under the pointer only (pointedRow). -->
-              <AppTooltip v-if="pointedRow === row.id && cellTitle(cell) !== undefined">
+              <AppTooltip
+                v-if="
+                  pointedRow === row.id &&
+                    pointedOverlay !== cell.id &&
+                    cellTitle(cell) !== undefined
+                "
+              >
                 {{ cellTitle(cell) }}
               </AppTooltip>
               <span
@@ -874,13 +890,15 @@ defineExpose({
                   'data-grid__monospace': presentCell(cell).monospace === true,
                 }"
               >{{ presentCell(cell).text }}</span>
-              <slot
-                name="cell-overlay"
-                :row="row.original"
-                :column="columnOf(columns, cell.column.id)!"
-                :value="cellValue(cell)"
-                :visible-columns="visibleColumns"
-              />
+              <span class="data-grid__overlay">
+                <slot
+                  name="cell-overlay"
+                  :row="row.original"
+                  :column="columnOf(columns, cell.column.id)!"
+                  :value="cellValue(cell)"
+                  :visible-columns="visibleColumns"
+                />
+              </span>
             </td>
           </tr>
           <slot
@@ -1179,6 +1197,11 @@ defineExpose({
 
 .data-grid__editable {
   cursor: cell;
+}
+
+/* A box of its own would move the overlay's positioning off the cell. */
+.data-grid__overlay {
+  display: contents;
 }
 
 .data-grid__value {
