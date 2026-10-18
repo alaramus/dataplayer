@@ -9,20 +9,173 @@ export const HEADER_HEIGHT = 52
 export const ROW_HEIGHT = 24
 export const nodeHeight = (node: GraphNode, expanded: boolean) => HEADER_HEIGHT + (expanded ? node.rows.length * ROW_HEIGHT : 0)
 
-export function arrange(graph: GraphDocument, expanded: boolean) {
+/** The rough shape packed groups aim at: a screen's, not a column's. */
+const TARGET_ASPECT = 16 / 9
+/** Between two packed groups: a rank's gap, so a group reads as one. */
+const GROUP_GAP = 140
+const MARGIN = 32
+
+interface Block {
+  /** Positions inside the block, its top left corner at 0, 0. */
+  positions: Record<string, Point2>
+  width: number
+  height: number
+}
+
+/** Nodes joined by any edge, each group in a stable order; a node alone is a group of one. */
+function groups(graph: GraphDocument): string[][] {
+  const parent = new Map(graph.nodes.map((node) => [node.id, node.id]))
+  const root = (id: string): string => {
+    let at = id
+    while (parent.get(at) !== at) at = parent.get(at)!
+    parent.set(id, at)
+    return at
+  }
+  for (const edge of graph.edges) {
+    if (!parent.has(edge.source.nodeId) || !parent.has(edge.target.nodeId)) continue
+    const a = root(edge.source.nodeId)
+    const b = root(edge.target.nodeId)
+    if (a !== b) parent.set(a < b ? b : a, a < b ? a : b)
+  }
+  const byRoot = new Map<string, string[]>()
+  for (const node of [...graph.nodes].sort((a, b) => a.id.localeCompare(b.id))) {
+    const key = root(node.id)
+    byRoot.set(key, [...(byRoot.get(key) ?? []), node.id])
+  }
+  return [...byRoot.values()]
+}
+
+const RANK_GAP = 140
+const NODE_GAP = 64
+
+/**
+ * A rank too tall for the target shape, as several columns side by side, in
+ * Dagre's order. A schema where every table names its owner puts forty cards
+ * in the one rank before `user`: packing whole groups cannot shorten a group
+ * that is itself a column. Cards in one rank have no key between them, so
+ * splitting it crosses no edge.
+ */
+function wrapRanks(nodes: readonly GraphNode[], positions: Record<string, Point2>, expanded: boolean): Record<string, Point2> {
+  const byRank = new Map<number, GraphNode[]>()
+  for (const node of nodes) {
+    const x = Math.round(positions[node.id]!.x)
+    byRank.set(x, [...(byRank.get(x) ?? []), node])
+  }
+  const ranks = [...byRank.entries()].sort(([a], [b]) => a - b)
+    .map(([, members]) => members.sort((a, b) => positions[a.id]!.y - positions[b.id]!.y))
+  const height = (members: readonly GraphNode[]) =>
+    members.reduce((sum, node) => sum + nodeHeight(node, expanded), 0) + NODE_GAP * (members.length - 1)
+  const columnsOf = (members: readonly GraphNode[], perColumn: number) =>
+    Array.from({ length: Math.ceil(members.length / perColumn) }, (_, i) => members.slice(i * perColumn, (i + 1) * perColumn))
+  const shapeOf = (perColumn: number) => {
+    const columns = ranks.map((members) => columnsOf(members, perColumn))
+    const count = columns.reduce((sum, rank) => sum + rank.length, 0)
+    const width = count * (CARD_WIDTH + NODE_GAP) - NODE_GAP + (ranks.length - 1) * (RANK_GAP - NODE_GAP)
+    return { columns, width, height: Math.max(...columns.flat().map(height)) }
+  }
+  const tallest = Math.max(...ranks.map((members) => members.length))
+  let best = shapeOf(tallest)
+  for (let perColumn = tallest - 1; perColumn >= 3; perColumn--) {
+    const shape = shapeOf(perColumn)
+    const miss = (one: { width: number; height: number }) => Math.abs(Math.log(one.width / one.height / TARGET_ASPECT))
+    if (miss(shape) < miss(best)) best = shape
+  }
+  const placed: Record<string, Point2> = {}
+  let x = 0
+  for (const rank of best.columns) {
+    for (const column of rank) {
+      let y = (best.height - height(column)) / 2
+      for (const node of column) {
+        placed[node.id] = { x, y }
+        y += nodeHeight(node, expanded) + NODE_GAP
+      }
+      x += CARD_WIDTH + NODE_GAP
+    }
+    x += RANK_GAP - NODE_GAP
+  }
+  return placed
+}
+
+function dagreBlock(graph: GraphDocument, ids: readonly string[], expanded: boolean): Block {
+  const members = new Set(ids)
+  const nodes = graph.nodes.filter((node) => members.has(node.id)).sort((a, b) => a.id.localeCompare(b.id))
   const dag = new Graph<GraphLabel, NodeLabel, EdgeLabel>({ multigraph: true })
-  dag.setGraph({ rankdir: "LR", ranksep: 140, nodesep: 64, marginx: 32, marginy: 32 })
+  dag.setGraph({ rankdir: "LR", ranksep: RANK_GAP, nodesep: NODE_GAP, marginx: 0, marginy: 0 })
   dag.setDefaultEdgeLabel(() => ({}))
-  const ordered = [...graph.nodes].sort((a, b) => a.id.localeCompare(b.id))
-  for (const node of ordered) dag.setNode(node.id, { width: CARD_WIDTH, height: nodeHeight(node, expanded) })
+  for (const node of nodes) dag.setNode(node.id, { width: CARD_WIDTH, height: nodeHeight(node, expanded) })
   for (const edge of [...graph.edges].sort((a, b) => a.id.localeCompare(b.id))) {
-    dag.setEdge(edge.source.nodeId, edge.target.nodeId, {}, edge.id)
+    if (members.has(edge.source.nodeId) && members.has(edge.target.nodeId)) {
+      dag.setEdge(edge.source.nodeId, edge.target.nodeId, {}, edge.id)
+    }
   }
   layout(dag)
-  const positions2: Record<string, Point2> = Object.fromEntries(ordered.map((node) => {
+  const positions = Object.fromEntries(nodes.map((node) => {
     const placed = dag.node(node.id)
     return [node.id, { x: (placed.x ?? 0) - CARD_WIDTH / 2, y: (placed.y ?? 0) - nodeHeight(node, expanded) / 2 }]
   }))
+  return normalised(wrapRanks(nodes, positions, expanded), nodes, expanded)
+}
+
+/** Nodes with no edge at all, as one grid of the target shape rather than one card each. */
+function gridBlock(graph: GraphDocument, ids: readonly string[], expanded: boolean): Block {
+  const nodes = graph.nodes.filter((node) => ids.includes(node.id)).sort((a, b) => a.id.localeCompare(b.id))
+  const cell = Math.max(...nodes.map((node) => nodeHeight(node, expanded)))
+  const columns = Math.max(1, Math.round(Math.sqrt(nodes.length * TARGET_ASPECT * (cell + 64) / (CARD_WIDTH + 64))))
+  const positions = Object.fromEntries(nodes.map((node, index) => [
+    node.id,
+    { x: (index % columns) * (CARD_WIDTH + 64), y: Math.floor(index / columns) * (cell + 64) },
+  ]))
+  return normalised(positions, nodes, expanded)
+}
+
+function normalised(positions: Record<string, Point2>, nodes: readonly GraphNode[], expanded: boolean): Block {
+  const left = Math.min(...nodes.map((node) => positions[node.id]!.x))
+  const top = Math.min(...nodes.map((node) => positions[node.id]!.y))
+  const moved = Object.fromEntries(nodes.map((node) => [node.id, { x: positions[node.id]!.x - left, y: positions[node.id]!.y - top }]))
+  return {
+    positions: moved,
+    width: Math.max(...nodes.map((node) => moved[node.id]!.x + CARD_WIDTH)),
+    height: Math.max(...nodes.map((node) => moved[node.id]!.y + nodeHeight(node, expanded))),
+  }
+}
+
+/**
+ * Blocks in rows, tallest first, each row as wide as the whole should be for
+ * the target shape. One pass of Dagre over a whole database put every table
+ * in two or three ranks, a column dozens of cards tall that Fit could only
+ * show too small to read.
+ */
+function pack(blocks: readonly Block[]): Record<string, Point2> {
+  const area = blocks.reduce((sum, block) => sum + (block.width + GROUP_GAP) * (block.height + GROUP_GAP), 0)
+  const rowWidth = Math.max(...blocks.map((block) => block.width), Math.sqrt(area * TARGET_ASPECT))
+  const positions: Record<string, Point2> = {}
+  let x = 0
+  let y = 0
+  let rowHeight = 0
+  for (const block of blocks) {
+    if (x > 0 && x + block.width > rowWidth) {
+      x = 0
+      y += rowHeight + GROUP_GAP
+      rowHeight = 0
+    }
+    for (const [id, point] of Object.entries(block.positions)) {
+      positions[id] = { x: MARGIN + x + point.x, y: MARGIN + y + point.y }
+    }
+    x += block.width + GROUP_GAP
+    rowHeight = Math.max(rowHeight, block.height)
+  }
+  return positions
+}
+
+export function arrange(graph: GraphDocument, expanded: boolean) {
+  const found = groups(graph)
+  const linked = found.filter((ids) => ids.length > 1)
+  const alone = found.filter((ids) => ids.length === 1).flat()
+  const blocks = [
+    ...linked.map((ids) => dagreBlock(graph, ids, expanded)).sort((a, b) => b.height - a.height),
+    ...(alone.length ? [gridBlock(graph, alone, expanded)] : []),
+  ]
+  const positions2: Record<string, Point2> = blocks.length ? pack(blocks) : {}
   const positions3: Record<string, Point3> = arrange3(graph, positions2)
   return { positions2, positions3 }
 }

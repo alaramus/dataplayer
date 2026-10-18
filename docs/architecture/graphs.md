@@ -42,7 +42,11 @@ Only outgoing foreign keys of loaded tables are claimed; unseen incoming
 references are not inferred. Graph bounds are 300 nodes, 5,000 rows/ports and
 1,000 edges; oversize input is refused without truncation.
 
-Dagre lays out the 2D cards. SVG edges attach to fields or node headers.
+Dagre lays out the 2D cards, one connected group at a time; a rank too tall
+for a screen's shape wraps into adjacent columns, and the groups, with the
+unlinked cards as one grid, are packed in rows towards 16:9. One pass over a
+whole schema stood it in two or three ranks, a column Fit could only show too
+small to read. SVG edges attach to fields or node headers.
 The 3D layout starts from Dagre's sketch, seeds depth by stable node identity,
 then runs d3-force-3d with link, charge, collision, center and weak sketch
 forces. Nodes can move in all three dimensions rather than staying on fixed

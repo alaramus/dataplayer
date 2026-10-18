@@ -24,6 +24,77 @@ describe("graph geometry", () => {
     }
   })
 
+  it("packs a database of many small groups into the shape of a screen, not a column", () => {
+    // Sixty tables: twenty pairs joined by a key and twenty tables alone, the
+    // shape of an ordinary schema. One Dagre pass stood them in two ranks, a
+    // column about six times taller than wide.
+    const nodes = Array.from({ length: 60 }, (_, i) => ({
+      id: `t${String(i).padStart(2, "0")}`,
+      label: `t${i}`,
+      rows: [{ id: "id", label: "id" }, { id: "ref", label: "ref" }],
+    }))
+    const edges = Array.from({ length: 20 }, (_, i) => ({
+      id: `e${i}`,
+      source: { nodeId: nodes[i * 2]!.id },
+      target: { nodeId: nodes[i * 2 + 1]!.id },
+      label: "",
+      directed: true,
+    }))
+    const graph = { nodes, edges, groups: [] }
+    const { positions2 } = arrange(graph, true)
+    const xs = nodes.map((node) => positions2[node.id]!.x)
+    const ys = nodes.map((node) => positions2[node.id]!.y)
+    const width = Math.max(...xs) + CARD_WIDTH - Math.min(...xs)
+    const height = Math.max(...ys.map((y, i) => y + nodeHeight(nodes[i]!, true))) - Math.min(...ys)
+    expect(width / height).toBeGreaterThan(1)
+    expect(width / height).toBeLessThan(3)
+    // A key still reads from left to right inside its group.
+    for (const edge of edges) {
+      expect(positions2[edge.source.nodeId]!.x).toBeLessThan(positions2[edge.target.nodeId]!.x)
+    }
+    for (const [index, a] of nodes.entries()) {
+      const p = positions2[a.id]!
+      for (const b of nodes.slice(index + 1)) {
+        const q = positions2[b.id]!
+        expect(p.x + CARD_WIDTH <= q.x || q.x + CARD_WIDTH <= p.x || p.y + nodeHeight(a, true) <= q.y || q.y + nodeHeight(b, true) <= p.y).toBe(true)
+      }
+    }
+  })
+
+  it("wraps a rank of forty cards that all name one table into columns", () => {
+    // Every table names its owner: one group, one rank before `user` forty
+    // cards tall, which packing whole groups cannot shorten.
+    const owner = { id: "user", label: "user", rows: [{ id: "id", label: "id" }] }
+    const tables = Array.from({ length: 40 }, (_, i) => ({
+      id: `t${String(i).padStart(2, "0")}`,
+      label: `t${i}`,
+      rows: [{ id: "id", label: "id" }, { id: "owner_id", label: "owner_id" }],
+    }))
+    const nodes = [owner, ...tables]
+    const edges = tables.map((table) => ({
+      id: `${table.id}-owner`,
+      source: { nodeId: table.id, portIds: ["owner_id"] },
+      target: { nodeId: "user", portIds: ["id"] },
+      label: "",
+      directed: true,
+    }))
+    const { positions2 } = arrange({ nodes, edges, groups: [] }, true)
+    const xs = nodes.map((node) => positions2[node.id]!.x)
+    const ys = nodes.map((node) => positions2[node.id]!.y)
+    const width = Math.max(...xs) + CARD_WIDTH - Math.min(...xs)
+    const height = Math.max(...ys.map((y, i) => y + nodeHeight(nodes[i]!, true))) - Math.min(...ys)
+    expect(width / height).toBeGreaterThan(1)
+    expect(width / height).toBeLessThan(3)
+    for (const table of tables) expect(positions2[table.id]!.x + CARD_WIDTH).toBeLessThan(positions2.user!.x)
+    for (const [index, a] of nodes.entries()) {
+      const p = positions2[a.id]!
+      for (const b of nodes.slice(index + 1)) {
+        const q = positions2[b.id]!
+        expect(p.x + CARD_WIDTH <= q.x || q.x + CARD_WIDTH <= p.x || p.y + nodeHeight(a, true) <= q.y || q.y + nodeHeight(b, true) <= p.y).toBe(true)
+      }
+    }
+  })
+
   it("fits every card into the viewport and keeps the cursor's world point when zooming", () => {
     const { positions2 } = arrange(deliveryGraph, true)
     const camera = fit2(deliveryGraph, positions2, true, 900, 500)
