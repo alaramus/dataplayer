@@ -50,6 +50,9 @@ _PROTOCOLS = {
     # An SSH server speaks first, with its version line; saying ours is polite
     # and changes nothing.
     "ssh": _Protocol(22, b"SSH-2.0-dataplayer-probe\r\n", (b"S",)),
+    # MySQL and MariaDB speak first as well, with a handshake whose first byte
+    # is its length: any byte at all is the server, and a closed socket is not.
+    "mysql": _Protocol(3306, b"", (b"",)),
 }
 
 _required = False
@@ -132,7 +135,26 @@ SSH = Server(
     ),
 )
 
-SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH)
+# The development MySQL and MariaDB (`mysql` and `mariadb` in
+# compose.override.yml), signing in as root. Both, because the one source
+# type speaks to both and they differ where the catalog looks (D228).
+MYSQL = Server(
+    name="MySQL",
+    variable="TEST_MYSQL_URL",
+    start="docker compose up -d mysql",
+    read=lambda: os.environ.get("TEST_MYSQL_URL", "mysql://root:dataplayer@127.0.0.1:3307"),
+)
+
+MARIADB = Server(
+    name="MariaDB",
+    variable="TEST_MARIADB_URL",
+    start="docker compose up -d mariadb",
+    read=lambda: os.environ.get(
+        "TEST_MARIADB_URL", "mysql://root:dataplayer@127.0.0.1:3308"
+    ),
+)
+
+SERVERS = (POSTGRES, REDIS, TIMESCALE, SSH, MYSQL, MARIADB)
 
 
 def require_all() -> None:

@@ -10,6 +10,7 @@
  */
 const ICONS: Record<string, string> = {
   postgres: "img:/icons/services/postgresql.svg",
+  mysql: "img:/icons/services/mysql.svg",
   redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
   ssh: "img:/icons/services/ssh.svg",

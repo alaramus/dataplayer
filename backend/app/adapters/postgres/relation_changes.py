@@ -12,7 +12,6 @@ from app.adapters.postgres.column_types import (
 )
 from app.adapters.postgres.counting import unreadable_values
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.words import worded_titles
 from app.adapters.relation import ColumnTypeOption
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -21,6 +20,7 @@ from app.adapters.relation_changes import (
     RelationCreated,
 )
 from app.adapters.update import RejectedValue, ValuesRejected
+from app.adapters.words import worded_titles
 from app.core.translation import N_, say
 
 # What a refused creation means, by SQLSTATE. The code is safe to look at and

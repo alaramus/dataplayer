@@ -74,7 +74,6 @@ from app.adapters.postgres.timescale.design_create import (
     hypertable_offer,
 )
 from app.adapters.postgres.timescale.design_state import UniqueKey
-from app.adapters.postgres.words import worded_titles
 from app.adapters.relation import IndexMethodOption, RefAction, RelationModel
 from app.adapters.specializations import TimescaleHypertable
 from app.adapters.table_design import (
@@ -100,6 +99,7 @@ from app.adapters.table_design import (
     TablePlan,
     TablePlanRequest,
 )
+from app.adapters.words import worded_titles
 from app.core.translation import N_, say
 
 _relation_name = name_check("relation")

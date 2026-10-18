@@ -99,6 +99,61 @@ forbidden_modules =
     sqlglot
     pglast
 
+# The MySQL driver, by the rule psycopg follows. pymysql is named apart from
+# aiomysql because it is a distribution of its own, and the errors a session
+# classifies are its.
+[importlinter:contract:mysql-sdk-is-contained]
+name = aiomysql and pymysql are imported only by the mysql adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.pipelines
+    app.transfers
+    app.search
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.ai
+    app.terminals
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.operations
+    app.adapters.resources
+    app.adapters.file
+    app.adapters.explorer
+    app.adapters.postgres
+    app.adapters.redis
+    app.adapters.ssh
+forbidden_modules =
+    aiomysql
+    pymysql
+
+# And PostgreSQL's driver stays out of the MySQL adapter. Not part of the
+# contract above it, which forbids sqlglot as well: the MySQL dialect is
+# sqlglot's to read, in the package that owns it.
+[importlinter:contract:postgres-driver-stays-out-of-mysql]
+name = the mysql adapter imports neither psycopg nor pglast
+type = forbidden
+source_modules =
+    app.adapters.mysql
+forbidden_modules =
+    psycopg
+    psycopg_pool
+    pglast
+    app.adapters.postgres
+
 # The same rule as the psycopg one, for the three libraries the file explorer
 # reads with: a format's library belongs to the module that owns the format, so
 # an upgrade has one place to change, and every source that is a tree of files
@@ -136,6 +191,7 @@ source_modules =
     app.adapters.operations
     app.adapters.resources
     app.adapters.postgres
+    app.adapters.mysql
 forbidden_modules =
     pyarrow
     openpyxl
@@ -174,6 +230,7 @@ source_modules =
     app.adapters.file
     app.adapters.explorer
     app.adapters.postgres
+    app.adapters.mysql
 forbidden_modules =
     redis
 
@@ -299,5 +356,6 @@ source_modules =
     app.adapters.explorer
     app.adapters.postgres
     app.adapters.redis
+    app.adapters.mysql
 forbidden_modules =
     asyncssh
