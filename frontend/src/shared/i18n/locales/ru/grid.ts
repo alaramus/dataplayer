@@ -244,7 +244,6 @@ export const grid: Messages["grid"] = {
   references: {
     stale: "Страница прочитана до изменения отношения; перезагрузите её",
     follow_failed: "Не удалось перейти по ссылке",
-    go_to: "Перейти к {target}",
     leaving: "Куда ведёт это значение",
     arriving: "Что ссылается на эту строку",
   },
