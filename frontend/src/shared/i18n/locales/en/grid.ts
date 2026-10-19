@@ -241,6 +241,7 @@ export const grid = {
     stale: "This page was read before the relation changed; reload it",
     follow_failed: "Could not follow this reference",
     go_to: "Go to {target}",
+    leaving: "Where this value leads",
     arriving: "What points at this row",
   },
   download: {

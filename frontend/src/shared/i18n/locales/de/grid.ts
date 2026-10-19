@@ -242,6 +242,7 @@ export const grid: Messages["grid"] = {
     stale: "Diese Seite wurde gelesen, bevor sich die Relation änderte; laden Sie sie neu",
     follow_failed: "Diesem Verweis konnte nicht gefolgt werden",
     go_to: "Zu {target} gehen",
+    leaving: "Wohin dieser Wert führt",
     arriving: "Was auf diese Zeile verweist",
   },
   download: {

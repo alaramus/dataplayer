@@ -242,8 +242,10 @@ whole columns; sorting, pinning and hiding are separate controls inside each
 column header. The row-number column
 and pinned data columns remain at the left edge, while reference controls sit
 over the top-right of their cells without changing row geometry. Cell content
-is aligned left regardless of its source type. Pressing a reference mark opens
-a menu naming its destination; choosing that destination follows the reference.
+is aligned left regardless of its source type. A cell carries at most one mark
+per direction: the keys leaving it share the top corner, the keys landing on it
+the bottom one. Pressing a mark opens a menu naming each destination; choosing
+one follows that reference.
 The row view uses the same two-step navigation. A complete value opens as plain
 preformatted content in a stable wide window; editing uses the compact form
 composition, with a refusal appearing above the value without moving the window.

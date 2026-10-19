@@ -1487,7 +1487,7 @@ describe("following a reference out of a row", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    await wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]').trigger("click")
+    await wrapper.get('[data-testid="grid-follow-0-region_id"]').trigger("click")
     await flushPromises()
     expect(follow).not.toHaveBeenCalled()
     document.body.querySelector<HTMLElement>('[data-testid="menu-item-customers_region_fkey"]')?.click()
@@ -1518,12 +1518,45 @@ describe("following a reference out of a row", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    const mark = wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]')
+    const mark = wrapper.get('[data-testid="grid-follow-0-region_id"]')
 
     expect(mark.element.tagName).toBe("BUTTON")
     expect(mark.classes()).toContain("data-grid__follow")
     expect(mark.attributes("title")).toBe("")
-    expect(mark.attributes("aria-label")).toBe("Go to sales.regions")
+    expect(mark.attributes("aria-label")).toBe("Where this value leads")
+  })
+
+  it("draws one mark for every key leaving a cell, with each key in its menu", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
+      data: {
+        ...keyed,
+        references: [
+          ...keyed.references,
+          { name: "declared:1", columns: ["region_id"], target_title: "files · regions.csv" },
+        ],
+      },
+    } as never)
+    const follow = vi.spyOn(ConnectorsService, "followReference").mockResolvedValue({
+      data: { kind: "none", reason: "nothing" },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.findAll(".data-grid__follow:not(.data-grid__follow--back)")).toHaveLength(1)
+    const mark = wrapper.get('[data-testid="grid-follow-0-region_id"]')
+    expect(mark.attributes("aria-label")).toBe("Where this value leads")
+
+    await mark.trigger("click")
+    await flushPromises()
+    expect(document.body.querySelector('[data-testid="menu-item-customers_region_fkey"]')).not.toBeNull()
+    document.body.querySelector<HTMLElement>('[data-testid="menu-item-declared:1"]')?.click()
+    await flushPromises()
+
+    expect(follow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ reference: "declared:1", direction: "outgoing" }),
+      })
+    )
   })
 
   it("offers the way back where a key lands, and says which one was chosen", async () => {
@@ -1593,8 +1626,8 @@ describe("following a reference out of a row", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="grid-follow-0-customers_region_fkey"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="grid-follow-1-customers_region_fkey"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="grid-follow-0-region_id"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-follow-1-region_id"]').exists()).toBe(false)
   })
 
   it("says what the source said when a key names nothing, and opens no tab", async () => {
@@ -1605,7 +1638,7 @@ describe("following a reference out of a row", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    await wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]').trigger("click")
+    await wrapper.get('[data-testid="grid-follow-0-region_id"]').trigger("click")
     await flushPromises()
     document.body.querySelector<HTMLElement>('[data-testid="menu-item-customers_region_fkey"]')?.click()
     await flushPromises()
