@@ -1,0 +1,48 @@
+"""Ce que les tableaux de bord et le stockage des métriques disent, en français (D226). Les termes suivent le glossaire de l'interface."""
+
+MESSAGES: dict[str, str] = {
+    # Le préréglage qu'un hôte d'agent remplit.
+    "Linux host": "Hôte Linux",
+    "CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.": "Processeur, mémoire, réseau, disques, systèmes de fichiers, connexions, conteneurs et les processus les plus actifs d'une machine.",
+    "CPU by mode": "Processeur par mode",
+    "CPU per core": "Processeur par cœur",
+    "Uptime": "Durée de fonctionnement",
+    "Memory": "Mémoire",
+    "Load average": "Charge moyenne",
+    "Memory in use": "Mémoire utilisée",
+    "Network": "Réseau",
+    "Disk I/O": "E/S disque",
+    "File systems in use": "Systèmes de fichiers utilisés",
+    "TCP connections by state": "Connexions TCP par état",
+    "Containers: CPU": "Conteneurs : processeur",
+    "Containers: memory": "Conteneurs : mémoire",
+    "Top processes": "Processus les plus actifs",
+    # Configurer le stockage.
+    "clearing an earlier attempt": "nettoyage d'une tentative précédente",
+    "pulling the image": "téléchargement de l'image",
+    "creating the container": "création du conteneur",
+    "starting the container": "démarrage du conteneur",
+    "waiting for it to answer": "attente de sa réponse",
+    "saving the metrics store": "enregistrement du stockage des métriques",
+    "The metrics store is not answering": "Le stockage des métriques ne répond pas",
+    "Dashboards are not set up yet": "Les tableaux de bord ne sont pas encore configurés",
+    "Dashboards are already set up": "Les tableaux de bord sont déjà configurés",
+    "This server cannot run services": "Ce serveur ne peut pas exécuter de services",
+    "TimescaleDB cannot be used there": "TimescaleDB ne peut pas y être utilisé",
+    "TimescaleDB could not be prepared in that database: it is not installed there, or this role may not create it": "TimescaleDB n'a pas pu être préparé dans cette base de données : il n'y est pas installé, ou ce rôle n'a pas le droit de le créer",
+    "The metrics store is being removed with every sample in it": "Le stockage des métriques est supprimé, avec tous les échantillons qu'il contient",
+    "Dashboards no longer use that database. It did not answer, so the tables they kept there are still in it": "Les tableaux de bord n'utilisent plus cette base de données. Elle n'a pas répondu, donc les tables qu'ils y conservaient s'y trouvent encore",
+    "Dashboards no longer use that database, and the tables they kept there were dropped": "Les tableaux de bord n'utilisent plus cette base de données, et les tables qu'ils y conservaient ont été supprimées",
+    # Agents, échantillons et tableaux de bord.
+    "{name} was removed": "{name} a été supprimé",
+    "The samples of {name} were deleted": "Les échantillons de {name} ont été supprimés",
+    "You already own this dashboard": "Ce tableau de bord vous appartient déjà",
+    "No such user": "Aucun utilisateur de ce nom",
+    "Access revoked": "Accès révoqué",
+    "A range is at least {count} seconds": "Une plage couvre au moins {count} secondes",
+    "A range is at most a year": "Une plage couvre au plus un an",
+    # Recherche.
+    "Dashboards": "Tableaux de bord",
+    "Dashboard": "Tableau de bord",
+    "Dashboard · shared by {owner}": "Tableau de bord · partagé par {owner}",
+}

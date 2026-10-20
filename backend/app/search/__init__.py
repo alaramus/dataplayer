@@ -7,7 +7,9 @@ connection — and never a source type directly. See
 
 from app.core.translation import register
 from app.search.locales.de import MESSAGES as DE
+from app.search.locales.fr import MESSAGES as FR
 from app.search.locales.ru import MESSAGES as RU
 
 register("ru", RU)
+register("fr", FR)
 register("de", DE)
