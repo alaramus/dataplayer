@@ -37,7 +37,7 @@ export const servers: Messages["servers"] = {
     edit: "Modifier le serveur",
     remove: "Supprimer le serveur",
     add: "Ajouter un serveur",
-    check_connection: "Vérifier la connexion",
+    check_connection: "Tester",
     save_and_connect: "Enregistrer et connecter",
     save: "Enregistrer le serveur",
   },
