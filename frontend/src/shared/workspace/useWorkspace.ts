@@ -191,22 +191,20 @@ export function useWorkspace<P extends { id: string }>(
   const panelOf = (panelId: PanelId): P | undefined =>
     panels.value.find((panel) => panel.id === panelId)
 
+  function save() {
+    if (storageKey === null) return
+    try {
+      localStorage.setItem(storageKey, serializeWorkspace(dockedLayout(tree.value, detached.value), panels.value))
+    } catch {
+      // A full or blocked storage loses the layout, not the session.
+    }
+  }
+
   // Vue's default flush coalesces every change made in one tick into a single
   // write. flush: "sync" would put a synchronous localStorage write on every
   // frame of a border drag, which is a price the user pays so that a test can
   // skip an await.
-  watch(
-    [tree, panels, detached],
-    () => {
-      if (storageKey === null) return
-      try {
-        localStorage.setItem(storageKey, serializeWorkspace(dockedLayout(tree.value, detached.value), panels.value))
-      } catch {
-        // A full or blocked storage loses the layout, not the session.
-      }
-    },
-    { deep: true }
-  )
+  watch([tree, panels, detached], save, { deep: true })
 
   /** Move a panel into a section of its own immediately right of `source`'s. */
   function placeBeside(panelId: PanelId, source: LeafNode, beside: PanelId) {
@@ -555,9 +553,19 @@ export function useWorkspace<P extends { id: string }>(
 
   async function follow(next: string) {
     if (next === storageKey) return
+    const previous = storageKey
     storageKey = next
     const raw = kept(next)
     if (raw !== null && (await restore(raw)) === "restored") return
+    // Nothing kept for this person. A layout that belonged to somebody else
+    // must not travel to them, so start from the defaults. One that was nobody's
+    // yet is already the defaults plus whatever was opened while the person was
+    // unknown — opening a search in that moment must not lose it — and it is
+    // written under their key now.
+    if (previous === null && raw === null) {
+      save()
+      return
+    }
     reset()
   }
 

@@ -721,4 +721,18 @@ describe("the key a layout is kept under", () => {
     expect(localStorage.getItem("layout:new")).not.toBeNull()
     scope.stop()
   })
+
+  it("keeps a panel opened while the person was unknown", async () => {
+    const scope = effectScope()
+    const workspace = scope.run(() => keyed(null))!
+    workspace.open({ id: "search", kind: "catalog" })
+    await nextTick()
+    expect(localStorage.length).toBe(0)
+
+    await workspace.follow("layout:me")
+    await nextTick()
+    expect(workspace.panels.value.map((panel) => panel.id)).toContain("search")
+    expect(localStorage.getItem("layout:me")).toContain("search")
+    scope.stop()
+  })
 })
