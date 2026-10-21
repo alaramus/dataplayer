@@ -3,8 +3,10 @@ from app.adapters import file, postgres, redis, ssh  # noqa: F401
 from app.adapters.locales.de import MESSAGES as DE
 from app.adapters.locales.fr import MESSAGES as FR
 from app.adapters.locales.ru import MESSAGES as RU
+from app.adapters.locales.zh import MESSAGES as ZH
 from app.core.translation import register
 
 register("ru", RU)
 register("fr", FR)
 register("de", DE)
+register("zh", ZH)

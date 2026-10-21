@@ -3,8 +3,10 @@
 from app.adapters.postgres.timescale.locales.de import MESSAGES as DE
 from app.adapters.postgres.timescale.locales.fr import MESSAGES as FR
 from app.adapters.postgres.timescale.locales.ru import MESSAGES as RU
+from app.adapters.postgres.timescale.locales.zh import MESSAGES as ZH
 from app.core.translation import register
 
 register("ru", RU)
 register("fr", FR)
 register("de", DE)
+register("zh", ZH)

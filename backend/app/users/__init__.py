@@ -2,7 +2,9 @@ from app.core.translation import register
 from app.users.locales.de import MESSAGES as DE
 from app.users.locales.fr import MESSAGES as FR
 from app.users.locales.ru import MESSAGES as RU
+from app.users.locales.zh import MESSAGES as ZH
 
 register("ru", RU)
 register("fr", FR)
 register("de", DE)
+register("zh", ZH)

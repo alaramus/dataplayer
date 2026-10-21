@@ -1,0 +1,53 @@
+"""流水线及其执行用简体中文写下的内容（D226）。术语遵循界面词汇表。"""
+
+MESSAGES: dict[str, str] = {
+    # 运行一次执行。
+    "running its links": "运行其连线",
+    "{name} is gone, or no longer shared with you": "{name} 已不存在，或不再与你分享",
+    "{name} is switched off": "{name} 已关闭",
+    "{name} can no longer be opened": "{name} 无法再打开",
+    "You no longer have read access to {name}": "你不再拥有 {name} 的读取访问权限",
+    "You no longer have write access to {name}": "你不再拥有 {name} 的写入访问权限",
+    "You no longer have structure access to {name}": "你不再拥有 {name} 的结构访问权限",
+    "You no longer have own access to {name}": "你不再拥有 {name} 的所有者权限",
+    "The link could not run": "连线无法运行",
+    "{link} made nothing in this run": "“{link}” 在本次运行中未产生任何结果",
+    "Its owner is no longer here": "其所有者已不在",
+    "{kind} is not possible between these connections": "{kind} 在这些连接之间不可行",
+    "{kind} cannot run": "{kind} 无法运行",
+    "The link it reads": "它读取的连线",
+    "This run could not be read; nothing ran": "无法读取本次运行；未执行任何内容",
+    # 一次执行的句子。
+    "{said}; {count} not run": "{said}；{count} 个未运行",
+    "{done} of {count} links ran": "{count} 条连线中运行了 {done} 条",
+    "Its one link ran": "其唯一一条连线已运行",
+    "All {count} links ran": "全部 {count} 条连线已运行",
+    "Stopped at {at} of {count}, {title}: {reason}": "在 {count} 中的第 {at} 步停止，“{title}”：{reason}",
+    "Stopped at {at} of {count}, {title}": "在 {count} 中的第 {at} 步停止，“{title}”",
+    "Stopped on request at {at} of {count}, {title}": "应请求在 {count} 中的第 {at} 步停止，“{title}”",
+    "Stopped on request before its first link": "应请求在第一条连线之前停止",
+    "Stopped on request after {done} of {count}": "应请求在 {count} 中的第 {done} 步之后停止",
+    # 启动一次执行。
+    "{number} · {title} needs its table named and its columns chosen": "{number} · “{title}”需要指定表名并选择列",
+    "{number} · {title} needs its columns paired": "{number} · “{title}”需要配对列",
+    "a result": "一个结果",
+    "{connection} (top)": "{connection}（顶层）",
+    "Nothing ran: {needs}": "未执行任何内容：{needs}",
+    # 画布。
+    "This connection is gone, or no longer shared with you": "此连接已不存在，或不再与你分享",
+    "This connection is switched off": "此连接已关闭",
+    "This connection cannot be read": "无法读取此连接",
+    "This canvas holds too many rows to hint at once: select a card first": "此画布包含的行太多，无法一次全部提示：请先选择一张卡片",
+    "Only the links of the selected card are hinted": "仅提示所选卡片的连线",
+    "Only the first {count} pairs of rows of the selected card are hinted": "仅提示所选卡片的前 {count} 对行",
+    "{names} and {last}": "{names} 和 {last}",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} 互相写入，因此箭头无法确定第一条连线：这条优先，因为其卡片最靠左",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} 互相写入，因此箭头无法确定第一条连线：这条优先，因为其卡片最高",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it starts from the highest row": "{names} 互相写入，因此箭头无法确定第一条连线：这条优先，因为它从最高的行开始",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it was drawn first": "{names} 互相写入，因此箭头无法确定第一条连线：这条优先，因为它是先绘制的",
+    "{names} write into each other, so the arrows give no first link: this one goes first because the others wait for links outside them as well": "{names} 互相写入，因此箭头无法确定第一条连线：这条优先，因为其他连线也在等待它们之外的连线",
+    "{name} was removed": "{name} 已被删除",
+    # 搜索。
+    "Pipelines": "流水线",
+    "Pipeline": "流水线",
+}
