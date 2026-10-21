@@ -23,6 +23,7 @@ const NAMES: Record<Language, string> = {
   ru: "Русский",
   de: "Deutsch",
   fr: "Français",
+  zh: "中文",
 }
 
 export const LANGUAGES: readonly Language[] = Object.keys(NAMES) as Language[]
@@ -66,6 +67,13 @@ const LOADERS: Record<Language, () => Promise<Bundle>> = {
     ])
     return { messages: own.messages, problems: own.problems, quasar: quasar.default }
   },
+  zh: async () => {
+    const [own, quasar] = await Promise.all([
+      import("./locales/zh"),
+      import("quasar/lang/zh-CN.js"),
+    ])
+    return { messages: own.messages, problems: own.problems, quasar: quasar.default }
+  },
 }
 
 /**
@@ -76,6 +84,7 @@ const LOADERS: Record<Language, () => Promise<Bundle>> = {
 const PLURAL_FORMS: Partial<Record<Language, readonly Intl.LDMLPluralRule[]>> = {
   ru: ["one", "few", "many", "other"],
   fr: ["one", "other"],
+  zh: ["other"],
 }
 
 function pluralRule(language: string, forms: readonly Intl.LDMLPluralRule[]) {

@@ -1,0 +1,48 @@
+/** 管理（features/admin）。 */
+import type { Messages } from "../en"
+
+export const admin: Messages["admin"] = {
+  title: "管理",
+  only_admin: "只有管理员才能管理此安装",
+  sections: {
+    users: "用户",
+    users_summary: "谁拥有账户，以及谁管理此安装",
+  },
+  users: {
+    new_user: "新建用户",
+    only_admin: "只有管理员才能管理账户",
+    empty: "暂无账户",
+    columns: {
+      email: "邮箱",
+      name: "名称",
+      role: "角色",
+      state: "状态",
+    },
+    administrator: "管理员",
+    user: "用户",
+    active: "已启用",
+    switched_off: "已停用",
+    edit: "编辑此账户",
+    delete: "删除此账户及其拥有的全部内容",
+    cannot_delete_self: "无法删除自己的账户",
+    created: "账户已创建",
+    updated: "账户已更新",
+    save_failed: "无法保存该账户",
+    delete_title: "删除账户",
+    delete_message: "{email} 及其拥有的全部内容——包括其连接和文件——都将被删除。此操作无法撤销。",
+    delete_confirm: "删除",
+    deleted: "账户已删除",
+    delete_failed: "无法删除该账户",
+    edit_title: "编辑用户 — {email}",
+    email: "邮箱",
+    name: "名称",
+    password: "密码",
+    new_password: "新密码",
+    keep_password: "留空以保留当前密码",
+    can_sign_in: "可以登录",
+    superuser: "管理员：管理账户，而非他人的数据",
+    email_invalid: "需要一个有效的邮箱地址",
+    password_required: "需要密码",
+    password_short: "至少 {n} 个字符",
+  },
+}

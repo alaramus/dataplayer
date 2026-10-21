@@ -9,7 +9,9 @@ from app.core.translation import register
 from app.guide.locales.de import MESSAGES as DE
 from app.guide.locales.fr import MESSAGES as FR
 from app.guide.locales.ru import MESSAGES as RU
+from app.guide.locales.zh import MESSAGES as ZH
 
 register("de", DE)
 register("ru", RU)
 register("fr", FR)
+register("zh", ZH)
