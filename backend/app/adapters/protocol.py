@@ -50,7 +50,7 @@ from app.adapters.references import (
     FollowReferenceRequest,
     ReferenceTarget,
 )
-from app.adapters.relation import RelationModel
+from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     CreateRelationResult,
@@ -420,6 +420,20 @@ class SupportsRelationModel(Protocol):
 
         Raises NodeNotFound for an id that names nothing, AdapterError for
         source failures, and ValueError for an id this source may not reach.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsRelationModelBatch(Protocol):
+    async def relation_models_for_nodes(
+        self, request: RelationModelsRequest
+    ) -> list[RelationModel]:
+        """Describe selected relations with source-specific set reads.
+
+        Results may omit ids that no longer exist. The route keeps those as
+        per-node failures and uses bounded single reads for sources without
+        this optional capability.
         """
         ...
 

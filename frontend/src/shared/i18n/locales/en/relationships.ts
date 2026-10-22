@@ -5,7 +5,7 @@ export const relationships = {
   layout_not_saved: "The graph layout could not be saved in this browser",
   too_many: "Select at most {n} tables for one diagram.",
   too_large: "This graph is too large. Select fewer tables.",
-  reading: "Reading structure {loaded} / {total}",
+  reading: "Reading structure…",
   reading_label: "Reading table structures",
   stop: "Stop loading",
   stopped: "Loading stopped. Reload to read the selection again.",

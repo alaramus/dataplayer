@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 import pytest
@@ -5,11 +6,42 @@ from httpx import AsyncClient
 from pydantic import BaseModel
 
 from app.adapters import registry
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.protocol import ConnectionCheckResult, NodeNotFound
+from app.adapters.relation import RelationModel, RelationModelsRequest
+from app.connectors.routes import _relation_models_for_request
 from app.core.config import settings
 from tests.utils.database import working_postgres_options
 
 BASE = f"{settings.API_V1_STR}/connectors"
+
+
+async def test_batch_read_falls_back_to_four_single_reads() -> None:
+    class SingleRelationAdapter:
+        def __init__(self) -> None:
+            self.active = 0
+            self.peak = 0
+
+        async def relation_model(self, node_id: str) -> RelationModel:
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+            try:
+                await asyncio.sleep(0)
+                if node_id == "missing":
+                    raise NodeNotFound(node_id)
+                return RelationModel(node_id=node_id, name=node_id, kind="table")
+            finally:
+                self.active -= 1
+
+    adapter = SingleRelationAdapter()
+    request = RelationModelsRequest(
+        node_ids=[*(f"public.table_{index}" for index in range(8)), "missing"]
+    )
+
+    result = await _relation_models_for_request(adapter, request)
+
+    assert adapter.peak == 4
+    assert len(result.models) == 8
+    assert [failure.node_id for failure in result.failures] == ["missing"]
 
 
 async def _postgres_connector(client: AsyncClient, headers: dict[str, str]) -> str:
@@ -58,6 +90,82 @@ async def test_describes_a_relation(
     relname = next(c for c in body["columns"] if c["name"] == "relname")
     assert relname["type"]["sql"] == "name"
     assert relname["type"]["category"] == "string"
+
+
+async def test_batch_relation_models_are_cached_by_the_selected_set(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    response = await client.post(
+        f"{BASE}/{connector_id}/relation-models",
+        json={
+            "node_ids": [
+                "pg_catalog.pg_class",
+                "pg_catalog.pg_namespace",
+            ]
+        },
+        headers=normal_user_token_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.headers["X-Data-Cache"] == "miss"
+    body = response.json()
+    assert {model["node_id"] for model in body["models"]} == {
+        "pg_catalog.pg_class",
+        "pg_catalog.pg_namespace",
+    }
+    assert body["failures"] == []
+
+    cached = await client.post(
+        f"{BASE}/{connector_id}/relation-models",
+        json={
+            "node_ids": [
+                "pg_catalog.pg_namespace",
+                "pg_catalog.pg_class",
+            ]
+        },
+        headers=normal_user_token_headers,
+    )
+    assert cached.status_code == 200
+    assert cached.headers["X-Data-Cache"] == "hit"
+    assert {model["node_id"] for model in cached.json()["models"]} == {
+        "pg_catalog.pg_class",
+        "pg_catalog.pg_namespace",
+    }
+
+    partial = await client.post(
+        f"{BASE}/{connector_id}/relation-models",
+        json={
+            "node_ids": [
+                "pg_catalog.pg_class",
+                "pg_catalog.no_such_relation",
+            ]
+        },
+        headers=normal_user_token_headers,
+    )
+    assert partial.status_code == 200
+    assert partial.headers["X-Data-Cache"] == "bypass"
+    assert [failure["node_id"] for failure in partial.json()["failures"]] == [
+        "pg_catalog.no_such_relation"
+    ]
+
+
+async def test_relation_model_refresh_bypasses_the_server_cache(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    path = f"{BASE}/{connector_id}/relation-model"
+    params = {"node_id": "pg_catalog.pg_class"}
+
+    first = await client.get(path, params=params, headers=normal_user_token_headers)
+    refreshed = await client.get(
+        path, params={**params, "refresh": "true"}, headers=normal_user_token_headers
+    )
+    hit = await client.get(path, params=params, headers=normal_user_token_headers)
+
+    assert first.headers["X-Data-Cache"] == "miss"
+    assert refreshed.headers["X-Data-Cache"] == "refreshed"
+    assert hit.headers["X-Data-Cache"] == "hit"
 
 
 async def test_a_relation_that_is_gone_is_not_a_failure(

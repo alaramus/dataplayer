@@ -103,6 +103,28 @@ async def test_a_relation_that_is_gone_is_not_a_failure(schema: str) -> None:
         await _relation().relation_model(f"{schema}.no_such_table")
 
 
+async def test_selected_relations_share_a_batch_snapshot(schema: str) -> None:
+    models = await _relation().relation_models_for_nodes(
+        [
+            f"{schema}.customers",
+            f"{schema}.regions",
+            f"{schema}.no_such_table",
+        ]
+    )
+
+    assert [model.node_id for model in models] == [
+        f"{schema}.customers",
+        f"{schema}.regions",
+    ]
+    assert [column.name for column in models[0].columns][:4] == [
+        "id",
+        "region_id",
+        "region_code",
+        "name",
+    ]
+    assert any(isinstance(key, ForeignKey) for key in models[0].constraints)
+
+
 async def test_an_id_that_is_not_a_relation_is_refused(schema: str) -> None:
     with pytest.raises(ValueError):
         await _relation().relation_model(schema)

@@ -301,6 +301,7 @@ files. IDs are stable because specs and commits refer to them.
 | D225 | [localization](docs/architecture/localization.md) |
 | D226 | [localization](docs/architecture/localization.md) |
 | D227 | [localization](docs/architecture/localization.md) |
+| D228 | [sources/relations](docs/architecture/sources/relations.md) |
 
 ## Working rules
 

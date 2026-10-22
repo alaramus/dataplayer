@@ -185,8 +185,9 @@ read directly rather than cached on a guess.
   key names the owner, connector, operation and exact normalized request, so two
   users, connectors, catalog levels, pages, filters or ordered sorts cannot
   share an answer accidentally.
-- `SupportsReadCache` chooses a TTL separately for catalog and fetch. PostgreSQL
-  keeps catalog levels for 30 seconds and bounded fetch pages for 10.
+- `SupportsReadCache` chooses a TTL separately for catalog, fetch and relation
+  descriptions. PostgreSQL keeps catalog levels for 30 seconds, bounded fetch
+  pages for 10, and relation descriptions for five minutes (D228).
 - A hard entry ceiling evicts the least recently used answer. TTL controls
   staleness, not memory, so neither can replace the other. Errors are never
   stored.
@@ -340,9 +341,9 @@ anything staler than that is a copy rather than a cache.
   number its owner typed. A window says how long, never whether.
 - The window covers catalog levels and pages of rows: what somebody is looking
   at, and how stale that may be is a judgement about their data. It stops short
-  of the editor's `metadata`, which is a description of a whole database re-read
-  as one unit. Which areas it reaches is decided in `connector_may_choose`,
-  matched over the closed set, so a fourth area fails to type-check until
+  of the editor's `metadata` and relation descriptions, which use their source's
+  own windows. Which areas it reaches is decided in `connector_may_choose`,
+  matched over the closed set, so a new area fails to type-check until
   somebody says which side of the line it is on. Every route passes the window,
   including the one that will not use it, so no route is a second copy of the
   rule.

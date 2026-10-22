@@ -291,6 +291,11 @@ def test_a_connector_window_does_not_reach_editor_metadata() -> None:
     assert connector_may_choose("metadata") is False
 
 
+def test_relation_descriptions_use_the_source_window() -> None:
+    assert read_ttl(_Cacheable(), "relation", 5) == 10.0
+    assert connector_may_choose("relation") is False
+
+
 def test_a_window_of_zero_turns_this_connection_off() -> None:
     assert read_ttl(_Cacheable(), "fetch", 0) == 0.0
 
@@ -322,9 +327,8 @@ async def test_a_hit_reports_how_long_ago_the_source_was_read() -> None:
 
 
 def test_the_windows_a_source_publishes_are_the_ones_it_may_be_re_timed_for() -> None:
-    # The form shows these beside the field that replaces them, so the two
-    # sets are the same set. A fourth overridable area fails here rather than
-    # being offered without ever being described.
+    # Only catalog and fetch appear beside the form field that replaces their
+    # source TTL. Other areas remain source-owned.
     described = set(SourceCacheWindows.model_fields)
     overridable = {
         area for area in get_args(CacheArea) if connector_may_choose(area)

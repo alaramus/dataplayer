@@ -99,7 +99,7 @@ from app.adapters.references import (
     ReferenceTarget,
 )
 from app.adapters.registry import AdapterContext, register
-from app.adapters.relation import RelationModel
+from app.adapters.relation import RelationModel, RelationModelsRequest
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     CreateRelationResult,
@@ -292,11 +292,11 @@ class PostgresAdapter:
     def cache_ttl(cls, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control.
 
-        What an editor completes against is worth keeping far longer than a
-        page of rows: five minutes, thrown away early by anything that changes
-        this connection (D65).
+        Editor completions and full relation descriptions are worth keeping
+        longer than a page of rows: five minutes, thrown away early by anything
+        that changes this connection (D65, D228).
         """
-        if area == "metadata":
+        if area in {"metadata", "relation"}:
             return 300.0
         return 30.0 if area == "catalog" else 10.0
 
@@ -460,6 +460,11 @@ class PostgresAdapter:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
+
+    async def relation_models_for_nodes(
+        self, request: RelationModelsRequest
+    ) -> list[RelationModel]:
+        return await self._relation.relation_models_for_nodes(request.node_ids)
 
     async def node_summary(self, node_id: str) -> NodeSummary:
         """What one relation is, apart from the shape of its rows (D75)."""

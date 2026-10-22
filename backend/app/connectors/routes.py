@@ -137,6 +137,7 @@ from app.adapters.protocol import (
     SupportsNodeSummary,
     SupportsReferences,
     SupportsRelationModel,
+    SupportsRelationModelBatch,
     SupportsRenameColumn,
     SupportsTableDesign,
     SupportsUpdate,
@@ -150,7 +151,13 @@ from app.adapters.references import (
     ReferenceTarget,
 )
 from app.adapters.registry import AdapterType, searches_its_catalog
-from app.adapters.relation import RelationModel, without_structure_changes
+from app.adapters.relation import (
+    RelationModel,
+    RelationModelFailure,
+    RelationModelsRequest,
+    RelationModelsResult,
+    without_structure_changes,
+)
 from app.adapters.relation_changes import (
     NewRelationOptions,
     RelationCreated,
@@ -245,6 +252,18 @@ from app.users.models import User
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 CATALOG_CACHE_FORMAT: CacheFormat[list[CatalogNode]] = CacheFormat(list[CatalogNode])
 FETCH_CACHE_FORMAT: CacheFormat[FetchResult] = CacheFormat(FetchResult)
+RELATION_MODEL_CACHE_FORMAT: CacheFormat[RelationModel] = CacheFormat(RelationModel)
+RELATION_MODELS_CACHE_FORMAT: CacheFormat[RelationModelsResult] = CacheFormat(
+    RelationModelsResult
+)
+
+
+class _IncompleteRelationModels(Exception):
+    """Carry partial reads out of the loader without storing their failures."""
+
+    def __init__(self, result: RelationModelsResult) -> None:
+        super().__init__("Relation model batch contained failures")
+        self.result = result
 
 
 def _cache_key(
@@ -254,6 +273,56 @@ def _cache_key(
     request: str,
 ) -> CacheKey:
     return CacheKey(current_user.id, connector_id, area, request, current_language.get())
+
+
+async def _relation_models_for_request(
+    adapter: SupportsRelationModel, request: RelationModelsRequest
+) -> RelationModelsResult:
+    if isinstance(adapter, SupportsRelationModelBatch):
+        described = await adapter.relation_models_for_nodes(request)
+    else:
+        semaphore = asyncio.Semaphore(4)
+
+        async def read_one(
+            node_id: str,
+        ) -> tuple[RelationModel | None, RelationModelFailure | None]:
+            async with semaphore:
+                try:
+                    return await adapter.relation_model(node_id), None
+                except NodeNotFound as exc:
+                    return None, RelationModelFailure(
+                        node_id=node_id, message=str(exc)
+                    )
+                except ValueError as exc:
+                    return None, RelationModelFailure(
+                        node_id=node_id, message=str(exc)
+                    )
+                except AdapterError as exc:
+                    return None, RelationModelFailure(
+                        node_id=node_id, message=exc.message
+                    )
+
+        reads = await asyncio.gather(
+            *(read_one(node_id) for node_id in request.node_ids)
+        )
+        return RelationModelsResult(
+            models=[model for model, failure in reads if model is not None],
+            failures=[failure for model, failure in reads if failure is not None],
+        )
+
+    requested = set(request.node_ids)
+    by_id = {
+        model.node_id: model for model in described if model.node_id in requested
+    }
+    failures = [
+        RelationModelFailure(node_id=node_id, message=str(NodeNotFound(node_id)))
+        for node_id in request.node_ids
+        if node_id not in by_id
+    ]
+    return RelationModelsResult(
+        models=[by_id[node_id] for node_id in request.node_ids if node_id in by_id],
+        failures=failures,
+    )
 
 
 async def _invalidate_after[T](
@@ -2020,8 +2089,11 @@ async def read_relation_model(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     node_id: str,
+    response: Response,
+    refresh: bool = Query(default=False),
 ) -> Any:
     """Describe one relation named by its opaque catalog node id."""
     adapter, access = await resolve_adapter(
@@ -2030,7 +2102,17 @@ async def read_relation_model(
     if not isinstance(adapter, SupportsRelationModel):
         raise Problem(501, "connectors.no_relation_description", error_kind="config")
     try:
-        model = await adapter.relation_model(node_id)
+        model = await cached_read(
+            data_cache=data_cache,
+            adapter=adapter,
+            key=_cache_key(
+                current_user, connector_id, "relation", json.dumps(node_id)
+            ),
+            refresh=refresh,
+            response=response,
+            load=lambda: adapter.relation_model(node_id),
+            cache_format=RELATION_MODEL_CACHE_FORMAT,
+        )
         if not at_least(access, "structure"):
             return without_structure_changes(
                 model, say("You may not change the structure of this connection")
@@ -2049,6 +2131,65 @@ async def read_relation_model(
                 }
             ],
         ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.post("/{connector_id}/relation-models", response_model=RelationModelsResult)
+async def read_relation_models(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: RelationModelsRequest,
+    response: Response,
+    refresh: bool = Query(default=False),
+) -> RelationModelsResult:
+    """Describe a bounded set of relations for graph and structure reuse."""
+    adapter, access = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsRelationModel):
+        raise Problem(501, "connectors.no_relation_description", error_kind="config")
+    request = RelationModelsRequest(node_ids=sorted(request.node_ids))
+    cache_request = json.dumps(request.node_ids, ensure_ascii=False)
+
+    async def load() -> RelationModelsResult:
+        result = await _relation_models_for_request(adapter, request)
+        if result.failures:
+            raise _IncompleteRelationModels(result)
+        return result
+
+    try:
+        try:
+            result = await cached_read(
+                data_cache=data_cache,
+                adapter=adapter,
+                key=_cache_key(current_user, connector_id, "relation", cache_request),
+                refresh=refresh,
+                response=response,
+                load=load,
+                cache_format=RELATION_MODELS_CACHE_FORMAT,
+            )
+        except _IncompleteRelationModels as exc:
+            result = exc.result
+            data_cache.observe("bypass")
+            response.headers["X-Data-Cache"] = "bypass"
+            response.headers["X-Data-Cache-Age"] = "0.000"
+        if at_least(access, "structure"):
+            return result
+        reason = say("You may not change the structure of this connection")
+        return result.model_copy(
+            update={
+                "models": [
+                    without_structure_changes(model, reason) for model in result.models
+                ]
+            }
+        )
     except AdapterError as exc:
         raise HTTPException(
             status_code=502,

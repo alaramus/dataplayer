@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.adapters.dataset import DatasetInfo
 from app.adapters.specializations import RelationSpecialization
@@ -247,6 +247,35 @@ class RelationModel(BaseModel):
     candidate_keys: list[CandidateKey] = Field(default_factory=list)
     # What only this relation's own format knows, when it is a file (D51).
     dataset: DatasetInfo | None = None
+
+
+class RelationModelsRequest(BaseModel):
+    """A bounded set of opaque node ids to describe in one request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_ids: list[str] = Field(min_length=1, max_length=100)
+
+    @field_validator("node_ids")
+    @classmethod
+    def unique_node_ids(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("node_ids must be unique")
+        return value
+
+
+class RelationModelFailure(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    message: str
+
+
+class RelationModelsResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    models: list[RelationModel]
+    failures: list[RelationModelFailure]
 
 
 def without_structure_changes(model: RelationModel, reason: str) -> RelationModel:

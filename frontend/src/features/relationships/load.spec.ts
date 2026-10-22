@@ -1,63 +1,103 @@
 import { describe, expect, it, vi } from "vitest"
 
-import type { ReferenceEndPublic, RelationModel } from "@/client"
+import type { ReferenceEndPublic, RelationModel, RelationModelsResult } from "@/client"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { GRAPH_LIMITS } from "@/shared/graph/model"
 import { expandHolders, GraphLoadError, loadRelations, withDeclared } from "./load"
 
-const scope = (size: number) => Array.from({ length: size }, (_, id) => ({ id: String(id), label: `Table ${id}` }))
-const model = (id: string): RelationModel => ({ node_id: id, name: `Table ${id}`, kind: "table", columns: [] })
+const scope = (size: number) =>
+  Array.from({ length: size }, (_, id) => ({ id: String(id), label: `Table ${id}` }))
+const model = (id: string): RelationModel => ({
+  node_id: id,
+  name: `Table ${id}`,
+  kind: "table",
+  columns: [],
+})
+const batch = (
+  models: RelationModel[],
+  failures: RelationModelsResult["failures"] = [],
+): RelationModelsResult => ({ models, failures })
 
 describe("bounded relationship loading", () => {
-  it("keeps at most four reads in flight and reports partial failures without leaking exceptions", async () => {
-    const pending: Array<() => void> = []
-    let active = 0
-    let peak = 0
-    const read = vi.fn((id: string) => new Promise<RelationModel>((resolve, reject) => {
-      active++; peak = Math.max(peak, active)
-      pending.push(() => { active--; if (id === "2") reject(new Error("password=secret")); else resolve(model(id)) })
-    }))
-    const progress = vi.fn()
-    const result = loadRelations(scope(6), read, new AbortController().signal, progress)
-    expect(read).toHaveBeenCalledTimes(4)
-    for (let done = 0; done < 6; done++) {
-      pending.shift()!()
-      await Promise.resolve()
-    }
-    const loaded = await result
-    expect(peak).toBe(4)
-    expect(loaded.models).toHaveLength(5)
-    expect(loaded.failures).toEqual([{ id: "2", label: "Table 2", message: "Could not read this structure" }])
-    expect(progress.mock.calls.map(([count]) => count)).toEqual([1, 2, 3, 4, 5, 6])
+  it("does not send an empty batch", async () => {
+    const read = vi.fn(async (ids: string[]) => batch(ids.map(model)))
+
+    const result = await loadRelations([], read, new AbortController().signal)
+
+    expect(result.models).toEqual([])
+    expect(read).not.toHaveBeenCalled()
   })
 
-  it("aborts in-flight reads and never starts queued reads after cancellation", async () => {
+  it("reads a set once and keeps per-node failures in the graph", async () => {
+    const read = vi.fn(async (nodeIds: string[]) =>
+      batch(
+        nodeIds.filter((id) => id !== "2").map(model),
+        [{ node_id: "2", message: "Could not read Table 2" }],
+      ))
+    const result = loadRelations(scope(6), read, new AbortController().signal)
+    expect(read).toHaveBeenCalledTimes(1)
+    const loaded = await result
+    expect(loaded.models).toHaveLength(5)
+    expect(loaded.failures).toEqual([
+      { id: "2", label: "Table 2", message: "Could not read Table 2" },
+    ])
+  })
+
+  it("keeps unexpected batch errors behind the safe fallback", async () => {
+    const read = vi.fn(async (_nodeIds: string[]) => {
+      throw new Error("password=secret")
+    })
+
+    const result = await loadRelations(
+      scope(2),
+      read,
+      new AbortController().signal,
+    )
+
+    expect(result.failures).toHaveLength(2)
+    expect(
+      result.failures.every((failure) => !failure.message.includes("secret")),
+    ).toBe(true)
+  })
+
+  it("aborts an in-flight batch read", async () => {
     const stop = new AbortController()
-    const signals: AbortSignal[] = []
-    const read = vi.fn((_id: string, signal: AbortSignal) => new Promise<RelationModel>((_resolve, reject) => {
-      signals.push(signal)
-      signal.addEventListener("abort", () => reject(signal.reason), { once: true })
-    }))
-    const progress = vi.fn()
-    const loaded = loadRelations(scope(8), read, stop.signal, progress)
+    const read = vi.fn(
+      (_ids: string[], signal: AbortSignal) =>
+        new Promise<RelationModelsResult>((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true })
+        }),
+    )
+    const loaded = loadRelations(scope(8), read, stop.signal)
     const rejected = expect(loaded).rejects.toMatchObject({ name: "AbortError" })
     stop.abort()
     await rejected
-    expect(read).toHaveBeenCalledTimes(4)
-    expect(signals.every((signal) => signal.aborted)).toBe(true)
-    expect(progress).not.toHaveBeenCalled()
+    expect(read).toHaveBeenCalledTimes(1)
   })
 
-  it("refuses large scopes before reading and stops once structures exceed the graph budget", async () => {
-    const read = vi.fn(async (id: string) => model(id))
-    await expect(loadRelations(scope(101), read, new AbortController().signal, vi.fn())).rejects.toBeInstanceOf(GraphLoadError)
+  it("refuses large scopes before reading and rejects a batch over the graph budget", async () => {
+    const read = vi.fn(async (ids: string[]) => batch(ids.map(model)))
+    await expect(loadRelations(scope(101), read, new AbortController().signal))
+      .rejects.toBeInstanceOf(GraphLoadError)
     expect(read).not.toHaveBeenCalled()
-    const oversized = vi.fn(async (id: string, signal: AbortSignal): Promise<RelationModel> => {
-      signal.throwIfAborted()
-      return { ...model(id), columns: Array.from({ length: GRAPH_LIMITS.rows + 1 }, (_, position) => ({ position, name: String(position), type: { sql: "text", category: "string" }, nullable: true })) }
-    })
-    await expect(loadRelations(scope(12), oversized, new AbortController().signal, vi.fn())).rejects.toThrow("Select fewer tables")
-    expect(oversized).toHaveBeenCalledTimes(4)
+    const oversized = vi.fn(async (ids: string[]) =>
+      batch(
+        ids.map((id) => ({
+          ...model(id),
+          columns: Array.from(
+            { length: GRAPH_LIMITS.rows + 1 },
+            (_, position) => ({
+              position,
+              name: String(position),
+              type: { sql: "text", category: "string" },
+              nullable: true,
+            }),
+          ),
+        })),
+      ))
+    await expect(loadRelations(scope(12), oversized, new AbortController().signal))
+      .rejects.toThrow("Select fewer tables")
+    expect(oversized).toHaveBeenCalledTimes(1)
   })
 })
 

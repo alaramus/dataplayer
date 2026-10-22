@@ -7,6 +7,7 @@ from types import MappingProxyType
 from app.adapters.features import FeatureState, SourceFeature
 from app.adapters.postgres.dependencies import dependency_scope
 from app.adapters.postgres.features import PostgresFeatures
+from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.names import DEDICATED_SCHEMAS
 from app.adapters.protocol import AdapterError
@@ -18,36 +19,42 @@ from app.adapters.specializations import (
 from app.core.translation import say
 
 _CLASSIFY_SQL = """
-WITH target(schema_name, relation_name) AS (
-  VALUES (%s::text, %s::text)
+WITH target(schema_name, relation_names) AS (
+  VALUES (%s::text, %s::text[])
 )
 SELECT hypertable.hypertable_name AS relation_name,
        'timescale_hypertable' AS specialization
 FROM timescaledb_information.hypertables AS hypertable
 CROSS JOIN target
 WHERE hypertable.hypertable_schema = target.schema_name
-  AND (target.relation_name IS NULL
-       OR hypertable.hypertable_name = target.relation_name)
+  AND (target.relation_names IS NULL
+       OR cardinality(target.relation_names) = 0
+       OR hypertable.hypertable_name = ANY(target.relation_names))
 UNION ALL
 SELECT aggregate.view_name AS relation_name,
        'timescale_continuous_aggregate' AS specialization
 FROM timescaledb_information.continuous_aggregates AS aggregate
 CROSS JOIN target
 WHERE aggregate.view_schema = target.schema_name
-  AND (target.relation_name IS NULL OR aggregate.view_name = target.relation_name)
+  AND (target.relation_names IS NULL
+       OR cardinality(target.relation_names) = 0
+       OR aggregate.view_name = ANY(target.relation_names))
 UNION ALL
 SELECT chunk.chunk_name, 'internal'
 FROM timescaledb_information.chunks AS chunk
 CROSS JOIN target
 WHERE chunk.chunk_schema = target.schema_name
-  AND (target.relation_name IS NULL OR chunk.chunk_name = target.relation_name)
+  AND (target.relation_names IS NULL
+       OR cardinality(target.relation_names) = 0
+       OR chunk.chunk_name = ANY(target.relation_names))
 UNION ALL
 SELECT aggregate.materialization_hypertable_name, 'internal'
 FROM timescaledb_information.continuous_aggregates AS aggregate
 CROSS JOIN target
 WHERE aggregate.materialization_hypertable_schema = target.schema_name
-  AND (target.relation_name IS NULL
-       OR aggregate.materialization_hypertable_name = target.relation_name)
+  AND (target.relation_names IS NULL
+       OR cardinality(target.relation_names) = 0
+       OR aggregate.materialization_hypertable_name = ANY(target.relation_names))
 UNION ALL
 SELECT relation.relname, 'internal'
 FROM pg_catalog.pg_class AS relation
@@ -61,7 +68,9 @@ JOIN pg_catalog.pg_extension AS extension ON extension.oid = dependency.refobjid
 CROSS JOIN target
 WHERE extension.extname = 'timescaledb'
   AND namespace.nspname = target.schema_name
-  AND (target.relation_name IS NULL OR relation.relname = target.relation_name)
+  AND (target.relation_names IS NULL
+       OR cardinality(target.relation_names) = 0
+       OR relation.relname = ANY(target.relation_names))
 """
 
 
@@ -131,16 +140,28 @@ class PostgresRelationContext:
         self._features = features or PostgresFeatures(session)
 
     async def schema(
-        self, schema: str, relation: str | None = None
+        self,
+        schema: str,
+        relation: str | list[str] | None = None,
+        *,
+        reader: PostgresReader | None = None,
     ) -> SchemaRelationContext:
-        profile = await self._features.timescale()
+        profile = await self._features.timescale(reader)
         feature = profile.feature
         if feature.state != "available":
             return _context(feature, {}, schema=schema)
 
         try:
-            rows = await self._session.query(
-                _CLASSIFY_SQL, (schema, relation), inspection=True
+            relation_names = (
+                [relation]
+                if isinstance(relation, str)
+                else relation
+            )
+            query_reader = reader or self._session
+            rows = await query_reader.query(
+                _CLASSIFY_SQL,
+                (schema, relation_names),
+                inspection=reader is None,
             )
         except (ValueError, AdapterError) as exc:
             if isinstance(exc, AdapterError) and exc.error_kind in {"auth", "network"}:

@@ -10577,6 +10577,46 @@ export type RelationModel = {
 }
 
 /**
+ * RelationModelFailure
+ */
+export type RelationModelFailure = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Message
+   */
+  message: string
+}
+
+/**
+ * RelationModelsRequest
+ *
+ * A bounded set of opaque node ids to describe in one request.
+ */
+export type RelationModelsRequest = {
+  /**
+   * Node Ids
+   */
+  node_ids: Array<string>
+}
+
+/**
+ * RelationModelsResult
+ */
+export type RelationModelsResult = {
+  /**
+   * Models
+   */
+  models: Array<RelationModel>
+  /**
+   * Failures
+   */
+  failures: Array<RelationModelFailure>
+}
+
+/**
  * RelationSummary
  *
  * One relation the editor may complete to.
@@ -16257,6 +16297,10 @@ export type connectorsReadRelationModelData = {
      * Node Id
      */
     node_id: string
+    /**
+     * Refresh
+     */
+    refresh?: boolean
   }
   url: "/api/v1/connectors/{connector_id}/relation-model"
 }
@@ -16280,6 +16324,43 @@ export type connectorsReadRelationModelResponses = {
 
 export type connectorsReadRelationModelResponse =
   connectorsReadRelationModelResponses[keyof connectorsReadRelationModelResponses]
+
+export type connectorsReadRelationModelsData = {
+  body: RelationModelsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: {
+    /**
+     * Refresh
+     */
+    refresh?: boolean
+  }
+  url: "/api/v1/connectors/{connector_id}/relation-models"
+}
+
+export type connectorsReadRelationModelsErrors = {
+  /**
+   * A coded refusal
+   */
+  "4XX": ProblemResponse
+}
+
+export type connectorsReadRelationModelsError =
+  connectorsReadRelationModelsErrors[keyof connectorsReadRelationModelsErrors]
+
+export type connectorsReadRelationModelsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RelationModelsResult
+}
+
+export type connectorsReadRelationModelsResponse =
+  connectorsReadRelationModelsResponses[keyof connectorsReadRelationModelsResponses]
 
 export type connectorsSearchCatalogData = {
   body?: never

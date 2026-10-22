@@ -1,4 +1,9 @@
-import type { DeclaredReferencePublic, ReferenceEndPublic, RelationModel } from "@/client"
+import type {
+  DeclaredReferencePublic,
+  ReferenceEndPublic,
+  RelationModel,
+  RelationModelsResult,
+} from "@/client"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
 import { t } from "@/shared/i18n"
@@ -71,45 +76,52 @@ export async function withDeclared(
 
 export async function loadRelations(
   requested: DiagramNodeRef[],
-  read: (nodeId: string, signal: AbortSignal) => Promise<RelationModel>,
+  read: (nodeIds: string[], signal: AbortSignal) => Promise<RelationModelsResult>,
   signal: AbortSignal,
-  progress: (loaded: number) => void,
 ): Promise<RelationGraphSource> {
-  if (requested.length > MAX_RELATIONS) throw new GraphLoadError(t("relationships.too_many", { n: MAX_RELATIONS }))
-  const stop = new AbortController()
-  const combined = AbortSignal.any([signal, stop.signal])
-  const result: RelationGraphSource = { requested, models: [], failures: [] }
-  let next = 0
-  let loaded = 0
-  let rows = 0
-  let edges = 0
-  let tooLarge = false
-  async function work() {
-    while (next < requested.length) {
-      combined.throwIfAborted()
-      const item = requested[next++]!
-      try {
-        const model = await read(item.id, combined)
-        combined.throwIfAborted()
-        rows += model.columns?.length ?? 0
-        edges += model.constraints?.filter((key) => key.kind === "foreign_key").length ?? 0
-        if (rows > GRAPH_LIMITS.rows || edges > GRAPH_LIMITS.edges) {
-          tooLarge = true
-          stop.abort()
-          throw new GraphLoadError(t("relationships.too_large"))
-        }
-        result.models.push(model)
-      } catch (error) {
-        if (tooLarge) throw new GraphLoadError(t("relationships.too_large"))
-        combined.throwIfAborted()
-        result.failures.push({ ...item, message: messageOf(error, t("relationships.read_failed")) })
-      }
-      progress(++loaded)
-    }
+  if (requested.length > MAX_RELATIONS) {
+    throw new GraphLoadError(t("relationships.too_many", { n: MAX_RELATIONS }))
   }
+  const result: RelationGraphSource = { requested, models: [], failures: [] }
+  signal.throwIfAborted()
+  const nodeIds = [...new Set(requested.map((item) => item.id))]
+  if (nodeIds.length === 0) return result
+  let response: RelationModelsResult
   try {
-    await Promise.all(Array.from({ length: Math.min(4, requested.length) }, () => work()))
-    result.models.sort((a, b) => a.node_id.localeCompare(b.node_id))
+    response = await read(nodeIds, signal)
+  } catch (error) {
+    signal.throwIfAborted()
+    const message = messageOf(error, t("relationships.read_failed"))
+    result.failures = requested.map((item) => ({ ...item, message }))
     return result
-  } finally { stop.abort() }
+  }
+
+  signal.throwIfAborted()
+  const requestedIds = new Set(nodeIds)
+  const byId = new Map(
+    response.models
+      .filter((model) => requestedIds.has(model.node_id))
+      .map((model) => [model.node_id, model]),
+  )
+  const failures = new Map(
+    response.failures.map((failure) => [failure.node_id, failure.message]),
+  )
+  result.models = [...byId.values()]
+  const rows = result.models.reduce((sum, model) => sum + (model.columns?.length ?? 0), 0)
+  const edges = result.models.reduce(
+    (sum, model) =>
+      sum + (model.constraints?.filter((key) => key.kind === "foreign_key").length ?? 0),
+    0,
+  )
+  if (rows > GRAPH_LIMITS.rows || edges > GRAPH_LIMITS.edges) {
+    throw new GraphLoadError(t("relationships.too_large"))
+  }
+  result.failures = requested
+    .filter((item) => !byId.has(item.id))
+    .map((item) => ({
+      ...item,
+      message: failures.get(item.id) ?? t("relationships.read_failed"),
+    }))
+  result.models.sort((a, b) => a.node_id.localeCompare(b.node_id))
+  return result
 }

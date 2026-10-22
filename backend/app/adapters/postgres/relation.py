@@ -11,6 +11,7 @@ from app.adapters.postgres.index_methods import (
     INDEX_METHOD_PROPERTIES,
     index_method_options,
 )
+from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.relation_context import (
     PostgresRelationContext,
     SchemaRelationContext,
@@ -225,20 +226,49 @@ class PostgresRelation:
         """
         return await self._models(schema, None)
 
-    async def _models(
-        self, schema: str, relation: str | None
+    async def relation_models_for_nodes(
+        self, node_ids: list[str]
     ) -> list[RelationModel]:
-        relations = await self._query(_RELATIONS, schema, relation, "c.relname")
+        """Describe selected nodes in one bounded, repeatable-read snapshot."""
+        selected: dict[str, list[str]] = {}
+        for node_id in node_ids:
+            schema, separator, relation = node_id.partition(".")
+            if separator and schema and relation:
+                selected.setdefault(schema, []).append(relation)
+
+        if not selected:
+            return []
+
+        models: list[RelationModel] = []
+        async with self._session.inspection() as reader:
+            for schema, relations in selected.items():
+                models.extend(await self._models(schema, relations, reader=reader))
+        by_id = {model.node_id: model for model in models}
+        return [by_id[node_id] for node_id in node_ids if node_id in by_id]
+
+    async def _models(
+        self,
+        schema: str,
+        relation: str | list[str] | None,
+        *,
+        reader: PostgresReader | None = None,
+    ) -> list[RelationModel]:
+        query_reader = reader or self._session
+        relations = await self._query(
+            _RELATIONS, schema, relation, "c.relname", query_reader
+        )
         if not relations:
             return []
 
-        column_rows = await self._query(_COLUMNS, schema, relation, "c.relname")
+        column_rows = await self._query(
+            _COLUMNS, schema, relation, "c.relname", query_reader
+        )
         columns: dict[str, list[Column]] = {}
         for row in sorted(column_rows, key=lambda item: int(item["position"])):
             columns.setdefault(str(row["relation"]), []).append(_column(row))
 
         constraint_rows = await self._query(
-            _CONSTRAINTS, schema, relation, "c.relname"
+            _CONSTRAINTS, schema, relation, "c.relname", query_reader
         )
         constraints: dict[str, list[Constraint]] = {}
         for row in constraint_rows:
@@ -246,7 +276,9 @@ class PostgresRelation:
             if built is not None:
                 constraints.setdefault(str(row["relation"]), []).append(built)
 
-        index_rows = await self._query(_INDEXES, schema, relation, "c.relname")
+        index_rows = await self._query(
+            _INDEXES, schema, relation, "c.relname", query_reader
+        )
         indexes: dict[str, list[Index]] = {}
         for row in index_rows:
             indexes.setdefault(str(row["relation"]), []).append(_index(row))
@@ -255,9 +287,11 @@ class PostgresRelation:
         # it is read rather than written down. Whole-server rather than
         # per-relation, which is why it takes no schema parameter.
         methods = index_method_options(
-            await self._session.query(INDEX_METHOD_PROPERTIES)
+            await query_reader.query(INDEX_METHOD_PROPERTIES)
         )
-        context = await self._relation_context.schema(schema, relation)
+        context = await self._relation_context.schema(
+            schema, relation, reader=reader
+        )
 
         return [
             _relation_model(
@@ -273,14 +307,22 @@ class PostgresRelation:
         ]
 
     async def _query(
-        self, statement: str, schema: str, relation: str | None, column: str
+        self,
+        statement: str,
+        schema: str,
+        relation: str | list[str] | None,
+        column: str,
+        reader: PostgresReader,
     ) -> list[dict[str, Any]]:
         params: list[Any] = [schema]
         text = statement
-        if relation is not None:
+        if isinstance(relation, str):
             text += f" AND {column} = %s"
             params.append(relation)
-        return await self._session.query(text, tuple(params))
+        elif relation is not None:
+            text += f" AND {column} = ANY(%s)"
+            params.append(relation)
+        return await reader.query(text, tuple(params))
 
 
 def _column(row: dict[str, Any]) -> Column:

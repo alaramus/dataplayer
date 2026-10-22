@@ -52,6 +52,25 @@ async def test_cascade_classifies_relations_reached_in_another_schema(protected:
     assert session.query.call_args.args[1] == ("metrics", None)
 
 
+async def test_schema_classifies_only_requested_relations_in_one_query() -> None:
+    session = AsyncMock()
+    session.query.return_value = []
+    features = AsyncMock()
+    features.timescale.return_value = TimescaleProfile(
+        SourceFeature(
+            code="timescaledb", title="TimescaleDB", state="available",
+            installed_version="2.18.0",
+        )
+    )
+
+    await PostgresRelationContext(session, features).schema(
+        "metrics", ["hourly", "daily"]
+    )
+
+    assert session.query.call_count == 1
+    assert session.query.call_args.args[1] == ("metrics", ["hourly", "daily"])
+
+
 async def test_extension_owned_function_blocks_schema_cascade() -> None:
     session = AsyncMock()
     session.query.return_value = [

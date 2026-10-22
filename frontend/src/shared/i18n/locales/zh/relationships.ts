@@ -7,7 +7,7 @@ export const relationships: Messages["relationships"] = {
   layout_not_saved: "无法在此浏览器中保存图表布局",
   too_many: "一个图表最多可选择 {n} 个表。",
   too_large: "此图表过大。请少选择一些表。",
-  reading: "正在读取结构 {loaded} / {total}",
+  reading: "正在读取结构……",
   reading_label: "正在读取表结构",
   stop: "停止加载",
   stopped: "加载已停止。重新加载以再次读取所选内容。",

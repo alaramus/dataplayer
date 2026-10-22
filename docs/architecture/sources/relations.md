@@ -4,7 +4,7 @@ For anything that reads a relation or changes the rows in it. Changing its
 structure is [ddl.md](ddl.md); moving rows in or out of one is
 [transfer.md](transfer.md).
 
-Decisions here: D22, D23, D42, D25, D26, D41, D36, D70, D72, D54, D109, D110.
+Decisions here: D22, D23, D42, D25, D26, D41, D36, D70, D72, D54, D109, D110, D228.
 
 ## D22. A source describes a relation in full
 
@@ -30,19 +30,51 @@ column splits a composite foreign key into independent one-column links.
   [D21](contract.md) still holds. The screen derives per-column badges from
   these relation-level objects.
 - PostgreSQL reads four sets in sequence — relations, columns, constraints,
-  indexes. Each query is written over a whole schema with the relation name as
-  an optional value predicate, so schema-wide loading is a caller change rather
-  than a query rewrite, and every client value stays in a placeholder.
+  indexes. Each query can filter one name or a selected array of names within a
+  schema; every client value stays in a placeholder.
 - The catalog does not descend into a relation: tables and views are leaves, and
   the relation model is the single description of their columns.
 
 Known deviations:
 
-- **Only one relation is exposed at a time.** The private PostgreSQL query path
-  already accepts no relation predicate, but no public schema-wide response or
-  cache uses that form yet.
+- **There is no public schema-wide response.** The batch read is restricted to
+  the relations the caller selected (D228).
 
 Spec: [The relation model](../../decisions/2026-08-24-relation-model-design.md)
+
+## D228. Selected relation descriptions load together, and keep a short source-owned cache
+
+The graph needs complete models, but asking for one at a time turns each one
+into several catalog reads and a separate HTTP request.
+
+- POST /connectors/{id}/relation-models accepts 1–100 unique opaque node ids
+  and returns the available models plus a failure for each missing or
+  unreadable node. Sources with the SupportsRelationModelBatch capability can
+  read a set; other relation sources keep partial failures through at most four
+  concurrent single reads.
+- PostgreSQL groups selected ids by schema and reads relation, column,
+  constraint, index, access-method and Timescale classification metadata inside
+  one repeatable-read, read-only inspection transaction. The transaction keeps
+  a five-second statement timeout local to the connection. It does not scan
+  unrelated relations in the schema.
+- Single and batch descriptions use the relation area of DataCache. PostgreSQL
+  owns a five-minute TTL; the connector's row/catalog TTL setting does not
+  change it. Incomplete batch results are returned but not stored. A DataPlayer
+  mutation invalidates the connector's cached descriptions. External PostgreSQL
+  schema changes are read after the server entry expires on the next source
+  request; explicit Reload on a graph or structure view bypasses the cache.
+- Row pages remain in the separate fetch area. The graph places each returned
+  model in TanStack's per-relation query cache, so a structure or record view in
+  the same browser can reuse it without another request. No relation metadata
+  is preloaded at connection startup.
+
+Known deviations:
+
+- A batch's cache key is its exact selected set. Two overlapping sets do not
+  share server-side entries; the browser shares individual models between the
+  graph and structure views.
+
+Spec: [Batching relation descriptions](../../decisions/2026-10-21-relation-model-batching.md)
 
 ## D23. A cell crosses the boundary as lossless text
 

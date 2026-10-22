@@ -3,6 +3,7 @@
 import asyncio
 
 from app.adapters.features import SourceFeatures
+from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.profile import TimescaleProfile, discover
 from app.adapters.protocol import AdapterError
@@ -19,12 +20,16 @@ class PostgresFeatures:
         self._session = session
         self._timescale_task: asyncio.Task[TimescaleProfile] | None = None
 
-    async def timescale(self) -> TimescaleProfile:
+    async def timescale(
+        self, reader: PostgresReader | None = None
+    ) -> TimescaleProfile:
         task = self._timescale_task
         if task is None:
-            task = asyncio.create_task(discover(self._session))
+            task = asyncio.create_task(discover(reader or self._session))
             self._timescale_task = task
         try:
+            if reader is not None:
+                return await task
             return await asyncio.shield(task)
         except Exception:
             if self._timescale_task is task and task.done():

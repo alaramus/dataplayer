@@ -14,7 +14,12 @@ from app.adapters.cache_serialization import (
 from app.adapters.catalog import CatalogNode, SchemaNode, TableNode
 from app.adapters.fetch import FetchColumn, FetchResult
 from app.adapters.query import ColumnSummary, QueryMetadata, RelationSummary
-from app.adapters.relation import ColumnType
+from app.adapters.relation import (
+    ColumnType,
+    RelationModel,
+    RelationModelFailure,
+    RelationModelsResult,
+)
 
 
 def cache_key(request: str = '{"node_id":"public.people"}') -> CacheKey:
@@ -35,6 +40,29 @@ def test_round_trips_only_the_declared_shape() -> None:
     assert cache_format.decode(encoded) == [1, 2, 3]
     with pytest.raises(CacheSerializationError, match="invalid shape"):
         cache_format.decode(CacheFormat(str).encode("not a list"))
+
+
+def test_a_batch_relation_description_survives_the_cache_wire() -> None:
+    result = RelationModelsResult(
+        models=[
+            RelationModel(
+                node_id="public.people",
+                name="people",
+                kind="table",
+            )
+        ],
+        failures=[
+            RelationModelFailure(
+                node_id="public.gone",
+                message="No such node: public.gone",
+            )
+        ],
+    )
+    cache_format: CacheFormat[RelationModelsResult] = CacheFormat(
+        RelationModelsResult
+    )
+
+    assert cache_format.decode(cache_format.encode(result)) == result
 
 
 def test_unknown_wire_version_is_a_miss_instead_of_guessed() -> None:

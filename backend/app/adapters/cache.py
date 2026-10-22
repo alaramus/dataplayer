@@ -24,9 +24,9 @@ from app.core.translation import say
 if TYPE_CHECKING:
     from app.adapters.cache_serialization import CacheFormat
 
-# What a source may be asked to cache. "metadata" is what an editor
-# completes against, which changes far less often than rows do (D65).
-CacheArea = Literal["catalog", "fetch", "metadata"]
+# What a source may be asked to cache. "metadata" is editor completion data;
+# "relation" is a full description of one selected relation (D65, D228).
+CacheArea = Literal["catalog", "fetch", "metadata", "relation"]
 CacheStatus = Literal["hit", "miss", "coalesced", "refreshed", "bypass"]
 CacheBackendName = Literal["memory", "redis"]
 CacheHealthStatus = Literal["healthy", "degraded"]
@@ -355,14 +355,13 @@ def connector_may_choose(area: CacheArea) -> bool:
 
     Catalog levels and pages of rows are what somebody is looking at, and how
     stale that may be is a judgement about their data rather than about the
-    driver. What an editor completes against is not: it is the description of
-    a whole database, re-read as one unit, and tying it to a ten second window
-    would spend that description on every suggestion list (D105).
+    driver. Editor metadata and relation descriptions instead use their source's
+    own windows (D105, D228).
     """
     match area:
         case "catalog" | "fetch":
             return True
-        case "metadata":
+        case "metadata" | "relation":
             return False
         case unreachable:
             assert_never(unreachable)

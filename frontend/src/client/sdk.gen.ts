@@ -276,6 +276,9 @@ import type {
   connectorsReadRelationModelData,
   connectorsReadRelationModelErrors,
   connectorsReadRelationModelResponses,
+  connectorsReadRelationModelsData,
+  connectorsReadRelationModelsErrors,
+  connectorsReadRelationModelsResponses,
   connectorsReadSourceFeaturesData,
   connectorsReadSourceFeaturesErrors,
   connectorsReadSourceFeaturesResponses,
@@ -2138,6 +2141,30 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/relation-model",
       ...options,
+    })
+  }
+
+  /**
+   * Read Relation Models
+   *
+   * Describe a bounded set of relations for graph and structure reuse.
+   */
+  public static readRelationModels<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadRelationModelsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsReadRelationModelsResponses,
+      connectorsReadRelationModelsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/relation-models",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

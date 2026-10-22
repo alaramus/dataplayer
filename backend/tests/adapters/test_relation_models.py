@@ -8,6 +8,7 @@ from app.adapters.relation import (
     ForeignKey,
     PrimaryKey,
     RelationModel,
+    RelationModelsRequest,
 )
 from app.adapters.summary import RelationContents
 
@@ -82,6 +83,16 @@ def test_a_relation_model_holds_columns_constraints_and_indexes() -> None:
 
     assert model.indexes == []
     assert model.partitioning is None
+
+
+def test_relation_model_batches_are_bounded_and_unique() -> None:
+    request = RelationModelsRequest(node_ids=["public.orders", "public.notes"])
+    assert request.node_ids == ["public.orders", "public.notes"]
+
+    with pytest.raises(ValidationError):
+        RelationModelsRequest(node_ids=["public.orders", "public.orders"])
+    with pytest.raises(ValidationError):
+        RelationModelsRequest(node_ids=[f"public.table_{index}" for index in range(101)])
 
 
 def test_a_relation_specialization_is_typed_and_optional() -> None:

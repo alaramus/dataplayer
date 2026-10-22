@@ -7,7 +7,7 @@ export const relationships: Messages["relationships"] = {
   layout_not_saved: "La disposition du graphe n'a pas pu être enregistrée dans ce navigateur",
   too_many: "Sélectionnez au plus {n} tables pour un diagramme.",
   too_large: "Ce graphe est trop grand. Sélectionnez moins de tables.",
-  reading: "Lecture de la structure {loaded} / {total}",
+  reading: "Lecture de la structure…",
   reading_label: "Lecture des structures de tables",
   stop: "Arrêter le chargement",
   stopped: "Chargement arrêté. Rechargez pour relire la sélection.",

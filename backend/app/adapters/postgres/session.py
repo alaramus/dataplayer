@@ -562,6 +562,10 @@ class PostgresSession:
         except PoolTimeout:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
+        except TimeoutError:
+            raise AdapterError(
+                "timeout", say("The server did not answer in time")
+            ) from None
         except psycopg.Error as exc:
             error_kind, message = classify(exc, fallback_message=N_("Source inspection failed"))
             raise AdapterError(error_kind, message) from None

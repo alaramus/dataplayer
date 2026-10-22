@@ -58,6 +58,8 @@ export interface Point3 extends Point2 { z: number }
 export interface Camera2 extends Point2 { zoom: number }
 export interface Camera3 { position: Point3; target: Point3 }
 export interface GraphViewState {
+  /** Bumped when the automatic 3D layout changes enough to require a reflow. */
+  layout3dVersion: number
   mode: "2d" | "3d"
   positions2: Record<string, Point2>
   positions3: Record<string, Point3>

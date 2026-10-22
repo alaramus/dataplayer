@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
-import { computed } from "vue"
+import { computed, ref } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
@@ -34,15 +34,17 @@ export function useRelationModel(
    * that says it can be described; a row view is opened on any node at all,
    * and asking a source to describe a CSV is asking for a 501.
    */
-  enabled?: Ref<boolean>
+  enabled?: Ref<boolean>,
+  refresh?: Ref<boolean>,
 ) {
+  const refreshOnRead = refresh ?? ref(false)
   return useQuery({
     queryKey: computed(() => relationModelKey(connectorId.value, nodeId.value)),
     queryFn: async () =>
       (
         await ConnectorsService.readRelationModel({
           path: { connector_id: connectorId.value },
-          query: { node_id: nodeId.value },
+          query: { node_id: nodeId.value, refresh: refreshOnRead.value },
         })
       ).data,
     staleTime: 5 * 60_000,

@@ -58,7 +58,8 @@ const supportsDeclaredReferences = computed(() => {
   )
   return source?.capabilities.some((one) => one.code === "declared_references") === true
 })
-const query = useRelationModel(connectorId, nodeId)
+const refreshModel = ref(false)
+const query = useRelationModel(connectorId, nodeId, undefined, refreshModel)
 const errorKind = computed(() => errorKindOf(query.error.value))
 const addColumn = useAddColumn(connectorId, nodeId)
 const dropColumn = useDropColumn(connectorId, nodeId)
@@ -98,7 +99,12 @@ const constraintBlocked = ref<{
 } | null>(null)
 const droppingConstraint = ref<string | null>(null)
 
-defineExpose({ reload: async () => void (await query.refetch()) })
+async function reload() {
+  refreshModel.value = true
+  try { await query.refetch() }
+  finally { refreshModel.value = false }
+}
+defineExpose({ reload })
 
 const COLUMNS = computed(() => [
   { name: "name", label: t("structure.view.table.column"), field: "name", align: "left" as const },

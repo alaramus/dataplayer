@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue"
 
 import { ConnectorsService, DeclaredReferencesService } from "@/client"
+import { relationModelKey } from "@/features/structure/api"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -24,27 +25,42 @@ const workspace = useWorkspaceActions()
 const client = useQueryClient()
 const toast = useToast()
 const me = useCurrentUser()
-const loaded = ref(0)
-const total = ref(props.nodes.length)
 const cancelled = ref(false)
+const forceRefresh = ref(false)
 const view = shallowRef(emptyGraphView())
 const queryKey = computed(() => ["relationshipGraph", props.connectorId, props.nodes.map((node) => node.id).sort()])
 const source = useQuery({
   queryKey,
   queryFn: async ({ signal }) => {
-    loaded.value = 0; cancelled.value = false
+    cancelled.value = false
     const requested = await expandHolders(props.nodes, async (nodeId) => (
-      await ConnectorsService.readCatalog({ path: { connector_id: props.connectorId }, query: { node_id: nodeId }, signal })
+      await ConnectorsService.readCatalog({
+        path: { connector_id: props.connectorId },
+        query: { node_id: nodeId, refresh: forceRefresh.value },
+        signal,
+      })
     ).data)
-    total.value = requested.length
-    const read = await loadRelations(requested, async (nodeId, readSignal) => (
-      await ConnectorsService.readRelationModel({ path: { connector_id: props.connectorId }, query: { node_id: nodeId }, signal: readSignal })
-    ).data, signal, (count) => { loaded.value = count })
+    const read = await loadRelations(requested, async (nodeIds, readSignal) => {
+      const result = (await ConnectorsService.readRelationModels({
+        path: { connector_id: props.connectorId },
+        query: { refresh: forceRefresh.value },
+        body: { node_ids: nodeIds },
+        signal: readSignal,
+      })).data
+      for (const model of result.models) {
+        client.setQueryData(relationModelKey(props.connectorId, model.node_id), model)
+      }
+      return result
+    }, signal)
     const references = (await DeclaredReferencesService.referencesListDeclaredReferences({
       query: { connector_id: props.connectorId }, signal,
     })).data
     return withDeclared(read, props.connectorId, references, async (end, readSignal) => (
-      await ConnectorsService.readRelationModel({ path: { connector_id: end.connector_id }, query: { node_id: end.node_id }, signal: readSignal })
+      await ConnectorsService.readRelationModel({
+        path: { connector_id: end.connector_id },
+        query: { node_id: end.node_id, refresh: forceRefresh.value },
+        signal: readSignal,
+      })
     ).data, signal)
   },
   staleTime: 5 * 60_000,
@@ -92,7 +108,11 @@ onBeforeUnmount(() => {
   if (saveTimer !== undefined) clearTimeout(saveTimer)
   save()
 })
-useReloadable(() => props.panelId, async () => { await source.refetch() })
+useReloadable(() => props.panelId, async () => {
+  forceRefresh.value = true
+  try { await source.refetch() }
+  finally { forceRefresh.value = false }
+})
 const changes = useSourceChangesStore()
 watch(() => changes.lastChange(props.connectorId), (at, before) => { if (at && at !== before) void source.refetch() })
 
@@ -126,11 +146,8 @@ function openStructure(id: string) {
       class="relationship-panel__loading"
       role="status"
     >
-      <span>{{ t("relationships.reading", { loaded, total }) }}</span>
-      <AppProgress
-        :label="t('relationships.reading_label')"
-        :value="total ? loaded / total : 0"
-      />
+      <span>{{ t("relationships.reading") }}</span>
+      <AppProgress :label="t('relationships.reading_label')" />
       <AppIconButton
         :icon="appIcons.stop"
         :tooltip="t('relationships.stop')"
