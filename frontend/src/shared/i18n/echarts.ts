@@ -14,8 +14,11 @@ registerLocale("DE", langDE)
 registerLocale("FR", langFR)
 registerLocale("ZH", langZH)
 
-/** ECharts' own name for the interface's language (D227). */
-const LOCALES: Record<Language, string> = { en: "EN", ru: "RU", de: "DE", fr: "FR", zh: "ZH" }
+/**
+ * ECharts' own name for the interface's language (D227). ECharts ships no
+ * Hindi pack, so its own words stay English there.
+ */
+const LOCALES: Record<Language, string> = { en: "EN", ru: "RU", de: "DE", fr: "FR", zh: "ZH", hi: "EN" }
 
 /**
  * The locale to start a chart in. Read when a chart is made: one drawn before

@@ -1,0 +1,48 @@
+/** प्रशासन (features/admin)। */
+import type { Messages } from "../en"
+
+export const admin: Messages["admin"] = {
+  title: "प्रशासन",
+  only_admin: "इस इंस्टॉलेशन का प्रबंधन केवल व्यवस्थापक करता है",
+  sections: {
+    users: "उपयोगकर्ता",
+    users_summary: "किसके पास खाता है, और इस इंस्टॉलेशन का प्रबंधन कौन करता है",
+  },
+  users: {
+    new_user: "नया उपयोगकर्ता",
+    only_admin: "खातों का प्रबंधन केवल व्यवस्थापक करता है",
+    empty: "अभी कोई खाता नहीं",
+    columns: {
+      email: "ईमेल",
+      name: "नाम",
+      role: "भूमिका",
+      state: "स्थिति",
+    },
+    administrator: "व्यवस्थापक",
+    user: "उपयोगकर्ता",
+    active: "सक्रिय",
+    switched_off: "बंद",
+    edit: "इस खाते को संपादित करें",
+    delete: "इस खाते और इसके सारे स्वामित्व को हटाएँ",
+    cannot_delete_self: "आप अपना खाता नहीं हटा सकते",
+    created: "खाता बनाया गया",
+    updated: "खाता अपडेट किया गया",
+    save_failed: "वह खाता सहेजा नहीं जा सका",
+    delete_title: "खाता हटाएँ",
+    delete_message: "{email} और इसके स्वामित्व वाला सब कुछ — इसके कनेक्शन और इसकी फ़ाइलें — हटा दिया जाएगा। इसे पूर्ववत नहीं किया जा सकता।",
+    delete_confirm: "हटाएँ",
+    deleted: "खाता हटाया गया",
+    delete_failed: "वह खाता हटाया नहीं जा सका",
+    edit_title: "उपयोगकर्ता संपादित करें — {email}",
+    email: "ईमेल",
+    name: "नाम",
+    password: "पासवर्ड",
+    new_password: "नया पासवर्ड",
+    keep_password: "वर्तमान पासवर्ड रखने के लिए खाली छोड़ें",
+    can_sign_in: "साइन इन कर सकते हैं",
+    superuser: "व्यवस्थापक: खातों का प्रबंधन करता है, दूसरों के डेटा का नहीं",
+    email_invalid: "एक मान्य ईमेल पता आवश्यक है",
+    password_required: "पासवर्ड आवश्यक है",
+    password_short: "कम से कम {n} अक्षर | कम से कम {n} अक्षर",
+  },
+}

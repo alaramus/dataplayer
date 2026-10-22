@@ -18,7 +18,10 @@ async function forgetLanguage(request: APIRequestContext) {
   await setLanguage(request, null)
 }
 
-async function setLanguage(request: APIRequestContext, language: "ru" | "de" | "fr" | "zh" | null) {
+async function setLanguage(
+  request: APIRequestContext,
+  language: "ru" | "de" | "fr" | "zh" | "hi" | null
+) {
   const signedIn = await request.post(`${api}/login/access-token`, {
     form: { username: firstSuperuser, password: firstSuperuserPassword },
   })
@@ -95,6 +98,19 @@ test.describe("a browser asking for Chinese", () => {
     await expect(page.getByTestId("login-email")).toHaveAccessibleName("电子邮件")
     await page.getByTestId("login-submit").click()
     await expect(page.getByText("密码为必填项", { exact: true })).toBeVisible()
+  })
+})
+
+test.describe("a browser asking for Hindi", () => {
+  test.use({ locale: "hi-IN" })
+
+  test("is answered in Hindi before anybody signs in", async ({ page }) => {
+    await page.goto("/login")
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi")
+    await expect(page.getByTestId("login-email")).toHaveAccessibleName("ईमेल")
+    await page.getByTestId("login-submit").click()
+    await expect(page.getByText("पासवर्ड आवश्यक है", { exact: true })).toBeVisible()
   })
 })
 

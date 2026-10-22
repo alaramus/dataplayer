@@ -43,7 +43,14 @@ Reply with the title and nothing else.
 """
 
 # The model is told a language by its English name.
-LANGUAGE_NAMES: dict[Language, str] = {"en": "English", "ru": "Russian", "de": "German", "fr": "French", "zh": "Chinese"}
+LANGUAGE_NAMES: dict[Language, str] = {
+    "en": "English",
+    "ru": "Russian",
+    "de": "German",
+    "fr": "French",
+    "zh": "Chinese",
+    "hi": "Hindi",
+}
 
 
 def language_line(language: Language) -> str:
