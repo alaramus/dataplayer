@@ -27,6 +27,8 @@ How connections work in general is on the [Connections](connections.md) page.
   connection closed
 - Databases: create and drop them
 - Tables and views: rename, move a table to another database, drop
+- Tables copied with their structure to another MySQL or MariaDB connection
+- Backups of the connection's database, and the database put back from one
 
 ## Connecting
 
@@ -214,8 +216,41 @@ one that cannot read the `mysql` database.
 Changes to the structure are not rehearsed first, as on PostgreSQL: MySQL
 commits them at once.
 
+## Copying tables
+
+**Copy** tables in the catalog and **Paste** them into a database of another
+MySQL or MariaDB connection, or of this one. They arrive with their columns,
+keys, indexes, checks and options; the window asks the same things as on
+PostgreSQL, shows every statement and runs nothing before **Copy**.
+
+- Triggers stay behind, named in the window. Views and partitioned tables are
+  not copied this way.
+- The tables are made first and the rows arrive afterwards. If the copy fails
+  or is stopped, the tables it made are dropped again.
+- MariaDB uses a collation MySQL does not have, so a table copied from
+  MariaDB to MySQL may be refused; the window says which step refused it.
+
+Rows pasted into another kind of connection go the way rows of any table do.
+
+## Backups
+
+**Backups**, in the catalog's actions menu, works as on PostgreSQL, for the
+database the connection names. A connection that names no database is not
+offered one.
+
+- The backup is a SQL file written by `mysqldump`, or by `mariadb-dump` for
+  MariaDB, of the server's own release, with routines, triggers and events.
+- **Restore** drops and makes again every table, view and routine the backup
+  holds. A backup made from MariaDB is restored only into MariaDB, and one made
+  from MySQL only into MySQL.
+
+## Dashboards
+
+A MySQL connection can report to dashboards. The layout is **MySQL server**:
+connections, statements, rows, buffer pool reads, network traffic, slow
+queries and aborted connections, and the size of the connection's database.
+The counters are the whole server's: MySQL does not keep them per database.
+
 ## What MySQL does not have here yet
 
 - A database cannot be renamed; MySQL has no way to do it.
-- Metrics, backups and copying tables between connections are not
-  available.

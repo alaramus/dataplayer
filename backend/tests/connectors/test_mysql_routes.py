@@ -190,3 +190,27 @@ async def test_a_database_is_made_and_dropped_through_the_actions(
     assert dropped.status_code == 200, dropped.text
     databases = await client.get(f"{BASE}/{connector}/catalog", headers=headers)
     assert made not in {node["name"] for node in databases.json()}
+
+
+async def test_tables_are_offered_for_a_copy_with_their_structure(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], target: Target
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, target)
+    pair = {
+        "source_connector_id": connector,
+        "source_node_ids": [ITEMS],
+        "mode": "copy",
+        "destination_node_id": ids.database_id(DATABASE),
+    }
+
+    offers = await client.post(f"{BASE}/{connector}/paste/offers", headers=headers, json=pair)
+    preview = await client.post(f"{BASE}/{connector}/paste/tables", headers=headers, json=pair)
+
+    assert offers.status_code == 200, offers.text
+    assert "tables_copy" in {offer["kind"] for offer in offers.json()["offers"]}
+    assert preview.status_code == 200, preview.text
+    planned = preview.json()
+    assert [table["name"] for table in planned["tables"]][0] == "items_copy"
+    assert planned["problems"] == []
+    assert planned["statements"][0]["sql"].startswith("CREATE TABLE `dp_test.mysql`.`items_copy`")

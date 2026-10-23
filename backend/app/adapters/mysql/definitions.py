@@ -147,3 +147,28 @@ async def column_definition(session: MysqlSession, schema: str, table: str, colu
         if stripped.startswith(prefix):
             return parse(stripped[len(prefix) :].rstrip(","))
     raise ValueError(say('Relation has no column "{column}"', column=column))
+
+
+def stands_alone(text: str) -> bool:
+    """Whether printed text is one part of a statement and nothing more.
+
+    No semicolon and no comment outside a quoted name or string, and every
+    parenthesis closed: what composing it into a larger statement relies on.
+    A comment is refused even where MySQL would honour it, since `/*!…*/` is
+    a statement fragment the server runs.
+    """
+    try:
+        tokens = list(_tokenizer.tokenize(text))
+    except TokenError:
+        return False
+    depth = 0
+    for token in tokens:
+        if token.comments or token.token_type is TokenType.SEMICOLON:
+            return False
+        if token.token_type is TokenType.L_PAREN:
+            depth += 1
+        elif token.token_type is TokenType.R_PAREN:
+            depth -= 1
+            if depth < 0:
+                return False
+    return depth == 0 and bool(tokens)

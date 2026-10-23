@@ -12,7 +12,7 @@ Decisions here: D43, D45, D44, D161, D163, D164, D165, D166, D168, D169, D171, D
 
 Kind `tables_copy`, "Copy tables": from tables of one source into a schema of
 another or of the same one, both implementing `SupportsTableCopy` in one
-dialect — PostgreSQL today. A transfer job (D168): planned in the request,
+dialect — PostgreSQL, and MySQL with MariaDB (D239). A transfer job (D168): planned in the request,
 carried out in the background, stopped at once.
 
 - **The whole table.** Columns with their exact types, required values,

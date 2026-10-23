@@ -69,8 +69,8 @@ it is, and the program runs in the image of that version.
 
 Known deviations:
 
-- **Only PostgreSQL.** Redis has no equivalent here, and the file source's answer
-  to "back this up" is that it is already files. Both say so by not declaring the
+- **Only PostgreSQL and MySQL (D240).** Redis has no equivalent here, and the
+  file source's answer to "back this up" is that it is already files. Both say so by not declaring the
   capability, which is what greys the button out.
 - **No schedule and no retention.** A backup happens when somebody presses the
   button, and stays until they delete it.

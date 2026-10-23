@@ -76,6 +76,10 @@ class CopiedColumn(BaseModel):
     serial: Literal["smallserial", "serial", "bigserial"] | None = None
     # The sequence a default draws from when the column does not own it.
     shared_sequence: str | None = None
+    # The whole definition after the name, for a dialect that prints a column
+    # in one line and keeps in it what the fields above cannot say (MySQL's
+    # ON UPDATE, its character set). The fields above are read off it.
+    definition: str | None = None
 
 
 class CopiedConstraint(BaseModel):
@@ -143,6 +147,9 @@ class CopiedTable(BaseModel):
     # What the copy will not have, in a phrase each: "2 triggers".
     left_behind: list[str] = Field(default_factory=list)
     row_estimate: int | None = None
+    # What follows the columns, for a dialect that prints its table options
+    # in a line of their own: MySQL's engine, character set and comment.
+    options: str | None = None
 
     @property
     def label(self) -> str:

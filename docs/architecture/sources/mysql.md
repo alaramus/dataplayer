@@ -7,7 +7,7 @@ console differs from PostgreSQL's. The contract every source type follows is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237, D238, D239, D240, D241.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -344,3 +344,79 @@ Known deviations:
   every table leaves the views, routines, triggers and events behind.
 
 Spec: [MySQL catalog actions](../../decisions/2026-10-23-mysql-actions-design.md)
+
+## D239. A table is copied in the lines the server prints
+
+Copy tables (D182) works between MySQL and MariaDB connections in one dialect,
+`mysql`. The source describes a table in what `SHOW CREATE TABLE` prints: each
+column's definition whole, the primary key, unique keys and indexes as their
+lines, checks without their names, and the table's options without its
+counter. Those lines keep what separate fields lose — ON UPDATE, a character
+set, a prefix length, a functional key. The destination checks that each is one
+part of a statement, with no semicolon, comment or open parenthesis, before it
+composes its own CREATE TABLE. Foreign keys travel as links, since the window
+decides where each one points; one server is one database for keeping a link
+on the original, because a MySQL foreign key reaches across databases.
+
+- **Not one transaction.** MySQL commits CREATE TABLE by itself (D233). The
+  tables are made, the rows arrive in one transaction, then the links; if
+  anything fails or is stopped, the tables this copy made are dropped again.
+- **Rows as JSON lines of text.** MySQL has no COPY. A value travels as the text
+  the server prints and reads back; a date, a time, a timestamp and JSON as
+  the server casts them to text, so a zero date and a negative TIME survive;
+  binary values and shapes as the hexadecimal of their stored bytes; a BIT as
+  its number. Both ends read and write in UTC (D230), and a zero in an
+  AUTO_INCREMENT column stays a zero.
+- **Names.** A check and a link are named after the copy, as PostgreSQL's
+  are, and kept free in the database, where MySQL wants each once.
+- **Left behind:** triggers, named per table. A view, a partitioned table and
+  the server's own tables are refused with the reason.
+
+Known deviations:
+
+- MySQL and MariaDB do not know all of each other's words. A definition the
+  destination refuses — MariaDB's default collation on MySQL — is refused when
+  the copy runs, not when it is planned, and the tables are dropped again.
+- A copied table's id in the finished job is composed as
+  `database.table` by the shared job, which is wrong for a table whose name
+  holds a dot.
+
+Spec: [Copying MySQL tables](../../decisions/2026-10-23-mysql-table-copy-design.md)
+
+## D240. A database is backed up by its own family's dump program
+
+Backups (D87) of a MySQL connection run `mysqldump` and the `mysql` client
+from the image of the server's own release, `mysql:8.4`, and MariaDB's own
+`mariadb-dump` and `mariadb` from `mariadb:11.4`: a dump by the other family
+or an older release may not restore. The password travels in `MYSQL_PWD`,
+which both clients read; TLS is as the connection has it (D228), so MariaDB's
+client is told not to check the certificate.
+
+- **One database: the one the connection names.** A connection that names
+  none is not offered a backup, since a dump of everything its user sees would
+  restore into databases the restoring connection never named. A database
+  whose name begins with a dash is not offered either: the dump program takes
+  it as an argument of its own.
+- **The dump** is SQL in one transaction, with routines, triggers and events,
+  binary values in hexadecimal, no tablespaces and, on MySQL, no GTID
+  statement. **A restore** is the client reading it into the connection's
+  database; each table, view and routine in it is dropped and made again.
+- **Before a restore** the first lines of the file are read: it must be a dump
+  by the same family of server, or nothing runs.
+
+Spec: [MySQL backups and metrics](../../decisions/2026-10-23-mysql-backups-metrics-design.md)
+
+## D241. A MySQL connection reports its server's counters
+
+Dashboards (D128) poll a MySQL connection with one `SHOW GLOBAL STATUS`,
+which every user may run on both servers, and one read of the database's
+size. MySQL keeps its counters for the whole server, so the layout is
+*MySQL server*: connections, statements, rows, buffer pool reads, network
+traffic, slow queries and aborted connections, and the size of the database
+the connection names, or of every database not the server's own.
+
+- **A series may be read from another variable on MariaDB**, which keeps no
+  `Innodb_rows_*`: rows read come from `Rows_read` and rows written from its
+  handlers' counters.
+
+Spec: [MySQL backups and metrics](../../decisions/2026-10-23-mysql-backups-metrics-design.md)

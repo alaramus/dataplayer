@@ -80,7 +80,10 @@ definition the server printed (D235). A designed table is planned as one
 processes can be cancelled or terminated; the catalog is searched by name and
 by column, and every matching row is exported (D237). Databases are created
 and dropped, relations renamed, moved and dropped, and a CSV file loaded,
-with previews read from `information_schema` (D238).
+with previews read from `information_schema` (D238). Tables are copied with
+their structure between MySQL and MariaDB connections (D239), a database is
+backed up by its own family's dump program (D240), and the server's counters
+feed dashboards (D241).
 
 ## Where the code is
 
@@ -138,7 +141,8 @@ backend/app/adapters/
 │                       vocabulary.py (types, index kinds), design.py
 │                       (the designer), relation_changes.py, actions.py,
 │                       reports.py + row_commands.py (System), search.py,
-│                       export.py, adapter.py
+│                       export.py, table_copy.py, backup.py, metrics.py,
+│                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
 │                       what a key is), fetch.py (a key read as rows),

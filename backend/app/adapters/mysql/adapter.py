@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
@@ -31,7 +32,9 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.mysql.actions import MYSQL_ACTION_TYPES, MysqlActions
+from app.adapters.mysql.backup import MysqlBackup
 from app.adapters.mysql.catalog import MysqlCatalog
 from app.adapters.mysql.columns import MysqlColumns
 from app.adapters.mysql.content import MysqlContent
@@ -42,6 +45,8 @@ from app.adapters.mysql.features import MysqlFeatures
 from app.adapters.mysql.fetch import MysqlFetch
 from app.adapters.mysql.keys import MysqlKeys
 from app.adapters.mysql.metadata import MysqlGeneration, MysqlMetadata
+from app.adapters.mysql.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.mysql.metrics import MysqlMetrics
 from app.adapters.mysql.options import MysqlOptions
 from app.adapters.mysql.query import MysqlExecution, MysqlQuery, MysqlTransaction
 from app.adapters.mysql.references import MysqlReferences
@@ -57,8 +62,13 @@ from app.adapters.mysql.session import (
 )
 from app.adapters.mysql.statements import format_text
 from app.adapters.mysql.summary import MysqlSummaries
+from app.adapters.mysql.table_copy import DIALECT, MysqlTableCopy
 from app.adapters.mysql.update import MysqlUpdate
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.protocol import (
+    BackupAvailability,
+    BackupProgram,
+    ConnectionCheckResult,
+)
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,
@@ -95,6 +105,14 @@ from app.adapters.search import (
     SourceCost,
 )
 from app.adapters.summary import NodeSummary
+from app.adapters.table_copy import (
+    Arrived,
+    CopiedTable,
+    RowsOf,
+    TableCopyPlan,
+    TableCopyRequest,
+    TableRows,
+)
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -150,11 +168,62 @@ class MysqlAdapter:
         self._keys = MysqlKeys(self._session, self._relation)
         self._design = MysqlTableDesign(self._session, self._catalog, self._relation)
         self._relations = MysqlRelationChanges(self._session, self._catalog)
+        self._table_copy = MysqlTableCopy(self._session, self._relations)
+        self._backup = MysqlBackup(self._session, options)
+        self._metrics = MysqlMetrics(self._session)
         self._actions = MysqlActions(self._session, self._catalog)
         self._references = MysqlReferences(self._session, self._catalog, self._relation)
         self._explain = MysqlExplain(self._session)
         self._metadata = MysqlMetadata(self._session)
         self._generation = MysqlGeneration(self._session, self._metadata)
+
+    table_copy_dialect = DIALECT
+
+    @property
+    def table_copy_database(self) -> str:
+        return self._table_copy.table_copy_database
+
+    async def describe_for_copy(self, node_ids: list[str]) -> list[CopiedTable]:
+        return await self._table_copy.describe_for_copy(node_ids)
+
+    async def free_table_names(self, place_node_id: str, wanted: list[str]) -> list[str]:
+        return await self._table_copy.free_table_names(place_node_id, wanted)
+
+    async def plan_table_copy(self, request: TableCopyRequest) -> TableCopyPlan:
+        return await self._table_copy.plan_table_copy(request)
+
+    def reading_tables(self) -> AbstractAsyncContextManager[TableRows]:
+        return self._table_copy.reading_tables()
+
+    async def carry_table_copy(
+        self, request: TableCopyRequest, rows_of: RowsOf, arrived: Arrived
+    ) -> None:
+        """Tables made, rows in one transaction, then links; undone on failure (D239)."""
+        await self._table_copy.carry_table_copy(request, rows_of, arrived)
+
+    async def metric_samples(self) -> list[MetricSample]:
+        """The server's counters and the database's size, per poll (D241)."""
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
+
+    async def backup_availability(self) -> BackupAvailability:
+        return await self._backup.backup_availability()
+
+    async def backup_program(self, *, into: str) -> BackupProgram:
+        """A dump by the server's own family of program (D240)."""
+        return await self._backup.backup_program(into=into)
+
+    async def restore_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_program(from_file=from_file)
+
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_inventory_program(from_file=from_file)
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None:
+        self._backup.validate_restore_inventory(lines)
 
     @classmethod
     def cache_ttl(cls, area: CacheArea) -> float:
