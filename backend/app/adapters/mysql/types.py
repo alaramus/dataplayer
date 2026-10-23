@@ -148,3 +148,41 @@ def read_cell(value: Any, type_: ColumnType) -> str | None:
         # them with replacements would show a value that is not there.
         return f"0x{bytes(value).hex().upper()}"
     return encode_cell(value, type_)
+
+
+# What a result column of each wire type is, as far as a result says.
+_WIRE_TYPES: dict[int, tuple[str, TypeCategory]] = {
+    0: ("decimal", "number"),
+    1: ("tinyint", "number"),
+    2: ("smallint", "number"),
+    3: ("int", "number"),
+    4: ("float", "number"),
+    5: ("double", "number"),
+    6: ("null", "other"),
+    7: ("timestamp", "datetime"),
+    8: ("bigint", "number"),
+    9: ("mediumint", "number"),
+    10: ("date", "datetime"),
+    11: ("time", "datetime"),
+    12: ("datetime", "datetime"),
+    13: ("year", "number"),
+    14: ("date", "datetime"),
+    15: ("varchar", "string"),
+    16: ("bit", "number"),
+    245: ("json", "json"),
+    246: ("decimal", "number"),
+    247: ("enum", "enum"),
+    248: ("set", "string"),
+    249: ("text", "string"),
+    250: ("text", "string"),
+    251: ("text", "string"),
+    252: ("text", "string"),
+    253: ("varchar", "string"),
+    254: ("char", "string"),
+    255: ("geometry", "binary"),
+}
+
+
+def wire_type(code: int) -> tuple[str, TypeCategory]:
+    """What a result column of this wire type is, where nothing else says."""
+    return _WIRE_TYPES.get(code, ("unknown", "other"))

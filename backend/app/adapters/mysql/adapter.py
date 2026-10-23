@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
@@ -22,6 +22,7 @@ from app.adapters.constraints import (
     DropConstraintRequest,
 )
 from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -36,6 +37,7 @@ from app.adapters.mysql.columns import MysqlColumns
 from app.adapters.mysql.content import MysqlContent
 from app.adapters.mysql.design import MysqlTableDesign
 from app.adapters.mysql.explain import MysqlExplain
+from app.adapters.mysql.export import MysqlExport
 from app.adapters.mysql.features import MysqlFeatures
 from app.adapters.mysql.fetch import MysqlFetch
 from app.adapters.mysql.keys import MysqlKeys
@@ -45,6 +47,8 @@ from app.adapters.mysql.query import MysqlExecution, MysqlQuery, MysqlTransactio
 from app.adapters.mysql.references import MysqlReferences
 from app.adapters.mysql.relation import MysqlRelation
 from app.adapters.mysql.relation_changes import MysqlRelationChanges
+from app.adapters.mysql.row_commands import MysqlRowCommands
+from app.adapters.mysql.search import MysqlSearch
 from app.adapters.mysql.session import (
     MysqlSession,
     compose_url,
@@ -80,6 +84,16 @@ from app.adapters.relation_changes import (
     NewRelationOptions,
 )
 from app.adapters.resources import Pooling
+from app.adapters.row_commands import RowCommand, RowCommandResult
+from app.adapters.search import (
+    LastSearch,
+    NameBatch,
+    NodeSearchRequest,
+    NodeSearchResult,
+    SearchBounds,
+    SearchedField,
+    SourceCost,
+)
 from app.adapters.summary import NodeSummary
 from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
@@ -126,6 +140,9 @@ class MysqlAdapter:
         self._relation = MysqlRelation(self._session)
         self._fetch = MysqlFetch(self._session, self._relation)
         self._content = MysqlContent(self._session, self._relation)
+        self._export = MysqlExport(self._session, self._fetch)
+        self._row_commands = MysqlRowCommands(self._session)
+        self._search = MysqlSearch(self._session)
         self._summaries = MysqlSummaries(self._session, self._relation)
         self._query = MysqlQuery(self._session)
         self._update = MysqlUpdate(self._session, self._relation)
@@ -191,8 +208,37 @@ class MysqlAdapter:
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         return await self._catalog.path_to(node_id)
 
+    def enumerate_names(self, limit: int, bounds: SearchBounds) -> AsyncIterator[NameBatch]:
+        return self._search.enumerate_names(limit, bounds)
+
+    async def search_nodes(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_nodes(request, bounds)
+
+    async def search_columns(
+        self, request: NodeSearchRequest, bounds: SearchBounds | None = None
+    ) -> NodeSearchResult:
+        return await self._search.search_columns(request, bounds)
+
+    @classmethod
+    def search_cost(cls, field: SearchedField, last: LastSearch | None) -> SourceCost:
+        """Names are one query of the catalog; columns read every column (D200)."""
+        return "cheap" if field == "names" else "costly"
+
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    def row_commands(self, node_id: str) -> list[RowCommand]:
+        return self._row_commands.for_node(node_id)
+
+    async def run_row_command(
+        self, node_id: str, name: str, keys: Sequence[str]
+    ) -> RowCommandResult:
+        return await self._row_commands.run(node_id, name, keys)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)

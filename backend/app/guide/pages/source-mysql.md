@@ -13,6 +13,9 @@ How connections work in general is on the [Connections](connections.md) page.
 - A relation's DDL, as the server writes it
 - How big a table is, and when it was created and last written to
 - The results of SQL you write, and the server's plan for a query
+- Every matching row, downloaded as a file
+- What the server is doing: processes, variables, status, users, routines,
+  triggers, events and engines
 
 ## What you can change
 
@@ -20,6 +23,8 @@ How connections work in general is on the [Connections](connections.md) page.
 - Columns, indexes, unique keys and foreign keys
 - New tables, designed object by object or made from rows
 - Data and structure, through SQL in the console
+- What another connection is running: its statement can be stopped, or the
+  connection closed
 
 ## Connecting
 
@@ -53,6 +58,10 @@ server is refused when the connection is checked, with its version named.
   how big it is, and when it was created and last written to.
 - **View DDL** shows the `CREATE TABLE` or `CREATE VIEW` statement the server
   itself gives.
+- **System**, after the databases, is a section of reports the server gives
+  about itself (see **Reports** below).
+- The search in the header finds databases and tables by name, and tables by
+  their columns and the comments on them and their columns.
 
 ## Reading rows
 
@@ -65,6 +74,9 @@ for numbers, dates and text; contains and starts with for text; equality and
   columns that cannot be empty, the order InnoDB keeps such a table in. A table
   with neither, and a view, is in whatever order the server returns.
 - A `%` or `_` typed into a text filter is looked for as itself.
+- **Download** asks for **Current page** or **All matching rows**. Every row is
+  read from the server as it is written to the file, in the page's order and
+  with its filters.
 
 How values are shown:
 
@@ -159,10 +171,31 @@ differences:
 - Users, grants, routines, triggers and events are not changed from the
   console. `LOAD DATA`, `SELECT … INTO OUTFILE` and `CALL` are not run.
 
+## Reports
+
+**System** in the catalog holds eight reports about the server. They are read
+like tables, and can be sorted, filtered, downloaded and charted. **View the
+statement** shows the SQL a report runs.
+
+- **Processes**: the connections open now and what each is running. Each row
+  has **Cancel query**, which stops the statement and keeps the connection,
+  and **Terminate**, which closes the connection. The report re-reads itself
+  every five seconds.
+- **Variables**: every global setting of the server.
+- **Status**: the counters the server keeps since it started. It re-reads
+  itself every ten seconds.
+- **Users**: the accounts that may connect, and from which hosts.
+- **Routines** and **Triggers** outside the server's own databases, and the
+  **Events** its scheduler runs.
+- **Engines**: the storage engines the server offers, and which is the default.
+
+A report shows only what the connection's user may see: a user without the
+`PROCESS` privilege sees only its own connections, and **Users** is refused to
+one that cannot read the `mysql` database.
+
 ## What MySQL does not have here yet
 
 - Tables cannot be renamed or dropped from the catalog; the console can do
   it.
-- Only the page on screen can be downloaded, not every matching row.
-- Reports about the server, metrics, backups and copying tables between
-  connections are not available.
+- Metrics, backups and copying tables between connections are not
+  available.

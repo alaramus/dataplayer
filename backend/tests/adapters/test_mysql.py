@@ -19,12 +19,16 @@ from app.adapters.mysql.options import MysqlNoPassword, MysqlUserPassword
 from app.adapters.mysql.session import options_from_url, read_profile
 from app.adapters.protocol import (
     DataAdapter,
+    EnumeratesNames,
     NodeNotFound,
+    SearchesColumns,
     SupportsAddColumn,
     SupportsCatalog,
     SupportsContent,
+    SupportsExport,
     SupportsFetch,
     SupportsNodePath,
+    SupportsNodeSearch,
     SupportsNodeSummary,
     SupportsReferences,
     SupportsRelationModel,
@@ -39,6 +43,7 @@ from app.adapters.relation import (
     UniqueConstraint,
 )
 from app.adapters.resources import Pooling, ResourceStore
+from app.adapters.row_commands import SupportsRowCommands
 from app.adapters.summary import RelationContents
 from tests.adapters.mysql_fixture import (
     DATABASE,
@@ -97,6 +102,11 @@ def test_it_claims_only_what_it_does() -> None:
     assert isinstance(adapter, SupportsReferences)
     assert isinstance(adapter, SupportsAddColumn)
     assert isinstance(adapter, SupportsTableDesign)
+    assert isinstance(adapter, SupportsNodeSearch)
+    assert isinstance(adapter, SearchesColumns)
+    assert isinstance(adapter, EnumeratesNames)
+    assert isinstance(adapter, SupportsExport)
+    assert isinstance(adapter, SupportsRowCommands)
 
 
 def test_a_server_is_read_as_its_flavour_and_number() -> None:

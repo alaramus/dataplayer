@@ -6,8 +6,11 @@ AUTO_INCREMENT that a reconstruction leaves out, and it is what a person
 pastes into another MySQL.
 """
 
+import textwrap
+
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
 from app.adapters.mysql.relation import MysqlRelation
+from app.adapters.mysql.reports import report_for
 from app.adapters.mysql.session import MysqlSession
 from app.adapters.mysql.sql import SQL, Identifier
 from app.core.translation import say
@@ -28,6 +31,12 @@ class MysqlContent:
                     representation=request.representation,
                 )
             )
+        report = report_for(request.node_id)
+        if report is not None:
+            # What the report runs, as it is written here, without the
+            # indentation of the Python file it lives in.
+            written = report.statement_for(await self._session.profile())
+            return SqlContent(text=textwrap.dedent(written).strip())
         # Confirms the relation is there, and says so as a missing node.
         facts = await self._relation.facts(request.node_id, structure=False)
         statement = SQL("SHOW CREATE TABLE {}").format(Identifier(facts.schema, facts.name))

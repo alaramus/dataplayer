@@ -24,7 +24,7 @@ from sqlglot import exp
 from app.adapters.mysql import ids
 from app.adapters.mysql.session import MysqlSession, classify
 from app.adapters.mysql.statements import bind, bound_names, parse, prepare
-from app.adapters.mysql.types import read_cell
+from app.adapters.mysql.types import read_cell, wire_type
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     MaterialisedResult,
@@ -45,7 +45,7 @@ from app.adapters.query import (
     TransactionContext,
     TransactionState,
 )
-from app.adapters.relation import ColumnType, TypeCategory
+from app.adapters.relation import ColumnType
 from app.core.translation import N_, say
 
 DEFAULT_TIMEOUT_SECONDS = 30
@@ -103,37 +103,6 @@ _COMMITTED_ALONE = frozenset({"ddl", "maintenance"})
 
 _UNSAFE = {ord(char): None for char in ("\r", "\n", "\t", "\x00")}
 
-# What a result column of each wire type is, as far as a result says.
-_WIRE_TYPES: dict[int, tuple[str, TypeCategory]] = {
-    0: ("decimal", "number"),
-    1: ("tinyint", "number"),
-    2: ("smallint", "number"),
-    3: ("int", "number"),
-    4: ("float", "number"),
-    5: ("double", "number"),
-    6: ("null", "other"),
-    7: ("timestamp", "datetime"),
-    8: ("bigint", "number"),
-    9: ("mediumint", "number"),
-    10: ("date", "datetime"),
-    11: ("time", "datetime"),
-    12: ("datetime", "datetime"),
-    13: ("year", "number"),
-    14: ("date", "datetime"),
-    15: ("varchar", "string"),
-    16: ("bit", "number"),
-    245: ("json", "json"),
-    246: ("decimal", "number"),
-    247: ("enum", "enum"),
-    248: ("set", "string"),
-    249: ("text", "string"),
-    250: ("text", "string"),
-    251: ("text", "string"),
-    252: ("text", "string"),
-    253: ("varchar", "string"),
-    254: ("char", "string"),
-    255: ("geometry", "binary"),
-}
 
 
 def _safe_text(value: str | None, fallback: str) -> str:
@@ -473,7 +442,7 @@ class _Statements:
         fetched = fetched[: limits.max_result_rows]
         columns: list[ResultColumn] = []
         for position, column in enumerate(description):
-            sql, category = _WIRE_TYPES.get(int(column[1]), ("unknown", "other"))
+            sql, category = wire_type(int(column[1]))
             # The wire type of a BLOB and of a TEXT is the same; what the
             # driver handed back says which this one is.
             if category == "string" and any(

@@ -505,7 +505,7 @@ class MysqlSession:
     async def query(
         self,
         sql: str,
-        params: tuple[object, ...] = (),
+        params: tuple[object, ...] | Mapping[str, object] = (),
         *,
         refusals: Mapping[int, str] | None = None,
     ) -> list[dict[str, Any]]:
@@ -528,6 +528,53 @@ class MysqlSession:
             if named is not None:
                 raise ValueError(named) from None
             error_kind, message = classify(exc, fallback_message=N_("Query failed"))
+            raise AdapterError(error_kind, message) from None
+
+    async def describe(self, sql: str) -> list[tuple[str, int]]:
+        """The name and wire type of every column `sql` answers with.
+
+        The caller writes `sql` so that it reads no row.
+        """
+        try:
+            async with self._connection() as connection:
+                async with connection.cursor() as cursor:
+                    await cursor.execute(sql, ())
+                    return [(str(column[0]), int(column[1])) for column in cursor.description or []]
+        except PoolExhausted:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message=N_("Query failed"))
+            raise AdapterError(error_kind, message) from None
+
+    async def stream(
+        self, sql: str, params: tuple[object, ...], *, batch_size: int
+    ) -> AsyncIterator[list[dict[str, Any]]]:
+        """Every row of a read, a batch at a time, never held whole.
+
+        Unbuffered: the server sends rows as they are read. A connection left
+        in the middle of such a result cannot be used again, so one whose
+        reader stopped early is closed rather than given back to the pool.
+        """
+        try:
+            async with self._connection() as connection:
+                finished = False
+                try:
+                    async with connection.cursor(aiomysql.SSDictCursor) as cursor:
+                        await cursor.execute(sql, params)
+                        while rows := await cursor.fetchmany(batch_size):
+                            yield list(rows)
+                        finished = True
+                finally:
+                    if not finished:
+                        connection.close()
+        except PoolExhausted:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except AdapterError:
+            raise
+        except pymysql.err.MySQLError as exc:
+            error_kind, message = classify(exc, fallback_message=N_("Export failed"))
             raise AdapterError(error_kind, message) from None
 
     async def _why_no_connection(self) -> tuple[ErrorKind, str]:

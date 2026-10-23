@@ -14,6 +14,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.adapters.mysql import ids
+from app.adapters.mysql.reports import PROCESSES_REPORT_ID
 from app.core.config import settings
 from tests.adapters.mysql_fixture import DATABASE, TARGETS, Target, build, tear_down
 
@@ -139,3 +140,26 @@ async def test_the_console_runs_and_says_what_it_cannot_do(
     [statement] = run["statements"]
     page = await client.get(f"{queries}/results/{statement['result_id']}", headers=headers)
     assert page.json()["rows"][0] == ["1", "alpha"]
+
+
+async def test_the_catalog_is_searched_and_a_process_is_named_by_its_number(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], target: Target
+) -> None:
+    headers = normal_user_token_headers
+    connector = await _connector(client, headers, target)
+
+    found = await client.get(
+        f"{BASE}/{connector}/catalog/search",
+        headers=headers,
+        params={"query": "items", "node_id": ids.database_id(DATABASE)},
+    )
+    assert found.status_code == 200, found.text
+    assert [match["node"]["id"] for match in found.json()["matches"]][0] == ITEMS
+
+    refused = await client.post(
+        f"{BASE}/{connector}/rows/command",
+        headers=headers,
+        json={"node_id": PROCESSES_REPORT_ID, "name": "kill_query", "keys": ["1 OR 1"]},
+    )
+    assert refused.status_code == 422, refused.text
+    assert refused.json()["detail"]["message"] == "A connection is named by its number"

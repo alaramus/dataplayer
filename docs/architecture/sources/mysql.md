@@ -7,7 +7,7 @@ console differs from PostgreSQL's. The contract every source type follows is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236, D237.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -273,3 +273,39 @@ Known deviations:
   the plan refuses them, rather than the options saying they are not there.
 
 Spec: [Designing MySQL tables](../../decisions/2026-10-23-mysql-design-design.md)
+
+## D237. The server's reports are statements written here, read like a page
+
+A MySQL server's reports (D55) sit in a **System** section after the
+databases: processes, variables, status, users, routines, triggers, events and
+engines. The section's id begins with a backslash, which no database id can,
+since a backslash in a name is written as two (D229). Every report is one
+statement in this package, chosen by node id and never composed from a
+request. Where the two servers keep an answer in different places — variables
+and status in `performance_schema` on MySQL and `information_schema` on
+MariaDB, a lock flag that MariaDB's `mysql.user` does not have — a report has
+a statement per flavour, and the processes have one more for a MySQL before
+8.0.22, which has no `performance_schema.processlist` yet and warns on every
+read of the list that replaced it.
+
+A report is paged as a relation is (D231): its statement is a subquery, its
+columns are what the server describes for it with `LIMIT 0`, and filters,
+sorting and the page are applied over it, in an order of columns the report
+names so that page two does not repeat page one. Nothing is written through a
+report, a row of one is not a record, and it cannot be made into a relation:
+it is a moment of the server. Processes are read again every five seconds and
+status every ten.
+
+The processes offer **Cancel query** and **Terminate** (D70) as `KILL QUERY`
+and `KILL CONNECTION`, with each id checked to be a whole number and bound. A
+connection that has already ended, or one this user may not stop, is reported
+by the server's error number rather than its text.
+
+Search by name and by column (D202) is one query of `information_schema`,
+words found with `INSTR` under `utf8mb4_bin` and each bound twice, folded by
+the word rule and as typed, so the server's accent-blind collations find
+nothing the rule does not, and its ranks are ordered before the `LIMIT`. An
+export (D45) reads with an unbuffered cursor and closes a connection whose
+reader stopped early rather than returning it to the pool mid-result.
+
+Spec: [MySQL reports, search and export](../../decisions/2026-10-23-mysql-reports-design.md)

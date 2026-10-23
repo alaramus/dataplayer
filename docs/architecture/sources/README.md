@@ -17,7 +17,7 @@ file holds which decision.
 | [content.md](content.md) | open a node as something other than a page of rows |
 | [actions.md](actions.md) | add an action or change what a form applies to |
 | [downloads.md](downloads.md) | add a download, change what one asks first, or add a report |
-| [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, or how its values and pages are read |
+| [mysql.md](mysql.md) | change how a MySQL or MariaDB server is reached, what its catalog shows, how its values and pages are read, or its reports and search |
 | [ssh.md](ssh.md) | change how an SSH connection signs in, what server key it trusts, or where SSH keys and passphrases are kept |
 
 ## Five source types
@@ -76,7 +76,9 @@ deleted in the grid against a digest of what was shown, and keys are followed
 both ways (D234). Columns, indexes and constraints are changed in the
 definition the server printed (D235). A designed table is planned as one
 `CREATE TABLE`, and a table made from rows is dropped if its rows are refused
-(D236).
+(D236). Eight reports about the server sit in a System section, and the
+processes can be cancelled or terminated; the catalog is searched by name and
+by column, and every matching row is exported (D237).
 
 ## Where the code is
 
@@ -133,7 +135,8 @@ backend/app/adapters/
 │                       definitions.py + columns.py + keys.py (structure),
 │                       vocabulary.py (types, index kinds), design.py
 │                       (the designer), relation_changes.py, actions.py,
-│                       adapter.py
+│                       reports.py + row_commands.py (System), search.py,
+│                       export.py, adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
 │                       what a key is), fetch.py (a key read as rows),
