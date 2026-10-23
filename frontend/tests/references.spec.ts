@@ -35,7 +35,7 @@ test("opens the referenced relation showing only the rows the key names", async 
   const value = cellValue(page, "grid-cell-0-organization_id")
   const owner = (await value.innerText()).trim()
   await page.getByTestId("grid-cell-0-organization_id").hover()
-  await page.getByTestId("grid-follow-0-projects_organization_id_fkey").click()
+  await page.getByTestId("grid-follow-0-organization_id").click()
   await expect(rowsTabs(page)).toHaveCount(1)
   await page.getByTestId("menu-item-projects_organization_id_fkey").click()
 
@@ -61,9 +61,9 @@ test("draws no way out of a cell with nothing in it", async ({ page }) => {
   // No seeded team has a parent, so that key stands empty. An empty cell has
   // nothing to act on, and the arrow of the other key is still there.
   await expect(cellValue(page, "grid-cell-0-parent_team_id")).toHaveText("null")
-  await expect(page.getByTestId("grid-follow-0-teams_parent_team_id_fkey")).toHaveCount(0)
+  await expect(page.getByTestId("grid-follow-0-parent_team_id")).toHaveCount(0)
   await expect(
-    page.getByTestId("grid-follow-0-teams_organization_id_fkey")
+    page.getByTestId("grid-follow-0-organization_id")
   ).toHaveCount(1)
 
   await deleteConnector(page, name)
@@ -82,7 +82,7 @@ test("keeps a key's corner mark under the column pinned over it", async ({
   await pickSchema(page, "demo_lab")
   await openNode(page, "projects")
   await expect(
-    page.getByTestId("grid-follow-0-projects_organization_id_fkey")
+    page.getByTestId("grid-follow-0-organization_id")
   ).toBeVisible()
 
   await page.getByTestId("grid-pin-name").click()
@@ -92,7 +92,7 @@ test("keeps a key's corner mark under the column pinned over it", async ({
   // Put the mark exactly behind the pinned column, wherever the two are.
   await scroll.evaluate((box) => {
     const mark = box.querySelector(
-      '[data-testid="grid-follow-0-projects_organization_id_fkey"]'
+      '[data-testid="grid-follow-0-organization_id"]'
     )
     const pinned = box.querySelector("td.data-grid__pinned")
     if (mark === null || pinned === null) throw new Error("nothing to line up")
@@ -104,7 +104,7 @@ test("keeps a key's corner mark under the column pinned over it", async ({
 
   const painted = await page.evaluate(() => {
     const mark = document.querySelector(
-      '[data-testid="grid-follow-0-projects_organization_id_fkey"]'
+      '[data-testid="grid-follow-0-organization_id"]'
     )
     const pinned = document.querySelector("td.data-grid__pinned")
     if (mark === null || pinned === null) return "nothing to look at"

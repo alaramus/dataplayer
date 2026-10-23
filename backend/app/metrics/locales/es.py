@@ -1,0 +1,48 @@
+"""What dashboards and the metrics store say, in Spanish (D226). Terms follow the screens' glossary."""
+
+MESSAGES: dict[str, str] = {
+    # The preset an agent's host fills.
+    "Linux host": "Host Linux",
+    "CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.": "CPU, memoria, red, discos, sistemas de archivos, conexiones, contenedores y los procesos más activos de una máquina.",
+    "CPU by mode": "CPU por modo",
+    "CPU per core": "CPU por núcleo",
+    "Uptime": "Tiempo de actividad",
+    "Memory": "Memoria",
+    "Load average": "Carga media",
+    "Memory in use": "Memoria en uso",
+    "Network": "Red",
+    "Disk I/O": "E/S de disco",
+    "File systems in use": "Uso de los sistemas de archivos",
+    "TCP connections by state": "Conexiones TCP por estado",
+    "Containers: CPU": "Contenedores: CPU",
+    "Containers: memory": "Contenedores: memoria",
+    "Top processes": "Procesos más activos",
+    # Setting the store up.
+    "clearing an earlier attempt": "limpiando un intento anterior",
+    "pulling the image": "descargando la imagen",
+    "creating the container": "creando el contenedor",
+    "starting the container": "iniciando el contenedor",
+    "waiting for it to answer": "esperando a que responda",
+    "saving the metrics store": "guardando el almacén de métricas",
+    "The metrics store is not answering": "El almacén de métricas no responde",
+    "Dashboards are not set up yet": "Los cuadros de mando aún no están configurados",
+    "Dashboards are already set up": "Los cuadros de mando ya están configurados",
+    "This server cannot run services": "Este servidor no puede ejecutar servicios",
+    "TimescaleDB cannot be used there": "No se puede usar TimescaleDB ahí",
+    "TimescaleDB could not be prepared in that database: it is not installed there, or this role may not create it": "No se pudo preparar TimescaleDB en esa base de datos: no está instalado ahí, o este rol no tiene permiso para crearlo",
+    "The metrics store is being removed with every sample in it": "Se está eliminando el almacén de métricas junto con todas sus muestras",
+    "Dashboards no longer use that database. It did not answer, so the tables they kept there are still in it": "Los cuadros de mando ya no usan esa base de datos. No respondió, así que las tablas que guardaban allí siguen en ella",
+    "Dashboards no longer use that database, and the tables they kept there were dropped": "Los cuadros de mando ya no usan esa base de datos y las tablas que guardaban allí se han eliminado",
+    # Agents, samples and dashboards.
+    "{name} was removed": "Se eliminó {name}",
+    "The samples of {name} were deleted": "Se eliminaron las muestras de {name}",
+    "You already own this dashboard": "Ya eres el propietario de este cuadro de mando",
+    "No such user": "No existe ese usuario",
+    "Access revoked": "Acceso revocado",
+    "A range is at least {count} seconds": "El intervalo debe ser de al menos {count} segundos",
+    "A range is at most a year": "El intervalo no puede superar un año",
+    # Search.
+    "Dashboards": "Cuadros de mando",
+    "Dashboard": "Cuadro de mando",
+    "Dashboard · shared by {owner}": "Cuadro de mando · compartido por {owner}",
+}

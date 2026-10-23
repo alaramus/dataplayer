@@ -1339,8 +1339,10 @@ async function afterAction(outcome: ActionOutcome) {
 /* A narrow column keeps the choice of schemas readable and gives up the two
    commands that open another catalog beside this one, which a narrow column
    has no room for anyway: at 276px the choice had shrunk to its arrow, the
-   commands taking 227px of the line. */
-@container catalog-bar (max-width: 340px) {
+   commands taking 227px of the line. The bar is the column without the head
+   padding, and the default column leaves it just above 280px — so the line
+   hides below that, not at the default width. */
+@container catalog-bar (max-width: 280px) {
   .catalog-panel__beside {
     display: none;
   }

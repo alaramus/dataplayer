@@ -13,7 +13,12 @@ frontend/src/shared/i18n/
 ├── problems.ts       a coded refusal told apart and worded
 └── locales/
     ├── en/           the source, a module per area; every other language is typed against it
-    └── ru/           the same areas in Russian, the server's refusals, and glossary.md
+    ├── ru/           the same areas in Russian, the server's refusals, and glossary.md
+    ├── de/           the same areas in German, the server's refusals, and glossary.md
+    ├── fr/           the same areas in French, the server's refusals, and glossary.md
+    ├── zh/           the same areas in Chinese, the server's refusals, and glossary.md
+    ├── hi/           the same areas in Hindi, the server's refusals, and glossary.md
+    └── es/           the same areas in Spanish, the server's refusals, and glossary.md
 
 frontend/src/features/preferences/
 ├── GeneralSection.vue   the Language choice
@@ -21,11 +26,11 @@ frontend/src/features/preferences/
 
 backend/app/core/problems.py   every refusal code and its English
 backend/app/core/translation.py   the request's language; say, N_, say_schema
-backend/app/<package>/locales/ru.py   a package's own words in Russian
+backend/app/<package>/locales/ru.py   a package's own words in Russian (de.py in German, fr.py in French, zh.py in Chinese, hi.py in Hindi, es.py in Spanish)
 backend/app/users/preferences.py   `language` on the account
 ```
 
-English and Russian today; German, French and Chinese are planned.
+English, Russian, German, French, Chinese, Hindi and Spanish today.
 
 ## D224. The interface speaks the account's language, from typed dictionaries
 
@@ -59,8 +64,10 @@ agree.
 A message's syntax is vue-i18n's: `{name}` takes a parameter, `|` separates
 plural forms, `@` and `$` must not appear bare. The order of plural forms in a
 language other than English is in `PLURAL_FORMS`, judged by the browser's
-`Intl.PluralRules`: Russian lists `one | few | many | other`. A unit test runs
-every message of every language through vue-i18n's compiler.
+`Intl.PluralRules`: Russian lists `one | few | many | other`, French
+`one | other`, Chinese has a single form, `other`, and Hindi and
+Spanish `one | other`. A unit test runs every
+message of every language through vue-i18n's compiler.
 
 ESLint's `no-raw-text` fails on text written into a template, or into an
 attribute a person reads, in every `.vue` under `src` but the developer pages
@@ -77,7 +84,8 @@ by it and rest on review.
   language: it comes from the adapters, which have no dictionaries.
 - Dates and numbers are formatted by the browser's locale, not by the chosen
   language.
-- The user's guide (D183) is English only.
+- The user's guide (D183) has Russian, German, French, Chinese, Hindi and Spanish pages; a page
+  a language lacks is shown in English (D227).
 - The agent answers in whatever language it is written to; it is not told the
   account's.
 
@@ -136,7 +144,7 @@ An action's title and question, the fields of its form, a preview, a result,
 why something is unavailable, a job's step: an adapter writes these, and a new
 source type is a new package (D2), so its words come with it rather than into
 the browser's dictionaries. Each package keeps `locales/ru.py`, English to
-Russian, and registers it as it is imported. The key is the English itself:
+Russian (and `de.py`/`fr.py`/`zh.py`/`hi.py`/`es.py` beside it), and registers it as it is imported. The key is the English itself:
 the adapter keeps writing English, the agent's tools still read English, and a
 language that lacks a sentence shows the English.
 
@@ -209,10 +217,12 @@ templates and fails on a sentence typed into the markup.
 ### Known deviations
 
 - A chart takes ECharts' locale when it is drawn (`shared/i18n/echarts.ts`);
-  one already on screen keeps its axis words until it is drawn again.
+  one already on screen keeps its axis words until it is drawn again. ECharts
+  has no Hindi pack, so its own words stay English there; its Spanish pack is
+  used.
 - A grid cell is data and is shown as the source sent it, not reformatted.
-- German, French and Chinese pages do not exist yet; a language without a
-  page shows the English.
+- Russian, German, French, Chinese, Hindi and Spanish pages exist (D227); a language without
+  a page shows the English.
 
 Spec: [Words a source writes](../decisions/2026-10-17-source-words-design.md)
 

@@ -298,6 +298,7 @@ const { cellReferences, cellArriving, follow, followBack, isPending: jumping } =
     references: computed(() => result.value?.references ?? []),
     onFollow: (target) => emit("follow", target),
   })
+
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 useServerLeaveGuard(async () => {
   if ([updateCell, updateCells, insertRow, deleteRows, importRows, createRelation].some((mutation) => mutation.isPending.value)) {
@@ -1574,26 +1575,37 @@ defineExpose({
     <template #cell-overlay="{ row, column, value }">
       <!-- A corner mark rather than a button in the cell: a way out belongs to
            the value, and an icon the size of a button was drawn over the value
-           it belongs to. An empty `title` is not decoration — the cell carries the
-           browser's own hint about editing, and without an empty one here that
-           hint was drawn beside this tooltip whenever the mark was hovered. -->
+           it belongs to. One mark however many keys start here, with the keys
+           in its menu, like the way back opposite: a row of marks per key ran
+           over the value and could not be told apart. -->
       <button
-        v-for="(reference, index) in cellReferences(column.id, value)"
-        :key="reference.name"
+        v-if="cellReferences(column.id, value).length > 0"
         type="button"
         class="data-grid__follow"
         :title="''"
-        :style="{ insetInlineEnd: `${index * 12}px` }"
         :disabled="jumping"
-        :aria-label="t('grid.references.go_to', { target: reference.target_title })"
-        :data-testid="`grid-follow-${row.id}-${reference.name}`"
+        :aria-label="t('grid.references.leaving')"
+        :data-testid="`grid-follow-${row.id}-${column.id}`"
         @click.stop
         @dblclick.stop
       >
-        <AppTooltip>{{ t('grid.references.go_to', { target: reference.target_title }) }}</AppTooltip>
+        <AppTooltip>{{ t('grid.references.leaving') }}</AppTooltip>
         <AppMenu
-          :items="[{ name: reference.name, label: reference.target_title }]"
-          @select="follow(row.values, reference)"
+          :items="
+            cellReferences(column.id, value).map((reference) => ({
+              name: reference.name,
+              label: reference.target_title,
+            }))
+          "
+          @select="
+            (name) =>
+              follow(
+                row.values,
+                cellReferences(column.id, value).find(
+                  (reference) => reference.name === name
+                )!
+              )
+          "
         />
       </button>
       <!-- The opposite corner for the opposite direction: what points at this

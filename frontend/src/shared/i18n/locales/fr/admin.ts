@@ -1,0 +1,48 @@
+/** Administration (features/admin). */
+import type { Messages } from "../en"
+
+export const admin: Messages["admin"] = {
+  title: "Administration",
+  only_admin: "Seul un administrateur gère cette installation",
+  sections: {
+    users: "Utilisateurs",
+    users_summary: "Qui possède un compte et qui administre cette installation",
+  },
+  users: {
+    new_user: "Nouvel utilisateur",
+    only_admin: "Seul un administrateur gère les comptes",
+    empty: "Aucun compte pour l'instant",
+    columns: {
+      email: "E-mail",
+      name: "Nom",
+      role: "Rôle",
+      state: "État",
+    },
+    administrator: "Administrateur",
+    user: "Utilisateur",
+    active: "Actif",
+    switched_off: "Désactivé",
+    edit: "Modifier ce compte",
+    delete: "Supprimer ce compte et tout ce qu'il possède",
+    cannot_delete_self: "Vous ne pouvez pas supprimer votre propre compte",
+    created: "Compte créé",
+    updated: "Compte mis à jour",
+    save_failed: "Ce compte n'a pas pu être enregistré",
+    delete_title: "Supprimer le compte",
+    delete_message: "{email} et tout ce qu'il possède — ses connexions et ses fichiers — seront supprimés. Cette action est irréversible.",
+    delete_confirm: "Supprimer",
+    deleted: "Compte supprimé",
+    delete_failed: "Ce compte n'a pas pu être supprimé",
+    edit_title: "Modifier l'utilisateur — {email}",
+    email: "E-mail",
+    name: "Nom",
+    password: "Mot de passe",
+    new_password: "Nouveau mot de passe",
+    keep_password: "Laisser vide pour conserver le mot de passe actuel",
+    can_sign_in: "Peut se connecter",
+    superuser: "Administrateur : gère les comptes, pas les données des autres",
+    email_invalid: "Une adresse e-mail valide est requise",
+    password_required: "Un mot de passe est requis",
+    password_short: "Au moins {n} caractère | Au moins {n} caractères",
+  },
+}

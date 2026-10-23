@@ -22,3 +22,23 @@ declare module "echarts/lib/i18n/langRU.js" {
   const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
   export default locale
 }
+
+declare module "echarts/lib/i18n/langDE.js" {
+  const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
+  export default locale
+}
+
+declare module "echarts/lib/i18n/langES.js" {
+  const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
+  export default locale
+}
+
+declare module "echarts/lib/i18n/langFR.js" {
+  const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
+  export default locale
+}
+
+declare module "echarts/lib/i18n/langZH.js" {
+  const locale: Parameters<typeof import("echarts/core").registerLocale>[1]
+  export default locale
+}

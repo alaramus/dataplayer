@@ -1,0 +1,53 @@
+"""Ce qu'un pipeline et ses exécutions disent, en français (D226). Les termes suivent le glossaire de l'interface."""
+
+MESSAGES: dict[str, str] = {
+    # Exécuter une exécution.
+    "running its links": "exécution de ses liens",
+    "{name} is gone, or no longer shared with you": "{name} n'existe plus, ou ne vous est plus partagé",
+    "{name} is switched off": "{name} est désactivé",
+    "{name} can no longer be opened": "{name} ne peut plus être ouvert",
+    "You no longer have read access to {name}": "Vous n'avez plus d'accès en lecture à {name}",
+    "You no longer have write access to {name}": "Vous n'avez plus d'accès en écriture à {name}",
+    "You no longer have structure access to {name}": "Vous n'avez plus d'accès à la structure de {name}",
+    "You no longer have own access to {name}": "Vous n'avez plus de droits de propriétaire sur {name}",
+    "The link could not run": "Le lien n'a pas pu s'exécuter",
+    "{link} made nothing in this run": "« {link} » n'a rien produit dans cette exécution",
+    "Its owner is no longer here": "Son propriétaire n'est plus là",
+    "{kind} is not possible between these connections": "{kind} n'est pas possible entre ces connexions",
+    "{kind} cannot run": "{kind} ne peut pas être exécuté",
+    "The link it reads": "Le lien qu'elle lit",
+    "This run could not be read; nothing ran": "Cette exécution n'a pas pu être lue ; rien n'a été exécuté",
+    # La phrase d'une exécution.
+    "{said}; {count} not run": "{said} ; {count} non exécuté",
+    "{done} of {count} links ran": "{done} liens sur {count} exécutés",
+    "Its one link ran": "Son unique lien a été exécuté",
+    "All {count} links ran": "Les {count} liens ont été exécutés",
+    "Stopped at {at} of {count}, {title}: {reason}": "Arrêtée à {at} sur {count}, « {title} » : {reason}",
+    "Stopped at {at} of {count}, {title}": "Arrêtée à {at} sur {count}, « {title} »",
+    "Stopped on request at {at} of {count}, {title}": "Arrêtée sur demande à {at} sur {count}, « {title} »",
+    "Stopped on request before its first link": "Arrêtée sur demande avant son premier lien",
+    "Stopped on request after {done} of {count}": "Arrêtée sur demande après {done} sur {count}",
+    # Démarrer une exécution.
+    "{number} · {title} needs its table named and its columns chosen": "{number} · « {title} » doit avoir une table nommée et des colonnes choisies",
+    "{number} · {title} needs its columns paired": "{number} · « {title} » doit avoir ses colonnes appariées",
+    "a result": "un résultat",
+    "{connection} (top)": "{connection} (niveau supérieur)",
+    "Nothing ran: {needs}": "Rien n'a été exécuté : {needs}",
+    # Le canevas.
+    "This connection is gone, or no longer shared with you": "Cette connexion n'existe plus, ou ne vous est plus partagée",
+    "This connection is switched off": "Cette connexion est désactivée",
+    "This connection cannot be read": "Cette connexion ne peut pas être lue",
+    "This canvas holds too many rows to hint at once: select a card first": "Ce canevas contient trop de lignes pour tout suggérer d'un coup : sélectionnez d'abord une carte",
+    "Only the links of the selected card are hinted": "Seuls les liens de la carte sélectionnée sont suggérés",
+    "Only the first {count} pairs of rows of the selected card are hinted": "Seules les {count} premières paires de lignes de la carte sélectionnée sont suggérées",
+    "{names} and {last}": "{names} et {last}",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} s'écrivent mutuellement, les flèches ne désignent donc aucun premier lien : celui-ci passe en premier parce que sa carte est la plus à gauche",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} s'écrivent mutuellement, les flèches ne désignent donc aucun premier lien : celui-ci passe en premier parce que sa carte est la plus haute",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it starts from the highest row": "{names} s'écrivent mutuellement, les flèches ne désignent donc aucun premier lien : celui-ci passe en premier parce qu'il part de la ligne la plus haute",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it was drawn first": "{names} s'écrivent mutuellement, les flèches ne désignent donc aucun premier lien : celui-ci passe en premier parce qu'il a été dessiné en premier",
+    "{names} write into each other, so the arrows give no first link: this one goes first because the others wait for links outside them as well": "{names} s'écrivent mutuellement, les flèches ne désignent donc aucun premier lien : celui-ci passe en premier parce que les autres attendent aussi des liens en dehors d'eux",
+    "{name} was removed": "{name} a été supprimé",
+    # Recherche.
+    "Pipelines": "Pipelines",
+    "Pipeline": "Pipeline",
+}

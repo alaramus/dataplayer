@@ -220,6 +220,37 @@ describe("one row read downwards", () => {
     wrapper.unmount()
   })
 
+  it("draws one arrow for every key leaving a value, with each key in its menu", async () => {
+    vi.mocked(ConnectorsService.fetchRows).mockResolvedValue({
+      data: {
+        ...PAGE,
+        references: [
+          ...PAGE.references,
+          { name: "declared:1", columns: ["region_id"], target_title: "files · regions.csv" },
+        ],
+      },
+    } as never)
+    const follow = vi.spyOn(ConnectorsService, "followReference").mockResolvedValue({
+      data: { kind: "none", reason: "nothing" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid="record-follow-region_id"]')).toHaveLength(1)
+    await wrapper.get('[data-testid="record-follow-region_id"]').trigger("click")
+    await flushPromises()
+    expect(document.body.querySelector('[data-testid="menu-item-projects_region_fkey"]')).not.toBeNull()
+    document.body.querySelector<HTMLElement>('[data-testid="menu-item-declared:1"]')?.click()
+    await flushPromises()
+
+    expect(follow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ reference: "declared:1", direction: "outgoing" }),
+      })
+    )
+    wrapper.unmount()
+  })
+
   it("asks nothing of a source that describes nothing", async () => {
     const wrapper = mountView(false)
     await flushPromises()

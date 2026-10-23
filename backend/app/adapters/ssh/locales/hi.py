@@ -1,0 +1,57 @@
+"""What SSH writes, in Hindi (D226). Terms follow the screens' glossary.
+
+The file side is the explorer's and words itself; these are the words of the
+server, its key and signing in.
+"""
+
+MESSAGES: dict[str, str] = {
+    # The source and its connection form.
+    "SSH": "SSH",
+    "A server reached over SSH. Browse its folders from where you choose and work with its files as with your own: tables, SQL over files, the editor, archives, search, and a terminal. Signs in with a password or one of your SSH keys, and only to the server whose key you confirmed.": "SSH के माध्यम से पहुँचा जाने वाला सर्वर। जहाँ से आप चुनें वहाँ से उसके फ़ोल्डर ब्राउज़ करें और उसकी फ़ाइलों के साथ अपनी फ़ाइलों जैसे काम करें: टेबल, फ़ाइलों पर SQL, एडिटर, संग्रह, खोज और टर्मिनल। पासवर्ड या आपकी किसी SSH कुंजी से साइन इन करता है, और केवल उसी सर्वर पर जिसकी कुंजी आपने पुष्टि की है।",
+    "Authentication": "प्रमाणीकरण",
+    "Host": "होस्ट",
+    "Port": "पोर्ट",
+    "User": "उपयोगकर्ता",
+    "Folder": "फ़ोल्डर",
+    "Where browsing starts; empty is the user's home folder": "ब्राउज़िंग कहाँ से शुरू होती है; खाली छोड़ने पर उपयोगकर्ता का होम फ़ोल्डर",
+    "Server key": "सर्वर कुंजी",
+    "What this server proves itself with; fetch it and compare": "यह सर्वर किससे स्वयं को प्रमाणित करता है; इसे प्राप्त करें और तुलना करें",
+    "Key": "कुंजी",
+    "One of your SSH keys; its public half goes to the server": "आपकी किसी SSH कुंजी में से एक; इसका सार्वजनिक भाग सर्वर पर जाता है",
+    "Password": "पासवर्ड",
+    # Addresses.
+    "The SSH connection has no host": "SSH कनेक्शन में कोई होस्ट नहीं है",
+    "That is not an SSH URL": "यह SSH URL नहीं है",
+    "Enter the host first": "पहले होस्ट दर्ज करें",
+    # Keys.
+    "This is not a server key this application can read": "यह ऐसी सर्वर कुंजी नहीं है जिसे यह एप्लिकेशन पढ़ सके",
+    "That passphrase does not open this key": "वह पासफ़्रेज़ इस कुंजी को नहीं खोलता",
+    "This key is protected by a passphrase; enter it": "यह कुंजी पासफ़्रेज़ से सुरक्षित है; इसे दर्ज करें",
+    "This is not a private key this application can read": "यह ऐसी निजी कुंजी नहीं है जिसे यह एप्लिकेशन पढ़ सके",
+    # Connecting.
+    "Connection successful": "कनेक्शन सफल",
+    "This connection signs in with a key, and none is at hand": "यह कनेक्शन कुंजी से साइन इन करता है, और कोई कुंजी उपलब्ध नहीं है",
+    "Fetch the server's key and confirm it before connecting": "कनेक्ट करने से पहले सर्वर की कुंजी प्राप्त करें और उसकी पुष्टि करें",
+    "The server key of this connection cannot be read": "इस कनेक्शन की सर्वर कुंजी पढ़ी नहीं जा सकती",
+    "The SSH key could not be opened with its passphrase": "SSH कुंजी को उसके पासफ़्रेज़ से खोला नहीं जा सका",
+    "The server did not present a key": "सर्वर ने कोई कुंजी प्रस्तुत नहीं की",
+    "The server presented a different key than the one this connection trusts. If it was reinstalled, fetch its key again and compare it": "सर्वर ने उस कुंजी से भिन्न कुंजी प्रस्तुत की जिस पर यह कनेक्शन भरोसा करता है। यदि सर्वर फिर से इंस्टॉल किया गया है, तो उसकी कुंजी फिर से प्राप्त करें और तुलना करें",
+    "The server refused these credentials": "सर्वर ने इन क्रेडेंशियल्स को अस्वीकार किया",
+    "That is no longer on the server": "वह अब सर्वर पर नहीं है",
+    "The server does not let this user do that": "सर्वर इस उपयोगकर्ता को वह करने नहीं देता",
+    "The server could not do that": "सर्वर वह नहीं कर सका",
+    "The server did not answer in time": "सर्वर ने समय पर उत्तर नहीं दिया",
+    "Could not reach the server": "सर्वर तक नहीं पहुँचा जा सका",
+    "Not a path below this folder: {path}": "यह इस फ़ोल्डर के अंतर्गत पथ नहीं है: {path}",
+    # Files over SFTP.
+    "Symbolic links are not downloaded": "सिंबॉलिक लिंक डाउनलोड नहीं किए जाते",
+    "A folder holding a symbolic link is not copied here": "सिंबॉलिक लिंक वाला फ़ोल्डर यहाँ कॉपी नहीं किया जाता",
+    "What came out": "आउटपुट",
+    "The file is no longer open": "फ़ाइल अब खुली नहीं है",
+    "The file could not be read from the server": "सर्वर से फ़ाइल पढ़ी नहीं जा सकी",
+    "The file could not be created on the server": "सर्वर पर फ़ाइल बनाई नहीं जा सकी",
+    "The file could not be written on the server": "सर्वर पर फ़ाइल लिखी नहीं जा सकी",
+    "The file could not be put in place on the server": "सर्वर पर फ़ाइल अपने स्थान पर नहीं रखी जा सकी",
+    # The terminal.
+    "The server did not open a shell for this account": "सर्वर ने इस खाते के लिए शेल नहीं खोला",
+}

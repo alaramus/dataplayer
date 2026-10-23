@@ -1,0 +1,48 @@
+"""What dashboards and the metrics store write, in Hindi (D226). Terms follow the interface glossary."""
+
+MESSAGES: dict[str, str] = {
+    # Presets the agent host fills.
+    "Linux host": "Linux होस्ट",
+    "CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.": "एक मशीन का CPU, मेमोरी, नेटवर्क, डिस्क, फ़ाइल सिस्टम, कनेक्शन, कंटेनर और सबसे व्यस्त प्रोसेस।",
+    "CPU by mode": "मोड के अनुसार CPU",
+    "CPU per core": "प्रति कोर CPU",
+    "Uptime": "अपटाइम",
+    "Memory": "मेमोरी",
+    "Load average": "लोड औसत",
+    "Memory in use": "उपयोग में मेमोरी",
+    "Network": "नेटवर्क",
+    "Disk I/O": "डिस्क I/O",
+    "File systems in use": "उपयोग में फ़ाइल सिस्टम",
+    "TCP connections by state": "स्थिति के अनुसार TCP कनेक्शन",
+    "Containers: CPU": "कंटेनर: CPU",
+    "Containers: memory": "कंटेनर: मेमोरी",
+    "Top processes": "शीर्ष प्रोसेस",
+    # Configuring the store.
+    "clearing an earlier attempt": "पिछले प्रयास को साफ़ करना",
+    "pulling the image": "इमेज खींची जा रही है",
+    "creating the container": "कंटेनर बनाया जा रहा है",
+    "starting the container": "कंटेनर शुरू किया जा रहा है",
+    "waiting for it to answer": "इसके उत्तर की प्रतीक्षा",
+    "saving the metrics store": "मीट्रिक स्टोर सहेजा जा रहा है",
+    "The metrics store is not answering": "मीट्रिक स्टोर उत्तर नहीं दे रहा",
+    "Dashboards are not set up yet": "डैशबोर्ड अभी सेट नहीं हुए हैं",
+    "Dashboards are already set up": "डैशबोर्ड पहले से सेट हैं",
+    "This server cannot run services": "यह सर्वर सेवाएँ नहीं चला सकता",
+    "TimescaleDB cannot be used there": "वहाँ TimescaleDB का उपयोग नहीं किया जा सकता",
+    "TimescaleDB could not be prepared in that database: it is not installed there, or this role may not create it": "उस डेटाबेस में TimescaleDB तैयार नहीं किया जा सका: वह वहाँ स्थापित नहीं है, या यह रोल इसे नहीं बना सकता",
+    "The metrics store is being removed with every sample in it": "मीट्रिक स्टोर उसमें मौजूद हर नमूने के साथ हटाया जा रहा है",
+    "Dashboards no longer use that database. It did not answer, so the tables they kept there are still in it": "डैशबोर्ड अब उस डेटाबेस का उपयोग नहीं करते। उसने उत्तर नहीं दिया, इसलिए वहाँ रखी उनकी टेबलें अब भी उसमें हैं",
+    "Dashboards no longer use that database, and the tables they kept there were dropped": "डैशबोर्ड अब उस डेटाबेस का उपयोग नहीं करते, और वहाँ रखी उनकी टेबलें हटा दी गईं",
+    # Agents, samples and dashboards.
+    "{name} was removed": "{name} हटाया गया",
+    "The samples of {name} were deleted": "{name} के नमूने हटा दिए गए",
+    "You already own this dashboard": "यह डैशबोर्ड पहले से आपका है",
+    "No such user": "ऐसा कोई उपयोगकर्ता नहीं",
+    "Access revoked": "पहुँच रद्द की गई",
+    "A range is at least {count} seconds": "रेंज कम से कम {count} सेकंड की होती है",
+    "A range is at most a year": "रेंज अधिकतम एक वर्ष की होती है",
+    # Search.
+    "Dashboards": "डैशबोर्ड",
+    "Dashboard": "डैशबोर्ड",
+    "Dashboard · shared by {owner}": "डैशबोर्ड · {owner} द्वारा साझा",
+}

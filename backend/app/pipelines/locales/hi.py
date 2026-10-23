@@ -1,0 +1,53 @@
+"""What a pipeline and its runs write, in Hindi (D226). Terms follow the interface glossary."""
+
+MESSAGES: dict[str, str] = {
+    # Running a run.
+    "running its links": "इसके लिंक चल रहे हैं",
+    "{name} is gone, or no longer shared with you": "{name} चला गया, या अब आपके साथ साझा नहीं है",
+    "{name} is switched off": "{name} बंद है",
+    "{name} can no longer be opened": "{name} अब खोला नहीं जा सकता",
+    "You no longer have read access to {name}": "अब आपके पास {name} तक पढ़ने की पहुँच नहीं है",
+    "You no longer have write access to {name}": "अब आपके पास {name} तक लिखने की पहुँच नहीं है",
+    "You no longer have structure access to {name}": "अब आपके पास {name} तक संरचना की पहुँच नहीं है",
+    "You no longer have own access to {name}": "अब आपके पास {name} तक स्वामी पहुँच नहीं है",
+    "The link could not run": "लिंक नहीं चल सका",
+    "{link} made nothing in this run": '"{link}" ने इस रन में कुछ नहीं बनाया',
+    "Its owner is no longer here": "इसका स्वामी अब यहाँ नहीं है",
+    "{kind} is not possible between these connections": "इन कनेक्शनों के बीच {kind} संभव नहीं है",
+    "{kind} cannot run": "{kind} नहीं चल सकता",
+    "The link it reads": "जिस लिंक को यह पढ़ता है",
+    "This run could not be read; nothing ran": "यह रन पढ़ा नहीं जा सका; कुछ नहीं चला",
+    # Sentences of a run.
+    "{said}; {count} not run": "{said}; {count} नहीं चले",
+    "{done} of {count} links ran": "{count} में से {done} लिंक चले",
+    "Its one link ran": "इसका एकमात्र लिंक चला",
+    "All {count} links ran": "सभी {count} लिंक चले",
+    "Stopped at {at} of {count}, {title}: {reason}": "{count} में से {at} पर रुका, {title}: {reason}",
+    "Stopped at {at} of {count}, {title}": "{count} में से {at} पर रुका, {title}",
+    "Stopped on request at {at} of {count}, {title}": "अनुरोध पर {count} में से {at} पर रुका, {title}",
+    "Stopped on request before its first link": "अनुरोध पर इसके पहले लिंक से पहले रुका",
+    "Stopped on request after {done} of {count}": "अनुरोध पर {count} में से {done} के बाद रुका",
+    # Starting a run.
+    "{number} · {title} needs its table named and its columns chosen": '{number} · "{title}" के टेबल का नाम रखना और कॉलम चुनना आवश्यक है',
+    "{number} · {title} needs its columns paired": '{number} · "{title}" के कॉलमों का युग्म बनाना आवश्यक है',
+    "a result": "एक परिणाम",
+    "{connection} (top)": "{connection} (ऊपर)",
+    "Nothing ran: {needs}": "कुछ नहीं चला: {needs}",
+    # Canvas.
+    "This connection is gone, or no longer shared with you": "यह कनेक्शन चला गया, या अब आपके साथ साझा नहीं है",
+    "This connection is switched off": "यह कनेक्शन बंद है",
+    "This connection cannot be read": "यह कनेक्शन पढ़ा नहीं जा सकता",
+    "This canvas holds too many rows to hint at once: select a card first": "इस कैनवास में एक साथ संकेत देने के लिए बहुत अधिक पंक्तियाँ हैं: पहले कोई कार्ड चुनें",
+    "Only the links of the selected card are hinted": "केवल चयनित कार्ड के लिंक का संकेत दिया जाता है",
+    "Only the first {count} pairs of rows of the selected card are hinted": "चयनित कार्ड की केवल पहली {count} पंक्ति-जोड़ियों का संकेत दिया जाता है",
+    "{names} and {last}": "{names} और {last}",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is furthest left": "{names} एक-दूसरे में लिखते हैं, इसलिए तीर पहला लिंक नहीं बताते: यह पहले जाता है क्योंकि इसका कार्ड सबसे बाईं ओर है",
+    "{names} write into each other, so the arrows give no first link: this one goes first because its card is highest": "{names} एक-दूसरे में लिखते हैं, इसलिए तीर पहला लिंक नहीं बताते: यह पहले जाता है क्योंकि इसका कार्ड सबसे ऊपर है",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it starts from the highest row": "{names} एक-दूसरे में लिखते हैं, इसलिए तीर पहला लिंक नहीं बताते: यह पहले जाता है क्योंकि यह सबसे ऊपर की पंक्ति से शुरू होता है",
+    "{names} write into each other, so the arrows give no first link: this one goes first because it was drawn first": "{names} एक-दूसरे में लिखते हैं, इसलिए तीर पहला लिंक नहीं बताते: यह पहले जाता है क्योंकि इसे पहले खींचा गया था",
+    "{names} write into each other, so the arrows give no first link: this one goes first because the others wait for links outside them as well": "{names} एक-दूसरे में लिखते हैं, इसलिए तीर पहला लिंक नहीं बताते: यह पहले जाता है क्योंकि अन्य भी उनसे बाहर के लिंक की प्रतीक्षा करते हैं",
+    "{name} was removed": "{name} हटाया गया",
+    # Search.
+    "Pipelines": "पाइपलाइनें",
+    "Pipeline": "पाइपलाइन",
+}

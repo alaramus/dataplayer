@@ -248,20 +248,36 @@ const errorText = computed(() =>
                 :data-testid="`record-value-${cellProps.row.name}`"
               >{{ cellProps.row.text }}</span>
               <span class="record-view__ways">
+                <!-- One arrow however many keys leave this value, as in the
+                     grid's corner: the keys are lines of its menu. -->
                 <span
-                  v-for="reference in cellReferences(cellProps.row.name, cellProps.row.value)"
-                  :key="reference.name"
+                  v-if="cellReferences(cellProps.row.name, cellProps.row.value).length > 0"
                 >
                   <AppIconButton
                     :icon="appIcons.arrowForward"
                     compact
-                    :tooltip="t('grid.references.go_to', { target: reference.target_title })"
+                    :tooltip="t('grid.references.leaving')"
                     :disable="jumping"
                     :data-testid="`record-follow-${cellProps.row.name}`"
                   />
                   <AppMenu
-                    :items="[{ name: reference.name, label: reference.target_title }]"
-                    @select="follow(values ?? [], reference)"
+                    :items="
+                      cellReferences(cellProps.row.name, cellProps.row.value).map(
+                        (reference) => ({
+                          name: reference.name,
+                          label: reference.target_title,
+                        })
+                      )
+                    "
+                    @select="
+                      (name) =>
+                        follow(
+                          values ?? [],
+                          cellReferences(cellProps.row.name, cellProps.row.value).find(
+                            (reference) => reference.name === name
+                          )!
+                        )
+                    "
                   />
                 </span>
                 <span

@@ -7,7 +7,12 @@ import emails
 from jinja2 import Template
 
 from app.core.config import settings
+from app.core.locales.de import MESSAGES as DE
+from app.core.locales.es import MESSAGES as ES
+from app.core.locales.fr import MESSAGES as FR
+from app.core.locales.hi import MESSAGES as HI
 from app.core.locales.ru import MESSAGES as RU
+from app.core.locales.zh import MESSAGES as ZH
 from app.core.translation import N_, Language, in_language, register, say
 
 logger = logging.getLogger(__name__)
@@ -18,6 +23,11 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "email-templates"
 # One template per email, its sentences written `{{ say("…") }}`: a copy of
 # the markup per language would be as many copies to keep in step (D227).
 register("ru", RU)
+register("de", DE)
+register("es", ES)
+register("fr", FR)
+register("zh", ZH)
+register("hi", HI)
 
 TEST_SUBJECT = N_("{project} - Test email")
 RESET_SUBJECT = N_("{project} - Password recovery for user {email}")

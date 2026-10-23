@@ -1,0 +1,48 @@
+"""Was Dashboards und der Metrikspeicher sagen, auf Deutsch (D226). Die Begriffe folgen dem Glossar der Oberfläche."""
+
+MESSAGES: dict[str, str] = {
+    # Die Vorlage, die der Host eines Agenten ausfüllt.
+    "Linux host": "Linux-Host",
+    "CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.": "CPU, Arbeitsspeicher, Netzwerk, Datenträger, Dateisysteme, Verbindungen, Container und die geschäftigsten Prozesse einer Maschine.",
+    "CPU by mode": "CPU nach Modus",
+    "CPU per core": "CPU pro Kern",
+    "Uptime": "Betriebszeit",
+    "Memory": "Arbeitsspeicher",
+    "Load average": "Durchschnittslast",
+    "Memory in use": "Belegter Arbeitsspeicher",
+    "Network": "Netzwerk",
+    "Disk I/O": "Datenträger-E/A",
+    "File systems in use": "Belegte Dateisysteme",
+    "TCP connections by state": "TCP-Verbindungen nach Zustand",
+    "Containers: CPU": "Container: CPU",
+    "Containers: memory": "Container: Arbeitsspeicher",
+    "Top processes": "Geschäftigste Prozesse",
+    # Den Speicher einrichten.
+    "clearing an earlier attempt": 'einen früheren Versuch aufräumen',
+    "pulling the image": 'das Image laden',
+    "creating the container": 'den Container erstellen',
+    "starting the container": 'den Container starten',
+    "waiting for it to answer": 'auf eine Antwort warten',
+    "saving the metrics store": "Metrikspeicher speichern",
+    "The metrics store is not answering": "Der Metrikspeicher antwortet nicht",
+    "Dashboards are not set up yet": "Dashboards sind noch nicht eingerichtet",
+    "Dashboards are already set up": "Dashboards sind bereits eingerichtet",
+    "This server cannot run services": "Dieser Server kann keine Dienste ausführen",
+    "TimescaleDB cannot be used there": "TimescaleDB kann dort nicht verwendet werden",
+    "TimescaleDB could not be prepared in that database: it is not installed there, or this role may not create it": "TimescaleDB konnte in dieser Datenbank nicht vorbereitet werden: Es ist dort nicht installiert oder diese Rolle darf es nicht erstellen",
+    "The metrics store is being removed with every sample in it": "Der Metrikspeicher wird mit allen darin enthaltenen Messwerten entfernt",
+    "Dashboards no longer use that database. It did not answer, so the tables they kept there are still in it": "Dashboards verwenden diese Datenbank nicht mehr. Sie antwortete nicht, daher sind die dort gespeicherten Tabellen noch darin",
+    "Dashboards no longer use that database, and the tables they kept there were dropped": "Dashboards verwenden diese Datenbank nicht mehr, und die dort gespeicherten Tabellen wurden gelöscht",
+    # Agenten, Messwerte und Dashboards.
+    "{name} was removed": "{name} wurde entfernt",
+    "The samples of {name} were deleted": "Die Messwerte von {name} wurden gelöscht",
+    "You already own this dashboard": "Dieses Dashboard gehört bereits Ihnen",
+    "No such user": "Kein solcher Benutzer",
+    "Access revoked": "Zugriff entzogen",
+    "A range is at least {count} seconds": "Ein Bereich umfasst mindestens {count} Sekunden",
+    "A range is at most a year": "Ein Bereich umfasst höchstens ein Jahr",
+    # Suche.
+    "Dashboards": "Dashboards",
+    "Dashboard": "Dashboard",
+    "Dashboard · shared by {owner}": "Dashboard · geteilt von {owner}",
+}

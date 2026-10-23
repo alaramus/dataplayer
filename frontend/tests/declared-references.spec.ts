@@ -63,7 +63,7 @@ test("joins a relation to a CSV and follows it into the other connection", async
 
   // Back to the rows, where the arrow is now drawn in that column's cells.
   await page.locator('[data-testid^="workspace-tab-rows:"]').first().click()
-  const arrow = page.locator('[data-testid^="grid-follow-0-declared:"]')
+  const arrow = page.getByTestId("grid-follow-0-organization_id")
   await expect(arrow).toHaveCount(1)
   await page.getByTestId("grid-cell-0-organization_id").hover()
   await arrow.click()

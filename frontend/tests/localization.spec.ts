@@ -18,7 +18,10 @@ async function forgetLanguage(request: APIRequestContext) {
   await setLanguage(request, null)
 }
 
-async function setLanguage(request: APIRequestContext, language: "ru" | null) {
+async function setLanguage(
+  request: APIRequestContext,
+  language: "ru" | "de" | "fr" | "zh" | "hi" | "es" | null
+) {
   const signedIn = await request.post(`${api}/login/access-token`, {
     form: { username: firstSuperuser, password: firstSuperuserPassword },
   })
@@ -59,6 +62,71 @@ test.describe("a browser asking for Russian", () => {
   })
 })
 
+test.describe("a browser asking for German", () => {
+  test.use({ locale: "de-DE" })
+
+  test("is answered in German before anybody signs in", async ({ page }) => {
+    await page.goto("/login")
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "de")
+    await expect(page.getByTestId("login-email")).toHaveAccessibleName("E-Mail")
+    await page.getByTestId("login-submit").click()
+    await expect(page.getByText("Passwort ist erforderlich", { exact: true })).toBeVisible()
+  })
+})
+
+test.describe("a browser asking for French", () => {
+  test.use({ locale: "fr-FR" })
+
+  test("is answered in French before anybody signs in", async ({ page }) => {
+    await page.goto("/login")
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "fr")
+    await expect(page.getByTestId("login-email")).toHaveAccessibleName("E-mail")
+    await page.getByTestId("login-submit").click()
+    await expect(page.getByText("Le mot de passe est requis", { exact: true })).toBeVisible()
+  })
+})
+
+test.describe("a browser asking for Chinese", () => {
+  test.use({ locale: "zh-CN" })
+
+  test("is answered in Chinese before anybody signs in", async ({ page }) => {
+    await page.goto("/login")
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "zh")
+    await expect(page.getByTestId("login-email")).toHaveAccessibleName("电子邮件")
+    await page.getByTestId("login-submit").click()
+    await expect(page.getByText("密码为必填项", { exact: true })).toBeVisible()
+  })
+})
+
+test.describe("a browser asking for Hindi", () => {
+  test.use({ locale: "hi-IN" })
+
+  test("is answered in Hindi before anybody signs in", async ({ page }) => {
+    await page.goto("/login")
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "hi")
+    await expect(page.getByTestId("login-email")).toHaveAccessibleName("ईमेल")
+    await page.getByTestId("login-submit").click()
+    await expect(page.getByText("पासवर्ड आवश्यक है", { exact: true })).toBeVisible()
+  })
+})
+
+test.describe("a browser asking for Spanish", () => {
+  test.use({ locale: "es-ES" })
+
+  test("is answered in Spanish before anybody signs in", async ({ page }) => {
+    await page.goto("/login")
+
+    await expect(page.locator("html")).toHaveAttribute("lang", "es")
+    await expect(page.getByTestId("login-email")).toHaveAccessibleName("Correo electrónico")
+    await page.getByTestId("login-submit").click()
+    await expect(page.getByText("La contraseña es obligatoria", { exact: true })).toBeVisible()
+  })
+})
+
 test("an account's language is kept by the server and follows it", async ({ page, browser }) => {
   await login(page)
   await page.goto("/preferences/general")
@@ -83,6 +151,19 @@ test("an account's language is kept by the server and follows it", async ({ page
   await chooseLanguage(page, "Язык браузера")
   await expect(page.getByRole("heading", { name: "Preferences" })).toBeVisible()
   await page.reload()
+  await expect(page.getByRole("heading", { name: "Preferences" })).toBeVisible()
+})
+
+test("an account's German is kept by the server", async ({ page }) => {
+  await login(page)
+  await page.goto("/preferences/general")
+  await expect(page.getByRole("heading", { name: "Preferences" })).toBeVisible()
+
+  await chooseLanguage(page, "Deutsch")
+  await expect(page.getByRole("heading", { name: "Einstellungen" })).toBeVisible()
+  await expect(page.getByTestId("preferences-section-connections")).toContainText("Verbindungen")
+
+  await chooseLanguage(page, "Die Sprache des Browsers")
   await expect(page.getByRole("heading", { name: "Preferences" })).toBeVisible()
 })
 

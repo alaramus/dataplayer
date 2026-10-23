@@ -31,9 +31,14 @@ afterEach(async () => {
 
 describe("which language the interface opens in", () => {
   it("takes the first language the browser asks for that it speaks", () => {
-    expect(browserLanguage(["de-DE", "ru-RU", "en"])).toBe("ru")
+    expect(browserLanguage(["de-DE", "ru-RU", "en"])).toBe("de")
     expect(browserLanguage(["RU"])).toBe("ru")
-    expect(browserLanguage(["ja", "de"])).toBe("en")
+    expect(browserLanguage(["ja", "de"])).toBe("de")
+    expect(browserLanguage(["ja", "fr"])).toBe("fr")
+    expect(browserLanguage(["ja", "zh"])).toBe("zh")
+    expect(browserLanguage(["ja", "hi"])).toBe("hi")
+    expect(browserLanguage(["ja", "es"])).toBe("es")
+    expect(browserLanguage(["ja", "ko"])).toBe("en")
     expect(browserLanguage([])).toBe("en")
   })
 

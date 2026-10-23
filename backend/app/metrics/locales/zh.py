@@ -1,0 +1,48 @@
+"""仪表盘和指标存储用简体中文写下的内容（D226）。术语遵循界面词汇表。"""
+
+MESSAGES: dict[str, str] = {
+    # 智能体主机填充的预设。
+    "Linux host": "Linux 主机",
+    "CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.": "一台机器的 CPU、内存、网络、磁盘、文件系统、连接、容器以及最繁忙的进程。",
+    "CPU by mode": "按模式划分的 CPU",
+    "CPU per core": "每个核心的 CPU",
+    "Uptime": "运行时间",
+    "Memory": "内存",
+    "Load average": "平均负载",
+    "Memory in use": "已用内存",
+    "Network": "网络",
+    "Disk I/O": "磁盘 I/O",
+    "File systems in use": "已用文件系统",
+    "TCP connections by state": "按状态划分的 TCP 连接",
+    "Containers: CPU": "容器：CPU",
+    "Containers: memory": "容器：内存",
+    "Top processes": "最繁忙的进程",
+    # 配置存储。
+    "clearing an earlier attempt": "清理先前的尝试",
+    "pulling the image": "拉取镜像",
+    "creating the container": "创建容器",
+    "starting the container": "启动容器",
+    "waiting for it to answer": "等待其响应",
+    "saving the metrics store": "保存指标存储",
+    "The metrics store is not answering": "指标存储没有响应",
+    "Dashboards are not set up yet": "仪表盘尚未设置",
+    "Dashboards are already set up": "仪表盘已设置",
+    "This server cannot run services": "此服务器无法运行服务",
+    "TimescaleDB cannot be used there": "无法在那里使用 TimescaleDB",
+    "TimescaleDB could not be prepared in that database: it is not installed there, or this role may not create it": "无法在该数据库中准备 TimescaleDB：它未安装在那里，或者此角色无权创建它",
+    "The metrics store is being removed with every sample in it": "指标存储及其中的所有样本正在被删除",
+    "Dashboards no longer use that database. It did not answer, so the tables they kept there are still in it": "仪表盘不再使用该数据库。它没有响应，因此它们保存在其中的表仍留在那里",
+    "Dashboards no longer use that database, and the tables they kept there were dropped": "仪表盘不再使用该数据库，它们保存在其中的表已被删除",
+    # 智能体、样本和仪表盘。
+    "{name} was removed": "{name} 已被删除",
+    "The samples of {name} were deleted": "{name} 的样本已被删除",
+    "You already own this dashboard": "你已拥有此仪表盘",
+    "No such user": "没有此用户",
+    "Access revoked": "访问权限已撤销",
+    "A range is at least {count} seconds": "范围至少为 {count} 秒",
+    "A range is at most a year": "范围最多为一年",
+    # 搜索。
+    "Dashboards": "仪表盘",
+    "Dashboard": "仪表盘",
+    "Dashboard · shared by {owner}": "仪表盘 · 由 {owner} 分享",
+}
