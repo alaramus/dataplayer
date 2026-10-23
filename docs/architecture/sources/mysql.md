@@ -7,7 +7,7 @@ console differs from PostgreSQL's. The contract every source type follows is in
 [relations.md](relations.md). The console every source shares is in [querying.md](../querying.md). Read this
 before changing the `mysql` adapter.
 
-Decisions here: D228, D229, D230, D231, D232, D233, D234, D235.
+Decisions here: D228, D229, D230, D231, D232, D233, D234, D235, D236.
 
 ## D228. One source type for MySQL and MariaDB, from a stated floor
 
@@ -236,3 +236,40 @@ unique key or a foreign key are counted first and bounded at a thousand, as
 PostgreSQL's are.
 
 Spec: [Changing MySQL structure](../../decisions/2026-10-23-mysql-structure-design.md)
+
+## D236. A designed table is one statement, and a table from rows is undone
+
+The table designer (D117) plans a MySQL table in the same vocabulary as a
+PostgreSQL one, and the same composer writes the plan and the statement that
+runs, checked by the fingerprint of what was reviewed. The plan is one
+`CREATE TABLE` with every key, check, foreign key and index written inside
+it: MySQL commits each structure statement by itself (D233), so a plan of
+several statements could stop half way and leave a table nobody reviewed.
+
+What MySQL has not got is a problem on the object that asks for it, rather
+than a statement the server refuses after the review: a deferrable key, MATCH
+FULL, SET DEFAULT, NULLS FIRST or LAST, an operator class, INCLUDE, a partial
+index, an unlogged or partitioned table, an array, nulls not distinct, an
+identity that is ALWAYS or steps by more than one, and on MariaDB an index on
+an expression. The options offer no such choice where a list carries them —
+one persistence, one match mode, no SET DEFAULT — and the plan refuses the
+checkboxes the designer still draws. An identity is AUTO_INCREMENT, on one
+column, leading a key, and its start is the table's `AUTO_INCREMENT=`. A
+primary key is always called PRIMARY. A VARCHAR or VARBINARY given no length
+is 255 long, since MySQL has no length of its own for them. A literal default is written as MySQL
+reads it in the session that will run it, with or without backslash escapes
+by NO_BACKSLASH_ESCAPES; an expression default is in parentheses. The clock
+and UUID() fill a default only, since MySQL refuses a function that is not
+deterministic in a generated column, a check or an index.
+
+A table made from rows (D45) cannot be one transaction with its rows either.
+Every value is checked against the chosen types first, as an insert's are
+(D234); if the rows are still refused once the table exists, the table this
+request made is dropped again.
+
+Known deviations:
+
+- The designer still draws the deferrable and INCLUDE choices for MySQL, and
+  the plan refuses them, rather than the options saying they are not there.
+
+Spec: [Designing MySQL tables](../../decisions/2026-10-23-mysql-design-design.md)

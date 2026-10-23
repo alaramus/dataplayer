@@ -335,6 +335,9 @@ the composition before anything runs.
 
 Known deviations:
 
+- **A MySQL plan is one statement**, with every key and index inside it,
+  because MySQL commits each structure statement by itself (D236).
+
 - **Exclusion constraints are not implemented.** They need operator metadata per
   method and type beyond the operator classes published here, and the design
   names them as part of the intended feature.

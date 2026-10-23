@@ -18,6 +18,7 @@ How connections work in general is on the [Connections](connections.md) page.
 
 - Table data: edit cells, paste blocks, insert and delete rows
 - Columns, indexes, unique keys and foreign keys
+- New tables, designed object by object or made from rows
 - Data and structure, through SQL in the console
 
 ## Connecting
@@ -118,6 +119,23 @@ keys.
 - `SET DEFAULT` is not offered for a foreign key: InnoDB does not carry it
   out.
 
+## Creating a table
+
+**Create table** in the actions menu of a database opens the table designer,
+as for PostgreSQL. The plan is one `CREATE TABLE` with every key, check,
+foreign key and index inside it, so the table is made whole or not at all.
+
+- What MySQL does not have is marked on the object that asks for it before
+  you can review the plan: a deferrable key, extra columns carried by an
+  index, an index on part of the rows, nulls ordered first or last, an
+  unlogged or partitioned table.
+- An identity column is AUTO_INCREMENT: one per table, leading a key, with a
+  start but no step of its own.
+- A primary key is always called PRIMARY.
+- Rows kept as a table, or a file loaded into one, are checked against the
+  chosen types before the table is made; if they are still refused, the new
+  table is removed again.
+
 ## SQL console
 
 **New query** under **Queries** on the left rail starts one on the connection,
@@ -143,8 +161,8 @@ differences:
 
 ## What MySQL does not have here yet
 
-- Tables cannot be designed, created from rows, renamed or dropped from the
-  catalog; the console can do it.
+- Tables cannot be renamed or dropped from the catalog; the console can do
+  it.
 - Only the page on screen can be downloaded, not every matching row.
 - Reports about the server, metrics, backups and copying tables between
   connections are not available.

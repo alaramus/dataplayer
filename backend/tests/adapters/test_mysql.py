@@ -96,8 +96,7 @@ def test_it_claims_only_what_it_does() -> None:
     assert isinstance(adapter, SupportsUpdate)
     assert isinstance(adapter, SupportsReferences)
     assert isinstance(adapter, SupportsAddColumn)
-    # Not yet: tables are not designed or made from rows here.
-    assert not isinstance(adapter, SupportsTableDesign)
+    assert isinstance(adapter, SupportsTableDesign)
 
 
 def test_a_server_is_read_as_its_flavour_and_number() -> None:

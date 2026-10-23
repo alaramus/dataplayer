@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
+from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -29,9 +30,11 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.mysql.actions import MYSQL_ACTION_TYPES, MysqlActions
 from app.adapters.mysql.catalog import MysqlCatalog
 from app.adapters.mysql.columns import MysqlColumns
 from app.adapters.mysql.content import MysqlContent
+from app.adapters.mysql.design import MysqlTableDesign
 from app.adapters.mysql.explain import MysqlExplain
 from app.adapters.mysql.features import MysqlFeatures
 from app.adapters.mysql.fetch import MysqlFetch
@@ -41,6 +44,7 @@ from app.adapters.mysql.options import MysqlOptions
 from app.adapters.mysql.query import MysqlExecution, MysqlQuery, MysqlTransaction
 from app.adapters.mysql.references import MysqlReferences
 from app.adapters.mysql.relation import MysqlRelation
+from app.adapters.mysql.relation_changes import MysqlRelationChanges
 from app.adapters.mysql.session import (
     MysqlSession,
     compose_url,
@@ -70,8 +74,14 @@ from app.adapters.references import (
 )
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    CreateRelationResult,
+    NewRelationOptions,
+)
 from app.adapters.resources import Pooling
 from app.adapters.summary import NodeSummary
+from app.adapters.table_design import TableDesignOptions, TablePlan, TablePlanRequest
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -121,6 +131,9 @@ class MysqlAdapter:
         self._update = MysqlUpdate(self._session, self._relation)
         self._columns = MysqlColumns(self._session, self._relation)
         self._keys = MysqlKeys(self._session, self._relation)
+        self._design = MysqlTableDesign(self._session, self._catalog, self._relation)
+        self._relations = MysqlRelationChanges(self._session, self._catalog)
+        self._actions = MysqlActions(self._session, self._catalog)
         self._references = MysqlReferences(self._session, self._catalog, self._relation)
         self._explain = MysqlExplain(self._session)
         self._metadata = MysqlMetadata(self._session)
@@ -204,6 +217,32 @@ class MysqlAdapter:
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         return await self._update.delete_rows(request)
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return MYSQL_ACTION_TYPES
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return await self._actions.available(node_id)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.action(name)
+
+    async def all_actions(self) -> list[Action[Any]]:
+        return await self._actions.all_actions()
+
+    async def table_design_options(self, node_id: str) -> TableDesignOptions:
+        """What a database will accept a designed table with (D117)."""
+        return await self._design.table_design_options(node_id)
+
+    async def plan_table(self, request: TablePlanRequest) -> TablePlan:
+        return await self._design.plan_table(request)
+
+    async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
+        return await self._relations.new_relation_options(parent_node_id)
+
+    async def create_relation(self, request: CreateRelationRequest) -> CreateRelationResult:
+        return await self._relations.create_relation(request)
 
     async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
         return await self._columns.add_column(request)

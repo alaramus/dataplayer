@@ -74,7 +74,9 @@ MySQL dialect, where a structure change runs alone and is never rehearsed,
 because MySQL commits it at once (D232, D233). Rows are edited, inserted and
 deleted in the grid against a digest of what was shown, and keys are followed
 both ways (D234). Columns, indexes and constraints are changed in the
-definition the server printed (D235); tables are not designed here yet.
+definition the server printed (D235). A designed table is planned as one
+`CREATE TABLE`, and a table made from rows is dropped if its rows are refused
+(D236).
 
 ## Where the code is
 
@@ -129,7 +131,8 @@ backend/app/adapters/
 │                       QUERY), explain.py, metadata.py, rows.py (handles,
 │                       values written back), update.py, references.py,
 │                       definitions.py + columns.py + keys.py (structure),
-│                       vocabulary.py (types, index kinds),
+│                       vocabulary.py (types, index kinds), design.py
+│                       (the designer), relation_changes.py, actions.py,
 │                       adapter.py
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
